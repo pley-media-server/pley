@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use axum::Json;
+use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
@@ -423,7 +424,40 @@ pub async fn reorder(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Collection artwork; without its own, the first visible item's.
+/// `POST /api/collections/{id}/artwork/poster/upload`: a picture (the raw
+/// body) as the collection's poster, checked and stored as films' are.
+pub async fn upload_poster(
+    State(state): State<AppState>,
+    AdminUser(admin): AdminUser,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    body: Bytes,
+) -> ApiResult<Json<CollectionDetail>> {
+    let library_id = library_of(&state, id).await?;
+    let blob = super::editing::store_picture(&state, body).await?;
+    collections::set_custom_poster(&state.db, id, Some(&blob)).await?;
+    state.events.send(ServerEvent::LibraryChanged { library_id });
+    let language = language(&state, &admin, &headers).await?;
+    Ok(Json(detail(&state, &admin, id, false, language).await?))
+}
+
+/// `DELETE /api/collections/{id}/artwork/poster`: back to the automatic
+/// poster.
+pub async fn reset_poster(
+    State(state): State<AppState>,
+    AdminUser(admin): AdminUser,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> ApiResult<Json<CollectionDetail>> {
+    let library_id = library_of(&state, id).await?;
+    collections::set_custom_poster(&state.db, id, None).await?;
+    state.events.send(ServerEvent::LibraryChanged { library_id });
+    let language = language(&state, &admin, &headers).await?;
+    Ok(Json(detail(&state, &admin, id, false, language).await?))
+}
+
+/// Collection artwork: the uploaded poster, else its own, else the first
+/// visible item's.
 pub async fn image(
     State(state): State<AppState>,
     user: AuthUser,

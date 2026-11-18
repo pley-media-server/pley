@@ -2109,7 +2109,8 @@ interface Collection {
   home_position: number | null;     // a row on Home, in this place; null: not one
   recommended_position: number | null;   // a row on its library's Recommended tab
   item_count: number;               // items this user can see
-  poster_url: string;               // own artwork, else the first item's that has some
+  artwork: "custom" | "automatic";  // its poster: uploaded, or TMDB's or its items'
+  poster_url: string;               // the uploaded poster, else its own, else the first item's that has some
   backdrop_url: string;
   created_at: Timestamp;
   updated_at: Timestamp;
@@ -2127,6 +2128,8 @@ interface Collection {
 | DELETE | `/api/collections/{id}/items/{item_id}` | `admin` | `204` |
 | PUT | `/api/collections/{id}/order` | `admin` | `{ item_ids: Id[] }` → `204`: these first in this order, the rest after; sets `sort` to `custom` |
 | GET | `/api/collections/{id}/images/{poster\|backdrop}` | `library` | image bytes (`w`, `v` as for items), or a `307` to the item artwork it falls back to |
+| POST | `/api/collections/{id}/artwork/poster/upload` | `admin` | raw image bytes (≤ 25 MB) → `Collection & { items }`, `artwork` `custom`; stored as items' uploads are. A poster set through the Plex-compatible API is the uploaded one too |
+| DELETE | `/api/collections/{id}/artwork/poster` | `admin` | → `Collection & { items }`, `artwork` `automatic`: TMDB's poster again, else its first item's |
 | GET | `/api/items/{id}/collections` | `library` | `{ collections: { id, title }[] }` the movie or show is in ("Part of …") |
 | POST | `/api/libraries/{id}/collections/defaults` | `admin` | `{ restored: number }`: makes again those of Pley's four the library no longer has; `400` for music and audiobook libraries |
 

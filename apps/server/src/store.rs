@@ -450,7 +450,8 @@ impl Store {
              UNION SELECT thumb FROM items WHERE thumb LIKE 'blob:%'",
             "SELECT value FROM item_overrides WHERE value LIKE 'blob:%'",
             "SELECT poster FROM collections WHERE poster LIKE 'blob:%'
-             UNION SELECT backdrop FROM collections WHERE backdrop LIKE 'blob:%'",
+             UNION SELECT backdrop FROM collections WHERE backdrop LIKE 'blob:%'
+             UNION SELECT custom_poster FROM collections WHERE custom_poster LIKE 'blob:%'",
             // People's photos are only known by URL.
             "SELECT r.blob FROM remote_images r JOIN people p ON r.url = p.photo_url",
         ];

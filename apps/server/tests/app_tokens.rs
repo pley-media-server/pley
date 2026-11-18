@@ -83,6 +83,8 @@ const ADMIN: &[(&str, &str)] = &[
     ("POST", "/api/collections/{id}/items"),
     ("DELETE", "/api/collections/{id}/items/{item_id}"),
     ("PUT", "/api/collections/{id}/order"),
+    ("POST", "/api/collections/{id}/artwork/poster/upload"),
+    ("DELETE", "/api/collections/{id}/artwork/poster"),
     ("POST", "/api/libraries/{id}/collections/defaults"),
     ("PUT", "/api/libraries/{id}/rows/order"),
     ("POST", "/api/collection-categories"),

@@ -103,6 +103,11 @@ pub fn router(state: AppState) -> Router {
         .route("/collections/{id}/items/{item_id}", delete(collections::remove_item))
         .route("/collections/{id}/order", put(collections::reorder))
         .route("/collections/{id}/images/{kind}", get(collections::image))
+        .route("/collections/{id}/artwork/poster", delete(collections::reset_poster))
+        .route(
+            "/collections/{id}/artwork/poster/upload",
+            post(collections::upload_poster).layer(DefaultBodyLimit::max(25 * 1024 * 1024)),
+        )
         .route("/collections/merged", get(collections::merged))
         .route("/libraries/{id}/collections/defaults", post(collections::restore_defaults))
         .route("/libraries/{id}/rows/order", put(collections::order_recommended))

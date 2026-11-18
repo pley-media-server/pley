@@ -191,6 +191,8 @@ pub(crate) struct CollectionRow {
     tmdb_id: Option<i64>,
     poster: Option<String>,
     backdrop: Option<String>,
+    /// A poster an administrator uploaded: it wins over `poster`.
+    custom_poster: Option<String>,
     pub(crate) sort: String,
     pub(crate) smart_filter: Option<String>,
     category_id: Option<i64>,
@@ -201,7 +203,8 @@ pub(crate) struct CollectionRow {
     updated_at: i64,
 }
 
-const COLUMNS: &str = "id, library_id, title, sort_title, summary, tmdb_id, poster, backdrop, sort, smart_filter,
+const COLUMNS: &str =
+    "id, library_id, title, sort_title, summary, tmdb_id, poster, backdrop, custom_poster, sort, smart_filter,
     category_id, home_position, recommended_position, builtin, created_at, updated_at";
 
 #[derive(Debug, Clone, Serialize)]
@@ -232,6 +235,9 @@ pub struct CollectionDto {
     pub builtin: Option<String>,
     /// Items this user can see.
     pub item_count: i64,
+    /// Where its poster comes from: `custom`, a picture an administrator
+    /// uploaded, or `automatic`, TMDB's or its first visible item's.
+    pub artwork: &'static str,
     /// The collection's own artwork, else its first visible item's.
     pub poster_url: String,
     pub backdrop_url: String,
@@ -240,8 +246,19 @@ pub struct CollectionDto {
 }
 
 impl CollectionRow {
+    /// The poster URL's version: it changes with what the poster is drawn
+    /// from, even within the second `updated_at` counts in.
+    fn poster_version(&self) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hash = Sha256::new();
+        hash.update(self.updated_at.to_le_bytes());
+        hash.update(self.custom_poster.as_deref().unwrap_or_default());
+        hash.finalize().iter().take(6).map(|b| format!("{b:02x}")).collect()
+    }
+
     fn into_dto(self, item_count: i64, names: &Names) -> CollectionDto {
         let untouched = names.untouched(&self).is_some();
+        let poster_version = self.poster_version();
         let title = names.title(&self);
         CollectionDto {
             // Pley's own, named in the user's language, sort by that name.
@@ -251,7 +268,8 @@ impl CollectionRow {
             home_position: self.home_position,
             recommended_position: self.recommended_position,
             builtin: self.builtin,
-            poster_url: format!("/api/collections/{}/images/poster?v={}", self.id, self.updated_at),
+            artwork: if self.custom_poster.is_some() { "custom" } else { "automatic" },
+            poster_url: format!("/api/collections/{}/images/poster?v={}", self.id, poster_version),
             backdrop_url: format!("/api/collections/{}/images/backdrop?v={}", self.id, self.updated_at),
             id: self.id,
             library_id: self.library_id,
@@ -694,12 +712,24 @@ pub async fn artwork(
     let Some(row) = row(db, id).await? else { return Ok(None) };
     let Some(items) = visible_items(db, user, &row, None).await? else { return Ok(None) };
     let poster = kind == "poster";
-    let own = if poster { row.poster } else { row.backdrop };
+    let own = if poster { row.custom_poster.or(row.poster) } else { row.backdrop };
     if let Some(path) = own.and_then(|r| store.path(&r)).filter(|p| p.is_file()) {
         return Ok(Some(Ok(path)));
     }
     let with_art = items.iter().find(|i| if poster { i.has_poster } else { i.has_backdrop });
     Ok(with_art.or(items.first()).map(|i| Err(i.id)))
+}
+
+/// Sets or clears (`None`) the poster an administrator uploaded for
+/// collection `id`.
+pub async fn set_custom_poster(db: &Db, id: i64, blob: Option<&str>) -> sqlx::Result<()> {
+    sqlx::query("UPDATE collections SET custom_poster = ?, updated_at = ? WHERE id = ?")
+        .bind(blob)
+        .bind(now())
+        .bind(id)
+        .execute(&db.write)
+        .await?;
+    Ok(())
 }
 
 /// Makes the collections Pley makes in a movie or TV library ([`Builtin`])

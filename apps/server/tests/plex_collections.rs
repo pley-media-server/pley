@@ -150,7 +150,7 @@ async fn collections_and_playlists_have_keys_of_their_own() {
     let uploaded =
         w.app.plex_upload(Method::POST, &format!("/library/metadata/{collection}/posters"), &w.admin, png()).await;
     assert_eq!(uploaded.status, StatusCode::OK, "{}", uploaded.text());
-    let own: Option<String> = sqlx::query_scalar("SELECT poster FROM collections WHERE builtin IS NULL")
+    let own: Option<String> = sqlx::query_scalar("SELECT custom_poster FROM collections WHERE builtin IS NULL")
         .fetch_one(&w.app.state.db.read)
         .await
         .unwrap();

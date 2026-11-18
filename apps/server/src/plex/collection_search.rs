@@ -262,6 +262,7 @@ mod tests {
             recommended_position: None,
             builtin: None,
             item_count: 1,
+            artwork: "automatic",
             poster_url: String::new(),
             backdrop_url: String::new(),
             created_at: id,
