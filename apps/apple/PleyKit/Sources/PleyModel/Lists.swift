@@ -65,11 +65,11 @@ public struct CollectionSummary: Codable, Hashable, Sendable, Identifiable {
 }
 
 /// A category collections are grouped under (docs/API.md, `Category`):
-/// Pley's own (Highlights, Franchises) or an administrator's. Categories
+/// Pley's own (Highlights, Box sets) or an administrator's. Categories
 /// are made and ordered on the web.
 public struct CollectionCategory: Codable, Hashable, Sendable, Identifiable {
     public var id: Int
-    /// Pley's own (`highlights`, `other`, `franchises`); `nil` for an administrator's.
+    /// Pley's own (`highlights`, `other`, `box_sets`); `nil` for an administrator's.
     public var key: String?
     /// In the profile's language for Pley's own.
     public var title: String

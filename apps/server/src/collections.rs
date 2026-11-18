@@ -856,7 +856,7 @@ pub async fn link_tmdb(db: &Db, store: &Store, item_id: i64, found: Option<&Tmdb
         let (id, poster, backdrop): (i64, Option<String>, Option<String>) = sqlx::query_as(
             "INSERT INTO collections (library_id, title, sort_title, tmdb_id, category_id, category_from,
                 created_at, updated_at)
-             VALUES (?, ?, ?, ?, (SELECT id FROM collection_categories WHERE key = 'franchises'), 'pley', ?, ?)
+             VALUES (?, ?, ?, ?, (SELECT id FROM collection_categories WHERE key = 'box_sets'), 'pley', ?, ?)
              ON CONFLICT(library_id, tmdb_id) WHERE tmdb_id IS NOT NULL DO UPDATE SET
                 title = CASE WHEN collections.edited THEN collections.title ELSE excluded.title END,
                 sort_title = CASE WHEN collections.edited THEN collections.sort_title ELSE excluded.sort_title END

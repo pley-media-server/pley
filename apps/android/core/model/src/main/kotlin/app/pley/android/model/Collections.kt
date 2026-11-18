@@ -100,7 +100,7 @@ data class ItemCollections(
 @Serializable
 data class CategoryRef(
     val id: Long,
-    /** Pley's own ("highlights", "franchises"); `null`: an administrator's. */
+    /** Pley's own ("highlights", "box_sets"); `null`: an administrator's. */
     val key: String? = null,
     val title: String,
 )

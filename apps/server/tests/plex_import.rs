@@ -299,7 +299,7 @@ async fn fake_plex() -> String {
                     "210" => json!({"ratingKey": "210", "type": "season", "title": "The First", "summary": "",
                                     "Field": [{"name": "title", "locked": true}, {"name": "summary", "locked": true}]}),
                     "5000" => json!({"ratingKey": "5000", "type": "collection", "title": "Space",
-                                     "Label": [{"tag": "Kometa"}, {"tag": "Franchises"}]}),
+                                     "Label": [{"tag": "Kometa"}, {"tag": "Box Sets"}]}),
                     "5002" => json!({"ratingKey": "5002", "type": "collection", "title": "Scary Movies",
                                      "Label": [{"tag": "Kometa"}, {"tag": "Seasonal"}]}),
                     _ => return container(json!({ "Metadata": [] })),
@@ -903,7 +903,7 @@ async fn brings_libraries_people_and_what_they_watched() {
             .await
             .unwrap();
     assert_eq!(filter, "type=1&sort=titleSort&push=1&label=Scary&pop=1", "labels by name");
-    // Group labels place them: under Franchises, and a category of their own.
+    // Group labels place them: under Box sets, and a category of their own.
     let category = |id: i64| {
         let db = app.state.db.read.clone();
         async move {
@@ -917,7 +917,7 @@ async fn brings_libraries_people_and_what_they_watched() {
             .unwrap()
         }
     };
-    assert_eq!(category(space).await, "franchises");
+    assert_eq!(category(space).await, "box_sets");
     assert_eq!(category(scary).await, "Seasonal");
     // Plex's arrangement: Recommended in its order, the rows Plex hid taken
     // off; Home in its order before Pley's others.

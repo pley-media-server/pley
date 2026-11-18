@@ -2135,10 +2135,10 @@ removed or reordered (`400`); change the filter instead.
 
 A library's collections are grouped by category: Pley's own, Highlights
 (`key` `highlights`, the collections Pley makes), Other (`other`, for
-collections without one) and Franchises (`franchises`, TMDB's), named in
+collections without one) and Box sets (`box_sets`, TMDB's), named in
 each user's language, and administrators' own. They are shared by every
 library, in the order administrators choose; a new server puts Other just
-before Franchises. A collection without a category is sent with Other as
+before Box sets. A collection without a category is sent with Other as
 its `category`, so an app groups collections by `category` in the order
 of this list, Other included; put in Other, it has none.
 Group labels set through the compatibility APIs, such as Kometa's
@@ -2149,7 +2149,7 @@ administrator chose for a collection stays.
 ```ts
 interface Category {
   id: Id;
-  key: "highlights" | "other" | "franchises" | null;   // null: an administrator's
+  key: "highlights" | "other" | "box_sets" | null;     // null: an administrator's
   title: string;
   from_label: string | null;        // the group label it was made from
   position: number;

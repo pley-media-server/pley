@@ -67,10 +67,10 @@ public class ApiTests
         var categories = (await api.CollectionCategories()).Categories;
         Assert.Equal(new[] { (1L, (string?)"highlights", "Highlights", (string?)null, 0), (3L, "other", "Other", null, 1), (5L, null, "Seasonal", "Seasonal", 2) },
             categories.Select(c => (c.Id, c.Key, c.Title, c.FromLabel, c.Position)));
-        server.On("GET", Home + "/api/libraries/1/collections", 200, @"{""collections"":[{""id"":9,""library_id"":1,""title"":""Alien"",""category"":{""id"":2,""key"":""franchises"",""title"":""Franchises""}},
+        server.On("GET", Home + "/api/libraries/1/collections", 200, @"{""collections"":[{""id"":9,""library_id"":1,""title"":""Alien"",""category"":{""id"":2,""key"":""box_sets"",""title"":""Box sets""}},
             {""id"":10,""library_id"":1,""title"":""Loose"",""category"":{""id"":3,""key"":""other"",""title"":""Other""}}]}");
         var collections = (await api.Collections(1)).Collections;
-        Assert.Equal(new CategoryRef(2, "franchises", "Franchises"), collections[0].Category);
+        Assert.Equal(new CategoryRef(2, "box_sets", "Box sets"), collections[0].Category);
         // One without a category comes with the server's Other.
         Assert.Equal(new CategoryRef(3, "other", "Other"), collections[1].Category);
         // A server from before categories names none.

@@ -6,7 +6,7 @@
   "automatic": true,
   "sort": "release",
   "smart_filter": null,
-  "category": { "id": 2, "key": "franchises", "title": "Franchises" },
+  "category": { "id": 2, "key": "box_sets", "title": "Box sets" },
   "item_count": 2,
   "poster_url": "/api/collections/801/images/poster?v=1761300600",
   "backdrop_url": "/api/collections/801/images/backdrop?v=1761300600",

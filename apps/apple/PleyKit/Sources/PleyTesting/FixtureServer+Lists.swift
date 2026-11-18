@@ -3,7 +3,7 @@ import Network
 import PleyModel
 
 /// Collections and playlists: the fixtures' collections (Dune, a smart one,
-/// Villeneuve Picks), under the categories Highlights, Other, Franchises
+/// Villeneuve Picks), under the categories Highlights, Other, Box sets
 /// and Holidays (Villeneuve Picks under none, which the server sends as
 /// Other), and playlists (Weekend, a smart one, a music one),
 /// kept as the server keeps them, so a test can make, rename, fill, reorder,
@@ -23,7 +23,7 @@ extension FixtureServer {
 
     /// The categories, in their order.
     static let categories: [(id: Int, key: String?, title: String)] = [
-        (1, "highlights", "Highlights"), (4, "other", "Other"), (2, "franchises", "Franchises"), (3, nil, "Holidays"),
+        (1, "highlights", "Highlights"), (4, "other", "Other"), (2, "box_sets", "Box sets"), (3, nil, "Holidays"),
     ]
 
     struct FixturePlaylist: Sendable {

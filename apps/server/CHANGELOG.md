@@ -24,6 +24,11 @@ describes how they are made.
   ([docs/CONFIGURATION.md](../../docs/CONFIGURATION.md#strm-files)).
   Administrators turn them off in Settings → Server.
 
+### Changed
+
+- The Franchises category of collections is Box sets, and its key in the
+  API is `box_sets`.
+
 ### Fixed
 
 - In the web app, search lists the audiobooks whose title matches. A

@@ -438,7 +438,7 @@ mod tests {
 
     /// Home's and Recommended's built-in rows become collections Pley makes
     /// in each movie and TV library, in the order Home showed the libraries;
-    /// TMDB's collections are Franchises.
+    /// TMDB's collections are Box sets.
     #[tokio::test]
     async fn the_built_in_rows_become_collections() {
         let dir = crate::testing::tempdir();
@@ -480,7 +480,7 @@ mod tests {
                 row(5, "Recently Added", "recently_added", Some(1), 0),
                 row(5, "Recently Released", "recently_released", None, 1),
                 row(5, "Top Rated", "top_rated", None, 2),
-                (5, "Alien Collection".into(), None, Some("franchises".into()), None, None),
+                (5, "Alien Collection".into(), None, Some("box_sets".into()), None, None),
                 (5, "Mine".into(), None, None, None, None),
                 unwatched(5),
                 row(6, "Recently Added Shows", "recently_added", Some(2), 0),

@@ -27,7 +27,7 @@ function categoryError(err: unknown, t: TFunction<["item", "common"]>): string {
 
 /**
  * Administrators: the categories collections are grouped in, shared by every
- * library. Pley's own (Highlights, Franchises) can be moved, not renamed or
+ * library. Pley's own (Highlights, Box sets) can be moved, not renamed or
  * deleted; a deleted one's collections go to Other.
  */
 export function CategoriesModal({ open, onClose }: { open: boolean; onClose: () => void }) {

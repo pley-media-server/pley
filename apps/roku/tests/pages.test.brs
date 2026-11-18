@@ -109,7 +109,7 @@ sub test_pages_collections_by_category()
     server = "http://nas:7539"
     collections = [
         { id: 1, title: "Recently Added", item_count: 30, smart_filter: "sort=addedAt:desc", automatic: false, category: { id: 1, key: "highlights", title: "Highlights" } },
-        { id: 2, title: "Dune Collection", item_count: 2, smart_filter: invalid, automatic: true, category: { id: 2, key: "franchises", title: "Franchises" } },
+        { id: 2, title: "Dune Collection", item_count: 2, smart_filter: invalid, automatic: true, category: { id: 2, key: "box_sets", title: "Box sets" } },
         { id: 3, title: "Favourites", item_count: 5, smart_filter: invalid, automatic: false, category: { id: 3, key: "other", title: "Other" } },
         { id: 6, title: "Kids", item_count: 4, smart_filter: invalid, automatic: false, category: { id: 3, key: "other", title: "Other" } },
         { id: 4, title: "Christmas", item_count: 9, smart_filter: invalid, automatic: false, category: { id: 5, key: invalid, title: "Seasonal" } },
@@ -119,15 +119,15 @@ sub test_pages_collections_by_category()
     tkEqual(tiles[2].categoryId, 3, "Other, as the server sends it")
     tkEqual(pageCollectionTile({ id: 7, title: "Old", category: invalid }, server).categoryId, 0, "none, from a server from before categories")
     tkEqual(tiles[4].categoryTitle, "Seasonal")
-    categories = pageCategories({ categories: [{ id: 5, key: invalid, title: "Seasonal", position: 0 }, { id: 1, key: "highlights", title: "Highlights" }, { id: 3, key: "other", title: "Other" }, { id: 2, key: "franchises", title: "Franchises" }, { id: 6, title: "Unused" }, { id: 0, title: "Odd" }] })
-    tkEqual(categories, [{ id: 5, title: "Seasonal" }, { id: 1, title: "Highlights" }, { id: 3, title: "Other" }, { id: 2, title: "Franchises" }, { id: 6, title: "Unused" }])
+    categories = pageCategories({ categories: [{ id: 5, key: invalid, title: "Seasonal", position: 0 }, { id: 1, key: "highlights", title: "Highlights" }, { id: 3, key: "other", title: "Other" }, { id: 2, key: "box_sets", title: "Box sets" }, { id: 6, title: "Unused" }, { id: 0, title: "Odd" }] })
+    tkEqual(categories, [{ id: 5, title: "Seasonal" }, { id: 1, title: "Highlights" }, { id: 3, title: "Other" }, { id: 2, title: "Box sets" }, { id: 6, title: "Unused" }])
     tkEqual(pageCategories(invalid), [])
     groups = pageCollectionGroups(tiles, categories, "")
     keys = []
     for each group in groups
         keys.Push(group.key + ":" + group.title + ":" + group.tiles.Count().ToStr())
     end for
-    tkEqual(keys, ["5:Seasonal:1", "1:Highlights:1", "3:Other:2", "2:Franchises:1", "9:Made since:1"], "in the categories' order, Other where the list puts it, empty ones left out, one not listed after the rest")
+    tkEqual(keys, ["5:Seasonal:1", "1:Highlights:1", "3:Other:2", "2:Box sets:1", "9:Made since:1"], "in the categories' order, Other where the list puts it, empty ones left out, one not listed after the rest")
     tkEqual(pageCollectionGroups(tiles, categories, "3")[0].tiles.Count(), 2, "Other alone")
     tkEqual(pageCollectionGroups(tiles, categories, "1")[0].title, "Highlights")
     tkEqual(pageCollectionGroups(tiles, categories, "6"), [], "an empty category")
@@ -144,7 +144,7 @@ sub test_pages_collections_by_category()
     groups = pageCollectionGroups(older, [], "")
     tkEqual(groups.Count(), 1, "one group: the grid, no Category chip")
     tkEqual(groups[0].tiles.Count(), 2, "every collection in it")
-    tkEqual(pageCollection({ id: 2, title: "Dune", category: { id: 2, key: "franchises", title: "Franchises" }, items: [] }, server).category, "Franchises")
+    tkEqual(pageCollection({ id: 2, title: "Dune", category: { id: 2, key: "box_sets", title: "Box sets" }, items: [] }, server).category, "Box sets")
     tkEqual(pageCollection({ id: 3, title: "Mine", category: { id: 3, key: "other", title: "Other" }, items: [] }, server).category, "", "Other only says it has none: no badge")
     tkEqual(pageCollection({ id: 4, title: "Christmas", category: { id: 5, key: invalid, title: "Seasonal" }, items: [] }, server).category, "Seasonal", "an administrator's category")
     tkEqual(pageCollection({ id: 3, title: "Old", category: invalid, items: [] }, server).category, "", "none from a server from before categories")

@@ -847,7 +847,7 @@
       }
     },
     "Category: %@" : {
-      "comment" : "What VoiceOver says of a collection's category, or the Category filter's button: \"Category: Franchises\".",
+      "comment" : "What VoiceOver says of a collection's category, or the Category filter's button: \"Category: Box sets\".",
       "localizations" : {
         "es" : {
           "stringUnit" : {

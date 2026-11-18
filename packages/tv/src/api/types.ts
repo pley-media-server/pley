@@ -219,7 +219,7 @@ export interface Hub {
   collection_ids?: Id[];
 }
 
-/** A collection's category as the collection names it; `key` is Pley's own ("highlights", "other", "franchises"), `null` an administrator's. */
+/** A collection's category as the collection names it; `key` is Pley's own ("highlights", "other", "box_sets"), `null` an administrator's. */
 export interface CategoryRef {
   id: Id;
   key: string | null;

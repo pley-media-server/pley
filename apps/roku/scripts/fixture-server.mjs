@@ -196,15 +196,15 @@ const trailer = {
 // shows, over six buttons: the page near its fullest.
 movies[11].summary = "A linguist is called in when twelve ships come to rest above the earth, and she must find a way to speak with those inside before the nations watching them lose patience. As she learns their language, her memories start to come loose from time, and what she remembers of her daughter changes what she will choose to do.";
 const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, newerAlbum, ...tracks, trailer].map((item) => [item.id, item]));
-// Collections: TMDB's of five movies, under Franchises; a smart one a
+// Collections: TMDB's of five movies, under Box sets; a smart one a
 // filter fills with the show, under Highlights; and one of each library
 // called Fixture Favourites, under Other (the category the server gives
-// one without), one row on Home. Other comes before Franchises, as on a
+// one without), one row on Home. Other comes before Box sets, as on a
 // new server.
 const categories = [
   { id: 1, key: "highlights", title: "Highlights", from_label: null, position: 0 },
   { id: 3, key: "other", title: "Other", from_label: null, position: 1 },
-  { id: 2, key: "franchises", title: "Franchises", from_label: null, position: 2 },
+  { id: 2, key: "box_sets", title: "Box sets", from_label: null, position: 2 },
 ];
 const collections = [
   { id: 1, library_id: 1, title: "Fixture Collection", summary: "Five films of the fake server, in the order they came out.", automatic: true, sort: "release", smart_filter: null, category: categories[2], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(0, 5) },

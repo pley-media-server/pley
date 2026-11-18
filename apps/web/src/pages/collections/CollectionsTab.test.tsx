@@ -7,7 +7,7 @@ import { LocationDisplay, mockApi, renderWithProviders, testUser } from "@/test/
 import { CollectionsTab, groupByCategory, isOfType } from "./CollectionsTab";
 
 const highlights: Category = { id: 1, key: "highlights", title: "Highlights", from_label: null, position: 0 };
-const franchises: Category = { id: 2, key: "franchises", title: "Franchises", from_label: null, position: 1 };
+const boxSets: Category = { id: 2, key: "box_sets", title: "Box sets", from_label: null, position: 1 };
 const seasonal: Category = { id: 3, key: null, title: "Seasonal", from_label: "Seasonal", position: 2 };
 const other: Category = { id: 4, key: "other", title: "Other", from_label: null, position: 3 };
 const ref = ({ id, key, title }: Category) => ({ id, key, title });
@@ -34,7 +34,7 @@ function collection(id: number, title: string): Collection {
 }
 
 const collections: Collection[] = [
-  { ...collection(1, "Alien Collection"), automatic: true, category: ref(franchises) },
+  { ...collection(1, "Alien Collection"), automatic: true, category: ref(boxSets) },
   { ...collection(2, "Recently Added"), smart_filter: "sort=addedAt:desc", builtin: "recently_added", category: ref(highlights) },
   { ...collection(3, "Christmas"), smart_filter: "label=Christmas", category: ref(seasonal) },
   collection(4, "Favourites"),
@@ -42,11 +42,11 @@ const collections: Collection[] = [
 
 describe("groupByCategory", () => {
   it("groups in the categories' order, Other where it is, empty ones left out", () => {
-    const groups = groupByCategory(collections, [highlights, other, franchises, seasonal, { ...seasonal, id: 9, title: "Empty" }]);
+    const groups = groupByCategory(collections, [highlights, other, boxSets, seasonal, { ...seasonal, id: 9, title: "Empty" }]);
     expect(groups.map((g) => [g.category.title, g.collections.map((c) => c.id)])).toEqual([
       ["Highlights", [2]],
       ["Other", [4]],
-      ["Franchises", [1]],
+      ["Box sets", [1]],
       ["Seasonal", [3]],
     ]);
   });
@@ -55,7 +55,7 @@ describe("groupByCategory", () => {
     expect(groupByCategory(collections, [other, highlights]).map((g) => g.category.title)).toEqual([
       "Other",
       "Highlights",
-      "Franchises",
+      "Box sets",
       "Seasonal",
     ]);
   });
@@ -82,7 +82,7 @@ describe("CollectionsTab", () => {
   function renderTab(isAdmin = false) {
     mockApi({
       "GET /api/libraries/1/collections": () => ({ collections }),
-      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal, other] }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, boxSets, seasonal, other] }),
     });
     renderWithProviders(<CollectionsTab libraryId={1} kind="movies" />, { user: { ...testUser, is_admin: isAdmin } });
   }
@@ -91,7 +91,7 @@ describe("CollectionsTab", () => {
     const user = userEvent.setup();
     renderTab(true);
     const sections = await screen.findAllByRole("region");
-    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual(["Highlights", "Franchises", "Seasonal", "Other"]);
+    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual(["Highlights", "Box sets", "Seasonal", "Other"]);
     expect(within(sections[2]!).getAllByText("Christmas").length).toBeGreaterThan(0);
 
     await user.selectOptions(screen.getByLabelText("Type"), "smart");
@@ -114,7 +114,7 @@ describe("CollectionsTab", () => {
     const user = userEvent.setup();
     mockApi({
       "GET /api/libraries/1/collections": () => ({ collections }),
-      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal] }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, boxSets, seasonal] }),
     });
     renderWithProviders(
       <>
@@ -135,7 +135,7 @@ describe("CollectionsTab", () => {
   it("lets a chosen category go once it's gone, showing them all", async () => {
     mockApi({
       "GET /api/libraries/1/collections": () => ({ collections }),
-      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal] }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, boxSets, seasonal] }),
     });
     renderWithProviders(
       <>
@@ -153,7 +153,7 @@ describe("CollectionsTab", () => {
   it("heads no group when there is only one", async () => {
     mockApi({
       "GET /api/libraries/1/collections": () => ({ collections: [collection(4, "Favourites"), collection(5, "Westerns")] }),
-      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal] }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, boxSets, seasonal] }),
     });
     renderWithProviders(<CollectionsTab libraryId={1} kind="movies" />);
     expect(await screen.findAllByText("Westerns")).not.toHaveLength(0);
@@ -176,9 +176,9 @@ describe("CollectionsTab", () => {
     // Not everything under Other while they're on their way.
     expect(screen.queryByText("Favourites")).not.toBeInTheDocument();
 
-    answer({ categories: [highlights, franchises, seasonal] });
+    answer({ categories: [highlights, boxSets, seasonal] });
     const sections = await screen.findAllByRole("region");
-    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual(["Highlights", "Franchises", "Seasonal", "Other"]);
+    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual(["Highlights", "Box sets", "Seasonal", "Other"]);
   });
 
   it("offers administrators the categories", async () => {

@@ -44,7 +44,7 @@ export function namedCategory(c: Pick<Collection, "category">): CategoryRef | nu
 
 export interface CategoryRef {
   id: Id;
-  /** Pley's own (`highlights`, `franchises`); `null`: an administrator's. */
+  /** Pley's own (`highlights`, `box_sets`); `null`: an administrator's. */
   key: string | null;
   /** In the user's language for Pley's own. */
   title: string;
