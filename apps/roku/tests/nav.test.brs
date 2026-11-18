@@ -52,6 +52,8 @@ sub test_nav_tmdb_tiles_open_their_page_or_list()
     tkEqual(navForTile(reqMoreTile("See all", "", "dune")), { to: "discoverList", params: { query: "dune" } }, "Search's: TMDB's results for its words")
     tkEqual(navForTile(reqMoreTile("See all", "requests", "")), { to: "requests", params: { view: "mine" } }, "Discover's Your requests")
     tkInvalid(navForTile(contentSeeAllTile(1, "added", false, false)), "a library row's See all: its screen opens the library")
+    tkEqual(navForTile(contentSeeCollectionsTile([7], "Recently Added", false, false)), { to: "collection", params: { id: 7, title: "Recently Added" } }, "a row of a collection: its page")
+    tkEqual(navForTile(contentSeeCollectionsTile([7, 9], "Christmas", false, false)), { to: "collection", params: { ids: [7, 9], title: "Christmas" } }, "of several: the merged page")
     tkInvalid(navForTile({ kind: "discoverSeason", number: 2 }), "a season picks itself on its page")
     tkInvalid(navForTile({ kind: "cast", title: "Ada Lovelace" }))
 end sub

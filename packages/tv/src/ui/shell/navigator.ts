@@ -19,6 +19,8 @@ export type PageKey =
   | { name: "person"; id: number }
   | { name: "collections"; libraryId?: number }
   | { name: "collection"; id: number }
+  /** A Home row of several libraries' collections of one title. */
+  | { name: "mergedCollection"; ids: number[] }
   | { name: "artist"; id: number }
   | { name: "album"; id: number; trackId?: number }
   | { name: "playlists" }

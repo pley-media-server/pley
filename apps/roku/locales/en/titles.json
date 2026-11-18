@@ -95,7 +95,8 @@
       "release": "By release date",
       "title": "By title",
       "custom": "Custom order"
-    }
+    },
+    "onlyLibrary": "{{library}} only"
   },
   "smartFilter": {
     "genre": "Genre: {{value}}",

@@ -1,7 +1,7 @@
 import Foundation
 
-/// `{ hubs }`: `GET /api/hubs/home` (Continue Watching, My List, then
-/// Recently Added of each library in the libraries' order).
+/// `{ hubs }`: `GET /api/hubs/home` (Continue Watching, My List, then the
+/// collections administrators put on Home, same-titled ones as one row).
 public struct HomeHubs: Codable, Hashable, Sendable {
     public var hubs: [Hub]
 
@@ -22,14 +22,20 @@ public struct Hub: Codable, Hashable, Sendable, Identifiable {
     /// `nil` for the home page's Continue Watching and My List.
     public var libraryId: Int?
     public var items: [ItemSummary]
+    /// The collections the row shows: one opens its page, several (a Home
+    /// row of same-titled collections) the merged page; empty for rows
+    /// that aren't collections (Continue Watching, My List).
+    public var collectionIds: [Int]
 
     public var id: String { key }
 
-    public init(key: String, title: String, libraryId: Int? = nil, items: [ItemSummary] = []) {
+    public init(key: String, title: String, libraryId: Int? = nil, items: [ItemSummary] = [],
+                collectionIds: [Int] = []) {
         self.key = key
         self.title = title
         self.libraryId = libraryId
         self.items = items
+        self.collectionIds = collectionIds
     }
 
     public init(from decoder: any Decoder) throws {
@@ -38,6 +44,7 @@ public struct Hub: Codable, Hashable, Sendable, Identifiable {
         title = try c.decode(String.self, forKey: .title)
         libraryId = try c.decodeIfPresent(Int.self, forKey: .libraryId)
         items = try c.value(.items, or: [])
+        collectionIds = try c.value(.collectionIds, or: [])
     }
 }
 

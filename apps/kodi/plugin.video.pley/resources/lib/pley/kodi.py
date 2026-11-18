@@ -129,6 +129,9 @@ TEXT = {
     "no_playlists": 30158,
     "no_collections": 30159,
     "no_matches": 30160,
+    "category": 30577,
+    "all_categories": 30582,
+    "collection_in_library": 30584,
     "look": 30161,
     "look_pley": 30162,
     "look_kodi": 30163,
@@ -463,6 +466,7 @@ COUNTS = {
     "news": 30776,
     "stars": 30779,
     "episodes_in_library": 30782,
+    "collections": 30785,
 }
 
 # The months' and the days' short names, January and Monday first.

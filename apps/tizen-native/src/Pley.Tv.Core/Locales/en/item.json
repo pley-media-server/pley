@@ -200,6 +200,7 @@
     "nothingToPlay": "Nothing to play: this show has no episodes yet",
     "byRelease": "By release date",
     "byTitle": "By title",
-    "customOrder": "Custom order"
+    "customOrder": "Custom order",
+    "from": "From"
   }
 }

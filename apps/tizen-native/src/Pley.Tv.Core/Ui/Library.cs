@@ -388,18 +388,18 @@ public sealed record LibraryGrid(Loadable<GridCells> Cells, TileLook Look, Alpha
 }
 
 /// <summary>
-/// A row of the Recommended tab: one of the library's hubs, or its collections
-/// (<see cref="CollectionsKey"/>). <see cref="Opens"/> says where each tile goes, by position.
+/// A row of the Recommended tab: one of the library's hubs. <see cref="Opens"/> says where each
+/// tile goes, by position.
 /// </summary>
-/// <param name="Title">The server's title; "Collections" for the collections.</param>
-/// <param name="SeeAll">The Library tab's view its "See all" shows (<see cref="LibraryModel.SeeAll"/>); null without one. The collections' See all opens the Collections tab.</param>
-public sealed record LibraryRow(string Key, string Title, TileLook Look, IReadOnlyList<TileModel> Tiles, IReadOnlyList<PageKey> Opens, string? SeeAll = null)
+/// <param name="Title">The server's title.</param>
+/// <param name="SeeAll">
+/// The Library tab's view its "See all" shows (<see cref="LibraryModel.SeeAll"/>) when the server
+/// names no <paramref name="Collection"/> (one older than collections' rows); null without one.
+/// </param>
+/// <param name="Collection">The collection the row shows, or the several it merges, which its See all opens; null for other rows.</param>
+public sealed record LibraryRow(string Key, string Title, TileLook Look, IReadOnlyList<TileModel> Tiles, IReadOnlyList<PageKey> Opens, string? SeeAll = null,
+    PageKey? Collection = null)
 {
-    /// <summary>The key of the library's collections row.</summary>
-    public const string CollectionsKey = "collections";
-
-    public bool IsCollections => Key == CollectionsKey;
-
     /// <summary>The library's Continue Watching: a tile's actions offer to take it out.</summary>
     public bool ContinueWatching => Key == "continue_watching" || Key.StartsWith("continue_watching:", StringComparison.Ordinal);
 
@@ -412,8 +412,8 @@ public sealed record LibraryRow(string Key, string Title, TileLook Look, IReadOn
     };
 }
 
-/// <summary>A collection's tile, with its count for the badge on its poster.</summary>
-public sealed record CollectionTile(long Id, long Count, TileModel Tile);
+/// <summary>A collection's tile, with its count for the badge on its poster, and the category the Collections tab groups it by (the server's Other when it has none; null from a server older than categories).</summary>
+public sealed record CollectionTile(long Id, long Count, TileModel Tile, CategoryRef? Category = null);
 
 /// <summary>
 /// A library page (design spec §4.2; the Android app's LibraryUiState): its name, the tabs, and
@@ -440,9 +440,10 @@ public sealed record LibraryState
     public FiltersAnswer Filters { get; init; } = NoFilters;
     public LibraryGrid Grid { get; init; } = new LibraryGrid(new Loadable<GridCells>.Loading(), TileLook.Poster, null);
     public GridDensity Density { get; init; } = GridDensity.Medium;
-    /// <summary>The Recommended tab's rows: the library's hubs, then the collections.</summary>
+    /// <summary>The Recommended tab's rows: the library's hubs, the rows administrators chose.</summary>
     public Loadable<IReadOnlyList<LibraryRow>> Recommended { get; init; } = new Loadable<IReadOnlyList<LibraryRow>>.Loading();
-    public Loadable<IReadOnlyList<CollectionTile>> Collections { get; init; } = new Loadable<IReadOnlyList<CollectionTile>>.Loading();
+    /// <summary>The Collections tab: the collections by category, as filtered.</summary>
+    public Loadable<CollectionsView> Collections { get; init; } = new Loadable<CollectionsView>.Loading();
 
     /// <summary>"movies", "shows" or "music", once known.</summary>
     public string? Kind => Library?.Kind;
@@ -543,7 +544,8 @@ public static class LibraryRules
             look,
             hub.Items.Select(i => Tile(i, look, origin)).ToList(),
             hub.Items.Select(Opens).ToList(),
-            SeeAllView(hub.Key));
+            SeeAllView(hub.Key),
+            HomeRules.CollectionOf(hub));
     }
 
     /// <summary>The Library tab's view a row of <paramref name="hubKey"/> lists its items in, for its See all; null for rows without one.</summary>

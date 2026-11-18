@@ -1,6 +1,14 @@
 package app.pley.android.ui.tv.library
 
 import androidx.activity.ComponentActivity
+import app.pley.android.model.CollectionSummary
+import app.pley.android.model.CollectionCategory
+import app.pley.android.model.CategoryRef
+import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -25,6 +33,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryKind
+import app.pley.android.network.ApiException
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
@@ -270,6 +279,121 @@ class TvLibraryFocusTest {
         compose.press(Key.DirectionLeft, 6)
         assertEquals("Title", focusedText())
         assertTrue("${focusedBounds()}", focusedBounds().left >= gutter - growth)
+    }
+
+    @Test
+    fun clearingAFilterThatTakesTheChipsAwayLeavesFocusOnTheCollections() {
+        val highlights = CategoryRef(1, "highlights", "Highlights")
+        val franchises = CategoryRef(2, "franchises", "Franchises")
+        graph.sources.libraryList.value = Loadable.Ready(listOf(movies), fresh = true)
+        graph.categoryList.value = Loadable.Ready(
+            listOf(CollectionCategory(1, "highlights", "Highlights"), CollectionCategory(2, "franchises", "Franchises")),
+            fresh = true,
+        )
+        val alien = CollectionSummary(8, 1, "Alien Collection", automatic = true, category = franchises, itemCount = 4)
+        graph.collectionList.value = Loadable.Ready(listOf(CollectionSummary(7, 1, "Family Night", category = highlights, itemCount = 5), alien), fresh = true)
+        // In the app's frame, the rail and all, as on a TV: left on its Collections tab.
+        graph.left[1] = "tab=collections"
+        val onboarding = FakeOnboardingSource().apply { active.value = "http://s" }
+        compose.setContent {
+            CompositionLocalProvider(LocalOnboardingSource provides onboarding) {
+                TvApp(Source(movies), onExit = {}, reducedMotion = true)
+            }
+        }
+        waitUntil { exists(isFocused()) }
+        compose.press(Key.DirectionLeft)
+        while (!exists(hasTestTag("${TestTags.TV_RAIL}.library:1") and isFocused())) compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionCenter)
+        waitUntil { exists(hasText("Category")) }
+        compose.onNodeWithText("Category").performSemanticsAction(SemanticsActions.OnClick)
+        waitUntil { exists(hasText("All categories")) }
+        compose.onAllNodes(hasText("Franchises") and hasClickAction()).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+        waitUntil { exists(hasText("Clear filters")) }
+        // The server's collections change: Franchises is the only category left with any.
+        graph.collectionList.value = Loadable.Ready(listOf(alien), fresh = true)
+        compose.waitForIdle()
+        compose.onNodeWithText("Clear filters").requestFocus()
+        compose.press(Key.DirectionCenter)
+        // Every collection again, of one category: no chips. Focus went to the Category chip, and leaves
+        // with it for the collections below, not nowhere.
+        waitUntil { !exists(hasText("Clear filters")) && exists(isFocused()) }
+        assertTrue(!exists(hasText("Category")))
+        assertEquals("Alien Collection", focusedTitle())
+    }
+
+    @Test
+    fun collectionsByCategoryKeepFocusAsTheyArriveAndUpReachesTheChip() {
+        library()
+        val highlights = CategoryRef(1, "highlights", "Highlights")
+        val franchises = CategoryRef(2, "franchises", "Franchises")
+        // The categories are slow to come: the tab shows its skeleton meanwhile.
+        graph.categoryList.value = Loadable.Loading
+        graph.collectionList.value = Loadable.Ready(
+            listOf(
+                CollectionSummary(7, 1, "Family Night", category = highlights, itemCount = 5),
+                CollectionSummary(8, 1, "Alien Collection", automatic = true, category = franchises, itemCount = 4),
+            ),
+            fresh = true,
+        )
+        // Up to the chips, up to the tabs, right to Collections.
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionCenter)
+        waitUntil { !exists(hasText(title(1))) }
+        // Down into the skeleton while it loads.
+        compose.press(Key.DirectionDown)
+        waitUntil { exists(hasAnyAncestor(hasTestTag(TestTags.LIBRARY_GRID)) and isFocused()) }
+        graph.categoryList.value = Loadable.Ready(
+            listOf(CollectionCategory(1, "highlights", "Highlights"), CollectionCategory(3, "other", "Other"), CollectionCategory(2, "franchises", "Franchises")),
+            fresh = true,
+        )
+        // A row per category takes the grid's place: focus stays on the tab, on the Category chip above them,
+        // where Down from the tabs lands, and goes on down to the first collection.
+        waitUntil { exists(hasText("Franchises")) && exists(isFocused()) }
+        assertTrue(exists(hasText("Category") and isFocused()))
+        compose.press(Key.DirectionDown)
+        assertEquals("Family Night", focusedTitle())
+        // And Up from the first row comes back to the chip, not past it to the tabs.
+        compose.press(Key.DirectionUp)
+        assertTrue(exists(hasText("Category") and isFocused()))
+        // So does Up from the grid of one category.
+        compose.press(Key.DirectionCenter)
+        waitUntil { exists(hasText("All categories")) }
+        compose.onAllNodes(hasText("Franchises") and hasClickAction()).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+        waitUntil { exists(hasText("Clear filters")) && exists(hasText("Franchises") and isFocused()) }
+        compose.press(Key.DirectionDown)
+        assertEquals("Alien Collection", focusedTitle())
+        compose.press(Key.DirectionUp)
+        assertTrue(exists(hasText("Franchises") and isFocused()))
+    }
+
+    @Test
+    fun aServerWithoutCategoriesShowsTheCollectionsInAGrid() {
+        // A server from before categories answers GET /api/collection-categories 404.
+        graph.categoryList.value = Loadable.Failed(ApiException(404, "not_found", "no such endpoint"))
+        graph.collectionList.value = Loadable.Ready(
+            listOf(CollectionSummary(7, 1, "Family Night", itemCount = 5), CollectionSummary(8, 1, "Alien Collection", automatic = true, itemCount = 4)),
+            fresh = true,
+        )
+        graph.sources.libraryList.value = Loadable.Ready(listOf(movies), fresh = true)
+        graph.left[1] = "tab=collections"
+        val onboarding = FakeOnboardingSource().apply { active.value = "http://s" }
+        compose.setContent {
+            CompositionLocalProvider(LocalOnboardingSource provides onboarding) {
+                TvApp(Source(movies), onExit = {}, reducedMotion = true)
+            }
+        }
+        waitUntil { exists(isFocused()) }
+        compose.press(Key.DirectionLeft)
+        while (!exists(hasTestTag("${TestTags.TV_RAIL}.library:1") and isFocused())) compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionCenter)
+        // The tab opens as it did before categories: every collection in the grid, the first focused, no Category chip.
+        waitUntil { focusedTitle() == "Family Night" }
+        assertTrue(exists(hasAnyAncestor(hasTestTag(TestTags.LIBRARY_GRID)) and isFocused()))
+        compose.press(Key.DirectionRight)
+        assertEquals("Alien Collection", focusedTitle())
+        assertTrue(!exists(hasText("Category")))
     }
 
     private companion object {

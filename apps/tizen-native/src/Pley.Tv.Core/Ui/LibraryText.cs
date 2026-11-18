@@ -23,6 +23,10 @@ public enum LibraryChipKind
     Resolution,
     /// <summary>Opens the Dynamic range panel; says the one chosen, and shows only while one is.</summary>
     DynamicRange,
+    /// <summary>The Collections tab's: opens the Category panel; says the category chosen.</summary>
+    CollectionCategory,
+    /// <summary>The Collections tab's Clear filters, while a category is chosen.</summary>
+    CollectionClear,
 }
 
 /// <summary>A chip (design spec §2.6): what it says, whether it is on (a check leads it then, in place of <see cref="Icon"/>), and its icon by Lucide's name.</summary>
@@ -37,6 +41,8 @@ public enum LibraryPanel
     Year,
     Resolution,
     DynamicRange,
+    /// <summary>The Collections tab's categories.</summary>
+    CollectionCategory,
 }
 
 /// <summary>A row of a library's side panel, and what its <see cref="LibraryPanelRow.Value"/> is.</summary>
@@ -68,6 +74,8 @@ public enum LibraryRowKind
     Resolution,
     /// <summary>A dynamic range (<see cref="LibraryParams.DynamicRanges"/>); null all of them.</summary>
     DynamicRange,
+    /// <summary>A category of collections (<see cref="CategoryChoice.Value"/>).</summary>
+    CollectionCategory,
 }
 
 /// <summary>A row of a library's side panel (design spec §2.7): its label, the check on the choice in force, the value beside it, the chevron of a row that opens another list.</summary>
@@ -176,6 +184,9 @@ public static class LibraryText
     public static string DynamicRange => Strings.T("library.panel.dynamicRange");
     public static string AllDynamicRanges => Strings.T("library.panel.allDynamicRanges");
     public static string ClearFilters => Strings.T("library.panel.clearFilters");
+    public static string Category => Strings.T("library.panel.category");
+    public static string AllCategories => Strings.T("library.panel.allCategories");
+    /// <summary>The collections of no category.</summary>
     public static string SaveAs => Strings.T("library.panel.saveAs");
 
     // The value beside a Filter panel row while nothing is chosen. English repeats the row's "All
@@ -372,6 +383,23 @@ public static class LibraryText
         return chips;
     }
 
+    /// <summary>A group's heading: its category's name.</summary>
+    public static string GroupTitle(CollectionGroup group) => group.Category.Title;
+
+    /// <summary>
+    /// The Collections tab's chips (the web's CollectionsTab): Category, saying the one chosen,
+    /// when there is more than one to choose or one is chosen; Clear filters while one is. None
+    /// while the collections aren't known, or there are none.
+    /// </summary>
+    public static IReadOnlyList<LibraryChip> CollectionChips(LibraryState state)
+    {
+        var chips = new List<LibraryChip>();
+        if (state.Collections.Value is not { Total: > 0, Offered: true } view) return chips;
+        chips.Add(new LibraryChip(LibraryChipKind.CollectionCategory, view.Chosen is { } g ? GroupTitle(g) : Category, Selected: view.Filtered));
+        if (view.Filtered) chips.Add(new LibraryChip(LibraryChipKind.CollectionClear, ClearFilters, Icon: "x"));
+        return chips;
+    }
+
     /// <summary>The panel a chip opens; null for Unwatched, which applies at once.</summary>
     public static LibraryPanel? PanelOf(LibraryChipKind chip) => chip switch
     {
@@ -381,6 +409,7 @@ public static class LibraryText
         LibraryChipKind.Year => LibraryPanel.Year,
         LibraryChipKind.Resolution => LibraryPanel.Resolution,
         LibraryChipKind.DynamicRange => LibraryPanel.DynamicRange,
+        LibraryChipKind.CollectionCategory => LibraryPanel.CollectionCategory,
         _ => null,
     };
 
@@ -456,6 +485,17 @@ public static class LibraryText
                 foreach (var range in state.Filters.DynamicRanges)
                     Add(new LibraryPanelRow(LibraryRowKind.DynamicRange, DynamicRangeLabel(range) ?? range, range == p.DynamicRange, range), range == p.DynamicRange);
                 break;
+            case LibraryPanel.CollectionCategory:
+                title = Category;
+                var view = state.Collections.Value ?? CollectionsView.Empty;
+                var all = !view.Filtered;
+                Add(new LibraryPanelRow(LibraryRowKind.CollectionCategory, AllCategories, all, new CategoryChoice.All().Value), all);
+                foreach (var group in view.Choices)
+                {
+                    var on = view.Category == group.Choice;
+                    Add(new LibraryPanelRow(LibraryRowKind.CollectionCategory, GroupTitle(group), on, group.Choice.Value), on);
+                }
+                break;
             default:
                 title = Year;
                 Add(new LibraryPanelRow(LibraryRowKind.Year, AllYears, p.Year == null), p.Year == null);
@@ -514,15 +554,15 @@ public static class LibraryText
     /// <summary>The Collections tab's message: they failed with nothing to show, or there are none; null while they show or load.</summary>
     public static LibraryMessage? CollectionsMessage(LibraryState state)
     {
-        var list = state.Collections.Value;
-        if (list == null && state.Collections is Loadable<IReadOnlyList<CollectionTile>>.Failed f)
+        var view = state.Collections.Value;
+        if (view == null && state.Collections is Loadable<CollectionsView>.Failed f)
             return new LibraryMessage(FailedTitle(f.Error, CollectionsFailed), FailedBody(f.Error), MessageAction.Retry);
-        if (list is { Count: 0 }) return new LibraryMessage(CollectionsEmptyTitle, state.Kind == "shows" ? CollectionsEmptyShows : CollectionsEmptyMovies);
+        if (view is { Total: 0 }) return new LibraryMessage(CollectionsEmptyTitle, state.Kind == "shows" ? CollectionsEmptyShows : CollectionsEmptyMovies);
         return null;
     }
 
-    /// <summary>The Collections tab's count: "3 collections"; null while they aren't known.</summary>
-    public static string? CollectionsCountLine(LibraryState state) => state.Collections.Value is { } list ? CollectionsCount(list.Count) : null;
+    /// <summary>The Collections tab's count of those shown: "3 collections"; null while they aren't known.</summary>
+    public static string? CollectionsCountLine(LibraryState state) => state.Collections.Value is { } view ? CollectionsCount(view.Count) : null;
 
     // ---- the Libraries page
 

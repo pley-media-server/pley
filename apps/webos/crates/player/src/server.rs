@@ -9,9 +9,9 @@ use pley_core::api::LiveBrowse;
 use pley_core::http::{Method, Request, Streamed};
 use pley_core::model::{
     AddSubtitle, BitrateAnswer, CollectionDetail, ItemDetail, ItemSummary, LiveChannel, LiveChannelPage, LiveGroups,
-    LiveGuide, LivePlan, LiveWatching, NetworkAnswer, NetworkReport, PlaybackInfo, PlaybackRequest, PlaylistDetail,
-    ProgressReport, ServerInfo, SessionStatus, SpeedSample, StreamChoice, SubtitleResult, SubtitleTrack, TrickplayInfo,
-    WatchRequest,
+    LiveGuide, LivePlan, LiveWatching, MergedCollection, NetworkAnswer, NetworkReport, PlaybackInfo, PlaybackRequest,
+    PlaylistDetail, ProgressReport, ServerInfo, SessionStatus, SpeedSample, StreamChoice, SubtitleResult,
+    SubtitleTrack, TrickplayInfo, WatchRequest,
 };
 use pley_core::{Api, ApiError, Cancel, NetError};
 use pley_subs::PictureTrack;
@@ -35,6 +35,7 @@ pub trait PlayerServer: Send + Sync {
     fn next(&self, id: i64) -> Result<Option<ItemSummary>, ApiError>;
     fn playlist(&self, id: i64) -> Result<PlaylistDetail, ApiError>;
     fn collection(&self, id: i64) -> Result<CollectionDetail, ApiError>;
+    fn merged_collection(&self, ids: &[i64]) -> Result<MergedCollection, ApiError>;
 
     fn play(&self, req: &PlaybackRequest) -> Result<PlaybackInfo, ApiError>;
     fn progress(&self, item_id: i64, report: &ProgressReport) -> Result<(), ApiError>;
@@ -121,6 +122,10 @@ impl PlayerServer for Api {
 
     fn collection(&self, id: i64) -> Result<CollectionDetail, ApiError> {
         Api::collection(self, id)
+    }
+
+    fn merged_collection(&self, ids: &[i64]) -> Result<MergedCollection, ApiError> {
+        Api::merged_collection(self, ids)
     }
 
     fn play(&self, req: &PlaybackRequest) -> Result<PlaybackInfo, ApiError> {

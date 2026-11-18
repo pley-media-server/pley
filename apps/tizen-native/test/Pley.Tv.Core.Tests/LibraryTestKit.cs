@@ -81,6 +81,33 @@ sealed class FakeLibraries : ILibrarySource, ILibrariesSource
 
     public void SetCollections(long libraryId, params Collection[] list) => collections[libraryId] = list;
 
+    /// <summary>The categories, in the server's order; null: they don't come yet. Set with <see cref="SetCategories"/> to answer those waiting.</summary>
+    public IReadOnlyList<CollectionCategory>? Categories { get; private set; } = Array.Empty<CollectionCategory>();
+    public Exception? CategoriesFailure { get; set; }
+    public int CategoryAsks { get; private set; }
+    readonly List<TaskCompletionSource<IReadOnlyList<CollectionCategory>>> categoriesWaiting = new List<TaskCompletionSource<IReadOnlyList<CollectionCategory>>>();
+
+    public void SetCategories(params CollectionCategory[]? list)
+    {
+        Categories = list;
+        if (list == null) return;
+        foreach (var w in categoriesWaiting) w.SetResult(list);
+        categoriesWaiting.Clear();
+    }
+
+    /// <summary>The categories won't come until set again.</summary>
+    public void HoldCategories() => Categories = null;
+
+    public Task<IReadOnlyList<CollectionCategory>> CollectionCategories()
+    {
+        CategoryAsks++;
+        if (CategoriesFailure is { } e) return Task.FromException<IReadOnlyList<CollectionCategory>>(e);
+        if (Categories is { } list) return Task.FromResult(list);
+        var answer = new TaskCompletionSource<IReadOnlyList<CollectionCategory>>();
+        categoriesWaiting.Add(answer);
+        return answer.Task;
+    }
+
     /// <summary>The app heard that things changed.</summary>
     public void Changed()
     {

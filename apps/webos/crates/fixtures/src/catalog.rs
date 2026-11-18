@@ -63,9 +63,20 @@ pub(crate) struct Collection {
     /// `release`, `title` or `custom`.
     pub sort: &'static str,
     pub smart_filter: Option<String>,
+    /// `None`: Other, as the server sends it.
+    pub category_id: Option<i64>,
     pub item_ids: Vec<i64>,
     pub created_at: i64,
 }
+
+/// The categories of collections, in their order (Other just before Franchises, as a new server
+/// has them): `(id, key, title)`.
+pub(crate) const CATEGORIES: [(i64, Option<&str>, &str); 4] = [
+    (ids::CATEGORY_HIGHLIGHTS, Some("highlights"), "Highlights"),
+    (ids::CATEGORY_OTHER, Some("other"), "Other"),
+    (ids::CATEGORY_FRANCHISES, Some("franchises"), "Franchises"),
+    (ids::CATEGORY_SEASONAL, None, "Seasonal"),
+];
 
 /// How a generated video's picture is described.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -587,6 +598,7 @@ impl Catalog {
             automatic: false,
             sort: "release",
             smart_filter: Some(SMART_COLLECTION_FILTER.to_string()),
+            category_id: Some(ids::CATEGORY_HIGHLIGHTS),
             item_ids: Vec::new(),
             created_at: BASE_TIME - 30 * DAY,
         });
@@ -606,6 +618,12 @@ impl Catalog {
                 automatic: c % 2 == 0,
                 sort: if c % 3 == 0 { "custom" } else { "release" },
                 smart_filter: None,
+                // TMDB's are Franchises; of the others, a few are Seasonal and the rest Other.
+                category_id: match c % 4 {
+                    0 | 2 => Some(ids::CATEGORY_FRANCHISES),
+                    1 => Some(ids::CATEGORY_SEASONAL),
+                    _ => None,
+                },
                 item_ids: members,
                 created_at: BASE_TIME - (40 + c as i64) * DAY,
             });
@@ -627,8 +645,26 @@ impl Catalog {
                 automatic: false,
                 sort: "title",
                 smart_filter: None,
+                category_id: None,
                 item_ids: members,
                 created_at: BASE_TIME - 20 * DAY,
+            });
+        }
+        // The same title in both libraries: one row on Home.
+        for (id, library, top) in
+            [(ids::HOLIDAY_MOVIES, ids::MOVIES, &movies), (ids::HOLIDAY_SHOWS, ids::SHOWS, &shows)]
+        {
+            self.add_collection(Collection {
+                id,
+                library_id: library,
+                title: "Holiday Favourites".to_string(),
+                summary: None,
+                automatic: false,
+                sort: "release",
+                smart_filter: None,
+                category_id: Some(ids::CATEGORY_SEASONAL),
+                item_ids: top.iter().skip(3).step_by(5).take(4).copied().collect(),
+                created_at: BASE_TIME - 10 * DAY,
             });
         }
     }
@@ -960,7 +996,7 @@ mod tests {
         assert_eq!(c.top_ids(ids::MUSIC).len(), 50);
         assert_eq!(c.library(ids::MUSIC).unwrap().item_count, 50);
         assert_eq!(c.people().len(), 400);
-        assert_eq!(c.collections().len(), 29);
+        assert_eq!(c.collections().len(), 31);
     }
 
     #[test]

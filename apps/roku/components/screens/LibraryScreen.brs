@@ -1,9 +1,12 @@
 ' A library as the web app shows it: Recommended (GET
 ' /api/libraries/{id}/hubs, as rows), Library (GET …/items a page at a time,
 ' sorted and filtered as the chips at the right say, with the A to Z beside
-' it when sorted by title) and Collections (GET …/collections). The tab,
-' sort and filters it was left on are kept on the Roku for each server,
-' profile and library (lib/Library.brs), and it opens on them again.
+' it when sorted by title) and Collections (GET …/collections, grouped by
+' GET /api/collection-categories as the web's tab: a row a category when
+' there are several, else a grid, filtered by Category for this visit).
+' The tab, sort and filters it was left on are kept on the Roku for each
+' server, profile and library (lib/Library.brs), and it opens on them
+' again.
 
 sub init()
     m.title = m.top.findNode("title")
@@ -14,6 +17,7 @@ sub init()
     m.letters = m.top.findNode("letters")
     m.jumpTimer = m.top.findNode("jumpTimer")
     m.rows = m.top.findNode("rows")
+    m.groups = m.top.findNode("groups")
     m.message = m.top.findNode("message")
     m.message.text = t("common.states.loading")
     m.panel = m.top.findNode("panel")
@@ -40,8 +44,19 @@ sub init()
     m.alpha = invalid
     m.alphaMaking = invalid
     m.jumpTo = -1
-    ' The other tabs, once loaded (invalid until then).
+    ' The other tabs, once loaded (invalid until then). The collections are
+    ' tiles' fields (lib/Pages.brs pageCollectionTile), grouped with the
+    ' categories once both came (the categories [] when they didn't): as
+    ' rows in m.groups when there are several groups, else as the grid's
+    ' content (m.collections); m.collectionsShown counts them.
+    m.collectionTiles = invalid
+    m.categories = invalid
     m.collections = invalid
+    m.collectionsShown = 0
+    ' The Category filter ("" for every category, or a category's id), and
+    ' the groups it offers.
+    m.collectionCategory = ""
+    m.categoryGroups = []
     m.recommended = invalid
     m.recommendedKeys = []
     ' What the titles can be filtered by, once the server said
@@ -66,6 +81,7 @@ sub init()
     m.letters.observeField("chosen", "onLetter")
     m.jumpTimer.observeField("fire", "onJumpDue")
     m.rows.observeField("rowItemSelected", "onRowTile")
+    m.groups.observeField("rowItemSelected", "onGroupTile")
     m.choices.observeField("itemSelected", "onChoice")
     m.menu.observeField("itemSelected", "onMenu")
     m.top.observeField("active", "onActive")
@@ -82,6 +98,7 @@ sub onActive()
         if m.grid.isInFocusChain() then m.lastFocus = m.grid
         if m.letters.isInFocusChain() then m.lastFocus = m.letters
         if m.rows.isInFocusChain() then m.lastFocus = m.rows
+        if m.groups.isInFocusChain() then m.lastFocus = m.groups
         return
     end if
     if not m.started
@@ -170,10 +187,11 @@ sub showTab(wanted as string)
             m.tabs.focusIndex = i
         end if
     end for
-    m.viewChips.visible = wanted = "library"
-    if m.grid.isInFocusChain() or m.rows.isInFocusChain() or m.letters.isInFocusChain() then m.tabs.setFocus(true)
+    showViewChips()
+    if m.grid.isInFocusChain() or m.rows.isInFocusChain() or m.groups.isInFocusChain() or m.letters.isInFocusChain() then m.tabs.setFocus(true)
     m.grid.visible = false
     m.rows.visible = false
+    m.groups.visible = false
     showLetters()
     if wanted = "library"
         m.grid.content = m.content
@@ -188,7 +206,8 @@ sub showTab(wanted as string)
     else if wanted = "collections"
         if m.collections = invalid
             showMessage(t("common.states.loading"))
-            uiRequest({ method: "GET", path: "/api/libraries/" + urlValue(m.library.id) + "/collections", build: "collections" }, "onCollections")
+            if m.collectionTiles = invalid then uiRequest({ method: "GET", path: "/api/libraries/" + urlValue(m.library.id) + "/collections", build: "collectionTiles" }, "onCollections")
+            if m.categories = invalid then uiGet("/api/collection-categories", "onCategories")
         else
             m.grid.content = m.collections
             showContent()
@@ -212,7 +231,7 @@ sub showContent()
     if shownTab = "recommended"
         if m.recommended.getChildCount() = 0 then empty = t("browse.library.noRecommendations")
     else if shownTab = "collections"
-        if m.collections.getChildCount() = 0 then empty = t("browse.library.noCollections")
+        if m.collectionsShown = 0 then empty = t("browse.library.noCollections")
     else if m.content.getChildCount() = 0
         empty = t("browse.library.empty")
         if libFiltered(m.view) then empty = t("browse.library.noMatches")
@@ -222,8 +241,11 @@ sub showContent()
         return
     end if
     m.message.visible = false
+    ' Several groups of collections are rows; one is the grid.
+    grouped = shownTab = "collections" and m.groups.content <> invalid and m.groups.content.getChildCount() > 1
     m.rows.visible = shownTab = "recommended"
-    m.grid.visible = shownTab <> "recommended"
+    m.groups.visible = grouped
+    m.grid.visible = shownTab <> "recommended" and not grouped
     showLetters()
     if m.focusContent and m.top.isInFocusChain() and not m.panel.visible
         m.focusContent = false
@@ -234,6 +256,7 @@ end sub
 sub showMessage(text as string)
     m.grid.visible = false
     m.rows.visible = false
+    m.groups.visible = false
     showLetters()
     m.message.text = text
     m.message.visible = true
@@ -243,6 +266,8 @@ end sub
 sub focusContent()
     if m.rows.visible
         m.rows.setFocus(true)
+    else if m.groups.visible
+        m.groups.setFocus(true)
     else if m.grid.visible
         m.grid.setFocus(true)
     end if
@@ -252,7 +277,7 @@ sub showCount()
     if m.view.tab = "library" and m.total >= 0
         m.countLabel.text = fmtCount(m.total, m.library.kind)
     else if m.view.tab = "collections" and m.collections <> invalid
-        m.countLabel.text = t("browse.counts.collections", { count: m.collections.getChildCount() })
+        m.countLabel.text = t("browse.counts.collections", { count: m.collectionsShown })
     else
         m.countLabel.text = fmtCount(m.library.itemCount, m.library.kind)
     end if
@@ -264,12 +289,57 @@ sub onCollections(event as object)
         if not uiFailed(answer) and m.view.tab = "collections" then showMessage(answer.message)
         return
     end if
-    m.collections = event.getRoSGNode().content
-    if m.collections = invalid then m.collections = CreateObject("roSGNode", "ContentNode")
+    m.collectionTiles = httpArray(answer.data.tiles)
+    showCollections()
+end sub
+
+' Without them, the collections' own categories stand in, in the order
+' they come (lib/Pages.brs pageCollectionGroups).
+sub onCategories(event as object)
+    answer = event.getData()
+    m.categories = []
+    if answer.ok then m.categories = pageCategories(answer.data)
+    showCollections()
+end sub
+
+' The collections by category, filtered, once both answers came: the
+' grid's content when one group shows (no heading), else a row each.
+sub showCollections()
+    if m.collectionTiles = invalid or m.categories = invalid then return
+    m.categoryGroups = pageCollectionGroups(m.collectionTiles, m.categories, "")
+    ' A category emptied since it was chosen filters nothing.
+    chosen = false
+    for each group in m.categoryGroups
+        if group.key = m.collectionCategory then chosen = true
+    end for
+    if not chosen then m.collectionCategory = ""
+    groups = pageCollectionGroups(m.collectionTiles, m.categories, m.collectionCategory)
+    m.collectionsShown = 0
+    for each group in groups
+        m.collectionsShown = m.collectionsShown + group.tiles.Count()
+    end for
+    ' The focus leaves what changes under it.
+    if m.view.tab = "collections" and (m.groups.isInFocusChain() or m.grid.isInFocusChain()) then m.tabs.setFocus(true)
+    if groups.Count() > 1
+        m.groups.content = nodesRows(groups)
+        m.collections = CreateObject("roSGNode", "ContentNode")
+    else
+        m.groups.content = invalid
+        tiles = []
+        if groups.Count() = 1 then tiles = groups[0].tiles
+        m.collections = nodesContent(tiles)
+    end if
     if m.view.tab <> "collections" then return
     m.grid.content = m.collections
+    showViewChips()
     showCount()
     showContent()
+end sub
+
+sub onGroupTile(event as object)
+    position = event.getData()
+    row = m.groups.content.getChild(position[0])
+    if row <> invalid then uiOpenTile(row.getChild(position[1]))
 end sub
 
 sub onRecommended(event as object)
@@ -402,8 +472,16 @@ sub onRowTile(event as object)
     uiOpenTile(tile)
 end sub
 
-' The sort and the filters as chips, at the right of the tabs.
+' The sort and the filters as chips, at the right of the tabs; on the
+' Collections tab, its Category filter, where there are two groups or
+' more to choose between.
 sub showViewChips()
+    m.viewChips.visible = m.view.tab = "library" or (m.view.tab = "collections" and m.collectionTiles <> invalid and m.categories <> invalid and m.categoryGroups.Count() > 1)
+    if not m.viewChips.visible and m.viewChips.isInFocusChain() then m.tabs.setFocus(true)
+    if m.view.tab = "collections"
+        if m.viewChips.visible then showCollectionChips()
+        return
+    end if
     ' As wide as their words, the filters' at most 420 pixels, so that a
     ' long sort ("Date added, recently added first") clears the tabs.
     filterLabel = libFilterLabel(m.view)
@@ -414,6 +492,30 @@ sub showViewChips()
     if libFiltered(m.view) then m.viewChips.current = 1
     m.viewChips.translation = [1824 - m.viewChips.rowWidth, 132]
 end sub
+
+sub showCollectionChips()
+    m.viewChips.chips = [chipOf(collectionCategoryLabel())]
+    m.viewChips.current = -1
+    if m.collectionCategory <> "" then m.viewChips.current = 0
+    m.viewChips.focusIndex = 0
+    m.viewChips.translation = [1824 - m.viewChips.rowWidth, 132]
+end sub
+
+' A chip as wide as its words, at most 400 pixels: a long category's name
+' clears the tabs.
+function chipOf(label as string) as object
+    width = 0
+    if Len(label) > 22 then width = 400
+    return { label: label, width: width }
+end function
+
+' The category the Collections tab shows, in words.
+function collectionCategoryLabel() as string
+    for each group in m.categoryGroups
+        if group.key = m.collectionCategory then return group.title
+    end for
+    return t("browse.collections.allCategories")
+end function
 
 ' A new sort or filters: the Roku keeps them, and the titles come again.
 sub applyView()
@@ -515,11 +617,29 @@ end sub
 ' --- The sort's and the filters' panel ---
 
 sub onViewChosen(event as object)
+    if m.view.tab = "collections"
+        openCollectionCategories()
+        return
+    end if
     if event.getData() = 0
         openSort()
     else
         openFilters()
     end if
+end sub
+
+' The Collections tab's Category filter: every category, then each of
+' the library's, Other among them, in the categories' order.
+sub openCollectionCategories()
+    labels = [t("browse.collections.allCategories")]
+    values = [""]
+    current = 0
+    for each group in m.categoryGroups
+        if group.key = m.collectionCategory then current = values.Count()
+        labels.Push(group.title)
+        values.Push(group.key)
+    end for
+    showChoices("collectionCategory", t("browse.collections.category"), labels, values, current, "")
 end sub
 
 sub openSort()
@@ -702,6 +822,12 @@ sub onChoice(event as object)
     if at < 0 or at >= m.values.Count() then return
     value = m.values[at]
     kind = m.panelKind
+    if kind = "collectionCategory"
+        m.collectionCategory = value
+        closePanel()
+        showCollections()
+        return
+    end if
     if kind = "sort"
         if value = m.view.sort
             if m.view.order = "asc"
@@ -744,7 +870,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
     if m.panel.visible
         if key = "back" or key = "left"
-            if m.panelKind <> "sort" and m.panelKind <> "filters"
+            if m.panelKind <> "sort" and m.panelKind <> "filters" and Left(m.panelKind, 10) <> "collection"
                 openFilters()
             else
                 closePanel()
@@ -754,11 +880,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return false
     end if
     chips = m.tabs.isInFocusChain() or m.viewChips.isInFocusChain()
-    if key = "down" and chips and (m.grid.visible or m.rows.visible)
+    if key = "down" and chips and (m.grid.visible or m.rows.visible or m.groups.visible)
         focusContent()
         return true
     end if
-    if key = "up" and (m.grid.isInFocusChain() or m.rows.isInFocusChain() or m.letters.isInFocusChain())
+    if key = "up" and (m.grid.isInFocusChain() or m.rows.isInFocusChain() or m.groups.isInFocusChain() or m.letters.isInFocusChain())
         m.tabs.setFocus(true)
         return true
     end if
@@ -782,6 +908,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if key = "options" and m.grid.isInFocusChain() and m.grid.content <> invalid
         uiTileOptions(m.grid.content.getChild(m.grid.itemFocused), false)
+        return true
+    end if
+    if key = "options" and m.groups.isInFocusChain()
+        position = m.groups.rowItemFocused
+        row = m.groups.content.getChild(position[0])
+        if row <> invalid then uiTileOptions(row.getChild(position[1]), false)
         return true
     end if
     if key = "options" and m.rows.isInFocusChain()

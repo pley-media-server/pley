@@ -149,6 +149,101 @@ struct CollectionScreensTests {
         #expect(gone.state == .notFound)
     }
 
+    @Test func collectionsAreGroupedByCategoryAndFiltered() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.addCollection(id: 812, libraryId: 1, title: "Christmas Movies", itemIds: [101], categoryId: 3)
+        // A category made since the categories were read goes after the rest, under its own title.
+        server.addCollection(id: 813, libraryId: 1, title: "Awards", itemIds: [104], categoryId: 99)
+        let app = try await signedIn(server)
+        let library = LibraryModel(app: app, libraryId: 1, view: "tab=collections")
+        await library.load()
+        let model = library.collections
+        // Other is the server's, where its list puts it: before Franchises.
+        #expect(model.groups.map(\.title) == ["Highlights", "Other", "Franchises", "Holidays", "Made Since"])
+        #expect(model.groups.map { $0.cards.map(\.title) } ==
+            [["Unwatched Sci-Fi"], ["Villeneuve Picks"], ["Dune Collection"], ["Christmas Movies"], ["Awards"]])
+        #expect(model.showsHeadings && model.offersCategories && !model.filtered)
+        #expect(model.countWords == "5 collections")
+
+        model.category = .category(4)
+        #expect(model.groups.map(\.title) == ["Other"] && model.countWords == "1 collection")
+        #expect(!model.showsHeadings && model.filtered)
+        #expect(model.title(of: model.chosenCategory) == "Other")
+        model.category = .category(1)
+        #expect(model.groups.flatMap { $0.cards.map(\.title) } == ["Unwatched Sci-Fi"])
+        #expect(model.title(of: model.chosenCategory) == "Highlights")
+        model.category = .category(99)
+        #expect(model.title(of: model.chosenCategory) == "Made Since")
+        #expect(model.categoryChoices.map(\.choice) == [.category(1), .category(4), .category(2), .category(3), .category(99)])
+        model.clearFilters()
+        #expect(model.groups.count == 5 && !model.filtered)
+
+        let page = CollectionModel(app: app, collectionId: 801)
+        await page.load()
+        #expect(page.category == "Franchises")
+        // Other only says it has none: its page names no category.
+        let other = CollectionModel(app: app, collectionId: 802)
+        await other.load()
+        #expect(other.detail?.collection.category?.key == "other" && other.category == nil)
+    }
+
+    @Test func groupsFollowTheServersCategories() {
+        let other = CollectionCategory(id: 4, key: "other", title: "Other")
+        let collections = [CollectionSummary(id: 1, libraryId: 1, title: "A", category: other),
+                           CollectionSummary(id: 2, libraryId: 1, title: "B", category: other)]
+        let groups = CollectionGroup.of(collections, categories: [CollectionCategory(id: 5, title: "Empty"), other],
+                                        kind: .movies)
+        #expect(groups.map(\.choice) == [.category(4)] && groups[0].cards.map(\.title) == ["A", "B"])
+    }
+
+    @Test func aServerOlderThanCategoriesShowsOneGroupWithoutAHeading() {
+        // A server older than categories sends none, for collections or the list.
+        let collections = [CollectionSummary(id: 1, libraryId: 1, title: "A"), CollectionSummary(id: 2, libraryId: 1, title: "B")]
+        let groups = CollectionGroup.of(collections, categories: [], kind: .movies)
+        #expect(groups.count == 1 && groups[0].cards.map(\.title) == ["A", "B"])
+        #expect(groups[0].choice == nil && groups[0].title.isEmpty && groups[0].id == "none")
+        // Next to categories, the group without one comes after them and can't be chosen.
+        let dune = CollectionSummary(id: 3, libraryId: 1, title: "Dune", category: CollectionCategory(id: 2, title: "Franchises"))
+        let mixed = CollectionGroup.of(collections + [dune], categories: [CollectionCategory(id: 2, title: "Franchises")],
+                                       kind: .movies)
+        #expect(mixed.map(\.id) == ["2", "none"] && mixed.map(\.choice) == [.category(2), nil])
+    }
+
+    @Test func aRowsTitleAndSeeAllOpenItsCollections() {
+        let one = Hub(key: "collection:5", title: "Oscars", libraryId: 1, collectionIds: [5])
+        #expect(ShellModel.seeAll(one) == .collection(5))
+        let merged = Hub(key: "collections:5,9", title: "Oscars", collectionIds: [5, 9])
+        #expect(ShellModel.seeAll(merged) == .mergedCollection([5, 9]))
+        // An older server's rows go to the library, sorted as the row is.
+        let old = Hub(key: "recently_added:1", title: "Recently Added", libraryId: 1)
+        #expect(ShellModel.seeAll(old) == .library(1, view: "sort=added&order=desc"))
+        #expect(ShellModel.seeAll(Hub(key: "my_list", title: "My List")) == nil)
+    }
+
+    @Test func aMergedRowOpensItsCollectionsTogether() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.addCollection(id: 811, libraryId: 2, title: "Dune Collection", itemIds: [201])
+        let app = try await signedIn(server)
+        let api = try #require(await app.session.api)
+        app.shell.setLibraries(try await api.libraries())
+        let page = MergedCollectionModel(app: app, ids: [801, 811])
+        await page.load()
+        #expect(page.state == .loaded && page.title == "Dune Collection")
+        #expect(page.tiles.map(\.id) == [105, 104, 201])
+        #expect(page.count == "2 movies · 1 show")
+        #expect(page.sources.map(\.id) == [801, 811])
+        let names = Dictionary(uniqueKeysWithValues: app.shell.libraries.map { ($0.id, $0.name) })
+        #expect(page.sources.map(\.library) == [names[1], names[2]].compactMap { $0 } && page.sources.count == 2)
+        let play = try #require(await page.play(shuffle: false))
+        #expect(play.itemId == 105 && play.queue?.itemIds == [105, 104])
+
+        let gone = MergedCollectionModel(app: app, ids: [998, 999])
+        await gone.load()
+        #expect(gone.state == .notFound)
+    }
+
     @Test func moviesPlayAsAQueueAndShuffleStartsAnywhere() async throws {
         let server = try await fixture()
         defer { server.stop() }

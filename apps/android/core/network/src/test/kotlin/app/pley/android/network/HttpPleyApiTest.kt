@@ -151,6 +151,8 @@ class HttpPleyApiTest {
             Golden("libraryHubs", json("libraries/hubs.json"), "GET /api/libraries/1/hubs") { libraryHubs(1) },
             Golden("libraryCollections", json("libraries/collections.json"), "GET /api/libraries/1/collections") { libraryCollections(1) },
             Golden("collection", json("collections/detail.json"), "GET /api/collections/801") { collection(801) },
+            Golden("collectionCategories", json("collections/categories.json"), "GET /api/collection-categories") { collectionCategories() },
+            Golden("mergedCollection", json("collections/merged.json"), "GET /api/collections/merged?ids=801%2C901") { mergedCollection(listOf(801, 901)) },
             Golden("playlists", json("playlists/list.json"), "GET /api/playlists") { playlists() },
             Golden("playlist", json("playlists/detail.json"), "GET /api/playlists/901") { playlist(901) },
             Golden("item", json("items/movie_detail.json"), "GET /api/items/101") { item(101) },

@@ -86,6 +86,9 @@
     <string name="library_collections_empty_title">No collections yet</string>
     <string name="library_collections_empty_movies">Movies of the same TMDB collection are grouped here once two of them are in this library.</string>
     <string name="library_collections_empty_shows">There are no collections in this library yet.</string>
+    <!-- The Collections tab's filters and headings (apps/web's CollectionsTab). -->
+    <string name="library_collections_category">Category</string>
+    <string name="library_collections_all_categories">All categories</string>
 
     <!-- A collection's page (apps/web/src/pages/collections/CollectionPage.tsx). -->
     <string name="collection_label">Collection</string>

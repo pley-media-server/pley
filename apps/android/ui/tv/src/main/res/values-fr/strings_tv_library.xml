@@ -86,6 +86,8 @@
     <string name="tv_library_collections_empty_title">Aucune collection pour l’instant</string>
     <string name="tv_library_collections_empty_movies">Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans cette bibliothèque.</string>
     <string name="tv_library_collections_empty_shows">Cette bibliothèque n’a pas encore de collection.</string>
+    <string name="tv_library_collections_category">Catégorie</string>
+    <string name="tv_library_collections_all_categories">Toutes les catégories</string>
     <string name="tv_library_retry">Réessayer</string>
     <string name="tv_library_see_all">Tout voir</string>
 
@@ -99,4 +101,5 @@
     <string name="tv_collection_empty">Cette collection est encore vide.</string>
     <string name="tv_collection_failed">Impossible de charger cette collection</string>
     <string name="tv_collection_nothing_to_play">Rien à lire : cette série n’a pas encore d’épisode</string>
+    <string name="tv_collection_from">Dans</string>
 </resources>

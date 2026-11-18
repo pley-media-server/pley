@@ -3,7 +3,10 @@
 ' bringing on each next, and Shuffle in any order from any of them; a
 ' collection of shows plays the first show's next episode (GET
 ' /api/items/{id}/on-deck), Shuffle a random show's. Shuffle needs two
-' titles or more. params: { id, title (shown until the server answers) }.
+' titles or more. A Home row of several collections of one title (params
+' ids) is GET /api/collections/merged: their titles together, played the
+' same way, and a button for each library's own collection. params: { id,
+' or ids, title (shown until the server answers) }.
 
 sub init()
     m.backdrop = m.top.findNode("backdrop")
@@ -24,12 +27,17 @@ sub init()
     m.kindLabel.text = t("titles.collection.label")
     m.top.findNode("smartText").text = t("titles.smart")
     m.started = false
+    ' The collections of a Home row of several, else invalid.
+    m.ids = invalid
     ' The page as the API task made it (lib/Pages.brs pageCollection), and
     ' the libraries once the server said ([{ id, name, kind }]).
     m.collection = invalid
     m.libraries = invalid
-    ' What the buttons do, in their order: "play", "shuffle".
+    ' What the buttons do, in their order: "play", "shuffle", "collection"
+    ' (a library's own, on the merged page: its id in m.opens, at the same
+    ' place).
     m.actions = []
+    m.opens = []
     ' A show's next episode is being asked for: the buttons wait.
     m.picking = false
     m.buttons.observeField("buttonSelected", "onButton")
@@ -54,6 +62,8 @@ sub onActive()
         return
     end if
     m.started = true
+    ids = httpArray(m.top.params.ids)
+    if ids.Count() > 1 then m.ids = ids
     m.heading.text = httpSentence(m.top.params.title)
     m.top.setFocus(true)
     load()
@@ -61,6 +71,14 @@ sub onActive()
 end sub
 
 sub load()
+    if m.ids <> invalid
+        parts = []
+        for each id in m.ids
+            parts.Push(urlValue(id))
+        end for
+        uiRequest({ method: "GET", path: urlWithQuery("/api/collections/merged", { ids: parts.Join(",") }), build: "merged" }, "onCollection")
+        return
+    end if
     uiRequest({ method: "GET", path: "/api/collections/" + urlValue(m.top.params.id), build: "collection" }, "onCollection")
 end sub
 
@@ -104,15 +122,22 @@ sub onLibraries(event as object)
     if not answer.ok then return
     m.libraries = contentLibraries(answer.data)
     showFacts()
+    ' The merged page's buttons name the libraries.
+    if m.collection <> invalid and m.ids <> invalid then showButtons()
 end sub
 
 ' "Collection", and beside it TMDB for one that mirrors TMDB's, Smart for
-' one a filter fills, each in a box as wide as its word.
+' one a filter fills, then its category, each in a box as wide as its
+' words (a category's at most 560 pixels).
 sub showBadges()
+    category = m.top.findNode("categoryText")
+    category.width = 0
+    category.text = m.collection.category
+    if category.boundingRect().width > 532 then category.width = 532
     x = m.kindLabel.boundingRect().width + 16
-    for each name in ["tmdb", "smart"]
+    for each name in ["tmdb", "smart", "category"]
         badge = m.top.findNode(name)
-        badge.visible = (name = "tmdb" and m.collection.automatic) or (name = "smart" and m.collection.smart)
+        badge.visible = (name = "tmdb" and m.collection.automatic) or (name = "smart" and m.collection.smart) or (name = "category" and m.collection.category <> "")
         if badge.visible
             back = m.top.findNode(name + "Back")
             back.width = m.top.findNode(name + "Text").boundingRect().width + 28
@@ -122,9 +147,15 @@ sub showBadges()
     end for
 end sub
 
-' What it holds, with its library's name once the libraries are known.
+' What it holds, with its library's name once the libraries are known
+' (the merged page's, its libraries').
 sub showFacts()
     if m.collection = invalid then return
+    if m.ids <> invalid
+        m.facts.text = pageMergedFacts(m.collection, m.libraries)
+        layoutText()
+        return
+    end if
     library = invalid
     for each one in httpArray(m.libraries)
         if one.id = m.collection.libraryId then library = one
@@ -148,7 +179,9 @@ sub layoutText()
     m.text.itemSpacings = spacings
 end sub
 
-' Play with something to play; Shuffle with two titles or more.
+' Play with something to play; Shuffle with two titles or more; on the
+' merged page, each library's own collection once the libraries are known
+' (lib/Pages.brs pageMergedButtons).
 sub showButtons()
     playable = m.collection.shows.Count()
     if m.collection.movies then playable = m.collection.queue.Count()
@@ -162,14 +195,33 @@ sub showButtons()
         actions.Push("shuffle")
         labels.Push(t("titles.actions.shuffle"))
     end if
+    ' Play and Shuffle open none.
+    opens = []
+    for each action in actions
+        opens.Push(0)
+    end for
+    if m.ids <> invalid
+        for each library in pageMergedButtons(m.collection, m.libraries)
+            actions.Push("collection")
+            opens.Push(library.id)
+            labels.Push(t("titles.collection.onlyLibrary", { library: library.name }))
+        end for
+    end if
     if FormatJson(labels) <> FormatJson(m.buttons.buttons) then m.buttons.buttons = labels
     m.actions = actions
+    m.opens = opens
     m.buttons.visible = labels.Count() > 0
 end sub
 
 sub onButton(event as object)
     if m.collection = invalid then return
-    play(m.actions[event.getData()] = "shuffle")
+    at = event.getData()
+    if at < 0 or at >= m.actions.Count() then return
+    if m.actions[at] = "collection"
+        uiNavigate({ to: "collection", params: { id: m.opens[at], title: m.collection.title } })
+        return
+    end if
+    play(m.actions[at] = "shuffle")
 end sub
 
 ' Movies: the player, with the rest to come one after the other (shuffled:

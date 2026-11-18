@@ -6,6 +6,7 @@ import app.pley.android.model.Added
 import app.pley.android.model.Approval
 import app.pley.android.model.Asked
 import app.pley.android.model.CastRequest
+import app.pley.android.model.CollectionCategories
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Decline
 import app.pley.android.model.DeviceKind
@@ -57,6 +58,7 @@ import app.pley.android.model.SpeedSample
 import app.pley.android.model.SubtitleResults
 import app.pley.android.model.SubtitleTrack
 import app.pley.android.model.Me
+import app.pley.android.model.MergedCollection
 import app.pley.android.model.NewPlaylist
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PlaybackInfo
@@ -206,6 +208,12 @@ class HttpPleyApi(
         get(CollectionList.serializer(), "api", "libraries", libraryId, "collections")
 
     override suspend fun collection(id: Long): CollectionDetail = get(CollectionDetail.serializer(), "api", "collections", id)
+
+    override suspend fun collectionCategories(): CollectionCategories =
+        get(CollectionCategories.serializer(), "api", "collection-categories")
+
+    override suspend fun mergedCollection(ids: List<Long>): MergedCollection =
+        get(MergedCollection.serializer(), "api", "collections", "merged", query = listOf("ids" to ids.joinToString(",")))
 
     override fun collectionImageUrl(id: Long, kind: ImageKind, width: Int?, version: String?): String {
         require(kind != ImageKind.Thumb) { "collections have a poster and a backdrop only" }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -62,6 +63,7 @@ import app.pley.android.model.LibraryKind
 import app.pley.android.model.SortOrder
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.collection.CategoryChoice
 import app.pley.android.screens.library.LibraryDeps
 import app.pley.android.screens.library.LibraryUiState
 import app.pley.android.screens.library.LibraryViewModel
@@ -70,6 +72,8 @@ import app.pley.android.screens.screensGraph
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.FocusMemory
+import app.pley.android.ui.tv.kit.TvRow
+import app.pley.android.ui.tv.kit.TvRowColumn
 import app.pley.android.ui.tv.kit.TvScrolling
 import app.pley.android.ui.tv.kit.railFade
 import app.pley.android.ui.tv.kit.rememberFocusMemory
@@ -162,7 +166,9 @@ private fun TvLibraryPage(state: LibraryUiState<ArtworkTileModel>, vm: LibraryVi
                 when (tab) {
                     LibraryTab.Library -> TvLibraryTab(state, vm, memory, skeleton, initial, libraryGrid, chips, tabFocus, contentFocus, onPanel = openPanel)
                     LibraryTab.Recommended -> TvRecommendedTab(state, vm, memory, initial, tabFocus, Modifier.focusRequester(contentFocus).upTo(tabFocus))
-                    LibraryTab.Collections -> TvCollectionsTab(state, vm, memory, skeleton, initial, collectionsGrid, tabFocus, contentFocus)
+                    LibraryTab.Collections -> TvCollectionsTab(
+                        state, vm, memory, skeleton, initial, collectionsGrid, chips, tabFocus, contentFocus, onPanel = openPanel,
+                    )
                 }
             }
         }
@@ -442,7 +448,12 @@ private fun ChipRow(modifier: Modifier, content: @Composable RowScope.() -> Unit
     }
 }
 
-/** The Collections tab: the count at y = 80, then the collections' posters with their counts, from y = 136. */
+/**
+ * The Collections tab (the web's CollectionsTab): the Category chip when
+ * there are categories to choose, Clear filters and the count at y = 80; then, from y = 136, the collections' posters with their
+ * counts in a grid, or, when they are of more than one category, a row
+ * for each category, titled with its name, in the categories' order.
+ */
 @Composable
 private fun TvCollectionsTab(
     state: LibraryUiState<ArtworkTileModel>,
@@ -451,34 +462,69 @@ private fun TvCollectionsTab(
     skeleton: SkeletonState,
     initial: Boolean,
     focus: TvGridFocus,
+    chips: Map<TvPanel, FocusRequester>,
     tabFocus: FocusRequester,
     contentFocus: FocusRequester,
+    onPanel: (TvPanel) -> Unit,
 ) {
     val navigator = LocalTvNavigator.current
     val resources = LocalResources.current
     val collections = state.collections
-    val list = collections.valueOrNull
+    val view = collections.valueOrNull
+    val chipRow = remember { FocusRequester() }
+    // Down from the tabs lands on the chips when there are any, else on the collections (or the grid while it loads).
+    val chipsFocusable = view != null && view.categoryOffered
     Column(Modifier.fillMaxSize()) {
         Spacer(Modifier.height(ChipsTop))
-        Box(Modifier.padding(start = PleyTv.Gutter).height(ChipHeight), contentAlignment = Alignment.CenterStart) {
-            if (list != null) {
+        if (view != null && view.total > 0) {
+            ChipRow(if (chipsFocusable) Modifier.focusRequester(contentFocus).focusRequester(chipRow).upTo(tabFocus) else Modifier) {
+                if (view.categoryOffered) {
+                    val category = view.category
+                    TvChip(
+                        label = when (category) {
+                            CategoryChoice.All -> stringResource(R.string.tv_library_collections_category)
+                            else -> view.choices.firstOrNull { it.choice == category }?.category?.title
+                                ?: stringResource(R.string.tv_library_collections_category)
+                        },
+                        selected = category != CategoryChoice.All,
+                        onClick = { onPanel(TvPanel.CollectionCategory) },
+                        modifier = Modifier.widthIn(max = 220.dp)
+                            .focusRequester(chips.getValue(TvPanel.CollectionCategory))
+                            .rememberedFocus(memory, "chip/collection_category"),
+                    )
+                }
+                if (view.filtered) {
+                    TvChip(
+                        label = stringResource(R.string.tv_library_clear_filters),
+                        icon = PleyIcons.X,
+                        onClick = {
+                            vm.clearCollectionFilters()
+                            runCatching { chips.getValue(TvPanel.CollectionCategory).requestFocus() }
+                        },
+                        modifier = Modifier.rememberedFocus(memory, "chip/collection_clear"),
+                    )
+                }
                 BasicText(
-                    tvCount(resources, R.plurals.tv_library_count_collections, list.size),
+                    tvCount(resources, R.plurals.tv_library_count_collections, view.count),
                     style = PleyType.Tv.Caption.copy(color = PleyColors.Muted),
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 8.dp),
                 )
             }
+        } else {
+            Spacer(Modifier.height(ChipHeight))
         }
         Spacer(Modifier.height(GridTop - ChipsTop - ChipHeight - TileRoom))
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                list == null && collections is Loadable.Failed -> TvMessage(
+                view == null && collections is Loadable.Failed -> TvMessage(
                     title = failedTitle(collections.error, stringResource(R.string.tv_library_collections_failed)),
                     body = failedBody(collections.error),
                     action = stringResource(R.string.tv_library_retry),
                     onAction = vm::retry,
                     top = 24.dp,
                 )
-                list != null && list.isEmpty() -> TvMessage(
+                view != null && view.total == 0 -> TvMessage(
                     title = stringResource(R.string.tv_library_collections_empty_title),
                     body = stringResource(
                         if (state.kind == LibraryKind.Shows) R.string.tv_library_collections_empty_shows else R.string.tv_library_collections_empty_movies,
@@ -487,20 +533,45 @@ private fun TvCollectionsTab(
                     takeFocus = initial,
                     focusInstead = tabFocus,
                 )
-                else -> TvPosterGrid(
-                    total = list?.size ?: SKELETONS,
-                    tileAt = { list?.getOrNull(it)?.tile },
-                    keyAt = { it },
-                    kind = TileKind.LibraryGrid,
-                    onOpen = { position, _ -> list?.getOrNull(position)?.let { navigator.open(PleyKey.Collection(it.id)) } },
-                    memory = memory,
-                    memoryPrefix = "collections",
-                    skeleton = skeleton,
-                    focus = focus,
-                    initialFocus = initial,
-                    badge = { list?.getOrNull(it)?.count?.toString() },
-                    modifier = Modifier.fillMaxSize().focusRequester(contentFocus).upTo(tabFocus),
-                )
+                view != null && view.headed -> TvRowColumn(
+                    modifier = Modifier.fillMaxSize().upTo(chipRow),
+                    headerY = TileRoom,
+                    contentPadding = PaddingValues(top = TileRoom, bottom = 180.dp),
+                ) {
+                    view.groups.forEachIndexed { at, group ->
+                        val rowKey = "category/${group.key}"
+                        item(key = rowKey, contentType = "category") {
+                            TvRow(
+                                rowKey = rowKey,
+                                title = group.category?.title.orEmpty(),
+                                tiles = group.collections.map { it.tile },
+                                kind = TileKind.Poster,
+                                onOpen = { tile -> navigator.open(PleyKey.Collection(tile.id)) },
+                                memory = memory,
+                                initialFocus = initial && at == 0,
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    val list = view?.groups?.singleOrNull()?.collections
+                    TvPosterGrid(
+                        total = list?.size ?: SKELETONS,
+                        tileAt = { list?.getOrNull(it)?.tile },
+                        keyAt = { it },
+                        kind = TileKind.LibraryGrid,
+                        onOpen = { position, _ -> list?.getOrNull(position)?.let { navigator.open(PleyKey.Collection(it.id)) } },
+                        memory = memory,
+                        memoryPrefix = "collections",
+                        skeleton = skeleton,
+                        focus = focus,
+                        initialFocus = initial,
+                        badge = { list?.getOrNull(it)?.count?.let { count -> tvDigits(resources, count) } },
+                        modifier = Modifier.fillMaxSize()
+                            .then(if (chipsFocusable) Modifier else Modifier.focusRequester(contentFocus))
+                            .upTo(if (chipsFocusable) chipRow else tabFocus),
+                    )
+                }
             }
         }
     }
@@ -509,14 +580,19 @@ private fun TvCollectionsTab(
 /** The item id of a grid tile's focus key ("grid/<id>"); `null` for any other key. */
 private fun gridTileId(key: String): Long? = key.removePrefix("grid/").takeIf { it.length < key.length }?.toLongOrNull()
 
-/** Up out of this group goes to [target] (the tabs), not to whatever is geometrically nearest. */
+/**
+ * Up out of this group goes to [target] (the tabs, or the chips above),
+ * not to whatever is geometrically nearest. Focus is sent there in place
+ * of the move, not after cancelling it: a cancelled move goes on to the
+ * next thing above, and where the nearest is a group (the chips), on past
+ * it to the tabs.
+ */
 internal fun Modifier.upTo(target: FocusRequester): Modifier = focusProperties {
     val inner = onExit
     onExit = {
         inner()
-        if (requestedFocusDirection == FocusDirection.Up) {
+        if (requestedFocusDirection == FocusDirection.Up && !runCatching { target.requestFocus() }.getOrDefault(false)) {
             cancelFocusChange()
-            runCatching { target.requestFocus() }
         }
     }
 }.focusGroup()

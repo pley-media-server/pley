@@ -15,6 +15,7 @@ export function hasNext(kind: ItemKind, queue: PlayRequest["queue"]): boolean {
 export async function nextAfter(api: Api, itemId: number, kind: ItemKind, queue: PlayRequest["queue"]): Promise<ItemSummary | null> {
   if (queue?.kind === "playlist") return nextIn((await api.playlist(queue.id)).entries.map((e) => e.item), itemId);
   if (queue?.kind === "collection") return nextIn((await api.collection(queue.id)).items, itemId);
+  if (queue?.kind === "merged") return nextIn((await api.mergedCollection(queue.ids)).items, itemId);
   return kind === "episode" ? (await api.next(itemId)).item : null;
 }
 

@@ -29,6 +29,8 @@ public sealed record CollectionPage
     public string? Summary { get; init; }
     /// <summary>Mirrors a TMDB collection: the "TMDB" badge.</summary>
     public bool Automatic { get; init; }
+    /// <summary>Its category's name, a badge after the "Collection" label; null without one, or for Other.</summary>
+    public string? Category { get; init; }
     /// <summary>Filled by a filter: the "Smart" badge.</summary>
     public bool Smart { get; init; }
     public long Count { get; init; }
@@ -47,6 +49,16 @@ public sealed record CollectionPage
     public IReadOnlyList<ItemSummary> Items { get; init; } = Array.Empty<ItemSummary>();
     /// <summary>Its items are movies, played in its order; else shows, which play their next episode.</summary>
     public bool Movies { get; init; }
+    /// <summary>
+    /// A Home row of several libraries' collections of one title together (the Android app's
+    /// MergedCollectionPage): its facts are how many movies and shows, and <see cref="Sources"/>
+    /// name the libraries.
+    /// </summary>
+    public bool Merged { get; init; }
+    public int MovieCount { get; init; }
+    public int ShowCount { get; init; }
+    /// <summary>A merged page's libraries, in the row's order; those not known yet left out.</summary>
+    public IReadOnlyList<MergedSource> Sources { get; init; } = Array.Empty<MergedSource>();
 
     public bool CanPlay => Items.Count > 0;
     public bool CanShuffle => Items.Count >= 2;
@@ -62,6 +74,29 @@ public abstract record CollectionEvent
     public sealed record NothingToPlay : CollectionEvent;
 
     public sealed record Failed(Exception Error) : CollectionEvent;
+}
+
+/// <summary>A collection's page, or the merged page: what its screen shows and does.</summary>
+public interface ICollectionPageModel : IDisposable
+{
+    /// <summary>The page's key on the back stack.</summary>
+    PageKey Key { get; }
+
+    Signal<Loadable<CollectionPage>> State { get; }
+
+    /// <summary>Nothing to play, or a failure: said beside the buttons for a few seconds (<see cref="CollectionText.MessageMs"/>).</summary>
+    event Action<CollectionEvent>? Told;
+
+    /// <summary>Something to play.</summary>
+    event Action<PlayRequest>? PlayRequested;
+
+    void Retry();
+
+    /// <summary>Play (<paramref name="shuffle"/> false) or Shuffle.</summary>
+    void Play(bool shuffle);
+
+    /// <summary>Where opening the item at <paramref name="position"/> goes.</summary>
+    PageKey? Opens(int position);
 }
 
 /// <summary>What the collections' pages read: the app's state, or a fake in tests.</summary>
@@ -82,6 +117,9 @@ public interface ICollectionSource
     Task<IReadOnlyList<Collection>> Collections(long libraryId);
 
     Task<CollectionDetail> Collection(long id);
+
+    /// <summary>The collections <paramref name="ids"/> together (a Home row of several libraries').</summary>
+    Task<MergedCollection> Merged(IReadOnlyList<long> ids);
 
     /// <summary>The episode a show's Play starts; null with none.</summary>
     Task<ItemSummary?> OnDeck(long id);
@@ -120,6 +158,8 @@ public sealed class AppCollectionSource : ICollectionSource
     public async Task<IReadOnlyList<Collection>> Collections(long libraryId) => (await Api.Collections(libraryId)).Collections;
 
     public Task<CollectionDetail> Collection(long id) => Api.Collection(id);
+
+    public Task<MergedCollection> Merged(IReadOnlyList<long> ids) => Api.MergedCollection(ids);
 
     public async Task<ItemSummary?> OnDeck(long id) => (await Api.OnDeck(id)).Item;
 
@@ -225,7 +265,7 @@ public sealed class CollectionsModel : IDisposable
 /// the first show's next episode; Shuffle a random show's, as the web does. It asks again when
 /// the app hears that things changed.
 /// </summary>
-public sealed class CollectionModel : IDisposable
+public sealed class CollectionModel : ICollectionPageModel
 {
     readonly ICollectionSource source;
     readonly IScheduler scheduler;
@@ -247,6 +287,8 @@ public sealed class CollectionModel : IDisposable
     }
 
     public long CollectionId { get; }
+
+    public PageKey Key => new PageKey.Collection(CollectionId);
 
     public Signal<Loadable<CollectionPage>> State { get; } = new Signal<Loadable<CollectionPage>>(new Loadable<CollectionPage>.Loading());
 
@@ -297,17 +339,7 @@ public sealed class CollectionModel : IDisposable
         detail.Drop();
     }
 
-    /// <summary>What playing <paramref name="item"/> plays, as the item pages' Play does.</summary>
-    Task<PlayRequest?> Resolve(ItemSummary item)
-    {
-        if (Format.IsPlayableVideo(item.Kind)) return Task.FromResult<PlayRequest?>(new PlayRequest(item.Id, item.UserState.Watched ? 0 : item.UserState.PositionMs, false));
-        if (item.Kind is not ("show" or "season")) return Task.FromResult<PlayRequest?>(null);
-        return source.OnDeck(item.Id).ContinueWith(t =>
-        {
-            var next = t.GetAwaiter().GetResult();
-            return next == null ? null : new PlayRequest(next.Id, next.UserState.PositionMs, false);
-        }, System.Threading.CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-    }
+    Task<PlayRequest?> Resolve(ItemSummary item) => CollectionRules.Resolve(source, item);
 
     void Compute()
     {
@@ -322,9 +354,140 @@ public sealed class CollectionModel : IDisposable
     }
 }
 
+/// <summary>One of a merged page's collections: its library, whose name opens that collection alone.</summary>
+public sealed record MergedSource(long CollectionId, string LibraryName);
+
+/// <summary>
+/// The merged page of <see cref="CollectionIds"/> (the Android app's MergedCollectionViewModel).
+/// Play plays its movies one after another in the row's order (a
+/// <see cref="PlayQueue.MergedCollection"/>), Shuffle from a random one; without movies, the first
+/// show's next episode, or a random show's. It asks again when the app hears that things changed,
+/// and the page is made anew in another language, so its title is the server's in that language.
+/// </summary>
+public sealed class MergedCollectionModel : ICollectionPageModel
+{
+    readonly ICollectionSource source;
+    readonly IScheduler scheduler;
+    readonly Random random;
+    readonly List<IDisposable> watches = new List<IDisposable>();
+    readonly Fetch<MergedCollection> merged;
+    bool gone;
+
+    public MergedCollectionModel(ICollectionSource source, IReadOnlyList<long> collectionIds, IScheduler scheduler, Random? random = null)
+    {
+        this.source = source;
+        this.scheduler = scheduler;
+        this.random = random ?? new Random();
+        CollectionIds = collectionIds;
+        merged = new Fetch<MergedCollection>(scheduler, Compute);
+        watches.Add(source.Libraries.Watch(_ => Compute()));
+        watches.Add(source.OnChange(Retry));
+        merged.Ask(() => source.Merged(collectionIds));
+    }
+
+    public IReadOnlyList<long> CollectionIds { get; }
+
+    public PageKey Key => new PageKey.MergedCollection(CollectionIds);
+
+    public Signal<Loadable<CollectionPage>> State { get; } = new Signal<Loadable<CollectionPage>>(new Loadable<CollectionPage>.Loading());
+
+    /// <summary>Nothing to play, or a failure: said beside the buttons for a few seconds (<see cref="CollectionText.MessageMs"/>).</summary>
+    public event Action<CollectionEvent>? Told;
+
+    /// <summary>Something to play.</summary>
+    public event Action<PlayRequest>? PlayRequested;
+
+    public void Retry()
+    {
+        if (!gone) merged.Ask(() => source.Merged(CollectionIds));
+    }
+
+    /// <summary>Play (<paramref name="shuffle"/> false) or Shuffle.</summary>
+    public void Play(bool shuffle)
+    {
+        if (State.Value.Value is not { } page || page.Items.Count == 0) return;
+        var movies = page.Items.Where(i => i.Kind == "movie").ToList();
+        if (movies.Count > 0)
+        {
+            var start = shuffle ? movies[random.Next(movies.Count)] : movies[0];
+            PlayRequested?.Invoke(new PlayRequest(start.Id, start.UserState.Watched ? 0 : start.UserState.PositionMs, false, Queue: new PlayQueue.MergedCollection(CollectionIds)));
+            return;
+        }
+        var pick = shuffle ? page.Items[random.Next(page.Items.Count)] : page.Items[0];
+        Plays.When(scheduler, () => CollectionRules.Resolve(source, pick), target =>
+        {
+            if (gone) return;
+            if (target == null) Told?.Invoke(new CollectionEvent.NothingToPlay());
+            else PlayRequested?.Invoke(target);
+        }, e =>
+        {
+            if (!gone) Told?.Invoke(new CollectionEvent.Failed(e));
+        });
+    }
+
+    /// <summary>Where opening the item at <paramref name="position"/> goes.</summary>
+    public PageKey? Opens(int position) =>
+        State.Value.Value is { } page && position >= 0 && position < page.Items.Count ? LibraryRules.Opens(page.Items[position]) : null;
+
+    public void Dispose()
+    {
+        gone = true;
+        foreach (var w in watches) w.Dispose();
+        watches.Clear();
+        merged.Drop();
+    }
+
+    void Compute()
+    {
+        if (gone) return;
+        CollectionPage? Page(MergedCollection? m) => m == null ? null : CollectionRules.Merged(m, source.Libraries.Value, source.Origin);
+        State.Value = merged.State switch
+        {
+            Loadable<MergedCollection>.Ready r => new Loadable<CollectionPage>.Ready(Page(r.Data)!),
+            Loadable<MergedCollection>.Failed f => new Loadable<CollectionPage>.Failed(f.Error, Page(f.Stale)),
+            _ => new Loadable<CollectionPage>.Loading(),
+        };
+    }
+}
+
 /// <summary>A collection's page's rules (the Android app's CollectionViewModel.page).</summary>
 public static class CollectionRules
 {
+    /// <summary>What playing <paramref name="item"/> plays, as the item pages' Play does.</summary>
+    internal static Task<PlayRequest?> Resolve(ICollectionSource source, ItemSummary item)
+    {
+        if (Format.IsPlayableVideo(item.Kind)) return Task.FromResult<PlayRequest?>(new PlayRequest(item.Id, item.UserState.Watched ? 0 : item.UserState.PositionMs, false));
+        if (item.Kind is not ("show" or "season")) return Task.FromResult<PlayRequest?>(null);
+        return source.OnDeck(item.Id).ContinueWith(t =>
+        {
+            var next = t.GetAwaiter().GetResult();
+            return next == null ? null : new PlayRequest(next.Id, next.UserState.PositionMs, false);
+        }, System.Threading.CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
+    /// <summary>The merged page of <paramref name="merged"/>, its libraries found among <paramref name="libraries"/>.</summary>
+    public static CollectionPage Merged(MergedCollection merged, IReadOnlyList<Library>? libraries, string origin)
+    {
+        var sources = new List<MergedSource>();
+        foreach (var part in merged.Collections)
+            if (libraries?.FirstOrDefault(l => l.Id == part.LibraryId) is { } library) sources.Add(new MergedSource(part.Id, library.Name));
+        // No backdrop, as the Android app's: the titles are of several collections.
+        var movies = merged.Items.Count(i => i.Kind == "movie");
+        return new CollectionPage
+        {
+            Id = merged.Collections.FirstOrDefault()?.Id ?? 0,
+            Title = merged.Title,
+            Count = merged.Items.Count,
+            Merged = true,
+            MovieCount = movies,
+            ShowCount = merged.Items.Count(i => i.Kind == "show"),
+            Sources = sources,
+            Tiles = merged.Items.Select(i => LibraryRules.Tile(i, TileLook.Poster, origin)).ToList(),
+            Items = merged.Items,
+            Movies = movies > 0,
+        };
+    }
+
     /// <summary>The page of <paramref name="detail"/>, its library found among <paramref name="libraries"/>.</summary>
     public static CollectionPage Page(CollectionDetail detail, IReadOnlyList<Library>? libraries, string origin)
     {
@@ -341,6 +504,8 @@ public static class CollectionRules
             Title = detail.Title,
             Summary = string.IsNullOrWhiteSpace(detail.Summary) ? null : detail.Summary,
             Automatic = detail.Automatic,
+            // Other only says it has no category, so the page doesn't name it.
+            Category = detail.Category is { Key: not "other" } c ? c.Title : null,
             Smart = !string.IsNullOrEmpty(detail.SmartFilter),
             Count = detail.ItemCount,
             LibraryId = detail.LibraryId,
@@ -380,6 +545,8 @@ public static class CollectionText
     public static string Empty => Strings.T("item.collections.empty");
     public static string Failed => Strings.T("item.collections.failed");
     public static string NothingToPlay => Strings.T("item.collections.nothingToPlay");
+    /// <summary>Before the merged page's libraries: "From".</summary>
+    public static string From => Strings.T("item.collections.from");
 
     /// <summary>How long a message beside Play shows.</summary>
     public const long MessageMs = 4_000;
@@ -407,9 +574,20 @@ public static class CollectionText
             ? new LibraryMessage(LibraryText.FailedTitle(f.Error, Failed), LibraryText.FailedBody(f.Error), MessageAction.Retry)
             : null;
 
-    /// <summary>"12 movies  ·  Movies  ·  By release date": the count, the library, what it holds in words.</summary>
-    public static string FactsLine(CollectionPage page) =>
-        string.Join("  ·  ", new[] { LibraryText.CollectionCount(page.Kind, page.Count), page.LibraryName }.Where(s => s != null).Concat(page.Notes));
+    /// <summary>
+    /// "12 movies  ·  Movies  ·  By release date": the count, the library, what it holds in words;
+    /// the merged page's "3 movies  ·  1 show", how many of each it holds.
+    /// </summary>
+    public static string FactsLine(CollectionPage page)
+    {
+        if (!page.Merged)
+            return string.Join("  ·  ", new[] { LibraryText.CollectionCount(page.Kind, page.Count), page.LibraryName }.Where(s => s != null).Concat(page.Notes));
+        var parts = new List<string>();
+        if (page.MovieCount > 0) parts.Add(LibraryText.Count("movies", page.MovieCount));
+        if (page.ShowCount > 0) parts.Add(LibraryText.Count("shows", page.ShowCount));
+        return string.Join("  ·  ", parts);
+    }
+
 
     /// <summary>The words of what Play or Shuffle ran into.</summary>
     public static string Said(CollectionEvent e) => e switch

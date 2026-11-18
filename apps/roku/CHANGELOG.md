@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A library's Collections tab groups collections by category, with a
+  Category filter; a collection's page shows its category; and a
+  Home row of collections from several libraries opens them together,
+  each row's See all opening its collections.
+
 ## [0.1.9] - 2026-11-14
 
 ### Fixed

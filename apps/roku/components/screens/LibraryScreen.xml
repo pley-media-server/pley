@@ -3,7 +3,8 @@
      Library tab its sort and filters, chosen in a panel at the right. The
      Library tab is a grid of posters loaded a page at a time, with the A to
      Z beside it when sorted by title; Recommended is the library's rows;
-     Collections a grid of its collections. -->
+     Collections its collections by category, with the Category filter
+     at the right. -->
 <component name="LibraryScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -36,6 +37,9 @@
              in its titles: it passes over a place it doesn't know yet. -->
         <Timer id="jumpTimer" duration="0.1" />
         <RowList id="rows" translation="[96, 212]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <!-- The Collections tab by category, a row each, when there are
+             several; one category's are in the grid. -->
+        <RowList id="groups" translation="[96, 212]" itemComponentName="Tile" itemSize="[1728, 470]" rowItemSize="[[220, 410]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         <Label id="message" translation="[96, 480]" width="1728" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- The sort's or the filters' choices, over the right half. -->
         <Group id="panel" visible="false">

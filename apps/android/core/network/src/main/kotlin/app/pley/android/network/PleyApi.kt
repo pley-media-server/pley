@@ -4,6 +4,7 @@ import app.pley.android.model.Added
 import app.pley.android.model.Approval
 import app.pley.android.model.Asked
 import app.pley.android.model.CastRequest
+import app.pley.android.model.CollectionCategories
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Decline
 import app.pley.android.model.DiscoverDetail
@@ -52,6 +53,7 @@ import app.pley.android.model.SpeedSample
 import app.pley.android.model.SubtitleResults
 import app.pley.android.model.SubtitleTrack
 import app.pley.android.model.Me
+import app.pley.android.model.MergedCollection
 import app.pley.android.model.NewPlaylist
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PlaybackInfo
@@ -188,6 +190,12 @@ interface PleyApi {
 
     /** GET /api/collections/{id}: a collection and its items, in its order. */
     suspend fun collection(id: Long): CollectionDetail
+
+    /** GET /api/collection-categories: the categories collections are grouped by, in order. */
+    suspend fun collectionCategories(): CollectionCategories
+
+    /** GET /api/collections/merged?ids=: a Home row of several collections of one title, all its titles. */
+    suspend fun mergedCollection(ids: List<Long>): MergedCollection
 
     /**
      * GET /api/collections/{id}/images/{kind}: a collection's poster or

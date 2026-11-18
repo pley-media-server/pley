@@ -99,10 +99,12 @@ impl SettingsSection {
 }
 
 /// Where a playback's Next and Previous go: a playlist's or a collection's order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PlayQueue {
     Playlist(i64),
     Collection(i64),
+    /// Several libraries' same-titled collections, in the merged page's order.
+    Collections(Vec<i64>),
 }
 
 /// A video to play, as the player opens with it (the TV app's `PlayRequest`,
@@ -177,6 +179,10 @@ pub enum Route {
     },
     Collection {
         id: i64,
+    },
+    /// Several libraries' same-titled collections, opened together from a Home row.
+    MergedCollection {
+        ids: Vec<i64>,
     },
     Playlists,
     Playlist {
@@ -263,6 +269,16 @@ pub enum Route {
 }
 
 impl Route {
+    /// What opens a row of `collection_ids` (its title and See all): the collection's page, or
+    /// the merged page of several; `None` for a row of no collection.
+    pub fn of_collections(collection_ids: &[i64]) -> Option<Route> {
+        match collection_ids {
+            [] => None,
+            [id] => Some(Route::Collection { id: *id }),
+            ids => Some(Route::MergedCollection { ids: ids.to_vec() }),
+        }
+    }
+
     /// A short name for logs, the simulator and the placeholder screen.
     pub fn name(&self) -> &'static str {
         match self {
@@ -276,6 +292,7 @@ impl Route {
             Route::Library { .. } => "library",
             Route::Collections { .. } => "collections",
             Route::Collection { .. } => "collection",
+            Route::MergedCollection { .. } => "merged-collection",
             Route::Playlists => "playlists",
             Route::Playlist { .. } => "playlist",
             Route::AddToPlaylist { .. } => "add-to-playlist",
@@ -317,6 +334,10 @@ impl Route {
             Route::Library { id, .. } => t!("shell.pages.library", id = id),
             Route::Collections { .. } => t!("shell.rail.collections").into(),
             Route::Collection { id } => t!("shell.pages.collection", id = id),
+            Route::MergedCollection { ids } => {
+                let ids = ids.iter().map(i64::to_string).collect::<Vec<_>>().join(", ");
+                t!("shell.pages.mergedCollection", ids = ids)
+            }
             Route::Playlists => t!("shell.rail.playlists").into(),
             Route::Playlist { id } => t!("shell.pages.playlist", id = id),
             Route::AddToPlaylist { title, .. } => t!("shell.pages.addToPlaylist", title = title),
@@ -405,6 +426,11 @@ impl Route {
             "library" => Route::Library { id: id()?, tab: b.and_then(LibraryTab::parse), sort: None },
             "collections" => Route::Collections { library_id: id() },
             "collection" => Route::Collection { id: id()? },
+            // `merged-collection:4,9`.
+            "merged-collection" => {
+                let ids: Option<Vec<i64>> = a?.split(',').map(|v| v.trim().parse().ok()).collect();
+                Route::MergedCollection { ids: ids.filter(|ids| !ids.is_empty())? }
+            }
             "playlists" => Route::Playlists,
             "playlist" => Route::Playlist { id: id()? },
             "add-to-playlist" => Route::AddToPlaylist { item_ids: vec![id()?], title: b.unwrap_or("").to_string() },
@@ -455,6 +481,7 @@ impl Route {
             Route::Library { id: 1, tab: None, sort: None },
             Route::Collections { library_id: Some(1) },
             Route::Collection { id: 5 },
+            Route::MergedCollection { ids: vec![5, 9] },
             Route::Playlists,
             Route::Playlist { id: 3 },
             Route::AddToPlaylist { item_ids: vec![12], title: "Arrival".into() },
@@ -494,7 +521,7 @@ mod tests {
         unique.sort_unstable();
         unique.dedup();
         assert_eq!(unique.len(), names.len(), "{names:?}");
-        assert_eq!(names.len(), 34);
+        assert_eq!(names.len(), 35);
     }
 
     #[test]
@@ -512,6 +539,8 @@ mod tests {
             Some(Route::Link { server: "http://10.0.0.2:7539".into() })
         );
         assert_eq!(Route::parse("player:12"), Some(Route::Player(PlayRequest::item(12))));
+        assert_eq!(Route::parse("merged-collection:4,9"), Some(Route::MergedCollection { ids: vec![4, 9] }));
+        assert_eq!(Route::parse("merged-collection:4,x"), None);
         assert_eq!(
             Route::parse("title:show:95396"),
             Some(Route::Title { kind: TitleKind::Show, tmdb_id: 95396, pick: false })

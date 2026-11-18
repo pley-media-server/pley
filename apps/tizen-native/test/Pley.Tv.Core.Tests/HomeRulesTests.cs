@@ -78,9 +78,20 @@ public class HomeRulesTests
     public void See_all_opens_the_library_for_its_listed_rows_only()
     {
         Assert.Null(HomeRules.SeeAllOf(Continue));
-        Assert.Equal(new SeeAll(1, "sort=added&order=desc"), HomeRules.SeeAllOf(AddedMovies));
-        Assert.Equal(new SeeAll(2, "sort=rating&order=desc"), HomeRules.SeeAllOf(HubOf("top_rated:2", "Top Rated", 2, Overgrowth)));
+        Assert.Equal(new PageKey.Library(1, LibraryTab.Library, "sort=added&order=desc"), HomeRules.SeeAllOf(AddedMovies));
+        Assert.Equal(new PageKey.Library(2, LibraryTab.Library, "sort=rating&order=desc"), HomeRules.SeeAllOf(HubOf("top_rated:2", "Top Rated", 2, Overgrowth)));
         Assert.Null(HomeRules.SeeAllOf(HubOf("continue_watching:2", "Continue Watching", 2, Glasshouse)));
+    }
+
+    [Fact]
+    public void See_all_opens_the_collection_a_row_shows_or_the_merged_page()
+    {
+        // Ahead of the library's listing, as the web's HubRow and the Android app's collectionOf.
+        Assert.Equal(new PageKey.Collection(7), HomeRules.SeeAllOf(AddedMovies with { CollectionIds = new long[] { 7 } }));
+        var merged = HomeRules.SeeAllOf(HubOf("collection:alien", "Alien", null, Overgrowth) with { CollectionIds = new long[] { 7, 9 } });
+        Assert.Equal(new PageKey.MergedCollection(new long[] { 7, 9 }), merged);
+        Assert.NotEqual(new PageKey.MergedCollection(new long[] { 9, 7 }), merged);
+        Assert.Null(HomeRules.CollectionOf(AddedMovies));
     }
 
     [Fact]

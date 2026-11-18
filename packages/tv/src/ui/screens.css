@@ -650,6 +650,9 @@
 .collection-hero { position: relative; height: 436px; box-sizing: border-box; padding: 58px 0 0 96px; width: 560px; display: flex; flex-direction: column; }
 .collection-eyebrow { display: flex; align-items: center; }
 .collection-eyebrow > * + * { margin-left: 8px; }
+/* A merged collection's libraries: "From" and a chip for each, which opens that library's collection. */
+.merged-sources { display: flex; align-items: center; }
+.merged-sources > * + * { margin-left: 10px; }
 
 /* ---------------------------------------------------------------- playlists, sheets */
 

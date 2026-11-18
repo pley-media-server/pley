@@ -59,6 +59,43 @@ public class ApiTests
     }
 
     [Fact]
+    public async Task Reads_collections_categories_and_rows_and_their_absence_from_an_older_server()
+    {
+        var (api, server, _) = SignedIn();
+        server.On("GET", Home + "/api/collection-categories", 200, @"{""categories"":[{""id"":1,""key"":""highlights"",""title"":""Highlights"",""from_label"":null,""position"":0},
+            {""id"":3,""key"":""other"",""title"":""Other"",""from_label"":null,""position"":1},{""id"":5,""key"":null,""title"":""Seasonal"",""from_label"":""Seasonal"",""position"":2}]}");
+        var categories = (await api.CollectionCategories()).Categories;
+        Assert.Equal(new[] { (1L, (string?)"highlights", "Highlights", (string?)null, 0), (3L, "other", "Other", null, 1), (5L, null, "Seasonal", "Seasonal", 2) },
+            categories.Select(c => (c.Id, c.Key, c.Title, c.FromLabel, c.Position)));
+        server.On("GET", Home + "/api/libraries/1/collections", 200, @"{""collections"":[{""id"":9,""library_id"":1,""title"":""Alien"",""category"":{""id"":2,""key"":""franchises"",""title"":""Franchises""}},
+            {""id"":10,""library_id"":1,""title"":""Loose"",""category"":{""id"":3,""key"":""other"",""title"":""Other""}}]}");
+        var collections = (await api.Collections(1)).Collections;
+        Assert.Equal(new CategoryRef(2, "franchises", "Franchises"), collections[0].Category);
+        // One without a category comes with the server's Other.
+        Assert.Equal(new CategoryRef(3, "other", "Other"), collections[1].Category);
+        // A server from before categories names none.
+        server.On("GET", Home + "/api/libraries/1/collections", 200, @"{""collections"":[{""id"":11,""library_id"":1,""title"":""Old""}]}");
+        Assert.Null(Assert.Single((await api.Collections(1)).Collections).Category);
+        server.On("GET", Home + "/api/collections/merged?ids=7,9", 200, @"{""title"":""Alien"",""collections"":[{""id"":7,""library_id"":1},{""id"":9,""library_id"":2}],
+            ""items"":[{""id"":3,""library_id"":1,""kind"":""movie"",""title"":""Alien""}]}");
+        var merged = await api.MergedCollection(new long[] { 7, 9 });
+        Assert.Equal(("Alien", 3L), (merged.Title, Assert.Single(merged.Items).Id));
+        Assert.Equal(new[] { new MergedPart(7, 1), new MergedPart(9, 2) }, merged.Collections);
+        server.On("GET", Home + "/api/hubs/home", 200, @"{""hubs"":[{""key"":""collections:7,9"",""title"":""Alien"",""library_id"":null,""collection_ids"":[7,9],""items"":[]},
+            {""key"":""recently_added:1"",""title"":""Recently Added"",""library_id"":1,""items"":[]}]}");
+        var hubs = (await api.Home()).Hubs;
+        Assert.Equal(new long[] { 7, 9 }, hubs[0].CollectionIds);
+        // A server from before collections' rows: none, and See all lists the library.
+        Assert.Empty(hubs[1].CollectionIds);
+
+        // A server from before categories has no such route: an answer, not the server away.
+        server.On("GET", Home + "/api/collection-categories", 404, @"{""code"":""not_found"",""message"":""no such endpoint""}");
+        var refused = await Assert.ThrowsAsync<ApiException>(() => api.CollectionCategories());
+        Assert.Equal(404, refused.Status);
+        Assert.False(Errors.Unreachable(refused));
+    }
+
+    [Fact]
     public async Task Reads_a_null_where_a_value_belongs_as_its_default()
     {
         var (api, server, _) = SignedIn();

@@ -15,10 +15,12 @@ use pley_core::model::{
 use crate::quality::Quality;
 
 /// A playlist or collection played through, for Up Next.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Queue {
     Playlist(i64),
     Collection(i64),
+    /// Several libraries' same-titled collections as one (a Home row's merged page).
+    Collections(Vec<i64>),
 }
 
 /// What starts a playback.

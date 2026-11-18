@@ -4,11 +4,13 @@ import app.pley.android.model.AppProfile
 import app.pley.android.model.ApiErrorBody
 import app.pley.android.model.Added
 import app.pley.android.model.ArrService
+import app.pley.android.model.CollectionCategories
 import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.DiscoverDetail
 import app.pley.android.model.DiscoverPage
 import app.pley.android.model.DownloadState
 import app.pley.android.model.ItemRequest
+import app.pley.android.model.MergedCollection
 import app.pley.android.model.RequestAccess
 import app.pley.android.model.RequestAction
 import app.pley.android.model.RequestList
@@ -113,6 +115,8 @@ class FixturesTest {
         "libraries/collections.json" to CollectionList.serializer(),
         "collections/detail.json" to CollectionDetail.serializer(),
         "collections/smart_detail.json" to CollectionDetail.serializer(),
+        "collections/categories.json" to CollectionCategories.serializer(),
+        "collections/merged.json" to MergedCollection.serializer(),
         "items/movie_detail.json" to ItemDetail.serializer(),
         "items/episode_detail.json" to ItemDetail.serializer(),
         "items/show_detail.json" to ItemDetail.serializer(),
@@ -212,7 +216,7 @@ class FixturesTest {
         assertTrue("no fixtures found on the classpath", files.isNotEmpty())
         assertEquals("fixtures missing from the table", emptyList<String>(), files - table.keys)
         assertEquals("table entries without a file", emptyList<String>(), (table.keys - files.toSet()).toList())
-        assertEquals(100, files.size)
+        assertEquals(102, files.size)
     }
 
     @Test

@@ -37,6 +37,14 @@ public abstract record PlayQueue
     public sealed record Playlist(long PlaylistId) : PlayQueue;
 
     public sealed record Collection(long CollectionId) : PlayQueue;
+
+    /// <summary>A Home row's collections of one title, together (<see cref="PageKey.MergedCollection"/>).</summary>
+    public sealed record MergedCollection(IReadOnlyList<long> CollectionIds) : PlayQueue
+    {
+        public bool Equals(MergedCollection? other) => other != null && CollectionIds.SequenceEqual(other.CollectionIds);
+
+        public override int GetHashCode() => CollectionIds.Aggregate(17, (h, id) => h * 31 + id.GetHashCode());
+    }
 }
 
 /// <summary>What item pages read and change: the app's state, or a fake in tests.</summary>

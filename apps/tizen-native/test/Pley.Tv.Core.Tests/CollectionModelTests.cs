@@ -143,4 +143,90 @@ public class CollectionModelTests
         model.Retry();
         Assert.Equal(1, failing.Refreshes);
     }
+
+    [Fact]
+    public void A_collection_page_names_its_category()
+    {
+        data.Details[5] = Detail(5, 1, "Alien Collection", new[] { Film(1, "Alien") }) with { Category = new CategoryRef(2, "franchises", "Franchises") };
+        data.Details[6] = Detail(6, 1, "Loose", new[] { Film(2, "Two") });
+        data.Details[7] = Detail(7, 1, "Odds", new[] { Film(3, "Three") }) with { Category = new CategoryRef(3, "other", "Other") };
+        Assert.Equal("Franchises", Model(5).State.Value.Value!.Category);
+        Assert.Null(Model(6).State.Value.Value!.Category);
+        Assert.Null(Model(7).State.Value.Value!.Category);
+    }
+
+    public static IEnumerable<object[]> Named() =>
+        Fixtures.Load("collections").GetProperty("named").EnumerateArray().Select(c => new object[] { c.GetProperty("name").GetString()! });
+
+    /// <summary>The category beside "Collection", as packages/tv/test/fixtures/collections.json has it for both Samsung apps: never Other.</summary>
+    [Theory]
+    [MemberData(nameof(Named))]
+    public void A_collection_page_names_its_category_as_the_fixture_says(string name)
+    {
+        var c = Fixtures.Load("collections").GetProperty("named").EnumerateArray().Single(x => x.GetProperty("name").GetString() == name);
+        CategoryRef? category = null;
+        if (c.TryGetProperty("category", out var given))
+            category = new CategoryRef(given.GetProperty("id").GetInt64(), given.GetProperty("key").ValueKind == System.Text.Json.JsonValueKind.Null ? null : given.GetProperty("key").GetString(),
+                given.GetProperty("title").GetString()!);
+        var page = CollectionRules.Page(Detail(5, 1, "Alien Collection", new[] { Film(1, "Alien") }) with { Category = category }, new[] { Movies }, "https://pley.example.com");
+        var named = c.GetProperty("named");
+        Assert.Equal(named.ValueKind == System.Text.Json.JsonValueKind.Null ? null : named.GetString(), page.Category);
+    }
+
+    MergedCollectionModel Merged(params long[] ids)
+    {
+        var model = new MergedCollectionModel(data, ids, scheduler, new Random(1));
+        model.PlayRequested += played.Add;
+        model.Told += told.Add;
+        return model;
+    }
+
+    [Fact]
+    public void A_merged_page_names_its_libraries_and_counts_what_it_holds()
+    {
+        data.Merges["7,9"] = new MergedCollection("Alien", new[] { new MergedPart(7, 1), new MergedPart(9, 2), new MergedPart(11, 42) },
+            new[] { Film(1, "Alien"), Film(2, "Aliens"), Show(10) });
+        var page = Merged(7, 9).State.Value.Value!;
+        Assert.Equal("Alien", page.Title);
+        Assert.True(page.Merged);
+        Assert.Equal((2, 1), (page.MovieCount, page.ShowCount));
+        // A library this profile doesn't know is left out.
+        Assert.Equal(new[] { new MergedSource(7, "Movies"), new MergedSource(9, "Shows") }, page.Sources);
+        Assert.Equal("2 movies  ·  1 show", CollectionText.FactsLine(page));
+        Assert.Equal(3, page.Tiles.Count);
+    }
+
+    [Fact]
+    public void A_merged_page_plays_its_movies_as_a_queue_and_not_its_shows()
+    {
+        data.Merges["7,9"] = new MergedCollection("Alien", new[] { new MergedPart(7, 1), new MergedPart(9, 2) }, new[] { Show(10), Film(1, "Alien"), Film(2, "Aliens") });
+        var model = Merged(7, 9);
+        model.Play(shuffle: false);
+        Assert.Equal(new PlayRequest(1, 0, false, Queue: new PlayQueue.MergedCollection(new long[] { 7, 9 })), played.Last());
+        Assert.Empty(data.Resolved);
+        Assert.Equal(new PageKey.Item(1), model.Opens(1));
+    }
+
+    [Fact]
+    public void A_merged_page_of_shows_plays_the_first_ones_next_episode()
+    {
+        data.Next[10] = Item(1_000, "episode");
+        data.Merges["7,9"] = new MergedCollection("Sitcoms", new[] { new MergedPart(7, 2), new MergedPart(9, 2) }, new[] { Show(10), Show(99) });
+        var model = Merged(7, 9);
+        model.Play(shuffle: false);
+        Assert.Equal(new PlayRequest(1_000, 0, false), played.Last());
+        Assert.Equal(new[] { 10L }, data.Resolved);
+    }
+
+    [Fact]
+    public void A_merged_page_asks_again_when_things_change()
+    {
+        data.Merges["7,9"] = new MergedCollection("Alien", new[] { new MergedPart(7, 1) }, new[] { Film(1, "Alien") });
+        var model = Merged(7, 9);
+        Assert.Equal(1, data.MergeAsks);
+        Assert.Equal(new PageKey.MergedCollection(new long[] { 7, 9 }), model.Key);
+        data.Changed();
+        Assert.Equal(2, data.MergeAsks);
+        Assert.Null(CollectionText.CollectionMessage(model.State.Value));
+    }
 }

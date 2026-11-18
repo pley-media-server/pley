@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Pley.Tv.Core.Api;
+using Pley.Tv.Core.Net;
 using Pley.Tv.Core.Ui;
 using Xunit;
 using static Pley.Tv.Core.Tests.LibraryKit;
@@ -294,23 +295,162 @@ public class LibraryModelTests
         model.Select(LibraryTab.Recommended);
         Assert.Equal(1, data.HubAsks);
         var rows = Assert.IsType<Loadable<IReadOnlyList<LibraryRow>>.Ready>(model.State.Value.Recommended).Data;
-        // An empty row isn't shown; the collections come last.
-        Assert.Equal(new[] { "continue_watching:1", "top_rated:1", LibraryRow.CollectionsKey }, rows.Select(r => r.Key));
+        // An empty row isn't shown, and no row of every collection ends it.
+        Assert.Equal(new[] { "continue_watching:1", "top_rated:1" }, rows.Select(r => r.Key));
         Assert.Equal(TileLook.Landscape, rows[0].Look);
         Assert.True(rows[0].ContinueWatching);
         Assert.Equal(TileKind.Poster, rows[1].Kind);
-        Assert.Equal(new PageKey[] { new PageKey.Collection(9) }, rows[2].Opens);
-        Assert.Equal("Collections", rows[2].Title);
-        var shelf = Assert.IsType<Loadable<IReadOnlyList<CollectionTile>>.Ready>(model.State.Value.Collections).Data;
-        var only = Assert.Single(shelf);
+        Assert.Equal(0, data.CollectionAsks);
+
+        model.Select(LibraryTab.Collections);
+        Assert.Equal(1, data.CollectionAsks);
+        Assert.Equal(1, data.CategoryAsks);
+        var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
+        var only = Assert.Single(Assert.Single(view.Groups).Collections);
         Assert.Equal((9L, 4L, "Alien Collection", "4 movies"), (only.Id, only.Count, only.Tile.Title, only.Tile.Subtitle));
         Assert.Equal(new[] { FakeLibraries.Server + "/api/collections/9/images/poster" }, only.Tile.Images);
 
-        // Shown again, it doesn't read again.
+        // Shown again, they don't read again.
         model.Select(LibraryTab.Library);
         model.Select(LibraryTab.Recommended);
+        model.Select(LibraryTab.Collections);
         Assert.Equal(1, data.HubAsks);
         Assert.Equal(1, data.CollectionAsks);
+        Assert.Equal(1, data.CategoryAsks);
+    }
+
+    [Fact]
+    public void A_recommended_row_of_a_collection_opens_it()
+    {
+        data.SetHubs(1, new Hub { Key = "collection:9", Title = "Alien", LibraryId = 1, Items = new[] { Movie(3) }, CollectionIds = new long[] { 9 } });
+        var model = Model(tab: LibraryTab.Recommended);
+        var row = Assert.Single(Assert.IsType<Loadable<IReadOnlyList<LibraryRow>>.Ready>(model.State.Value.Recommended).Data);
+        Assert.Equal(new PageKey.Collection(9), row.Collection);
+        Assert.Null(row.SeeAll);
+    }
+
+    static readonly CollectionCategory Highlights = new CollectionCategory(1, "highlights", "Highlights");
+    static readonly CollectionCategory Franchises = new CollectionCategory(2, "franchises", "Franchises");
+    static readonly CollectionCategory Other = new CollectionCategory(3, "other", "Other");
+
+    static Collection Of(long id, CollectionCategory? category) =>
+        LibraryKit.Collection(id, $"Collection {id}", 2) with { Category = category == null ? null : new CategoryRef(category.Id, category.Key, category.Title) };
+
+    [Fact]
+    public void The_collections_tab_waits_for_the_categories_then_groups_by_them()
+    {
+        data.SetCollections(1, Of(10, Franchises), Of(11, Other), Of(12, Highlights));
+        data.HoldCategories();
+        var model = Model(tab: LibraryTab.Collections);
+        Assert.IsType<Loadable<CollectionsView>.Loading>(model.State.Value.Collections);
+        Assert.Empty(LibraryText.CollectionChips(model.State.Value));
+
+        // Other is the server's, before Franchises where its list puts it.
+        data.SetCategories(Highlights, Other, Franchises);
+        var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
+        Assert.True(view.Headed);
+        Assert.Equal(new[] { "Highlights", "Other", "Franchises" }, view.Groups.Select(LibraryText.GroupTitle));
+        Assert.Equal(new long[] { 12, 11, 10 }, view.Groups.SelectMany(g => g.Collections).Select(c => c.Id));
+        Assert.Equal("3 collections", LibraryText.CollectionsCountLine(model.State.Value));
+    }
+
+    [Fact]
+    public void Without_the_categories_the_collections_group_by_their_own_as_they_come()
+    {
+        data.SetCollections(1, Of(10, Franchises), Of(11, Other), Of(12, Franchises));
+        data.CategoriesFailure = new NetworkException(NetworkFailure.NothingAnswers);
+        var model = Model(tab: LibraryTab.Collections);
+        var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
+        Assert.Equal(new[] { "Franchises", "Other" }, view.Groups.Select(LibraryText.GroupTitle));
+        Assert.Equal(new long[] { 10, 12, 11 }, view.Groups.SelectMany(g => g.Collections).Select(c => c.Id));
+    }
+
+    [Fact]
+    public void A_server_older_than_categories_shows_every_collection_under_no_heading()
+    {
+        data.SetCollections(1, Of(10, null), Of(11, null));
+        data.CategoriesFailure = new NetworkException(NetworkFailure.NothingAnswers);
+        var model = Model(tab: LibraryTab.Collections);
+        var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
+        Assert.False(view.Headed);
+        Assert.False(view.Offered);
+        Assert.Equal(new long[] { 10, 11 }, Assert.Single(view.Groups).Collections.Select(c => c.Id));
+        Assert.Empty(LibraryText.CollectionChips(model.State.Value));
+    }
+
+    [Fact]
+    public void A_server_from_before_categories_shows_every_collection_in_one_grid()
+    {
+        // Its GET /api/collection-categories answers 404 "no such endpoint": no categories, the tab as it was.
+        data.SetCollections(1, LibraryKit.Collection(10, "Alien Collection", 4), LibraryKit.Collection(11, "Loose", 2));
+        data.CategoriesFailure = new ApiException(404, "not_found", "no such endpoint");
+        var model = Model(tab: LibraryTab.Collections);
+        var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
+        Assert.False(view.Headed);
+        Assert.Equal(new long[] { 10, 11 }, Assert.Single(view.Groups).Collections.Select(c => c.Id));
+        Assert.Empty(LibraryText.CollectionChips(model.State.Value));
+        Assert.Null(LibraryText.CollectionsMessage(model.State.Value));
+        Assert.Equal("2 collections", LibraryText.CollectionsCountLine(model.State.Value));
+    }
+
+    [Fact]
+    public void The_category_chip_narrows_the_collections_and_clear_filters_shows_them_all()
+    {
+        data.SetCollections(1, Of(10, Franchises), Of(11, Other), Of(12, Highlights));
+        data.SetCategories(Highlights, Other, Franchises);
+        var model = Model(tab: LibraryTab.Collections);
+        var chip = Assert.Single(LibraryText.CollectionChips(model.State.Value));
+        Assert.Equal(new LibraryChip(LibraryChipKind.CollectionCategory, "Category"), chip);
+        Assert.Equal(LibraryPanel.CollectionCategory, LibraryText.PanelOf(chip.Kind));
+
+        var panel = LibraryText.Panel(LibraryPanel.CollectionCategory, model.State.Value);
+        Assert.Equal("Category", panel.Title);
+        Assert.Equal(new[] { "All categories", "Highlights", "Other", "Franchises" }, panel.Rows.Select(r => r.Label));
+        Assert.Equal(0, panel.Focus);
+        Assert.IsType<PanelOutcome.Close>(model.Choose(panel.Rows[2]));
+
+        var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
+        Assert.Equal(new CategoryChoice.Of(Other.Id), view.Category);
+        Assert.Equal(new long[] { 11 }, Assert.Single(view.Groups).Collections.Select(c => c.Id));
+        Assert.Equal(new[] { new LibraryChip(LibraryChipKind.CollectionCategory, "Other", Selected: true), new LibraryChip(LibraryChipKind.CollectionClear, "Clear filters", Icon: "x") },
+            LibraryText.CollectionChips(model.State.Value));
+        Assert.Equal("1 collection", LibraryText.CollectionsCountLine(model.State.Value));
+        var again = LibraryText.Panel(LibraryPanel.CollectionCategory, model.State.Value);
+        Assert.Equal(2, again.Focus);
+        Assert.True(again.Rows[2].Checked);
+
+        model.ClearCollectionFilters();
+        Assert.False(Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data.Filtered);
+    }
+
+    [Fact]
+    public void Clearing_the_only_category_takes_the_chips_away()
+    {
+        // LibraryScreen moves focus from Clear filters to the collections when this happens.
+        data.SetCollections(1, Of(10, Franchises), Of(12, Franchises));
+        data.SetCategories(Highlights, Franchises);
+        var model = Model(tab: LibraryTab.Collections);
+        Assert.Empty(LibraryText.CollectionChips(model.State.Value));
+        model.SetCollectionCategory(new CategoryChoice.Of(Franchises.Id));
+        Assert.Equal(new[] { LibraryChipKind.CollectionCategory, LibraryChipKind.CollectionClear }, LibraryText.CollectionChips(model.State.Value).Select(c => c.Kind));
+        model.ClearCollectionFilters();
+        Assert.Empty(LibraryText.CollectionChips(model.State.Value));
+    }
+
+    [Fact]
+    public void A_chosen_category_left_without_collections_shows_them_all()
+    {
+        data.SetCollections(1, Of(10, Franchises), Of(12, Highlights));
+        data.SetCategories(Highlights, Franchises);
+        var model = Model(tab: LibraryTab.Collections);
+        model.SetCollectionCategory(new CategoryChoice.Of(Highlights.Id));
+        Assert.Equal(new[] { "Highlights" }, Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data.Groups.Select(LibraryText.GroupTitle));
+
+        data.SetCollections(1, Of(10, Franchises));
+        data.Changed();
+        var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
+        Assert.Equal(new CategoryChoice.All(), view.Category);
+        Assert.Equal(new long[] { 10 }, view.Groups.SelectMany(g => g.Collections).Select(c => c.Id));
     }
 
     [Fact]

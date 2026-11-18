@@ -444,6 +444,8 @@ struct ScreenView: View {
             LibrariesView(app: app)
         case .collection(let id):
             CollectionView(app: app, collectionId: id)
+        case .mergedCollection(let ids):
+            MergedCollectionView(app: app, ids: ids)
         case .collections(let library):
             CollectionsPage(app: app, libraryId: library)
         case .playlist(let id):

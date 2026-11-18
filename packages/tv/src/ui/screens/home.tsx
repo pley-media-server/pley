@@ -10,7 +10,7 @@ import { Pill, Round } from "../kit/buttons";
 import { G } from "../kit/focusable";
 import { Row, rowHeight, SectionPage, type Section } from "../kit/row";
 import { SeeAllTile, Tile, TILES, type TileKind } from "../kit/tile";
-import type { Entry } from "../shell/navigator";
+import type { Entry, PageKey } from "../shell/navigator";
 import { failedTitle, Message, MetaLine, problem, useApp } from "./common";
 import { inMyList, pageOf, playItem, prefetchPlayback, setInMyList, setWatched } from "./item-actions";
 
@@ -24,7 +24,19 @@ export function rowKind(hub: Hub, musicLibraries: number[]): TileKind {
   return "poster";
 }
 
-/** Whether a row offers "See all": the library's newest, newly released or top rated. */
+/**
+ * The page a row's See all opens (apps/web's HubRow): the collection it
+ * shows, or the merged page of the several of one title it shows; `null`
+ * for a row of none (Continue Watching, My List, or a server older than
+ * collections' rows).
+ */
+export function collectionOf(hub: Hub): PageKey | null {
+  const ids = hub.collection_ids ?? [];
+  if (ids.length === 0) return null;
+  return ids.length === 1 ? { name: "collection", id: ids[0]! } : { name: "mergedCollection", ids };
+}
+
+/** Whether a row offers "See all" of its library: the library's newest, newly released or top rated. */
 export function seeAllOf(hub: Hub): number | null {
   if (hub.library_id === null) return null;
   return seeAllSort(hub) ? hub.library_id : null;
@@ -361,8 +373,10 @@ function HomeRows(p: { entry: Entry; rows: Hub[] }) {
   }
   rows.forEach((hub, h) => {
     const kind = rowKind(hub, music);
-    const library = seeAllOf(hub);
+    const collection = collectionOf(hub);
+    const library = collection ? null : seeAllOf(hub);
     const sort = seeAllSort(hub) ?? undefined;
+    const seeAll: PageKey | null = collection ?? (library !== null ? { name: "library", id: library, tab: "library", sort } : null);
     sections.push({
       key: hub.key,
       height: rowHeight(kind),
@@ -397,9 +411,7 @@ function HomeRows(p: { entry: Entry; rows: Hub[] }) {
             />
           )}
           seeAll={
-            library !== null
-              ? (place) => <SeeAllTile kind={kind} fid={`${hub.key}/all`} onFocus={place.onFocus} onSelect={() => ui.nav.open({ name: "library", id: library, tab: "library", sort })} />
-              : undefined
+            seeAll ? (place) => <SeeAllTile kind={kind} fid={`${hub.key}/all`} onFocus={place.onFocus} onSelect={() => ui.nav.open(seeAll)} /> : undefined
           }
         />
       ),

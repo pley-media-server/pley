@@ -1393,6 +1393,19 @@ msgctxt "#30575"
 msgid "Couldn't switch to the remote's profile"
 msgstr "No se pudo cambiar al perfil del control remoto"
 
+msgctxt "#30577"
+msgid "Category"
+msgstr "Categoría"
+
+msgctxt "#30582"
+msgid "All categories"
+msgstr "Todas las categorías"
+
+#. A merged collection's part in one library: In Movies
+msgctxt "#30584"
+msgid "In %s"
+msgstr "En %s"
+
 msgctxt "#30600"
 msgid "Language"
 msgstr "Idioma"
@@ -2186,3 +2199,18 @@ msgstr "%s de %s de episodios en la biblioteca"
 msgctxt "#30784"
 msgid "%s of %s episodes in library"
 msgstr "%s de %s episodios en la biblioteca"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30785"
+msgid "%s collection"
+msgstr "%s colección"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30786"
+msgid "%s collections"
+msgstr "%s de colecciones"
+
+#. Counted, other
+msgctxt "#30787"
+msgid "%s collections"
+msgstr "%s colecciones"

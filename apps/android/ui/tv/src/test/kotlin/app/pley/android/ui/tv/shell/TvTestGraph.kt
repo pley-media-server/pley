@@ -28,6 +28,7 @@ import app.pley.android.data.SessionState
 import app.pley.android.data.Settings
 import app.pley.android.data.SnapshotStore
 import app.pley.android.data.TrackDefaultsRepository
+import app.pley.android.model.CollectionCategory
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionSummary
 import app.pley.android.model.Hubs
@@ -73,6 +74,10 @@ class TvTestGraph : ScreensGraph {
 
     /** What every library can be filtered by: nothing, unless a test says. */
     val filters = MutableStateFlow<Loadable<LibraryFilters>>(Loadable.Ready(LibraryFilters(), fresh = true))
+
+    /** Every library's collections, and the categories they're grouped by: none unless a test sets them. */
+    val collectionList = MutableStateFlow<Loadable<List<CollectionSummary>>>(Loadable.Ready(emptyList(), fresh = true))
+    val categoryList = MutableStateFlow<Loadable<List<CollectionCategory>>>(Loadable.Ready(emptyList(), fresh = true))
 
     override val device = DeviceProfile(FormFactor.Tv, fireTv = false, tier = Tier.T2, model = "test", totalRamBytes = 4L shl 30, lowRam = false)
     override val auth: AuthGraph get() = unused("auth")
@@ -121,9 +126,10 @@ class TvTestGraph : ScreensGraph {
             override val recent: Flow<List<String>> = flowOf(emptyList())
         }
         override val people: PeopleRepository get() = unused("people")
-        // A library's Collections tab: none.
+        // A library's Collections tab: [collectionList], by [categoryList].
         override val collections = object : CollectionsRepository {
-            override fun collections(libraryId: Long): Flow<Loadable<List<CollectionSummary>>> = flowOf(Loadable.Ready(emptyList(), fresh = true))
+            override fun collections(libraryId: Long): Flow<Loadable<List<CollectionSummary>>> = collectionList
+            override fun categories(): Flow<Loadable<List<CollectionCategory>>> = categoryList
             override fun collection(collectionId: Long): Flow<Loadable<CollectionDetail>> = flowOf(Loadable.Loading)
         }
         // The Playlists tab: none yet.

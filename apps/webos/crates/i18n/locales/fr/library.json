@@ -134,7 +134,9 @@
     "byRelease": "Par date de sortie",
     "byTitle": "Par titre",
     "customOrder": "Ordre personnalisé",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "category": "Catégorie",
+    "allCategories": "Toutes les catégories"
   },
   "smartFilter": {
     "genre": "Genre : {{value}}",

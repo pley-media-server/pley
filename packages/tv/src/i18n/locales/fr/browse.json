@@ -178,7 +178,10 @@
     "byRelease": "Par date de sortie",
     "byTitle": "Par titre",
     "customOrder": "Ordre personnalisé",
-    "empty": "Cette collection est encore vide."
+    "empty": "Cette collection est encore vide.",
+    "category": "Catégorie",
+    "allCategories": "Toutes les catégories",
+    "from": "Dans"
   },
   "person": {
     "rows": {

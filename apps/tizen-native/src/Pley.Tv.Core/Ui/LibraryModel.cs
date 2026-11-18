@@ -39,6 +39,9 @@ public interface ILibrarySource
 
     Task<IReadOnlyList<Collection>> Collections(long libraryId);
 
+    /// <summary>The categories the Collections tab groups collections by, in the server's order.</summary>
+    Task<IReadOnlyList<CollectionCategory>> CollectionCategories();
+
     /// <summary>The view <paramref name="libraryId"/> was left in on this TV (<see cref="LibraryParams.View"/>); null when it never left the default.</summary>
     string? View(long libraryId);
 
@@ -114,6 +117,8 @@ public sealed class AppLibrarySource : ILibrarySource, ILibrariesSource
     public async Task<IReadOnlyList<Hub>> Hubs(long libraryId) => (await Answered(() => Api.LibraryHubs(libraryId))).Hubs;
 
     public async Task<IReadOnlyList<Collection>> Collections(long libraryId) => (await Answered(() => Api.Collections(libraryId))).Collections;
+
+    public async Task<IReadOnlyList<CollectionCategory>> CollectionCategories() => (await Answered(() => Api.CollectionCategories())).Categories;
 
     public Task OrderLibraries(IReadOnlyList<long>? ids) => app.OrderLibraries(ids);
 
@@ -415,13 +420,14 @@ internal sealed class LibraryListing : IDisposable
 /// <summary>
 /// One library's page (the Android app's LibraryViewModel, as the TV uses it):
 ///
-/// - **Recommended:** the library's hubs, then its collections.
+/// - **Recommended:** the library's hubs, the rows administrators chose.
 /// - **Library:** every item, in a grid sized from the listing's total; sorted, ordered and
 ///   filtered by watched state, genre, year, resolution and dynamic range as the web does, with
 ///   the A to Z when sorted by title. Sorted by bitrate, tiles say what the files are like;
 ///   filtered by resolution or dynamic range, they badge it. A big library is read as a window
 ///   that follows the grid (<see cref="Showing"/>).
-/// - **Collections:** the library's collections (not for music).
+/// - **Collections:** the library's collections (not for music), by category, narrowed to one
+///   category (<see cref="CollectionsView"/>).
 ///
 /// A page opened anew starts with the sort and filters the library was left in on this TV, on
 /// its tab, or without one on the tab it was left on (Library the first time); opened with a
@@ -440,14 +446,17 @@ public sealed class LibraryModel : IDisposable
     readonly Fetch<FiltersAnswer> filters;
     readonly Fetch<IReadOnlyList<Hub>> hubs;
     readonly Fetch<IReadOnlyList<Collection>> collections;
+    readonly Fetch<IReadOnlyList<CollectionCategory>> categories;
     readonly LibraryTab openedOn;
+    CategoryChoice chosenCategory = new CategoryChoice.All();
     LibraryParams chosen;
     /// <summary>The view kept for the library last: only a change is kept.</summary>
     string kept;
     LibraryListing? listing;
     (Loadable<LibraryItems> From, TileLook Look, string Origin, LibraryGrid Grid)? grid;
-    (Loadable<IReadOnlyList<Collection>> From, string? Kind, string Origin, Loadable<IReadOnlyList<CollectionTile>> Tiles)? shelf;
-    (Loadable<IReadOnlyList<Hub>> From, Loadable<IReadOnlyList<CollectionTile>> Shelf, string? Kind, string Origin, Loadable<IReadOnlyList<LibraryRow>> Rows)? rows;
+    (Loadable<IReadOnlyList<Collection>> From, Loadable<IReadOnlyList<CollectionCategory>> Categories, CategoryChoice Chosen, string? Kind, string Origin,
+        Loadable<CollectionsView> View)? shelf;
+    (Loadable<IReadOnlyList<Hub>> From, string? Kind, string Origin, Loadable<IReadOnlyList<LibraryRow>> Rows)? rows;
     (FiltersAnswer From, FiltersAnswer Offered)? offered;
     bool computing, again, reloadPosted, gone;
 
@@ -465,6 +474,7 @@ public sealed class LibraryModel : IDisposable
         filters = new Fetch<FiltersAnswer>(scheduler, Compute);
         hubs = new Fetch<IReadOnlyList<Hub>>(scheduler, Compute);
         collections = new Fetch<IReadOnlyList<Collection>>(scheduler, Compute);
+        categories = new Fetch<IReadOnlyList<CollectionCategory>>(scheduler, Compute);
         var opening = tab ?? LibraryTab.Library;
         var given = saved ?? view;
         chosen = given != null ? LibraryParams.Parse(given, opening) : new LibraryParams(opening);
@@ -540,6 +550,17 @@ public sealed class LibraryModel : IDisposable
 
     public void ClearFilters() => Choose(p => p.Cleared());
 
+    /// <summary>Shows the Collections tab's collections of one category, or of every one.</summary>
+    public void SetCollectionCategory(CategoryChoice category)
+    {
+        if (category == chosenCategory) return;
+        chosenCategory = category;
+        Compute();
+    }
+
+    /// <summary>Shows every collection again.</summary>
+    public void ClearCollectionFilters() => SetCollectionCategory(new CategoryChoice.All());
+
     /// <summary>Cards smaller or larger, for every grid on this TV.</summary>
     public void SetDensity(GridDensity density) => source.UpdateSettings(s => s with { GridDensity = density });
 
@@ -603,6 +624,9 @@ public sealed class LibraryModel : IDisposable
             case LibraryRowKind.DynamicRange:
                 SetDynamicRange(row.Value);
                 return new PanelOutcome.Close();
+            case LibraryRowKind.CollectionCategory:
+                SetCollectionCategory(CategoryChoice.Parse(row.Value));
+                return new PanelOutcome.Close();
             default:
                 return new PanelOutcome.Stay();
         }
@@ -617,6 +641,7 @@ public sealed class LibraryModel : IDisposable
         filters.Drop();
         hubs.Drop();
         collections.Drop();
+        categories.Drop();
     }
 
     /// <summary>What is chosen is shown, and is how the library opens next time.</summary>
@@ -642,6 +667,7 @@ public sealed class LibraryModel : IDisposable
         if (filters.Asked) filters.Ask(() => source.Filters(LibraryId));
         if (hubs.Asked) hubs.Ask(() => source.Hubs(LibraryId));
         if (collections.Asked) collections.Ask(() => source.Collections(LibraryId));
+        if (categories.Asked) categories.Ask(source.CollectionCategories);
         Compute();
     }
 
@@ -698,19 +724,20 @@ public sealed class LibraryModel : IDisposable
             if (!music && !filters.Asked) filters.Ask(() => source.Filters(LibraryId));
         }
 
-        Loadable<IReadOnlyList<CollectionTile>> shelfNow = new Loadable<IReadOnlyList<CollectionTile>>.Loading();
-        if (lib != null && music) shelfNow = new Loadable<IReadOnlyList<CollectionTile>>.Ready(Array.Empty<CollectionTile>());
-        else if (lib != null && (visited.Contains(LibraryTab.Collections) || visited.Contains(LibraryTab.Recommended)))
+        Loadable<CollectionsView> shelfNow = new Loadable<CollectionsView>.Loading();
+        if (lib != null && music) shelfNow = new Loadable<CollectionsView>.Ready(CollectionsView.Empty);
+        else if (lib != null && visited.Contains(LibraryTab.Collections))
         {
             if (!collections.Asked) collections.Ask(() => source.Collections(LibraryId));
-            shelfNow = ShelfOf(collections.State, kind, origin);
+            if (!categories.Asked) categories.Ask(source.CollectionCategories);
+            shelfNow = ShelfOf(collections.State, categories.State, kind, origin);
         }
 
         Loadable<IReadOnlyList<LibraryRow>> recommended = new Loadable<IReadOnlyList<LibraryRow>>.Loading();
         if (lib != null && visited.Contains(LibraryTab.Recommended))
         {
             if (!hubs.Asked) hubs.Ask(() => source.Hubs(LibraryId));
-            recommended = RowsOf(hubs.State, shelfNow, kind, origin);
+            recommended = RowsOf(hubs.State, kind, origin);
         }
 
         return new LibraryState
@@ -767,45 +794,49 @@ public sealed class LibraryModel : IDisposable
         return made;
     }
 
-    Loadable<IReadOnlyList<CollectionTile>> ShelfOf(Loadable<IReadOnlyList<Collection>> from, string? kind, string origin)
+    /// <summary>
+    /// The Collections tab of <paramref name="from"/>, grouped by <paramref name="cats"/>. It waits
+    /// for the categories, or their failure: groups that came after the collections would go in
+    /// above them, and focus would keep its place on the first, part way down. Without them
+    /// (failed), every collection shows, under no heading.
+    /// </summary>
+    Loadable<CollectionsView> ShelfOf(Loadable<IReadOnlyList<Collection>> from, Loadable<IReadOnlyList<CollectionCategory>> cats, string? kind, string origin)
     {
-        if (shelf is { } s && ReferenceEquals(s.From, from) && s.Kind == kind && s.Origin == origin) return s.Tiles;
-        IReadOnlyList<CollectionTile>? Tiles(IReadOnlyList<Collection>? list) =>
-            list?.Select(c => new CollectionTile(c.Id, c.ItemCount, LibraryText.CollectionTile(c, kind, origin))).ToList();
-        Loadable<IReadOnlyList<CollectionTile>> tiles = from switch
+        if (shelf is { } s && ReferenceEquals(s.From, from) && ReferenceEquals(s.Categories, cats) && s.Chosen == chosenCategory && s.Kind == kind && s.Origin == origin)
+            return s.View;
+        if (cats is Loadable<IReadOnlyList<CollectionCategory>>.Loading)
         {
-            Loadable<IReadOnlyList<Collection>>.Ready r => new Loadable<IReadOnlyList<CollectionTile>>.Ready(Tiles(r.Data)!),
-            Loadable<IReadOnlyList<Collection>>.Failed f => new Loadable<IReadOnlyList<CollectionTile>>.Failed(f.Error, Tiles(f.Stale)),
-            _ => new Loadable<IReadOnlyList<CollectionTile>>.Loading(),
+            var waiting = new Loadable<CollectionsView>.Loading();
+            shelf = (from, cats, chosenCategory, kind, origin, waiting);
+            return waiting;
+        }
+        var known = cats.Value ?? Array.Empty<CollectionCategory>();
+        var chosen = chosenCategory;
+        CollectionsView? View(IReadOnlyList<Collection>? list) => list == null
+            ? null
+            : CollectionsView.Of(list.Select(c => new CollectionTile(c.Id, c.ItemCount, LibraryText.CollectionTile(c, kind, origin), c.Category)).ToList(), known, chosen);
+        Loadable<CollectionsView> view = from switch
+        {
+            Loadable<IReadOnlyList<Collection>>.Ready r => new Loadable<CollectionsView>.Ready(View(r.Data)!),
+            Loadable<IReadOnlyList<Collection>>.Failed f => new Loadable<CollectionsView>.Failed(f.Error, View(f.Stale)),
+            _ => new Loadable<CollectionsView>.Loading(),
         };
-        shelf = (from, kind, origin, tiles);
-        return tiles;
+        shelf = (from, cats, chosenCategory, kind, origin, view);
+        return view;
     }
 
-    Loadable<IReadOnlyList<LibraryRow>> RowsOf(Loadable<IReadOnlyList<Hub>> from, Loadable<IReadOnlyList<CollectionTile>> shelfNow, string? kind, string origin)
+    Loadable<IReadOnlyList<LibraryRow>> RowsOf(Loadable<IReadOnlyList<Hub>> from, string? kind, string origin)
     {
-        if (rows is { } r && ReferenceEquals(r.From, from) && ReferenceEquals(r.Shelf, shelfNow) && r.Kind == kind && r.Origin == origin) return r.Rows;
-        IReadOnlyList<LibraryRow>? Rows(IReadOnlyList<Hub>? list)
-        {
-            if (list == null) return null;
-            var made = list.Where(h => h.Items.Count > 0).Select(h => LibraryRules.Row(h, kind, origin)).ToList();
-            var shelfTiles = shelfNow.Value;
-            if (shelfTiles is { Count: > 0 })
-                made.Add(new LibraryRow(
-                    LibraryRow.CollectionsKey,
-                    LibraryText.TabCollections,
-                    TileLook.Poster,
-                    shelfTiles.Select(t => t.Tile).ToList(),
-                    shelfTiles.Select(t => (PageKey)new PageKey.Collection(t.Id)).ToList()));
-            return made;
-        }
+        if (rows is { } r && ReferenceEquals(r.From, from) && r.Kind == kind && r.Origin == origin) return r.Rows;
+        IReadOnlyList<LibraryRow>? Rows(IReadOnlyList<Hub>? list) =>
+            list?.Where(h => h.Items.Count > 0).Select(h => LibraryRules.Row(h, kind, origin)).ToList();
         Loadable<IReadOnlyList<LibraryRow>> built = from switch
         {
             Loadable<IReadOnlyList<Hub>>.Ready ready => new Loadable<IReadOnlyList<LibraryRow>>.Ready(Rows(ready.Data)!),
             Loadable<IReadOnlyList<Hub>>.Failed f => new Loadable<IReadOnlyList<LibraryRow>>.Failed(f.Error, Rows(f.Stale)),
             _ => new Loadable<IReadOnlyList<LibraryRow>>.Loading(),
         };
-        rows = (from, shelfNow, kind, origin, built);
+        rows = (from, kind, origin, built);
         return built;
     }
 }

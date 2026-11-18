@@ -178,7 +178,10 @@
     "byRelease": "Por fecha de estreno",
     "byTitle": "Por título",
     "customOrder": "Orden personalizado",
-    "empty": "Esta colección aún está vacía."
+    "empty": "Esta colección aún está vacía.",
+    "category": "Categoría",
+    "allCategories": "Todas las categorías",
+    "from": "En"
   },
   "person": {
     "rows": {

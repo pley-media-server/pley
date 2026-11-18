@@ -470,6 +470,10 @@ impl PlayerServer for Fake {
         Err(refused(404, "not_found", "no"))
     }
 
+    fn merged_collection(&self, _ids: &[i64]) -> Result<MergedCollection, ApiError> {
+        Err(refused(404, "not_found", "no"))
+    }
+
     fn play(&self, req: &PlaybackRequest) -> Result<PlaybackInfo, ApiError> {
         self.answered(|| {
             self.requests.lock().unwrap().push(req.clone());

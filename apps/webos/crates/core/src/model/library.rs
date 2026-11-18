@@ -215,6 +215,11 @@ pub struct Hub {
     pub title: String,
     /// None for Home's Continue Watching and My List.
     pub library_id: Option<i64>,
+    /// The collections the row shows: opening the row opens them (one collection's page, or the
+    /// merged page of several same-titled ones). Empty for Continue Watching, My List and rows
+    /// from servers before collections were rows.
+    #[serde(default, deserialize_with = "nd")]
+    pub collection_ids: Vec<i64>,
     #[serde(default, deserialize_with = "nd")]
     pub items: Vec<ItemSummary>,
 }
@@ -274,6 +279,9 @@ pub struct CollectionSummary {
     pub sort: CollectionSort,
     /// Smart collections: the library filter that fills them.
     pub smart_filter: Option<String>,
+    /// Its category, Other for one without; `None` from a server without categories.
+    #[serde(default)]
+    pub category: Option<CategoryRef>,
     /// Items this profile can see.
     #[serde(default, deserialize_with = "nd")]
     pub item_count: i64,
@@ -284,6 +292,105 @@ pub struct CollectionSummary {
     pub created_at: i64,
     #[serde(default, deserialize_with = "nd")]
     pub updated_at: i64,
+}
+
+/// A collection's category as the collection names it.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct CategoryRef {
+    pub id: i64,
+    /// `highlights`, `other` or `franchises` for Pley's own; `None` for an administrator's.
+    #[serde(default)]
+    pub key: Option<String>,
+    /// In the profile's language for Pley's own.
+    #[serde(default, deserialize_with = "nd")]
+    pub title: String,
+}
+
+impl CollectionSummary {
+    /// The category its page names: none for Other, which only says it has none (the web's
+    /// `namedCategory`).
+    pub fn named_category(&self) -> Option<&CategoryRef> {
+        self.category.as_ref().filter(|c| c.key.as_deref() != Some("other"))
+    }
+}
+
+/// A category of collections, shared by every library (`GET /api/collection-categories`).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct CollectionCategory {
+    pub id: i64,
+    #[serde(default)]
+    pub key: Option<String>,
+    #[serde(default, deserialize_with = "nd")]
+    pub title: String,
+}
+
+/// `{ categories }`: `GET /api/collection-categories`, in the order administrators chose.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct CollectionCategories {
+    #[serde(default, deserialize_with = "nd")]
+    pub categories: Vec<CollectionCategory>,
+}
+
+/// A library's collections under one category.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CollectionGroup<'a> {
+    /// The category's id; `None` for collections a server without categories sends.
+    pub id: Option<i64>,
+    pub title: &'a str,
+    pub collections: Vec<&'a CollectionSummary>,
+}
+
+/// `collections` by category, in the categories' order (Other among them, where administrators
+/// put it); empty groups left out (the web's `groupByCategory`). One of a category not listed yet
+/// (made since) goes after the rest under its own category's title; those of a server without
+/// categories make one group without a title.
+pub fn group_by_category<'a>(
+    collections: impl IntoIterator<Item = &'a CollectionSummary>,
+    categories: &'a [CollectionCategory],
+) -> Vec<CollectionGroup<'a>> {
+    let mut groups: Vec<CollectionGroup<'a>> = categories
+        .iter()
+        .map(|c| CollectionGroup { id: Some(c.id), title: &c.title, collections: Vec::new() })
+        .collect();
+    for c in collections {
+        let id = c.category.as_ref().map(|cat| cat.id);
+        match groups.iter_mut().find(|g| g.id == id) {
+            Some(g) => g.collections.push(c),
+            None => {
+                let title = c.category.as_ref().map_or("", |cat| cat.title.as_str());
+                groups.push(CollectionGroup { id, title, collections: vec![c] });
+            }
+        }
+    }
+    // A server without categories: its uncategorized ones after any that have one.
+    if let Some(at) = groups.iter().position(|g| g.id.is_none()) {
+        let none = groups.remove(at);
+        groups.push(none);
+    }
+    groups.retain(|g| !g.collections.is_empty());
+    groups
+}
+
+/// `GET /api/collections/merged?ids=`: a Home row of same-titled collections from several
+/// libraries, opened together.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct MergedCollection {
+    #[serde(default, deserialize_with = "nd")]
+    pub title: String,
+    /// Those the profile can see, each with its library.
+    #[serde(default, deserialize_with = "nd")]
+    pub collections: Vec<MergedPart>,
+    /// Every title of the row, in its order.
+    #[serde(default, deserialize_with = "nd")]
+    pub items: Vec<ItemSummary>,
+}
+
+/// One library's collection of a merged one.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct MergedPart {
+    pub id: i64,
+    #[serde(default, deserialize_with = "nd")]
+    pub library_id: i64,
 }
 
 /// `GET /api/collections/{id}`: a collection and its items, in its order.
@@ -490,4 +597,79 @@ pub struct SearchResults {
     pub people: Vec<PersonSummary>,
     #[serde(default, deserialize_with = "nd")]
     pub channels: Vec<LiveChannel>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn category(id: i64, title: &str) -> CollectionCategory {
+        CollectionCategory { id, key: None, title: title.into() }
+    }
+
+    fn collection(id: i64, category: Option<(i64, &str)>) -> CollectionSummary {
+        let category = category.map(|(id, title)| CategoryRef { id, key: None, title: title.into() });
+        CollectionSummary { id, category, ..CollectionSummary::default() }
+    }
+
+    #[test]
+    fn collections_group_in_the_categories_order_other_where_it_is_listed() {
+        let categories =
+            [category(1, "Highlights"), category(4, "Other"), category(2, "Franchises"), category(3, "Empty")];
+        // 9: a category made since the categories came, so after the rest under its own title.
+        let list = [
+            collection(10, Some((2, "Franchises"))),
+            collection(11, Some((4, "Other"))),
+            collection(12, Some((1, "Highlights"))),
+            collection(13, Some((9, "New"))),
+            collection(14, Some((4, "Other"))),
+        ];
+        let groups = group_by_category(&list, &categories);
+        let shape: Vec<(Option<i64>, &str, Vec<i64>)> =
+            groups.iter().map(|g| (g.id, g.title, g.collections.iter().map(|c| c.id).collect())).collect();
+        assert_eq!(
+            shape,
+            [
+                (Some(1), "Highlights", vec![12]),
+                (Some(4), "Other", vec![11, 14]),
+                (Some(2), "Franchises", vec![10]),
+                (Some(9), "New", vec![13])
+            ]
+        );
+        // A server without categories: one group without a title.
+        let old = [collection(20, None), collection(21, None)];
+        let groups = group_by_category(&old, &[]);
+        assert_eq!(groups.len(), 1);
+        assert_eq!((groups[0].id, groups[0].title, groups[0].collections.len()), (None, "", 2));
+    }
+
+    #[test]
+    fn a_hub_and_a_collection_read_their_new_fields() {
+        let hub: Hub = serde_json::from_str(
+            r#"{"key":"collections:4,9","title":"Holiday","library_id":null,"collection_ids":[4,9],"items":[]}"#,
+        )
+        .unwrap();
+        assert_eq!(hub.collection_ids, [4, 9]);
+        let old: Hub =
+            serde_json::from_str(r#"{"key":"recently_added:1","title":"Recently Added","library_id":1,"items":[]}"#)
+                .unwrap();
+        assert!(old.collection_ids.is_empty());
+        let c: CollectionSummary = serde_json::from_str(
+            r#"{"id":4,"category":{"id":2,"key":"franchises","title":"Franchises"},"home_position":0}"#,
+        )
+        .unwrap();
+        assert_eq!(c.category.map(|c| c.title), Some("Franchises".to_string()));
+    }
+
+    #[test]
+    fn a_collection_names_its_category_but_not_other() {
+        let with = |key: Option<&str>| CollectionSummary {
+            category: Some(CategoryRef { id: 3, key: key.map(str::to_string), title: "T".into() }),
+            ..CollectionSummary::default()
+        };
+        assert!(with(Some("other")).named_category().is_none());
+        assert!(with(Some("franchises")).named_category().is_some());
+        assert!(with(None).named_category().is_some(), "an administrator's");
+        assert!(CollectionSummary::default().named_category().is_none(), "a server without categories");
+    }
 }

@@ -65,6 +65,8 @@ public enum Screen: Hashable, Codable, Sendable {
     case libraries
     case collections(libraryId: Int)
     case collection(Int)
+    /// A Home row of several libraries' collections of one title, opened together.
+    case mergedCollection([Int])
     case person(Int)
     case artist(Int)
     /// An album, with the track it was opened from.
@@ -404,8 +406,9 @@ public final class ShellModel: ObservableObject {
         open(Screen.page(of: item))
     }
 
-    /// The library page a row's See all goes to: the row's library, listed
-    /// as the row is; nothing for a row without one.
+    /// Where a row's title and See all go: its collection, or the merged
+    /// page of several; else the row's library, listed as the row is;
+    /// nothing for a row without one.
     public func seeAll(_ hub: Hub) {
         guard let screen = Self.seeAll(hub) else { return }
         open(screen)
@@ -413,6 +416,8 @@ public final class ShellModel: ObservableObject {
 
     /// Where `hub`'s See all goes, `nil` for a row without one.
     public nonisolated static func seeAll(_ hub: Hub) -> Screen? {
+        if hub.collectionIds.count == 1 { return .collection(hub.collectionIds[0]) }
+        if hub.collectionIds.count > 1 { return .mergedCollection(hub.collectionIds) }
         guard let library = hub.libraryId, let view = seeAllView(hub.key) else { return nil }
         return .library(library, view: view)
     }

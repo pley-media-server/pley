@@ -123,12 +123,21 @@ Lovelace, Alan Turing"; a show's "Created by").
 ### Collections, people, artists and playlists
 
 A collection's page has its backdrop, "Collection" with a TMDB or Smart
-badge, its title, what it holds ("5 movies · Movies · By release date";
-a smart collection's filter in words), its summary, Play and Shuffle (two
-titles or more), then its posters, which Down slides the page up to. Play
-plays a collection of movies in its order, Up Next bringing on each next,
-and Shuffle in any order; a collection of shows plays the first show's
-next episode, and Shuffle a random show's.
+badge and its category (none for Other, which only says it has none),
+its title, what it holds ("5 movies · Movies · By release date"; a smart
+collection's filter in words), its summary, Play and Shuffle (two titles
+or more), then its posters, which Down slides the page up to. Play plays
+a collection of movies in its order, Up Next bringing on each next, and
+Shuffle in any order; a collection of shows plays the first show's next
+episode, and Shuffle a random show's.
+
+A Home row made of collections of one title in several libraries (its
+`collection_ids` name more than one) opens them together
+(`GET /api/collections/merged`): "Collection", the title, what they hold
+and the libraries they come from ("3 movies · 2 shows · Movies · Kids"),
+Play and Shuffle as above, a button for each library's own collection
+("Movies only"; none when only one of them has titles the profile may
+see), then all their posters.
 
 A person's page has their photo, their name and what of theirs is in the
 libraries ("3 movies · 2 shows in your libraries"), then a row for each
@@ -163,11 +172,26 @@ nor their books on Home, in search or in history.
   Sorted by bitrate, its bitrate and size take the year's place under the
   poster ("42 Mbps · 23.4 GB"). Otherwise, and in rows, collections,
   playlists and search, posters have no quality badges.
-- **See all** ends the rows of a library's newest, newly released and top
-  rated titles, on Home and on a library's Recommended tab. It shows the
-  library's Library tab in the row's order (date added, release date or
-  rating, newest or best first), nothing filtered, for that visit: the
-  sort and filters kept stay as they were until changed there.
+- **See all** ends each row of collections, on Home and on a library's
+  Recommended tab, where the web's row title and See all go: it opens the
+  row's collection, or the page of the collections of one title in several
+  libraries (above). Roku's row titles can't take the focus, so See all
+  stands for both. A music library's newest, which isn't a collection,
+  ends with See all too: the library's Library tab, newest added first,
+  nothing filtered, for that visit (the sort and filters kept stay as they
+  were until changed there).
+- **Collections** groups the library's collections under their categories
+  (`GET /api/collection-categories`), in the categories' order, Other
+  among them where the server puts it (a collection without a category
+  comes under Other): a row each, named for its category, or a grid when
+  only one group shows. Where there are two groups or more, Category at
+  the right of the tabs chooses one of them in a panel (All categories,
+  then each of the library's), for that visit. Without the list (`404`
+  from a server older than categories), the collections' own categories
+  stand in, so such a server's collections, which have none, are the
+  grid as before. Managing categories, a collection's category and which
+  collections are rows on Home and the Recommended tab are in the web
+  and desktop apps; this app shows what they set.
 - **A to Z:** sorted by title with more than 30 titles, "#" and A to Z
   stand in a column right of the grid, the letter of the title in focus
   marked and the letters no title starts with dimmed. Right from the
@@ -853,17 +877,22 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   pictures, which burns them in, and picks its subtitles from the
   player's menu; it jumps down a library with its A to Z,
   sorts it by bitrate and filters it by resolution, saves another's
-  filters as a smart playlist, plays a collection of movies and a smart
-  one of shows, and an artist's tracks, makes a playlist, plays a track
-  from Now Playing's Up next, shuffles the queue and puts its order back,
-  steps the music's sleep timer through its choices, plays a track from
-  under an album's "Disc 2", opens the See all of Search's Discover row,
+  filters as a smart playlist, shows a library's collections by category
+  and one category alone, plays a collection of movies and a smart one
+  of shows, opens a Home row of two libraries' collections together and
+  one library's from it, plays an artist's tracks, makes a playlist,
+  plays a track from Now Playing's Up next, shuffles the queue and puts
+  its order back, steps the music's sleep timer through its choices,
+  plays a track from under an album's "Disc 2", opens the See all of
+  Search's Discover row,
   asks for a movie and three seasons from Discover, approves a request,
   opens a title from its ready-to-watch card on Home (which waited while
   the requests showed), chooses Español in Settings → Language for the
   account (Home asked for again in it) and Automatic again, and checks
   that a server
-  without requests is asked nothing but the summary. The fake server also
+  without requests is asked nothing but the summary, and that one without
+  categories (`404`) shows a library's collections as a grid that opens
+  them. The fake server also
   checks that a video's reports say which audio and subtitles play, and
   music's don't.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up

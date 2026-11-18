@@ -158,6 +158,9 @@ impl PlayerServer for LiveFake {
     fn collection(&self, _: i64) -> Result<CollectionDetail, ApiError> {
         not_here()
     }
+    fn merged_collection(&self, _: &[i64]) -> Result<MergedCollection, ApiError> {
+        not_here()
+    }
     fn play(&self, _: &PlaybackRequest) -> Result<PlaybackInfo, ApiError> {
         not_here()
     }

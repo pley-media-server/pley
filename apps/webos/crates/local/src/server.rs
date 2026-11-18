@@ -26,10 +26,10 @@ use pley_core::caps::{container_of, direct_range_shown, video_of};
 use pley_core::http::{Method, encode_component};
 use pley_core::model::{
     AddSubtitle, BitrateAnswer, ClientCaps, CollectionDetail, ItemDetail, ItemKind, ItemSummary, LiveChannel,
-    LiveChannelPage, LiveGroups, LiveGuide, LivePlan, LiveWatching, MediaFile, NetworkAnswer, NetworkReport,
-    PlaybackInfo, PlaybackMethod, PlaybackMode, PlaybackRequest, PlaylistDetail, ProgressReport, ServerInfo,
-    SessionStatus, SpeedSample, StreamChoice, StreamKind, SubtitleResult, SubtitleTrack, TrickplayInfo, UserState,
-    WatchRequest,
+    LiveChannelPage, LiveGroups, LiveGuide, LivePlan, LiveWatching, MediaFile, MergedCollection, NetworkAnswer,
+    NetworkReport, PlaybackInfo, PlaybackMethod, PlaybackMode, PlaybackRequest, PlaylistDetail, ProgressReport,
+    ServerInfo, SessionStatus, SpeedSample, StreamChoice, StreamKind, SubtitleResult, SubtitleTrack, TrickplayInfo,
+    UserState, WatchRequest,
 };
 use pley_core::{ApiError, CapsReport, Store};
 use pley_player::env::CapsProbe;
@@ -386,6 +386,10 @@ impl PlayerServer for LocalServer {
     }
 
     fn collection(&self, _id: i64) -> Result<CollectionDetail, ApiError> {
+        Err(absent())
+    }
+
+    fn merged_collection(&self, _ids: &[i64]) -> Result<MergedCollection, ApiError> {
         Err(absent())
     }
 

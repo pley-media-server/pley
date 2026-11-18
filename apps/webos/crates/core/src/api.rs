@@ -214,6 +214,17 @@ impl Api {
         self.get(&id_path("/api/collections/{id}", id))
     }
 
+    /// Several libraries' same-titled collections as one: a Home row's.
+    pub fn merged_collection(&self, ids: &[i64]) -> Result<MergedCollection, ApiError> {
+        let ids = ids.iter().map(i64::to_string).collect::<Vec<_>>().join(",");
+        self.get_query("/api/collections/merged", &[("ids", Some(ids))])
+    }
+
+    /// The categories of collections, in their order.
+    pub fn collection_categories(&self) -> Result<CollectionCategories, ApiError> {
+        self.get("/api/collection-categories")
+    }
+
     /// An item with everything the server knows. For a movie or episode it
     /// also has the server prepare it (seek previews, keyframes, read-ahead).
     pub fn item(&self, id: i64) -> Result<ItemDetail, ApiError> {

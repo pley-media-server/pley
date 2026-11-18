@@ -1,0 +1,267 @@
+{
+  "categories": [
+    { "id": 1, "key": "highlights", "title": "Highlights", "from_label": null, "position": 0 },
+    { "id": 3, "key": "other", "title": "Other", "from_label": null, "position": 1 },
+    { "id": 2, "key": "franchises", "title": "Franchises", "from_label": null, "position": 2 },
+    { "id": 5, "key": null, "title": "Seasonal", "from_label": "Seasonal", "position": 3 }
+  ],
+  "cases": [
+    {
+      "name": "groups in the categories' order, Other where the list puts it, empty ones left out",
+      "collections": [
+        { "id": 10, "category": 2 },
+        { "id": 11, "category": 5 },
+        { "id": 12, "category": 1 },
+        { "id": 13, "category": 3 },
+        { "id": 14, "category": 1 }
+      ],
+      "chosen": "all",
+      "out": {
+        "groups": [
+          { "key": "1", "title": "Highlights", "ids": [12, 14] },
+          { "key": "3", "title": "Other", "ids": [13] },
+          { "key": "2", "title": "Franchises", "ids": [10] },
+          { "key": "5", "title": "Seasonal", "ids": [11] }
+        ],
+        "choices": ["1", "3", "2", "5"],
+        "category": "all",
+        "headed": true,
+        "offered": true,
+        "count": 5,
+        "total": 5
+      }
+    },
+    {
+      "name": "the server's order, not the ids', Other moved last by an administrator",
+      "categories": [
+        { "id": 5, "key": null, "title": "Seasonal", "from_label": "Seasonal", "position": 0 },
+        { "id": 2, "key": "franchises", "title": "Franchises", "from_label": null, "position": 1 },
+        { "id": 1, "key": "highlights", "title": "Highlights", "from_label": null, "position": 2 },
+        { "id": 3, "key": "other", "title": "Autres", "from_label": null, "position": 3 }
+      ],
+      "collections": [
+        { "id": 10, "category": 1 },
+        { "id": 13, "category": 3, "title": "Autres" },
+        { "id": 11, "category": 2 },
+        { "id": 12, "category": 5 }
+      ],
+      "chosen": "all",
+      "out": {
+        "groups": [
+          { "key": "5", "title": "Seasonal", "ids": [12] },
+          { "key": "2", "title": "Franchises", "ids": [11] },
+          { "key": "1", "title": "Highlights", "ids": [10] },
+          { "key": "3", "title": "Autres", "ids": [13] }
+        ],
+        "choices": ["5", "2", "1", "3"],
+        "category": "all",
+        "headed": true,
+        "offered": true,
+        "count": 4,
+        "total": 4
+      }
+    },
+    {
+      "name": "a category not listed yet comes after the rest, under its own title",
+      "collections": [
+        { "id": 20, "category": 99, "title": "Holidays" },
+        { "id": 21, "category": 3 },
+        { "id": 22, "category": 2 },
+        { "id": 23, "category": 99, "title": "Holidays" }
+      ],
+      "chosen": "all",
+      "out": {
+        "groups": [
+          { "key": "3", "title": "Other", "ids": [21] },
+          { "key": "2", "title": "Franchises", "ids": [22] },
+          { "key": "99", "title": "Holidays", "ids": [20, 23] }
+        ],
+        "choices": ["3", "2", "99"],
+        "category": "all",
+        "headed": true,
+        "offered": true,
+        "count": 4,
+        "total": 4
+      }
+    },
+    {
+      "name": "one category alone: no headings, no filter",
+      "collections": [
+        { "id": 30, "category": 1 },
+        { "id": 31, "category": 1 }
+      ],
+      "chosen": "all",
+      "out": {
+        "groups": [{ "key": "1", "title": "Highlights", "ids": [30, 31] }],
+        "choices": ["1"],
+        "category": "all",
+        "headed": false,
+        "offered": false,
+        "count": 2,
+        "total": 2
+      }
+    },
+    {
+      "name": "none in a category: Other alone, no headings",
+      "collections": [
+        { "id": 40, "category": 3 },
+        { "id": 41, "category": 3 }
+      ],
+      "chosen": "all",
+      "out": {
+        "groups": [{ "key": "3", "title": "Other", "ids": [40, 41] }],
+        "choices": ["3"],
+        "category": "all",
+        "headed": false,
+        "offered": false,
+        "count": 2,
+        "total": 2
+      }
+    },
+    {
+      "name": "the categories unknown (they failed): grouped by each collection's own, in the order they come",
+      "categories": [],
+      "collections": [
+        { "id": 50, "category": 2 },
+        { "id": 51, "category": 3 },
+        { "id": 52, "category": 2 }
+      ],
+      "chosen": "all",
+      "out": {
+        "groups": [
+          { "key": "2", "title": "Franchises", "ids": [50, 52] },
+          { "key": "3", "title": "Other", "ids": [51] }
+        ],
+        "choices": ["2", "3"],
+        "category": "all",
+        "headed": true,
+        "offered": true,
+        "count": 3,
+        "total": 3
+      }
+    },
+    {
+      "name": "a server older than categories: its collections name none and its categories answer 404, one group without a heading or filter",
+      "categories": [],
+      "collections": [{ "id": 60 }, { "id": 61 }],
+      "chosen": "all",
+      "out": {
+        "groups": [{ "key": "0", "title": "", "ids": [60, 61] }],
+        "choices": ["0"],
+        "category": "all",
+        "headed": false,
+        "offered": false,
+        "count": 2,
+        "total": 2
+      }
+    },
+    {
+      "name": "one category chosen",
+      "collections": [
+        { "id": 10, "category": 2 },
+        { "id": 11, "category": 5 },
+        { "id": 12, "category": 1 },
+        { "id": 13, "category": 3 }
+      ],
+      "chosen": 2,
+      "out": {
+        "groups": [{ "key": "2", "title": "Franchises", "ids": [10] }],
+        "choices": ["1", "3", "2", "5"],
+        "category": 2,
+        "headed": false,
+        "offered": true,
+        "count": 1,
+        "total": 4
+      }
+    },
+    {
+      "name": "Other chosen, like any category",
+      "collections": [
+        { "id": 10, "category": 2 },
+        { "id": 13, "category": 3 },
+        { "id": 14, "category": 99, "title": "Holidays" }
+      ],
+      "chosen": 3,
+      "out": {
+        "groups": [{ "key": "3", "title": "Other", "ids": [13] }],
+        "choices": ["3", "2", "99"],
+        "category": 3,
+        "headed": false,
+        "offered": true,
+        "count": 1,
+        "total": 3
+      }
+    },
+    {
+      "name": "the only category left, chosen: the filter stays offered, to clear it",
+      "collections": [
+        { "id": 10, "category": 2 },
+        { "id": 11, "category": 2 }
+      ],
+      "chosen": 2,
+      "out": {
+        "groups": [{ "key": "2", "title": "Franchises", "ids": [10, 11] }],
+        "choices": ["2"],
+        "category": 2,
+        "headed": false,
+        "offered": true,
+        "count": 2,
+        "total": 2
+      }
+    },
+    {
+      "name": "a chosen category left with no collections chooses every one",
+      "collections": [
+        { "id": 10, "category": 2 },
+        { "id": 13, "category": 3 }
+      ],
+      "chosen": 5,
+      "out": {
+        "groups": [
+          { "key": "3", "title": "Other", "ids": [13] },
+          { "key": "2", "title": "Franchises", "ids": [10] }
+        ],
+        "choices": ["3", "2"],
+        "category": "all",
+        "headed": true,
+        "offered": true,
+        "count": 2,
+        "total": 2
+      }
+    },
+    {
+      "name": "a chosen category that is gone chooses every one",
+      "collections": [{ "id": 10, "category": 2 }],
+      "chosen": 7,
+      "out": {
+        "groups": [{ "key": "2", "title": "Franchises", "ids": [10] }],
+        "choices": ["2"],
+        "category": "all",
+        "headed": false,
+        "offered": false,
+        "count": 1,
+        "total": 1
+      }
+    },
+    {
+      "name": "no collections",
+      "collections": [],
+      "chosen": "all",
+      "out": {
+        "groups": [],
+        "choices": [],
+        "category": "all",
+        "headed": false,
+        "offered": false,
+        "count": 0,
+        "total": 0
+      }
+    }
+  ],
+  "named": [
+    { "name": "Pley's own category is named", "category": { "id": 2, "key": "franchises", "title": "Franchises" }, "named": "Franchises" },
+    { "name": "an administrator's category is named", "category": { "id": 5, "key": null, "title": "Seasonal" }, "named": "Seasonal" },
+    { "name": "Other only says it has none, in any language: not named", "category": { "id": 3, "key": "other", "title": "Autres" }, "named": null },
+    { "name": "a server older than categories names none", "named": null }
+  ]
+}

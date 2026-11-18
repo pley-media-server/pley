@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Added
 
+- A library's Collections are grouped by category, and can be narrowed
+  to one category; a collection's page shows its category.
+- A row's See all opens the collection it shows, and a Home row of
+  collections of the same title in several libraries opens them together.
 - Home's hero features the newest movies and shows you haven't watched,
   as the web and Android do, each with why it's there, Play, Info and My
   List. Right from its last button goes to the next title, and it turns
@@ -34,6 +38,8 @@ describes how they are made.
 
 ### Changed
 
+- Recommended no longer ends with a row of every collection: it shows
+  the rows administrators chose.
 - The TV starts straight into Home as the profile it was left on when it
   has no PIN, where a household of several profiles was asked "Who's
   watching?" each time. A profile with a PIN still asks first, and Switch
@@ -180,6 +186,8 @@ describes how they are made.
 
 ### Fixed
 
+- A collection's page shows its titles under Play and Shuffle, where they
+  were drawn below the screen.
 - Live TV's channel up or down, still finding the next channel when another
   is picked from the list or the app is hidden, no longer changes channel
   a moment later.

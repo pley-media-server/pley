@@ -5,7 +5,9 @@
 // subtitles picked in its menu, the Options key, a library's grid, its A
 // to Z and the pages a jump passes over, a sort by bitrate and a filter
 // by resolution with their quality badges, filters saved as a smart
-// playlist, collections played (movies and a smart one of shows), a
+// playlist, a library's collections by category and filtered by one,
+// collections played (movies and a smart one of shows), a Home row of two
+// libraries' collections opened together and one library's from it, a
 // show's page, its episodes and a person's
 // page, music (an artist, an album, Now Playing), playlists, Live TV (its
 // guide, a channel watched, the next one, the channel list, a favourite
@@ -16,7 +18,8 @@
 // Home whose movie's audio and subtitles are picked on its page, Settings
 // (its Language chosen for the account, Home asked for again in it), the
 // server gone and Try again, then signing out and in again on a server
-// too old for QR codes, requests and two-step sign-in. Then it starts
+// too old for QR codes, requests, two-step sign-in and collections'
+// categories (a library's collections a grid there). Then it starts
 // the app again, signed in,
 // and times how soon Home is asked for. Fails on a BrightScript error or
 // on anything the fake server found wrong; saves what the screen showed
@@ -370,8 +373,9 @@ async function loadedWithin(ms) {
 const pages = { diagnostics: false, licences: false };
 // Home asks again only after playing, or when its rows are a minute old.
 const home = { kept: false };
-// From when the server knew nothing of requests (an older one).
-const older = { since: -1 };
+// From when the server knew nothing of requests (an older one), and
+// whether a library's collections opened there without categories.
+const older = { since: -1, collections: false };
 // The ready-to-watch notice: it waited while the requests showed, then
 // showed on Home, where its Open led to the title.
 const notice = { waited: false, shown: false, opened: false };
@@ -571,6 +575,24 @@ async function walk() {
   shoot("see-all");
   await press("back");
   await settle();
+  // The row under it: Fixture Favourites, a collection of each library;
+  // its See all opens them together. Movies only, after Play and Shuffle,
+  // opens that library's own; Back to them, then to Home.
+  since = mark();
+  await press("down");
+  await press("right", 4); // See all, after its three titles
+  await press("select");
+  await waitFor(/^GET \/api\/collections\/merged\?ids=4%2C3$/, since, "a Home row of two collections, opened together");
+  await settle();
+  shoot("collection-merged");
+  since = mark();
+  await press("down", 2); // Movies only
+  await press("select");
+  await waitFor(/^GET \/api\/collections\/4$/, since, "a library's own collection, from the merged page");
+  await press("back");
+  await waitFor(/^GET \/api\/collections\/merged\?ids=4%2C3$/, since, "the merged page again");
+  await press("back");
+  await settle();
   seeAll.after = mark();
   // Live TV: the categories and the guide of every channel (a page, its
   // programmes for those channels), OK on what's on now watches the
@@ -724,7 +746,24 @@ async function walk() {
   await press("right"); // Collections
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/collections$/, since, "a library's collections");
+  await waitFor(/^GET \/api\/collection-categories$/, since, "the collections' categories");
+  await settle();
   shoot("library-collections");
+  // Category: its first, from the chip at the right of the tabs, leaves
+  // Fixture Dramas alone; All categories again.
+  await press("right"); // Category
+  await press("select");
+  await sleep(500);
+  await press("down"); // the first category
+  await press("select");
+  await settle();
+  shoot("library-collections-category");
+  await press("select"); // Category again
+  await sleep(500);
+  await press("up"); // All categories
+  await press("select");
+  await settle();
+  await press("left"); // the tabs, on Collections
   // Its smart collection of shows: Play asks for the show's next episode
   // and plays it. Back to the collections, then the tabs.
   await press("down"); // the collections
@@ -1349,6 +1388,28 @@ async function walk() {
   twoStep.hidden = seen(/^GET \/api\/server$/, since) && !twoStepDrawn() && !seen(/^GET \/api\/hubs\/home$/, since);
   shoot("sign-in-again");
   await waitFor(/^GET \/api\/hubs\/home$/, since, "Home after signing in again");
+  // Nor has it categories (404) or collections in one: a library's
+  // Collections tab is the grid, as before them, and opens the first.
+  // TV Shows is the fifth entry, the menu without Discover and requests.
+  fixture.categories = false;
+  await settle();
+  await openFromMenu(4, /^GET \/api\/libraries\/2\//, "TV Shows on a server without categories");
+  await settle();
+  since = mark();
+  await press("up"); // the tabs, on Library
+  await press("right"); // Collections
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/2\/collections$/, since, "a library's collections without categories");
+  await waitFor(/^GET \/api\/collection-categories$/, since, "the categories, answered 404");
+  shoot("collections-without-categories");
+  since = mark();
+  await press("down"); // the grid
+  await press("select");
+  await waitFor(/^GET \/api\/collections\/2$/, since, "a collection from the grid, without categories");
+  older.collections = true;
+  await press("back");
+  await settle();
+  fixture.categories = true;
 }
 
 // Started again, signed in, from what the first run saved: how long until
@@ -1535,6 +1596,7 @@ const checks = [
     "asked a server without requests for nothing of them but the summary",
     older.since >= 0 && fixture.requests.slice(older.since).every((r) => !/^\/api\/(discover|requests)([/?]|$)/.test(r.path) || r.path === "/api/requests/summary"),
   ],
+  ["opened a collection from a library's grid on a server without categories", older.collections],
   ["asked again with a new token after a 401", new Set(fixture.requests.filter((r) => r.path === "/api/items/103").map((r) => r.auth)).size > 1],
   ["sent the token in the header only", fixture.requests.every((r) => !/[?&]token=/.test(r.path))],
   ["signed out", asked(/^POST \/api\/oauth\/revoke$/)],

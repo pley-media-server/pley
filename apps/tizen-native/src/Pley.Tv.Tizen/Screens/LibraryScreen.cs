@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Pley.Tv.Core;
 using Pley.Tv.Core.Ui;
 using Pley.Tv.Tizen.Kit;
 using Tizen.NUI;
@@ -13,8 +14,10 @@ namespace Pley.Tv.Tizen.Screens;
 /// top left and the tabs on the same line at the right, then the tab. The Library tab: the chips
 /// (Sort, Filter, Unwatched, Genre, Year, the resolution and dynamic range chosen, and the count) at
 /// y = 80 over a grid of posters from y = 136, with the A to Z jump beside it; Recommended: the
-/// library's rows; Collections: their posters with their counts. Sort and filters open in a side
-/// panel. Content takes focus on its own only on the tab the page opened on.
+/// library's rows; Collections: the Category chip, Clear filters and the count at y = 80, then from
+/// y = 136 the collections' posters with their counts, or a row per category when more than one
+/// shows. Sort, filters and the category open in a side panel. Content takes focus on its own only
+/// on the tab the page opened on.
 /// </summary>
 sealed class LibraryScreen : ShellPage
 {
@@ -61,6 +64,9 @@ sealed class LibraryScreen : ShellPage
 
     // The Recommended and Collections tabs' parts.
     object? shownRows;
+    /// <summary>The Collections tab's grid or rows, under its chips, and their focus group.</summary>
+    View? collectionsPart;
+    FocusGroup? collectionsGroup;
 
     public LibraryScreen(TvShell shell, Shell layers, LibraryModel model, Images images, KeyRepeatGate gate, Action<PageKey> go)
         : base(shell, new PageKey.Library(model.LibraryId), "library")
@@ -195,6 +201,8 @@ sealed class LibraryScreen : ShellPage
         message = null;
         shownMessage = null;
         shownRows = null;
+        collectionsPart = null;
+        collectionsGroup = null;
         // Focus was in what went: the selected tab has it now.
         if (hadFocus && !Tree.Enter(tabs)) Shell.FocusRail();
     }
@@ -210,16 +218,8 @@ sealed class LibraryScreen : ShellPage
 
     void ShowLibrary(LibraryState s)
     {
-        if (chipsView.GetParent() == null)
-        {
-            chipScroll = 0;
-            chipAnimation?.Stop();
-            chipAnimation = null;
-            chipsView.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(ChipsTop));
-            body.Add(chipsView);
-            content.Add(chips);
-        }
-        ShowChips(s);
+        AttachChips();
+        if (ShowChips(LibraryText.Chips(s), LibraryText.CountLine(s)) && !Tree.Enter(tabs)) Shell.FocusRail();
 
         var gridMessage = LibraryText.GridMessage(s);
         if (gridMessage != null)
@@ -322,15 +322,46 @@ sealed class LibraryScreen : ShellPage
         messageGroup = null;
     }
 
-    /// <summary>The chips at y = 80, 10 dp apart: 40 dp pills on Surface3, a selected one with an accent check; then the count.</summary>
-    void ShowChips(LibraryState s)
+    /// <summary>The chips' row shows, first in the content's focus.</summary>
+    void AttachChips()
     {
-        var list = LibraryText.Chips(s);
-        var line = LibraryText.CountLine(s);
-        if (list.SequenceEqual(shownChips))
+        if (chipsView.GetParent() != null) return;
+        chipScroll = 0;
+        chipAnimation?.Stop();
+        chipAnimation = null;
+        chipsView.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(ChipsTop));
+        body.Add(chipsView);
+        content.Insert(0, chips);
+    }
+
+    /// <summary>The chips' row goes, and what is in it.</summary>
+    void DetachChips()
+    {
+        if (chipsView.GetParent() == null) return;
+        body.Remove(chipsView);
+        foreach (var child in chipsView.Children.ToList())
+        {
+            chipsView.Remove(child);
+            child.Dispose();
+        }
+        content.Remove(chips);
+        chips.Clear();
+        chipPlaces.Clear();
+        shownChips = Array.Empty<LibraryChip>();
+        count = null;
+    }
+
+    /// <summary>
+    /// The chips at y = 80, 10 dp apart: 40 dp pills on Surface3, a selected one with an accent
+    /// check; then the count. True when a chip had focus and none is left to take it (the
+    /// Collections tab's Clear filters, with nothing left to choose): the caller puts it elsewhere.
+    /// </summary>
+    bool ShowChips(IReadOnlyList<LibraryChip> list, string? line)
+    {
+        if (count != null && list.SequenceEqual(shownChips))
         {
             ShowCount(line);
-            return;
+            return false;
         }
         // Focus stays on the chip of the same kind, by kind and not by its label: a sort chosen
         // changes the Sort chip's label, and focus was left on the chip that went, with nowhere to go.
@@ -364,7 +395,7 @@ sealed class LibraryScreen : ShellPage
         // Its kind gone: the chip in its place.
         if (again == null && focusedAt >= 0 && chips.Children.Count > 0) again = chips.Children[Math.Min(focusedAt, chips.Children.Count - 1)] as FocusItem;
         // The count gives way to the chips rather than run past the row's end (ShowCount).
-        var countX = x - 10 + 8;
+        var countX = list.Count == 0 ? 0 : x - 10 + 8;
         countRoom = Math.Min(300, ChipsRoom - countX);
         count = Text.Label("", PleyType.Caption, PleyColors.Muted, width: Math.Max(countRoom, 1));
         count.Position = new Position(Ui.Dp(countX), Ui.Dp((ChipHeight - PleyType.Caption.Line) / 2));
@@ -375,6 +406,7 @@ sealed class LibraryScreen : ShellPage
         var most = Math.Max(0, x - 10 - ChipsRoom);
         if (chipScroll > most) SlideChips(most);
         if (again != null) Tree.Focus(again);
+        return focusedAt >= 0 && again == null;
     }
 
     /// <summary>The chips' room: from the gutter to the right safe edge.</summary>
@@ -417,6 +449,8 @@ sealed class LibraryScreen : ShellPage
         var panel = LibraryText.PanelOf(chip.Kind);
         if (panel != null) OpenPanel(panel.Value, 0);
         else if (chip.Kind == LibraryChipKind.Unwatched) model.ToggleUnwatched();
+        // The Category chip takes the place of Clear filters, and focus with it (ShowChips).
+        else if (chip.Kind == LibraryChipKind.CollectionClear) model.ClearCollectionFilters();
     }
 
     /// <summary>
@@ -509,9 +543,9 @@ sealed class LibraryScreen : ShellPage
                     var at = IndexOf(r.Tiles, tile);
                     if (at >= 0 && at < r.Opens.Count) go(r.Opens[at]);
                 },
-                r.IsCollections ? null : tile => Shell.Actions?.Invoke(tile.Id, r.ContinueWatching),
+                tile => Shell.Actions?.Invoke(tile.Id, r.ContinueWatching),
                 Shell.FocusRail, focusItem: Tree.Focus,
-                seeAll: r.IsCollections ? (LibraryText.SeeAll, () => model.Select(LibraryTab.Collections))
+                seeAll: r.Collection is { } collection ? (LibraryText.SeeAll, () => go(collection))
                     : r.SeeAll is { } view ? (LibraryText.SeeAll, () => model.SeeAll(view)) : null));
         }
         body.Add(column);
@@ -529,6 +563,9 @@ sealed class LibraryScreen : ShellPage
     void ClearRows()
     {
         var hadFocus = Tree.Current != null && InContent(Tree.Current);
+        DetachChips();
+        collectionsPart = null;
+        collectionsGroup = null;
         foreach (var child in body.Children.ToList())
         {
             body.Remove(child);
@@ -557,20 +594,49 @@ sealed class LibraryScreen : ShellPage
             }
             return;
         }
-        var list = s.Collections.Value;
-        if (ReferenceEquals(list, shownRows) && list != null) return;
-        ClearRows();
-        shownRows = list;
-        var line = LibraryText.CollectionsCountLine(s);
-        if (line != null)
+        RemoveMessage();
+        var view = s.Collections.Value;
+        // Clear filters had focus and the chips went with it (one category left): the collections take it.
+        var chipLost = false;
+        if (view != null)
         {
-            var label = Text.Label(line, PleyType.Caption, PleyColors.Muted, width: 300);
-            label.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(ChipsTop + (ChipHeight - PleyType.Caption.Line) / 2));
-            body.Add(label);
+            AttachChips();
+            chipLost = ShowChips(LibraryText.CollectionChips(s), LibraryText.CollectionsCountLine(s));
         }
+        // While they load the skeletons stay; the same collections, the same posters.
+        if (collectionsPart != null && ReferenceEquals(view, shownRows))
+        {
+            if (chipLost) FocusCollections();
+            return;
+        }
+        var hadFocus = collectionsGroup != null && Tree.Current != null && Within(Tree.Current, collectionsGroup);
+        var before = grid?.Current ?? 0;
+        RemoveCollections();
+        shownRows = view;
+        if (view is { Headed: true }) ShowCategoryRows(view);
+        else ShowCollectionsGrid(view?.Groups.FirstOrDefault()?.Collections);
+        if (hadFocus)
+        {
+            if (grid != null && grid.ItemAt(Math.Min(before, Math.Max(0, grid.Total - 1))) is { } item) Tree.Focus(item);
+            else Tree.Enter(collectionsGroup!);
+        }
+        else if (chipLost) FocusCollections();
+        else if (Initial(s) && Tree.Current == null) Tree.Enter(collectionsGroup!);
+    }
+
+    /// <summary>Focus into the collections, else the tabs, else the rail.</summary>
+    void FocusCollections()
+    {
+        if (collectionsGroup != null && Tree.Enter(collectionsGroup)) return;
+        if (!Tree.Enter(tabs)) Shell.FocusRail();
+    }
+
+    /// <summary>A grid of one group's posters with their counts; skeletons while they aren't known.</summary>
+    void ShowCollectionsGrid(IReadOnlyList<CollectionTile>? list)
+    {
         var made = new GridView(TileKind.LibraryGrid, LibraryRules.GridColumns(TileKind.LibraryGrid), PleyTv.CanvasHeight - (GridTop - GridView.TileRoom), gate, images,
             p => list != null && p < list.Count ? list[p].Tile : null,
-            p => list != null && p < list.Count ? list[p].Count.ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
+            p => list != null && p < list.Count ? list[p].Count.ToString("N0", Strings.Culture) : null);
         made.PositionY = Ui.Dp(GridTop - GridView.TileRoom);
         made.Open = (p, _) =>
         {
@@ -580,7 +646,7 @@ sealed class LibraryScreen : ShellPage
         {
             Direction.Left => Scrolling.Left(gate, Shell.FocusRail),
             Direction.Down or Direction.Right => true,
-            // A held Up stays in the grid: the tabs take a press of their own.
+            // A held Up stays in the grid: the chips and the tabs take a press of their own.
             Direction.Up => gate.Holding,
             _ => false,
         };
@@ -588,7 +654,48 @@ sealed class LibraryScreen : ShellPage
         content.Add(made.Group);
         made.Update(list?.Count ?? Skeletons);
         grid = made;
-        if (Initial(s) && Tree.Current == null && made.ItemAt(0) is { } first) Tree.Focus(first);
+        collectionsPart = made;
+        collectionsGroup = made.Group;
+    }
+
+    /// <summary>A row of posters per category, titled with its name, in the categories' order (the Android app's TvRowColumn of them).</summary>
+    void ShowCategoryRows(CollectionsView view)
+    {
+        var column = new RowColumnView(gate, top: GridTop, headerY: GridTop);
+        foreach (var group in view.Groups)
+        {
+            var g = group;
+            var tiles = g.Collections.Select(c => c.Tile).ToList();
+            column.Add(new RowView(LibraryText.GroupTitle(g), tiles, TileKind.Poster, gate, images,
+                tile =>
+                {
+                    var at = IndexOf(tiles, tile);
+                    if (at >= 0) go(new PageKey.Collection(g.Collections[at].Id));
+                },
+                null, Shell.FocusRail, focusItem: Tree.Focus));
+        }
+        body.Add(column);
+        content.Add(column.Group);
+        collectionsPart = column;
+        collectionsGroup = column.Group;
+    }
+
+    void RemoveCollections()
+    {
+        if (collectionsPart == null) return;
+        content.Remove(collectionsGroup!);
+        collectionsPart.Unparent();
+        collectionsPart.Dispose();
+        collectionsPart = null;
+        collectionsGroup = null;
+        grid = null;
+    }
+
+    static bool Within(FocusNode node, FocusGroup group)
+    {
+        for (var n = node.Parent; n != null; n = n.Parent)
+            if (n == group) return true;
+        return false;
     }
 
     // ---- messages

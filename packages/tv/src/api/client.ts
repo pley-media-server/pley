@@ -4,6 +4,7 @@ import { language, t, type Language } from "../i18n";
 import { Cancel, NetworkError, TIMED_OUT, withQuery, type HttpRequest, type HttpResponse, type Transport } from "../net/transport";
 import type {
   Collection,
+  CollectionCategory,
   Control,
   DiscoverDetail,
   DiscoverList,
@@ -22,6 +23,7 @@ import type {
   LiveGuide,
   LiveSummary,
   LiveWatching,
+  MergedCollection,
   MediaRequest,
   NetworkAnswer,
   NetworkReport,
@@ -344,6 +346,16 @@ export class Api {
 
   collection(id: Id, cancel?: Cancel): Promise<Collection & { items: ItemSummary[] }> {
     return this.get(`/api/collections/${id}`, { cancel });
+  }
+
+  /** The categories collections are grouped by, in order. */
+  collectionCategories(cancel?: Cancel): Promise<{ categories: CollectionCategory[] }> {
+    return this.get("/api/collection-categories", { cancel });
+  }
+
+  /** A Home row of several collections of one title, its titles in the row's order. */
+  mergedCollection(ids: Id[], cancel?: Cancel): Promise<MergedCollection> {
+    return this.get(`/api/collections/merged?ids=${ids.join(",")}`, { cancel });
   }
 
   item(id: Id, cancel?: Cancel): Promise<ItemDetail> {

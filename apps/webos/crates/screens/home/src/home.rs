@@ -17,7 +17,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 
 use pley_base::{Color, Icon, ImageRequest, Point, Rect, Size, TextOpts, TextStyle};
 use pley_core::http::sentence;
-use pley_core::model::{Hub, ItemSummary, Library, LibraryKind, LibrarySort};
+use pley_core::model::{Hub, ItemSummary, Library, LibraryKind};
 use pley_core::{ApiError, Promise};
 use pley_i18n::t;
 use pley_kit::{
@@ -25,7 +25,7 @@ use pley_kit::{
     MessageStyle, MetaLine, RoundButton, Row, RowColumn, RowState, Section, Tile, TileKind, TileSlot, backdrop_px,
     button_bar, prefetch_backdrops, skeleton_block,
 };
-use pley_shell::{AppCx, AppEvent, Chrome, ERROR_TOAST_SECONDS, LibraryTab, PlayRequest, Route, Screen, TOAST_SECONDS};
+use pley_shell::{AppCx, AppEvent, Chrome, ERROR_TOAST_SECONDS, PlayRequest, Route, Screen, TOAST_SECONDS};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Id, Motion, Response, Ui};
 
@@ -78,7 +78,7 @@ struct RowModel {
     title: String,
     kind: TileKind,
     continue_watching: bool,
-    see_all: Option<(i64, LibrarySort)>,
+    see_all: Option<Route>,
     tiles: Vec<TileModel>,
 }
 
@@ -539,9 +539,8 @@ impl HomeScreen {
             if let Some(a) = r.activated {
                 if let Some(t) = row.tiles.get(a) {
                     intents.push(Intent::Open(page_of(&t.item)));
-                } else if let Some((library, sort)) = row.see_all {
-                    let tab = Some(LibraryTab::Library);
-                    intents.push(Intent::Open(Route::Library { id: library, tab, sort: Some(sort) }));
+                } else if let Some(route) = &row.see_all {
+                    intents.push(Intent::Open(route.clone()));
                 }
             }
             if let Some(t) = r.actions.and_then(|a| row.tiles.get(a)) {

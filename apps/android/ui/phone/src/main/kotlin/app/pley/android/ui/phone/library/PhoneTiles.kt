@@ -79,6 +79,9 @@ internal fun rememberPhoneTiles(): PhoneTiles {
     return remember(app) { PhoneTiles { AppLanguage.resources(app) } }
 }
 
+/** "1,500": [n] in the digits of [resources]' language, on its own (a badge, a heading's count). */
+internal fun digits(resources: Resources, n: Int): String = NumberFormat.getIntegerInstance(resources.configuration.locales[0]).format(n)
+
 /** "1,500 movies": [n] in the digits of [resources]' language, with its plural. */
 internal fun count(resources: Resources, @PluralsRes plural: Int, n: Int): String =
     resources.getQuantityString(plural, n, NumberFormat.getIntegerInstance(resources.configuration.locales[0]).format(n))

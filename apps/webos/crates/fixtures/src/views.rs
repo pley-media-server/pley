@@ -1,11 +1,12 @@
 //! The catalogue as a profile sees it: its own positions, watched marks,
 //! ratings and track choices in every item, playlist and collection.
 
-use crate::catalog::{BASE_TIME, Catalog, Collection, DAY};
+use crate::catalog::{BASE_TIME, CATEGORIES, Catalog, Collection, DAY};
 use crate::household::{HistoryRecord, Playlist, Profile};
+use crate::ids;
 use crate::model::{
-    CollectionDetail, CollectionSummary, HistoryEntry, HistoryUser, ItemDetail, ItemSummary, Kind, Me, MediaFile,
-    MediaStream, MediaSummary, PlaylistDetail, PlaylistEntry, PlaylistSummary, UserState,
+    CategoryRef, CollectionDetail, CollectionSummary, HistoryEntry, HistoryUser, ItemDetail, ItemSummary, Kind, Me,
+    MediaFile, MediaStream, MediaSummary, PlaylistDetail, PlaylistEntry, PlaylistSummary, UserState,
 };
 
 /// How a list shows its items.
@@ -312,6 +313,10 @@ pub(crate) fn collection_summary(catalog: &Catalog, collection: &Collection) -> 
         automatic: collection.automatic,
         sort: collection.sort,
         smart_filter: collection.smart_filter.clone(),
+        category: {
+            let id = collection.category_id.unwrap_or(ids::CATEGORY_OTHER);
+            CATEGORIES.iter().find(|c| c.0 == id).map(|(id, key, title)| CategoryRef { id: *id, key: *key, title })
+        },
         item_count: collection_items(catalog, collection).len() as i64,
         poster_url: format!("/api/collections/{id}/images/poster?v={}", collection.created_at),
         backdrop_url: format!("/api/collections/{id}/images/backdrop?v={}", collection.created_at),

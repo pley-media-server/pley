@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A library's collections are grouped by category, with a Category
+  filter; a collection's page says its category; a Home row of collections
+  of one title from several libraries opens them together, and a row's See
+  all opens its collection.
+
 ## [0.1.8] - 2026-11-12
 
 ### Added

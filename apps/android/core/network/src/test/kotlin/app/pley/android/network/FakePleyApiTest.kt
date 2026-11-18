@@ -49,6 +49,8 @@ class FakePleyApiTest {
         api.libraryCollections(1)
         assertEquals(801L, api.collection(801).id)
         assertEquals(803L, api.collection(803).id)
+        assertEquals(listOf("highlights", "other", "franchises", null), api.collectionCategories().categories.map { it.key })
+        assertEquals(listOf(1L, 2L), api.mergedCollection(listOf(801, 901)).collections.map { it.libraryId })
         api.playlists()
         assertEquals(902L, api.playlist(902).id)
         assertEquals("Arrival", api.item(101).title)

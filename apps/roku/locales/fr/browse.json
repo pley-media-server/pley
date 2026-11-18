@@ -266,6 +266,8 @@
     "needsNewer": "Trier les bibliothèques nécessite une version plus récente de Pley sur le serveur."
   },
   "collections": {
-    "none": "Aucune collection pour l’instant."
+    "none": "Aucune collection pour l’instant.",
+    "category": "Catégorie",
+    "allCategories": "Toutes les catégories"
   }
 }

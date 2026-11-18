@@ -5,7 +5,7 @@ import { pluralize } from "../../format/format";
 import { t } from "../../i18n";
 import { useUi } from "../context";
 import { Backdrop } from "../kit/backdrop";
-import { Pill, Round } from "../kit/buttons";
+import { Chip, Pill, Round } from "../kit/buttons";
 import { G } from "../kit/focusable";
 import { PosterGrid } from "../kit/grid";
 import { Icon } from "../kit/icons";
@@ -14,6 +14,7 @@ import { ArtTile, Tile } from "../kit/tile";
 import type { Entry } from "../shell/navigator";
 import { ColumnMessage, failedTitle, PageBadge, problem, sentence, useApp, useLoad } from "./common";
 import { openPlayer, pageOf } from "./item-actions";
+import { namedCategory } from "./collection-groups";
 import { collectionCount, LibrariesFailed } from "./library";
 
 const ROWS_TOP = 80;
@@ -93,11 +94,21 @@ export function CollectionsScreen(p: { entry: Entry; libraryId?: number }) {
 
 type CollectionDetail = Collection & { items: ItemSummary[]; automatic?: boolean; smart_filter?: string | null; sort?: string | null };
 
+/** A collection's category beside "Collection" (Other isn't named). */
+function CategoryBadge(p: { title: string }) {
+  return (
+    <span class="page-badge t-badge one-line" style="max-width:240px">
+      {p.title}
+    </span>
+  );
+}
+
 const HERO_H = 436;
 
 /**
- * A collection (TvCollectionScreen): its backdrop and hero, Play and
- * Shuffle, then its titles as a grid.
+ * A collection (TvCollectionScreen): its backdrop and hero ("Collection",
+ * its category, its TMDB or Smart badge), Play and Shuffle, then its
+ * titles as a grid.
  */
 export function CollectionScreen(p: { entry: Entry; id: number }) {
   const app = useApp();
@@ -158,6 +169,7 @@ export function CollectionScreen(p: { entry: Entry; id: number }) {
       <div class="collection-eyebrow">
         <Icon name="layers" size={18} color="var(--muted)" />
         <span class="t-label c-muted">{t("browse.collections.label")}</span>
+        {namedCategory(col) && <CategoryBadge title={namedCategory(col)!} />}
         {col.automatic && <PageBadge text="TMDB" />}
         {col.smart_filter && <PageBadge text={t("browse.smart")} />}
       </div>
@@ -188,6 +200,127 @@ export function CollectionScreen(p: { entry: Entry; id: number }) {
         clipTop={0}
         hero={hero}
         heroHeight={HERO_H}
+        cell={(i, place) => {
+          const it = items[i]!;
+          return (
+            <Tile
+              item={it}
+              kind="grid"
+              fid={`grid/${it.id}`}
+              priority={place.priority}
+              onFocus={place.onFocus}
+              onSelect={() => ui.nav.open(pageOf(it))}
+              onActions={() => ui.nav.open({ name: "actions", id: it.id })}
+            />
+          );
+        }}
+      />
+      <div class="rail-fade" />
+    </div>
+  );
+}
+
+const MERGED_HERO_H = 360;
+
+/**
+ * A Home row of several libraries' collections of one title (the Android
+ * app's TvMergedCollectionScreen; apps/web's MergedCollectionPage): at
+ * x = 96, "Collection", the title, how many movies and shows, Play and
+ * Shuffle, then a chip for each library they come from, which opens that
+ * library's collection; every title in the row's order in a grid below.
+ * The server names it in the profile's language: a language changed asks
+ * again (the app's changes), and the title follows.
+ */
+export function MergedCollectionScreen(p: { entry: Entry; ids: number[] }) {
+  const app = useApp();
+  const ui = useUi();
+  const loaded = useLoad((c) => ui.api.mergedCollection(p.ids, c), [p.ids.join(",")]);
+  const [problemText, setProblemText] = useState<string | null>(null);
+  const merged = loaded.data;
+  if (!merged) {
+    if (loaded.error) return <ColumnMessage top={58} title={failedTitle(loaded.error, t("browse.collections.cantLoadOne"))} body={problem(loaded.error)} action={{ label: t("common.actions.retry"), icon: "refresh-cw", onSelect: loaded.reload }} />;
+    return (
+      <div class="collection-page" role="status" aria-label={t("common.states.loading")}>
+        {[
+          [58, 120, 18],
+          [90, 360, 44],
+          [148, 240, 18],
+        ].map(([y, w, h]) => (
+          <div key={y} class="skeleton" style={`position:absolute;left:96px;top:${y}px;width:${w}px;height:${h}px`} />
+        ))}
+        <div class="skeleton" style="position:absolute;left:96px;top:240px;width:128px;height:40px;border-radius:6px" />
+      </div>
+    );
+  }
+  const items = merged.items;
+  const movies = items.filter((i) => i.kind === "movie");
+  const shows = items.filter((i) => i.kind === "show");
+  const libraries = app.libraries.value ?? [];
+  // In the row's order; those of libraries not known yet left out.
+  const sources = merged.collections
+    .map((c) => ({ id: c.id, library: libraries.filter((l) => l.id === c.library_id)[0] ?? null }))
+    .filter((s): s is { id: number; library: Library } => s.library !== null);
+  const say = (text: string) => {
+    setProblemText(text);
+    setTimeout(() => setProblemText(null), 4000);
+  };
+  // As the web: the movies one after another in the row's order (Shuffle from a random one); without movies, a show's next episode.
+  const play = async (shuffle: boolean) => {
+    if (!items.length) return;
+    if (movies.length) {
+      const start = shuffle ? movies[Math.floor(Math.random() * movies.length)]! : movies[0]!;
+      openPlayer(ui, { itemId: start.id, queue: { kind: "merged", ids: p.ids } });
+      return;
+    }
+    const pick = shuffle ? items[Math.floor(Math.random() * items.length)]! : items[0]!;
+    try {
+      const { item } = await ui.api.onDeck(pick.id);
+      if (!item) say(t("browse.collections.noEpisodes"));
+      else openPlayer(ui, { itemId: item.id });
+    } catch (e) {
+      say(sentence(errorMessage(e)));
+    }
+  };
+  const counts = [movies.length ? pluralize(movies.length, "movie") : "", shows.length ? pluralize(shows.length, "show") : ""].filter(Boolean).join("  ·  ");
+  const hero = (
+    <div class="collection-hero" style={`height:${MERGED_HERO_H}px`}>
+      <div class="collection-eyebrow">
+        <Icon name="layers" size={18} color="var(--muted)" />
+        <span class="t-label c-muted">{t("browse.collections.label")}</span>
+      </div>
+      <div class="t-hero c-fg lines-2" style="margin-top:10px">
+        {merged.title}
+      </div>
+      <div class="t-label c-muted one-line" style="margin-top:12px">
+        {counts}
+      </div>
+      <div style="flex:1" />
+      <G kind="row" class="buttons">
+        <Pill label={t("common.actions.play")} icon="play" fid="play" initial={items.length > 0} disabled={!items.length} onSelect={() => void play(false)} />
+        <Round label={t("browse.actions.shuffle")} icon="shuffle" fid="shuffle" initial={!items.length} disabled={items.length < 2} onSelect={() => void play(true)} />
+        {problemText && <div class="t-label c-danger" style="margin:14px 0 0 12px">{problemText}</div>}
+      </G>
+      <div style="height:30px" />
+      {sources.length > 0 && (
+        <G kind="row" class="merged-sources">
+          <span class="t-label c-muted">{t("browse.collections.from")}</span>
+          {sources.map((s) => (
+            <Chip key={s.id} fid={`library/${s.id}`} label={s.library.name} maxWidth={200} onSelect={() => ui.nav.open({ name: "collection", id: s.id })} />
+          ))}
+        </G>
+      )}
+      <div style="height:20px" />
+    </div>
+  );
+  return (
+    <div class="collection-page">
+      <PosterGrid
+        kind="grid"
+        count={items.length}
+        top={58}
+        clipTop={0}
+        hero={hero}
+        heroHeight={MERGED_HERO_H}
         cell={(i, place) => {
           const it = items[i]!;
           return (

@@ -22,14 +22,16 @@ public struct CollectionSummary: Codable, Hashable, Sendable, Identifiable {
     public var sort: CollectionSort
     /// A smart collection's library filter, in the compatibility API's syntax.
     public var smartFilter: String?
+    /// Its category: the server sends Other for one without; `nil` only from a server older than categories.
+    public var category: CollectionCategory?
     /// The items this profile can see.
     public var itemCount: Int
     public var posterUrl: String?
     public var backdropUrl: String?
 
     public init(id: Int, libraryId: Int, title: String, summary: String? = nil, automatic: Bool = false,
-                sort: CollectionSort = .release, smartFilter: String? = nil, itemCount: Int = 0,
-                posterUrl: String? = nil, backdropUrl: String? = nil) {
+                sort: CollectionSort = .release, smartFilter: String? = nil, category: CollectionCategory? = nil,
+                itemCount: Int = 0, posterUrl: String? = nil, backdropUrl: String? = nil) {
         self.id = id
         self.libraryId = libraryId
         self.title = title
@@ -37,6 +39,7 @@ public struct CollectionSummary: Codable, Hashable, Sendable, Identifiable {
         self.automatic = automatic
         self.sort = sort
         self.smartFilter = smartFilter
+        self.category = category
         self.itemCount = itemCount
         self.posterUrl = posterUrl
         self.backdropUrl = backdropUrl
@@ -51,6 +54,7 @@ public struct CollectionSummary: Codable, Hashable, Sendable, Identifiable {
         automatic = try c.value(.automatic, or: false)
         sort = try c.value(.sort, or: CollectionSort(rawValue: ""))
         smartFilter = try c.decodeIfPresent(String.self, forKey: .smartFilter)
+        category = try c.decodeIfPresent(CollectionCategory.self, forKey: .category)
         itemCount = try c.value(.itemCount, or: 0)
         posterUrl = try c.decodeIfPresent(String.self, forKey: .posterUrl)
         backdropUrl = try c.decodeIfPresent(String.self, forKey: .backdropUrl)
@@ -58,6 +62,74 @@ public struct CollectionSummary: Codable, Hashable, Sendable, Identifiable {
 
     /// Filled by a filter: the Smart badge.
     public var smart: Bool { !(smartFilter ?? "").isEmpty }
+}
+
+/// A category collections are grouped under (docs/API.md, `Category`):
+/// Pley's own (Highlights, Franchises) or an administrator's. Categories
+/// are made and ordered on the web.
+public struct CollectionCategory: Codable, Hashable, Sendable, Identifiable {
+    public var id: Int
+    /// Pley's own (`highlights`, `other`, `franchises`); `nil` for an administrator's.
+    public var key: String?
+    /// In the profile's language for Pley's own.
+    public var title: String
+
+    public init(id: Int, key: String? = nil, title: String) {
+        self.id = id
+        self.key = key
+        self.title = title
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        key = try c.decodeIfPresent(String.self, forKey: .key)
+        title = try c.value(.title, or: "")
+    }
+}
+
+/// `{ categories }`: `GET /api/collection-categories`, in their order.
+public struct CollectionCategoryList: Codable, Hashable, Sendable {
+    public var categories: [CollectionCategory]
+
+    public init(categories: [CollectionCategory]) { self.categories = categories }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        categories = try c.value(.categories, or: [])
+    }
+}
+
+/// A Home row of several libraries' collections of one title, opened
+/// together (`GET /api/collections/merged`): every title, in the row's order.
+public struct MergedCollection: Codable, Hashable, Sendable {
+    /// One of its collections and the library it is in.
+    public struct Part: Codable, Hashable, Sendable, Identifiable {
+        public var id: Int
+        public var libraryId: Int
+
+        public init(id: Int, libraryId: Int) {
+            self.id = id
+            self.libraryId = libraryId
+        }
+    }
+
+    public var title: String
+    public var collections: [Part]
+    public var items: [ItemSummary]
+
+    public init(title: String, collections: [Part], items: [ItemSummary]) {
+        self.title = title
+        self.collections = collections
+        self.items = items
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        title = try c.value(.title, or: "")
+        collections = try c.value(.collections, or: [])
+        items = try c.value(.items, or: [])
+    }
 }
 
 /// `{ collections }`: `GET /api/libraries/{id}/collections`, by title.

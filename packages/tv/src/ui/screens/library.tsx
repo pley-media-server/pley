@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/ho
 import { errorMessage, isApiError } from "../../api/client";
 import type { Collection, Hub, ItemSummary, Library, LibraryFilters, LibraryKind, LibrarySort } from "../../api/types";
 import { formatBitrate, formatBytes, pluralize } from "../../format/format";
-import { t } from "../../i18n";
+import { formatNumber, t } from "../../i18n";
 import type { AppState } from "../../state";
 import { useUi } from "../context";
 import { nudge } from "../focus";
@@ -18,8 +18,9 @@ import { PanelTitle, SidePanel } from "../kit/panel";
 import { Row, rowHeight, SectionPage, type Section } from "../kit/row";
 import { ArtTile, SeeAllTile, SkeletonTile, Tile, TILES, type TileKind } from "../kit/tile";
 import type { Entry, LibraryTab } from "../shell/navigator";
+import { collectionsView, type CategoryChoice } from "./collection-groups";
 import { ColumnMessage, failedTitle, problem, sentence, useApp, useLoad } from "./common";
-import { seeAllSort } from "./home";
+import { collectionOf, seeAllSort } from "./home";
 import { pageOf, prefetchPlayback } from "./item-actions";
 import {
   AlphaIndex,
@@ -137,6 +138,9 @@ export function LibraryScreen(p: { entry: Entry; id: number; tab?: LibraryTab; s
           onEdge={(dir) => {
             // Recommended's rows are placed in a box of no height of its own, which a move by geometry passes
             // over: Down goes back to the tile focused last in them, else into the nearest row.
+            // The Collections tab's chips come first, above its rows.
+            const chip = dir === "down" && shown === "collections" ? document.querySelector<HTMLElement>(".library-chips [data-f]") : null;
+            if (chip) return ui.focus.focus(chip);
             const rows = dir === "down" ? document.querySelector<HTMLElement>(".library-rows .page-scroll") : null;
             if (!rows) return false;
             const target = ui.focus.rememberedIn(rows) ?? ui.focus.enter(rows, "down", tabsRef.current?.getBoundingClientRect() ?? null);
@@ -150,7 +154,7 @@ export function LibraryScreen(p: { entry: Entry; id: number; tab?: LibraryTab; s
       </div>
       {shown === "library" && <LibraryGridTab key={`grid-${library.id}`} entry={entry} library={library} asked={asked} initial={initial} focusTab={focusShownTab} />}
       {shown === "recommended" && (
-        <RecommendedTab key={`rec-${library.id}`} entry={entry} library={library} initial={initial} focusTab={focusShownTab} onCollections={() => showTab("collections")} onSeeAll={seeAll} />
+        <RecommendedTab key={`rec-${library.id}`} entry={entry} library={library} initial={initial} focusTab={focusShownTab} onSeeAll={seeAll} />
       )}
       {shown === "collections" && <CollectionsTab key={`col-${library.id}`} entry={entry} library={library} initial={initial} focusTab={focusShownTab} />}
     </div>
@@ -661,14 +665,12 @@ function ChoicePanel(p: {
 
 // ---- Recommended
 
-function RecommendedTab(p: { entry: Entry; library: Library; initial: boolean; focusTab: () => boolean; onCollections: () => void; onSeeAll: (sort: LibrarySort) => void }) {
+function RecommendedTab(p: { entry: Entry; library: Library; initial: boolean; focusTab: () => boolean; onSeeAll: (sort: LibrarySort) => void }) {
   const ui = useUi();
   const lib = p.library;
   const music = lib.kind === "music";
   const hubs = useLoad((c) => ui.api.libraryHubs(lib.id, c), [lib.id]);
-  const collections = useLoad((c) => (music ? Promise.resolve({ collections: [] as Collection[] }) : ui.api.collections(lib.id, c)), [lib.id]);
   const rows = (hubs.data?.hubs ?? []).filter((h) => h.items.length > 0);
-  const cols = collections.data?.collections ?? [];
   const rowIndex = (p.entry.state.recIndex as Record<string, number> | undefined) ?? {};
   p.entry.state.recIndex = rowIndex;
   if (!hubs.data && hubs.error) {
@@ -682,7 +684,7 @@ function RecommendedTab(p: { entry: Entry; library: Library; initial: boolean; f
     );
   }
   if (!hubs.data) return <RowsSkeleton top={CHIPS_TOP} />;
-  if (!rows.length && !cols.length) {
+  if (!rows.length) {
     return (
       <ColumnMessage
         top={CHIPS_TOP}
@@ -695,7 +697,9 @@ function RecommendedTab(p: { entry: Entry; library: Library; initial: boolean; f
   }
   const sections: Section[] = rows.map((hub: Hub, h) => {
     const kind: TileKind = hub.key.indexOf("continue_watching") === 0 ? "landscape" : music ? "square" : "poster";
-    const sort = seeAllSort(hub);
+    // A row's See all opens the collection it shows; from a server older than collections' rows, the library in its order.
+    const collection = collectionOf(hub);
+    const sort = collection ? null : seeAllSort(hub);
     return {
       key: hub.key,
       height: rowHeight(kind),
@@ -724,46 +728,17 @@ function RecommendedTab(p: { entry: Entry; library: Library; initial: boolean; f
               onActions={() => ui.nav.open({ name: "actions", id: item.id, continueWatching: hub.key.indexOf("continue") === 0 })}
             />
           )}
-          seeAll={sort ? (place) => <SeeAllTile kind={kind} fid={`${hub.key}/all`} onFocus={place.onFocus} onSelect={() => p.onSeeAll(sort)} /> : undefined}
+          seeAll={
+            collection || sort
+              ? (place) => (
+                  <SeeAllTile kind={kind} fid={`${hub.key}/all`} onFocus={place.onFocus} onSelect={() => (collection ? ui.nav.open(collection) : sort && p.onSeeAll(sort))} />
+                )
+              : undefined
+          }
         />
       ),
     };
   });
-  if (cols.length) {
-    sections.push({
-      key: "collections",
-      height: rowHeight("poster"),
-      anchor: CHIPS_TOP,
-      render: (onFocus) => (
-        <Row
-          title={t("browse.collections.title")}
-          kind="poster"
-          items={cols}
-          keyOf={(c) => c.id}
-          enterAt={rowIndex.collections}
-          onLeftEdge={ui.toRail}
-          onFocusIndex={(i) => {
-            rowIndex.collections = i;
-            onFocus();
-          }}
-          tile={(c, i, place) => (
-            <ArtTile
-              kind="poster"
-              title={c.title}
-              subtitle={collectionCount(c, lib.kind)}
-              candidates={[c.poster_url]}
-              fid={`collections/${c.id}`}
-              initial={p.initial && !rows.length && i === 0}
-              priority={place.priority}
-              onFocus={place.onFocus}
-              onSelect={() => ui.nav.open({ name: "collection", id: c.id })}
-            />
-          )}
-          seeAll={(place) => <SeeAllTile kind="poster" fid="collections/all" onFocus={place.onFocus} onSelect={p.onCollections} />}
-        />
-      ),
-    });
-  }
   return (
     <div class="library-rows">
       <SectionPage
@@ -801,11 +776,58 @@ export function RowsSkeleton(p: { top: number; kind?: TileKind }) {
 
 // ---- Collections
 
+/** The Category filter's choice as the panel lists it: a category's id. */
+const choiceKey = (c: CategoryChoice): string | null => (c === "all" ? null : String(c));
+const choiceOf = (key: string | null): CategoryChoice => (key === null ? "all" : Number(key));
+
+/**
+ * The Collections tab (the Android app's TvCollectionsTab; apps/web's
+ * CollectionsTab): the Category chip when there are categories to choose,
+ * Clear filters and the count at y = 80; then the collections' posters
+ * with their counts in a grid, or, when they are of more than one
+ * category, a row for each category, titled with its name, in the
+ * categories' order. It waits for the categories (or their failure, when
+ * every collection shows under no heading), so groups don't come in
+ * above what shows.
+ */
 function CollectionsTab(p: { entry: Entry; library: Library; initial: boolean; focusTab: () => boolean }) {
   const ui = useUi();
   const lib = p.library;
   const loaded = useLoad((c) => ui.api.collections(lib.id, c), [lib.id]);
+  const categories = useLoad((c) => ui.api.collectionCategories(c).then((r) => r.categories), []);
+  const [chosen, setChosenState] = useState<CategoryChoice>(() => (p.entry.state.colCategory as CategoryChoice | undefined) ?? "all");
+  const [panel, setPanel] = useState(false);
+  const chipsRef = useRef<HTMLElement | null>(null);
   const list = loaded.data?.collections ?? null;
+  const known = categories.data ?? (categories.error ? [] : null);
+  const view = useMemo(() => (list && known ? collectionsView(list, known, chosen) : null), [list, known, chosen]);
+  const setChosen = (next: CategoryChoice) => {
+    p.entry.state.colCategory = next;
+    p.entry.state.colIndex = 0;
+    p.entry.state.colSection = undefined;
+    p.entry.state.colRowIndex = undefined;
+    setChosenState(next);
+  };
+  const focusChip = () =>
+    setTimeout(() => {
+      const el = chipsRef.current?.querySelector<HTMLElement>('[data-fid="chip/category"]');
+      if (el) ui.focus.focus(el);
+    }, 0);
+  // What had focus in the tab can go from under it: a skeleton when the collections come (the
+  // grid is made anew, or rows take its place), Clear filters when clearing leaves one category
+  // and the chips go. Focus moves to the Category chip if a chip had it, else to the first
+  // collection, else to the tabs, so the remote never lands on nothing.
+  useEffect(() => {
+    const lost = ui.focus.current;
+    if (!lost || lost.isConnected) return;
+    const fid = lost.getAttribute("data-fid") ?? "";
+    const wasChip = fid === "chip/category" || fid === "chip/clear";
+    if (!fid.startsWith("collections/") && !wasChip) return;
+    const page = ui.focus.root;
+    const chip = wasChip ? chipsRef.current?.querySelector<HTMLElement>('[data-fid="chip/category"]') : null;
+    const first = page?.querySelector<HTMLElement>('[data-fid^="collections/"]:not([data-fid^="collections/cell"])') ?? null;
+    if (!(chip && ui.focus.focus(chip)) && !(first && ui.focus.focus(first))) p.focusTab();
+  });
   if (!list && loaded.error) {
     return (
       <ColumnMessage
@@ -816,39 +838,158 @@ function CollectionsTab(p: { entry: Entry; library: Library; initial: boolean; f
       />
     );
   }
-  if (!list) return null;
-  if (!list.length) {
+  if (view && !view.total) {
     const body = lib.kind === "movies" ? t("browse.library.noCollectionsHint") : t("browse.library.noCollectionsHere");
     return <ColumnMessage top={CHIPS_TOP} title={t("browse.collections.none")} body={body} focusInstead={p.focusTab} takeFocus={p.initial} />;
   }
-  return (
-    <>
-      <div class="t-caption c-muted collections-count">{pluralize(list.length, "collection")}</div>
+  const open = (c: Collection) => ui.nav.open({ name: "collection", id: c.id });
+  const chosenLabel = view && view.category !== "all" ? (view.choices.filter((g) => g.choice === view.category)[0] ?? null) : null;
+  // A chip row only when there is something to choose; else the count alone, which takes no focus.
+  const chips = view && (view.offered || view.filtered) && (
+    <G
+      kind="row"
+      class="library-chips"
+      elRef={(el) => (chipsRef.current = el)}
+      onEnter={(dir) => (dir === "down" ? chipsRef.current?.querySelector<HTMLElement>("[data-f]") ?? null : null)}
+      onEdge={(dir) => {
+        // Up goes to the tabs, as from the Library tab's chips: by geometry, the rows' box of no height at the page's top
+        // is nearer, and would take focus back down into them.
+        if (dir === "up") return p.focusTab();
+        // The rows are placed in a box of no height of its own, which a move by geometry passes over, as from the tabs to Recommended's.
+        const rows = dir === "down" ? document.querySelector<HTMLElement>(".collections-rows .page-scroll") : null;
+        if (!rows) return false;
+        const target = ui.focus.rememberedIn(rows) ?? ui.focus.enter(rows, "down", chipsRef.current?.getBoundingClientRect() ?? null);
+        return !!target && ui.focus.focus(target);
+      }}
+    >
+      <Chip
+        fid="chip/category"
+        label={chosenLabel ? chosenLabel.category.title : t("browse.collections.category")}
+        selected={!!chosenLabel}
+        maxWidth={220}
+        onSelect={() => setPanel(true)}
+      />
+      {view.filtered && (
+        <Chip
+          fid="chip/clear"
+          label={t("browse.library.clearFilters")}
+          icon="x"
+          onSelect={() => {
+            setChosen("all");
+            focusChip();
+          }}
+        />
+      )}
+      <div class="t-caption c-muted chips-count">{pluralize(view.count, "collection")}</div>
+    </G>
+  );
+  let content: ComponentChildren;
+  if (view && view.headed) {
+    // Each row's tile focused last, so Back from a collection comes to it, the rows drawn again.
+    const rowIndex = (p.entry.state.colRowIndex as Record<string, number> | undefined) ?? {};
+    p.entry.state.colRowIndex = rowIndex;
+    const sections: Section[] = view.groups.map((g, gi) => ({
+      key: `category/${g.key}`,
+      height: rowHeight("poster"),
+      anchor: GRID_TOP,
+      render: (onFocus) => (
+        <Row
+          title={g.category.title}
+          kind="poster"
+          items={g.collections}
+          keyOf={(c) => c.id}
+          enterAt={rowIndex[g.key]}
+          onLeftEdge={ui.toRail}
+          onFocusIndex={(i) => {
+            rowIndex[g.key] = i;
+            onFocus();
+          }}
+          tile={(c, i, place) => (
+            <ArtTile
+              kind="poster"
+              title={c.title}
+              subtitle={collectionCount(c, lib.kind)}
+              candidates={[c.poster_url]}
+              fid={`collections/${c.id}`}
+              initial={p.initial && gi === 0 && i === 0}
+              priority={place.priority}
+              onFocus={place.onFocus}
+              onSelect={() => open(c)}
+            />
+          )}
+        />
+      ),
+    }));
+    content = (
+      <div class="library-rows collections-rows">
+        <SectionPage
+          sections={sections}
+          top={GRID_TOP}
+          clipAbove={GRID_CLIP}
+          focusedKey={p.entry.state.colSection as string | undefined}
+          onFocusSection={(k) => (p.entry.state.colSection = k)}
+        />
+        <div class="rail-fade" />
+      </div>
+    );
+  } else {
+    // One group, or still loading: a grid, of grey wells until the collections come, so Down from the tabs lands somewhere.
+    const shown = view ? (view.groups[0]?.collections ?? []) : null;
+    content = (
       <PosterGrid
+        key={view ? `col-${view.category}` : "col-loading"}
         kind="grid"
-        count={list.length}
+        count={shown ? shown.length : UNKNOWN_CELLS}
         top={GRID_TOP}
         clipTop={GRID_CLIP}
         startIndex={(p.entry.state.colIndex as number | undefined) ?? 0}
         onFocusIndex={(i) => (p.entry.state.colIndex = i)}
         cell={(i, place) => {
-          const c = list[i]!;
+          const c = shown?.[i];
+          if (!c) return <SkeletonTile kind="grid" fid={`collections/cell${i}`} focusable onFocus={place.onFocus} />;
           return (
             <ArtTile
               kind="grid"
               title={c.title}
               subtitle={collectionCount(c, lib.kind)}
               candidates={[c.poster_url]}
-              badge={String(c.item_count)}
+              badge={formatNumber(c.item_count)}
               fid={`collections/${c.id}`}
               initial={p.initial && i === 0}
               priority={place.priority}
               onFocus={place.onFocus}
-              onSelect={() => ui.nav.open({ name: "collection", id: c.id })}
+              onSelect={() => open(c)}
             />
           );
         }}
       />
+    );
+  }
+  return (
+    <>
+      {chips || (view && <div class="t-caption c-muted collections-count">{pluralize(view.count, "collection")}</div>)}
+      {content}
+      {panel && view && (
+        <ChoicePanel
+          title={t("browse.collections.category")}
+          all={t("browse.collections.allCategories")}
+          choices={view.choices.map((g) => choiceKey(g.choice)!)}
+          labelOf={(k) => {
+            const g = view.choices.filter((x) => choiceKey(x.choice) === k)[0];
+            return g ? g.category.title : k;
+          }}
+          current={choiceKey(view.category)}
+          onClose={() => {
+            setPanel(false);
+            focusChip();
+          }}
+          onPick={(k) => {
+            setChosen(choiceOf(k));
+            setPanel(false);
+            focusChip();
+          }}
+        />
+      )}
     </>
   );
 }

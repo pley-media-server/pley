@@ -99,7 +99,7 @@ import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 /**
  * A collection's page on the phone (design spec §4.9, the web's
  * CollectionPage): the backdrop fading into the page under a clear top
- * bar, "Collection" with its TMDB or Smart badge, the title, what it holds
+ * bar, "Collection" with its TMDB or Smart badge and its category, the title, what it holds
  * in words, Play and Shuffle, the summary, then its titles in a grid.
  */
 @Composable
@@ -244,6 +244,8 @@ private fun Header(page: CollectionPage<ArtworkTileModel>?, vm: CollectionViewMo
                 Text(stringResource(R.string.collection_label), style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)
                 if (page.automatic) QualityBadge(stringResource(R.string.collection_tmdb), TileStyle.Phone)
                 if (page.smart) SmartBadge(stringResource(R.string.collection_smart))
+                // Last, as on the web, and shortened to the room left: an administrator's category can be long.
+                page.category?.let { QualityBadge(it, TileStyle.Phone, Modifier.weight(1f, fill = false)) }
             }
             Spacer(Modifier.height(8.dp))
             Text(

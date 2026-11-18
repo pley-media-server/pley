@@ -4,6 +4,7 @@ import app.pley.android.data.LocalMedia
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.MaybeItem
+import app.pley.android.player.PlayQueue
 import app.pley.android.testing.network.FakePleyApi
 import java.io.IOException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,6 +45,14 @@ class NextUpTest {
         assertEquals(downloaded, nextUp.after(11, ItemKind.Episode, queue = null, fromDownload = true))
         assertEquals(NextUp.SERVER_WAIT_MS, currentTime)
         api.release()
+    }
+
+    @Test
+    fun aMergedRowPlaysThroughItsTitlesInTheRowsOrder() = runTest {
+        // collections/merged.json: Dune, then Dune: Part Two, from two libraries' collections.
+        val row = PlayQueue.MergedCollection(listOf(801, 901))
+        assertEquals(104L, nextUp.after(105, ItemKind.Movie, row)?.id)
+        assertNull("the row's last title is the last", nextUp.after(104, ItemKind.Movie, row))
     }
 
     @Test

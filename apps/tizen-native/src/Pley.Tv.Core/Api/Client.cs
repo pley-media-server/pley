@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -110,6 +111,11 @@ public sealed record FiltersAnswer(IReadOnlyList<string> Genres, IReadOnlyList<i
     public IReadOnlyList<string> DynamicRanges { get; init; } = Array.Empty<string>();
 }
 public sealed record CollectionsAnswer(IReadOnlyList<Collection> Collections);
+public sealed record CategoriesAnswer(IReadOnlyList<CollectionCategory> Categories);
+/// <summary>One of a merged page's collections, and the library it is in.</summary>
+public sealed record MergedPart(long Id, long LibraryId);
+/// <summary>A Home row of several libraries' collections of one title: every title, in the row's order.</summary>
+public sealed record MergedCollection(string Title, IReadOnlyList<MergedPart> Collections, IReadOnlyList<ItemSummary> Items);
 public sealed record CollectionDetail : Collection
 {
     public IReadOnlyList<ItemSummary> Items { get; init; } = new ItemSummary[0];
@@ -389,6 +395,12 @@ public sealed class Api
     public Task<CollectionsAnswer> Collections(long libraryId, CancellationToken cancel = default) => Get<CollectionsAnswer>($"/api/libraries/{libraryId}/collections", cancel: cancel);
 
     public Task<CollectionDetail> Collection(long id, CancellationToken cancel = default) => Get<CollectionDetail>($"/api/collections/{id}", cancel: cancel);
+
+    public Task<CategoriesAnswer> CollectionCategories(CancellationToken cancel = default) => Get<CategoriesAnswer>("/api/collection-categories", cancel: cancel);
+
+    /// <summary>The collections <paramref name="ids"/> (a Home row's) together.</summary>
+    public Task<MergedCollection> MergedCollection(IReadOnlyList<long> ids, CancellationToken cancel = default) =>
+        Get<MergedCollection>($"/api/collections/merged?ids={string.Join(",", ids.Select(i => i.ToString(CultureInfo.InvariantCulture)))}", cancel: cancel);
 
     public Task<ItemDetail> Item(long id, CancellationToken cancel = default) => Get<ItemDetail>($"/api/items/{id}", cancel: cancel);
 

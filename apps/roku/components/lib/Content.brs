@@ -146,8 +146,10 @@ end function
 
 ' Home's rows from GET /api/hubs/home (a library's Recommended rows too):
 ' [{ key, title, wide, square, tiles }]. Titles of kinds this version
-' doesn't show are left out, and rows left empty with them. A library's
-' newest, newly released and top rated end with See all.
+' doesn't show are left out, and rows left empty with them. A row of
+' collections ends with See all, which opens them (the collection, or the
+' merged page of several, as the web's row title and See all do); a music
+' library's newest, which isn't one, its library's Library tab.
 function contentHomeRows(hubs as dynamic, server as string) as object
     rows = []
     for each hub in httpArray(hubs)
@@ -160,7 +162,12 @@ function contentHomeRows(hubs as dynamic, server as string) as object
         end for
         sort = contentSeeAllSort(key)
         libraryId = httpNumber(hub.library_id, 0)
-        if items.Count() > 0 and sort <> "" and libraryId > 0 then items.Push(contentSeeAllTile(libraryId, sort, wide, square))
+        collections = contentCollectionIds(hub.collection_ids)
+        if items.Count() > 0 and collections.Count() > 0
+            items.Push(contentSeeCollectionsTile(collections, httpSentence(hub.title), wide, square))
+        else if items.Count() > 0 and sort <> "" and libraryId > 0
+            items.Push(contentSeeAllTile(libraryId, sort, wide, square))
+        end if
         if items.Count() > 0 then rows.Push({ key: key, title: httpSentence(hub.title), wide: wide, square: square, tiles: items })
     end for
     return rows
@@ -180,6 +187,21 @@ end function
 ' sort's order.
 function contentSeeAllTile(libraryId as dynamic, sort as string, wide as boolean, square as boolean) as object
     return { title: t("common.actions.seeAll"), subtitle: "", image: "", wide: wide, square: square, progress: 0.0, watched: false, itemId: 0, kind: "more", list: "", query: "", libraryId: libraryId, sort: sort }
+end function
+
+' See all at the end of a row of collections: { kind "more", collections
+' (their ids), rowTitle }, without the sort a library's See all has.
+function contentSeeCollectionsTile(ids as object, rowTitle as string, wide as boolean, square as boolean) as object
+    return { title: t("common.actions.seeAll"), subtitle: "", image: "", wide: wide, square: square, progress: 0.0, watched: false, itemId: 0, kind: "more", list: "", query: "", collections: ids, rowTitle: rowTitle }
+end function
+
+' A hub's collection_ids, the valid ones.
+function contentCollectionIds(value as dynamic) as object
+    ids = []
+    for each id in httpArray(value)
+        if httpNumber(id, 0) > 0 then ids.Push(httpNumber(id, 0))
+    end for
+    return ids
 end function
 
 ' Whether a row is Continue Watching: Home's ("continue_watching"), or a

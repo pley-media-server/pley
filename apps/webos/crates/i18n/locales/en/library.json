@@ -125,7 +125,9 @@
     "byRelease": "By release date",
     "byTitle": "By title",
     "customOrder": "Custom order",
-    "retry": "Retry"
+    "retry": "Retry",
+    "category": "Category",
+    "allCategories": "All categories"
   },
   "smartFilter": {
     "genre": "Genre: {{value}}",

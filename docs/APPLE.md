@@ -175,13 +175,21 @@ behind it.
   background, and none after a memory warning. While loading, still grey
   rows show; a load that fails says why with Try again. With no rows,
   Home says why: no library this profile may open, the libraries being
-  scanned, or nothing in them yet. Rows a library can list (Recently
-  Added, Recently Released, Top Rated) have **See all**, which opens the
-  library listed the same way. Leaving Continue Watching takes the tile
-  out at once. After it loads, Home reads the first three Continue
-  Watching titles' details, which starts the server reading their video
-  ahead. iPhone and iPad pull to refresh, the Mac has Reload (⌘R).
-  Choosing a tile opens its page. On Apple TV, above the rows, what the
+  scanned, or nothing in them yet. Home's rows after Continue Watching
+  and My List are the collections administrators put there, in their
+  order; same-titled collections of several libraries are one row. A
+  row's **See all**, and on iPhone, iPad and Mac its title (Apple TV
+  can't focus a title), opens its collection, or, for a row of several,
+  a page of them together: their title, how many movies and shows, the
+  libraries they come from (each opening its own collection), Play and
+  Shuffle, then every title in the row's order. A music library's
+  Recently Added, which isn't a collection, and an older server's rows
+  that a library can list (Recently Added, Recently Released, Top Rated)
+  open the library listed as the row is. Leaving Continue Watching takes
+  the tile out at once. After it loads, Home reads the first three
+  Continue Watching titles' details, which starts the server reading
+  their video ahead. iPhone and iPad pull to refresh, the Mac has Reload
+  (⌘R). Choosing a tile opens its page. On Apple TV, above the rows, what the
   tile with the focus is: its title (a show's, for an episode), the
   episode, the year, rating, running time and quality, the time left, and
   once the focus rests 0.3 s, its summary in three lines.
@@ -205,10 +213,10 @@ behind it.
   move shows at once and is saved in order; Home, the sidebar, the tabs
   and the profile's other devices follow. "Use the Server's Order" goes
   back to the server's.
-- **A library**: **Recommended** (the library's own rows, then its
-  collections), **Library** (every title, in a grid) and **Collections**
-  (not for music). The grid reads 100 titles at a time, the page
-  showing and the next once it is 70 % through, keeps at most 2,000
+- **A library**: **Recommended** (its rows: Continue Watching, then the
+  collections administrators put there), **Library** (every title, in a
+  grid) and **Collections** (not for music). The grid reads 100 titles
+  at a time, the page showing and the next once it is 70 % through, keeps at most 2,000
   titles, and lets go of the pages furthest away. **Sort** offers the
   library's sorts (title, year, date added, rating, your rating, release
   date, duration for movies, last played, bitrate), each with its own
@@ -383,10 +391,17 @@ behind it.
   track plays the album from it; the track playing shows a speaker in
   place of its number (VoiceOver says "playing" or "paused"), and
   choosing it pauses or plays on. [Music](#music) says how it plays.
-- **Collections**: a library's collections in a grid, each tile with its
-  poster, how many titles it holds, and a TMDB badge (made from TMDB's
-  movie collections) or a Smart one (filled by a filter). A collection's
-  page: its backdrop and poster, title, badges, "12 movies" with how it is
+- **Collections**: a library's collections in grids under their
+  categories (Highlights, Other, Franchises, an administrator's own), in
+  the order the server lists them (a server older than categories
+  has them all in one group); with one group, no headings. Each
+  tile has its poster, how many titles it holds, and a TMDB badge (made
+  from TMDB's movie collections) or a Smart one (filled by a filter).
+  Above them, **Category** (each category with collections; offered
+  when there are two or more), Clear
+  filters and how many show. How a collection was made matters to
+  administrators, on the web, so there is no filter by it. A collection's page: its backdrop and poster, its
+  category (none for Other, which only says it has none), title, badges, "12 movies" with how it is
   sorted or, for a smart one, its filter in words ("Comedy · Unwatched ·
   Year, newest first"), its summary, **Play** and **Shuffle**, then its
   titles. Play plays a collection of movies in its order as a queue;
@@ -2068,7 +2083,7 @@ read `<screen>.<part>[.<id>]` (`servers.address`, `signIn.userCode`,
 3. Home with its tiles; an item's page with Play, and back.
 4. Me (Settings on Apple TV) says Kids; Switch profile back to the
    administrator, by its PIN.
-5. See all on Home opens the library sorted newest first.
+5. See all on Home opens the row's collection.
 6. A movie's menu: Mark as watched, and on iPhone and iPad back to
    unwatched; Add to My List, and on iPhone and iPad out again; each
    checked on the server. On Apple TV, then: along Home's movies row,
@@ -2469,8 +2484,9 @@ Delete the folder afterwards.
   Recording permissions that only a person can grant. Its views are
   checked by building it, and its models and menus' state by the
   packages' tests.
-- Collections are made and changed in Pley on the web; the apps play
-  them.
+- Collections are made and changed in Pley on the web, and so are their
+  categories and which collections are rows on Home and on a library's
+  Recommended tab, in what order; the apps show and play them.
 - People's pages need a title's cast and crew, which come from a metadata
   source (TMDB); without one, a title lists no one.
 - Only Apple TV asks "Who's watching?" by itself at start; iPhone, iPad

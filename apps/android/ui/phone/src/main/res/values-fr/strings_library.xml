@@ -88,6 +88,8 @@
     <string name="library_collections_empty_title">Aucune collection pour l’instant</string>
     <string name="library_collections_empty_movies">Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans cette bibliothèque.</string>
     <string name="library_collections_empty_shows">Cette bibliothèque n’a pas encore de collection.</string>
+    <string name="library_collections_category">Catégorie</string>
+    <string name="library_collections_all_categories">Toutes les catégories</string>
 
     <string name="collection_label">Collection</string>
     <string name="collection_smart">Intelligente</string>

@@ -22,7 +22,7 @@ export interface PlayRequest {
   audioIndex?: number | null;
   /** `-1`: none. */
   subtitleIndex?: number | null;
-  queue?: { kind: "playlist" | "collection"; id: number } | null;
+  queue?: { kind: "playlist" | "collection"; id: number } | { kind: "merged"; ids: number[] } | null;
 }
 
 export function audioStreams(file: MediaFile | null): MediaStream[] {

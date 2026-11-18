@@ -5,6 +5,8 @@ import app.pley.android.data.LibraryItems
 import app.pley.android.data.LibraryQuery
 import app.pley.android.data.Loadable
 import app.pley.android.data.valueOrNull
+import app.pley.android.model.CategoryRef
+import app.pley.android.model.CollectionCategory
 import app.pley.android.model.CollectionSummary
 import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.Hub
@@ -15,8 +17,10 @@ import app.pley.android.model.LibraryKind
 import app.pley.android.model.LibrarySort
 import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SortOrder
+import app.pley.android.network.ApiException
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.collection.CategoryChoice
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +33,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -378,7 +383,15 @@ class LibraryViewModelTest {
 
     @Test
     fun tabsReadOnlyOnceShown() = runTest(dispatcher) {
-        hubs.library.value = Loadable.Ready(Hubs(listOf(Hub("continue_watching:1", "Continue Watching", 1, listOf(movie(3))), Hub("top_rated:1", "Top Rated", 1, listOf(movie(4))))), true)
+        hubs.library.value = Loadable.Ready(
+            Hubs(
+                listOf(
+                    Hub("continue_watching:1", "Continue Watching", 1, listOf(movie(3))),
+                    Hub("top_rated:1", "Top Rated", 1, listOf(movie(4)), collectionIds = listOf(7)),
+                ),
+            ),
+            true,
+        )
         collections.lists.value = mapOf(1L to listOf(CollectionSummary(9, 1, "Alien Collection", itemCount = 4)))
         val vm = viewModel()
         val job = launch { vm.state.collect {} }
@@ -388,12 +401,95 @@ class LibraryViewModelTest {
         vm.select(LibraryTab.Recommended)
         advanceUntilIdle()
         assertEquals(1, hubs.opened)
+        // The hubs only: no row of every collection after them.
         val rows = vm.state.value.recommended.valueOrNull!!
-        assertEquals(listOf("continue_watching:1", "top_rated:1", TileRow.COLLECTIONS), rows.map { it.key })
+        assertEquals(listOf("continue_watching:1", "top_rated:1"), rows.map { it.key })
         assertEquals(TileLook.Landscape, rows[0].look)
-        assertEquals(listOf(PleyKey.Collection(9)), rows[2].opens)
-        val shelf = vm.state.value.collections.valueOrNull!!
-        assertEquals(CollectionTile(9, 4, FakeTile(9, "Alien Collection", TileLook.Poster, "4 movies")), shelf.single())
+        assertEquals(listOf(null, PleyKey.Collection(7)), rows.map { it.collection })
+        assertEquals(Loadable.Loading, vm.state.value.collections)
+        vm.select(LibraryTab.Collections)
+        advanceUntilIdle()
+        val view = vm.state.value.collections.valueOrNull!!
+        assertEquals(CollectionTile(9, 4, FakeTile(9, "Alien Collection", TileLook.Poster, "4 movies")), view.groups.single().collections.single())
+        assertFalse(view.headed)
+        job.cancel()
+    }
+
+    @Test
+    fun aServerWithoutCategoriesShowsEveryCollectionAsBefore() = runTest(dispatcher) {
+        // A server from before categories: 404 for GET /api/collection-categories, no category on a collection.
+        collections.categoryList.value = Loadable.Failed(ApiException(404, "not_found", "no such endpoint"))
+        collections.lists.value = mapOf(
+            1L to listOf(CollectionSummary(9, 1, "Alien Collection", automatic = true, itemCount = 4), CollectionSummary(10, 1, "Favourites", itemCount = 2)),
+        )
+        val vm = viewModel(tab = LibraryTab.Collections)
+        val job = launch { vm.state.collect {} }
+        advanceUntilIdle()
+        // The tab doesn't wait on: one group, no heading, no Category filter.
+        val view = vm.state.value.collections.valueOrNull!!
+        assertEquals(listOf(9L, 10L), view.groups.single().collections.map { it.id })
+        assertFalse(view.headed)
+        assertFalse(view.categoryOffered)
+        job.cancel()
+    }
+
+    @Test
+    fun collectionsAreGroupedByCategoryAndFiltered() = runTest(dispatcher) {
+        val franchises = CategoryRef(2, "franchises", "Franchises")
+        val other = CategoryRef(3, "other", "Other")
+        collections.categoryList.value = Loadable.Loading
+        collections.lists.value = mapOf(
+            1L to listOf(
+                CollectionSummary(9, 1, "Alien Collection", automatic = true, category = franchises, itemCount = 4),
+                CollectionSummary(10, 1, "Favourites", category = other, itemCount = 2),
+                // Of a category made since the list was read: after the rest, under its own title.
+                CollectionSummary(12, 1, "Christmas", category = CategoryRef(6, null, "Holidays"), itemCount = 3),
+                CollectionSummary(11, 1, "Unwatched", smartFilter = "unwatched=1", category = CategoryRef(1, "highlights", "Highlights"), itemCount = 8),
+            ),
+        )
+        val vm = viewModel(tab = LibraryTab.Collections)
+        val job = launch { vm.state.collect {} }
+        advanceUntilIdle()
+        // Not shown ungrouped while the categories are on their way.
+        assertEquals(Loadable.Loading, vm.state.value.collections)
+        collections.categoryList.value = Loadable.Ready(
+            listOf(
+                CollectionCategory(1, "highlights", "Highlights"),
+                CollectionCategory(3, "other", "Other"),
+                CollectionCategory(2, "franchises", "Franchises"),
+                CollectionCategory(5, null, "Seasonal"),
+            ),
+            fresh = true,
+        )
+        advanceUntilIdle()
+        var view = vm.state.value.collections.valueOrNull!!
+        // The categories' order, Other where the list puts it (before Franchises), Seasonal left out
+        // with nothing in it, and Holidays, not listed yet, last.
+        assertEquals(listOf("Highlights", "Other", "Franchises", "Holidays"), view.groups.map { it.category?.title })
+        assertTrue(view.headed)
+        assertTrue(view.categoryOffered)
+        assertFalse(view.filtered)
+        vm.collectionCategory(CategoryChoice.Of(3))
+        advanceUntilIdle()
+        view = vm.state.value.collections.valueOrNull!!
+        assertEquals(listOf(10L), view.groups.single().collections.map { it.id })
+        assertFalse(view.headed)
+        assertTrue(view.filtered)
+        // Every category with collections is still offered.
+        assertEquals(4, view.choices.size)
+        assertTrue(view.categoryOffered)
+        // A category that no longer has collections chooses every one.
+        vm.collectionCategory(CategoryChoice.Of(5))
+        advanceUntilIdle()
+        view = vm.state.value.collections.valueOrNull!!
+        assertEquals(CategoryChoice.All, view.category)
+        assertEquals(4, view.count)
+        vm.collectionCategory(CategoryChoice.Of(2))
+        advanceUntilIdle()
+        assertEquals(listOf(9L), vm.state.value.collections.valueOrNull!!.groups.single().collections.map { it.id })
+        vm.clearCollectionFilters()
+        advanceUntilIdle()
+        assertEquals(4, vm.state.value.collections.valueOrNull!!.count)
         job.cancel()
     }
 

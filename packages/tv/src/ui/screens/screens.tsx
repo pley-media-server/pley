@@ -10,7 +10,7 @@ import { ItemScreen } from "./item";
 import { ItemActionsScreen } from "./actions";
 import { SearchScreen } from "./search";
 import { PersonScreen } from "./person";
-import { CollectionScreen, CollectionsScreen } from "./collections";
+import { CollectionScreen, CollectionsScreen, MergedCollectionScreen } from "./collections";
 import { AlbumScreen, ArtistScreen, NowPlayingScreen } from "./music";
 import { AddToPlaylistScreen, NewPlaylistScreen, PlaylistScreen, PlaylistsScreen } from "./playlists";
 import { DiagnosticsScreen, HistoryScreen, SettingsScreen } from "./settings";
@@ -61,6 +61,9 @@ export function Screen(p: { entry: Entry; state: AppState }) {
       break;
     case "collection":
       page = <CollectionScreen entry={p.entry} id={key.id} />;
+      break;
+    case "mergedCollection":
+      page = <MergedCollectionScreen entry={p.entry} ids={key.ids} />;
       break;
     case "artist":
       page = <ArtistScreen entry={p.entry} id={key.id} />;

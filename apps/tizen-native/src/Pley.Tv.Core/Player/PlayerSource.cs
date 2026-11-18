@@ -152,6 +152,7 @@ public sealed class AppPlayerSource : IPlayerSource
     public async Task<IReadOnlyList<ItemSummary>> Queue(PlayQueue queue)
     {
         if (queue is PlayQueue.Collection c) return (await Api.Collection(c.CollectionId).ConfigureAwait(false)).Items;
+        if (queue is PlayQueue.MergedCollection m) return (await Api.MergedCollection(m.CollectionIds).ConfigureAwait(false)).Items;
         var playlist = await Api.Playlist(((PlayQueue.Playlist)queue).PlaylistId).ConfigureAwait(false);
         var items = new List<ItemSummary>();
         foreach (var entry in playlist.Entries) items.Add(entry.Item);

@@ -83,6 +83,8 @@
     <string name="tv_library_collections_empty_title">No collections yet</string>
     <string name="tv_library_collections_empty_movies">Movies of the same TMDB collection are grouped here once two of them are in this library.</string>
     <string name="tv_library_collections_empty_shows">There are no collections in this library yet.</string>
+    <string name="tv_library_collections_category">Category</string>
+    <string name="tv_library_collections_all_categories">All categories</string>
     <string name="tv_library_retry">Retry</string>
     <string name="tv_library_see_all">See all</string>
 
@@ -98,4 +100,5 @@
     <string name="tv_collection_empty">Nothing in this collection yet.</string>
     <string name="tv_collection_failed">Couldn\'t load this collection</string>
     <string name="tv_collection_nothing_to_play">Nothing to play: this show has no episodes yet</string>
+    <string name="tv_collection_from">From</string>
 </resources>

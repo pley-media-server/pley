@@ -11,7 +11,7 @@ use crate::plan::Queue;
 use crate::server::PlayerServer;
 
 /// Whether anything can follow an item of `kind` played from `queue`.
-pub fn has_next(kind: ItemKind, queue: Option<Queue>) -> bool {
+pub fn has_next(kind: ItemKind, queue: Option<&Queue>) -> bool {
     queue.is_some() || kind == ItemKind::Episode
 }
 
@@ -28,6 +28,7 @@ pub fn next_after(
             Ok(next_in(&items, item_id))
         }
         Some(Queue::Collection(id)) => Ok(next_in(&server.collection(id)?.items, item_id)),
+        Some(Queue::Collections(ids)) => Ok(next_in(&server.merged_collection(&ids)?.items, item_id)),
         None if kind == ItemKind::Episode => server.next(item_id),
         None => Ok(None),
     }

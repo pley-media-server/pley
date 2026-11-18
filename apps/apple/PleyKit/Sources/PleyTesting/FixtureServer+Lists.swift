@@ -3,7 +3,9 @@ import Network
 import PleyModel
 
 /// Collections and playlists: the fixtures' collections (Dune, a smart one,
-/// Villeneuve Picks) and playlists (Weekend, a smart one, a music one),
+/// Villeneuve Picks), under the categories Highlights, Other, Franchises
+/// and Holidays (Villeneuve Picks under none, which the server sends as
+/// Other), and playlists (Weekend, a smart one, a music one),
 /// kept as the server keeps them, so a test can make, rename, fill, reorder,
 /// empty and delete playlists and read back what the server has.
 extension FixtureServer {
@@ -15,8 +17,14 @@ extension FixtureServer {
         var automatic = false
         var sort = "release"
         var smartFilter: String?
+        var categoryId: Int?
         var itemIds: [Int]
     }
+
+    /// The categories, in their order.
+    static let categories: [(id: Int, key: String?, title: String)] = [
+        (1, "highlights", "Highlights"), (4, "other", "Other"), (2, "franchises", "Franchises"), (3, nil, "Holidays"),
+    ]
 
     struct FixturePlaylist: Sendable {
         var id: Int
@@ -47,10 +55,11 @@ extension FixtureServer {
     // MARK: Knobs
 
     /// Adds a collection of `itemIds` to library `libraryId`.
-    public func addCollection(id: Int, libraryId: Int, title: String, itemIds: [Int]) {
+    public func addCollection(id: Int, libraryId: Int, title: String, itemIds: [Int], categoryId: Int? = nil) {
         state.withLock { s in
             Self.seed(&s)
-            s.lists.collections?.append(FixtureCollection(id: id, libraryId: libraryId, title: title, itemIds: itemIds))
+            s.lists.collections?.append(FixtureCollection(id: id, libraryId: libraryId, title: title,
+                                                          categoryId: categoryId, itemIds: itemIds))
         }
     }
 
@@ -115,11 +124,31 @@ extension FixtureServer {
 
     /// The collections' and playlists' routes; `nil` for the others.
     static func lists(_ s: inout State, _ request: Request, _ parts: [String]) -> Answer? {
+        if parts.count == 2, parts[0] == "api", parts[1] == "collection-categories", request.method == "GET" {
+            return withToken(&s, request, scope: "library") { _, _ in
+                json(200, ["categories": categories.enumerated().map { n, c in
+                    ["id": c.id, "key": c.key ?? NSNull(), "title": c.title, "from_label": NSNull(), "position": n]
+                }])
+            }
+        }
         guard parts.count >= 2, parts[0] == "api", parts[1] == "collections" || parts[1] == "playlists" else {
             return nil
         }
         seed(&s)
         let method = request.method
+        if parts.count == 3, parts[1] == "collections", parts[2] == "merged", method == "GET" {
+            // Several collections of one title, one after another, as a Home row of them.
+            return withToken(&s, request, scope: "library") { s, _ in
+                let ids = (request.query["ids"] ?? "").split(separator: ",").compactMap { Int($0) }
+                let found = ids.compactMap { id in s.lists.collections?.first { $0.id == id } }
+                guard let first = found.first else { return notFound(request.path) }
+                var seen = Set<Int>()
+                let items = found.flatMap(\.itemIds).filter { seen.insert($0).inserted }.compactMap { itemJSON(s, $0) }
+                return json(200, ["title": first.title,
+                                  "collections": found.map { ["id": $0.id, "library_id": $0.libraryId] },
+                                  "items": items])
+            }
+        }
         if parts[1] == "collections" {
             guard parts.count >= 3, let id = Int(parts[2]) else { return nil }
             switch (method, parts.count) {
@@ -265,7 +294,11 @@ extension FixtureServer {
                     sort: o["sort"] as? String ?? "release", smartFilter: o["smart_filter"] as? String,
                     itemIds: (o["items"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? Int })
             }
-            s.lists.collections = [collection("collections/detail.json"), collection("collections/smart_detail.json"),
+            var dune = collection("collections/detail.json")
+            dune?.categoryId = 2
+            var smart = collection("collections/smart_detail.json")
+            smart?.categoryId = 1
+            s.lists.collections = [dune, smart,
                                    FixtureCollection(id: 802, libraryId: 1, title: "Villeneuve Picks",
                                                      summary: "Hand-picked.", sort: "custom",
                                                      itemIds: [101, 105, 104])].compactMap { $0 }
@@ -333,7 +366,13 @@ extension FixtureServer {
     }
 
     private static func collectionJSON(_ s: State, _ c: FixtureCollection) -> [String: Any] {
-        ["id": c.id, "library_id": c.libraryId, "title": c.title, "summary": c.summary ?? NSNull(),
+        // One without a category is Other's, as the server sends it; one
+        // not in the list was made since the list was read, "Made Since".
+        let id = c.categoryId ?? 4
+        let category = categories.first { $0.id == id }
+            .map { ["id": $0.id, "key": $0.key ?? NSNull(), "title": $0.title] as [String: Any] }
+            ?? ["id": id, "key": NSNull(), "title": "Made Since"]
+        return ["id": c.id, "category": category, "library_id": c.libraryId, "title": c.title, "summary": c.summary ?? NSNull(),
          "automatic": c.automatic, "sort": c.sort, "smart_filter": c.smartFilter ?? NSNull(),
          "item_count": c.itemIds.count, "poster_url": "/api/collections/\(c.id)/images/poster?v=1",
          "backdrop_url": "/api/collections/\(c.id)/images/backdrop?v=1", "created_at": 1_761_300_000,

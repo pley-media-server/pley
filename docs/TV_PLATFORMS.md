@@ -263,6 +263,31 @@ takes no casts: whoever stands at the TV is choosing, and a cast would
 choose for them. The rules are in `packages/tv/test/fixtures/tracks.json`
 too.
 
+### Collections
+
+A movie or show library's Recommended tab shows the rows administrators
+chose for it, and Home those chosen for Home, where collections of the
+same title in several libraries are one row ([API.md](API.md#rows)). A
+row's See all opens the collection it shows (a row's title takes no
+focus on the TV); a merged row opens its collections together, every
+title in the row's order, with a chip for each library they come from,
+which opens that library's collection. Play there plays the movies one
+after another, or, with none, a show's next episode.
+
+The Collections tab groups a library's collections under their categories,
+Other among them, in the order administrators gave them: a row for each,
+or a grid without a heading when only one group shows. The Category chip,
+there when there is more than one category to choose, narrows it to one;
+how a collection was made matters only to administrators, so the TV
+doesn't filter by it. A collection's page shows its category beside
+"Collection", unless it's Other. Managing categories and choosing the rows
+of Home and Recommended are in the web and desktop apps. The grouping is
+pinned by `packages/tv/test/fixtures/collections.json`, which the native
+app runs too. A server from before categories answers
+`GET /api/collection-categories` with `404`: its collections show as they
+did, in one grid, and its rows' See all opens the library in the row's
+order.
+
 ### Requests
 
 Where the server takes requests ([API.md](API.md#requests)), the rail has
@@ -565,11 +590,13 @@ Home: the hero, the server's rows and the rail, and item pages: the hero
 and its buttons, seasons and episodes, Extras, Cast and More Like This,
 and the side panels; library pages (the chips and panels, the filters by
 resolution and dynamic range among them, the grid with the A to Z jump,
-Recommended and Collections) and the Libraries page;
+Recommended, and Collections grouped by category with the Category chip,
+as [Collections](#collections) describes) and the Libraries page;
 search (the field and the TV's keyboard, results in rows, each with all
 the server finds, up to 200, Live TV's channels in a row before People
 that play the one chosen, recent searches); people's pages (the photo, the name and a row per role); the
-rail's Collections and a collection's page, with Play and Shuffle; the
+rail's Collections, a collection's page with Play and Shuffle, and the
+merged page of a Home row of several libraries' collections; the
 watch history page; playlists (their covers, a playlist's page with
 moving and removing entries, Rename and Delete, Add to playlist, New
 playlist and saving a library's filters as a smart playlist); Settings

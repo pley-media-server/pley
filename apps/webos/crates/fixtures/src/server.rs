@@ -153,6 +153,11 @@ pub(crate) struct State {
     pub casts_sent: HashMap<(i64, String), Vec<i64>>,
     /// The switch tickets of casts to another profile's receiver, waiting to be spent.
     pub cast_tickets: HashMap<String, crate::cast::Ticket>,
+    /// Collections a test took away: no library lists them.
+    pub hidden_collections: Vec<i64>,
+    /// A Pley from before categories: no `GET /api/collection-categories`, and collections name
+    /// none.
+    pub before_categories: bool,
 }
 
 impl State {

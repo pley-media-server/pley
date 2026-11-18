@@ -17,13 +17,11 @@ public enum RowShape
     Square,
 }
 
-/// <summary>Where a row's "See all" goes: a library's items, listed as the row is (<c>sort=added&amp;order=desc</c>).</summary>
-public sealed record SeeAll(long LibraryId, string View);
-
 /// <summary>One row of Home: a hub of the server's.</summary>
 /// <param name="Key">The hub's key ("continue_watching", "recently_added:3"): stable, the row's key on the page.</param>
 /// <param name="Title">"Continue Watching", "Recently Added in Movies", as the server says it.</param>
-public sealed record HomeRow(string Key, string Title, RowShape Shape, IReadOnlyList<ItemSummary> Items, SeeAll? SeeAll)
+/// <param name="SeeAll">The page its "See all" opens (<see cref="HomeRules.SeeAllOf"/>); null without one.</param>
+public sealed record HomeRow(string Key, string Title, RowShape Shape, IReadOnlyList<ItemSummary> Items, PageKey? SeeAll)
 {
     public bool ContinueWatching => Key.StartsWith(HomeRules.ContinuePrefix, StringComparison.Ordinal);
 
@@ -218,14 +216,27 @@ public static class HomeRules
         };
     }
 
-    /// <summary>Where a row's "See all" goes: its library, listed in the row's order; null for rows without one.</summary>
-    public static SeeAll? SeeAllOf(Hub hub)
+    /// <summary>
+    /// Where a row's "See all" goes: the collection it shows, or the several it merges
+    /// (apps/web's HubRow). A server older than collections' rows names none: then its library,
+    /// listed in the row's order; null for rows without one.
+    /// </summary>
+    public static PageKey? SeeAllOf(Hub hub)
     {
+        if (CollectionOf(hub) is { } collection) return collection;
         if (hub.LibraryId == null) return null;
         foreach (var (prefix, view) in SeeAllViews)
-            if (hub.Key.StartsWith(prefix, StringComparison.Ordinal)) return new SeeAll(hub.LibraryId.Value, view);
+            if (hub.Key.StartsWith(prefix, StringComparison.Ordinal)) return new PageKey.Library(hub.LibraryId.Value, LibraryTab.Library, view);
         return null;
     }
+
+    /// <summary>The page of the collection <paramref name="hub"/> shows, or of the several it merges; null for a row of none.</summary>
+    public static PageKey? CollectionOf(Hub hub) => hub.CollectionIds.Count switch
+    {
+        0 => null,
+        1 => new PageKey.Collection(hub.CollectionIds[0]),
+        _ => new PageKey.MergedCollection(hub.CollectionIds.ToList()),
+    };
 
     /// <summary>The item the hero shows: the first of Continue Watching, else the newest video in the rows, else the newest item.</summary>
     public static ItemSummary? HeroOf(IReadOnlyList<HomeRow> rows)

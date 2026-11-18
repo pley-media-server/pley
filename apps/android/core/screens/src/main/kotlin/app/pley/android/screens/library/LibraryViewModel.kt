@@ -15,6 +15,8 @@ import app.pley.android.data.LibraryViews
 import app.pley.android.data.Loadable
 import app.pley.android.data.map
 import app.pley.android.data.valueOrNull
+import app.pley.android.model.CategoryRef
+import app.pley.android.model.CollectionCategory
 import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.Hub
 import app.pley.android.model.ItemKind
@@ -28,6 +30,10 @@ import app.pley.android.model.SortOrder
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.ScreensGraph
+import app.pley.android.screens.collection.CategoryChoice
+import app.pley.android.screens.collection.CollectionsView
+import app.pley.android.screens.collection.tile
+import app.pley.android.screens.home.collectionOf
 import app.pley.android.screens.home.seeAllView
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +46,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -83,28 +90,35 @@ class LibraryDeps(
 }
 
 /**
- * A row of tiles: one of the library's hubs, or its collections
- * ([COLLECTIONS], which the interface titles). [opens] says where each
- * tile goes, by position.
+ * A row of tiles: one of the library's hubs. [opens] says where each tile
+ * goes, by position.
  */
 data class TileRow<T : Any>(
     val key: String,
-    /** The server's title; `null` for [COLLECTIONS]. */
-    val title: String?,
+    val title: String,
     val look: TileLook,
     val tiles: List<T>,
     val opens: List<PleyKey>,
-    /** The Library tab's sort its See all shows ([LibraryViewModel.seeAll]); `null` without one. */
+    /** The collection the row shows, which its title and See all open; `null` for Continue Watching. */
+    val collection: PleyKey? = null,
+    /**
+     * The Library tab's sort its See all shows ([LibraryViewModel.seeAll])
+     * when the server names no collection (one older than collections'
+     * rows); `null` without one.
+     */
     val seeAll: String? = null,
-) {
-    companion object {
-        /** The key of the library's collections row. */
-        const val COLLECTIONS = "collections"
-    }
-}
+)
 
-/** A collection's tile, with its count for the badge on its poster. */
-data class CollectionTile<T : Any>(val id: Long, val count: Int, val tile: T)
+/**
+ * A collection's tile, with its count for the badge on its poster, and
+ * the category the Collections tab groups it by.
+ */
+data class CollectionTile<T : Any>(
+    val id: Long,
+    val count: Int,
+    val tile: T,
+    val category: CategoryRef? = null,
+)
 
 /** The Library tab's grid: its cells, the A to Z when it has one, how its tiles look. */
 data class LibraryGrid<T : Any>(
@@ -137,9 +151,10 @@ data class LibraryUiState<T : Any>(
     val filters: LibraryFilters = LibraryFilters(),
     val grid: LibraryGrid<T> = LibraryGrid(Loadable.Loading, TileLook.Poster, null),
     val density: GridDensity = GridDensity.Medium,
-    /** The Recommended tab's rows, its hubs and then the collections. */
+    /** The Recommended tab's rows: the library's hubs. */
     val recommended: Loadable<List<TileRow<T>>> = Loadable.Loading,
-    val collections: Loadable<List<CollectionTile<T>>> = Loadable.Loading,
+    /** The Collections tab: the collections by category, as filtered. */
+    val collections: Loadable<CollectionsView<T>> = Loadable.Loading,
 ) {
     val kind: LibraryKind? get() = library?.kind
 
@@ -164,13 +179,14 @@ data class LibraryUiState<T : Any>(
 /**
  * One library's page, shared by phones and TVs (apps/web/src/pages/LibraryPage.tsx):
  *
- * - **Recommended:** the library's hubs, then its collections.
+ * - **Recommended:** the library's hubs, the rows administrators chose.
  * - **Library:** every item, in a grid sized from the listing's total;
  *   sorted, ordered and filtered by watched state, genre, year, resolution
  *   and dynamic range as the web does, with the A to Z when sorted by
  *   title. Sorted by bitrate, tiles say what the files are like; filtered
  *   by resolution or dynamic range, they carry their quality badges.
- * - **Collections:** the library's collections (not for music).
+ * - **Collections:** the library's collections (not for music), by
+ *   category, filtered by type and category ([CollectionsView]).
  *
  * [params] are the tab, sort and filters, which the screen keeps across
  * process death ([LibraryParams.toQueryString] of [LibraryUiState.params]),
@@ -245,39 +261,37 @@ class LibraryViewModel<T : Any>(
         }.onStart { emit(LibraryFilters()) }
     }.distinctUntilChanged()
 
+    private val chosenCategory = MutableStateFlow<CategoryChoice>(CategoryChoice.All)
+
     private val collectionTiles: Flow<Loadable<List<CollectionTile<T>>>> = combine(library, origin) { lib, o -> lib to o }
         .flatMapLatest { (lib, origin) ->
             if (lib == null || lib.kind == LibraryKind.Music) return@flatMapLatest flowOf(Loadable.Ready(emptyList(), fresh = true))
             deps.collections.collections(libraryId).map { loadable ->
-                loadable.map { list -> list.map { CollectionTile(it.id, it.itemCount, tiles.collection(it, lib.kind, origin)) } }
+                loadable.map { list -> list.map { it.tile(tiles.collection(it, lib.kind, origin)) } }
             }
         }
-        .flowOn(deps.compute)
 
-    private val collections: Flow<Loadable<List<CollectionTile<T>>>> =
-        combine(opened(LibraryTab.Collections), opened(LibraryTab.Recommended)) { a, b -> a || b }
-            .distinctUntilChanged()
-            .flatMapLatest { open -> if (open) collectionTiles else flowOf(Loadable.Loading) }
+    // The tab waits for the categories, or their failure: groups arriving after
+    // the collections would go in above them, and the grid would keep its place
+    // on the first collection, opening part way down. Without them (failed),
+    // every collection shows, under its own category in the order they come.
+    private val categories: Flow<List<CollectionCategory>> = deps.collections.categories()
+        .filter { it !is Loadable.Loading }
+        .map { it.valueOrNull.orEmpty() }
+        .distinctUntilChanged()
+
+    private val collections: Flow<Loadable<CollectionsView<T>>> = opened(LibraryTab.Collections).flatMapLatest { open ->
+        if (!open) return@flatMapLatest flowOf(Loadable.Loading)
+        combine(collectionTiles, categories, chosenCategory) { tiles, categories, chosen ->
+            tiles.map { CollectionsView.of(it, categories, chosen) }
+        }
+    }.flowOn(deps.compute)
 
     private val recommended: Flow<Loadable<List<TileRow<T>>>> = opened(LibraryTab.Recommended).flatMapLatest { open ->
         if (!open) return@flatMapLatest flowOf(Loadable.Loading)
         combine(kind, origin) { k, o -> k to o }.flatMapLatest { (kind, origin) ->
-            combine(deps.hubs.library(libraryId), collections) { hubs, collections ->
-                hubs.map { value ->
-                    val rows = value.hubs.filter { it.items.isNotEmpty() }.map { row(it, kind, origin) }
-                    val shelf = collections.valueOrNull.orEmpty()
-                    if (shelf.isEmpty()) {
-                        rows
-                    } else {
-                        rows + TileRow(
-                            key = TileRow.COLLECTIONS,
-                            title = null,
-                            look = TileLook.Poster,
-                            tiles = shelf.map { it.tile },
-                            opens = shelf.map { PleyKey.Collection(it.id) },
-                        )
-                    }
-                }
+            deps.hubs.library(libraryId).map { hubs ->
+                hubs.map { value -> value.hubs.filter { it.items.isNotEmpty() }.map { row(it, kind, origin) } }
             }
         }.onStart { emit(Loadable.Loading) }
     }.flowOn(deps.compute)
@@ -346,6 +360,16 @@ class LibraryViewModel<T : Any>(
         params.value = LibraryParams.parse(view, LibraryTab.Library)
     }
 
+    /** Shows the Collections tab's collections of one category, or of every one. */
+    fun collectionCategory(category: CategoryChoice) {
+        chosenCategory.value = category
+    }
+
+    /** Shows every collection again. */
+    fun clearCollectionFilters() {
+        chosenCategory.value = CategoryChoice.All
+    }
+
     /** Sorts by [sort] in its own order (titles A to Z, the rest newest or best first). */
     fun sortBy(sort: LibrarySort) = params.update { if (it.sort == sort) it else it.sortedBy(sort) }
 
@@ -409,6 +433,7 @@ class LibraryViewModel<T : Any>(
             look = look,
             tiles = hub.items.map { tiles.item(it, look, origin) },
             opens = hub.items.map { opens(it) },
+            collection = collectionOf(hub),
             seeAll = seeAllView(hub.key),
         )
     }

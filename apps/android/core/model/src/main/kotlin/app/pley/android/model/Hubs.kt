@@ -18,6 +18,11 @@ data class Hub(
     /** `null` for the home page's Continue Watching and My List. */
     val libraryId: Long? = null,
     val items: List<ItemSummary> = emptyList(),
+    /**
+     * The collections the row shows: one, or on Home several of one title in
+     * different libraries; none for Continue Watching and My List.
+     */
+    val collectionIds: List<Long> = emptyList(),
 ) {
     /** Home's or a library's Continue Watching. */
     val continueWatching: Boolean get() = HubKeys.isContinueWatching(key)

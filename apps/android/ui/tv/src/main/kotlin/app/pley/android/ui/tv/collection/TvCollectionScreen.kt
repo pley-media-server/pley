@@ -83,8 +83,8 @@ import kotlinx.coroutines.delay
 
 /**
  * A collection's page on TV (design spec §4.9): the item page's top, a
- * backdrop with the text column at x = 96 ("Collection" and its TMDB or
- * Smart badge, the title, what it holds in words, the summary, then Play
+ * backdrop with the text column at x = 96 ("Collection", its TMDB or Smart
+ * badge and its category, the title, what it holds in words, the summary, then Play
  * with focus and Shuffle), and its titles in a grid below, which scrolls
  * up over the backdrop as focus moves down, the backdrop dimming under it.
  */
@@ -180,6 +180,8 @@ private fun Hero(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel
             BasicText(stringResource(R.string.tv_collection_label), style = PleyType.Tv.Label.copy(color = PleyColors.Muted))
             if (page.automatic) QualityBadge(stringResource(R.string.tv_collection_tmdb), TileStyle.Tv)
             if (page.smart) QualityBadge(stringResource(R.string.tv_collection_smart), TileStyle.Tv)
+            // Last, as on the web, and shortened to the room left: an administrator's category can be long.
+            page.category?.let { QualityBadge(it, TileStyle.Tv, Modifier.weight(1f, fill = false)) }
         }
         Spacer(Modifier.height(10.dp))
         BasicText(
@@ -238,7 +240,7 @@ private fun Hero(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel
 }
 
 @Composable
-private fun Loading() {
+internal fun Loading() {
     val skeleton = rememberSkeleton(animated = false)
     Column(Modifier.fillMaxSize().padding(start = PleyTv.Gutter, top = 58.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Box(Modifier.size(120.dp, 18.dp).skeleton(skeleton, PleyShape.Badge))
@@ -257,4 +259,4 @@ private val HeroHeight = 452.dp - 16.dp
 /** Text stays in the backdrop's 85 % scrim: x 96 to 560. */
 private val TextColumn = PleyTv.TextColumnEnd - PleyTv.Gutter
 
-private const val MESSAGE_MS = 4_000L
+internal const val MESSAGE_MS = 4_000L

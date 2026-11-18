@@ -272,13 +272,23 @@ fun rowShape(hub: Hub, libraryKind: LibraryKind? = null): RowShape = when {
 }
 
 /**
- * Where a row's "See all" goes: its library's items in the row's order, as
- * the web's hubLink (recently added, recently released and top rated,
- * newest or best first). The library page opens on its Library tab.
+ * Where a row's title and "See all" go: the collection it shows, or the
+ * collections of one title it merges (apps/web's HubRow). A server older
+ * than collections' rows names none: then its library's items in the
+ * row's order, as the web's hubLink did (recently added, recently
+ * released and top rated, newest or best first), on the Library tab.
  */
 fun seeAllOf(hub: Hub): PleyKey? {
+    collectionOf(hub)?.let { return it }
     val library = hub.libraryId ?: return null
     return seeAllView(hub.key)?.let { PleyKey.Library(library, LibraryTab.Library, it) }
+}
+
+/** The page of the collection [hub] shows, or of the several it merges; `null` for a row of none. */
+fun collectionOf(hub: Hub): PleyKey? = when (hub.collectionIds.size) {
+    0 -> null
+    1 -> PleyKey.Collection(hub.collectionIds.single())
+    else -> PleyKey.MergedCollection(hub.collectionIds)
 }
 
 /** The Library tab's sort a row of [hubKey] lists its items in, for its See all; `null` for rows without one. */

@@ -458,6 +458,21 @@ switches all the same, as the server has, but plays nothing. "Who's
 watching?" still ignores casts, as in the other TV apps: there the person
 at the TV picks.
 
+### Collections
+
+A library's Collections tab groups its collections under their
+categories, in the order administrators chose, Other among them: a row
+for each category, or one grid without a heading when only one group
+shows. Its Category chip, shown when there are categories to choose
+between, opens a side panel as the Library tab's chips do; how a
+collection was made is left to the web. A collection's page names its
+category beside "Collection", unless it is Other. A row of Home or of a
+library's Recommended tab is a collection: its See all opens the
+collection's page, and a Home row of same-titled collections from
+several libraries opens them together, with a button for each library's
+own. Managing categories, a collection's category and which collections
+are rows, and in what order, is on the web ([API.md](API.md#categories)).
+
 ### Requests
 
 Where the server takes requests, they work as in the Samsung app

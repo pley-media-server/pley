@@ -196,11 +196,21 @@ const trailer = {
 // shows, over six buttons: the page near its fullest.
 movies[11].summary = "A linguist is called in when twelve ships come to rest above the earth, and she must find a way to speak with those inside before the nations watching them lose patience. As she learns their language, her memories start to come loose from time, and what she remembers of her daughter changes what she will choose to do.";
 const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, newerAlbum, ...tracks, trailer].map((item) => [item.id, item]));
-// Collections: TMDB's of five movies, and a smart one a filter fills with
-// the show.
+// Collections: TMDB's of five movies, under Franchises; a smart one a
+// filter fills with the show, under Highlights; and one of each library
+// called Fixture Favourites, under Other (the category the server gives
+// one without), one row on Home. Other comes before Franchises, as on a
+// new server.
+const categories = [
+  { id: 1, key: "highlights", title: "Highlights", from_label: null, position: 0 },
+  { id: 3, key: "other", title: "Other", from_label: null, position: 1 },
+  { id: 2, key: "franchises", title: "Franchises", from_label: null, position: 2 },
+];
 const collections = [
-  { id: 1, library_id: 1, title: "Fixture Collection", summary: "Five films of the fake server, in the order they came out.", automatic: true, sort: "release", smart_filter: null, poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(0, 5) },
-  { id: 2, library_id: 2, title: "Fixture Dramas", summary: null, automatic: false, sort: "release", smart_filter: "type=2&genre=Drama&sort=year%3Adesc", poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: [show] },
+  { id: 1, library_id: 1, title: "Fixture Collection", summary: "Five films of the fake server, in the order they came out.", automatic: true, sort: "release", smart_filter: null, category: categories[2], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(0, 5) },
+  { id: 2, library_id: 2, title: "Fixture Dramas", summary: null, automatic: false, sort: "release", smart_filter: "type=2&genre=Drama&sort=year%3Adesc", category: categories[0], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: [show] },
+  { id: 3, library_id: 2, title: "Fixture Favourites", summary: null, automatic: false, sort: "custom", smart_filter: null, category: categories[1], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: [show] },
+  { id: 4, library_id: 1, title: "Fixture Favourites", summary: null, automatic: false, sort: "custom", smart_filter: null, category: categories[1], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(5, 7) },
 ];
 const collectionOf = ({ items: held, ...collection }) => ({ ...collection, item_count: held.length });
 
@@ -270,7 +280,9 @@ function detail(item, myList, picks) {
 // and know nothing of requests, as an older one; `requestsOn` false
 // turns requests off (the summary says so, the rest answers 503);
 // `twoStep` makes GET /api/server say it requires two-step sign-in, which
-// it otherwise leaves out, as an older one does;
+// it otherwise leaves out, as an older one does; `categories` false
+// answers 404 for the collections' categories and gives collections none,
+// as a server from before them does;
 // `playbackDelayMs` holds back the answers to POST /api/playback.
 // What the app asked for and did is kept: requestsAsked (POST
 // /api/requests bodies), requestsActed ({ id, action }), and
@@ -341,6 +353,8 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       res.end(value === undefined ? "" : JSON.stringify(value));
     };
     const oauthError = (error, description) => json(400, { error, error_description: description });
+    // A collection as a server from before categories lists it: without one.
+    const categoryOf = ({ category, ...collection }) => (fixture.categories ? { ...collection, category } : collection);
     const form = new URLSearchParams(body);
 
     // OAuth: metadata, device codes, tokens, revocation.
@@ -551,7 +565,8 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
           ...(fixture.myList.length ? [{ key: "my_list", title: "My List", library_id: null, items: fixture.myList.map((id) => items.get(id)).filter(Boolean) }] : []),
           { key: "recently_added:1", title: "Recently Added in Movies", library_id: 1, items: movies.slice(0, 20) },
           { key: "recently_added:2", title: "Recently Added in TV Shows", library_id: 2, items: [show] },
-          { key: "recently_added:3", title: "Recently Added in Music", library_id: 3, items: [album] },
+          { key: "recently_added:3", title: "Recently Added in Music", library_id: 3, collection_ids: [], items: [album] },
+          { key: "collections:4,3", title: "Fixture Favourites", library_id: null, collection_ids: [4, 3], items: [...collections[3].items, ...collections[2].items] },
         ],
       });
     }
@@ -627,7 +642,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       return json(200, { hubs: listed.length ? [{ key: "recently_added", title: "Recently Added", library_id: Number(match[1]), items: listed }, { key: "top_rated", title: "Top Rated", library_id: Number(match[1]), items: listed }] : [] });
     }
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/collections$/))) {
-      return json(200, { collections: collections.filter((c) => c.library_id === Number(match[1])).map(collectionOf) });
+      return json(200, { collections: collections.filter((c) => c.library_id === Number(match[1])).map(collectionOf).map(categoryOf) });
     }
     // Resolutions and dynamic ranges only where they tell titles apart, as
     // the server lists them: the movies differ (Dolby Vision, HDR10 and SDR,
@@ -676,10 +691,18 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     if ((match = path.match(/^\/api\/people\/(\d+)$/))) {
       return json(200, { id: Number(match[1]), name: "Ada Lovelace", photo_url: `/api/people/${match[1]}/photo?v=1`, credits: [{ item: show, roles: [{ role: "actor", character: "Herself", episodes: 9 }] }, ...movies.slice(0, 3).map((item) => ({ item, roles: [{ role: "director" }] }))] });
     }
+    if (path === "/api/collection-categories") return fixture.categories ? json(200, { categories }) : json(404, { code: "not_found", message: "no such endpoint" });
+    // A Home row of several collections: their titles together.
+    if (path === "/api/collections/merged") {
+      const ids = (url.searchParams.get("ids") ?? "").split(",").map(Number);
+      const held = ids.map((id) => collections.find((c) => c.id === id)).filter(Boolean);
+      if (!held.length) return json(404, { code: "not_found", message: "no collections" });
+      return json(200, { title: held[0].title, collections: held.map((c) => ({ id: c.id, library_id: c.library_id })), items: held.flatMap((c) => c.items) });
+    }
     if ((match = path.match(/^\/api\/collections\/(\d+)$/))) {
       const collection = collections.find((c) => c.id === Number(match[1]));
       if (!collection) return json(404, { code: "not_found", message: `collection ${match[1]} not found` });
-      return json(200, { ...collectionOf(collection), items: collection.items });
+      return json(200, { ...categoryOf(collectionOf(collection)), items: collection.items });
     }
     if (/^\/api\/(people\/\d+\/photo|collections\/\d+\/images\/\w+)$/.test(path)) {
       res.writeHead(200, { "Content-Type": "image/png" });
@@ -955,7 +978,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     return json(404, { code: "not_found", message: `nothing at ${path}` });
   });
 
-  const fixture = { issuer: "", down: false, qr: true, proofs: 0, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], serverLanguage: "en", language: null, languagesSaved: [], languageRoute: true, languagesRefused: [], streams: [], picks: new Map(), ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
+  const fixture = { issuer: "", down: false, qr: true, proofs: 0, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], serverLanguage: "en", language: null, languagesSaved: [], languageRoute: true, languagesRefused: [], categories: true, streams: [], picks: new Map(), ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
     household: [{ id: 1, name: "Anna", avatar_url: null, avatar_color: "#38bdf8", current: true, needs: "none" }, { id: 2, name: "Ben", avatar_url: null, avatar_color: "#f472b6", current: false, needs: "none" }],
     switched: [], subtitlesAdded: [], picturesMissing: false, picturesAsked: [], picturesFetched: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, videoReports: 0, closed, close: () => server.close(),
     liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], liveLeft: [] };

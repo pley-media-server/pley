@@ -257,6 +257,8 @@
     "needsNewer": "Sorting libraries needs a newer Pley on the server."
   },
   "collections": {
-    "none": "No collections yet."
+    "none": "No collections yet.",
+    "category": "Category",
+    "allCategories": "All categories"
   }
 }

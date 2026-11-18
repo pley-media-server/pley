@@ -59,7 +59,9 @@ extension Walk {
         libraryTab("Collections")
         let collection = app.buttons.matching(NSPredicate(
             format: "identifier BEGINSWITH 'tile.collection.' AND label BEGINSWITH 'Test collection'")).firstMatch
-        wait(collection, "Test collection in Collections").tap()
+        // Under Other, after Pley's own under Highlights: below the screen at this size.
+        wait(element("library.collections"), "Movies' collections")
+        scroll(to: collection, "Test collection in Collections").tap()
         reveal(button("collection.play"), "the collection's Play")
         shot("large-07-collection")
         back(to: "Movies")

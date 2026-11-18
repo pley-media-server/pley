@@ -125,6 +125,25 @@ sub test_content_see_all_by_row()
     tkEqual(rows[1].tiles.Count(), 1, "without its library: no See all")
 end sub
 
+' A row of collections: See all opens them, whatever its key.
+sub test_content_rows_of_collections_open_them()
+    hubs = [
+        { key: "recently_added:1", title: "Recently Added in Movies", library_id: 1, collection_ids: [7], items: [contentTestMovie()] },
+        { key: "collections:8,9", title: "Christmas", library_id: invalid, collection_ids: [8, 9], items: [contentTestMovie()] },
+        { key: "recently_added:3", title: "Recently Added in Music", library_id: 3, collection_ids: [], items: [{ id: 5, kind: "album", title: "Blue" }] },
+        { key: "collection:10", title: "Empty", library_id: 1, collection_ids: [10], items: [] }
+    ]
+    rows = contentHomeRows(hubs, contentTestServer())
+    tkEqual(rows.Count(), 3, "an empty row is left out")
+    tkEqual(rows[0].tiles[1], contentSeeCollectionsTile([7], "Recently Added in Movies", false, false), "a library's newest: its collection")
+    tkFalse(rows[0].tiles[1].DoesExist("sort"), "not the library's Library tab")
+    tkEqual(rows[1].tiles[1].collections, [8, 9])
+    tkEqual(rows[1].tiles[1].rowTitle, "Christmas")
+    tkEqual(rows[2].tiles[1].sort, "added", "a music library's newest, not a collection: its library")
+    tkEqual(contentCollectionIds([3, "x", 0, invalid, 4]), [3, 4])
+    tkEqual(contentCollectionIds(invalid), [])
+end sub
+
 sub test_content_continue_watching_on_home_and_in_a_library()
     tkTrue(contentContinueWatching("continue_watching"))
     tkTrue(contentContinueWatching("continue_watching:5"), "a library's")

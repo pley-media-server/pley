@@ -116,7 +116,7 @@ fn a_cast_film_opens_the_player_where_it_starts_and_says_where_it_came_from() {
     let film = CastBody { start_ms: Some(5_000), ..CastBody::item(ids::SAMPLE_1080P) };
     cast(&mut app, &server, film, |a| player(a).is_some());
     let r = player(&app).unwrap();
-    assert_eq!((r.item_id, r.start_ms, r.from_start, r.queue), (ids::SAMPLE_1080P, Some(5_000), false, None));
+    assert_eq!((r.item_id, r.start_ms, r.from_start, &r.queue), (ids::SAMPLE_1080P, Some(5_000), false, &None));
     assert_eq!(app.shell.depth(), 2, "the player opens over Home");
     assert_eq!(app.shell.toast(), Some("Playing from Pley for Android"));
     assert!(app.list.says("Playing from Pley for Android"), "the notice isn't drawn over the player");
