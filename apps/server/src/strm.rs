@@ -24,10 +24,11 @@
 //!   now ([`serve`]): again after the file changes or the server starts. Seek previews,
 //!   intro detection and frame grabs, which read a whole file, aren't made
 //!   for it.
-//! * **Addresses on the internet stay there.** An address on the internet
-//!   can't lead (by a redirect, or a name that changes what it resolves to)
-//!   to one of this network or computer, whose answer would be handed out
-//!   as the video. An address the file itself names on this network is
+//! * **Addresses on the internet stay there.** An address on the internet,
+//!   named by the file or reached through one of this network, can't lead
+//!   (by a redirect, or a name that changes what it resolves to) to one of
+//!   this network or computer, whose answer would be handed out as the
+//!   video. An address the file itself names on this network is
 //!   asked, that being where a NAS or a download service is, and its name
 //!   is held to this network from then on: it can't become a host on the
 //!   internet that redirects back in.
@@ -343,6 +344,8 @@ impl Link {
 
 /// How long a redirect's end is asked directly.
 const RESOLVED_FOR: Duration = Duration::from_secs(10 * 60);
+/// The most redirects an address is followed through.
+const REDIRECTS: usize = 10;
 /// The `.strm` files remembered as read; the least recently used go first.
 const LINKS_KEPT: usize = 4096;
 /// How long a file whose media wasn't found isn't asked again when it is
@@ -394,12 +397,11 @@ fn written_as_private(url: &Url) -> bool {
     }
 }
 
-/// The resolver of the client that reaches any address. A name a `.strm`
-/// file gave for an address of this network resolves to this network only:
+/// The resolver of the client that reaches any address. A name found to be
+/// of this network ([`Relay::of_network`]) resolves to this network only:
 /// were it to name a host on the internet later (a name that changes what
 /// it resolves to), that host could redirect to wherever it liked here,
-/// its answer handed out as the video. Other names (where an address of
-/// this network redirects to) resolve as they do.
+/// its answer handed out as the video.
 struct Inside(Arc<Mutex<HashSet<String>>>);
 
 impl Resolve for Inside {
@@ -420,21 +422,24 @@ impl Resolve for Inside {
 }
 
 /// The client for addresses on the internet (`inside`: none), which
-/// reaches nothing else, or the one that reaches any address.
+/// reaches nothing else, or the one that reaches any address. That one
+/// follows no redirect: [`Relay::ask`] does, a hop at a time.
 fn http_client(inside: Option<Arc<Mutex<HashSet<String>>>>) -> reqwest::Client {
-    let public_only = inside.is_none();
     let mut headers = HeaderMap::new();
     // The media as it is: nothing to decompress.
     headers.insert(header::ACCEPT_ENCODING, HeaderValue::from_static("identity"));
-    let redirects = reqwest::redirect::Policy::custom(move |attempt| {
-        if attempt.previous().len() >= 10 {
-            return attempt.error("too many redirects");
-        }
-        if public_only && written_as_private(attempt.url()) {
-            return attempt.error("a redirect to this network");
-        }
-        attempt.follow()
-    });
+    let redirects = match inside {
+        Some(_) => reqwest::redirect::Policy::none(),
+        None => reqwest::redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() >= REDIRECTS {
+                return attempt.error("too many redirects");
+            }
+            if written_as_private(attempt.url()) {
+                return attempt.error("a redirect to this network");
+            }
+            attempt.follow()
+        }),
+    };
     let mut builder = reqwest::Client::builder()
         .redirect(redirects)
         .connect_timeout(Duration::from_secs(10))
@@ -566,35 +571,55 @@ impl Relay {
         Ok(format!("{base}/api/strm/{}/{name}{ext}", link.key))
     }
 
-    /// The client `link`'s address is asked with: once it is found to be on
-    /// the internet (a name with any public address is), the one that
-    /// reaches nothing else. A name found to be of this network is held to
-    /// it ([`Inside`]).
-    async fn client(&self, link: &Link) -> Result<&reqwest::Client, Failed> {
-        let public = link
+    /// Whether `url` is of this network or computer: written so in
+    /// numbers, or a name with no address on the internet, which is held to
+    /// this network from then on ([`Inside`]).
+    async fn of_network(&self, url: &Url) -> Result<bool, Failed> {
+        let name = match url.host() {
+            Some(url::Host::Ipv4(_) | url::Host::Ipv6(_)) => return Ok(written_as_private(url)),
+            Some(url::Host::Domain(name)) => name.to_ascii_lowercase(),
+            None => return Err(Failed::Refused(Refused::NotAnAddress)),
+        };
+        if self.inside.lock().contains(&name) {
+            return Ok(true);
+        }
+        let port = url.port_or_known_default().unwrap_or(80);
+        let found: Vec<SocketAddr> =
+            tokio::net::lookup_host((name.as_str(), port)).await.map_err(|_| Failed::Unreachable)?.collect();
+        if found.is_empty() {
+            return Err(Failed::Unreachable);
+        }
+        let inside = !found.iter().any(|addr| is_public(addr.ip()));
+        if inside {
+            self.inside.lock().insert(name);
+        }
+        Ok(inside)
+    }
+
+    /// Asks `url` for `range` of `link`'s media. An address on the internet
+    /// is asked with the client that reaches nothing else, wherever it
+    /// redirects. One of this network is followed here, a hop at a time,
+    /// and from its first hop to the internet on with that client: no host
+    /// there leads back in, whatever address of this network led to it.
+    async fn ask(&self, link: &Link, url: &Url, range: Option<&HeaderValue>) -> Result<reqwest::Response, Failed> {
+        let public = *link
             .public
-            .get_or_try_init(|| async {
-                let url = &link.target.url;
-                match url.host() {
-                    Some(url::Host::Ipv4(_) | url::Host::Ipv6(_)) => Ok(!written_as_private(url)),
-                    Some(url::Host::Domain(name)) => {
-                        let port = url.port_or_known_default().unwrap_or(80);
-                        let found: Vec<SocketAddr> =
-                            tokio::net::lookup_host((name, port)).await.map_err(|_| Failed::Unreachable)?.collect();
-                        if found.is_empty() {
-                            return Err(Failed::Unreachable);
-                        }
-                        let public = found.iter().any(|addr| is_public(addr.ip()));
-                        if !public {
-                            self.inside.lock().insert(name.to_ascii_lowercase());
-                        }
-                        Ok(public)
-                    }
-                    None => Err(Failed::Refused(Refused::NotAnAddress)),
-                }
-            })
+            .get_or_try_init(|| async { Ok::<_, Failed>(!self.of_network(&link.target.url).await?) })
             .await?;
-        Ok(if *public { &self.public } else { &self.any })
+        let mut url = url.clone();
+        for _ in 0..=REDIRECTS {
+            if public || !self.of_network(&url).await? {
+                return Self::get(&self.public, link, &url, range).await;
+            }
+            let response = Self::get(&self.any, link, &url, range).await?;
+            let to = response.headers().get(header::LOCATION).and_then(|to| to.to_str().ok());
+            match to.filter(|_| response.status().is_redirection()).map(|to| url.join(to)) {
+                None => return Ok(response),
+                Some(Ok(next)) if matches!(next.scheme(), "http" | "https") => url = next,
+                Some(_) => return Err(Failed::Unreachable),
+            }
+        }
+        Err(Failed::Unreachable)
     }
 
     async fn get(
@@ -626,10 +651,9 @@ impl Relay {
         let answers = |status: StatusCode| {
             matches!(status, StatusCode::OK | StatusCode::PARTIAL_CONTENT | StatusCode::RANGE_NOT_SATISFIABLE)
         };
-        let client = self.client(link).await?;
         let resolved = link.resolved.lock().clone().filter(|(_, at)| at.elapsed() < RESOLVED_FOR);
         if let Some((url, _)) = resolved {
-            match Self::get(client, link, &url, range).await {
+            match self.ask(link, &url, range).await {
                 Ok(response) if answers(response.status()) => {
                     note_size(link, &response);
                     return Ok(response);
@@ -637,7 +661,7 @@ impl Relay {
                 _ => *link.resolved.lock() = None,
             }
         }
-        let response = Self::get(client, link, &link.target.url, range).await?;
+        let response = self.ask(link, &link.target.url, range).await?;
         if !answers(response.status()) {
             tracing::debug!("{}: its address answered {}", link.path, response.status());
             return Err(Failed::Answered(response.status()));
@@ -1297,13 +1321,41 @@ mod tests {
             let url = format!("http://{addr}/{through}");
             let refused = public.get(&url).send().await;
             assert!(refused.is_err(), "{through}: {:?}", refused.map(|r| r.status()));
-            let followed = any.get(&url).send().await.unwrap();
-            assert_eq!(followed.text().await.unwrap(), "of this network", "{through}");
+            // The other client leaves redirects to the relay ([`Relay::ask`]).
+            assert_eq!(any.get(&url).send().await.unwrap().status(), StatusCode::FOUND, "{through}");
         }
         // A name held to this network still resolves, to this network.
         inside.lock().insert("localhost".into());
         let held = any.get(format!("http://localhost:{}/inside", addr.port())).send().await.unwrap();
         assert_eq!(held.text().await.unwrap(), "of this network");
+    }
+
+    #[tokio::test]
+    async fn an_address_of_this_network_is_followed_within_it() {
+        use axum::routing::get;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let to = |location: String| get(move || async move { (StatusCode::FOUND, [(header::LOCATION, location)]) });
+        let app = axum::Router::new()
+            .route("/numbers", to(format!("http://127.0.0.1:{}/name", addr.port())))
+            .route("/name", to(format!("http://localhost:{}/inside", addr.port())))
+            .route("/inside", get(|| async { "of this network" }));
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+
+        let dir = tempfile::tempdir().unwrap();
+        let relay = Relay::new(dir.path());
+        let file = dir.path().join("Film.strm");
+        std::fs::write(&file, format!("http://{addr}/numbers")).unwrap();
+        let link = relay.link(file.to_str().unwrap()).await.unwrap();
+        let answer = relay.fetch(&link, None).await.unwrap();
+        assert_eq!(answer.text().await.unwrap(), "of this network");
+        assert!(relay.inside.lock().contains("localhost"), "a name of this network is held to it");
+        // An address on the internet, wherever it was reached from, is
+        // asked with the client that reaches nothing else.
+        for (address, inside) in [("http://93.184.216.34/", false), ("http://10.0.0.2/", true), ("http://[::1]/", true)]
+        {
+            assert_eq!(relay.of_network(&Url::parse(address).unwrap()).await, Ok(inside), "{address}");
+        }
     }
 
     #[test]

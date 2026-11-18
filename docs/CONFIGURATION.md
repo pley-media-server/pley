@@ -220,7 +220,8 @@ Shows/The Expanse/Season 01/The Expanse - S01E01.strm
   the whole video. Chapters and a subtitle track in the video work as for
   a file, read through Pley at the address.
 - **An address on the internet stays on the internet.** It can't redirect
-  to an address of your own network or of the server's computer. An
+  to an address of your own network or of the server's computer, also
+  when an address of your network sent Pley there. An
   address the file itself names on your network (a NAS, a download
   service) is asked as it is ([SECURITY.md](../SECURITY.md#strm-files)).
 - A link that stops answering leaves its item in the library: playing it

@@ -542,7 +542,8 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   this computer (or the host of a transcoder run elsewhere), and not one
   that came through a proxy. A key read in a log opens nothing from
   anywhere else.
-- An address on the internet can't lead to one of the server's network or
+- An address on the internet, named by the file or redirected to from one
+  of the network, can't lead to one of the server's network or
   computer: not by a redirect, and not by a name that resolves to a private
   address later (the resolver gives its public addresses only, to the
   connection itself). An address the file names on the network directly is
