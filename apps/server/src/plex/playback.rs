@@ -132,14 +132,16 @@ pub async fn part_file(
 ) -> PlexResult<Response> {
     let file = catalog::file(&state.db, id).await?.ok_or(PlexError::NotFound)?;
     catalog::item(&state.db, user.id, file.item_id).await?.ok_or(PlexError::NotFound)?;
-    let mut response = crate::api::playback::serve_library_file(&file.path, request.method(), request.headers())
-        .await
-        .map_err(PlexError::from)?;
+    // A `.strm` file's media, through Pley, named as what it is.
+    let file = crate::strm::ready(&state, file).await.map_err(PlexError::from)?;
+    let served = if file.is_strm() {
+        crate::strm::serve(&state, &file, request.method(), request.headers()).await
+    } else {
+        crate::api::playback::serve_library_file(&file.path, request.method(), request.headers()).await
+    };
+    let mut response = served.map_err(PlexError::from)?;
     if params.flag("download") {
-        let name = std::path::Path::new(&file.path)
-            .file_name()
-            .map(|n| n.to_string_lossy().replace('"', ""))
-            .unwrap_or_else(|| "file".into());
+        let name = crate::strm::download_name(&file).replace('"', "");
         if let Ok(value) = HeaderValue::from_str(&format!("attachment; filename=\"{name}\"")) {
             response.headers_mut().insert(header::CONTENT_DISPOSITION, value);
         }
@@ -189,9 +191,10 @@ pub async fn stream_file(
         .ok_or(PlexError::NotFound)?;
         return Ok(([(header::CONTENT_TYPE, "text/plain; charset=utf-8")], bytes).into_response());
     }
+    let input = crate::strm::input(&state, &file).await.map_err(PlexError::from)?;
     let text = state
         .transcoder
-        .subtitles(&file.path, Some(index))
+        .subtitles(&input, Some(index))
         .await
         .map_err(|e| PlexError::from(crate::error::AppError::from(e)))?;
     Ok(([(header::CONTENT_TYPE, "text/vtt; charset=utf-8")], text).into_response())

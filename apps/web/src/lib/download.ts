@@ -5,12 +5,18 @@ const UNSAFE = /[<>:"/\\|?*\p{Cc}]+/gu;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** The extension of a file on the server (`mkv`), from its name or else its container. */
+/**
+ * The extension of a file on the server (`mkv`), from its name or else its
+ * container. A `.strm` file only names where its media is: that media's
+ * container, once the server knows it.
+ */
 export function extensionOf(file: Pick<MediaFile, "path" | "container">): string {
   const base = file.path.split(/[\\/]/).pop() ?? "";
   const dot = base.lastIndexOf(".");
-  const ext = dot > 0 ? base.slice(dot + 1) : (file.container?.split(",")[0] ?? "");
-  return /^[a-z0-9]{1,5}$/i.test(ext) ? ext.toLowerCase() : "mkv";
+  const container = file.container?.split(",")[0] ?? "";
+  const named = dot > 0 ? base.slice(dot + 1) : "";
+  const ext = named && named.toLowerCase() !== "strm" ? named : container;
+  return /^[a-z0-9]{1,5}$/i.test(ext) && ext.toLowerCase() !== "strm" ? ext.toLowerCase() : "mkv";
 }
 
 /**

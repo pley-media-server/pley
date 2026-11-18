@@ -247,12 +247,18 @@ async fn metrics(State(state): Shared) -> impl IntoResponse {
 
 async fn probe(State(state): Shared, Json(req): Json<ProbeRequest>) -> ApiResult<Json<MediaInfo>> {
     let path = std::path::Path::new(&req.path);
-    if !path.is_file() {
+    if !crate::source::exists(path) {
         return Err(ApiError::NotFound(format!("file not found: {}", req.path)));
     }
-    // Library scans ask; jobs probe without asking. A playback starting goes first.
-    state.jobs.background.wait_for_starts().await;
-    let info = state.prober.probe(path).await.map_err(|e| {
+    // Library scans ask; jobs probe without asking. A playback starting
+    // goes first, unless this probe is one's own (`urgent`).
+    let probed = if req.urgent {
+        state.prober.probe_now(path).await
+    } else {
+        state.jobs.background.wait_for_starts().await;
+        state.prober.probe(path).await
+    };
+    let info = probed.map_err(|e| {
         // Only a file ffprobe could not read is a definitive failure; timeouts
         // (sleeping NAS) and start-up problems are worth retrying later.
         if e.downcast_ref::<Rejected>().is_some() {

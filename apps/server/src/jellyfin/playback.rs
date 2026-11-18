@@ -117,6 +117,15 @@ async fn playback_info(
     };
     let mut sources = Vec::new();
     for file in chosen {
+        // A `.strm` file's media is looked at now, as Jellyfin does: the
+        // one asked for, or every version (one that doesn't answer is
+        // listed as it is).
+        let looked = crate::strm::ready(&state, file.clone()).await;
+        let file = &match (looked, &source) {
+            (Ok(found), _) => found,
+            (Err(err), Some(_)) => return Err(err.into()),
+            (Err(_), None) => file.clone(),
+        };
         // About to be played: its seek previews are made, if they aren't yet.
         if dto::is_video(&row.kind) {
             state.trickplay.request(file);
@@ -260,14 +269,16 @@ fn asking(request: &Request) -> (&HeaderMap, Option<&str>, Option<std::net::IpAd
 }
 
 /// The media file, with ranges, sent from the file that was checked.
-async fn serve_file(file: &FileRow, request: Request, attachment: bool) -> JfResult<Response> {
-    let mut response =
-        crate::api::playback::serve_library_file(&file.path, request.method(), request.headers()).await?;
+async fn serve_file(state: &AppState, file: &FileRow, request: Request, attachment: bool) -> JfResult<Response> {
+    // A `.strm` file's media, through Pley, named as what it is.
+    let file = &crate::strm::ready(state, file.clone()).await?;
+    let mut response = if file.is_strm() {
+        crate::strm::serve(state, file, request.method(), request.headers()).await?
+    } else {
+        crate::api::playback::serve_library_file(&file.path, request.method(), request.headers()).await?
+    };
     if attachment {
-        let name = std::path::Path::new(&file.path)
-            .file_name()
-            .map(|n| n.to_string_lossy().replace(['"', '\r', '\n'], ""))
-            .unwrap_or_else(|| "file".into());
+        let name = crate::strm::download_name(file).replace(['"', '\r', '\n'], "");
         if let Ok(value) =
             HeaderValue::from_str(&format!("attachment; filename=\"{}\"", name.replace(|c: char| !c.is_ascii(), "_")))
         {
@@ -291,7 +302,7 @@ async fn video_file(
         return Err(JfError::NotFound);
     }
     let (_, file) = media_caller(&state, &jellyfin, asking(&request), &id, q.get("mediaSourceId")).await?;
-    serve_file(&file, request, false).await
+    serve_file(&state, &file, request, false).await
 }
 
 /// `/Audio/{id}/stream[.{container}]` and `/Audio/{id}/universal`: the file
@@ -307,7 +318,7 @@ async fn audio_file(
         return Err(JfError::NotFound);
     }
     let (_, file) = media_caller(&state, &jellyfin, asking(&request), &id, q.get("mediaSourceId")).await?;
-    serve_file(&file, request, false).await
+    serve_file(&state, &file, request, false).await
 }
 
 /// `/Items/{id}/Download`: the file, to keep.
@@ -319,7 +330,7 @@ async fn download(
     request: Request,
 ) -> JfResult<Response> {
     let (_, file) = media_caller(&state, &jellyfin, asking(&request), &id, q.get("mediaSourceId")).await?;
-    serve_file(&file, request, true).await
+    serve_file(&state, &file, request, true).await
 }
 
 // ------------------------------------------------------------------ HLS

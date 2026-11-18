@@ -28,7 +28,7 @@ use crate::plan::{
     placebo_still_options, untagged_hdr_fix,
 };
 use crate::probe::Prober;
-use crate::util::{MEDIA_INPUT_OPTIONS, file_key, input_arg, secs, touch, write_atomically};
+use crate::util::{MEDIA_INPUT_OPTIONS, file_key, input_arg, input_options, secs, touch, write_atomically};
 use crate::webvtt::{self, Event};
 
 pub struct Extractor {
@@ -240,7 +240,7 @@ impl Extractor {
     /// A subtitle track converted to WebVTT. `stream = None` means `path` is a
     /// subtitle file itself.
     pub async fn subtitle(self: &Arc<Self>, path: &str, stream: Option<i64>) -> ApiResult<String> {
-        let path = existing(path)?;
+        let path = if stream.is_some() { media(path)? } else { existing(path)? };
         match stream {
             None => {
                 Metrics::inc(&self.metrics.subtitle_extractions);
@@ -254,7 +254,7 @@ impl Extractor {
     /// players that show picture subtitles (PGS, VobSub, DVB) next to an HLS
     /// stream, whole: see [`Extractor::subtitle_matroska_so_far`].
     pub async fn subtitle_matroska(self: &Arc<Self>, path: &str, stream: Option<i64>) -> ApiResult<Vec<u8>> {
-        let path = existing(path)?;
+        let path = if stream.is_some() { media(path)? } else { existing(path)? };
         let track = picture_track_name(&path, stream)?;
         let target = self.subs_dir.join(format!("{track}.mks"));
         if let Some(bytes) = cached_mks(&target).await {
@@ -305,7 +305,7 @@ impl Extractor {
         start: PictureStart,
         rest: bool,
     ) -> ApiResult<(Vec<u8>, bool)> {
-        let path = existing(path)?;
+        let path = if stream.is_some() { media(path)? } else { existing(path)? };
         let track = picture_track_name(&path, stream)?;
         let target = self.subs_dir.join(format!("{track}.mks"));
         if let Some(bytes) = cached_mks(&target).await {
@@ -662,7 +662,7 @@ impl Extractor {
         let part = self.subs_dir.join(format!("{track}.mks.part"));
         let mut cmd = self.ff.command();
         cmd.args(["-loglevel", "error"])
-            .args(MEDIA_INPUT_OPTIONS)
+            .args(input_options(path))
             .arg("-i")
             .arg(input_arg(path))
             .args(["-map", &map, "-vn", "-an", "-dn", "-c", "copy", "-flush_packets", "1", "-f", "matroska", "-y"])
@@ -725,7 +725,7 @@ impl Extractor {
         index: i64,
         wait: Duration,
     ) -> ApiResult<(String, bool)> {
-        let path = existing(path)?;
+        let path = media(path)?;
         let key = file_key(&path)?;
         let target = self.subs_dir.join(format!("{key}_{index}.vtt"));
         if let Some(text) = cached_vtt(&target).await {
@@ -962,7 +962,7 @@ impl Extractor {
 
     async fn extract_vtt(&self, path: &Path, key: &str, streams: &[i64]) -> ApiResult<()> {
         let mut cmd = self.ff.command();
-        cmd.args(["-loglevel", "error", "-y"]).args(MEDIA_INPUT_OPTIONS).arg("-i").arg(input_arg(path));
+        cmd.args(["-loglevel", "error", "-y"]).args(input_options(path)).arg("-i").arg(input_arg(path));
         let mut outputs = Vec::new();
         for index in streams {
             let part = self.subs_dir.join(format!("{key}_{index}.vtt.part"));
@@ -994,7 +994,7 @@ impl Extractor {
         cmd.args(["-loglevel", "error", "-y"]);
         match source {
             TextSource::Embedded(index) => {
-                cmd.args(MEDIA_INPUT_OPTIONS).arg("-i").arg(input_arg(input)).args(["-map", &format!("0:{index}")]);
+                cmd.args(input_options(input)).arg("-i").arg(input_arg(input)).args(["-map", &format!("0:{index}")]);
             }
             TextSource::File(path) => {
                 if let Ok(head) = read_head(path, CHARSET_SAMPLE).await
@@ -1366,8 +1366,18 @@ fn picture_read_time(bytes: u64) -> Duration {
 /// How long reading a picture track through the Cues of the file at `path`
 /// may take: see [`picture_read_time`].
 fn picture_read_timeout(path: &Path) -> Duration {
+    if crate::source::is_remote(path) {
+        return REMOTE_PICTURE_READ_TIME;
+    }
     picture_read_time(std::fs::metadata(path).map(|m| m.len()).unwrap_or(0))
 }
+
+/// How long reading a picture track through the Cues of an address
+/// ([`crate::source`]) may take, and how long FFmpeg may take to read all of
+/// one: what a big film's takes from a slow host, its size not being known
+/// without asking.
+const REMOTE_PICTURE_READ_TIME: Duration = Duration::from_secs(10 * 60);
+const REMOTE_PASS_TIME: Duration = Duration::from_secs(2 * 3600);
 
 /// The picture subtitles read through the Cues first: from this long before
 /// where the player is (what shows there may have started a while before)
@@ -1658,6 +1668,9 @@ fn mark_written(parts: &[&Path]) {
 /// How long FFmpeg may take to read the whole file at `path`: see
 /// [`pass_timeout`].
 fn whole_file_timeout(path: &Path) -> Duration {
+    if crate::source::is_remote(path) {
+        return REMOTE_PASS_TIME;
+    }
     pass_timeout(std::fs::metadata(path).map(|m| m.len()).unwrap_or(0))
 }
 
@@ -1837,6 +1850,12 @@ async fn flush(path: &Path) -> std::io::Result<()> {
 fn existing(path: &str) -> ApiResult<PathBuf> {
     let path = PathBuf::from(path);
     if path.is_file() { Ok(path) } else { Err(ApiError::NotFound(format!("file not found: {}", path.display()))) }
+}
+
+/// [`existing`] for media whose tracks are read: a file, or an address
+/// ([`crate::source`]).
+fn media(path: &str) -> ApiResult<PathBuf> {
+    if crate::source::is_remote(Path::new(path)) { Ok(PathBuf::from(path)) } else { existing(path) }
 }
 
 /// The most a capture takes from ffmpeg's output (a cover, a thumbnail, a
@@ -2265,6 +2284,50 @@ mod tests {
         // Whole-track requests read them the same way.
         assert!(extractor.subtitle(&name, Some(4)).await.unwrap().ends_with("\nHi\n"));
         assert!(matches!(extractor.subtitle(&name, Some(3)).await, Err(ApiError::BadRequest(_))), "PGS isn't text");
+    }
+
+    /// A film at an address ([`crate::source`]) has its tracks read through
+    /// its Cues, a range at a time, as a file's are.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn subtitles_of_an_address_are_read_through_its_cues() {
+        let dir = crate::testing::tempdir();
+        let extractor = extractor_without_ffmpeg(dir.path());
+        let served = crate::source::tests::serve(&matroska::tests::movie().write(dir.path())).await;
+        extractor.prober.remember(&served.path(), matroska::tests::movie_media());
+        let key = file_key(&served.path()).unwrap();
+        let wait = Duration::from_secs(10);
+
+        let (text, complete) = extractor.subtitle_so_far(&served.url, 2, wait).await.unwrap();
+        assert!(
+            complete
+                && text.contains(
+                    "
+Hello
+"
+                )
+                && text.ends_with(
+                    "
+No duration
+"
+                ),
+            "{text}"
+        );
+        assert!(dir.path().join("subtitles").join(format!("{key}_2.vtt")).is_file());
+        assert!(extractor.subtitle(&served.url, Some(4)).await.unwrap().ends_with(
+            "
+Hi
+"
+        ));
+        let (bytes, complete) = extractor
+            .subtitle_matroska_so_far(&served.url, Some(3), wait, PictureStart::default(), false)
+            .await
+            .unwrap();
+        assert!(complete && bytes.windows(10).any(|w| w == b"S_HDMV/PGS"));
+        // Only a file is a subtitle file, a cover or a frame's.
+        assert!(matches!(extractor.subtitle(&served.url, None).await, Err(ApiError::NotFound(_))));
+        assert!(matches!(extractor.cover(&served.url).await, Err(ApiError::NotFound(_))));
+        let frame = ThumbnailRequest { path: served.url.clone(), ..Default::default() };
+        assert!(matches!(extractor.thumbnail(&frame).await, Err(ApiError::NotFound(_))));
     }
 
     #[tokio::test]

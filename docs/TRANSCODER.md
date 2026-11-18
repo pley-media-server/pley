@@ -229,17 +229,50 @@ before using what it names:
 | `fmp4_segments` | jobs make fMP4 segments when `segment_format` asks for them, except jobs without video ([fMP4 segments](#fmp4-segments)) |
 | `trickplay_version` | the version of the seek previews it makes (`TrickplayInfo.version`); `0` from older transcoders |
 | `trickplay_runs` | how many seek-preview sets it makes at once; `0` from older transcoders, which make one at a time and give a set up after an hour of running |
+| `remote_inputs` | probes, jobs, conversions and subtitle tracks take an `http://` address in place of a path ([Remote inputs](#remote-inputs)) |
 
 ### Media
 
-`POST /v1/probe` takes `{path}` and returns `MediaInfo`, cached per file
-version (path, size, modification time). Probes share `--probe-concurrency`
+`POST /v1/probe` takes `{path, urgent?}` and returns `MediaInfo`, cached per file
+version (path, size, modification time). With `urgent` (someone waits to
+play the media), it waits for no playback starting and runs on the slots
+of a job's own probe. Probes share `--probe-concurrency`
 with extractions, except a job's own probe of its file (when the server's
 `media` lacks what the job needs, such as the start time a remux needs):
 a playback waits for it, so it runs on two slots of its own rather than in
 line behind a library scan's. The log says how long each job took to make,
 of it probing and reading keyframes, and how long after it its first
 segment was out.
+
+#### Remote inputs
+
+Where a request names a media file by its path, `POST /v1/probe`,
+`POST /v1/jobs`, `POST /v1/conversions` and a track of `POST /v1/subtitles`
+and `POST /v1/subtitles/mks` take an `http://` address instead: media the
+caller relays from elsewhere. The Pley server gives its own address for
+what a library's `.strm` file names ([API.md](API.md#strm-files)), and
+asks the address the file names itself, so no address with a password
+reaches FFmpeg's command line.
+
+- Plain HTTP only. FFmpeg is given the address as it is, with
+  `-protocol_whitelist http,tcp` and the demuxers allowed for files; it
+  asks again from where a connection was cut, and gives up after a minute
+  of nothing.
+- The address is its own version: caches (keyframes, subtitle tracks,
+  fonts) are kept by it, so the caller changes it when its media changes.
+- The readers of the transcoder's own (a Matroska file's Cues, an MP4's
+  sample tables, subtitle tracks through the Cues, attached fonts) read it
+  with ranged requests, one connection at a time: each asks for a bounded
+  range (64 KiB after a seek, up to 8 MiB while the reading goes straight
+  on) and reads it out, so the caller can keep its connection to where the
+  media is. An address that takes no ranges, or sends a chunked answer,
+  has no index read: a remux of it is a transcode.
+- No packet scan is run for it (`POST /v1/keyframes` answers `404`): only
+  what its own index gives is used. Thumbnails, covers, seek previews,
+  read-ahead, fingerprints and frame statistics answer `not_found`.
+- A picture track read through the Cues is given 10 minutes, and a track
+  that FFmpeg has to read the whole media for two hours: the media's size
+  isn't known without asking.
 
 `POST /v1/thumbnail` returns `image/jpeg`:
 
