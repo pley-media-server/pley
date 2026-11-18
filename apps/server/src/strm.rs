@@ -316,10 +316,11 @@ pub struct Link {
     /// link (this address, of the internet or of this network as `public`
     /// has it), and its size: none until then ([`look`]).
     seen: Mutex<Option<(Arc<MediaInfo>, i64)>>,
-    /// Names the address a look at it is probed at ([`Relay::look_address`]):
-    /// this link's alone, so the transcoder reads it rather than answer
-    /// with what it knows of the file's other address.
-    nonce: String,
+    /// Names the address the last look at it was probed at
+    /// ([`Relay::look_address`]): that look's alone, so the transcoder reads
+    /// it rather than answer with what it probed before (the file's other
+    /// address, or this one before a scan of every file).
+    nonce: Mutex<String>,
     /// Whether the transcoder read media at that address, through this link.
     read: AtomicBool,
     /// When it was last used ([`Relay::links`] forgets the oldest).
@@ -346,6 +347,8 @@ impl Link {
 const RESOLVED_FOR: Duration = Duration::from_secs(10 * 60);
 /// The most redirects an address is followed through.
 const REDIRECTS: usize = 10;
+/// How long the transcoder's host's addresses are kept ([`transcoder_ips`]).
+const TRANSCODER_LOOKUP_FOR: Duration = Duration::from_secs(60);
 /// The `.strm` files remembered as read; the least recently used go first.
 const LINKS_KEPT: usize = 4096;
 /// How long a file whose media wasn't found isn't asked again when it is
@@ -379,7 +382,11 @@ pub struct Relay {
     links: Mutex<Links>,
     /// One look at a file's media at a time ([`ready`]).
     probing: Mutex<HashMap<i64, Arc<tokio::sync::Mutex<()>>>>,
-    failed: Mutex<HashMap<i64, (Instant, Failed)>>,
+    /// A file's last failed look: when, why, and through which link's key
+    /// (a file that names another address since is looked at again).
+    failed: Mutex<HashMap<i64, (Instant, Failed, String)>>,
+    /// The addresses of the transcoder's host, and when they were looked up.
+    transcoder_ips: Mutex<Option<(Instant, Vec<IpAddr>)>>,
     /// Where the transcoder reaches this server, when it isn't where the
     /// server listens ([`Relay::listen_at`]).
     address: Mutex<Option<String>>,
@@ -474,6 +481,7 @@ impl Relay {
             links: Mutex::default(),
             probing: Mutex::default(),
             failed: Mutex::default(),
+            transcoder_ips: Mutex::default(),
             address: Mutex::new(None),
         }
     }
@@ -511,13 +519,10 @@ impl Relay {
                     len: AtomicU64::new(0),
                     resolved: Mutex::new(None),
                     seen: Mutex::new(None),
-                    nonce: {
-                        let mut nonce = [0u8; 8];
-                        getrandom::fill(&mut nonce).expect("the system's random numbers");
-                        hex::encode(nonce)
-                    },
+                    nonce: Mutex::default(),
                     read: AtomicBool::new(false),
-                    used: AtomicI64::new(0),
+                    // Not the oldest: another request's clean-up keeps it.
+                    used: AtomicI64::new(crate::util::now()),
                 });
                 let mut links = self.links.lock();
                 if links.by_key.len() >= LINKS_KEPT {
@@ -538,6 +543,13 @@ impl Relay {
         Ok(link)
     }
 
+    /// Why a look at file `id`'s media through `link` failed, less than
+    /// `within` ago.
+    fn failed_lately(&self, id: i64, link: &Link, within: Duration) -> Option<Failed> {
+        let failed = self.failed.lock();
+        failed.get(&id).filter(|(at, _, key)| *key == link.key && at.elapsed() < within).map(|(_, why, _)| *why)
+    }
+
     /// The file the server's own address ending in `key` is for.
     fn by_key(&self, key: &str) -> Option<Arc<Link>> {
         let link = self.links.lock().by_key.get(key).cloned()?;
@@ -552,13 +564,19 @@ impl Relay {
         self.address_named(state, link, "media").await
     }
 
-    /// Where the transcoder probes `link`'s media for a look at it
-    /// ([`look`]): an address of this link's own. The transcoder keeps what
+    /// Where the transcoder probes `link`'s media for a new look at it
+    /// ([`look`]): an address of that look's own. The transcoder keeps what
     /// it probed by address, and would answer for [`Relay::address`], which
-    /// stays the same for as long as the file names its address, without
-    /// reading anything through this link.
+    /// stays the same for as long as the file names its address, or for an
+    /// earlier look's, without reading anything through this link.
     async fn look_address(&self, state: &AppState, link: &Link) -> Result<String, Failed> {
-        self.address_named(state, link, &format!("{LOOK_NAME}{}", link.nonce)).await
+        let mut nonce = [0u8; 8];
+        getrandom::fill(&mut nonce).expect("the system's random numbers");
+        let nonce = hex::encode(nonce);
+        let address = self.address_named(state, link, &format!("{LOOK_NAME}{nonce}")).await?;
+        *link.nonce.lock() = nonce;
+        link.read.store(false, Ordering::Relaxed);
+        Ok(address)
     }
 
     async fn address_named(&self, state: &AppState, link: &Link, name: &str) -> Result<String, Failed> {
@@ -720,7 +738,8 @@ impl Relay {
                 let total = total.map_or_else(|| "*".to_owned(), |total| total.to_string());
                 let value = format!("bytes {first}-{last}/{total}");
                 out.insert(header::CONTENT_RANGE, HeaderValue::from_str(&value).map_err(|_| Failed::Unreachable)?);
-                out.insert(header::CONTENT_LENGTH, HeaderValue::from(last - first + 1));
+                let length = (last - first).checked_add(1).ok_or(Failed::Unreachable)?;
+                out.insert(header::CONTENT_LENGTH, HeaderValue::from(length));
                 *response.status_mut() = StatusCode::PARTIAL_CONTENT;
             }
             (StatusCode::RANGE_NOT_SATISFIABLE, range) => {
@@ -798,6 +817,25 @@ fn transcoder_host(state: &AppState) -> Option<(String, u16)> {
     Some((url.host_str()?.trim_matches(['[', ']']).to_owned(), url.port_or_known_default()?))
 }
 
+/// The addresses of the transcoder's host (`transcoder_url`): looked up
+/// once a minute, not for each of its requests.
+async fn transcoder_ips(state: &AppState) -> Vec<IpAddr> {
+    let Some((host, port)) = transcoder_host(state) else { return Vec::new() };
+    if let Some((at, ips)) = &*state.strm.transcoder_ips.lock()
+        && at.elapsed() < TRANSCODER_LOOKUP_FOR
+    {
+        return ips.clone();
+    }
+    let ips: Vec<IpAddr> = match tokio::net::lookup_host((host.as_str(), port)).await {
+        Ok(found) => found.map(|addr| addr.ip().to_canonical()).collect(),
+        Err(_) => Vec::new(),
+    };
+    if !ips.is_empty() {
+        *state.strm.transcoder_ips.lock() = Some((Instant::now(), ips.clone()));
+    }
+    ips
+}
+
 /// Where the transcoder reaches this server: on this computer for the one
 /// the server runs, else at the address this computer has towards it.
 async fn own_address(state: &AppState) -> Option<String> {
@@ -812,25 +850,32 @@ async fn own_address(state: &AppState) -> Option<String> {
     let towards = match transcoder_host(state) {
         None => None,
         // No packet is sent: connecting a UDP socket only picks the route.
-        Some((host, port)) => {
-            let there = tokio::net::lookup_host((host.as_str(), port)).await.ok()?.next()?;
+        Some((_, port)) => {
+            let there = SocketAddr::new(*transcoder_ips(state).await.first()?, port);
             let socket = std::net::UdpSocket::bind(if there.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" }).ok()?;
             socket.connect(there).ok()?;
             Some(socket.local_addr().ok()?.ip().to_canonical())
         }
     };
-    let reached = |listener: &SocketAddr| match towards {
-        Some(ip) => ((listener.ip().is_unspecified() && listener.is_ipv4() == ip.is_ipv4()) || listener.ip() == ip)
-            .then(|| SocketAddr::new(ip, listener.port())),
-        None if listener.ip().is_loopback() => Some(*listener),
-        None if listener.ip().is_unspecified() => {
+    let address = match towards {
+        // Elsewhere: the listener on that address, or on all of its kind.
+        // One on all IPv6 addresses takes IPv4 too, but on Windows.
+        Some(ip) if !ip.is_loopback() => {
+            let takes = |l: &&SocketAddr| {
+                l.ip() == ip
+                    || (l.ip().is_unspecified() && (l.is_ipv4() == ip.is_ipv4() || l.is_ipv6() && !cfg!(windows)))
+            };
+            web.iter().find(takes).map(|l| SocketAddr::new(ip, l.port()))?
+        }
+        // On this computer: a listener on its own name for itself or on all
+        // its addresses first, else any it has.
+        _ => {
+            let listener = web.iter().find(|l| l.ip().is_loopback() || l.ip().is_unspecified()).or(web.first())?;
             let loopback: IpAddr =
                 if listener.is_ipv4() { [127, 0, 0, 1].into() } else { std::net::Ipv6Addr::LOCALHOST.into() };
-            Some(SocketAddr::new(loopback, listener.port()))
+            if listener.ip().is_unspecified() { SocketAddr::new(loopback, listener.port()) } else { *listener }
         }
-        None => None,
     };
-    let address = web.iter().find_map(reached).or_else(|| web.first().copied().filter(|_| towards.is_none()))?;
     Some(format!("http://{address}"))
 }
 
@@ -858,13 +903,7 @@ async fn from_transcoder(state: &AppState, peer: Option<IpAddr>, headers: &Heade
     if peer.is_loopback() || state.network.listeners().into_iter().any(own) {
         return true;
     }
-    match transcoder_host(state) {
-        Some((host, port)) => match tokio::net::lookup_host((host.as_str(), port)).await {
-            Ok(mut found) => found.any(|addr| addr.ip().to_canonical() == peer),
-            Err(_) => false,
-        },
-        None => false,
-    }
+    transcoder_ips(state).await.contains(&peer)
 }
 
 /// `GET /api/strm/{key}/{name}`: a `.strm` file's media, for the
@@ -880,10 +919,10 @@ pub async fn relay(
         return Err(AppError::not_found("not found"));
     }
     let link = state.strm.by_key(&key).ok_or_else(|| AppError::not_found("not found"))?;
-    // A look's address is one link's: another made for the file since (the
-    // file was written again) isn't the one being looked at.
+    // A look's address is the last look's: another link made for the file
+    // since (the file was written again) isn't the one being looked at.
     let look = name.strip_prefix(LOOK_NAME).map(|rest| rest.split('.').next().unwrap_or(rest));
-    if look.is_some_and(|nonce| nonce != link.nonce) {
+    if look.is_some_and(|nonce| nonce.is_empty() || nonce != link.nonce.lock().as_str()) {
         return Err(AppError::not_found("not found"));
     }
     let response = state.strm.respond(&link, request.method(), request.headers(), "application/octet-stream").await?;
@@ -942,7 +981,7 @@ pub async fn serve(state: &AppState, file: &FileRow, method: &Method, headers: &
     let info = match link.seen() {
         Some((info, _)) => info,
         None => {
-            find(state, file.clone(), &link, Wanted::Seen).await?;
+            find(state, file.clone(), &link, Wanted::Seen, true).await?;
             link.seen().ok_or(Failed::NotMedia)?.0
         }
     };
@@ -971,13 +1010,19 @@ pub fn download_name(file: &FileRow) -> String {
 /// played since it named its address, found now (the transcoder probes it
 /// through the server) and kept. Any other file as it is.
 pub async fn ready(state: &AppState, file: FileRow) -> ApiResult<FileRow> {
+    ready_for(state, file, true).await
+}
+
+/// [`ready`], for a playback waiting for it (`urgent`: the transcoder's
+/// probes of its own for those) or for a page opening.
+async fn ready_for(state: &AppState, file: FileRow, urgent: bool) -> ApiResult<FileRow> {
     if !file.is_strm() {
         return Ok(file);
     }
     let link = link(state, &file).await?;
     match known(state, &file, &link).await? {
         Some(known) => Ok(known),
-        None => find(state, file, &link, Wanted::Details).await,
+        None => find(state, file, &link, Wanted::Details, urgent).await,
     }
 }
 
@@ -1009,7 +1054,7 @@ enum Wanted {
 
 /// Has `file`'s media looked at through `link`, one look at a time, and
 /// not again for a moment where it failed.
-async fn find(state: &AppState, file: FileRow, link: &Arc<Link>, wanted: Wanted) -> ApiResult<FileRow> {
+async fn find(state: &AppState, file: FileRow, link: &Arc<Link>, wanted: Wanted, urgent: bool) -> ApiResult<FileRow> {
     let relay = &state.strm;
     let turn = relay.probing.lock().entry(file.id).or_default().clone();
     let _one_at_a_time = turn.lock().await;
@@ -1023,18 +1068,21 @@ async fn find(state: &AppState, file: FileRow, link: &Arc<Link>, wanted: Wanted)
     if let Some(found) = found {
         return Ok(found);
     }
-    if let Some((_, failed)) = relay.failed.lock().get(&file.id).filter(|(at, _)| at.elapsed() < FAILED_FOR) {
-        return Err((*failed).into());
+    if let Some(failed) = relay.failed_lately(file.id, link, FAILED_FOR) {
+        return Err(failed.into());
     }
-    let found = look(state, &file, link).await;
+    let found = look(state, &file, link, urgent).await;
     // The turns nobody waits for any more.
     relay.probing.lock().retain(|_, turn| Arc::strong_count(turn) > 1);
     match found {
-        Ok(found) => Ok(found),
+        Ok(found) => {
+            relay.failed.lock().remove(&file.id);
+            Ok(found)
+        }
         Err(Ok(failed)) => {
             let mut failures = relay.failed.lock();
-            failures.retain(|_, (at, _)| at.elapsed() < FAILED_TO_OPEN_FOR);
-            failures.insert(file.id, (Instant::now(), failed));
+            failures.retain(|_, (at, _, _)| at.elapsed() < FAILED_TO_OPEN_FOR);
+            failures.insert(file.id, (Instant::now(), failed, link.key.clone()));
             Err(failed.into())
         }
         Err(Err(other)) => Err(other),
@@ -1047,21 +1095,25 @@ async fn find(state: &AppState, file: FileRow, link: &Arc<Link>, wanted: Wanted)
 /// (the look goes on by itself), and not tried again for a while where it
 /// failed: the item opens as it is then. Whether anything was found.
 pub async fn glance(state: &AppState, item_id: i64) -> bool {
+    if !on(state) || !state.transcoder.info().is_some_and(|info| info.capabilities.remote_inputs) {
+        return false;
+    }
     let Ok(files) = crate::catalog::files_for_item(&state.db, item_id).await else { return false };
-    let unknown: Vec<FileRow> = {
-        let failed = state.strm.failed.lock();
-        let tried = |id: &i64| failed.get(id).is_some_and(|(at, _)| at.elapsed() < FAILED_TO_OPEN_FOR);
-        files.into_iter().filter(|f| f.is_strm() && f.media_info.is_none() && !tried(&f.id)).collect()
-    };
-    if unknown.is_empty() || !on(state) || !state.transcoder.info().is_some_and(|info| info.capabilities.remote_inputs)
-    {
+    let mut unknown = Vec::new();
+    for file in files.into_iter().filter(|f| f.is_strm() && f.media_info.is_none()) {
+        let Ok(link) = state.strm.link(&file.path).await else { continue };
+        if state.strm.failed_lately(file.id, &link, FAILED_TO_OPEN_FOR).is_none() {
+            unknown.push(file);
+        }
+    }
+    if unknown.is_empty() {
         return false;
     }
     let state = state.clone();
     let looking = tokio::spawn(async move {
         let mut found = false;
         for file in unknown {
-            found |= ready(&state, file).await.is_ok();
+            found |= ready_for(&state, file, false).await.is_ok();
         }
         found
     });
@@ -1070,11 +1122,19 @@ pub async fn glance(state: &AppState, item_id: i64) -> bool {
 
 /// [`ready`]'s look at `file`'s media. A failure of the address or its
 /// media (remembered for a moment), or any other error.
-async fn look(state: &AppState, file: &FileRow, link: &Arc<Link>) -> Result<FileRow, Result<Failed, AppError>> {
+async fn look(
+    state: &AppState,
+    file: &FileRow,
+    link: &Arc<Link>,
+    urgent: bool,
+) -> Result<FileRow, Result<Failed, AppError>> {
     remote_inputs(state).map_err(Err)?;
     let address = state.strm.look_address(state, link).await.map_err(Ok)?;
     let first_byte = HeaderValue::from_static("bytes=0-0");
-    let info = match tokio::time::timeout(LOOK, state.transcoder.probe_now(&address)).await {
+    let probed = async {
+        if urgent { state.transcoder.probe_now(&address).await } else { state.transcoder.probe(&address).await }
+    };
+    let info = match tokio::time::timeout(LOOK, probed).await {
         Ok(Ok(info)) => info,
         // FFprobe read it and found no media: what the address answered
         // says why, when it wasn't media at all.
@@ -1356,6 +1416,27 @@ mod tests {
         {
             assert_eq!(relay.of_network(&Url::parse(address).unwrap()).await, Ok(inside), "{address}");
         }
+    }
+
+    #[tokio::test]
+    async fn a_span_longer_than_any_is_refused() {
+        use axum::routing::get;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = axum::Router::new().route(
+            "/film.mkv",
+            get(|| async {
+                (StatusCode::PARTIAL_CONTENT, [(header::CONTENT_RANGE, format!("bytes 0-{}/*", u64::MAX))], "x")
+            }),
+        );
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let dir = tempfile::tempdir().unwrap();
+        let relay = Relay::new(dir.path());
+        let file = dir.path().join("Film.strm");
+        std::fs::write(&file, format!("http://{addr}/film.mkv")).unwrap();
+        let link = relay.link(file.to_str().unwrap()).await.unwrap();
+        let answer = relay.respond(&link, &Method::GET, &HeaderMap::new(), "video/x-matroska").await;
+        assert_eq!(answer.err(), Some(Failed::Unreachable));
     }
 
     #[test]

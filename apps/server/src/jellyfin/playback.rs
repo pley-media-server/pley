@@ -115,17 +115,28 @@ async fn playback_info(
         Some(_) => pick(&jellyfin, &files, source.as_deref()).into_iter().collect(),
         None => files.iter().collect(),
     };
+    // A `.strm` file's media is looked at now, as Jellyfin does: the one
+    // asked for, or every version at once. One that doesn't answer is left
+    // out, unless none does.
+    let looked =
+        futures::future::join_all(chosen.into_iter().map(|file| crate::strm::ready(&state, file.clone()))).await;
+    let mut failed = None;
+    let mut ready = Vec::new();
+    for looked in looked {
+        match looked {
+            Ok(file) => ready.push(file),
+            Err(err) => {
+                failed.get_or_insert(err);
+            }
+        }
+    }
+    if ready.is_empty()
+        && let Some(err) = failed
+    {
+        return Err(err.into());
+    }
     let mut sources = Vec::new();
-    for file in chosen {
-        // A `.strm` file's media is looked at now, as Jellyfin does: the
-        // one asked for, or every version (one that doesn't answer is
-        // listed as it is).
-        let looked = crate::strm::ready(&state, file.clone()).await;
-        let file = &match (looked, &source) {
-            (Ok(found), _) => found,
-            (Err(err), Some(_)) => return Err(err.into()),
-            (Err(_), None) => file.clone(),
-        };
+    for file in &ready {
         // About to be played: its seek previews are made, if they aren't yet.
         if dto::is_video(&row.kind) {
             state.trickplay.request(file);
