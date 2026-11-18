@@ -26,10 +26,9 @@ describes how they are made.
 
 ### Fixed
 
-- Films and shows with accents in their names are found on TMDB when the
-  names came from a Mac, as files copied from one keep them, such as Brüno
-  or Pokémon Detective Pikachu. Ones already scanned are found by the
-  library's Force full rescan.
+- Films and shows with accents in their names are matched when the names
+  came from a Mac. Ones already scanned are matched by the library's Force
+  full rescan.
 - In the web app, search lists the audiobooks whose title matches. A
   book's title gave a results page with nothing on it.
 

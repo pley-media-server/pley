@@ -15,12 +15,10 @@
 //!   [`parse_audiobook`])
 
 use std::collections::BTreeMap;
-use std::ffi::OsStr;
 use std::path::{Component, Path, PathBuf};
 use std::sync::LazyLock;
 
 use regex::Regex;
-use unicode_normalization::UnicodeNormalization;
 
 use crate::util::normalize_key;
 
@@ -111,14 +109,7 @@ fn max_year() -> i32 {
 }
 
 fn file_stem(path: &Path) -> String {
-    path.file_stem().map(name).unwrap_or_default()
-}
-
-/// A file or folder's name as text, composed (NFC): a Mac's disks hand back
-/// "é" as "e" and an accent, and names copied from one keep it, which TMDB's
-/// search doesn't match.
-fn name(s: &OsStr) -> String {
-    s.to_string_lossy().nfc().collect()
+    path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()
 }
 
 /// Release names use dots/underscores as spaces ("The.Matrix.1999").
@@ -187,7 +178,7 @@ fn extract_ids(s: &str) -> (Option<i64>, Option<String>) {
 /// its name or its folder's. Editions of a film are versions of one movie.
 pub fn edition(path: &Path) -> Option<String> {
     let tagged = |name: &str| EDITION.captures(name).map(|c| c[1].trim().to_owned()).filter(|e| !e.is_empty());
-    tagged(&file_stem(path)).or_else(|| path.parent()?.file_name().and_then(|f| tagged(&name(f))))
+    tagged(&file_stem(path)).or_else(|| path.parent()?.file_name().and_then(|f| tagged(&f.to_string_lossy())))
 }
 
 fn rel_components(path: &Path, root: &Path) -> Vec<String> {
@@ -195,7 +186,7 @@ fn rel_components(path: &Path, root: &Path) -> Vec<String> {
         .unwrap_or(path)
         .components()
         .filter_map(|c| match c {
-            Component::Normal(s) => Some(name(s)),
+            Component::Normal(s) => Some(s.to_string_lossy().into_owned()),
             _ => None,
         })
         .collect()
@@ -799,15 +790,6 @@ mod tests {
 
     fn episode(rel: &str) -> EpisodeName {
         parse_episode(&Path::new("/media/tv").join(rel), Path::new("/media/tv"))
-    }
-
-    #[test]
-    fn names_with_their_accents_apart_are_composed() {
-        // "e" and an acute accent, "u" and a diaeresis, as a Mac's disks
-        // give them.
-        assert_eq!(movie("Pok\u{65}\u{301}mon Detective Pikachu (2019).mkv").title, "Pok\u{e9}mon Detective Pikachu");
-        assert_eq!(movie("Bru\u{308}no (2009)/movie.mkv").title, "Br\u{fc}no");
-        assert_eq!(episode("Pok\u{65}\u{301}mon/Season 1/S01E01.mkv").show, "Pok\u{e9}mon");
     }
 
     #[test]

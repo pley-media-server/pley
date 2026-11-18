@@ -292,18 +292,20 @@ async fn movies_are_matched_and_described() {
 }
 
 /// A Mac's disks give a name's accents apart from their letters ("u" and a
-/// diaeresis), and names copied from one keep them so.
+/// diaeresis), and names copied from one keep them so. The film is found
+/// under the name it was scanned with: it stays the item it was.
 #[tokio::test]
 async fn a_name_with_its_accents_apart_is_found_on_tmdb() {
     let (app, tmdb, admin, lib) = world().await;
     app.media_file("movies/Bru\u{308}no (2009)/Bru\u{308}no (2009).mkv", 1024);
     app.post(&format!("/api/libraries/{lib}/scan"), &admin, json!({})).await;
     app.wait_for_scans().await;
-    assert!(app.ids(lib, &admin).await.contains_key("Br\u{fc}no"), "composed before TMDB is asked");
+    let scanned = app.ids(lib, &admin).await["Bru\u{308}no"];
     use_key(&app, &admin, KEY).await;
 
     let ids = app.ids(lib, &admin).await;
-    let bruno = app.get(&format!("/api/items/{}", ids["Br\u{fc}no"]), &admin).await.body;
+    assert_eq!(ids["Br\u{fc}no"], scanned, "{ids:?}");
+    let bruno = app.get(&format!("/api/items/{scanned}"), &admin).await.body;
     assert_eq!(bruno["tmdb_id"], json!(4497));
     let searches = tmdb.requested("/search/movie");
     assert!(searches.iter().any(|s| s.contains("query=Br%C3%BCno")), "{searches:?}");
