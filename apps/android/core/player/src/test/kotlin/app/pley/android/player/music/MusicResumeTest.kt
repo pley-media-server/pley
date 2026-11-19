@@ -2,6 +2,7 @@
 
 package app.pley.android.player.music
 
+import app.pley.android.data.ProfileScope
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.player.MusicQueueState
@@ -20,15 +21,24 @@ import org.junit.Test
  * left memory: the queue and the place in it, read back by another run.
  */
 class MusicResumeTest {
-    /** The profile's snapshots; what was written, in order. */
-    private val store = HashMap<String, ByteArray>()
+    /** Each profile's snapshots; the keys written, in order. */
+    private val stores = HashMap<ProfileScope, HashMap<String, ByteArray>>()
     private val written = mutableListOf<String>()
 
+    /** The profile signed in. */
+    private var signedIn: ProfileScope? = PARENT
+
+    /** The snapshots of the profile most tests play as. */
+    private val store: HashMap<String, ByteArray> get() = snapshotsOf(PARENT)
+
+    private fun snapshotsOf(profile: ProfileScope) = stores.getOrPut(profile) { HashMap() }
+
     private fun TestScope.resume() = MusicResume(
-        read = { key -> store[key]?.takeIf { it.isNotEmpty() } },
-        write = { key, bytes ->
+        profile = { signedIn },
+        read = { whose, key -> snapshotsOf(whose)[key]?.takeIf { it.isNotEmpty() } },
+        write = { whose, key, bytes ->
             written += key
-            store[key] = bytes
+            snapshotsOf(whose)[key] = bytes
         },
         scope = backgroundScope,
     )
@@ -102,6 +112,70 @@ class MusicResumeTest {
     }
 
     @Test
+    fun musicThatPlaysOnAfterASwitchOfProfileIsKeptForNeither() = runTest {
+        val resume = resume()
+        resume.keep(MusicQueueState(album, index = 2), positionMs = 5_000)
+        runCurrent()
+
+        // Another profile now, the album playing on and changed: that profile is never shown it.
+        signedIn = CHILD
+        resume.keep(MusicQueueState(album.reversed(), index = 3), positionMs = 0)
+        resume.keep(MusicQueueState(album.reversed(), index = 4), positionMs = 30_000)
+        runCurrent()
+        assertNull(resume().saved())
+        assertTrue(snapshotsOf(CHILD).isEmpty())
+
+        // Stopped there: the profile that played it keeps what it had.
+        resume.keep(MusicQueueState(), positionMs = 0)
+        runCurrent()
+        signedIn = PARENT
+        val kept = resume().saved()!!
+        assertEquals(album, kept.tracks)
+        assertEquals(2, kept.index)
+        assertEquals(5_000L, kept.positionMs)
+
+        // What the other profile plays next is its own.
+        signedIn = CHILD
+        resume.keep(MusicQueueState(album, index = 7), positionMs = 0)
+        runCurrent()
+        assertEquals(7, resume().saved()!!.index)
+        signedIn = PARENT
+        assertEquals(2, resume().saved()!!.index)
+    }
+
+    @Test
+    fun whatIsOnItsWayToTheStoreAsTheProfileChangesGoesToTheProfileItIsFor() = runTest {
+        val resume = resume()
+        resume.keep(MusicQueueState(album, index = 1), positionMs = 0)
+        // The profile changes before the store is written to.
+        signedIn = CHILD
+        runCurrent()
+        assertTrue(snapshotsOf(CHILD).isEmpty())
+        signedIn = PARENT
+        assertEquals(1, resume().saved()!!.index)
+    }
+
+    @Test
+    fun theRadiosChannelIsKeptForTheProfileThatPlayedIt() = runTest {
+        val resume = resume()
+        resume.keepRadio("channel:7@favourites")
+        runCurrent()
+        signedIn = CHILD
+        assertNull(resume.savedRadio())
+        // Music played as the other profile: its radio is none, and the first profile's stays.
+        resume.keepRadio(null)
+        runCurrent()
+        signedIn = PARENT
+        assertEquals("channel:7@favourites", resume().savedRadio())
+        // Signed out, nothing is kept or read.
+        signedIn = null
+        resume.keep(MusicQueueState(album), positionMs = 0)
+        runCurrent()
+        assertNull(resume.saved())
+        assertNull(resume.savedRadio())
+    }
+
+    @Test
     fun aLongQueueKeepsTheTracksAroundTheOnePlaying() = runTest {
         val long = (1..1_200L).map { track(it) }
         val resume = resume()
@@ -150,4 +224,9 @@ class MusicResumeTest {
         grandparentTitle = "Harbour Lights",
         durationMs = 180_000,
     )
+
+    private companion object {
+        val PARENT = ProfileScope("https://pley.example", 1)
+        val CHILD = ProfileScope("https://pley.example", 2)
+    }
 }

@@ -178,7 +178,13 @@ class ServiceMusicControl(
          * starts with forgets nothing; one stopped does.
          */
         private fun remembering(playback: MusicPlayback, data: DataGraph, main: CoroutineScope): MusicResume {
-            val resume = MusicResume(data.snapshots::read, data.snapshots::write, main)
+            val snapshots = data.snapshots
+            val resume = MusicResume(
+                profile = { snapshots.active },
+                read = { whose, key -> snapshots.read(whose, key) },
+                write = { whose, key, bytes -> snapshots.write(whose, key, bytes) },
+                scope = main,
+            )
             val keep = { resume.keep(playback.queueState.value, playback.position().positionMs) }
             main.launch { playback.queueState.drop(1).collect { keep() } }
             main.launch {

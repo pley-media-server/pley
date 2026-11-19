@@ -95,9 +95,18 @@ sealed interface SessionState {
  * thread; written whole, so a crash never leaves half an answer.
  */
 interface SnapshotStore {
+    /** The profile signed in now, whose snapshots [read] and [write] without a scope are; `null` when no one is. */
+    val active: ProfileScope?
+
     suspend fun read(key: String): ByteArray?
 
     suspend fun write(key: String, bytes: ByteArray)
+
+    /** [scope]'s snapshot of [key], whichever profile is signed in now. */
+    suspend fun read(scope: ProfileScope, key: String): ByteArray?
+
+    /** Keeps [bytes] as [scope]'s snapshot of [key], whichever profile is signed in now. */
+    suspend fun write(scope: ProfileScope, key: String, bytes: ByteArray)
 
     /** Deletes everything saved for [issuer]. */
     suspend fun clear(issuer: String)

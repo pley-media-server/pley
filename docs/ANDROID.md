@@ -1100,7 +1100,9 @@ a sound, and starts it once, when asked to play.
 Music picks up where it was after Android has ended the app (one paused
 a while, say): the queue, the place in it and what repeats are kept on
 the device with the profile's saved things, for that profile alone and
-until it signs out or the music is stopped. As a car connects, what
+until it signs out or the music is stopped. Music that plays on after a
+switch of profile is kept for neither: the profile that played it keeps
+what it had, and the other is never shown it. As a car connects, what
 played last waits in its Now Playing, paused where it was (the music, or
 the radio's channel when that played last), so the car has something to
 play, and its Play plays it, pressed or sent by a car set to start media

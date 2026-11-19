@@ -34,7 +34,7 @@ class FileSnapshotStore(
 ) : SnapshotStore {
     /** The profile in use, whose Home is the startup copy; set by the session. */
     @Volatile
-    var active: ProfileScope? = null
+    override var active: ProfileScope? = null
         private set
 
     private val lock = Any()
@@ -56,7 +56,7 @@ class FileSnapshotStore(
     }
 
     /** [scope]'s snapshot of [key], `null` when there is none. */
-    suspend fun read(scope: ProfileScope, key: String): ByteArray? = withContext(io) {
+    override suspend fun read(scope: ProfileScope, key: String): ByteArray? = withContext(io) {
         val file = fileOf(scope, key)
         val bytes = try {
             file.readBytes()
@@ -78,7 +78,7 @@ class FileSnapshotStore(
     }
 
     /** Keeps [bytes] as [scope]'s snapshot of [key]. */
-    suspend fun write(scope: ProfileScope, key: String, bytes: ByteArray) {
+    override suspend fun write(scope: ProfileScope, key: String, bytes: ByteArray) {
         withContext(io) {
             val file = fileOf(scope, key)
             try {

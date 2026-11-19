@@ -1,5 +1,6 @@
 package app.pley.android.player.music
 
+import app.pley.android.data.ProfileScope
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PleyJson
@@ -29,17 +30,25 @@ data class SavedMusic(
  * channel played as radio in a car is kept too ([keepRadio]), until music
  * plays again: the last of the two is what a car is shown.
  *
- * It is kept with the profile's saved things ([read] and [write] are the
- * active profile's snapshots), so another profile never gets it and
+ * It is kept with the saved things of the profile that played it:
+ * [profile] is the one signed in now, and [read] and [write] reach a
+ * profile's snapshots whichever is, so a write still on its way as the
+ * profile changes goes to the profile it is for. Music that plays on after
+ * a switch of profile is kept for neither from then on (the profile that
+ * played it keeps what it had), so another profile never gets it, and
  * signing out deletes it. A long queue keeps [MAX_TRACKS] tracks around
  * the one playing. Main thread only; the writing itself is the store's,
  * off it.
  */
 class MusicResume(
-    private val read: suspend (key: String) -> ByteArray?,
-    private val write: suspend (key: String, bytes: ByteArray) -> Unit,
+    private val profile: () -> ProfileScope?,
+    private val read: suspend (profile: ProfileScope, key: String) -> ByteArray?,
+    private val write: suspend (profile: ProfileScope, key: String, bytes: ByteArray) -> Unit,
     private val scope: CoroutineScope,
 ) {
+    /** The profile the queue kept is that of: the one signed in as it was first kept, until it is forgotten. */
+    private var owner: ProfileScope? = null
+
     /** The tracks written last, and where in the queue they start. */
     private var kept: List<ItemSummary>? = null
     private var keptFrom = 0
@@ -47,11 +56,12 @@ class MusicResume(
     /** Whether what was kept has been forgotten in this run, and nothing kept since. */
     private var forgotten = false
 
-    /** The radio's channel as last kept or read ([keepRadio]); unknown until then. */
+    /** The radio's channel as last kept or read ([keepRadio]), and the profile it is that of; unknown until then. */
     private var radio: String? = UNREAD
+    private var radioOf: ProfileScope? = null
 
-    /** What waits to be written, the latest of each key, in order. */
-    private val pending = LinkedHashMap<String, ByteArray>()
+    /** What waits to be written, the latest of each profile's key, in order. */
+    private val pending = LinkedHashMap<Pair<ProfileScope, String>, ByteArray>()
     private var writer: Job? = null
 
     /** Keeps [queue] and where its track is, [positionMs]; an empty queue forgets what was kept. */
@@ -61,6 +71,10 @@ class MusicResume(
             forget()
             return
         }
+        val now = profile() ?: return
+        val who = owner ?: now.also { owner = it }
+        // Played by another profile before a switch: what plays on is neither's to keep.
+        if (who != now) return
         forgotten = false
         val last = kept
         // Of a long queue, the tracks kept stay the same while its track is among them: only the place is written then.
@@ -75,9 +89,9 @@ class MusicResume(
         if (window != kept || from != keptFrom) {
             kept = window.toList()
             keptFrom = from
-            put(QUEUE, PleyJson.encodeToString(TRACKS, window).encodeToByteArray())
+            put(who, QUEUE, PleyJson.encodeToString(TRACKS, window).encodeToByteArray())
         }
-        put(PLACE, "${queue.index - from} ${positionMs.coerceAtLeast(0)} ${queue.repeat.name}".encodeToByteArray())
+        put(who, PLACE, "${queue.index - from} ${positionMs.coerceAtLeast(0)} ${queue.repeat.name}".encodeToByteArray())
     }
 
     /**
@@ -86,48 +100,59 @@ class MusicResume(
      * connects; `null` once music plays again.
      */
     fun keepRadio(mediaId: String?) {
-        if (mediaId == radio) return
+        val now = profile() ?: return
+        if (now == radioOf && mediaId == radio) return
+        radioOf = now
         radio = mediaId
-        put(RADIO, (mediaId ?: "").encodeToByteArray())
+        put(now, RADIO, (mediaId ?: "").encodeToByteArray())
     }
 
-    /** The channel kept by [keepRadio], or `null`: music played last, or nothing did. */
+    /** The channel kept by [keepRadio] for the profile in use, or `null`: music played last, or nothing did. */
     suspend fun savedRadio(): String? {
         writer?.join()
+        val now = profile() ?: return null
         val kept = try {
-            read(RADIO)?.decodeToString()?.takeIf { it.isNotEmpty() && it.length <= MAX_RADIO_ID }
+            read(now, RADIO)?.decodeToString()?.takeIf { it.isNotEmpty() && it.length <= MAX_RADIO_ID }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             null
         }
         radio = kept
+        radioOf = now
         return kept
     }
 
-    /** Forgets what was kept: the music was stopped. */
+    /**
+     * Forgets what was kept: the music was stopped. Stopped after a switch
+     * of profile, the profile that played it keeps what it had.
+     */
     fun forget() {
+        val who = owner ?: profile()
+        owner = null
+        kept = null
         if (forgotten) return
         forgotten = true
-        kept = null
+        if (who == null || who != profile()) return
         // Empty: the store reads that as nothing kept.
-        put(QUEUE, ByteArray(0))
-        put(PLACE, ByteArray(0))
+        put(who, QUEUE, ByteArray(0))
+        put(who, PLACE, ByteArray(0))
     }
 
     /** What was kept for the profile in use; `null` when nothing was, or it can't be read. */
     suspend fun saved(): SavedMusic? {
         // What is still on its way to the store is what was kept last.
         writer?.join()
+        val now = profile() ?: return null
         val tracks = try {
-            read(QUEUE)?.let { PleyJson.decodeFromString(TRACKS, it.decodeToString()) }
+            read(now, QUEUE)?.let { PleyJson.decodeFromString(TRACKS, it.decodeToString()) }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             null
         }
         if (tracks.isNullOrEmpty() || tracks.size > MAX_TRACKS || tracks.any { it.kind != ItemKind.Track }) return null
-        val place = read(PLACE)?.decodeToString()?.split(' ').orEmpty()
+        val place = read(now, PLACE)?.decodeToString()?.split(' ').orEmpty()
         val index = place.getOrNull(0)?.toIntOrNull()?.takeIf { it in tracks.indices } ?: 0
         val length = tracks[index].durationMs?.takeIf { it > 0 }
         // A track left in its last seconds, or at its end, starts over: brought back there it would end at once.
@@ -136,15 +161,16 @@ class MusicResume(
         return SavedMusic(tracks, index, position, repeat)
     }
 
-    private fun put(key: String, bytes: ByteArray) {
-        pending.remove(key)
-        pending[key] = bytes
+    private fun put(whose: ProfileScope, key: String, bytes: ByteArray) {
+        val at = whose to key
+        pending.remove(at)
+        pending[at] = bytes
         if (writer?.isActive == true) return
         writer = scope.launch {
             while (true) {
                 val next = pending.entries.firstOrNull() ?: break
                 pending.remove(next.key)
-                write(next.key, next.value)
+                write(next.key.first, next.key.second, next.value)
             }
         }
     }
