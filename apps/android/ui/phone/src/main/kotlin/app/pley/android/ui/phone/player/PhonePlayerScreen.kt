@@ -7,8 +7,11 @@ import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
@@ -205,11 +208,26 @@ private fun rememberEngine(state: PlayerScreenState, ui: State<*>): Player? {
 @Composable
 private fun ControlScrims(state: PlayerScreenState) = Scrims(state.controlsVisible && !state.locked)
 
-/** The controls' groups. */
+/**
+ * The controls' groups. On a car's screen they stack, the centre between
+ * the bars rather than on the screen's middle, 24 dp from each, and
+ * smaller where that leaves too little room: on a short screen (one split
+ * in two) the middle put Play over the seek bar.
+ */
 @Composable
 private fun BoxScope.Controls(state: PlayerScreenState, picture: PictureState, host: PlayerHost, screenAspect: () -> Float) {
     val visible = state.controlsVisible && !state.locked
     val spinning = rememberSpinning(state)
+    if (LocalCarScreen.current) {
+        Column(Modifier.matchParentSize()) {
+            ControlsGroup(visible) { TopBar(state, host) }
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(vertical = CarGap), contentAlignment = Alignment.Center) {
+                ControlsGroup(visible) { CentreControls(state, spinning, compact = maxHeight < PlayTarget) }
+            }
+            ControlsGroup(visible) { BottomBar(state, picture, screenAspect) }
+        }
+        return
+    }
     ControlsGroup(visible, Modifier.align(Alignment.TopCenter)) { TopBar(state, host) }
     ControlsGroup(visible, Modifier.align(Alignment.Center)) { CentreControls(state, spinning) }
     ControlsGroup(visible, Modifier.align(Alignment.BottomCenter)) { BottomBar(state, picture, screenAspect) }

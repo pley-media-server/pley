@@ -46,6 +46,29 @@ internal object CarScreenChecks {
         }
     }
 
+    /** [labels]' controls 24 dp apart from each other and from the screen's edges at least (UX-2), as touch targets. */
+    fun apart(compose: ComposeContentTestRule, screen: String, labels: List<String>) {
+        compose.waitForIdle()
+        val density = compose.density.density
+        val window = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        val found = labels.associateWith { label -> compose.onAllNodes(matcher(label)).fetchSemanticsNodes().first().boundsInRoot }
+        val close = mutableListOf<String>()
+        for ((label, bounds) in found) {
+            val edge = minOf(bounds.left - window.left, bounds.top - window.top, window.right - bounds.right, window.bottom - bounds.bottom) / density
+            if (edge < SPACE - 0.5f) close += "$label is ${edge.toInt()} dp from an edge"
+        }
+        val list = found.entries.toList()
+        for (i in list.indices) {
+            for (j in i + 1 until list.size) {
+                val (a, b) = list[i].value to list[j].value
+                val gap = maxOf(b.left - a.right, a.left - b.right, b.top - a.bottom, a.top - b.bottom) / density
+                if (gap < SPACE - 0.5f) close += "${list[i].key} is ${gap.toInt()} dp from ${list[j].key}"
+            }
+        }
+        val where = found.entries.joinToString { (label, b) -> "$label ${(b.top / density).toInt()}..${(b.bottom / density).toInt()}" }
+        assertTrue("$screen, ${(window.height / density).toInt()} dp tall: ${close.joinToString("; ")} ($where)", close.isEmpty())
+    }
+
     /** A picture of the screen, kept when `PLEY_CAR_SHOTS` names a folder: to look at a layout, not to compare. */
     fun save(compose: ComposeContentTestRule, name: String) {
         val folder = System.getenv("PLEY_CAR_SHOTS") ?: return
@@ -59,8 +82,9 @@ internal object CarScreenChecks {
     private fun Rect.contains(other: Rect) =
         other.left >= left - 0.5f && other.top >= top - 0.5f && other.right <= right + 0.5f && other.bottom <= bottom + 0.5f
 
-    /** The smallest touch target on a car's screen. */
+    /** The smallest touch target on a car's screen, and the least room between targets and from the screen's edges. */
     private const val TARGET = 64f
+    private const val SPACE = 24f
 
     /** The Desktop Head Unit's test screens, as Robolectric qualifiers (the window Android Auto gives the app). */
     const val SMALL = "w800dp-h480dp-land-mdpi"

@@ -1157,7 +1157,9 @@ own). It draws a third larger there, as Google's car app quality
 criteria ask: buttons of 64 dp at least and no text under 24 sp, its
 sheets, menus, dialogs and messages too, and the controls over the video keep
 24 dp from each other and from the screen's edges. Play sits between
-10 seconds back and 10 seconds forward, the seek bar is taller, and the
+10 seconds back and 10 seconds forward, midway between the top row and
+the seek bar (and smaller on a screen too short for it, one split in
+two), the seek bar is taller, and the
 bottom row keeps Subtitles, Audio, Fit and Next episode (Quality is in
 Settings, chapters show on the seek bar, and there is no Lock), with
 their icons alone where the names don't fit the width (a narrow screen,

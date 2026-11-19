@@ -1,5 +1,6 @@
 package app.pley.android.ui.phone.player
 
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import app.pley.android.player.PlayerPhase
 import app.pley.android.player.PlayerUiState
@@ -62,11 +63,19 @@ class CarPlayerSizesTest {
             }
         }
         CarScreenChecks.save(compose, "player-$screen")
-        CarScreenChecks.controls(
-            compose,
-            screen,
-            listOf("Back", "Playback settings", "Back 10 seconds", "Play", "Forward 10 seconds", "Position", "Subtitles", "Audio", "Next episode"),
-        )
+        val controls = listOf("Back", "Playback settings", "Back 10 seconds", "Play", "Forward 10 seconds", "Position", "Subtitles", "Audio", fit(), "Next episode")
+        CarScreenChecks.controls(compose, screen, controls)
+        CarScreenChecks.apart(compose, screen, controls)
+    }
+
+    /** Fit's button, said by what it does next (fill, zoom or fit), which the screen's shape decides. */
+    private fun fit(): String {
+        compose.waitForIdle()
+        return FIT.firstOrNull { compose.onAllNodes(hasContentDescription(it)).fetchSemanticsNodes().isNotEmpty() } ?: FIT.first()
+    }
+
+    private companion object {
+        val FIT = listOf("Fill the screen", "Zoom past the black bars", "Show the whole picture")
     }
 
     @Test

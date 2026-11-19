@@ -179,7 +179,7 @@ private fun BackButton(onClick: () -> Unit) {
  * there.
  */
 @Composable
-internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifier: Modifier = Modifier) {
+internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifier: Modifier = Modifier, compact: Boolean = false) {
     PlayerProbe.composed?.invoke("centre")
     // The seek preview takes the middle while the seek bar is dragged.
     val scrubbing = state.scrubbing
@@ -191,29 +191,36 @@ internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifie
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val step = (PlayerScreenState.SEEK_STEP_MS / 1000).toInt()
+        val (stepTarget, stepGlyph) = if (compact) CompactStepTarget to CompactStepGlyph else StepTarget to StepGlyph
         if (car) {
-            GlyphButton(stringResource(R.string.player_skip_back, step), StepTarget, onClick = { state.seekBy(-PlayerScreenState.SEEK_STEP_MS) }) {
-                Icon(PleyIcons.RotateCcw, contentDescription = null, size = StepGlyph)
+            GlyphButton(stringResource(R.string.player_skip_back, step), stepTarget, onClick = { state.seekBy(-PlayerScreenState.SEEK_STEP_MS) }) {
+                Icon(PleyIcons.RotateCcw, contentDescription = null, size = stepGlyph)
             }
         }
-        GlyphButton(stringResource(if (playing) R.string.player_pause else R.string.player_play), PlayTarget, onClick = state::togglePlay) {
-            Icon(if (playing) PleyIcons.Pause else PleyIcons.Play, contentDescription = null, size = PlayGlyph)
+        GlyphButton(stringResource(if (playing) R.string.player_pause else R.string.player_play), if (compact) CompactPlayTarget else PlayTarget, onClick = state::togglePlay) {
+            Icon(if (playing) PleyIcons.Pause else PleyIcons.Play, contentDescription = null, size = if (compact) CompactPlayGlyph else PlayGlyph)
         }
         if (car) {
-            GlyphButton(stringResource(R.string.player_skip_forward, step), StepTarget, onClick = { state.seekBy(PlayerScreenState.SEEK_STEP_MS) }) {
-                Icon(PleyIcons.RotateCw, contentDescription = null, size = StepGlyph)
+            GlyphButton(stringResource(R.string.player_skip_forward, step), stepTarget, onClick = { state.seekBy(PlayerScreenState.SEEK_STEP_MS) }) {
+                Icon(PleyIcons.RotateCw, contentDescription = null, size = stepGlyph)
             }
         }
     }
 }
 
 /** The centre's touch target and glyph: 80 dp around 52. */
-private val PlayTarget = 80.dp
+internal val PlayTarget = 80.dp
 private val PlayGlyph = 52.dp
 
 /** The car's 10 s buttons: 56 dp around 36, 75 and 48 once scaled. */
 private val StepTarget = 56.dp
 private val StepGlyph = 36.dp
+
+/** On a car's screen too short for those (one split in two): Play 64 dp around 40, the 10 s buttons 48 around 30; 64 and more once scaled. */
+private val CompactPlayTarget = 64.dp
+private val CompactPlayGlyph = 40.dp
+private val CompactStepTarget = 48.dp
+private val CompactStepGlyph = 30.dp
 
 /** A [size] round touch target, read out as [label], around its [glyph]. */
 @Composable
@@ -248,6 +255,8 @@ internal fun BottomBar(state: PlayerScreenState, picture: PictureState, screenAs
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.player)
             .padding(start = if (car) CarGap else 16.dp, end = if (car) CarGap else 16.dp, bottom = if (car) CarGap else 4.dp),
+        // A car's touch targets keep 24 dp apart: the seek bar's and the buttons' under it too.
+        verticalArrangement = if (car) Arrangement.spacedBy(CarGap) else Arrangement.Top,
     ) {
         TimesAndSeekBar(state)
         BottomButtons(state, picture, screenAspect)
@@ -291,10 +300,13 @@ private fun BottomButtons(state: PlayerScreenState, picture: PictureState, scree
                     }
                 }
                 if (car) {
-                    // Measured with their names first, drawn with them only if they fit: nothing here scrolls.
+                    // Measured with their names first, drawn with them only if they fit 24 dp apart, the space spread evenly as
+                    // drawn (between them and at the row's ends): nothing here scrolls.
                     SubcomposeLayout(Modifier.fillMaxWidth()) { constraints ->
-                        val measure = subcompose(false) { Row(Modifier.clearAndSetSemantics { }) { buttons(true) } }
-                        val needed = measure.maxOfOrNull { it.maxIntrinsicWidth(constraints.maxHeight) } ?: 0
+                        val measure = subcompose(false) {
+                            Row(Modifier.clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(CarGap)) { buttons(true) }
+                        }
+                        val needed = (measure.maxOfOrNull { it.maxIntrinsicWidth(constraints.maxHeight) } ?: 0) + 2 * CarGap.roundToPx()
                         val named = needed <= constraints.maxWidth
                         val row = subcompose(true) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) { buttons(named) }
