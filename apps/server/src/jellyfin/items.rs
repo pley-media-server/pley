@@ -491,7 +491,7 @@ async fn lists(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, q: &Q) ->
             )
             .await?
             {
-                let tag = collection_tag(jellyfin, c.updated_at, user);
+                let tag = collection_tag(jellyfin, &c.poster_version, user);
                 let mut collection = list_item(
                     jellyfin,
                     Kind::Collection,
@@ -572,11 +572,12 @@ fn manages(user: &AuthUser) -> bool {
     user.compatibility_allows(crate::auth::compatibility::Scope::Manage)
 }
 
-/// A collection's picture tag: when it last changed, and whose list it was
-/// in. Its picture is its own or that of its first title the user may see,
-/// and clients load it without a token, so the tag says whose eyes choose.
-fn collection_tag(jellyfin: &Jellyfin, updated_at: i64, user: &AuthUser) -> String {
-    format!("{updated_at:x}{}", jellyfin.ids.of(Kind::User, user.id))
+/// A collection's picture tag: its poster's version, and whose list it was
+/// in. Its picture is its own, or drawn from or taken from the titles the
+/// user may see, and clients load it without a token, so the tag says whose
+/// eyes choose.
+fn collection_tag(jellyfin: &Jellyfin, poster_version: &str, user: &AuthUser) -> String {
+    format!("{poster_version}{}", jellyfin.ids.of(Kind::User, user.id))
 }
 
 async fn items(
@@ -819,7 +820,7 @@ async fn other(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, kind: Kin
             )
             .await?
             .ok_or(JfError::NotFound)?;
-            let tag = collection_tag(jellyfin, c.updated_at, user);
+            let tag = collection_tag(jellyfin, &c.poster_version, user);
             let mut collection = list_item(
                 jellyfin,
                 Kind::Collection,

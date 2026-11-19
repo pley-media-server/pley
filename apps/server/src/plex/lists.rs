@@ -76,7 +76,7 @@ fn collection_node(c: &CollectionDto, lib: &LibraryRow, labels: &[String]) -> No
         .attr("librarySectionID", lib.id)
         .attr("librarySectionTitle", &lib.name)
         .attr("librarySectionKey", format!("/library/sections/{}", lib.id))
-        .attr("thumb", format!("/library/collections/{key}/thumb/{}", c.updated_at))
+        .attr("thumb", format!("/library/collections/{key}/thumb/{}", c.poster_version))
         .attr("art", format!("/library/collections/{key}/art/{}", c.updated_at))
         .attr("childCount", c.item_count)
         .attr("collectionMode", MODE)
@@ -307,7 +307,7 @@ pub(super) async fn collection_items(
         .attr("ratingKey", key.to_string())
         .attr("title2", &collection.title)
         .opt("summary", collection.summary.as_deref())
-        .attr("thumb", format!("/library/collections/{key}/thumb/{}", collection.updated_at))
+        .attr("thumb", format!("/library/collections/{key}/thumb/{}", collection.poster_version))
         .attr("art", format!("/library/collections/{key}/art/{}", collection.updated_at))
         .attr("viewGroup", view_group))
 }

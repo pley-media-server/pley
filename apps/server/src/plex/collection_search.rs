@@ -266,6 +266,7 @@ mod tests {
             icon: None,
             icon_color: None,
             poster_url: String::new(),
+            poster_version: String::new(),
             backdrop_url: String::new(),
             created_at: id,
             updated_at: 10 - id,

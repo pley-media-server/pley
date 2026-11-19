@@ -413,3 +413,87 @@ async fn a_poster_file_gone_is_left_out_of_the_grid() {
     let url = app.get(&format!("/api/collections/{id}"), &admin).await.body["poster_url"].as_str().unwrap().to_owned();
     assert_eq!(app.get(&url, &admin).await.status, StatusCode::OK);
 }
+
+#[tokio::test]
+async fn a_posters_address_changes_with_its_films_and_differs_by_viewer() {
+    let app = TestApp::new().await;
+    let (films, id, admin) = four(&app).await;
+    let (viewer, _) = app.user(&admin, "viewer", json!({})).await;
+    let poster = |token: String| {
+        let app = &app;
+        async move { app.get(&format!("/api/collections/{id}"), &token).await.body["poster_url"].clone() }
+    };
+    let listed = |token: String| {
+        let app = &app;
+        async move {
+            let all = app.get(&format!("/api/libraries/{films}/collections"), &token).await.body["collections"].clone();
+            all.as_array()
+                .unwrap()
+                .iter()
+                .map(|c| (c["builtin"].clone(), c["id"].clone(), c["poster_url"].clone()))
+                .collect::<Vec<_>>()
+        }
+    };
+
+    let before = poster(admin.clone()).await;
+    // The same address listed and opened, for a collection that holds its
+    // films and for a smart one.
+    for (builtin, cid, url) in listed(admin.clone()).await {
+        if cid == json!(id) || builtin == json!("recently_added") {
+            let opened = app.get(&format!("/api/collections/{cid}"), &admin).await;
+            assert_eq!(url, opened.body["poster_url"], "{builtin}");
+        }
+    }
+    // Another viewer's cache never holds this one's.
+    assert_ne!(poster(viewer).await, before);
+
+    // Its films changing changes it, with nothing about the collection edited:
+    // a new poster for one (as a refresh gives it), then one taken out.
+    sqlx::query("UPDATE items SET updated_at = updated_at + 60 WHERE title = 'Heat'")
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    let refreshed = poster(admin.clone()).await;
+    assert_ne!(refreshed, before);
+    let ids = app.ids(films, &admin).await;
+    let removed = app.delete(&format!("/api/collections/{id}/items/{}", ids["Up"]), &admin).await;
+    assert_eq!(removed.status, StatusCode::NO_CONTENT);
+    assert_ne!(poster(admin).await, refreshed);
+}
+
+#[tokio::test]
+async fn a_smart_collections_address_follows_the_films_its_poster_is_drawn_from() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let names: Vec<String> = (1..=10).map(|n| format!("Film {n:02} ({})", 1990 + n)).collect();
+    for name in &names {
+        app.media_file(&format!("films/{name}.mkv"), 1024);
+    }
+    let films = app.library(&admin, "Films", "movies", "films").await;
+    // Recently Added shows the newest first: eight without posters, then the
+    // two with posters its poster is drawn from.
+    for n in 1..=10 {
+        sqlx::query("UPDATE items SET added_at = ? WHERE title = ?")
+            .bind(1_000 * n)
+            .bind(format!("Film {n:02}"))
+            .execute(&app.state.db.write)
+            .await
+            .unwrap();
+    }
+    posters(&app, &[("Film 01", [250, 0, 0]), ("Film 02", [0, 250, 0])]).await;
+    let before = recently_added(&app, films, &admin).await;
+    sqlx::query("UPDATE items SET updated_at = updated_at + 60 WHERE title = 'Film 01'")
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    assert_ne!(recently_added(&app, films, &admin).await, before, "a new poster for a film past the first eight");
+}
+
+/// Recently Added's poster address, the same listed and opened.
+async fn recently_added(app: &TestApp, films: i64, admin: &str) -> Value {
+    let all = app.get(&format!("/api/libraries/{films}/collections"), admin).await.body["collections"].clone();
+    let found = all.as_array().unwrap().iter().find(|c| c["builtin"] == json!("recently_added")).unwrap().clone();
+    let opened = app.get(&format!("/api/collections/{}", found["id"]), admin).await;
+    assert_eq!(found["poster_url"], opened.body["poster_url"], "listed and opened alike");
+    found["poster_url"].clone()
+}

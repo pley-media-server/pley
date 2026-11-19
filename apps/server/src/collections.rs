@@ -261,6 +261,10 @@ pub struct CollectionDto {
     pub icon_color: Option<String>,
     /// The collection's own artwork, else its first visible item's.
     pub poster_url: String,
+    /// The version `poster_url` carries, for the compatible APIs' addresses
+    /// of the same poster.
+    #[serde(skip)]
+    pub poster_version: String,
     pub backdrop_url: String,
     pub created_at: i64,
     pub updated_at: i64,
@@ -273,11 +277,19 @@ impl CollectionRow {
     }
 
     /// The poster URL's version: it changes with what the poster is drawn
-    /// from, even within the second `updated_at` counts in.
-    fn poster_version(&self) -> String {
+    /// from, even within the second `updated_at` counts in. `drawn_from`
+    /// stands for the items it shows the viewer ([`drawn_from`]), so a
+    /// poster drawn from them changes address when they change, and a
+    /// viewer who may see fewer never gets another's from a cache.
+    fn poster_version(&self, drawn_from: &str) -> String {
         use sha2::{Digest, Sha256};
         let mut hash = Sha256::new();
         hash.update(self.updated_at.to_le_bytes());
+        // An uploaded poster is the same whatever its items.
+        if self.custom_poster.is_none() {
+            hash.update(drawn_from);
+            hash.update([0]);
+        }
         for part in [&self.custom_poster, &self.icon, &self.icon_color, &self.poster_background] {
             hash.update(part.as_deref().unwrap_or_default());
             hash.update([0]);
@@ -285,9 +297,9 @@ impl CollectionRow {
         hash.finalize().iter().take(6).map(|b| format!("{b:02x}")).collect()
     }
 
-    fn into_dto(self, item_count: i64, names: &Names) -> CollectionDto {
+    fn into_dto(self, item_count: i64, drawn_from: &str, names: &Names) -> CollectionDto {
         let untouched = names.untouched(&self).is_some();
-        let poster_version = self.poster_version();
+        let poster_version = self.poster_version(drawn_from);
         let on_color = self.on_color();
         let title = names.title(&self);
         CollectionDto {
@@ -310,6 +322,7 @@ impl CollectionRow {
                 .map(|_| self.icon_color.clone().unwrap_or_else(|| crate::collection_art::DEFAULT_COLOR.to_owned())),
             icon: self.icon,
             poster_url: format!("/api/collections/{}/images/poster?v={}", self.id, poster_version),
+            poster_version,
             backdrop_url: format!("/api/collections/{}/images/backdrop?v={}", self.id, self.updated_at),
             id: self.id,
             library_id: self.library_id,
@@ -326,12 +339,18 @@ impl CollectionRow {
 
 /// Visible item counts of collections, for one user.
 async fn visible_counts(db: &Db, user_id: i64, ids: &[i64]) -> sqlx::Result<HashMap<i64, i64>> {
+    Ok(visible_summaries(db, user_id, ids).await?.into_iter().map(|(id, (count, _))| (id, count)).collect())
+}
+
+/// Collections' visible item counts for one user, each with what its poster
+/// is drawn from for them ([`drawn_from`]).
+async fn visible_summaries(db: &Db, user_id: i64, ids: &[i64]) -> sqlx::Result<HashMap<i64, (i64, String)>> {
     if ids.is_empty() {
         return Ok(HashMap::new());
     }
     let placeholders = vec!["?"; ids.len()].join(",");
     let sql = format!(
-        "{} SELECT ci.collection_id, COUNT(*) FROM collection_items ci
+        "{} SELECT ci.collection_id, COUNT(*), SUM(i.id), MAX(i.updated_at) FROM collection_items ci
            JOIN items i ON i.id = ci.item_id
            LEFT JOIN items p ON p.id = i.parent_id
            LEFT JOIN items gp ON gp.id = i.grandparent_id
@@ -339,11 +358,35 @@ async fn visible_counts(db: &Db, user_id: i64, ids: &[i64]) -> sqlx::Result<Hash
          GROUP BY ci.collection_id",
         me_cte!()
     );
-    let mut query = sqlx::query_as::<_, (i64, i64)>(sqlx::AssertSqlSafe(sql.as_str())).bind(user_id);
+    let mut query = sqlx::query_as::<_, (i64, i64, i64, i64)>(sqlx::AssertSqlSafe(sql.as_str())).bind(user_id);
     for id in ids {
         query = query.bind(id);
     }
-    Ok(query.fetch_all(&db.read).await?.into_iter().collect())
+    Ok(query
+        .fetch_all(&db.read)
+        .await?
+        .into_iter()
+        .map(|(id, count, ids, updated)| (id, (count, held(user_id, count, ids, updated))))
+        .collect())
+}
+
+/// What a poster is drawn from for viewer `user_id`, as part of its
+/// address's version: for a collection that holds its items, all those they
+/// may see (their order follows from the items and the collection); for a
+/// smart one, those its poster may be drawn from ([`drawn_candidates`]). An item's poster
+/// changing changes its `updated_at`.
+fn held(user_id: i64, count: i64, ids: i64, updated: i64) -> String {
+    format!("{user_id}.{count}.{ids}.{updated}")
+}
+
+fn drawn_from(user_id: i64, row: &CollectionRow, items: &[ItemRow]) -> String {
+    if row.smart_filter.is_some() {
+        let first = drawn_candidates(row, items).map(|i| format!("{}.{}", i.id, i.updated_at));
+        std::iter::once(user_id.to_string()).chain(first).collect::<Vec<_>>().join(",")
+    } else {
+        let ids = items.iter().map(|i| i.id).sum();
+        held(user_id, items.len() as i64, ids, items.iter().map(|i| i.updated_at).max().unwrap_or(0))
+    }
 }
 
 /// Whether a collection with `count` visible items is listed for the user.
@@ -386,22 +429,23 @@ pub async fn list(
     .fetch_all(&db.read)
     .await?;
     let ids: Vec<i64> = rows.iter().filter(|r| r.smart_filter.is_none()).map(|r| r.id).collect();
-    let mut counts = visible_counts(db, user.id, &ids).await?;
+    let mut counts = visible_summaries(db, user.id, &ids).await?;
     if rows.iter().any(|r| r.smart_filter.is_some())
         && let Some(lib) = crate::library::get_library(db, library_id).await?
     {
         for row in &rows {
             if let Some(filter) = &row.smart_filter {
-                let count = crate::listing::smart_count(db, user.id, &lib, filter).await?;
-                counts.insert(row.id, i64::try_from(count).unwrap_or(i64::MAX));
+                let (first, count) = crate::listing::smart_first(db, user.id, &lib, filter, DRAWN_WINDOW).await?;
+                let count = i64::try_from(count).unwrap_or(i64::MAX);
+                counts.insert(row.id, (count, drawn_from(user.id, row, &first)));
             }
         }
     }
     let mut listed: Vec<CollectionDto> = rows
         .into_iter()
         .filter_map(|r| {
-            let count = counts.get(&r.id).copied().unwrap_or(0);
-            listed(&r, count, user).then(|| r.into_dto(count, &names))
+            let (count, drawn) = counts.remove(&r.id).unwrap_or_else(|| (0, held(user.id, 0, 0, 0)));
+            listed(&r, count, user).then(|| r.into_dto(count, &drawn, &names))
         })
         .collect();
     // By title as the user reads it: Pley's own are named in their language.
@@ -498,7 +542,8 @@ pub async fn get(
     let Some(row) = row(db, id).await? else { return Ok(None) };
     let Some(items) = visible_items(db, user, &row, None).await? else { return Ok(None) };
     let count = items.len() as i64;
-    Ok(Some((row.into_dto(count, &Names::load(db, language).await?), items)))
+    let drawn = drawn_from(user.id, &row, &items);
+    Ok(Some((row.into_dto(count, &drawn, &Names::load(db, language).await?), items)))
 }
 
 /// What a collection shows the user, in its order: `None` when they may not
@@ -773,6 +818,17 @@ pub const DRAWN_POSTERS_ALONE: usize = 2;
 /// shows, for posters that can't be read.
 const DRAWN_CANDIDATES: usize = 8;
 
+/// How far into a smart collection its drawn poster looks for items with
+/// posters: a page read for its address's version as well, so both see the
+/// same items (beyond it, the first item's with a poster stands in).
+const DRAWN_WINDOW: usize = 32;
+
+/// The items a collection's poster may be drawn from, of `items` in its order.
+fn drawn_candidates<'a>(row: &CollectionRow, items: &'a [ItemRow]) -> impl Iterator<Item = &'a ItemRow> {
+    let window = if row.smart_filter.is_some() { DRAWN_WINDOW } else { usize::MAX };
+    items.iter().take(window).filter(|i| i.has_poster).take(DRAWN_CANDIDATES)
+}
+
 /// A collection's artwork of `kind` (`poster` or `backdrop`), for `user`.
 /// The poster is the uploaded one, else its icon over its first visible
 /// items' posters (or on its color alone), else TMDB's, else those posters in a grid when there are
@@ -784,7 +840,7 @@ pub async fn artwork(db: &Db, store: &Store, user: &AuthUser, id: i64, kind: &st
     let Some(items) = visible_items(db, user, &row, None).await? else { return Ok(None) };
     let file = |r: Option<String>| r.and_then(|r| store.path(&r)).filter(|p| p.is_file());
     let poster = kind == "poster";
-    let with_posters: Vec<i64> = items.iter().filter(|i| i.has_poster).take(DRAWN_CANDIDATES).map(|i| i.id).collect();
+    let with_posters: Vec<i64> = drawn_candidates(&row, &items).map(|i| i.id).collect();
     let on_color = row.on_color();
     if poster {
         if let Some(path) = file(row.custom_poster) {

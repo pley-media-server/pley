@@ -2152,7 +2152,10 @@ for films, `tv` for shows, `music`, `book-headphones` for audiobooks,
 icons: Recently Added a clock in blue, Recently Released a calendar in
 teal, Top Rated a star in amber, Top Unwatched `eye-off` in pink. A drawn
 poster changes with the items without the collection changing, so it's
-served with a short cache (`max-age=300`) even at a versioned address.
+served with a short cache (`max-age=300`) even at a versioned address, and
+that address's version (`poster_url`'s `v`, and the Plex and Jellyfin
+APIs' versions of it) changes with the items it's drawn from as the viewer
+sees them: two viewers who may see different items never share it.
 
 Icons (Lucide's names): `star`, `clock`, `calendar`, `eye-off`, `heart`,
 `flame`, `trophy`, `award`, `sparkles`, `ghost`, `rocket`, `wand-sparkles`,
