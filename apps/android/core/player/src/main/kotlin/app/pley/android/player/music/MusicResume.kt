@@ -166,6 +166,21 @@ class MusicResume(
         put(who, PLACE, ByteArray(0))
     }
 
+    /**
+     * Signed out, by Me or by the server ending the sign-in (which can leave
+     * the music in its queue): the profile's saved things went with it, so
+     * what was written is known no more and is written whole again as the
+     * music plays on, and nothing still on its way is written. Whose queue
+     * it is stays known, so a profile signed in next isn't given it.
+     */
+    fun signedOut() {
+        pending.clear()
+        kept = null
+        keptGiven = null
+        radio = UNREAD
+        radioOf = null
+    }
+
     /** What was kept for the profile in use; `null` when nothing was, or it can't be read. */
     suspend fun saved(): SavedMusic? {
         // What is still on its way to the store is what was kept last.
@@ -209,6 +224,8 @@ class MusicResume(
             while (true) {
                 val next = pending.entries.firstOrNull() ?: break
                 pending.remove(next.key)
+                // Signed out meanwhile: the saved things went with the sign-in, and none are written again.
+                if (profile() == null) continue
                 write(next.key.first, next.key.second, next.value)
             }
         }

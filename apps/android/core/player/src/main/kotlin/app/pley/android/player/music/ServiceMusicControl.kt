@@ -9,6 +9,7 @@ import androidx.media3.session.SessionToken
 import app.pley.android.caps.CapsGraph
 import app.pley.android.common.DeviceProfile
 import app.pley.android.data.DataGraph
+import app.pley.android.data.SessionState
 import app.pley.android.model.ItemSummary
 import app.pley.android.network.NetworkGraph
 import app.pley.android.player.MusicControl
@@ -175,7 +176,8 @@ class ServiceMusicControl(
          * bring back once the app has left memory ([MusicResume]): the queue
          * when it changes, the place at each track, pause and seek, and
          * every [PLACE_EVERY_MS] while it plays. The empty queue a process
-         * starts with forgets nothing; one stopped does.
+         * starts with forgets nothing; one stopped does. Signed out, what
+         * was written went with the sign-in ([MusicResume.signedOut]).
          */
         private fun remembering(playback: MusicPlayback, data: DataGraph, main: CoroutineScope): MusicResume {
             val snapshots = data.snapshots
@@ -187,6 +189,11 @@ class ServiceMusicControl(
             )
             val keep = { resume.keep(playback.queueState.value, playback.position().positionMs) }
             main.launch { playback.queueState.drop(1).collect { keep() } }
+            main.launch {
+                data.session.state.map { it is SessionState.SignedOut || it is SessionState.NoServer }.distinctUntilChanged().collect { out ->
+                    if (out) resume.signedOut()
+                }
+            }
             main.launch {
                 playback.nowPlaying.map { now -> now?.let { Triple(it.wantsPlay, it.seeks, it.ended) } }.distinctUntilChanged().drop(1).collect { keep() }
             }

@@ -166,6 +166,36 @@ class MusicResumeTest {
     }
 
     @Test
+    fun afterASignOutThatLeftTheMusicInItsQueueItIsWrittenWholeAgainAndNothingOnItsWayIsWritten() = runTest {
+        val resume = resume()
+        resume.keep(MusicQueueState(album, index = 2), positionMs = 0)
+        runCurrent()
+
+        // The server ends the sign-in as the place is on its way to the store: the saved things go with the sign-in.
+        resume.keep(MusicQueueState(album, index = 3), positionMs = 0)
+        signedIn = null
+        stores.clear()
+        resume.signedOut()
+        runCurrent()
+        assertTrue(stores.values.all { it.isEmpty() })
+
+        // Signed in again, the music played on: its tracks are written again, not only its place.
+        signedIn = PARENT
+        resume.keep(MusicQueueState(album, index = 4), positionMs = 0)
+        runCurrent()
+        assertEquals(album, resume().saved()!!.tracks)
+        assertEquals(4, resume().saved()!!.index)
+
+        // Signed in as another profile instead, the queue left playing isn't given to it.
+        signedIn = null
+        resume.signedOut()
+        signedIn = CHILD
+        resume.keep(MusicQueueState(album, index = 5), positionMs = 0)
+        runCurrent()
+        assertNull(resume().saved())
+    }
+
+    @Test
     fun whatIsOnItsWayToTheStoreAsTheProfileChangesGoesToTheProfileItIsFor() = runTest {
         val resume = resume()
         resume.keep(MusicQueueState(album, index = 1), positionMs = 0)
