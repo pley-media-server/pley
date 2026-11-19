@@ -83,11 +83,16 @@ impl ScanStatus {
 #[derive(Debug, Clone, Copy)]
 struct ScanRequest {
     library_id: i64,
+    /// Probe every file again, changed or not.
     force: bool,
     /// Walk the folders and write what changed.
     files: bool,
     /// Then fetch metadata for the titles that have none.
     metadata: bool,
+    /// Fetch every title's metadata again, not only what has none. Apart
+    /// from `force`: a refresh that joins a waiting scan must not make it
+    /// probe every file.
+    refetch: bool,
 }
 
 impl ScanRequest {
@@ -96,6 +101,7 @@ impl ScanRequest {
         self.force |= other.force;
         self.files |= other.files;
         self.metadata |= other.metadata;
+        self.refetch |= other.refetch;
     }
 }
 
@@ -232,31 +238,31 @@ impl Scanner {
 
     /// Scans a library: its files, then metadata for what has none.
     pub fn enqueue(&self, library_id: i64, force: bool) {
-        self.request(ScanRequest { library_id, force, files: true, metadata: true }, false);
+        self.request(ScanRequest { library_id, force, files: true, metadata: true, refetch: force }, false);
     }
 
     /// Scans a library just added: a first scan from the moment it's
     /// queued, so Home lists it while it waits behind another.
     pub fn enqueue_new(&self, library_id: i64) {
-        self.request(ScanRequest { library_id, force: false, files: true, metadata: true }, true);
+        self.request(ScanRequest { library_id, force: false, files: true, metadata: true, refetch: false }, true);
     }
 
     /// Scans a library's files only, leaving metadata for later: the Plex
     /// import brings Plex's matches first, so the fetch finds their ids.
     pub fn enqueue_files(&self, library_id: i64) {
-        self.request(ScanRequest { library_id, force: false, files: true, metadata: false }, false);
+        self.request(ScanRequest { library_id, force: false, files: true, metadata: false, refetch: false }, false);
     }
 
     /// Fetches every title's metadata in a library again, without scanning
     /// its files: what TMDB says of them, their collections included.
     pub fn enqueue_refresh(&self, library_id: i64) {
-        self.request(ScanRequest { library_id, force: true, files: false, metadata: true }, false);
+        self.request(ScanRequest { library_id, force: false, files: false, metadata: true, refetch: true }, false);
     }
 
     /// Fetches metadata for a library's titles that have none, without
     /// walking its folders again.
     pub fn enqueue_metadata(&self, library_id: i64) {
-        self.request(ScanRequest { library_id, force: false, files: false, metadata: true }, false);
+        self.request(ScanRequest { library_id, force: false, files: false, metadata: true, refetch: false }, false);
     }
 
     /// Queues `req`; `first` when it's the library's first scan.
@@ -283,7 +289,7 @@ impl Scanner {
     pub async fn enqueue_all(&self, force: bool) -> sqlx::Result<()> {
         for lib in list_libraries(&self.db).await? {
             self.request(
-                ScanRequest { library_id: lib.id, force, files: true, metadata: true },
+                ScanRequest { library_id: lib.id, force, files: true, metadata: true, refetch: force },
                 lib.scanned_at.is_none(),
             );
         }
@@ -433,7 +439,7 @@ impl Scanner {
     }
 
     async fn scan(&self, req: ScanRequest) -> anyhow::Result<Option<(Totals, Phases)>> {
-        let ScanRequest { library_id, force, .. } = req;
+        let ScanRequest { library_id, force, refetch, .. } = req;
         let Some(lib) = get_library(&self.db, library_id).await? else {
             return Ok(None);
         };
@@ -451,7 +457,7 @@ impl Scanner {
         if req.metadata && self.metadata.enabled_for(lib.kind()) {
             self.set_status(&lib, ScanPhase::Metadata, 0, 0);
             let progress = |done: u64, total: u64| self.set_status(&lib, ScanPhase::Metadata, done, total);
-            if let Err(err) = self.metadata.refresh_library(&lib, force, &progress).await {
+            if let Err(err) = self.metadata.refresh_library(&lib, refetch, &progress).await {
                 tracing::warn!("metadata refresh for library {} failed: {err:#}", lib.id);
             }
             self.events.send(ServerEvent::LibraryChanged { library_id });
@@ -2395,14 +2401,20 @@ mod tests {
 
     #[test]
     fn requests_for_one_library_merge_into_what_either_asked() {
-        let files = ScanRequest { library_id: 1, force: false, files: true, metadata: false };
-        let metadata = ScanRequest { library_id: 1, force: true, files: false, metadata: true };
+        let files = ScanRequest { library_id: 1, force: false, files: true, metadata: false, refetch: false };
+        let refresh = ScanRequest { library_id: 1, force: false, files: false, metadata: true, refetch: true };
         let mut merged = files;
-        merged.merge(metadata);
-        assert!(merged.files && merged.metadata && merged.force);
-        let mut alone = metadata;
-        alone.merge(metadata);
+        merged.merge(refresh);
+        assert!(merged.files && merged.metadata && merged.refetch);
+        assert!(!merged.force, "a refresh doesn't make a waiting scan probe every file");
+        let mut alone = refresh;
+        alone.merge(refresh);
         assert!(!alone.files && alone.metadata);
+        // A forced rescan stays one, whatever joins it.
+        let forced = ScanRequest { library_id: 1, force: true, files: true, metadata: true, refetch: true };
+        let mut kept = forced;
+        kept.merge(files);
+        assert!(kept.force && kept.refetch);
     }
 
     #[test]

@@ -6,13 +6,18 @@ mod common;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use axum::Router;
 use axum::extract::{Query, State};
 use axum::http::{StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::{Json, Router};
 use parking_lot::Mutex;
+use pley_transcoder_api::{
+    API_VERSION, Capabilities, MediaInfo, MediaStream, ProbeRequest, StreamKind, TranscoderInfo,
+};
 use serde_json::{Value, json};
 
 use common::{TestApp, encode, titles};
@@ -174,7 +179,13 @@ async fn start_tmdb() -> (Tmdb, String) {
 /// asked here) and a movie library: Alien (named with its IMDb id), Aliens,
 /// and a film TMDB doesn't know.
 async fn world() -> (TestApp, Tmdb, String, i64) {
+    world_with_transcoder(None).await
+}
+
+/// [`world`], its files probed by the transcoder at `transcoder` when given.
+async fn world_with_transcoder(transcoder: Option<String>) -> (TestApp, Tmdb, String, i64) {
     let (mock, base) = start_tmdb().await;
+    let has_transcoder = transcoder.is_some();
     let app = TestApp::with_config(|c| {
         c.metadata_endpoints = Some(pley::providers::Endpoints {
             tvmaze: format!("{base}/tvmaze"),
@@ -185,8 +196,15 @@ async fn world() -> (TestApp, Tmdb, String, i64) {
             tmdb_images: format!("{base}/tmdb-images"),
             opensubtitles: format!("{base}/opensubtitles"),
         });
+        if let Some(url) = transcoder {
+            c.transcoder_url = Some(url);
+        }
     })
     .await;
+    if has_transcoder {
+        app.state.transcoder.start();
+        assert!(app.state.transcoder.wait_ready(Duration::from_secs(10)).await);
+    }
     let admin = app.setup_admin().await;
     app.media_file("movies/Alien (1979) [tt0078748].mkv", 1024);
     app.media_file("movies/Aliens (1986).mkv", 1024);
@@ -342,6 +360,101 @@ async fn a_library_can_go_without_collections_from_tmdb() {
     let more = made.body["id"].as_i64().unwrap();
     let listed = app.get(&format!("/api/libraries/{more}/collections"), &admin).await;
     assert_eq!(titles(&common::own_collections(&listed.body)), Vec::<String>::new());
+}
+
+/// The probes [`start_transcoder`]'s stand-in was asked for: those of files
+/// in `held/`, which wait while `open` is false, and the others.
+#[derive(Clone)]
+struct Probes {
+    others: Arc<AtomicUsize>,
+    held: Arc<AtomicUsize>,
+    open: Arc<tokio::sync::watch::Sender<bool>>,
+}
+
+/// A transcoder that probes every file as a 1080p H.264 video, counted in
+/// `probes`.
+async fn start_transcoder(probes: Probes) -> String {
+    async fn probe(State(probes): State<Probes>, Json(req): Json<ProbeRequest>) -> Json<MediaInfo> {
+        if req.path.replace('\\', "/").contains("/held/") {
+            probes.held.fetch_add(1, Ordering::SeqCst);
+            let _ = probes.open.subscribe().wait_for(|open| *open).await;
+        } else {
+            probes.others.fetch_add(1, Ordering::SeqCst);
+        }
+        Json(MediaInfo {
+            container: Some("matroska".into()),
+            duration_ms: Some(60_000),
+            streams: vec![MediaStream {
+                index: 0,
+                kind: StreamKind::Video,
+                codec: "h264".into(),
+                width: Some(1920),
+                height: Some(1080),
+                default: true,
+                ..Default::default()
+            }],
+            ..Default::default()
+        })
+    }
+    let info = || async {
+        Json(TranscoderInfo {
+            api_version: API_VERSION,
+            capabilities: Capabilities { ffmpeg_available: true, ..Default::default() },
+            ..Default::default()
+        })
+    };
+    let app = Router::new().route("/v1/info", get(info)).route("/v1/probe", post(probe)).with_state(probes);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr: SocketAddr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    format!("http://{addr}")
+}
+
+/// Turned back on while a scan of the library waits behind another
+/// library's, the switch joins that scan: the films are fetched again and
+/// their collections come back, but no file is probed again.
+#[tokio::test]
+async fn collections_from_tmdb_turned_on_beside_a_waiting_scan_probe_no_file() {
+    let probes =
+        Probes { others: Arc::default(), held: Arc::default(), open: Arc::new(tokio::sync::watch::channel(true).0) };
+    let transcoder = start_transcoder(probes.clone()).await;
+    let (app, tmdb, admin, lib) = world_with_transcoder(Some(transcoder)).await;
+    use_key(&app, &admin, KEY).await;
+    let collections = || async {
+        let listed = app.get(&format!("/api/libraries/{lib}/collections"), &admin).await;
+        titles(&common::own_collections(&listed.body))
+    };
+    let path = format!("/api/libraries/{lib}");
+    let switch = |on: bool| app.patch(&path, &admin, json!({"tmdb_collections": on}));
+    assert_eq!(collections().await, ["Alien Collection"]);
+    assert_eq!(switch(false).await.status, StatusCode::OK);
+    assert_eq!(collections().await, Vec::<String>::new());
+    app.media_file("held/Held (2020).mkv", 1024);
+    let held = app.library(&admin, "Held", "movies", "held").await;
+
+    // The scanner probes the other library's file again, held there, and
+    // a scan of this one waits.
+    probes.open.send_replace(false);
+    let before = probes.held.load(Ordering::SeqCst);
+    app.state.scanner.enqueue(held, true);
+    for _ in 0..500 {
+        if probes.held.load(Ordering::SeqCst) > before {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(probes.held.load(Ordering::SeqCst) > before, "the other library's scan is under way");
+    app.state.scanner.enqueue(lib, false);
+    let probed = probes.others.load(Ordering::SeqCst);
+    let fetched = |id: i64| tmdb.requested(&format!("/movie/{id}?")).len();
+    let (alien, aliens) = (fetched(348), fetched(679));
+    assert_eq!(switch(true).await.status, StatusCode::OK);
+    probes.open.send_replace(true);
+    app.wait_for_scans().await;
+
+    assert_eq!(probes.others.load(Ordering::SeqCst), probed, "no file of the library is probed again");
+    assert!(fetched(348) > alien && fetched(679) > aliens, "its films are fetched again");
+    assert_eq!(collections().await, ["Alien Collection"]);
 }
 
 #[tokio::test]
