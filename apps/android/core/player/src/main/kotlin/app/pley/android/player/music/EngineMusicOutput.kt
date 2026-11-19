@@ -151,7 +151,6 @@ class EngineMusicOutput(
             PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED,
         )
 
-        /** What [error] means for the queue. */
         /** [error]'s code and causes, for the log: their kinds, an HTTP status, a parser's words; never an address. */
         internal fun describeFailure(error: PlaybackException): String {
             val causes = generateSequence(error.cause) { it.cause }.take(MAX_CAUSES).map { cause ->
@@ -164,6 +163,7 @@ class EngineMusicOutput(
             return (sequenceOf(error.errorCodeName) + causes).joinToString(" < ")
         }
 
+        /** What [error] means for the queue. */
         fun kindOf(error: PlaybackException): OutputError {
             var cause: Throwable? = error.cause
             while (cause != null) {

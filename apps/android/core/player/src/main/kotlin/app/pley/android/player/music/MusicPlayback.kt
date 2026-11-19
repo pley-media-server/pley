@@ -789,10 +789,10 @@ class MusicPlayback(
         /** Paused this long, the event stream is let go in the background: the server's window for a session unheard. */
         const val PAUSED_HOLD_MS = 90_000L
 
-        /** New sessions asked in a row for one track before it counts as failed. */
         /** How long a track that can't be played says so before the next one plays. */
         const val SKIP_AFTER_S = 5
 
+        /** New sessions asked in a row for one track before it counts as failed. */
         const val MAX_RECREATES = 3
 
         /** The longest a new track waits for the last one's reports to go out. */
