@@ -1108,7 +1108,8 @@ the radio's channel when that played last), so the car has something to
 play, and its Play plays it, pressed or sent by a car set to start media
 by itself; Pley never starts the sound itself. Play on a headset, on the
 car's steering wheel over Bluetooth or in the phone's media controls
-brings it back the same way once the app has left memory. Stop from the
+brings the music back the same way once the app has left memory; the
+radio is the car's, so its channel waits for Android Auto. Stop from the
 car or the Assistant ("Hey Google, stop") pauses, so the queue is there
 for the next drive; music stopped from its notification is forgotten. A
 long queue keeps the 500 tracks around the one that played. Signed

@@ -190,7 +190,7 @@ class MusicService : MediaLibraryService() {
             }
         }
         playback.onStopped = { stopped(made, playback, graph?.musicLibrary?.library) }
-        bringBack(made, playback, graph?.musicLibrary)
+        bringBack(made, playback, graph?.musicLibrary, car = false)
         return made
     }
 
@@ -202,8 +202,13 @@ class MusicService : MediaLibraryService() {
      * (a session with nothing in it shows a car nothing to play), and the
      * car's own Play, pressed or sent as it starts, plays it. Nothing is
      * played here: only a car or a person starts the sound.
+     *
+     * The radio is the car's: with no car connecting (the session made for
+     * a headset's Play, the phone's media controls, or Android starting the
+     * service by itself), a channel played last waits for the next car, and
+     * Play brings back the music kept before it (onPlaybackResumption).
      */
-    private fun bringBack(made: MediaLibrarySession, playback: MusicPlayback, graph: MusicLibraryGraph?) {
+    private fun bringBack(made: MediaLibrarySession, playback: MusicPlayback, graph: MusicLibraryGraph?, car: Boolean) {
         val resume = MusicHub.resume ?: return
         bringingBack?.cancel()
         bringingBack = scope.launch {
@@ -211,6 +216,8 @@ class MusicService : MediaLibraryService() {
             fun busy() = session !== made || radio?.active == true || playback.nowPlaying.value?.wantsPlay == true
             if (busy()) return@launch
             val channel = resume.savedRadio()?.let { MusicId.parse(it) as? MusicId.Channel }
+            // Cued now, the music kept before the channel would stay in the session once a car took it for the radio.
+            if (channel != null && !car) return@launch
             // The channel's list is the server's to give: out of reach, or slow, the music kept is what waits.
             val lineup = if (channel != null && graph != null) {
                 withTimeoutOrNull(BRING_BACK_WAIT_MS) { runCatching { graph.live?.lineup(channel) }.getOrNull() }
@@ -468,7 +475,7 @@ class MusicService : MediaLibraryService() {
             val tells = car || session.isMediaNotificationController(controller)
             if (tells && !library.signedIn()) tellCars(session as MediaLibrarySession, signedIn = false)
             // A car connecting to a session that outlived the last one: what played last waits for it again.
-            if (car && controller.packageName == MusicCallers.ANDROID_AUTO) bringBack(session as MediaLibrarySession, playback, library)
+            if (car && controller.packageName == MusicCallers.ANDROID_AUTO) bringBack(session as MediaLibrarySession, playback, library, car = true)
         }
 
         /**
