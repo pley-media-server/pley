@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The item page's buttons (apps/web/src/pages/item, design spec §4.3, §4.4). -->
+    <string name="item_play">播放</string>
+    <string name="item_resume">繼續觀看</string>
+    <string name="item_play_episode">播放 %1$s</string>
+    <string name="item_resume_episode">繼續播放 %1$s</string>
+    <string name="item_unavailable">不可用</string>
+    <string name="item_from_start">從頭播放</string>
+    <string name="item_watched">已觀看</string>
+    <string name="item_mark_watched">標記為已觀看</string>
+    <string name="item_mark_unwatched">標記為未觀看</string>
+    <string name="item_playlist">播放列表</string>
+    <string name="item_trailer">預告片</string>
+    <string name="item_more_actions">更多操作</string>
+    <string name="item_play_named">播放 %1$s</string>
+
+    <!-- The rest of the page. -->
+    <string name="item_your_rating">你的評分</string>
+    <string name="item_part_of">屬於 %1$s</string>
+    <string name="item_read_more">更多</string>
+    <string name="item_read_less">收起</string>
+    <string name="item_version">版本</string>
+    <string name="item_audio">音訊</string>
+    <!-- No track picked: each device plays its best track of the language. -->
+    <string name="item_audio_automatic">自動</string>
+    <string name="item_audio_automatic_language">自動（%1$s）</string>
+    <string name="item_subtitles">字幕</string>
+    <string name="item_subtitles_off">關閉</string>
+    <string name="item_extras">花絮</string>
+    <string name="item_cast">投屏</string>
+    <string name="item_guest_stars">客串演員</string>
+    <string name="item_more_like_this">更多類似內容</string>
+    <string name="item_details">詳情</string>
+    <string name="item_episodes">集</string>
+    <string name="item_more_episodes">%1$s 中的更多劇集</string>
+    <string name="item_no_episodes">未找到劇集。</string>
+    <string name="item_choose_season">選擇季</string>
+    <string name="item_media_info">媒體資訊</string>
+    <plurals name="item_media_versions">
+        <item quantity="other">（%1$d 個版本）</item>
+    </plurals>
+
+    <!-- Details (Credits.tsx, VideoItemView.tsx). -->
+    <string name="item_created_by">創作者</string>
+    <string name="item_director">導演</string>
+    <string name="item_directors">導演</string>
+    <string name="item_writer">編劇</string>
+    <string name="item_writers">編劇</string>
+    <plurals name="item_and_more">
+        <item quantity="other">還有 %1$d 位</item>
+    </plurals>
+    <string name="item_original_title">原名</string>
+    <string name="item_released">上映日期</string>
+    <string name="item_studio">製作公司</string>
+    <string name="item_network">電視網</string>
+    <string name="item_plays">播放次數</string>
+    <string name="item_versions">版本</string>
+
+    <!-- Media info (MediaInfo.tsx). -->
+    <string name="item_info_file">檔案</string>
+    <string name="item_info_container">容器格式</string>
+    <string name="item_info_size">大小</string>
+    <string name="item_info_duration">時長</string>
+    <string name="item_info_bitrate">位元速率</string>
+    <string name="item_info_video">影片</string>
+    <string name="item_info_audio">音訊</string>
+    <string name="item_info_streams">流</string>
+    <string name="item_stream_video">影片</string>
+    <string name="item_stream_audio">音訊</string>
+    <string name="item_stream_subtitle">字幕</string>
+
+    <!-- States (design spec §8). -->
+    <string name="item_failed">無法載入此內容</string>
+    <string name="item_not_found">未找到內容</string>
+    <string name="item_not_found_body">它可能已被移除，或此配置檔案無權檢視。</string>
+    <string name="item_nothing_to_play">無法播放：此內容沒有媒體檔案。</string>
+    <string name="item_loading">載入中</string>
+
+    <!-- The action sheet. -->
+    <string name="item_action_play">播放</string>
+    <string name="item_action_resume">繼續觀看</string>
+    <string name="item_action_from_start">從頭播放</string>
+    <string name="item_action_mark_watched">標記為已觀看</string>
+    <string name="item_action_mark_unwatched">標記為未觀看</string>
+    <string name="item_action_add_to_playlist">新增到播放列表…</string>
+    <string name="item_action_go_to_show">前往劇集</string>
+    <string name="item_action_go_to_season">前往季</string>
+    <string name="item_action_open">開啟</string>
+
+    <!-- Person pages (PersonPage.tsx). -->
+    <string name="person_movies">電影</string>
+    <string name="person_shows">劇集</string>
+    <string name="person_in_libraries">你的媒體庫中有 %1$s</string>
+    <string name="person_not_found">未找到此人</string>
+    <string name="person_not_found_body">該連結對應的人物在你的媒體庫中沒有任何內容。</string>
+    <string name="person_failed">無法載入此人物</string>
+</resources>

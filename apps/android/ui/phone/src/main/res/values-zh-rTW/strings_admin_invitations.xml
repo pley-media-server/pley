@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Managing the server, Invitations (apps/web/src/pages/settings/InvitesSettings.tsx). -->
+    <string name="admin_invitations_description">與朋友分享你的媒體庫：每個連結都可讓別人建立自己的賬戶。</string>
+    <string name="admin_invitations_new">新建邀請</string>
+    <string name="admin_invitations_empty_title">暫無邀請</string>
+    <string name="admin_invitations_empty_description">建立連結併發送給對方。你可以選擇對方可見的媒體庫和可選的年齡限制。</string>
+    <string name="admin_invitations_copy_link">複製連結</string>
+    <string name="admin_invitations_copy_link_of">複製邀請 %1$s 的連結</string>
+    <string name="admin_invitations_copied">已複製</string>
+    <string name="admin_invitations_status_used">已使用</string>
+    <string name="admin_invitations_status_expired">已過期</string>
+    <string name="admin_invitations_status_active">有效</string>
+    <plurals name="admin_invitations_days">
+        <item quantity="other">%1$d 天</item>
+    </plurals>
+    <string name="admin_invitations_never">永不</string>
+    <plurals name="admin_invitations_sign_ups_left">
+        <item quantity="other">還可註冊 %1$d 次</item>
+    </plurals>
+    <string name="admin_invitations_expires">%1$s 過期</string>
+    <string name="admin_invitations_expired">%1$s 已過期</string>
+    <string name="admin_invitations_never_expires">永不過期</string>
+    <string name="admin_invitations_created">創建於 %1$s</string>
+    <string name="admin_invitations_delete">刪除邀請 %1$s</string>
+    <string name="admin_invitations_delete_title">刪除邀請？</string>
+    <string name="admin_invitations_delete_message">連結將失效。已通過該連結建立的賬戶會保留。</string>
+    <string name="admin_invitations_delete_action">刪除</string>
+    <string name="admin_invitations_deleted">邀請已刪除</string>
+    <string name="admin_invitations_create_link">建立連結</string>
+    <string name="admin_invitations_intro">任何持有連結的人都可以建立自己的賬戶。他們會以伺服器好友（而非家庭成員）的身份加入，許可權由你在此選擇。</string>
+    <string name="admin_invitations_expires_label">連結過期時間</string>
+    <string name="admin_invitations_uses">可註冊次數</string>
+    <string name="admin_invitations_note">備註</string>
+    <string name="admin_invitations_note_hint">僅你可見，例如連結是給誰的。</string>
+    <string name="admin_invitations_pick_library">至少選擇一個媒體庫，或分享全部媒體庫。</string>
+    <string name="admin_invitations_at_least_one">連結必須允許至少一次註冊。</string>
+    <string name="admin_invitations_ready_title">邀請已就緒</string>
+    <string name="admin_invitations_ready_send">將此連結傳送給你要邀請的人：</string>
+    <string name="admin_invitations_ready_link">邀請連結</string>
+    <string name="admin_invitations_ready_expires">於 %1$s 過期。</string>
+    <string name="admin_invitations_share">分享</string>
+    <string name="admin_invitations_done">完成</string>
+</resources>

@@ -15,6 +15,18 @@
             "state" : "translated",
             "value" : "%lld %%"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld %%"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld %%"
+          }
         }
       }
     },
@@ -31,6 +43,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "1080p · 8 Mbit/s"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1080p · 8 Mbps"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1080p · 8 Mbps"
           }
         }
       }
@@ -49,6 +73,18 @@
             "state" : "translated",
             "value" : "480p · 1,5 Mbit/s"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "480p · 1.5 Mbps"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "480p · 1.5 Mbps"
+          }
         }
       }
     },
@@ -65,6 +101,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "720p · 4 Mbit/s"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "720p · 4 Mbps"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "720p · 4 Mbps"
           }
         }
       }
@@ -83,6 +131,18 @@
             "state" : "translated",
             "value" : "En bas"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "底部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "底部"
+          }
         }
       }
     },
@@ -99,6 +159,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Informelle"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手写体"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手寫體"
           }
         }
       }
@@ -117,6 +189,18 @@
             "state" : "translated",
             "value" : "Encadré sombre"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色底框"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色底框"
+          }
         }
       }
     },
@@ -133,6 +217,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Grande"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大"
           }
         }
       }
@@ -151,6 +247,18 @@
             "state" : "translated",
             "value" : "Moyenne"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中"
+          }
         }
       }
     },
@@ -167,6 +275,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chasse fixe"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等宽"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等寬"
           }
         }
       }
@@ -185,6 +305,18 @@
             "state" : "translated",
             "value" : "Aucun"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無"
+          }
         }
       }
     },
@@ -201,6 +333,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Original"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始"
           }
         }
       }
@@ -219,6 +363,18 @@
             "state" : "translated",
             "value" : "Plus haut de %lld %%"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上移 %lld %%"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上移 %lld %%"
+          }
         }
       }
     },
@@ -235,6 +391,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sans serif"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无衬线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無襯線"
           }
         }
       }
@@ -253,6 +421,18 @@
             "state" : "translated",
             "value" : "Serif"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "衬线"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "襯線"
+          }
         }
       }
     },
@@ -270,6 +450,18 @@
             "state" : "translated",
             "value" : "Petite"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小"
+          }
         }
       }
     },
@@ -286,6 +478,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Système"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "系统"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "系統"
           }
         }
       }

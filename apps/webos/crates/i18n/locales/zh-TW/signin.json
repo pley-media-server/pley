@@ -1,0 +1,58 @@
+{
+  "language": {
+    "choose": "選擇語言"
+  },
+  "servers": {
+    "title": "選擇你的伺服器",
+    "enterAddress": "輸入地址",
+    "searchNetwork": "搜尋此網路",
+    "forgetHint": "在已儲存的伺服器上按住 OK 即可忘記它。",
+    "checkingRange": "正在檢查 {{subnet}}1-254…",
+    "checkingNetwork": "正在檢查此網路…",
+    "looking": "正在你的網路上查詢 Pley…",
+    "noneFound": "未找到伺服器。請確保此電視和伺服器在同一網路中。",
+    "forgetTitle": "忘記 {{name}}？",
+    "forgetBody": "Pley 會將此電視從該伺服器退出登入，並刪除從它儲存的內容。",
+    "forget": "忘記",
+    "notYours": "非已儲存的伺服器",
+    "notEncrypted": "未加密",
+    "onNetwork": "在此網路中",
+    "connecting": "正在連線到 {{address}}…",
+    "unreachable": "無法連線"
+  },
+  "address": {
+    "title": "輸入你的伺服器地址",
+    "placeholder": "192.168.1.20 或 pley.example.com",
+    "connect": "連線",
+    "checking": "檢查中…",
+    "port": "預設使用埠 {{port}}。"
+  },
+  "problem": {
+    "unencrypted": "{{address}} 未加密：你觀看的內容可能在傳輸過程中被讀取。如果它有 https 地址，請使用該地址，或再次按「連線」繼續。"
+  },
+  "link": {
+    "title": "登入 Pley",
+    "changeServer": "更換伺服器",
+    "scan": "用手機掃描二維碼",
+    "goTo": "或前往",
+    "enterCode": "並輸入此驗證碼",
+    "sameWifi": "你的手機必須與此電視連線同一個 Wi-Fi。",
+    "otherDevice": "或在已登入的裝置上開啟 Pley → 關聯電視",
+    "newCode": "獲取新驗證碼",
+    "scanCamera": "用手機攝像頭掃描",
+    "gettingCode": "正在獲取驗證碼…",
+    "waiting": "等待審批…",
+    "retrying": "無法連線到伺服器。{{seconds}} 秒後重試",
+    "declined": "請求已被拒絕",
+    "expired": "驗證碼已過期：按 OK 獲取新的驗證碼",
+    "signedInAs": "已以 {{name}} 身份登入",
+    "signedIn": "已登入",
+    "twoStepRequired": "此伺服器要求兩步驗證：如果你還沒有設定，手機會引導你完成。"
+  },
+  "approve": {
+    "title": "在手機上批准",
+    "intro": "{{name}} 的配置檔案需要密碼：在已登入 Pley 的手機上批准此驗證碼，並在那裡選擇 {{name}}。",
+    "anyTitle": "以其他配置檔案登入",
+    "anyIntro": "在已登入 Pley 的手機上批准此驗證碼，並在那裡選擇配置檔案。"
+  }
+}

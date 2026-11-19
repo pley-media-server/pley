@@ -53,6 +53,24 @@
       "server": "",
       "device": ["FR_ca"],
       "out": "fr"
+    },
+    {
+      "account": "zh-Hant",
+      "server": "en",
+      "device": ["en-US"],
+      "out": "zh-TW"
+    },
+    {
+      "account": null,
+      "server": "zh-CN",
+      "device": ["de-DE"],
+      "out": "zh-CN"
+    },
+    {
+      "account": null,
+      "server": "fr",
+      "device": ["zh-HK"],
+      "out": "zh-TW"
     }
   ],
   "pickLanguageWithChoice": [
@@ -97,6 +115,20 @@
       "server": "es",
       "device": ["de-DE"],
       "out": "es"
+    },
+    {
+      "account": null,
+      "choice": "zh-CN",
+      "server": "fr",
+      "device": ["en-US"],
+      "out": "zh-CN"
+    },
+    {
+      "account": "zh-Hant",
+      "choice": "zh-CN",
+      "server": "en",
+      "device": ["en-US"],
+      "out": "zh-TW"
     }
   ],
   "keepsLanguage": [

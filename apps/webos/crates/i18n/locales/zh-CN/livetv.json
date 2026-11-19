@@ -1,0 +1,129 @@
+{
+  "title": "直播电视",
+  "tabs": {
+    "guide": "节目指南",
+    "channels": "频道"
+  },
+  "page": {
+    "failed": "直播电视未能加载",
+    "retry": "重试",
+    "notAllowedTitle": "此配置文件未开放直播电视",
+    "notAllowedBody": "管理员可在 Pley 网页应用的“设置 → 直播电视”中开放。",
+    "noneTitle": "暂无频道",
+    "noneBody": "管理员在 Pley 网页应用中添加 IPTV 提供商后，频道会显示在这里。",
+    "noMatch": "此分组中没有频道。",
+    "search": "搜索",
+    "noMatchTitle": "无匹配频道",
+    "noMatchSearch": "没有频道的名称、编号或当前节目包含“{{query}}”。",
+    "noneFavoritesTitle": "暂无收藏",
+    "noneFavoritesBody": "在频道上长按确定键并添加到收藏，即可在这里找到。",
+    "noneRecentTitle": "暂无观看记录",
+    "noneRecentBody": "你观看过的频道会显示在这里，最近的在前。"
+  },
+  "categories": {
+    "all": "所有频道",
+    "favorites": "收藏",
+    "recent": "最近观看",
+    "groups": "分组",
+    "regions": "地区",
+    "moreGroups": "更多分组",
+    "noGroup": "未分组",
+    "found": "找到的分组",
+    "resultsFor": "“{{query}}”的搜索结果"
+  },
+  "guide": {
+    "nothingNow": "当前节目指南为空",
+    "noGuide": "此频道没有节目指南",
+    "noInfo": "此时段暂无信息",
+    "noInfoShort": "暂无信息",
+    "next": "接下来 {{time}} · {{title}}"
+  },
+  "time": {
+    "today": "今天",
+    "tomorrow": "明天",
+    "yesterday": "昨天",
+    "minutesLeft_other": "剩余 {{count}} 分钟",
+    "hoursLeft_other": "剩余 {{count}} 小时",
+    "hoursMinutesLeft": "剩余 {{hours}} 小时 {{minutes}} 分钟",
+    "day": "{{month}}{{date}}日 {{weekday}}",
+    "weekdays": {
+      "sun": "周日",
+      "mon": "周一",
+      "tue": "周二",
+      "wed": "周三",
+      "thu": "周四",
+      "fri": "周五",
+      "sat": "周六"
+    },
+    "months": {
+      "jan": "1月",
+      "feb": "2月",
+      "mar": "3月",
+      "apr": "4月",
+      "may": "5月",
+      "jun": "6月",
+      "jul": "7月",
+      "aug": "8月",
+      "sep": "9月",
+      "oct": "10月",
+      "nov": "11月",
+      "dec": "12月"
+    }
+  },
+  "program": {
+    "watchNow": "立即观看",
+    "watchChannel": "观看频道",
+    "noDescription": "节目指南没有更多信息。",
+    "ended": "已结束。"
+  },
+  "favorites": {
+    "add": "添加到收藏",
+    "remove": "从收藏移除",
+    "failed": "收藏未保存：{{error}}",
+    "requestStopped": "请求已停止。"
+  },
+  "player": {
+    "tuning": "正在调台…",
+    "live": "直播",
+    "radio": "仅声音",
+    "hint": "▲▼ 切换频道 · 确定键打开频道列表 · 长按确定键查看更多",
+    "channels": "频道",
+    "channelGroups": "频道分组",
+    "searchChannels": "搜索频道",
+    "retry": "重试",
+    "watchAgain": "再次观看",
+    "otherChannels": "其他频道",
+    "backToGuide": "返回节目指南",
+    "noChannel": "没有 {{number}} 频道",
+    "thisChannel": "此频道",
+    "heldByYou": "你，在另一台设备上",
+    "someoneElse": "其他人",
+    "people_other": "{{count}} 人",
+    "connectionsWatching_other": "其 {{count}} 个连接正在观看：",
+    "takeOver": "改在此处观看",
+    "noneToTake": "可加入正在观看的频道，或待其停止后再试。",
+    "andMore_other": "还有 {{count}} 个"
+  },
+  "trouble": {
+    "busy": "所有连接均在使用中",
+    "stopped": "直播电视已停止",
+    "stoppedBody": "此频道已停止观看。",
+    "stoppedByAdmin": "直播电视已被服务器管理员停止。",
+    "stoppedElsewhere": "直播电视已被另一台设备停止。",
+    "missing": "此频道已不可用",
+    "notAllowed": "此配置文件未开放直播电视",
+    "offline": "无法访问你的服务器",
+    "unavailable": "{{channel}} 未播放",
+    "didNotStart": "{{channel}} 未能开始",
+    "channelStopped": "{{channel}} 已停止",
+    "olderTitle": "直播电视需要服务器上更新版本的 Pley",
+    "olderBody": "此服务器无法向电视自带播放器传送直播频道。请更新服务器上的 Pley 后重试。"
+  },
+  "engine": {
+    "said": "电视播放器提示：{{detail}}",
+    "late": "未能及时启动",
+    "ended": "流已结束",
+    "directEnded": "流已结束",
+    "stalled": "播放卡顿"
+  }
+}

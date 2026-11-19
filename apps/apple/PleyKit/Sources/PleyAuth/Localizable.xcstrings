@@ -15,6 +15,18 @@
             "state" : "translated",
             "value" : "un code PIN compte 4 à 8 chiffres"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN 为 4 到 8 位数字"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN 為 4 到 8 位數字"
+          }
         }
       }
     },
@@ -31,6 +43,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ce n’est pas une adresse de serveur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这不是服务器地址"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這不是伺服器地址"
           }
         }
       }
@@ -49,6 +73,18 @@
             "state" : "translated",
             "value" : "le trousseau ne peut pas être lu tant que cet appareil n’est pas déverrouillé (erreur %@)"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设备解锁后才能读取钥匙串（错误 %@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裝置解鎖後才能讀取鑰匙串（錯誤 %@）"
+          }
         }
       }
     },
@@ -65,6 +101,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "la réponse vient d’un autre serveur que celui auquel vous vous connectez : réessayez"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "响应来自另一台服务器，而不是你登录的那台：重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "響應來自另一臺伺服器，而不是你登入的那臺：重試"
           }
         }
       }
@@ -83,6 +131,18 @@
             "state" : "translated",
             "value" : "la réponse ne concernait pas cette connexion : réessayez"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "响应与这次登录不符：重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "響應與這次登入不符：重試"
+          }
         }
       }
     },
@@ -99,6 +159,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "le code a expiré : demandez-en un nouveau"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码已过期：重新获取"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "驗證碼已過期：重新獲取"
           }
         }
       }
@@ -117,6 +189,18 @@
             "state" : "translated",
             "value" : "le serveur a accordé plus que ce que demande cette application : session fermée"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器授予的权限超出应用所需：已退出登录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器授予的許可權超出應用所需：已退出登入"
+          }
         }
       }
     },
@@ -133,6 +217,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "le serveur n’a pas pu répondre (HTTP %@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器无法响应（HTTP %@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器無法響應（HTTP %@）"
           }
         }
       }
@@ -151,6 +247,18 @@
             "state" : "translated",
             "value" : "le serveur a refusé : %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器拒绝：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器拒絕：%@"
+          }
         }
       }
     },
@@ -167,6 +275,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "le serveur a refusé : réessayez"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器拒绝：重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器拒絕：重試"
           }
         }
       }
@@ -185,6 +305,18 @@
             "state" : "translated",
             "value" : "le serveur n’a envoyé aucun code : réessayez"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器没有发送验证码：重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器沒有傳送驗證碼：重試"
+          }
         }
       }
     },
@@ -201,6 +333,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "la réponse du serveur est illisible : réessayez"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取服务器的响应：重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法讀取伺服器的響應：重試"
           }
         }
       }
@@ -219,6 +363,18 @@
             "state" : "translated",
             "value" : "la page de connexion n’a pas pu s’ouvrir"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开登录页面"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法開啟登入頁面"
+          }
         }
       }
     },
@@ -235,6 +391,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "la connexion a pris trop de temps : réessayez"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录耗时过长：重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登入耗時過長：重試"
           }
         }
       }
@@ -253,6 +421,18 @@
             "state" : "translated",
             "value" : "la connexion a été annulée"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录已取消"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登入已取消"
+          }
         }
       }
     },
@@ -269,6 +449,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "cette version de Pley ne peut pas utiliser le trousseau : elle n’est pas signée (erreur %@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Pley 版本无法使用钥匙串：未签名（错误 %@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Pley 版本無法使用鑰匙串：未簽名（錯誤 %@）"
           }
         }
       }
@@ -287,6 +479,18 @@
             "state" : "translated",
             "value" : "ce code ne fonctionne plus : demandez-en un nouveau"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此验证码已失效：重新获取"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此驗證碼已失效：重新獲取"
+          }
         }
       }
     },
@@ -303,6 +507,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "le trousseau de cet appareil ne peut pas être utilisé (erreur %@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法使用此设备的钥匙串（错误 %@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法使用此裝置的鑰匙串（錯誤 %@）"
           }
         }
       }
@@ -321,6 +537,18 @@
             "state" : "translated",
             "value" : "ce profil demande son mot de passe : reconnectez-vous pour l’utiliser"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此配置文件需要密码：重新登录后才能使用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此配置檔案需要密碼：重新登入後才能使用"
+          }
         }
       }
     },
@@ -337,6 +565,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ce profil demande son mot de passe : reconnectez-vous avec un code et choisissez-le à ce moment-là"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此配置文件需要密码：用验证码重新登录并在其中选择"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此配置檔案需要密碼：用驗證碼重新登入並在其中選擇"
           }
         }
       }
@@ -355,6 +595,18 @@
             "state" : "translated",
             "value" : "le code PIN de ce profil est bloqué après trop d’essais incorrects. Son propriétaire ou un administrateur peut le réinitialiser"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输错次数过多，此配置文件的 PIN 已锁定。所有者或管理员可以重置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸錯次數過多，此配置檔案的 PIN 已鎖定。所有者或管理員可以重置"
+          }
         }
       }
     },
@@ -371,6 +623,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ce serveur a répondu depuis une adresse qui n’est pas sur votre réseau, sans chiffrement : votre session a été fermée pour protéger votre connexion"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器从不在你网络内、且未加密的地址响应：为保护登录安全，已退出登录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器從不在你網路內、且未加密的地址響應：為保護登入安全，已退出登入"
           }
         }
       }
@@ -389,6 +653,18 @@
             "state" : "translated",
             "value" : "ce serveur se présente comme %@ : ouvrez-le par cette adresse, ou vérifiez que le proxy placé devant lui transmet Host"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器自称为 %@：请用该地址打开，或检查其前面的代理是否传递 Host"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器自稱為 %@：請用該地址開啟，或檢查其前面的代理是否傳遞 Host"
+          }
         }
       }
     },
@@ -405,6 +681,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ce serveur ne peut pas vérifier les codes PIN"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器无法验证 PIN"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器無法驗證 PIN"
           }
         }
       }
@@ -423,6 +711,18 @@
             "state" : "translated",
             "value" : "ce serveur ne permet pas encore de se connecter avec un code : mettez-le à jour, ou connectez-vous avec votre navigateur"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器暂不支持验证码登录：更新服务器，或用浏览器登录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器暫不支援驗證碼登入：更新伺服器，或用瀏覽器登入"
+          }
         }
       }
     },
@@ -439,6 +739,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ce serveur envoie les applications à une autre adresse pour se connecter : Pley ne le fait pas"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器让应用前往另一地址登录：Pley 不会这样做"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器讓應用前往另一地址登入：Pley 不會這樣做"
           }
         }
       }
@@ -457,6 +769,18 @@
             "state" : "translated",
             "value" : "ce serveur vous envoie à une autre adresse pour autoriser l’application : Pley ne le fait pas"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器让你前往另一地址授权应用：Pley 不会这样做"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器讓你前往另一地址授權應用：Pley 不會這樣做"
+          }
         }
       }
     },
@@ -473,6 +797,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "cette connexion ne permet pas de changer de profil : reconnectez-vous pour l’autoriser"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此次登录无法切换配置文件：重新登录以允许"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此次登入無法切換配置檔案：重新登入以允許"
           }
         }
       }
@@ -491,6 +827,18 @@
             "state" : "translated",
             "value" : "trop de codes PIN incorrects : réessayez dans quelques minutes"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN 输错次数过多：几分钟后重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN 輸錯次數過多：幾分鐘後重試"
+          }
         }
       }
     },
@@ -507,6 +855,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "code PIN incorrect"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN 错误"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN 錯誤"
           }
         }
       }
@@ -525,6 +885,18 @@
             "state" : "translated",
             "value" : "vous ne pouvez pas passer à ce profil"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法切换到此配置文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法切換到此配置檔案"
+          }
         }
       }
     },
@@ -541,6 +913,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "vous n’avez pas autorisé l’application"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你未授权此应用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你未授權此應用"
           }
         }
       }

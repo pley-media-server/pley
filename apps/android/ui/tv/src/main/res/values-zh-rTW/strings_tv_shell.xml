@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The rail (design spec §2.1). -->
+    <string name="tv_shell_rail_search">搜尋</string>
+    <string name="tv_shell_rail_home">首頁</string>
+    <string name="tv_shell_rail_live_tv">直播電視</string>
+    <string name="tv_shell_rail_libraries">媒體庫</string>
+    <string name="tv_shell_rail_playlists">播放列表</string>
+    <string name="tv_shell_rail_collections">合集</string>
+    <string name="tv_shell_rail_now_playing">正在播放</string>
+    <string name="tv_shell_rail_drive">USB 裝置</string>
+    <string name="tv_shell_rail_settings">設定</string>
+    <string name="tv_shell_switch_profile">切換配置檔案</string>
+
+    <!-- What shows came from what was saved: the server can't be reached. -->
+    <string name="tv_shell_offline">Pley 離線</string>
+    <!-- A page with nothing saved, the server out of reach: "No answer in time. Check that…". -->
+    <string name="tv_shell_offline_title">無法連線到伺服器</string>
+    <string name="tv_shell_offline_body">%1$s 請檢查伺服器是否已開啟，以及此裝置是否在其網路中。</string>
+
+    <!-- The end of a row that has more. -->
+
+    <!-- Screens not built yet. -->
+    <string name="tv_shell_placeholder_title">%1$s 尚未上線</string>
+    <string name="tv_shell_placeholder_body">這是電視版 Pley，正在開發中：用遙控器瀏覽、用程式碼登入，並按電視自身的幀率和 HDR 播放。</string>
+    <string name="tv_shell_placeholder_next">開啟其他頁面</string>
+</resources>

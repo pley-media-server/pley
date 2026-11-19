@@ -1,0 +1,24 @@
+{
+  "actions": {
+    "cancel": "取消",
+    "close": "关闭",
+    "retry": "重试"
+  },
+  "network": {
+    "nothingAnswers": "那里没有响应",
+    "noAnswerInTime": "未及时收到响应",
+    "unknownAddress": "此网络上找不到该地址",
+    "secureConnection": "安全连接失败",
+    "cancelled": "已取消",
+    "anotherDevice": "另一台设备在该地址响应",
+    "serverFailed": "服务器无法响应",
+    "connectionFailed": "与服务器的连接失败"
+  },
+  "errors": {
+    "notPley": "那不是 Pley 服务器",
+    "unreadable": "无法读取服务器的响应：它是 Pley 吗，版本是否最新？",
+    "refused": "服务器拒绝了（HTTP {{status}}）",
+    "offlineTitle": "无法连接你的服务器",
+    "offlineBody": "{{reason}} 请确认服务器已开启，且此设备与其在同一网络中。"
+  }
+}

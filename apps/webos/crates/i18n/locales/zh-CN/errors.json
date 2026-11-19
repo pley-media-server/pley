@@ -1,0 +1,65 @@
+{
+  "network": {
+    "cancelled": "已取消",
+    "timedOut": "未及时响应",
+    "refused": "该地址无响应",
+    "unknownHost": "此网络中找不到该地址",
+    "secureConnection": "安全连接失败",
+    "tooBig": "服务器返回的数据过大",
+    "connectionFailed": "连接服务器失败",
+    "anotherDevice": "该地址由另一台设备响应",
+    "serverFailed": "服务器无法响应"
+  },
+  "server": {
+    "refused": "服务器拒绝（HTTP {{status}}）",
+    "refusedCode": "服务器拒绝（{{code}}）",
+    "couldntAnswer": "服务器无法响应（HTTP {{status}}）",
+    "stoppedByAdmin": "播放已被服务器管理员停止",
+    "signedOut": "你已退出登录：请重新登录",
+    "unreadable": "无法读取服务器的响应：它是否是 Pley，且为最新版本？",
+    "check": "{{reason}}请检查服务器是否开启，且此设备与其在同一网络中。"
+  },
+  "signIn": {
+    "tooOld": "此服务器版本过旧，不支持此应用",
+    "noCodes": "此服务器暂不支持电视用代码登录：请更新服务器",
+    "widerScope": "服务器授予的权限超出应用请求：已退出登录",
+    "unencrypted": "此服务器地址不在你的网络中，且连接未加密：请用 https 地址打开以登录",
+    "notAddress": "这不是服务器地址",
+    "unknownApp": "此服务器尚不支持 Pley 电视应用：请更新服务器",
+    "busy": "当前登录的电视过多：请稍后再试",
+    "codeSpent": "此代码已失效：请获取新代码",
+    "unreadable": "无法读取服务器的响应：请重试",
+    "approveElsewhere": "此服务器会跳转到其他地址审批电视：Pley 不会",
+    "signInElsewhere": "此服务器会跳转到其他地址登录：Pley 不会",
+    "callsItself": "此服务器自报地址为 {{address}}：请用该地址打开，或检查其前的代理是否传递 Host 头",
+    "unreachable": "无法访问服务器：请检查其地址及是否开启",
+    "otherServer": "这些令牌属于另一台服务器"
+  },
+  "oauth": {
+    "invalidClient": "服务器不认识此应用",
+    "unauthorizedClient": "服务器不允许此应用以此方式登录",
+    "invalidGrant": "服务器拒绝了此次登录",
+    "accessDenied": "登录被拒绝",
+    "expiredToken": "代码已过期",
+    "invalidScope": "服务器拒绝了此应用的请求",
+    "invalidRequest": "服务器无法理解该请求",
+    "unsupportedGrantType": "服务器不支持这种登录方式"
+  },
+  "profiles": {
+    "wrongPin": "PIN 码错误。",
+    "throttled": "PIN 码错误次数过多：请几分钟后再试",
+    "pinLocked": "此配置文件的 PIN 因多次输错已锁定。其所有者或管理员可重置。",
+    "needsPassword": "此配置文件需要密码：请重新登录以使用。",
+    "notAllowed": "你无法切换到此配置文件。",
+    "cantSwitch": "当前登录无法切换配置文件：请重新登录以启用。",
+    "ticketSpent": "此次投屏无法再切换配置文件：请重新投屏。",
+    "unreachable": "无法访问你的服务器：{{reason}}。",
+    "signedOut": "你已退出登录：请重新登录。",
+    "refused": "服务器拒绝：请重试。"
+  },
+  "connect": {
+    "badAddress": "输入地址，例如 nas、192.168.1.20 或 pley.example.com。",
+    "notPley": "{{address}} 有响应，但不是 Pley。",
+    "unreachable": "无法访问 {{address}}：{{reason}}。"
+  }
+}

@@ -344,7 +344,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     const language = req.headers["accept-language"] ?? "";
     requests.push({ method: req.method, path: url.pathname + url.search, agent, auth: auth ? auth.slice(0, 20) : "", language, at: Date.now() });
     // The API task's requests (JSON) say the language the app shows.
-    if (req.headers.accept === "application/json" && !/^(en|fr|es)$/.test(language)) problems.push(`${req.method} ${url.pathname}: Accept-Language ${JSON.stringify(language)}`);
+    if (req.headers.accept === "application/json" && !/^(en|fr|es|zh-CN|zh-TW)$/.test(language)) problems.push(`${req.method} ${url.pathname}: Accept-Language ${JSON.stringify(language)}`);
     if (!USER_AGENT.test(agent)) problems.push(`${req.method} ${url.pathname}: User-Agent ${JSON.stringify(agent)}`);
     if (url.searchParams.has("token")) problems.push(`${req.method} ${url.pathname}: a token in the address`);
 
@@ -489,7 +489,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     }
     const me = () => ({ id: 1, username: "anna", name: "Anna", ...fixture.trackDefaults, language: fixture.language });
     if (path === "/api/auth/me") return json(200, me());
-    // The account's language (docs/API.md, "Language"): one of the three,
+    // The account's language (docs/API.md, "Language"): one of the five,
     // or null for Automatic.
     if (path === "/api/me/language" && req.method === "PUT") {
       const asked = JSON.parse(body);
@@ -499,7 +499,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
         return json(404, { code: "not_found", message: "Not found" });
       }
       fixture.languagesSaved.push(asked.language);
-      if (asked.language !== null && !["en", "fr", "es"].includes(asked.language)) return json(400, { code: "bad_request", message: "no such language" });
+      if (asked.language !== null && !["en", "fr", "es", "zh-CN", "zh-TW"].includes(asked.language)) return json(400, { code: "bad_request", message: "no such language" });
       fixture.language = asked.language;
       return json(200, me());
     }

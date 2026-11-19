@@ -1,0 +1,10 @@
+{
+  "title": "觀看記錄",
+  "emptyTitle": "還沒有觀看記錄",
+  "empty": "看完的電影、劇集和歌曲會出現在這裡。",
+  "failed": "無法載入觀看記錄",
+  "more": "顯示更多",
+  "loading": "載入中…",
+  "plays_other": "{{count}} 次播放",
+  "remove": "從觀看記錄中移除 {{title}}"
+}

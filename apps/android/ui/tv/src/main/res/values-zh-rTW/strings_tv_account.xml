@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings, two panes (design spec §4.8). -->
+    <string name="tv_settings_title">設定</string>
+    <string name="tv_settings_profile">配置檔案</string>
+    <string name="tv_settings_playback">播放</string>
+    <string name="tv_settings_audio">音訊</string>
+    <string name="tv_settings_display">字幕與顯示</string>
+    <string name="tv_settings_server">伺服器</string>
+    <string name="tv_settings_diagnostics">診斷</string>
+    <string name="tv_settings_about">關於</string>
+    <!-- What a screen reader says of a switch row's state. -->
+    <string name="tv_settings_switch_on">開</string>
+    <string name="tv_settings_switch_off">關</string>
+
+    <!-- Profile: who is watching and their track defaults (AccountPage.tsx). -->
+    <string name="tv_account_role_managed">受管配置檔案</string>
+    <string name="tv_account_switch_profile">切換配置檔案</string>
+    <string name="tv_account_audio_language">音訊語言</string>
+    <string name="tv_account_subtitles">字幕</string>
+    <string name="tv_account_subtitle_language">字幕語言</string>
+    <string name="tv_account_file_default">檔案預設</string>
+    <string name="tv_account_same_as_audio">與音訊語言相同</string>
+    <string name="tv_account_change_on_web">在網頁上更改</string>
+    <string name="tv_account_defaults_read_only">此伺服器不允許應用更改這些設定：請在網頁上更改</string>
+    <string name="tv_account_saved">已儲存</string>
+    <string name="tv_account_subtitles_off">關</string>
+    <string name="tv_account_subtitles_off_hint">字幕保持關閉，直到你手動開啟。</string>
+    <string name="tv_account_subtitles_forced">僅限外語對白</string>
+    <string name="tv_account_subtitles_forced_hint">僅顯示強制字幕，用於標牌和外語對白。</string>
+    <string name="tv_account_subtitles_foreign">音訊為其他語言時</string>
+    <string name="tv_account_subtitles_foreign_hint">當音訊不是你的字幕語言時，自動顯示完整字幕。</string>
+    <string name="tv_account_subtitles_always">始終</string>
+    <string name="tv_account_subtitles_always_hint">只要有你的語言的字幕，就會自動開啟。</string>
+    <string name="tv_account_history">觀看記錄</string>
+    <string name="tv_account_sort_libraries">排序媒體庫</string>
+    <string name="tv_account_sort_libraries_value">你的順序，適用於所有裝置</string>
+    <string name="tv_account_always_start_as">始終以此身份啟動</string>
+    <!-- "Always start as" left unset: the TV starts as the profile it was left on, and asks only for a profile with a PIN. -->
+    <string name="tv_account_ask_who">上次使用的配置檔案</string>
+    <string name="tv_account_manage_web">在網頁上管理你的賬戶</string>
+    <string name="tv_account_manage_web_value">名稱、頭像、密碼、PIN、兩步驗證、裝置和應用</string>
+    <string name="tv_account_web_title">在網頁上管理你的賬戶</string>
+    <string name="tv_account_web_body">用手機掃描二維碼，或在同一個網路中的手機或電腦上開啟此地址：</string>
+    <string name="tv_account_close">關閉</string>
+
+    <!-- Sign out. -->
+    <string name="tv_account_sign_out">退出登入</string>
+    <string name="tv_account_sign_out_title">退出登入？</string>
+    <string name="tv_account_sign_out_body">你將退出 %1$s。</string>
+    <string name="tv_account_sign_out_intro">將這臺電視從 %1$s 退出登入。再次登入時需要新的配對碼。</string>
+    <string name="tv_account_cancel">取消</string>
+
+    <!-- Watch history. -->
+    <plurals name="tv_account_history_count">
+        <item quantity="other">%1$d 次播放</item>
+    </plurals>
+    <string name="tv_account_history_empty_title">暫無記錄</string>
+    <string name="tv_account_history_empty">看完的電影、劇集和歌曲會顯示在這裡。</string>
+    <string name="tv_account_history_failed">無法載入觀看記錄</string>
+    <string name="tv_account_history_more">顯示更多</string>
+    <string name="tv_account_history_loading">載入中…</string>
+    <string name="tv_account_history_remove">從記錄中移除 %1$s</string>
+    <string name="tv_account_retry">重試</string>
+    <string name="tv_account_back">返回</string>
+
+    <!-- Playback. -->
+    <string name="tv_settings_quality">畫質</string>
+    <string name="tv_settings_quality_original">原始</string>
+    <string name="tv_settings_quality_original_hint">完整畫質。網路較慢時可能卡頓。</string>
+    <string name="tv_settings_quality_automatic">自動</string>
+    <string name="tv_settings_quality_automatic_hint">根據網路情況自動調整。</string>
+    <!-- "8 Mbps 1080p", "30 Mbps 4K": the lines, then the bitrate. -->
+    <string name="tv_settings_quality_preset">%2$d Mbps %1$s</string>
+    <string name="tv_settings_refresh_rate">匹配重新整理率</string>
+    <string name="tv_settings_refresh_auto">自動</string>
+    <string name="tv_settings_refresh_auto_hint">對 10 分鐘及以上的影片，跟隨電視的匹配內容設定</string>
+    <string name="tv_settings_refresh_always">始終</string>
+    <string name="tv_settings_refresh_always_hint">無論電視自身設定如何，都切換到影片的幀率</string>
+    <string name="tv_settings_refresh_off">關</string>
+    <string name="tv_settings_refresh_off_hint">電視保持自己的重新整理率</string>
+    <string name="tv_settings_autoplay">自動播放下一集</string>
+    <string name="tv_settings_autoplay_hint">10 秒倒計時後</string>
+    <string name="tv_settings_playback_details">播放詳情</string>
+    <string name="tv_settings_playback_details_hint">在畫面上顯示影片的播放方式（直連、重封裝或轉碼）</string>
+    <string name="tv_settings_home_banner">首頁橫幅</string>
+    <string name="tv_settings_home_banner_hint">在首頁頂部顯示精選內容</string>
+    <string name="tv_settings_reduce_motion">減少動態效果</string>
+    <string name="tv_settings_reduce_motion_hint">不使用縮放、滑動或淡入淡出：內容原地切換</string>
+    <string name="tv_settings_advanced">高階</string>
+    <string name="tv_settings_tunneling">直通播放</string>
+    <string name="tv_settings_tunneling_hint">在某些電視上畫面更流暢；在另一些電視上可能導致播放失敗</string>
+    <string name="tv_settings_software_video">軟解影片</string>
+    <string name="tv_settings_software_video_hint">除錯版本：讓模擬器在沒有硬體解碼器時也能播放影片</string>
+
+    <!-- Audio: passthrough per format. -->
+    <string name="tv_settings_passthrough_intro">將環繞聲傳送到電視或功放，或在此處解碼。</string>
+    <string name="tv_settings_format_ac3" translatable="false">Dolby Digital</string>
+    <string name="tv_settings_format_eac3" translatable="false">Dolby Digital Plus</string>
+    <string name="tv_settings_format_atmos" translatable="false">Dolby Atmos</string>
+    <string name="tv_settings_format_truehd" translatable="false">Dolby TrueHD</string>
+    <string name="tv_settings_format_dts" translatable="false">DTS</string>
+    <string name="tv_settings_format_dts_hd">DTS-HD 和 DTS:X</string>
+    <string name="tv_settings_passthrough_auto">自動</string>
+    <string name="tv_settings_passthrough_auto_hint">按電視或功放宣告支援的方式</string>
+    <string name="tv_settings_passthrough_on">開</string>
+    <string name="tv_settings_passthrough_on_hint">始終透傳</string>
+    <string name="tv_settings_passthrough_off">關</string>
+    <string name="tv_settings_passthrough_off_hint">從不：由 Pley 轉換</string>
+
+    <!-- Subtitles and display. -->
+    <string name="tv_settings_subtitle_size">字幕大小</string>
+    <string name="tv_settings_size_small">小</string>
+    <string name="tv_settings_size_medium">正常</string>
+    <string name="tv_settings_size_large">大</string>
+    <string name="tv_settings_size_largest">超大</string>
+    <string name="tv_settings_subtitle_background">字幕背景</string>
+    <string name="tv_settings_background_none">無</string>
+    <string name="tv_settings_background_box">深色底框</string>
+    <string name="tv_settings_subtitle_font">字幕字型</string>
+    <!-- The system's own typefaces. -->
+    <string name="tv_settings_font_sans">無襯線</string>
+    <string name="tv_settings_font_serif">襯線</string>
+    <string name="tv_settings_font_monospace">等寬</string>
+    <string name="tv_settings_font_casual">手寫風</string>
+    <string name="tv_settings_subtitle_position">字幕位置</string>
+    <!-- How far subtitles are raised from the bottom of the picture. -->
+    <string name="tv_settings_position_bottom">底部</string>
+    <string name="tv_settings_position_raised">略高</string>
+    <string name="tv_settings_position_higher">較高</string>
+    <string name="tv_settings_position_highest">最高</string>
+
+    <!-- Server, Diagnostics, About. -->
+    <string name="tv_settings_server_value">這臺電視使用的伺服器</string>
+    <string name="tv_settings_server_unknown">無伺服器</string>
+    <string name="tv_settings_switch_server">切換伺服器</string>
+    <string name="tv_settings_open_diagnostics">開啟診斷</string>
+    <string name="tv_settings_open_diagnostics_value">這臺電視能解碼和顯示什麼，以及原因</string>
+    <string name="tv_settings_show_frame_rate">顯示幀率</string>
+    <string name="tv_settings_show_frame_rate_hint">畫面變化時顯示在頂部：每秒幀數、最長幀和延遲幀</string>
+    <string name="tv_settings_version">版本</string>
+    <string name="tv_settings_licences">開源許可</string>
+    <string name="tv_settings_credits">致謝</string>
+    <string name="tv_diagnostics_title">診斷</string>
+    <string name="tv_diagnostics_device">這臺電視</string>
+    <string name="tv_diagnostics_app">應用</string>
+    <string name="tv_diagnostics_app_value" translatable="false">Pley %1$s</string>
+    <string name="tv_diagnostics_plays">支援播放的內容</string>
+    <string name="tv_diagnostics_probing">正在檢查這臺電視的播放能力…</string>
+    <string name="tv_diagnostics_probe_failed">對這臺電視的檢查失敗。</string>
+    <string name="tv_diagnostics_probe_again">重新檢查</string>
+</resources>

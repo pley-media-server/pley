@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Artist and album pages (apps/web/src/pages/item/MusicViews.tsx). -->
+    <string name="music_artist">音樂人</string>
+    <string name="music_album">專輯</string>
+    <string name="music_albums">專輯</string>
+    <string name="music_play">播放</string>
+    <string name="music_pause">暫停</string>
+    <string name="music_shuffle">隨機播放</string>
+    <string name="music_more">更多</string>
+    <string name="music_less">收起</string>
+    <string name="music_disc">第 %1$d 張碟</string>
+    <string name="music_no_albums">未找到專輯。</string>
+    <string name="music_no_tracks">未找到曲目</string>
+    <string name="music_nothing_to_play">無法播放：沒有曲目。</string>
+    <string name="music_artist_not_found">未找到音樂人</string>
+    <string name="music_album_not_found">未找到專輯</string>
+    <string name="music_not_found_body">它可能已被移除，或此配置檔案無權檢視。</string>
+    <string name="music_artist_failed">無法載入此音樂人</string>
+    <string name="music_album_failed">無法載入此專輯</string>
+
+    <!-- Now Playing and the mini player (design spec §3.6, §4.10). -->
+    <string name="music_now_playing">正在播放</string>
+    <string name="music_close_now_playing">關閉“正在播放”</string>
+    <string name="music_queue">播放佇列</string>
+    <string name="music_next">下一個</string>
+    <string name="music_previous">上一個</string>
+    <string name="music_shuffle_on">隨機播放</string>
+    <string name="music_shuffle_off">關閉隨機播放</string>
+    <string name="music_position">曲目進度</string>
+    <string name="music_loading">載入中…</string>
+    <string name="music_nothing_playing">當前沒有播放</string>
+    <string name="music_nothing_playing_body">播放專輯或音樂人後，會顯示在這裡。</string>
+    <string name="music_error_offline">無法連線伺服器。</string>
+    <string name="music_error_signed_out">請重新登入後再播放。</string>
+    <string name="music_error_stopped">伺服器已停止播放。</string>
+    <string name="music_error_unplayable">此曲目無法播放。</string>
+</resources>

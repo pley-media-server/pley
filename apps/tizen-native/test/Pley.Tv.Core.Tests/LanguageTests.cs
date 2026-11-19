@@ -48,6 +48,12 @@ public class LanguageFixtureTests
         Assert.Equal("fr", Languages.Supported("fr-CA"));
         Assert.Equal("es", Languages.Supported("ES_mx"));
         Assert.Equal("en", Languages.Supported("en_US.UTF-8"));
+        Assert.Equal("zh-CN", Languages.Supported("zh-CN"));
+        Assert.Equal("zh-TW", Languages.Supported("zh_TW"));
+        Assert.Equal("zh-CN", Languages.Supported("zh-Hans"));
+        Assert.Equal("zh-TW", Languages.Supported("zh_Hant"));
+        Assert.Equal("zh-TW", Languages.Supported("zh-HK"));
+        Assert.Equal("zh-CN", Languages.Supported("zh"));
         Assert.Null(Languages.Supported("de-DE"));
         Assert.Null(Languages.Supported(""));
         Assert.Null(Languages.Supported(null));
@@ -230,6 +236,11 @@ public class StringsTests
     [InlineData("es", 1, "one")]
     [InlineData("es", 1_000_000, "many")]
     [InlineData("es", 1_500_000, "other")]
+    [InlineData("zh-CN", 0, "other")]
+    [InlineData("zh-CN", 1, "other")]
+    [InlineData("zh-CN", 1_000_000, "other")]
+    [InlineData("zh-TW", 1, "other")]
+    [InlineData("zh-TW", 2, "other")]
     public void A_count_takes_the_plural_form_CLDR_gives(string language, long count, string form) =>
         Assert.Equal(form, Strings.Plural(language, count));
 
@@ -353,15 +364,15 @@ public class AppLanguageTests
         var state = State(store, new FakeServer(), new FakeScheduler(), "fr-FR");
         var globe = new LanguageGlobe(state);
         Assert.Equal("FR", globe.Label);
-        Assert.Equal(new[] { "Automatic (Français)", "English", "Français", "Español" }, globe.Choices.Select(c => c.Label));
-        Assert.Equal(new[] { true, false, false, false }, globe.Choices.Select(c => c.Checked));
+        Assert.Equal(new[] { "Automatic (Français)", "English", "Français", "Español", "简体中文", "繁體中文" }, globe.Choices.Select(c => c.Label));
+        Assert.Equal(new[] { true, false, false, false, false, false }, globe.Choices.Select(c => c.Checked));
         Assert.Equal(0, globe.Focus);
 
         globe.Choose(3);
         Assert.Equal(("es", "es", "es"), (state.Language.Value, state.DeviceLanguage, store.Get("pley.deviceLanguage")));
         Assert.Equal("ES", globe.Label);
         Assert.Equal(3, globe.Focus);
-        Assert.Equal(new[] { false, false, false, true }, globe.Choices.Select(c => c.Checked));
+        Assert.Equal(new[] { false, false, false, true, false, false }, globe.Choices.Select(c => c.Checked));
         // The screen drawn again in Spanish gives the globe focus, once.
         Assert.True(globe.TakeFocus());
         Assert.False(globe.TakeFocus());
@@ -561,5 +572,18 @@ public sealed class SignInWordsTests : IDisposable
         // A language Pley hasn't is English.
         Strings.Use("de");
         Assert.Equal("en", Strings.Language);
+    }
+
+    [Fact]
+    public void Chinese_is_shown_under_its_whole_code_with_only_one_plural_form()
+    {
+        Strings.Use("zh-Hant");
+        Assert.Equal("zh-TW", Strings.Language);
+        Assert.Equal(new[] { "other" }, Strings.PluralForms(Strings.Language));
+        Assert.Equal("other", Strings.Plural(Strings.Language, 1));
+        Assert.Equal("繁體中文", Languages.NameOf(Strings.Language));
+        Strings.Use("zh-CN");
+        Assert.Equal("zh-CN", Strings.Language);
+        Assert.Equal("简体中文", Languages.NameOf(Strings.Language));
     }
 }

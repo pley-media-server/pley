@@ -52,10 +52,24 @@ struct LanguageTests {
         #expect(Language.of(" FR_ca") == .french)
         #expect(Language.of("es-419") == .spanish)
         #expect(Language.of("en-GB") == .english)
+        #expect(Language.of("zh-Hans") == .simplifiedChinese)
+        #expect(Language.of("zh-CN") == .simplifiedChinese)
+        #expect(Language.of("zh") == .simplifiedChinese)
+        #expect(Language.of("zh-Hant") == .traditionalChinese)
+        #expect(Language.of("zh-TW") == .traditionalChinese)
+        #expect(Language.of("zh_HK") == .traditionalChinese)
+        #expect(Language.of("zh-MO") == .traditionalChinese)
         #expect(Language.of("de") == nil)
         #expect(Language.of("") == nil)
         #expect(Language.of(nil) == nil)
-        #expect(Language.ofDevice(["de-DE", "zh-Hans-CN", "es-MX", "fr-FR"]) == .spanish)
+        #expect(Language.ofDevice(["de-DE", "zh-Hans-CN", "es-MX", "fr-FR"]) == .simplifiedChinese)
+    }
+
+    @Test func theChineseNamesAndMarks() {
+        #expect(Language.simplifiedChinese.autonym == "简体中文")
+        #expect(Language.traditionalChinese.autonym == "繁體中文")
+        #expect(Language.simplifiedChinese.short == "简")
+        #expect(Language.traditionalChinese.short == "繁")
     }
 
     /// The device's own locale where it is in the language shown, so its region's ways stay.

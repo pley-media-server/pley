@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- My List: the item page's button and the tiles' actions. -->
+    <string name="tv_item_add_to_my_list">新增到我的片單</string>
+    <string name="tv_item_in_my_list">已在我的片單</string>
+    <string name="tv_item_remove_from_my_list">從我的片單中移除</string>
+    <!-- A Continue Watching tile's actions. -->
+    <string name="tv_item_remove_from_continue_watching">從繼續觀看中移除</string>
+</resources>

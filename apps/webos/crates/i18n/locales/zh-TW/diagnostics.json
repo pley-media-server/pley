@@ -1,0 +1,33 @@
+{
+  "facts": {
+    "model": "型號",
+    "system": "系統",
+    "firmware": "韌體",
+    "tier": "檔位",
+    "savedData": "儲存的資料",
+    "lostOnRestart": "電視重啟後丟失"
+  },
+  "tiers": {
+    "low": "低",
+    "mid": "中",
+    "high": "高"
+  },
+  "lines": {
+    "tv": "電視：{{model}}",
+    "tvFirmware": "電視：{{model}}（韌體 {{firmware}}）",
+    "webosRelease": "webOS {{version}} · 版本 {{release}}",
+    "panel": "面板：{{panel}}",
+    "hdr": "HDR：{{formats}}",
+    "none": "無",
+    "dolbyVision": "杜比視界：配置檔案 {{profiles}}，來自 {{containers}}",
+    "video": "影片：{{decoders}}",
+    "audioDecoded": "音訊解碼：{{formats}}",
+    "sent": "傳送給接收端：{{formats}}",
+    "nothing": "無",
+    "sound": "聲音：{{output}}",
+    "digital": "{{output}}（數字 {{digital}}）",
+    "unknown": "未知",
+    "streams": "流：HLS {{segments}}",
+    "pipeline": "解碼管線：{{video}}；{{audio}}"
+  }
+}

@@ -28,6 +28,12 @@ sub test_i18n_tags_match_by_their_language()
     tkEqual(i18nSupported("fr-CA"), "fr")
     tkEqual(i18nSupported("ES_mx"), "es")
     tkEqual(i18nSupported("en_US"), "en")
+    tkEqual(i18nSupported("zh-CN"), "zh-CN")
+    tkEqual(i18nSupported("zh_TW"), "zh-TW")
+    tkEqual(i18nSupported("zh-Hans"), "zh-CN")
+    tkEqual(i18nSupported("zh_Hant"), "zh-TW")
+    tkEqual(i18nSupported("zh-HK"), "zh-TW", "a region that writes traditional characters")
+    tkEqual(i18nSupported("zh"), "zh-CN", "Chinese without a script or region")
     tkEqual(i18nSupported("de_DE"), "")
     tkEqual(i18nSupported(""), "")
     tkEqual(i18nSupported(invalid), "")
@@ -37,13 +43,17 @@ sub test_i18n_tags_match_by_their_language()
     tkEqual(i18nSystem("es", "fr_CA"), "fr")
     tkEqual(i18nName("fr"), "Français")
     tkEqual(i18nName("es"), "Español")
+    tkEqual(i18nName("zh-CN"), "简体中文")
+    tkEqual(i18nName("zh-TW"), "繁體中文")
 end sub
 
 sub test_i18n_counts_take_the_plural_form_cldr_gives()
     cases = [
         ["en", 0, "other"], ["en", 1, "one"], ["en", 2, "other"], ["en", 1000000, "other"],
         ["fr", 0, "one"], ["fr", 1, "one"], ["fr", 1.5, "one"], ["fr", 2, "other"], ["fr", 1000000, "many"], ["fr", 3000000, "many"], ["fr", 1000001, "other"],
-        ["es", 0, "other"], ["es", 1, "one"], ["es", 1000000, "many"], ["es", 1500000, "other"]
+        ["es", 0, "other"], ["es", 1, "one"], ["es", 1000000, "many"], ["es", 1500000, "other"],
+        ["zh-CN", 0, "other"], ["zh-CN", 1, "other"], ["zh-CN", 1000000, "other"],
+        ["zh-TW", 2, "other"], ["zh-TW", 1500000, "other"]
     ]
     for each c in cases
         tkEqual(i18nPluralForm(c[0], c[1]), c[2], c[0] + " " + Str(c[1]).Trim())
@@ -63,6 +73,13 @@ sub test_i18n_numbers_are_written_the_languages_way()
     tkEqual(i18nNumber(1234), "1234", "Spanish groups from five digits")
     tkEqual(i18nNumber(12345), "12.345")
     tkEqual(i18nNumber(0.25, 2), "0,25")
+    i18nUse("zh-CN")
+    tkEqual(i18nNumber(12345), "12,345", "Chinese groups with a comma")
+    tkEqual(i18nNumber(7.25, 1), "7.3", "Chinese writes a decimal point")
+    i18nUse("zh-TW")
+    tkEqual(i18nNumber(12345), "12,345")
+    tkEqual(i18nNumber(0.25, 2), "0.25")
+    i18nUse("en")
 end sub
 
 ' Words of a made-up area, in place of the package's.
@@ -180,13 +197,16 @@ end sub
 
 sub test_i18n_the_choices_name_automatic_and_each_language_in_itself()
     choice = i18nChoices("fr", "")
-    tkEqual(choice.labels, ["Automatic (Français)", "English", "Français", "Español"])
-    tkEqual(choice.values, ["", "en", "fr", "es"])
+    tkEqual(choice.labels, ["Automatic (Français)", "English", "Français", "Español", "简体中文", "繁體中文"])
+    tkEqual(choice.values, ["", "en", "fr", "es", "zh-CN", "zh-TW"])
     tkEqual(choice.current, 0)
     i18nUse("es")
     choice = i18nChoices("en", "es")
     tkEqual(choice.labels[0], "Automático (English)")
     tkEqual(choice.current, 3)
+    choice = i18nChoices("en", "zh-TW")
+    tkEqual(choice.current, 5, "Traditional Chinese's place in the settings")
+    tkEqual(choice.labels[5], "繁體中文")
 end sub
 
 sub test_i18n_errors_and_sign_in_speak_the_language_shown()

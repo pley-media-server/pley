@@ -287,8 +287,8 @@ behind it.
   - **Language** (first on iPhone and iPad, the General tab on the Mac,
     under the profile on Apple TV): the account's language, Automatic
     ("Automatic (Français)": the language it stands for here, named in
-    itself) or English, Français, Español, saved on the server for every
-    device it signs in on ([Languages](#languages)).
+    itself) or English, Français, Español, 简体中文, 繁體中文, saved on the
+    server for every device it signs in on ([Languages](#languages)).
   - **Playback**: Quality ("Quality on Wi-Fi" and "Quality on mobile
     data" on a device with mobile data): Automatic, Original or a quality,
     the one each playback starts with ([Quality](#quality)); and Play the
@@ -1856,9 +1856,12 @@ another drops it.
 
 ## Languages
 
-Pley for Apple is in English, French and Spanish, as the web app and the
-Android app are, and says a thing the way they do. The language it shows
-follows [docs/API.md](API.md#language), as the other apps decide it:
+Pley for Apple is in English, French, Spanish and Simplified and Traditional
+Chinese, as the web app and the Android app are, and says a thing the way
+they do. Apple uses `zh-Hans` and `zh-Hant` for the two Chineses in its
+catalogs and requests, which the server answers as `zh-CN` and `zh-TW`.
+The language it shows follows [docs/API.md](API.md#language), as the other
+apps decide it:
 
 1. the account's own (`User.language` from `GET /api/auth/me`), set with
    Settings → Language (`PUT /api/me/language`; Automatic is `null`);
@@ -1871,19 +1874,20 @@ follows [docs/API.md](API.md#language), as the other apps decide it:
 The app starts in the language it showed last, before the server has
 said anything, and changes once it knows the account's; it changes at
 once, without starting again, when a language is chosen. Every request
-carries `Accept-Language` with the language shown, so Home's and the
-libraries' row titles, which the server writes, come back in it, and they
-are read again when it changes. Dates, times and numbers are written in
-the device's own locale where the device is in that language, so en-GB
-keeps its 24-hour clock, else in the language alone.
+carries `Accept-Language` with the language shown (`zh-Hans` or `zh-Hant`
+for Chinese), so Home's and the libraries' row titles, which the server
+writes, come back in it, and they are read again when it changes. Dates,
+times and numbers are written in the device's own locale where the device
+is in that language, so en-GB keeps its 24-hour clock, else in the
+language alone.
 
-The globe, before signing in, shows the language by its two letters,
-small and out of the way: at the top left of the servers and the sign-in
-on iPhone and iPad, in the toolbar on the Mac; on Apple TV at the bottom
-right of the servers, on Add a server's line, and at the top right of the
-code screen, on its title's line. Its menu offers Automatic (the device's
-own) and each language; the choice is kept on the device, and an
-account's Automatic means it. A Pley from before languages keeps no
+The globe, before signing in, shows the language by its short mark ("EN",
+"FR", "ES", "简", "繁"), small and out of the way: at the top left of
+the servers and the sign-in on iPhone and iPad, in the toolbar on the Mac;
+on Apple TV at the bottom right of the servers, on Add a server's line,
+and at the top right of the code screen, on its title's line. Its menu
+offers Automatic (the device's own) and each language; the choice is
+kept on the device, and an account's Automatic means it. A Pley from before languages keeps no
 account's language: it names none in `GET /api/server` and answers
 `PUT /api/me/language` with `404` or `405`. Signed in to one, the Language
 row is this device's choice, as the globe is, shown at once and kept on
@@ -1894,11 +1898,11 @@ language.
 How it works:
 
 - **Words** are in String Catalogs (`Localizable.xcstrings`), English the
-  source and the key, with French and Spanish: one for each app target
-  (`Pley/`, `tvOS/`, `TopShelf/`) and one for each PleyKit module with
-  words, which `Package.swift` processes and its code finds in
+  source and the key, with French, Spanish and both Chineses: one for each
+  app target (`Pley/`, `tvOS/`, `TopShelf/`) and one for each PleyKit module
+  with words, which `Package.swift` processes and its code finds in
   `Bundle.module`. Counts use the catalogs' plural variations: French and
-  Spanish have `one`, `many` and `other`.
+  Spanish have `one`, `many` and `other`; Chinese has only `other`.
 - **The language shown** is decided by `AppModel` (`language`, `locale`)
   with `Language.pick`'s order, tested against the Samsung apps' and the
   Android app's fixture (`packages/tv/test/fixtures/language.json`), and
@@ -1924,10 +1928,12 @@ How it works:
   and a separator, are `Text(verbatim:)`, so they aren't catalog keys.
 - **Top Shelf** reads the language the app saved with its row.
 - **The check**, `scripts/check-strings.py`, fails on a catalog entry
-  without its French or Spanish, a missing plural form, placeholders that
-  differ from the English, or a stale entry; given the three app builds,
-  also on a word in the code that no catalog has, or a catalog key no code
-  uses ([Building and testing](#building-and-testing)).
+  without its French, Spanish or Chinese, a missing plural form (the forms
+  each language needs: `one`, `many`, `other` for French and Spanish, only
+  `other` for Chinese), placeholders that differ from the English, or a
+  stale entry; given the three app builds, also on a word in the code that
+  no catalog has, or a catalog key no code uses
+  ([Building and testing](#building-and-testing)).
 
 ## Building and testing
 
@@ -2001,11 +2007,12 @@ xcrun simctl launch booted com.formandelement.pley
 ```
 
 The String Catalogs are checked by `scripts/check-strings.py`: every key
-has a French and a Spanish translation, every plural form French and
-Spanish need (`one`, `many`, `other`) and the same placeholders as the
-English, and no entry is stale. Given the derived data of the three app
-builds, it also compares the catalogs with the strings the compiler found
-in the code, so a word without its translation, or one left behind,
+has a French, a Spanish and a Simplified and a Traditional Chinese
+translation, every plural form each language needs (`one`, `many`, `other`
+for French and Spanish, only `other` for Chinese) and the same placeholders
+as the English, and no entry is stale. Given the derived data of the three
+app builds, it also compares the catalogs with the strings the compiler
+found in the code, so a word without its translation, or one left behind,
 fails:
 
 ```sh

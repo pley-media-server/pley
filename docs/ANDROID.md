@@ -75,26 +75,30 @@ the device; until the TV has heard it for that profile, the start asks
 
 ### Language
 
-Pley is in English, French and Spanish. The app shows the language of the
-account, else this device's (one picked with the globe, below, else the
-first of the device's languages that Pley has), else the server
-language, else English ([API.md](API.md#language)): `language` of
-`GET /api/auth/me` and of `GET /api/server`, which the app asks while
-signed in. Without an account (no server chosen, or signed out of the one
-chosen), it shows this device's. A code Pley doesn't have counts as none,
-and a region doesn't count (`fr-CA` is French).
+Pley is in English, French, Spanish, Simplified Chinese and Traditional
+Chinese. The app shows the language of the account, else this device's
+(one picked with the globe, below, else the first of the device's
+languages that Pley has), else the server language, else English
+([API.md](API.md#language)): `language` of `GET /api/auth/me` and of
+`GET /api/server`, which the app asks while signed in. Without an account
+(no server chosen, or signed out of the one chosen), it shows this
+device's. A code Pley doesn't have counts as none, and a region doesn't
+count for the first three (`fr-CA` is French). Chinese is the one pair a
+tag's region or script chooses: `zh-CN`, `zh-Hans` and plain `zh` are
+Simplified, `zh-TW`, `zh-Hant`, `zh-HK` and `zh-MO` Traditional.
 
 The screens shown before signing in have a globe, labelled with the
-language shown by its two letters ("FR") and heard as "Choose a
-language". On phones it is at the top left of the sign-in screen
-(choosing a server, or typing its address) and of the code screen, in
-line with their text; "Continue in browser" has an arrow out of a box, so
+language shown by its mark ("FR", or "简"/"繁" for the two Chineses) and
+heard as "Choose a language". On phones it is at the top left of the
+sign-in screen (choosing a server, or typing its address) and of the code
+screen, in line with their text; "Continue in browser" has an arrow out of a box, so
 the globe only means the language. On TVs it is a small button at the
 bottom right of "Choose your server", on the forget hint's line, and at
 the top right of the code screen, on the logo's line: Down from the
 buttons, or Up from Change server, reaches it, and Left or Right never
 does. It opens **Automatic (English)** (the device's language where Pley
-has it, else English), then English, Français and Español, each named in itself,
+has it, else English), then English, Français, Español, 简体中文 and
+繁體中文, each named in itself,
 the current choice checked: in a sheet on phones, in a side panel on TVs,
 as Settings' choices open. A pick shows at once and is this device's
 language, kept on the device and read before the first screen; Automatic
@@ -104,11 +108,11 @@ Automatic means this one.
 Settings has a **Language** row, on phones at the top and on TVs under
 Profile: **Automatic**, naming what that is on this device ("Automatic
 (Français)": this device's language, or the server's on a device in a
-language Pley doesn't have), then English, Français and Español, each
-named in itself. A choice is the account's, on every device it signs
-in on (`PUT /api/me/language`); it shows at once, and is put back, with a
-word, if the server refuses. A Pley from before languages keeps no
-account's language (its `GET /api/server` names none, and the route
+language Pley doesn't have), then English, Français, Español, 简体中文
+and 繁體中文, each named in itself. A choice is the account's, on every
+device it signs in on (`PUT /api/me/language`); it shows at once, and is
+put back, with a word, if the server refuses. A Pley from before languages
+keeps no account's language (its `GET /api/server` names none, and the route
 answers 404 or 405): there the row is this device's, as the globe picks it, and
 a choice shows and stays on this device. A language picked in the
 system's settings is too. On phones the hint under the row says so:
@@ -136,7 +140,8 @@ the next time it opens.
 
 Dates, times and numbers follow the language shown, in the device's
 region when the device is in that language (en-GB keeps its 24-hour
-clock). The app's requests to its server say the language shown
+clock, a zh-TW device its numbers). The app's requests to its server say
+the language shown
 (`Accept-Language`), in which the server writes the titles of Home's and
 the libraries' rows; they are asked for again when it changes.
 
@@ -1138,8 +1143,9 @@ Rules the build keeps:
 
 Each module keeps the words people read in
 `src/main/res/values/strings_<area>.xml`, with the same file in
-`values-fr/` and `values-es/`; a count is a `<plurals>` (English one and
-other, French and Spanish one, many and other). Lint fails on a word, or a
+`values-fr/`, `values-es/`, `values-zh-rCN/` and `values-zh-rTW/`; a count
+is a `<plurals>` (English one and other, French and Spanish one, many and
+other, Chinese only `other`). Lint fails on a word, or a
 count's form, missing in one of them (`MissingTranslation`,
 `MissingQuantity`, set in `build-logic`).
 

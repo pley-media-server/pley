@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home's banner: why a title is there, over its name. -->
+    <string name="home_featured_new_in">%1$s 中的新内容</string>
+    <string name="home_featured_new">新上架</string>
+    <string name="home_featured_on_list">在你的片单中</string>
+    <string name="home_featured_top_rated_in">%1$s 中评分最高</string>
+    <string name="home_featured_top_rated">评分最高</string>
+</resources>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The top bar. -->
+    <string name="player_back">返回</string>
+    <string name="player_pip">画中画</string>
+    <string name="player_settings">播放设置</string>
+
+    <!-- The centre. -->
+    <string name="player_play">播放</string>
+    <string name="player_pause">暂停</string>
+    <string name="player_loading">加载中</string>
+    <string name="player_reconnecting">重新连接中…</string>
+    <!-- A run of double-taps: "+20 s", "−10 s". -->
+    <string name="player_seek_forward">+%1$d 秒</string>
+    <string name="player_seek_back">−%1$d 秒</string>
+
+    <!-- The seek bar. -->
+    <string name="player_seek_bar">进度</string>
+    <!-- "32 minutes 40 seconds of 58 minutes". -->
+    <string name="player_position_of">%1$s / %2$s</string>
+    <string name="player_show_total">显示总时长</string>
+    <string name="player_show_remaining">显示剩余时间</string>
+    <!-- "Part 1 · 1:02:03". -->
+    <string name="player_chapter_at">%1$s · %2$s</string>
+    <string name="player_chapter_number">第 %1$d 章</string>
+
+    <!-- The bottom row. -->
+    <string name="player_subtitles">字幕</string>
+    <string name="player_audio">音频</string>
+    <string name="player_quality">画质</string>
+    <string name="player_chapters">章节</string>
+    <string name="player_lock">锁定</string>
+    <string name="player_unlock">解锁</string>
+    <string name="player_next_episode">下一集</string>
+    <string name="player_fit">适应屏幕</string>
+    <string name="player_fill">填充屏幕</string>
+    <string name="player_zoom">缩放</string>
+    <string name="player_fit_hint">显示完整画面</string>
+    <string name="player_fill_hint">铺满屏幕</string>
+    <string name="player_zoom_hint">放大以越过黑边</string>
+    <string name="player_free">已缩放</string>
+    <string name="player_method_hint">播放方式：%1$s</string>
+
+    <!-- Gestures. -->
+    <string name="player_volume">音量</string>
+    <string name="player_brightness">亮度</string>
+
+    <!-- Skip and Up Next. -->
+    <string name="player_play_now">立即播放</string>
+    <!-- "Play now (7)". -->
+    <string name="player_play_now_in">立即播放（%1$d）</string>
+    <string name="player_next_in">%1$d 秒后播放下一集</string>
+    <string name="player_cancel">取消</string>
+
+    <!-- Errors and notices. -->
+    <string name="player_error_title">无法播放此内容</string>
+    <string name="player_offline_title">无法连接服务器</string>
+    <string name="player_try_again">重试</string>
+    <string name="player_play_original">播放原始画质</string>
+    <string name="player_lower_quality">降低画质</string>
+
+    <!-- The sheet. -->
+    <string name="player_close">关闭</string>
+    <string name="player_sheet_back">返回设置</string>
+    <string name="player_subtitle_style">字幕样式</string>
+    <string name="player_details">播放详情</string>
+    <string name="player_size">字号</string>
+    <string name="player_background">背景</string>
+    <string name="player_size_small">小</string>
+    <string name="player_size_normal">正常</string>
+    <string name="player_size_large">大</string>
+    <string name="player_size_huge">超大</string>
+    <string name="player_background_none">无</string>
+    <string name="player_background_box">深色底框</string>
+    <string name="player_none">无</string>
+    <string name="player_default">默认</string>
+    <string name="player_details_device">此设备</string>
+    <string name="player_details_decoder">解码器</string>
+    <string name="player_details_hardware">%1$s（硬件）</string>
+    <string name="player_details_software">%1$s（软件）</string>
+    <string name="player_details_picture">画面</string>
+    <!-- The picture's frame rate: "23.976 fps". -->
+    <string name="player_details_frame_rate">%1$s fps</string>
+    <string name="player_details_display">显示</string>
+    <!-- "1080 × 2400 · 120 Hz · HDR10, HLG". -->
+    <string name="player_details_dropped">丢帧</string>
+    <!-- "3 of 4,512". -->
+    <string name="player_details_dropped_of">%1$d / %2$d</string>
+    <string name="player_details_audio_out">音频输出</string>
+    <!-- The sound's channels after its codec: "AAC 6 ch". -->
+    <plurals name="player_details_channels">
+        <item quantity="other">%1$d 声道</item>
+    </plurals>
+    <string name="player_details_passthrough">%1$s，直通音响设备</string>
+    <string name="player_details_decoded">%1$s，在此设备解码</string>
+    <string name="player_details_first_frame">首帧</string>
+    <!-- "640 ms". -->
+    <string name="player_details_ms">%1$d 毫秒</string>
+</resources>

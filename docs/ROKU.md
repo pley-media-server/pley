@@ -690,9 +690,10 @@ It is kept on the Roku for each server.
 
 ### Language
 
-The app is in English, French and Spanish ([API.md](API.md#language)),
-as the other TVs: the account's language, else the one picked on this
-Roku, else the Roku's own (`roDeviceInfo`'s `GetCurrentLocale`, where
+The app is in English, French, Spanish and Simplified and Traditional
+Chinese (`zh-CN`, `zh-TW`) ([API.md](API.md#language)), as the other TVs:
+the account's language, else the one picked on this Roku, else the Roku's
+own (`roDeviceInfo`'s `GetCurrentLocale`, where
 `fr_CA` counts as French), else the server's (`GET /api/server`), else
 English. `packages/tv/test/fixtures/language.json` pins that order, and
 the unit tests run against it.
@@ -700,12 +701,13 @@ the unit tests run against it.
 - **The globe:** Choose your server has a small globe at the bottom
   right, on the forget hint's line; the sign-in code has it at the top
   right, on the logo's line. It names the language shown by its two
-  letters ("FR"), filled with the accent only while it has the focus.
-  Down reaches it on Choose your server and Up on the sign-in code; Left
-  and Right never do. OK opens a panel: Automatic, with what that is on
-  this Roku (its language, else the server's, else English), then
-  English, Français and Español, the choice in force checked. A choice
-  shows at once and is kept on the Roku (registry section `language`);
+  letters ("FR", or "ZH" for either Chinese), filled with the accent only
+  while it has the focus. Down reaches it on Choose your server and Up on
+  the sign-in code; Left and Right never do. OK opens a panel: Automatic,
+  with what that is on this Roku (its language, else the server's, else
+  English), then English, Français, Español, 简体中文 and 繁體中文, the
+  choice in force checked. A choice shows at once and is kept on the Roku
+  (registry section `language`);
   Automatic forgets it. Typing an address is Roku's own keyboard dialog,
   which has no room for the globe.
 - **At a start** the app shows the language it showed last, never another
@@ -722,8 +724,8 @@ the unit tests run against it.
   show them.
 - **Settings → Language:** Automatic, with what that is on this Roku (the
   one picked with the globe, else its language, else the server's), then
-  English, Français and Español, each in itself. A choice is the
-  account's, on all its devices (`PUT /api/me/language`), and shows once
+  English, Français, Español, 简体中文 and 繁體中文, each in itself. A choice
+  is the account's, on all its devices (`PUT /api/me/language`), and shows once
   the server has it. A Pley from before languages keeps no account's
   language (its `GET /api/server` names none, and the route answers 404
   or 405): there the row is this Roku's, as the globe picks it, with
@@ -735,12 +737,14 @@ the unit tests run against it.
   message the app has none for, comes in English.
 - **Dates, times and numbers** are written by the app in the language
   shown (`components/lib/I18n.brs`, `Format.brs`): "12,345", "12 345" or
-  "12.345"; "Nov 4" or "4 nov."; a 12-hour clock in English when the Roku
-  uses one. Counts take CLDR's plural forms: one and other in English,
-  one, many and other in French and Spanish.
-- **The words** are in `locales/<language>/<area>.json`, in the other
-  apps' format (i18next's: `{{name}}`, `_one`, `_many`, `_other`), read
-  with `ParseJson` an area at a time and looked up with the app's own
+  "12.345" ("12,345" in Chinese); "Nov 4" or "4 nov."; a 12-hour clock in
+  English when the Roku uses one, 24 hours in the other languages.
+  Counts take CLDR's plural forms: one and other in English, one, many
+  and other in French and Spanish, only other in Chinese.
+- **The words** are in `locales/<language>/<area>.json` (`en`, `fr`, `es`,
+  `zh-CN`, `zh-TW`), in the other apps' format (i18next's: `{{name}}`,
+  `_one`, `_many`, `_other`; Chinese writes all three forms as `_other`),
+  read with `ParseJson` an area at a time and looked up with the app's own
   `t()`: Roku's `tr()` follows the device's language only, so it can't
   show the account's. English stands in for a word missing elsewhere. The
   tests check that every language has every key, with the same values in
@@ -765,7 +769,7 @@ the unit tests run against it.
 | `components/lib/` | Plain BrightScript (no SceneGraph): the logic the unit tests cover |
 | `tests/` | Unit tests of `components/lib` |
 | `scripts/` | Test runner, smoke run, preview, bench, images |
-| `locales/` | The words, in English, French and Spanish (`<language>/<area>.json`) |
+| `locales/` | The words, in English, French, Spanish and Chinese (`<language>/<area>.json`) |
 | `licenses/` | Notices for bundled third-party code (BrighterScript's `bslib.brs`) |
 
 Rules the code keeps:

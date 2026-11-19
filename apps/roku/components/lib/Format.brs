@@ -290,7 +290,7 @@ function fmtTimeOfDay(at as dynamic, zone as integer) as string
 end function
 
 ' A time of day: "9:05 PM" on a 12-hour clock, else "21:05" ("9:05" in
-' Spanish, as CLDR writes it).
+' Spanish, as CLDR writes it; "21:05" in Chinese).
 function fmtClockText(hours as integer, minutes as integer, twelve as boolean) as string
     if not twelve
         if i18nLanguage() = "es" then return hours.ToStr() + ":" + fmtTwo(minutes)
@@ -304,7 +304,8 @@ function fmtClockText(hours as integer, minutes as integer, twelve as boolean) a
 end function
 
 ' Whether times show on a 12-hour clock: in English, as the Roku's clock
-' is set (Settings → System → Time); French and Spanish write 24 hours.
+' is set (Settings → System → Time); French, Spanish and Chinese write
+' 24 hours.
 function fmtTwelveHour() as boolean
     if i18nLanguage() <> "en" then return false
     g = GetGlobalAA()

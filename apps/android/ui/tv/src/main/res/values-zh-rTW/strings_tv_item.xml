@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The item page's buttons (design spec §2.5, §4.3, §4.4). -->
+    <string name="tv_item_play">播放</string>
+    <string name="tv_item_resume">繼續播放</string>
+    <string name="tv_item_play_episode">播放 %1$s</string>
+    <string name="tv_item_resume_episode">繼續播放 %1$s</string>
+    <string name="tv_item_unavailable">不可用</string>
+    <string name="tv_item_from_start">從頭播放</string>
+    <string name="tv_item_mark_watched">標為已觀看</string>
+    <string name="tv_item_mark_unwatched">標為未觀看</string>
+    <string name="tv_item_tracks">音訊和字幕</string>
+    <string name="tv_item_add_to_playlist">新增到播放列表</string>
+    <string name="tv_item_trailer">預告片</string>
+    <string name="tv_item_more">更多</string>
+    <string name="tv_item_full_summary">完整簡介</string>
+
+    <!-- The page. -->
+    <!-- Before the names in the hero's credits line: "Directed by Lena Okafor · Starring Idris Vale". -->
+    <string name="tv_item_directed_by">導演</string>
+    <string name="tv_item_credits_created_by">建立者</string>
+    <string name="tv_item_starring">主演</string>
+    <string name="tv_item_aired">首播於 %1$s</string>
+    <string name="tv_item_extras">花絮</string>
+    <string name="tv_item_cast">演員</string>
+    <string name="tv_item_guest_stars">客串演員</string>
+    <string name="tv_item_cast_and_crew">演員與製作團隊</string>
+    <string name="tv_item_guest_stars_and_crew">客串演員與製作團隊</string>
+    <string name="tv_item_crew">幕後團隊</string>
+    <!-- Under a person's picture in Cast & Crew. -->
+    <string name="tv_item_creator">創作者</string>
+    <string name="tv_item_more_like_this">相似推薦</string>
+    <string name="tv_item_episodes">劇集</string>
+    <string name="tv_item_details">詳情</string>
+    <string name="tv_item_versions">版本</string>
+    <string name="tv_item_media_info">媒體資訊</string>
+    <string name="tv_item_media_info_hint">每個檔案的影片、音訊和字幕流</string>
+    <string name="tv_item_media_info_open">開啟</string>
+    <string name="tv_item_media_info_closed">收起</string>
+    <string name="tv_item_no_episodes">未找到劇集。</string>
+    <string name="tv_item_close">關閉</string>
+    <string name="tv_item_back">返回</string>
+    <string name="tv_item_retry">重試</string>
+    <string name="tv_item_part_of">屬於 %1$s</string>
+
+    <!-- Details (Credits.tsx, VideoItemView.tsx, MediaInfo.tsx). -->
+    <string name="tv_item_created_by">建立者</string>
+    <string name="tv_item_director">導演</string>
+    <string name="tv_item_directors">導演</string>
+    <string name="tv_item_writer">編劇</string>
+    <string name="tv_item_writers">編劇</string>
+    <plurals name="tv_item_and_more">
+        <item quantity="other">還有 %1$d 個</item>
+    </plurals>
+    <string name="tv_item_original_title">原始標題</string>
+    <string name="tv_item_released">上映日期</string>
+    <string name="tv_item_studio">製作公司</string>
+    <string name="tv_item_network">電視網</string>
+    <string name="tv_item_plays">播放次數</string>
+
+    <!-- Side panels (design spec §2.7). -->
+    <string name="tv_item_version">版本</string>
+    <string name="tv_item_audio">音訊</string>
+    <!-- No track picked: each device plays its best track of the language. -->
+    <string name="tv_item_audio_automatic">自動</string>
+    <string name="tv_item_audio_automatic_language">自動（%1$s）</string>
+    <string name="tv_item_subtitles">字幕</string>
+    <string name="tv_item_subtitles_off">關</string>
+    <string name="tv_item_your_rating">你的評分</string>
+    <string name="tv_item_no_rating">未評分</string>
+    <plurals name="tv_item_stars">
+        <item quantity="other">%1$s 星</item>
+    </plurals>
+    <string name="tv_item_action_play">播放</string>
+    <string name="tv_item_action_resume">繼續播放</string>
+    <string name="tv_item_action_from_start">從頭播放</string>
+    <string name="tv_item_action_go_to_show">前往劇集</string>
+    <string name="tv_item_action_go_to_season">前往季</string>
+    <string name="tv_item_action_open">開啟</string>
+
+    <!-- States (design spec §8). -->
+    <string name="tv_item_failed">無法載入此內容</string>
+    <string name="tv_item_not_found">未找到此內容</string>
+    <string name="tv_item_not_found_body">它可能已被刪除，或此配置檔案無權檢視。</string>
+    <string name="tv_item_nothing_to_play">無法播放：此內容沒有媒體檔案。</string>
+
+    <!-- Person pages (design spec §4.9). -->
+    <string name="tv_person_acting">表演</string>
+    <string name="tv_person_directing">導演</string>
+    <string name="tv_person_creating">創作</string>
+    <string name="tv_person_writing">編劇</string>
+    <string name="tv_person_producing">製片</string>
+    <string name="tv_person_in_libraries">你的媒體庫中有 %1$s 部</string>
+    <string name="tv_person_not_found">未找到此人物</string>
+    <string name="tv_person_not_found_body">該連結對應的人物在你的媒體庫中沒有任何內容。</string>
+    <string name="tv_person_failed">無法載入此人物</string>
+</resources>

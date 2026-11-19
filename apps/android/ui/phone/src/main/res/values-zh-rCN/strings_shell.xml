@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The navigation bar and rail. -->
+    <string name="shell_tab_home">首页</string>
+    <string name="shell_tab_libraries">媒体库</string>
+    <string name="shell_tab_search">搜索</string>
+    <string name="shell_tab_playlists">播放列表</string>
+    <string name="shell_tab_me">我</string>
+    <string name="shell_brand" translatable="false">Pley</string>
+
+    <!-- Around every screen. -->
+    <string name="shell_offline">Pley 离线</string>
+    <!-- A page with nothing saved, the server out of reach: "No answer in time. Check that…". -->
+    <string name="kit_offline_title">无法连接服务器</string>
+    <string name="kit_offline_body">%1$s 请检查服务器是否已开启，以及此设备是否连接到同一网络。</string>
+    <string name="shell_scope">Pley 没有权限执行此操作：重新登录以授权</string>
+    <string name="shell_scope_action">登录</string>
+    <string name="shell_now_playing">打开“正在播放”</string>
+
+    <!-- Screens that aren't built yet. -->
+    <string name="shell_placeholder_title">%1$s 尚未开发完成</string>
+    <string name="shell_placeholder_body">这是正在开发中的原生应用。你现在使用的应用仍在主屏幕上，名为 Pley。</string>
+    <string name="shell_placeholder_next">打开其他页面</string>
+    <string name="shell_placeholder_in">前往首页</string>
+    <string name="shell_placeholder_kit">显示手机组件库</string>
+    <!-- The top bar of a title's page not built yet: "Item 101". -->
+    <string name="shell_placeholder_item">项目 %1$d</string>
+
+    <!-- The kit. -->
+    <string name="kit_back">返回</string>
+    <string name="kit_cancel">取消</string>
+    <string name="kit_retry">重试</string>
+    <string name="kit_card_more">更多操作</string>
+    <string name="kit_rating_label">你的评分</string>
+    <string name="kit_rating_none">未评分</string>
+    <plurals name="kit_rating_stars">
+        <item quantity="other">%1$s 星</item>
+    </plurals>
+</resources>

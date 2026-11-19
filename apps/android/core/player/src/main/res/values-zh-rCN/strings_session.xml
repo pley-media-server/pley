@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the playback session says, in the web player's words (apps/web/src/player). -->
+<resources>
+    <!--
+      Qualities, in the menu's order (docs/QUALITY.md). A conversion is
+      named by its bitrate and lines, the same in every language, as the
+      web app names it.
+    -->
+    <string name="session_quality_original">原始</string>
+    <string name="session_quality_automatic">自动</string>
+    <string name="session_quality_30m" translatable="false">30 Mbps 4K</string>
+    <string name="session_quality_15m" translatable="false">15 Mbps 4K</string>
+    <string name="session_quality_20m" translatable="false">20 Mbps 1080p</string>
+    <string name="session_quality_12m" translatable="false">12 Mbps 1080p</string>
+    <string name="session_quality_8m" translatable="false">8 Mbps 1080p</string>
+    <string name="session_quality_4m" translatable="false">4 Mbps 720p</string>
+    <string name="session_quality_2m" translatable="false">2 Mbps 480p</string>
+    <!-- A quality taller than the file, named by the file's lines: "8 Mbps 720p". -->
+    <string name="session_quality_named" translatable="false">%1$d Mbps %2$s</string>
+    <!-- Automatic, with what it plays now: "Automatic · Original", "Automatic · 8 Mbps 1080p". -->
+    <string name="session_quality_automatic_playing">自动 · %1$s</string>
+    <!-- Automatic's hint in the quality menu. -->
+    <string name="session_quality_automatic_hint">根据情况动态调整</string>
+    <!-- Automatic's hint while it plays lower: "Now 8 Mbps 1080p". -->
+    <string name="session_quality_automatic_now">当前 %1$s</string>
+    <!-- Automatic went down, said once, briefly: "Quality lowered to 8 Mbps 1080p". -->
+    <string name="session_quality_lowered_notice">画质已降至 %1$s</string>
+    <!-- Why Automatic plays lower, in the details. -->
+    <string name="session_quality_lowered_network">因你的网络状况而降低</string>
+    <string name="session_quality_lowered_device">因本设备而降低</string>
+
+    <!-- Markers (SkipButton.tsx). -->
+    <string name="session_skip_intro">跳过片头</string>
+    <string name="session_skip_credits">跳过片尾</string>
+
+    <!-- Up Next (UpNext.tsx). -->
+    <string name="session_up_next">接下来播放</string>
+    <!-- "Up next · S1 E2". -->
+    <string name="session_up_next_episode">接下来 · %1$s</string>
+    <string name="session_last_episode">这是最后一集</string>
+    <string name="session_last_in_queue">这是最后一个</string>
+
+    <!-- Tracks. -->
+    <string name="session_subtitles_off">关闭</string>
+    <string name="session_subtitles_failed">无法加载这些字幕。</string>
+
+    <!-- How it plays (PlaybackDetails.tsx). -->
+    <string name="session_method_direct">直接播放</string>
+    <string name="session_method_downloaded">已下载</string>
+    <string name="session_error_download_needs_server">此下载无法在本设备离线播放。请连接服务器后再播放。</string>
+    <!-- A video on a USB drive, which plays with no server. -->
+    <string name="session_drive_unplayable">此电视无法直接播放此文件，而驱动器上的文件没有服务器进行转码。</string>
+    <string name="session_drive_stuck">此电视无法播放此文件：画面始终没有开始。没有服务器可转码，请尝试其他副本。</string>
+    <string name="session_drive_unreadable">无法读取此视频。驱动器可能已被拔出。</string>
+    <string name="session_drive_speed_undecodable">不适用于此文件：其音频原样输出到你的音响，此处没有设备可以解码</string>
+    <string name="session_method_remux">直接流式传输</string>
+    <string name="session_method_transcode">转码中</string>
+    <string name="session_method_remux_audio">直接流式传输 · 音频转码</string>
+    <string name="session_fallback_unplayable">此设备无法播放原始文件。</string>
+    <string name="session_fallback_not_smooth">原始画质在此设备上播放不流畅。</string>
+    <string name="session_slow_server">服务器处理此视频吃力。请尝试更低的画质。</string>
+
+    <string name="session_row_video">视频</string>
+    <string name="session_row_audio">音频</string>
+    <string name="session_row_bitrate">码率</string>
+    <string name="session_row_encoder">编码器</string>
+    <string name="session_row_hdr">显示为</string>
+    <string name="session_row_subtitles">字幕</string>
+    <string name="session_row_speed">速度</string>
+    <!-- "Tone mapped to SDR (libplacebo)". -->
+    <string name="session_tone_mapped">SDR（使用 %1$s 进行色调映射）</string>
+    <string name="session_burned_in">内嵌</string>
+    <!-- "2.5× real time". -->
+    <string name="session_speed">%1$s× 实时</string>
+    <!-- "2.5× real time · 40 s ready". -->
+    <string name="session_speed_ready">%1$s× 实时 · %2$d 秒后就绪</string>
+    <!-- Where a transcode runs, by the server's "hybrid" and "copy" (GPU and CPU are named as they are). -->
+    <string name="session_pipeline_hybrid">GPU 和 CPU</string>
+    <string name="session_pipeline_copy">复制</string>
+
+    <!-- The player's own lines in the details, "Label: value": the TV shows the label beside the value. -->
+    <!-- "Video: video/hevc 3840×2160". -->
+    <string name="session_engine_video">视频：%1$s %2$d×%3$d</string>
+    <!-- "Video: video/hevc 3840×2160 23.976 fps". -->
+    <string name="session_engine_video_rate">视频：%1$s %2$d×%3$d %4$s fps</string>
+    <string name="session_engine_video_decoder">视频解码器：%1$s</string>
+    <!-- "Audio: audio/eac3 6 ch". -->
+    <string name="session_engine_audio">音频：%1$s %2$d 声道</string>
+    <string name="session_engine_audio_decoder">音频解码器：%1$s</string>
+    <!-- "Dropped frames: 3 of 5000". -->
+    <string name="session_engine_dropped">丢帧：%1$d / %2$d</string>
+
+    <!-- Playback speed, when a download's sound keeps it at 1×, or a stream's the server couldn't convert. -->
+    <string name="session_speed_undecodable">不适用于此下载：其音频原样输出到你的音响，此处没有设备可以解码</string>
+    <string name="session_speed_unconverted">目前不行：其音频原样输出到你的音响，此处没有设备可以解码，服务器也无法转换</string>
+
+    <!-- Find subtitles… (subtitles found online, docs/API.md). -->
+    <string name="session_search_not_set_up">此服务器尚未设置字幕搜索</string>
+    <string name="session_search_unsupported">此服务器无法搜索字幕：可能需要更新</string>
+    <string name="session_search_nothing">未找到此文件的字幕</string>
+    <!-- "Couldn't find subtitles: no answer in time". -->
+    <string name="session_search_failed">无法找到字幕：%1$s</string>
+    <string name="session_search_exact">专为此文件制作</string>
+    <!-- Subtitles for the deaf and hard of hearing. -->
+    <string name="session_search_sdh" translatable="false">SDH</string>
+    <plurals name="session_search_downloads">
+        <item quantity="other">%1$,d 次下载</item>
+    </plurals>
+    <string name="session_search_added">已添加字幕</string>
+
+    <!-- Errors (VideoPlayer.tsx). -->
+    <string name="session_error_unplayable">此视频无法在此设备上播放。</string>
+    <string name="session_error_stuck">此视频无法在此设备上播放：每次都在同一位置停止。</string>
+    <string name="session_error_short">此视频在指定的播放起点之前就结束了。</string>
+    <string name="session_error_stopped">播放已停止，无法继续。</string>
+    <string name="session_error_network">请检查服务器是否已开启，且本设备是否与其在同一网络中。</string>
+    <!-- "No answer in time. Check that…": why the server couldn't be reached, then what to check. -->
+    <string name="session_error_unreachable">%1$s 请检查服务器是否已开启，且本设备是否与其在同一网络中。</string>
+    <!-- "Playback failed (ERROR_CODE_DECODING_FAILED)." -->
+    <string name="session_error_engine">播放失败（%1$s）。</string>
+    <string name="session_error_no_file">此项目没有可播放的文件。</string>
+    <!-- Play pressed with no server signed in to. -->
+    <string name="session_sign_in_to_play">登录后播放</string>
+</resources>

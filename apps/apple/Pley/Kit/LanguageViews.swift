@@ -19,7 +19,7 @@ struct InLanguage<Content: View>: View {
 }
 
 /// The globe of the screens before signing in: the language shown by its
-/// two letters, small and out of the way (top left on iPhone and iPad, in
+/// short mark, small and out of the way (top left on iPhone and iPad, in
 /// the toolbar on the Mac); its menu picks this device's language.
 struct LanguageGlobe: View {
     @ObservedObject var app: AppModel

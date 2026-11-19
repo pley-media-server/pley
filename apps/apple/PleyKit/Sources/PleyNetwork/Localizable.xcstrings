@@ -15,6 +15,18 @@
             "state" : "translated",
             "value" : "Pley n’est pas autorisé à accéder à votre réseau local : autorisez-le dans Réglages → Confidentialité et sécurité → Réseau local"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pley 未被允许访问你的本地网络：在设置 → 隐私与安全性 → 本地网络中允许"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pley 未被允許訪問你的本地網路：在設定 → 隱私與安全性 → 本地網路中允許"
+          }
         }
       }
     },
@@ -31,6 +43,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "un autre appareil répond à cette adresse"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "另一台设备在该地址响应"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "另一臺裝置在該地址響應"
           }
         }
       }
@@ -49,6 +73,18 @@
             "state" : "translated",
             "value" : "toutes les connexions du fournisseur de cette chaîne sont utilisées"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此频道提供商的所有连接都在使用中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此頻道提供商的所有連線都在使用中"
+          }
         }
       }
     },
@@ -65,6 +101,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "sa connexion sécurisée a échoué"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全连接失败"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全連線失敗"
           }
         }
       }
@@ -83,6 +131,18 @@
             "state" : "translated",
             "value" : "aucune réponse à temps"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有及时响应"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有及時響應"
+          }
         }
       }
     },
@@ -99,6 +159,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "cet appareil n’existe pas"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有此设备"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有此裝置"
           }
         }
       }
@@ -117,6 +189,18 @@
             "state" : "translated",
             "value" : "rien ne répond à cette adresse"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该地址没有响应"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "該地址沒有響應"
+          }
         }
       }
     },
@@ -133,6 +217,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "la lecture a été arrêtée"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已停止"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已停止"
           }
         }
       }
@@ -151,6 +247,18 @@
             "state" : "translated",
             "value" : "la lecture a été arrêtée : %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已停止：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已停止：%@"
+          }
         }
       }
     },
@@ -167,6 +275,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "la recherche de sous-titres n’est pas configurée sur ce serveur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器未设置字幕搜索"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器未設定字幕搜尋"
           }
         }
       }
@@ -185,6 +305,18 @@
             "state" : "translated",
             "value" : "la recherche de sous-titres ne fonctionne pas sur ce serveur"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器的字幕搜索无法使用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器的字幕搜尋無法使用"
+          }
         }
       }
     },
@@ -201,6 +333,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "cette adresse est inconnue sur ce réseau"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此网络无法识别该地址"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此網路無法識別該地址"
           }
         }
       }
@@ -219,6 +363,18 @@
             "state" : "translated",
             "value" : "ce n’est pas un serveur Pley"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这不是 Pley 服务器"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這不是 Pley 伺服器"
+          }
         }
       }
     },
@@ -235,6 +391,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ce n’est pas une adresse de serveur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这不是服务器地址"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這不是伺服器地址"
           }
         }
       }
@@ -253,6 +421,18 @@
             "state" : "translated",
             "value" : "ce n’est pas une adresse sur le serveur"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这不是服务器上的地址"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這不是伺服器上的地址"
+          }
         }
       }
     },
@@ -269,6 +449,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "la connexion au serveur a échoué"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接服务器失败"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連線伺服器失敗"
           }
         }
       }
@@ -287,6 +479,18 @@
             "state" : "translated",
             "value" : "le téléchargement n’a pas pu être enregistré"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存下载"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法儲存下載"
+          }
         }
       }
     },
@@ -303,6 +507,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "le serveur a donné une adresse qui n’est pas celle de ses médias"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器提供的地址不是其媒体的地址"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器提供的地址不是其媒體的地址"
           }
         }
       }
@@ -321,6 +537,18 @@
             "state" : "translated",
             "value" : "le serveur a refusé (%@, HTTP %@)"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器拒绝（%@，HTTP %@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器拒絕（%@，HTTP %@）"
+          }
         }
       }
     },
@@ -337,6 +565,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "la réponse du serveur est illisible (HTTP %@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取服务器的响应（HTTP %@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法讀取伺服器的響應（HTTP %@）"
           }
         }
       }
@@ -355,6 +595,18 @@
             "state" : "translated",
             "value" : "la réponse du serveur est trop volumineuse"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器的响应过大"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器的響應過大"
+          }
         }
       }
     },
@@ -371,6 +623,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "cette application n’a pas été autorisée à faire cela : reconnectez-vous pour l’autoriser"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此应用无权这样做：重新登录以允许"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此應用無權這樣做：重新登入以允許"
           }
         }
       }
@@ -389,6 +653,18 @@
             "state" : "translated",
             "value" : "cet appareil n’est connecté à aucun réseau"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备未连接到网络"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此裝置未連線到網路"
+          }
         }
       }
     },
@@ -405,6 +681,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "cet appareil n’ouvre les adresses http non chiffrées que sur votre réseau : ouvrez ce serveur par son adresse https, son adresse IP ou un nom sans points"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备只在你网络内打开未加密的 http 地址：请用 https 地址、IP 地址或不带点的名称打开此服务器"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此裝置只在你網路內開啟未加密的 http 地址：請用 https 地址、IP 地址或不帶點的名稱開啟此伺服器"
           }
         }
       }
@@ -423,6 +711,18 @@
             "state" : "translated",
             "value" : "ce serveur répond à une autre adresse : ouvrez-le par celle-ci"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器在另一地址响应：请用该地址打开"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器在另一地址響應：請用該地址開啟"
+          }
         }
       }
     },
@@ -439,6 +739,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ce serveur est trop ancien pour cette application"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器版本过旧，不支持此应用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器版本過舊，不支援此應用"
           }
         }
       }
@@ -457,6 +769,18 @@
             "state" : "translated",
             "value" : "l’adresse de ce serveur n’est pas sur votre réseau et sa connexion n’est pas chiffrée : ouvrez-le par son adresse https pour vous connecter"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器地址不在你的网络中，且连接未加密：请用其 https 地址打开并登录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器地址不在你的網路中，且連線未加密：請用其 https 地址開啟並登入"
+          }
         }
       }
     },
@@ -473,6 +797,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "votre session a pris fin : reconnectez-vous"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已退出登录：重新登录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已退出登入：重新登入"
           }
         }
       }

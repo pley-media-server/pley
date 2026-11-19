@@ -1,0 +1,28 @@
+{
+  "actions": {
+    "cancel": "取消",
+    "close": "关闭",
+    "open": "打开",
+    "retry": "重试"
+  },
+  "badges": {
+    "live": "直播",
+    "onNow": "正在播出",
+    "new": "新"
+  },
+  "keyboard": {
+    "field": "文本框",
+    "shift": "Shift",
+    "space": "空格",
+    "delete": "删除",
+    "clear": "清除",
+    "done": "完成"
+  },
+  "pad": {
+    "delete": "删除",
+    "ok": "确定"
+  },
+  "stepper": {
+    "okResets": "确定重置"
+  }
+}

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The remote of the profile's other devices: Home's button, its sheet, and the bar above the tabs while this phone controls one (apps/web/src/components/Remote.tsx). -->
+    <!-- What this phone sent there with Play on… hasn't played yet. -->
+    <string name="remote_starting_on">正在 %1$s 上启动…</string>
+    <string name="remote_playing_on">正在 %1$s 上播放</string>
+    <string name="remote_paused_on">已在 %1$s 上暂停</string>
+    <!-- What TalkBack says of Home's button. -->
+    <plurals name="remote_button_playing">
+        <item quantity="other">遥控器，%1$d 个设备正在播放</item>
+    </plurals>
+    <plurals name="remote_button_ready">
+        <item quantity="other">遥控器，%1$d 个设备可播放</item>
+    </plurals>
+    <string name="remote_title">你的设备</string>
+    <string name="remote_unknown_device">未知设备</string>
+    <!-- Two devices of the same name, told apart: "Living room TV (2)". -->
+    <string name="remote_device_numbered" translatable="false">%1$s (%2$d)</string>
+    <string name="remote_live_tv">直播电视</string>
+
+    <!-- A device in the list that plays nothing: only listed, it has no controls. -->
+    <string name="remote_ready">可播放</string>
+    <!-- A device on another profile of the household, by that profile's name; what it plays stays theirs. -->
+    <string name="remote_on_profile">在 %1$s 的配置文件中</string>
+    <!-- What TalkBack says a device's row, and the bar, do, and the way back from its controls. -->
+    <string name="remote_open_device">显示控制选项</string>
+    <string name="remote_back_to_devices">返回设备列表</string>
+
+    <!-- What TalkBack says of each control: "Pause on Living room TV". -->
+    <string name="remote_play">在 %1$s 上播放</string>
+    <string name="remote_pause">在 %1$s 上暂停</string>
+    <string name="remote_previous">在 %1$s 上播放上一个</string>
+    <string name="remote_next">在 %1$s 上播放下一个</string>
+    <!-- Between a channel's down and up buttons, in small capitals. -->
+    <string name="remote_channel">频道</string>
+    <string name="remote_previous_channel">在 %1$s 上切换到上一个频道</string>
+    <string name="remote_next_channel">在 %1$s 上切换到下一个频道</string>
+    <string name="remote_back">在 %1$s 上后退 30 秒</string>
+    <string name="remote_forward">在 %1$s 上快进 30 秒</string>
+    <string name="remote_seek">在 %1$s 上拖动进度</string>
+    <string name="remote_progress">在 %1$s 上的播放进度</string>
+    <string name="remote_stop">停止</string>
+    <string name="remote_stop_on">在 %1$s 上停止</string>
+    <!-- Stop asks first. -->
+    <string name="remote_stop_confirm">停止在 %1$s 上播放？</string>
+    <string name="remote_position">%1$s / %2$s</string>
+    <!-- In an intro or the credits there, as its player offers: the button, and what TalkBack says of it. -->
+    <string name="remote_skip_intro">跳过片头</string>
+    <string name="remote_skip_credits">跳过片尾</string>
+    <string name="remote_skip_intro_on">在 %1$s 上跳过片头</string>
+    <string name="remote_skip_credits_on">在 %1$s 上跳过片尾</string>
+
+    <!-- The tracks and the quality a device plays, each an icon that opens a menu: its hint on a long press, and what TalkBack says. -->
+    <string name="remote_audio">音频</string>
+    <string name="remote_subtitles">字幕</string>
+    <string name="remote_quality">画质</string>
+    <string name="remote_subtitles_off">关闭</string>
+    <string name="remote_audio_on">%1$s 的音频</string>
+    <string name="remote_subtitles_on">%1$s 的字幕</string>
+    <string name="remote_quality_on">%1$s 的画质</string>
+    <string name="remote_volume_on">%1$s 的音量</string>
+
+    <!-- A channel playing: the programme on, its times ("20:00 – 21:00"), and the one after it. -->
+    <string name="remote_live_span" translatable="false">%1$s – %2$s</string>
+    <string name="remote_live_next">接下来：%1$s</string>
+
+    <!-- A command that didn't go through, said under the device's controls. -->
+    <string name="remote_no_answer">%1$s 没有响应。</string>
+    <string name="remote_gone">%1$s 已停止播放。</string>
+    <string name="remote_cant">%1$s 无法执行此操作。</string>
+    <string name="remote_too_many">同时操作过多，请稍后再试。</string>
+
+    <!-- Play on…: sending what a page plays to another of the profile's devices, and its chooser. -->
+    <string name="play_on">在…上播放</string>
+    <string name="play_on_live">在…上观看</string>
+    <string name="play_on_shuffle">在…上随机播放</string>
+    <!-- The chooser's switch: what is sent plays shuffled. -->
+    <string name="play_on_shuffle_switch">随机播放</string>
+    <!-- Refused, said under the chooser's devices. -->
+    <string name="play_on_gone">%1$s 已不可用。</string>
+    <string name="play_on_cant">%1$s 无法播放该内容。</string>
+    <!-- To a device on another profile, when this one has a PIN: the PIN pad, what it is for, and its way back. -->
+    <string name="play_on_pin_title">输入你的 PIN</string>
+    <string name="play_on_pin_body">%1$s 会从 %2$s 的配置文件切换到你的配置文件。</string>
+    <string name="play_on_back">返回设备列表</string>
+    <string name="play_on_wrong_pin">PIN 错误，请重试。</string>
+    <string name="play_on_pin_locked">多次输入错误后，你的 PIN 已被锁定。你或管理员可以重置它。</string>
+
+    <!-- A Google Cast or AirPlay device the server plays on itself: what its row says under its name. -->
+    <string name="remote_google_cast">Google Cast</string>
+    <string name="remote_airplay">AirPlay</string>
+    <!-- Refused by a Google Cast or AirPlay device, said under the chooser's devices. -->
+    <string name="play_on_unreachable">%1$s 无法连接此服务器。</string>
+    <string name="play_on_failed">%1$s 未能播放。</string>
+    <string name="play_on_connections_full">%1$s 无法播放该频道：所有直播电视连接都已占用。</string>
+    <!-- An AirPlay device the server hasn't paired with: it shows a code, typed on the pad, once for the household. -->
+    <string name="play_on_pair_title">与 %1$s 配对</string>
+    <string name="play_on_code_title">输入 %1$s 显示的验证码</string>
+    <string name="play_on_code_body">之后家中的每个人都可以在上面播放。</string>
+    <string name="play_on_show_code_again">没有显示验证码？重新显示</string>
+    <string name="play_on_wrong_code">这不是 %1$s 显示的验证码。</string>
+    <string name="play_on_pairing_wait">%1$s 暂时无法接受重试，请稍等。</string>
+    <string name="play_on_pairing_failed">%1$s 配对失败。</string>
+    <!-- A toast: the chooser closed before an AirPlay device asked for its code. -->
+    <string name="play_on_pair_first">%1$s 需要先配对：请在“在…上播放”中重新选择它。</string>
+</resources>

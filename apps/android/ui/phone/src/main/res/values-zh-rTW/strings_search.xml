@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Search (apps/web/src/pages/SearchPage.tsx, design spec §4.5). -->
+    <string name="search_field">搜尋電影、劇集、人物…</string>
+    <string name="search_clear_field">清除</string>
+    <string name="search_recent">最近搜尋</string>
+    <string name="search_recent_clear">清除</string>
+    <string name="search_empty_title">搜尋你的媒體庫</string>
+    <string name="search_empty_body">查詢電影、劇集、分集、人物、音樂人、專輯、曲目和直播電影片道。</string>
+    <string name="search_results_for">“%1$s”的搜尋結果</string>
+    <string name="search_loading">搜尋中…</string>
+    <string name="search_none_title">“%1$s”沒有結果</string>
+    <string name="search_none_body">換個拼寫或減少關鍵詞試試。</string>
+    <string name="search_failed">搜尋失敗</string>
+
+    <!-- The groups results come in, in their order. -->
+    <string name="search_group_people">人物</string>
+    <string name="search_group_live">直播電視</string>
+    <string name="search_group_movies">電影</string>
+    <string name="search_group_shows">劇集</string>
+    <string name="search_group_seasons">季</string>
+    <string name="search_group_episodes">集</string>
+    <string name="search_group_artists">音樂人</string>
+    <string name="search_group_albums">專輯</string>
+    <string name="search_group_tracks">曲目</string>
+    <!-- "Movies, 12 results", for screen readers. -->
+    <plurals name="search_group_count">
+        <item quantity="other">%1$s，%2$s 個結果</item>
+    </plurals>
+</resources>

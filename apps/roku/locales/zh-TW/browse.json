@@ -1,0 +1,255 @@
+{
+  "menu": {
+    "search": "搜尋",
+    "home": "首頁",
+    "discover": "發現",
+    "liveTv": "直播電視",
+    "playlists": "播放列表",
+    "collections": "合集",
+    "nowPlaying": "正在播放",
+    "settings": "設定"
+  },
+  "home": {
+    "fromStart": "從頭播放",
+    "info": "資訊",
+    "noLibraries": "還沒有媒體庫",
+    "noLibrariesHint": "讓伺服器所有者新增媒體庫。",
+    "scanning": "正在掃描媒體庫…",
+    "scanningHint": "發現的新內容會立即顯示在這裡。",
+    "empty": "這裡還空著",
+    "emptyHint": "你的媒體庫是空的。將媒體放入媒體庫資料夾後執行掃描。"
+  },
+  "counts": {
+    "seasons_other": "{{count, number}} 季",
+    "episodes_other": "{{count, number}} 集",
+    "albums_other": "{{count, number}} 張專輯",
+    "collections_other": "{{count, number}} 個合集",
+    "plays_other": "{{count, number}} 次播放"
+  },
+  "title": {
+    "watched": "已觀看",
+    "bitrateUnknown": "位元速率未知",
+    "specials": "特別篇",
+    "season": "第 {{number}} 季",
+    "playEpisode": "播放 {{episode}}",
+    "resumeEpisode": "繼續播放 {{episode}}",
+    "playFromStart": "從頭播放",
+    "episodes": "單集",
+    "cantPlayKind": "Pley Roku 版暫不支援播放此類內容。",
+    "noFile": "此專案沒有可播放的檔案。",
+    "markWatched": "標記為已觀看",
+    "markUnwatched": "標記為未觀看",
+    "tracks": "音軌和字幕",
+    "addToMyList": "新增到我的片單",
+    "removeFromMyList": "從我的片單中移除",
+    "trailer": "預告片",
+    "more": "更多…",
+    "rate": "評分",
+    "yourRating": "你的評分：{{stars}}",
+    "noRating": "暫無評分",
+    "stars_other": "{{count}} 星",
+    "goToShow": "前往劇集",
+    "goToSeason": "前往季",
+    "mediaInfo": "媒體資訊",
+    "details": "詳情",
+    "addToPlaylist": "新增到播放列表",
+    "directedBy": "導演：{{names}}",
+    "createdBy": "創作者：{{names}}",
+    "starring": "主演：{{names}}"
+  },
+  "about": {
+    "createdBy": "創作者：{{names}}",
+    "directors_other": "導演：{{names}}",
+    "writers_other": "編劇：{{names}}",
+    "andMore_other": "{{names}} 等 {{count}} 項",
+    "originalTitle": "原始標題：{{title}}",
+    "released": "上映日期：{{date}}",
+    "network": "電視網：{{name}}",
+    "studio": "製作公司：{{name}}",
+    "plays": "播放次數：{{n, number}}"
+  },
+  "subtitles": {
+    "forced": "強制",
+    "unknown": "未知",
+    "namedForced": "{{name}}（強制）"
+  },
+  "library": {
+    "tabs": {
+      "recommended": "推薦",
+      "library": "媒體庫",
+      "collections": "合集"
+    },
+    "sorts": {
+      "title": "標題",
+      "year": "年份",
+      "added": "新增日期",
+      "rating": "評分",
+      "userRating": "你的評分",
+      "release": "上映日期",
+      "duration": "時長",
+      "lastPlayed": "最近播放",
+      "bitrate": "位元速率"
+    },
+    "sortOrders": {
+      "title": {
+        "asc": "標題，A 到 Z",
+        "desc": "標題，Z 到 A"
+      },
+      "year": {
+        "asc": "年份，從舊到新",
+        "desc": "年份，從新到舊"
+      },
+      "added": {
+        "asc": "新增日期，最先新增的在前",
+        "desc": "新增日期，最近新增的在前"
+      },
+      "rating": {
+        "asc": "評分，評分最低的在前",
+        "desc": "評分，評分最高的在前"
+      },
+      "userRating": {
+        "asc": "你的評分，評分最低的在前",
+        "desc": "你的評分，評分最高的在前"
+      },
+      "release": {
+        "asc": "上映日期，最早的在前",
+        "desc": "上映日期，最新的在前"
+      },
+      "duration": {
+        "asc": "時長，最短的在前",
+        "desc": "時長，最長的在前"
+      },
+      "lastPlayed": {
+        "asc": "最近播放，最久未播放的在前",
+        "desc": "最近播放，最近播放的在前"
+      },
+      "bitrate": {
+        "asc": "位元速率，最低的在前",
+        "desc": "位元速率，最高的在前"
+      }
+    },
+    "sortBy": "排序依據",
+    "sortHint": "在勾選的選項上按“確定”可反轉順序。",
+    "filter": "篩選",
+    "show": "顯示",
+    "genre": "型別",
+    "year": "年份",
+    "resolution": "解析度",
+    "dynamicRange": "動態範圍",
+    "allTitles": "所有標題",
+    "unwatched": "未觀看",
+    "watched": "已觀看",
+    "allGenres": "任意",
+    "allYears": "任意",
+    "allResolutions": "所有解析度",
+    "allDynamicRanges": "所有動態範圍",
+    "rows": {
+      "show": "顯示：{{value}}",
+      "genre": "型別：{{value}}",
+      "year": "年份：{{value}}",
+      "resolution": "解析度：{{value}}",
+      "dynamicRange": "動態範圍：{{value}}",
+      "anyGenre": "任意",
+      "anyYear": "任意",
+      "anyResolution": "所有解析度",
+      "anyDynamicRange": "所有動態範圍",
+      "clear": "清除篩選",
+      "saveAs": "另存為…"
+    },
+    "smartFilter": {
+      "genre": "型別：{{value}}",
+      "year": "{{value}} 年起",
+      "sort": {
+        "titleSort": {
+          "asc": "按標題",
+          "desc": "按標題，Z 到 A"
+        },
+        "year": {
+          "asc": "從舊到新",
+          "desc": "從新到舊"
+        },
+        "originallyAvailableAt": {
+          "asc": "從最早發行開始",
+          "desc": "從最新發行開始"
+        },
+        "addedAt": {
+          "asc": "先新增的在前",
+          "desc": "最近新增的在前"
+        },
+        "rating": {
+          "asc": "評分最低的在前",
+          "desc": "評分最高的在前"
+        },
+        "userRating": {
+          "asc": "你評分最低的在前",
+          "desc": "你評分最高的在前"
+        },
+        "lastViewedAt": {
+          "asc": "最久未播放的在前",
+          "desc": "最近播放的在前"
+        },
+        "duration": {
+          "asc": "時長最短的在前",
+          "desc": "時長最長的在前"
+        },
+        "mediaBitrate": {
+          "asc": "位元速率最低的在前",
+          "desc": "位元速率最高的在前"
+        }
+      }
+    },
+    "saveFilters": "儲存這些篩選",
+    "saveFiltersHint": "{{filters}}。它會自動跟隨媒體庫更新。",
+    "noRecommendations": "暫無推薦。",
+    "noCollections": "此媒體庫中沒有合集。",
+    "empty": "此媒體庫是空的。",
+    "noMatches": "沒有符合這些篩選條件的內容。"
+  },
+  "search": {
+    "placeholder": "輸入文字搜尋你的媒體庫。",
+    "recent": "最近的搜尋",
+    "clear": "清除",
+    "groups": {
+      "movie": "電影",
+      "show": "劇集",
+      "season": "季",
+      "episode": "集",
+      "artist": "藝人",
+      "album": "專輯",
+      "track": "曲目",
+      "channel": "直播電視",
+      "person": "人物"
+    },
+    "noneInLibraries": "你的媒體庫中沒有匹配項。",
+    "noResults": "沒有找到“{{query}}”。",
+    "resultsFor": "“{{query}}”的搜尋結果"
+  },
+  "playlists": {
+    "new": "新建播放列表",
+    "none": "還沒有播放列表。用“新建播放列表”，或在標題上按“選項”鍵選擇“新增到播放列表”來建立。",
+    "whatFor": "用於什麼？",
+    "moviesTv": "電影和電視",
+    "music": "音樂",
+    "nameHint": "先起個名字，然後在標題上按“選項”鍵選擇“新增到播放列表”。",
+    "create": "建立",
+    "notMade": "播放列表建立失敗"
+  },
+  "history": {
+    "title": "觀看歷史",
+    "empty": "還沒有歷史記錄。你看完的電影、單集和歌曲會顯示在這裡。",
+    "remove": "從歷史記錄中移除"
+  },
+  "sortLibraries": {
+    "title": "媒體庫排序",
+    "serverOrder": "使用伺服器的順序",
+    "moving": "{{name}}（移動中）",
+    "movingHint": "用上下鍵移動，按“確定”放在這裡，按“返回”放回原處。",
+    "hint": "選擇一個媒體庫即可移動。你的順序會應用到所有裝置。",
+    "needsNewer": "媒體庫排序需要伺服器上更新版本的 Pley。"
+  },
+  "collections": {
+    "none": "還沒有合集。",
+    "category": "分類",
+    "allCategories": "所有分類"
+  }
+}

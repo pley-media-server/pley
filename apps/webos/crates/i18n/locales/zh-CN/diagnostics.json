@@ -1,0 +1,33 @@
+{
+  "facts": {
+    "model": "型号",
+    "system": "系统",
+    "firmware": "固件",
+    "tier": "档位",
+    "savedData": "保存的数据",
+    "lostOnRestart": "电视重启后丢失"
+  },
+  "tiers": {
+    "low": "低",
+    "mid": "中",
+    "high": "高"
+  },
+  "lines": {
+    "tv": "电视：{{model}}",
+    "tvFirmware": "电视：{{model}}（固件 {{firmware}}）",
+    "webosRelease": "webOS {{version}} · 版本 {{release}}",
+    "panel": "面板：{{panel}}",
+    "hdr": "HDR：{{formats}}",
+    "none": "无",
+    "dolbyVision": "杜比视界：配置文件 {{profiles}}，来自 {{containers}}",
+    "video": "视频：{{decoders}}",
+    "audioDecoded": "音频解码：{{formats}}",
+    "sent": "发送给接收端：{{formats}}",
+    "nothing": "无",
+    "sound": "声音：{{output}}",
+    "digital": "{{output}}（数字 {{digital}}）",
+    "unknown": "未知",
+    "streams": "流：HLS {{segments}}",
+    "pipeline": "解码管线：{{video}}；{{audio}}"
+  }
+}

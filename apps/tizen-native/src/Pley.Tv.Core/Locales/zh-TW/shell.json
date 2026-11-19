@@ -1,0 +1,20 @@
+{
+  "rail": {
+    "search": "搜尋",
+    "home": "主頁",
+    "liveTv": "直播電視",
+    "libraries": "媒體庫",
+    "playlists": "播放列表",
+    "collections": "合集",
+    "nowPlaying": "正在播放",
+    "storage": "U 盤",
+    "settings": "設定",
+    "switchProfile": "切換配置檔案"
+  },
+  "exit": {
+    "title": "退出 Pley？",
+    "exit": "退出"
+  },
+  "comesNext": "{{page}} 在原生應用中將在後續推出。",
+  "pageComesNext": "此頁面在原生應用中將在後續推出。"
+}

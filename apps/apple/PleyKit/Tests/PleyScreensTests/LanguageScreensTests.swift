@@ -60,6 +60,20 @@ import Testing
         #expect(shown.languages == [.french, .spanish, .french])
     }
 
+    /// The device's Chinese tag, script or region, picks the right words.
+    @Test func aChineseDeviceLanguagePicksTheScriptItWrites() async {
+        let shown = Shown()
+        let simplified = app(settings: freshSettings(), deviceLanguages: { ["zh-Hans-CN", "en-US"] },
+                             applyLanguage: { shown.languages.append($0); shown.locales.append($1) })
+        await simplified.start()
+        #expect(simplified.language == .simplifiedChinese)
+        let traditional = app(settings: freshSettings(), deviceLanguages: { ["zh-Hant-TW", "en-US"] },
+                              applyLanguage: { shown.languages.append($0); shown.locales.append($1) })
+        await traditional.start()
+        #expect(traditional.language == .traditionalChinese)
+        #expect(shown.languages == [.simplifiedChinese, .traditionalChinese])
+    }
+
     @Test func theAccountsLanguageComesFirst() async throws {
         let server = try await fixture()
         defer { server.stop() }

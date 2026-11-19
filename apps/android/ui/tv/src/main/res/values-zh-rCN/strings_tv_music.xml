@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Artist and album pages (apps/web/src/pages/item/MusicViews.tsx). -->
+    <string name="tv_music_artist">艺人</string>
+    <string name="tv_music_albums">专辑</string>
+    <string name="tv_music_play">播放</string>
+    <string name="tv_music_pause">暂停</string>
+    <string name="tv_music_shuffle">随机播放</string>
+    <string name="tv_music_shuffle_off">关闭随机播放</string>
+    <string name="tv_music_now_playing">正在播放</string>
+    <string name="tv_music_disc">第 %1$d 张光盘</string>
+    <string name="tv_music_no_albums">未找到专辑。</string>
+    <string name="tv_music_no_tracks">未找到曲目</string>
+    <string name="tv_music_nothing_to_play">无法播放：没有曲目。</string>
+    <string name="tv_music_artist_not_found">未找到艺人</string>
+    <string name="tv_music_album_not_found">未找到专辑</string>
+    <string name="tv_music_not_found_body">它可能已被删除，或此配置文件无权查看。</string>
+    <string name="tv_music_artist_failed">无法加载此艺人</string>
+    <string name="tv_music_album_failed">无法加载此专辑</string>
+    <string name="tv_music_retry">重试</string>
+    <string name="tv_music_back">返回</string>
+
+    <!-- Now Playing (design spec §4.10). -->
+    <string name="tv_music_queue">接下来播放</string>
+    <string name="tv_music_next">下一首</string>
+    <string name="tv_music_previous">上一首</string>
+    <string name="tv_music_position">播放进度</string>
+    <!-- The sleep timer's button while it runs: "Sleep timer: 30 min". -->
+    <string name="tv_music_sleep_running">%1$s：%2$s</string>
+    <string name="tv_music_loading">加载中…</string>
+    <string name="tv_music_nothing_playing">当前没有播放</string>
+    <string name="tv_music_nothing_playing_body">播放专辑或艺人后，会显示在这里。</string>
+    <string name="tv_music_error_offline">无法连接到服务器。</string>
+    <string name="tv_music_error_signed_out">请重新登录后再播放。</string>
+    <string name="tv_music_error_stopped">播放已被服务器停止。</string>
+    <string name="tv_music_error_unplayable">此曲目无法播放。</string>
+</resources>

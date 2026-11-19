@@ -1,0 +1,20 @@
+{
+  "title": "誰在看？",
+  "signInAnother": "以其他配置檔案登入",
+  "pin": {
+    "title": "輸入 {{name}} 的 PIN",
+    "keysHint": "你也可以用遙控器上的數字鍵輸入。",
+    "otherProfile": "使用其他配置檔案"
+  },
+  "errors": {
+    "wrongPin": "PIN 錯誤",
+    "throttled": "PIN 錯誤次數過多：請幾分鐘後再試",
+    "pinLocked": "錯誤嘗試次數過多，此配置檔案的 PIN 已鎖定。其所有者或管理員可以重置",
+    "browser": "此配置檔案需要其密碼：請重新登入後再使用",
+    "notAllowed": "無法切換到此配置檔案",
+    "unauthorizedClient": "此次登入不能切換配置檔案：請重新登入後再試",
+    "refused": "伺服器拒絕：請重試",
+    "locked": "此配置檔案無法在應用中使用",
+    "unreachable": "無法連線你的伺服器：{{reason}}"
+  }
+}

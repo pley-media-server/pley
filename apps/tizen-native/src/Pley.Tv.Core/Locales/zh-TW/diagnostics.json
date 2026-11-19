@@ -1,0 +1,34 @@
+{
+  "title": "診斷",
+  "device": "這臺電視",
+  "app": "應用",
+  "plays": "可播放的內容",
+  "probing": "正在檢測這臺電視的播放能力…",
+  "probeFailed": "檢測這臺電視失敗。",
+  "probeAgain": "重新檢測",
+  "facts": {
+    "model": "型號",
+    "system": "系統",
+    "systemValue": "Tizen {{version}}（{{year}} 年型號）",
+    "panel": "面板",
+    "soundOutput": "聲音輸出",
+    "tier": "檔次"
+  },
+  "tiers": {
+    "low": "低",
+    "mid": "中",
+    "high": "高"
+  },
+  "lines": {
+    "tv": "電視：{{model}}",
+    "panel": "面板：{{panel}}",
+    "hdr": "HDR：{{formats}} · 沒有三星電視支援 Dolby Vision",
+    "none": "無",
+    "video": "影片：{{decoders}}",
+    "audioDecoded": "解碼音訊：{{formats}}",
+    "sent": "傳送給接收端：{{formats}}",
+    "sentWithOutput": "傳送給接收端：{{formats}}（聲音輸出 {{output}}）",
+    "nothing": "無",
+    "streams": "流：HLS {{segments}}"
+  }
+}

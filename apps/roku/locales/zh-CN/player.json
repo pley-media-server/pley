@@ -1,0 +1,233 @@
+{
+  "reconnecting": "重新连接中…",
+  "skip": {
+    "intro": "跳过片头",
+    "credits": "跳过片尾"
+  },
+  "upNext": {
+    "title": "接下来播放",
+    "playNow": "立即播放",
+    "nextIn": "{{seconds}} 秒后播放"
+  },
+  "sync": {
+    "hint": "左键：更早 · 右键：更晚",
+    "reset": "重置"
+  },
+  "menu": {
+    "title": "播放",
+    "subtitles": "字幕",
+    "subtitlesNow": "字幕：{{track}}",
+    "audio": "音频",
+    "audioNow": "音频：{{track}}",
+    "quality": "画质",
+    "qualityNow": "画质：{{quality}}",
+    "sync": "字幕同步",
+    "syncNow": "字幕同步：{{offset}}",
+    "chapters": "章节",
+    "find": "查找字幕…",
+    "details": "播放详情",
+    "backCloses": "按“返回”将关闭此菜单。",
+    "backGoesBack": "按“返回”将返回上一级。"
+  },
+  "details": {
+    "picturesDrawn": "字幕：由 Pley 绘制",
+    "qualityLowered": "画质：{{quality}} · 已因你的网络降低"
+  },
+  "toasts": {
+    "paused": "已暂停",
+    "playing": "正在播放",
+    "jumpedTo": "已跳转到 {{time}}",
+    "audio": "音频：{{track}}",
+    "subtitles": "字幕：{{track}}",
+    "subtitlesOff": "字幕已关闭",
+    "quality": "画质：{{quality}}",
+    "qualityLowered": "画质已降至 {{quality}}",
+    "slowServer": "服务器处理此视频时力不从心。请尝试降低画质：按“下”，再选“画质”。",
+    "notSaved": "无法保存此次选择供下次使用。",
+    "subtitlesAdded": "已添加字幕：{{track}}"
+  },
+  "errors": {
+    "cantPlay": "无法播放此内容",
+    "unplayable": "此视频无法在此 Roku 设备上播放。",
+    "endsEarly": "此视频在预定播放位置之前就结束了。",
+    "stalled": "播放停止后无法继续。",
+    "cantReach": "无法连接到 {{server}}",
+    "cantReachText": "Pley Roku 版无法连接到 {{address}} 处的服务器。请检查服务器是否已开启，以及这台电视是否与服务器在同一网络。",
+    "stoppedByAdmin": "播放已被服务器管理员停止。",
+    "stoppedElsewhere": "播放已从另一台设备停止。"
+  },
+  "quality": {
+    "original": "原始",
+    "automatic": "自动",
+    "automaticAt": "自动 · {{quality}}",
+    "preset": "{{mbps}} Mbps {{lines}}",
+    "originalHint": "完整画质。网络较慢时可能会缓冲。",
+    "automaticHint": "根据网络状况动态调整。"
+  },
+  "sleep": {
+    "title": "睡眠定时",
+    "titleNow": "睡眠定时：{{state}}",
+    "off": "关闭",
+    "minutes": "{{minutes}} 分钟",
+    "minutesLeft_other": "剩余 {{count}} 分钟",
+    "secondsLeft_other": "剩余 {{count}} 秒",
+    "end": {
+      "episode": "本集结束",
+      "movie": "本片结束",
+      "track": "本曲目结束",
+      "video": "本视频结束"
+    },
+    "pausingIn": "{{seconds}} 秒后暂停",
+    "keepWatching": "继续观看",
+    "keepListening": "继续收听"
+  },
+  "find": {
+    "title": "查找字幕",
+    "language": "字幕语言",
+    "searching": "搜索中…",
+    "languageEntry": "语言：{{language}}",
+    "yourLanguage": "你的字幕语言",
+    "yourLanguageInSentence": "你的字幕语言",
+    "languageHint": "搜索时使用的语言。",
+    "nothingFound": "未找到此文件在 {{language}} 中的字幕。按“语言”可换一种。",
+    "subtitles": "字幕",
+    "madeForFile": "专为此文件制作",
+    "hearingImpaired": "听障人士",
+    "downloads_other": "{{count, number}} 次下载",
+    "adding": "正在添加 {{name}}…",
+    "noTrack": "服务器没有返回字幕。",
+    "notSetUp": "此服务器尚未设置字幕搜索。管理员可在网页版 Pley 的“设置 → 服务器”中设置。",
+    "needsNewer": "查找字幕需要服务器上更新版本的 Pley。",
+    "unreachable": "无法连接到服务器。",
+    "failed": "出错了。请再试一次。"
+  },
+  "tracks": {
+    "off": "关闭",
+    "automatic": "自动",
+    "automaticLanguage": "自动（{{language}}）",
+    "unknown": "未知",
+    "forced": "强制",
+    "external": "外部",
+    "version": "版本 {{number}}"
+  },
+  "media": {
+    "languages": {
+      "und": "未知",
+      "mul": "多种语言",
+      "zxx": "无语言内容"
+    },
+    "mono": "单声道",
+    "stereo": "立体声",
+    "channelCount": "{{n}} 声道",
+    "fact": "{{label}}：{{value}}",
+    "file": "文件",
+    "video": "视频",
+    "audio": "音频",
+    "subtitles": "字幕",
+    "numbered": "{{kind}} {{n}}",
+    "name": "名称",
+    "container": "容器",
+    "size": "大小",
+    "duration": "时长",
+    "overallBitrate": "总码率",
+    "codec": "编解码器",
+    "profile": "配置",
+    "resolution": "分辨率",
+    "frameRate": "帧率",
+    "bitDepth": "位深",
+    "primaries": "原色",
+    "transfer": "传递特性",
+    "matrix": "矩阵",
+    "bitrate": "码率",
+    "title": "标题",
+    "channels": "声道",
+    "sampleRate": "采样率",
+    "language": "语言",
+    "flags": "标记",
+    "format": "格式",
+    "formatPicture": "{{codec}}，图像",
+    "formatText": "{{codec}}，文本",
+    "level": "级别 {{level}}",
+    "fps": "{{fps}} 帧/秒",
+    "fpsInterlaced": "{{fps}} 帧/秒，隔行扫描",
+    "bits": "{{n}} 位",
+    "default": "默认",
+    "beside": "与媒体文件放在一起",
+    "dvProfile": "配置 {{profile}}",
+    "noBaseLayer": "没有兼容的基础层",
+    "baseLayer": "{{range}} 兼容的基础层",
+    "fullLayer": "完整增强层",
+    "minimalLayer": "最小增强层"
+  },
+  "caps": {
+    "display": "显示：{{size}}",
+    "displayRate": "显示：{{size}}，{{rate}} Hz",
+    "hdr": "HDR：{{list}}",
+    "none": "无",
+    "dolbyVision": "Dolby Vision：配置 {{list}}",
+    "video": "视频：{{list}}",
+    "audioDecoded": "音频解码：{{list}}",
+    "sent": "发送到功放：{{list}}",
+    "nothing": "无",
+    "sound": "声音：{{sound}}",
+    "surround": "环绕声（5.1）",
+    "pictures": "图像字幕：PGS 在此绘制，VobSub 和 DVB 直接压制",
+    "containers": "容器：{{list}}",
+    "streams": "流：HLS，多种尺寸"
+  },
+  "nowPlaying": {
+    "title": "正在播放",
+    "position": "第 {{at, number}} 首，共 {{total, number}} 首",
+    "shuffle": "随机播放",
+    "stopShuffling": "停止随机播放",
+    "previous": "上一曲",
+    "pause": "暂停",
+    "next": "下一曲",
+    "stop": "停止",
+    "cantPlay": "此曲目无法在此 Roku 设备上播放。",
+    "trackProblem": "{{title}}：{{message}}"
+  },
+  "cast": {
+    "playingFrom": "正在播放 {{device}} 的内容",
+    "playingFromAnother": "正在播放另一台设备的内容",
+    "nothingToPlay": "没有可播放的内容",
+    "switchFailed": "无法切换到遥控器的配置文件"
+  },
+  "settings": {
+    "audioLanguage": "音频语言",
+    "subtitles": "字幕",
+    "subtitleLanguage": "字幕语言",
+    "fileDefault": "文件的默认语言",
+    "sameAsAudio": "与音频语言相同",
+    "rows": {
+      "audio": "音频语言：{{language}}",
+      "mode": "字幕：{{mode}}",
+      "subtitle": "字幕语言：{{language}}",
+      "fileDefault": "文件的默认语言",
+      "sameAsAudio": "与音频语言相同",
+      "readOnly": "{{row}} · 在网页上更改"
+    },
+    "modes": {
+      "off": {
+        "label": "关闭",
+        "row": "关闭",
+        "hint": "字幕保持关闭，直到你手动开启。"
+      },
+      "forced": {
+        "label": "仅外语对白",
+        "row": "仅外语对白",
+        "hint": "只显示强制字幕，用于标牌和外语对白。"
+      },
+      "foreign": {
+        "label": "音频为其他语言时",
+        "row": "音频为其他语言时",
+        "hint": "当音频不是你的字幕语言时，自动显示完整字幕。"
+      },
+      "always": {
+        "label": "始终",
+        "row": "始终",
+        "hint": "只要有你语言的字幕，就自动显示。"
+      }
+    }
+  }
+}

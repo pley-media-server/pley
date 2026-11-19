@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The format functions' words (:core:model's format, FormatWords),
+      made by formatWords(resources). The English is what FormatWords.English
+      writes, word for word.
+    -->
+
+    <!-- Durations, short: "29s", "45m", "1h", "1h 52m", a server's uptime "1d 1h". -->
+    <string name="format_seconds">%1$d秒</string>
+    <string name="format_minutes">%1$d分鐘</string>
+    <string name="format_hours">%1$d小時</string>
+    <string name="format_hours_minutes">%1$d小時%2$d分鐘</string>
+    <string name="format_days_hours">%1$d天%2$d小時</string>
+    <!-- A runtime under an hour, on the TV and phone screens. -->
+    <string name="format_runtime_minutes">%1$d 分鐘</string>
+    <!-- What is left of something playing: "26 min left", "1h 12m left". -->
+    <string name="format_left">剩餘 %1$s</string>
+
+    <!-- Durations in words, for screen readers: "1 hour 12 minutes", "34 minutes left" (after a comma). -->
+    <plurals name="format_spoken_seconds">
+        <item quantity="other">%1$d 秒</item>
+    </plurals>
+    <plurals name="format_spoken_minutes">
+        <item quantity="other">%1$d 分鐘</item>
+    </plurals>
+    <plurals name="format_spoken_hours">
+        <item quantity="other">%1$d 小時</item>
+    </plurals>
+    <string name="format_spoken_hours_minutes">%1$s %2$s</string>
+    <string name="format_spoken_left">剩餘 %1$s</string>
+
+    <!-- Relative times, as Intl.RelativeTimeFormat words them (numeric "auto"), in lower case. -->
+    <string name="format_never">從不</string>
+    <string name="format_now">現在</string>
+    <string name="format_this_minute">這一分鐘</string>
+    <string name="format_this_hour">這一小時</string>
+    <string name="format_today">今天</string>
+    <string name="format_this_week">本週</string>
+    <string name="format_this_month">本月</string>
+    <string name="format_this_year">今年</string>
+    <string name="format_yesterday">昨天</string>
+    <string name="format_last_week">上週</string>
+    <string name="format_last_month">上月</string>
+    <string name="format_last_year">去年</string>
+    <string name="format_tomorrow">明天</string>
+    <string name="format_next_week">下週</string>
+    <string name="format_next_month">下月</string>
+    <string name="format_next_year">明年</string>
+    <plurals name="format_seconds_ago">
+        <item quantity="other">%1$d 秒前</item>
+    </plurals>
+    <plurals name="format_minutes_ago">
+        <item quantity="other">%1$d 分鐘前</item>
+    </plurals>
+    <plurals name="format_hours_ago">
+        <item quantity="other">%1$d 小時前</item>
+    </plurals>
+    <plurals name="format_days_ago">
+        <item quantity="other">%1$d 天前</item>
+    </plurals>
+    <plurals name="format_weeks_ago">
+        <item quantity="other">%1$d 周前</item>
+    </plurals>
+    <plurals name="format_months_ago">
+        <item quantity="other">%1$d 個月前</item>
+    </plurals>
+    <plurals name="format_years_ago">
+        <item quantity="other">%1$d 年前</item>
+    </plurals>
+    <plurals name="format_in_seconds">
+        <item quantity="other">%1$d 秒後</item>
+    </plurals>
+    <plurals name="format_in_minutes">
+        <item quantity="other">%1$d 分鐘後</item>
+    </plurals>
+    <plurals name="format_in_hours">
+        <item quantity="other">%1$d 小時後</item>
+    </plurals>
+    <plurals name="format_in_days">
+        <item quantity="other">%1$d 天后</item>
+    </plurals>
+    <plurals name="format_in_weeks">
+        <item quantity="other">%1$d 周後</item>
+    </plurals>
+    <plurals name="format_in_months">
+        <item quantity="other">%1$d 個月後</item>
+    </plurals>
+    <plurals name="format_in_years">
+        <item quantity="other">%1$d 年後</item>
+    </plurals>
+
+    <!-- Seasons and episodes: "S1 · E3", "S1", "E3", "Season 2", "Episode 5", "Season" without a number, season 0. -->
+    <string name="format_season_episode">S%1$d · E%2$d</string>
+    <string name="format_season_short">S%1$d</string>
+    <string name="format_episode_short">E%1$d</string>
+    <string name="format_season">第 %1$d 季</string>
+    <string name="format_episode">第 %1$d 集</string>
+    <string name="format_season_unnumbered">季</string>
+    <string name="format_specials">特別篇</string>
+    <!-- Counts under a card, the number written in the language's digits ("12,345"). -->
+    <plurals name="format_seasons">
+        <item quantity="other">%1$s 季</item>
+    </plurals>
+    <plurals name="format_episodes">
+        <item quantity="other">%1$s 集</item>
+    </plurals>
+    <plurals name="format_albums">
+        <item quantity="other">%1$s 張專輯</item>
+    </plurals>
+    <!-- A tile's state, for screen readers: "Severance, 2 seasons, 6 unwatched". -->
+    <string name="format_watched">已觀看</string>
+    <plurals name="format_unwatched">
+        <item quantity="other">%1$d 未觀看</item>
+    </plurals>
+
+    <!-- Tracks and files: "English (AAC Stereo)", "Unknown (5ch)", "French (SRT, Forced, External)", "10-bit". -->
+    <string name="format_unknown">未知</string>
+    <string name="format_stereo">立體聲</string>
+    <string name="format_channels">%1$d 聲道</string>
+    <string name="format_forced">強制</string>
+    <string name="format_external">外部</string>
+    <string name="format_bit_depth">%1$d 位</string>
+    <string name="format_bitrate_unknown">位元速率未知</string>
+    <string name="format_version">版本 %1$d</string>
+    <!-- The library filter by dynamic range that takes any of them. -->
+    <string name="format_any_hdr">任意 HDR</string>
+    <!-- Sizes and rates: "1.5 KB", "8.2 Mbps". -->
+    <string name="format_bytes">%1$s B</string>
+    <string name="format_kilobytes">%1$s KB</string>
+    <string name="format_megabytes">%1$s MB</string>
+    <string name="format_gigabytes">%1$s GB</string>
+    <string name="format_terabytes">%1$s TB</string>
+    <string name="format_megabits">%1$s Mbps</string>
+    <string name="format_kilobits">%1$s kbps</string>
+
+    <!-- What the transcoder does, in the player's details: "HEVC (copy)", "cuda decode", "burn-in subs". -->
+    <string name="format_video_transcode">影片轉碼</string>
+    <string name="format_video">影片</string>
+    <string name="format_copied">%1$s（複製）</string>
+    <string name="format_decoded">%1$s 解碼</string>
+    <string name="format_burn_in">內嵌字幕</string>
+
+    <!-- A stream's technical details: "Main 10 · Level 5.1", "23.976 fps", Dolby Vision in full. -->
+    <string name="format_level">等級 %1$s</string>
+    <string name="format_frame_rate">%1$s fps</string>
+    <string name="format_dv_profile">配置 %1$s</string>
+    <string name="format_dv_base_layer">相容 %1$s 的基礎層</string>
+    <string name="format_dv_no_base_layer">沒有相容的基礎層</string>
+    <string name="format_dv_full_layer">完整增強層</string>
+    <string name="format_dv_minimal_layer">最小增強層</string>
+
+    <!-- Tracks' languages Pley names itself (und, mul, zxx, qaa, cmn); the others are named by the system. -->
+    <string name="format_language_und">未知</string>
+    <string name="format_language_mul">多種</string>
+    <string name="format_language_zxx">無語言內容</string>
+    <string name="format_language_qaa">原聲</string>
+    <string name="format_language_cmn">普通話</string>
+</resources>

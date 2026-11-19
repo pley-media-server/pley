@@ -1,0 +1,224 @@
+{
+  "names": {
+    "discover": "发现",
+    "yours": "你的请求",
+    "manage": "请求"
+  },
+  "actions": {
+    "open": "打开",
+    "request": "请求",
+    "watch": "观看",
+    "cancel": "取消",
+    "retry": "重试",
+    "signIn": "登录",
+    "seeAll": "查看全部",
+    "showMore": "显示更多",
+    "back": "返回",
+    "close": "关闭",
+    "details": "详情",
+    "withdraw": "撤回",
+    "remove": "移除",
+    "approve": "批准",
+    "approveWith": "批准…",
+    "tryAgain": "重试",
+    "decline": "拒绝",
+    "declineWithReason": "说明原因并拒绝…",
+    "handled": "标记为手动添加",
+    "delete": "删除",
+    "askAgain": "再次请求"
+  },
+  "title": {
+    "requested": "已请求",
+    "following": "关注中",
+    "stopFollowing": "取消关注",
+    "tellMeToo": "也通知我",
+    "askedAlready": "已经有人请求过了。",
+    "moreSeasons": "请求更多季",
+    "readyElsewhere": "已就绪，但位于你无权打开的媒体库：请联系管理员",
+    "noAccess": "此账户未开放请求功能。",
+    "failed": "无法加载此标题",
+    "seasons": "季",
+    "cast": "演员",
+    "overview": "简介"
+  },
+  "kind": {
+    "movie": "电影",
+    "show": "剧集"
+  },
+  "badge": {
+    "inLibrary": "已在媒体库",
+    "partlyInLibrary": "部分在媒体库",
+    "requested": "已请求",
+    "declined": "已拒绝"
+  },
+  "picker": {
+    "title": "选择哪些季？",
+    "none": "请选择一季。",
+    "request_other": "请求 {{count}} 季"
+  },
+  "seasons": {
+    "list_other": "第 {{list}} 季",
+    "andSpecials": "{{seasons}} 和特别篇",
+    "specials": "特别篇"
+  },
+  "season": {
+    "declined": "已拒绝",
+    "inLibrary": "已在媒体库",
+    "requested": "已请求",
+    "partial_other": "{{count}} / {{episodes}} 集已在媒体库",
+    "airs": "{{date}} 播出",
+    "notAired": "尚未播出"
+  },
+  "counts": {
+    "episodes_other": "{{count, number}} 集",
+    "seasons_other": "{{count, number}} 季",
+    "movies_other": "{{count, number}} 部电影"
+  },
+  "stage": {
+    "pending": "等待审批",
+    "approved": "已批准",
+    "airs": "{{day}} 播出",
+    "out": "{{day}} 上线",
+    "notOut": "尚未上线",
+    "searching": "搜索中",
+    "queued": "等待下载",
+    "paused": "下载已暂停",
+    "warning": "下载出现问题",
+    "downloading": "下载中 {{percent}}%",
+    "downloadingUntil": "下载中 {{percent}}% · {{when}}",
+    "importing": "正在添加到媒体库",
+    "partial": "{{seasons}} 已就绪",
+    "available": "可以观看",
+    "gone": "已不在媒体库中",
+    "declined": "已拒绝",
+    "couldNotSend": "发送失败",
+    "couldNotSendBecause": "发送失败：{{reason}}",
+    "notSent": "尚未发送",
+    "requested": "已请求",
+    "retrying": "将于 {{when}} 重试。",
+    "notSentLine": "暂时无法发送到下载：管理员会查看处理。"
+  },
+  "asked": {
+    "someone": "由其他人请求",
+    "following": "“{{title}}”就绪时会通知你。",
+    "approved": "“{{title}}”已批准，正在处理。",
+    "failed": "已请求“{{title}}”，但暂时无法发送到下载。",
+    "pending": "已请求“{{title}}”：由管理员决定。",
+    "watchers_other": "{{count}} 人关注"
+  },
+  "declined": {
+    "reasonAndWhen": "已拒绝：“{{reason}}”。{{when}} 可以再次请求。",
+    "when": "已拒绝。{{when}} 可以再次请求。",
+    "reason": "已拒绝：“{{reason}}”。",
+    "plain": "已拒绝。"
+  },
+  "allowance": {
+    "allForNow": "目前你能请求的都已请求完。",
+    "allMovies": "目前你能请求的电影都已请求完：{{when}} 可以再次请求。",
+    "allSeasons": "目前你能请求的剧季都已请求完：{{when}} 可以再次请求。",
+    "allBoth": "目前你能请求的都已请求完：{{movies}} 可再请求电影，{{seasons}} 可再请求剧季。",
+    "moreMovies_other": "再请求 {{count}} 部电影",
+    "moreSeasons_other": "再请求 {{count}} 季",
+    "canAsk": "你可以请求 {{what}}。",
+    "canAskBoth": "你可以请求 {{movies}} 和 {{seasons}}。",
+    "limit": "限制：每 7 天 {{what}}。",
+    "limits": "限制：每 7 天 {{movies}} 和 {{seasons}}。"
+  },
+  "problem": {
+    "off": "请求功能已关闭",
+    "offBody": "此服务器不接受电影和剧集请求。",
+    "noAccess": "此账户未开放请求功能",
+    "noAccessBody": "管理员可以允许其请求电影和剧集。",
+    "signIn": "重新登录以请求电影和剧集",
+    "signInApprovals": "重新登录后可在此审批。",
+    "tmdbKey": "TMDB 拒绝了此服务器的密钥",
+    "tmdbKeyManage": "请在网页端的“设置 → 服务器”中修复。",
+    "tmdbKeyBody": "需要管理员检查。",
+    "tmdbDown": "TMDB 没有响应",
+    "tmdbDownBody": "它恢复响应后，详细信息和海报就会回来。",
+    "askAgain": "{{when}} 可以再次请求",
+    "askMore": "{{when}} 可以请求更多",
+    "notFound": "此标题不在 TMDB 上",
+    "notFoundBody": "它可能已被下架。",
+    "atMostSeasons_other": "每 7 天最多可请求 {{count, number}} 季：请减少数量。",
+    "atMostMovies_other": "每 7 天最多可请求 {{count, number}} 部电影。"
+  },
+  "discover": {
+    "searchRow": "发现",
+    "loading": "正在加载发现内容",
+    "failed": "无法加载发现内容",
+    "searchFailed": "无法搜索 TMDB",
+    "nothingTitle": "这里暂时没有内容",
+    "nothingBody": "TMDB 的列表中没有此配置文件可请求的内容。请改为搜索标题。",
+    "listNothingBody": "TMDB 的列表中没有此配置文件可请求的内容。",
+    "listFailed": "无法加载",
+    "noneYet": "这里还没有内容",
+    "noneYetBody": "目前已读取的 TMDB 页面中没有此配置文件可请求的内容。",
+    "resultsFor": "“{{query}}”的搜索结果",
+    "searchNoneYet": "“{{query}}”暂时没有结果",
+    "searchNone": "TMDB 上没有任何内容与“{{query}}”匹配",
+    "searchNoneBody": "试试不同的拼写，或用该标题的原语言搜索。",
+    "credit": "详细信息和海报来自 TMDB。",
+    "creditAbout": "本产品使用 TMDB API，但未获得 TMDB 的认可或认证。",
+    "lists": {
+      "trending": "本周热门",
+      "movies": "热门电影",
+      "shows": "热门剧集",
+      "upcoming": "即将上映",
+      "anime": "热门动漫"
+    }
+  },
+  "list": {
+    "failed": "无法加载请求",
+    "views": {
+      "attention": "需要处理",
+      "all": "全部",
+      "pending": "等待审批",
+      "approved": "已批准",
+      "available": "可以观看",
+      "declined": "已拒绝",
+      "failed": "失败"
+    },
+    "movies": "电影",
+    "shows": "剧集",
+    "kindAll": "电影和剧集",
+    "everyone": "所有人",
+    "mine": "你的",
+    "askedBy": "请求人",
+    "search": "搜索请求",
+    "noneTitle": "还没有请求",
+    "noneBody": "在“发现”中查找电影和剧集，请求媒体库中还没有的内容。",
+    "noneBodyOff": "你发起或关注的请求会显示在这里。",
+    "attentionNone": "没有需要处理的事",
+    "attentionNoneBody": "等待决定的请求和发送失败的请求会显示在这里。",
+    "filteredNone": "没有匹配的请求",
+    "filteredNoneBody": "试试其他筛选条件。",
+    "find": "查找可请求的内容",
+    "declineTitle": "拒绝“{{title}}”？",
+    "declineReason": "原因（可选）",
+    "declineReasonHint": "请求人可以看到。",
+    "confirmWithdraw": "撤回你对“{{title}}”的请求？",
+    "confirmRemove": "从你的请求中移除“{{title}}”？",
+    "confirmDelete": "删除此请求？Radarr 和 Sonarr 会保留已有内容。"
+  },
+  "signIn": {
+    "title": "重新登录？",
+    "body": "此电视会显示一个代码，用于重新关联到 {{server}}。"
+  },
+  "notices": {
+    "ready": "“{{title}}”可以观看了。",
+    "seasonsReady_other": "“{{title}}”的 {{seasons}} 可以观看了。",
+    "news_other": "你的 {{count}} 个请求有新动态",
+    "needYou_other": "有 {{count}} 个请求需要你处理",
+    "notSent_other": "{{need}}，其中 {{count}} 个发送失败"
+  },
+  "time": {
+    "moment": "稍后",
+    "minutes": "{{minutes}} 分钟后",
+    "hours_other": "{{count}} 小时后",
+    "tomorrow": "明天",
+    "days_other": "{{count}} 天后",
+    "todayAt": "今天 {{time}}",
+    "tomorrowAt": "明天 {{time}}"
+  }
+}

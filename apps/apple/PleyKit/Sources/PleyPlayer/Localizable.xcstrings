@@ -15,6 +15,18 @@
             "state" : "translated",
             "value" : "%@ n’a pas démarré"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 未能启动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 未能啟動"
+          }
         }
       }
     },
@@ -31,6 +43,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ est indisponible"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 未在播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 未在播放"
           }
         }
       }
@@ -49,6 +73,18 @@
             "state" : "translated",
             "value" : "%@ · Audio transcodé"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 音频转码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 音訊轉碼"
+          }
         }
       }
     },
@@ -65,6 +101,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld Mbit/s %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Mbps %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Mbps %@"
           }
         }
       }
@@ -133,6 +181,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld min restantes"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "还剩 %lld 分钟"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "還剩 %lld 分鐘"
                 }
               }
             }
@@ -208,6 +280,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 分钟"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 分鐘"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -224,6 +320,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Toutes les connexions sont utilisées"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有连接均已占用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有連線均已佔用"
           }
         }
       }
@@ -242,6 +350,18 @@
             "state" : "translated",
             "value" : "Automatique"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動"
+          }
         }
       }
     },
@@ -258,6 +378,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Automatique · %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动 · %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動 · %@"
           }
         }
       }
@@ -276,6 +408,18 @@
             "state" : "translated",
             "value" : "Fond"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "后台"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "後臺"
+          }
         }
       }
     },
@@ -292,6 +436,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Incrustés dans la vidéo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "压制在视频中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "壓制在影片中"
           }
         }
       }
@@ -310,6 +466,18 @@
             "state" : "translated",
             "value" : "Impossible de joindre le serveur."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法连接服务器。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法連線伺服器。"
+          }
         }
       }
     },
@@ -326,6 +494,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Impossible de joindre votre serveur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法连接你的服务器"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法連線你的伺服器"
           }
         }
       }
@@ -344,6 +524,18 @@
             "state" : "translated",
             "value" : "Chapitre %lld"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 章"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 章"
+          }
         }
       }
     },
@@ -360,6 +552,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lecture directe"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接播放"
           }
         }
       }
@@ -378,6 +582,18 @@
             "state" : "translated",
             "value" : "Flux direct"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接串流"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接串流"
+          }
         }
       }
     },
@@ -394,6 +610,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Téléchargé"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已下载"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已下載"
           }
         }
       }
@@ -412,6 +640,18 @@
             "state" : "translated",
             "value" : "S’adapte aux conditions"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据情况动态调整"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根據情況動態調整"
+          }
         }
       }
     },
@@ -428,6 +668,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "É%lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 集"
           }
         }
       }
@@ -446,6 +698,18 @@
             "state" : "translated",
             "value" : "Fin de cet épisode"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本集结束"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本集結束"
+          }
         }
       }
     },
@@ -462,6 +726,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fin de ce film"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本片结束"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本片結束"
           }
         }
       }
@@ -480,6 +756,18 @@
             "state" : "translated",
             "value" : "Fin de ce titre"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本曲目结束"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本曲目結束"
+          }
         }
       }
     },
@@ -496,6 +784,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Police"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字体"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字型"
           }
         }
       }
@@ -514,6 +814,18 @@
             "state" : "translated",
             "value" : "La TV en direct n’est pas ouverte à ce profil"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此配置文件未开放直播电视"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此配置檔案未開放直播電視"
+          }
         }
       }
     },
@@ -530,6 +842,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La TV en direct a été arrêtée par l’administrateur du serveur."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直播电视已被服务器管理员停止。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直播電視已被伺服器管理員停止。"
           }
         }
       }
@@ -548,6 +872,18 @@
             "state" : "translated",
             "value" : "La TV en direct a été arrêtée depuis un autre appareil."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直播电视已从另一台设备停止。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直播電視已從另一臺裝置停止。"
+          }
         }
       }
     },
@@ -564,6 +900,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réduite pour cet appareil"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为此设备降低画质"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為此裝置降低畫質"
           }
         }
       }
@@ -582,6 +930,18 @@
             "state" : "translated",
             "value" : "Réduite pour votre connexion"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为你的连接降低画质"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為你的連線降低畫質"
+          }
         }
       }
     },
@@ -598,6 +958,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Il n’y a rien à suivre"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有接下来播放的内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有接下來播放的內容"
           }
         }
       }
@@ -616,6 +988,18 @@
             "state" : "translated",
             "value" : "Actuellement %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在 %@"
+          }
         }
       }
     },
@@ -632,6 +1016,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Désactivé"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關"
           }
         }
       }
@@ -650,6 +1046,18 @@
             "state" : "translated",
             "value" : "Original"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始"
+          }
         }
       }
     },
@@ -666,6 +1074,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mise en pause dans %lld s"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 秒后暂停"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 秒後暫停"
           }
         }
       }
@@ -684,6 +1104,18 @@
             "state" : "translated",
             "value" : "Lire le suivant"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下来播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下來播放"
+          }
         }
       }
     },
@@ -700,6 +1132,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lire le suivant (%lld)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下来播放（%lld）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下來播放（%lld）"
           }
         }
       }
@@ -718,6 +1162,18 @@
             "state" : "translated",
             "value" : "La lecture s’est arrêtée et n’a pas pu reprendre."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已停止，无法重新开始。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已停止，無法重新開始。"
+          }
         }
       }
     },
@@ -734,6 +1190,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La lecture a été arrêtée par l’administrateur du serveur."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已被服务器管理员停止。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已被伺服器管理員停止。"
           }
         }
       }
@@ -752,6 +1220,18 @@
             "state" : "translated",
             "value" : "La lecture a été arrêtée par l’administrateur du serveur. %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已被服务器管理员停止。%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已被伺服器管理員停止。%@"
+          }
         }
       }
     },
@@ -768,6 +1248,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La lecture a été arrêtée par l’administrateur du serveur : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已被服务器管理员停止：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已被伺服器管理員停止：%@"
           }
         }
       }
@@ -786,6 +1278,18 @@
             "state" : "translated",
             "value" : "Le serveur a arrêté la lecture."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已被服务器停止。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已被伺服器停止。"
+          }
         }
       }
     },
@@ -802,6 +1306,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La lecture a été arrêtée depuis un autre appareil"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已从另一台设备停止"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放已從另一臺裝置停止"
           }
         }
       }
@@ -820,6 +1336,18 @@
             "state" : "translated",
             "value" : "Position"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位置"
+          }
         }
       }
     },
@@ -836,6 +1364,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Qualité réduite à %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画质已降至 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "畫質已降至 %@"
           }
         }
       }
@@ -854,6 +1394,18 @@
             "state" : "translated",
             "value" : "Reconnexion…"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重新连接…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重新連線…"
+          }
         }
       }
     },
@@ -870,6 +1422,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "S%lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季"
           }
         }
       }
@@ -888,6 +1452,18 @@
             "state" : "translated",
             "value" : "S%lld É%lld"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季 第 %lld 集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季 第 %lld 集"
+          }
         }
       }
     },
@@ -904,6 +1480,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reconnectez-vous pour lire."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登录以播放。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登入以播放。"
           }
         }
       }
@@ -922,6 +1510,18 @@
             "state" : "translated",
             "value" : "Taille"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大小"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大小"
+          }
         }
       }
     },
@@ -938,6 +1538,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Passer le générique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过片尾"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳過片尾"
           }
         }
       }
@@ -956,6 +1568,18 @@
             "state" : "translated",
             "value" : "Passer l’intro"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过片头"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳過片頭"
+          }
         }
       }
     },
@@ -972,6 +1596,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sous-titres ajoutés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕已添加"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕已新增"
           }
         }
       }
@@ -990,6 +1626,18 @@
             "state" : "translated",
             "value" : "L’original n’était pas fluide sur cet appareil."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始画质在此设备上播放不流畅。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始畫質在此裝置上播放不流暢。"
+          }
         }
       }
     },
@@ -1006,6 +1654,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Le lecteur s’est arrêté de façon inattendue."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放器意外停止。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放器意外停止。"
           }
         }
       }
@@ -1024,6 +1684,18 @@
             "state" : "translated",
             "value" : "Le serveur ne parvient pas à convertir cette vidéo assez vite ; une qualité inférieure serait fluide."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器无法足够快地转码此视频；较低画质会更流畅。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器無法足夠快地轉碼此影片；較低畫質會更流暢。"
+          }
         }
       }
     },
@@ -1040,6 +1712,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Impossible de joindre le serveur."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法连接服务器。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法連線伺服器。"
           }
         }
       }
@@ -1058,6 +1742,18 @@
             "state" : "translated",
             "value" : "Impossible de charger les sous-titres."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕无法加载。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕無法載入。"
+          }
         }
       }
     },
@@ -1074,6 +1770,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La vidéo s’arrête chaque fois au même endroit."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频每次都在同一位置停止。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影片每次都在同一位置停止。"
           }
         }
       }
@@ -1092,6 +1800,18 @@
             "state" : "translated",
             "value" : "Cette chaîne n’existe plus"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此频道已不可用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此頻道已不可用"
+          }
         }
       }
     },
@@ -1108,6 +1828,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cet appareil n’a pas pu lire le fichier original."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备无法播放原始文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此裝置無法播放原始檔案。"
           }
         }
       }
@@ -1126,6 +1858,18 @@
             "state" : "translated",
             "value" : "C’est le dernier épisode"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这是最后一集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這是最後一集"
+          }
         }
       }
     },
@@ -1142,6 +1886,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cet élément n’a aucun fichier à lire."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此项目没有可播放的文件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此專案沒有可播放的檔案。"
           }
         }
       }
@@ -1160,6 +1916,18 @@
             "state" : "translated",
             "value" : "Impossible de lire ce titre."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此曲目无法播放。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此曲目無法播放。"
+          }
         }
       }
     },
@@ -1176,6 +1944,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cette vidéo ne peut pas être lue sur cet appareil."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此视频无法在此设备上播放。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此影片無法在此裝置上播放。"
           }
         }
       }
@@ -1194,6 +1974,18 @@
             "state" : "translated",
             "value" : "Transcodage"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轉碼"
+          }
         }
       }
     },
@@ -1210,6 +2002,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "À suivre"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下来播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下來播放"
           }
         }
       }
@@ -1228,6 +2032,18 @@
             "state" : "translated",
             "value" : "À suivre · %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下来播放 · %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下來播放 · %@"
+          }
         }
       }
     },
@@ -1244,6 +2060,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Visionnage arrêté"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "观看已停止"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "觀看已停止"
           }
         }
       }
@@ -1262,6 +2090,18 @@
             "state" : "translated",
             "value" : "Le visionnage a été arrêté."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "观看已被停止。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "觀看已被停止。"
+          }
         }
       }
     },
@@ -1278,6 +2118,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "une erreur s’est produite"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出了点问题"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出了點問題"
           }
         }
       }
@@ -1302,6 +2154,18 @@
             "state" : "translated",
             "value" : "Désactivés"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關"
+          }
         }
       }
     },
@@ -1318,6 +2182,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "le serveur a répondu avec le code %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器返回 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伺服器返回 %@"
           }
         }
       }

@@ -129,3 +129,13 @@ sub test_format_days_in_local_time()
     tkEqual(fmtDateText(invalid, now, 0), "")
     tkTrue(Abs(fmtZoneSeconds()) <= 14 * 3600)
 end sub
+
+sub test_format_chinese_times_use_the_24_hour_clock()
+    now = 1793534400
+    i18nUse("zh-CN")
+    tkFalse(fmtTwelveHour(), "Chinese writes 24 hours")
+    tkEqual(fmtTimeOfDay(now + 9 * 3600 + 300, 0), "21:05")
+    i18nUse("zh-TW")
+    tkEqual(fmtTimeOfDay(now + 9 * 3600 + 300, 0), "21:05")
+    i18nUse("en")
+end sub

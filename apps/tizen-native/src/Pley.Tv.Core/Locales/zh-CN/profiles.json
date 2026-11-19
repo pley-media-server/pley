@@ -1,0 +1,20 @@
+{
+  "title": "谁在看？",
+  "signInAnother": "以其他配置文件登录",
+  "pin": {
+    "title": "输入 {{name}} 的 PIN",
+    "keysHint": "你也可以用遥控器上的数字键输入。",
+    "otherProfile": "使用其他配置文件"
+  },
+  "errors": {
+    "wrongPin": "PIN 错误",
+    "throttled": "PIN 错误次数过多：请几分钟后再试",
+    "pinLocked": "错误尝试次数过多，此配置文件的 PIN 已锁定。其所有者或管理员可以重置",
+    "browser": "此配置文件需要其密码：请重新登录后再使用",
+    "notAllowed": "无法切换到此配置文件",
+    "unauthorizedClient": "此次登录不能切换配置文件：请重新登录后再试",
+    "refused": "服务器拒绝：请重试",
+    "locked": "此配置文件无法在应用中使用",
+    "unreachable": "无法连接你的服务器：{{reason}}"
+  }
+}

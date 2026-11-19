@@ -1,0 +1,150 @@
+{
+  "tabs": {
+    "recommended": "推薦",
+    "library": "媒體庫",
+    "collections": "合集"
+  },
+  "sorts": {
+    "title": "標題",
+    "year": "年份",
+    "added": "新增日期",
+    "rating": "評分",
+    "userRating": "你的評分",
+    "release": "上映日期",
+    "duration": "時長",
+    "lastPlayed": "上次播放",
+    "bitrate": "位元速率"
+  },
+  "panel": {
+    "sortBy": "排序方式",
+    "order": "順序",
+    "ascending": "升序",
+    "descending": "降序",
+    "filter": "篩選",
+    "show": "顯示",
+    "all": "全部",
+    "unwatched": "未觀看",
+    "watched": "已觀看",
+    "genre": "型別",
+    "allGenres": "所有型別",
+    "year": "年份",
+    "allYears": "所有年份",
+    "resolution": "解析度",
+    "allResolutions": "所有解析度",
+    "dynamicRange": "動態範圍",
+    "allDynamicRanges": "所有動態範圍",
+    "clearFilters": "清除篩選",
+    "saveAs": "另存為…",
+    "unchosen": {
+      "genre": "所有型別",
+      "year": "所有年份",
+      "resolution": "所有解析度",
+      "dynamicRange": "所有動態範圍"
+    },
+    "category": "類別",
+    "allCategories": "所有類別"
+  },
+  "anyHdr": "任意 HDR",
+  "bitrateUnknown": "位元速率未知",
+  "jump": "跳轉到字母：{{letter}}",
+  "count": {
+    "movies_other": "{{count, number}} 部電影",
+    "shows_other": "{{count, number}} 部劇集",
+    "artists_other": "{{count, number}} 位藝人",
+    "items_other": "{{count, number}} 個內容",
+    "collections_other": "{{count, number}} 個合集"
+  },
+  "countOf": {
+    "movies_other": "{{shown, number}} / {{count, number}} 部電影",
+    "shows_other": "{{shown, number}} / {{count, number}} 部劇集",
+    "artists_other": "{{shown, number}} / {{count, number}} 位藝人"
+  },
+  "messages": {
+    "failed": "無法載入此媒體庫",
+    "missingTitle": "此媒體庫不存在",
+    "missingBody": "它可能已被移除，或此配置檔案無權檢視。",
+    "emptyTitle": "此媒體庫是空的",
+    "emptyBody": "這裡還沒有內容。伺服器新增內容後就會顯示。",
+    "noMatchesTitle": "沒有匹配項",
+    "noMatchesBody": "此媒體庫中沒有符合當前篩選條件的內容。",
+    "recommendedFailed": "無法載入推薦內容",
+    "recommendedEmptyTitle": "暫時沒有可推薦的內容",
+    "recommendedEmptyBody": "媒體庫中有內容後就會出現推薦。",
+    "collectionsFailed": "無法載入合集",
+    "collectionsEmptyTitle": "還沒有合集",
+    "collectionsEmptyMovies": "當同一 TMDB 合集裡有兩部電影進入此媒體庫後，它們會在此歸為一組。",
+    "collectionsEmptyShows": "此媒體庫中還沒有合集。"
+  },
+  "retry": "重試",
+  "seeAll": "檢視全部",
+  "libraries": {
+    "title": "媒體庫",
+    "failed": "無法載入媒體庫",
+    "scanning": "掃描中…",
+    "sort": "媒體庫排序",
+    "done": "完成",
+    "serverOrder": "使用伺服器的順序",
+    "open": "開啟",
+    "move": "移動",
+    "sortingHint": "選擇一個媒體庫來移動它。你的順序會應用到所有裝置。",
+    "movingHint": "方向鍵移動，OK 放到此處，返回鍵放回原位",
+    "needsNewerServer": "媒體庫排序需要伺服器上更新版本的 Pley。",
+    "noneTitle": "還沒有媒體庫",
+    "noneBody": "請讓伺服器所有者新增一個媒體庫。"
+  },
+  "smartFilter": {
+    "genre": "型別：{{value}}",
+    "label": "標籤：{{value}}",
+    "studio": "製作公司：{{value}}",
+    "rated": "分級 {{value}}",
+    "watched": "已觀看",
+    "unwatched": "未觀看",
+    "inProgress": "進行中",
+    "notInProgress": "未進行",
+    "from": "從 {{value}} 起",
+    "after": "{{value}} 之後",
+    "before": "{{value}} 之前",
+    "decade": "{{value}} 年代",
+    "limit": "最多 {{value}}",
+    "other": "{{name}}：{{value}}",
+    "sortedBy": "排序方式：{{name}}",
+    "sort": {
+      "titleSort": {
+        "asc": "按標題",
+        "desc": "按標題，Z 到 A"
+      },
+      "year": {
+        "asc": "最早優先",
+        "desc": "最新優先"
+      },
+      "originallyAvailableAt": {
+        "asc": "上映最早優先",
+        "desc": "上映最晚優先"
+      },
+      "addedAt": {
+        "asc": "最先新增優先",
+        "desc": "最近新增優先"
+      },
+      "rating": {
+        "asc": "評分最低優先",
+        "desc": "評分最高優先"
+      },
+      "userRating": {
+        "asc": "我的評分最低優先",
+        "desc": "我的評分最高優先"
+      },
+      "lastViewedAt": {
+        "asc": "最久未播放優先",
+        "desc": "最近播放優先"
+      },
+      "duration": {
+        "asc": "最短優先",
+        "desc": "最長優先"
+      },
+      "viewCount": {
+        "asc": "播放最少優先",
+        "desc": "播放最多優先"
+      }
+    }
+  }
+}

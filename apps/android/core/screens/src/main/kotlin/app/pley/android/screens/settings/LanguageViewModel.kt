@@ -72,7 +72,7 @@ data class LanguageUiState(
  * The account's language, as the Settings of phones and TVs offer it
  * (docs/ANDROID.md, "Language"): "Automatic", which is each device's
  * language, or the server language on a device in one Pley doesn't have,
- * then English, Français and Español. A choice goes to the server
+ * then English, Français, Español, 简体中文 and 繁體中文. A choice goes to the server
  * (PUT /api/me/language) and shows at once; one the server refuses is put
  * back, and said ([errors]). A Pley from before languages keeps none (its
  * GET /api/server names no language, and the route answers 404 or 405,

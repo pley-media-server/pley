@@ -16,6 +16,14 @@ class LanguageTest {
         assertEquals(Language.Spanish, Language.of("es_ES"))
         assertEquals(Language.Spanish, Language.of(" ES-419 "))
         assertEquals(Language.English, Language.of("en-GB"))
+        // Chinese is the one pair a region or script chooses, not just the first part of the tag.
+        assertEquals(Language.SimplifiedChinese, Language.of("zh-CN"))
+        assertEquals(Language.SimplifiedChinese, Language.of("zh-Hans"))
+        assertEquals(Language.SimplifiedChinese, Language.of("zh"))
+        assertEquals(Language.TraditionalChinese, Language.of("zh-TW"))
+        assertEquals(Language.TraditionalChinese, Language.of("zh-Hant"))
+        assertEquals(Language.TraditionalChinese, Language.of("zh-HK"))
+        assertEquals(Language.TraditionalChinese, Language.of("zh-MO"))
         assertNull(Language.of("de"))
         assertNull(Language.of("français"))
         assertNull(Language.of(""))
@@ -54,15 +62,25 @@ class LanguageTest {
         // A German device that reads French next: French, not English.
         assertEquals(Language.French, Language.ofDevice(listOf(Locale.GERMANY, Locale.forLanguageTag("fr-CA"), Locale.US)))
         assertEquals(Language.English, Language.ofDevice(listOf(Locale.GERMANY, Locale.UK, Locale.FRANCE)))
+        assertEquals(Language.SimplifiedChinese, Language.ofDevice(listOf(Locale.GERMANY, Locale.CHINA)))
+        assertEquals(Language.TraditionalChinese, Language.ofDevice(listOf(Locale.GERMANY, Locale.TAIWAN)))
+        assertEquals(Language.TraditionalChinese, Language.ofDevice(listOf(Locale.GERMANY, Locale.forLanguageTag("zh-Hant"))))
         assertNull(Language.ofDevice(german))
     }
 
     @Test
     fun theDevicesRegionStaysWhereTheDeviceIsInThatLanguage() {
-        val device = listOf(Locale.GERMANY, Locale.UK, Locale.forLanguageTag("fr-CA"))
+        val device = listOf(Locale.GERMANY, Locale.UK, Locale.forLanguageTag("fr-CA"), Locale.forLanguageTag("zh-TW"))
         // en-GB keeps its day before the month and its 24-hour clock.
         assertEquals(Locale.UK, Language.localeOf(Language.English, device))
         assertEquals(Locale.forLanguageTag("fr-CA"), Language.localeOf(Language.French, device))
         assertEquals(Locale.forLanguageTag("es"), Language.localeOf(Language.Spanish, device))
+        // The two Chineses keep their own regions, and a zh-HK device keeps HK's ways.
+        assertEquals(Locale.forLanguageTag("zh-TW"), Language.localeOf(Language.TraditionalChinese, device))
+        assertEquals(Locale.forLanguageTag("zh-CN"), Language.localeOf(Language.SimplifiedChinese, device))
+        assertEquals(
+            Locale.forLanguageTag("zh-HK"),
+            Language.localeOf(Language.TraditionalChinese, listOf(Locale.forLanguageTag("zh-HK"))),
+        )
     }
 }

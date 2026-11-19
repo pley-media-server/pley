@@ -4,7 +4,9 @@
     "names": {
       "en": "English",
       "fr": "Français",
-      "es": "Español"
+      "es": "Español",
+      "zh-CN": "简体中文",
+      "zh-TW": "繁體中文"
     },
     "automatic": "Automático ({{language}})"
   },

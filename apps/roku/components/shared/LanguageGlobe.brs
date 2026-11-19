@@ -9,7 +9,11 @@ end sub
 ' The letters, then the globe at their left and the fill around both, all
 ' left of the origin.
 sub onLanguage()
-    m.letters.text = UCase(m.top.language)
+    letters = UCase(m.top.language)
+    ' ZH-CN and ZH-TW are too long for the globe; its panel names the
+    ' exact language.
+    if letters = "ZH-CN" or letters = "ZH-TW" then letters = "ZH"
+    m.letters.text = letters
     width = Int(m.letters.boundingRect().width)
     pad = 14
     m.letters.translation = [-pad - width, 0]

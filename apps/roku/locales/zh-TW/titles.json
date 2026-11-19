@@ -1,0 +1,194 @@
+{
+  "watched": "已觀看",
+  "smart": "智慧",
+  "nothingToPlay": "沒有可播放的內容",
+  "actions": {
+    "markWatched": "標記為已觀看",
+    "markUnwatched": "標記為未觀看",
+    "addToMyList": "新增到我的片單",
+    "removeFromMyList": "從我的片單中移除",
+    "addToPlaylist": "新增到播放列表",
+    "removeFromContinueWatching": "從“繼續觀看”中移除",
+    "goToShow": "前往劇集",
+    "goToSeason": "前往季",
+    "goToArtist": "前往藝人",
+    "goTo": "前往 {{title}}",
+    "playEpisode": "播放 {{episode}}",
+    "resumeEpisode": "繼續播放 {{episode}}",
+    "audioAndSubtitles": "音軌和字幕",
+    "shuffle": "隨機播放",
+    "nowPlaying": "正在播放",
+    "rename": "重新命名",
+    "move": "移動",
+    "removeFromPlaylist": "從播放列表移除"
+  },
+  "counts": {
+    "seasons_other": "{{count, number}} 季",
+    "episodes_other": "{{count, number}} 集",
+    "albums_other": "{{count, number}} 張專輯",
+    "tracks_other": "{{count, number}} 首曲目"
+  },
+  "seasons": {
+    "noEpisodes": "未找到單集。"
+  },
+  "page": {
+    "rows": {
+      "seasons": "季",
+      "castAndCrew": "演員與幕後",
+      "extras": "附加內容",
+      "moreLikeThis": "類似推薦",
+      "collections": "合集"
+    },
+    "mediaInfo": "媒體資訊",
+    "about": "詳情",
+    "version": "版本",
+    "audio": "音訊",
+    "subtitles": "字幕",
+    "versionIs": "版本：{{value}}",
+    "audioIs": "音訊：{{value}}",
+    "subtitlesIs": "字幕：{{value}}",
+    "yourRating": "你的評分"
+  },
+  "extras": {
+    "trailer": "預告片",
+    "featurette": "製作特輯",
+    "behindTheScenes": "幕後花絮",
+    "deletedScene": "刪減片段",
+    "interview": "採訪",
+    "scene": "片段",
+    "short": "短片",
+    "other": "附加內容"
+  },
+  "roles": {
+    "actor": "演員",
+    "creator": "創作者",
+    "director": "導演",
+    "writer": "編劇",
+    "producer": "製片人",
+    "crew": "幕後人員",
+    "guestStar": "客串演員",
+    "as": "飾 {{character}}",
+    "withEpisodes_other": "{{role}}（{{count, number}} 集）"
+  },
+  "person": {
+    "rows": {
+      "acting": "表演",
+      "directing": "導演",
+      "creating": "創作",
+      "writing": "編劇",
+      "producing": "製片"
+    },
+    "inLibraries": "{{counts}} 在你的媒體庫中",
+    "notFound": "未找到此人。該連結對應的人在你的媒體庫中沒有任何內容。",
+    "nothing": "這裡沒有可顯示的內容。"
+  },
+  "collection": {
+    "label": "合集",
+    "empty": "此合集中還沒有內容。",
+    "noEpisodes": "這部劇集還沒有任何一集。",
+    "order": {
+      "release": "按發行日期",
+      "title": "按標題",
+      "custom": "自定義順序"
+    },
+    "onlyLibrary": "僅 {{library}}"
+  },
+  "smartFilter": {
+    "genre": "型別：{{value}}",
+    "label": "標籤：{{value}}",
+    "studio": "製作公司：{{value}}",
+    "rated": "分級 {{value}}",
+    "watched": "已觀看",
+    "unwatched": "未觀看",
+    "inProgress": "觀看中",
+    "notInProgress": "未觀看中",
+    "year": "{{value}} 年起",
+    "after": "{{value}} 年之後",
+    "before": "{{value}} 年之前",
+    "decade": "{{value}} 年代",
+    "limit": "最多 {{value}}",
+    "other": "{{name}}：{{value}}",
+    "sortedBy": "按 {{name}} 排序",
+    "sort": {
+      "titleSort": {
+        "asc": "按標題",
+        "desc": "按標題，Z 到 A"
+      },
+      "year": {
+        "asc": "從舊到新",
+        "desc": "從新到舊"
+      },
+      "originallyAvailableAt": {
+        "asc": "從最早發行開始",
+        "desc": "從最新發行開始"
+      },
+      "addedAt": {
+        "asc": "先新增的在前",
+        "desc": "最近新增的在前"
+      },
+      "rating": {
+        "asc": "評分最低的在前",
+        "desc": "評分最高的在前"
+      },
+      "userRating": {
+        "asc": "你評分最低的在前",
+        "desc": "你評分最高的在前"
+      },
+      "lastViewedAt": {
+        "asc": "最久未播放的在前",
+        "desc": "最近播放的在前"
+      },
+      "duration": {
+        "asc": "時長最短的在前",
+        "desc": "時長最長的在前"
+      },
+      "viewCount": {
+        "asc": "播放次數最少的在前",
+        "desc": "播放次數最多的在前"
+      }
+    }
+  },
+  "music": {
+    "artist": "藝人",
+    "albums": "專輯",
+    "disc": "第 {{number}} 張碟",
+    "noAlbums": "未找到專輯。",
+    "noTracks": "此專輯沒有曲目。",
+    "noTracksToPlay": "沒有可播放的內容：此專輯沒有曲目。"
+  },
+  "playlist": {
+    "new": "新建播放列表",
+    "newMenu": "新建播放列表…",
+    "create": "建立",
+    "added": "已新增",
+    "addedTo": "已新增到 {{title}}。",
+    "refused": "此登入方式無法更改播放列表：請在設定中退出登入並重新登入以允許此操作。",
+    "renameTitle": "重新命名播放列表",
+    "deleteTitle": "刪除 {{title}}？",
+    "deleteBody": "播放列表將被刪除，其中的內容仍保留在你的媒體庫中。",
+    "notDeleted": "播放列表刪除失敗",
+    "empty": "此播放列表是空的。在內容上按“選項”鍵即可新增。",
+    "moving": "{{title}}（移動中）",
+    "movingHint": "用上下鍵移動，按“確定”放在這裡，按“返回”放回原處。"
+  },
+  "playback": {
+    "method": {
+      "direct": "直接播放",
+      "remux": "直接串流",
+      "remuxAudio": "直接串流 · 音訊轉碼",
+      "transcode": "轉碼中"
+    },
+    "video": "影片",
+    "audio": "音訊",
+    "bitrate": "位元速率",
+    "shownAs": "顯示為",
+    "subtitles": "字幕",
+    "burnedIn": "已壓制",
+    "speed": "速度",
+    "toneMapped": "SDR（通過 {{method}} 色調對映）",
+    "realTime": "{{speed}}× 即時",
+    "realTimeReady": "{{speed}}× 即時 · 已準備 {{seconds, number}} 秒",
+    "chapter": "第 {{number}} 章",
+    "line": "{{label}}：{{value}}"
+  }
+}

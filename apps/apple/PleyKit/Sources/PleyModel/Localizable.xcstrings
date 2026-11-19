@@ -15,6 +15,18 @@
             "state" : "translated",
             "value" : "%@ %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %@"
+          }
         }
       }
     },
@@ -31,6 +43,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ o"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ B"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ B"
           }
         }
       }
@@ -49,6 +73,18 @@
             "state" : "translated",
             "value" : "%@ Go"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ GB"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ GB"
+          }
         }
       }
     },
@@ -65,6 +101,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ Ko"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ KB"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ KB"
           }
         }
       }
@@ -83,6 +131,18 @@
             "state" : "translated",
             "value" : "%@ Mo"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ MB"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ MB"
+          }
         }
       }
     },
@@ -99,6 +159,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ Mbit/s"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Mbps"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Mbps"
           }
         }
       }
@@ -117,6 +189,18 @@
             "state" : "translated",
             "value" : "%@ To"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ TB"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ TB"
+          }
         }
       }
     },
@@ -133,6 +217,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ a demandé « %@ » (%@)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 请求了“%@”（%@）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 請求了“%@”（%@）。"
           }
         }
       }
@@ -151,6 +247,18 @@
             "state" : "translated",
             "value" : "%@ a demandé « %@ »."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 请求了“%@”。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 請求了“%@”。"
+          }
         }
       }
     },
@@ -167,6 +275,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ ne peut pas faire ça."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 无法执行此操作。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 無法執行此操作。"
           }
         }
       }
@@ -185,6 +305,18 @@
             "state" : "translated",
             "value" : "%@ ne peut pas lire ça"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 无法播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 無法播放"
+          }
         }
       }
     },
@@ -201,6 +333,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ ne peut pas lire la chaîne : toutes les connexions TV en direct sont utilisées"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 无法播放该频道：直播电视连接已全部占用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 無法播放該頻道：直播電視連線已全部佔用"
           }
         }
       }
@@ -219,6 +363,18 @@
             "state" : "translated",
             "value" : "%@ n’arrive pas à joindre ce serveur"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 无法连接此服务器"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 無法連線此伺服器"
+          }
         }
       }
     },
@@ -235,6 +391,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ n’a pas répondu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 没有响应。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 沒有響應。"
           }
         }
       }
@@ -253,6 +421,18 @@
             "state" : "translated",
             "value" : "%@ ne s’est pas associé."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 配对失败。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 配對失敗。"
+          }
         }
       }
     },
@@ -269,6 +449,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ ne l’a pas lu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 未能播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 未能播放"
           }
         }
       }
@@ -287,6 +479,18 @@
             "state" : "translated",
             "value" : "%@ libres"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩余 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩餘 %@"
+          }
         }
       }
     },
@@ -303,6 +507,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ n’est plus connecté"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 已不在播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 已不在播放"
           }
         }
       }
@@ -321,6 +537,18 @@
             "state" : "translated",
             "value" : "%@ ne lit plus rien."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 已停止播放。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 已停止播放。"
+          }
         }
       }
     },
@@ -337,6 +565,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ kbit/s"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ kbps"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ kbps"
           }
         }
       }
@@ -355,6 +595,18 @@
             "state" : "translated",
             "value" : "Il reste %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还剩 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還剩 %@"
+          }
         }
       }
     },
@@ -371,6 +623,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ de « %@ » sont prêtes à regarder."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” 中 %@ 部已可观看。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” 中 %@ 部已可觀看。"
           }
         }
       }
@@ -389,6 +653,18 @@
             "state" : "translated",
             "value" : "%@ de « %@ » est prête à regarder."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” 中 %@ 部已可观看。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” 中 %@ 部已可觀看。"
+          }
         }
       }
     },
@@ -406,6 +682,18 @@
             "state" : "translated",
             "value" : "Prêt à regarder : %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 已就绪"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 已就緒"
+          }
         }
       }
     },
@@ -422,6 +710,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ n’accepte pas d’autre essai pour l’instant : patientez un peu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 暂时无法重试：稍等片刻。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 暫時無法重試：稍等片刻。"
           }
         }
       }
@@ -490,6 +790,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld albums"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 张专辑"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 張專輯"
                 }
               }
             }
@@ -565,6 +889,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 位艺人"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 位藝人"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -632,6 +980,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld n’ont pas pu être envoyées"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 项无法发送"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 項無法傳送"
                 }
               }
             }
@@ -707,6 +1079,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 天前"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 天前"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -774,6 +1170,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld épisodes"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 集"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 集"
                 }
               }
             }
@@ -849,6 +1269,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 小时"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 小時"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -916,6 +1360,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "il y a %lld heures"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 小时前"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 小時前"
                 }
               }
             }
@@ -991,6 +1459,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 项"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 項"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1007,6 +1499,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分钟"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分鐘"
           }
         }
       }
@@ -1075,6 +1579,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld minutes"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 分钟"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 分鐘"
                 }
               }
             }
@@ -1150,6 +1678,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 分钟前"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 分鐘前"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1217,6 +1769,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "il y a %lld mois"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 个月前"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 個月前"
                 }
               }
             }
@@ -1292,6 +1868,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "再 %lld 部电影"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "再 %lld 部電影"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1359,6 +1959,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld saisons"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "再 %lld 季"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "再 %lld 季"
                 }
               }
             }
@@ -1434,6 +2058,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 部电影"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 部電影"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1450,6 +2098,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld sur %lld épisodes dans la bibliothèque"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "媒体库中 %lld / %lld 集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "媒體庫中 %lld / %lld 集"
           }
         }
       }
@@ -1518,6 +2178,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld de vos demandes ont du nouveau"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "你的 %lld 项请求有新动态"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "你的 %lld 項請求有新動態"
                 }
               }
             }
@@ -1593,6 +2277,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 人关注"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 人關注"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1660,6 +2368,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld demandes vous attendent"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 项请求需要你处理"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 項請求需要你處理"
                 }
               }
             }
@@ -1735,6 +2467,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 季"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 季"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1802,6 +2558,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld secondes"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 秒"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 秒"
                 }
               }
             }
@@ -1877,6 +2657,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 秒前"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 秒前"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1944,6 +2748,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld séries"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 部剧集"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 部劇集"
                 }
               }
             }
@@ -2019,6 +2847,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 集未观看"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 集未觀看"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -2086,6 +2938,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "il y a %lld semaines"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 周前"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 周前"
                 }
               }
             }
@@ -2161,6 +3037,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 年前"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 年前"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -2177,6 +3077,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld bits"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 位"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 位"
           }
         }
       }
@@ -2195,6 +3107,18 @@
             "state" : "translated",
             "value" : "%lld canaux"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 声道"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 聲道"
+          }
         }
       }
     },
@@ -2211,6 +3135,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld h"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld小时"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld小時"
           }
         }
       }
@@ -2229,6 +3165,18 @@
             "state" : "translated",
             "value" : "%lld h %lld min"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld小时%lld分"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld小時%lld分"
+          }
         }
       }
     },
@@ -2245,6 +3193,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld分"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld分"
           }
         }
       }
@@ -2263,6 +3223,18 @@
             "state" : "translated",
             "value" : "%lld s"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld秒"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld秒"
+          }
         }
       }
     },
@@ -2279,6 +3251,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Interprétation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演员"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演員"
           }
         }
       }
@@ -2297,6 +3281,18 @@
             "state" : "translated",
             "value" : "Ajout à la bibliothèque"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在添加到媒体库"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在新增到媒體庫"
+          }
         }
       }
     },
@@ -2310,6 +3306,18 @@
           }
         },
         "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirPlay"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirPlay"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "AirPlay"
@@ -2331,6 +3339,18 @@
             "state" : "translated",
             "value" : "Diffusion : %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播出：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播出：%@"
+          }
         }
       }
     },
@@ -2347,6 +3367,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Toutes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
           }
         }
       }
@@ -2365,6 +3397,18 @@
             "state" : "translated",
             "value" : "Un administrateur peut lui permettre de demander des films et des séries."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理员可以允许请求电影和剧集。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理員可以允許請求電影和劇集。"
+          }
         }
       }
     },
@@ -2381,6 +3425,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Un administrateur doit la vérifier."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要管理员查看。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要管理員檢視。"
           }
         }
       }
@@ -2399,6 +3455,18 @@
             "state" : "translated",
             "value" : "Approuver"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "批准"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "批准"
+          }
         }
       }
     },
@@ -2415,6 +3483,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Approuver avec les choix des paramètres"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按设置中的选项批准"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按設定中的選項批准"
           }
         }
       }
@@ -2433,6 +3513,18 @@
             "state" : "translated",
             "value" : "Approuver « %@ »"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "批准“%@”"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "批准“%@”"
+          }
         }
       }
     },
@@ -2449,6 +3541,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Approuvez, refusez et suivez ce qui a été demandé"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "批准、拒绝并关注请求的内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "批准、拒絕並關注請求的內容"
           }
         }
       }
@@ -2467,6 +3571,18 @@
             "state" : "translated",
             "value" : "Approuvée"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已批准"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已批准"
+          }
         }
       }
     },
@@ -2483,6 +3599,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Approuver…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "批准…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "批准…"
           }
         }
       }
@@ -2501,6 +3629,18 @@
             "state" : "translated",
             "value" : "Comme dans les paramètres"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与设置中一致"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與設定中一致"
+          }
         }
       }
     },
@@ -2517,6 +3657,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Demandé par"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请求人"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請求人"
           }
         }
       }
@@ -2535,6 +3687,18 @@
             "state" : "translated",
             "value" : "Demandé par quelqu’un d’autre"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由其他人请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由其他人請求"
+          }
         }
       }
     },
@@ -2551,6 +3715,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Demande envoyée pour « %@ », mais elle n’a pas encore pu être envoyée au téléchargement."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已请求“%@”，但暂时无法发送下载。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已請求“%@”，但暫時無法傳送下載。"
           }
         }
       }
@@ -2569,6 +3745,18 @@
             "state" : "translated",
             "value" : "Demande envoyée pour « %@ » : un administrateur décidera."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已请求“%@”：由管理员决定。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已請求“%@”：由管理員決定。"
+          }
         }
       }
     },
@@ -2585,6 +3773,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Audio"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音訊"
           }
         }
       }
@@ -2603,6 +3803,18 @@
             "state" : "translated",
             "value" : "Audio sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的音轨"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的音軌"
+          }
         }
       }
     },
@@ -2619,6 +3831,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Automatique (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动（%@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動（%@）"
           }
         }
       }
@@ -2637,6 +3861,18 @@
             "state" : "translated",
             "value" : "Disponibles"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用"
+          }
         }
       }
     },
@@ -2653,6 +3889,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reculer de %lld secondes sur %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "后退 %lld 秒（%@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "後退 %lld 秒（%@）"
           }
         }
       }
@@ -2671,6 +3919,18 @@
             "state" : "translated",
             "value" : "Coulisses"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "幕后花絮"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "幕後花絮"
+          }
         }
       }
     },
@@ -2687,6 +3947,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Annuler"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
           }
         }
       }
@@ -2705,6 +3977,18 @@
             "state" : "translated",
             "value" : "Distribution"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "投屏"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "投屏"
+          }
         }
       }
     },
@@ -2721,6 +4005,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chaîne"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "频道"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "頻道"
           }
         }
       }
@@ -2739,6 +4035,18 @@
             "state" : "translated",
             "value" : "Fermer"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉"
+          }
         }
       }
     },
@@ -2755,6 +4063,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Code"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "验证码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "驗證碼"
           }
         }
       }
@@ -2773,6 +4093,18 @@
             "state" : "translated",
             "value" : "Bientôt au cinéma"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即将上映"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即將上映"
+          }
         }
       }
     },
@@ -2789,6 +4121,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Impossible de charger Découvrir"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载“发现”"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法載入“發現”"
           }
         }
       }
@@ -2807,6 +4151,18 @@
             "state" : "translated",
             "value" : "Chargement impossible"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法載入"
+          }
         }
       }
     },
@@ -2823,6 +4179,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Impossible de charger les demandes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法載入請求"
           }
         }
       }
@@ -2841,6 +4209,18 @@
             "state" : "translated",
             "value" : "Impossible de charger ce titre"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载此标题"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法載入此標題"
+          }
         }
       }
     },
@@ -2857,6 +4237,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Impossible de rechercher sur TMDB"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法搜索 TMDB"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法搜尋 TMDB"
           }
         }
       }
@@ -2875,6 +4267,18 @@
             "state" : "translated",
             "value" : "Envoi impossible"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法发送"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法傳送"
+          }
         }
       }
     },
@@ -2891,6 +4295,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Envoi impossible : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法发送：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法傳送：%@"
           }
         }
       }
@@ -2909,6 +4325,18 @@
             "state" : "translated",
             "value" : "Création"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建者"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建立者"
+          }
         }
       }
     },
@@ -2925,6 +4353,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Création"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创作者"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "創作者"
           }
         }
       }
@@ -2943,6 +4383,18 @@
             "state" : "translated",
             "value" : "Équipe technique"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演职人员"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演職人員"
+          }
         }
       }
     },
@@ -2959,6 +4411,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refuser"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拒绝"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拒絕"
           }
         }
       }
@@ -2977,6 +4441,18 @@
             "state" : "translated",
             "value" : "Refuser avec un motif…"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拒绝并说明理由…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拒絕並說明理由…"
+          }
         }
       }
     },
@@ -2993,6 +4469,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refuser « %@ » ?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拒绝“%@”？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拒絕“%@”？"
           }
         }
       }
@@ -3011,6 +4499,18 @@
             "state" : "translated",
             "value" : "Refusé"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒绝"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒絕"
+          }
         }
       }
     },
@@ -3027,6 +4527,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refusé."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒绝。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒絕。"
           }
         }
       }
@@ -3045,6 +4557,18 @@
             "state" : "translated",
             "value" : "Refusé. Vous pourrez redemander %@."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒绝。你可以在 %@ 再次请求。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒絕。你可以在 %@ 再次請求。"
+          }
         }
       }
     },
@@ -3061,6 +4585,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refusé : « %@ »."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒绝：“%@”。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒絕：“%@”。"
           }
         }
       }
@@ -3079,6 +4615,18 @@
             "state" : "translated",
             "value" : "Refusé : « %@ ». Vous pourrez redemander %@."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒绝：“%@”。你可以在 %@ 再次请求。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒絕：“%@”。你可以在 %@ 再次請求。"
+          }
         }
       }
     },
@@ -3095,6 +4643,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Supprimer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除"
           }
         }
       }
@@ -3113,6 +4673,18 @@
             "state" : "translated",
             "value" : "Supprimer cette demande ? Radarr et Sonarr gardent ce qu’ils ont."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除此请求？Radarr 和 Sonarr 会保留已有内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除此請求？Radarr 和 Sonarr 會保留已有內容。"
+          }
         }
       }
     },
@@ -3129,6 +4701,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Scène coupée"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除的场景"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刪除的場景"
           }
         }
       }
@@ -3147,6 +4731,18 @@
             "state" : "translated",
             "value" : "Détails"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "详情"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "詳情"
+          }
         }
       }
     },
@@ -3163,6 +4759,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Informations et images fournies par TMDB."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "详情和图片来自 TMDB。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "詳情和圖片來自 TMDB。"
           }
         }
       }
@@ -3181,6 +4789,18 @@
             "state" : "translated",
             "value" : "Réalisation"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导演"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "導演"
+          }
         }
       }
     },
@@ -3197,6 +4817,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réalisation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导演"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "導演"
           }
         }
       }
@@ -3215,6 +4847,18 @@
             "state" : "translated",
             "value" : "Découvrir"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发现"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "發現"
+          }
         }
       }
     },
@@ -3231,6 +4875,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Téléchargement en pause"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载已暂停"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下載已暫停"
           }
         }
       }
@@ -3249,6 +4905,18 @@
             "state" : "translated",
             "value" : "Téléchargement %lld %%"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在下载 %lld%%"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在下載 %lld%%"
+          }
         }
       }
     },
@@ -3265,6 +4933,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "É%lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 集"
           }
         }
       }
@@ -3283,6 +4963,18 @@
             "state" : "translated",
             "value" : "Épisode %lld"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 集"
+          }
         }
       }
     },
@@ -3299,6 +4991,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tout le monde"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有人"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有人"
           }
         }
       }
@@ -3317,6 +5021,18 @@
             "state" : "translated",
             "value" : "Tout votre foyer pourra ensuite y lire."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "然后家中所有人都可以用它播放。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "然後家中所有人都可以用它播放。"
+          }
         }
       }
     },
@@ -3333,6 +5049,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Externes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外部字幕"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外部字幕"
           }
         }
       }
@@ -3351,6 +5079,18 @@
             "state" : "translated",
             "value" : "Bonus"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附加内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附加內容"
+          }
         }
       }
     },
@@ -3367,6 +5107,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En échec"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "失败"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "失敗"
           }
         }
       }
@@ -3385,6 +5137,18 @@
             "state" : "translated",
             "value" : "Reportage"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "短片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "短片"
+          }
         }
       }
     },
@@ -3401,6 +5165,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trouvez des films et des séries dans Découvrir, et demandez ce que les bibliothèques n’ont pas."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在“发现”中找到电影和剧集，请求媒体库里没有的内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在“發現”中找到電影和劇集，請求媒體庫裡沒有的內容。"
           }
         }
       }
@@ -3419,6 +5195,18 @@
             "state" : "translated",
             "value" : "Trouvez des films et des séries à demander"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找要请求的电影和剧集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查詢要請求的電影和劇集"
+          }
         }
       }
     },
@@ -3435,6 +5223,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trouver quelque chose à demander"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找要请求的内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查詢要請求的內容"
           }
         }
       }
@@ -3453,6 +5253,18 @@
             "state" : "translated",
             "value" : "Corrigez-la dans les paramètres du serveur : Paramètres → Serveur, sur le web."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在服务器设置中修正：网页端“设置 → 服务器”。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在伺服器設定中修正：網頁端“設定 → 伺服器”。"
+          }
         }
       }
     },
@@ -3469,6 +5281,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dossier"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件夹"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "資料夾"
           }
         }
       }
@@ -3487,6 +5311,18 @@
             "state" : "translated",
             "value" : "Vous suivez"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已关注"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已關注"
+          }
         }
       }
     },
@@ -3503,6 +5339,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Forcés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强制字幕"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "強制字幕"
           }
         }
       }
@@ -3521,6 +5369,18 @@
             "state" : "translated",
             "value" : "Avancer de %lld secondes sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前进 %lld 秒（%@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前進 %lld 秒（%@）"
+          }
         }
       }
     },
@@ -3534,6 +5394,18 @@
           }
         },
         "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Cast"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Cast"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Google Cast"
@@ -3555,6 +5427,18 @@
             "state" : "translated",
             "value" : "Apparition"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "客串演员"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "客串演員"
+          }
         }
       }
     },
@@ -3571,6 +5455,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En bibliothèque"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在媒体库中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在媒體庫中"
           }
         }
       }
@@ -3589,6 +5485,18 @@
             "state" : "translated",
             "value" : "Entretien"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "采访"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "採訪"
+          }
         }
       }
     },
@@ -3605,6 +5513,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Elle n’a pas encore pu être envoyée au téléchargement : un administrateur va s’en occuper."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法发送下载：管理员会查看。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暫時無法傳送下載：管理員會檢視。"
           }
         }
       }
@@ -3623,6 +5543,18 @@
             "state" : "translated",
             "value" : "Il a peut-être été retiré depuis."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此后可能已下架。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此後可能已下架。"
+          }
         }
       }
     },
@@ -3639,6 +5571,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ses informations et ses images reviendront dès qu’il répondra de nouveau."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它恢复响应后，详情和图片会重新显示。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它恢復響應後，詳情和圖片會重新顯示。"
           }
         }
       }
@@ -3657,6 +5601,18 @@
             "state" : "translated",
             "value" : "Limite : %@ sur 7 jours."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "限制：每 7 天 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "限制：每 7 天 %@。"
+          }
         }
       }
     },
@@ -3673,6 +5629,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Limites : %@ et %@ sur 7 jours."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "限制：每 7 天 %@ 和 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "限制：每 7 天 %@ 和 %@。"
           }
         }
       }
@@ -3691,6 +5659,18 @@
             "state" : "translated",
             "value" : "TV en direct"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直播电视"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直播電視"
+          }
         }
       }
     },
@@ -3707,6 +5687,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Marquer comme ajouté à la main"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标记为手动添加"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標記為手動新增"
           }
         }
       }
@@ -3725,6 +5717,18 @@
             "state" : "translated",
             "value" : "Plus d’actions"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多操作"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多操作"
+          }
         }
       }
     },
@@ -3741,6 +5745,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Film"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电影"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "電影"
           }
         }
       }
@@ -3759,6 +5775,18 @@
             "state" : "translated",
             "value" : "Films"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电影"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "電影"
+          }
         }
       }
     },
@@ -3775,6 +5803,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Films et séries"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电影和剧集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "電影和劇集"
           }
         }
       }
@@ -3793,6 +5833,18 @@
             "state" : "translated",
             "value" : "À traiter"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要处理"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要處理"
+          }
         }
       }
     },
@@ -3809,6 +5861,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chaîne suivante sur %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的下一个频道"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的下一個頻道"
           }
         }
       }
@@ -3827,6 +5891,18 @@
             "state" : "translated",
             "value" : "Suivant sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的下一个"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的下一個"
+          }
         }
       }
     },
@@ -3843,6 +5919,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "À suivre : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一个：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下一個：%@"
           }
         }
       }
@@ -3861,6 +5949,18 @@
             "state" : "translated",
             "value" : "Aucun code affiché ? L’afficher à nouveau"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有显示验证码？重新显示"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有顯示驗證碼？重新顯示"
+          }
         }
       }
     },
@@ -3877,6 +5977,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "N’est plus dans une bibliothèque"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已不在媒体库中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已不在媒體庫中"
           }
         }
       }
@@ -3895,6 +6007,18 @@
             "state" : "translated",
             "value" : "Aucune demande ne correspond"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有符合条件的请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有符合條件的請求"
+          }
         }
       }
     },
@@ -3911,6 +6035,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pas encore diffusée"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未播出"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未播出"
           }
         }
       }
@@ -3929,6 +6065,18 @@
             "state" : "translated",
             "value" : "Pas encore sorti"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未上映"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未上映"
+          }
         }
       }
     },
@@ -3945,6 +6093,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pas encore envoyée"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未发送"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未傳送"
           }
         }
       }
@@ -3963,6 +6123,18 @@
             "state" : "translated",
             "value" : "Rien n’a encore été demandé"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚无请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚無請求"
+          }
         }
       }
     },
@@ -3979,6 +6151,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rien pour le moment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这里暂时没有内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這裡暫時沒有內容"
           }
         }
       }
@@ -3997,6 +6181,18 @@
             "state" : "translated",
             "value" : "Rien ici pour l’instant"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这里还没有内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這裡還沒有內容"
+          }
         }
       }
     },
@@ -4013,6 +6209,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rien dans vos bibliothèques ne correspond"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的媒体库中没有匹配内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的媒體庫中沒有匹配內容"
           }
         }
       }
@@ -4031,6 +6239,18 @@
             "state" : "translated",
             "value" : "Rien à traiter"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有需要处理的事项"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有需要處理的事項"
+          }
         }
       }
     },
@@ -4047,6 +6267,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rien sur TMDB ne correspond à « %@ »"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 上没有匹配“%@”的内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 上沒有匹配“%@”的內容"
           }
         }
       }
@@ -4065,6 +6297,18 @@
             "state" : "translated",
             "value" : "Aucune lecture en cours"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有正在播放的内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有正在播放的內容"
+          }
         }
       }
     },
@@ -4081,6 +6325,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Encore rien pour « %@ »"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”暂无内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”暫無內容"
           }
         }
       }
@@ -4099,6 +6355,18 @@
             "state" : "translated",
             "value" : "Désactivés"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關"
+          }
         }
       }
     },
@@ -4115,6 +6383,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ouvrir"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟"
           }
         }
       }
@@ -4133,6 +6413,18 @@
             "state" : "translated",
             "value" : "Sortie : %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出 %@"
+          }
         }
       }
     },
@@ -4149,6 +6441,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Associer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配对"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配對"
           }
         }
       }
@@ -4167,6 +6471,18 @@
             "state" : "translated",
             "value" : "Associer %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与 %@ 配对"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與 %@ 配對"
+          }
         }
       }
     },
@@ -4183,6 +6499,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Partiellement"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分在媒体库中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分在媒體庫中"
           }
         }
       }
@@ -4201,6 +6529,18 @@
             "state" : "translated",
             "value" : "Mettre en pause sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上暂停"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上暫停"
+          }
         }
       }
     },
@@ -4217,6 +6557,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En attente"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待处理"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待處理"
           }
         }
       }
@@ -4235,6 +6587,18 @@
             "state" : "translated",
             "value" : "Choisissez une saison."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一季。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇一季。"
+          }
         }
       }
     },
@@ -4251,6 +6615,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lire sur %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上播放"
           }
         }
       }
@@ -4269,6 +6645,18 @@
             "state" : "translated",
             "value" : "Lire sur…"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "投放到…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "投放到…"
+          }
         }
       }
     },
@@ -4285,6 +6673,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lecture depuis %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在从 %@ 播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在從 %@ 播放"
           }
         }
       }
@@ -4303,6 +6703,18 @@
             "state" : "translated",
             "value" : "Lecture sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在 %@ 上播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在 %@ 上播放"
+          }
         }
       }
     },
@@ -4319,6 +6731,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Animes populaires"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "热门动漫"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "熱門動漫"
           }
         }
       }
@@ -4337,6 +6761,18 @@
             "state" : "translated",
             "value" : "Films populaires"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "热门电影"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "熱門電影"
+          }
         }
       }
     },
@@ -4353,6 +6789,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Séries populaires"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "热门剧集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "熱門劇集"
           }
         }
       }
@@ -4371,6 +6819,18 @@
             "state" : "translated",
             "value" : "Chaîne précédente sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的上一个频道"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的上一個頻道"
+          }
         }
       }
     },
@@ -4387,6 +6847,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Précédent sur %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的上一个"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的上一個"
           }
         }
       }
@@ -4405,6 +6877,18 @@
             "state" : "translated",
             "value" : "Production"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "制片人"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "製片人"
+          }
         }
       }
     },
@@ -4421,6 +6905,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Production"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "制片人"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "製片人"
           }
         }
       }
@@ -4439,6 +6935,18 @@
             "state" : "translated",
             "value" : "Progression sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的播放进度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的播放進度"
+          }
         }
       }
     },
@@ -4455,6 +6963,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Qualité"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画质"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "畫質"
           }
         }
       }
@@ -4473,6 +6993,18 @@
             "state" : "translated",
             "value" : "Qualité sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的画质"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的畫質"
+          }
         }
       }
     },
@@ -4489,6 +7021,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Profil de qualité"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "质量配置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "質量配置"
           }
         }
       }
@@ -4507,6 +7051,18 @@
             "state" : "translated",
             "value" : "Prêt pour la lecture"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以播放"
+          }
         }
       }
     },
@@ -4523,6 +7079,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Prêt à regarder"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以观看"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可以觀看"
           }
         }
       }
@@ -4541,6 +7109,18 @@
             "state" : "translated",
             "value" : "Disponible dans une bibliothèque que vous ne pouvez pas ouvrir : demandez à un administrateur"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已就绪，但位于你无权访问的媒体库中：请联系管理员"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已就緒，但位於你無權訪問的媒體庫中：請聯絡管理員"
+          }
         }
       }
     },
@@ -4557,6 +7137,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Motif (facultatif)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原因（可选）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原因（可選）"
           }
         }
       }
@@ -4629,6 +7221,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "遥控器，%lld 台设备"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "遙控器，%lld 臺裝置"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -4645,6 +7261,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retirer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除"
           }
         }
       }
@@ -4663,6 +7291,18 @@
             "state" : "translated",
             "value" : "Retirer « %@ » de vos demandes ?"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从请求中移除“%@”？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從請求中移除“%@”？"
+          }
         }
       }
     },
@@ -4679,6 +7319,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Demander"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請求"
           }
         }
       }
@@ -4751,6 +7403,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "请求 %lld 季"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "請求 %lld 季"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -4767,6 +7443,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Redemander"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再次请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再次請求"
           }
         }
       }
@@ -4785,6 +7473,18 @@
             "state" : "translated",
             "value" : "Demander d’autres saisons"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请求更多季"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請求更多季"
+          }
         }
       }
     },
@@ -4801,6 +7501,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Demandé"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已請求"
           }
         }
       }
@@ -4819,6 +7531,18 @@
             "state" : "translated",
             "value" : "Demandes"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請求"
+          }
         }
       }
     },
@@ -4835,6 +7559,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Les demandes sont désactivées"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请求功能已关闭"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請求功能已關閉"
           }
         }
       }
@@ -4853,6 +7589,18 @@
             "state" : "translated",
             "value" : "Les demandes ne sont pas ouvertes à ce compte"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此账户未开放请求功能"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此賬戶未開放請求功能"
+          }
         }
       }
     },
@@ -4869,6 +7617,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Les demandes ne sont pas ouvertes à ce compte."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此账户未开放请求功能。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此賬戶未開放請求功能。"
           }
         }
       }
@@ -4887,6 +7647,18 @@
             "state" : "translated",
             "value" : "Les demandes qui attendent une décision, et celles qui n’ont pas pu être envoyées, s’affichent ici."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待审批的请求以及无法发送的请求显示在这里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待審批的請求以及無法傳送的請求顯示在這裡。"
+          }
         }
       }
     },
@@ -4903,6 +7675,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Les demandes que vous avez faites ou que vous suivez s’affichent ici."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你发起或关注的请求显示在这里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你發起或關注的請求顯示在這裡。"
           }
         }
       }
@@ -4921,6 +7705,18 @@
             "state" : "translated",
             "value" : "Résultats pour « %@ »"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”的搜索结果"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”的搜尋結果"
+          }
         }
       }
     },
@@ -4937,6 +7733,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réessayer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重試"
           }
         }
       }
@@ -4955,6 +7763,18 @@
             "state" : "translated",
             "value" : "S%lld"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季"
+          }
         }
       }
     },
@@ -4971,6 +7791,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "S%lld É%lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季 第 %lld 集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季 第 %lld 集"
           }
         }
       }
@@ -4989,6 +7821,18 @@
             "state" : "translated",
             "value" : "S%lld · É%lld"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季 · 第 %lld 集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季 · 第 %lld 集"
+          }
         }
       }
     },
@@ -5005,6 +7849,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Scène"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "场景"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "場景"
           }
         }
       }
@@ -5023,6 +7879,18 @@
             "state" : "translated",
             "value" : "Rechercher des demandes"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋請求"
+          }
         }
       }
     },
@@ -5039,6 +7907,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recherche en cours"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋中"
           }
         }
       }
@@ -5057,6 +7937,18 @@
             "state" : "translated",
             "value" : "Saison"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "季"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "季"
+          }
         }
       }
     },
@@ -5073,6 +7965,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saison %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %@ 季"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %@ 季"
           }
         }
       }
@@ -5091,6 +7995,18 @@
             "state" : "translated",
             "value" : "Saison %@ et épisodes spéciaux"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %@ 季和特别篇"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %@ 季和特別篇"
+          }
         }
       }
     },
@@ -5107,6 +8023,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saison %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %lld 季"
           }
         }
       }
@@ -5125,6 +8053,18 @@
             "state" : "translated",
             "value" : "Saisons"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "季"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "季"
+          }
         }
       }
     },
@@ -5141,6 +8081,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saisons %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %@ 季"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %@ 季"
           }
         }
       }
@@ -5159,6 +8111,18 @@
             "state" : "translated",
             "value" : "Saisons %@ et épisodes spéciaux"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %@ 季和特别篇"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %@ 季和特別篇"
+          }
         }
       }
     },
@@ -5175,6 +8139,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tout voir"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看全部"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "檢視全部"
           }
         }
       }
@@ -5193,6 +8169,18 @@
             "state" : "translated",
             "value" : "Position de lecture sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上快进"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上快進"
+          }
         }
       }
     },
@@ -5209,6 +8197,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Envoyez-y quelque chose avec Lire sur…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用“投放到…”把内容发送到这里"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用“投放到…”把內容傳送到這裡"
           }
         }
       }
@@ -5227,6 +8227,18 @@
             "state" : "translated",
             "value" : "Court métrage"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "短片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "短片"
+          }
         }
       }
     },
@@ -5243,6 +8255,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Série"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剧集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "劇集"
           }
         }
       }
@@ -5261,6 +8285,18 @@
             "state" : "translated",
             "value" : "Voir plus"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示更多"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顯示更多"
+          }
         }
       }
     },
@@ -5277,6 +8313,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Séries"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剧集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "劇集"
           }
         }
       }
@@ -5295,6 +8343,18 @@
             "state" : "translated",
             "value" : "Aléatoire sur…"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "随机播放…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隨機播放…"
+          }
         }
       }
     },
@@ -5311,6 +8371,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Se connecter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登入"
           }
         }
       }
@@ -5329,6 +8401,18 @@
             "state" : "translated",
             "value" : "Reconnectez-vous pour approuver et refuser ici."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登录以在此审批请求。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登入以在此審批請求。"
+          }
         }
       }
     },
@@ -5345,6 +8429,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reconnectez-vous pour demander des films et des séries"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登录以请求电影和剧集"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登入以請求電影和劇集"
           }
         }
       }
@@ -5363,6 +8459,18 @@
             "state" : "translated",
             "value" : "Reconnectez-vous pour permettre à Pley de demander des films et des séries."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登录以允许 Pley 请求电影和剧集。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登入以允許 Pley 請求電影和劇集。"
+          }
         }
       }
     },
@@ -5379,6 +8487,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Se reconnecter ?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登录？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登入？"
           }
         }
       }
@@ -5397,6 +8517,18 @@
             "state" : "translated",
             "value" : "Passer le générique sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上跳过片尾"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上跳過片尾"
+          }
         }
       }
     },
@@ -5413,6 +8545,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Passer l’intro sur %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上跳过片头"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上跳過片頭"
           }
         }
       }
@@ -5431,6 +8575,18 @@
             "state" : "translated",
             "value" : "Quelqu’un"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有人"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有人"
+          }
         }
       }
     },
@@ -5447,6 +8603,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quelqu’un l’a déjà demandé."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已经有人请求过了。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已經有人請求過了。"
           }
         }
       }
@@ -5465,6 +8633,18 @@
             "state" : "translated",
             "value" : "Épisodes spéciaux"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "特别篇"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "特別篇"
+          }
         }
       }
     },
@@ -5481,6 +8661,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lancement sur %@…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从 %@ 开始…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從 %@ 開始…"
           }
         }
       }
@@ -5499,6 +8691,18 @@
             "state" : "translated",
             "value" : "Stéréo"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立体声"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立體聲"
+          }
         }
       }
     },
@@ -5515,6 +8719,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Arrêter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止"
           }
         }
       }
@@ -5533,6 +8749,18 @@
             "state" : "translated",
             "value" : "Ne plus suivre"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消关注"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消關注"
+          }
         }
       }
     },
@@ -5549,6 +8777,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Arrêter sur %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上停止"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 %@ 上停止"
           }
         }
       }
@@ -5567,6 +8807,18 @@
             "state" : "translated",
             "value" : "Arrêter la lecture sur %@ ?"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止在 %@ 上播放？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "停止在 %@ 上播放？"
+          }
         }
       }
     },
@@ -5583,6 +8835,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sous-titres"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕"
           }
         }
       }
@@ -5601,6 +8865,18 @@
             "state" : "translated",
             "value" : "Sous-titres sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的字幕"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的字幕"
+          }
         }
       }
     },
@@ -5617,6 +8893,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "TMDB ne répond pas"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 没有响应"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 沒有響應"
           }
         }
       }
@@ -5635,6 +8923,18 @@
             "state" : "translated",
             "value" : "TMDB a refusé la clé de ce serveur"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 拒绝了此服务器的密钥"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 拒絕了此伺服器的金鑰"
+          }
         }
       }
     },
@@ -5651,6 +8951,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La liste de TMDB n’a rien que ce compte puisse demander."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 的列表中没有此账户可请求的内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 的列表中沒有此賬戶可請求的內容。"
           }
         }
       }
@@ -5669,6 +8981,18 @@
             "state" : "translated",
             "value" : "Les listes de TMDB n’ont rien que ce compte puisse demander. Recherchez plutôt un titre."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 的列表中没有此账户可请求的内容。请改为搜索标题。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 的列表中沒有此賬戶可請求的內容。請改為搜尋標題。"
+          }
         }
       }
     },
@@ -5685,6 +9009,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Les pages de TMDB lues jusqu’ici n’ont rien que ce compte puisse demander."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前已读取的 TMDB 页面中没有此账户可请求的内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目前已讀取的 TMDB 頁面中沒有此賬戶可請求的內容。"
           }
         }
       }
@@ -5703,6 +9039,18 @@
             "state" : "translated",
             "value" : "Me prévenir aussi"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "也告诉我"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "也告訴我"
+          }
         }
       }
     },
@@ -5719,6 +9067,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ce n’est pas le code affiché sur %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这不是 %@ 显示的验证码。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這不是 %@ 顯示的驗證碼。"
           }
         }
       }
@@ -5737,6 +9097,18 @@
             "state" : "translated",
             "value" : "Le téléchargement a un problème"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载出现问题"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下載出現問題"
+          }
         }
       }
     },
@@ -5753,6 +9125,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La personne qui l’a demandé le verra."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请求人可以看到。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請求人可以看到。"
           }
         }
       }
@@ -5771,6 +9155,18 @@
             "state" : "translated",
             "value" : "Cette Apple TV affiche un code pour l’associer de nouveau à %@."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Apple TV 会显示一个验证码，用于重新与 %@ 关联。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 Apple TV 會顯示一個驗證碼，用於重新與 %@ 關聯。"
+          }
         }
       }
     },
@@ -5787,6 +9183,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ce produit utilise l’API de TMDB, mais n’est ni approuvé ni certifié par TMDB."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本产品使用 TMDB API，但未获得 TMDB 的认可或认证。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本產品使用 TMDB API，但未獲得 TMDB 的認可或認證。"
           }
         }
       }
@@ -5805,6 +9213,18 @@
             "state" : "translated",
             "value" : "Ce serveur n’accepte pas de demandes de films et de séries."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此服务器不接受电影和剧集请求。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此伺服器不接受電影和劇集請求。"
+          }
         }
       }
     },
@@ -5821,6 +9241,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ce titre n’est pas sur TMDB"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 上没有此标题"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TMDB 上沒有此標題"
           }
         }
       }
@@ -5839,6 +9271,18 @@
             "state" : "translated",
             "value" : "Trop de demandes à la fois : réessayez dans un instant"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同时请求过多：稍后再试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同時請求過多：稍後再試"
+          }
         }
       }
     },
@@ -5855,6 +9299,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trop de demandes à la fois : réessayez dans un instant."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同时请求过多：稍后再试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同時請求過多：稍後再試。"
           }
         }
       }
@@ -5873,6 +9329,18 @@
             "state" : "translated",
             "value" : "Bande-annonce"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预告片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "預告片"
+          }
         }
       }
     },
@@ -5889,6 +9357,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tendances de la semaine"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本周热门"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本週熱門"
           }
         }
       }
@@ -5907,6 +9387,18 @@
             "state" : "translated",
             "value" : "Essayez une autre orthographe, ou le titre dans sa langue d’origine."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "试试其他拼写，或该标题的原语言名称。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "試試其他拼寫，或該標題的原語言名稱。"
+          }
         }
       }
     },
@@ -5923,6 +9415,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réessayer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重試"
           }
         }
       }
@@ -5941,6 +9445,18 @@
             "state" : "translated",
             "value" : "Essayez d’autres filtres."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "试试其他筛选条件。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "試試其他篩選條件。"
+          }
         }
       }
     },
@@ -5957,6 +9473,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nouvel essai %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重试 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在重試 %@。"
           }
         }
       }
@@ -5975,6 +9503,18 @@
             "state" : "translated",
             "value" : "Saisissez le code affiché sur %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入 %@ 显示的验证码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輸入 %@ 顯示的驗證碼"
+          }
         }
       }
     },
@@ -5991,6 +9531,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Inconnu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知"
           }
         }
       }
@@ -6009,6 +9561,18 @@
             "state" : "translated",
             "value" : "Appareil inconnu"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知设备"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知裝置"
+          }
         }
       }
     },
@@ -6025,6 +9589,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Version %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %lld"
           }
         }
       }
@@ -6043,6 +9619,18 @@
             "state" : "translated",
             "value" : "Volume"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音量"
+          }
         }
       }
     },
@@ -6059,6 +9647,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Volume sur %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的音量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的音量"
           }
         }
       }
@@ -6077,6 +9677,18 @@
             "state" : "translated",
             "value" : "En attente de %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待 %@"
+          }
         }
       }
     },
@@ -6093,6 +9705,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En attente d’approbation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待批准"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待批准"
           }
         }
       }
@@ -6111,6 +9735,18 @@
             "state" : "translated",
             "value" : "En attente de téléchargement"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待下载"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待下載"
+          }
         }
       }
     },
@@ -6127,6 +9763,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Regarder"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "观看"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "觀看"
           }
         }
       }
@@ -6145,6 +9793,18 @@
             "state" : "translated",
             "value" : "Regarder sur…"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在…上观看"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在…上觀看"
+          }
         }
       }
     },
@@ -6161,6 +9821,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quelles saisons ?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪些季？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪些季？"
           }
         }
       }
@@ -6179,6 +9851,18 @@
             "state" : "translated",
             "value" : "Annuler la demande"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤回"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤回"
+          }
         }
       }
     },
@@ -6195,6 +9879,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Annuler votre demande pour « %@ » ?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤回你对“%@”的请求？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤回你對“%@”的請求？"
           }
         }
       }
@@ -6213,6 +9909,18 @@
             "state" : "translated",
             "value" : "Scénario"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编剧"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編劇"
+          }
         }
       }
     },
@@ -6229,6 +9937,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Scénario"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编剧"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編劇"
           }
         }
       }
@@ -6247,6 +9967,18 @@
             "state" : "translated",
             "value" : "Vous pourrez redemander %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你可以在 %@ 再次请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你可以在 %@ 再次請求"
+          }
         }
       }
     },
@@ -6263,6 +9995,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vous pouvez encore demander %@ et %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你可以请求 %@ 和 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你可以請求 %@ 和 %@。"
           }
         }
       }
@@ -6281,6 +10025,18 @@
             "state" : "translated",
             "value" : "Vous pouvez encore demander %@."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你可以请求 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你可以請求 %@。"
+          }
         }
       }
     },
@@ -6297,6 +10053,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vous pouvez demander au plus %@ sur 7 jours."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每 7 天最多可请求 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每 7 天最多可請求 %@。"
           }
         }
       }
@@ -6315,6 +10083,18 @@
             "state" : "translated",
             "value" : "Vous pouvez demander au plus %@ sur 7 jours : choisissez-en moins."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每 7 天最多可请求 %@：请少选一些。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每 7 天最多可請求 %@：請少選一些。"
+          }
         }
       }
     },
@@ -6331,6 +10111,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vous pourrez en demander d’autres %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你还可以请求更多 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你還可以請求更多 %@"
           }
         }
       }
@@ -6349,6 +10141,18 @@
             "state" : "translated",
             "value" : "On vous préviendra quand « %@ » sera prêt."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”就绪时会通知你。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”就緒時會通知你。"
+          }
         }
       }
     },
@@ -6365,6 +10169,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vous avez demandé tous les films possibles pour l’instant : vous pourrez en demander d’autres %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你目前已请求了所有可请求的电影：还可以请求更多 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你目前已請求了所有可請求的電影：還可以請求更多 %@。"
           }
         }
       }
@@ -6383,6 +10199,18 @@
             "state" : "translated",
             "value" : "Vous avez demandé toutes les saisons possibles pour l’instant : vous pourrez en demander d’autres %@."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你目前已请求了所有可请求的季：还可以请求更多 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你目前已請求了所有可請求的季：還可以請求更多 %@。"
+          }
         }
       }
     },
@@ -6399,6 +10227,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vous avez demandé tout ce que vous pouviez pour l’instant."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你目前已请求了所有可请求的内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你目前已請求了所有可請求的內容。"
           }
         }
       }
@@ -6417,6 +10257,18 @@
             "state" : "translated",
             "value" : "Vous avez demandé tout ce que vous pouviez pour l’instant : d’autres films %@, d’autres saisons %@."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你目前已请求了所有可请求的内容：更多电影 %@，更多季 %@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你目前已請求了所有可請求的內容：更多電影 %@，更多季 %@。"
+          }
         }
       }
     },
@@ -6433,6 +10285,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vos appareils"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的设备"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的裝置"
           }
         }
       }
@@ -6451,6 +10315,18 @@
             "state" : "translated",
             "value" : "Vos demandes"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的請求"
+          }
         }
       }
     },
@@ -6467,6 +10343,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Les vôtres"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的"
           }
         }
       }
@@ -6485,6 +10373,18 @@
             "state" : "translated",
             "value" : "un autre appareil"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "另一台设备"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "另一臺裝置"
+          }
         }
       }
     },
@@ -6501,6 +10401,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "dans le rôle de %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以 %@ 身份"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以 %@ 身份"
           }
         }
       }
@@ -6569,6 +10481,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "dans %lld jours"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 天后"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 天后"
                 }
               }
             }
@@ -6644,6 +10580,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 小时后"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 小時後"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -6660,6 +10620,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "dans %lld min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分钟后"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 分鐘後"
           }
         }
       }
@@ -6728,6 +10700,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "dans %lld minutes"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 分钟后"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 分鐘後"
                 }
               }
             }
@@ -6803,6 +10799,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 个月后"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 個月後"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -6870,6 +10890,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "dans %lld secondes"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 秒后"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 秒後"
                 }
               }
             }
@@ -6945,6 +10989,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 周后"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 周後"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -7016,6 +11084,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 年后"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld 年後"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -7032,6 +11124,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "dans un instant"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍後"
           }
         }
       }
@@ -7056,6 +11160,18 @@
             "state" : "translated",
             "value" : "Mandarin"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "普通话"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "普通話"
+          }
         }
       }
     },
@@ -7078,6 +11194,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plusieurs langues"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多种语言"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多種語言"
           }
         }
       }
@@ -7102,6 +11230,18 @@
             "state" : "translated",
             "value" : "Version originale"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始"
+          }
         }
       }
     },
@@ -7124,6 +11264,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Langue inconnue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知"
           }
         }
       }
@@ -7148,6 +11300,18 @@
             "state" : "translated",
             "value" : "Aucun contenu linguistique"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无语言内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無語言內容"
+          }
         }
       }
     },
@@ -7164,6 +11328,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "le mois dernier"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上个月"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上個月"
           }
         }
       }
@@ -7182,6 +11358,18 @@
             "state" : "translated",
             "value" : "la semaine dernière"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上周"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上週"
+          }
         }
       }
     },
@@ -7198,6 +11386,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "l’année dernière"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "去年"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "去年"
           }
         }
       }
@@ -7216,6 +11416,18 @@
             "state" : "translated",
             "value" : "jamais"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从不"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從不"
+          }
         }
       }
     },
@@ -7232,6 +11444,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "le mois prochain"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下个月"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下個月"
           }
         }
       }
@@ -7250,6 +11474,18 @@
             "state" : "translated",
             "value" : "la semaine prochaine"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下周"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下週"
+          }
         }
       }
     },
@@ -7267,6 +11503,18 @@
             "state" : "translated",
             "value" : "l’année prochaine"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明年"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明年"
+          }
         }
       }
     },
@@ -7283,6 +11531,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "maintenant"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在"
           }
         }
       }
@@ -7307,6 +11567,18 @@
             "state" : "translated",
             "value" : "Approuvées"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已批准"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已批准"
+          }
         }
       }
     },
@@ -7329,6 +11601,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refusées"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒绝"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒絕"
           }
         }
       }
@@ -7353,6 +11637,18 @@
             "state" : "translated",
             "value" : "Dans la bibliothèque"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在媒体库中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在媒體庫中"
+          }
         }
       }
     },
@@ -7375,6 +11671,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refusée"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒绝"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已拒絕"
           }
         }
       }
@@ -7399,6 +11707,18 @@
             "state" : "translated",
             "value" : "Demandée"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已请求"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已請求"
+          }
         }
       }
     },
@@ -7415,6 +11735,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "cette heure-ci"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本小时"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本小時"
           }
         }
       }
@@ -7433,6 +11765,18 @@
             "state" : "translated",
             "value" : "cette minute-ci"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前分钟"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "當前分鐘"
+          }
         }
       }
     },
@@ -7449,6 +11793,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ce mois-ci"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月"
           }
         }
       }
@@ -7467,6 +11823,18 @@
             "state" : "translated",
             "value" : "cette semaine"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本周"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本週"
+          }
         }
       }
     },
@@ -7483,6 +11851,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "cette année"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今年"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今年"
           }
         }
       }
@@ -7501,6 +11881,18 @@
             "state" : "translated",
             "value" : "aujourd’hui"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天"
+          }
         }
       }
     },
@@ -7517,6 +11909,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "aujourd’hui à %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天，%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天，%@"
           }
         }
       }
@@ -7535,6 +11939,18 @@
             "state" : "translated",
             "value" : "demain"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明天"
+          }
         }
       }
     },
@@ -7551,6 +11967,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "demain à %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明天，%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明天，%@"
           }
         }
       }
@@ -7569,6 +11997,18 @@
             "state" : "translated",
             "value" : "vu"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已观看"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已觀看"
+          }
         }
       }
     },
@@ -7585,6 +12025,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "hier"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨天"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨天"
           }
         }
       }
@@ -7603,6 +12055,18 @@
             "state" : "translated",
             "value" : "« %@ » n’a pas pu être envoyé à Radarr."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”无法发送到 Radarr。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”無法傳送到 Radarr。"
+          }
         }
       }
     },
@@ -7619,6 +12083,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "« %@ » n’a pas pu être envoyé à Radarr : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”无法发送到 Radarr：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”無法傳送到 Radarr：%@"
           }
         }
       }
@@ -7637,6 +12113,18 @@
             "state" : "translated",
             "value" : "« %@ » n’a pas pu être envoyé à Sonarr."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”无法发送到 Sonarr。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”無法傳送到 Sonarr。"
+          }
         }
       }
     },
@@ -7653,6 +12141,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "« %@ » n’a pas pu être envoyé à Sonarr : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”无法发送到 Sonarr：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”無法傳送到 Sonarr：%@"
           }
         }
       }
@@ -7671,6 +12171,18 @@
             "state" : "translated",
             "value" : "« %@ » est approuvé et en route."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已批准，正在处理中。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已批准，正在處理中。"
+          }
         }
       }
     },
@@ -7687,6 +12199,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "« %@ » est prêt à regarder."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已可观看。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已可觀看。"
           }
         }
       }
@@ -7705,6 +12229,18 @@
             "state" : "translated",
             "value" : "« %@ » a été approuvé."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已获批准。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已獲批准。"
+          }
         }
       }
     },
@@ -7722,6 +12258,18 @@
             "state" : "translated",
             "value" : "« %@ » a été refusé."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已被拒绝。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已被拒絕。"
+          }
         }
       }
     },
@@ -7738,6 +12286,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "« %@ » a été refusé : « %@ »."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已被拒绝：“%@”。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”已被拒絕：“%@”。"
           }
         }
       }

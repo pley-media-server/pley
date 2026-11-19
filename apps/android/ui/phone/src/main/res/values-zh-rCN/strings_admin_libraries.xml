@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Settings → Libraries (apps/web/src/pages/settings/LibrariesSettings.tsx, LibraryFormModal.tsx), in the web's words. -->
+    <string name="admin_libraries_title">媒体库</string>
+    <string name="admin_libraries_description">Pley 监视的文件夹，用于电影、剧集和音乐。</string>
+    <string name="admin_libraries_shared_order">除非各自排序，否则所有人都按此顺序查看。</string>
+    <plurals name="admin_libraries_items_movies">
+        <item quantity="other">%1$,d 部电影</item>
+    </plurals>
+    <plurals name="admin_libraries_items_shows">
+        <item quantity="other">%1$,d 部剧集</item>
+    </plurals>
+    <plurals name="admin_libraries_items_music">
+        <item quantity="other">%1$,d 位音乐人</item>
+    </plurals>
+    <string name="admin_libraries_scanned">扫描于 %1$s</string>
+    <string name="admin_libraries_never_scanned">从未扫描</string>
+    <string name="admin_libraries_scanning">扫描中</string>
+    <string name="admin_libraries_move_up">上移 %1$s</string>
+    <string name="admin_libraries_move_down">下移 %1$s</string>
+    <string name="admin_libraries_scan">扫描</string>
+    <string name="admin_libraries_scan_library">扫描 %1$s</string>
+    <string name="admin_libraries_force_rescan">强制完整重新扫描</string>
+    <string name="admin_libraries_rescan_started">已开始完整重新扫描“%1$s”</string>
+    <string name="admin_libraries_scan_started">正在扫描“%1$s”</string>
+    <string name="admin_libraries_scanning_all">正在扫描所有媒体库</string>
+    <string name="admin_libraries_scan_all">扫描全部</string>
+    <string name="admin_libraries_add">添加媒体库</string>
+    <string name="admin_libraries_couldnt_load">无法加载媒体库</string>
+    <string name="admin_libraries_empty_title">添加第一个媒体库</string>
+    <string name="admin_libraries_empty_description">选择类型以及存放媒体的文件夹。Pley 会扫描并保持更新。</string>
+    <string name="admin_libraries_delete_title">删除媒体库？</string>
+    <string name="admin_libraries_delete_message">%1$s 及其观看历史将从 Pley 中移除。你的媒体文件不会受影响。</string>
+    <string name="admin_libraries_deleted">已删除“%1$s”</string>
+    <string name="admin_libraries_kind_movies">电影</string>
+    <string name="admin_libraries_kind_shows">剧集</string>
+    <string name="admin_libraries_kind_music">音乐</string>
+    <string name="admin_libraries_layout_movies">电影名称（年份）/电影名称（年份）.mkv</string>
+    <string name="admin_libraries_layout_shows">剧集名称/第 01 季/剧集名称 - S01E01.mkv</string>
+    <string name="admin_libraries_layout_music">音乐人/专辑/01 - 曲目.flac</string>
+    <string name="admin_libraries_default_movies">电影</string>
+    <string name="admin_libraries_default_shows">剧集</string>
+    <string name="admin_libraries_default_music">音乐</string>
+    <string name="admin_libraries_add_title">添加媒体库</string>
+    <string name="admin_libraries_edit_title">编辑 %1$s</string>
+    <string name="admin_libraries_save_changes">保存更改</string>
+    <string name="admin_libraries_at_least_one_folder">至少添加一个文件夹。</string>
+    <string name="admin_libraries_updated">媒体库已更新</string>
+    <string name="admin_libraries_added">已添加“%1$s” — 正在扫描</string>
+    <string name="admin_libraries_type">类型</string>
+    <string name="admin_libraries_name">名称</string>
+    <string name="admin_libraries_folders">文件夹</string>
+    <string name="admin_libraries_browse">浏览…</string>
+    <string name="admin_libraries_remove_path">移除 %1$s</string>
+    <string name="admin_libraries_type_path">…或输入文件夹路径</string>
+    <string name="admin_libraries_folder_path">文件夹路径</string>
+    <string name="admin_libraries_layout">推荐结构：%1$s</string>
+    <string name="admin_libraries_tmdb_collections">根据 TMDB 生成合集</string>
+    <string name="admin_libraries_tmdb_collections_hint">根据 TMDB 将电影分组为合集。如果你使用 Kometa 等外部工具管理合集，请关闭此选项。</string>
+    <string name="admin_libraries_tmdb_collections_off_title">移除 TMDB 合集？</string>
+    <string name="admin_libraries_tmdb_collections_off_message">%1$s 中来自 TMDB 的合集将被移除，包括你所做的更改。</string>
+    <string name="admin_libraries_tmdb_collections_off_confirm">移除</string>
+    <string name="admin_libraries_phase_queued">排队中</string>
+    <string name="admin_libraries_phase_walking">查找文件</string>
+    <string name="admin_libraries_phase_probing">分析媒体</string>
+    <string name="admin_libraries_phase_metadata">获取元数据</string>
+    <string name="admin_libraries_phase_done">已完成</string>
+    <string name="admin_libraries_delete">删除</string>
+    <string name="admin_libraries_add_path">添加</string>
+    <string name="admin_libraries_progress">%1$,d / %2$,d</string>
+    <string name="admin_libraries_delete_library">删除媒体库</string>
+</resources>

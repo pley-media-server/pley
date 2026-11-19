@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The TV player's subtitle sync, sleep timer and a playback the server stopped. -->
+<resources>
+    <!-- The subtitles panel's row that moves the subtitles in time. -->
+    <string name="tv_player_sync">同步</string>
+    <string name="tv_player_sync_hint">按 OK 重置</string>
+    <!-- The audio panel's row that moves the sound against the picture, in 50 ms steps. -->
+    <string name="tv_player_audio_delay">音频延迟</string>
+    <!-- The control row's button and its panel. -->
+    <string name="tv_player_sleep">睡眠定时</string>
+    <!-- The control row's button and panel of the playback speed. -->
+    <string name="tv_player_speed">播放速度</string>
+    <!-- The subtitles panel's row that looks for subtitles online, and its panel. -->
+    <string name="tv_player_find_subtitles">搜索字幕…</string>
+    <string name="tv_player_searching">搜索中…</string>
+    <string name="tv_player_adding">添加中…</string>
+    <!-- The error screen's title when the server stopped the playback. -->
+    <string name="tv_player_stopped_title">播放已停止</string>
+</resources>

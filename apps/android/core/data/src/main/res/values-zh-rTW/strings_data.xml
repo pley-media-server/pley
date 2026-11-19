@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home's My List as the app adds it, until the server, asked again, titles it itself. -->
+    <string name="data_my_list">我的片單</string>
+    <!-- Why the profile's track defaults can't be changed here (TrackDefaultsUnsupported), a phrase as errorText's. -->
+    <string name="data_track_defaults_on_web">在 Pley 網頁版中更改這些設定</string>
+    <!-- What a server with requests off answers, said by the app for a server that has none. -->
+    <string name="data_requests_off">請求功能已關閉</string>
+</resources>

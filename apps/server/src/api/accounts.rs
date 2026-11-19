@@ -775,11 +775,24 @@ pub struct TrackDefaults {
 }
 
 /// The language the profile sees Pley in: one of `i18n::LANGUAGES`, or
-/// `None` for the server's.
+/// `None` for the server's. A device's tag (`zh-Hant`) is stored as the
+/// language it names (`zh-TW`), as `Accept-Language` already is.
 async fn save_language(state: &AppState, user_id: i64, language: Option<String>) -> ApiResult<()> {
-    if language.as_deref().is_some_and(|code| !i18n::LANGUAGES.contains(&code)) {
-        return Err(AppError::bad_request(format!("language is one of {}, or null", i18n::LANGUAGES.join(", "))));
-    }
+    let language = match language {
+        Some(code) if i18n::LANGUAGES.contains(&code.as_str()) => Some(code),
+        // Apple names its catalogs by script; other regional tags stay invalid.
+        Some(code) if code.trim().split(['-', '_']).next().is_some_and(|base| base.eq_ignore_ascii_case("zh")) => Some(
+            i18n::supported(&code)
+                .ok_or_else(|| {
+                    AppError::bad_request(format!("language is one of {}, or null", i18n::LANGUAGES.join(", ")))
+                })?
+                .to_owned(),
+        ),
+        Some(_) => {
+            return Err(AppError::bad_request(format!("language is one of {}, or null", i18n::LANGUAGES.join(", "))));
+        }
+        None => None,
+    };
     sqlx::query("UPDATE users SET language = ? WHERE id = ?")
         .bind(language)
         .bind(user_id)

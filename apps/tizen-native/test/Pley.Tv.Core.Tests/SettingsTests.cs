@@ -296,7 +296,7 @@ public class SettingsModelTests
 
         var panel = m.Panel(new SettingPick.Language());
         Assert.Equal("Language", panel.Title);
-        Assert.Equal(new[] { "Automatic (Français)", "English", "Français", "Español" }, panel.Choices.Select(c => c.Label));
+        Assert.Equal(new[] { "Automatic (Français)", "English", "Français", "Español", "简体中文", "繁體中文" }, panel.Choices.Select(c => c.Label));
         Assert.Equal(0, panel.Focus);
         Assert.Equal("row-language", panel.Pick.RowKey);
 
@@ -357,7 +357,7 @@ public class SettingsModelTests
         Assert.Equal(new SettingAction.Pick(new SettingPick.Language()), row.Action);
         // Automatic is the TV's own language, not the one picked.
         var panel = m.Panel(new SettingPick.Language());
-        Assert.Equal(new[] { "Automatic (English)", "English", "Français", "Español" }, panel.Choices.Select(c => c.Label));
+        Assert.Equal(new[] { "Automatic (English)", "English", "Français", "Español", "简体中文", "繁體中文" }, panel.Choices.Select(c => c.Label));
         Assert.Equal(3, panel.Focus);
         m.Choose(new SettingPick.Language(), 2);
         Assert.Equal("fr", account.DeviceLanguage);

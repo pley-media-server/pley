@@ -364,7 +364,7 @@ describe("Settings' Language row", () => {
     });
     press("ok");
     const panel = () => Array.from(document.querySelectorAll(".side-panel [data-f]")).map((el) => el.textContent);
-    expect(panel()).toEqual(["Automatic (English)", "English", "Français", "Español"]);
+    expect(panel()).toEqual(["Automatic (English)", "English", "Français", "Español", "简体中文", "繁體中文"]);
     press("down");
     press("down");
     press("down");
@@ -386,7 +386,7 @@ describe("Settings' Language row", () => {
     press("ok");
     const panel = () => Array.from(document.querySelectorAll(".side-panel [data-f]")).map((el) => el.textContent);
     // Automatic names the TV's own language, not the one picked.
-    expect(panel()).toEqual(["Automático (English)", "English", "Français", "Español"]);
+    expect(panel()).toEqual(["Automático (English)", "English", "Français", "Español", "简体中文", "繁體中文"]);
     press("up");
     press("up");
     press("up");

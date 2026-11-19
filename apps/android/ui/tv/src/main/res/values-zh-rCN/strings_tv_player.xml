@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The control row (design spec §2.7). -->
+    <string name="tv_player_play">播放</string>
+    <string name="tv_player_pause">暂停</string>
+    <string name="tv_player_previous">上一个</string>
+    <string name="tv_player_next">下一个</string>
+    <string name="tv_player_subtitles">字幕</string>
+    <string name="tv_player_audio">音频</string>
+    <string name="tv_player_quality">画质</string>
+    <string name="tv_player_chapters">章节</string>
+    <string name="tv_player_info">信息</string>
+
+    <!-- The scrubber, the clock and the seek badge. -->
+    <string name="tv_player_ends_at">结束于 %1$s</string>
+    <string name="tv_player_intro">片头</string>
+    <string name="tv_player_credits">片尾</string>
+    <string name="tv_player_seek_back">−%1$d 秒</string>
+    <string name="tv_player_seek_forward">+%1$d 秒</string>
+    <string name="tv_player_position">%1$s / %2$s</string>
+    <string name="tv_player_chapter">第 %1$d 章</string>
+    <string name="tv_player_chapter_named">第 %1$d 章 · %2$s</string>
+    <!-- How a chapter's own name starts when it names itself ("Chapter 3"): the seek preview shows such a name as it is. -->
+    <string name="tv_player_chapter_word">章</string>
+    <!-- The chapters' cards over the scrubber, as a screen reader says the one focused: its name, and when it starts. -->
+    <string name="tv_player_chapter_card">%1$s，始于 %2$s</string>
+    <!-- A time as a screen reader says it, in these parts: "1 hour 2 minutes", "32 minutes 40 seconds". -->
+    <plurals name="tv_player_spoken_hours">
+        <item quantity="other">%1$d 小时</item>
+    </plurals>
+    <plurals name="tv_player_spoken_minutes">
+        <item quantity="other">%1$d 分钟</item>
+    </plurals>
+    <plurals name="tv_player_spoken_seconds">
+        <item quantity="other">%1$d 秒</item>
+    </plurals>
+
+    <!-- Up Next. -->
+    <string name="tv_player_play_now">立即播放</string>
+    <string name="tv_player_cancel">取消</string>
+    <string name="tv_player_next_in">%1$d 秒后播放下一集</string>
+
+    <!-- Side panels. -->
+    <string name="tv_player_subtitles_off_toast">已关闭字幕</string>
+    <string name="tv_player_subtitles_toast">字幕：%1$s</string>
+    <string name="tv_player_play_original">播放原始</string>
+    <string name="tv_player_play_original_hint">再次尝试原始画质</string>
+    <string name="tv_player_info_title">播放详情</string>
+    <string name="tv_player_info_how">播放方式</string>
+    <string name="tv_player_info_device">这台电视</string>
+    <string name="tv_player_info_video_decoder">视频解码器</string>
+    <string name="tv_player_info_audio_decoder">音频解码器</string>
+    <string name="tv_player_info_picture">画面</string>
+    <!-- The decoded picture's bits per colour: "10-bit". -->
+    <string name="tv_player_info_bit_depth">%1$d 位</string>
+    <string name="tv_player_info_display">显示</string>
+    <string name="tv_player_info_display_switched">已切换以匹配视频</string>
+    <string name="tv_player_info_display_kept">未更改</string>
+    <string name="tv_player_info_dropped">丢帧</string>
+    <string name="tv_player_info_dropped_value">%1$d / %2$d</string>
+    <string name="tv_player_info_buffer">预缓冲</string>
+    <string name="tv_player_info_buffer_value">%1$d 秒</string>
+    <string name="tv_player_info_rebuffers">卡顿次数</string>
+    <string name="tv_player_info_first_frame">首帧</string>
+    <string name="tv_player_info_first_frame_value">%1$d 毫秒</string>
+    <string name="tv_player_info_hardware">硬件</string>
+    <string name="tv_player_info_software">软件</string>
+    <string name="tv_player_info_waiting">正在询问服务器…</string>
+
+    <!-- Refresh rate, buffering and errors (design spec §2.7, §8). -->
+    <!-- A transcode the player chose, as the phone's player toasts it: the session's note, then where the way back is. -->
+    <string name="tv_player_transcode_toast">%1$s 可在“画质”中选择播放原始。</string>
+    <string name="tv_player_slow_server_toast">%1$s 可在“画质”中选择。</string>
+    <string name="tv_player_buffering">加载中</string>
+    <string name="tv_player_reconnecting">正在重新连接…</string>
+    <string name="tv_player_error_title">无法播放此内容</string>
+    <string name="tv_player_offline_title">无法连接到服务器</string>
+    <string name="tv_player_try_again">重试</string>
+    <string name="tv_player_back">返回</string>
+</resources>

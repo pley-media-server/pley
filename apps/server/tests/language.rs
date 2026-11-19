@@ -60,6 +60,10 @@ async fn home_is_in_the_accounts_then_the_devices_then_the_servers_language() {
     assert_eq!(chosen.status, StatusCode::OK, "{}", chosen.text());
     assert_eq!(chosen.body["language"], json!("es"));
     assert_eq!(app.put("/api/me/language", &bob_app, json!({"language": "de"})).await.status, StatusCode::BAD_REQUEST);
+    // Apple sends its catalog's script name; Pley stores the language it names.
+    let traditional = app.put("/api/me/language", &bob_app, json!({"language": "zh-Hant"})).await;
+    assert_eq!(traditional.status, StatusCode::OK, "{}", traditional.text());
+    assert_eq!(traditional.body["language"], json!("zh-TW"));
     assert_eq!(app.put("/api/me/language", &bob_app, json!({})).await.body["language"], Value::Null);
     let (library_only, _) = app.app_token(bob_id, "library").await;
     assert_eq!(

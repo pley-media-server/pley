@@ -1,0 +1,112 @@
+{
+  "language": {
+    "choose": "選擇語言"
+  },
+  "servers": {
+    "title": "選擇你的伺服器",
+    "enterAddress": "輸入地址",
+    "searchNetwork": "搜尋此網路",
+    "checkingSubnet": "正在檢查 {{subnet}}1-254…",
+    "checkingNetwork": "正在檢查此網路…",
+    "looking": "正在你的網路中查詢 Pley…",
+    "noneFound": "未找到伺服器。請確認這臺電視和伺服器在同一網路。",
+    "forgetHint": "在已儲存的伺服器上按住“確定”即可忘記它。",
+    "forgetTitle": "忘記 {{name}}？",
+    "forgetBody": "Pley 會將這臺電視從該伺服器退出登入，並刪除儲存的資料。",
+    "forget": "忘記",
+    "connecting": "正在連線 {{address}}…",
+    "cantReach": "無法連線",
+    "lookalike": "不是你儲存的伺服器",
+    "notEncrypted": "未加密",
+    "onNetwork": "在此網路中",
+    "unencrypted": "{{address}} 未加密：你觀看的內容可能在傳輸中被讀取。如果有 HTTPS 地址，請使用該地址；或再次按“連線”繼續。"
+  },
+  "address": {
+    "title": "輸入你的伺服器地址",
+    "placeholder": "192.168.1.20 或 pley.example.com",
+    "checking": "檢查中…",
+    "connect": "連線",
+    "defaultPort": "預設使用埠 7539。"
+  },
+  "problems": {
+    "badAddress": "請輸入地址，如 nas、192.168.1.20 或 pley.example.com。",
+    "notPley": "{{address}} 有響應，但不是 Pley。",
+    "unreachable": "無法連線 {{address}}：{{reason}}",
+    "noAnswerInTime": "響應超時",
+    "nothingAnswers": "那邊沒有響應"
+  },
+  "link": {
+    "title": "登入 Pley",
+    "twoStepRequired": "此伺服器需要兩步驗證：如果尚未設定，你的手機會完成設定。",
+    "changeServer": "更換伺服器",
+    "approveTitle": "在手機上批准",
+    "approveIntro": "{{name}} 的配置檔案需要密碼：在已登入 Pley 的手機上批准此程式碼，並在那裡選擇 {{name}}。",
+    "anotherIntro": "在已登入 Pley 的手機上批准此程式碼，並在那裡選擇配置檔案。",
+    "signedInAs": "已登入為 {{name}}",
+    "signedIn": "已登入",
+    "gettingCode": "正在獲取程式碼…",
+    "waiting": "等待批准…",
+    "retrying": "無法連線伺服器。{{seconds}} 秒後重試",
+    "declined": "請求被拒絕",
+    "expired": "程式碼已過期：按“確定”獲取新程式碼",
+    "scan": "用手機掃描二維碼",
+    "goTo": "或前往 <address>{{address}}</address>",
+    "enterCode": "並輸入此程式碼",
+    "codeLabel": "程式碼：{{code}}",
+    "newCode": "獲取新程式碼",
+    "sameWifi": "你的手機必須與此電視連線同一 Wi-Fi。",
+    "otherDevice": "或在已登入的裝置上開啟 Pley → 關聯裝置",
+    "scanHint": "用手機攝像頭掃描"
+  },
+  "profiles": {
+    "title": "誰在看？",
+    "signInAnother": "以其他配置檔案登入",
+    "useAnother": "使用其他配置檔案",
+    "protected": "{{name}}，受 PIN 保護",
+    "enterPin": "輸入 {{name}} 的 PIN",
+    "digits_other": "已輸入 {{count}} 位數字",
+    "numberKeys": "你也可以用遙控器上的數字鍵輸入。",
+    "cantReach": "無法連線伺服器：{{reason}}",
+    "wrongPin": "PIN 錯誤。",
+    "throttled": "PIN 錯誤次數過多：請幾分鐘後重試。",
+    "pinLocked": "此配置檔案的 PIN 因多次輸錯已被鎖定。其所有者或管理員可以重置。",
+    "notAllowed": "你不能切換到此配置檔案。",
+    "serverRefused": "伺服器拒絕了請求：請重試。",
+    "needsPassword": "此配置檔案需要密碼：請重新登入後再使用。",
+    "cantSwitch": "此登入無法切換配置檔案。",
+    "unusable": "此配置檔案無法在此應用中使用。"
+  },
+  "pad": {
+    "delete": "刪除",
+    "ok": "確定",
+    "digit": "數字 {{digit}}"
+  },
+  "oauth": {
+    "invalidClient": "伺服器不認識此應用",
+    "unauthorizedClient": "伺服器不允許此應用以此方式登入",
+    "invalidGrant": "伺服器拒絕了此次登入",
+    "accessDenied": "登入被拒絕",
+    "expiredToken": "程式碼已過期",
+    "invalidScope": "伺服器拒絕了此應用請求的許可權",
+    "invalidRequest": "伺服器無法理解該請求",
+    "unsupportedGrantType": "伺服器不支援這種登入方式",
+    "refused": "伺服器拒絕了（{{code}}）"
+  },
+  "errors": {
+    "notAnAddress": "那不是伺服器地址",
+    "unencrypted": "此伺服器地址不在你的網路中，且連線未加密：請通過其 HTTPS 地址開啟以登入",
+    "tooOld": "此伺服器版本太舊，不支援此應用",
+    "noCodes": "此伺服器尚不支援用程式碼登入電視：請更新伺服器",
+    "unknownApp": "此伺服器尚不認識 Pley 的電視應用：請更新伺服器",
+    "unreachable": "無法連線伺服器：請檢查地址及伺服器是否已開啟",
+    "status": "伺服器無法響應（HTTP {{status}}）",
+    "callsItself": "此伺服器自稱 {{address}}：請通過該地址開啟，或檢查其前面的代理是否傳遞 Host",
+    "signInElsewhere": "此伺服器要求應用到其他地址登入：Pley 不會這樣做",
+    "approveElsewhere": "此伺服器要求使用者到其他地址批准電視：Pley 不會這樣做",
+    "busy": "當前有太多電視正在此處登入：請一分鐘後重試",
+    "codeUsed": "此程式碼已失效：請獲取新程式碼",
+    "unreadable": "無法讀取伺服器的響應：請重試",
+    "widerScope": "伺服器授予的許可權超出了此應用的請求：已退出登入",
+    "signInEnded": "登入已結束：請重新選擇伺服器"
+  }
+}

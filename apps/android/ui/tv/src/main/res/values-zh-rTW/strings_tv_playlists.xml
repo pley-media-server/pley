@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The playlists page on TV (apps/web/src/pages/playlists/PlaylistsPage.tsx). -->
+    <string name="tv_playlists_title">播放列表</string>
+    <string name="tv_playlists_new">新建播放列表</string>
+    <string name="tv_playlists_failed">無法載入播放列表</string>
+    <string name="tv_playlists_none_title">暫無播放列表</string>
+    <string name="tv_playlists_none_body">可在此建立，或在電影、劇集、專輯或單集上使用“新增到播放列表”（在海報上長按 OK 也可以）。</string>
+    <string name="tv_playlists_retry">重試</string>
+    <string name="tv_playlists_smart">智慧</string>
+
+    <!-- A playlist's page (PlaylistPage.tsx, design spec §4.9). -->
+    <string name="tv_playlist_video">影片播放列表</string>
+    <string name="tv_playlist_music">音樂播放列表</string>
+    <string name="tv_playlist_smart">智慧播放列表</string>
+    <string name="tv_playlist_play">播放</string>
+    <string name="tv_playlist_shuffle">隨機播放</string>
+    <string name="tv_playlist_rename">重新命名</string>
+    <string name="tv_playlist_delete">刪除</string>
+    <string name="tv_playlist_failed">無法載入此播放列表</string>
+    <string name="tv_playlist_not_found">未找到播放列表</string>
+    <string name="tv_playlist_not_found_body">它可能已被刪除，或屬於其他配置檔案。</string>
+    <string name="tv_playlist_back">返回</string>
+    <string name="tv_playlist_empty_smart">暫無符合此播放列表篩選條件的內容。</string>
+    <string name="tv_playlist_empty_video">此播放列表為空。可在電影、劇集或單集上使用“新增到播放列表”，或在海報上長按 OK。</string>
+    <string name="tv_playlist_empty_music">此播放列表為空。可在藝人或專輯上使用“新增到播放列表”，或在封面上長按 OK。</string>
+    <string name="tv_playlist_more">更多</string>
+    <string name="tv_playlist_play_from_here">從此播放</string>
+    <string name="tv_playlist_go_to">前往 %1$s</string>
+    <string name="tv_playlist_move">移動</string>
+    <string name="tv_playlist_remove">從播放列表中移除</string>
+    <string name="tv_playlist_moving">用上下鍵移動，按 OK 放到此處，按返回鍵放回原位</string>
+    <string name="tv_playlist_removed">已移除“%1$s”</string>
+    <string name="tv_playlist_delete_title">刪除播放列表？</string>
+    <string name="tv_playlist_delete_body">將刪除“%1$s”。其中的內容仍保留在媒體庫中。</string>
+    <string name="tv_playlist_cancel">取消</string>
+    <string name="tv_playlist_rename_title">重新命名播放列表</string>
+    <string name="tv_playlist_save">儲存</string>
+
+    <!-- New playlist and Save these filters (PlaylistFormModal, SaveFiltersModal). -->
+    <string name="tv_playlist_form_title">標題</string>
+    <string name="tv_playlist_form_for">適用於</string>
+    <string name="tv_playlist_form_video">電影與劇集</string>
+    <string name="tv_playlist_form_music">音樂</string>
+    <string name="tv_playlist_form_create">建立</string>
+    <string name="tv_playlist_form_hint">在標題上按 OK 即可輸入。</string>
+    <string name="tv_playlist_new_body">先命名，然後在任意內容上使用“新增到播放列表”。</string>
+    <string name="tv_playlist_smart_title">儲存這些篩選條件</string>
+    <string name="tv_playlist_smart_body">%1$s。它會自動跟隨媒體庫更新。</string>
+    <string name="tv_playlist_smart_body_plain">它會自動跟隨媒體庫更新。</string>
+
+    <!-- Add to playlist (AddToPlaylistModal.tsx). -->
+    <string name="tv_add_to_playlist">新增到播放列表</string>
+    <string name="tv_add_new_video">新建影片播放列表</string>
+    <string name="tv_add_new_music">新建音樂播放列表</string>
+    <string name="tv_add_create">建立</string>
+    <string name="tv_add_yours">你的播放列表</string>
+    <string name="tv_add_none_video">暫無影片播放列表：請在上方命名建立一個。</string>
+    <string name="tv_add_none_music">暫無音樂播放列表：請在上方命名建立一個。</string>
+    <string name="tv_add_added">已新增到 %1$s</string>
+    <string name="tv_add_added_many">已將 %1$s 項新增到 %2$s</string>
+    <string name="tv_add_nothing">沒有可新增的內容</string>
+</resources>

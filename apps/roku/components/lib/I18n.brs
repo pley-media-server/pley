@@ -1,5 +1,5 @@
-' The languages the app is in: English, French and Spanish, and the words
-' of each, looked up with t().
+' The languages the app is in: English, French, Spanish and Simplified and
+' Traditional Chinese, and the words of each, looked up with t().
 '
 ' The words are in locales/<language>/<area>.json, in the format of the
 ' other apps' catalogs (i18next's: nested keys, {{name}} for values,
@@ -16,20 +16,31 @@
 ' for each request, the tests) reads that instead.
 
 function i18nLanguages() as object
-    return ["en", "fr", "es"]
+    return ["en", "fr", "es", "zh-CN", "zh-TW"]
 end function
 
-' The language Pley has for a tag ("fr-CA", "FR_ca", "fr" → "fr"); "" for
-' none.
+' The language Pley has for a tag ("fr-CA", "FR_ca", "fr" → "fr",
+' "zh-Hant" → "zh-TW", "zh" → "zh-CN"); "" for none.
 function i18nSupported(tag as dynamic) as string
     if GetInterface(tag, "ifString") = invalid then return ""
-    base = LCase(tag.Trim())
-    for each separator in ["-", "_"]
-        at = Instr(1, base, separator)
-        if at > 0 then base = Left(base, at - 1)
-    end for
+    normalized = LCase(tag.Trim().Replace("_", "-"))
+    ' A whole code first: the two Chinese ones share a base but not their words.
     for each language in i18nLanguages()
-        if language = base then return language
+        if LCase(language) = normalized then return language
+    end for
+    parts = normalized.Split("-")
+    base = parts[0]
+    if base = "zh"
+        ' The script, or a region that writes traditional characters, picks one.
+        traditional = Instr(1, normalized, "hant") > 0
+        for each part in parts
+            if part = "tw" or part = "hk" or part = "mo" then traditional = true
+        end for
+        if traditional then return "zh-TW"
+        return "zh-CN"
+    end if
+    for each language in i18nLanguages()
+        if LCase(language) = base then return language
     end for
     return ""
 end function
@@ -128,9 +139,11 @@ function i18nChoices(automatic as string, current as string) as object
     return choice
 end function
 
-' A language's name in itself: "English", "Français", "Español".
+' A language's name in itself: "English", "Français", "Español",
+' "简体中文", "繁體中文". The Chinese keys need quotes: a hyphen in a
+' BrightScript name would read as a minus.
 function i18nName(language as string) as string
-    names = { en: "English", fr: "Français", es: "Español" }
+    names = { en: "English", fr: "Français", es: "Español", "zh-CN": "简体中文", "zh-TW": "繁體中文" }
     name = names[language]
     if name = invalid then return language
     return name
@@ -158,8 +171,10 @@ end sub
 
 ' The plural form of n in language, as CLDR has it: English "one" is
 ' exactly 1; French "one" is 0 to 1.99…; Spanish "one" is 1. French and
-' Spanish say "many" for a whole number of millions (1 000 000, 2 000 000…).
+' Spanish say "many" for a whole number of millions (1 000 000, 2 000 000…);
+' Chinese has only "other".
 function i18nPluralForm(language as string, n as dynamic) as string
+    if language = "zh-CN" or language = "zh-TW" then return "other"
     value = i18nNumeric(n)
     if value < 0 then value = -value
     whole = Int(value)
@@ -178,9 +193,10 @@ end function
 
 ' --- Numbers ---
 
-' n as the language shown writes it: "12,345" in English, "12 345" in
-' French (a narrow no-break space), "12.345" in Spanish, which groups from
-' five digits ("1234"); decimals, when given, after "." or ",".
+' n as the language shown writes it: "12,345" in English and Chinese,
+' "12 345" in French (a narrow no-break space), "12.345" in Spanish, which
+' groups from five digits ("1234"); decimals, when given, after "." or ","
+' (a "." in Chinese).
 function i18nNumber(n as dynamic, decimals = 0 as integer) as string
     value = i18nNumeric(n)
     language = i18nLanguage()

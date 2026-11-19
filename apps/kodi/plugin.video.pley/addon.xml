@@ -21,6 +21,12 @@
     <summary lang="es_ES">Las películas, series y música de tu servidor Pley</summary>
     <description lang="es_ES">Explora y reproduce lo que hay en tu servidor Pley: Seguir viendo, Mi lista, cada biblioteca, la búsqueda y las listas de reproducción, y solicita las películas y series que aún no tiene. Pley reproduce los archivos tal cual siempre que Kodi puede, y convierte el resto en el servidor. Inicia sesión con un código que aparece en pantalla, introducido en la página de vinculación de tu servidor.[CR][CR]Este producto usa la API de TMDB, pero TMDB no lo respalda ni lo certifica.</description>
     <disclaimer lang="es_ES">Pley no está afiliado a Plex Inc. ni al Team Kodi.</disclaimer>
+    <summary lang="zh_CN">你的 Pley 服务器上的电影、剧集和音乐</summary>
+    <description lang="zh_CN">浏览并播放 Pley 服务器上的内容：继续观看、我的列表、每个媒体库、搜索和播放列表，还可以请求服务器尚未拥有的电影和剧集。只要 Kodi 能直接播放，Pley 就原样播放文件，其余的由服务器转码。在屏幕上显示的代码处登录，并在服务器的链接页面输入。[CR][CR]本产品使用 TMDB API，但未获得 TMDB 的认可或认证。</description>
+    <disclaimer lang="zh_CN">Pley 与 Plex Inc. 和 Kodi 团队无关联。</disclaimer>
+    <summary lang="zh_TW">你的 Pley 伺服器上的電影、影集和音樂</summary>
+    <description lang="zh_TW">瀏覽並播放 Pley 伺服器上的內容：繼續觀看、我的清單、每個媒體庫、搜尋和播放清單，還可以請求伺服器尚未擁有的電影和影集。只要 Kodi 能直接播放，Pley 就原樣播放檔案，其餘的由伺服器轉碼。在螢幕上顯示的代碼處登入，並在伺服器的連結頁面輸入。[CR][CR]本產品使用 TMDB API，但未獲得 TMDB 的認可或認證。</description>
+    <disclaimer lang="zh_TW">Pley 與 Plex Inc. 和 Kodi 團隊無關聯。</disclaimer>
     <platform>all</platform>
     <license>GPL-2.0-or-later AND ISC AND MIT</license>
     <source>https://github.com/pley-media-server/pley</source>

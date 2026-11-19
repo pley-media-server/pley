@@ -21,12 +21,16 @@ def getRegion(name):
     return region.get(name, "")
 
 
-# Kodi's own language (getLanguage), as a two-letter code.
+# Kodi's own language (getLanguage), as a two-letter code, with the region
+# getLanguage(format, True) appends to it.
 ISO_639_1 = 0
 language = "en"
+region_code = ""
 
 
 def getLanguage(format=None, region=False):
+    if region and region_code:
+        return language + "-" + region_code
     return language
 
 

@@ -210,6 +210,12 @@ describe("plural forms", () => {
       for (const n of numbers) expect([language, n, pluralForm(language, n)]).toEqual([language, n, rules.select(n)]);
     }
   });
+
+  it("are only the other form in Chinese", () => {
+    for (const language of ["zh-CN", "zh-TW"]) {
+      for (const n of [0, 1, 2, 1_000_000]) expect([language, n, pluralForm(language as "zh-CN", n)]).toEqual([language, n, "other"]);
+    }
+  });
 });
 
 describe("the language shown", () => {
@@ -228,6 +234,12 @@ describe("the language shown", () => {
   it("matches tags by their language", () => {
     expect(supportedLanguage("fr-CA")).toBe("fr");
     expect(supportedLanguage("ES_es")).toBe("es");
+    expect(supportedLanguage("zh-CN")).toBe("zh-CN");
+    expect(supportedLanguage("zh_TW")).toBe("zh-TW");
+    expect(supportedLanguage("zh-Hans")).toBe("zh-CN");
+    expect(supportedLanguage("zh_Hant")).toBe("zh-TW");
+    expect(supportedLanguage("zh-HK")).toBe("zh-TW");
+    expect(supportedLanguage("zh")).toBe("zh-CN");
     expect(supportedLanguage("de")).toBeUndefined();
     expect(supportedLanguage(null)).toBeUndefined();
     expect(supportedLanguage("")).toBeUndefined();

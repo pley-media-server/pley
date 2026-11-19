@@ -21,8 +21,10 @@ describes how they are made.
   anything. Continue Watching is the first row under it.
 - A globe at the bottom right of Choose your server and the address
   screen, and at the top right of the sign-in code, picks the TV's language before anyone signs in:
-  Automatic (the TV's own), English, Français or Español. The TV keeps the
+  Automatic (the TV's own), English, Français, Español, 简体中文 or 繁體中文. The TV keeps the
   choice, and a profile set to Automatic uses it.
+- Pley is also in Simplified and Traditional Chinese, picked with the globe
+  or under Settings → Profile → Language.
 - Someone else in your household can cast to the TV from their phone or
   browser while it is on your profile: the TV switches to their profile
   (their phone or browser asks their PIN, not the TV) and plays what they

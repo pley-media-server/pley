@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Choose Simplified Chinese (简体中文) or Traditional Chinese (繁體中文) as
+  the app's language, for your account or on this TV.
+
 ## [0.1.11] - 2026-11-18
 
 ### Added

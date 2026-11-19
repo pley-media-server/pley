@@ -1,0 +1,10 @@
+{
+  "title": "观看记录",
+  "emptyTitle": "还没有观看记录",
+  "empty": "看完的电影、剧集和歌曲会出现在这里。",
+  "failed": "无法加载观看记录",
+  "more": "显示更多",
+  "loading": "加载中…",
+  "plays_other": "{{count}} 次播放",
+  "remove": "从观看记录中移除 {{title}}"
+}

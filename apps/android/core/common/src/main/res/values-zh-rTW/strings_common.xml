@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The languages Pley is in, each named in itself (Language). -->
+    <string name="language_en" translatable="false">English</string>
+    <string name="language_fr" translatable="false">Français</string>
+    <string name="language_es" translatable="false">Español</string>
+    <string name="language_zh_hans" translatable="false">简体中文</string>
+    <string name="language_zh_hant" translatable="false">繁體中文</string>
+
+    <!--
+      Why a request failed (errorText), in lower case and without a full
+      stop: they go inside sentences ("Couldn't reach nas: nothing answers
+      there"), and errorSentence makes one of them alone.
+    -->
+    <string name="error_nothing_answers">沒有響應</string>
+    <string name="error_no_answer">未及時響應</string>
+    <string name="error_unknown_host">此網路上找不到該地址</string>
+    <string name="error_secure_connection">安全連線失敗</string>
+    <string name="error_not_pley">這不是 Pley 伺服器</string>
+    <string name="error_connection_failed">連線伺服器失敗</string>
+</resources>

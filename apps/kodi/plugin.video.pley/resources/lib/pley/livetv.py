@@ -49,9 +49,9 @@ PLAY_ROUTE = "live_play"
 # Channels queued either side of the one played.
 QUEUED = 100
 
-# A language's own clock where Kodi is in another: 24 hours in French and
-# Spanish, 12 in English.
-CLOCKS = {"en": "%I:%M %p", "fr": "%H:%M", "es": "%H:%M"}
+# A language's own clock where Kodi is in another: 24 hours in French,
+# Spanish and Chinese, 12 in English.
+CLOCKS = {"en": "%I:%M %p", "fr": "%H:%M", "es": "%H:%M", "zh-CN": "%H:%M", "zh-TW": "%H:%M"}
 
 
 # ------------------------------------------------------------ the server

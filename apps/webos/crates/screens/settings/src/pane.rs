@@ -753,7 +753,7 @@ mod tests {
         // Its panel: Automatic, then each language in itself, the account's checked.
         let p = panel(Picking::Language, &own, &[]);
         let labels: Vec<&str> = p.choices.iter().map(|c| c.label.as_str()).collect();
-        assert_eq!(labels, ["Automatic (Français)", "English", "Français", "Español"]);
+        assert_eq!(labels, ["Automatic (Français)", "English", "Français", "Español", "简体中文", "繁體中文"]);
         assert_eq!(p.current, 3);
         assert_eq!(panel(Picking::Language, &f, &[]).current, 0);
         // In French, Automatic is too; the languages keep their own names.

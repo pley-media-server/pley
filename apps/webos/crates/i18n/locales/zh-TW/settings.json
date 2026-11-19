@@ -1,0 +1,146 @@
+{
+  "language": {
+    "label": "語言",
+    "automatic": "自動（{{language}}）"
+  },
+  "title": "設定",
+  "categories": {
+    "profile": "配置檔案",
+    "playback": "播放",
+    "audio": "音訊",
+    "display": "字幕和顯示",
+    "server": "伺服器",
+    "diagnostics": "診斷",
+    "about": "關於",
+    "signOut": "退出登入"
+  },
+  "saved": "已儲存",
+  "readOnly": "此伺服器不允許應用更改這些設定：請在網頁版中修改",
+  "actions": {
+    "cancel": "取消",
+    "close": "關閉",
+    "back": "返回"
+  },
+  "profile": {
+    "managed": "受管理的配置檔案",
+    "switchProfile": "切換配置檔案",
+    "audioLanguage": "音訊語言",
+    "subtitles": "字幕",
+    "subtitleLanguage": "字幕語言",
+    "fileDefault": "檔案預設設定",
+    "sameAsAudio": "與音訊語言相同",
+    "onTheWeb": "{{value}} · 請在網頁版修改",
+    "history": "觀看記錄",
+    "sortLibraries": "媒體庫排序",
+    "sortLibrariesValue": "你的順序，適用於所有裝置",
+    "alwaysStartAs": "始終以此配置檔案啟動",
+    "usedLast": "上次使用的配置檔案",
+    "manageWeb": "在網頁版管理你的賬戶",
+    "manageWebValue": "名稱、頭像、密碼、PIN 碼、兩步驗證、裝置和應用"
+  },
+  "subtitleModes": {
+    "off": "關閉",
+    "offHint": "字幕保持關閉，直到你手動開啟。",
+    "forced": "僅外語對白",
+    "forcedHint": "僅顯示強制字幕，用於標牌和外語對白。",
+    "foreign": "音訊為其他語言時",
+    "foreignHint": "當音訊不是你的字幕語言時，自動顯示完整字幕。",
+    "always": "始終",
+    "alwaysHint": "只要有你的語言的字幕，就會自動顯示。"
+  },
+  "playback": {
+    "quality": "畫質",
+    "autoplay": "自動播放下一集",
+    "autoplayHint": "10 秒倒計時後",
+    "details": "播放詳情",
+    "detailsHint": "在畫面上顯示影片的播放方式（直接播放、直接串流或轉碼）"
+  },
+  "audio": {
+    "intro": "Dolby Digital、Dolby Digital Plus 和 Atmos 始終直接透傳。如果你的功放支援，請開啟以下選項；否則 Pley 會進行轉換。",
+    "trueHd": "透傳 Dolby TrueHD",
+    "trueHdHint": "僅當功放支援從電視接收 TrueHD 時",
+    "dts": "透傳 DTS",
+    "dtsHint": "僅當功放支援從電視接收 DTS 時"
+  },
+  "display": {
+    "subtitleSize": "字幕大小",
+    "subtitleBackground": "字幕背景",
+    "subtitleFont": "字幕字型",
+    "subtitlePosition": "字幕位置",
+    "reduceMotion": "減少動態效果",
+    "reduceMotionHint": "無縮放、滑動或淡入淡出：內容原地變化",
+    "sizes": {
+      "small": "小",
+      "normal": "正常",
+      "large": "大",
+      "huge": "超大"
+    },
+    "backgrounds": {
+      "none": "無",
+      "darkBox": "深色底框"
+    },
+    "fonts": {
+      "sans": "無襯線",
+      "serif": "襯線",
+      "monospace": "等寬",
+      "casual": "休閒體"
+    },
+    "positions": {
+      "bottom": "底部",
+      "raised": "略高",
+      "higher": "更高",
+      "highest": "最高"
+    }
+  },
+  "server": {
+    "value": "此電視使用的伺服器",
+    "unknown": "無伺服器",
+    "switch": "切換伺服器"
+  },
+  "diagnostics": {
+    "open": "開啟診斷",
+    "openValue": "此電視能解碼和顯示什麼，以及原因",
+    "thisTv": "此電視",
+    "app": "應用",
+    "plays": "支援播放的內容",
+    "checking": "正在檢查此電視的播放能力…",
+    "failed": "此電視的檢查失敗。",
+    "again": "重新檢查",
+    "network": "網路",
+    "address": "地址",
+    "noNetwork": "無網路",
+    "server": "伺服器",
+    "none": "無",
+    "connection": "連線",
+    "noServer": "無伺服器",
+    "unreachable": "無法連線到伺服器",
+    "connected": "已連線",
+    "log": "日誌",
+    "readingLog": "正在讀取日誌…",
+    "noLog": "此電視不儲存日誌。"
+  },
+  "about": {
+    "version": "版本",
+    "licences": "開源許可證",
+    "credits": "致謝",
+    "noLicences": "無許可證文本",
+    "noNotices": "此 Pley 版本沒有 NOTICES.txt，其中列出了這些內容及其文本。"
+  },
+  "signOut": {
+    "intro": "將此電視從 {{server}} 退出登入。再次登入需要新的關聯碼。",
+    "introNoServer": "將此電視從伺服器退出登入。再次登入需要新的關聯碼。",
+    "button": "退出登入",
+    "title": "退出登入？",
+    "body": "你將從 {{server}} 退出登入。",
+    "bodyNoServer": "你將從伺服器退出登入。",
+    "deleteData": "刪除所有本地資料",
+    "deleteDataValue": "此電視上的所有伺服器、登入、設定和已儲存的圖片",
+    "deleteTitle": "刪除所有本地資料？",
+    "deleteBody": "Pley 會忘記此電視上的所有伺服器、登入、設定和已儲存的圖片，就像剛安裝時一樣。",
+    "delete": "刪除"
+  },
+  "web": {
+    "title": "在網頁版管理你的賬戶",
+    "body": "用手機掃描二維碼，或在同一網路中的手機或電腦上開啟此地址："
+  }
+}

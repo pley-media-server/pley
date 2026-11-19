@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Diagnostics' lines about what the device plays (CapsDescription). -->
+<resources>
+    <string name="caps_device">设备：%1$s，厂商 %2$s，Android API %3$d，%4$s，档位 %5$s</string>
+    <string name="caps_form_phone">手机</string>
+    <string name="caps_form_tablet">平板</string>
+    <string name="caps_form_tv">电视</string>
+    <string name="caps_form_fire_tv" translatable="false">Fire TV</string>
+    <string name="caps_policy_tv">视频解码器：仅硬件</string>
+    <string name="caps_policy_phone">视频解码器：硬件，或软件最高 1080p 30 fps、8 位 SDR</string>
+    <string name="caps_policy_any">视频解码器：硬件和软件，不限分辨率（调试设置）</string>
+    <string name="caps_video">%1$s：%2$s，%3$s，最高 %4$s，%5$d 位，等级 %6$s</string>
+    <string name="caps_video_unlimited">%1$s：由特殊适配添加，限制未知</string>
+    <string name="caps_hardware">硬件</string>
+    <string name="caps_software">软件</string>
+    <string name="caps_size_rate">%1$d×%2$d，%3$s fps</string>
+    <string name="caps_decoder">解码器 %1$s，用于 %2$s（%3$s）</string>
+    <string name="caps_no_video">没有播放器可用的视频解码器</string>
+    <string name="caps_screen_hdr">屏幕 HDR：%1$s</string>
+    <string name="caps_hdr_played">HDR 直接播放：%1$s</string>
+    <string name="caps_dolby_vision">Dolby Vision 配置：%1$s</string>
+    <string name="caps_dolby_vision_no_screen">Dolby Vision 配置：%1$s，未使用：屏幕不支持 Dolby Vision</string>
+    <string name="caps_profile_level">%1$d（等级 %2$s）</string>
+    <string name="caps_screen">屏幕：%1$d×%2$d，%3$s Hz，可切换的刷新率：%4$s</string>
+    <string name="caps_modes">屏幕模式：%1$s</string>
+    <string name="caps_match_content">匹配内容帧率：%1$s</string>
+    <string name="caps_match_never">从不</string>
+    <string name="caps_match_seamless">仅在无缝切换时</string>
+    <string name="caps_match_always">始终</string>
+    <string name="caps_match_unknown">未说明（Android 11 或更早）</string>
+    <string name="caps_no_screen">屏幕：未知</string>
+    <string name="caps_audio_decode">音频解码器：%1$s</string>
+    <string name="caps_passthrough">透传：%1$s；声道：%2$d；输出：%3$s</string>
+    <string name="caps_quirks">特殊适配：%1$s</string>
+    <string name="caps_player_flags">播放器：异步排队 %1$s，隧道模式 %2$s，Dolby Vision+HDR10+ %3$s</string>
+    <string name="caps_on">开</string>
+    <string name="caps_off">关</string>
+    <string name="caps_hybrids_broken">已去除 HDR10+</string>
+    <string name="caps_hybrids_fine">保持原样</string>
+    <string name="caps_none">无</string>
+    <string name="caps_unknown">未知</string>
+</resources>

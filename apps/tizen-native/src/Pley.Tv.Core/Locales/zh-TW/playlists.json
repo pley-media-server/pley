@@ -1,0 +1,66 @@
+{
+  "list": {
+    "title": "播放列表",
+    "new": "新建播放列表",
+    "failed": "無法載入播放列表",
+    "noneTitle": "還沒有播放列表",
+    "noneBody": "在此建立，或在電影、劇集、專輯或單集上使用“新增到播放列表”（在海報上長按 OK 也可以）。",
+    "retry": "重試",
+    "smart": "智慧"
+  },
+  "count": {
+    "items_other": "{{count, number}} 個內容"
+  },
+  "page": {
+    "video": "影片播放列表",
+    "music": "音樂播放列表",
+    "smart": "智慧播放列表",
+    "play": "播放",
+    "shuffle": "隨機播放",
+    "rename": "重新命名",
+    "delete": "刪除",
+    "failed": "無法載入此播放列表",
+    "notFound": "未找到播放列表",
+    "notFoundBody": "它已被刪除，或屬於另一個配置檔案。",
+    "back": "返回",
+    "emptySmart": "暫時沒有符合此播放列表篩選條件的內容。",
+    "emptyVideo": "此播放列表是空的。在電影、劇集或單集上使用“新增到播放列表”，或在海報上長按 OK。",
+    "emptyMusic": "此播放列表是空的。在藝人或專輯上使用“新增到播放列表”，或在封面上長按 OK。",
+    "more": "更多",
+    "playFromHere": "從這裡開始播放",
+    "goTo": "前往 {{title}}",
+    "move": "移動",
+    "remove": "從播放列表中移除",
+    "moving": "用上下鍵移動，OK 放到此處，返回鍵放回原位",
+    "removed": "已移除“{{title}}”",
+    "deleteTitle": "刪除播放列表？",
+    "deleteBody": "“{{title}}”將被刪除。其中的內容仍保留在媒體庫中。",
+    "cancel": "取消",
+    "renameTitle": "重新命名播放列表",
+    "save": "儲存"
+  },
+  "form": {
+    "title": "標題",
+    "for": "用於",
+    "video": "電影和電視",
+    "music": "音樂",
+    "create": "建立",
+    "hint": "在標題上按 OK 即可輸入。",
+    "newBody": "先起個名字，然後在任意標題上使用“新增到播放列表”。",
+    "smartTitle": "儲存這些篩選條件",
+    "smartBody": "它會隨媒體庫自動更新。",
+    "smartBodyFilters": "{{filters}}。它會隨媒體庫自動更新。"
+  },
+  "add": {
+    "title": "新增到播放列表",
+    "newVideo": "新建影片播放列表",
+    "newMusic": "新建音樂播放列表",
+    "create": "建立",
+    "yours": "你的播放列表",
+    "noneVideo": "還沒有影片播放列表：在上面起個名字。",
+    "noneMusic": "還沒有音樂播放列表：在上面起個名字。",
+    "nothing": "沒有可新增的內容",
+    "addedTo": "已新增到 {{playlist}}",
+    "addedItems_other": "已將 {{count}} 個內容新增到 {{playlist}}"
+  }
+}

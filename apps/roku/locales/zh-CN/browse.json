@@ -1,0 +1,255 @@
+{
+  "menu": {
+    "search": "搜索",
+    "home": "首页",
+    "discover": "发现",
+    "liveTv": "直播电视",
+    "playlists": "播放列表",
+    "collections": "合集",
+    "nowPlaying": "正在播放",
+    "settings": "设置"
+  },
+  "home": {
+    "fromStart": "从头播放",
+    "info": "信息",
+    "noLibraries": "还没有媒体库",
+    "noLibrariesHint": "让服务器所有者添加媒体库。",
+    "scanning": "正在扫描媒体库…",
+    "scanningHint": "发现的新内容会立即显示在这里。",
+    "empty": "这里还空着",
+    "emptyHint": "你的媒体库是空的。将媒体放入媒体库文件夹后运行扫描。"
+  },
+  "counts": {
+    "seasons_other": "{{count, number}} 季",
+    "episodes_other": "{{count, number}} 集",
+    "albums_other": "{{count, number}} 张专辑",
+    "collections_other": "{{count, number}} 个合集",
+    "plays_other": "{{count, number}} 次播放"
+  },
+  "title": {
+    "watched": "已观看",
+    "bitrateUnknown": "码率未知",
+    "specials": "特别篇",
+    "season": "第 {{number}} 季",
+    "playEpisode": "播放 {{episode}}",
+    "resumeEpisode": "继续播放 {{episode}}",
+    "playFromStart": "从头播放",
+    "episodes": "单集",
+    "cantPlayKind": "Pley Roku 版暂不支持播放此类内容。",
+    "noFile": "此项目没有可播放的文件。",
+    "markWatched": "标记为已观看",
+    "markUnwatched": "标记为未观看",
+    "tracks": "音轨和字幕",
+    "addToMyList": "添加到我的片单",
+    "removeFromMyList": "从我的片单中移除",
+    "trailer": "预告片",
+    "more": "更多…",
+    "rate": "评分",
+    "yourRating": "你的评分：{{stars}}",
+    "noRating": "暂无评分",
+    "stars_other": "{{count}} 星",
+    "goToShow": "前往剧集",
+    "goToSeason": "前往季",
+    "mediaInfo": "媒体信息",
+    "details": "详情",
+    "addToPlaylist": "添加到播放列表",
+    "directedBy": "导演：{{names}}",
+    "createdBy": "创作者：{{names}}",
+    "starring": "主演：{{names}}"
+  },
+  "about": {
+    "createdBy": "创作者：{{names}}",
+    "directors_other": "导演：{{names}}",
+    "writers_other": "编剧：{{names}}",
+    "andMore_other": "{{names}} 等 {{count}} 项",
+    "originalTitle": "原始标题：{{title}}",
+    "released": "上映日期：{{date}}",
+    "network": "电视网：{{name}}",
+    "studio": "制作公司：{{name}}",
+    "plays": "播放次数：{{n, number}}"
+  },
+  "subtitles": {
+    "forced": "强制",
+    "unknown": "未知",
+    "namedForced": "{{name}}（强制）"
+  },
+  "library": {
+    "tabs": {
+      "recommended": "推荐",
+      "library": "媒体库",
+      "collections": "合集"
+    },
+    "sorts": {
+      "title": "标题",
+      "year": "年份",
+      "added": "添加日期",
+      "rating": "评分",
+      "userRating": "你的评分",
+      "release": "上映日期",
+      "duration": "时长",
+      "lastPlayed": "最近播放",
+      "bitrate": "码率"
+    },
+    "sortOrders": {
+      "title": {
+        "asc": "标题，A 到 Z",
+        "desc": "标题，Z 到 A"
+      },
+      "year": {
+        "asc": "年份，从旧到新",
+        "desc": "年份，从新到旧"
+      },
+      "added": {
+        "asc": "添加日期，最先添加的在前",
+        "desc": "添加日期，最近添加的在前"
+      },
+      "rating": {
+        "asc": "评分，评分最低的在前",
+        "desc": "评分，评分最高的在前"
+      },
+      "userRating": {
+        "asc": "你的评分，评分最低的在前",
+        "desc": "你的评分，评分最高的在前"
+      },
+      "release": {
+        "asc": "上映日期，最早的在前",
+        "desc": "上映日期，最新的在前"
+      },
+      "duration": {
+        "asc": "时长，最短的在前",
+        "desc": "时长，最长的在前"
+      },
+      "lastPlayed": {
+        "asc": "最近播放，最久未播放的在前",
+        "desc": "最近播放，最近播放的在前"
+      },
+      "bitrate": {
+        "asc": "码率，最低的在前",
+        "desc": "码率，最高的在前"
+      }
+    },
+    "sortBy": "排序依据",
+    "sortHint": "在勾选的选项上按“确定”可反转顺序。",
+    "filter": "筛选",
+    "show": "显示",
+    "genre": "类型",
+    "year": "年份",
+    "resolution": "分辨率",
+    "dynamicRange": "动态范围",
+    "allTitles": "所有标题",
+    "unwatched": "未观看",
+    "watched": "已观看",
+    "allGenres": "任意",
+    "allYears": "任意",
+    "allResolutions": "所有分辨率",
+    "allDynamicRanges": "所有动态范围",
+    "rows": {
+      "show": "显示：{{value}}",
+      "genre": "类型：{{value}}",
+      "year": "年份：{{value}}",
+      "resolution": "分辨率：{{value}}",
+      "dynamicRange": "动态范围：{{value}}",
+      "anyGenre": "任意",
+      "anyYear": "任意",
+      "anyResolution": "所有分辨率",
+      "anyDynamicRange": "所有动态范围",
+      "clear": "清除筛选",
+      "saveAs": "另存为…"
+    },
+    "smartFilter": {
+      "genre": "类型：{{value}}",
+      "year": "{{value}} 年起",
+      "sort": {
+        "titleSort": {
+          "asc": "按标题",
+          "desc": "按标题，Z 到 A"
+        },
+        "year": {
+          "asc": "从旧到新",
+          "desc": "从新到旧"
+        },
+        "originallyAvailableAt": {
+          "asc": "从最早发行开始",
+          "desc": "从最新发行开始"
+        },
+        "addedAt": {
+          "asc": "先添加的在前",
+          "desc": "最近添加的在前"
+        },
+        "rating": {
+          "asc": "评分最低的在前",
+          "desc": "评分最高的在前"
+        },
+        "userRating": {
+          "asc": "你评分最低的在前",
+          "desc": "你评分最高的在前"
+        },
+        "lastViewedAt": {
+          "asc": "最久未播放的在前",
+          "desc": "最近播放的在前"
+        },
+        "duration": {
+          "asc": "时长最短的在前",
+          "desc": "时长最长的在前"
+        },
+        "mediaBitrate": {
+          "asc": "码率最低的在前",
+          "desc": "码率最高的在前"
+        }
+      }
+    },
+    "saveFilters": "保存这些筛选",
+    "saveFiltersHint": "{{filters}}。它会自动跟随媒体库更新。",
+    "noRecommendations": "暂无推荐。",
+    "noCollections": "此媒体库中没有合集。",
+    "empty": "此媒体库是空的。",
+    "noMatches": "没有符合这些筛选条件的内容。"
+  },
+  "search": {
+    "placeholder": "输入文字搜索你的媒体库。",
+    "recent": "最近的搜索",
+    "clear": "清除",
+    "groups": {
+      "movie": "电影",
+      "show": "剧集",
+      "season": "季",
+      "episode": "集",
+      "artist": "艺人",
+      "album": "专辑",
+      "track": "曲目",
+      "channel": "直播电视",
+      "person": "人物"
+    },
+    "noneInLibraries": "你的媒体库中没有匹配项。",
+    "noResults": "没有找到“{{query}}”。",
+    "resultsFor": "“{{query}}”的搜索结果"
+  },
+  "playlists": {
+    "new": "新建播放列表",
+    "none": "还没有播放列表。用“新建播放列表”，或在标题上按“选项”键选择“添加到播放列表”来创建。",
+    "whatFor": "用于什么？",
+    "moviesTv": "电影和电视",
+    "music": "音乐",
+    "nameHint": "先起个名字，然后在标题上按“选项”键选择“添加到播放列表”。",
+    "create": "创建",
+    "notMade": "播放列表创建失败"
+  },
+  "history": {
+    "title": "观看历史",
+    "empty": "还没有历史记录。你看完的电影、单集和歌曲会显示在这里。",
+    "remove": "从历史记录中移除"
+  },
+  "sortLibraries": {
+    "title": "媒体库排序",
+    "serverOrder": "使用服务器的顺序",
+    "moving": "{{name}}（移动中）",
+    "movingHint": "用上下键移动，按“确定”放在这里，按“返回”放回原处。",
+    "hint": "选择一个媒体库即可移动。你的顺序会应用到所有设备。",
+    "needsNewer": "媒体库排序需要服务器上更新版本的 Pley。"
+  },
+  "collections": {
+    "none": "还没有合集。",
+    "category": "分类",
+    "allCategories": "所有分类"
+  }
+}

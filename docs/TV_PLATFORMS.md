@@ -378,24 +378,28 @@ also what waits for them, in red while some failed.
 
 ### Language
 
-The app is in English, French and Spanish ([API.md](API.md#language)):
-the account's language, else the one picked on this TV, else the TV's,
-else the server's, else English. `packages/tv/test/fixtures/language.json`
-pins that order for both Samsung apps.
+The app is in English, French, Spanish and Chinese
+([API.md](API.md#language)): the account's language, else the one picked on
+this TV, else the TV's, else the server's, else English. Simplified and
+Traditional Chinese are separate languages: a `zh-Hans` or plain `zh` tag
+picks 简体中文, `zh-Hant` or a `zh-TW`, `zh-HK` or `zh-MO` tag picks 繁體中文.
+`packages/tv/test/fixtures/language.json` pins that order for both Samsung
+apps.
 
 - **The globe:** Choose your server and typing an address have a small
   globe at the bottom right, on the forget hint's line; the sign-in code
   has it at the top right, on the logo's line. It names the language shown
   by its two letters ("FR"); Down or Up reaches it, Left and Right don't. OK opens a side panel:
   Automatic, with what that is on this TV (its language, else the
-  server's, else English), then English, Français and Español, the choice
-  in force checked. A choice shows at once and is kept on the TV
+  server's, else English), then English, Français, Español, 简体中文 and
+  繁體中文, the choice in force checked. A choice shows at once and is kept on the TV
   (`pley.deviceLanguage`); Automatic forgets it. Signed in, an account's
   own language comes first, and its Automatic is this choice.
 - **The TV's language:** what Tizen's system information says
   (`tizen.systeminfo`, `LOCALE`), then the web engine's
   `navigator.languages`, which Tizen's runtime sets from the TV's menu
-  language. A tag such as `fr-CA` counts as French.
+  language. A tag such as `fr-CA` counts as French; a Chinese tag picks
+  Simplified or Traditional as above.
 - **At a start** the app shows the language it showed last
   (`pley.language`), never another while it waits, which would flash. It
   changes, signed in, once the account has been heard
@@ -408,8 +412,8 @@ pins that order for both Samsung apps.
   libraries' rows again, as the server writes their titles.
 - **Settings → Profile → Language:** Automatic, with what that is on
   this TV: the one picked with the globe, else its language, or the
-  server's on a TV in a language Pley doesn't have; then English, Français
-  and Español, each named in itself. A choice is the profile's on all its
+  server's on a TV in a language Pley doesn't have; then English, Français,
+  Español, 简体中文 and 繁體中文, each named in itself. A choice is the profile's on all its
   devices (`PUT /api/me/language`). A Pley from before languages keeps no
   account's language (its `GET /api/server` names none, and the route
   answers 404 or 405): there the row is this TV's, as the globe picks it,
@@ -421,10 +425,10 @@ pins that order for both Samsung apps.
   with the TV's region when the TV is in that language, so `en-GB` keeps
   its day before the month. The TVs' engines have no `Intl.PluralRules`:
   the plural forms of English, French and Spanish are written in the app,
-  as CLDR has them.
+  as CLDR has them; Chinese has only `other`.
 - **The words** are in `packages/tv/src/i18n/locales/<language>/<area>.json`,
   in the web app's format (`{{name}}`, `_one`, `_many`, `_other`), all
-  three languages in the app's script. A key is typed from the English
+  five languages in the app's script. A key is typed from the English
   files, so a wrong one fails the type check; English stands in for a word
   missing elsewhere, and the tests check every language has every word.
 
@@ -472,7 +476,7 @@ its packages into the SDK by hand and it runs on WHPX.
 |---|---|
 | `api/`, `net/`, `auth/` | HTTP API, event stream, server discovery, sign-in with a code, profiles and PINs, the server's proof before a token goes ([Telling servers apart](API.md#telling-servers-apart)) |
 | `state.ts`, `platform.ts` | What the TV keeps (servers, sign-ins, settings, a per-install id, what requests are for the profile, the language shown last); what the app's shell provides |
-| `i18n/` | The words in English, French and Spanish, `t()` and `Trans`, plural forms, the language shown, dates and numbers in it |
+| `i18n/` | The words in English, French, Spanish and Chinese, `t()` and `Trans`, plural forms, the language shown, dates and numbers in it |
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, a pointer and its wheel |
 | `ui/shell/`, `ui/screens/`, `ui/kit/` | The rail, back stack and screens |
@@ -749,19 +753,21 @@ and the music's reports share one queue, which the switch waits up to
 
 ### Language
 
-The native app is in English, French and Spanish, in the language
+The native app is in English, French, Spanish and Chinese, in the language
 [API.md](API.md#language) describes: the account's, else the one picked on
 this TV, else the TV's own when Pley has it, else the server's, else
 English (`packages/tv/test/fixtures/language.json` pins the order for both
-Samsung apps).
+Samsung apps). Simplified and Traditional Chinese are separate languages:
+`zh-Hans` or plain `zh` picks 简体中文, `zh-Hant` or a `zh-TW`, `zh-HK` or
+`zh-MO` tag picks 繁體中文.
 
 Choose your server and typing an address have a small globe at the bottom
 right, the sign-in code at the top right on the logo's line, as the web
 Samsung app has it (`ButtonKind.Small`: 32 tall, no fill until focused),
 naming the language shown by its two letters ("FR"); Down or Up reaches it. OK opens a side
 panel: "Automatic (English)" (the TV's language where Pley has it, else
-the server's, else English), then English, Français and Español, the
-choice in force checked. A choice shows at once, the screen drawn again in
+the server's, else English), then English, Français, Español, 简体中文 and
+繁體中文, the choice in force checked. A choice shows at once, the screen drawn again in
 it with the globe focused and an address being typed kept, and is kept in
 the TV's preferences (`pley.deviceLanguage`); Automatic forgets it. Signed
 in, an account's own language comes first, and its Automatic is this
@@ -776,7 +782,7 @@ the next page, which the profile brings its own language to.
 
 Settings → Profile → Language lists "Automatic (Français)" (the one picked
 with the globe, else the TV's language, else the server's), then English,
-Français and Español, each in itself. Choosing
+Français, Español, 简体中文 and 繁體中文, each in itself. Choosing
 one sends `PUT /api/me/language`, and the app shows it once the server has
 it. A Pley from before languages keeps no account's language (its
 `GET /api/server` names none, and the route answers 404 or 405): there the
@@ -795,10 +801,10 @@ and `_other` for counts), built into the Core library and read with
 `Strings` (`Strings.T("signin.servers.title")`, `Strings.Count(key, n)`).
 JSON rather than .NET's resx: the same files and format as the rest of
 Pley, so the web app's words carry over as they are, plurals by CLDR's
-rules, which resx has no form for, and no satellite assemblies to package.
-A word a language lacks shows in English. The Core's tests hold every
-language to English's keys, its own plural forms and the same values, and
-French and Spanish to their punctuation.
+rules, which resx has no form for (Chinese has only `other`), and no
+satellite assemblies to package. A word a language lacks shows in English.
+The Core's tests hold every language to English's keys, its own plural
+forms and the same values, French and Spanish to their punctuation.
 
 ### How it is built
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- How many of a person's titles are in the libraries: "3 movies · 2 shows". -->
+    <plurals name="person_count_movies">
+        <item quantity="other">%1$,d 部電影</item>
+    </plurals>
+    <plurals name="person_count_shows">
+        <item quantity="other">%1$,d 部劇集</item>
+    </plurals>
+
+    <!-- What a person is credited as on a title (roleWords), as the web says it. -->
+    <string name="person_role_actor">演員</string>
+    <string name="person_role_creator">創作者</string>
+    <string name="person_role_director">導演</string>
+    <string name="person_role_writer">編劇</string>
+    <string name="person_role_producer">製片人</string>
+    <string name="person_role_crew">工作人員</string>
+    <!-- %1$s: the character, "Neo". -->
+    <string name="person_role_as">飾演 %1$s</string>
+    <string name="person_role_guest_star">客串演員</string>
+    <!-- %1$s: the role ("Director", "as Neo"); %2$d: how many episodes. -->
+    <plurals name="person_role_episodes">
+        <item quantity="other">%1$s（%2$,d 集）</item>
+    </plurals>
+</resources>

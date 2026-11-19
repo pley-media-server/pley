@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The technical readout: the player's Info panel and Playback details, and the item page's Media info. -->
+<resources>
+    <string name="tv_readout_playback">播放</string>
+    <string name="tv_readout_why">原因</string>
+    <string name="tv_readout_quality">画质</string>
+    <string name="tv_readout_target">转换为</string>
+    <string name="tv_readout_file">文件</string>
+    <string name="tv_readout_name">名称</string>
+    <string name="tv_readout_container">容器</string>
+    <string name="tv_readout_size">大小</string>
+    <string name="tv_readout_duration">时长</string>
+    <string name="tv_readout_overall_bitrate">总码率</string>
+    <string name="tv_readout_video">视频</string>
+    <string name="tv_readout_audio">音频</string>
+    <string name="tv_readout_subtitles">字幕</string>
+    <string name="tv_readout_codec">编解码器</string>
+    <string name="tv_readout_codec_string">编解码器字符串</string>
+    <string name="tv_readout_profile">配置</string>
+    <string name="tv_readout_resolution">分辨率</string>
+    <string name="tv_readout_frame_rate">帧率</string>
+    <string name="tv_readout_interlaced">%1$s，隔行扫描</string>
+    <string name="tv_readout_bit_depth">位深</string>
+    <string name="tv_readout_hdr" translatable="false">HDR</string>
+    <string name="tv_readout_dolby_vision" translatable="false">Dolby Vision</string>
+    <string name="tv_readout_primaries">原色</string>
+    <string name="tv_readout_transfer">传输特性</string>
+    <string name="tv_readout_matrix">矩阵</string>
+    <string name="tv_readout_bitrate">码率</string>
+    <string name="tv_readout_current_bitrate">当前码率</string>
+    <string name="tv_readout_as_file">与文件一致</string>
+    <string name="tv_readout_channels">声道</string>
+    <string name="tv_readout_sample_rate">采样率</string>
+    <string name="tv_readout_language">语言</string>
+    <string name="tv_readout_title">标题</string>
+    <string name="tv_readout_flags">标记</string>
+    <string name="tv_readout_default">默认</string>
+    <string name="tv_readout_forced">强制</string>
+    <string name="tv_readout_external">外置</string>
+    <string name="tv_readout_output">输出</string>
+    <string name="tv_readout_passthrough">以 %1$s 透传</string>
+    <string name="tv_readout_decoded_pcm">解码为 PCM</string>
+    <string name="tv_readout_track">轨道</string>
+    <string name="tv_readout_format">格式</string>
+    <string name="tv_readout_text">文本</string>
+    <string name="tv_readout_image">图片</string>
+    <string name="tv_readout_shown">已显示</string>
+    <string name="tv_readout_delivery_file">来自文件</string>
+    <string name="tv_readout_delivery_server">服务器发送的文本</string>
+    <string name="tv_readout_delivery_pictures">服务器发送的图片</string>
+    <string name="tv_readout_delivery_burned">由服务器压制</string>
+    <string name="tv_readout_off">关</string>
+    <string name="tv_readout_decoded">已解码</string>
+    <string name="tv_readout_decoder">解码器</string>
+    <string name="tv_readout_display_mode">%1$d×%2$d，%3$s Hz</string>
+    <string name="tv_readout_hdr_output">HDR 输出</string>
+    <string name="tv_readout_hdr_on">开启（%1$s）</string>
+    <string name="tv_readout_hdr_sdr">关闭，视频为 SDR</string>
+    <string name="tv_readout_hdr_unsupported">关闭，%1$s 以 SDR 显示</string>
+    <string name="tv_readout_network">网络</string>
+    <string name="tv_readout_buffer_compact">预缓冲 %1$d 秒</string>
+    <string name="tv_readout_dropped_short">丢帧</string>
+    <string name="tv_readout_buffer_short">缓冲</string>
+    <string name="tv_readout_stream">%1$s %2$d</string>
+</resources>

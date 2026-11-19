@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A library's page: its tabs (apps/web/src/pages/LibraryPage.tsx). -->
+    <string name="library_tab_recommended">推薦</string>
+    <string name="library_tab_library">媒體庫</string>
+    <string name="library_tab_collections">合集</string>
+    <string name="library_search">搜尋</string>
+
+    <!-- Sorts, as the web names them. -->
+    <string name="library_sort_title">標題</string>
+    <string name="library_sort_year">年份</string>
+    <string name="library_sort_added">新增日期</string>
+    <string name="library_sort_rating">評分</string>
+    <string name="library_sort_user_rating">你的評分</string>
+    <string name="library_sort_release">上映日期</string>
+    <string name="library_sort_duration">時長</string>
+    <string name="library_sort_last_played">上次播放</string>
+    <string name="library_sort_bitrate">位元速率</string>
+    <string name="library_sort_by">排序方式</string>
+    <string name="library_order">順序</string>
+    <string name="library_ascending">升序</string>
+    <string name="library_descending">降序</string>
+    <string name="library_show">顯示</string>
+    <string name="library_show_all">全部</string>
+    <string name="library_card_size">卡片大小</string>
+    <string name="library_density_small">小</string>
+    <string name="library_density_medium">中</string>
+    <string name="library_density_large">大</string>
+
+    <!-- Filters. -->
+    <string name="library_unwatched">未觀看</string>
+    <string name="library_watched">已觀看</string>
+    <string name="library_genre">型別</string>
+    <string name="library_all_genres">所有型別</string>
+    <string name="library_year">年份</string>
+    <string name="library_all_years">所有年份</string>
+    <string name="library_resolution">解析度</string>
+    <string name="library_all_resolutions">所有解析度</string>
+    <string name="library_dynamic_range">動態範圍</string>
+    <string name="library_all_dynamic_ranges">所有動態範圍</string>
+    <string name="library_clear_filters">清除篩選</string>
+    <string name="library_save_as">另存為…</string>
+
+    <!-- Counts. -->
+    <plurals name="library_count_movies">
+        <item quantity="other">%s 部電影</item>
+    </plurals>
+    <plurals name="library_count_shows">
+        <item quantity="other">%s 部劇集</item>
+    </plurals>
+    <plurals name="library_count_artists">
+        <item quantity="other">%s 位音樂人</item>
+    </plurals>
+    <plurals name="library_count_of_movies">
+        <item quantity="other">%1$s / %2$s 部電影</item>
+    </plurals>
+    <plurals name="library_count_of_shows">
+        <item quantity="other">%1$s / %2$s 部劇集</item>
+    </plurals>
+    <plurals name="library_count_of_artists">
+        <item quantity="other">%1$s / %2$s 位音樂人</item>
+    </plurals>
+    <plurals name="library_count_collections">
+        <item quantity="other">%s 個合集</item>
+    </plurals>
+
+    <!-- States (design spec §8; the web's words, for viewers). -->
+    <string name="library_failed">無法載入此媒體庫</string>
+    <string name="library_missing_title">此媒體庫不存在</string>
+    <string name="library_missing_body">它可能已被移除，或此配置檔案無權檢視。</string>
+    <string name="library_empty_title">此媒體庫為空</string>
+    <string name="library_empty_body">這裡還沒有內容。伺服器新增內容後會顯示出來。</string>
+    <string name="library_no_matches_title">沒有匹配項</string>
+    <string name="library_no_matches_body">此媒體庫中沒有符合當前篩選條件的內容。</string>
+    <string name="library_recommended_failed">無法載入推薦內容</string>
+    <string name="library_recommended_empty_title">暫無推薦內容</string>
+    <string name="library_recommended_empty_body">媒體庫中有內容後才會顯示推薦。</string>
+    <string name="library_collections_failed">無法載入合集</string>
+    <string name="library_collections_empty_title">暫無合集</string>
+    <string name="library_collections_empty_movies">當同一 TMDB 合集的兩部電影都在媒體庫中時，會在此分組顯示。</string>
+    <string name="library_collections_empty_shows">此媒體庫中暫無合集。</string>
+    <!-- The Collections tab's filters and headings (apps/web's CollectionsTab). -->
+    <string name="library_collections_category">類別</string>
+    <string name="library_collections_all_categories">所有類別</string>
+
+    <!-- A collection's page (apps/web/src/pages/collections/CollectionPage.tsx). -->
+    <string name="collection_label">合集</string>
+    <string name="collection_tmdb" translatable="false">TMDB</string>
+    <string name="collection_smart">智慧</string>
+    <string name="collection_play">播放</string>
+    <string name="collection_shuffle">隨機播放</string>
+    <string name="collection_more">更多</string>
+    <string name="collection_less">收起</string>
+    <string name="collection_movies">電影</string>
+    <string name="collection_shows">劇集</string>
+    <string name="collection_empty_movies">此合集中暫無內容。</string>
+    <string name="collection_failed">無法載入此合集</string>
+    <string name="collection_nothing_to_play">無法播放：此劇集暫無分集</string>
+    <string name="collections_title">合集</string>
+</resources>

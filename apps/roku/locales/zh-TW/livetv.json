@@ -1,0 +1,118 @@
+{
+  "title": "直播電視",
+  "tabs": {
+    "guide": "節目指南",
+    "channels": "頻道"
+  },
+  "categories": {
+    "title": "分類",
+    "all": "所有頻道",
+    "favourites": "收藏",
+    "recent": "最近觀看",
+    "regions": "地區",
+    "groups": "頻道組",
+    "moreGroups": "更多頻道組",
+    "noGroup": "無頻道組",
+    "region_other": "{{region}} · {{count, number}} 個頻道組",
+    "resultsFor": "“{{search}}”的搜尋結果"
+  },
+  "search": {
+    "rail": "搜尋",
+    "railWith": "搜尋：“{{search}}”",
+    "title": "搜尋直播電視",
+    "prompt": "頻道、頻道組和正在播出的節目",
+    "search": "搜尋",
+    "clear": "清除",
+    "channelsTitle": "搜尋頻道",
+    "channelsPrompt": "頻道和正在播出的節目"
+  },
+  "page": {
+    "notOpen": "此賬戶未開放直播電視。",
+    "notOpenHint": "管理員可在網頁版 Pley 的“設定 → 直播電視”中開放。",
+    "noChannels": "還沒有頻道。",
+    "noChannelsHint": "管理員在網頁版 Pley 的“設定 → 直播電視”中新增 IPTV 提供商後，頻道就會顯示在這裡。",
+    "loadingGuide": "正在載入節目指南…",
+    "channelCount_other": "{{count, number}} 個頻道",
+    "noMatch": "沒有頻道的名稱、號碼或當前節目包含“{{search}}”。",
+    "noFavourites": "還沒有收藏：在頻道上按“選項”(*) 鍵即可收藏。",
+    "nothingWatched": "還沒有觀看記錄。",
+    "empty": "這裡沒有頻道。",
+    "guideHint": "確定：觀看 · 選項(*)：收藏 · 快退和快進：更早和更晚 · 播放：現在 · 重播：搜尋",
+    "cardsHint": "確定：觀看 · 選項(*)：收藏 · 重播：搜尋"
+  },
+  "channelRange": "第 {{from, number}}–{{to, number}} 個，共 {{total, number}} 個頻道",
+  "unnamedChannel": "頻道 {{id}}",
+  "nothingNow": "當前節目指南中沒有內容",
+  "noGuide": "沒有節目指南",
+  "noGuideHere": "此頻道沒有節目指南",
+  "guide": {
+    "noInformation": "無節目資訊",
+    "noGuide": "此頻道沒有節目指南",
+    "onNow": "正在播出"
+  },
+  "program": {
+    "untitled": "無標題",
+    "live": "直播",
+    "new": "新"
+  },
+  "time": {
+    "tomorrow": "明天",
+    "yesterday": "昨天",
+    "days": {
+      "sunday": "星期日",
+      "monday": "星期一",
+      "tuesday": "星期二",
+      "wednesday": "星期三",
+      "thursday": "星期四",
+      "friday": "星期五",
+      "saturday": "星期六"
+    },
+    "dayAndTime": "{{day}} {{time}}",
+    "minutesLeft_other": "剩餘 {{count}} 分鐘",
+    "hoursLeft_other": "剩餘 {{count}} 小時",
+    "hoursMinutesLeft": "剩餘 {{hours}} 小時 {{minutes}} 分鐘"
+  },
+  "options": {
+    "watch": "觀看 {{name}}"
+  },
+  "favourites": {
+    "add": "加入收藏",
+    "remove": "從收藏中移除",
+    "added": "{{name}} 已加入收藏",
+    "removed": "{{name}} 已取消收藏",
+    "mark": "收藏"
+  },
+  "player": {
+    "tuning": "調諧中…",
+    "radio": "廣播",
+    "next": "接下來 {{time}} · {{title}}",
+    "bannerHint": "上下鍵：頻道 · 左鍵：{{category}} · 選項(*)：收藏 · 確定：關閉",
+    "listHint": "確定：觀看 · 選項(*)：收藏 · 返回：關閉",
+    "listMoreHint": "左鍵：分類 · 重播：搜尋",
+    "categoriesHint": "確定：該分類的頻道 · 返回：頻道列表",
+    "stalled": "播放中斷，無法繼續。",
+    "channelStopped": "{{channel}} 已停止",
+    "watchAgain": "重新觀看",
+    "otherChannels": "其他頻道",
+    "watchHere": "改為在這裡觀看",
+    "watchHereFor": "改為在這裡觀看，而不是 {{channel}}"
+  },
+  "trouble": {
+    "busy": "所有連線都在使用中",
+    "didntStart": "{{channel}} 未能開始播放",
+    "notPlaying": "{{channel}} 未在播放",
+    "gone": "此頻道已不存在",
+    "goneHint": "它可能已被隱藏，或其來源已被移除。",
+    "notOpen": "此賬戶未開放直播電視",
+    "notOpenHint": "管理員可在網頁版的“設定 → 直播電視”中開放。",
+    "stopped": "直播電視已停止",
+    "notWatched": "此頻道已不再被觀看。",
+    "stoppedByAdmin": "直播電視已被伺服器管理員停止。",
+    "stoppedElsewhere": "直播電視已從另一臺裝置停止。",
+    "you": "你，在另一臺裝置上",
+    "someoneElse": "其他人",
+    "people_other": "{{count, number}} 人",
+    "connectionsWatching_other": "它的 {{count, number}} 個連線正在觀看：",
+    "joinHint": "正在被觀看的頻道可以加入觀看，或等其中一個停止後再試。"
+  }
+}

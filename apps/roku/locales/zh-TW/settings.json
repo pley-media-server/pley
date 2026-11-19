@@ -1,0 +1,44 @@
+{
+  "title": "設定",
+  "server": "伺服器",
+  "signedInAs": "登入身份",
+  "thisRoku": "這臺 Roku 裝置",
+  "app": "Pley Roku 版",
+  "tmdb": "本產品使用 TMDB API，但未獲得 TMDB 的認可或認證。",
+  "web": "在網頁上管理你的賬戶",
+  "webHint": "在同一網路的手機或電腦上管理名稱、頭像、密碼、PIN、兩步驗證、裝置和應用。",
+  "unreachable": "目前無法連線到伺服器。",
+  "rows": {
+    "language": "語言：{{value}}",
+    "quality": "畫質：{{value}}",
+    "autoplay": "自動播放下一集：{{value}}",
+    "history": "觀看歷史",
+    "switchProfile": "切換配置檔案",
+    "alwaysStartAs": "始終以此身份啟動：{{value}}",
+    "sortLibraries": "媒體庫排序",
+    "switchServer": "更換伺服器",
+    "signOut": "退出登入"
+  },
+  "language": {
+    "title": "語言",
+    "automatic": "自動（{{language}}）"
+  },
+  "quality": "畫質",
+  "alwaysStartAs": "始終以此身份啟動",
+  "usedLast": "上次使用的配置檔案",
+  "signOut": {
+    "title": "退出登入？",
+    "body": "你將從 {{name}} 退出登入。",
+    "confirm": "退出登入"
+  },
+  "loadingProfile": "正在載入你的配置檔案…",
+  "changeOnWeb": "在 {{address}} 的網頁上更改這些設定。",
+  "readOnly": "此伺服器不允許應用更改這些設定：請在 {{address}} 的網頁上更改。",
+  "diagnostics": "診斷",
+  "licences": "開源許可證",
+  "diagnosticsPage": {
+    "app": "Pley Roku 版 {{version}}",
+    "plays": "可播放的內容"
+  },
+  "licence": "Pley Roku 版是基於 GNU Affero 通用公共許可證第 3 版（AGPL-3.0-only）釋出的自由軟體。"
+}

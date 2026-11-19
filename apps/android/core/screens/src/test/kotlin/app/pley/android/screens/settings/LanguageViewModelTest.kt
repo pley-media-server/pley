@@ -75,8 +75,21 @@ class LanguageViewModelTest {
         val state = vm.shown()
         assertEquals(null, state.chosen)
         assertEquals("Automatic (Français)", state.value.inEnglish())
-        assertEquals(listOf(null, Language.English, Language.French, Language.Spanish), state.choices)
-        assertEquals(listOf("Automatic (Français)", "English", "Français", "Español"), state.choices.map { state.label(it).inEnglish() })
+        assertEquals(
+            listOf(
+                null,
+                Language.English,
+                Language.French,
+                Language.Spanish,
+                Language.SimplifiedChinese,
+                Language.TraditionalChinese,
+            ),
+            state.choices,
+        )
+        assertEquals(
+            listOf("Automatic (Français)", "English", "Français", "Español", "简体中文", "繁體中文"),
+            state.choices.map { state.label(it).inEnglish() },
+        )
         // The account's, on every device.
         assertEquals(UiText.res(R.string.language_hint), state.hint)
 

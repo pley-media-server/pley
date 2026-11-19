@@ -5,7 +5,7 @@
  * here and as a file in every language's folder; the test
  * (test/i18n.test.ts) fails on one left out.
  *
- * All three languages are in the app's script, a TV app's files being on
+ * All five languages are in the app's script, a TV app's files being on
  * the TV; the build writes them as strings for JSON.parse
  * (build/build-app.mjs), which the TVs' engines read faster than code.
  */
@@ -36,6 +36,24 @@ import frPlayer from "./locales/fr/player.json";
 import frRequests from "./locales/fr/requests.json";
 import frSettings from "./locales/fr/settings.json";
 import frShell from "./locales/fr/shell.json";
+import zhCNBrowse from "./locales/zh-CN/browse.json";
+import zhCNCommon from "./locales/zh-CN/common.json";
+import zhCNFormat from "./locales/zh-CN/format.json";
+import zhCNLivetv from "./locales/zh-CN/livetv.json";
+import zhCNOnboarding from "./locales/zh-CN/onboarding.json";
+import zhCNPlayer from "./locales/zh-CN/player.json";
+import zhCNRequests from "./locales/zh-CN/requests.json";
+import zhCNSettings from "./locales/zh-CN/settings.json";
+import zhCNShell from "./locales/zh-CN/shell.json";
+import zhTWBrowse from "./locales/zh-TW/browse.json";
+import zhTWCommon from "./locales/zh-TW/common.json";
+import zhTWFormat from "./locales/zh-TW/format.json";
+import zhTWLivetv from "./locales/zh-TW/livetv.json";
+import zhTWOnboarding from "./locales/zh-TW/onboarding.json";
+import zhTWPlayer from "./locales/zh-TW/player.json";
+import zhTWRequests from "./locales/zh-TW/requests.json";
+import zhTWSettings from "./locales/zh-TW/settings.json";
+import zhTWShell from "./locales/zh-TW/shell.json";
 
 const en = {
   browse: enBrowse,
@@ -78,4 +96,28 @@ const es: Words = {
   shell: esShell,
 };
 
-export const catalogs: { en: Catalog; fr: Words; es: Words } = { en, fr, es };
+const zhCN: Words = {
+  browse: zhCNBrowse,
+  common: zhCNCommon,
+  format: zhCNFormat,
+  livetv: zhCNLivetv,
+  onboarding: zhCNOnboarding,
+  player: zhCNPlayer,
+  requests: zhCNRequests,
+  settings: zhCNSettings,
+  shell: zhCNShell,
+};
+
+const zhTW: Words = {
+  browse: zhTWBrowse,
+  common: zhTWCommon,
+  format: zhTWFormat,
+  livetv: zhTWLivetv,
+  onboarding: zhTWOnboarding,
+  player: zhTWPlayer,
+  requests: zhTWRequests,
+  settings: zhTWSettings,
+  shell: zhTWShell,
+};
+
+export const catalogs: { en: Catalog; fr: Words; es: Words; "zh-CN": Words; "zh-TW": Words } = { en, fr, es, "zh-CN": zhCN, "zh-TW": zhTW };

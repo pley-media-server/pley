@@ -1,0 +1,247 @@
+{
+  "names": {
+    "discover": "發現",
+    "yours": "你的請求",
+    "manage": "請求"
+  },
+  "kind": {
+    "movie": "電影",
+    "show": "劇集"
+  },
+  "quoted": "“{{text}}”",
+  "credit": "詳情和圖片來自 TMDB。",
+  "following": "已關注",
+  "counts": {
+    "movies_other": "{{count, number}} 部電影",
+    "seasons_other": "{{count, number}} 季",
+    "episodes_other": "{{count, number}} 集",
+    "requests_other": "{{count, number}} 個請求"
+  },
+  "badge": {
+    "library": "在媒體庫中",
+    "partial": "部分在媒體庫中",
+    "requested": "已請求",
+    "declined": "已拒絕"
+  },
+  "allowance": {
+    "canAsk": "你可以請求 {{what}}。",
+    "canAskBoth": "你可以請求 {{movies}} 和 {{seasons}}。",
+    "canAskMoviesSeasonsLater": "你可以請求 {{movies}}，並在 {{when}} 後請求更多季。",
+    "canAskMoviesNoSeasons": "你可以請求 {{movies}}，但暫時不能請求更多季。",
+    "canAskSeasonsMoviesLater": "你可以請求 {{seasons}}，並在 {{when}} 後請求更多電影。",
+    "canAskSeasonsNoMovies": "你可以請求 {{seasons}}，但暫時不能請求更多電影。",
+    "moreMovies_other": "還可請求 {{count, number}} 部電影",
+    "moreSeasons_other": "還可請求 {{count, number}} 季",
+    "moviesUsedUp": "你目前已用完可請求的電影名額。",
+    "moviesUsedUpUntil": "你目前已用完可請求的電影名額：{{when}} 後可再次請求。",
+    "seasonsUsedUp": "你目前已用完可請求的季名額。",
+    "seasonsUsedUpUntil": "你目前已用完可請求的季名額：{{when}} 後可再次請求。",
+    "allUsedUp": "你目前已用完所有請求名額。",
+    "allUsedUpUntil": "你目前已用完所有請求名額：還可請求電影 {{movies}}、季 {{seasons}}。",
+    "allUsedUpMoviesUntil": "你目前已用完所有請求名額：{{when}} 後可請求更多電影。",
+    "allUsedUpSeasonsUntil": "你目前已用完所有請求名額：{{when}} 後可請求更多季。",
+    "limit": "限額：每 7 天 {{what}}。",
+    "limits": "限額：每 7 天 {{movies}} 和 {{seasons}}。"
+  },
+  "asking": {
+    "auto": "請求後自動批准併發送到下載佇列。",
+    "decided": "由管理員決定。就緒時會通知你。",
+    "confirm": "請求“{{title}}”？",
+    "following": "“{{title}}”就緒時會通知你。",
+    "approved": "“{{title}}”已批准，正在準備中。",
+    "failed": "已請求“{{title}}”，但暫時無法傳送到下載佇列。",
+    "pending": "已請求“{{title}}”：由管理員決定。"
+  },
+  "seasons": {
+    "list_other": "第 {{list}} 季",
+    "andSpecials": "{{seasons}} 和特別篇",
+    "specials": "特別篇",
+    "season": "第 {{number}} 季"
+  },
+  "season": {
+    "library": "在媒體庫中",
+    "requested": "已請求",
+    "declined": "已拒絕",
+    "notAired": "尚未播出",
+    "airs": "{{day}} 播出",
+    "partial_other": "媒體庫中有 {{count, number}} / {{episodes, number}} 集",
+    "why": "{{season}}：{{state}}。"
+  },
+  "problem": {
+    "off": "請求功能已關閉",
+    "offText": "此伺服器不接收電影和劇集請求。",
+    "tmdbKey": "TMDB 拒絕了此伺服器的金鑰",
+    "tmdbKeyText": "需要管理員檢查。",
+    "tmdbKeyManage": "請在網頁版 Pley 的“設定 → 伺服器”中修復。",
+    "tmdbDown": "TMDB 沒有響應",
+    "noAccess": "此賬戶未開放請求功能",
+    "noAccessText": "管理員可以允許它請求電影和劇集。",
+    "signIn": "請重新登入後請求電影和劇集",
+    "askAgain": "你可以在 {{when}} 再次請求。",
+    "askMore": "{{when}} 後可請求更多內容。",
+    "atMostMovies_other": "每 7 天最多可請求 {{count, number}} 部電影：請少選一些。",
+    "atMostSeasons_other": "每 7 天最多可請求 {{count, number}} 季：請少選一些。",
+    "deleted": "此請求同時已被刪除。",
+    "removeLater": "被拒絕的請求會保留 30 天：你可以在 {{when}} 移除它。",
+    "doLater": "你可以在 {{when}} 執行此操作。"
+  },
+  "discover": {
+    "lists": {
+      "trending": "本週熱門",
+      "movies": "熱門電影",
+      "shows": "熱門劇集",
+      "upcoming": "即將上映",
+      "anime": "熱門動漫"
+    },
+    "resultsFor": "“{{query}}”的搜尋結果",
+    "nothingFound": "沒有找到“{{query}}”。",
+    "nothingHere": "這裡暫時沒有內容。",
+    "loadFailed": "無法載入這些內容"
+  },
+  "tiles": {
+    "theseFailed": "無法載入這些內容。選中可重試。",
+    "moreFailed": "無法載入更多內容。選中可重試。",
+    "problemRetry": "{{problem}}。選中可重試。",
+    "further": "可能還有更多內容。選中可繼續查詢。"
+  },
+  "buttons": {
+    "signIn": "登入",
+    "request": "請求",
+    "requestMoreSeasons": "請求更多季",
+    "details": "詳情",
+    "tellMeToo": "也通知我"
+  },
+  "title": {
+    "requested": "已請求",
+    "askedAlready": "已經有人請求過了。",
+    "notOpen": "此賬戶未開放請求功能。",
+    "loadFailed": "無法載入此作品",
+    "seasons": "季",
+    "cast": "演員"
+  },
+  "declined": {
+    "plain": "已拒絕。",
+    "because": "已拒絕：“{{reason}}”。",
+    "when": "已拒絕。你可以在 {{when}} 再次請求。",
+    "becauseWhen": "已拒絕：“{{reason}}”。你可以在 {{when}} 再次請求。"
+  },
+  "picker": {
+    "title": "選擇哪些季？",
+    "pickOne": "選擇一季。",
+    "request_other": "請求 {{count, number}} 季"
+  },
+  "stage": {
+    "pending": "等待審批",
+    "approved": "已批准",
+    "searching": "搜尋中",
+    "downloading": "下載中",
+    "importing": "正在新增到媒體庫",
+    "partial": "{{seasons}} 已就緒",
+    "partly": "部分在媒體庫中",
+    "available": "可以觀看了",
+    "gone": "已不在媒體庫中",
+    "declined": "已拒絕",
+    "failed": "傳送失敗",
+    "failedBecause": "傳送失敗：{{reason}}",
+    "notSent": "尚未傳送",
+    "notSentLine": "暫時無法傳送到下載佇列：管理員會處理。",
+    "retry": "{{when}} 重試。",
+    "notOut": "尚未發行",
+    "out": "{{day}} 發行",
+    "airs": "{{day}} 播出",
+    "airsAt": "{{time}} 播出",
+    "airsTomorrow": "明天 {{time}} 播出",
+    "outOfReach": "已就緒，但位於你無法訪問的媒體庫中：請聯絡管理員"
+  },
+  "download": {
+    "queued": "等待下載",
+    "paused": "下載已暫停",
+    "warning": "下載出現問題",
+    "progress": "下載中 {{percent}}%",
+    "progressUntil": "下載中 {{percent}}% · {{when}}"
+  },
+  "asked": {
+    "byYou": "由你請求",
+    "byName": "由 {{name}} 請求",
+    "bySomeone": "由其他人請求"
+  },
+  "actions": {
+    "watch": "觀看",
+    "withdraw": "撤回",
+    "unwatch": "取消關注",
+    "approve": "批准",
+    "decline": "拒絕",
+    "declineReason": "填寫原因後拒絕…",
+    "handled": "標記為手動新增",
+    "askAgain": "再次請求",
+    "none": "目前對此請求無法執行任何操作。"
+  },
+  "confirm": {
+    "remove": "從你的請求中移除“{{title}}”？",
+    "withdraw": "撤回你對“{{title}}”的請求？",
+    "delete": "刪除此請求？Radarr 和 Sonarr 會保留已有內容。"
+  },
+  "decline": {
+    "title": "拒絕“{{title}}”",
+    "text": "原因會告訴請求人。"
+  },
+  "page": {
+    "loadFailed": "無法載入請求",
+    "signInToDecide": "請重新登入，以便在此批准或拒絕。",
+    "hint": "在請求上按 * 鍵檢視可執行的操作。",
+    "tabs": {
+      "attention": "需要處理",
+      "all": "全部",
+      "pending": "待審批",
+      "approved": "已批准",
+      "available": "可觀看",
+      "declined": "已拒絕",
+      "failed": "失敗",
+      "mine": "你的"
+    },
+    "empty": {
+      "match": "沒有匹配項。",
+      "attention": "沒有需要處理的請求。",
+      "everyone": {
+        "pending": "沒有等待決定的請求。",
+        "approved": "沒有正在準備的請求。",
+        "available": "還沒有可觀看的請求。",
+        "declined": "沒有被拒絕的請求。",
+        "failed": "沒有失敗的請求。",
+        "none": "還沒有人請求過任何內容。"
+      },
+      "yours": {
+        "pending": "你沒有等待決定的請求。",
+        "approved": "你沒有正在準備的請求。",
+        "available": "你的請求還沒有可觀看的。",
+        "declined": "你的請求沒有被拒絕的。",
+        "failed": "你的請求沒有失敗的。",
+        "none": "你還沒有請求過任何內容。"
+      }
+    }
+  },
+  "filters": {
+    "filter": "篩選",
+    "kinds": {
+      "both": "電影和劇集",
+      "movie": "電影",
+      "show": "劇集"
+    },
+    "everyone": "所有人",
+    "anyTitle": "任意",
+    "show": "顯示",
+    "showKind": "顯示：{{kind}}",
+    "askedBy": "請求人",
+    "askedByPerson": "請求人：{{person}}",
+    "title": "標題",
+    "titleWords": "標題：{{words}}",
+    "titleText": "標題中包含這些文字的請求。",
+    "clear": "清除篩選"
+  },
+  "news": {
+    "ready": "“{{title}}”可以觀看了。",
+    "seasonsReady_other": "“{{title}}”的 {{seasons}} 可以觀看了。",
+    "specialsReady": "“{{title}}”的特別篇可以觀看了。",
+    "several_other": "你的 {{count, number}} 個請求有新動態"
+  }
+}

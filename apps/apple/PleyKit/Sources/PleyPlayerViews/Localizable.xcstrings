@@ -15,6 +15,18 @@
             "state" : "translated",
             "value" : "%@ · incrustés dans la vidéo"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 已嵌入视频"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 已嵌入影片"
+          }
         }
       }
     },
@@ -32,6 +44,18 @@
             "state" : "translated",
             "value" : "%@ : %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：%@"
+          }
         }
       }
     },
@@ -45,6 +69,18 @@
           }
         },
         "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirPlay"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirPlay"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "AirPlay"
@@ -66,6 +102,18 @@
             "state" : "translated",
             "value" : "Audio"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音訊"
+          }
         }
       }
     },
@@ -82,6 +130,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Annuler"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
           }
         }
       }
@@ -100,6 +160,18 @@
             "state" : "translated",
             "value" : "Chapitres"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章节"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章節"
+          }
         }
       }
     },
@@ -116,6 +188,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Détails"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "详情"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "詳情"
           }
         }
       }
@@ -134,6 +218,18 @@
             "state" : "translated",
             "value" : "Plus tôt"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前"
+          }
         }
       }
     },
@@ -150,6 +246,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plus tôt (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前 (%@)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提前 (%@)"
           }
         }
       }
@@ -168,6 +276,18 @@
             "state" : "translated",
             "value" : "Trouver des sous-titres…"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查找字幕…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查詢字幕…"
+          }
         }
       }
     },
@@ -184,6 +304,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continuer à regarder"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续观看"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繼續觀看"
           }
         }
       }
@@ -202,6 +334,18 @@
             "state" : "translated",
             "value" : "Plus tard"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "延后"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "延後"
+          }
         }
       }
     },
@@ -218,6 +362,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plus tard (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "延后 (%@)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "延後 (%@)"
           }
         }
       }
@@ -236,6 +392,18 @@
             "state" : "translated",
             "value" : "Réduite"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已降低"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已降低"
+          }
         }
       }
     },
@@ -252,6 +420,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Décalage : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏移：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏移：%@"
           }
         }
       }
@@ -270,6 +450,18 @@
             "state" : "translated",
             "value" : "Options"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选项"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選項"
+          }
         }
       }
     },
@@ -286,6 +478,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lecteur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放器"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放器"
           }
         }
       }
@@ -304,6 +508,18 @@
             "state" : "translated",
             "value" : "Lecture"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放"
+          }
         }
       }
     },
@@ -320,6 +536,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Qualité"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画质"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "畫質"
           }
         }
       }
@@ -338,6 +566,18 @@
             "state" : "translated",
             "value" : "Réinitialiser"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置"
+          }
         }
       }
     },
@@ -354,6 +594,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Minuteur de veille"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠定时"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠定時"
           }
         }
       }
@@ -372,6 +624,18 @@
             "state" : "translated",
             "value" : "Vitesse"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "速度"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "速度"
+          }
         }
       }
     },
@@ -388,6 +652,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Démarrage…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启动中…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "啟動中…"
           }
         }
       }
@@ -406,6 +682,18 @@
             "state" : "translated",
             "value" : "Style des sous-titres"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕样式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕樣式"
+          }
         }
       }
     },
@@ -422,6 +710,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Synchronisation des sous-titres"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕同步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕同步"
           }
         }
       }
@@ -440,6 +740,18 @@
             "state" : "translated",
             "value" : "Style des sous-titres"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕样式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕樣式"
+          }
         }
       }
     },
@@ -456,6 +768,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Synchronisation des sous-titres"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕同步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕同步"
           }
         }
       }
@@ -474,6 +798,18 @@
             "state" : "translated",
             "value" : "Sous-titres"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "字幕"
+          }
         }
       }
     },
@@ -490,6 +826,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vidéo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影片"
           }
         }
       }
@@ -508,6 +856,18 @@
             "state" : "translated",
             "value" : "Vidéo en sortie"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频输出"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影片輸出"
+          }
         }
       }
     },
@@ -525,6 +885,18 @@
             "state" : "translated",
             "value" : "Raison"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原因"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原因"
+          }
         }
       }
     },
@@ -541,6 +913,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "sélectionné"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已选中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已選中"
           }
         }
       }

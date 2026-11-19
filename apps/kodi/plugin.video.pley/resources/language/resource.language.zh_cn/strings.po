@@ -1,0 +1,2226 @@
+# Pley for Kodi
+# Addon id: plugin.video.pley
+msgid ""
+msgstr ""
+"Project-Id-Version: plugin.video.pley\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh_CN\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgctxt "#30000"
+msgid "Choose a server"
+msgstr "选择服务器"
+
+msgctxt "#30001"
+msgid "Sign in to %s"
+msgstr "登录 %s"
+
+msgctxt "#30002"
+msgid "Sign out"
+msgstr "退出登录"
+
+msgctxt "#30003"
+msgid "Search"
+msgstr "搜索"
+
+msgctxt "#30004"
+msgid "Playlists"
+msgstr "播放列表"
+
+msgctxt "#30005"
+msgid "Collections"
+msgstr "合集"
+
+msgctxt "#30006"
+msgid "Next page"
+msgstr "下一页"
+
+msgctxt "#30007"
+msgid "Enter an address"
+msgstr "输入地址"
+
+msgctxt "#30009"
+msgid "Looking for Pley servers on this network"
+msgstr "正在此网络上查找 Pley 服务器"
+
+msgctxt "#30010"
+msgid "Sign in"
+msgstr "登录"
+
+msgctxt "#30012"
+msgid "Signed in as %s"
+msgstr "已以 %s 身份登录"
+
+msgctxt "#30013"
+msgid "Signed out of Pley"
+msgstr "已退出 Pley"
+
+msgctxt "#30014"
+msgid "The code expired. Sign in again for a new one."
+msgstr "验证码已过期。重新登录获取新的验证码。"
+
+msgctxt "#30015"
+msgid "Signing in was refused on the server's page."
+msgstr "登录在服务器页面上被拒绝。"
+
+msgctxt "#30016"
+msgid "%s doesn't answer. Check the address, and that the server is running."
+msgstr "%s 没有响应。检查地址，并确认服务器正在运行。"
+
+msgctxt "#30017"
+msgid "%s isn't a Pley server, or isn't one Kodi can sign in to."
+msgstr "%s 不是 Pley 服务器，或不是 Kodi 可以登录的服务器。"
+
+msgctxt "#30018"
+msgid "Pley's service isn't running: restart Kodi."
+msgstr "Pley 的服务未运行：重启 Kodi。"
+
+msgctxt "#30019"
+msgid "Mark as watched"
+msgstr "标记为已观看"
+
+msgctxt "#30020"
+msgid "Mark as unwatched"
+msgstr "标记为未观看"
+
+msgctxt "#30021"
+msgid "Add to My List"
+msgstr "添加到我的片单"
+
+msgctxt "#30022"
+msgid "Remove from My List"
+msgstr "从我的片单中移除"
+
+msgctxt "#30024"
+msgid "The server stopped this stream."
+msgstr "服务器停止了此流。"
+
+msgctxt "#30026"
+msgid "The server answered: %s"
+msgstr "服务器返回：%s"
+
+msgctxt "#30027"
+msgid "Settings"
+msgstr "设置"
+
+msgctxt "#30030"
+msgid "Nothing found"
+msgstr "未找到内容"
+
+msgctxt "#30060"
+msgid "Skip intro"
+msgstr "跳过片头"
+
+msgctxt "#30061"
+msgid "Skip credits"
+msgstr "跳过片尾"
+
+msgctxt "#30062"
+msgid "Up next: %s"
+msgstr "接下来：%s"
+
+msgctxt "#30063"
+msgid "Play now (%d)"
+msgstr "立即播放 (%d)"
+
+msgctxt "#30064"
+msgid "Cancel"
+msgstr "取消"
+
+msgctxt "#30065"
+msgid "Can't reach %s"
+msgstr "无法连接 %s"
+
+msgctxt "#30066"
+msgid "Try again"
+msgstr "重试"
+
+msgctxt "#30067"
+msgid "Check that the server is on and that this device is on its network. Pley doesn't need the internet."
+msgstr "检查服务器是否已开启，以及此设备是否在其网络中。Pley 不需要互联网。"
+
+msgctxt "#30074"
+msgid "Waiting for approval. The code works for less than a minute more."
+msgstr "等待审批。验证码剩余有效时间不足一分钟。"
+
+msgctxt "#30076"
+msgid "Signed in"
+msgstr "已登录"
+
+msgctxt "#30077"
+msgid "Can't reach the server: trying again."
+msgstr "无法连接服务器：正在重试。"
+
+msgctxt "#30078"
+msgid "Playback was stopped by the server's administrator."
+msgstr "播放已被服务器管理员停止。"
+
+msgctxt "#30079"
+msgid "Playback was stopped from another of your devices."
+msgstr "播放已被你的另一台设备停止。"
+
+msgctxt "#30040"
+msgid "Server"
+msgstr "服务器"
+
+msgctxt "#30041"
+msgid "Server address"
+msgstr "服务器地址"
+
+msgctxt "#30042"
+msgid "Server name"
+msgstr "服务器名称"
+
+msgctxt "#30043"
+msgid "Playback"
+msgstr "播放"
+
+msgctxt "#30044"
+msgid "Quality"
+msgstr "画质"
+
+msgctxt "#30045"
+msgid "Original"
+msgstr "原始"
+
+msgctxt "#30046"
+msgid "30 Mbps 4K"
+msgstr "30 Mbps 4K"
+
+msgctxt "#30047"
+msgid "20 Mbps 1080p"
+msgstr "20 Mbps 1080p"
+
+msgctxt "#30048"
+msgid "15 Mbps 4K"
+msgstr "15 Mbps 4K"
+
+msgctxt "#30049"
+msgid "12 Mbps 1080p"
+msgstr "12 Mbps 1080p"
+
+msgctxt "#30050"
+msgid "8 Mbps 1080p"
+msgstr "8 Mbps 1080p"
+
+msgctxt "#30051"
+msgid "4 Mbps 720p"
+msgstr "4 Mbps 720p"
+
+msgctxt "#30052"
+msgid "2 Mbps 480p"
+msgstr "2 Mbps 480p"
+
+msgctxt "#30100"
+msgid "Home"
+msgstr "主页"
+
+msgctxt "#30101"
+msgid "From start"
+msgstr "从头播放"
+
+msgctxt "#30102"
+msgid "Info"
+msgstr "信息"
+
+msgctxt "#30103"
+msgid "In My List"
+msgstr "在我的片单中"
+
+msgctxt "#30104"
+msgid "Trailer"
+msgstr "预告片"
+
+msgctxt "#30105"
+msgid "More"
+msgstr "更多"
+
+msgctxt "#30106"
+msgid "Recommended"
+msgstr "推荐"
+
+msgctxt "#30107"
+msgid "Library"
+msgstr "媒体库"
+
+msgctxt "#30108"
+msgid "Filter"
+msgstr "筛选"
+
+msgctxt "#30109"
+msgid "Unwatched"
+msgstr "未观看"
+
+msgctxt "#30110"
+msgid "Genre"
+msgstr "类型"
+
+msgctxt "#30111"
+msgid "Year"
+msgstr "年份"
+
+msgctxt "#30112"
+msgid "Resume"
+msgstr "继续播放"
+
+msgctxt "#30113"
+msgid "Play"
+msgstr "播放"
+
+msgctxt "#30114"
+msgid "Resume %s"
+msgstr "继续播放 %s"
+
+msgctxt "#30115"
+msgid "Play %s"
+msgstr "播放 %s"
+
+msgctxt "#30116"
+msgid "See all"
+msgstr "查看全部"
+
+msgctxt "#30117"
+msgid "Unavailable"
+msgstr "不可用"
+
+msgctxt "#30118"
+msgid "Search movies, shows, people…"
+msgstr "搜索电影、剧集、人物…"
+
+msgctxt "#30119"
+msgid "Search your libraries"
+msgstr "搜索你的媒体库"
+
+msgctxt "#30120"
+msgid "Find movies, shows, episodes, people, artists, albums and tracks. Press OK on the field to type."
+msgstr "查找电影、剧集、集、人物、艺人、专辑和曲目。在输入框上按确认键即可输入。"
+
+msgctxt "#30121"
+msgid "Nothing found for “%s”"
+msgstr "未找到与“%s”匹配的内容"
+
+msgctxt "#30122"
+msgid "Movies"
+msgstr "电影"
+
+msgctxt "#30123"
+msgid "Shows"
+msgstr "剧集"
+
+msgctxt "#30124"
+msgid "Episodes"
+msgstr "集"
+
+msgctxt "#30125"
+msgid "People"
+msgstr "人物"
+
+msgctxt "#30126"
+msgid "Music"
+msgstr "音乐"
+
+msgctxt "#30127"
+msgid "Cast"
+msgstr "演员"
+
+msgctxt "#30128"
+msgid "Cast & crew"
+msgstr "演员与幕后"
+
+msgctxt "#30129"
+msgid "Crew"
+msgstr "幕后"
+
+msgctxt "#30130"
+msgid "Guest stars"
+msgstr "客串演员"
+
+msgctxt "#30131"
+msgid "More like this"
+msgstr "类似推荐"
+
+msgctxt "#30132"
+msgid "Extras"
+msgstr "附加内容"
+
+msgctxt "#30133"
+msgid "Couldn't load your home screen"
+msgstr "无法加载主页"
+
+msgctxt "#30134"
+msgid "Couldn't load this page"
+msgstr "无法加载此页面"
+
+msgctxt "#30135"
+msgid "No libraries yet"
+msgstr "还没有媒体库"
+
+msgctxt "#30136"
+msgid "Ask whoever runs this Pley server to share a library with you."
+msgstr "让这台 Pley 服务器的管理员与你共享一个媒体库。"
+
+msgctxt "#30137"
+msgid "Nothing here yet"
+msgstr "这里还没有内容"
+
+msgctxt "#30138"
+msgid "Add movies, shows or music to a library on the server, and they show here."
+msgstr "在服务器的媒体库中添加电影、剧集或音乐，它们就会显示在这里。"
+
+msgctxt "#30139"
+msgid "Scanning your libraries…"
+msgstr "正在扫描你的媒体库…"
+
+msgctxt "#30140"
+msgid "Directed by"
+msgstr "导演"
+
+msgctxt "#30141"
+msgid "Created by"
+msgstr "创建者"
+
+msgctxt "#30142"
+msgid "Starring"
+msgstr "主演"
+
+msgctxt "#30143"
+msgid "Sort by"
+msgstr "排序"
+
+msgctxt "#30144"
+msgid "Title"
+msgstr "标题"
+
+msgctxt "#30145"
+msgid "Year"
+msgstr "年份"
+
+msgctxt "#30146"
+msgid "Date added"
+msgstr "添加日期"
+
+msgctxt "#30147"
+msgid "Rating"
+msgstr "评分"
+
+msgctxt "#30148"
+msgid "Release date"
+msgstr "上映日期"
+
+msgctxt "#30149"
+msgid "Duration"
+msgstr "时长"
+
+msgctxt "#30150"
+msgid "Last played"
+msgstr "最近播放"
+
+msgctxt "#30151"
+msgid "All genres"
+msgstr "所有类型"
+
+msgctxt "#30152"
+msgid "All years"
+msgstr "所有年份"
+
+msgctxt "#30153"
+msgid "Clear filters"
+msgstr "清除筛选"
+
+msgctxt "#30154"
+msgid "Remove from Continue Watching"
+msgstr "从继续观看中移除"
+
+msgctxt "#30155"
+msgid "Go to show"
+msgstr "前往剧集"
+
+msgctxt "#30156"
+msgid "Go to season"
+msgstr "前往季"
+
+msgctxt "#30157"
+msgid "Full summary"
+msgstr "完整简介"
+
+msgctxt "#30158"
+msgid "No playlists yet. Use “Add to playlist” on a movie, show or episode, or press Menu on a poster."
+msgstr "还没有播放列表。在电影、剧集或集上使用“添加到播放列表”，或在海报上按菜单键。"
+
+msgctxt "#30159"
+msgid "No collections yet."
+msgstr "还没有合集。"
+
+msgctxt "#30160"
+msgid "Nothing matches these filters."
+msgstr "没有符合这些筛选条件的内容。"
+
+msgctxt "#30161"
+msgid "Screens"
+msgstr "界面"
+
+msgctxt "#30162"
+msgid "Pley's look, as on its TV apps"
+msgstr "Pley 的界面，与电视应用一致"
+
+msgctxt "#30163"
+msgid "Kodi's lists, in this skin's views"
+msgstr "Kodi 的列表，使用此皮肤的视图"
+
+msgctxt "#30166"
+msgid "This library is empty."
+msgstr "此媒体库为空。"
+
+msgctxt "#30167"
+msgid "Watched"
+msgstr "已观看"
+
+msgctxt "#30168"
+msgid "Known for"
+msgstr "代表作"
+
+msgctxt "#30171"
+msgid "Sign in to Pley"
+msgstr "登录 Pley"
+
+msgctxt "#30172"
+msgid "Scan the code with your phone"
+msgstr "用手机扫描二维码"
+
+msgctxt "#30173"
+msgid "or go to [B]%s[/B]"
+msgstr "或前往 [B]%s[/B]"
+
+msgctxt "#30174"
+msgid "and enter this code"
+msgstr "并输入此验证码"
+
+msgctxt "#30175"
+msgid "Your phone must be on the same Wi-Fi as this TV."
+msgstr "你的手机必须与此电视连接同一 Wi-Fi。"
+
+msgctxt "#30176"
+msgid "Or open Pley on a signed-in device: Link a device."
+msgstr "或在已登录的设备上打开 Pley：关联设备。"
+
+msgctxt "#30177"
+msgid "Scan with your phone camera"
+msgstr "用手机相机扫描"
+
+msgctxt "#30178"
+msgid "Change server"
+msgstr "更换服务器"
+
+msgctxt "#30179"
+msgid "Go to [B]%s[/B]"
+msgstr "前往 [B]%s[/B]"
+
+msgctxt "#30180"
+msgid "Add to playlist"
+msgstr "添加到播放列表"
+
+msgctxt "#30181"
+msgid "New video playlist"
+msgstr "新建视频播放列表"
+
+msgctxt "#30182"
+msgid "New music playlist"
+msgstr "新建音乐播放列表"
+
+msgctxt "#30183"
+msgid "Added to %s"
+msgstr "已添加到 %s"
+
+msgctxt "#30184"
+msgid "All"
+msgstr "全部"
+
+msgctxt "#30185"
+msgid "Save as…"
+msgstr "另存为…"
+
+msgctxt "#30186"
+msgid "Save these filters"
+msgstr "保存这些筛选条件"
+
+msgctxt "#30188"
+msgid "Sort libraries"
+msgstr "排列媒体库"
+
+msgctxt "#30189"
+msgid "Use the server's order"
+msgstr "使用服务器的顺序"
+
+msgctxt "#30190"
+msgid "Move up"
+msgstr "上移"
+
+msgctxt "#30191"
+msgid "Move down"
+msgstr "下移"
+
+msgctxt "#30192"
+msgid "First"
+msgstr "最前"
+
+msgctxt "#30193"
+msgid "After %s"
+msgstr "排在 %s 之后"
+
+msgctxt "#30194"
+msgid "Sorting libraries needs a newer Pley on the server."
+msgstr "排列媒体库需要服务器上更新版本的 Pley。"
+
+msgctxt "#30195"
+msgid "Audio and subtitles"
+msgstr "音频与字幕"
+
+msgctxt "#30196"
+msgid "Audio language"
+msgstr "音频语言"
+
+msgctxt "#30197"
+msgid "Subtitles"
+msgstr "字幕"
+
+msgctxt "#30198"
+msgid "Subtitle language"
+msgstr "字幕语言"
+
+msgctxt "#30199"
+msgid "The file's default"
+msgstr "文件默认"
+
+msgctxt "#30200"
+msgid "Same as the audio language"
+msgstr "与音频语言相同"
+
+msgctxt "#30201"
+msgid "Off"
+msgstr "关闭"
+
+msgctxt "#30202"
+msgid "Only for foreign dialogue"
+msgstr "仅用于外语对白"
+
+msgctxt "#30203"
+msgid "When the audio is in another language"
+msgstr "音频为其他语言时"
+
+msgctxt "#30204"
+msgid "Always"
+msgstr "始终"
+
+msgctxt "#30205"
+msgid "This server doesn't let the app change these: change them on the web"
+msgstr "此服务器不允许应用更改这些设置：在网页上更改。"
+
+msgctxt "#30206"
+msgid "Saved"
+msgstr "已保存"
+
+msgctxt "#30207"
+msgid "Libraries"
+msgstr "媒体库"
+
+msgctxt "#30208"
+msgid "Open"
+msgstr "打开"
+
+msgctxt "#30209"
+msgid "Scanning…"
+msgstr "正在扫描…"
+
+msgctxt "#30210"
+msgid "Sign out?"
+msgstr "退出登录？"
+
+msgctxt "#30211"
+msgid "You'll be signed out of %s."
+msgstr "你将退出 %s。"
+
+msgctxt "#30212"
+msgid "Automatic"
+msgstr "自动"
+
+msgctxt "#30213"
+msgid "Quality lowered to %s"
+msgstr "画质降至 %s"
+
+msgctxt "#30214"
+msgid "Shuffle"
+msgstr "随机播放"
+
+msgctxt "#30215"
+msgid "Albums"
+msgstr "专辑"
+
+msgctxt "#30216"
+msgid "Tracks"
+msgstr "曲目"
+
+msgctxt "#30217"
+msgid "Go to artist"
+msgstr "前往艺人"
+
+msgctxt "#30218"
+msgid "No tracks found"
+msgstr "未找到曲目"
+
+msgctxt "#30219"
+msgid "Who's watching?"
+msgstr "是谁在看？"
+
+msgctxt "#30220"
+msgid "Switch profile"
+msgstr "切换配置文件"
+
+msgctxt "#30221"
+msgid "Enter %s's PIN"
+msgstr "输入 %s 的 PIN"
+
+msgctxt "#30222"
+msgid "Wrong PIN."
+msgstr "PIN 错误。"
+
+msgctxt "#30223"
+msgid "Too many wrong PINs: try again in a few minutes."
+msgstr "PIN 错误次数过多：几分钟后重试。"
+
+msgctxt "#30224"
+msgid "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it."
+msgstr "此配置文件的 PIN 因错误次数过多已被锁定。其所有者或管理员可以重置。"
+
+msgctxt "#30225"
+msgid "You can't switch to this profile."
+msgstr "无法切换到此配置文件。"
+
+msgctxt "#30226"
+msgid "This profile can't be used from the app."
+msgstr "此配置文件无法在此应用中使用。"
+
+msgctxt "#30227"
+msgid "This sign-in can't switch profiles: sign in again to allow it."
+msgstr "此登录无法切换配置文件：重新登录以启用。"
+
+msgctxt "#30228"
+msgid "%s needs a password. Sign in again with a code and choose %s on your phone or computer."
+msgstr "%s 需要密码。用验证码重新登录，并在手机或电脑上选择 %s。"
+
+msgctxt "#30229"
+msgid "A PIN has 4 to 8 digits."
+msgstr "PIN 为 4 到 8 位数字。"
+
+msgctxt "#30230"
+msgid "Watching as %s"
+msgstr "以 %s 身份观看"
+
+msgctxt "#30231"
+msgid "There's no other profile to switch to."
+msgstr "没有其他可切换的配置文件。"
+
+msgctxt "#30232"
+msgid "PIN"
+msgstr "PIN"
+
+msgctxt "#30233"
+msgid "Remove from playlist"
+msgstr "从播放列表中移除"
+
+msgctxt "#30234"
+msgid "Rename playlist"
+msgstr "重命名播放列表"
+
+msgctxt "#30235"
+msgid "Delete playlist"
+msgstr "删除播放列表"
+
+msgctxt "#30236"
+msgid "Delete playlist?"
+msgstr "删除播放列表？"
+
+msgctxt "#30237"
+msgid "“%s” will be deleted. What's in it stays in your libraries."
+msgstr "“%s”将被删除。其中的内容仍保留在你的媒体库中。"
+
+msgctxt "#30238"
+msgid "Delete"
+msgstr "删除"
+
+msgctxt "#30239"
+msgid "Playlist deleted"
+msgstr "播放列表已删除"
+
+msgctxt "#30240"
+msgid "This playlist is empty. Use “Add to playlist” on a title, or press Menu on a poster."
+msgstr "此播放列表为空。在影片上使用“添加到播放列表”，或在海报上按菜单键。"
+
+msgctxt "#30241"
+msgid "Nothing matches this playlist's filter yet."
+msgstr "目前没有符合此播放列表筛选条件的内容。"
+
+msgctxt "#30242"
+msgid "Your rating"
+msgstr "你的评分"
+
+msgctxt "#30243"
+msgid "Not rated"
+msgstr "未评分"
+
+msgctxt "#30244"
+msgid "Subtitle search isn't set up on this server. An administrator sets it up on the web, in Settings → Server."
+msgstr "此服务器未设置字幕搜索。管理员可在网页的“设置 → 服务器”中设置。"
+
+msgctxt "#30245"
+msgid "Finding subtitles needs a newer Pley server."
+msgstr "查找字幕需要更新版本的 Pley 服务器。"
+
+msgctxt "#30246"
+msgid "%s isn't on your network and its connection isn't encrypted. Open it by its https address."
+msgstr "%s 不在你的网络中，且连接未加密。请使用其 https 地址打开。"
+
+msgctxt "#30247"
+msgid "Live TV"
+msgstr "直播电视"
+
+msgctxt "#30249"
+msgid "Favourites"
+msgstr "收藏"
+
+msgctxt "#30250"
+msgid "Recently watched"
+msgstr "最近观看"
+
+msgctxt "#30253"
+msgid "Add to favourites"
+msgstr "添加到收藏"
+
+msgctxt "#30254"
+msgid "Remove from favourites"
+msgstr "从收藏中移除"
+
+msgctxt "#30255"
+msgid "Schedule"
+msgstr "节目表"
+
+msgctxt "#30256"
+msgid "Watch"
+msgstr "观看"
+
+msgctxt "#30257"
+msgid "Next"
+msgstr "下一个"
+
+msgctxt "#30258"
+msgid "All connections are in use"
+msgstr "所有连接都已占用"
+
+msgctxt "#30259"
+msgid "No channels yet"
+msgstr "还没有频道"
+
+msgctxt "#30260"
+msgid "Channels appear here once an administrator adds an IPTV provider."
+msgstr "管理员添加 IPTV 提供商后，频道会显示在这里。"
+
+msgctxt "#30261"
+msgid "Add your IPTV provider's playlist or Xtream Codes account on the web, in Settings → Live TV."
+msgstr "在网页的“设置 → 直播电视”中添加 IPTV 提供商的播放列表或 Xtream Codes 账户。"
+
+msgctxt "#30262"
+msgid "Today"
+msgstr "今天"
+
+msgctxt "#30263"
+msgid "Tomorrow"
+msgstr "明天"
+
+msgctxt "#30264"
+msgid "Yesterday"
+msgstr "昨天"
+
+msgctxt "#30265"
+msgid "Nothing in the guide now"
+msgstr "节目指南当前没有内容"
+
+msgctxt "#30266"
+msgid "No guide"
+msgstr "无节目指南"
+
+msgctxt "#30267"
+msgid "Later"
+msgstr "稍后"
+
+msgctxt "#30268"
+msgid "Live"
+msgstr "直播"
+
+msgctxt "#30269"
+msgid "New"
+msgstr "新"
+
+msgctxt "#30270"
+msgid "No channel %s"
+msgstr "没有频道 %s"
+
+msgctxt "#30271"
+msgid "On now"
+msgstr "正在播出"
+
+msgctxt "#30272"
+msgid "The guide has nothing more for %s."
+msgstr "节目指南中没有 %s 的更多内容。"
+
+msgctxt "#30273"
+msgid "All channels"
+msgstr "所有频道"
+
+msgctxt "#30274"
+msgid "Search channels"
+msgstr "搜索频道"
+
+msgctxt "#30275"
+msgid "You, on another device"
+msgstr "你，在另一台设备上"
+
+msgctxt "#30276"
+msgid "Someone else"
+msgstr "其他人"
+
+msgctxt "#30278"
+msgid "Watch here instead"
+msgstr "改在这里观看"
+
+msgctxt "#30447"
+msgid "Discover"
+msgstr "发现"
+
+msgctxt "#30448"
+msgid "Your requests"
+msgstr "你的请求"
+
+msgctxt "#30449"
+msgid "Requests"
+msgstr "请求"
+
+msgctxt "#30450"
+msgid "Trending this week"
+msgstr "本周热门"
+
+msgctxt "#30451"
+msgid "Popular movies"
+msgstr "热门电影"
+
+msgctxt "#30452"
+msgid "Popular shows"
+msgstr "热门剧集"
+
+msgctxt "#30453"
+msgid "Coming to cinemas"
+msgstr "即将上映"
+
+msgctxt "#30454"
+msgid "Popular anime"
+msgstr "热门动漫"
+
+msgctxt "#30455"
+msgid "Find movies and shows to ask for"
+msgstr "查找可请求的电影和剧集"
+
+msgctxt "#30456"
+msgid "Nothing on TMDB for “%s”"
+msgstr "TMDB 上没有与“%s”匹配的内容"
+
+msgctxt "#30457"
+msgid "Details and pictures from TMDB."
+msgstr "详情和图片来自 TMDB。"
+
+msgctxt "#30458"
+msgid "In library"
+msgstr "在媒体库中"
+
+msgctxt "#30459"
+msgid "Partly in library"
+msgstr "部分在媒体库中"
+
+msgctxt "#30460"
+msgid "Requested"
+msgstr "已请求"
+
+msgctxt "#30461"
+msgid "Declined"
+msgstr "已拒绝"
+
+msgctxt "#30462"
+msgid "Request"
+msgstr "请求"
+
+msgctxt "#30463"
+msgid "Request more seasons"
+msgstr "请求更多季"
+
+msgctxt "#30464"
+msgid "Following"
+msgstr "关注中"
+
+msgctxt "#30465"
+msgid "Stop following"
+msgstr "取消关注"
+
+msgctxt "#30466"
+msgid "Tell me too"
+msgstr "也告诉我"
+
+msgctxt "#30467"
+msgid "Someone asked for it already."
+msgstr "已经有人请求过了。"
+
+msgctxt "#30468"
+msgid "Declined: “%s”."
+msgstr "已拒绝：“%s”。"
+
+msgctxt "#30469"
+msgid "You can ask again %s."
+msgstr "你可以在 %s 再次请求。"
+
+msgctxt "#30470"
+msgid "Waiting for approval"
+msgstr "等待审批"
+
+msgctxt "#30471"
+msgid "Approved"
+msgstr "已批准"
+
+msgctxt "#30472"
+msgid "Out %s"
+msgstr "发布于 %s"
+
+msgctxt "#30473"
+msgid "Airs %s"
+msgstr "于 %s 播出"
+
+msgctxt "#30474"
+msgid "Not out yet"
+msgstr "尚未发布"
+
+msgctxt "#30475"
+msgid "Searching"
+msgstr "搜索中"
+
+msgctxt "#30476"
+msgid "Downloading"
+msgstr "下载中"
+
+msgctxt "#30477"
+msgid "Adding to the library"
+msgstr "正在添加到媒体库"
+
+msgctxt "#30478"
+msgid "%s ready"
+msgstr "%s 已就绪"
+
+msgctxt "#30479"
+msgid "Ready to watch"
+msgstr "可以观看了"
+
+msgctxt "#30480"
+msgid "No longer in a library"
+msgstr "已不在媒体库中"
+
+msgctxt "#30481"
+msgid "Couldn't send: %s"
+msgstr "无法发送：%s"
+
+msgctxt "#30482"
+msgid "Not sent yet"
+msgstr "尚未发送"
+
+msgctxt "#30483"
+msgid "It couldn't be sent to download yet: an administrator will look at it."
+msgstr "暂时无法发送到下载：管理员会处理。"
+
+msgctxt "#30484"
+msgid "Trying again %s."
+msgstr "将在 %s 重试。"
+
+msgctxt "#30485"
+msgid "Waiting to download"
+msgstr "等待下载"
+
+msgctxt "#30486"
+msgid "Download paused"
+msgstr "下载已暂停"
+
+msgctxt "#30487"
+msgid "The download has a problem"
+msgstr "下载出现问题"
+
+msgctxt "#30488"
+msgid "Asked for by someone else"
+msgstr "由其他人请求"
+
+msgctxt "#30489"
+msgid "Ready, in a library you can't open: ask an administrator"
+msgstr "已就绪，但位于你无法打开的媒体库中：询问管理员"
+
+msgctxt "#30490"
+msgid "You can ask for %s."
+msgstr "你可以请求 %s。"
+
+msgctxt "#30491"
+msgid "Limits: %s per 7 days."
+msgstr "限制：每 7 天 %s 个。"
+
+msgctxt "#30492"
+msgid "You've asked for all the movies you can for now: you can ask for more %s."
+msgstr "你目前已请求了上限的电影：可在 %s 后请求更多。"
+
+msgctxt "#30493"
+msgid "You've asked for all the seasons you can for now: you can ask for more %s."
+msgstr "你目前已请求了上限的季：可在 %s 后请求更多。"
+
+msgctxt "#30494"
+msgid "You've asked for all you can for now: more movies %s, more seasons %s."
+msgstr "你目前已达到请求上限：电影 %s 后可再请求，季 %s 后可再请求。"
+
+msgctxt "#30495"
+msgid "later"
+msgstr "稍后"
+
+msgctxt "#30496"
+msgid "Asked for “%s”: an administrator decides."
+msgstr "已请求“%s”：由管理员决定。"
+
+msgctxt "#30497"
+msgid "“%s” is approved and on its way."
+msgstr "“%s”已批准，正在处理中。"
+
+msgctxt "#30498"
+msgid "Asked for “%s”, but it couldn't be sent to download yet."
+msgstr "已请求“%s”，但暂时无法发送到下载。"
+
+msgctxt "#30499"
+msgid "You'll hear when “%s” is ready."
+msgstr "“%s”就绪时会通知你。"
+
+msgctxt "#30500"
+msgid "Which seasons?"
+msgstr "选择哪些季？"
+
+msgctxt "#30501"
+msgid "Pick a season."
+msgstr "选择一季。"
+
+msgctxt "#30502"
+msgid "Withdraw"
+msgstr "撤回"
+
+msgctxt "#30503"
+msgid "Withdraw your request for “%s”?"
+msgstr "撤回对“%s”的请求？"
+
+msgctxt "#30504"
+msgid "Remove"
+msgstr "移除"
+
+msgctxt "#30505"
+msgid "Remove “%s” from your requests?"
+msgstr "从你的请求中移除“%s”？"
+
+msgctxt "#30506"
+msgid "Approve"
+msgstr "批准"
+
+msgctxt "#30507"
+msgid "Decline"
+msgstr "拒绝"
+
+msgctxt "#30508"
+msgid "Decline with a reason…"
+msgstr "附带原因拒绝…"
+
+msgctxt "#30509"
+msgid "Mark as added by hand"
+msgstr "标记为手动添加"
+
+msgctxt "#30510"
+msgid "Delete this request? Radarr and Sonarr keep what they have."
+msgstr "删除此请求？Radarr 和 Sonarr 会保留已有内容。"
+
+msgctxt "#30511"
+msgid "Request again"
+msgstr "再次请求"
+
+msgctxt "#30512"
+msgid "“%s” is ready to watch."
+msgstr "“%s”可以观看了。"
+
+msgctxt "#30513"
+msgid "%s of “%s” is ready to watch."
+msgstr "“%s”的 %s 可以观看了。"
+
+msgctxt "#30514"
+msgid "%s of “%s” are ready to watch."
+msgstr "“%s”的 %s 可以观看了。"
+
+msgctxt "#30516"
+msgid "Requests are off"
+msgstr "请求功能已关闭"
+
+msgctxt "#30517"
+msgid "This server doesn't take requests for movies and shows."
+msgstr "此服务器不接受电影和剧集的请求。"
+
+msgctxt "#30518"
+msgid "Requests aren't open to this account"
+msgstr "此账户无权使用请求功能"
+
+msgctxt "#30519"
+msgid "An administrator can let it ask for movies and shows."
+msgstr "管理员可以让它请求电影和剧集。"
+
+msgctxt "#30520"
+msgid "TMDB isn't answering"
+msgstr "TMDB 没有响应"
+
+msgctxt "#30521"
+msgid "TMDB refused this server's key"
+msgstr "TMDB 拒绝了此服务器的密钥"
+
+msgctxt "#30522"
+msgid "Check it on the web, in Settings → Server."
+msgstr "在网页的“设置 → 服务器”中检查。"
+
+msgctxt "#30523"
+msgid "An administrator needs to check it."
+msgstr "需要管理员检查。"
+
+msgctxt "#30524"
+msgid "You can ask for more %s."
+msgstr "你可以在 %s 后请求更多。"
+
+msgctxt "#30525"
+msgid "You can ask for at most %s per 7 days: pick fewer."
+msgstr "每 7 天最多可请求 %s 个：少选一些。"
+
+msgctxt "#30526"
+msgid "Sign in again to ask for movies and shows"
+msgstr "重新登录以请求电影和剧集"
+
+msgctxt "#30528"
+msgid "Sign in"
+msgstr "登录"
+
+msgctxt "#30529"
+msgid "Sign in again to approve and decline here."
+msgstr "重新登录以在此批准和拒绝。"
+
+msgctxt "#30532"
+msgid "Nothing in your libraries matches"
+msgstr "你的媒体库中没有匹配的内容"
+
+msgctxt "#30533"
+msgid "Needs attention"
+msgstr "需要注意"
+
+msgctxt "#30534"
+msgid "Pending"
+msgstr "待处理"
+
+msgctxt "#30535"
+msgid "Available"
+msgstr "可用"
+
+msgctxt "#30536"
+msgid "Failed"
+msgstr "失败"
+
+msgctxt "#30537"
+msgid "Movies and shows"
+msgstr "电影和剧集"
+
+msgctxt "#30538"
+msgid "Everyone"
+msgstr "所有人"
+
+msgctxt "#30539"
+msgid "You haven't asked for anything yet."
+msgstr "你还没有请求任何内容。"
+
+msgctxt "#30540"
+msgid "Nothing needs attention."
+msgstr "没有需要注意的内容。"
+
+msgctxt "#30541"
+msgid "Asked for %s"
+msgstr "请求了 %s"
+
+msgctxt "#30542"
+msgid "%s asked for it %s"
+msgstr "%s 于 %s 请求了它"
+
+msgctxt "#30543"
+msgid "Seasons"
+msgstr "季"
+
+msgctxt "#30545"
+msgid "There's nothing more of “%s” to ask for."
+msgstr "“%s”没有更多可请求的内容。"
+
+msgctxt "#30546"
+msgid "Movie"
+msgstr "电影"
+
+msgctxt "#30547"
+msgid "Show"
+msgstr "剧集"
+
+msgctxt "#30548"
+msgid "Yours"
+msgstr "你的"
+
+msgctxt "#30549"
+msgid "Results for “%s”"
+msgstr "“%s”的搜索结果"
+
+msgctxt "#30279"
+msgid "This server requires two-step sign-in: your phone sets it up if you haven't yet."
+msgstr "此服务器需要两步验证：若尚未设置，在手机上完成设置。"
+
+msgctxt "#30550"
+msgid "Another device answers at %s's address"
+msgstr "另一台设备在 %s 的地址上响应"
+
+msgctxt "#30551"
+msgid "Your rating"
+msgstr "你的评分"
+
+msgctxt "#30552"
+msgid "Bitrate"
+msgstr "码率"
+
+msgctxt "#30553"
+msgid "Resolution"
+msgstr "分辨率"
+
+msgctxt "#30554"
+msgid "Dynamic range"
+msgstr "动态范围"
+
+msgctxt "#30555"
+msgid "All resolutions"
+msgstr "所有分辨率"
+
+msgctxt "#30556"
+msgid "All dynamic ranges"
+msgstr "所有动态范围"
+
+msgctxt "#30557"
+msgid "Live TV stopped"
+msgstr "直播电视已停止"
+
+msgctxt "#30558"
+msgid "This channel isn't being watched any more."
+msgstr "此频道已不再被观看。"
+
+msgctxt "#30559"
+msgid "Watch again"
+msgstr "重新观看"
+
+msgctxt "#30560"
+msgid "OK"
+msgstr "确定"
+
+msgctxt "#30561"
+msgid "Live TV was stopped from another device."
+msgstr "直播电视已被另一台设备停止。"
+
+msgctxt "#30562"
+msgid "Live TV was stopped by the server's administrator."
+msgstr "直播电视已被服务器管理员停止。"
+
+msgctxt "#30563"
+msgid "Playing from %s"
+msgstr "正在播放来自 %s 的内容"
+
+msgctxt "#30564"
+msgid "Playing from another device"
+msgstr "正在播放来自另一台设备的内容"
+
+msgctxt "#30565"
+msgid "Nothing to play"
+msgstr "没有可播放的内容"
+
+msgctxt "#30566"
+msgid "Paused"
+msgstr "已暂停"
+
+msgctxt "#30567"
+msgid "Playing"
+msgstr "正在播放"
+
+msgctxt "#30568"
+msgid "+%d s"
+msgstr "+%d 秒"
+
+msgctxt "#30569"
+msgid "−%d s"
+msgstr "−%d 秒"
+
+msgctxt "#30570"
+msgid "Jumped to %s"
+msgstr "已跳转到 %s"
+
+msgctxt "#30571"
+msgid "Audio: %s"
+msgstr "音频：%s"
+
+msgctxt "#30572"
+msgid "Subtitles: %s"
+msgstr "字幕：%s"
+
+msgctxt "#30573"
+msgid "Subtitles off"
+msgstr "字幕已关闭"
+
+msgctxt "#30574"
+msgid "Quality: %s"
+msgstr "画质：%s"
+
+msgctxt "#30575"
+msgid "Couldn't switch to the remote's profile"
+msgstr "无法切换到遥控器的配置文件"
+
+msgctxt "#30577"
+msgid "Category"
+msgstr "分类"
+
+msgctxt "#30582"
+msgid "All categories"
+msgstr "所有分类"
+
+#. A merged collection's part in one library: In Movies
+msgctxt "#30584"
+msgid "In %s"
+msgstr "在 %s 中"
+
+msgctxt "#30600"
+msgid "Language"
+msgstr "语言"
+
+msgctxt "#30601"
+msgid "Profile language"
+msgstr "配置文件语言"
+
+#. Named in itself, the same in every language
+msgctxt "#30602"
+msgid "English"
+msgstr "English"
+
+#. Named in itself, the same in every language
+msgctxt "#30603"
+msgid "Français"
+msgstr "Français"
+
+#. Named in itself, the same in every language
+msgctxt "#30604"
+msgid "Español"
+msgstr "Español"
+
+#. %s: the language Automatic is here, named in itself
+msgctxt "#30605"
+msgid "Automatic (%s)"
+msgstr "自动 (%s)"
+
+#. The language setting's Automatic
+msgctxt "#30607"
+msgid "Automatic"
+msgstr "自动"
+
+#. A month's short name
+msgctxt "#30610"
+msgid "Jan"
+msgstr "1 月"
+
+msgctxt "#30611"
+msgid "Feb"
+msgstr "2 月"
+
+msgctxt "#30612"
+msgid "Mar"
+msgstr "3 月"
+
+msgctxt "#30613"
+msgid "Apr"
+msgstr "4 月"
+
+msgctxt "#30614"
+msgid "May"
+msgstr "5 月"
+
+msgctxt "#30615"
+msgid "Jun"
+msgstr "6 月"
+
+msgctxt "#30616"
+msgid "Jul"
+msgstr "7 月"
+
+msgctxt "#30617"
+msgid "Aug"
+msgstr "8 月"
+
+msgctxt "#30618"
+msgid "Sep"
+msgstr "9 月"
+
+msgctxt "#30619"
+msgid "Oct"
+msgstr "10 月"
+
+msgctxt "#30620"
+msgid "Nov"
+msgstr "11 月"
+
+msgctxt "#30621"
+msgid "Dec"
+msgstr "12 月"
+
+#. A day's short name
+msgctxt "#30622"
+msgid "Mon"
+msgstr "周一"
+
+msgctxt "#30623"
+msgid "Tue"
+msgstr "周二"
+
+msgctxt "#30624"
+msgid "Wed"
+msgstr "周三"
+
+msgctxt "#30625"
+msgid "Thu"
+msgstr "周四"
+
+msgctxt "#30626"
+msgid "Fri"
+msgstr "周五"
+
+msgctxt "#30627"
+msgid "Sat"
+msgstr "周六"
+
+msgctxt "#30628"
+msgid "Sun"
+msgstr "周日"
+
+#. A date: {month} is a month's short name
+msgctxt "#30629"
+msgid "{month} {day}, {year}"
+msgstr "{year} 年 {month} {day} 日"
+
+#. A date of this year
+msgctxt "#30630"
+msgid "{month} {day}"
+msgstr "{month}{day} 日"
+
+#. A day in the Live TV guide
+msgctxt "#30631"
+msgid "{weekday} {day} {month}"
+msgstr "{month}{day} 日 {weekday}"
+
+#. A length
+msgctxt "#30632"
+msgid "{hours}h {minutes}m"
+msgstr "{hours} 小时 {minutes} 分钟"
+
+#. Minutes
+msgctxt "#30633"
+msgid "%sm"
+msgstr "%s 分钟"
+
+#. Hours
+msgctxt "#30634"
+msgid "%sh"
+msgstr "%s 小时"
+
+#. Seconds
+msgctxt "#30635"
+msgid "%ss"
+msgstr "%s 秒"
+
+#. A runtime under an hour
+msgctxt "#30636"
+msgid "%s min"
+msgstr "%s 分钟"
+
+#. %s: a length
+msgctxt "#30637"
+msgid "%s left"
+msgstr "剩余 %s"
+
+#. Within a sentence
+msgctxt "#30638"
+msgid "just now"
+msgstr "刚刚"
+
+#. Within a sentence
+msgctxt "#30639"
+msgid "in %s min"
+msgstr "%s 分钟后"
+
+#. Within a sentence
+msgctxt "#30640"
+msgid "%s min ago"
+msgstr "%s 分钟前"
+
+#. Within a sentence
+msgctxt "#30641"
+msgid "tomorrow"
+msgstr "明天"
+
+#. Within a sentence
+msgctxt "#30642"
+msgid "yesterday"
+msgstr "昨天"
+
+msgctxt "#30643"
+msgid "Specials"
+msgstr "特别篇"
+
+msgctxt "#30644"
+msgid "Season %s"
+msgstr "第 %s 季"
+
+msgctxt "#30645"
+msgid "Season"
+msgstr "季"
+
+msgctxt "#30646"
+msgid "Episode %s"
+msgstr "第 %s 集"
+
+#. A season's number, short
+msgctxt "#30647"
+msgid "S%s"
+msgstr "S%s"
+
+#. An episode's number, short
+msgctxt "#30648"
+msgid "E%s"
+msgstr "E%s"
+
+#. %s: their numbers, 1–3, 5
+msgctxt "#30649"
+msgid "Seasons %s"
+msgstr "第 %s 季"
+
+#. %s: Seasons 1–3
+msgctxt "#30650"
+msgid "%s and specials"
+msgstr "%s 和特别篇"
+
+msgctxt "#30651"
+msgid "Bitrate unknown"
+msgstr "码率未知"
+
+#. Bytes
+msgctxt "#30652"
+msgid "B"
+msgstr "B"
+
+msgctxt "#30653"
+msgid "KB"
+msgstr "KB"
+
+msgctxt "#30654"
+msgid "MB"
+msgstr "MB"
+
+msgctxt "#30655"
+msgid "GB"
+msgstr "GB"
+
+msgctxt "#30656"
+msgid "TB"
+msgstr "TB"
+
+msgctxt "#30657"
+msgid "Any HDR"
+msgstr "任意 HDR"
+
+msgctxt "#30658"
+msgid "%s and %s"
+msgstr "%s 和 %s"
+
+#. %s: a percentage
+msgctxt "#30659"
+msgid "Downloading %s%%"
+msgstr "正在下载 %s%%"
+
+msgctxt "#30660"
+msgid "Director"
+msgstr "导演"
+
+msgctxt "#30661"
+msgid "Creator"
+msgstr "创建者"
+
+msgctxt "#30662"
+msgid "Writer"
+msgstr "编剧"
+
+#. A track's language
+msgctxt "#30663"
+msgid "Unknown"
+msgstr "未知"
+
+#. A label and its value
+msgctxt "#30664"
+msgid "%s: %s"
+msgstr "%s：%s"
+
+#. Words quoted
+msgctxt "#30665"
+msgid "“%s”"
+msgstr "“%s”"
+
+#. A track's language
+msgctxt "#30670"
+msgid "Arabic"
+msgstr "阿拉伯语"
+
+msgctxt "#30671"
+msgid "Bulgarian"
+msgstr "保加利亚语"
+
+msgctxt "#30672"
+msgid "Catalan"
+msgstr "加泰罗尼亚语"
+
+msgctxt "#30673"
+msgid "Chinese"
+msgstr "中文"
+
+msgctxt "#30674"
+msgid "Croatian"
+msgstr "克罗地亚语"
+
+msgctxt "#30675"
+msgid "Czech"
+msgstr "捷克语"
+
+msgctxt "#30676"
+msgid "Danish"
+msgstr "丹麦语"
+
+msgctxt "#30677"
+msgid "Dutch"
+msgstr "荷兰语"
+
+msgctxt "#30678"
+msgid "English"
+msgstr "英语"
+
+msgctxt "#30679"
+msgid "Finnish"
+msgstr "芬兰语"
+
+msgctxt "#30680"
+msgid "French"
+msgstr "法语"
+
+msgctxt "#30681"
+msgid "German"
+msgstr "德语"
+
+msgctxt "#30682"
+msgid "Greek"
+msgstr "希腊语"
+
+msgctxt "#30683"
+msgid "Hebrew"
+msgstr "希伯来语"
+
+msgctxt "#30684"
+msgid "Hindi"
+msgstr "印地语"
+
+msgctxt "#30685"
+msgid "Hungarian"
+msgstr "匈牙利语"
+
+msgctxt "#30686"
+msgid "Indonesian"
+msgstr "印度尼西亚语"
+
+msgctxt "#30687"
+msgid "Italian"
+msgstr "意大利语"
+
+msgctxt "#30688"
+msgid "Japanese"
+msgstr "日语"
+
+msgctxt "#30689"
+msgid "Korean"
+msgstr "韩语"
+
+msgctxt "#30690"
+msgid "Norwegian"
+msgstr "挪威语"
+
+msgctxt "#30691"
+msgid "Persian"
+msgstr "波斯语"
+
+msgctxt "#30692"
+msgid "Polish"
+msgstr "波兰语"
+
+msgctxt "#30693"
+msgid "Portuguese"
+msgstr "葡萄牙语"
+
+msgctxt "#30694"
+msgid "Romanian"
+msgstr "罗马尼亚语"
+
+msgctxt "#30695"
+msgid "Russian"
+msgstr "俄语"
+
+msgctxt "#30696"
+msgid "Serbian"
+msgstr "塞尔维亚语"
+
+msgctxt "#30697"
+msgid "Slovak"
+msgstr "斯洛伐克语"
+
+msgctxt "#30698"
+msgid "Spanish"
+msgstr "西班牙语"
+
+msgctxt "#30699"
+msgid "Swedish"
+msgstr "瑞典语"
+
+msgctxt "#30700"
+msgid "Thai"
+msgstr "泰语"
+
+msgctxt "#30701"
+msgid "Turkish"
+msgstr "土耳其语"
+
+msgctxt "#30702"
+msgid "Ukrainian"
+msgstr "乌克兰语"
+
+msgctxt "#30703"
+msgid "Vietnamese"
+msgstr "越南语"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30710"
+msgid "%s season"
+msgstr "%s 季"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30711"
+msgid "%s seasons"
+msgstr "%s 季"
+
+#. Counted, other
+msgctxt "#30712"
+msgid "%s seasons"
+msgstr "%s 季"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30713"
+msgid "%s episode"
+msgstr "%s 集"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30714"
+msgid "%s episodes"
+msgstr "%s 集"
+
+#. Counted, other
+msgctxt "#30715"
+msgid "%s episodes"
+msgstr "%s 集"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30716"
+msgid "%s album"
+msgstr "%s 张专辑"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30717"
+msgid "%s albums"
+msgstr "%s 张专辑"
+
+#. Counted, other
+msgctxt "#30718"
+msgid "%s albums"
+msgstr "%s 张专辑"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30719"
+msgid "%s track"
+msgstr "%s 首曲目"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30720"
+msgid "%s tracks"
+msgstr "%s 首曲目"
+
+#. Counted, other
+msgctxt "#30721"
+msgid "%s tracks"
+msgstr "%s 首曲目"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30722"
+msgid "%s movie"
+msgstr "%s 部电影"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30723"
+msgid "%s movies"
+msgstr "%s 部电影"
+
+#. Counted, other
+msgctxt "#30724"
+msgid "%s movies"
+msgstr "%s 部电影"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30725"
+msgid "%s show"
+msgstr "%s 部剧集"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30726"
+msgid "%s shows"
+msgstr "%s 部剧集"
+
+#. Counted, other
+msgctxt "#30727"
+msgid "%s shows"
+msgstr "%s 部剧集"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30728"
+msgid "%s artist"
+msgstr "%s 位艺人"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30729"
+msgid "%s artists"
+msgstr "%s 位艺人"
+
+#. Counted, other
+msgctxt "#30730"
+msgid "%s artists"
+msgstr "%s 位艺人"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30731"
+msgid "%s item"
+msgstr "%s 项"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30732"
+msgid "%s items"
+msgstr "%s 项"
+
+#. Counted, other
+msgctxt "#30733"
+msgid "%s items"
+msgstr "%s 项"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30734"
+msgid "%s title"
+msgstr "%s 个条目"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30735"
+msgid "%s titles"
+msgstr "%s 个条目"
+
+#. Counted, other
+msgctxt "#30736"
+msgid "%s titles"
+msgstr "%s 个条目"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30737"
+msgid "%s channel"
+msgstr "%s 个频道"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30738"
+msgid "%s channels"
+msgstr "%s 个频道"
+
+#. Counted, other
+msgctxt "#30739"
+msgid "%s channels"
+msgstr "%s 个频道"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30740"
+msgid "%s person"
+msgstr "%s 人"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30741"
+msgid "%s people"
+msgstr "%s 人"
+
+#. Counted, other
+msgctxt "#30742"
+msgid "%s people"
+msgstr "%s 人"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30743"
+msgid "in %s hour"
+msgstr "%s 小时后"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30744"
+msgid "in %s hours"
+msgstr "%s 小时后"
+
+#. Counted, other
+msgctxt "#30745"
+msgid "in %s hours"
+msgstr "%s 小时后"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30746"
+msgid "%s hour ago"
+msgstr "%s 小时前"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30747"
+msgid "%s hours ago"
+msgstr "%s 小时前"
+
+#. Counted, other
+msgctxt "#30748"
+msgid "%s hours ago"
+msgstr "%s 小时前"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30749"
+msgid "in %s day"
+msgstr "%s 天后"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30750"
+msgid "in %s days"
+msgstr "%s 天后"
+
+#. Counted, other
+msgctxt "#30751"
+msgid "in %s days"
+msgstr "%s 天后"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30752"
+msgid "%s day ago"
+msgstr "%s 天前"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30753"
+msgid "%s days ago"
+msgstr "%s 天前"
+
+#. Counted, other
+msgctxt "#30754"
+msgid "%s days ago"
+msgstr "%s 天前"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30755"
+msgid "%s more movie"
+msgstr "%s 部电影"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30756"
+msgid "%s more movies"
+msgstr "%s 部电影"
+
+#. Counted, other
+msgctxt "#30757"
+msgid "%s more movies"
+msgstr "%s 部电影"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30758"
+msgid "%s more season"
+msgstr "%s 季"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30759"
+msgid "%s more seasons"
+msgstr "%s 季"
+
+#. Counted, other
+msgctxt "#30760"
+msgid "%s more seasons"
+msgstr "%s 季"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30761"
+msgid "%s of %s movie"
+msgstr "%s / %s 部电影"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30762"
+msgid "%s of %s movies"
+msgstr "%s / %s 部电影"
+
+#. Counted, other
+msgctxt "#30763"
+msgid "%s of %s movies"
+msgstr "%s / %s 部电影"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30764"
+msgid "%s of %s show"
+msgstr "%s / %s 部剧集"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30765"
+msgid "%s of %s shows"
+msgstr "%s / %s 部剧集"
+
+#. Counted, other
+msgctxt "#30766"
+msgid "%s of %s shows"
+msgstr "%s / %s 部剧集"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30767"
+msgid "%s of %s artist"
+msgstr "%s / %s 位艺人"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30768"
+msgid "%s of %s artists"
+msgstr "%s / %s 位艺人"
+
+#. Counted, other
+msgctxt "#30769"
+msgid "%s of %s artists"
+msgstr "%s / %s 位艺人"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30770"
+msgid "%s of %s item"
+msgstr "%s / %s 项"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30771"
+msgid "%s of %s items"
+msgstr "%s / %s 项"
+
+#. Counted, other
+msgctxt "#30772"
+msgid "%s of %s items"
+msgstr "%s / %s 项"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30773"
+msgid "Waiting for approval. The code works for %s more minute."
+msgstr "等待审批。验证码还剩 %s 分钟有效。"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30774"
+msgid "Waiting for approval. The code works for %s more minutes."
+msgstr "等待审批。验证码还剩 %s 分钟有效。"
+
+#. Counted, other
+msgctxt "#30775"
+msgid "Waiting for approval. The code works for %s more minutes."
+msgstr "等待审批。验证码还剩 %s 分钟有效。"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30776"
+msgid "%s of your requests has news"
+msgstr "你的 %s 条请求有新动态"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30777"
+msgid "%s of your requests have news"
+msgstr "你的 %s 条请求有新动态"
+
+#. Counted, other
+msgctxt "#30778"
+msgid "%s of your requests have news"
+msgstr "你的 %s 条请求有新动态"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30779"
+msgid "%s star"
+msgstr "%s 颗星"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30780"
+msgid "%s stars"
+msgstr "%s 颗星"
+
+#. Counted, other
+msgctxt "#30781"
+msgid "%s stars"
+msgstr "%s 颗星"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30782"
+msgid "%s of %s episode in library"
+msgstr "媒体库中有 %s / %s 集"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30783"
+msgid "%s of %s episodes in library"
+msgstr "媒体库中有 %s / %s 集"
+
+#. Counted, other
+msgctxt "#30784"
+msgid "%s of %s episodes in library"
+msgstr "媒体库中有 %s / %s 集"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30785"
+msgid "%s collection"
+msgstr "%s 个合集"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30786"
+msgid "%s collections"
+msgstr "%s 个合集"
+
+#. Counted, other
+msgctxt "#30787"
+msgid "%s collections"
+msgstr "%s 个合集"
+
+#. Named in itself, the same in every language
+msgctxt "#30608"
+msgid "简体中文"
+msgstr "简体中文"
+
+#. Named in itself, the same in every language
+msgctxt "#30609"
+msgid "繁體中文"
+msgstr "繁體中文"

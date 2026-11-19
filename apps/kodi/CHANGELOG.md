@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The add-on is in Simplified and Traditional Chinese too, in your
+  profile's language or the one chosen in Screens → Language, with dates,
+  numbers and counts written in the language shown.
+
 ## [0.1.9] - 2026-11-18
 
 ### Added

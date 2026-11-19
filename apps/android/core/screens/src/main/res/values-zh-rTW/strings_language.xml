@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Language row of Settings (LanguageViewModel) and the globe of the screens shown before signing in (DeviceLanguageViewModel), on phones and TVs. -->
+<resources>
+    <string name="language_title">語言</string>
+    <!-- No language of the account's own: %1$s is what that is here, this device's language or else the server's, named in itself ("Français"). -->
+    <string name="language_automatic">自動（%1$s）</string>
+    <string name="language_hint">你登入每臺裝置時 Pley 使用的語言。“自動”跟隨每臺裝置的語言。</string>
+    <!-- On a server from before languages, which keeps no account's language: the row is this device's. -->
+    <string name="language_hint_device">此裝置上 Pley 使用的語言。要為你的賬戶保留此語言，需要伺服器上更新版本的 Pley。</string>
+    <!-- The globe, as screen readers hear it; it shows the language shown. -->
+    <string name="language_choose">選擇語言</string>
+</resources>

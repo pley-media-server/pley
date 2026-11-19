@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home (design spec §4.1, §8), in the web's words. -->
+    <string name="home_profile">%1$s：打开“我”</string>
+    <string name="home_no_libraries">暂无媒体库</string>
+    <string name="home_no_libraries_body">请服务器所有者添加一个媒体库。</string>
+    <string name="home_empty">这里还没有内容</string>
+    <string name="home_empty_body">你的媒体库是空的。将媒体文件放入媒体库文件夹并执行扫描。</string>
+    <string name="home_scanning">正在扫描媒体库…</string>
+    <string name="home_scanning_body">发现新内容后会立即显示在这里。</string>
+    <string name="home_failed">无法加载首页</string>
+    <string name="home_nothing_to_play">没有可播放的内容</string>
+    <string name="home_loading">正在加载首页</string>
+
+    <!-- The Libraries tab. -->
+    <string name="home_libraries_title">媒体库</string>
+    <string name="home_libraries_failed">无法加载媒体库</string>
+    <string name="home_libraries_scanning">扫描中</string>
+    <string name="home_libraries_loading">正在加载媒体库</string>
+    <string name="home_libraries_sort">排序媒体库</string>
+    <string name="home_libraries_sort_done">完成</string>
+    <string name="home_libraries_sort_hint">按住媒体库右侧手柄拖动即可排序。你的排序会在所有设备上生效。</string>
+    <string name="home_libraries_server_order">使用服务器排序</string>
+    <string name="home_libraries_move_up">上移</string>
+    <string name="home_libraries_move_down">下移</string>
+    <string name="home_libraries_sort_needs_newer_server">媒体库排序需要服务器上更新版本的 Pley。</string>
+    <!-- Home's banner: its name for screen readers, the button to the title's page, and each title's dash. -->
+    <string name="home_banner_label">精选</string>
+    <string name="home_banner_more_info">更多信息</string>
+    <string name="home_banner_show">查看 %1$s</string>
+</resources>

@@ -44,9 +44,11 @@ too, each app's workflow when that app changes.
 | Docker image | built and checked by CI (`.github/workflows/server.yml`) |
 
 **Languages.** The server and every app (web and desktop, Samsung, LG,
-Android, Apple, Kodi and Roku) are in English, French and Spanish. As the
-last step of a change, put every word people read in each language: no
-text written into the code. Where each keeps its words:
+Android, Apple, Kodi and Roku) are in English, French, Spanish and Simplified
+and Traditional Chinese (`en`, `fr`, `es`, `zh-CN`, `zh-TW`; Apple's catalogs
+use `zh-Hans` and `zh-Hant`). As the last step of a change, put every word
+people read in each language: no text written into the code. Where each keeps
+its words:
 
 | App | Words | How |
 |---|---|---|
@@ -55,14 +57,16 @@ text written into the code. Where each keeps its words:
 | Samsung, web | `packages/tv/src/i18n/locales/<language>/<area>.json` | its own `t("key")` and `<Trans>`, in i18next's format |
 | Samsung, native | `apps/tizen-native/src/Pley.Tv.Core/Locales/<language>/<area>.json` | `Strings.T`, `Strings.Count`, in i18next's format |
 | LG | `apps/webos/crates/i18n/locales/<language>/<area>.json` | `pley_i18n::t!("area.key")`, checked against the English catalogs as the code builds; `t!("key", name = value)` for `{{name}}`, `count = n` for counts (in i18next's format) |
-| Android | `apps/android/**/src/main/res/values{,-fr,-es}/strings_<area>.xml` | Android resources: `stringResource`, `pluralStringResource` (one and other, plus many in French and Spanish); `UiText` for words made where nothing is drawn; the format functions' words from `formatWords` |
-| Kodi | `apps/kodi/plugin.video.pley/resources/language/resource.language.{en_gb,fr_fr,es_es}/strings.po` | Kodi's .po files, read by the add-on itself (`i18n.py`): `kodi.text("name")` by the names in `kodi.TEXT`, `kodi.count("name", n)` for counts (`kodi.COUNTS`: three ids in a row, one, many and other); `%s` for values, `{name}` where languages order them differently; the windows' XML through `layout.WORDS` |
+| Android | `apps/android/**/src/main/res/values{,-fr,-es,-zh-rCN,-zh-rTW}/strings_<area>.xml` | Android resources: `stringResource`, `pluralStringResource` (one and other, plus many in French and Spanish; only other in Chinese); `UiText` for words made where nothing is drawn; the format functions' words from `formatWords` |
+| Kodi | `apps/kodi/plugin.video.pley/resources/language/resource.language.{en_gb,fr_fr,es_es,zh_cn,zh_tw}/strings.po` | Kodi's .po files, read by the add-on itself (`i18n.py`): `kodi.text("name")` by the names in `kodi.TEXT`, `kodi.count("name", n)` for counts (`kodi.COUNTS`: three ids in a row, one, many and other); `%s` for values, `{name}` where languages order them differently; the windows' XML through `layout.WORDS` |
 | Roku | `apps/roku/locales/<language>/<area>.json` | its own `t("area.key")` (`components/lib/I18n.brs`), in i18next's format; component XML sets no text, the code does |
-| Apple | `apps/apple/{Pley,tvOS,TopShelf}/Localizable.xcstrings`, and `Localizable.xcstrings` in each PleyKit module with words | String Catalogs, the English the key: SwiftUI's literals (`Text("…")`, and `Text("…", bundle: .module)` in a module), `localized("…")` for words made in code, plural variations for counts (one and other, plus many in French and Spanish); `python3 apps/apple/scripts/check-strings.py` checks them |
+| Apple | `apps/apple/{Pley,tvOS,TopShelf}/Localizable.xcstrings`, and `Localizable.xcstrings` in each PleyKit module with words | String Catalogs, the English the key: SwiftUI's literals (`Text("…")`, and `Text("…", bundle: .module)` in a module), `localized("…")` for words made in code, plural variations for counts (one and other, plus many in French and Spanish; only other in Chinese); `python3 apps/apple/scripts/check-strings.py` checks them |
 
-Write English first, then French and Spanish as a native speaker would
+Write English first, then the other languages as a native speaker would
 put them, in Pley's tone, and check that they fit where the TVs' fixed
-layouts show them. Dates and numbers go through the language shown:
+layouts show them. Chinese counts every number the same way: one `other`
+form in each app, the same words in Kodi's three count ids. Dates and
+numbers go through the language shown:
 `currentLocale()` (`@/i18n`) on the web, `formatNumber`/`formatDate` in
 `packages/tv`, `Strings.Culture` in the native app, `pley_i18n::number`
 and `decimal` in the LG app, `shownLocale()` and `formatWords` on

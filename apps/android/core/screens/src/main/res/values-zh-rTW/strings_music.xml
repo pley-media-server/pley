@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- An artist's and an album's counts: "4 albums · 40 tracks", "10 tracks · 42m". -->
+    <plurals name="music_count_albums">
+        <item quantity="other">%1$,d 張專輯</item>
+    </plurals>
+    <plurals name="music_count_tracks">
+        <item quantity="other">%1$,d 首曲目</item>
+    </plurals>
+</resources>

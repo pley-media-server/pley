@@ -1,0 +1,52 @@
+{
+  "actions": {
+    "play": "播放",
+    "pause": "暂停",
+    "shuffle": "随机播放",
+    "shuffleOff": "停止随机播放",
+    "nowPlaying": "正在播放",
+    "next": "下一个",
+    "previous": "上一个",
+    "retry": "重试",
+    "back": "返回"
+  },
+  "pages": {
+    "artist": "艺人",
+    "albums": "专辑",
+    "loading": "加载中…",
+    "noAlbums": "未找到专辑。",
+    "noTracks": "未找到曲目",
+    "nothingToPlay": "没有可播放的内容：其中没有曲目。",
+    "artistNotFound": "未找到艺人",
+    "albumNotFound": "未找到专辑",
+    "notFoundBody": "它可能已被删除，或此配置文件无法查看它。",
+    "offline": "无法连接到你的服务器",
+    "artistFailed": "无法加载此艺人",
+    "albumFailed": "无法加载此专辑",
+    "disc": "光盘 {{number}}"
+  },
+  "count": {
+    "albums_other": "{{count, number}} 张专辑",
+    "tracks_other": "{{count, number}} 首曲目"
+  },
+  "nowPlaying": {
+    "upNext": "接下来播放",
+    "loading": "加载中…",
+    "nothingTitle": "当前没有播放",
+    "nothingBody": "播放专辑或艺人后，会在这里显示。"
+  },
+  "errors": {
+    "offline": "无法连接到服务器。",
+    "signedOut": "重新登录后再播放。",
+    "stopped": "播放已被服务器停止。",
+    "unplayable": "此曲目无法播放。"
+  },
+  "sleep": {
+    "timer": "睡眠定时",
+    "pausingIn": "{{seconds}} 秒后暂停",
+    "keepListening": "继续收听",
+    "minutesLeft_other": "睡眠定时：剩余 {{count}} 分钟",
+    "minutes": "睡眠定时：{{minutes}} 分钟",
+    "endOfTrack": "睡眠定时：本曲目结束时"
+  }
+}

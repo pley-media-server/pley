@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A USB drive's page (the Samsung app's StorageScreen). -->
+    <string name="tv_drive_title">USB 裝置</string>
+    <!-- At the drive's top, after "/ · ": "437 GB free of 1.0 TB". -->
+    <string name="tv_drive_space">%2$s 中剩餘 %1$s</string>
+    <string name="tv_drive_up">上一級資料夾</string>
+    <!-- A video started before: "MKV · Resumes at 1:02:03". -->
+    <string name="tv_drive_resumes">%1$s · 從 %2$s 繼續</string>
+    <string name="tv_drive_none_title">未檢測到 USB 裝置</string>
+    <string name="tv_drive_none_body">將 USB 裝置插入電視，即可在此播放其中的影片。</string>
+    <string name="tv_drive_unreadable_title">無法讀取此資料夾</string>
+    <string name="tv_drive_unreadable_body">裝置可能已被拔出。</string>
+    <string name="tv_drive_empty_title">此處沒有可播放內容</string>
+    <string name="tv_drive_empty_body">此資料夾中沒有影片或子資料夾。</string>
+    <!-- Leave to read the drive, refused. -->
+    <string name="tv_drive_refused_title">允許 Pley 讀取裝置</string>
+    <string name="tv_drive_refused_body">Pley 需要訪問你的影片，才能列出並播放 USB 裝置上的內容。</string>
+    <string name="tv_drive_open_settings">開啟設定</string>
+</resources>

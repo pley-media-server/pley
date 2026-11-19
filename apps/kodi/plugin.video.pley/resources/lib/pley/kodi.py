@@ -475,7 +475,7 @@ WEEKDAYS = tuple(range(30622, 30629))
 # The byte units: B, KB, MB, GB, TB.
 BYTES = tuple(range(30652, 30657))
 # Each language as it names itself, the same in every language: ids.
-LANGUAGE_NAMES = {"en": 30602, "fr": 30603, "es": 30604}
+LANGUAGE_NAMES = {"en": 30602, "fr": 30603, "es": 30604, "zh-CN": 30608, "zh-TW": 30609}
 
 # What the add-on keeps of the language (remembered.json): the account's
 # own and the server's, as last heard ("" for none); the device's choice is
@@ -525,10 +525,15 @@ def addon() -> xbmcaddon.Addon:
 
 
 def kodi_language() -> str:
-    """Kodi's own language, as a two-letter code ("" when it doesn't say)."""
+    """Kodi's own language, as a tag Pley can match ("" when it doesn't say)."""
     found = getattr(xbmc, "getLanguage", None)
     try:
-        return (found(getattr(xbmc, "ISO_639_1", 0)) or "") if found else ""
+        if not found:
+            return ""
+        # Kodi names a language by its two letters; the region, which it can
+        # append, tells Simplified Chinese from Traditional (docs/KODI.md).
+        # One it doesn't name counts as Simplified.
+        return found(getattr(xbmc, "ISO_639_1", 0), True) or ""
     except (RuntimeError, TypeError):
         return ""
 

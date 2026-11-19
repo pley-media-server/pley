@@ -29,7 +29,7 @@ public sealed record User
     public string SubtitleMode { get; init; } = "forced";
     /// <summary>An app's token: what it was allowed ("library play").</summary>
     public string? Scope { get; init; }
-    /// <summary>The language Pley is in for the profile, "en", "fr" or "es"; null: the server's (docs/API.md, "Language").</summary>
+    /// <summary>The language Pley is in for the profile, "en", "fr", "es", "zh-CN" or "zh-TW"; null: the server's (docs/API.md, "Language").</summary>
     public string? Language { get; init; }
 }
 
