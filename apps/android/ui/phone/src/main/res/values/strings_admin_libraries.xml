@@ -58,6 +58,11 @@
     <string name="admin_libraries_type_path">…or type a folder path</string>
     <string name="admin_libraries_folder_path">Folder path</string>
     <string name="admin_libraries_layout">Recommended layout: %1$s</string>
+    <string name="admin_libraries_tmdb_collections">Make collections from TMDB</string>
+    <string name="admin_libraries_tmdb_collections_hint">Groups films into collections from TMDB. Turn this off if you use an external tool to manage collections, such as Kometa.</string>
+    <string name="admin_libraries_tmdb_collections_off_title">Remove collections from TMDB?</string>
+    <string name="admin_libraries_tmdb_collections_off_message">The collections from TMDB in %1$s will be removed, including any changes you made to them.</string>
+    <string name="admin_libraries_tmdb_collections_off_confirm">Remove</string>
     <string name="admin_libraries_phase_queued">Queued</string>
     <string name="admin_libraries_phase_walking">Finding files</string>
     <string name="admin_libraries_phase_probing">Analyzing media</string>

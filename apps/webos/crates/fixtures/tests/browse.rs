@@ -230,7 +230,7 @@ fn home_search_and_collections() {
     let categories = api.get("/api/collection-categories").json();
     let titles: Vec<&str> =
         categories["categories"].as_array().unwrap().iter().map(|c| c["title"].as_str().unwrap()).collect();
-    assert_eq!(titles, ["Highlights", "Other", "Franchises", "Seasonal"]);
+    assert_eq!(titles, ["Highlights", "Other", "Box sets", "Seasonal"]);
     // One without a category comes with Other as its category, never none.
     assert!(list.iter().all(|c| c["category"]["id"].is_i64()));
     assert!(list.iter().any(|c| c["category"]["key"] == "other"));

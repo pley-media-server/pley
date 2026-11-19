@@ -280,8 +280,8 @@ async fn categories_group_collections() {
     let w = world().await;
     let got = w.app.get("/api/collection-categories", &w.admin).await;
     let names: Vec<_> = got.body["categories"].as_array().unwrap().iter().map(|c| c["title"].clone()).collect();
-    // Other comes before Franchises, the long list TMDB fills.
-    assert_eq!(names, [json!("Highlights"), json!("Other"), json!("Franchises")]);
+    // Other comes before Box sets, the long list TMDB fills.
+    assert_eq!(names, [json!("Highlights"), json!("Other"), json!("Box sets")]);
     let other = got.body["categories"][1]["id"].as_i64().unwrap();
     let refused = w.app.delete(&format!("/api/collection-categories/{other}"), &w.admin).await;
     assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{:?}", refused.body);

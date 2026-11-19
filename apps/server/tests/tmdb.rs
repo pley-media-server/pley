@@ -6,13 +6,18 @@ mod common;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use axum::Router;
 use axum::extract::{Query, State};
 use axum::http::{StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::{Json, Router};
 use parking_lot::Mutex;
+use pley_transcoder_api::{
+    API_VERSION, Capabilities, MediaInfo, MediaStream, ProbeRequest, StreamKind, TranscoderInfo,
+};
 use serde_json::{Value, json};
 
 use common::{TestApp, encode, titles};
@@ -37,6 +42,7 @@ fn movie(id: i64) -> Option<Value> {
         679 => ("Aliens", "1986-07-18", 137, "tt0090605", true),
         8077 => ("Alien³", "1992-05-22", 114, "tt0103644", true),
         99_999 => ("Alien Nation", "1988-10-07", 91, "tt0094631", false),
+        4497 => ("Br\u{fc}no", "2009-07-10", 81, "tt0889583", false),
         _ => return None,
     };
     Some(json!({
@@ -86,6 +92,9 @@ fn answer(path: &str, query: &[(String, String)]) -> Option<Value> {
             ],
             Some("Aliens") => vec![search_result(679, "Aliens", "1986-07-18", 30.0)],
             Some("Alien Nation") => vec![search_result(99_999, "Alien Nation", "1988-10-07", 90.0)],
+            // TMDB finds titles written composed, "\u{fc}" one character, and
+            // nothing for "u" and an accent apart.
+            Some("Br\u{fc}no") => vec![search_result(4497, "Br\u{fc}no", "2009-07-10", 20.0)],
             _ => vec![],
         }}),
         "/search/tv" => json!({"results": match param("query") {
@@ -174,7 +183,13 @@ async fn start_tmdb() -> (Tmdb, String) {
 /// asked here) and a movie library: Alien (named with its IMDb id), Aliens,
 /// and a film TMDB doesn't know.
 async fn world() -> (TestApp, Tmdb, String, i64) {
+    world_with_transcoder(None).await
+}
+
+/// [`world`], its files probed by the transcoder at `transcoder` when given.
+async fn world_with_transcoder(transcoder: Option<String>) -> (TestApp, Tmdb, String, i64) {
     let (mock, base) = start_tmdb().await;
+    let has_transcoder = transcoder.is_some();
     let app = TestApp::with_config(|c| {
         c.metadata_endpoints = Some(pley::providers::Endpoints {
             tvmaze: format!("{base}/tvmaze"),
@@ -185,8 +200,15 @@ async fn world() -> (TestApp, Tmdb, String, i64) {
             tmdb_images: format!("{base}/tmdb-images"),
             opensubtitles: format!("{base}/opensubtitles"),
         });
+        if let Some(url) = transcoder {
+            c.transcoder_url = Some(url);
+        }
     })
     .await;
+    if has_transcoder {
+        app.state.transcoder.start();
+        assert!(app.state.transcoder.wait_ready(Duration::from_secs(10)).await);
+    }
     let admin = app.setup_admin().await;
     app.media_file("movies/Alien (1979) [tt0078748].mkv", 1024);
     app.media_file("movies/Aliens (1986).mkv", 1024);
@@ -285,6 +307,178 @@ async fn movies_are_matched_and_described() {
     app.post(&format!("/api/libraries/{lib}/scan"), &admin, json!({"force": true})).await;
     app.wait_for_scans().await;
     assert_eq!(lookups(), 4);
+}
+
+/// A library can leave its collections to another tool: turned off, Pley's
+/// from TMDB go, edited ones too, and no refresh makes them; turned on, the
+/// metadata is read again and they are back as TMDB has them.
+#[tokio::test]
+async fn a_library_can_go_without_collections_from_tmdb() {
+    let (app, _tmdb, admin, lib) = world().await;
+    use_key(&app, &admin, KEY).await;
+    let collections = || async {
+        let listed = app.get(&format!("/api/libraries/{lib}/collections"), &admin).await;
+        common::own_collections(&listed.body)
+    };
+    let path = format!("/api/libraries/{lib}");
+    let switch = |on: bool| app.patch(&path, &admin, json!({"tmdb_collections": on}));
+    assert_eq!(app.get(&format!("/api/libraries/{lib}"), &admin).await.body["tmdb_collections"], json!(true));
+    assert_eq!(titles(&collections().await), ["Alien Collection"]);
+
+    let off = switch(false).await;
+    assert_eq!((off.status, off.body["tmdb_collections"].clone()), (StatusCode::OK, json!(false)));
+    assert_eq!(titles(&collections().await), Vec::<String>::new());
+    app.post(&format!("/api/libraries/{lib}/scan"), &admin, json!({"force": true})).await;
+    app.wait_for_scans().await;
+    assert_eq!(titles(&collections().await), Vec::<String>::new(), "a refresh makes none");
+
+    switch(true).await;
+    app.wait_for_scans().await;
+    let back = collections().await;
+    assert_eq!(titles(&back), ["Alien Collection"]);
+    assert_eq!(back[0]["item_count"], json!(2));
+
+    // One an administrator edited goes too, and comes back as TMDB has it.
+    let id = back[0]["id"].as_i64().unwrap();
+    let edited = app.patch(&format!("/api/collections/{id}"), &admin, json!({"summary": "Ours."})).await;
+    assert_eq!(edited.status, StatusCode::OK, "{:?}", edited.body);
+    switch(false).await;
+    assert_eq!(titles(&collections().await), Vec::<String>::new());
+    switch(true).await;
+    app.wait_for_scans().await;
+    let remade = collections().await;
+    assert_eq!(titles(&remade), ["Alien Collection"]);
+    assert_ne!(remade[0]["summary"], json!("Ours."));
+
+    // A library can be made without them.
+    app.media_file("more/Alien³ (1992).mkv", 1024);
+    let made = app
+        .post(
+            "/api/libraries",
+            &admin,
+            json!({"name": "More", "kind": "movies", "paths": [app.media_path("more")], "tmdb_collections": false}),
+        )
+        .await;
+    assert_eq!((made.status, made.body["tmdb_collections"].clone()), (StatusCode::CREATED, json!(false)));
+    app.wait_for_scans().await;
+    let more = made.body["id"].as_i64().unwrap();
+    let listed = app.get(&format!("/api/libraries/{more}/collections"), &admin).await;
+    assert_eq!(titles(&common::own_collections(&listed.body)), Vec::<String>::new());
+}
+
+/// The probes [`start_transcoder`]'s stand-in was asked for: those of files
+/// in `held/`, which wait while `open` is false, and the others.
+#[derive(Clone)]
+struct Probes {
+    others: Arc<AtomicUsize>,
+    held: Arc<AtomicUsize>,
+    open: Arc<tokio::sync::watch::Sender<bool>>,
+}
+
+/// A transcoder that probes every file as a 1080p H.264 video, counted in
+/// `probes`.
+async fn start_transcoder(probes: Probes) -> String {
+    async fn probe(State(probes): State<Probes>, Json(req): Json<ProbeRequest>) -> Json<MediaInfo> {
+        if req.path.replace('\\', "/").contains("/held/") {
+            probes.held.fetch_add(1, Ordering::SeqCst);
+            let _ = probes.open.subscribe().wait_for(|open| *open).await;
+        } else {
+            probes.others.fetch_add(1, Ordering::SeqCst);
+        }
+        Json(MediaInfo {
+            container: Some("matroska".into()),
+            duration_ms: Some(60_000),
+            streams: vec![MediaStream {
+                index: 0,
+                kind: StreamKind::Video,
+                codec: "h264".into(),
+                width: Some(1920),
+                height: Some(1080),
+                default: true,
+                ..Default::default()
+            }],
+            ..Default::default()
+        })
+    }
+    let info = || async {
+        Json(TranscoderInfo {
+            api_version: API_VERSION,
+            capabilities: Capabilities { ffmpeg_available: true, ..Default::default() },
+            ..Default::default()
+        })
+    };
+    let app = Router::new().route("/v1/info", get(info)).route("/v1/probe", post(probe)).with_state(probes);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr: SocketAddr = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    format!("http://{addr}")
+}
+
+/// Turned back on while a scan of the library waits behind another
+/// library's, the switch joins that scan: the films are fetched again and
+/// their collections come back, but no file is probed again.
+#[tokio::test]
+async fn collections_from_tmdb_turned_on_beside_a_waiting_scan_probe_no_file() {
+    let probes =
+        Probes { others: Arc::default(), held: Arc::default(), open: Arc::new(tokio::sync::watch::channel(true).0) };
+    let transcoder = start_transcoder(probes.clone()).await;
+    let (app, tmdb, admin, lib) = world_with_transcoder(Some(transcoder)).await;
+    use_key(&app, &admin, KEY).await;
+    let collections = || async {
+        let listed = app.get(&format!("/api/libraries/{lib}/collections"), &admin).await;
+        titles(&common::own_collections(&listed.body))
+    };
+    let path = format!("/api/libraries/{lib}");
+    let switch = |on: bool| app.patch(&path, &admin, json!({"tmdb_collections": on}));
+    assert_eq!(collections().await, ["Alien Collection"]);
+    assert_eq!(switch(false).await.status, StatusCode::OK);
+    assert_eq!(collections().await, Vec::<String>::new());
+    app.media_file("held/Held (2020).mkv", 1024);
+    let held = app.library(&admin, "Held", "movies", "held").await;
+
+    // The scanner probes the other library's file again, held there, and
+    // a scan of this one waits.
+    probes.open.send_replace(false);
+    let before = probes.held.load(Ordering::SeqCst);
+    app.state.scanner.enqueue(held, true);
+    for _ in 0..500 {
+        if probes.held.load(Ordering::SeqCst) > before {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(probes.held.load(Ordering::SeqCst) > before, "the other library's scan is under way");
+    app.state.scanner.enqueue(lib, false);
+    let probed = probes.others.load(Ordering::SeqCst);
+    let fetched = |id: i64| tmdb.requested(&format!("/movie/{id}?")).len();
+    let (alien, aliens) = (fetched(348), fetched(679));
+    assert_eq!(switch(true).await.status, StatusCode::OK);
+    probes.open.send_replace(true);
+    app.wait_for_scans().await;
+
+    assert_eq!(probes.others.load(Ordering::SeqCst), probed, "no file of the library is probed again");
+    assert!(fetched(348) > alien && fetched(679) > aliens, "its films are fetched again");
+    assert_eq!(collections().await, ["Alien Collection"]);
+}
+
+/// A Mac's disks give a name's accents apart from their letters ("u" and a
+/// diaeresis), and names copied from one keep them so. The film is found
+/// under the name it was scanned with: it stays the item it was.
+#[tokio::test]
+async fn a_name_with_its_accents_apart_is_found_on_tmdb() {
+    let (app, tmdb, admin, lib) = world().await;
+    app.media_file("movies/Bru\u{308}no (2009)/Bru\u{308}no (2009).mkv", 1024);
+    app.post(&format!("/api/libraries/{lib}/scan"), &admin, json!({})).await;
+    app.wait_for_scans().await;
+    let scanned = app.ids(lib, &admin).await["Bru\u{308}no"];
+    use_key(&app, &admin, KEY).await;
+
+    let ids = app.ids(lib, &admin).await;
+    assert_eq!(ids["Br\u{fc}no"], scanned, "{ids:?}");
+    let bruno = app.get(&format!("/api/items/{scanned}"), &admin).await.body;
+    assert_eq!(bruno["tmdb_id"], json!(4497));
+    let searches = tmdb.requested("/search/movie");
+    assert!(searches.iter().any(|s| s.contains("query=Br%C3%BCno")), "{searches:?}");
 }
 
 #[tokio::test]

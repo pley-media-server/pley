@@ -87,7 +87,7 @@ pub const HOLIDAY_SHOWS: i64 = 31;
 
 /// The categories of collections: Pley's three (Other among them), then an administrator's.
 pub const CATEGORY_HIGHLIGHTS: i64 = 1;
-pub const CATEGORY_FRANCHISES: i64 = 2;
+pub const CATEGORY_BOX_SETS: i64 = 2;
 pub const CATEGORY_SEASONAL: i64 = 3;
 pub const CATEGORY_OTHER: i64 = 4;
 

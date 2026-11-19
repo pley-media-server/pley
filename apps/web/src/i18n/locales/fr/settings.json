@@ -82,6 +82,9 @@
       "watch": "Surveiller les dossiers",
       "watchHint": "Prendre en compte automatiquement les fichiers nouveaux, modifiés et supprimés.",
       "watchToggle": "Surveiller les dossiers",
+      "strm": "Fichiers .strm",
+      "strmHint": "Utiliser les fichiers .strm pour lire des vidéos depuis des adresses web.",
+      "strmToggle": "Lire les fichiers .strm",
       "markers": "Détecter les intros et les génériques",
       "markersHint": "Comparer l’audio des épisodes en arrière-plan pour proposer Passer l’intro et Passer le générique. Les chapitres nommés Intro ou Credits sont toujours utilisés.",
       "noChromaprint": "Ce FFmpeg n’a pas Chromaprint : seuls les chapitres peuvent marquer les intros et les génériques.",
@@ -442,6 +445,10 @@
       "typePath": "…ou saisissez le chemin d’un dossier",
       "folderPath": "Chemin du dossier",
       "layout": "Organisation recommandée : <path>{{layout}}</path>",
+      "tmdbCollections": "Créer les collections depuis TMDB",
+      "tmdbCollectionsHint": "Regroupe les films dans les collections de TMDB. Désactivez cette option si vous gérez les collections avec un outil externe, comme Kometa.",
+      "tmdbCollectionsOffTitle": "Retirer les collections TMDB ?",
+      "tmdbCollectionsOffMessage": "Les collections de TMDB dans <name>{{name}}</name> seront supprimées, y compris les modifications que vous y avez apportées.",
       "nothingMounted": "Pley tourne dans un conteneur où aucun dossier de médias n’est encore monté. Montez le vôtre sur <path>/media</path> (avec Docker, <path>-v /vos/medias:/media:ro</path>), puis redémarrez le conteneur."
     }
   },

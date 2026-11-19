@@ -30,6 +30,7 @@ const KEYS = [
   "read_nfo",
   "scan_interval_minutes",
   "watch_libraries",
+  "strm_files",
   "detect_markers",
   "seek_previews",
   "previews_in_background",
@@ -265,6 +266,11 @@ ${form.opensubtitles_password ?? ""}`}
                 />
                 {form.seek_previews ? null : <Note>{t("server.scanning.needsSeekPreviews")}</Note>}
               </Row>
+              {form.strm_files !== undefined ? (
+                <Row label={t("server.scanning.strm")} hint={t("server.scanning.strmHint")}>
+                  <Toggle checked={form.strm_files} onChange={(v) => set("strm_files", v)} label={t("server.scanning.strmToggle")} />
+                </Row>
+              ) : null}
               <LibraryWorkRows form={form} set={set} />
               <Row label={t("server.scanning.interval")} htmlFor="scan-interval" hint={t("server.scanning.intervalHint")}>
                 <div className="flex items-center gap-2">

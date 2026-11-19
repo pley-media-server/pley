@@ -298,7 +298,7 @@ pub struct CollectionSummary {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct CategoryRef {
     pub id: i64,
-    /// `highlights`, `other` or `franchises` for Pley's own; `None` for an administrator's.
+    /// `highlights`, `other` or `box_sets` for Pley's own; `None` for an administrator's.
     #[serde(default)]
     pub key: Option<String>,
     /// In the profile's language for Pley's own.
@@ -615,10 +615,10 @@ mod tests {
     #[test]
     fn collections_group_in_the_categories_order_other_where_it_is_listed() {
         let categories =
-            [category(1, "Highlights"), category(4, "Other"), category(2, "Franchises"), category(3, "Empty")];
+            [category(1, "Highlights"), category(4, "Other"), category(2, "Box sets"), category(3, "Empty")];
         // 9: a category made since the categories came, so after the rest under its own title.
         let list = [
-            collection(10, Some((2, "Franchises"))),
+            collection(10, Some((2, "Box sets"))),
             collection(11, Some((4, "Other"))),
             collection(12, Some((1, "Highlights"))),
             collection(13, Some((9, "New"))),
@@ -632,7 +632,7 @@ mod tests {
             [
                 (Some(1), "Highlights", vec![12]),
                 (Some(4), "Other", vec![11, 14]),
-                (Some(2), "Franchises", vec![10]),
+                (Some(2), "Box sets", vec![10]),
                 (Some(9), "New", vec![13])
             ]
         );
@@ -655,10 +655,10 @@ mod tests {
                 .unwrap();
         assert!(old.collection_ids.is_empty());
         let c: CollectionSummary = serde_json::from_str(
-            r#"{"id":4,"category":{"id":2,"key":"franchises","title":"Franchises"},"home_position":0}"#,
+            r#"{"id":4,"category":{"id":2,"key":"box_sets","title":"Box sets"},"home_position":0}"#,
         )
         .unwrap();
-        assert_eq!(c.category.map(|c| c.title), Some("Franchises".to_string()));
+        assert_eq!(c.category.map(|c| c.title), Some("Box sets".to_string()));
     }
 
     #[test]
@@ -668,7 +668,7 @@ mod tests {
             ..CollectionSummary::default()
         };
         assert!(with(Some("other")).named_category().is_none());
-        assert!(with(Some("franchises")).named_category().is_some());
+        assert!(with(Some("box_sets")).named_category().is_some());
         assert!(with(None).named_category().is_some(), "an administrator's");
         assert!(CollectionSummary::default().named_category().is_none(), "a server without categories");
     }

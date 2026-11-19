@@ -9,6 +9,38 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- `.strm` files in movie and TV libraries, as Kodi, Jellyfin and Emby read
+  them: a text file that names the `http` or `https` address a video is at
+  is listed, played, converted and downloaded like a video on disk, on
+  every app and through both compatibility APIs. The address, and any
+  password in it, never leaves the server: players read the video through
+  Pley. A scan doesn't ask the address; what the video is (tracks, length,
+  size, 4K and HDR) is found when its page is first opened or it is
+  played, and kept. Kodi's `|User-Agent=…` headers are sent, an address on
+  the internet can't lead to one of your network, and seek previews and
+  intro detection aren't made for it
+  ([docs/CONFIGURATION.md](../../docs/CONFIGURATION.md#strm-files)).
+  Off until an administrator turns them on in Settings → Server.
+- A movie library can do without collections from TMDB, for another
+  tool such as Kometa to make them: Make collections from TMDB, in the
+  library's settings, removes them when turned off, edits and all, and
+  makes them again when turned back on.
+
+### Changed
+
+- The Franchises category of collections is Box sets, and its key in the
+  API is `box_sets`.
+
+### Fixed
+
+- Films and shows with accents in their names are matched when the names
+  came from a Mac. Ones already scanned are matched by the library's Force
+  full rescan.
+- In the web app, search lists the audiobooks whose title matches. A
+  book's title gave a results page with nothing on it.
+
 ## [0.1.13] - 2026-11-18
 
 ### Added

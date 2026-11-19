@@ -206,6 +206,8 @@ pub async fn start(
     // and the network from here on: creating a transcode reads the file too,
     // before the session exists.
     let _starting = state.sessions.begin_start();
+    // A `.strm` file's media is looked at the first time it is played.
+    let file = crate::strm::ready(&state, file).await?;
     let info = file.media_info();
     let streams = file.streams();
     // No audio track named: the one the user's choices pick, not just the
@@ -326,7 +328,7 @@ pub async fn start(
         .reserve_transcode(pool, total as usize, video as usize)
         .map_err(|full| too_many_streams(pool, full, total, video))?;
     let job_request = JobRequest {
-        input: file.path.clone(),
+        input: crate::strm::input(&state, &file).await?,
         media: info,
         label: Some(label(&row)),
         owner: Some(user.username.clone()),
@@ -871,6 +873,7 @@ pub async fn convert(
         Some(id) => files.into_iter().find(|f| f.id == id).ok_or_else(|| AppError::not_found("file not found"))?,
         None => files.into_iter().next().ok_or_else(|| AppError::not_found("this item has no media file"))?,
     };
+    let file = crate::strm::ready(&state, file).await?;
     let info = file.media_info();
     let streams = file.streams();
     let decision = decide_picked(&state, user.id, &row, &file, info.as_ref(), &streams, &mut req).await?;
@@ -906,7 +909,7 @@ pub async fn convert(
         Some(_) => {}
     }
     let job = JobRequest {
-        input: file.path.clone(),
+        input: crate::strm::input(&state, &file).await?,
         media: info,
         label: Some(label(&row)),
         owner: Some(user.username.clone()),
@@ -1207,6 +1210,9 @@ pub async fn keyed_media(
         state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
     }
     let row = visible_file(&state, &user, session.file_id).await?;
+    if row.is_strm() {
+        return crate::strm::serve(&state, &row, request.method(), request.headers()).await;
+    }
     let mut response = serve_library_file(&row.path, request.method(), request.headers()).await?;
     // Never cached anywhere: the address carries a key.
     response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("private, no-store"));
@@ -1606,6 +1612,9 @@ pub async fn stream_file(
     request: Request,
 ) -> ApiResult<Response> {
     let file = visible_file(&state, &user, id).await?;
+    if file.is_strm() {
+        return crate::strm::serve(&state, &file, request.method(), request.headers()).await;
+    }
     let mut response = serve_library_file(&file.path, request.method(), request.headers()).await?;
     response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("private, max-age=3600"));
     Ok(response)
@@ -1809,10 +1818,11 @@ async fn track_text(
         return Ok((text, true));
     }
     let Some(path) = sidecar else {
+        let input = crate::strm::input(state, file).await?;
         let started = Instant::now();
         let (text, complete) = loop {
             let (text, complete) =
-                state.transcoder.subtitles_so_far(&file.path, index).await.map_err(|err| for_viewer(user, err))?;
+                state.transcoder.subtitles_so_far(&input, index).await.map_err(|err| for_viewer(user, err))?;
             if complete || enough(&text) || started.elapsed() >= wait {
                 break (text, complete);
             }
@@ -2042,7 +2052,7 @@ async fn picture_source(
         state.config.cache_dir().join("subtitles").join(format!("{}_{}_{}{version}.mks", file.id, index, file.mtime));
     Ok(match sidecar {
         Some(path) => (cache, path, None),
-        None => (cache, file.path.clone(), Some(index)),
+        None => (cache, crate::strm::input(state, file).await?, Some(index)),
     })
 }
 

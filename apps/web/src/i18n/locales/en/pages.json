@@ -569,7 +569,8 @@
       "episode": "Episodes",
       "artist": "Artists",
       "album": "Albums",
-      "track": "Tracks"
+      "track": "Tracks",
+      "audiobook": "Audiobooks"
     },
     "showFewer": "Show fewer",
     "showAll": "Show all {{n, number}}",
@@ -579,7 +580,7 @@
     "cantSearchTmdb": "Couldn't search TMDB: {{error}}",
     "nothingThere": "Nothing there either. Try a different spelling or a shorter query.",
     "emptyTitle": "Search your libraries",
-    "emptyHint": "Find movies, shows, episodes, people, artists, albums, tracks and Live TV channels. Press / anywhere to jump to the search box.",
+    "emptyHint": "Find movies, shows, episodes, people, artists, albums, tracks, audiobooks and Live TV channels. Press / anywhere to jump to the search box.",
     "cantSearch": "Couldn't search your libraries",
     "resultsFor": "Results for “{{q}}”",
     "nothingInLibraries": "Nothing in your libraries matches.",

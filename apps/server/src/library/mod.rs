@@ -84,6 +84,9 @@ pub struct LibraryRow {
     /// A Plex import is bringing Plex's labels to its titles: a profile with
     /// labels it never sees doesn't see it until then (`crate::access`).
     pub labels_pending: bool,
+    /// Pley makes collections from TMDB in it (a movie library's), unless an
+    /// administrator turned that off for another tool to make them.
+    pub tmdb_collections: bool,
 }
 
 impl LibraryRow {
@@ -97,10 +100,13 @@ impl LibraryRow {
 }
 
 pub async fn get_library(db: &Db, id: i64) -> sqlx::Result<Option<LibraryRow>> {
-    sqlx::query_as("SELECT id, name, kind, paths, created_at, scanned_at, labels_pending FROM libraries WHERE id = ?")
-        .bind(id)
-        .fetch_optional(&db.read)
-        .await
+    sqlx::query_as(
+        "SELECT id, name, kind, paths, created_at, scanned_at, labels_pending, tmdb_collections FROM libraries
+         WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(&db.read)
+    .await
 }
 
 /// Music and audiobook libraries whose Recently Added is a row on Home,
@@ -114,7 +120,7 @@ pub async fn home_positions(db: &Db) -> sqlx::Result<Vec<(i64, i64)>> {
 /// Every library, in the order administrators chose (see [`set_order`]).
 pub async fn list_libraries(db: &Db) -> sqlx::Result<Vec<LibraryRow>> {
     sqlx::query_as(
-        "SELECT id, name, kind, paths, created_at, scanned_at, labels_pending FROM libraries
+        "SELECT id, name, kind, paths, created_at, scanned_at, labels_pending, tmdb_collections FROM libraries
          ORDER BY position, name COLLATE NOCASE, id",
     )
     .fetch_all(&db.read)

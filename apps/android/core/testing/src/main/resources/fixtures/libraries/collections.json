@@ -2,7 +2,7 @@
   "collections": [
     {
       "id": 801, "library_id": 1, "title": "Dune Collection", "summary": "The saga of Paul Atreides.", "automatic": true, "sort": "release",
-      "smart_filter": null, "category": { "id": 2, "key": "franchises", "title": "Franchises" }, "item_count": 2, "poster_url": "/api/collections/801/images/poster?v=1761300600",
+      "smart_filter": null, "category": { "id": 2, "key": "box_sets", "title": "Box sets" }, "item_count": 2, "poster_url": "/api/collections/801/images/poster?v=1761300600",
       "backdrop_url": "/api/collections/801/images/backdrop?v=1761300600", "created_at": 1761300000, "updated_at": 1761300600
     },
     {

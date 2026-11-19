@@ -62,8 +62,8 @@ pub fn sniff(head: &[u8]) -> bool {
 /// up once `deadline` has passed (walking many movie fragments can take a while
 /// on slow storage).
 pub fn keyframes(path: &Path, deadline: Option<Instant>) -> Result<Vec<i64>> {
-    let file = File::open(path).map_err(|_| "cannot open the file")?;
-    let len = file.metadata().map_err(|_| "cannot read the file's size")?.len();
+    let file = crate::source::Source::open(path).map_err(|_| "cannot open the file")?;
+    let len = file.len().map_err(|_| "cannot read the file's size")?;
     index(BufReader::with_capacity(16 * 1024, file), len, deadline)
 }
 

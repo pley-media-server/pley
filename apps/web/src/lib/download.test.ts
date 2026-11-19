@@ -39,6 +39,16 @@ function detail(overrides: Parameters<typeof makeItem>[0]): ItemDetail {
   };
 }
 
+describe("extensionOf", () => {
+  it("is the media's container for a .strm file, which only names where the media is", () => {
+    expect(extensionOf({ path: "/media/Movies/Alien (1979).strm", container: "mp4" })).toBe("mp4");
+    expect(extensionOf({ path: "Alien (1979).STRM", container: "matroska,webm" })).toBe("mkv");
+    // Not known yet: Matroska, as for any file without a name to go by.
+    expect(extensionOf({ path: "Alien (1979).strm", container: "strm" })).toBe("mkv");
+    expect(extensionOf({ path: "Alien (1979).strm", container: null })).toBe("mkv");
+  });
+});
+
 describe("downloadName", () => {
   it("names a download by what it is, not by the file on the server", () => {
     expect(downloadName(detail({ kind: "movie", title: "Alien", year: 1979 }), file())).toBe("Alien (1979).mkv");

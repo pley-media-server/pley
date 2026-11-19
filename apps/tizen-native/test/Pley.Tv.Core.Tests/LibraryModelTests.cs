@@ -330,7 +330,7 @@ public class LibraryModelTests
     }
 
     static readonly CollectionCategory Highlights = new CollectionCategory(1, "highlights", "Highlights");
-    static readonly CollectionCategory Franchises = new CollectionCategory(2, "franchises", "Franchises");
+    static readonly CollectionCategory BoxSets = new CollectionCategory(2, "box_sets", "Box sets");
     static readonly CollectionCategory Other = new CollectionCategory(3, "other", "Other");
 
     static Collection Of(long id, CollectionCategory? category) =>
@@ -339,17 +339,17 @@ public class LibraryModelTests
     [Fact]
     public void The_collections_tab_waits_for_the_categories_then_groups_by_them()
     {
-        data.SetCollections(1, Of(10, Franchises), Of(11, Other), Of(12, Highlights));
+        data.SetCollections(1, Of(10, BoxSets), Of(11, Other), Of(12, Highlights));
         data.HoldCategories();
         var model = Model(tab: LibraryTab.Collections);
         Assert.IsType<Loadable<CollectionsView>.Loading>(model.State.Value.Collections);
         Assert.Empty(LibraryText.CollectionChips(model.State.Value));
 
-        // Other is the server's, before Franchises where its list puts it.
-        data.SetCategories(Highlights, Other, Franchises);
+        // Other is the server's, before Box sets where its list puts it.
+        data.SetCategories(Highlights, Other, BoxSets);
         var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
         Assert.True(view.Headed);
-        Assert.Equal(new[] { "Highlights", "Other", "Franchises" }, view.Groups.Select(LibraryText.GroupTitle));
+        Assert.Equal(new[] { "Highlights", "Other", "Box sets" }, view.Groups.Select(LibraryText.GroupTitle));
         Assert.Equal(new long[] { 12, 11, 10 }, view.Groups.SelectMany(g => g.Collections).Select(c => c.Id));
         Assert.Equal("3 collections", LibraryText.CollectionsCountLine(model.State.Value));
     }
@@ -357,11 +357,11 @@ public class LibraryModelTests
     [Fact]
     public void Without_the_categories_the_collections_group_by_their_own_as_they_come()
     {
-        data.SetCollections(1, Of(10, Franchises), Of(11, Other), Of(12, Franchises));
+        data.SetCollections(1, Of(10, BoxSets), Of(11, Other), Of(12, BoxSets));
         data.CategoriesFailure = new NetworkException(NetworkFailure.NothingAnswers);
         var model = Model(tab: LibraryTab.Collections);
         var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
-        Assert.Equal(new[] { "Franchises", "Other" }, view.Groups.Select(LibraryText.GroupTitle));
+        Assert.Equal(new[] { "Box sets", "Other" }, view.Groups.Select(LibraryText.GroupTitle));
         Assert.Equal(new long[] { 10, 12, 11 }, view.Groups.SelectMany(g => g.Collections).Select(c => c.Id));
     }
 
@@ -396,8 +396,8 @@ public class LibraryModelTests
     [Fact]
     public void The_category_chip_narrows_the_collections_and_clear_filters_shows_them_all()
     {
-        data.SetCollections(1, Of(10, Franchises), Of(11, Other), Of(12, Highlights));
-        data.SetCategories(Highlights, Other, Franchises);
+        data.SetCollections(1, Of(10, BoxSets), Of(11, Other), Of(12, Highlights));
+        data.SetCategories(Highlights, Other, BoxSets);
         var model = Model(tab: LibraryTab.Collections);
         var chip = Assert.Single(LibraryText.CollectionChips(model.State.Value));
         Assert.Equal(new LibraryChip(LibraryChipKind.CollectionCategory, "Category"), chip);
@@ -405,7 +405,7 @@ public class LibraryModelTests
 
         var panel = LibraryText.Panel(LibraryPanel.CollectionCategory, model.State.Value);
         Assert.Equal("Category", panel.Title);
-        Assert.Equal(new[] { "All categories", "Highlights", "Other", "Franchises" }, panel.Rows.Select(r => r.Label));
+        Assert.Equal(new[] { "All categories", "Highlights", "Other", "Box sets" }, panel.Rows.Select(r => r.Label));
         Assert.Equal(0, panel.Focus);
         Assert.IsType<PanelOutcome.Close>(model.Choose(panel.Rows[2]));
 
@@ -427,11 +427,11 @@ public class LibraryModelTests
     public void Clearing_the_only_category_takes_the_chips_away()
     {
         // LibraryScreen moves focus from Clear filters to the collections when this happens.
-        data.SetCollections(1, Of(10, Franchises), Of(12, Franchises));
-        data.SetCategories(Highlights, Franchises);
+        data.SetCollections(1, Of(10, BoxSets), Of(12, BoxSets));
+        data.SetCategories(Highlights, BoxSets);
         var model = Model(tab: LibraryTab.Collections);
         Assert.Empty(LibraryText.CollectionChips(model.State.Value));
-        model.SetCollectionCategory(new CategoryChoice.Of(Franchises.Id));
+        model.SetCollectionCategory(new CategoryChoice.Of(BoxSets.Id));
         Assert.Equal(new[] { LibraryChipKind.CollectionCategory, LibraryChipKind.CollectionClear }, LibraryText.CollectionChips(model.State.Value).Select(c => c.Kind));
         model.ClearCollectionFilters();
         Assert.Empty(LibraryText.CollectionChips(model.State.Value));
@@ -440,13 +440,13 @@ public class LibraryModelTests
     [Fact]
     public void A_chosen_category_left_without_collections_shows_them_all()
     {
-        data.SetCollections(1, Of(10, Franchises), Of(12, Highlights));
-        data.SetCategories(Highlights, Franchises);
+        data.SetCollections(1, Of(10, BoxSets), Of(12, Highlights));
+        data.SetCategories(Highlights, BoxSets);
         var model = Model(tab: LibraryTab.Collections);
         model.SetCollectionCategory(new CategoryChoice.Of(Highlights.Id));
         Assert.Equal(new[] { "Highlights" }, Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data.Groups.Select(LibraryText.GroupTitle));
 
-        data.SetCollections(1, Of(10, Franchises));
+        data.SetCollections(1, Of(10, BoxSets));
         data.Changed();
         var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
         Assert.Equal(new CategoryChoice.All(), view.Category);

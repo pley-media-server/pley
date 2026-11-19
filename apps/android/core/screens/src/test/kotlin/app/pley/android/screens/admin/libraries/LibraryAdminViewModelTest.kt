@@ -68,11 +68,37 @@ class LibraryAdminViewModelTest {
         page.setName("   ")
         page.save("TV Shows")
         assertEquals(
-            """{"name":"TV Shows","kind":"shows","paths":["/m/shows"]}""",
+            """{"name":"TV Shows","kind":"shows","paths":["/m/shows"],"tmdb_collections":true}""",
             server.callsTo("POST /api/libraries").single().body.toString(),
         )
         assertEquals(listOf(AdminDone(LibraryAdmin.ADDED, listOf("TV Shows"))), done)
         assertEquals(1, finished)
+    }
+
+    @Test
+    fun aNewFilmLibraryIsSentWithoutCollectionsFromTmdbWhenTurnedOffAndAnotherKindKeepsTheDefault() = runTest {
+        val server = FakeServerAdmin()
+        server.answer("POST /api/libraries", films)
+        val page = LibraryAdminViewModel(server, null)
+        assertTrue(page.form.value!!.tmdbCollections)
+        page.setTmdbCollections(false)
+        page.addPath("/m/films")
+        page.save("Movies")
+        assertEquals(
+            """{"name":"Movies","kind":"movies","paths":["/m/films"],"tmdb_collections":false}""",
+            server.callsTo("POST /api/libraries").last().body.toString(),
+        )
+
+        // The switch is a film library's only: turned off, then Music picked, the server's default goes.
+        val music = LibraryAdminViewModel(server, null)
+        music.setTmdbCollections(false)
+        music.setKind(LibraryKind.Music)
+        music.addPath("/m/music")
+        music.save("Music")
+        assertEquals(
+            """{"name":"Music","kind":"music","paths":["/m/music"],"tmdb_collections":true}""",
+            server.callsTo("POST /api/libraries").last().body.toString(),
+        )
     }
 
     @Test
@@ -113,6 +139,46 @@ class LibraryAdminViewModelTest {
         assertTrue(page.changed(page.form.value!!, shown.library))
         page.save("Movies")
         assertEquals("""{"name":"Cinema","paths":["/m/a","/m/b"]}""", server.callsTo("PATCH /api/libraries/3").single().body.toString())
+    }
+
+    @Test
+    fun aLibrarysCollectionsFromTmdbStartFromItAndAreSentWhenTheyChange() = runTest {
+        val server = FakeServerAdmin()
+        val off = films.replace("\"scanning\":false", "\"scanning\":false,\"tmdb_collections\":false")
+        server.answer("GET /api/libraries/3", off)
+        server.answer("GET /api/activity", """{"scans":[]}""")
+        server.answer("PATCH /api/libraries/3", films)
+        val page = LibraryAdminViewModel(server, 3)
+        val library = page.page.state.value.valueOrNull!!.library
+        assertFalse(page.form.value!!.tmdbCollections)
+        assertFalse(page.changed(page.form.value!!, library))
+
+        page.setTmdbCollections(true)
+        assertTrue(page.changed(page.form.value!!, library))
+        page.setTmdbCollections(false)
+        assertFalse(page.changed(page.form.value!!, library))
+
+        page.setTmdbCollections(true)
+        page.save("Movies")
+        assertEquals(
+            """{"name":"Films","paths":["/m/a"],"tmdb_collections":true}""",
+            server.callsTo("PATCH /api/libraries/3").single().body.toString(),
+        )
+    }
+
+    @Test
+    fun turningALibrarysCollectionsFromTmdbOffAsksFirstAndTurningThemOnDoesNot() = runTest {
+        val server = FakeServerAdmin()
+        server.answer("GET /api/libraries/3", films)
+        server.answer("GET /api/activity", """{"scans":[]}""")
+        val page = LibraryAdminViewModel(server, 3)
+        val library = page.page.state.value.valueOrNull!!.library!!
+        assertFalse(page.asksFirst(page.form.value!!, library))
+        page.setTmdbCollections(false)
+        assertTrue(page.asksFirst(page.form.value!!, library))
+        assertFalse(page.asksFirst(page.form.value!!.copy(tmdbCollections = true), library.copy(tmdbCollections = false)))
+        // A new library has nothing to remove.
+        assertFalse(page.asksFirst(LibraryForm(tmdbCollections = false), null))
     }
 
     @Test

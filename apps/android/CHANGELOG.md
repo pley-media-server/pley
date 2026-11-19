@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Added
 
+- Manage server → Libraries can turn off a film library's collections from
+  TMDB.
 - Pley plays music in Android Auto: Recent (what you played last, then
   what was added), Artists and Playlists tabs with album covers, search,
   the whole queue and a Shuffle button on Now Playing, and "Hey Google,

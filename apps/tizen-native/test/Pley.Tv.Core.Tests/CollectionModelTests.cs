@@ -147,10 +147,10 @@ public class CollectionModelTests
     [Fact]
     public void A_collection_page_names_its_category()
     {
-        data.Details[5] = Detail(5, 1, "Alien Collection", new[] { Film(1, "Alien") }) with { Category = new CategoryRef(2, "franchises", "Franchises") };
+        data.Details[5] = Detail(5, 1, "Alien Collection", new[] { Film(1, "Alien") }) with { Category = new CategoryRef(2, "box_sets", "Box sets") };
         data.Details[6] = Detail(6, 1, "Loose", new[] { Film(2, "Two") });
         data.Details[7] = Detail(7, 1, "Odds", new[] { Film(3, "Three") }) with { Category = new CategoryRef(3, "other", "Other") };
-        Assert.Equal("Franchises", Model(5).State.Value.Value!.Category);
+        Assert.Equal("Box sets", Model(5).State.Value.Value!.Category);
         Assert.Null(Model(6).State.Value.Value!.Category);
         Assert.Null(Model(7).State.Value.Value!.Category);
     }

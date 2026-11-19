@@ -971,8 +971,9 @@ they sign in with a code, and the server never gives the scope to a code.
   and cleaning up.
 - **Libraries**: the libraries in everyone's order, dragged to reorder,
   scanned one or all with their progress; a library's page with its kind,
-  name and folders, picked on the server or typed, then scanning, a full
-  rescan and deleting it.
+  name and folders, picked on the server or typed, and for a film library
+  Make collections from TMDB, which asks before turning them off; then
+  scanning, a full rescan and deleting it.
 - **Users** and **Invitations**: the accounts and profiles; an account's
   page with what an administrator changes on the web (name, password,
   disabled, household, requests, libraries, age limit, label exceptions,

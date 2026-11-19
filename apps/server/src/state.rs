@@ -61,6 +61,8 @@ pub struct Inner {
     pub schedule: Arc<Scheduler>,
     pub markers: Arc<MarkerService>,
     pub trickplay: Arc<TrickplayService>,
+    /// What `.strm` files name, read for players and the transcoder (see [`crate::strm`]).
+    pub strm: Arc<crate::strm::Relay>,
     /// Live TV: its sources, channels, guide and connections (see [`crate::livetv`]).
     pub live: Arc<crate::livetv::LiveTv>,
     pub two_step: crate::two_step::TwoStep,
@@ -144,8 +146,8 @@ impl AppState {
             events.clone(),
             metadata.clone(),
             store.clone(),
+            settings.clone(),
             hold.clone(),
-            &config,
         );
         // Discover's pictures, from TMDB's picture server (none in tests
         // without endpoints).
@@ -221,6 +223,7 @@ impl AppState {
                 schedule,
                 markers,
                 trickplay,
+                strm: Arc::new(crate::strm::Relay::new(&config.data_dir)),
                 live,
                 two_step,
                 bandwidth,

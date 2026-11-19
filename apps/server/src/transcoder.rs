@@ -56,8 +56,19 @@ impl TranscoderError {
 /// swapped for a link to another kind of file since the scan is read by no
 /// transcode, download, frame grab or subtitle copy, whichever asks for it.
 /// A file gone (a share asleep) is the transcoder's to tell, as before.
+///
+/// A `.strm` file is refused too: it is text, which names where its media
+/// is. What plays it gives the transcoder the server's own address for that
+/// media instead ([`crate::strm::input`]); nothing else reads it.
 async fn of_its_kind(path: &str) -> TranscoderResult<()> {
     let named = std::path::PathBuf::from(path);
+    if crate::library::walk::is_strm(&named) {
+        return Err(TranscoderError::Api {
+            status: 404,
+            code: "not_found".into(),
+            message: "a .strm file's media is read only to play it".into(),
+        });
+    }
     let astray = tokio::task::spawn_blocking(move || {
         std::fs::symlink_metadata(&named).is_ok_and(|meta| meta.file_type().is_symlink())
             && !crate::library::walk::leads_to_its_kind(&named)
@@ -265,7 +276,16 @@ impl Transcoder {
 
     pub async fn probe(&self, path: &str) -> TranscoderResult<MediaInfo> {
         of_its_kind(path).await?;
-        self.post_json("/v1/probe", &ProbeRequest { path: path.to_owned() }, Duration::from_secs(150)).await
+        let req = ProbeRequest { path: path.to_owned(), urgent: false };
+        self.post_json("/v1/probe", &req, Duration::from_secs(150)).await
+    }
+
+    /// [`Transcoder::probe`] for someone waiting to play what is probed: it
+    /// waits for no playback starting, nor behind a library scan's probes.
+    pub async fn probe_now(&self, path: &str) -> TranscoderResult<MediaInfo> {
+        of_its_kind(path).await?;
+        let req = ProbeRequest { path: path.to_owned(), urgent: true };
+        self.post_json("/v1/probe", &req, Duration::from_secs(150)).await
     }
 
     pub async fn thumbnail(&self, req: &ThumbnailRequest) -> TranscoderResult<Bytes> {

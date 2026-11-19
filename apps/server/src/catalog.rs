@@ -669,6 +669,12 @@ const FILE_SELECT: &str = concat!(
 );
 
 impl FileRow {
+    /// Whether this is a `.strm` file, which names where its media is
+    /// ([`crate::strm`]): its `size` and details are the media's, once known.
+    pub fn is_strm(&self) -> bool {
+        crate::library::walk::is_strm(std::path::Path::new(&self.path))
+    }
+
     pub fn media_info(&self) -> Option<MediaInfo> {
         self.media_info.as_deref().and_then(|j| serde_json::from_str(j).ok())
     }
@@ -739,10 +745,11 @@ pub async fn item(db: &Db, user_id: i64, item_id: i64) -> sqlx::Result<Option<It
 /// Rows for `ids`, in the order given.
 /// Files of movies and episodes, newest first.
 /// Movie and episode files with video, newest first: id, fingerprint and
-/// path (not the probe data of every file).
+/// path (not the probe data of every file). Files only: not what a `.strm`
+/// file names ([`crate::strm`]), which is read only to play it.
 pub async fn video_file_ids(db: &Db) -> sqlx::Result<Vec<(i64, Option<String>, String)>> {
     sqlx::query_as(
-        "SELECT id, fingerprint, path FROM media_files WHERE video_codec IS NOT NULL
+        "SELECT id, fingerprint, path FROM media_files WHERE video_codec IS NOT NULL AND link_size IS NULL
          AND item_id IN (SELECT id FROM items WHERE kind IN ('movie', 'episode')) ORDER BY added_at DESC",
     )
     .fetch_all(&db.read)

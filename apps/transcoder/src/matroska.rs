@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 use pley_transcoder_api::{MediaInfo, StreamKind};
 
 use crate::prefetch::ContainerIndex;
+use crate::source::Source;
 use crate::webvtt::TextCodec;
 
 const EBML: u32 = 0x1A45_DFA3;
@@ -108,8 +109,10 @@ const CUES_BETWEEN_CHECKS: usize = 4096;
 /// Keyframe times (ms) of the first video track, or `None` when the file is not
 /// Matroska or has no usable Cues.
 pub fn cue_keyframes(path: &Path) -> Option<Vec<i64>> {
-    let mut file = BufReader::with_capacity(64 * 1024, File::open(path).ok()?);
-    let layout = layout(&mut file, true, None).ok()?;
+    let mut file = BufReader::with_capacity(64 * 1024, Source::open(path).ok()?);
+    // Cues after the clusters that no seek head points to are looked for in
+    // a file only: at an address, each cluster passed would be a request.
+    let layout = layout(&mut file, !crate::source::is_remote(path), None).ok()?;
     let scale = layout.timestamp_scale(&mut file);
     let video_track =
         layout.tracks.and_then(|p| child_payload(&mut file, p, TRACKS)).and_then(|d| first_video_track(&d))?;
@@ -310,7 +313,7 @@ pub const MAX_FONTS: usize = 1000;
 /// and FFmpeg write it there). An empty list when there are none; an error
 /// when the file isn't Matroska or can't be read. Blocking.
 pub fn attached_fonts(path: &Path, max_bytes: u64) -> Result<Vec<Font>, String> {
-    let mut file = BufReader::with_capacity(64 * 1024, File::open(path).map_err(|e| e.to_string())?);
+    let mut file = BufReader::with_capacity(64 * 1024, Source::open(path).map_err(|e| e.to_string())?);
     let layout = layout(&mut file, false, None)?;
     let Some(at) = layout.attachments else { return Ok(Vec::new()) };
     let io = |e: std::io::Error| e.to_string();
@@ -760,7 +763,7 @@ fn subtitle_tracks<C: Copy>(
     step_aside: StepAside,
     mut got: impl FnMut(SubtitleTracks<C>) -> Result<(), String>,
 ) -> Result<(), String> {
-    let mut file = BufReader::with_capacity(64 * 1024, File::open(path).map_err(|e| e.to_string())?);
+    let mut file = BufReader::with_capacity(64 * 1024, Source::open(path).map_err(|e| e.to_string())?);
     // mkvmerge and FFmpeg list the Cues in the seek head, or put them before
     // the clusters: another file's aren't looked for cluster by cluster,
     // which would take as long as reading it.
@@ -1084,7 +1087,9 @@ fn read_blocks_with(
     budget: &Budget,
     step_aside: StepAside,
 ) -> Result<ReadBlocks, ReadError> {
-    let readers = READERS.min(stretch.len());
+    // One at a time at an address ([`crate::source`]): each reader is a
+    // connection to where the media is, which may allow an account few.
+    let readers = if crate::source::is_remote(path) { 1 } else { READERS }.min(stretch.len());
     let (failed, kept) = (AtomicBool::new(false), AtomicU64::new(0));
     let shared =
         Readers { path, clusters, stretch, block_read, guess, budget, step_aside, failed: &failed, kept: &kept };
@@ -1174,7 +1179,7 @@ impl Readers<'_> {
     /// (before the next one starts) and after the one before it, as a
     /// file's blocks are.
     fn read(&self, first: usize, step: usize) -> Result<ReaderBlocks, ReadError> {
-        let file = File::open(self.path).map_err(|e| ReadError::Failed(e.to_string()))?;
+        let file = Source::open(self.path).map_err(|e| ReadError::Failed(e.to_string()))?;
         let mut reader = Window::new(file, self.block_read);
         let mine = || self.stretch.clone().skip(first).step_by(step);
         // A block for each entry, or none at all: room for them all at once.

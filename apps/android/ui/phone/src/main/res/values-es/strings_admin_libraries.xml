@@ -60,6 +60,11 @@
     <string name="admin_libraries_type_path">…o escribe la ruta de una carpeta</string>
     <string name="admin_libraries_folder_path">Ruta de la carpeta</string>
     <string name="admin_libraries_layout">Estructura recomendada: %1$s</string>
+    <string name="admin_libraries_tmdb_collections">Crear colecciones desde TMDB</string>
+    <string name="admin_libraries_tmdb_collections_hint">Agrupa las películas en colecciones de TMDB. Desactiva esta opción si usas una herramienta externa para gestionar las colecciones, como Kometa.</string>
+    <string name="admin_libraries_tmdb_collections_off_title">¿Quitar las colecciones de TMDB?</string>
+    <string name="admin_libraries_tmdb_collections_off_message">Se eliminarán las colecciones de TMDB de %1$s, incluidos los cambios que les hayas hecho.</string>
+    <string name="admin_libraries_tmdb_collections_off_confirm">Quitar</string>
     <string name="admin_libraries_phase_queued">En cola</string>
     <string name="admin_libraries_phase_walking">Buscando archivos</string>
     <string name="admin_libraries_phase_probing">Analizando el contenido</string>

@@ -441,8 +441,10 @@ impl TrickplayService {
     /// someone opened goes before the libraries' backlog, also when it was
     /// already in it.
     pub fn request(self: &Arc<Self>, file: &FileRow) {
+        // Never for a `.strm` file: its media is read only to play it.
         if !self.settings.get().seek_previews
             || file.video_codec.is_none()
+            || file.is_strm()
             || self.index(file).is_some()
             || self.failed(file.id, file.fingerprint.as_deref())
         {

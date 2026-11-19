@@ -82,6 +82,9 @@
       "watch": "Watch folders for changes",
       "watchHint": "Pick up new, changed and deleted files automatically.",
       "watchToggle": "Watch folders",
+      "strm": ".strm files",
+      "strmHint": "Use .strm files to play videos from web addresses.",
+      "strmToggle": "Read .strm files",
       "markers": "Detect intros and credits",
       "markersHint": "Compare the audio of episodes in the background to offer Skip Intro and Skip Credits. Chapters named Intro or Credits are always used.",
       "noChromaprint": "This FFmpeg lacks Chromaprint, so only chapters can mark intros and credits.",
@@ -437,6 +440,10 @@
       "typePath": "…or type a folder path",
       "folderPath": "Folder path",
       "layout": "Recommended layout: <path>{{layout}}</path>",
+      "tmdbCollections": "Make collections from TMDB",
+      "tmdbCollectionsHint": "Groups films into collections from TMDB. Turn this off if you use an external tool to manage collections, such as Kometa.",
+      "tmdbCollectionsOffTitle": "Remove collections from TMDB?",
+      "tmdbCollectionsOffMessage": "The collections from TMDB in <name>{{name}}</name> will be removed, including any changes you made to them.",
       "nothingMounted": "Pley runs in a container, and no media folder is mounted into it yet. Mount yours at <path>/media</path> (with Docker, <path>-v /your/media:/media:ro</path>), then restart the container."
     }
   },

@@ -22,6 +22,10 @@ class LibrariesAdminTest {
         assertEquals(1204, library.itemCount)
         assertNull(library.scannedAt)
         assertTrue(library.scanning)
+        // An older server doesn't say, and makes collections from TMDB.
+        assertTrue(library.tmdbCollections)
+        val off = PleyJson.decodeFromString(Library.serializer(), """{"id":3,"name":"Films","kind":"movies","tmdb_collections":false}""")
+        assertFalse(off.tmdbCollections)
     }
 
     @Test
@@ -41,10 +45,14 @@ class LibrariesAdminTest {
     @Test
     fun aNewLibraryAndAChangeAreSentAsTheServerReadsThem() {
         assertEquals(
-            """{"name":"Films","kind":"movies","paths":["/mnt/a"]}""",
+            """{"name":"Films","kind":"movies","paths":["/mnt/a"],"tmdb_collections":true}""",
             PleyJson.encodeToString(NewLibrary.serializer(), NewLibrary("Films", LibraryKind.Movies, listOf("/mnt/a"))),
         )
         assertEquals("""{"name":"Films"}""", PleyJson.encodeToString(LibraryChange.serializer(), LibraryChange(name = "Films")))
+        assertEquals(
+            """{"tmdb_collections":false}""",
+            PleyJson.encodeToString(LibraryChange.serializer(), LibraryChange(tmdbCollections = false)),
+        )
         assertEquals("""{"force":true}""", PleyJson.encodeToString(LibraryScanRequest.serializer(), LibraryScanRequest(true)))
     }
 

@@ -82,6 +82,9 @@
       "watch": "Vigilar cambios en las carpetas",
       "watchHint": "Detecta automáticamente los archivos nuevos, modificados y eliminados.",
       "watchToggle": "Vigilar carpetas",
+      "strm": "Archivos .strm",
+      "strmHint": "Usa los archivos .strm para reproducir videos desde direcciones web.",
+      "strmToggle": "Leer los archivos .strm",
       "markers": "Detectar intros y créditos",
       "markersHint": "Compara el audio de los episodios en segundo plano para ofrecer Saltar intro y Saltar créditos. Los capítulos llamados Intro o Credits se usan siempre.",
       "noChromaprint": "Este FFmpeg no tiene Chromaprint, así que solo los capítulos pueden marcar las intros y los créditos.",
@@ -442,6 +445,10 @@
       "typePath": "…o escribe la ruta de una carpeta",
       "folderPath": "Ruta de la carpeta",
       "layout": "Estructura recomendada: <path>{{layout}}</path>",
+      "tmdbCollections": "Crear colecciones desde TMDB",
+      "tmdbCollectionsHint": "Agrupa las películas en colecciones de TMDB. Desactiva esta opción si usas una herramienta externa para gestionar las colecciones, como Kometa.",
+      "tmdbCollectionsOffTitle": "¿Quitar las colecciones de TMDB?",
+      "tmdbCollectionsOffMessage": "Se eliminarán las colecciones de TMDB de <name>{{name}}</name>, incluidos los cambios que les hayas hecho.",
       "nothingMounted": "Pley se ejecuta en un contenedor sin ninguna carpeta de medios montada todavía. Monta la tuya en <path>/media</path> (con Docker, <path>-v /tus/medios:/media:ro</path>) y reinicia el contenedor."
     }
   },

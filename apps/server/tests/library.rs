@@ -69,6 +69,41 @@ async fn libraries_are_checked_when_created_and_changed() {
     assert_eq!(app.get(&format!("/api/libraries/{id}"), &bob).await.status, StatusCode::OK);
 }
 
+/// Only a movie library gets collections from TMDB, so only one can do
+/// without them: any other kind is refused `false`, and stays `true`.
+#[tokio::test]
+async fn only_a_movie_library_turns_off_its_collections_from_tmdb() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    std::fs::create_dir_all(app.media.path().join("media")).unwrap();
+    let folder = app.media_path("media");
+    let made = |kind: &str, on: bool| {
+        let body = json!({"name": kind, "kind": kind, "paths": [folder], "tmdb_collections": on});
+        app.post("/api/libraries", &admin, body)
+    };
+    let off = "only a movie library can turn off its collections from TMDB";
+    for kind in ["shows", "music", "audiobooks"] {
+        let refused = made(kind, false).await;
+        assert_eq!((refused.status, refused.body["message"].clone()), (StatusCode::BAD_REQUEST, json!(off)), "{kind}");
+        // As the web app and Android send it for every new library.
+        let created = made(kind, true).await;
+        assert_eq!((created.status, created.body["tmdb_collections"].clone()), (StatusCode::CREATED, json!(true)));
+        let id = created.body["id"].as_i64().unwrap();
+        app.wait_for_scans().await;
+
+        let path = format!("/api/libraries/{id}");
+        let refused = app.patch(&path, &admin, json!({"name": "Renamed", "tmdb_collections": false})).await;
+        assert_eq!((refused.status, refused.body["message"].clone()), (StatusCode::BAD_REQUEST, json!(off)), "{kind}");
+        let unchanged = app.get(&path, &admin).await.body;
+        assert_eq!((unchanged["name"].clone(), unchanged["tmdb_collections"].clone()), (json!(kind), json!(true)));
+        let kept = app.patch(&path, &admin, json!({"tmdb_collections": true})).await;
+        assert_eq!((kept.status, kept.body["tmdb_collections"].clone()), (StatusCode::OK, json!(true)));
+    }
+    let films = made("movies", false).await;
+    assert_eq!((films.status, films.body["tmdb_collections"].clone()), (StatusCode::CREATED, json!(false)));
+    app.wait_for_scans().await;
+}
+
 #[tokio::test]
 async fn a_metadata_only_scan_leaves_the_folders_alone() {
     let app = TestApp::new().await;

@@ -392,7 +392,7 @@ behind it.
   place of its number (VoiceOver says "playing" or "paused"), and
   choosing it pauses or plays on. [Music](#music) says how it plays.
 - **Collections**: a library's collections in grids under their
-  categories (Highlights, Other, Franchises, an administrator's own), in
+  categories (Highlights, Other, Box sets, an administrator's own), in
   the order the server lists them (a server older than categories
   has them all in one group); with one group, no headings. Each
   tile has its poster, how many titles it holds, and a TMDB badge (made

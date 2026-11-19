@@ -247,7 +247,7 @@ public sealed record Hub
 }
 
 /// <summary>A collection's category, as a collection names it.</summary>
-/// <param name="Key">"highlights", "other" or "franchises" for Pley's own; null for one an administrator made.</param>
+/// <param name="Key">"highlights", "other" or "box_sets" for Pley's own; null for one an administrator made.</param>
 /// <param name="Title">In the profile's language for Pley's own.</param>
 public record CategoryRef(long Id, string? Key, string Title);
 

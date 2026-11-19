@@ -68,6 +68,10 @@ pub struct Settings {
     /// their ids decide the match and their fields win over the online
     /// source's (see [`crate::library::nfo`]).
     pub read_nfo: bool,
+    /// Movie and show libraries list the `.strm` files in their folders and
+    /// play what they name ([`crate::strm`]). Off, as by default: scans
+    /// leave them out, and nothing asks the addresses they name.
+    pub strm_files: bool,
     pub hwaccel: HwAccel,
     pub hardware_decoding: bool,
     pub tonemapping: TonemapMode,
@@ -225,6 +229,7 @@ impl Default for Settings {
             tvdb_pin: String::new(),
             music_metadata: true,
             read_nfo: true,
+            strm_files: false,
             hwaccel: HwAccel::Auto,
             hardware_decoding: true,
             tonemapping: TonemapMode::Auto,
@@ -602,6 +607,7 @@ pub struct SettingsPatch {
     pub tvdb_pin: Option<String>,
     pub music_metadata: Option<bool>,
     pub read_nfo: Option<bool>,
+    pub strm_files: Option<bool>,
     pub hwaccel: Option<HwAccel>,
     pub hardware_decoding: Option<bool>,
     pub tonemapping: Option<TonemapMode>,
@@ -727,6 +733,9 @@ impl SettingsStore {
         }
         if let Some(v) = patch.read_nfo {
             next.read_nfo = v;
+        }
+        if let Some(v) = patch.strm_files {
+            next.strm_files = v;
         }
         match next.tv_metadata {
             TvMetadata::Tmdb if next.tmdb_api_key.is_empty() => {
@@ -1130,6 +1139,7 @@ mod tests {
         assert_eq!(s.max_video_transcodes, 2, "saved before video had a limit of its own: the one it had");
         assert_eq!(s.tv_metadata, TvMetadata::Auto);
         assert!(s.music_metadata && s.read_nfo && s.seek_previews && s.previews_in_background && s.detect_markers);
+        assert!(!s.strm_files, "saved before the setting: .strm files stay off");
         assert_eq!((s.library_work, s.library_work_max_cpu), (LibraryWork::Auto, 50));
 
         // Unreadable settings fall back to the defaults instead of failing start-up.

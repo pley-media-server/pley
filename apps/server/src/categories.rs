@@ -1,5 +1,5 @@
 //! Categories of collections, by which a library's collections are grouped:
-//! Pley's own (Highlights, the collections Pley makes; Franchises, TMDB's;
+//! Pley's own (Highlights, the collections Pley makes; Box sets, TMDB's;
 //! Other, for collections without one), named in each language, and
 //! administrators' own. Shared by every library, in an order administrators
 //! choose. A collection has one category or none, and none is sent as Other,
@@ -16,7 +16,7 @@ use crate::util::now;
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct CategoryRef {
     pub id: i64,
-    /// `highlights`, `franchises` or `other` for Pley's own; `None` for one
+    /// `highlights`, `box_sets` or `other` for Pley's own; `None` for one
     /// an administrator made.
     pub key: Option<String>,
     /// In the user's language for Pley's own.
@@ -283,7 +283,7 @@ mod tests {
             [
                 (Some("highlights".into()), "Highlights".into()),
                 (Some("other".into()), "Other".into()),
-                (Some("franchises".into()), "Franchises".into())
+                (Some("box_sets".into()), "Box sets".into())
             ]
         );
         let fr: Vec<_> = list(&db, "fr").await.unwrap().into_iter().map(|c| c.title).collect();
@@ -311,7 +311,7 @@ mod tests {
         rename(&db, decades, "By decade").await.unwrap().unwrap();
         reorder(&db, &[decades]).await.unwrap();
         let titles: Vec<_> = list(&db, "en").await.unwrap().into_iter().map(|c| c.title).collect();
-        assert_eq!(titles, ["By decade", "Highlights", "Other", "Franchises", "Holidays"]);
+        assert_eq!(titles, ["By decade", "Highlights", "Other", "Box sets", "Holidays"]);
         delete(&db, holidays).await.unwrap().unwrap();
         assert!(!exists(&db, holidays).await.unwrap());
     }
@@ -356,11 +356,13 @@ mod tests {
         rename(&db, seasonal, "Holidays").await.unwrap().unwrap();
         set(11, labels(&["PMM", "seasonal"]), vec![]).await;
         assert_eq!(category_of(&db, 11).await.0.as_deref(), Some("Holidays"));
-        // A label naming Pley's own category puts it there.
-        set(12, labels(&["Franchises"]), vec![]).await;
-        assert_eq!(category_of(&db, 12).await.0.as_deref(), Some("franchises"));
+        // A label naming Pley's own category puts it there, in any language.
+        set(12, labels(&["Box Sets"]), vec![]).await;
+        assert_eq!(category_of(&db, 12).await.0.as_deref(), Some("box_sets"));
+        set(12, labels(&["sagas"]), labels(&["Box Sets"])).await;
+        assert_eq!(category_of(&db, 12).await.0.as_deref(), Some("box_sets"));
         // But a label naming Other leaves it without one, as Other stands for none.
-        set(12, labels(&["other"]), labels(&["Franchises"])).await;
+        set(12, labels(&["other"]), labels(&["sagas"])).await;
         assert_eq!(category_of(&db, 12).await, (None, None));
         // Two group labels, or none, name no category.
         set(10, labels(&["Decade"]), vec![]).await;

@@ -17,7 +17,7 @@ import type { Entry, LibraryTab } from "../../src/ui/shell/navigator";
 
 const MOVIES = { id: 1, name: "Movies", kind: "movies", item_count: 3, scanning: false } as Library;
 const SERVER = "http://pley.test";
-const FRANCHISES: CollectionCategory = { id: 2, key: "franchises", title: "Franchises" };
+const BOX_SETS: CollectionCategory = { id: 2, key: "box_sets", title: "Box sets" };
 const OTHER: CollectionCategory = { id: 3, key: "other", title: "Other" };
 
 const collection = (id: number, category: CollectionCategory): Collection =>
@@ -168,7 +168,7 @@ describe("the Collections tab's focus", () => {
     };
     try {
       const highlights: CollectionCategory = { id: 1, key: "highlights", title: "Highlights" };
-      const t = setup([collection(10, highlights), collection(11, FRANCHISES)], Promise.resolve({ categories: [highlights, FRANCHISES] }), "collections");
+      const t = setup([collection(10, highlights), collection(11, BOX_SETS)], Promise.resolve({ categories: [highlights, BOX_SETS] }), "collections");
       await t.settle();
       expect(t.el("chip/category")).not.toBeNull();
       act(() => void t.focus.focus(t.el("chip/category")!));
@@ -181,7 +181,7 @@ describe("the Collections tab's focus", () => {
 
   it("moves to the collections when clearing the category takes the chips away", async () => {
     // Every collection is of one category, chosen: cleared, there is nothing left to choose.
-    const t = setup([collection(10, FRANCHISES), collection(11, FRANCHISES)], Promise.resolve({ categories: [FRANCHISES] }), "library", {
+    const t = setup([collection(10, BOX_SETS), collection(11, BOX_SETS)], Promise.resolve({ categories: [BOX_SETS] }), "library", {
       colCategory: 2,
     });
     await t.settle();

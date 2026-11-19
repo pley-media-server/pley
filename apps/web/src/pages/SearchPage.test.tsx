@@ -7,7 +7,7 @@ import { makeItem } from "@/test/fixtures";
 import { apiError, mockApi, renderWithProviders } from "@/test/render";
 import { makeSummary, makeTitle } from "@/test/requests";
 import { SearchPage } from "./SearchPage";
-import { personUrl } from "@/lib/urls";
+import { itemUrl, personUrl } from "@/lib/urls";
 
 function search(q: string) {
   return renderWithProviders(<SearchPage />, { route: `/search?q=${encodeURIComponent(q)}` });
@@ -39,6 +39,26 @@ describe("SearchPage", () => {
     // Without requests (here, a server without them), nothing from TMDB.
     expect(screen.queryByRole("heading", { name: "Discover" })).not.toBeInTheDocument();
     expect(requests.some((r) => r.path.startsWith("/api/discover"))).toBe(false);
+  });
+
+  it("lists the audiobooks found, after the music", async () => {
+    mockApi({
+      "GET /api/search": () => ({
+        items: [
+          makeItem({ id: 1, kind: "track", title: "Harbour" }),
+          makeItem({ id: 2, kind: "audiobook", title: "Harbour Lights", authors: ["Mara Quill"] }),
+        ],
+      }),
+    });
+    search("harbour");
+
+    expect(await screen.findByRole("heading", { name: "Audiobooks 1" })).toBeInTheDocument();
+    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(["Tracks 1", "Audiobooks 1"]);
+    const books = screen.getByRole("heading", { name: "Audiobooks 1" }).closest("section") as HTMLElement;
+    // The book's card, as in its library: its page behind it and its writer under its title.
+    for (const link of within(books).getAllByRole("link", { name: /Harbour Lights/ })) expect(link).toHaveAttribute("href", itemUrl(2));
+    expect(within(books).getByText("Mara Quill")).toBeInTheDocument();
   });
 
   it("adds what TMDB has that the libraries don't, where this account may ask", async () => {

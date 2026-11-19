@@ -26,7 +26,7 @@ use crate::ffmpeg::Ffmpeg;
 use crate::fmp4::DoviConfig;
 use crate::share::Share;
 use crate::tsedit::Edits;
-use crate::util::{MEDIA_INPUT_OPTIONS, input_arg, secs};
+use crate::util::{MEDIA_INPUT_OPTIONS, input_arg, input_options, secs};
 
 pub const DEFAULT_SEGMENT_SECONDS: f64 = 4.0;
 /// Most segments a job may have. Its layout, segment states and playlist grow
@@ -1748,7 +1748,7 @@ impl Plan {
         if let Some((au, (option, value))) = self.audio.as_ref().and_then(|au| au.partial_decode.map(|d| (au, d))) {
             a.push_all([&format!("-{option}:{}", au.stream_index), value]);
         }
-        a.push_all(MEDIA_INPUT_OPTIONS);
+        a.push_all(input_options(ctx.input).iter().copied());
         a.push("-i");
         a.push_os(input_arg(ctx.input));
 

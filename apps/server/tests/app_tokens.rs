@@ -39,6 +39,10 @@ const PUBLIC: &[(&str, &str)] = &[
     // session's own key stands in for it (tests/tv_apps.rs).
     ("GET", "/api/media/{key}/{file}"),
     ("GET", "/api/live/media/{key}/{file}"),
+    // A `.strm` file's media for the transcoder, which has no account: the
+    // key it was given stands in for one, and only it is answered
+    // (tests/strm.rs).
+    ("GET", "/api/strm/{key}/{name}"),
 ];
 
 /// Routes for pley's own sign-in only: how an account signs in, its

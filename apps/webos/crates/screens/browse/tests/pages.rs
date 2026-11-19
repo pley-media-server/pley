@@ -421,7 +421,7 @@ fn a_librarys_collections_show_by_category_and_filter_by_category() {
     let mut app = TestApp::start();
     app.open(Route::Library { id: ids::MOVIES, tab: Some(LibraryTab::Collections), sort: None });
     // A headed row for each category in the categories' order, the server's Other among them.
-    assert!(app.until(|a| ["Highlights", "Other", "Franchises"].iter().all(|h| a.shows(h))));
+    assert!(app.until(|a| ["Highlights", "Other", "Box sets"].iter().all(|h| a.shows(h))));
     assert!(app.shows("26 collections"));
     assert!(!app.shows("Type") && !app.shows("All types"), "the apps don't filter by how a collection was made");
     let rows = app.id(&["collections-grid"]);
@@ -445,11 +445,11 @@ fn a_librarys_collections_show_by_category_and_filter_by_category() {
     app.press(Key::Ok);
     assert!(app.until(|a| a.shows("All categories")), "no Category panel");
     let at = |t: &str| app.list.texts().collect::<Vec<_>>().iter().rposition(|x| *x == t);
-    let order = ["All categories", "Highlights", "Other", "Franchises", "Seasonal"].map(at);
+    let order = ["All categories", "Highlights", "Other", "Box sets", "Seasonal"].map(at);
     assert!(order.iter().all(Option::is_some) && order.is_sorted(), "{order:?}");
     // Seasonal: one group left, a grid without headings, the chip named for it.
     press(&mut app, &[Key::Down, Key::Down, Key::Down, Key::Down, Key::Ok]);
-    assert!(app.until(|a| a.shows("7 collections") && !a.shows("Franchises")), "Seasonal didn't filter");
+    assert!(app.until(|a| a.shows("7 collections") && !a.shows("Box sets")), "Seasonal didn't filter");
     assert!(app.shows("Holiday Favourites") && !app.shows("Highlights"), "one group has no heading");
     assert_eq!(app.focused(), Some(chip));
     app.press(Key::Down);
@@ -460,7 +460,7 @@ fn a_librarys_collections_show_by_category_and_filter_by_category() {
     assert!(app.until(|a| a.shows("All categories")));
     press(&mut app, &[Key::Up; 3]);
     app.press(Key::Ok);
-    assert!(app.until(|a| a.shows("Highlights") && a.shows("Franchises")), "the filter wasn't cleared");
+    assert!(app.until(|a| a.shows("Highlights") && a.shows("Box sets")), "the filter wasn't cleared");
 }
 
 /// The shows library's own collections: four of Other, then Holiday Favourites in Seasonal.
@@ -560,7 +560,7 @@ fn a_recommended_rows_see_all_opens_its_collection() {
 fn a_held_up_stays_in_the_collections_rows_and_a_press_reaches_the_chip() {
     let mut app = TestApp::start();
     app.open(Route::Library { id: ids::MOVIES, tab: Some(LibraryTab::Collections), sort: None });
-    assert!(app.until(|a| a.shows("Highlights") && a.shows("Franchises")));
+    assert!(app.until(|a| a.shows("Highlights") && a.shows("Box sets")));
     let rows = app.id(&["collections-grid"]);
     let first = rows.with(ids::CATEGORY_HIGHLIGHTS as u64).with("row").with(ids::SMART_COLLECTION as u64);
     assert!(app.until(|a| a.focused() == Some(first)));
@@ -590,7 +590,7 @@ fn down_from_the_tabs_while_the_collections_come_ends_on_the_first_collection() 
     app.server.set_mode(Mode::Normal).unwrap();
     // The rows come: the placeholder is gone, and focus goes to the first category's first
     // collection rather than whichever tile was nearest.
-    assert!(app.until(|a| a.shows("Highlights") && a.shows("Franchises")));
+    assert!(app.until(|a| a.shows("Highlights") && a.shows("Box sets")));
     app.advance(0.5);
     let rows = app.id(&["collections-grid"]);
     let first = rows.with(ids::CATEGORY_HIGHLIGHTS as u64).with("row").with(ids::SMART_COLLECTION as u64);

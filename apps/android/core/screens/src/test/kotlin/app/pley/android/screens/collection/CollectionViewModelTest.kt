@@ -77,7 +77,7 @@ class CollectionViewModelTest {
         collections.details.value = mapOf(
             5L to CollectionDetail(
                 5, 1, "Alien Collection", automatic = true, sort = CollectionSort.Release,
-                category = CategoryRef(2, "franchises", "Franchises"), itemCount = 2, items = listOf(movie(1), movie(2)),
+                category = CategoryRef(2, "box_sets", "Box sets"), itemCount = 2, items = listOf(movie(1), movie(2)),
             ),
             6L to CollectionDetail(
                 6, 1, "Nineties comedies", smartFilter = "genre=Comedy&decade=1990&sort=year",
@@ -93,7 +93,7 @@ class CollectionViewModelTest {
         assertTrue(page.automatic)
         assertFalse(page.smart)
         assertEquals("Movies", page.libraryName)
-        assertEquals("Franchises", page.category)
+        assertEquals("Box sets", page.category)
         assertEquals(listOf(UiText.res(R.string.collection_order_release)), page.noteTexts)
         assertTrue(page.movies)
         assertTrue(page.canShuffle)

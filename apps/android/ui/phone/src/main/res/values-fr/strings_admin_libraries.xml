@@ -60,6 +60,11 @@
     <string name="admin_libraries_type_path">…ou saisissez le chemin d’un dossier</string>
     <string name="admin_libraries_folder_path">Chemin du dossier</string>
     <string name="admin_libraries_layout">Organisation recommandée : %1$s</string>
+    <string name="admin_libraries_tmdb_collections">Créer les collections depuis TMDB</string>
+    <string name="admin_libraries_tmdb_collections_hint">Regroupe les films dans les collections de TMDB. Désactivez cette option si vous gérez les collections avec un outil externe, comme Kometa.</string>
+    <string name="admin_libraries_tmdb_collections_off_title">Retirer les collections TMDB ?</string>
+    <string name="admin_libraries_tmdb_collections_off_message">Les collections de TMDB dans %1$s seront supprimées, y compris les modifications que vous y avez apportées.</string>
+    <string name="admin_libraries_tmdb_collections_off_confirm">Retirer</string>
     <string name="admin_libraries_phase_queued">En attente</string>
     <string name="admin_libraries_phase_walking">Recherche des fichiers</string>
     <string name="admin_libraries_phase_probing">Analyse des médias</string>

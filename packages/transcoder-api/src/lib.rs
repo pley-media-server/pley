@@ -747,6 +747,11 @@ pub struct Capabilities {
     /// at a time, and give a set up after an hour.
     #[serde(default)]
     pub trickplay_runs: u32,
+    /// Probes, jobs, conversions and subtitle tracks take an `http://`
+    /// address in place of a file's path: media the caller relays from
+    /// elsewhere (what a `.strm` file names).
+    #[serde(default)]
+    pub remote_inputs: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -1217,7 +1222,8 @@ fn default_true() -> bool {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct JobRequest {
-    /// Absolute path of the input file, as seen by the transcoder.
+    /// Absolute path of the input file, as seen by the transcoder, or an
+    /// `http://` address ([`Capabilities::remote_inputs`]).
     pub input: String,
     /// Media information the caller already has (skips a probe). Ignored when it
     /// does not contain a duration.
@@ -1534,7 +1540,12 @@ pub struct JobStatus {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct ProbeRequest {
+    /// The file, or an `http://` address ([`Capabilities::remote_inputs`]).
     pub path: String,
+    /// Someone waits for it to play the media: it doesn't wait for the
+    /// playbacks starting, nor in line behind a library scan's probes.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub urgent: bool,
 }
 
 /// `POST /v1/thumbnail` → `image/jpeg`.

@@ -69,12 +69,12 @@ pub(crate) struct Collection {
     pub created_at: i64,
 }
 
-/// The categories of collections, in their order (Other just before Franchises, as a new server
+/// The categories of collections, in their order (Other just before Box sets, as a new server
 /// has them): `(id, key, title)`.
 pub(crate) const CATEGORIES: [(i64, Option<&str>, &str); 4] = [
     (ids::CATEGORY_HIGHLIGHTS, Some("highlights"), "Highlights"),
     (ids::CATEGORY_OTHER, Some("other"), "Other"),
-    (ids::CATEGORY_FRANCHISES, Some("franchises"), "Franchises"),
+    (ids::CATEGORY_BOX_SETS, Some("box_sets"), "Box sets"),
     (ids::CATEGORY_SEASONAL, None, "Seasonal"),
 ];
 
@@ -618,9 +618,9 @@ impl Catalog {
                 automatic: c % 2 == 0,
                 sort: if c % 3 == 0 { "custom" } else { "release" },
                 smart_filter: None,
-                // TMDB's are Franchises; of the others, a few are Seasonal and the rest Other.
+                // TMDB's are Box sets; of the others, a few are Seasonal and the rest Other.
                 category_id: match c % 4 {
-                    0 | 2 => Some(ids::CATEGORY_FRANCHISES),
+                    0 | 2 => Some(ids::CATEGORY_BOX_SETS),
                     1 => Some(ids::CATEGORY_SEASONAL),
                     _ => None,
                 },

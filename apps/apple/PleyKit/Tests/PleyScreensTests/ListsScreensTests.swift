@@ -159,8 +159,8 @@ struct CollectionScreensTests {
         let library = LibraryModel(app: app, libraryId: 1, view: "tab=collections")
         await library.load()
         let model = library.collections
-        // Other is the server's, where its list puts it: before Franchises.
-        #expect(model.groups.map(\.title) == ["Highlights", "Other", "Franchises", "Holidays", "Made Since"])
+        // Other is the server's, where its list puts it: before Box sets.
+        #expect(model.groups.map(\.title) == ["Highlights", "Other", "Box sets", "Holidays", "Made Since"])
         #expect(model.groups.map { $0.cards.map(\.title) } ==
             [["Unwatched Sci-Fi"], ["Villeneuve Picks"], ["Dune Collection"], ["Christmas Movies"], ["Awards"]])
         #expect(model.showsHeadings && model.offersCategories && !model.filtered)
@@ -181,7 +181,7 @@ struct CollectionScreensTests {
 
         let page = CollectionModel(app: app, collectionId: 801)
         await page.load()
-        #expect(page.category == "Franchises")
+        #expect(page.category == "Box sets")
         // Other only says it has none: its page names no category.
         let other = CollectionModel(app: app, collectionId: 802)
         await other.load()
@@ -204,8 +204,8 @@ struct CollectionScreensTests {
         #expect(groups.count == 1 && groups[0].cards.map(\.title) == ["A", "B"])
         #expect(groups[0].choice == nil && groups[0].title.isEmpty && groups[0].id == "none")
         // Next to categories, the group without one comes after them and can't be chosen.
-        let dune = CollectionSummary(id: 3, libraryId: 1, title: "Dune", category: CollectionCategory(id: 2, title: "Franchises"))
-        let mixed = CollectionGroup.of(collections + [dune], categories: [CollectionCategory(id: 2, title: "Franchises")],
+        let dune = CollectionSummary(id: 3, libraryId: 1, title: "Dune", category: CollectionCategory(id: 2, title: "Box sets"))
+        let mixed = CollectionGroup.of(collections + [dune], categories: [CollectionCategory(id: 2, title: "Box sets")],
                                        kind: .movies)
         #expect(mixed.map(\.id) == ["2", "none"] && mixed.map(\.choice) == [.category(2), nil])
     }

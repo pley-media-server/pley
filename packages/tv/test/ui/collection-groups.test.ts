@@ -64,7 +64,7 @@ describe("the category a collection's page names, as collections.json has it", (
 
 describe("the category a collection's page names", () => {
   it("is its category's title, but not Other's, and none without one", () => {
-    expect(namedCategory({ category: { id: 2, key: "franchises", title: "Franchises" } })).toBe("Franchises");
+    expect(namedCategory({ category: { id: 2, key: "box_sets", title: "Box sets" } })).toBe("Box sets");
     expect(namedCategory({ category: { id: 5, key: null, title: "Seasonal" } })).toBe("Seasonal");
     expect(namedCategory({ category: { id: 3, key: "other", title: "Autres" } })).toBeNull();
     expect(namedCategory({})).toBeNull();

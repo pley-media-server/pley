@@ -15,6 +15,12 @@ What Pley does, in full. The [README](../README.md) has the short version.
   alone, which TMDB numbers by its title. Two files never merge into one
   episode for lack of a number.
   [deploy/docker/media](../deploy/docker/media/README.md) shows a layout.
+- `.strm` files, as Kodi, Jellyfin and Emby read them: a text file in a
+  movie or TV library that names the `http` or `https` address its video
+  is at. It is listed, played, converted and downloaded like a video on
+  disk, on every app, and its address never leaves the server.
+  Administrators turn them on in Settings → Server, where they're off by
+  default ([.strm files](CONFIGURATION.md#strm-files)).
 - Each profile can order its libraries, on every app.
 - Moving from Plex: its libraries, its Home users as profiles with their
   restrictions, labels, dates added, and what everyone watched
@@ -155,6 +161,8 @@ the Plex- and Jellyfin-compatible APIs don't get them.
 - Recently Added, Recently Released, Top Rated, More Like This and full-text
   search.
 - Collections (from TMDB, curated, or smart) and playlists (ordered or smart).
+  A film library can do without the collections from TMDB, for a tool such
+  as Kometa to make its own.
 
 ## Requests
 

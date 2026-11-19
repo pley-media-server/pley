@@ -12,11 +12,11 @@ from pley import layout as L
 from test_window import Dialogs, FakeWindow
 
 HIGHLIGHTS = {"id": 1, "key": "highlights", "title": "Highlights", "from_label": None, "position": 0}
-# Pley's Other, where a new server puts it: just before Franchises.
+# Pley's Other, where a new server puts it: just before Box sets.
 OTHER = {"id": 4, "key": "other", "title": "Other", "from_label": None, "position": 1}
-FRANCHISES = {"id": 2, "key": "franchises", "title": "Franchises", "from_label": None, "position": 2}
+BOX_SETS = {"id": 2, "key": "box_sets", "title": "Box sets", "from_label": None, "position": 2}
 SEASONAL = {"id": 3, "key": None, "title": "Seasonal", "from_label": "Seasonal", "position": 3}
-CATEGORIES = [HIGHLIGHTS, OTHER, FRANCHISES, SEASONAL]
+CATEGORIES = [HIGHLIGHTS, OTHER, BOX_SETS, SEASONAL]
 
 
 def ref(category):
@@ -38,7 +38,7 @@ def collection(id_, title, category=OTHER, automatic=False, smart_filter=None):
 
 
 RECENT = collection(10, "Recently Added", HIGHLIGHTS, smart_filter="sort=addedAt:desc")
-SAGA = collection(11, "Starfall Saga", FRANCHISES, automatic=True)
+SAGA = collection(11, "Starfall Saga", BOX_SETS, automatic=True)
 MINE = collection(12, "Rainy Sundays")
 # Of a category made since the categories were read: after the rest.
 NEWER = collection(13, "Harvest", {"id": 9, "key": None, "title": "Autumn"})
@@ -50,10 +50,10 @@ class GroupsTest(unittest.TestCase):
 
     def test_groups_follow_the_categories_order_other_included(self):
         found = categories.groups(COLLECTIONS, CATEGORIES)
-        # Other where the list puts it, before Franchises; Seasonal has
+        # Other where the list puts it, before Box sets; Seasonal has
         # none: left out; the unknown category after the rest.
         self.assertEqual([(categories.key(c), [x["id"] for x in of]) for c, of in found], [(1, [10]), (4, [12]), (2, [11]), (9, [13])])
-        self.assertEqual([categories.title(c) for c, _ in found], ["Highlights", "Other", "Franchises", "Autumn"])
+        self.assertEqual([categories.title(c) for c, _ in found], ["Highlights", "Other", "Box sets", "Autumn"])
         self.assertEqual(categories.groups([], CATEGORIES), [])
 
     def test_the_category_filter(self):
@@ -83,7 +83,7 @@ class WindowTest(unittest.TestCase):
         self.assertFalse(win.made[L.grid_list(L.LIBRARY_GRID, "grid")].visible)
         headings = [win.made[L.slot_header(L.LIBRARY_ROWS, i)].label for i in range(4)]
         muted = lambda n: "[COLOR %s]%s[/COLOR]" % (L.MUTED, n)  # noqa: E731
-        self.assertEqual(headings, ["Highlights  " + muted(1), "Other  " + muted(1), "Franchises  " + muted(1), "Autumn  " + muted(1)])
+        self.assertEqual(headings, ["Highlights  " + muted(1), "Other  " + muted(1), "Box sets  " + muted(1), "Autumn  " + muted(1)])
         self.assertFalse(win.made[L.slot(L.LIBRARY_ROWS, 4)].visible)
         row = L.slot_list(L.LIBRARY_ROWS, 3, "poster")
         self.assertEqual([li.label for li in win.made[row].items], ["Harvest"])
@@ -106,15 +106,15 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(win.made[L.slot(L.LIBRARY_ROWS, 0)].position[1], -2 * L.HEIGHT)
 
     def test_a_refresh_keeps_the_row_and_the_collection(self):
-        rising = collection(15, "Starfall Rising", FRANCHISES)
+        rising = collection(15, "Starfall Rising", BOX_SETS)
         win, page = self.library([RECENT, MINE, SAGA, rising, NEWER])
-        # Franchises, the third row: Starfall Saga, Starfall Rising.
+        # Box sets, the third row: Starfall Saga, Starfall Rising.
         row = L.slot_list(L.LIBRARY_ROWS, 2, "poster")
         win.focused = row
         win.made[row].selected = 1
         page.focused(row)
         # A collection added before the one focused (Starfall Rising).
-        origins = collection(14, "Starfall Origins", FRANCHISES)
+        origins = collection(14, "Starfall Origins", BOX_SETS)
         win.session.get = lambda path, **query: {"collections": [RECENT, MINE, origins, SAGA, rising, NEWER]} if "libraries" in path else {"categories": CATEGORIES}
         page.refresh()
         self.assertEqual([li.label for li in win.made[row].items], ["Starfall Origins", "Starfall Saga", "Starfall Rising"])
@@ -188,8 +188,8 @@ class WindowTest(unittest.TestCase):
         win, page = self.library()
         with Dialogs(picks=[3]):
             page.click(L.LIBRARY_CATEGORY)
-        self.assertEqual(win.made[L.LIBRARY_CATEGORY_ON].label, window.ICON_ROOM + "Franchises")
-        # Franchises deleted: its collection is under Other now.
+        self.assertEqual(win.made[L.LIBRARY_CATEGORY_ON].label, window.ICON_ROOM + "Box sets")
+        # Box sets deleted: its collection is under Other now.
         moved = dict(SAGA, category=ref(OTHER))
         win.session.get = lambda path, **query: {"collections": [RECENT, moved, MINE, NEWER]} if "libraries" in path else {"categories": [HIGHLIGHTS, OTHER, SEASONAL]}
         page.refresh()
@@ -257,7 +257,7 @@ class WindowTest(unittest.TestCase):
         # All categories, then each with collections, Other where it is.
         with Dialogs(picks=[1]) as dialogs:
             page.click(L.LIBRARY_CATEGORY)
-        self.assertEqual(dialogs.shown[0], ([kodi.text("all_categories"), "Highlights", "Other", "Franchises", "Autumn"], 0))
+        self.assertEqual(dialogs.shown[0], ([kodi.text("all_categories"), "Highlights", "Other", "Box sets", "Autumn"], 0))
         grid = win.made[L.grid_list(L.LIBRARY_GRID, "grid")]
         self.assertEqual(([li.label for li in grid.items], grid.visible), (["Recently Added"], True))
         self.assertEqual(win.made[L.LIBRARY_CATEGORY_ON].label, window.ICON_ROOM + "Highlights")
@@ -283,7 +283,7 @@ class PagesTest(unittest.TestCase):
         win.session.get = lambda path, **query: found
         page = window.Grid.collection(win, {"id": 11})
         page.load()
-        self.assertEqual((page.title, page.subtitle), ("Starfall Saga", "Franchises · Every film of the saga."))
+        self.assertEqual((page.title, page.subtitle), ("Starfall Saga", "Box sets · Every film of the saga."))
         # Other says nothing.
         self.assertEqual(window.collection_line(MINE), "")
 
@@ -365,7 +365,7 @@ class ListsTest(unittest.TestCase):
     def test_categories_are_folders(self):
         found = self.listed("route=collections&id=4")
         base = "plugin://plugin.video.pley/?route=collections&id=4&category="
-        self.assertEqual(found, [("Highlights", base + "1"), ("Other", base + "4"), ("Franchises", base + "2"), ("Autumn", base + "9")])
+        self.assertEqual(found, [("Highlights", base + "1"), ("Other", base + "4"), ("Box sets", base + "2"), ("Autumn", base + "9")])
         # A category: its collections.
         self.assertEqual([label for label, _ in self.listed("route=collections&id=4&category=4")], ["Rainy Sundays"])
         self.assertIn(("category", "Other"), xbmcplugin.calls)
@@ -380,7 +380,7 @@ class ListsTest(unittest.TestCase):
 
     def test_a_collection_and_a_merged_row(self):
         self.listed("route=collection&id=11")
-        self.assertIn(("category", "Starfall Saga · Franchises"), xbmcplugin.calls)
+        self.assertIn(("category", "Starfall Saga · Box sets"), xbmcplugin.calls)
         # Other only says it has none: not named.
         self.listed("route=collection&id=12")
         self.assertIn(("category", "Rainy Sundays"), xbmcplugin.calls)

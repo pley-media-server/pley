@@ -170,3 +170,62 @@ goes back as when they are removed.
 In an item's Edit details, fields the NFO file sets say so. Fix match says
 when a title was matched by hand, and Undo Fix Match lets its NFO file
 decide the match again.
+
+## .strm files
+
+A `.strm` file is a text file that names where a video is, instead of
+being one: Kodi, Jellyfin and Emby read them, and tools that list what a
+hosting service, a cloud drive or another server holds write them. Pley
+reads them in movie and TV libraries once an administrator turns them on
+(Settings → Server → Library scanning). Off, Pley lists none of them and
+asks none of their addresses; turned off again, they leave the libraries
+as deleted files would.
+
+```
+Movies/Alien (1979)/Alien (1979).strm
+Movies/Alien (1979)/Alien (1979).en.srt
+Shows/The Expanse/Season 01/The Expanse - S01E01.strm
+```
+
+- **Its name places it** like any video's: title and year, season and
+  episode, edition, `-trailer`. Artwork, subtitle files and an NFO file
+  beside it are its own, and several `.strm` files of one movie are its
+  versions.
+- **Its first line is the address**: the first that isn't empty and
+  doesn't start with `#`. It must be an `http://` or `https://` address of
+  a media file (MKV, MP4, WebM, MPEG-TS…), with ranges for seeking. A name
+  and password in it (`https://name:password@host/…`) are sent as the
+  address asks.
+- **Kodi's headers** after the address are sent with every request:
+  `https://host/film.mkv|User-Agent=VLC%2F3.0&Referer=https%3A%2F%2Fhost%2F`.
+  Pley takes `User-Agent`, `Referer`, `Origin`, `Cookie`, `Authorization`,
+  `Accept` and `Accept-Language`, and leaves Kodi's other options out.
+- **What isn't read**: a path (`/mnt/…`, `C:\…`, `\\nas\…`, `file://`),
+  a relative address, any other protocol (`rtsp`, `rtmp`, `smb`, `ftp`,
+  `plugin://`), a playlist (an `.m3u8` address) and a file over 64 KiB. Such
+  a file is listed, and playing it says what is wrong with it. To have a
+  video elsewhere on the disk in a library, link to it instead.
+- **The address stays on the server.** No app, no player and no log gets
+  it. A player that plays the video as it is reads it through Pley, which
+  asks the address; a stream is made by the transcoder from what Pley
+  hands it. A password or token in the address is never shown to anyone,
+  administrators included: the `.strm` file is where to read it.
+- **A scan doesn't ask the address.** A library of links is scanned as
+  fast as its files are listed, and a hosting service isn't asked for each
+  of them. What the video is (its tracks, its length, its size, 4K and HDR)
+  is found the first time someone opens its page or plays it, and kept
+  until the file names another address. Until then it has no badges in
+  listings and reads `STRM` where its format goes.
+- **What isn't made for it**: seek previews, chapter pictures, a picture
+  grabbed from the video, and intro and credits detection, which all read
+  the whole video. Chapters and a subtitle track in the video work as for
+  a file, read through Pley at the address.
+- **An address on the internet stays on the internet.** It can't redirect
+  to an address of your own network or of the server's computer, also
+  when an address of your network sent Pley there. An
+  address the file itself names on your network (a NAS, a download
+  service) is asked as it is. It may redirect to another address of your
+  network written as a number, or to a name the `.strm` files give
+  ([SECURITY.md](../SECURITY.md#strm-files)).
+- A link that stops answering leaves its item in the library: playing it
+  says the address didn't answer, or has nothing there any more.

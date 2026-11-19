@@ -34,6 +34,7 @@ mod probe;
 #[cfg(test)]
 mod remux_tests;
 mod share;
+mod source;
 #[cfg(test)]
 mod testing;
 mod trickplay;
@@ -615,6 +616,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
         capabilities: pley_transcoder_api::Capabilities {
             trickplay_version: trickplay::VERSION,
             trickplay_runs: runs,
+            remote_inputs: true,
             ..own_capabilities(&ff.caps)
         },
         limits,

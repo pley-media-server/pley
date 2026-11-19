@@ -10,7 +10,6 @@
 //! transcode until it is done.
 
 use std::collections::{HashMap, HashSet};
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
@@ -24,6 +23,7 @@ use tokio::sync::mpsc;
 use crate::background::Background;
 use crate::ffmpeg::Ffmpeg;
 use crate::metrics::Metrics;
+use crate::source::Source;
 use crate::util::{MEDIA_INPUT_OPTIONS, background_priority, file_key, input_arg, touch, write_atomically};
 
 const MEMORY_ENTRIES: usize = 256;
@@ -31,6 +31,11 @@ const MEMORY_ENTRIES: usize = 256;
 /// thousands of movie fragments on slow storage comes near it); beyond that
 /// the job transcodes and the index is finished in the background.
 const READ_BUDGET: Duration = Duration::from_secs(2);
+/// The same for an address ([`crate::source`]), where every seek is a
+/// request to wherever the media is: the job transcodes when its index
+/// isn't read by then, as when the address stops answering part way. The
+/// reading goes on, and the next job has the index.
+const REMOTE_READ_BUDGET: Duration = Duration::from_secs(10);
 /// The longest a scan of every packet header takes, paused time not counted
 /// (a whole file read over a slow share; it never stopped before).
 const SCAN_TIMEOUT: Duration = Duration::from_secs(12 * 3600);
@@ -39,6 +44,8 @@ pub struct KeyframeStore {
     dir: PathBuf,
     memory: Mutex<HashMap<String, Arc<Vec<i64>>>>,
     pending: Mutex<HashSet<String>>,
+    /// Addresses whose own index is being read ([`Self::get_or_read`]).
+    reading: Mutex<HashSet<String>>,
     queue: mpsc::UnboundedSender<(String, PathBuf)>,
 }
 
@@ -46,7 +53,13 @@ impl KeyframeStore {
     pub fn new(ff: Arc<Ffmpeg>, metrics: Arc<Metrics>, background: Arc<Background>, dir: PathBuf) -> Arc<Self> {
         let _ = std::fs::create_dir_all(&dir);
         let (tx, mut rx) = mpsc::unbounded_channel::<(String, PathBuf)>();
-        let store = Arc::new(Self { dir, memory: Mutex::default(), pending: Mutex::default(), queue: tx });
+        let store = Arc::new(Self {
+            dir,
+            memory: Mutex::default(),
+            pending: Mutex::default(),
+            reading: Mutex::default(),
+            queue: tx,
+        });
         let worker = Arc::downgrade(&store);
         tokio::spawn(async move {
             while let Some((key, path)) = rx.recv().await {
@@ -102,28 +115,56 @@ impl KeyframeStore {
     /// Like [`get`](Self::get), but without a cached index first reads the
     /// file's own (Matroska cues, MP4 sample tables), which takes
     /// milliseconds.
-    pub async fn get_or_read(&self, path: &Path) -> Option<Arc<Vec<i64>>> {
+    pub async fn get_or_read(self: &Arc<Self>, path: &Path) -> Option<Arc<Vec<i64>>> {
         if let Some(hit) = self.get(path) {
             return Some(hit);
         }
         let key = file_key(path).ok()?;
-        let file = path.to_path_buf();
-        let deadline = Instant::now() + READ_BUDGET;
-        let started = Instant::now();
-        let (times, source) =
-            tokio::task::spawn_blocking(move || container_index(&file, Some(deadline))).await.ok().flatten()?;
-        tracing::debug!(
-            "keyframe index for {} read from {source} ({} keyframes, {:.0} ms)",
-            path.display(),
-            times.len(),
-            started.elapsed().as_secs_f64() * 1000.0
-        );
-        self.save(&key, times.clone()).await;
-        Some(Arc::new(times))
+        let remote = crate::source::is_remote(path);
+        let budget = if remote { REMOTE_READ_BUDGET } else { READ_BUDGET };
+        let deadline = Instant::now() + budget;
+        // An address is read once at a time: another job waits for that
+        // reading, as long as it would for its own.
+        if remote && !self.reading.lock().insert(key.clone()) {
+            while Instant::now() < deadline && self.reading.lock().contains(&key) {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            return self.get(path);
+        }
+        let (store, file, started) = (self.clone(), path.to_path_buf(), Instant::now());
+        // A file's index past the budget is the background scan's; an
+        // address has none, so its reading goes on to the end.
+        let until = (!remote).then_some(deadline);
+        let reading = tokio::spawn(async move {
+            let index = {
+                let file = file.clone();
+                tokio::task::spawn_blocking(move || container_index(&file, until)).await.ok().flatten()
+            };
+            if let Some((times, source)) = &index {
+                tracing::debug!(
+                    "keyframe index for {} read from {source} ({} keyframes, {:.0} ms)",
+                    file.display(),
+                    times.len(),
+                    started.elapsed().as_secs_f64() * 1000.0
+                );
+                store.save(&key, times.clone()).await;
+            }
+            store.reading.lock().remove(&key);
+            index.map(|(times, _)| Arc::new(times))
+        });
+        // An address may take longer than the job can wait: what it reads
+        // is kept all the same.
+        let read = if remote { tokio::time::timeout(budget, reading).await.ok()? } else { reading.await };
+        read.ok().flatten()
     }
 
-    /// Queue an index build unless one exists or is already queued.
+    /// Queue an index build unless one exists or is already queued. Never
+    /// for an address ([`crate::source`]): reading every packet header would
+    /// fetch all of its media.
     pub fn request(&self, path: &Path) {
+        if crate::source::is_remote(path) {
+            return;
+        }
         let Ok(key) = file_key(path) else { return };
         if self.memory.lock().contains_key(&key) || self.dir.join(format!("{key}.txt")).exists() {
             return;
@@ -159,8 +200,9 @@ impl KeyframeStore {
 /// than by name: Matroska cues or MP4/MOV sample tables. `None` when it has
 /// none that can be trusted (the caller scans packets instead). Blocking.
 fn container_index(path: &Path, deadline: Option<Instant>) -> Option<(Vec<i64>, &'static str)> {
+    use std::io::Read;
     let mut head = Vec::with_capacity(12);
-    std::fs::File::open(path).ok()?.take(12).read_to_end(&mut head).ok()?;
+    Source::open(path).ok()?.take(12).read_to_end(&mut head).ok()?;
     if head.starts_with(&[0x1A, 0x45, 0xDF, 0xA3]) {
         return crate::matroska::cue_keyframes(path).map(|times| (times, "Matroska cues"));
     }

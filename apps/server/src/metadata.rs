@@ -24,7 +24,7 @@ use crate::people;
 use crate::providers::{Endpoints, ProviderError, Providers, TvSource};
 use crate::settings::SettingsStore;
 use crate::store::{self, Store};
-use crate::util::{normalize_key, now, sort_title};
+use crate::util::{composed, normalize_key, now, sort_title};
 
 pub(crate) const API: &str = "https://api.themoviedb.org/3";
 pub(crate) const IMAGES: &str = "https://image.tmdb.org/t/p";
@@ -611,6 +611,7 @@ impl MetadataAgent {
         year: Option<i64>,
     ) -> anyhow::Result<Vec<MatchCandidate>> {
         let (path, year_param) = if tv { ("/search/tv", "first_air_date_year") } else { ("/search/movie", "year") };
+        let title = &composed(title);
         let mut query = vec![("query", title.to_owned()), ("include_adult", "false".to_owned())];
         if let Some(y) = year {
             query.push((year_param, y.to_string()));
@@ -860,6 +861,7 @@ impl MetadataAgent {
 
     async fn search(&self, tv: bool, title: &str, year: Option<i64>) -> Result<Option<i64>, TmdbError> {
         let (path, year_param) = if tv { ("/search/tv", "first_air_date_year") } else { ("/search/movie", "year") };
+        let title = &composed(title);
         let mut query = vec![("query", title.to_owned()), ("include_adult", "false".to_owned())];
         if let Some(y) = year {
             query.push((year_param, y.to_string()));

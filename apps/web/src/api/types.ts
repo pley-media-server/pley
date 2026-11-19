@@ -195,6 +195,8 @@ export interface Library {
   scanning: boolean;
   /** A Plex import is bringing Plex's labels to it: profiles with labels they never see don't see it yet. */
   labels_pending?: boolean;
+  /** Pley makes collections from TMDB in it (a movie library's); missing from servers older than the switch. */
+  tmdb_collections?: boolean;
 }
 
 export type ItemKind =
@@ -1058,6 +1060,11 @@ export interface Settings {
    * episodes, over the online source's. Absent from servers before it.
    */
   read_nfo?: boolean;
+  /**
+   * Movie and TV libraries list their `.strm` files and play what they
+   * name. Off: scans leave them out. Absent from servers before it.
+   */
+  strm_files?: boolean;
   hwaccel: HwAccel;
   hardware_decoding: boolean;
   tonemapping: ToneMapping;

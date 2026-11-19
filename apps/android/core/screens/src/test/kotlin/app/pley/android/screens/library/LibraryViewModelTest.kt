@@ -435,12 +435,12 @@ class LibraryViewModelTest {
 
     @Test
     fun collectionsAreGroupedByCategoryAndFiltered() = runTest(dispatcher) {
-        val franchises = CategoryRef(2, "franchises", "Franchises")
+        val boxSets = CategoryRef(2, "box_sets", "Box sets")
         val other = CategoryRef(3, "other", "Other")
         collections.categoryList.value = Loadable.Loading
         collections.lists.value = mapOf(
             1L to listOf(
-                CollectionSummary(9, 1, "Alien Collection", automatic = true, category = franchises, itemCount = 4),
+                CollectionSummary(9, 1, "Alien Collection", automatic = true, category = boxSets, itemCount = 4),
                 CollectionSummary(10, 1, "Favourites", category = other, itemCount = 2),
                 // Of a category made since the list was read: after the rest, under its own title.
                 CollectionSummary(12, 1, "Christmas", category = CategoryRef(6, null, "Holidays"), itemCount = 3),
@@ -456,16 +456,16 @@ class LibraryViewModelTest {
             listOf(
                 CollectionCategory(1, "highlights", "Highlights"),
                 CollectionCategory(3, "other", "Other"),
-                CollectionCategory(2, "franchises", "Franchises"),
+                CollectionCategory(2, "box_sets", "Box sets"),
                 CollectionCategory(5, null, "Seasonal"),
             ),
             fresh = true,
         )
         advanceUntilIdle()
         var view = vm.state.value.collections.valueOrNull!!
-        // The categories' order, Other where the list puts it (before Franchises), Seasonal left out
+        // The categories' order, Other where the list puts it (before Box sets), Seasonal left out
         // with nothing in it, and Holidays, not listed yet, last.
-        assertEquals(listOf("Highlights", "Other", "Franchises", "Holidays"), view.groups.map { it.category?.title })
+        assertEquals(listOf("Highlights", "Other", "Box sets", "Holidays"), view.groups.map { it.category?.title })
         assertTrue(view.headed)
         assertTrue(view.categoryOffered)
         assertFalse(view.filtered)

@@ -19,7 +19,7 @@ use tokio::sync::Semaphore;
 use crate::ffmpeg::Ffmpeg;
 use crate::metrics::Metrics;
 use crate::plan::MAX_DURATION_MS;
-use crate::util::{MEDIA_INPUT_OPTIONS, file_key, input_arg};
+use crate::util::{file_key, input_arg, input_options};
 
 const CACHE_ENTRIES: usize = 4096;
 /// Packets read from the start of an MP4 or MOV file with its streams, for
@@ -131,7 +131,7 @@ impl Prober {
         if crate::mp4::sniff(&head(path).await) {
             cmd.args(["-show_entries", "packet=stream_index,pts,dts", "-read_intervals", TIMED_PACKETS]);
         }
-        cmd.args(MEDIA_INPUT_OPTIONS)
+        cmd.args(input_options(path))
             .arg(input_arg(path))
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -184,7 +184,7 @@ impl Prober {
             .arg(video.index.to_string())
             .args(["-read_intervals", "%+#12", "-show_entries", FRAME_ENTRIES])
             .args(["-of", "json"])
-            .args(MEDIA_INPUT_OPTIONS)
+            .args(input_options(path))
             .arg(input_arg(path))
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -215,7 +215,7 @@ impl Prober {
         cmd.args(["-v", "error", "-select_streams"])
             .arg(stream.to_string())
             .args(["-read_intervals", ORDERED_PACKETS, "-show_entries", "frame=pts", "-of", "csv=p=0"])
-            .args(MEDIA_INPUT_OPTIONS)
+            .args(input_options(path))
             .arg(input_arg(path))
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -244,12 +244,16 @@ fn steps_back(times: &[i64]) -> usize {
 
 /// The first bytes of `path`, to tell its format by (none when unreadable).
 async fn head(path: &Path) -> Vec<u8> {
-    use tokio::io::AsyncReadExt;
-    let mut head = Vec::with_capacity(12);
-    if let Ok(file) = tokio::fs::File::open(path).await {
-        let _ = file.take(12).read_to_end(&mut head).await;
-    }
-    head
+    use std::io::Read;
+    let path = path.to_owned();
+    let read = move || {
+        let mut head = Vec::with_capacity(12);
+        if let Ok(source) = crate::source::Source::open(&path) {
+            let _ = source.take(12).read_to_end(&mut head);
+        }
+        head
+    };
+    tokio::task::spawn_blocking(read).await.unwrap_or_default()
 }
 
 /// Whether `video` may carry Dolby Vision its file doesn't name: 10-bit
