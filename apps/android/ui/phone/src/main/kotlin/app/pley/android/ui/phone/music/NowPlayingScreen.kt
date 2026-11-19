@@ -51,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -95,6 +96,7 @@ import app.pley.android.ui.phone.player.SleepNotice
 import app.pley.android.ui.phone.player.onCarScreen
 import androidx.compose.foundation.layout.BoxScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import app.pley.android.screens.music.NowPlayingState
 import app.pley.android.screens.music.NowPlayingViewModel
@@ -370,6 +372,7 @@ private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel, inline: Boolea
     }
     val reduced = reducedMotion()
     val thumbAt = remember { Animatable(played) }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(played, now.playing, playingTrack, reduced) {
         val step = played - thumbAt.value
         when {
@@ -406,8 +409,15 @@ private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel, inline: Boolea
             detectHorizontalDragGestures(
                 onDragStart = { offset -> dragging = (offset.x / size.width).coerceIn(0f, 1f) },
                 onDragEnd = {
-                    dragging?.let(seek)
-                    dragging = null
+                    val to = dragging
+                    if (to != null) {
+                        seek(to)
+                        // The thumb stays where it was let go, rather than back where the track was and gliding over.
+                        scope.launch {
+                            thumbAt.snapTo(to)
+                            dragging = null
+                        }
+                    }
                 },
                 onDragCancel = { dragging = null },
             ) { change, _ -> dragging = (change.position.x / size.width).coerceIn(0f, 1f) }
