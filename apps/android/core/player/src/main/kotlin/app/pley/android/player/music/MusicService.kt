@@ -150,7 +150,7 @@ class MusicService : MediaLibraryService() {
         // Repeat for whoever found it.
         addSession(made)
         // The phone's own media controls show the covers the session names, read from the app as the car's are.
-        grantArt(SYSTEM_UI)
+        if (systemApp(SYSTEM_UI)) grantArt(SYSTEM_UI)
         following = scope.launch {
             launch {
                 playback.queueState.collect { queue ->
@@ -351,10 +351,10 @@ class MusicService : MediaLibraryService() {
 
     /** Whether [controller] may connect: the app, the system's controllers, Media3's notification, Android Auto and the Google app. */
     private fun allowed(controller: MediaSession.ControllerInfo, session: MediaSession?): Boolean =
-        controller.packageName == packageName ||
+        (controller.packageName == packageName && controller.uid == Process.myUid()) ||
             (session != null && session.isMediaNotificationController(controller)) ||
             (controller.isTrusted && isSystem(controller)) ||
-            isCar(controller.packageName)
+            isCar(controller)
 
     /** Lets [packageName] read the library's pictures ([MusicArt]), and nothing else of the app's. */
     private fun grantArt(packageName: String) {
@@ -377,7 +377,23 @@ class MusicService : MediaLibraryService() {
         return info.uid == controller.uid && info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
     }
 
-    private fun isCar(packageName: String): Boolean = packageName != this.packageName && MusicCallers.allowed(packageManager, packageName)
+    /**
+     * Whether [controller] is Android Auto or the Google app: the name it gives, owned by the uid it asks from, and the
+     * app under that name signed by Google. Media3 takes a controller's name unchecked from an app this one can't see
+     * (package visibility hides its packages), and from the system's controllers below Android 13.
+     */
+    private fun isCar(controller: MediaSession.ControllerInfo): Boolean {
+        val name = controller.packageName
+        if (name == packageName) return false
+        val owner = runCatching { packageManager.getPackageUid(name, 0) }.getOrNull() ?: return false
+        return owner == controller.uid && MusicCallers.allowed(packageManager, name)
+    }
+
+    /** Whether [name] is installed as part of the system: no other app can take a system app's name. */
+    private fun systemApp(name: String): Boolean {
+        val info = runCatching { packageManager.getApplicationInfo(name, 0) }.getOrNull() ?: return false
+        return info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+    }
 
     /**
      * The buttons beside Previous, Play and Next (Android Auto's Now
@@ -443,7 +459,7 @@ class MusicService : MediaLibraryService() {
 
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
             if (!allowed(controller, session)) return MediaSession.ConnectionResult.reject()
-            val car = isCar(controller.packageName)
+            val car = isCar(controller)
             // The car reads the library's pictures from the app (MusicArt): it may read them, and only them.
             if (car) grantArt(controller.packageName)
             // Android Auto connecting, to a session that may have outlived the last car: what played last waits for it, the
@@ -478,7 +494,7 @@ class MusicService : MediaLibraryService() {
 
         override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
             val library = graph ?: return
-            val tells = isCar(controller.packageName) || session.isMediaNotificationController(controller)
+            val tells = isCar(controller) || session.isMediaNotificationController(controller)
             if (tells && !library.signedIn()) tellCars(session as MediaLibrarySession, signedIn = false)
         }
 
@@ -489,7 +505,7 @@ class MusicService : MediaLibraryService() {
          * means and a driver doesn't.
          */
         override fun onPlayerCommandRequest(session: MediaSession, controller: MediaSession.ControllerInfo, playerCommand: Int): Int {
-            if (playerCommand == Player.COMMAND_STOP && isCar(controller.packageName)) {
+            if (playerCommand == Player.COMMAND_STOP && isCar(controller)) {
                 session.player.pause()
                 return SessionResult.RESULT_INFO_SKIPPED
             }
@@ -502,7 +518,7 @@ class MusicService : MediaLibraryService() {
          */
         override fun onDisconnected(session: MediaSession, controller: MediaSession.ControllerInfo) {
             // Android Auto is the car: the Google app staying connected (the Assistant) keeps neither the radio nor the session.
-            if (controller.packageName != MusicCallers.ANDROID_AUTO || !isCar(controller.packageName)) return
+            if (controller.packageName != MusicCallers.ANDROID_AUTO || !isCar(controller)) return
             if (session.connectedControllers.any { it != controller && it.packageName == MusicCallers.ANDROID_AUTO }) return
             showMusic(session as MediaLibrarySession, playback, graph?.library)
             if (!playback.active) end(session, playback)

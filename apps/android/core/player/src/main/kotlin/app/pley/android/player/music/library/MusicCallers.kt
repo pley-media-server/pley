@@ -24,14 +24,19 @@ object MusicCallers {
         GOOGLE to listOf("f0fd6c5b410f25cb25c3b53346c8972fae30f8ee7411df910480ad6b2d60db83"),
     )
 
-    /** Whether [packageName] is one of these apps, signed by Google. */
+    /**
+     * Whether [packageName] is one of these apps, signed by Google: with any of its keys, each asked about alone,
+     * as hasSignatures given several wants every one of them (an Android Auto signed before its key rotated has the
+     * first alone).
+     */
     fun allowed(packageManager: PackageManager, packageName: String): Boolean {
         val keys = KEYS[packageName] ?: return false
-        val certificates: Map<ByteArray, Int> = keys.associate { hex(it) to PackageManager.CERT_INPUT_SHA256 }
-        return try {
-            PackageInfoCompat.hasSignatures(packageManager, packageName, certificates, false)
-        } catch (_: PackageManager.NameNotFoundException) {
-            false
+        return keys.any { key ->
+            try {
+                PackageInfoCompat.hasSignatures(packageManager, packageName, mapOf(hex(key) to PackageManager.CERT_INPUT_SHA256), false)
+            } catch (_: PackageManager.NameNotFoundException) {
+                false
+            }
         }
     }
 

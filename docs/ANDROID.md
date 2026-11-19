@@ -1119,13 +1119,16 @@ for the next drive; music stopped from its notification is forgotten. A
 long queue keeps the 500 tracks around the one that played. Signed
 out, the car says to open Pley on the phone and sign in when it is safe,
 with a button that opens it. The car reads the covers from the app, as the server's
-pictures need the profile's token: the app grants Android Auto, and the
-phone's own media controls, reading them and nothing else. Music without
+pictures need the profile's token: the app grants Android Auto, the
+Google app and the phone's own media controls reading them and nothing
+else. Music without
 a picture has the one the app shows: its title's gradient with Pley's
 mark, drawn on the phone from the title's hue alone, so no title goes
-into the address the car is given. Only Android Auto and the Google app, checked by
-the certificate Google signs them with, besides the system's own media
-controls, may browse or play Pley's music.
+into the address the car is given. Only Android Auto and the Google app,
+each checked by the certificate Google signs it with and as the app that
+asks, besides the system's own media controls, may browse Pley's music or
+pick what plays; a media button (a headset's, the steering wheel's, or
+one another app sends) only plays, pauses and skips.
 
 **Live TV**, while driving or parked, to a profile Live TV is open to:
 its tab lists the favourites, then the channels watched lately, each
