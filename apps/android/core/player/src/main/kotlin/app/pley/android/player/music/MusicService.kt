@@ -442,8 +442,15 @@ class MusicService : MediaLibraryService() {
 
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
             if (!allowed(controller, session)) return MediaSession.ConnectionResult.reject()
+            val car = isCar(controller.packageName)
             // The car reads the library's pictures from the app (MusicArt): it may read them, and only them.
-            if (isCar(controller.packageName)) grantArt(controller.packageName)
+            if (car) grantArt(controller.packageName)
+            // Android Auto connecting, to a session that may have outlived the last car: what played last waits for it, the
+            // radio's channel too. Told here: Android Auto browses through MediaBrowserCompat, whose connection reaches
+            // onPostConnect only with the first command it sends, after the car has shown its Now Playing.
+            if (car && controller.packageName == MusicCallers.ANDROID_AUTO && graph != null) {
+                bringBack(session as MediaLibrarySession, playback, graph, car = true)
+            }
             // Media3's defaults for this controller (super.onConnect only marks "use the defaults"), with Shuffle and Repeat.
             val accepted = MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller).build()
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
@@ -470,11 +477,8 @@ class MusicService : MediaLibraryService() {
 
         override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
             val library = graph ?: return
-            val car = isCar(controller.packageName)
-            val tells = car || session.isMediaNotificationController(controller)
+            val tells = isCar(controller.packageName) || session.isMediaNotificationController(controller)
             if (tells && !library.signedIn()) tellCars(session as MediaLibrarySession, signedIn = false)
-            // A car connecting to a session that outlived the last one: what played last waits for it again.
-            if (car && controller.packageName == MusicCallers.ANDROID_AUTO) bringBack(session as MediaLibrarySession, playback, library, car = true)
         }
 
         /**
