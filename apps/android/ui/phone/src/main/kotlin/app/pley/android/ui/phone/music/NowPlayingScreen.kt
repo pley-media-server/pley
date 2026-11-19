@@ -243,7 +243,8 @@ private fun WideNowPlaying(now: NowPlaying, art: ArtworkImage?, model: NowPlayin
             .widthIn(max = WIDE_MAX)
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
             .padding(start = 24.dp, end = 24.dp, bottom = if (LocalCarScreen.current) CarGap else 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        // A car's touch targets keep 24 dp apart: the scrubber's and the controls' under it too.
+        verticalArrangement = Arrangement.spacedBy(if (LocalCarScreen.current) CarGap else 12.dp),
     ) {
         Row(Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -445,9 +446,14 @@ private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel, inline: Boolea
     }
 }
 
-/** Shuffle, Previous, Play/Pause, Next and Repeat, Play the largest, in the middle. */
+/**
+ * Shuffle, Previous, Play/Pause, Next and Repeat, Play the largest, in the
+ * middle. On a car's screen too narrow for the five 24 dp apart (a narrow
+ * portrait one), Play is a car's smallest target, as the others are.
+ */
 @Composable
-private fun Controls(now: NowPlaying, model: NowPlayingViewModel) {
+private fun Controls(now: NowPlaying, model: NowPlayingViewModel) = BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val playSize = if (LocalCarScreen.current && maxWidth < CAR_CONTROLS_WIDTH) 48.dp else 72.dp
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         ModeButton(
             PleyIcons.Shuffle,
@@ -461,14 +467,14 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) {
         val label = stringResource(if (playing) R.string.music_pause else R.string.music_play)
         Box(
             Modifier
-                .size(72.dp)
+                .size(playSize)
                 .clip(PleyShape.Circle)
                 .background(PleyColors.Accent)
                 .clickable(role = Role.Button, onClick = model::toggle)
                 .semantics { contentDescription = label },
             contentAlignment = Alignment.Center,
         ) {
-            PlayPauseGlyph(playing, size = 32.dp, tint = PleyColors.OnAccent)
+            PlayPauseGlyph(playing, size = playSize * 4 / 9, tint = PleyColors.OnAccent)
         }
         SkipButton(PleyIcons.SkipForward, stringResource(R.string.music_next), onClick = model::next, enabled = now.hasNext)
         ModeButton(
@@ -571,6 +577,9 @@ private val TALL_EDGE = 24.dp
 
 /** The widest a wide window's controls spread. */
 private val WIDE_MAX = 640.dp
+
+/** The controls' row on a car's screen with Play at its usual size: four 48 dp buttons, Play's 72 and 24 dp between each once scaled. */
+private val CAR_CONTROLS_WIDTH = 48.dp * 4 + 72.dp + CarGap * 4
 
 /** A track loading this long says so. */
 private const val LOADING_AFTER_MS = 700L

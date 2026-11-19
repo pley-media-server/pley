@@ -1176,7 +1176,9 @@ item's poster does, so Play is in view; in a short window (a small or
 split car screen, a phone on its side) an artist's or album's cover is
 smaller and what it is isn't said, so Play and Shuffle stay side by side
 above the bar of what plays. Music's Now Playing and the bar
-of what plays are car-sized too; Now Playing puts the cover beside the
+of what plays are car-sized too, their controls 24 dp apart as the
+player's are (Play no larger than the others on a narrow portrait
+screen); Now Playing puts the cover beside the
 title, over the scrubber and the controls, as in any short, wide window
 (a phone on its side too). These layouts hold on every screen Android Auto
 gives parked apps, as Google's Desktop Head Unit configurations test
