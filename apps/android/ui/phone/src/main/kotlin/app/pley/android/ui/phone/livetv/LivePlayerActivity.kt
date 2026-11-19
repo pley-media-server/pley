@@ -177,8 +177,8 @@ class LivePlayerActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        stoppedCovered = false
-        vm.resume()
+        // Still covered by the car (the driver back from another of its apps): the channel waits to be parked again.
+        if (!stoppedCovered) vm.resume()
         immersive()
     }
 
@@ -203,7 +203,7 @@ class LivePlayerActivity : ComponentActivity() {
         stoppedCovered = false
     }
 
-    /** Stopped by [onPause] on a car's screen, not yet started again. */
+    /** Stopped by [onPause] on a car's screen, not yet back in front ([onResume]). */
     private var stoppedCovered = false
 
     override fun onStop() {

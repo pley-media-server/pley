@@ -1209,8 +1209,9 @@ cars' too, so these layouts can be tried on an emulator, where Android
 Auto itself doesn't run. As the car moves off, Android Auto covers the
 window: the video pauses at once and its media session goes, so neither
 the car's buttons nor the steering wheel's can play it while driving; a
-channel is let go. Parked again, Play carries on (a channel plays again
-by itself).
+channel is let go. It stays so while the car covers it, even shown again
+behind the cover after another of the car's apps. Parked again, Play
+carries on (a channel plays again by itself).
 
 Google Play takes video apps for Android Auto only from its early access
 partners, so only the sideloaded build (`direct`) lists Pley among the

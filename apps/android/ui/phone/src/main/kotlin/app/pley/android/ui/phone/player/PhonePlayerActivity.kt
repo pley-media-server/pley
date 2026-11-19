@@ -94,7 +94,11 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
     /** On a car's screen (Android Auto): car-sized, and paused as the car moves off and covers it. */
     private val onCar: Boolean get() = OtherScreen.isCar(this)
 
-    /** Paused and away by [onPause] as a car covered it, not yet back: on whichever screen it comes back to. */
+    /**
+     * Paused and away by [onPause] as a car covered it, not yet back in front ([onResume]), on whichever screen it comes
+     * back to. Started again meanwhile (the driver back from another of the car's apps, the cover still up), it stays
+     * paused, away and without its media session.
+     */
     private var awayCovered = false
 
     /** Decoders let go in onStop; prepared again in onStart. */
@@ -220,14 +224,14 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    /** The engine, once there is one: this window for it, and the media session while started. */
+    /** The engine, once there is one: this window for it, and the media session while started, unless the car covers it. */
     private fun attachEngine() {
         val engine = controller.value?.engine ?: return
         if (attached === engine) return
         detachEngine()
         attached = engine
         engine.attachWindow(window)
-        mediaSession = VideoMediaSession(this, engine.player).also { it.start() }
+        if (!awayCovered) mediaSession = VideoMediaSession(this, engine.player).also { it.start() }
     }
 
     private fun detachEngine() {
@@ -244,13 +248,19 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         val later = resumeLater
         if (later != null) {
             resumeLater = null
-            restore(later)?.let(::bind)
+            restore(later)?.let { c ->
+                // Still covered by the car: it opens paused and away, and waits to be parked again.
+                if (awayCovered) {
+                    c.pause()
+                    c.setAway(true)
+                }
+                bind(c)
+            }
         } else if (decodersReleased) {
             // Within 90 s: the same session, at the same place, still paused.
             controller.value?.engine?.player?.prepare()
         }
-        controller.value?.setAway(false)
-        awayCovered = false
+        if (!awayCovered) controller.value?.setAway(false)
         decodersReleased = false
         attachEngine()
         immersive()
