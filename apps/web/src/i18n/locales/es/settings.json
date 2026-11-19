@@ -446,7 +446,7 @@
       "folderPath": "Ruta de la carpeta",
       "layout": "Estructura recomendada: <path>{{layout}}</path>",
       "tmdbCollections": "Crear colecciones desde TMDB",
-      "tmdbCollectionsHint": "Agrupa en Sagas las películas que TMDB incluye en una serie, como las de Alien. Desactiva esta opción si otra herramienta, como Kometa, crea las colecciones de esta biblioteca.",
+      "tmdbCollectionsHint": "Agrupa las películas en colecciones de TMDB. Desactiva esta opción si usas una herramienta externa para gestionar las colecciones, como Kometa.",
       "tmdbCollectionsOffTitle": "¿Quitar las colecciones de TMDB?",
       "tmdbCollectionsOffMessage": "Las colecciones que Pley creó desde TMDB en <name>{{name}}</name> se quitarán, junto con los cambios que se les hayan hecho, como sus imágenes o dónde aparecen. Al volver a activar esta opción, se crean de nuevo tal como las tiene TMDB.",
       "nothingMounted": "Pley se ejecuta en un contenedor sin ninguna carpeta de medios montada todavía. Monta la tuya en <path>/media</path> (con Docker, <path>-v /tus/medios:/media:ro</path>) y reinicia el contenedor."

@@ -59,7 +59,7 @@
     <string name="admin_libraries_folder_path">Folder path</string>
     <string name="admin_libraries_layout">Recommended layout: %1$s</string>
     <string name="admin_libraries_tmdb_collections">Make collections from TMDB</string>
-    <string name="admin_libraries_tmdb_collections_hint">Groups films TMDB puts in a series, such as the Alien films, under Box sets. Turn it off if another tool, such as Kometa, makes this library\'s collections.</string>
+    <string name="admin_libraries_tmdb_collections_hint">Groups films into collections from TMDB. Turn this off if you use an external tool to manage collections, such as Kometa.</string>
     <string name="admin_libraries_tmdb_collections_off_title">Remove collections from TMDB?</string>
     <string name="admin_libraries_tmdb_collections_off_message">Pley\'s collections from TMDB in %1$s will be removed, with any changes made to them, such as their artwork or where they show. Turning this back on makes them again as TMDB has them.</string>
     <string name="admin_libraries_tmdb_collections_off_confirm">Remove</string>
