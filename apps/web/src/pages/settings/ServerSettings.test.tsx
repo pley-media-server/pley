@@ -112,19 +112,19 @@ describe("ServerSettings", () => {
     expect(screen.queryByRole("switch", { name: "Read NFO files" })).not.toBeInTheDocument();
   });
 
-  it("turns .strm files off, and has no switch for a server before them", async () => {
+  it("turns .strm files on, and has no switch for a server before them", async () => {
     const user = userEvent.setup();
     const requests = mockApi({
-      "GET /api/settings": () => ({ ...SETTINGS, strm_files: true }),
+      "GET /api/settings": () => ({ ...SETTINGS, strm_files: false }),
       "GET /api/system": () => ({}),
-      "PUT /api/settings": (req) => ({ ...SETTINGS, strm_files: true, ...(req.body as Partial<Settings>) }),
+      "PUT /api/settings": (req) => ({ ...SETTINGS, strm_files: false, ...(req.body as Partial<Settings>) }),
     });
     const first = renderWithProviders(<ServerSettings />);
     const toggle = await screen.findByRole("switch", { name: "Read .strm files" });
-    expect(toggle).toBeChecked();
+    expect(toggle).not.toBeChecked();
     await user.click(toggle);
     await user.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ strm_files: false }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ strm_files: true }));
     first.unmount();
 
     mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => ({}) });

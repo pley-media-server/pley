@@ -34,9 +34,9 @@
 //!   internet that redirects back in. A name only a redirect gives is of
 //!   the internet, however it resolves: its owner could make it resolve
 //!   here.
-//! * **An administrator's choice.** With `.strm` files turned off
-//!   (`strm_files`, Settings → Server), scans leave them out and nothing
-//!   asks what they name.
+//! * **An administrator's choice.** `.strm` files are read only once an
+//!   administrator turns them on (`strm_files`, Settings → Server). Off,
+//!   scans leave them out and nothing asks what they name.
 
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
@@ -950,8 +950,8 @@ pub async fn input(state: &AppState, file: &FileRow) -> ApiResult<String> {
     if !file.is_strm() {
         return Ok(file.path.clone());
     }
-    remote_inputs(state)?;
     let link = link(state, file).await?;
+    remote_inputs(state)?;
     Ok(state.strm.address(state, &link).await?)
 }
 

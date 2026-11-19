@@ -245,11 +245,6 @@ ${form.opensubtitles_password ?? ""}`}
               <Row label={t("server.scanning.watch")} hint={t("server.scanning.watchHint")}>
                 <Toggle checked={form.watch_libraries} onChange={(v) => set("watch_libraries", v)} label={t("server.scanning.watchToggle")} />
               </Row>
-              {form.strm_files !== undefined ? (
-                <Row label={t("server.scanning.strm")} hint={t("server.scanning.strmHint")}>
-                  <Toggle checked={form.strm_files} onChange={(v) => set("strm_files", v)} label={t("server.scanning.strmToggle")} />
-                </Row>
-              ) : null}
               <Row label={t("server.scanning.markers")} hint={t("server.scanning.markersHint")}>
                 <Toggle
                   checked={form.detect_markers}
@@ -271,6 +266,11 @@ ${form.opensubtitles_password ?? ""}`}
                 />
                 {form.seek_previews ? null : <Note>{t("server.scanning.needsSeekPreviews")}</Note>}
               </Row>
+              {form.strm_files !== undefined ? (
+                <Row label={t("server.scanning.strm")} hint={t("server.scanning.strmHint")}>
+                  <Toggle checked={form.strm_files} onChange={(v) => set("strm_files", v)} label={t("server.scanning.strmToggle")} />
+                </Row>
+              ) : null}
               <LibraryWorkRows form={form} set={set} />
               <Row label={t("server.scanning.interval")} htmlFor="scan-interval" hint={t("server.scanning.intervalHint")}>
                 <div className="flex items-center gap-2">

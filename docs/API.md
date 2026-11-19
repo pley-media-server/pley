@@ -4901,7 +4901,7 @@ interface Settings {
   music_metadata: boolean;          // MusicBrainz + Cover Art Archive for music libraries (default true)
   read_nfo: boolean;                // read NFO files next to movies, shows, seasons and episodes (default
                                     // true; see CONFIGURATION.md). A change scans every library
-  strm_files: boolean;              // movie and TV libraries list and play .strm files (default true; see
+  strm_files: boolean;              // movie and TV libraries list and play .strm files (default false; see
                                     // .strm files). A change scans those libraries
   hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
   hardware_decoding: boolean;       // decode on the GPU when possible

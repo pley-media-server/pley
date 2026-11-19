@@ -83,7 +83,7 @@
       "watchHint": "Detecta automáticamente los archivos nuevos, modificados y eliminados.",
       "watchToggle": "Vigilar carpetas",
       "strm": "Archivos .strm",
-      "strmHint": "Reproduce la dirección web que indica cada archivo .strm de una biblioteca de películas o series, como Kodi, Jellyfin y Emby. Desactivado, salen de las bibliotecas y Pley no consulta ninguna de sus direcciones.",
+      "strmHint": "Usa los archivos .strm para reproducir videos desde direcciones web.",
       "strmToggle": "Leer los archivos .strm",
       "markers": "Detectar intros y créditos",
       "markersHint": "Compara el audio de los episodios en segundo plano para ofrecer Saltar intro y Saltar créditos. Los capítulos llamados Intro o Credits se usan siempre.",

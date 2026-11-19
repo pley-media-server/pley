@@ -328,6 +328,7 @@ async fn world_with(more: impl FnOnce(&std::path::Path, &str)) -> World {
     });
     app.state.strm.listen_at(&own);
     let admin = app.setup_admin().await;
+    read_strm_files(&app, true).await;
     let movies = app.media.path().join("movies");
     std::fs::create_dir_all(movies.join("Film (2020)")).unwrap();
     std::fs::write(
@@ -344,6 +345,13 @@ async fn world_with(more: impl FnOnce(&std::path::Path, &str)) -> World {
 
 async fn world() -> World {
     world_with(|_, _| {}).await
+}
+
+/// Turns `.strm` files on, as an administrator does (they're off by
+/// default), or off.
+async fn read_strm_files(app: &TestApp, on: bool) {
+    let patch = pley::settings::SettingsPatch { strm_files: Some(on), ..Default::default() };
+    app.state.settings.update(&app.state.db, patch).await.unwrap();
 }
 
 /// A player that plays the media as it is, and one that plays no Matroska.
@@ -723,6 +731,7 @@ async fn a_transcoder_too_old_to_read_an_address_says_so() {
     app.state.transcoder.start();
     assert!(app.state.transcoder.wait_ready(Duration::from_secs(10)).await);
     let admin = app.setup_admin().await;
+    read_strm_files(&app, true).await;
     std::fs::create_dir_all(app.media.path().join("movies")).unwrap();
     std::fs::write(app.media.path().join("movies/Film (2020).strm"), format!("{remote}/dl/x/film.mkv")).unwrap();
     let library = app.library(&admin, "Movies", "movies", "movies").await;
@@ -730,6 +739,22 @@ async fn a_transcoder_too_old_to_read_an_address_says_so() {
     let started = app.post("/api/playback", &admin, json!({"item_id": film, "caps": plays_mkv()})).await;
     assert_eq!(started.status, StatusCode::NOT_IMPLEMENTED, "{}", started.body);
     assert!(fake.probes.lock().is_empty());
+}
+
+#[tokio::test]
+async fn a_server_lists_none_until_they_are_turned_on() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    std::fs::create_dir_all(app.media.path().join("movies")).unwrap();
+    std::fs::write(app.media.path().join("movies/Film (2020).strm"), "http://192.0.2.1/film.mkv").unwrap();
+    let library = app.library(&admin, "Movies", "movies", "movies").await;
+    assert!(app.ids(library, &admin).await.is_empty());
+    assert_eq!(app.get("/api/settings", &admin).await.body["strm_files"], json!(false));
+
+    let on = app.put("/api/settings", &admin, json!({"strm_files": true})).await;
+    assert_eq!(on.status, StatusCode::OK, "{}", on.body);
+    app.wait_for_scans().await;
+    assert_eq!(app.ids(library, &admin).await.keys().collect::<Vec<_>>(), ["Film"]);
 }
 
 #[tokio::test]
@@ -742,8 +767,7 @@ async fn turned_off_they_leave_the_libraries_and_nothing_asks_their_addresses() 
     assert_eq!(app.call(Method::GET, &relayed, None, None, &[]).await.status, StatusCode::OK);
 
     // Off, before a scan leaves the file out: nothing reads its address.
-    let off = pley::settings::SettingsPatch { strm_files: Some(false), ..Default::default() };
-    app.state.settings.update(&app.state.db, off).await.unwrap();
+    read_strm_files(app, false).await;
     let asked = w.remote.asked.load(Ordering::SeqCst);
     let refused = w.play("Film", plays_mkv()).await;
     assert_eq!(refused.status, StatusCode::NOT_FOUND);

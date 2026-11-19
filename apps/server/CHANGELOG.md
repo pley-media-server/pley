@@ -22,7 +22,7 @@ describes how they are made.
   the internet can't lead to one of your network, and seek previews and
   intro detection aren't made for it
   ([docs/CONFIGURATION.md](../../docs/CONFIGURATION.md#strm-files)).
-  Administrators turn them off in Settings → Server.
+  Off until an administrator turns them on in Settings → Server.
 - A movie library can do without collections from TMDB, for another
   tool such as Kometa to make them: Make collections from TMDB, in the
   library's settings, removes them when turned off, edits and all, and
@@ -35,6 +35,9 @@ describes how they are made.
 
 ### Fixed
 
+- Films and shows with accents in their names are matched when the names
+  came from a Mac. Ones already scanned are matched by the library's Force
+  full rescan.
 - In the web app, search lists the audiobooks whose title matches. A
   book's title gave a results page with nothing on it.
 

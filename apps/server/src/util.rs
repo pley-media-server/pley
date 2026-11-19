@@ -1,6 +1,8 @@
 use std::path::Path;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use unicode_normalization::UnicodeNormalization;
+
 /// When this server process started (unix ms): part of tags that a newer
 /// version may answer differently.
 pub fn process_epoch() -> i64 {
@@ -412,6 +414,12 @@ mod windows_acl {
 /// paths of library files convert back exactly.
 pub fn path_str(path: &Path) -> String {
     path.to_string_lossy().into_owned()
+}
+
+/// Text in its composed form (NFC), as metadata sources search it: "é" one
+/// character rather than "e" and an accent, as a Mac's file names give it.
+pub fn composed(value: &str) -> String {
+    value.nfc().collect()
 }
 
 /// Canonical form used for identity keys: lowercase alphanumerics separated by
