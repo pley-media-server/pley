@@ -149,6 +149,15 @@ fn yes() -> bool {
     true
 }
 
+/// Only a movie library gets collections from TMDB, so only one can go
+/// without them; the others keep the switch on.
+fn check_tmdb_collections(kind: LibraryKind, on: Option<bool>) -> ApiResult<()> {
+    if on == Some(false) && kind != LibraryKind::Movies {
+        return Err(AppError::bad_request("only a movie library can turn off its collections from TMDB"));
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_paths(paths: &[String]) -> ApiResult<Vec<String>> {
     let mut out = Vec::new();
     for raw in paths {
@@ -180,6 +189,7 @@ pub async fn create(
     _admin: AdminUser,
     Json(body): Json<CreateLibrary>,
 ) -> ApiResult<(StatusCode, Json<LibraryDto>)> {
+    check_tmdb_collections(body.kind, Some(body.tmdb_collections))?;
     let id = add(&state, &body.name, body.kind, &body.paths, body.tmdb_collections).await?;
     let lib = library_or_404(&state, id).await?;
     Ok((StatusCode::CREATED, Json(to_dto(&state, &lib, None).await?)))
@@ -278,6 +288,7 @@ pub async fn update(
     Json(body): Json<UpdateLibrary>,
 ) -> ApiResult<Json<LibraryDto>> {
     let lib = library_or_404(&state, id).await?;
+    check_tmdb_collections(lib.kind(), body.tmdb_collections)?;
     if let Some(name) = body.name.as_deref().map(str::trim) {
         if name.is_empty() || name.chars().count() > 100 {
             return Err(AppError::bad_request("library name must be 1-100 characters"));

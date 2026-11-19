@@ -253,7 +253,8 @@ interface Library {
   scanning: boolean;                // a scan is queued or running
   labels_pending?: boolean;         // when true: a Plex import is bringing Plex's labels to it, and profiles
                                     // with labels they never see don't see it until a run finishes
-  tmdb_collections: boolean;        // Pley makes collections from TMDB in it (a movie library's)
+  tmdb_collections: boolean;        // Pley makes collections from TMDB in it; only a movie library uses it,
+                                    // and the others are always true
 }
 
 type ItemKind = "movie" | "show" | "season" | "episode" | "artist" | "album" | "track"
@@ -1687,12 +1688,12 @@ Invitations have fixed limits only.
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/libraries` | `library` | `Library[]` in the user's order (query `order=shared`: the shared order) |
-| POST | `/api/libraries` | `admin` | `{ name, kind, paths: string[], tmdb_collections?: boolean }` → `201` `Library`; queues a scan |
+| POST | `/api/libraries` | `admin` | `{ name, kind, paths: string[], tmdb_collections?: boolean }` → `201` `Library`; queues a scan. `tmdb_collections: false` for a library that isn't `movies` is `400` |
 | PUT | `/api/libraries/order` | `admin` | `{ ids: Id[] }` (every library, once) → `Library[]` in the new shared order |
 | PUT | `/api/me/libraries/order` | `play` | `{ ids: Id[] }` (every library the user may open, once) → `Library[]` in the user's own new order |
 | DELETE | `/api/me/libraries/order` | `play` | `Library[]` in the shared order, which the user sees again |
 | GET | `/api/libraries/{id}` | `library` | `Library` |
-| PATCH | `/api/libraries/{id}` | `admin` | `{ name?, paths?, labels_pending?, tmdb_collections? }` → `Library`; `labels_pending: false` shows it sooner than a Plex import would; `tmdb_collections` [below](#collections) |
+| PATCH | `/api/libraries/{id}` | `admin` | `{ name?, paths?, labels_pending?, tmdb_collections? }` → `Library`; `labels_pending: false` shows it sooner than a Plex import would; `tmdb_collections` [below](#collections), and `false` for a library that isn't `movies` is `400` |
 | DELETE | `/api/libraries/{id}` | `admin` | `204` |
 | POST | `/api/libraries/{id}/scan` | `admin` | `{ force?: boolean }` → `202`. `force` re-probes files and refreshes metadata |
 | POST | `/api/libraries/scan` | `admin` | `202`: scans every library |
