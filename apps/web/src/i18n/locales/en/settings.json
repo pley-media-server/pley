@@ -443,7 +443,7 @@
       "tmdbCollections": "Make collections from TMDB",
       "tmdbCollectionsHint": "Groups films into collections from TMDB. Turn this off if you use an external tool to manage collections, such as Kometa.",
       "tmdbCollectionsOffTitle": "Remove collections from TMDB?",
-      "tmdbCollectionsOffMessage": "Pley's collections from TMDB in <name>{{name}}</name> will be removed, with any changes made to them, such as their artwork or where they show. Turning this back on makes them again as TMDB has them.",
+      "tmdbCollectionsOffMessage": "The collections from TMDB in <name>{{name}}</name> will be removed, including any changes you made to them.",
       "nothingMounted": "Pley runs in a container, and no media folder is mounted into it yet. Mount yours at <path>/media</path> (with Docker, <path>-v /your/media:/media:ro</path>), then restart the container."
     }
   },
