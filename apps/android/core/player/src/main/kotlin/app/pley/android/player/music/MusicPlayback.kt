@@ -129,9 +129,12 @@ class MusicPlayback(
     /**
      * Whether the output holds the queue's track. Not from a change of
      * track until the new one is loaded: the output still has the last
-     * one, its position and its length, which aren't this track's.
+     * one, its position and its length, which aren't this track's. That
+     * is so for a track asked for again too (it repeats, or is picked once
+     * more), where the output's track has the same id.
      */
-    private var held = false
+    internal var held = false
+        private set
 
     /** Seeks made so far ([NowPlaying.seeks]). */
     private var seeks = 0

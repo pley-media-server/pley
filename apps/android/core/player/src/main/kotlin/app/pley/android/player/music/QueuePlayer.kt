@@ -62,8 +62,10 @@ internal class QueuePlayer(
         val index = base.currentMediaItemIndex
         val window = if (!base.timeline.isEmpty && index in 0 until base.timeline.windowCount) base.timeline.getWindow(index, Timeline.Window()) else null
         val current = queue.tracks.getOrNull(queue.index)
-        // Whether the output plays the queue's track now; not while the next one is asked of the server and loads.
-        val loaded = window != null && current != null && window.mediaItem.mediaMetadata.extras?.getLong(EngineMusicOutput.TRACK_ID, -1) == current.id
+        // Whether the output plays the queue's track now; not while the next one is asked of the server and loads, nor
+        // while the same track is (it repeats, or comes again): the output still holds the play before.
+        val loaded = playback.held && window != null && current != null &&
+            window.mediaItem.mediaMetadata.extras?.getLong(EngineMusicOutput.TRACK_ID, -1) == current.id
         val playlist = queue.tracks.mapIndexed { i, track ->
             val item = describe(track)
             val listed = track.durationMs?.takeIf { it > 0 }?.let { it * 1000 } ?: C.TIME_UNSET

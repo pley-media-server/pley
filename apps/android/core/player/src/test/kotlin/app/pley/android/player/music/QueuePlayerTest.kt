@@ -137,6 +137,27 @@ class QueuePlayerTest {
     }
 
     @Test
+    fun aTrackAskedForAgainShowsItsStartNotWhereThePlayBeforeWas() {
+        playback.play(album)
+        idle()
+        engineHolds(1)
+        engine.seekTo(170_000)
+        idle()
+        player.queueChanged()
+        idle()
+        assertEquals(170_000L, player.currentPosition)
+
+        // Repeating, or picked again: while it is asked of the server, the engine still holds the play before, near its end.
+        api.hold()
+        playback.jumpTo(0)
+        player.queueChanged()
+        idle()
+        assertEquals(Player.STATE_BUFFERING, player.playbackState)
+        assertEquals(0L, player.currentPosition)
+        api.release()
+    }
+
+    @Test
     fun aPickFromTheQueueAndShuffleGoThroughTheMusic() {
         playback.play(album)
         engineHolds(1)
