@@ -316,15 +316,15 @@ private fun PlayAndCancel(stacked: BooleanArray, modifier: Modifier = Modifier, 
             val first = play.measure(Constraints.fixedWidth((width - gap - second.width).coerceAtLeast(0)))
             val height = maxOf(first.height, second.height)
             layout(width, height) {
-                first.place(0, (height - first.height) / 2)
-                second.place(width - second.width, (height - second.height) / 2)
+                first.placeRelative(0, (height - first.height) / 2)
+                second.placeRelative(width - second.width, (height - second.height) / 2)
             }
         } else {
             val first = play.measure(Constraints.fixedWidth(width))
             val second = cancel.measure(Constraints(maxWidth = width))
             layout(width, first.height + gap + second.height) {
-                first.place(0, 0)
-                second.place(width - second.width, first.height + gap)
+                first.placeRelative(0, 0)
+                second.placeRelative(width - second.width, first.height + gap)
             }
         }
     }
