@@ -12,73 +12,58 @@ describes how they are made.
 
 - Manage server → Libraries can turn off a film library's collections from
   TMDB.
-- Pley plays music in Android Auto: Recent (what you played last, then
-  what was added), Artists and Playlists tabs with album covers, search,
-  the whole queue and a Shuffle button on Now Playing, and "Hey Google,
-  play … on Pley". Signed out, the car says to open Pley on the phone.
-- Music's notification and the phone's media controls have a Shuffle
-  button.
-- Music repeats: a Repeat button in Now Playing on phones and TVs, in the
-  phone's media controls and in Android Auto repeats the queue, then the
-  track playing, then nothing.
+- Music repeats: Repeat in Now Playing, on phones and TVs, and in the
+  phone's media controls repeats the queue, then the track playing, then
+  nothing.
+- Music's notification and the phone's media controls have Shuffle and
+  Repeat buttons.
 - Now Playing moves from one track to the next: the cover stays until the
   next one fades in, the title slides to the next track's, and the
   scrubber glides.
-- Music picks up where it was when Android has ended the app meanwhile:
-  Play in the car, in Android Auto or in the phone's media controls
-  plays the queue again from where it was, shuffled as it was.
-- "Hey Google, play … on Pley" finds music playlists by name ("my … playlist"
-  too), says so when it finds nothing, and "play music on Pley" plays on
-  what was playing.
+- Music picks up where it was, shuffled as it was, when Android has ended
+  the app meanwhile: Play on a headset, on a car's steering wheel over
+  Bluetooth or in the phone's media controls plays the queue again.
+
+With Android Auto:
+
+- Pley plays music on the car's screen: Recent (what you played last,
+  then what was added), Artists and Playlists tabs with album covers,
+  search, the whole queue, Shuffle and Repeat on Now Playing, and "Hey
+  Google, play … on Pley", which finds music playlists by name ("my …
+  playlist" too) and says so when it finds nothing. Signed out, the car
+  says to open Pley on the phone.
+- Live TV's channels play as radio: a Live TV tab with favourites,
+  channels watched lately and groups, channel search, and "Hey Google,
+  play … on Pley" by channel name.
+- As the car connects, what played last waits in its Now Playing, paused
+  where it was, and the car's Play plays it; "Hey Google, stop" pauses
+  and keeps the queue for the next drive.
 - Parked, the sideloaded app plays videos and Live TV on the car's screen
-  with Android Auto (Android 15 and later, in cars that allow video
-  apps), with every page and control sized for the car, on landscape,
-  wide and portrait car screens, 10-second skip buttons, and pausing as
+  (Android 15 and later, in cars that allow video apps), every page and
+  control sized for the car, with 10-second skip buttons, and pauses as
   soon as the car moves off.
-- Live TV's channels play as radio in Android Auto: a Live TV tab with
-  favourites, channels watched lately and groups, channel search, and
-  "Hey Google, play … on Pley" by channel name.
-- As a car connects with Android Auto, what played last waits in its Now
-  Playing, paused where it was (the music, or the Live TV channel when
-  that played last), and the car's Play plays it; Play on a headset or
-  on the steering wheel over Bluetooth brings the music back too once
-  the app has left memory.
 
 ### Changed
 
 - An artist's, album's or playlist's page puts the cover beside the
-  title on a phone on its side and on tablets, with Play in view.
+  title on a phone on its side and on tablets, with Play in view, and
+  keeps Play and Shuffle side by side above the bar of what plays.
 - The rail beside the page on a phone on its side or a tablet shows its
   tabs' icons alone, in a column centred on its height.
 - A track that can't be played says so for 5 seconds, then the next one
-  plays by itself, in Android Auto too; Play tries it again.
+  plays by itself; Play tries it again.
 - Music, films and shows without a picture show Pley's mark on their
-  placeholder, in Android Auto too.
+  placeholder.
 - Changing tabs fades from one to the next, Now Playing comes up from
   the bar of what plays, and that bar rises in as music starts.
-- "Hey Google, play … on Pley" starts the music once, after the Assistant
-  has spoken, and "Hey Google, stop" in the car pauses and keeps the
-  queue for the next drive.
-- On a small or split car screen and on a phone on its side, an artist's
-  or album's page keeps Play and Shuffle side by side above the bar of
-  what plays; Now Playing leaves room under the cover; and the bar under
-  a narrow car page shows its tabs' icons alone, as the player's bottom
-  row does there.
 
 ### Fixed
 
 - Pause pressed while a track is starting now keeps it paused once it
   loads, instead of playing it.
-- The phone's media controls show the cover of what plays.
-- Skipping a track in Android Auto no longer redraws Now Playing several
-  times over, its cover and progress bar blinking: the track shows once,
-  with its cover.
-- A track that can't play says why in Android Auto, in the app's
-  language, also when the server can't be reached.
 - The scrubber no longer shows the last track's position while the next
   one loads, nor jumps back for a moment after a seek, and it moves when
-  seeking while paused, also from the car, the notification or the
-  remote.
+  seeking while paused, also from the notification or the remote.
 - Previous pressed again while a track is still loading goes one more
   track back, instead of starting the loading track again.
 - A track that failed to start no longer starts where the track before
@@ -93,11 +78,6 @@ describes how they are made.
 - Play and Shuffle on an artist's or album's page are the same height.
 - Now Playing fits a phone turned on its side, with the cover beside
   the title, instead of the cover hiding the controls.
-- A search in Android Auto overtaken by the next letter typed is still
-  answered, where the car could go on waiting for it; one with nothing
-  typed lists the albums played and added last.
-- Music's notification, with its Shuffle and Repeat buttons, comes back
-  when Android starts the music again by itself after ending the app.
 
 ## [0.1.15] - 2026-11-18
 
