@@ -71,6 +71,8 @@ import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.kit.fullWidth
 import app.pley.android.ui.phone.library.joined
+import app.pley.android.ui.phone.player.CarGap
+import app.pley.android.ui.phone.player.LocalCarScreen
 import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
@@ -257,10 +259,11 @@ internal fun MusicHeader(
         }
         Spacer(Modifier.height(if (short) 12.dp else 20.dp))
         // Shuffle goes under Play when they don't fit side by side (beside the art, a car's larger text, longer
-        // words in French or Spanish); side by side, they are as tall as each other.
+        // words in French or Spanish); side by side, they are as tall as each other. A car's buttons keep 24 dp apart.
+        val gap = if (LocalCarScreen.current) CarGap else 12.dp
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp, if (centred) Alignment.CenterHorizontally else Alignment.Start),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(gap, if (centred) Alignment.CenterHorizontally else Alignment.Start),
+            verticalArrangement = Arrangement.spacedBy(gap),
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             PrimaryButton(

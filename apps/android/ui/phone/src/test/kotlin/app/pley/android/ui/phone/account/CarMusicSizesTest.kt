@@ -8,13 +8,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import app.pley.android.player.NowPlaying
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
 import app.pley.android.ui.phone.kit.LocalOffline
+import app.pley.android.ui.phone.music.AlbumScreen
 import app.pley.android.ui.phone.music.NowPlayingScreen
 import app.pley.android.ui.phone.player.CarScreenChecks
+import app.pley.android.ui.phone.player.CarSized
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.MiniPlayerSlot
@@ -74,6 +77,55 @@ class CarMusicSizesTest {
         CarScreenChecks.controls(compose, "Now Playing, $screen", controls)
         CarScreenChecks.apart(compose, "Now Playing, $screen", controls)
     }
+
+    /** An album's page, car-sized: Play and Shuffle in view, a car's size and side by side, as the docs say. */
+    private fun checkAlbum(screen: String) {
+        show { CarSized(car = true) { AlbumScreen(AccountTestGraph.ALBUM, trackId = null) } }
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("Deep Water")).fetchSemanticsNodes().isNotEmpty() }
+        CarScreenChecks.save(compose, "album-$screen")
+        CarScreenChecks.controls(compose, "the album, $screen", listOf("Play", "Shuffle"))
+        CarScreenChecks.apart(compose, "the album, $screen", listOf("Play", "Shuffle"))
+    }
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.SMALL)
+    fun albumSmallLandscape() = checkAlbum("small")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.WIDE)
+    fun albumWideLandscape() = checkAlbum("wide")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.PORTRAIT)
+    fun albumPortrait() = checkAlbum("portrait")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.DENSE)
+    fun albumDense() = checkAlbum("dense")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL)
+    fun albumTall() = checkAlbum("tall")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL_SPLIT)
+    fun albumTallSplit() = checkAlbum("tall-split")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.ULTRAWIDE)
+    fun albumUltrawide() = checkAlbum("ultrawide")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.FULL_HD)
+    fun albumFullHd() = checkAlbum("full-hd")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL_PORTRAIT)
+    fun albumTallPortrait() = checkAlbum("tall-portrait")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.NARROW)
+    fun albumNarrow() = checkAlbum("narrow")
 
     private fun checkBar(screen: String) {
         show { Box(Modifier.fillMaxSize()) { MiniPlayerSlot(NOW, Modifier.align(Alignment.BottomCenter), car = true) } }
