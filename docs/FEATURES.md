@@ -160,6 +160,8 @@ the Plex- and Jellyfin-compatible APIs don't get them.
 - Recently Added, Recently Released, Top Rated, More Like This and full-text
   search.
 - Collections (from TMDB, curated, or smart) and playlists (ordered or smart).
+  A film library can do without the collections from TMDB, for a tool such
+  as Kometa to make its own.
 
 ## Requests
 
