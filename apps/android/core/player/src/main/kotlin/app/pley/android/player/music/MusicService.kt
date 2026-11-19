@@ -50,6 +50,7 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
+import java.net.SocketTimeoutException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -539,7 +540,8 @@ class MusicService : MediaLibraryService() {
         }
 
         override fun onSearch(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, query: String, params: LibraryParams?): ListenableFuture<LibraryResult<Void>> =
-            answer {
+            // Media3 answers a MediaBrowserCompat car's search only once its results are said to have changed.
+            answer(slow = { session.notifySearchResultChanged(browser, query, 0, params) }) {
                 val found = try {
                     library().search(query.take(MAX_QUERY))
                 } catch (e: Exception) {
@@ -714,12 +716,18 @@ class MusicService : MediaLibraryService() {
 
         private fun library(): MusicLibrary = graph?.library ?: throw UnsupportedOperationException()
 
-        /** [block]'s result, a failure as the car shows it: signed out, offline, or anything else. */
-        private fun <T : Any> answer(block: suspend () -> LibraryResult<T>): ListenableFuture<LibraryResult<T>> {
+        /**
+         * [block]'s result, a failure as the car shows it: signed out,
+         * offline, or anything else. A server that hasn't answered within
+         * [ANSWER_MS] is out of reach to the car, which is to show what it
+         * asked for within 10 s (Google's car app quality criterion DR-3);
+         * [slow] is told so first.
+         */
+        private fun <T : Any> answer(slow: () -> Unit = {}, block: suspend () -> LibraryResult<T>): ListenableFuture<LibraryResult<T>> {
             val future = SettableFuture.create<LibraryResult<T>>()
             scope.launch {
                 val result = try {
-                    block()
+                    withTimeoutOrNull(ANSWER_MS) { block() } ?: errorOf<T>(OfflineException(SocketTimeoutException())).also { slow() }
                 } catch (e: CancellationException) {
                     future.cancel(false)
                     throw e
@@ -761,6 +769,9 @@ class MusicService : MediaLibraryService() {
 
         /** How long the radio's channel is waited for as what played last is read back ([bringBack]), and Play for that. */
         const val BRING_BACK_WAIT_MS = 3_000L
+
+        /** How long a car's request for the library or a search waits for the server before it is told it is out of reach. */
+        const val ANSWER_MS = 8_000L
 
         /** Why a track doesn't play, as a car says it, in the language shown; and when the next plays, [nextIn] s from now. */
         fun wordsOf(context: Context, error: MusicError, nextIn: Int? = null): String {
