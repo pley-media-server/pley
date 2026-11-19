@@ -158,6 +158,38 @@ class QueuePlayerTest {
     }
 
     @Test
+    fun aLongQueueIsDescribedOnceAndAgainOnlyWhenItChanges() {
+        var described = 0
+        val counted = QueuePlayer(engine, playback, describe = { described++; QueuePlayer.plainItem(it) })
+        val long = (1..2_000L).map { track(it) }
+        playback.play(long)
+        idle()
+        counted.queueChanged()
+        idle()
+        assertEquals(2_000, counted.mediaItemCount)
+        val once = described
+        assertEquals(2_000, once)
+
+        // What plays changes (loaded, paused, the next track): the entries already described list it.
+        engineHolds(1)
+        counted.queueChanged()
+        playback.pause()
+        counted.queueChanged()
+        playback.next()
+        counted.queueChanged()
+        idle()
+        assertEquals(1, counted.currentMediaItemIndex)
+        assertEquals(once, described)
+
+        // The queue itself changes: described again, once.
+        playback.setShuffle(true)
+        counted.queueChanged()
+        counted.queueChanged()
+        idle()
+        assertEquals(once + 2_000, described)
+    }
+
+    @Test
     fun aPickFromTheQueueAndShuffleGoThroughTheMusic() {
         playback.play(album)
         engineHolds(1)

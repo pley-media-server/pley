@@ -50,6 +50,10 @@ internal class QueuePlayer(
     /** Shows [playback]'s queue as it is now. */
     fun queueChanged() = invalidateState()
 
+    /** The tracks [entries] list, as they were when last described. */
+    private var listedTracks: List<ItemSummary> = emptyList()
+    private var entries: List<MediaItemData> = emptyList()
+
     override fun getState(): State {
         val base = super.getState()
         val queue = playback.queueState.value
@@ -66,25 +70,11 @@ internal class QueuePlayer(
         // while the same track is (it repeats, or comes again): the output still holds the play before.
         val loaded = playback.held && window != null && current != null &&
             window.mediaItem.mediaMetadata.extras?.getLong(EngineMusicOutput.TRACK_ID, -1) == current.id
-        val playlist = queue.tracks.mapIndexed { i, track ->
-            val item = describe(track)
-            val listed = track.durationMs?.takeIf { it > 0 }?.let { it * 1000 } ?: C.TIME_UNSET
-            // Seekable, loaded or not: every track is, and an entry that said so only once loaded would change the queue.
-            val data = MediaItemData.Builder(Uid(i, track.id)).setIsSeekable(true)
-            if (i == queue.index && loaded && window != null) {
-                // The track the output plays: the entry it had while it loaded, with the output's tracks, and its length
-                // only where the library's is none or wrong (never none: a car would take its progress bar away).
-                val metadata = withArt(item.mediaMetadata, base.currentMetadata)
-                data.setMediaItem(item.buildUpon().setMediaMetadata(metadata).build())
-                    // Said outright: left out, the file's own tags (a cover inside it too) would be mixed in as they are read.
-                    .setMediaMetadata(metadata)
-                    .setTracks(base.currentTracks)
-                    .setDurationUs(lengthOf(window.durationUs, listed))
-            } else {
-                // Another track, or the current one while it loads.
-                data.setMediaItem(item).setMediaMetadata(item.mediaMetadata).setDurationUs(listed)
-            }
-            data.build()
+        val listed = entriesOf(queue.tracks)
+        val playlist = if (loaded && window != null && queue.index in listed.indices) {
+            listed.toMutableList().also { it[queue.index] = playing(it[queue.index], base, window) }
+        } else {
+            listed
         }
         state.setPlaylist(playlist).setCurrentMediaItemIndex(queue.index.coerceIn(0, playlist.lastIndex))
         val now = playback.nowPlaying.value ?: return state.build()
@@ -111,6 +101,45 @@ internal class QueuePlayer(
             if (!loaded) state.atTheStart()
         }
         return state.build()
+    }
+
+    /**
+     * Every entry of the queue as [describe] gives its track: the one
+     * playing too while it is asked for and loads. Described again only
+     * when the queue's tracks change: a long queue (an artist's every
+     * album) isn't described anew, on the main thread, at each change of
+     * what plays.
+     */
+    private fun entriesOf(tracks: List<ItemSummary>): List<MediaItemData> {
+        if (tracks == listedTracks) return entries
+        listedTracks = tracks
+        entries = tracks.mapIndexed { i, track ->
+            val item = describe(track)
+            // Seekable, loaded or not: every track is, and an entry that said so only once loaded would change the queue.
+            MediaItemData.Builder(Uid(i, track.id)).setIsSeekable(true)
+                .setMediaItem(item)
+                .setMediaMetadata(item.mediaMetadata)
+                .setDurationUs(track.durationMs?.takeIf { it > 0 }?.let { it * 1000 } ?: C.TIME_UNSET)
+                .build()
+        }
+        return entries
+    }
+
+    /**
+     * The track the output plays: [listed], the entry it had while it
+     * loaded, with the output's tracks, and its length only where the
+     * library's is none or wrong (never none: a car would take its
+     * progress bar away).
+     */
+    private fun playing(listed: MediaItemData, base: State, window: Timeline.Window): MediaItemData {
+        val metadata = withArt(listed.mediaItem.mediaMetadata, base.currentMetadata)
+        return listed.buildUpon()
+            .setMediaItem(listed.mediaItem.buildUpon().setMediaMetadata(metadata).build())
+            // Said outright: left out, the file's own tags (a cover inside it too) would be mixed in as they are read.
+            .setMediaMetadata(metadata)
+            .setTracks(base.currentTracks)
+            .setDurationUs(lengthOf(window.durationUs, listed.durationUs))
+            .build()
     }
 
     /**
