@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router";
-import { ArrowUpDown, ChevronDown, ChevronUp, GripVertical, Layers, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, GripVertical, ImageUp, Layers, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
 import { errorMessage, isApiError } from "@/api/client";
 import { useLibraries } from "@/api/hooks";
 import {
@@ -28,6 +28,7 @@ import { useVideoQueue } from "@/lib/videoQueue";
 import { NotFoundPage } from "../NotFoundPage";
 import { MetaLine, Summary } from "../item/shared";
 import { CollectionFormModal } from "./CollectionFormModal";
+import { CollectionPosterModal } from "./CollectionPosterModal";
 import { collectionUrl, itemUrl, libraryUrl } from "@/lib/urls";
 import { idParam } from "@/lib/ids";
 
@@ -69,6 +70,7 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [managing, setManaging] = useState(false);
+  const [choosingPoster, setChoosingPoster] = useState(false);
   const returnTo = collectionUrl(c.id);
   const movies = c.items.some((i) => i.kind === "movie");
   const category = namedCategory(c);
@@ -146,6 +148,9 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
                   <IconButton label={t("collection.edit")} size="lg" className="bg-surface-3/80 hover:bg-border" onClick={() => setEditing(true)}>
                     <Pencil className="size-5" />
                   </IconButton>
+                  <IconButton label={t("collectionPoster.title")} size="lg" className="bg-surface-3/80 hover:bg-border" onClick={() => setChoosingPoster(true)}>
+                    <ImageUp className="size-5" />
+                  </IconButton>
                   {c.smart_filter ? null : (
                     <IconButton
                       label={managing ? t("collection.doneManaging") : t("collection.manage")}
@@ -192,6 +197,7 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
 
       {user.is_admin ? (
         <>
+          {choosingPoster ? <CollectionPosterModal collection={c} onClose={() => setChoosingPoster(false)} /> : null}
           <CollectionFormModal
             key={editing ? `edit${c.updated_at}` : "closed"}
             open={editing}

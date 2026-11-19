@@ -28,9 +28,10 @@ describes how they are made.
   library's settings, removes them when turned off, edits and all, and
   makes them again when turned back on.
 - A collection without a poster of its own shows up to its first four
-  films' posters in a grid, or its library's icon when it has none;
-  Recently Added, Recently Released, Top Rated and Top Unwatched start
-  with icons of their own. Administrators can upload a poster, and a
+  films' posters in a grid. In Change poster, on a collection's page,
+  administrators can add an icon in a color over the grid, put an icon
+  on a color alone, or upload a poster; Recently Added, Recently
+  Released, Top Rated and Top Unwatched start with icons of their own. A
   poster Kometa sets counts as uploaded.
 
 ### Changed
