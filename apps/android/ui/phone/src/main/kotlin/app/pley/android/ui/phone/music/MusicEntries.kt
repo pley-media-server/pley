@@ -27,13 +27,16 @@ fun EntryProviderScope<NavKey>.musicEntries() {
     }
 }
 
-/** Tells the shell Now Playing has drawn, and when it has gone: the mini player leaves as it comes, not before. */
+/**
+ * Tells the shell Now Playing has drawn, and when it has gone: the mini player leaves as it comes, not before. Counted,
+ * as another tab's Now Playing fading out goes after this one has come.
+ */
 @Composable
 private fun TellsItHasDrawn() {
     val navigation = LocalPhoneNavigator.current as? PhoneNavigation ?: return
     DisposableEffect(navigation) {
-        navigation.nowPlayingDrawn = true
-        onDispose { navigation.nowPlayingDrawn = false }
+        navigation.nowPlayingsDrawn++
+        onDispose { navigation.nowPlayingsDrawn-- }
     }
 }
 

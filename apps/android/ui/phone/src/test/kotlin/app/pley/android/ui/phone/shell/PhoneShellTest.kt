@@ -279,6 +279,28 @@ class PhoneShellTest {
     }
 
     @Test
+    fun backToATabWithNowPlayingFromAnotherWithItsOwnTheMiniPlayerStaysAway() {
+        val graph = TestGraph(TestGraph.SERVER)
+        val shell = show(PhoneStart(server = TestGraph.SERVER, signedIn = true), graph)
+        showsHome()
+        graph.music.value = NowPlaying(503, "Song 3", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 2, durationMs = 180_000)
+        compose.waitForIdle()
+
+        compose.runOnUiThread { shell.navigation.open(PleyKey.NowPlaying) }
+        compose.waitForIdle()
+        compose.runOnUiThread { shell.navigation.select(PhoneTab.Search) }
+        compose.waitForIdle()
+        compose.runOnUiThread { shell.navigation.open(PleyKey.NowPlaying) }
+        compose.waitForIdle()
+
+        // Home's Now Playing comes as Search's fades out: the one leaving doesn't bring the bar back over it.
+        compose.runOnUiThread { shell.navigation.select(PhoneTab.Home) }
+        compose.waitForIdle()
+        assertTrue(shell.navigation.nowPlayingDrawn)
+        compose.onAllNodesWithTag(MINI_PLAYER).assertCountEquals(0)
+    }
+
+    @Test
     fun nothingIsAskedOfSignInOrPlaybackBeforeTheFirstFrame() {
         val graph = TestGraph()
         TestApplication.graph = graph
