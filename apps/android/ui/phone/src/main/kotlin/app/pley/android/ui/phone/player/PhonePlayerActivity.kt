@@ -95,6 +95,9 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
     /** On a car's screen (Android Auto): car-sized, and paused as the car moves off and covers it. */
     private val onCar: Boolean get() = OtherScreen.isCar(this)
 
+    /** Paused and away by [onPause] as a car covered it, not yet back: on whichever screen it comes back to. */
+    private var awayCovered = false
+
     /** Decoders let go in onStop; prepared again in onStart. */
     private var decodersReleased = false
     private var backgroundClose: Job? = null
@@ -250,6 +253,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
             controller.value?.engine?.player?.prepare()
         }
         controller.value?.setAway(false)
+        awayCovered = false
         decodersReleased = false
         attachEngine()
         immersive()
@@ -257,8 +261,10 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
 
     override fun onResume() {
         super.onResume()
-        // Parked again on a car's screen: the media session comes back, paused, and the remote is obeyed again.
-        if (onCar) controller.value?.setAway(false)
+        // Parked again, or moved to the phone's screen as the car went: the media session comes back, paused, and the
+        // remote is obeyed again.
+        if (awayCovered) controller.value?.setAway(false)
+        awayCovered = false
         val engine = attached
         if (engine != null && mediaSession == null) mediaSession = VideoMediaSession(this, engine.player).also { it.start() }
     }
@@ -275,6 +281,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
             it.pause()
             it.setAway(true)
         }
+        awayCovered = true
         mediaSession?.stop()
         mediaSession = null
     }
