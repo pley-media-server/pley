@@ -23,8 +23,9 @@ import kotlin.math.abs
  * what comes next and picks from it. Play, Pause, Previous, Next, a pick
  * from the queue, Shuffle and Repeat go through [playback]: after the
  * queue's end, Play starts its last track again. What a car asks to play
- * is started by the session's callback (MusicService), so items set here
- * change nothing; nor can the queue be edited from outside.
+ * is made ready by the session's callback (MusicService) and started by
+ * the session's Play, so items set here change nothing; nor can the queue
+ * be edited from outside.
  *
  * A track is the same entry from the moment it is the queue's until the
  * next one is: its name, art and id as [describe] gives them, whether the

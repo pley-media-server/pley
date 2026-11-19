@@ -894,6 +894,13 @@ class MusicPlaybackTest {
 
         music.pause()
         assertFalse(music.nowPlaying.value!!.wantsPlay)
+        // Sought while paused, the output loads there: still Play, not Pause, while it does and after.
+        music.seekTo(60_000)
+        output.buffer(true)
+        assertTrue(music.nowPlaying.value!!.loading)
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
+        output.buffer(false)
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
         // After the queue's end too: Play starts the last track again.
         music.play()
         output.startPlaying()
@@ -963,6 +970,11 @@ class MusicPlaybackTest {
             playing = false
             listener?.onPlayingChanged(false)
             listener?.onError(error)
+        }
+
+        /** Waits for data, or has it again, as after a seek. */
+        fun buffer(waiting: Boolean) {
+            listener?.onBuffering(waiting)
         }
 
         override fun play() {

@@ -167,15 +167,15 @@ class MusicLibraryTest {
     }
 
     @Test
-    fun searchWithNothingTypedYetListsTheAlbumsPlayedAndAddedLast() = runTest {
-        // A car asks as its search opens: the server is asked nothing, and the screen isn't "No results".
+    fun aSearchOfBlanksListsTheAlbumsPlayedAndAddedLastWithoutAskingTheServer() = runTest {
+        // Media3 answers an empty query itself; one of blanks reaches the library.
         source.found = emptyList()
         source.played[3] = listOf(track(56, 55).copy(parentTitle = "Second Tide"), track(51, 50))
-        for (nothing in listOf("", "  ")) {
-            val suggested = library.search(nothing)
-            assertEquals(listOf("album:55", "album:50"), suggested.map { it.mediaId })
-            assertEquals(listOf("Recently played", "Recently played"), suggested.map { it.group })
-        }
+        source.recent[3] = listOf(album(50, "Deep Water"), album(60, "Live at Sea"))
+        val suggested = library.search("  ")
+        // Each album once, where it comes first: Deep Water was played, Live at Sea only added.
+        assertEquals(listOf("album:55", "album:50", "album:60"), suggested.map { it.mediaId })
+        assertEquals(listOf("Recently played", "Recently played", "Recently added"), suggested.map { it.group })
         assertEquals(emptyList<String>(), source.searched)
     }
 

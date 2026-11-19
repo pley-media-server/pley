@@ -159,7 +159,7 @@ rates as the decoder gives them, the same in every language.
 - **The tabs** are a bar under the page on a phone held upright, with
   their names, and a rail beside it on a phone on its side, a tablet or
   a car's screen: icons alone, centred on its height and read out by
-  name.
+  name. A narrow car screen has the bar, its icons alone.
 - **The player** shows its controls, the title with them, for 3 s as
   playback starts and as each later item begins (the next episode, a
   queue's next), where TVs show the title alone at the top; a tap shows
@@ -1057,8 +1057,7 @@ icon the car tints:
   albums, newest first; an album lists its tracks with their lengths.
 - **Playlists**: the profile's music playlists.
 
-Search finds artists, albums and tracks, then channels; asked with
-nothing typed, it lists the albums played and added last. Each search the
+Search finds artists, albums and tracks, then channels. Each search the
 car sends is asked of the server by itself, so one overtaken by the next
 letter typed still gets its answer. A list or search the server hasn't
 sent within 8 seconds shows as the server out of reach, as cars are to
@@ -1167,7 +1166,7 @@ longer words): a car's row doesn't scroll. Every
 page of the app is car-sized the same way, its dialogs too. The rail
 shows icons alone, centred on its height, as Android Auto's own does
 (all five tabs fit the smallest screen), and so does the bar under a
-narrow portrait page, where five names of 24 sp ran into each other;
+narrow portrait page, where five names of 24 sp don't fit;
 tiles' captions and badges are
 24 sp, a title taking two lines rather than being cut; the home page's
 banner is no taller than the room above the bar of what plays; and an
@@ -1187,8 +1186,10 @@ screen (1920 × 484) and a portrait one (1042 × 1080), denser screens,
 what a car's tall screen gives the app (1042 × 991 at
 185 dpi, and half that height when the car splits its screen), a wide,
 low screen across the dashboard (1920 × 720), a full HD one, and tall
-and narrow portrait ones (1080 × 1920, 480 × 800); their
-tests draw each and check every control. Now Playing's cover is as large
+and narrow portrait ones (1080 × 1920, 480 × 800). Tests draw the video
+and Live TV players, music's Now Playing and its bar, an album's page
+and the tabs on each of them, and an item's page and a dialog on six,
+and check their controls' sizes and room. Now Playing's cover is as large
 as the title, the scrubber and the controls under it leave room for,
 with air between it and the title. Moving about is eased, on phones as
 on a car's screen: a tab fades out and the next one in, Now Playing
@@ -1197,7 +1198,8 @@ bar rises from the bottom edge as music starts (all in place with
 reduced motion). Whether a screen is a car's comes from
 Android Auto (`CarConnection`, as Google tells parked apps to check):
 another screen the phone drives, such as a monitor, keeps the phone's
-sizes. A debuggable build counts the displays the developer options
+sizes, though a window opened there before Android Auto has answered,
+as the app starts, counts it as a car's. A debuggable build counts the displays the developer options
 simulate as cars' too, so these layouts can be tried on an emulator,
 where Android Auto itself doesn't run. As the car moves off, Android Auto covers the
 window: the video pauses at once and its media session goes, so neither
@@ -1609,7 +1611,8 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
 - Android Auto's videos are in the sideloaded build only. Its Artists tab
   lists the first 500 artists of a library by name (search finds the
   others), and its music has no downloads: a car out of signal browses
-  what was last seen and plays nothing new.
+  the albums, playlists and Recently added it saw last (Artists,
+  Recently played and search need the server) and plays nothing new.
 - The TV's display mode isn't matched for live channels.
 - Videos on a USB drive are on TVs only. Their display mode isn't
   matched, as their frame rate is known only once they play; HDR10+ shows

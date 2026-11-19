@@ -6,6 +6,7 @@ import android.os.Looper
 import androidx.media3.common.util.BitmapLoader
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,8 +53,11 @@ class SessionArtTest {
             gates.getOrPut(path) { CompletableDeferred() }.await()
         },
         other = other,
-        decode = { bitmap() },
+        decode = { bitmap().also { decoded.incrementAndGet() } },
     )
+
+    /** The decodings done so far, on another thread. */
+    private val decoded = AtomicInteger()
 
     @After
     fun tearDown() = scope.cancel()
@@ -62,14 +66,22 @@ class SessionArtTest {
 
     private fun cover(album: Long): Uri = Uri.parse("content://pley.art/picture?p=/api/items/$album/images/poster")
 
-    /** The server answers [album]'s cover, and what waits on it runs (the decoding is on another thread). */
+    /**
+     * The server answers [album]'s cover, and what waits on it runs: its decoding, on another thread, is waited
+     * for (2 s at most, a slow machine's), then what it hands back to the main thread.
+     */
     private fun arrives(album: Long, bytes: ByteArray? = byteArrayOf(1)) {
+        val before = decoded.get()
         gates.getOrPut("/api/items/$album/images/poster") { CompletableDeferred() }.complete(bytes)
-        repeat(20) {
+        val until = System.currentTimeMillis() + 2_000
+        do {
             shadowOf(Looper.getMainLooper()).idle()
             Thread.sleep(5)
+        } while (bytes != null && decoded.get() == before && System.currentTimeMillis() < until)
+        repeat(3) {
+            Thread.sleep(5)
+            shadowOf(Looper.getMainLooper()).idle()
         }
-        shadowOf(Looper.getMainLooper()).idle()
     }
 
     @Test

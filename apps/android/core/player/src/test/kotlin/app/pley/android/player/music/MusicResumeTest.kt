@@ -5,10 +5,12 @@ package app.pley.android.player.music
 import app.pley.android.data.ProfileScope
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.PleyJson
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
 import kotlin.random.Random
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -244,8 +246,11 @@ class MusicResumeTest {
         assertEquals("channel:7@favourites", resume().savedRadio())
         // Signed out, nothing is kept or read.
         signedIn = null
+        val writes = written.size
         resume.keep(MusicQueueState(album), positionMs = 0)
+        resume.keepRadio("channel:8")
         runCurrent()
+        assertEquals(writes, written.size)
         assertNull(resume.saved())
         assertNull(resume.savedRadio())
     }
@@ -316,9 +321,12 @@ class MusicResumeTest {
 
         store[MusicResume.QUEUE] = "not a queue".encodeToByteArray()
         assertNull(resume.saved())
-        // A queue of something other than tracks isn't music's.
-        store[MusicResume.QUEUE] = store.getValue(MusicResume.PLACE)
-        assertTrue(resume.saved() == null)
+        // A queue that reads, but of something other than tracks, isn't music's.
+        val films = listOf(track(1).copy(kind = ItemKind.Movie), track(2))
+        store[MusicResume.QUEUE] = PleyJson.encodeToString(ListSerializer(ItemSummary.serializer()), films).encodeToByteArray()
+        assertNull(resume.saved())
+        store[MusicResume.QUEUE] = PleyJson.encodeToString(ListSerializer(ItemSummary.serializer()), listOf(track(1), track(2))).encodeToByteArray()
+        assertTrue(resume.saved() != null)
     }
 
     private fun track(id: Long) = ItemSummary(

@@ -15,7 +15,7 @@ sealed interface MusicId {
         override val text = "root"
     }
 
-    /** Recently added albums, of every music library. */
+    /** The albums played last, then those added last to each music library. */
     data object Recent : MusicId {
         override val text = "recent"
     }

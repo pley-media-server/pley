@@ -53,8 +53,8 @@ data class MusicSelection(val tracks: List<ItemSummary>, val startIndex: Int = 0
 
 /**
  * Pley's music as cars and voice assistants browse it (Android Auto, a
- * phone's Assistant): three tabs, Recent (the albums added last to each
- * music library), Artists (by name; their albums, with Shuffle first; an
+ * phone's Assistant): three tabs, Recent (the albums played last, then
+ * those added last to each music library), Artists (by name; their albums, with Shuffle first; an
  * album's tracks) and Playlists (music ones), and search; a fourth for
  * Live TV ([live]). Albums show as a
  * grid of their art, artists and tracks as lists. With several music
@@ -116,10 +116,9 @@ class MusicLibrary(
 
     /**
      * Artists, then albums, then tracks matching [query]: each a group of
-     * its own; then Live TV's channels. With nothing typed yet, the albums
-     * played and added last, once each, as Recent has them: a car asks as
-     * its search opens, and an empty answer shows there as "No results"
-     * before anything was searched for.
+     * its own; then Live TV's channels. A query of blanks gets the albums
+     * played and added last, once each, as Recent has them (Media3 answers
+     * an empty one itself, before it gets here).
      */
     suspend fun search(query: String): List<MediaItem> = coroutineScope {
         if (query.isBlank()) return@coroutineScope recent().distinctBy { it.mediaId }.take(SEARCH_EACH)

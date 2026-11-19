@@ -18,8 +18,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  * The library's pictures for cars: Android Auto can't fetch them from the
  * server (Pley's pictures need the profile's token, which never leaves the
  * app), so it reads them from [MusicArtProvider] by these addresses. The
- * provider isn't exported: the music service grants reading it to the car
- * that connects (MusicService), and no other app.
+ * provider isn't exported: the music service grants reading it to Android
+ * Auto and the Google app as they connect, and to the system's media
+ * controls (MusicService); no other app.
  */
 object MusicArt {
     fun authority(context: Context): String = "${context.packageName}.music.art"
@@ -49,7 +50,7 @@ object MusicArt {
         return uri.getQueryParameter(PATH)?.takeIf(::servable)
     }
 
-    /** Only the server's item and collection pictures: no other route of the API goes through the provider. */
+    /** Only the server's item and collection pictures and Live TV's channel logos: no other route of the API goes through the provider. */
     internal fun servable(path: String): Boolean = path.length <= MAX_PATH && PICTURE_PATH.matches(path)
 
     private const val PICTURE = "picture"

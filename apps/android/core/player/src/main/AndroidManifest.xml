@@ -56,7 +56,8 @@
 
         <!--
           The library's pictures for the car: not exported, read only by the
-          car the music service grants them to (MusicArt).
+          apps the music service grants them to, Android Auto, the Google app
+          and the system's media controls (MusicArt).
         -->
         <provider
             android:name="app.pley.android.player.music.library.MusicArtProvider"
