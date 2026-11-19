@@ -125,6 +125,8 @@ class MusicResume(
      */
     fun keepRadio(mediaId: String?) {
         val now = profile() ?: return
+        // The last profile's music playing on after a switch: the channel the profile signed in played last stays its own.
+        if (mediaId == null && owner != null && owner != now) return
         if (now == radioOf && mediaId == radio) return
         radioOf = now
         radio = mediaId

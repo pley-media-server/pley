@@ -196,6 +196,29 @@ class MusicResumeTest {
     }
 
     @Test
+    fun musicPlayingOnAfterASwitchLeavesTheChannelTheProfileSignedInPlayedLast() = runTest {
+        signedIn = CHILD
+        resume().keepRadio("channel:7")
+        runCurrent()
+        signedIn = PARENT
+        val resume = resume()
+        resume.keep(MusicQueueState(album, index = 2), positionMs = 0)
+        runCurrent()
+
+        // The first profile's album, played on as the other: that profile's car is still shown its channel.
+        signedIn = CHILD
+        resume.keepRadio(null)
+        runCurrent()
+        assertEquals("channel:7", resume().savedRadio())
+
+        // Music it starts itself is what it played last.
+        resume.keep(MusicQueueState((101..110L).map { track(it) }), positionMs = 0)
+        resume.keepRadio(null)
+        runCurrent()
+        assertNull(resume().savedRadio())
+    }
+
+    @Test
     fun whatIsOnItsWayToTheStoreAsTheProfileChangesGoesToTheProfileItIsFor() = runTest {
         val resume = resume()
         resume.keep(MusicQueueState(album, index = 1), positionMs = 0)
