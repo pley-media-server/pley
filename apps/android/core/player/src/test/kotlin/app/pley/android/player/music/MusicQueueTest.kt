@@ -55,6 +55,31 @@ class MusicQueueTest {
     }
 
     @Test
+    fun aShuffledQueueBroughtBackPlaysAsItDidAndShuffleOffGoesBackToTheOrderGiven() {
+        val queue = MusicQueue(Random(7))
+        queue.start(album, startIndex = 4, shuffle = true)
+        queue.next()
+        val state = queue.state
+        assertEquals(album.size, state.given.size)
+
+        val back = MusicQueue()
+        assertTrue(back.restore(state.tracks, state.given, state.index))
+        assertEquals(state.tracks, back.tracks)
+        assertEquals(state.index, back.index)
+        assertTrue(back.shuffle)
+        val playing = back.current
+        back.setShuffle(false)
+        assertEquals(album, back.tracks)
+        assertEquals(playing, back.current)
+        assertTrue(back.state.given.isEmpty())
+
+        // An order that doesn't place each track once is refused, and changes nothing.
+        assertFalse(back.restore(album.take(3), listOf(0, 0, 1), 0))
+        assertEquals(album, back.tracks)
+        assertFalse(back.shuffle)
+    }
+
+    @Test
     fun aRepeatingQueueGoesRoundItsEndsAndARepeatingTrackComesAgainByItself() {
         val queue = MusicQueue()
         queue.start(album, startIndex = 11)

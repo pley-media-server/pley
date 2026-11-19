@@ -275,18 +275,22 @@ class MusicPlayback(
      * Play to bring back, or what a car or the Assistant asked to have
      * ready before it asks to play. Nothing is asked of the server
      * meanwhile. The same queue cued again, still waiting, stays as it is.
+     * What was playing shuffled comes with [given]: where each of [tracks],
+     * as they played, was in the order the queue was given, so it waits
+     * shuffled as it was ([MusicQueue.restore]).
      */
-    fun cue(tracks: List<ItemSummary>, startIndex: Int = 0, shuffle: Boolean = false, startMs: Long = 0) {
+    fun cue(tracks: List<ItemSummary>, startIndex: Int = 0, shuffle: Boolean = false, startMs: Long = 0, given: List<Int>? = null) {
         if (tracks.isEmpty()) return
         val at = startIndex.coerceIn(tracks.indices)
-        if (waitingAt != null && !shuffle && !queue.shuffle && queue.index == at && queue.state.tracks.map { it.id } == tracks.map { it.id }) return
+        val waiting = queue.state
+        if (waitingAt != null && !shuffle && waiting.index == at && waiting.given == given.orEmpty() && waiting.tracks.map { it.id } == tracks.map { it.id }) return
         failedInARow = 0
         cancelSkip()
         loadJob?.cancel()
         stopTicker()
         endSession()
         out?.stop()
-        queue.start(tracks, at, shuffle)
+        if (given == null || !queue.restore(tracks, given, at)) queue.start(tracks, at, shuffle)
         held = false
         fallback = null
         recreates = 0

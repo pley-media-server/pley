@@ -785,6 +785,30 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun whatWasPlayingShuffledWaitsShuffledAsItWas() = runTest {
+        val music = music()
+        // As it played: 3, 1, 2, the album being 1, 2, 3.
+        val saved = SavedMusic(listOf(album[2], album[0], album[1]), index = 1, positionMs = 30_000, repeat = MusicRepeat.All, given = listOf(2, 0, 1))
+        music.cue(saved)
+        settle()
+        val queue = music.queueState.value
+        assertTrue(queue.shuffle)
+        assertEquals(listOf(3L, 1L, 2L), queue.tracks.map { it.id })
+        assertEquals(1L, queue.current?.id)
+        assertEquals(MusicRepeat.All, queue.repeat)
+        assertEquals(30_000L, music.position().positionMs)
+        assertEquals(emptyList<PlaybackRequest>(), starts())
+
+        // Brought back again as it waits: it stays as it is.
+        music.cue(saved.copy(positionMs = 0))
+        assertEquals(30_000L, music.position().positionMs)
+
+        music.setShuffle(false)
+        assertEquals(listOf(1L, 2L, 3L), music.queueState.value.tracks.map { it.id })
+        assertEquals(1L, music.queueState.value.current?.id)
+    }
+
+    @Test
     fun aQueueThatWaitsStartsWhereItIsSoughtToAndNextPlaysTheNextTrack() = runTest {
         val music = music()
         music.cue(album, startIndex = 0, startMs = 5_000)

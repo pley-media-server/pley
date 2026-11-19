@@ -18,7 +18,15 @@ data class SavedMusic(
     val index: Int,
     val positionMs: Long,
     val repeat: MusicRepeat = MusicRepeat.Off,
+    /** Shuffled, where each of [tracks] comes in the order the queue was given (Shuffle off plays that); `null` otherwise. */
+    val given: List<Int>? = null,
 )
+
+/** Makes [saved] the queue that waits for Play, as it was: in the order it played, shuffled or not, with what repeats. */
+fun MusicPlayback.cue(saved: SavedMusic) {
+    setRepeat(saved.repeat)
+    cue(saved.tracks, saved.index, startMs = saved.positionMs, given = saved.given)
+}
 
 /**
  * What music was playing, kept on the device so Play brings it back when
@@ -49,9 +57,10 @@ class MusicResume(
     /** The profile the queue kept is that of: the one signed in as it was first kept, until it is forgotten. */
     private var owner: ProfileScope? = null
 
-    /** The tracks written last, and where in the queue they start. */
+    /** The tracks written last, where in the queue they start, and the order they were given in, written with them. */
     private var kept: List<ItemSummary>? = null
     private var keptFrom = 0
+    private var keptGiven: List<Int>? = null
 
     /** Whether what was kept has been forgotten in this run, and nothing kept since. */
     private var forgotten = false
@@ -90,6 +99,12 @@ class MusicResume(
             kept = window.toList()
             keptFrom = from
             put(who, QUEUE, PleyJson.encodeToString(TRACKS, window).encodeToByteArray())
+        }
+        // Shuffled, the tracks kept in the order they were given, among themselves: Shuffle off plays them so once back.
+        val given = if (queue.shuffle && queue.given.size == tracks.size) ranks(queue.given.subList(from, from + window.size)) else emptyList()
+        if (given != keptGiven) {
+            keptGiven = given
+            put(who, GIVEN, given.joinToString(" ").encodeToByteArray())
         }
         put(who, PLACE, "${queue.index - from} ${positionMs.coerceAtLeast(0)} ${queue.repeat.name}".encodeToByteArray())
     }
@@ -131,11 +146,13 @@ class MusicResume(
         val who = owner ?: profile()
         owner = null
         kept = null
+        keptGiven = null
         if (forgotten) return
         forgotten = true
         if (who == null || who != profile()) return
         // Empty: the store reads that as nothing kept.
         put(who, QUEUE, ByteArray(0))
+        put(who, GIVEN, ByteArray(0))
         put(who, PLACE, ByteArray(0))
     }
 
@@ -158,7 +175,17 @@ class MusicResume(
         // A track left in its last seconds, or at its end, starts over: brought back there it would end at once.
         val position = place.getOrNull(1)?.toLongOrNull()?.takeIf { it > 0 && (length == null || it < length - NEAR_END_MS) } ?: 0
         val repeat = MusicRepeat.entries.firstOrNull { it.name == place.getOrNull(2) } ?: MusicRepeat.Off
-        return SavedMusic(tracks, index, position, repeat)
+        // Kept for these tracks only when it places each once; otherwise they come back in the order they played.
+        val given = read(now, GIVEN)?.decodeToString()?.split(' ')?.map { it.toIntOrNull() ?: -1 }
+            ?.takeIf { it.size == tracks.size && it.toSet() == tracks.indices.toSet() }
+        return SavedMusic(tracks, index, position, repeat, given)
+    }
+
+    /** Where each of [positions] comes among them, smallest first. */
+    private fun ranks(positions: List<Int>): List<Int> {
+        val ranks = IntArray(positions.size)
+        positions.indices.sortedBy { positions[it] }.forEachIndexed { rank, i -> ranks[i] = rank }
+        return ranks.toList()
     }
 
     private fun put(whose: ProfileScope, key: String, bytes: ByteArray) {
@@ -185,8 +212,9 @@ class MusicResume(
         /** Left this close to its end, a track starts over when brought back. */
         private const val NEAR_END_MS = 5_000L
 
-        /** The snapshots' keys: the queue's tracks, and "index position repeat". */
+        /** The snapshots' keys: the queue's tracks, the order they were given in when shuffled, and "index position repeat". */
         const val QUEUE = "music:queue"
+        const val GIVEN = "music:given"
         const val PLACE = "music:place"
 
         /** The snapshot's key for the radio's channel, and the longest id read back. */

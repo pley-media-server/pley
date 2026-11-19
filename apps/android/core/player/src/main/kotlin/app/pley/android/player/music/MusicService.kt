@@ -229,8 +229,7 @@ class MusicService : MediaLibraryService() {
             if (playback.active) return@launch
             val saved = resume.saved() ?: return@launch
             if (busy() || playback.active) return@launch
-            playback.setRepeat(saved.repeat)
-            playback.cue(saved.tracks, saved.index, startMs = saved.positionMs)
+            playback.cue(saved)
         }
     }
 
@@ -605,10 +604,7 @@ class MusicService : MediaLibraryService() {
                         val saved = if (playback.active) null else MusicHub.resume?.saved()
                         if (playback.active || saved != null) {
                             showMusic(made, playback, graph.library)
-                            if (saved != null) {
-                                playback.setRepeat(saved.repeat)
-                                playback.cue(saved.tracks, saved.index, startMs = saved.positionMs)
-                            }
+                            if (saved != null) playback.cue(saved)
                             val queue = playback.queueState.value
                             future.set(MediaSession.MediaItemsWithStartPosition(queue.tracks.map { library().queueItem(it) }, queue.index, playback.position().positionMs))
                             return@launch
@@ -683,10 +679,7 @@ class MusicService : MediaLibraryService() {
                         future.setException(UnsupportedOperationException("Nothing to resume"))
                         return@launch
                     }
-                    if (isForPlayback) {
-                        playback.setRepeat(saved.repeat)
-                        playback.cue(saved.tracks, saved.index, startMs = saved.positionMs)
-                    }
+                    if (isForPlayback) playback.cue(saved)
                     future.set(MediaSession.MediaItemsWithStartPosition(saved.tracks.map(describe), saved.index, saved.positionMs))
                 } catch (e: CancellationException) {
                     future.cancel(false)

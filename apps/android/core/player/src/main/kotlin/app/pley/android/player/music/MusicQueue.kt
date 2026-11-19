@@ -47,7 +47,7 @@ class MusicQueue(private val random: Random = Random.Default) {
     /** Whether [next] has a track to go to. */
     val hasNext: Boolean get() = index + 1 < order.size || (repeat == MusicRepeat.All && order.isNotEmpty())
 
-    val state: MusicQueueState get() = MusicQueueState(tracks, index, shuffle, repeat)
+    val state: MusicQueueState get() = MusicQueueState(tracks, index, shuffle, repeat, if (shuffle) order.toList() else emptyList())
 
     /**
      * Starts over with [tracks] at [startIndex]; with [shuffle], in a
@@ -60,6 +60,23 @@ class MusicQueue(private val random: Random = Random.Default) {
         index = start
         this.shuffle = false
         if (shuffle) setShuffle(true)
+    }
+
+    /**
+     * Starts over with [tracks] as they played, shuffled, at [startIndex]:
+     * [given] is where each was in the order the queue was given, which
+     * Shuffle off goes back to. `false`, and nothing changed, when [given]
+     * doesn't place each track once.
+     */
+    fun restore(tracks: List<ItemSummary>, given: List<Int>, startIndex: Int): Boolean {
+        if (tracks.isEmpty() || given.size != tracks.size || given.toSet() != tracks.indices.toSet()) return false
+        val inOrder = tracks.toMutableList()
+        tracks.forEachIndexed { i, track -> inOrder[given[i]] = track }
+        this.given = inOrder
+        order = given.toIntArray()
+        index = startIndex.coerceIn(0, tracks.lastIndex)
+        shuffle = true
+        return true
     }
 
     /** Forgets every track. */

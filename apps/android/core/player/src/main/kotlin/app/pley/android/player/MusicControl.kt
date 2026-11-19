@@ -98,6 +98,8 @@ data class MusicQueueState(
     val index: Int = 0,
     val shuffle: Boolean = false,
     val repeat: MusicRepeat = MusicRepeat.Off,
+    /** Shuffled, where each of [tracks] is in the order the queue was given, which Shuffle off plays; empty otherwise. */
+    val given: List<Int> = emptyList(),
 ) {
     val current: ItemSummary? get() = tracks.getOrNull(index)
 }

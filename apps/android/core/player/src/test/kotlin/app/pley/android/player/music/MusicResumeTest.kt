@@ -7,6 +7,7 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
+import kotlin.random.Random
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
@@ -173,6 +174,38 @@ class MusicResumeTest {
         runCurrent()
         assertNull(resume.saved())
         assertNull(resume.savedRadio())
+    }
+
+    @Test
+    fun aShuffledQueueComesBackShuffledAndShuffleOffPlaysItInTheOrderGiven() = runTest {
+        val queue = MusicQueue(Random(3)).apply { start(album, startIndex = 5, shuffle = true) }
+        resume().keep(queue.state, positionMs = 0)
+        runCurrent()
+        val saved = resume().saved()!!
+        assertEquals(queue.tracks, saved.tracks)
+        val back = MusicQueue().apply { assertTrue(restore(saved.tracks, saved.given!!, saved.index)) }
+        back.setShuffle(false)
+        assertEquals(album, back.tracks)
+        assertEquals(6L, back.current?.id)
+
+        // Of a long queue, the tracks kept come back in the order given among themselves.
+        val long = (1..1_200L).map { track(it) }
+        val big = MusicQueue(Random(5)).apply { start(long, startIndex = 600, shuffle = true) }
+        resume().keep(big.state, positionMs = 0)
+        runCurrent()
+        val window = resume().saved()!!
+        assertEquals(MusicResume.MAX_TRACKS, window.tracks.size)
+        val restored = MusicQueue().apply { assertTrue(restore(window.tracks, window.given!!, window.index)) }
+        restored.setShuffle(false)
+        assertEquals(window.tracks.sortedBy { it.id }, restored.tracks)
+        assertEquals(601L, restored.current?.id)
+
+        // In the order given, none is kept; nor one that doesn't place each track once.
+        resume().keep(MusicQueueState(album, index = 1), positionMs = 0)
+        runCurrent()
+        assertNull(resume().saved()!!.given)
+        store[MusicResume.GIVEN] = "0 0 1 2 3 4 5 6 7 8 9 10".encodeToByteArray()
+        assertNull(resume().saved()!!.given)
     }
 
     @Test

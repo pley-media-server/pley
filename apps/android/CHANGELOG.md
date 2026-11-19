@@ -24,7 +24,7 @@ describes how they are made.
   scrubber glides.
 - Music picks up where it was when Android has ended the app meanwhile:
   Play in the car, in Android Auto or in the phone's media controls
-  plays the queue again from where it was.
+  plays the queue again from where it was, shuffled as it was.
 - "Hey Google, play … on Pley" finds music playlists by name ("my … playlist"
   too), says so when it finds nothing, and "play music on Pley" plays on
   what was playing.
