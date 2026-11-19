@@ -145,6 +145,27 @@ class MusicResumeTest {
     }
 
     @Test
+    fun musicStartedAfterASwitchOfProfileIsKeptForTheProfileSignedIn() = runTest {
+        val resume = resume()
+        resume.keep(MusicQueueState(album, index = 2), positionMs = 5_000)
+        runCurrent()
+
+        // Another album, started as the other profile while the first one played: that profile's from then on.
+        signedIn = CHILD
+        val other = (101..110L).map { track(it) }
+        resume.keep(MusicQueueState(other, index = 0), positionMs = 0)
+        resume.keep(MusicQueueState(other, index = 3), positionMs = 20_000)
+        runCurrent()
+        val childs = resume().saved()!!
+        assertEquals(other, childs.tracks)
+        assertEquals(3, childs.index)
+        signedIn = PARENT
+        val parents = resume().saved()!!
+        assertEquals(album, parents.tracks)
+        assertEquals(2, parents.index)
+    }
+
+    @Test
     fun whatIsOnItsWayToTheStoreAsTheProfileChangesGoesToTheProfileItIsFor() = runTest {
         val resume = resume()
         resume.keep(MusicQueueState(album, index = 1), positionMs = 0)

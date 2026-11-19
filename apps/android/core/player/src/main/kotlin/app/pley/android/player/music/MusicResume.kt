@@ -41,12 +41,12 @@ fun MusicPlayback.cue(saved: SavedMusic) {
  * It is kept with the saved things of the profile that played it:
  * [profile] is the one signed in now, and [read] and [write] reach a
  * profile's snapshots whichever is, so a write still on its way as the
- * profile changes goes to the profile it is for. Music that plays on after
- * a switch of profile is kept for neither from then on (the profile that
- * played it keeps what it had), so another profile never gets it, and
- * signing out deletes it. A long queue keeps [MAX_TRACKS] tracks around
- * the one playing. Main thread only; the writing itself is the store's,
- * off it.
+ * profile changes goes to the profile it is for. The queue playing on
+ * after a switch of profile is kept for neither (the profile that played
+ * it keeps what it had), so another profile never gets it; one of other
+ * tracks, started since, is the profile's signed in now. Signing out
+ * deletes it. A long queue keeps [MAX_TRACKS] tracks around the one
+ * playing. Main thread only; the writing itself is the store's, off it.
  */
 class MusicResume(
     private val profile: () -> ProfileScope?,
@@ -56,6 +56,9 @@ class MusicResume(
 ) {
     /** The profile the queue kept is that of: the one signed in as it was first kept, until it is forgotten. */
     private var owner: ProfileScope? = null
+
+    /** The whole queue as last kept for [owner]: after a switch of profile, a queue of other tracks is a new one. */
+    private var ownerQueue: List<ItemSummary> = emptyList()
 
     /** The tracks written last, where in the queue they start, and the order they were given in, written with them. */
     private var kept: List<ItemSummary>? = null
@@ -81,9 +84,15 @@ class MusicResume(
             return
         }
         val now = profile() ?: return
-        val who = owner ?: now.also { owner = it }
-        // Played by another profile before a switch: what plays on is neither's to keep.
-        if (who != now) return
+        if (owner != now) {
+            // Since a switch of profile: the last profile's queue playing on, its tracks in whatever order, is neither's to
+            // keep; a queue of other tracks has been started by the profile signed in now.
+            if (owner != null && trackIds(tracks) == trackIds(ownerQueue)) return
+            owner = now
+            kept = null
+            keptGiven = null
+        }
+        ownerQueue = tracks
         forgotten = false
         val last = kept
         // Of a long queue, the tracks kept stay the same while its track is among them: only the place is written then.
@@ -98,15 +107,15 @@ class MusicResume(
         if (window != kept || from != keptFrom) {
             kept = window.toList()
             keptFrom = from
-            put(who, QUEUE, PleyJson.encodeToString(TRACKS, window).encodeToByteArray())
+            put(now, QUEUE, PleyJson.encodeToString(TRACKS, window).encodeToByteArray())
         }
         // Shuffled, the tracks kept in the order they were given, among themselves: Shuffle off plays them so once back.
         val given = if (queue.shuffle && queue.given.size == tracks.size) ranks(queue.given.subList(from, from + window.size)) else emptyList()
         if (given != keptGiven) {
             keptGiven = given
-            put(who, GIVEN, given.joinToString(" ").encodeToByteArray())
+            put(now, GIVEN, given.joinToString(" ").encodeToByteArray())
         }
-        put(who, PLACE, "${queue.index - from} ${positionMs.coerceAtLeast(0)} ${queue.repeat.name}".encodeToByteArray())
+        put(now, PLACE, "${queue.index - from} ${positionMs.coerceAtLeast(0)} ${queue.repeat.name}".encodeToByteArray())
     }
 
     /**
@@ -145,6 +154,7 @@ class MusicResume(
     fun forget() {
         val who = owner ?: profile()
         owner = null
+        ownerQueue = emptyList()
         kept = null
         keptGiven = null
         if (forgotten) return
@@ -180,6 +190,8 @@ class MusicResume(
             ?.takeIf { it.size == tracks.size && it.toSet() == tracks.indices.toSet() }
         return SavedMusic(tracks, index, position, repeat, given)
     }
+
+    private fun trackIds(tracks: List<ItemSummary>): Set<Long> = tracks.mapTo(HashSet(tracks.size)) { it.id }
 
     /** Where each of [positions] comes among them, smallest first. */
     private fun ranks(positions: List<Int>): List<Int> {
