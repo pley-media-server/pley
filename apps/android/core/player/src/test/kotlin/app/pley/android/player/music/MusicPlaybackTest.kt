@@ -24,7 +24,9 @@ import java.io.IOException
 import kotlin.random.Random
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -785,6 +787,25 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun anotherQueueIsNeverShownWithTheTrackBeforesPlace() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 150_000
+        output.stopTells = true
+        // Read as the queue changes, there and then (what keeps it for Play does so on the main thread at once).
+        val seen = mutableListOf<Pair<Long, Long>>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            music.queueState.collect { queue -> seen += queue.current!!.id to music.position().positionMs }
+        }
+        music.play(album.reversed())
+        runCurrent()
+        // The new queue's first track, at its start, never where the last track was as the output stopped it.
+        assertEquals(listOf(3L to 0L), seen.drop(1).distinct())
+    }
+
+    @Test
     fun whatWasPlayingShuffledWaitsShuffledAsItWas() = runTest {
         val music = music()
         // As it played: 3, 1, 2, the album being 1, 2, 3.
@@ -963,8 +984,13 @@ class MusicPlaybackTest {
             position = positionMs
         }
 
+        /** Whether [stop] tells the music it no longer plays, there and then, as ExoPlayer's listeners are. */
+        var stopTells = false
+
         override fun stop() {
+            val was = playing
             playing = false
+            if (was && stopTells) listener?.onPlayingChanged(false)
         }
 
         override fun release() {

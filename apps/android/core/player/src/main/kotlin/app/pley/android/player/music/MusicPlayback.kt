@@ -476,8 +476,9 @@ class MusicPlayback(
         endSession()
         val o = output()
         if (!sameTrack) {
-            o.stop()
+            // Before the output stops: it tells its listeners there and then, and the queue they are shown is this one.
             held = false
+            o.stop()
         }
         ended = false
         yielded = false
