@@ -410,6 +410,22 @@ private func item(_ id: Int, _ kind: ItemKind, positionMs: Int = 0, durationMs: 
         #expect(await eventually { home.info?.complete == true })
     }
 
+    /// Apple TV's Home shows the focused title's backdrop: its own, else
+    /// an episode's show's, else the episode's still.
+    @Test func homeInfoHasTheBackdropBehindHome() {
+        var movie = ItemSummary(id: 1, libraryId: 1, kind: .movie, title: "Arrival")
+        movie.backdropUrl = "/api/items/1/images/backdrop"
+        #expect(HomeInfo(movie, detail: nil).backdrops == ["/api/items/1/images/backdrop"])
+
+        var episode = ItemSummary(id: 12, libraryId: 2, kind: .episode, title: "Glasshouse")
+        episode.grandparentId = 10
+        episode.thumbUrl = "/api/items/12/images/thumb"
+        #expect(HomeInfo(episode, detail: nil).backdrops
+            == ["/api/items/10/images/backdrop", "/api/items/12/images/thumb"])
+
+        #expect(HomeInfo(ItemSummary(id: 3, libraryId: 1, kind: .movie, title: "Bare"), detail: nil).backdrops.isEmpty)
+    }
+
     @Test func homeSaysWhyItIsEmpty() async throws {
         let server = try await fixture()
         defer { server.stop() }

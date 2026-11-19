@@ -184,6 +184,24 @@ import Testing
             let width = tabs.reduce(0) { $0 + ShellModel.tabWidth($1, libraries: named + long) }
             #expect(width <= ShellModel.tabRoom)
         }
+        // Discover and Live TV beside two libraries of long names: Libraries,
+        // Playlists and Settings would scroll off the screen, so Playlists
+        // shows its symbol alone and Settings stays in sight.
+        let discover = RequestsEntry(discover: true, requests: true)
+        let shows = [Library(id: 1, name: "TV Shows", kind: .shows), Library(id: 2, name: "Movies", kind: .movies),
+                     Library(id: 3, name: "Music", kind: .music)]
+        let crowded = ShellModel.sections(tv: true, libraries: shows, liveTv: true, requests: discover)
+        #expect(crowded == [.search, .home, .requests, .liveTv, .libraries, .playlists, .settings])
+        let symbols = ShellModel.symbolOnly(crowded, libraries: shows, requests: discover)
+        #expect(symbols == ShellModel.symbolTabs.union([.playlists]))
+        let shown = crowded.reduce(0) {
+            $0 + (symbols.contains($1) ? ShellModel.tabPadding : ShellModel.tabWidth($1, libraries: shows, requests: discover))
+        }
+        #expect(shown <= ShellModel.tabRoom)
+        // While they fit, every tab keeps its words.
+        #expect(ShellModel.symbolOnly(ShellModel.sections(tv: true, libraries: named, liveTv: true), libraries: named)
+            == ShellModel.symbolTabs)
+
         // The phone's five tabs don't change: Live TV is a row of Libraries.
         #expect(ShellModel.sections(tv: false, libraries: four, liveTv: true) == [.home, .libraries, .search, .playlists, .me])
     }

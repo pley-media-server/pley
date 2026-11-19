@@ -5,8 +5,9 @@ import SwiftUI
 /// The sizes Apple TV's screens share: the screen's margins, spacing,
 /// corners and the tiles' widths, for a television seen from the sofa.
 enum Metrics {
-    /// The side margin, inside the screen's safe area.
-    static let gutter: CGFloat = 80
+    /// The side margin, inside the screen's safe area, which already keeps
+    /// 80 points clear: together, about as far in as Apple's own apps.
+    static let gutter: CGFloat = 40
     /// Corner radius of tiles and pictures.
     static let corner: CGFloat = 12
     /// Space between the tiles of a row or a grid: room for the focused

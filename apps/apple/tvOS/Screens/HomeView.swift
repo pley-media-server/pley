@@ -1,3 +1,4 @@
+import PleyData
 import PleyModel
 import PleyScreens
 import SwiftUI
@@ -42,25 +43,87 @@ struct HomeView: View {
                                            """),
                                    action: (localized("Reload"), { Task { await model.reload() } })))
         case .loaded(let rows):
-            VStack(alignment: .leading, spacing: 0) {
-                InfoBlock(info: model.info)
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: Metrics.rowSpacing) {
-                        ForEach(rows) { row in
-                            TileRow(app: app, key: row.key, title: row.title, shape: row.shape, tiles: row.tiles,
-                                    seeAll: row.seeAll.map { screen in { app.shell.open(screen) } },
-                                    remove: row.continueWatching ? { tile in
-                                        await model.removeFromContinueWatching(tile.item)
-                                    } : nil,
-                                    focused: { model.focus($0) }) { tile in
-                                app.shell.open(item: tile.item)
-                            }
+            // Behind the page, not beside it in a stack: the backdrop fills the
+            // screen without moving the page out from under the tab bar.
+            page(rows)
+                // Out to the screen's sides, as Discover's page is: the words and the
+                // first tiles line up with Discover's, and the rows scroll to the edges.
+                .padding(.horizontal, Self.sideInset)
+                .ignoresSafeArea(.container, edges: .horizontal)
+                .background { HomeBackdrop(app: app, paths: model.info?.backdrops ?? []) }
+        }
+    }
+
+    /// Inside the screen's sides, past which the margin (`Metrics.gutter`) starts.
+    private static let sideInset: CGFloat = 40
+
+    private func page(_ rows: [HomeRow]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            InfoBlock(info: model.info)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: Metrics.rowSpacing) {
+                    ForEach(rows) { row in
+                        TileRow(app: app, key: row.key, title: row.title, shape: row.shape, tiles: row.tiles,
+                                seeAll: row.seeAll.map { screen in { app.shell.open(screen) } },
+                                remove: row.continueWatching ? { tile in
+                                    await model.removeFromContinueWatching(tile.item)
+                                } : nil,
+                                focused: { model.focus($0) }) { tile in
+                            app.shell.open(item: tile.item)
                         }
                     }
-                    .padding(.bottom, 40)
                 }
-                .accessibilityIdentifier("home.rows")
+                .padding(.bottom, 40)
             }
+            .accessibilityIdentifier("home.rows")
+        }
+    }
+}
+
+/// The backdrop of the tile with the focus, behind the whole of Home,
+/// darkened towards the info block and the rows. It changes once the
+/// focus has rested on a tile, so moving along a row doesn't flash every
+/// picture on the way, and fades from one to the next (at once under
+/// Reduce Motion). Until a tile has the focus, and for one with no
+/// backdrop, it is plain.
+private struct HomeBackdrop: View {
+    let app: AppModel
+    let paths: [String]
+    @State private var rested: [String] = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                if !rested.isEmpty {
+                    ServerImage(app: app, paths: rested, width: geometry.size.width, symbol: nil, placeholder: false,
+                                limit: ImageLoader.deviceBackdropLimit)
+                        .id(rested)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                        .transition(.opacity)
+                }
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            // Darkened as Discover's backdrop is, towards the words on the left
+            // and the rows below; the words' shadow keeps them clear of bright parts.
+            .overlay {
+                LinearGradient(colors: [.black.opacity(0.85), .black.opacity(0.35), .clear],
+                               startPoint: .leading, endPoint: .trailing)
+            }
+            .overlay {
+                LinearGradient(colors: [.clear, .black.opacity(0.95)], startPoint: .center, endPoint: .bottom)
+            }
+        }
+        .animation(Motion.animation(.easeInOut(duration: 0.4), reduced: reduceMotion), value: rested)
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .task(id: paths) {
+            guard paths != rested else { return }
+            try? await Task.sleep(for: .seconds(HomeModel.infoDelay))
+            guard !Task.isCancelled else { return }
+            rested = paths
         }
     }
 }
@@ -110,5 +173,7 @@ private struct InfoBlock: View {
                 .lineLimit(3)
                 .frame(maxWidth: 1100, alignment: .leading)
         }
+        // Readable over the bright parts of a backdrop the scrim doesn't darken enough.
+        .shadow(color: .black.opacity(0.6), radius: 8)
     }
 }

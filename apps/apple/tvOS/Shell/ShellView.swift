@@ -42,10 +42,15 @@ struct ShellView: View {
         .accessibilityHidden(app.player != nil || app.livePlayer != nil)
     }
 
+    /// The tabs that show their symbol alone (`ShellModel.symbolOnly`).
+    private var symbolOnly: Set<ShellSection> {
+        ShellModel.symbolOnly(shell.sections, libraries: shell.libraries, requests: shell.requestsEntry)
+    }
+
     /// `section`'s tab. Search, Now Playing and Settings show their symbols
-    /// alone (Search as the system's search tab), so the tabs fit across the
-    /// screen with Live TV, Libraries and Now Playing among them
-    /// (`ShellModel.tabRoom`); VoiceOver still reads their names.
+    /// alone (Search as the system's search tab), and, while the words
+    /// wouldn't fit across the screen, Playlists, Libraries, Live TV and
+    /// Discover too (`ShellModel.tabRoom`); VoiceOver still reads their names.
     @TabContentBuilder<ShellSection> private func tab(_ section: ShellSection) -> some TabContent<ShellSection> {
         switch section {
         case .search:
@@ -54,7 +59,7 @@ struct ShellView: View {
             } label: {
                 Label(title(section), systemImage: symbol(section)).labelStyle(.iconOnly)
             }
-        case .nowPlaying, .settings:
+        case _ where symbolOnly.contains(section):
             Tab(value: section) {
                 stack(section)
             } label: {

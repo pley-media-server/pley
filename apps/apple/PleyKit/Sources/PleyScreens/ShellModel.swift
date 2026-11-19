@@ -264,6 +264,25 @@ public final class ShellModel: ObservableObject {
         return start + kept + [.libraries] + end
     }
 
+    /// The tabs of `sections` that show their symbol alone on Apple TV:
+    /// Search, Now Playing and Settings, and while the tabs' words would
+    /// take more than `tabRoom`, Playlists, then Libraries, then Live TV,
+    /// then the requests' tab, until they fit. So the bar never scrolls
+    /// Settings, which holds Switch profile and Sign out, off the screen.
+    public static func symbolOnly(_ sections: [ShellSection], libraries: [Library],
+                                  requests: RequestsEntry = .none) -> Set<ShellSection> {
+        var symbols = symbolTabs
+        func total() -> Int {
+            sections.reduce(0) { sum, section in
+                sum + (symbols.contains(section) ? tabPadding : tabWidth(section, libraries: libraries, requests: requests))
+            }
+        }
+        for section in [ShellSection.playlists, .libraries, .liveTv, .requests] where total() > tabRoom {
+            if sections.contains(section) { symbols.insert(section) }
+        }
+        return symbols
+    }
+
     /// How much of the bar `section`'s tab takes (`tabRoom`).
     static func tabWidth(_ section: ShellSection, libraries: [Library], requests: RequestsEntry = .none) -> Int {
         if symbolTabs.contains(section) { return tabPadding }

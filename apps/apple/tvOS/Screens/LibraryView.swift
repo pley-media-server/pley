@@ -2,16 +2,19 @@ import PleyModel
 import PleyScreens
 import SwiftUI
 
-/// A library's page for the sofa: Recommended, Library and Collections
-/// (not for music) as buttons across the top. Recommended has the rows of
+/// A library's page for the sofa: its name and Recommended, Library and
+/// Collections (not for music) across the top. Recommended has the rows of
 /// collections administrators put there. On Library a row of Sort, the
-/// order, Filter (with Clear while filtered) and Save as Smart Playlist, a
-/// row of letters when sorted by title, and the grid, read 100 titles at a
-/// time. Each row is a focus section, so up and down go from one to the
-/// next.
+/// order, Filter (with Clear while filtered) and, at the far end, Save as
+/// Smart Playlist; then the grid, read 100 titles at a time, with the
+/// letters down the right of the screen when sorted by title. The top of
+/// the page scrolls away with the titles, so the grid has the screen once
+/// the focus is in it.
+/// Each row is a focus section, so up and down go from one to the next.
 struct LibraryView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: LibraryModel
+    @FocusState private var tabFocus: LibraryTab?
 
     init(app: AppModel, libraryId: Int, view: String? = nil) {
         self.app = app
@@ -32,80 +35,101 @@ struct LibraryView: View {
         case .notFound:
             StateView(kind: .empty(symbol: "questionmark.folder", text: LibraryModel.notFoundTitle, action: nil))
         case .loaded:
-            VStack(alignment: .leading, spacing: 24) {
-                HStack(spacing: 24) {
-                    Text(model.title)
-                        .font(.title2.bold())
-                        .accessibilityAddTraits(.isHeader)
-                        .padding(.trailing, 24)
-                    if model.tabs.count > 1 {
-                        ForEach(model.tabs, id: \.self) { tab in
-                            Button { model.select(tab) } label: {
-                                // The tab showing has a check: a tint alone is too faint from the sofa.
-                                if model.params.tab == tab {
-                                    Label(tab.title, systemImage: "checkmark")
-                                } else {
-                                    Text(tab.title)
+            switch model.params.tab {
+            case .recommended:
+                recommended
+            case .collections:
+                CollectionsGrid(app: app, model: model.collections, header: AnyView(header))
+            case .library:
+                GridPage(app: app, model: model, grid: model.grid, header: AnyView(VStack(alignment: .leading,
+                                                                                          spacing: 32) {
+                    header
+                    controls
+                }))
+                .id(model.grid.map(ObjectIdentifier.init))
+            }
+        }
+    }
+
+    /// The library's name, Recommended, Library and Collections, and what
+    /// went wrong last. It scrolls with the page: switching tabs makes the
+    /// page anew, and the focus stays on the tab chosen.
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 20) {
+                Text(model.title)
+                    .font(.title2.bold())
+                    .lineLimit(1)
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.trailing, 28)
+                if model.tabs.count > 1 {
+                    ForEach(model.tabs, id: \.self) { tab in
+                        Button { choose(tab) } label: {
+                            // The tab showing has a check: a tint alone is too faint from the sofa.
+                            if model.params.tab == tab {
+                                Label(tab.title, systemImage: "checkmark")
+                            } else {
+                                Text(tab.title)
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .font(.callout)
+                        .focused($tabFocus, equals: tab)
+                        .accessibilityAddTraits(model.params.tab == tab ? .isSelected : [])
+                        .accessibilityIdentifier("library.tab.\(tab.rawValue)")
+                    }
+                }
+            }
+            .focusSection()
+            if let notice = model.notice {
+                Text(asSentence(notice))
+                    .font(.callout)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.top, 20)
+    }
+
+    /// Shows `tab`, and keeps the focus on its button in the page made anew.
+    private func choose(_ tab: LibraryTab) {
+        model.select(tab)
+        Task { @MainActor in
+            await Task.yield()
+            tabFocus = tab
+        }
+    }
+
+    private var recommended: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 32) {
+                header
+                if let rows = model.rows {
+                    if rows.isEmpty {
+                        StateView(kind: .empty(symbol: "sparkles", text: LibraryModel.emptyTitle, action: nil))
+                            .frame(minHeight: 500)
+                    } else {
+                        LazyVStack(alignment: .leading, spacing: Metrics.rowSpacing) {
+                            ForEach(rows) { row in
+                                TileRow(app: app, key: row.key, title: row.title, shape: row.shape, tiles: row.tiles,
+                                        seeAll: row.seeAll.map { screen in { app.shell.open(screen) } }) { tile in
+                                    app.shell.open(item: tile.item)
                                 }
                             }
-                                .buttonStyle(.bordered)
-                                .accessibilityAddTraits(model.params.tab == tab ? .isSelected : [])
-                                .accessibilityIdentifier("library.tab.\(tab.rawValue)")
                         }
                     }
-                }
-                .focusSection()
-                .padding(.horizontal, Metrics.gutter)
-                if let notice = model.notice {
-                    Text(asSentence(notice))
-                        .font(.callout)
-                        .foregroundStyle(.red)
-                        .padding(.horizontal, Metrics.gutter)
-                }
-                switch model.params.tab {
-                case .recommended:
-                    recommended
-                case .collections:
-                    CollectionsGrid(app: app, model: model.collections)
-                case .library:
-                    controls
-                    if let grid = model.grid {
-                        GridPage(app: app, model: model, grid: grid)
-                            .id(ObjectIdentifier(grid))
-                    } else {
-                        StateView(kind: .loading)
-                    }
+                } else {
+                    StateView(kind: .loading)
+                        .frame(minHeight: 500)
                 }
             }
-            .padding(.top, 20)
+            .padding(.bottom, 60)
         }
     }
 
-    @ViewBuilder private var recommended: some View {
-        if let rows = model.rows {
-            if rows.isEmpty {
-                StateView(kind: .empty(symbol: "sparkles", text: LibraryModel.emptyTitle, action: nil))
-            } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: Metrics.rowSpacing) {
-                        ForEach(rows) { row in
-                            TileRow(app: app, key: row.key, title: row.title, shape: row.shape, tiles: row.tiles,
-                                    seeAll: row.seeAll.map { screen in { app.shell.open(screen) } }) { tile in
-                                app.shell.open(item: tile.item)
-                            }
-                        }
-                    }
-                }
-                .scrollClipDisabled()
-            }
-        } else {
-            StateView(kind: .loading)
-        }
-    }
-
-    /// Sort, the order, Filter and Clear.
+    /// Sort, the order, Filter and Clear, and Save as Smart Playlist at the far end.
     private var controls: some View {
-        HStack(spacing: 24) {
+        HStack(spacing: 20) {
             // tvOS gives a menu's button no accessibility label of its own,
             // whatever its label view shows: it is set here.
             Menu("Sort: \(model.params.sort.title)", systemImage: "arrow.up.arrow.down") {
@@ -160,6 +184,7 @@ struct LibraryView: View {
                         .accessibilityIdentifier("library.filter.clear")
                 }
             }
+            Spacer(minLength: 20)
             Button {
                 model.saveAs()
             } label: {
@@ -169,13 +194,59 @@ struct LibraryView: View {
             }
             .accessibilityIdentifier("library.saveAs")
         }
+        .font(.callout)
         .focusSection()
         .padding(.horizontal, Metrics.gutter)
     }
 }
 
-/// The letters, when the listing has them, and the grid.
+/// The top of the page and the grid, scrolling as one, and the letters
+/// down the right when the listing has them.
 private struct GridPage: View {
+    let app: AppModel
+    @ObservedObject var model: LibraryModel
+    let grid: LibraryGrid?
+    let header: AnyView
+
+    var body: some View {
+        ScrollViewReader { reader in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    header
+                    if let grid {
+                        GridBody(app: app, model: model, grid: grid)
+                    } else {
+                        StateView(kind: .loading)
+                            .frame(maxWidth: .infinity, minHeight: 500)
+                    }
+                }
+                .padding(.bottom, 60)
+            }
+            // Down the right of the screen, staying while the titles scroll.
+            .overlay(alignment: .trailing) {
+                if let grid {
+                    LetterStrip(model: model, grid: grid) { reader.scrollTo($0, anchor: .top) }
+                }
+            }
+        }
+    }
+}
+
+/// The letters, while the grid has titles to jump through.
+private struct LetterStrip: View {
+    @ObservedObject var model: LibraryModel
+    @ObservedObject var grid: LibraryGrid
+    let scrollTo: (Int) -> Void
+
+    var body: some View {
+        if let alpha = model.alpha, (grid.total ?? 0) > 0 {
+            Letters(alpha: alpha) { scrollTo(alpha.jumpTarget($0)) }
+        }
+    }
+}
+
+/// The grid, or why there is none.
+private struct GridBody: View {
     let app: AppModel
     @ObservedObject var model: LibraryModel
     @ObservedObject var grid: LibraryGrid
@@ -183,55 +254,54 @@ private struct GridPage: View {
     var body: some View {
         if let total = grid.total {
             if total == 0 {
-                if model.params.filtered {
-                    StateView(kind: .empty(symbol: "line.3.horizontal.decrease.circle", text: LibraryModel.noMatchTitle,
-                                           action: (localized("Clear filters"), { model.clearFilters() })))
-                } else {
-                    StateView(kind: .empty(symbol: "film.stack", text: LibraryModel.emptyTitle, action: nil))
-                }
-            } else {
-                ScrollViewReader { reader in
-                    VStack(alignment: .leading, spacing: 16) {
-                        if let alpha = model.alpha {
-                            Letters(alpha: alpha) { reader.scrollTo(alpha.jumpTarget($0), anchor: .top) }
-                        }
-                        ScrollView {
-                            TileGrid(app: app, shape: grid.shape, count: total, tile: { grid.tile(at: $0) },
-                                     showing: { grid.showing($0) }) { tile in
-                                app.shell.open(item: tile.item)
-                            }
-                            .padding(.vertical, 40)
-                        }
-                        .scrollClipDisabled()
-                        // Down from any button above reaches the grid, however few titles it has.
-                        .focusSection()
-                        .accessibilityIdentifier("library.grid")
+                Group {
+                    if model.params.filtered {
+                        StateView(kind: .empty(symbol: "line.3.horizontal.decrease.circle",
+                                               text: LibraryModel.noMatchTitle,
+                                               action: (localized("Clear filters"), { model.clearFilters() })))
+                    } else {
+                        StateView(kind: .empty(symbol: "film.stack", text: LibraryModel.emptyTitle, action: nil))
                     }
                 }
+                .frame(maxWidth: .infinity, minHeight: 500)
+            } else {
+                // Room on the right for the letters, when they show.
+                TileGrid(app: app, shape: grid.shape, count: total, tile: { grid.tile(at: $0) },
+                         showing: { grid.showing($0) }, trailingRoom: model.alpha == nil ? 0 : Letters.width) { tile in
+                    app.shell.open(item: tile.item)
+                }
+                // Down from any button above reaches the grid, however few titles it has.
+                .focusSection()
+                .accessibilityIdentifier("library.grid")
             }
         } else if let failure = grid.failure {
             StateView(kind: .failed(title: LibraryModel.failedTitle, why: failure) { Task { await grid.reload() } })
+                .frame(maxWidth: .infinity, minHeight: 500)
         } else {
             StateView(kind: .loading)
+                .frame(maxWidth: .infinity, minHeight: 500)
         }
     }
 }
 
-/// "#" and A to Z in a row: Select jumps the grid to the letter, or the
-/// next that has titles; letters without titles are dim.
+/// "#" and A to Z down the right of the screen: Select jumps the grid to
+/// the letter, or the next that has titles; letters without titles are
+/// dim. Right from the grid's last column reaches them, and left goes back.
 private struct Letters: View {
     let alpha: AlphaIndex
     let jump: (Int) -> Void
+    /// How much of the screen's right the letters take.
+    static let width: CGFloat = 60
 
     var body: some View {
-        HStack(spacing: 4) {
+        VStack(spacing: 0) {
             ForEach(AlphaIndex.letters.indices, id: \.self) { letter in
                 Button {
                     jump(letter)
                 } label: {
                     Text(AlphaIndex.letters[letter])
-                        .font(.callout.weight(.semibold))
-                        .frame(minWidth: 28)
+                        .font(.caption.weight(.semibold))
+                        .frame(width: 40, height: 28)
                         .opacity(alpha.has(letter) ? 1 : 0.35)
                 }
                 .buttonStyle(.plain)
@@ -239,7 +309,10 @@ private struct Letters: View {
                 .accessibilityIdentifier("library.alpha.\(AlphaIndex.letters[letter])")
             }
         }
+        .padding(.vertical, 12)
+        .frame(width: Self.width)
+        .background(.black.opacity(0.25), in: Capsule())
         .focusSection()
-        .padding(.horizontal, Metrics.gutter)
+        .padding(.trailing, 12)
     }
 }

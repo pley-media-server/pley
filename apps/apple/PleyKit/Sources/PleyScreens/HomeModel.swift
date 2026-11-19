@@ -62,6 +62,9 @@ public struct HomeInfo: Hashable, Sendable {
     public let timeLeft: String
     /// Whether the details (summary, content rating, quality) are in.
     public let complete: Bool
+    /// Server paths of the backdrop behind Home, the best first: its own,
+    /// else its show's, else its still.
+    public let backdrops: [String]
 
     /// What the info block says of `item`, with `detail` once it is in.
     public init(_ item: ItemSummary, detail: ItemDetail?) {
@@ -96,6 +99,7 @@ public struct HomeInfo: Hashable, Sendable {
         timeLeft = Words.isInProgress(item)
             ? Words.timeLeft(positionMs: item.userState.positionMs, durationMs: item.durationMs) : ""
         complete = detail != nil
+        backdrops = ItemPage.backdrops(item)
     }
 }
 

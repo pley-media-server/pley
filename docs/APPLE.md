@@ -79,7 +79,10 @@ in to another server starts every section again at Home.
   tab per library with its name while they all fit (the first that fit
   otherwise, and a Libraries tab for the rest; a long name fits fewer),
   Playlists, Now Playing while music has a queue (a music note alone),
-  and Settings (a gear alone; it holds what Me holds elsewhere). Seven
+  and Settings (a gear alone; it holds what Me holds elsewhere, Switch
+  profile and Sign out among it). While the tabs' words wouldn't fit
+  across the screen, Playlists, then Libraries, Live TV and Discover show
+  their symbol alone until they do, so Settings stays in sight. Seven
   tabs at most show, and no more than fit the screen's width, unless the
   requests' tab, Live TV and Now Playing all show: then Libraries is an
   eighth tab and the tabs scroll, as Android TV's rail does. VoiceOver
@@ -159,7 +162,9 @@ behind it.
   Apple TV, keeps the profile in use). Each profile shows its picture, or
   its initials on its colour; one with a PIN asks for it (4 to 8 digits,
   typed on the number pad), one that needs its password says how to choose
-  it, and a locked one can't be chosen.
+  it, and a locked one can't be chosen. On Apple TV the profiles sit in
+  the middle of the screen, with Sign out below them (asked first, as in
+  Settings), for a profile that needs its password.
 - **Home**: the server's rows for the profile, each a line of tiles in the
   row's shape: stills for Continue Watching and episodes, posters for
   films and shows, squares for music. A tile shows its picture, its title
@@ -192,7 +197,9 @@ behind it.
   (⌘R). Choosing a tile opens its page. On Apple TV, above the rows, what the
   tile with the focus is: its title (a show's, for an episode), the
   episode, the year, rating, running time and quality, the time left, and
-  once the focus rests 0.3 s, its summary in three lines.
+  once the focus rests 0.3 s, its summary in three lines and its backdrop
+  (its show's, for an episode) behind the whole page, darkened under the
+  words and the rows.
 - **A title's actions**: a long press on a tile (iPhone, iPad and Apple TV,
   with Select), or a right-click or Control-click on the Mac, opens its
   menu; VoiceOver offers the same list as actions. By kind: Play, or
@@ -228,13 +235,16 @@ behind it.
   descending · Unwatched"). Sorted by title, with more than 30 titles and
   at most 2,000, the letters "#" and A to Z jump through the grid: down
   the side on iPhone, iPad and Mac (a tap or a drag; VoiceOver's "Jump to
-  letter", swiped up and down), a row above the grid on Apple TV. A letter
-  without titles is dim and goes to the next that has some. The page
-  opens as it was last left, for each server, profile and library, unless
-  See all asks for a view. Filters that hide everything say so, with
-  Clear filters. **Save as Smart Playlist** (in More on iPhone, iPad and
-  Mac, a button in the row on Apple TV) keeps the sort and filters
-  showing as a smart playlist.
+  letter", swiped up and down), down the right of the screen on Apple TV,
+  staying while the grid scrolls (right from the grid's last column). A
+  letter without titles is dim and goes to the next that has some. The
+  page opens as it was last left, for each server, profile and library,
+  unless See all asks for a view. Filters that hide everything say so,
+  with Clear filters. **Save as Smart Playlist** (in More on iPhone, iPad
+  and Mac, at the far end of the row on Apple TV) keeps the sort and
+  filters showing as a smart playlist. On Apple TV the top of the page and
+  its buttons scroll away with the titles, so the grid has the screen once
+  the focus is in it, and its columns fill the width between the margins.
 - **Me** (Settings on Apple TV): the profile's picture and name ("Managed
   profile" for one without a password of its own), Switch profile (when
   the household has another profile), Discover and Your requests
