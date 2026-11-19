@@ -950,8 +950,8 @@ pub async fn input(state: &AppState, file: &FileRow) -> ApiResult<String> {
     if !file.is_strm() {
         return Ok(file.path.clone());
     }
-    remote_inputs(state)?;
     let link = link(state, file).await?;
+    remote_inputs(state)?;
     Ok(state.strm.address(state, &link).await?)
 }
 
