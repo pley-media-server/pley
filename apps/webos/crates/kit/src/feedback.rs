@@ -159,7 +159,7 @@ impl LoadingRing {
         LoadingRing { delay: seconds, ..self }
     }
 
-    /// Draws the ring centred on `center` if waiting began at `since` long enough ago; asks for a
+    /// Draws the ring centered on `center` if waiting began at `since` long enough ago; asks for a
     /// frame when it is due, and every frame while it turns. Whether it shows.
     pub fn show(&self, ui: &mut Ui, center: Point, since: f64) -> bool {
         let waited = ui.time() - since;
@@ -238,18 +238,18 @@ pub fn skeleton_row(ui: &mut Ui, y: f32, header: Size, gap: f32, kind: TileKind,
 /// How a [`Message`] is laid out: each page area has its own.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum MessageStyle {
-    /// Home and Libraries (`TvHomeNotice`): centred in the page (x 96–912, vertically), the title
+    /// Home and Libraries (`TvHomeNotice`): centered in the page (x 96–912, vertically), the title
     /// in `Tv.PageTitle`, 12, the text in `Tv.Body` Muted (at most 464 wide), 24, the button.
     Page,
     /// A library's areas (`TvMessage`): at x 96 from `top` (140 by default), the title in
     /// `Tv.Section`, 8, the text (at most 520 wide), 16, the button.
     Column { top: f32 },
-    /// A title's page (`TvItemParts.kt` `TvMessage`): vertically centred at x 96, a 40 dp icon in
+    /// A title's page (`TvItemParts.kt` `TvMessage`): vertically centered at x 96, a 40 dp icon in
     /// Muted, 16, `Tv.PageTitle`, 8, the text (at most 464), 24, the button.
     Item,
     /// Music and History: x 96, y 60, `Tv.Title`, 10, the text, 12, the button.
     Compact,
-    /// The player's failure (`TvPlayerOverlays.kt`): black, centred within 160 dp either side,
+    /// The player's failure (`TvPlayerOverlays.kt`): black, centered within 160 dp either side,
     /// `Tv.PageTitle`, 12, the text in four lines, 32, then "Try again" and "Back".
     Player,
 }

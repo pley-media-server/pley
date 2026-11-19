@@ -28,7 +28,7 @@ use crate::kit::{Logo, brand_glow, free_line, space, status_line};
 
 /// How long "Signed in as …" shows before Home (`SIGNED_IN_MS`).
 pub const SIGNED_IN_FOR: f64 = 0.5;
-/// The logo's top and height: the globe is centred on its line.
+/// The logo's top and height: the globe is centered on its line.
 const LOGO_Y: f32 = 56.0;
 const LOGO_H: f32 = 40.0;
 /// How long the name may take to come (`NAME_WAIT_MS`).
@@ -62,7 +62,7 @@ pub fn halves(code: &str) -> Vec<String> {
     }
 }
 
-/// A sentence: capitalised, ending with a full stop (`sentence`).
+/// A sentence: capitalized, ending with a full stop (`sentence`).
 pub fn sentence(text: &str) -> String {
     pley_core::http::sentence(text)
 }

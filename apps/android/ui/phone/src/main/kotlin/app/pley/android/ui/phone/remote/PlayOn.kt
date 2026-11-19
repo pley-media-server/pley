@@ -195,7 +195,7 @@ private fun playOnLabel(kind: CastKind): String = stringResource(if (kind == Cas
 /**
  * Play on… (Watch on… for a channel) beside a page's own Play: a 48 dp
  * square button with the cast icon, as tall as Play and with its corners, or,
- * [labelled], a secondary button with its words where its row has no room
+ * [labeled], a secondary button with its words where its row has no room
  * left, or, [plain], the icon alone, as a player's bar has its buttons.
  * Nothing while no other device takes what [target] is; it opens
  * the chooser ([LocalPlayOn]), and [onOpen] is told (a sheet it is on

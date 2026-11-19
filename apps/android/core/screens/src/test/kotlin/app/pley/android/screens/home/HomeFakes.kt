@@ -154,7 +154,7 @@ class RecordingNavigator : Navigator {
     override fun restart(key: PleyKey) = Unit
 }
 
-// The test catalogue: the mockups' titles.
+// The test catalog: the mockups' titles.
 
 val MOVIES = Library(1, "Movies", LibraryKind.Movies, itemCount = 412)
 val SHOWS = Library(2, "Shows", LibraryKind.Shows, itemCount = 38)

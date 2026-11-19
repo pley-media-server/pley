@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A request's stage (lib/Requests.brs's reqStage): its words in a box of
-     the stage's colour, as wide as they are, and its download's progress
+     the stage's color, as wide as they are, and its download's progress
      after it while one goes on. -->
 <component name="StagePill" extends="Group">
     <interface>

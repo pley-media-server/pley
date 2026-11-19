@@ -262,7 +262,7 @@ fn read(rule: &str) -> Rule {
             out.ratings = Some(Vec::new());
         }
         match ratings {
-            // Rated as listed, or labelled.
+            // Rated as listed, or labeled.
             Some(list) => {
                 out.ratings = Some(match out.ratings.take() {
                     // Two lists that must both hold: the ratings on both.
@@ -271,7 +271,7 @@ fn read(rule: &str) -> Rule {
                 });
             }
             // Only titles with these labels: Pley has no such limit, so the
-            // strictest it has (rated for all, or labelled), never none.
+            // strictest it has (rated for all, or labeled), never none.
             None if !always.is_empty() => {
                 out.ratings = Some(Vec::new());
                 out.not_kept.push(decode(all));
@@ -522,7 +522,7 @@ mod tests {
         // Beside a rating, it only let more through: the rating's limit.
         let l = limits("contentRating=PG|genre=Kids", "", "", "US");
         assert_eq!((l.max_age, l.not_kept.as_slice()), (Some(10), ["genre=Kids".to_owned()].as_slice()));
-        // Only titles labelled Kids: as strict as Pley can be, never open.
+        // Only titles labeled Kids: as strict as Pley can be, never open.
         let l = limits("label=Kids", "", "", "US");
         assert_eq!((l.max_age, l.show.as_slice()), (Some(0), ["Kids".to_owned()].as_slice()));
     }

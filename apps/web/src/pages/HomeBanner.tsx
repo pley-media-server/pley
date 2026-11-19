@@ -256,7 +256,7 @@ function Details({ item, detail }: { item: Featured["item"]; detail: ItemDetail 
     detail?.rating != null && detail.rating > 0 ? <RatingBadge key="r" rating={detail.rating} /> : null,
     ...(detail?.genres.slice(0, 3) ?? []),
   ].filter((p) => p != null && p !== "");
-  // Centred on phones, so dots go between the facts rather than before each (as MetaLine does).
+  // Centered on phones, so dots go between the facts rather than before each (as MetaLine does).
   return (
     <div className="mt-4 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-sm text-white/85 sm:justify-start sm:text-[15px]">
       {parts.map((part, i) => (

@@ -450,7 +450,7 @@ function PlayingControls({
   const live = session.kind === "live";
   const kind = session.item?.kind;
   // Next is there for whatever has a next (an episode, a track, a queue's
-  // entry, a channel), greyed out where the player doesn't take it.
+  // entry, a channel), grayed out where the player doesn't take it.
   const nextShown = can("next") || live || kind === "episode" || kind === "track";
   // A channel goes back and on, and pauses where the player can: no skips.
   const skips = can("skip") && !live;
@@ -787,7 +787,7 @@ function StopConfirm({ name, onCancel, onStop }: { name: string; onCancel: () =>
 }
 
 /**
- * How far along the programme on a channel is, by the clock, from its start
+ * How far along the program on a channel is, by the clock, from its start
  * to its end, and what's on next. Nothing without a guide.
  */
 function LiveProgress({ channel, nowMs }: { channel: RemoteSession["channel"]; nowMs: number }) {

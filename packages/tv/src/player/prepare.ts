@@ -69,14 +69,14 @@ export function segmentAt(playlist: string, base: string, ms: number): string | 
  * would: its playlist, the size it lists first of a stream in several
  * (where the TV's player starts), and the segment that holds `startMs`.
  * Resolves once that segment is made, after `PREPARE_MAX_MS` at most, when
- * `cancel` is cancelled, or when anything fails: the player moves anyway,
+ * `cancel` is canceled, or when anything fails: the player moves anyway,
  * and finds out for itself.
  */
 export function warmStream(fetch: StreamFetch, url: string, startMs: number, cancel: Cancel, now: () => number = Date.now): Promise<void> {
   const until = now() + PREPARE_MAX_MS;
   const left = () => Math.max(1, until - now());
   const timer = setTimeout(() => cancel.cancel(), PREPARE_MAX_MS);
-  // Cancelled (a newer change, 20 s gone): done, whether or not a request still runs.
+  // Canceled (a newer change, 20 s gone): done, whether or not a request still runs.
   const stop = new Promise<never>((_, reject) => cancel.onCancel(() => reject(new Error("cancelled"))));
   stop.catch(() => undefined);
   const step = <T>(p: Promise<T>): Promise<T> => Promise.race([p, stop]);

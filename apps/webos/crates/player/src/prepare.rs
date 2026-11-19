@@ -100,7 +100,7 @@ pub fn segment_at(playlist: &str, base: &str, ms: i64) -> Option<String> {
 /// (where the TV's player starts), and the segment that holds `start_ms`.
 /// Returns once that segment is made, after [`PREPARE_MAX_MS`] at most, or
 /// when anything fails: the player moves anyway, and finds out for itself.
-/// Run on a task, whose cancelling ends it at once.
+/// Run on a task, whose canceling ends it at once.
 pub fn warm_stream(server: &dyn PlayerServer, url: &str, start_ms: i64) {
     let until = Instant::now() + Duration::from_millis(PREPARE_MAX_MS as u64);
     let left = || until.saturating_duration_since(Instant::now()).max(Duration::from_millis(1));

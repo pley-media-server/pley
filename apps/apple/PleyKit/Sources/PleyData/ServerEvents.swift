@@ -292,7 +292,7 @@ public final class ServerEvents {
         gather(change)
     }
 
-    /// Scans the screens learnt of otherwise (a library listed as scanning).
+    /// Scans the screens learned of otherwise (a library listed as scanning).
     public func setScans(_ scans: [Int: ScanStatus]) {
         self.scans = scans
         onScans(scans)

@@ -260,7 +260,7 @@ fn profile_5_on_a_dolby_vision_screen_without_its_decoder() {
 }
 
 /// Safari decodes Dolby Vision but opens no Matroska: profile 5 repackaged
-/// would be named plain HEVC and show the wrong colours, so it's converted;
+/// would be named plain HEVC and show the wrong colors, so it's converted;
 /// profiles 7 and 8 are repackaged as their base layer.
 #[test]
 fn version_1_profile_5_is_never_repackaged() {

@@ -38,7 +38,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Every route's answer decodes with :core:model, and holds what the catalogue promises. */
+/** Every route's answer decodes with :core:model, and holds what the catalog promises. */
 class EndpointsTest {
     @Test
     fun theServerAndTheProfile() = withServer { server ->
@@ -76,7 +76,7 @@ class EndpointsTest {
         assertEquals(all.items.map { it.sortTitle.lowercase() }, all.items.map { it.sortTitle.lowercase() }.sorted())
         val comedies = app.read("/api/libraries/1/items?genre=Comedy&year=1999&watched=false", ItemsPage.serializer())
         assertTrue(comedies.items.all { it.year == 1999 && !it.userState.watched })
-        assertEquals(400, app.get("/api/libraries/1/items?sort=colour").code)
+        assertEquals(400, app.get("/api/libraries/1/items?sort=color").code)
     }
 
     @Test

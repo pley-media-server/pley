@@ -306,7 +306,7 @@ pub struct Summary {
 
 /// Reads an .ipk back and checks what the TV's installer and launcher rely on: the `ar`
 /// members, the control fields, `packageinfo.json` and `appinfo.json` agreeing on the id and
-/// version, the program and the pictures `appinfo.json` names, the licence files, and
+/// version, the program and the pictures `appinfo.json` names, the license files, and
 /// reproducible entries. Returns what it read and what is wrong.
 pub fn verify(bytes: &[u8]) -> Result<(Summary, Vec<String>)> {
     let mut wrong = Vec::new();
@@ -504,7 +504,7 @@ mod tests {
             File::new(format!("{dir}/splash.png"), png(1920, 1080), false),
             File::new(format!("{dir}/assets/fonts/roboto-latin-400.ttf"), vec![7; 3000], false),
             File::new(
-                format!("{dir}/assets/licenses/a-licence-file-with-a-name-long-enough-for-gnu-long-names.txt"),
+                format!("{dir}/assets/licenses/a-license-file-with-a-name-long-enough-for-gnu-long-names.txt"),
                 b"ISC".to_vec(),
                 false,
             ),
@@ -584,7 +584,7 @@ mod tests {
         assert_eq!(paths[0], "usr/");
         assert!(paths.contains(&"usr/palm/packages/app.pley.tv/"));
         assert!(paths.contains(&"usr/palm/packages/app.pley.tv/packageinfo.json"));
-        assert!(paths.iter().any(|p| p.ends_with("a-licence-file-with-a-name-long-enough-for-gnu-long-names.txt")));
+        assert!(paths.iter().any(|p| p.ends_with("a-license-file-with-a-name-long-enough-for-gnu-long-names.txt")));
         for entry in &entries {
             assert_eq!(entry.owner, (0, 0));
             assert_eq!(entry.mtime, MTIME);

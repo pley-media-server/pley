@@ -85,7 +85,7 @@ fn a_page_message_centres_itself_and_focuses_its_button() {
     h.idle(&mut screen);
     let f = settle(&mut h, &mut screen);
     assert_eq!(f.focused, Some(Id::new("msg").with("action")));
-    // 34 + 12 + 20 + 24 + 40 tall, in the middle of the page; centred in x 96–912.
+    // 34 + 12 + 20 + 24 + 40 tall, in the middle of the page; centered in x 96–912.
     let top = (540.0 - 130.0) / 2.0;
     assert_eq!(text_at(&f.list, "Couldn't load your home screen"), Some(Point::new(272.0, top)));
     let pill = fills_of(&f.list, theme::ACCENT)[0];

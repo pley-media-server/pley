@@ -30,6 +30,8 @@ describes how they are made.
 
 ### Changed
 
+- The web app's English words are spelled the American way: color,
+  favorite, program.
 - The Franchises category of collections is Box sets, and its key in the
   API is `box_sets`.
 

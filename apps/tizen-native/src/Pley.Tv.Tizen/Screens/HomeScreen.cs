@@ -228,7 +228,7 @@ sealed class HomeScreen : ShellPage
         itemsByTile.Clear();
     }
 
-    /// <summary>A sentence instead of rows: centred, with Retry focused when there is one; without, focus goes to the rail.</summary>
+    /// <summary>A sentence instead of rows: centered, with Retry focused when there is one; without, focus goes to the rail.</summary>
     void Notice(string title, string text, bool retry)
     {
         var left = PleyTv.Gutter;
@@ -622,7 +622,7 @@ static class MetaLine
         TextLabel Label(string text, Color color)
         {
             var l = Text.Label(text, PleyType.Label, color);
-            // The font's line may be a touch taller than the 18 dp line: centred on it all the same.
+            // The font's line may be a touch taller than the 18 dp line: centered on it all the same.
             var h = Text.LineHeight(PleyType.Label);
             l.Size = new Size(l.NaturalSize.Width + 2, h);
             l.PositionY = (Ui.Dp(Height) - h) / 2;

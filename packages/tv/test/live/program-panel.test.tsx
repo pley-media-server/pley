@@ -8,7 +8,7 @@ import { Input } from "../../src/ui/input";
 import type { Key } from "../../src/ui/keys";
 import { ProgramPanel } from "../../src/ui/screens/livetv";
 
-/** A programme's details: Watch, and the favourite beside it as a star alone (Android TV's ProgramPanel). */
+/** A program's details: Watch, and the favorite beside it as a star alone (Android TV's ProgramPanel). */
 
 const NOW = 1_800_000_000;
 
@@ -75,7 +75,7 @@ afterEach(() => {
   root = null;
 });
 
-describe("a programme's details", () => {
+describe("a program's details", () => {
   it("have Watch and the star side by side, in one row", () => {
     const { root } = setup(false);
     const row = root.querySelector(".live-panel-buttons")!;
@@ -90,7 +90,7 @@ describe("a programme's details", () => {
     press("right");
     const star = root.querySelector<HTMLElement>(".round")!;
     expect(focus.current).toBe(star);
-    expect(star.getAttribute("aria-label")).toBe("Remove from favourites");
+    expect(star.getAttribute("aria-label")).toBe("Remove from favorites");
     expect(root.querySelector(".round-label")).toBeNull();
     expect(root.textContent).not.toContain("favourites");
     expect(star.querySelector("svg")!.getAttribute("fill")).toBe("currentColor");
@@ -98,10 +98,10 @@ describe("a programme's details", () => {
     expect(done).toEqual(["favourite"]);
   });
 
-  it("draw the star outlined for a channel that isn't a favourite", () => {
+  it("draw the star outlined for a channel that isn't a favorite", () => {
     const { root } = setup(false);
     const star = root.querySelector(".round")!;
-    expect(star.getAttribute("aria-label")).toBe("Add to favourites");
+    expect(star.getAttribute("aria-label")).toBe("Add to favorites");
     expect(star.querySelector("svg")!.getAttribute("fill")).toBe("none");
   });
 });

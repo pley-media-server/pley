@@ -267,7 +267,7 @@ impl Trickplay {
                 "libplacebo=w={width}:h={height}:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:{PLACEBO_CURVE}:{PLACEBO_STATIC_PEAK}{fallback}{still}"
             )
         } else if range.is_hdr() && caps.tonemappers.contains(&Tonemapper::Zscale) {
-            // zimg needs colours: Dolby Vision profile 5 frames have none.
+            // zimg needs colors: Dolby Vision profile 5 frames have none.
             let tags = untagged_hdr_fix(video).map(|f| format!("{f},")).unwrap_or_default();
             format!("{tags}scale={width}:{height}:flags=bilinear,{ZSCALE_TONEMAP}")
         } else {

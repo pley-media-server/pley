@@ -142,7 +142,7 @@ class RemoteControlTest {
         assertEquals("app-15", phone.deviceId)
         assertEquals(DeviceKind.Phone, phone.deviceKind)
         assertEquals("The Evening News", phone.channel?.now)
-        // When the programme on started and ends, and the next.
+        // When the program on started and ends, and the next.
         assertEquals(1_761_388_200L, phone.channel?.nowStart)
         assertEquals(1_761_391_800L, phone.channel?.nowStop)
         assertEquals("Weather", phone.channel?.next)

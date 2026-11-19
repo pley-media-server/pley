@@ -91,7 +91,7 @@ class OkHttpStreamWarmer(
         http.read(segment) { it.body.source().readAll(blackholeSink()) }
     }
 
-    /** Asks for [url] and reads its answer with [read], on OkHttp's threads; cancelling cancels the call. */
+    /** Asks for [url] and reads its answer with [read], on OkHttp's threads; canceling cancels the call. */
     private suspend fun <T> OkHttpClient.read(url: HttpUrl, read: (Response) -> T): T = suspendCancellableCoroutine { continuation ->
         val call = newCall(Request.Builder().url(url).build())
         continuation.invokeOnCancellation { call.cancel() }

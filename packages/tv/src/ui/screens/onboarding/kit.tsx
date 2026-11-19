@@ -155,7 +155,7 @@ export function qrModules(text: string): boolean[][] | null {
 
 /**
  * A QR code in a white box `size` canvas px wide (QrCodeImage): a 4-module
- * quiet zone, whole device pixels per module, centred. Drawn on a canvas at
+ * quiet zone, whole device pixels per module, centered. Drawn on a canvas at
  * the screen's own pixels so it stays sharp.
  */
 export function QrCode(p: { text: string; size: number }) {
@@ -185,10 +185,10 @@ export function QrCode(p: { text: string; size: number }) {
   return <canvas ref={canvas} style={`width:${p.size}px;height:${p.size}px;display:block`} aria-hidden="true" />;
 }
 
-/** Colours offered for profiles; also the one picked from a name (the web's Avatar). */
+/** Colors offered for profiles; also the one picked from a name (the web's Avatar). */
 export const AVATAR_COLORS = ["#38bdf8", "#a78bfa", "#f472b6", "#fb923c", "#facc15", "#4ade80", "#2dd4bf", "#f87171"];
 
-/** The profile's colour when it is one ("#rgb", "#rrggbb"), else one from its name. */
+/** The profile's color when it is one ("#rgb", "#rrggbb"), else one from its name. */
 export function avatarColor(name: string, color: string | null | undefined): string {
   if (color && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) return color;
   let h = 0;
@@ -196,7 +196,7 @@ export function avatarColor(name: string, color: string | null | undefined): str
   return AVATAR_COLORS[h % AVATAR_COLORS.length]!;
 }
 
-/** Bg on light colours, white on dark ones. */
+/** Bg on light colors, white on dark ones. */
 export function textOn(hex: string): string {
   const m = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(hex);
   if (!m) return "#ffffff";
@@ -212,7 +212,7 @@ export function initialOf(name: string): string {
 }
 
 /**
- * A profile's avatar (ProfileAvatar): its colour, its picture over it
+ * A profile's avatar (ProfileAvatar): its color, its picture over it
  * (fetched with the app's token), else its initial; the lock badge when it
  * has a PIN.
  */

@@ -67,7 +67,7 @@ export interface PlanUser {
   limits: PlanLimits;
   /** Their picture is at `plexUserPicture(id)`. */
   picture: boolean;
-  /** The colour of Plex's picture for them, which their profile takes. */
+  /** The color of Plex's picture for them, which their profile takes. */
   color: string | null;
 }
 

@@ -47,7 +47,7 @@ internal class CollectionEntry(
 )
 
 /**
- * The FixtureServer's catalogue, made the same on every run: three
+ * The FixtureServer's catalog, made the same on every run: three
  * libraries, their items with files, streams, chapters, markers, extras and
  * credits, the people credited, and the collections. What changes with use
  * (watched marks, positions, playlists) is in [Household], not here.

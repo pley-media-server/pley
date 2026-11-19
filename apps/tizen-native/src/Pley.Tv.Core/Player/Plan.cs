@@ -219,10 +219,10 @@ public static class PlaybackPlan
 }
 
 /// <summary>
-/// The Dolby Vision guards (the Android app's DvGuards): a session that would show wrong colours is
+/// The Dolby Vision guards (the Android app's DvGuards): a session that would show wrong colors is
 /// asked for again another way.
 /// <list type="bullet">
-/// <item>A remux of profile 5 that doesn't name its Dolby Vision: TS segments lose the signalling,
+/// <item>A remux of profile 5 that doesn't name its Dolby Vision: TS segments lose the signaling,
 /// and profile 5 has no base layer to fall back to, so the picture comes out green and purple. It
 /// is transcoded instead (tone-mapped). One whose answer says it stays Dolby Vision plays as it comes.</item>
 /// <item>Direct play of profile 7 without a profile 7 decoder: a remux sends the HEVC base layer,

@@ -112,7 +112,7 @@ fn noise() -> Arc<[u8]> {
         .clone()
 }
 
-/// PUT /api/playback/network: a speed test's result, a ceiling learnt while
+/// PUT /api/playback/network: a speed test's result, a ceiling learned while
 /// playing, or `null` to forget it.
 fn put_network(cx: &Cx<'_>, state: &mut State) -> Answer {
     if !state.network.available {

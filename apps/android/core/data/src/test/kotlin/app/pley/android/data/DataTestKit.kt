@@ -36,7 +36,7 @@ internal fun <T> TestScope.collect(flow: Flow<T>, scope: CoroutineScope = backgr
     return seen
 }
 
-/** A scope for one run of the app on a folder, ended by cancelling it before the next run. */
+/** A scope for one run of the app on a folder, ended by canceling it before the next run. */
 internal fun TestScope.appRun(): CoroutineScope =
     CoroutineScope(backgroundScope.coroutineContext + Job(backgroundScope.coroutineContext[Job]))
 

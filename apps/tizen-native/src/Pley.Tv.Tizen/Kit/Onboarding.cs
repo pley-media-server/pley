@@ -8,7 +8,7 @@ static class Onboarding
 {
     /// <summary>
     /// The sign-in screens' background (design spec §2.8): BrandDeep at 18 % glowing from the
-    /// bottom-right corner, gone by 60 % of the width. A square centred on the corner, its radial
+    /// bottom-right corner, gone by 60 % of the width. A square centered on the corner, its radial
     /// gradient drawn once; the window cuts off what lies beyond it.
     /// </summary>
     public static View BrandGlow()

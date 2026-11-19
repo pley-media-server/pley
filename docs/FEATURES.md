@@ -116,7 +116,7 @@ the Plex- and Jellyfin-compatible APIs don't get them.
   changes the audio track, the subtitles and the quality, and stops what
   plays there, once asked to. In an intro or the credits there, it offers
   Skip Intro or Skip Credits, as the player there would. On Live TV it
-  shows the programme's progress and what's next. Each player obeys the
+  shows the program's progress and what's next. Each player obeys the
   commands it can, without bringing up its controls there: a brief notice
   says what changed. Any can be stopped ([API.md](API.md#remote-control)).
 - Play on… in the web and desktop apps, beside Play on a movie, an episode,

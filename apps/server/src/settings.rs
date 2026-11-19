@@ -489,7 +489,7 @@ fn picked_encoder(caps: &Capabilities, codec: VideoCodec, hwaccel: HwAccel, main
 }
 
 /// What choosing a hardware acceleration does here, by what the transcoder
-/// found: Settings → Transcoder greys out what can't be used with it.
+/// found: Settings → Transcoder grays out what can't be used with it.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct AccelUse {
     /// Some video is decoded on a GPU with it: `hardware_decoding` changes

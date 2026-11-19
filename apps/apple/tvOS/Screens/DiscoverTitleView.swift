@@ -345,7 +345,7 @@ private struct PanelRequest: Identifiable, Hashable {
 
 /// A season as a poster that lifts when focused (the show's poster
 /// without one of its own), its badge on it, the download's progress along
-/// it, and its name and its request's stage (in the stage's colour) or its
+/// it, and its name and its request's stage (in the stage's color) or its
 /// state under it. One element for VoiceOver.
 private struct SeasonTile: View {
     let app: AppModel

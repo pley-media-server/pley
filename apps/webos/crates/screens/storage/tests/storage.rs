@@ -242,7 +242,7 @@ fn a_drive_pulled_out_leaves_the_page_saying_so() {
     assert_eq!(app.ui.focused(), Some(StorageScreen::message_id(app.page())));
     assert!(!app.shell.rail_open());
     let usb = app.icon_at(pley_base::Icon::Usb).expect("the message's picture");
-    assert!((usb.center().x - (96.0 + (960.0 - 96.0 - 48.0) / 2.0)).abs() < 0.5, "centred: {usb:?}");
+    assert!((usb.center().x - (96.0 + (960.0 - 96.0 - 48.0) / 2.0)).abs() < 0.5, "centered: {usb:?}");
     // A drive the jail hides is no drive to the page either.
     device.set_drive(Some(Drive { root: root.clone(), hidden: true }));
     app.news(&rx);

@@ -23,7 +23,7 @@ pub struct Counted<'a> {
     pub icon: Option<Icon>,
     pub label: &'a str,
     pub count: Option<String>,
-    /// The count in the danger colour (failed requests).
+    /// The count in the danger color (failed requests).
     pub danger: bool,
     pub padding: f32,
 }

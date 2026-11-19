@@ -541,7 +541,7 @@ pub(crate) fn enter(tree: &Tree, memory: &IdMap<Id>, target: u32, dir: Option<Di
 /// (with 0.5 dp of tolerance, overlapping back at most half the smaller size); those in the
 /// source's beam (overlapping it across the direction) win over any outside it; among equals
 /// the lowest 13·major² + minor² wins, major being the gap along the direction and minor the
-/// distance between centres across it. Without a direction, the nearest centre wins.
+/// distance between centers across it. Without a direction, the nearest center wins.
 pub(crate) fn nearest(tree: &Tree, from: Rect, candidates: &[u32], dir: Option<Dir>) -> Option<u32> {
     let mut best = None;
     let mut best_score = f32::INFINITY;
@@ -592,7 +592,7 @@ pub(crate) fn nearest(tree: &Tree, from: Rect, candidates: &[u32], dir: Option<D
     best
 }
 
-/// The item whose span along the axis is nearest the source's centre on it: entering a row from
+/// The item whose span along the axis is nearest the source's center on it: entering a row from
 /// above lands on the tile under the one left.
 fn nearest_on_axis(tree: &Tree, from: Rect, items: &[u32], horizontal: bool) -> Option<u32> {
     let c = if horizontal { from.center().x } else { from.center().y };
@@ -718,7 +718,7 @@ struct Trap {
 #[derive(Debug, Default)]
 pub(crate) struct Focus {
     pub focused: Option<Id>,
-    /// Whether the pointer gave the current focus: scrollers then nudge instead of re-centring.
+    /// Whether the pointer gave the current focus: scrollers then nudge instead of re-centering.
     pub by_pointer: bool,
     /// Each group's last focused element.
     pub memory: IdMap<Id>,

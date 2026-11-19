@@ -135,7 +135,7 @@ public sealed class DeviceSignIn
     /// Asks whether <paramref name="code"/> was approved, every interval (slower when the server
     /// says so), until it is signed in, denied or expired; <paramref name="onUpdate"/> hears each
     /// change. Approved, its tokens are kept before it says so. Stops early, answering Waiting,
-    /// when <paramref name="stop"/> is cancelled.
+    /// when <paramref name="stop"/> is canceled.
     /// </summary>
     public async Task<DevicePoll> Poll(DeviceCode code, Action<DevicePoll> onUpdate, CancellationToken stop)
     {

@@ -4,7 +4,7 @@ import PleyData
 import PleyModel
 
 /// Live TV's page (Android's `LiveTvViewModel`), shared by every device:
-/// the categories (Favourites, Recently watched, All channels, the
+/// the categories (Favorites, Recently watched, All channels, the
 /// regions and the other groups), the category's channels a page at a
 /// time (`paging`), the guide of the pages loaded, the search, and the
 /// view (guide or channels). The category, the view and the channel
@@ -28,7 +28,7 @@ public final class LiveTvModel: ObservableObject {
     @Published public private(set) var category: LiveCategory
     @Published public private(set) var view: LiveViewKind
     @Published public private(set) var query = ""
-    /// The guide's programmes of the channels loaded, by channel.
+    /// The guide's programs of the channels loaded, by channel.
     @Published public private(set) var programs: [Int: [LiveProgram]] = [:]
     /// The time now (unix seconds), moved every `LiveTvRules.pageTick`.
     @Published public private(set) var now: Int64
@@ -112,7 +112,7 @@ public final class LiveTvModel: ObservableObject {
                     return
                 }
                 self.groups = try await self.live.groups()
-                // A group gone, or Favourites emptied: All channels.
+                // A group gone, or Favorites emptied: All channels.
                 if !self.has(self.category) { self.category = .all }
                 self.status = .ready
                 await self.land()
@@ -189,7 +189,7 @@ public final class LiveTvModel: ObservableObject {
                     localized("No channel's name, number or programme on now has “\(query)” in it."))
         }
         switch category {
-        case .favorites: return (localized("No favourites yet"), localized("Star a channel to find it here."))
+        case .favorites: return (localized("No favorites yet"), localized("Star a channel to find it here."))
         case .recent:
             return (localized("Nothing watched yet"), localized("The channels you watch show here, the last first."))
         default: return (localized("No channels"), localized("No channels in this group."))
@@ -233,7 +233,7 @@ public final class LiveTvModel: ObservableObject {
         showingTimes(from: moved, to: moved + Self.windowSpan)
     }
 
-    /// The programmes of `channel` the guide shows between `from` and `to`.
+    /// The programs of `channel` the guide shows between `from` and `to`.
     public func programs(of channel: LiveChannel, from: Int64, to: Int64) -> [LiveProgram] {
         var list = LiveTvRules.between(programs[channel.id], from: from, to: to)
         // Before its guide is in, what the list said is on.
@@ -297,7 +297,7 @@ public final class LiveTvModel: ObservableObject {
     }
 
     /// The time moves on: the now line and the bars; what's on is asked
-    /// for again once a programme on ended, at most every `refreshFloor`.
+    /// for again once a program on ended, at most every `refreshFloor`.
     func tick() {
         now = clock()
         let start = LiveTvRules.guideStart(now)

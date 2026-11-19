@@ -117,7 +117,7 @@ class TvRailTest {
         compose.waitForIdle()
     }
 
-    /** The colour at [xDp] across the rail's panel, halfway down, below its entries. */
+    /** The color at [xDp] across the rail's panel, halfway down, below its entries. */
     private fun panelAt(xDp: Int): Color {
         val image = compose.onRoot().captureToImage().toPixelMap()
         return image[xDp * 2, image.height / 2]

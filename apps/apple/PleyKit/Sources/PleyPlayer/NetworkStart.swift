@@ -132,7 +132,7 @@ public final class NetworkStart: Sendable {
         return nil
     }
 
-    /// `work`'s result, or `nil` when it takes longer than `ms` (it is cancelled then).
+    /// `work`'s result, or `nil` when it takes longer than `ms` (it is canceled then).
     private func within<T: Sendable>(_ ms: Int64, _ work: @escaping @Sendable () async -> T) async -> T? {
         let clock = clock
         return await withTaskGroup(of: T?.self) { group in

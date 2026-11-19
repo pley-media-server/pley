@@ -226,7 +226,7 @@ async fn shared_themes_and_credits_become_markers() {
     assert!((summary(&lone[0]).1 - seconds(400)).abs() <= 1, "{:?}", summary(&lone[0]));
     assert_eq!((summary(&lone[1]).0, summary(&lone[1]).2), ("credits".to_owned(), end));
 
-    // Fingerprints are cached: analysing again asks the transcoder nothing.
+    // Fingerprints are cached: analyzing again asks the transcoder nothing.
     let asked = fingerprints.load(Ordering::SeqCst);
     assert!(asked > 0);
     sqlx::query("DELETE FROM markers").execute(&app.state.db.write).await.unwrap();

@@ -627,7 +627,7 @@ export function PlayerButton(p: { fid: string; icon: IconName; label: string; bi
   );
 }
 
-/** The badge's colour for how it plays: a file as it is, a direct stream, or a transcode. */
+/** The badge's color for how it plays: a file as it is, a direct stream, or a transcode. */
 function methodClass(method: PlaybackMethod | null): string {
   if (method === "direct") return "direct";
   if (method === "remux") return "stream";

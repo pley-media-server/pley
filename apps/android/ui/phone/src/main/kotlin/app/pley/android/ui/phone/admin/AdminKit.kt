@@ -132,7 +132,7 @@ internal fun AdminLost() {
     }
 }
 
-/** The column of a page's groups, centred and no wider than [ADMIN_MAX_WIDTH]. */
+/** The column of a page's groups, centered and no wider than [ADMIN_MAX_WIDTH]. */
 @Composable
 internal fun AdminColumn(state: androidx.compose.foundation.lazy.LazyListState = rememberLazyListState(), content: LazyListScope.() -> Unit) {
     val metrics = LocalPhoneMetrics.current

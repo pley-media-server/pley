@@ -379,7 +379,7 @@ sealed class SettingsScreen : ShellPage
 /// A settings row (the Android app's TvSettingRow): 44 dp at least, 20 dp in, an optional 20 dp
 /// icon, the label in Body and the value under it in Caption (two lines at most), muted; a switch
 /// (40 × 22) at its end, or a chevron. Focused, the accent fill with OnAccent ink, never scaled.
-/// Danger rows read in danger text; a disabled one is greyed and can't take focus.
+/// Danger rows read in danger text; a disabled one is grayed and can't take focus.
 /// </summary>
 sealed class SettingRowView : View
 {

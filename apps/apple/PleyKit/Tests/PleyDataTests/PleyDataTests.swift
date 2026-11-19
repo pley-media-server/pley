@@ -339,7 +339,7 @@ private func fixture() async throws -> FixtureServer {
         gate.withLock { _ = $0.insert("/1") }
         #expect(await waitFor { order.withLock { $0.count } == 7 })
         #expect(order.withLock { $0.last } == "/9")
-        // One still waiting, cancelled, never starts.
+        // One still waiting, canceled, never starts.
         tasks[6].cancel()
         gate.withLock { _ = $0.insert("/2") }
         #expect(await waitFor { order.withLock { $0.count } == 8 })

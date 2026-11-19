@@ -241,7 +241,7 @@ sealed class GridView : View
             cells[p] = cell;
             drawn[p] = tile;
         }
-        // Focused tiles draw over their neighbours.
+        // Focused tiles draw over their neighbors.
         if (Current >= 0 && cells.TryGetValue(Current, out var focused)) focused.RaiseToTop();
         if (!gate.Holding) LoadPictures();
     }

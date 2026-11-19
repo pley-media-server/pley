@@ -420,7 +420,7 @@ class LibraryViewModelTest {
         // A server from before categories: 404 for GET /api/collection-categories, no category on a collection.
         collections.categoryList.value = Loadable.Failed(ApiException(404, "not_found", "no such endpoint"))
         collections.lists.value = mapOf(
-            1L to listOf(CollectionSummary(9, 1, "Alien Collection", automatic = true, itemCount = 4), CollectionSummary(10, 1, "Favourites", itemCount = 2)),
+            1L to listOf(CollectionSummary(9, 1, "Alien Collection", automatic = true, itemCount = 4), CollectionSummary(10, 1, "Favorites", itemCount = 2)),
         )
         val vm = viewModel(tab = LibraryTab.Collections)
         val job = launch { vm.state.collect {} }
@@ -441,7 +441,7 @@ class LibraryViewModelTest {
         collections.lists.value = mapOf(
             1L to listOf(
                 CollectionSummary(9, 1, "Alien Collection", automatic = true, category = boxSets, itemCount = 4),
-                CollectionSummary(10, 1, "Favourites", category = other, itemCount = 2),
+                CollectionSummary(10, 1, "Favorites", category = other, itemCount = 2),
                 // Of a category made since the list was read: after the rest, under its own title.
                 CollectionSummary(12, 1, "Christmas", category = CategoryRef(6, null, "Holidays"), itemCount = 3),
                 CollectionSummary(11, 1, "Unwatched", smartFilter = "unwatched=1", category = CategoryRef(1, "highlights", "Highlights"), itemCount = 8),

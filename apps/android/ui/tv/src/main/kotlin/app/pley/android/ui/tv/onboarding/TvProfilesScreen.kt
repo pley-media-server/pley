@@ -171,7 +171,7 @@ internal fun TvProfilesContent(
     }
 }
 
-/** The household in one centred row; the title at y = 110, the avatars from y = 204. */
+/** The household in one centered row; the title at y = 110, the avatars from y = 204. */
 @Composable
 private fun Picker(state: ProfilesUiState, onPick: (Long) -> Unit, onRetry: () -> Unit, onAnotherProfile: () -> Unit) {
     Box(Modifier.fillMaxSize().testTag(PROFILES_TAG)) {
@@ -298,7 +298,7 @@ private fun ProfileChoice(profile: ProfileTile, busy: Boolean, initial: Boolean,
     }
 }
 
-/** A profile's picture, or its initial on its colour (the web's Avatar.tsx). Decoration: the name is said beside it. */
+/** A profile's picture, or its initial on its color (the web's Avatar.tsx). Decoration: the name is said beside it. */
 @Composable
 internal fun ProfileAvatar(profile: ProfileTile, size: Dp, modifier: Modifier = Modifier) {
     val fill = remember(profile.name, profile.color) { ProfileColors.of(profile.name, profile.color) }
@@ -455,7 +455,7 @@ private fun PinDot(filled: Boolean) {
 }
 
 /**
- * The web's profile colours (apps/web/src/components/Avatar.tsx): the
+ * The web's profile colors (apps/web/src/components/Avatar.tsx): the
  * profile's own, or one picked from its name; dark text on light ones.
  */
 internal object ProfileColors {

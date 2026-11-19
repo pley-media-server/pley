@@ -9,7 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Codec levels, frame rates, colour and Dolby Vision in words. */
+/** Codec levels, frame rates, color and Dolby Vision in words. */
 class TechnicalTest {
     private fun video(
         codec: String = "hevc",

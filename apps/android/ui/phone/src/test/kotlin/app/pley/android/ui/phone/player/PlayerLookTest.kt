@@ -11,7 +11,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The player's colours, sizes, times and picture arithmetic. */
+/** The player's colors, sizes, times and picture arithmetic. */
 class PlayerLookTest {
     @Test
     fun badgesAreGreenForDirectPlayBlueForDirectStreamsAndAccentForTranscodes() {
@@ -19,7 +19,7 @@ class PlayerLookTest {
         assertEquals(PleyColors.Success, PlayerLook.badgeColors(PlaybackMethod.Direct).text)
         assertEquals(PleyColors.Info, PlayerLook.badgeColors(PlaybackMethod.Remux).text)
         assertEquals(PleyColors.Accent, PlayerLook.badgeColors(PlaybackMethod.Transcode).text)
-        // The fill is the text's colour at 20 %.
+        // The fill is the text's color at 20 %.
         val badge = PlayerLook.badgeColors(PlaybackMethod.Direct)
         assertEquals(0.2f, badge.fill.alpha, 0.01f)
         assertEquals(badge.text.copy(alpha = 0.2f), badge.fill)

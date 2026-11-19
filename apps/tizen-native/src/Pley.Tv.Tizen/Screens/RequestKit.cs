@@ -14,7 +14,7 @@ namespace Pley.Tv.Tizen.Screens;
 
 /// <summary>
 /// The pieces the TV's request screens share (the Android app's TvRequestsKit): posters with their
-/// status badges, stage pills in their colours, the download bar, the number on the way in, the page
+/// status badges, stage pills in their colors, the download bar, the number on the way in, the page
 /// a problem leaves, and signing in again.
 /// </summary>
 static class RequestKit
@@ -76,7 +76,7 @@ static class RequestKit
 
     // ---- stages
 
-    /// <summary>A stage's colours: its words and dot, and the tint behind them.</summary>
+    /// <summary>A stage's colors: its words and dot, and the tint behind them.</summary>
     public static (Color Content, Color Container) Tone(PillTone tone) => tone switch
     {
         PillTone.Amber => (PleyColors.Amber, Alpha(PleyColors.Amber, 0.2f)),

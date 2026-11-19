@@ -1477,12 +1477,12 @@ async fn compatibility_apps_streams_stay_streams_with_video_transcoding_off() {
 }
 
 /// Music has no video: a server that transcodes none still makes a stream
-/// of a track it never analysed, as it does with video transcoding on.
+/// of a track it never analyzed, as it does with video transcoding on.
 #[tokio::test]
 async fn music_never_analysed_plays_with_video_transcoding_off() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());
-    // Not analysed (the stand-in can't read a "Broken" file), and in a
+    // Not analyzed (the stand-in can't read a "Broken" file), and in a
     // container no browser plays without knowing more.
     app.media_file("music/Band/Record (2001)/01 - Broken Song.wma", 512);
     let music = app.library(admin, "Music", "music", "music").await;

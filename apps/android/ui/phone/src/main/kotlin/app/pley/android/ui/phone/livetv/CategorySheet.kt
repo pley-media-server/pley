@@ -41,7 +41,7 @@ import app.pley.android.ui.phone.kit.PleySheet
 
 /**
  * The categories, in a sheet (the web's CategoryRail, a picker on
- * phones): Favourites, Recently watched and All channels with their
+ * phones): Favorites, Recently watched and All channels with their
  * counts, then the provider's groups, those of a region gathered under it
  * (a tap opens it), found by name when there are many.
  */

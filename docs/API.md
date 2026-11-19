@@ -2509,7 +2509,7 @@ Transcoder), the server copies video or doesn't play it:
 
 - Direct plays and remuxes are as ever, and so is converted sound: a file
   whose video the player plays gets its audio converted in a remux. Music
-  is converted as ever, a track never analysed too.
+  is converted as ever, a track never analyzed too.
 - A quality asked for (`max_bitrate`, `max_height`) plays the original as
   it plays best: the limits are left out, and `mode: "transcode"` asked
   with them is answered as `"auto"` is, so a device that kept a quality
@@ -3941,7 +3941,7 @@ profile of the remote that sent it something.
   device's own level, whatever sets it; a change sends `sessions_changed`.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
   `device_name` and `device_kind` too. Its session is listed with
-  `kind: "live"`, its `channel` (with the programme on, when it started
+  `kind: "live"`, its `channel` (with the program on, when it started
   and ends, and the next) and `item: null`, while its player is there
   (see Leaving, under [Live TV](#live-tv)); it is always `playing`, at
   `position_ms` 0 with `duration_ms` `null`. Commands go to it the same way.
@@ -4542,7 +4542,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | GET | `/api/live/browse` | `library` | `?category=all\|favorites\|recent\|group&group=&q=&offset=&limit=&around=` → `{ total, offset, channels: LiveChannel[] }`: a page (100 by default, 500 at most) of a category's channels matching `q` as search finds them (by name, slips too, a number's beginning, or the title of what's on), the closest first as in search (`recent` keeps the order they were watched); `around` gives the page with that channel in it |
 | GET | `/api/live/channels/{id}` | `library` | `LiveChannel` |
 | GET | `/api/live/channels/{id}/logo` | `library` | the logo, kept a week at a time (no larger than 1 MB and 400 px; one drawn dark on a see-through background is made light, for dark screens); `?w=` resizes it, a see-through one staying see-through |
-| GET | `/api/live/channels/{id}/programs/{start}/image` | `library` | a programme's picture; `?w=` resizes it |
+| GET | `/api/live/channels/{id}/programs/{start}/image` | `library` | a program's picture; `?w=` resizes it |
 | GET | `/api/live/guide` | `library` | `?from=&to=&ids=` (unix seconds; default half an hour ago to six hours on, two days at most; `ids`: the channels wanted, with commas between, else every one) → `{ from, to, programs: { [channel_id]: LiveProgram[] } }` |
 | PUT | `/api/live/channels/{id}/favorite` | `play` | `204` |
 | DELETE | `/api/live/channels/{id}/favorite` | `play` | `204` |
@@ -4701,10 +4701,10 @@ interface LiveTuner {                  // a connection in use
 - **Hidden channels** are nobody's to watch, administrators' included,
   until shown again. Names, numbers and guide channels set in the lineup
   stay when the source is read again.
-- **Guide channels set by hand.** A guide read keeps the programmes of the
+- **Guide channels set by hand.** A guide read keeps the programs of the
   guide channels the source's channels take as it reads, by guide channel
   or, when the guide lacks theirs, by name. A channel given a guide channel
-  with no programmes in the lineup, or renamed while its name decides its
+  with no programs in the lineup, or renamed while its name decides its
   guide channel, has the source's guide read again in the background; a
   read under way is followed by one more when it had already listed the
   channels.

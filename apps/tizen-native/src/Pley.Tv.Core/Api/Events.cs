@@ -374,7 +374,7 @@ public sealed class EventStream
 
     /// <summary>
     /// The event stream over HttpClient with <paramref name="handlers"/>' handlers (Core's own
-    /// without), read as it arrives: a stream silent for 45 s is let go, and cancelling closes it
+    /// without), read as it arrives: a stream silent for 45 s is let go, and canceling closes it
     /// at once.
     /// </summary>
     public static EventConnect Over(HandlerFactory? handlers = null)

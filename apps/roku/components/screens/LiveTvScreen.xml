@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Live TV, by category: the categories down the left
-     (Favourites, Recently watched, All channels, then the provider's
+     (Favorites, Recently watched, All channels, then the provider's
      groups, those of a region gathered under it) and the category's
      channels at the right, a page at a time: the Guide (Roku's TimeGrid,
-     the programme in focus described above it) or Channels (cards with
-     what's on now and next). OK on a programme on now, or a card, watches
-     the channel; the Options key adds it to the favourites or takes it
+     the program in focus described above it) or Channels (cards with
+     what's on now and next). OK on a program on now, or a card, watches
+     the channel; the Options key adds it to the favorites or takes it
      out. -->
 <component name="LiveTvScreen" extends="Group">
     <interface>
@@ -35,7 +35,7 @@
         <!-- The category's channels. -->
         <Label id="category" translation="[576, 44]" width="1280" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
         <Label id="count" translation="[576, 104]" width="1280" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-        <!-- The programme in focus, above the guide. -->
+        <!-- The program in focus, above the guide. -->
         <Group id="info" translation="[576, 160]" visible="false">
             <Rectangle translation="[1064, 0]" width="216" height="108" color="0x262B35FF" />
             <Poster id="infoLogo" translation="[1072, 6]" width="200" height="96" loadWidth="200" loadHeight="96" loadDisplayMode="scaleToFit" />

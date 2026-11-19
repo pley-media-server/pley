@@ -442,7 +442,7 @@ fn assert_made_8_1(segment: &Path) {
         let audio = stream(segment, "a");
         assert_eq!((audio["codec_name"].as_str(), audio["channels"].as_str()), ("eac3", "6"), "copied");
         // Profile 8.1 to FFmpeg: no residual, no-op curves (one linear
-        // piece over the whole range), the P8.1 colour coefficients.
+        // piece over the whole range), the P8.1 color coefficients.
         let after = frames(segment, 4);
         assert!(after.contains("Dolby Vision Metadata"), "{after}");
         assert!(!after.contains("disable_residual_flag=0") && after.contains("disable_residual_flag=1"));

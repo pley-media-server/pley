@@ -45,7 +45,7 @@ pub enum Gathered {
     Nothing,
     /// Why the server couldn't give them, in a sentence.
     Failed(String),
-    /// Nothing to tell: other music started first, the music ended, or the ask was cancelled.
+    /// Nothing to tell: other music started first, the music ended, or the ask was canceled.
     Dropped,
 }
 

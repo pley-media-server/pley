@@ -17,7 +17,7 @@ import java.util.Locale
 
 /** The globe of the screens without an account: this device's language. */
 data class DeviceLanguageUiState(
-    /** The language shown, which the globe is labelled with. */
+    /** The language shown, which the globe is labeled with. */
     val shown: Language = Language.English,
     /** The language picked on this device; `null`: Automatic. */
     val picked: Language? = null,

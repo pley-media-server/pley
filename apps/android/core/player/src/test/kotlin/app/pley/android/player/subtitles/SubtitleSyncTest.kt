@@ -85,7 +85,7 @@ class SubtitleSyncTest {
             assertNotNull(shown.bitmap)
             val bitmap = shown.bitmap!!
             assertTrue(bitmap.width > 100)
-            // Centred, near the bottom of the 1080p plane.
+            // Centered, near the bottom of the 1080p plane.
             assertEquals((PgsMks.WIDTH - bitmap.width) / 2f / PgsMks.WIDTH, shown.position, 0.001f)
             assertTrue(shown.line > 0.7f)
             assertEquals(emptyList<Cue>(), track.cuesAt(3_500))

@@ -79,7 +79,7 @@ public struct EventStream: Sendable {
         self.sleep = sleep
     }
 
-    /// The signals, until the stream that reads them is cancelled, or the
+    /// The signals, until the stream that reads them is canceled, or the
     /// sign-in ends.
     public func signals() -> AsyncStream<EventSignal> {
         let api = api

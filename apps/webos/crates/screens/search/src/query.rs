@@ -99,7 +99,7 @@ impl Query {
     }
 
     /// The answer to `query` came at `now`, sorted into rows. An answer to a query no longer
-    /// asked, or one cancelled, changes nothing. A failure takes the place of what an earlier
+    /// asked, or one canceled, changes nothing. A failure takes the place of what an earlier
     /// search found, which no longer matches the field; the results of the same query, asked again
     /// (the page shown again, the server's content changed), stay with their rows and focus.
     pub fn answered(&mut self, query: &str, answer: Result<Found, ApiError>, now: f64) {
@@ -341,7 +341,7 @@ mod tests {
         q.retry(2.0);
         assert_eq!(q.ask(2.0).as_deref(), Some("north"));
         assert!(matches!(q.shown(), Shown::Loading { .. }));
-        // A cancelled request says nothing.
+        // A canceled request says nothing.
         q.answered("north", Err(ApiError::Net(NetError::Cancelled)), 2.1);
         assert!(matches!(q.shown(), Shown::Loading { .. }));
         q.answered("north", Ok(found(&["North"])), 2.2);

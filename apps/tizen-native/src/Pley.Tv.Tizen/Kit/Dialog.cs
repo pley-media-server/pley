@@ -7,7 +7,7 @@ namespace Pley.Tv.Tizen.Kit;
 
 /// <summary>
 /// A dialog (design spec §2.10; the Android app's TvDialog): a Surface2 card, radius 16, 560 wide at
-/// most, centred over the scrim; its title in Title, its body in Body muted, and its buttons
+/// most, centered over the scrim; its title in Title, its body in Body muted, and its buttons
 /// right-aligned. Back closes it. Its own sheet keeps focus on its buttons while it is open, and
 /// the page's focus is as it was once it closes.
 /// </summary>

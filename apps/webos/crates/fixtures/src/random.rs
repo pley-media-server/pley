@@ -1,6 +1,6 @@
-//! Random numbers for the catalogue: Kotlin's `Random(seed)` (Marsaglia's
+//! Random numbers for the catalog: Kotlin's `Random(seed)` (Marsaglia's
 //! xorwow, as kotlin.random.XorWowRandom draws it), so a seed gives the same
-//! numbers as in the Android app's fixture server and both catalogues match.
+//! numbers as in the Android app's fixture server and both catalogs match.
 //!
 //! Also the fake server's tokens and session ids, which only need to differ.
 

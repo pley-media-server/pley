@@ -280,7 +280,7 @@ public class GuideCursorTests
     [Fact]
     public void Left_goes_back_through_a_long_programme_before_it_leaves_the_guide()
     {
-        // A five-hour programme from the guide's start, then another.
+        // A five-hour program from the guide's start, then another.
         var row = new[]
         {
             FakeLive.Program(1, Start, Start + 18_000, "Long"),
@@ -292,7 +292,7 @@ public class GuideCursorTests
         Assert.True(c.Left > Start);
         Assert.True(c.MoveLeft(row));
         Assert.Equal("Long", c.Current(row)?.Title);
-        // Back through the long programme a screen at a time, the view with it, to the guide's start.
+        // Back through the long program a screen at a time, the view with it, to the guide's start.
         var lefts = new List<long>();
         while (c.Left > Start)
         {
@@ -490,7 +490,7 @@ public class LiveTvModelTests
         vm.ToggleFavorite(vm.Channels.Value[1]!);
         // Put back, and told.
         Assert.False(vm.Channels.Value[1]!.Favorite);
-        Assert.Equal("The favourite wasn't saved: No.", LiveText.FavoriteFailed(Assert.Single(told)));
+        Assert.Equal("The favorite wasn't saved: No.", LiveText.FavoriteFailed(Assert.Single(told)));
     }
 
     [Fact]

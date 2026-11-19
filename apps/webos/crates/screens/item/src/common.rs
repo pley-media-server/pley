@@ -155,7 +155,7 @@ pub fn failed_title(error: &ApiError, failed: &'static str) -> &'static str {
     if error.unreachable() { t!("item.states.unreachable") } else { failed }
 }
 
-/// A page's message (`TvMessage` in `TvItemParts.kt`): vertically centred at x 96, a 40 dp icon in
+/// A page's message (`TvMessage` in `TvItemParts.kt`): vertically centered at x 96, a 40 dp icon in
 /// Muted, 16, the title in `Tv.PageTitle`, 8, the text in `Tv.Body` Muted (at most 464 wide), 24,
 /// a pill (without an icon) that takes focus. Returns the pill's answer.
 pub fn message(ui: &mut Ui, id: Id, icon: Icon, title: &str, body: &str, action: &str) -> Response {

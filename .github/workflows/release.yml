@@ -203,7 +203,7 @@ jobs:
       TITLE: ${{ needs.prepare.outputs.title }}
       SIGNED: ${{ needs.android.outputs.signed }}
     steps:
-      # A unit's result can be success with one of its jobs cancelled (GitHub
+      # A unit's result can be success with one of its jobs canceled (GitHub
       # cancels a job it finds no runner for) and some of its files missing,
       # so every job in this attempt has to have passed or been skipped.
       # Re-run failed jobs runs what didn't pass again, and this job after it.

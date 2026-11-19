@@ -7,7 +7,7 @@
 //! cached) and rasterises the glyphs those layouts name.
 //!
 //! How a string is laid out follows the Android TV app's text (`PleyType.kt`):
-//! every line box is `line_height` tall with its glyphs centred in it
+//! every line box is `line_height` tall with its glyphs centered in it
 //! (`LineHeightStyle(Center, Trim.None)`), titles can be balanced
 //! (`LineBreak.Heading`), lines wrap at UAX #14 opportunities and never get a
 //! hyphen added, letter spacing is spread half before and half after each

@@ -18,7 +18,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** Live TV's groups, pages, guide by channel, favourites and watching. */
+/** Live TV's groups, pages, guide by channel, favorites and watching. */
 class LiveTvTest {
     @get:Rule
     val folder = TemporaryFolder()

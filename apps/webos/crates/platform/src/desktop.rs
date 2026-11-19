@@ -4,7 +4,7 @@
 //! offers).
 //!
 //! Keys follow the simulator's map: arrows, Enter (OK), Escape or
-//! Backspace (Back), M or F1 (menu), I (info), F2 to F5 (the colour keys),
+//! Backspace (Back), M or F1 (menu), I (info), F2 to F5 (the color keys),
 //! Space (play/pause), `,` and `.` (rewind, fast forward), Page Up and Page
 //! Down (CH+ and CH−), digits; the mouse is the Magic Remote.
 
@@ -248,7 +248,7 @@ impl ApplicationHandler<Wake> for State {
                 self.events.push(PlatformEvent::Quit);
             }
             WindowEvent::Resized(size) => {
-                // A minimised window reports 0×0; keep drawing at the last size.
+                // A minimized window reports 0×0; keep drawing at the last size.
                 if let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) {
                     self.surface.resize(&self.context, w, h);
                     self.size = (size.width, size.height);

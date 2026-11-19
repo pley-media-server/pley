@@ -2,7 +2,7 @@ package app.pley.android.fixtures
 
 /**
  * What tests, demos and benchmarks can count on in the FixtureServer's
- * catalogue, which is the same on every run.
+ * catalog, which is the same on every run.
  *
  * Three libraries: [MOVIES] (1,500 movies), [SHOWS] (300 shows with their
  * seasons and episodes) and [MUSIC] (50 artists, 200 albums). Most titles

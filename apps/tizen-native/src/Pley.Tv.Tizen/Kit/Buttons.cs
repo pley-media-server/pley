@@ -114,7 +114,7 @@ sealed class ButtonView : View
         }
     }
 
-    /// <summary>The label's colour at rest (a season tab: Muted, Fg for the season shown).</summary>
+    /// <summary>The label's color at rest (a season tab: Muted, Fg for the season shown).</summary>
     public Color Ink
     {
         set
@@ -124,7 +124,7 @@ sealed class ButtonView : View
         }
     }
 
-    /// <summary>The icon's colour at rest, when not the label's (a chip's accent check).</summary>
+    /// <summary>The icon's color at rest, when not the label's (a chip's accent check).</summary>
     public Color? IconInk
     {
         set
@@ -254,7 +254,7 @@ sealed class RoundButton : View
         if (label != null) label.Text = text;
     }
 
-    /// <summary>Another of the app's icons in place (a star filled once it is a favourite).</summary>
+    /// <summary>Another of the app's icons in place (a star filled once it is a favorite).</summary>
     public void SetIcon(string iconName) => icon.ResourceUrl = Icons.Url(iconName);
 
     /// <summary>Disabled, it is at 40 % and can't take focus, as a text button (a collection of one has no Shuffle).</summary>

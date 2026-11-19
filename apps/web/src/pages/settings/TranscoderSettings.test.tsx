@@ -122,12 +122,12 @@ describe("TranscoderSettings on this server's hardware", () => {
   const system = (transcoder: object, os = "windows") => ({ os, transcoder });
   const option = (name: string | RegExp) => screen.getByRole("option", { name });
 
-  it("greys out what this computer can't do, and says why", async () => {
+  it("grays out what this computer can't do, and says why", async () => {
     mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => system(intel) });
     renderWithProviders(<TranscoderSettings />);
     expect(await screen.findByRole("option", { name: "Automatic · Intel Quick Sync" })).toBeEnabled();
     expect(option(/^Intel Quick Sync$/)).toBeEnabled();
-    // Greyed out with what they need.
+    // Grayed out with what they need.
     expect(option("NVIDIA NVENC (needs an NVIDIA graphics card)")).toBeDisabled();
     expect(option("AMD AMF (needs an AMD graphics card)")).toBeDisabled();
     // Never on Windows: not offered at all.
@@ -137,7 +137,7 @@ describe("TranscoderSettings on this server's hardware", () => {
     expect(option("libplacebo (needs libplacebo and a Vulkan GPU)")).toBeDisabled();
     expect(option(/^zscale/)).toBeEnabled();
 
-    // The current values stay, greyed out with the reason.
+    // The current values stay, grayed out with the reason.
     expect(screen.getByRole("switch", { name: "Throttle transcodes" })).toBeDisabled();
     expect(screen.getByRole("switch", { name: "Throttle transcodes" })).toBeChecked();
     expect(screen.getByText(/it needs FFmpeg 6\.1 or newer/)).toBeInTheDocument();
@@ -169,7 +169,7 @@ describe("TranscoderSettings on this server's hardware", () => {
     expect(await screen.findByLabelText("Hardware acceleration")).toHaveValue("vaapi");
     expect(option("VAAPI (on Linux only)")).toBeDisabled();
     expect(screen.getByText("On Linux only: transcodes are encoded in software instead.")).toBeInTheDocument();
-    // The transcoder isn't running: what its FFmpeg can do isn't known, so nothing else is greyed out.
+    // The transcoder isn't running: what its FFmpeg can do isn't known, so nothing else is grayed out.
     expect(option(/^NVIDIA NVENC$/)).toBeEnabled();
     expect(within(screen.getByLabelText("Hardware acceleration")).getByRole("option", { name: /^Automatic$/ })).toBeEnabled();
     expect(screen.getByRole("switch", { name: "Throttle transcodes" })).toBeEnabled();
@@ -214,7 +214,7 @@ describe("TranscoderSettings on this server's hardware", () => {
       await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ transcode_in_memory: false }));
     });
 
-    it("is greyed out where the transcoder has none, and says why", async () => {
+    it("is grayed out where the transcoder has none, and says why", async () => {
       const windows = { ...intel, throttling: true, memory: { available: false, reason: "works on Linux only", budget_bytes: 0 } };
       mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => system(windows) });
       renderWithProviders(<TranscoderSettings />);
@@ -267,7 +267,7 @@ describe("TranscoderSettings on this server's hardware", () => {
       },
     };
 
-    it("greys out hardware decoding where it decodes nothing on a GPU, and says what the preset applies to", async () => {
+    it("grays out hardware decoding where it decodes nothing on a GPU, and says what the preset applies to", async () => {
       const user = userEvent.setup();
       mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => system(withAccel) });
       renderWithProviders(<TranscoderSettings />);

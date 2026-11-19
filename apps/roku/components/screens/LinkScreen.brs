@@ -182,7 +182,7 @@ sub hideQr()
 end sub
 
 ' Drawn at a whole multiple of its size (the server draws 8 pixels a
-' module), so its modules stay sharp, centred in its column.
+' module), so its modules stay sharp, centered in its column.
 sub onQrStatus()
     ready = m.qr.loadStatus = "ready" and m.qr.uri <> ""
     if ready and m.qr.bitmapWidth > 0

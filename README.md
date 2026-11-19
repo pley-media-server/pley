@@ -79,5 +79,5 @@ Then [first start](docs/CONFIGURATION.md#first-start), and
 Pley is free software under the GNU Affero General Public License, version
 3 ([LICENSE](LICENSE)). The Kodi add-on is GPL-2.0-or-later. What that
 means, and third-party notices: [LICENSING.md](LICENSING.md). How to
-contribute, and the licence of a contribution:
+contribute, and the license of a contribution:
 [CONTRIBUTING.md](CONTRIBUTING.md).

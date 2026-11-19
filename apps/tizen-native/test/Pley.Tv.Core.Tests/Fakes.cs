@@ -156,7 +156,7 @@ sealed class FakeHandler : HttpMessageHandler
     }
 }
 
-/// <summary>A body that sends <paramref name="first"/> and then stays silent until cancelled.</summary>
+/// <summary>A body that sends <paramref name="first"/> and then stays silent until canceled.</summary>
 sealed class StallingStream : Stream
 {
     readonly byte[] first;

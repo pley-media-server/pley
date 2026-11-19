@@ -250,7 +250,7 @@ impl Actions {
                 show(ui, b, &mut x, &mut first);
             }
             if let Some(stage) = &self.stage {
-                // Beside a 40 dp button, the pill (and its bar) centred on it.
+                // Beside a 40 dp button, the pill (and its bar) centered on it.
                 let room = (at.x + width + 300.0 - x).max(120.0);
                 let h = pill_size(ui, stage, false, room).h + if stage.progress.is_some() { 8.0 } else { 0.0 };
                 let size = stage_block(ui, Point::new(x, y + (theme::BUTTON_HEIGHT - h) / 2.0), stage, room, false);
@@ -295,7 +295,7 @@ fn notes_height(ui: &Ui, notes: &[Note], width: f32) -> f32 {
     h
 }
 
-/// What the main action says, muted and close together; a refusal's icon in the danger colour.
+/// What the main action says, muted and close together; a refusal's icon in the danger color.
 fn draw_notes(ui: &mut Ui, at: Point, notes: &[Note], width: f32) {
     let mut y = at.y;
     for n in notes {

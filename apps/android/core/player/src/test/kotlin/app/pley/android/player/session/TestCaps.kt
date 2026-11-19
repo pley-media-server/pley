@@ -44,7 +44,7 @@ object TestCaps {
     }
 }
 
-/** Fixture catalogue lookups that the ids of FixtureIds don't name. */
+/** Fixture catalog lookups that the ids of FixtureIds don't name. */
 object Catalogue {
     /** The first movie whose file is an MKV with two audio tracks and subtitles shown as pictures. */
     fun movieWithTracks(api: PleyApi): ItemDetail = runBlocking {

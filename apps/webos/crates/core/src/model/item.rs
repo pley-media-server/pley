@@ -252,7 +252,7 @@ pub struct MediaFile {
     /// Bytes.
     #[serde(default, deserialize_with = "nd")]
     pub size: i64,
-    /// The transcoder's normalised name: `mkv`, `mp4`, `ts`…
+    /// The transcoder's normalized name: `mkv`, `mp4`, `ts`…
     pub container: Option<String>,
     pub duration_ms: Option<i64>,
     /// Bits per second.

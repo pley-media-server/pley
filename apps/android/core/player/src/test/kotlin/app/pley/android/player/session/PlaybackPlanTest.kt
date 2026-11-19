@@ -180,7 +180,7 @@ class PlaybackPlanTest {
         // A remux that names its Dolby Vision (the master playlist) keeps it: never tone-mapped instead.
         val named = info(PlaybackMethod.Remux).copy(videoRange = "Dolby Vision P5")
         assertNull(DvGuards.retryMode(named, p5, TestCaps.hdrTv(dv = listOf(5))))
-        val unnamed = info(PlaybackMethod.Remux).copy(videoRange = "Dolby Vision P5 not decoded (wrong colours)")
+        val unnamed = info(PlaybackMethod.Remux).copy(videoRange = "Dolby Vision P5 not decoded (wrong colors)")
         assertEquals(PlaybackMode.Transcode, DvGuards.retryMode(unnamed, p5, tv))
         assertNull(DvGuards.retryMode(info(PlaybackMethod.Direct), p5, TestCaps.hdrTv(dv = listOf(5))))
         assertNull(DvGuards.retryMode(info(PlaybackMethod.Transcode), p5, tv))

@@ -20,7 +20,7 @@ import app.pley.android.designsystem.TvSafeArea
 import kotlinx.coroutines.launch
 
 /**
- * Lets the D-pad read text that doesn't take focus (details, licences):
+ * Lets the D-pad read text that doesn't take focus (details, licenses):
  * Down where focus has nowhere to go scrolls [state] on while there is
  * more below, until its end is [endRoom] above the screen's bottom: first
  * the last item's top up to [line], so what had focus goes whole, then a

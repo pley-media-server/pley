@@ -211,8 +211,8 @@ struct Spec {
 }
 
 /// A style's line box: the first face's ascent and descent in dp, the line
-/// height, and where the baseline sits in it, with the glyphs centred
-/// vertically as Android's `LineHeightStyle(Center, Trim.None)` centres them.
+/// height, and where the baseline sits in it, with the glyphs centered
+/// vertically as Android's `LineHeightStyle(Center, Trim.None)` centers them.
 pub(crate) struct LineBox {
     pub(crate) ascent: f32,
     pub(crate) descent: f32,

@@ -405,7 +405,7 @@ struct DiagnosticsView: View {
 }
 
 /// About: Pley's version, that the app holds no third-party code, Pley's
-/// licence, and TMDB's notice for Discover's details and pictures.
+/// license, and TMDB's notice for Discover's details and pictures.
 struct AboutView: View {
     private let model = AboutModel()
 

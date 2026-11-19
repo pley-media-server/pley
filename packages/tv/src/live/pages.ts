@@ -121,7 +121,7 @@ export class ChannelPages {
     return this.at(j) ?? null;
   }
 
-  /** A channel changed here (a favourite marked): the pages show it at once. */
+  /** A channel changed here (a favorite marked): the pages show it at once. */
   patch(id: number, change: Partial<LiveChannel>): void {
     this.pages.forEach((p) => {
       if (!p.channels) return;

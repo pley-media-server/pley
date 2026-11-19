@@ -1,7 +1,7 @@
 Pley for Samsung TV (native) includes the following open-source software,
-each under its licence, copied in full below. Pley is under the GNU AGPL,
+each under its license, copied in full below. Pley is under the GNU AGPL,
 version 3 only (LICENSE.txt beside this file; LICENSING.md says the rest).
-The icons' and the typeface's licences are in icons/LICENSE.txt and
+The icons' and the typeface's licenses are in icons/LICENSE.txt and
 fonts/LICENSE.txt.
 
 - Microsoft.Bcl.AsyncInterfaces 6.0.0 (MIT)

@@ -4,7 +4,7 @@ using Tizen.NUI.BaseComponents;
 
 namespace Pley.Tv.Tizen.Kit;
 
-/// <summary>A profile's picture, or its initial on its colour (the web's Avatar.tsx; the Android app's ProfileAvatar).</summary>
+/// <summary>A profile's picture, or its initial on its color (the web's Avatar.tsx; the Android app's ProfileAvatar).</summary>
 sealed class AvatarView : View
 {
     public AvatarView(string name, string? colorHex, string? pictureUrl, float sizeDp, Images? images)

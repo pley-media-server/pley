@@ -21,7 +21,7 @@ public struct LiveRequest: Hashable, Codable, Sendable {
 /// The live player's screen (Android's `LivePlayerViewModel`), shared by
 /// every device: the channel playing with what's on now and next, channel
 /// up and down through the category it was opened in (wrapping round its
-/// ends), a channel number typed on a remote or keyboard, the favourite,
+/// ends), a channel number typed on a remote or keyboard, the favorite,
 /// and the trouble a channel can run into. `playback` does the watching.
 /// The profile's remotes change channel the same way (`obey`).
 @MainActor
@@ -237,7 +237,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
         }
     }
 
-    // MARK: Favourite
+    // MARK: Favorite
 
     /// Stars the channel playing, or takes its star off: at once, put back with a toast if refused.
     public func toggleFavorite() {
@@ -300,7 +300,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
         startTicking()
     }
 
-    /// What's on, every `playerTick`; asked for again once the programme
+    /// What's on, every `playerTick`; asked for again once the program
     /// on ended, at most every `refreshFloor`.
     private func startTicking() {
         ticking?.cancel()

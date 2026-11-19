@@ -93,7 +93,7 @@ pub fn cover(ui: &mut Ui, rect: Rect, card: &Card, corner: f32, glyph: f32) {
         for (i, req) in card.quarters.iter().take(4).enumerate() {
             let (c, r) = ((i % 2) as f32, (i / 2) as f32);
             // Each quarter reaches past the middle by the corner's radius, so its rounded inner
-            // corners fall under its neighbours and only the cover's own corners show round.
+            // corners fall under its neighbors and only the cover's own corners show round.
             let x0 = rect.x + c * w - c * corner;
             let y0 = rect.y + r * h - r * corner;
             let quarter = Rect::new(x0, y0, w + corner, h + corner);

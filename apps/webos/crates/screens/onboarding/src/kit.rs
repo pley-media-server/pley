@@ -1,6 +1,6 @@
 //! What the screens of getting in share (`OnboardingKit.kt`, the TV app's `onboarding/kit.tsx`):
 //! the brand glow behind them, the Pley logo, the status line with its breathing dot, the sweep's
-//! bar, a pad key standing on its own, and profiles' colours.
+//! bar, a pad key standing on its own, and profiles' colors.
 
 use std::sync::{Arc, Mutex};
 
@@ -117,7 +117,7 @@ pub fn mark(px: u32) -> RgbaImage {
     image
 }
 
-/// The mark's colour at (`u`, `v`) in its 64-unit square, none outside its tile.
+/// The mark's color at (`u`, `v`) in its 64-unit square, none outside its tile.
 fn mark_at(u: f32, v: f32) -> Option<Color> {
     if !in_rounded(u, v, [0.0, 0.0, 64.0, 64.0], 15.0, 15.0) {
         return None;
@@ -208,7 +208,7 @@ pub fn sweep_bar(ui: &mut Ui, at: Point, progress: f32) {
     }
 }
 
-/// A profile's own colour when the server gave one as `#rgb` or `#rrggbb`.
+/// A profile's own color when the server gave one as `#rgb` or `#rrggbb`.
 pub fn parse_color(color: Option<&str>) -> Option<Color> {
     let hex = color?.trim().strip_prefix('#')?;
     if !hex.chars().all(|c| c.is_ascii_hexdigit()) {
@@ -222,7 +222,7 @@ pub fn parse_color(color: Option<&str>) -> Option<Color> {
     u32::from_str_radix(&full, 16).ok().map(Color::rgb)
 }
 
-/// The colour a profile's avatar is drawn on (`ProfileColors.of`): its own, else the one its name
+/// The color a profile's avatar is drawn on (`ProfileColors.of`): its own, else the one its name
 /// gives.
 pub fn profile_fill(name: &str, color: Option<&str>) -> Color {
     parse_color(color).unwrap_or_else(|| theme::profile_color(name))
@@ -260,7 +260,7 @@ mod tests {
             let i = ((v * 64 + u) * 4) as usize;
             [m.pixels[i], m.pixels[i + 1], m.pixels[i + 2], m.pixels[i + 3]]
         };
-        // The tile's rounded corner is clear; its middle is the tile's colour.
+        // The tile's rounded corner is clear; its middle is the tile's color.
         assert_eq!(at(0, 0)[3], 0);
         assert_eq!(at(5, 32), [0x0a, 0x16, 0x22, 255]);
         // The back posters.

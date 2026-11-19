@@ -65,7 +65,7 @@ with Dev Manager.
 ## Using it
 
 Sign-in, server discovery (a broadcast, then a sweep of the TV's subnet),
-the screens, the player's keys and panels, music and offline behaviour
+the screens, the player's keys and panels, music and offline behavior
 follow the Android TV app. The TV shows a code to type on the server's
 `/link` page (or a QR code to it), and starts straight into Home as the
 profile it was left on when that profile has no PIN (`GET /api/auth/me`,
@@ -81,7 +81,7 @@ on LG:
 |---|---|
 | Back | Closes what the page has open, then goes back. On a first page it opens the rail; in the rail (or on a first page without it) it leaves the app as LG's [Back-button guide](https://webostv.developer.lge.com/develop/guides/back-button) says. From webOS 6 it asks "Exit Pley?", as the Samsung app does: Exit (focused) ends playback, tells the server and closes the app; Cancel or Back stays. On webOS 4 and 5 the TV's Home shows, and Pley waits behind it where it was |
 | Exit | Closes the app |
-| OK held, or the menu key | A title's actions, in a side panel over the page as in the Android TV app: a choice closes it, focus goes back to the tile, then it runs. In the guide, a programme's details |
+| OK held, or the menu key | A title's actions, in a side panel over the page as in the Android TV app: a choice closes it, focus goes back to the tile, then it runs. In the guide, a program's details |
 | CH+, CH− | The next or previous channel in the Live TV player, as Next and Previous do there; a page of channels in the guide |
 | Digits | A channel's number in Live TV; the address and PIN pads |
 | Red, green, yellow, blue | Nothing, as on the Android TV app |
@@ -540,7 +540,7 @@ them), the next episode, and Find subtitles.
   Dolby Vision where the TV takes it from the file's container (MP4 and TS
   always, MKV from webOS 25); otherwise the TV shows its HDR10 base layer
   (profile 7 too, since nothing converts it), and a profile 5 file, which
-  has none, shows with wrong colours. LG shows no HDR10+: such a file
+  has none, shows with wrong colors. LG shows no HDR10+: such a file
   shows as HDR10.
 - **Subtitles**: the `.srt` and `.vtt` files beside the video (UTF-16 or
   UTF-32 by its byte-order mark, as Windows saves "Unicode" text, UTF-16
@@ -648,7 +648,7 @@ The code, by crate:
 
 | Folder | What |
 |---|---|
-| `crates/base` | Geometry, colours, input, the display list: what the crates share |
+| `crates/base` | Geometry, colors, input, the display list: what the crates share |
 | `crates/text` | Fonts, shaping, right-to-left text, line breaking, glyphs |
 | `crates/gfx` | The GLES 2 renderer, its atlas, icons, the picture cache, screenshots |
 | `crates/platform` | The window, GL and input as the app sees them; the simulator's window |
@@ -816,7 +816,7 @@ but keeps time, seeks, changes speed, waits and ends as the TV's does.
 | `--verbose` | Log debug lines too |
 
 Keys: arrows, Enter (OK), Escape or Backspace (Back), M or F1 (menu), I
-(info), F2–F5 (colour keys), Space (play/pause), `,` and `.` (rewind,
+(info), F2–F5 (color keys), Space (play/pause), `,` and `.` (rewind,
 fast forward), Page Up and Page Down (CH+, CH−), digits; the mouse is the
 Magic Remote.
 
@@ -849,8 +849,8 @@ SHA-256.
 | Task | What |
 |---|---|
 | `cargo xtask build [--locked]` | The release binary, `target/armv7-unknown-linux-gnueabi/release/pley`, keeping its symbols, with this machine's folders replaced in the paths it records |
-| `cargo xtask check` | Every crate the binary is built from has a licence `deny.toml` allows; the binary is soft-float ARMv7 for the TVs' loader, needs only glibc's libraries and `libgcc_s`, no glibc version above webOS 4.0's (2.24), takes glibc's maths functions rather than slower copies, holds no path of the build machine, and weighs at most 16 MiB stripped. `--licenses-only` skips the binary, so it runs anywhere |
-| `cargo xtask notices` | `out/NOTICES.txt`: the licences of the crates in the binary, the typeface, the icons and Rust's standard library |
+| `cargo xtask check` | Every crate the binary is built from has a license `deny.toml` allows; the binary is soft-float ARMv7 for the TVs' loader, needs only glibc's libraries and `libgcc_s`, no glibc version above webOS 4.0's (2.24), takes glibc's maths functions rather than slower copies, holds no path of the build machine, and weighs at most 16 MiB stripped. `--licenses-only` skips the binary, so it runs anywhere |
+| `cargo xtask notices` | `out/NOTICES.txt`: the licenses of the crates in the binary, the typeface, the icons and Rust's standard library |
 | `cargo xtask ipk` | Builds (unless `--no-build`) and packs the package, with a stripped copy of the binary; the same inputs give the same bytes |
 | `cargo xtask ipk-verify [<file>]` | Reads a package back and checks what the TV relies on |
 

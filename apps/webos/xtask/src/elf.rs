@@ -35,7 +35,7 @@ pub const LIBM_NAMES: &[&str] = &[
 ];
 
 /// Prefixes of the symbols of the toolchain's `libglibc_polyfills.a`, which its GCC links into
-/// every program unless told not to: its licence isn't known, so it must not ship. The app
+/// every program unless told not to: its license isn't known, so it must not ship. The app
 /// defines `getauxval` itself (`-tno-glibc-polyfill` in `.cargo/config.toml`).
 pub const POLYFILL_PREFIXES: &[&str] = &["_getauxval_", "_glibc_polyfills", "_aligned_alloc_polyfill"];
 

@@ -13,7 +13,7 @@
 //! **The keyboard's layout.** A panel along the bottom of the screen, full width, Surface2 with a
 //! 1 dp Surface4 line along its top (the side panels' level), 265 dp tall (top at y 275): 14 dp of
 //! room, five rows of 40 dp keys 6 apart, then 27 dp (the safe area). Keys are 52 dp wide, 6
-//! apart, ten to a row, the rows centred (x 193 to 767):
+//! apart, ten to a row, the rows centered (x 193 to 767):
 //!
 //! ```text
 //!   1  2  3  4  5  6  7  8  9  0
@@ -23,7 +23,7 @@
 //!   [Shift][&123][     Space     ][⌫][ Clear ][ Done ]
 //! ```
 //!
-//! The bottom row's keys span 1, 1, 4, 1, 1.5 and 1.5 key widths. Shift capitalises the next
+//! The bottom row's keys span 1, 1, 4, 1, 1.5 and 1.5 key widths. Shift capitalizes the next
 //! letter; "&123" turns to the symbols ("abc" back). Keys look like the PIN pad's: Surface3 with
 //! 6 dp corners, the character in `Tv.Title` (words in `Tv.Label`), Accent with OnAccent and 1.08
 //! when focused (150 ms in, 120 out), Surface4 while pressed. Focus starts on "q" and stays in the
@@ -407,7 +407,7 @@ enum KeyFace<'a> {
     Icon(Icon),
 }
 
-/// One key: registered, coloured and scaled as the PIN pad's keys are.
+/// One key: registered, colored and scaled as the PIN pad's keys are.
 fn key(ui: &mut Ui, id: Id, rect: Rect, face: KeyFace) -> Response {
     ui.name(id, || match face {
         KeyFace::Text(" ", _) => t!("common.keyboard.space").to_string(),

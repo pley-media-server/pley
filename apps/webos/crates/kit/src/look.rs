@@ -1,5 +1,5 @@
 //! The focus look every control shares: one progress value from rest (0) to focused (1), 150 ms in
-//! and 120 ms out (`Motion::FOCUS`, `Motion::UNFOCUS`), the press, and the colours, edge and scale
+//! and 120 ms out (`Motion::FOCUS`, `Motion::UNFOCUS`), the press, and the colors, edge and scale
 //! that follow them (`theme::focus`; `TvTile.kt`, `TvButtons.kt`, `PleyMotion.kt`).
 
 use std::cell::Cell;
@@ -29,7 +29,7 @@ pub struct Shade {
     pub content: Color,
     /// The 1 dp edge at rest, fading as focus comes.
     pub edge: Option<Color>,
-    /// The control's scale about its centre.
+    /// The control's scale about its center.
     pub scale: f32,
 }
 
@@ -66,7 +66,7 @@ pub fn press_progress(ui: &mut Ui, id: Id, pressed: bool) -> f32 {
     ui.animate(id.with("kit.press"), if pressed { 1.0 } else { 0.0 }, Motion::PRESS)
 }
 
-/// The look of a control with `look` that answered `r` this frame: the fill and content colours
+/// The look of a control with `look` that answered `r` this frame: the fill and content colors
 /// blend to Accent and OnAccent as focus comes, to AccentBright while pressed, the edge fades, and
 /// the scale grows to the look's focus scale (back to 1 while pressed, as tv-material's
 /// `pressedScale = 1f` in `TvButtons.kt`).
@@ -80,8 +80,8 @@ pub fn shade(ui: &mut Ui, look: &ControlLook, r: &Response) -> Shade {
     Shade { progress: p, fill, content, edge, scale: focus_scale + (1.0 - focus_scale) * q }
 }
 
-/// `a` blended `t` of the way to `b`; a transparent end takes the other's colour at no alpha, so a
-/// fill fading in from nothing never passes through grey.
+/// `a` blended `t` of the way to `b`; a transparent end takes the other's color at no alpha, so a
+/// fill fading in from nothing never passes through gray.
 pub fn mix(a: Color, b: Color, t: f32) -> Color {
     if t <= 0.0 {
         return a;
@@ -185,13 +185,13 @@ pub(crate) fn line_within(width: Option<f32>) -> TextOpts {
     }
 }
 
-/// Draws `layout` centred vertically in a box from `top` that is `height` tall, from `x`.
+/// Draws `layout` centered vertically in a box from `top` that is `height` tall, from `x`.
 pub(crate) fn text_mid(ui: &mut Ui, x: f32, top: f32, height: f32, layout: std::sync::Arc<TextLayout>, color: Color) {
     let y = top + (height - layout.size.h) / 2.0;
     ui.draw_text(Point::new(x, y), layout, color);
 }
 
-/// Draws `text` in `style` centred in `rect` on one line (cut at its width).
+/// Draws `text` in `style` centered in `rect` on one line (cut at its width).
 pub(crate) fn text_centred(ui: &mut Ui, rect: Rect, text: &str, style: &TextStyle, color: Color) {
     let layout = ui.layout(text, style, &TextOpts::line(rect.w.max(1.0)));
     let x = rect.x + (rect.w - layout.size.w) / 2.0;

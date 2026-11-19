@@ -1,5 +1,5 @@
 // Writes the native Samsung app's icons, src/Pley.Tv.Tizen/shared/res/icons/<name>.svg, from
-// Lucide (ISC, the icons the Android app and the web TV app draw), and Lucide's licence beside
+// Lucide (ISC, the icons the Android app and the web TV app draw), and Lucide's license beside
 // them. The icons are the ones packages/tv/src/ui/kit/icons.tsx imports. Each is drawn in white,
 // and the app tints it. Run again when that list or Lucide changes; the output is committed.
 
@@ -30,7 +30,7 @@ names.push("TicketX", "TriangleAlert");
 const kebab = (name) => name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/([A-Za-z])([0-9])/g, "$1-$2").toLowerCase();
 const attrs = (o) => Object.entries(o).map(([k, v]) => ` ${k}="${String(v).replace(/"/g, "&quot;")}"`).join("");
 
-// Drawn filled as well as stroked, as `<name>-filled.svg` beside the outline: a favourite's star on
+// Drawn filled as well as stroked, as `<name>-filled.svg` beside the outline: a favorite's star on
 // Live TV's buttons, filled as the Android app's and the web TV app's are.
 const filled = ["Star"];
 

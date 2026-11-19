@@ -1,4 +1,4 @@
-//! Behaviour tests through the public API, frame by frame with the headless harness.
+//! Behavior tests through the public API, frame by frame with the headless harness.
 
 mod animation;
 mod drawing;

@@ -57,7 +57,7 @@ public interface IPictureDecoder
     long? OwnDurationMs(int index);
 }
 
-/// <summary>What the decoders share: colours, byte reads, bounds, and their cache of decoded frames.</summary>
+/// <summary>What the decoders share: colors, byte reads, bounds, and their cache of decoded frames.</summary>
 public static class PictureColors
 {
     /// <summary>
@@ -68,7 +68,7 @@ public static class PictureColors
 
     /// <summary>
     /// The most pixels a frame decodes, all its pictures together: a 4K screen's worth. A file can
-    /// place a 4096² picture many times over, and each pixel costs 4 bytes once coloured.
+    /// place a 4096² picture many times over, and each pixel costs 4 bytes once colored.
     /// </summary>
     public const int MaxPixels = 3840 * 2160;
 

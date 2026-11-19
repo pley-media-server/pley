@@ -6,7 +6,7 @@
 //! at once than its provider allows (`max_connections`). Players get the
 //! channel from the transcoder as live HLS (H.264 and AAC), or as the
 //! provider's MPEG-TS untouched (`stream.ts`, for players that read it).
-//! Logos and programme pictures come through the server too: the web app
+//! Logos and program pictures come through the server too: the web app
 //! loads nothing from elsewhere.
 
 pub mod m3u;
@@ -57,7 +57,7 @@ const PICTURES_MAX_BYTES: u64 = 256 << 20;
 const PICTURES_PRUNED_EVERY: Duration = Duration::from_secs(3600);
 /// A channel its source stopped listing is forgotten after this long.
 const MISSING_KEPT: i64 = 14 * 86_400;
-/// Programmes kept behind now (the guide shows the past few hours).
+/// Programs kept behind now (the guide shows the past few hours).
 const GUIDE_BEHIND: i64 = 6 * 3600;
 /// After a failed refresh, the next try waits this long.
 const RETRY_AFTER: Duration = Duration::from_secs(30 * 60);
@@ -277,7 +277,7 @@ impl SourceRow {
     }
 }
 
-/// A programme, as apps get it.
+/// A program, as apps get it.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Program {
     pub channel_id: i64,
@@ -309,7 +309,7 @@ pub struct Channel {
     /// `/api/live/channels/{id}/logo`, when it has one.
     pub logo: Option<String>,
     pub favorite: bool,
-    /// Whether the guide has programmes for it.
+    /// Whether the guide has programs for it.
     pub has_guide: bool,
     pub now: Option<Program>,
     pub next: Option<Program>,
@@ -358,7 +358,7 @@ pub struct ChannelPatch {
 pub struct Guide {
     pub from: i64,
     pub to: i64,
-    /// Programmes by channel id.
+    /// Programs by channel id.
     pub programs: HashMap<i64, Vec<Program>>,
 }
 
@@ -396,7 +396,7 @@ impl ChannelRow {
         self.custom_number.clone().filter(|n| !n.is_empty()).or_else(|| self.number.clone())
     }
 
-    /// The guide's channel it takes its programmes from: the one set for it,
+    /// The guide's channel it takes its programs from: the one set for it,
     /// else the match found when the guide lacks the source's id, else the
     /// source's id.
     fn guide_key(&self) -> Option<&str> {
@@ -473,7 +473,7 @@ pub struct LiveTv {
     settings: RwLock<Arc<LiveSettings>>,
     http: reqwest::Client,
     pub tuners: Arc<Tuners>,
-    /// Logos and programme pictures, kept a while ([`PICTURE_FRESH`]).
+    /// Logos and program pictures, kept a while ([`PICTURE_FRESH`]).
     pictures: PathBuf,
     /// Pictures whose download failed lately (by URL).
     failed_pictures: Mutex<HashMap<String, Instant>>,
@@ -503,7 +503,7 @@ pub struct LiveTv {
     airing: Mutex<Option<Arc<Airing>>>,
 }
 
-/// The programmes on (and starting within the minute) when read, their
+/// The programs on (and starting within the minute) when read, their
 /// titles folded for search.
 struct Airing {
     read_at: i64,
@@ -530,7 +530,7 @@ pub(crate) struct Lineup {
     names: Vec<String>,
     /// The groups of the channels shown, in the lineup's order.
     groups: Vec<Group>,
-    /// The guide's channels (by source) with programmes to come, as the
+    /// The guide's channels (by source) with programs to come, as the
     /// lineup was read: the guide is read again only with a change.
     guided: HashSet<(i64, String)>,
     /// Each source's short id, by source.
@@ -1057,7 +1057,7 @@ impl LiveTv {
             .collect())
     }
 
-    /// Channels with programmes now or ahead, by source.
+    /// Channels with programs now or ahead, by source.
     async fn guided_counts(&self) -> Result<HashMap<i64, i64>, AppError> {
         let lineup = self.lineup().await?;
         let mut out = HashMap::new();
@@ -1310,7 +1310,7 @@ impl LiveTv {
     }
 
     /// Reads again the guides of the sources of channels `ids`, given a
-    /// guide channel with no programmes (when `guide_set`) or a name that
+    /// guide channel with no programs (when `guide_set`) or a name that
     /// decides their guide channel (when `renamed`). A guide read keeps the
     /// guide channels some channel took then, by guide channel or by name,
     /// so one set by hand since has nothing until the next read. A source
@@ -1321,7 +1321,7 @@ impl LiveTv {
         let lineup = self.lineup().await?;
         // The name decides only for channels given no guide channel by hand,
         // whose playlist's guide channel the guide lacks: none, or one with
-        // no programmes (see `ChannelRow::guide_key`).
+        // no programs (see `ChannelRow::guide_key`).
         let by_name = |c: &ChannelRow| {
             c.custom_guide_id.as_deref().is_none_or(str::is_empty)
                 && (c.guide_id.is_empty() || !lineup.guided.contains(&(c.source_id, c.guide_id.clone())))
@@ -1463,7 +1463,7 @@ impl LiveTv {
         Ok(())
     }
 
-    /// Reads the source's guide: the number of programmes kept, `None` when
+    /// Reads the source's guide: the number of programs kept, `None` when
     /// it has no guide.
     async fn refresh_guide(&self, id: i64) -> anyhow::Result<Option<usize>> {
         let source = self.source_row(id).await.map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -1519,7 +1519,7 @@ impl LiveTv {
             bail!("the guide lists no channels");
         }
         let count = guide.programs.len();
-        // The old programmes go, then the new ones come in batches: the
+        // The old programs go, then the new ones come in batches: the
         // database has one writer, which others wait for meanwhile.
         let mut tx = self.db.write.begin().await?;
         sqlx::query("DELETE FROM live_programs WHERE source_id = ?").bind(id).execute(&mut *tx).await?;
@@ -1725,7 +1725,7 @@ impl LiveTv {
         Ok(lineup)
     }
 
-    /// Programmes between `from` and `to` of `channels`, by channel.
+    /// Programs between `from` and `to` of `channels`, by channel.
     async fn programs_of(
         &self,
         channels: &[&ChannelRow],
@@ -1975,7 +1975,7 @@ impl LiveTv {
         Ok(ChannelPage { total: listed.len(), offset, channels: self.channels_out(user, page).await? })
     }
 
-    /// The guide channels (by source) airing a programme whose title has `search` in it.
+    /// The guide channels (by source) airing a program whose title has `search` in it.
     /// Titles are compared as search compares names ([`crate::search::text::finds`]):
     /// "lakeside games" finds "Winter Games - Lakeside 2020".
     /// The titles are read and folded once a minute at most, not with every
@@ -2245,7 +2245,7 @@ impl LiveTv {
         self.picture(&row.logo_url, true).await
     }
 
-    /// A programme's picture, downloaded the first time (and again once a week).
+    /// A program's picture, downloaded the first time (and again once a week).
     pub async fn program_image(&self, channel: i64, start: i64) -> Result<PathBuf, AppError> {
         let row = self.channel_row(channel).await?;
         let key = row.guide_key().ok_or_else(|| AppError::not_found("the channel has no guide"))?;
@@ -2363,7 +2363,7 @@ fn made_fit(bytes: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
 
 /// A logo drawn dark on nothing (black lettering, a navy badge) is lost on
 /// the apps' dark screens: its lightness is turned around, black becoming
-/// white and navy light blue, colours keeping their hue. `None` for any
+/// white and navy light blue, colors keeping their hue. `None` for any
 /// other logo: one on a background of its own already shows.
 fn lightened(img: &image::DynamicImage) -> Option<image::RgbaImage> {
     if !img.color().has_alpha() {

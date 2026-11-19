@@ -199,9 +199,9 @@ public final class ServerPlaybackSession {
         onAnswer?(answer)
     }
 
-    /// Starts a session for `request`. The request isn't cancelled halfway:
+    /// Starts a session for `request`. The request isn't canceled halfway:
     /// the server may have made the session (and its transcode) already, so
-    /// a caller cancelled meanwhile gets it deleted, then the cancellation.
+    /// a caller canceled meanwhile gets it deleted, then the cancellation.
     public static func start(api: PleyAPI, request: PlaybackRequest, reporter: SessionReporter,
                              late: LateReports?) async throws -> ServerPlaybackSession {
         let info = try await Task { try await api.startPlayback(request) }.value

@@ -59,7 +59,7 @@ pub const ZSCALE_TONEMAP: &str = "zscale=t=linear:npl=100,format=gbrpf32le,zscal
 
 /// [`ZSCALE_TONEMAP`] at `w×h`: the first zscale scales as it makes the
 /// picture linear, so the tone mapping, in 32-bit floats for each of three
-/// colours, works on the output's pixels rather than the source's (4K to
+/// colors, works on the output's pixels rather than the source's (4K to
 /// 1080p: a quarter of them).
 pub fn zscale_tonemap(w: i64, h: i64) -> String {
     ZSCALE_TONEMAP.replacen("zscale=t=linear", &format!("zscale=w={w}:h={h}:t=linear"), 1)
@@ -78,7 +78,7 @@ pub const PLACEBO_STATIC_PEAK: &str = "peak_detect=0";
 /// libplacebo's tone curve: ITU-R BT.2390's EETF, with libplacebo's knee
 /// (offset 1.0). Below the knee it keeps the master's luminance, against
 /// BT.2408's 203 cd/m² reference white for SDR, and above it rolls the
-/// highlights off to the target's peak; black stays black. On a PQ grey
+/// highlights off to the target's peak; black stays black. On a PQ gray
 /// ramp mastered at 1000 cd/m² made SDR it came within 9 code values on average of the master's
 /// own luminance up to 203 cd/m², where libplacebo's default spline was 21
 /// off (most of all in the mid-tones it darkens) and the spline with a
@@ -356,12 +356,12 @@ pub fn vaapi_filter_devices(device: &str, node: &str) -> [String; 4] {
     ["-init_hw_device".into(), format!("vaapi=va:{node}"), "-init_hw_device".into(), format!("{device}@va")]
 }
 
-/// A `setparams` filter giving HDR frames the colour properties they lack
+/// A `setparams` filter giving HDR frames the color properties they lack
 /// (PQ, BT.2020), for the zimg and OpenCL tone mappers, which refuse to
 /// convert from unknown ones ("no path between colorspaces"). Dolby Vision
-/// profile 5 frames come out of the decoder untagged (their IPTPQc2 colours
+/// profile 5 frames come out of the decoder untagged (their IPTPQc2 colors
 /// are only defined by the RPU, which libplacebo applies), and so do HDR
-/// streams that tag only some properties. For profile 5 the colours are then
+/// streams that tag only some properties. For profile 5 the colors are then
 /// off, but there is a picture.
 pub fn untagged_hdr_fix(stream: &MediaStream) -> Option<String> {
     let unknown =
@@ -422,7 +422,7 @@ pub struct VideoOut {
     pub tonemap: Option<Tonemapper>,
     /// What libplacebo does of its work (see [`tonemap_quality`]).
     pub tonemap_quality: TonemapQuality,
-    /// Tags the tone mapper's input when the source leaves colours unknown
+    /// Tags the tone mapper's input when the source leaves colors unknown
     /// ([`untagged_hdr_fix`]): for zscale, OpenCL and Quick Sync, which a
     /// libplacebo plan can move to ([`Plan::with_share`]). libplacebo itself
     /// takes the frames untagged.
@@ -458,7 +458,7 @@ pub struct VideoOut {
     /// FFmpeg uploads the frames to the AMD GPU for AMF ([`AMF_D3D11_DEVICE`]),
     /// which copies them from memory itself several times slower.
     pub amf_upload: bool,
-    /// The colour primaries `h264_amf`'s stream is made to say (its code in
+    /// The color primaries `h264_amf`'s stream is made to say (its code in
     /// H.264's VUI), which it leaves unsaid: players then guess, and some
     /// take BT.2020 for 4K.
     pub vui_primaries: Option<u8>,
@@ -629,11 +629,11 @@ pub struct AudioOut {
 
 /// 5.1 (and 5.0) to stereo: FFmpeg's own matrix (`-ac 2`: each front
 /// whole, the surrounds at -3 dB, no LFE, not normalized for AAC's and
-/// AC-3's float samples) with the centre, where dialogue is, at 0 dB
+/// AC-3's float samples) with the center, where dialogue is, at 0 dB
 /// rather than -3 dB, and a limiter at -2 dBFS (-1 dB true peak once encoded) for the peaks the sum would
 /// push past full scale, which `-ac 2` lets clip. The layout is made 5.1
 /// first (a 5.0 one gains a silent LFE, a broadcast switching to stereo a
-/// silent centre and surrounds), so the matrix always finds its channels.
+/// silent center and surrounds), so the matrix always finds its channels.
 /// The limiter's look-ahead is taken back out (`latency`), keeping the
 /// sound in time with the picture.
 pub const DOWNMIX_51: &str = "aformat=channel_layouts=5.1(side)|5.1,\
@@ -855,7 +855,7 @@ impl Plan {
                             let (mut choice, mut w) = ff.pick_tonemapper(mode, dv5, vaapi);
                             // A VAAPI encoder takes the frames of some tone
                             // mappers only. Where that would lose the picture
-                            // (no tone mapping, or Dolby Vision 5's colours),
+                            // (no tone mapping, or Dolby Vision 5's colors),
                             // the software encoder takes them instead.
                             let (any, any_w) = ff.pick_tonemapper(mode, dv5, false);
                             let lost = (choice.is_none() && any.is_some())
@@ -942,7 +942,7 @@ impl Plan {
                     // costs the CPU more than Direct3D's.
                     // Nor Dolby Vision or HDR10+ that libplacebo or OpenCL
                     // tone maps: Quick Sync's decoder reads neither's
-                    // metadata, and profile 5's colours are only in it.
+                    // metadata, and profile 5's colors are only in it.
                     let resized = (width, height) != (src_width, src_height);
                     let has_scene_metadata = (range == DynamicRange::DolbyVision && !fel_base)
                         || range == DynamicRange::Hdr10plus
@@ -1678,7 +1678,7 @@ impl Plan {
                 }
                 // Subtitles uploaded to Quick Sync need its device made from
                 // Direct3D 11's: on the one FFmpeg makes itself, the upload
-                // fails to synchronise.
+                // fails to synchronize.
                 Pipeline::Gpu(HwAccel::Qsv) if self.burn.is_some() => a.push_all(QSV_D3D11_DEVICES),
                 Pipeline::Gpu(HwAccel::Qsv) => a.push_all(QSV_DECODE),
                 Pipeline::Gpu(HwAccel::Videotoolbox) => {
@@ -1879,7 +1879,7 @@ impl Plan {
             let scaler = match accel {
                 HwAccel::Vaapi => format!("scale_vaapi=w={w}:h={h}:format={format}"),
                 // Tagged first where the source isn't: Quick Sync leaves
-                // frames of unknown colours as they are.
+                // frames of unknown colors as they are.
                 HwAccel::Qsv if v.tonemap == Some(Tonemapper::QuickSync) => {
                     v.tonemap_input.iter().map(|f| format!("{f},")).chain([qsv_tonemap(w, h)]).collect()
                 }
@@ -2310,7 +2310,7 @@ fn encoder_args(enc: &EncoderInfo, v: &VideoOut, preset: Option<&str>) -> Vec<St
     s
 }
 
-/// `src`'s colour primaries as H.264's VUI codes them (ITU-T H.264, table
+/// `src`'s color primaries as H.264's VUI codes them (ITU-T H.264, table
 /// E-3), where they are known.
 fn h264_primaries(src: &MediaStream) -> Option<u8> {
     match src.color_primaries.as_deref()? {
@@ -3485,7 +3485,7 @@ mod tests {
         assert!(!plan.decodes_on_shared_engine());
 
         // Dolby Vision and HDR10+ keep FFmpeg's own decoder, which reads
-        // their metadata for libplacebo: profile 5's colours are in it.
+        // their metadata for libplacebo: profile 5's colors are in it.
         let p5 = ten_bit(media(DynamicRange::DolbyVision, Some(5)));
         let mut hdr10plus = ten_bit(media(DynamicRange::Hdr10plus, None));
         hdr10plus.streams[0].hdr10plus = Some(true);
@@ -3643,7 +3643,7 @@ mod tests {
         assert!(args.contains(QSV_DECODE_ARGS), "{args}");
         assert!(!args.contains("vulkan") && !args.contains("libplacebo"), "{args}");
         // The test media is untagged: tagged first, Quick Sync leaving
-        // unknown colours as they are.
+        // unknown colors as they are.
         let mapped = qsv_tonemap(1920, 1080);
         assert!(
             args.contains(&format!(
@@ -4284,7 +4284,7 @@ mod tests {
         let v = plan.video.as_ref().unwrap();
         assert_eq!((v.pipeline, v.tonemap), (Pipeline::Software, Some(Tonemapper::Opencl)));
 
-        // Dolby Vision 5 keeps its colours: libplacebo, and x264 since its
+        // Dolby Vision 5 keeps its colors: libplacebo, and x264 since its
         // frames don't reach VAAPI's encoder.
         ff.caps.vaapi_tonemappers = vec![Tonemapper::Zscale];
         let p5 = ten_bit(media(DynamicRange::DolbyVision, Some(5)));
@@ -4612,7 +4612,7 @@ mod tests {
         assert_eq!(plan.video.as_ref().unwrap().tonemap, Some(Tonemapper::Zscale));
         assert!(plan.warnings.iter().any(|w| w.contains("Dolby Vision")));
         // Its frames are untagged, which zimg refuses: they are tagged PQ
-        // BT.2020 so the transcode works (with off colours, as warned).
+        // BT.2020 so the transcode works (with off colors, as warned).
         let args = args_string(&plan, 0, 2);
         assert!(
             args.contains(

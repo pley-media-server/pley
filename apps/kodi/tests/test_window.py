@@ -399,7 +399,7 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(faces.items[0].properties.get("locked"), "1")
         self.assertIsNone(faces.items[1].properties.get("locked"))
         self.assertIn("/api/users/2/avatar", faces.items[1].art["tile"])
-        # The one in use first, and the row centred.
+        # The one in use first, and the row centered.
         self.assertEqual(faces.selected, 0)
         self.assertEqual(faces.position[0], L.profiles_left(4) - L.PROFILE_MARGIN)
         # Another without a PIN: at once.

@@ -1254,7 +1254,7 @@ impl Filter {
         self.any_sql(vec![test], args)
     }
 
-    /// [`Filter::boolean`] of `expr`, a parenthesised condition.
+    /// [`Filter::boolean`] of `expr`, a parenthesized condition.
     fn boolean_sql(&self, expr: &str) -> Condition {
         let wanted = !self.values.first().is_some_and(|v| matches!(v.as_str(), "0" | "false"));
         let negated = matches!(self.op, Op::Not | Op::NotExactly);

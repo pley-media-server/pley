@@ -1,8 +1,8 @@
-//! A programme's details in the side panel (`ProgramPanel` in `TvLiveTvScreen.kt`): the channel,
-//! the programme's picture, title, episode, day and times with its badges, how far it is, what the
-//! guide says of it, then Watch and the favourite at the foot: a star beside Watch, filled for a
-//! favourite, as in the live player, its words only read by Audio Guidance. As a pill, Remove from
-//! favourites didn't fit beside Watch and went under it.
+//! A program's details in the side panel (`ProgramPanel` in `TvLiveTvScreen.kt`): the channel,
+//! the program's picture, title, episode, day and times with its badges, how far it is, what the
+//! guide says of it, then Watch and the favorite at the foot: a star beside Watch, filled for a
+//! favorite, as in the live player, its words only read by Audio Guidance. As a pill, Remove from
+//! favorites didn't fit beside Watch and went under it.
 
 use pley_base::{Icon, Point, Rect, TextOpts};
 use pley_core::model::{LiveChannel, LiveProgram};
@@ -44,7 +44,7 @@ pub fn show(
     clock: &Clock,
 ) -> Option<DetailsAction> {
     let now = clock.now;
-    // Watch and the favourite side by side at the foot. Placed first, so the description stops
+    // Watch and the favorite side by side at the foot. Placed first, so the description stops
     // above them.
     let airing = program.is_none_or(|p| p.airing_at(now));
     let watch = Button::pill(if airing { t!("livetv.program.watchNow") } else { t!("livetv.program.watchChannel") })

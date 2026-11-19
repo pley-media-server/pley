@@ -19,7 +19,7 @@ public sealed class DvbSegment
 
 /// <summary>
 /// Broadcast subtitles (DVB, ETSI EN 300 743, <c>S_DVBSUB</c>): each sample is a display set of
-/// segments. A page composition places regions on the display; each region has a colour table
+/// segments. A page composition places regions on the display; each region has a color table
 /// (CLUT) and objects drawn into it as 2, 4 or 8-bit run-length coded pixels, a field at a time.
 /// A page in "normal case" only updates what an acquisition point or mode change defined, so a
 /// sample is decoded from the last of those.
@@ -42,7 +42,7 @@ public sealed class DvbDecoder : IPictureDecoder
 
     /// <summary>
     /// What reading a byte costs against <see cref="PictureColors.MaxWork"/>, next to filling a
-    /// pixel: a segment's (a colour table's entries) about 16 times as long, and a pixel string's,
+    /// pixel: a segment's (a color table's entries) about 16 times as long, and a pixel string's,
     /// walked a bit at a time, about 32. A segment costs 512 besides, a few hundred nanoseconds to
     /// read and keep.
     /// </summary>
@@ -136,7 +136,7 @@ public sealed class DvbDecoder : IPictureDecoder
         return page;
     }
 
-    /// <summary>The colour tables of ETSI EN 300 743 §10 for pixels a CLUT doesn't define.</summary>
+    /// <summary>The color tables of ETSI EN 300 743 §10 for pixels a CLUT doesn't define.</summary>
     static byte[] DefaultClut(int depth)
     {
         var n = 1 << depth;
@@ -574,7 +574,7 @@ public sealed class DvbDecoder : IPictureDecoder
             for (var i = 0; i < region.Pixels.Length; i++)
             {
                 var c = region.Pixels[i] * 4;
-                // A pixel past a smaller table (an 8-bit value in a 2-bit region) has no colour.
+                // A pixel past a smaller table (an 8-bit value in a 2-bit region) has no color.
                 if (c + 3 >= table.Length) continue;
                 var o = i * 4;
                 rgba[o] = table[c];

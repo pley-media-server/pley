@@ -401,7 +401,7 @@ function dolbyVisionProfile(s: RangeFields): string | null {
 
 /**
  * "Dolby Vision P8.1", "Dolby Vision P7 FEL", "Dolby Vision P8.1 + HDR10+",
- * "HDR10+", "HDR10", "HLG", "HDR" (unknown HDR flavour) or null for SDR: the
+ * "HDR10+", "HDR10", "HLG", "HDR" (unknown HDR flavor) or null for SDR: the
  * server's names (docs/API.md, MediaStream), as Android and the TV apps say.
  */
 export function dynamicRangeLabel(s: RangeFields | null | undefined): string | null {

@@ -181,7 +181,7 @@ internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifie
     }
 }
 
-/** The centre's touch target and glyph: 80 dp around 52. */
+/** The center's touch target and glyph: 80 dp around 52. */
 private val PlayTarget = 80.dp
 private val PlayGlyph = 52.dp
 
@@ -306,12 +306,12 @@ internal fun BarItem(icon: PleyIcon, label: String, description: String? = null,
 /** The bottom row's buttons' height, and the row's. */
 private val BarItemHeight = 48.dp
 
-/** The badge's colours for [method], the session's name for how it plays, or for [type] where the details know it. */
+/** The badge's colors for [method], the session's name for how it plays, or for [type] where the details know it. */
 @Composable
 @ReadOnlyComposable
 internal fun methodColors(type: PlaybackMethod?): BadgeColors = PlayerLook.badgeColors(type)
 
-/** "Direct play", "Direct stream" or "Transcoding" in its colour; it opens Playback details. */
+/** "Direct play", "Direct stream" or "Transcoding" in its color; it opens Playback details. */
 @Composable
 internal fun MethodBadge(method: String, type: PlaybackMethod?, onClick: () -> Unit) {
     val colors = methodColors(type)

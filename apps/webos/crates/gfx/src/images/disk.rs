@@ -244,7 +244,7 @@ fn private_file(path: &Path) -> std::io::Result<fs::File> {
 }
 
 /// 64-bit FNV-1a, its basis varied by `seed`, then mixed (SplitMix64's
-/// finaliser) so every bit depends on every byte.
+/// finalizer) so every bit depends on every byte.
 fn hash(seed: u64, bytes: &[u8]) -> u64 {
     let mut h = 0xcbf2_9ce4_8422_2325u64 ^ seed.wrapping_mul(0x9e37_79b9_7f4a_7c15);
     for b in bytes {

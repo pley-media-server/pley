@@ -1,7 +1,7 @@
 //! Live TV: watching a channel ([`session::LiveSession`]), and what the Live
 //! TV screens need beside it: what's on and the categories ([`data`]), a
 //! category's channels by pages ([`pages::ChannelPages`]) and the guide's
-//! programmes by chunks ([`guide::GuideStore`]), and the relay that hands a channel's
+//! programs by chunks ([`guide::GuideStore`]), and the relay that hands a channel's
 //! `stream.ts` on to the TV's player ([`relay::StreamRelay`]).
 
 pub mod data;

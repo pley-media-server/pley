@@ -11,7 +11,7 @@ using Tizen.NUI.BaseComponents;
 namespace Pley.Tv.Tizen.Screens;
 
 /// <summary>
-/// The programme guide (the Android app's TvGuide): what has focus described above the grid,
+/// The program guide (the Android app's TvGuide): what has focus described above the grid,
 /// channels down and time across, now marked by a line. Focus is one item, moved by the guide
 /// itself (<see cref="GuideCursor"/>) rather than by geometry, so only the rows in view have
 /// views, however many channels there are. It opens on the channel last watched, when it is in
@@ -111,7 +111,7 @@ sealed class GuideView : View
         header.Add(headerLayer);
         Add(header);
 
-        // The rows: the channels' cells, and over them their programmes in time, which slide as the grid moves.
+        // The rows: the channels' cells, and over them their programs in time, which slide as the grid moves.
         var grid = new View
         {
             Position = new Position(0, Ui.Dp(rowsTop)),
@@ -228,7 +228,7 @@ sealed class GuideView : View
                     Moved();
                 }
                 // Out to the categories on a press of its own: not under a held key, nor straight
-                // after Left went back through the programmes (taps in a row stop at the guide's start).
+                // after Left went back through the programs (taps in a row stop at the guide's start).
                 else if (unchecked(Environment.TickCount - leftMovedAt) >= EdgePauseMs) Scrolling.Left(gate, toCategories);
                 return true;
             case "Right":
@@ -264,7 +264,7 @@ sealed class GuideView : View
         return false;
     }
 
-    /// <summary>OK on a programme on now (or a channel without guide) watches it; on another, its details.</summary>
+    /// <summary>OK on a program on now (or a channel without guide) watches it; on another, its details.</summary>
     void Ok()
     {
         var channel = pages[cursor.Row];
@@ -280,13 +280,13 @@ sealed class GuideView : View
         }
     }
 
-    /// <summary>Holding OK, Menu or Info: the details of the programme with focus.</summary>
+    /// <summary>Holding OK, Menu or Info: the details of the program with focus.</summary>
     void Details()
     {
         if (pages[cursor.Row] is { } channel && cursor.Details(Programs(cursor.Row)) is { } program) details(channel, program);
     }
 
-    /// <summary>The cursor moved in time: the grid follows by half hours, its programmes asked for.</summary>
+    /// <summary>The cursor moved in time: the grid follows by half hours, its programs asked for.</summary>
     void Moved()
     {
         if (cursor.Left != drawnLeft)
@@ -341,7 +341,7 @@ sealed class GuideView : View
         model.ShowingRows(top, top + shown);
     }
 
-    /// <summary>The half hours across the top, a screen either way of the grid's edge, in time as the programmes are.</summary>
+    /// <summary>The half hours across the top, a screen either way of the grid's edge, in time as the programs are.</summary>
     void Header()
     {
         foreach (var child in headerLayer.Children.ToList())
@@ -369,7 +369,7 @@ sealed class GuideView : View
         return true;
     }
 
-    /// <summary>Draws what changed: the focused programme's description, and the rows in view (and one either side).</summary>
+    /// <summary>Draws what changed: the focused program's description, and the rows in view (and one either side).</summary>
     void Draw()
     {
         if (Disposed) return;
@@ -442,7 +442,7 @@ sealed class GuideView : View
                 continue;
             }
             // A row coming into view (a screen of them when the guide pages) shows its still bars
-            // at once, and its programmes as it catches up.
+            // at once, and its programs as it catches up.
             if (drawn.View == null && !rowFocused)
             {
                 Build(i, look with { Programs = null, Loaded = false });
@@ -487,7 +487,7 @@ sealed class GuideView : View
         programCells[i] = cellsMade.ToList();
     }
 
-    /// <summary>A programme's cell in a row, with what changes as focus comes to it and leaves.</summary>
+    /// <summary>A program's cell in a row, with what changes as focus comes to it and leaves.</summary>
     sealed class ProgramCell
     {
         public ProgramCell(LiveProgram program, View cell, TextLabel? name, TextLabel? span, View? bar)
@@ -508,7 +508,7 @@ sealed class GuideView : View
         public bool? Focused { get; set; }
     }
 
-    /// <summary>Each row's programme cells, to paint again as focus moves (a row made again took 25 ms).</summary>
+    /// <summary>Each row's program cells, to paint again as focus moves (a row made again took 25 ms).</summary>
     readonly Dictionary<int, List<ProgramCell>> programCells = new Dictionary<int, List<ProgramCell>>();
     readonly List<ProgramCell> cellsMade = new List<ProgramCell>();
 
@@ -546,14 +546,14 @@ sealed class GuideView : View
         if (c.Bar != null) c.Bar.BackgroundColor = focused ? PleyColors.OnAccent : PleyColors.Accent;
     }
 
-    /// <summary>The bars of the programmes airing in each row made, to move with the time without making the row again.</summary>
+    /// <summary>The bars of the programs airing in each row made, to move with the time without making the row again.</summary>
     readonly Dictionary<int, List<(View Bar, float Left, float Width)>> bars = new Dictionary<int, List<(View Bar, float Left, float Width)>>();
     readonly List<(View Bar, float Left, float Width)> barsMade = new List<(View Bar, float Left, float Width)>();
 
-    /// <summary>The airing programmes' bars to now, in place (a row's bars go with it, so none is disposed).</summary>
+    /// <summary>The airing programs' bars to now, in place (a row's bars go with it, so none is disposed).</summary>
     /// <summary>
-    /// An airing programme's bar, in dp: from its cell's left (<paramref name="left"/>, on the guide's
-    /// time line) to now's line. As the share played of the whole programme, a programme begun before
+    /// An airing program's bar, in dp: from its cell's left (<paramref name="left"/>, on the guide's
+    /// time line) to now's line. As the share played of the whole program, a program begun before
     /// the guide (its cell starting at the guide's edge) had its bar run past now.
     /// </summary>
     float BarWidth(float left, float width, long at) => Math.Max(0, Math.Min(width, GuideLayout.X(at, cursor.Start) - left));
@@ -657,13 +657,13 @@ sealed class GuideView : View
     /// <summary>Three lines' worth of the panel's text, past which nothing shows.</summary>
     const int DescriptionChars = 240;
 
-    /// <summary>What a row of programmes shows: drawn again only when it changes.</summary>
+    /// <summary>What a row of programs shows: drawn again only when it changes.</summary>
     readonly record struct ProgramsLook(LiveChannel? Channel, IReadOnlyList<LiveProgram>? Programs, bool Loaded, long Left, long Now, long? Focus);
 
     /// <summary>
     /// Whether a row drawn as <paramref name="a"/> looks as <paramref name="b"/> would: its
-    /// programmes compared by those in view. Each guide answer (one for every move up or down,
-    /// for the rows coming into view) brings new lists of the same programmes, and compared as
+    /// programs compared by those in view. Each guide answer (one for every move up or down,
+    /// for the rows coming into view) brings new lists of the same programs, and compared as
     /// lists every row in view was made again at each move.
     /// </summary>
     bool Same(ProgramsLook a, ProgramsLook b)
@@ -678,7 +678,7 @@ sealed class GuideView : View
         for (var i = 0; i < x.Count; i++)
         {
             if (x[i].Start != y[i].Start || x[i].Stop != y[i].Stop || x[i].Title != y[i].Title) return false;
-            // The time only matters where a programme began or ended between the two (its colour,
+            // The time only matters where a program began or ended between the two (its color,
             // its bar); the bars of those airing move in place (MoveBars). Compared as it was, every
             // row was made again at each 15 s tick, all the while the guide showed.
             if (x[i].AiringAt(a.Now) != y[i].AiringAt(b.Now) || (x[i].Stop <= a.Now) != (y[i].Stop <= b.Now)) return false;
@@ -688,14 +688,14 @@ sealed class GuideView : View
 
     /// <summary>
     /// Whether two answers' records of a channel draw the same: by what is drawn of it, as its
-    /// records hold lists (its programmes' categories) that make each answer's records unequal.
+    /// records hold lists (its programs' categories) that make each answer's records unequal.
     /// </summary>
     static bool SameChannel(LiveChannel? a, LiveChannel? b) =>
         a == null || b == null
             ? a == b
             : a.Id == b.Id && a.Name == b.Name && a.Number == b.Number && a.Logo == b.Logo && a.HasGuide == b.HasGuide && a.Favorite == b.Favorite;
 
-    /// <summary>A channel's programmes in time, x from the guide's start: the focused one in the accent, what airs marked, what ended dimmed.</summary>
+    /// <summary>A channel's programs in time, x from the guide's start: the focused one in the accent, what airs marked, what ended dimmed.</summary>
     View ProgramsRow(ProgramsLook look)
     {
         var start = cursor.Start;
@@ -749,7 +749,7 @@ sealed class GuideView : View
             View? bar = null;
             if (w > GuideLayout.MinTextWidth)
             {
-                // A programme begun left of the grid keeps its title in view.
+                // A program begun left of the grid keeps its title in view.
                 var offset = Math.Max(0, Math.Min(leftX - x, Math.Max(0, w - GuideLayout.TitleRoom)));
                 var textWidth = Math.Max(10, cellWidth - offset - 2 * GuideLayout.CellPadding);
                 name = Text.Label(program.Title, PleyType.Label, PleyColors.Fg, width: textWidth);
@@ -794,7 +794,7 @@ sealed class GuideView : View
 }
 
 /// <summary>
-/// A channel's cell at the left of its guide row: its logo, number (a star when a favourite) and
+/// A channel's cell at the left of its guide row: its logo, number (a star when a favorite) and
 /// name; the focused row's filled with Surface3. Under the whole row, its hairline.
 /// </summary>
 sealed class GuideChannelCell : View

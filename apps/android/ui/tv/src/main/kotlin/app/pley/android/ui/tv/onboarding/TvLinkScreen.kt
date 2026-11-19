@@ -237,7 +237,7 @@ internal fun TvLinkContent(
             )
         }
         if (language != null && status !is LinkStatus.SignedIn) {
-            // Centred on the logo's line (40 dp tall from 56), "FR" at the screen's right edge.
+            // Centered on the logo's line (40 dp tall from 56), "FR" at the screen's right edge.
             TvLanguageButton(picker, language, Modifier.align(Alignment.TopEnd).padding(top = 60.dp, end = 48.dp - GLOBE_PADDING))
         }
         if (language != null) TvLanguagePanel(picker, language, onLanguage)

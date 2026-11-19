@@ -74,7 +74,7 @@ mod tests {
         // At the bottom and on the left: outside it.
         assert_eq!(px(&img, 40, 77)[3], 0);
         assert_eq!(px(&img, 2, 40)[3], 0);
-        // The centre is clear.
+        // The center is clear.
         assert_eq!(px(&img, 40, 40)[3], 0);
     }
 

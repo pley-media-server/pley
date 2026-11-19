@@ -109,7 +109,7 @@
     <string name="settings_software_video_hint">Debug builds: lets emulators play video without a hardware decoder</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version</string>
-    <string name="settings_licences">Open-source licences</string>
+    <string name="settings_licences">Open-source licenses</string>
     <string name="settings_licences_value" translatable="false">AndroidX, Media3, OkHttp, Coil, kotlinx, Lucide, QR Code generator</string>
 
     <!-- Diagnostics. -->

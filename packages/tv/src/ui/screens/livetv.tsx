@@ -48,7 +48,7 @@ export interface Jump {
  * Live TV (the web's LiveTvPage): a category of
  * channels at a time, in the guide (channels down, time across) or as
  * cards with what's on now and next. Left from the channels opens the
- * categories: Favourites, Recently watched, All channels, then the
+ * categories: Favorites, Recently watched, All channels, then the
  * provider's groups by region. The channels come a page at a time, and
  * the guide only for the rows in view, so a lineup of tens of thousands
  * opens at once. A channel's number typed goes to it; coming back from the
@@ -347,12 +347,12 @@ function EmptyCategory(p: { shown: LiveCategory; onSearch: () => void; onAll: ()
   );
 }
 
-// ---- a programme's details
+// ---- a program's details
 
 /**
- * A programme (or a channel without one) in a side panel: what the guide
- * says of it, then Watch and, beside it, the channel's favourite as a star
- * alone, filled for a favourite, as in the live player (Android TV's
+ * A program (or a channel without one) in a side panel: what the guide
+ * says of it, then Watch and, beside it, the channel's favorite as a star
+ * alone, filled for a favorite, as in the live player (Android TV's
  * ProgramPanel). Its words are only heard.
  */
 export function ProgramPanel(p: {

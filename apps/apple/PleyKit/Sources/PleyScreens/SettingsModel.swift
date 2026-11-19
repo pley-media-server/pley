@@ -223,7 +223,7 @@ public final class DiagnosticsModel: ObservableObject {
     }
 }
 
-/// About: the version, that the app holds no third-party code, and Pley's licence.
+/// About: the version, that the app holds no third-party code, and Pley's license.
 public struct AboutModel: Sendable {
     public let version: String
     public let build: String
@@ -250,7 +250,7 @@ public struct AboutModel: Sendable {
     public var title: String { localized("Pley \(version) (build \(build)) for \(device)") }
 
     public static var licences: String {
-        localized("Open-source licences: none. Pley for Apple is built only with Apple's frameworks and contains no third-party code.")
+        localized("Open-source licenses: none. Pley for Apple is built only with Apple's frameworks and contains no third-party code.")
     }
     public static var licence: String { localized("Pley is licensed under the terms in its LICENSE file.") }
 }

@@ -196,7 +196,7 @@ impl KeyframeStore {
     }
 }
 
-/// Keyframe times from the file's own index, recognised by content rather
+/// Keyframe times from the file's own index, recognized by content rather
 /// than by name: Matroska cues or MP4/MOV sample tables. `None` when it has
 /// none that can be trusted (the caller scans packets instead). Blocking.
 fn container_index(path: &Path, deadline: Option<Instant>) -> Option<(Vec<i64>, &'static str)> {
@@ -348,7 +348,7 @@ mod tests {
     #[tokio::test]
     async fn mp4_indexes_are_read_on_the_spot() {
         let dir = tempfile::tempdir().unwrap();
-        // Recognised by its content, whatever its name.
+        // Recognized by its content, whatever its name.
         let movie = dir.path().join("movie.m4v.part");
         std::fs::write(&movie, tiny_mp4()).unwrap();
         let keyframes = store(dir.path());

@@ -15,7 +15,7 @@ use crate::atlas::{Atlas, AtlasEntry, AtlasFull, AtlasKey};
 use crate::glyphs::GlyphSource;
 use crate::{icons, masks};
 
-/// A colour premultiplied by its alpha, channels 0 to 255.
+/// A color premultiplied by its alpha, channels 0 to 255.
 pub type Rgba = [f32; 4];
 
 /// A rectangle in device pixels, by its edges.
@@ -66,7 +66,7 @@ pub enum TexRef {
 /// How a batch's quads are drawn: which program and texture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Paint {
-    /// Colour times atlas coverage: fills, gradients, outlines, text, icons.
+    /// Color times atlas coverage: fills, gradients, outlines, text, icons.
     Atlas,
     /// A picture times its opacity.
     Picture(TexRef),
@@ -88,7 +88,7 @@ pub struct Vertex {
     pub uv: [f32; 2],
     /// The atlas's texture coordinates.
     pub mask: [f32; 2],
-    /// Premultiplied colour.
+    /// Premultiplied color.
     pub color: [u8; 4],
 }
 
@@ -355,7 +355,7 @@ impl Builder {
             Fill::Corners(cs) => (Paint::Atlas, Paint::Atlas, cs, [0.0; 4]),
             Fill::Picture(t, c, uv) => (Paint::Picture(t), Paint::PictureMasked(t), [c; 4], uv),
         };
-        // Each piece takes the whole shape's corner colours where its own
+        // Each piece takes the whole shape's corner colors where its own
         // corners fall, so the pieces together blend as one rectangle.
         let uniform = whole[1] == whole[0] && whole[2] == whole[0] && whole[3] == whole[0];
         let colors = |s: DevRect| -> [Rgba; 4] {
@@ -384,7 +384,7 @@ impl Builder {
             emit(mesh, body, &clip, r, uv, white, whole);
             return Ok(());
         };
-        // A colour samples no picture: its coordinates stay zero, piece by piece.
+        // A color samples no picture: its coordinates stay zero, piece by piece.
         let flat = uv == [0.0; 4];
         let sub_uv = |s: DevRect| if flat { uv } else { sub_uv(&r, &uv, &s) };
         let (x0, y0, x1, y1) = (r.x0, r.y0, r.x1, r.y1);
@@ -402,7 +402,7 @@ impl Builder {
         Ok(())
     }
 
-    /// An outline `width` dp wide centred on the rectangle's edge.
+    /// An outline `width` dp wide centered on the rectangle's edge.
     fn stroke(
         &mut self,
         mesh: &mut Mesh,
@@ -512,7 +512,7 @@ impl Builder {
         stops.sort_by(|a, b| a.0.total_cmp(&b.0));
         let (first, last) = (stops[0], stops[stops.len() - 1]);
         // Solid before the first stop and after the last, then one piece per
-        // pair of stops, each colour exactly at its stop.
+        // pair of stops, each color exactly at its stop.
         let mut pieces = Vec::with_capacity(stops.len() + 1);
         pieces.push((0.0, first.0, first.1, first.1));
         pieces.extend(stops.windows(2).map(|w| (w[0].0, w[1].0, w[0].1, w[1].1)));
@@ -532,8 +532,8 @@ impl Builder {
         }
     }
 
-    /// A radial gradient as a fan of triangles from the centre (colour linear
-    /// in the distance), and past the radius a ring in the outer colour, all
+    /// A radial gradient as a fan of triangles from the center (color linear
+    /// in the distance), and past the radius a ring in the outer color, all
     /// clipped to the rectangle.
     #[allow(clippy::too_many_arguments)]
     fn radial(
@@ -668,15 +668,15 @@ impl Builder {
 #[derive(Clone, Copy)]
 enum Fill {
     Color(Rgba),
-    /// Colours at the top-left, top-right, bottom-left and bottom-right corners,
+    /// Colors at the top-left, top-right, bottom-left and bottom-right corners,
     /// blended between.
     Corners([Rgba; 4]),
-    /// A texture, the colour that multiplies it (its opacity, premultiplied)
+    /// A texture, the color that multiplies it (its opacity, premultiplied)
     /// and its texture coordinates (u0, v0, u1, v1).
     Picture(TexRef, Rgba, [f32; 4]),
 }
 
-/// A straight colour premultiplied, times `opacity`.
+/// A straight color premultiplied, times `opacity`.
 pub fn premultiply(c: Color, opacity: f32) -> Rgba {
     let a = c.a as f32 / 255.0 * opacity;
     [c.r as f32 * a, c.g as f32 * a, c.b as f32 * a, 255.0 * a]
@@ -741,7 +741,7 @@ fn to_u8(c: &Rgba) -> [u8; 4] {
 }
 
 /// Appends the part of `r` inside `clip`, its texture coordinates and corner
-/// colours (top-left, top-right, bottom-left, bottom-right) cut to match.
+/// colors (top-left, top-right, bottom-left, bottom-right) cut to match.
 fn emit(mesh: &mut Mesh, paint: Paint, clip: &DevRect, r: DevRect, uv: [f32; 4], mask: [f32; 4], colors: [Rgba; 4]) {
     if r.is_empty() {
         return;
@@ -750,7 +750,7 @@ fn emit(mesh: &mut Mesh, paint: Paint, clip: &DevRect, r: DevRect, uv: [f32; 4],
     if c.is_empty() {
         return;
     }
-    // Most quads (glyphs, fills, outlines) are one colour and wholly inside the clip: their
+    // Most quads (glyphs, fills, outlines) are one color and wholly inside the clip: their
     // corners are the rectangle's own, with nothing to interpolate.
     if c == r && colors[1] == colors[0] && colors[2] == colors[0] && colors[3] == colors[0] {
         let color = to_u8(&colors[0]);
@@ -823,7 +823,7 @@ fn emit_triangle(mesh: &mut Mesh, clip: &DevRect, tri: [Corner; 3], white: [f32;
     }
 }
 
-/// Sutherland–Hodgman: the part of a convex polygon inside `clip`, colours
+/// Sutherland–Hodgman: the part of a convex polygon inside `clip`, colors
 /// interpolated along the cut edges.
 fn clip_polygon(poly: &[Corner], clip: &DevRect) -> Vec<Corner> {
     let mut out: Vec<Corner> = poly.to_vec();
@@ -1084,7 +1084,7 @@ mod tests {
         assert_eq!(bounds(pic), [0.0, 0.0, 100.0, 200.0]);
         assert_eq!(pic[1].uv, [0.5, 0.0]);
         assert_eq!(pic[0].color, [255; 4]);
-        // The gradient's colour at the cut is halfway.
+        // The gradient's color at the cut is halfway.
         let g = rig.quad(1);
         assert_eq!(g[1].color[3], 128);
         assert_eq!(rig.mesh.batches.len(), 2);
@@ -1244,7 +1244,7 @@ mod tests {
         for v in &rig.mesh.vertices {
             assert!(v.pos[0] >= -1e-3 && v.pos[0] <= 1920.001 && v.pos[1] >= -1e-3 && v.pos[1] <= 1080.001);
         }
-        // At the centre the inner colour; it fades to nothing at the radius.
+        // At the center the inner color; it fades to nothing at the radius.
         let max_alpha = rig.mesh.vertices.iter().map(|v| v.color[3]).max().unwrap();
         assert_eq!(max_alpha, 46);
         assert!(rig.mesh.vertices.iter().any(|v| v.color[3] == 0));

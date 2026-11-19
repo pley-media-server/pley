@@ -31,7 +31,7 @@ let rle2x4 = SubtitleSamples.rle2x4
 @Suite("Picture subtitles (pictures.test.ts)")
 struct PicturesTests {
     @Test func pgsDecodesRunsLineEndsAndLongRuns() {
-        // Line 1: 2 × colour 1, 2 × colour 0. Line 2: 4 × colour 2 (short coloured run).
+        // Line 1: 2 × color 1, 2 × color 0. Line 2: 4 × color 2 (short colored run).
         let rle: [UInt8] = [1, 1, 0, 0x02, 0, 0, 0, 0x84, 2, 0, 0]
         #expect(PGSDecoder.decodeRle(rle, width: 4, height: 2) == [1, 1, 0, 0, 2, 2, 2, 2])
         let long: [UInt8] = [0, 0xC1, 0x00, 7, 0, 0]
@@ -153,16 +153,16 @@ struct PicturesTests {
     static let idx = ascii("size: 720x480\npalette: 000000, ffffff, 808080, ff0000, 00ff00, 0000ff, 000000, 000000, "
         + "000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000\n")
 
-    /// An SPU of a 4×2 picture at (10, 400): top line pattern colour,
+    /// An SPU of a 4×2 picture at (10, 400): top line pattern color,
     /// bottom line emphasis 1, shown for 175 × 1024 / 90 ms.
     static func spu() -> [UInt8] {
-        let top: [UInt8] = [0x11, 0x00] // count 4 colour 1
-        let bottom: [UInt8] = [0x12, 0x00] // count 4 colour 2
+        let top: [UInt8] = [0x11, 0x00] // count 4 color 1
+        let bottom: [UInt8] = [0x12, 0x00] // count 4 color 2
         let pixels = top + bottom
         let ctrlAt = 4 + pixels.count
         let stopSeqAt = ctrlAt + 4 + 1 + 3 + 3 + 7 + 5 + 1
         let ctrl: [UInt8] = u16(0) + u16(stopSeqAt) + [0x01,
-                                                      0x03, 0x32, 0x10, // colours: e2=3 e1=2 p=1 b=0
+                                                      0x03, 0x32, 0x10, // colors: e2=3 e1=2 p=1 b=0
                                                       0x04, 0xFF, 0xF0, // alpha: e2 15, e1 15, p 15, b 0
                                                       0x05, 0x00, 0xA0, 0x0D, 0x19, 0x01, 0x91, // x 10..13, y 400..401
                                                       0x06] + u16(4) + u16(6) + [0xFF]
@@ -220,7 +220,7 @@ struct PicturesTests {
     }
 
     @Test func dvbDecodesAFramesWorthOfPixelsAtMost() throws {
-        // One 3000×2000 region filled with an opaque colour, placed twice:
+        // One 3000×2000 region filled with an opaque color, placed twice:
         // twice would pass a 4K screen's pixels.
         let placements: [UInt8] = [0, 0] + u16(0) + u16(0) + [0, 0] + u16(10) + u16(10)
         let page = Self.dvbSegment(0x10, [5, 2 << 2] + placements)

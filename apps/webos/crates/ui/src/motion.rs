@@ -145,7 +145,7 @@ impl Motion {
     }
 }
 
-/// Up to four lanes animated together: a number, a colour's channels or a rectangle.
+/// Up to four lanes animated together: a number, a color's channels or a rectangle.
 pub(crate) type Lanes = [f32; 4];
 
 /// A value on its way from one target to the next.

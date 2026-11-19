@@ -370,7 +370,7 @@ sealed class LiveChannelListSheet : Sheet
         }
     }
 
-    /// <summary>One channel: its logo, number and name, what's on, and a star for a favourite.</summary>
+    /// <summary>One channel: its logo, number and name, what's on, and a star for a favorite.</summary>
     sealed class ListRow : View
     {
         readonly TextLabel? name;

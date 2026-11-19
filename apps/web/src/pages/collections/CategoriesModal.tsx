@@ -158,7 +158,7 @@ function CategoryRow({
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(c.title);
   const own = c.key != null;
-  // Saved or cancelled, the name's field goes: the focus goes back to Rename.
+  // Saved or canceled, the name's field goes: the focus goes back to Rename.
   const renameButton = useRef<HTMLButtonElement>(null);
   const wasEditing = useRef(false);
   useEffect(() => {

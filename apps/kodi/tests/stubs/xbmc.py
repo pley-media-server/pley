@@ -139,7 +139,7 @@ class Monitor:
 
 class Keyboard:
     """Kodi's keyboard: each one shown takes the next of `typed` (None:
-    cancelled), and is kept in `shown` as (heading, its text at first)."""
+    canceled), and is kept in `shown` as (heading, its text at first)."""
 
     typed = []
     shown = []

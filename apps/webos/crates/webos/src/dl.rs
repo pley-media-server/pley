@@ -23,7 +23,7 @@ impl Lib {
     /// RTLD_GLOBAL`: the TV's libraries satisfy each other's imports).
     pub fn open(candidates: &[&'static str]) -> Option<Lib> {
         candidates.iter().find_map(|&name| {
-            // SAFETY: opening runs the library's initialisers; the candidates are
+            // SAFETY: opening runs the library's initializers; the candidates are
             // the firmware's own system libraries.
             let lib = unsafe { open_global(name) }.ok()?;
             Some(Lib { name, lib: ManuallyDrop::new(lib) })
@@ -34,7 +34,7 @@ impl Lib {
     /// a second one (`RTLD_NOLOAD`); then [`Lib::open`] when none is loaded.
     pub fn open_loaded(candidates: &[&'static str]) -> Option<Lib> {
         let loaded = candidates.iter().find_map(|&name| {
-            // SAFETY: as in `open`; a library already loaded runs no initialiser.
+            // SAFETY: as in `open`; a library already loaded runs no initializer.
             let lib = unsafe { open_no_load(name) }.ok()?;
             Some(Lib { name, lib: ManuallyDrop::new(lib) })
         });

@@ -32,7 +32,7 @@ public struct LiveSummary: Codable, Hashable, Sendable {
     }
 }
 
-/// A programme of the guide (`LiveProgram`). Times are unix seconds;
+/// A program of the guide (`LiveProgram`). Times are unix seconds;
 /// `image` is an address on the server, when the guide has a picture.
 public struct LiveProgram: Codable, Hashable, Sendable {
     public var channelId: Int
@@ -113,7 +113,7 @@ public struct LiveChannel: Codable, Hashable, Sendable, Identifiable {
     public var group: String
     public var logo: String?
     public var favorite: Bool
-    /// The guide has programmes for it.
+    /// The guide has programs for it.
     public var hasGuide: Bool
     public var now: LiveProgram?
     public var next: LiveProgram?
@@ -236,7 +236,7 @@ public struct LiveChannelPage: Codable, Hashable, Sendable {
 }
 
 /// Which channels a list has (`category` of `GET /api/live/browse`):
-/// every one, the favourites, those watched lately, or one group's.
+/// every one, the favorites, those watched lately, or one group's.
 public enum LiveCategory: Hashable, Sendable, Codable {
     case all, favorites, recent
     case group(String)
@@ -272,7 +272,7 @@ public enum LiveCategory: Hashable, Sendable, Codable {
     }
 }
 
-/// `GET /api/live/guide`: the programmes between `from` and `to` (unix seconds), by channel.
+/// `GET /api/live/guide`: the programs between `from` and `to` (unix seconds), by channel.
 public struct LiveGuide: Codable, Hashable, Sendable {
     public var from: Int64
     public var to: Int64

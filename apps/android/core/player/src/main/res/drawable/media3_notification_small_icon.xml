@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The music notification's status bar icon: Pley's mark in one colour, as
+  The music notification's status bar icon: Pley's mark in one color, as
   Android draws it, in place of Media3's note (its default notification
   provider takes the drawable of this name).
 -->

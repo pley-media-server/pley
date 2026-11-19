@@ -1,4 +1,4 @@
-//! Diagnostics and the licences: the TV's facts, what it plays, the network and the log, each line
+//! Diagnostics and the licenses: the TV's facts, what it plays, the network and the log, each line
 //! taking focus; About's parts and their texts from a NOTICES.txt; the page without one.
 
 mod common;
@@ -95,13 +95,13 @@ fn the_licence_text_takes_focus_and_scrolls() {
 fn without_notices_the_page_says_so_with_back() {
     notices::use_paths(Vec::new());
     let mut app = TestApp::open_on(Route::Settings { section: Some(SettingsSection::About) });
-    // About says the file is missing, as the Licences page does.
+    // About says the file is missing, as the Licenses page does.
     assert!(app.until(|a| a.shows(pley_settings::licences::no_notices())));
-    // TMDB's credit comes after the licences, whatever the file holds.
+    // TMDB's credit comes after the licenses, whatever the file holds.
     assert!(app.shows("Credits") && app.shows("TMDB"));
     assert!(app.shows(pley_core::requests::tmdb_notice()));
     app.open(Route::Licences);
-    assert!(app.until(|a| a.shows("No licence texts")));
+    assert!(app.until(|a| a.shows("No license texts")));
     app.settle();
     app.press(Key::Ok);
     app.settle();

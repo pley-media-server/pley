@@ -168,7 +168,7 @@ fn pin_dots_show_what_is_typed_and_shake_when_refused() {
     let mut screen = |ui: &mut Ui| PinDots { typed: 2 }.show(ui, 480.0, 200.0, shake.get());
     let mut h = Harness::new();
     let f = h.idle(&mut screen);
-    // Four dots, 14 across and 16 apart, centred: two typed, two rings.
+    // Four dots, 14 across and 16 apart, centered: two typed, two rings.
     let width = 4.0 * 14.0 + 3.0 * 16.0;
     let first = Rect::new(480.0 - width / 2.0, 200.0, 14.0, 14.0);
     assert_eq!(fills_of(&f.list, theme::FG), vec![first, first.translate(30.0, 0.0)]);

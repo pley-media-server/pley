@@ -21,7 +21,7 @@ public sealed record CueSpan(string Text, bool Italic = false, bool Bold = false
 /// the settings that place it.
 /// </summary>
 /// <param name="Line">A line number (<paramref name="SnapToLines"/>) or a percentage from the top; null: the last line.</param>
-/// <param name="Position">Percentage of the width the cue's box is placed at; null: centred.</param>
+/// <param name="Position">Percentage of the width the cue's box is placed at; null: centered.</param>
 /// <param name="Align">"start", "center", "end", "left" or "right".</param>
 /// <param name="Size">Percentage of the width the cue's box takes; null: 100.</param>
 public sealed record Cue(long StartMs, long EndMs, IReadOnlyList<IReadOnlyList<CueSpan>> Lines, double? Line = null, bool SnapToLines = true, double? Position = null, string Align = "center", double? Size = null)

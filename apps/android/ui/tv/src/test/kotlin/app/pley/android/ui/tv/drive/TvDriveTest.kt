@@ -122,7 +122,7 @@ class TvDriveTest {
         compose.onNodeWithText("USB drive").assertDoesNotExist()
         compose.onNodeWithText("/").assertExists()
         compose.onNodeWithTag(TV_DRIVE_MESSAGE).assertIsFocused().assert(hasText("Nothing to play here"))
-        // Centred between the gutter (96) and the safe area's edge (912), as the Samsung app has it.
+        // Centered between the gutter (96) and the safe area's edge (912), as the Samsung app has it.
         val message = compose.onNodeWithText("Nothing to play here").getBoundsInRoot()
         assertEquals(504f, ((message.left + message.right) / 2).value, 2f)
     }

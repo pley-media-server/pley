@@ -1,6 +1,6 @@
 //! Pley for LG TV's Live TV, as the Android TV app has it:
-//! the page of categories beside the guide or the channels as cards, with search, a programme's
-//! details and favourites ([`LiveTvScreen`]), and the live player with its channel list beside the
+//! the page of categories beside the guide or the channels as cards, with search, a program's
+//! details and favorites ([`LiveTvScreen`]), and the live player with its channel list beside the
 //! picture ([`LivePlayerScreen`]).
 
 mod cards;

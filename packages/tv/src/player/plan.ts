@@ -206,8 +206,8 @@ export function mimeTypeOf(container: string | null | undefined): string | null 
 
 /**
  * The Dolby Vision guards (the Android app's DvGuards): a session that
- * would show wrong colours is asked for again another way. A remux of
- * profile 5 loses its signalling in MPEG-TS on a TV that doesn't read the
+ * would show wrong colors is asked for again another way. A remux of
+ * profile 5 loses its signaling in MPEG-TS on a TV that doesn't read the
  * master playlist's Dolby Vision codecs: transcode it. Direct play of
  * profile 7 on a TV that doesn't decode it: its HDR10 base layer.
  */

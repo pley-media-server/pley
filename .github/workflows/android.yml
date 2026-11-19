@@ -100,7 +100,7 @@ jobs:
           retention-days: 14
       # Allowed libraries only (no FFmpeg, mpv or GPL code), no native code
       # but AndroidX's own, and the APK's size, which goes to the job summary.
-      - name: Licences, native code and size of the release
+      - name: Licenses, native code and size of the release
         shell: pwsh
         run: ../../scripts/check-android.ps1
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

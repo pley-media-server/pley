@@ -108,10 +108,10 @@ private class GuideScroll(initial: Float) {
 }
 
 /**
- * The programme guide (the web's GuideGrid): channels down, time across
+ * The program guide (the web's GuideGrid): channels down, time across
  * from half an hour before now for two days, now marked by a line. Rows
- * scroll up and down, time sideways; programmes are fetched by chunk as
- * they come into view. A channel plays at a tap, a programme opens its
+ * scroll up and down, time sideways; programs are fetched by chunk as
+ * they come into view. A channel plays at a tap, a program opens its
  * details; Now brings the time back.
  */
 @Composable
@@ -192,7 +192,7 @@ internal fun PhoneGuide(
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
                                 .layout { measurable, constraints ->
-                                    // Centred on the line.
+                                    // Centered on the line.
                                     val chip = measurable.measure(constraints)
                                     layout(chip.width, chip.height) { chip.place((nowX - scroll.x).roundToInt() - chip.width / 2, 0) }
                                 }
@@ -283,7 +283,7 @@ private fun LoadingRow(layout: GuideLayout, skeleton: app.pley.android.designsys
     }
 }
 
-/** One channel's row: its cell (logo, number, name) and its programmes, placed by time. */
+/** One channel's row: its cell (logo, number, name) and its programs, placed by time. */
 @Composable
 private fun GuideRow(
     channel: LiveChannel,
@@ -387,8 +387,8 @@ private fun GuideRow(
 }
 
 /**
- * A programme: its title and times, the one on now edged in the accent
- * with how far it is along its foot, those over dimmed. A programme begun
+ * A program: its title and times, the one on now edged in the accent
+ * with how far it is along its foot, those over dimmed. A program begun
  * before the left edge keeps its title in view.
  */
 @Composable
@@ -457,7 +457,7 @@ private fun ProgramCell(
     }
 }
 
-/** Narrower than this, a programme shows no text. */
+/** Narrower than this, a program shows no text. */
 private const val MIN_TEXT_PX = 60f
 
 internal const val LIVE_TV_GUIDE = "pley.live.guide"

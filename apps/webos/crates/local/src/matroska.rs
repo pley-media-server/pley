@@ -379,7 +379,7 @@ pub(crate) fn dolby_vision_record(r: &[u8]) -> Option<(i64, i64, i64)> {
     Some((i64::from((a >> 1) & 0x7F), i64::from(((a & 1) << 5) | (b >> 3)), i64::from(c >> 4)))
 }
 
-/// A colour's codes as ffprobe names them.
+/// A color's codes as ffprobe names them.
 pub(crate) fn transfer_name(transfer: u64) -> Option<&'static str> {
     match transfer {
         16 => Some("smpte2084"),

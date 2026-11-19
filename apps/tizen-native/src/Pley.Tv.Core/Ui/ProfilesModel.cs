@@ -39,12 +39,12 @@ public sealed record ProfileTile(long Id, string Name, string? AvatarUrl, string
     }
 }
 
-/// <summary>The web's profile colours (apps/web/src/components/Avatar.tsx; the Android app's ProfileColors).</summary>
+/// <summary>The web's profile colors (apps/web/src/components/Avatar.tsx; the Android app's ProfileColors).</summary>
 public static class ProfileColors
 {
     static readonly uint[] Palette = { 0x38BDF8, 0xA78BFA, 0xF472B6, 0xFB923C, 0xFACC15, 0x4ADE80, 0x2DD4BF, 0xF87171 };
 
-    /// <summary>The profile's own colour as 0xRRGGBB, or one picked from its name.</summary>
+    /// <summary>The profile's own color as 0xRRGGBB, or one picked from its name.</summary>
     public static uint Of(string name, string? chosen)
     {
         var parsed = chosen == null ? null : Parse(chosen);

@@ -734,7 +734,7 @@ function ItemHero(p: {
   file: MediaFile | null;
   partOf: { id: number; title: string }[];
   primary: string;
-  /** Nothing to play: Play is greyed out, and focus starts on the next button. */
+  /** Nothing to play: Play is grayed out, and focus starts on the next button. */
   unavailable: boolean;
   resume: boolean;
   playable: boolean;

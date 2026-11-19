@@ -26,7 +26,7 @@ struct RequestsDecodingTests {
         let manager = try decode(RequestSummary.self, fixture: "requests/summary_manager.json")
         #expect(manager.manage && manager.access == .auto)
         #expect(manager.moviesLeft == nil && manager.seasonsLeft == nil)
-        // A manager's number: pending, failed and news; failed ones in the danger colour.
+        // A manager's number: pending, failed and news; failed ones in the danger color.
         #expect(manager.badge == 3 && manager.badgeAlarm)
     }
 

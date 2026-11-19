@@ -1,5 +1,5 @@
 //! What tests, the simulator and screenshots can count on in the fixture
-//! server's catalogue, which is the same on every run (the Android app's
+//! server's catalog, which is the same on every run (the Android app's
 //! fixture server's `FixtureIds`, plus Live TV).
 //!
 //! Three libraries: [`MOVIES`] (1,500 movies), [`SHOWS`] (300 shows with
@@ -80,7 +80,7 @@ pub const TRACK: i64 = 62_001;
 /// A smart collection of the movies library: its comedies of the 1990s.
 pub const SMART_COLLECTION: i64 = 1;
 pub const COLLECTION: i64 = 2;
-/// "Holiday Favourites" in the movies and the shows libraries: one row on Home, opened as the
+/// "Holiday Favorites" in the movies and the shows libraries: one row on Home, opened as the
 /// merged page.
 pub const HOLIDAY_MOVIES: i64 = 30;
 pub const HOLIDAY_SHOWS: i64 = 31;

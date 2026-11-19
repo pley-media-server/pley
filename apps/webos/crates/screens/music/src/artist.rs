@@ -141,7 +141,7 @@ impl ArtistScreen {
             ui.repaint_after(since + SKELETON_AFTER - now);
             return;
         }
-        // `ArtistSkeleton`: the circle, and two bars centred beside it, 10 apart.
+        // `ArtistSkeleton`: the circle, and two bars centered beside it, 10 apart.
         skeleton_block(ui, Rect::new(theme::GUTTER, TOP, PICTURE, PICTURE), PICTURE / 2.0);
         let x = theme::GUTTER + PICTURE + PICTURE_GAP;
         let y = TOP + (PICTURE - 64.0) / 2.0;
@@ -160,7 +160,7 @@ impl ArtistScreen {
             art.backdrop.as_ref(),
         );
 
-        // The header: the picture and a column beside it, centred on each other.
+        // The header: the picture and a column beside it, centered on each other.
         let x = theme::GUTTER + PICTURE + PICTURE_GAP;
         let width = COLUMN_MAX.min(theme::CANVAS_W - theme::SAFE_X - x);
         let name = ui.layout(&detail.title, &theme::PAGE_TITLE, &TextOpts::wrap(width, 2).balanced());

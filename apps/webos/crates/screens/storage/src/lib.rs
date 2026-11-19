@@ -167,7 +167,7 @@ impl StorageScreen {
         picked
     }
 
-    /// Why the folder shows no lines of its own, centred under its picture: under the ".." line
+    /// Why the folder shows no lines of its own, centered under its picture: under the ".." line
     /// when there is one. With no lines, it holds focus, unmarked.
     fn message(&self, ui: &mut Ui, message_id: Id) {
         let Some(listing) = &self.listing else { return };

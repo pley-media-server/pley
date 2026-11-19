@@ -13,7 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** The player's words with numbers in them, in English as they were and in French and Spanish, and its method badge's colours. */
+/** The player's words with numbers in them, in English as they were and in French and Spanish, and its method badge's colors. */
 @RunWith(RobolectricTestRunner::class)
 class PlayerWordsTest {
     private val english = ApplicationProvider.getApplicationContext<Context>()

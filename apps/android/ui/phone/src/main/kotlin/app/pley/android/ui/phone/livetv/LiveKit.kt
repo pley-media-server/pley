@@ -117,7 +117,7 @@ internal fun ProgramProgress(program: LiveProgram, now: Long, modifier: Modifier
     }
 }
 
-/** A small boxed word over a programme: Live in danger red, New in the accent. */
+/** A small boxed word over a program: Live in danger red, New in the accent. */
 @Composable
 internal fun ProgramBadge(text: String, live: Boolean, modifier: Modifier = Modifier) {
     Text(
@@ -132,7 +132,7 @@ internal fun ProgramBadge(text: String, live: Boolean, modifier: Modifier = Modi
     )
 }
 
-/** The badge a programme carries, if any: Live first, else New. */
+/** The badge a program carries, if any: Live first, else New. */
 @Composable
 internal fun BadgeOf(program: LiveProgram, modifier: Modifier = Modifier) {
     when {

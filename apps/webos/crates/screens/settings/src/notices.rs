@@ -1,9 +1,9 @@
 //! The open-source parts Pley for LG TV is built from, read from the NOTICES.txt its package
 //! carries beside the binary (`cargo xtask notices` writes it: the bundled assets, the Rust
-//! standard library, then each crate with its licence and texts).
+//! standard library, then each crate with its license and texts).
 //!
 //! The file is read once per launch, off the main thread, and kept: About lists the parts and the
-//! Licences page shows their texts.
+//! Licenses page shows their texts.
 
 use std::cell::RefCell;
 use std::io::Read;
@@ -18,7 +18,7 @@ const RULE: &str = "============================================================
 /// The most of NOTICES.txt read: the file is the app's own, but a file is never read unbounded.
 pub const MAX_BYTES: u64 = 4 * 1024 * 1024;
 
-/// One part and its licence.
+/// One part and its license.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Notice {
     /// `Roboto (the typeface)`, `serde 1.0.219`.
@@ -27,7 +27,7 @@ pub struct Notice {
     pub licence: String,
     /// Where it comes from, when the file says.
     pub link: Option<String>,
-    /// Its licence texts and notices.
+    /// Its license texts and notices.
     pub text: String,
 }
 
@@ -40,7 +40,7 @@ pub struct Notices {
 }
 
 impl Notices {
-    /// Each part's name and licence, as About lists them.
+    /// Each part's name and license, as About lists them.
     pub fn list(&self) -> Vec<(String, String)> {
         self.parts.iter().map(|n| (n.name.clone(), n.licence.clone())).collect()
     }
@@ -154,12 +154,12 @@ thread_local! {
     static OPEN_AT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
-/// Says which part the Licences page opens on: About's row chosen just before it opens.
+/// Says which part the Licenses page opens on: About's row chosen just before it opens.
 pub fn open_at(index: usize) {
     OPEN_AT.with(|c| c.set(index));
 }
 
-/// The part the Licences page opens on, and forgets it (the next page opens on the first).
+/// The part the Licenses page opens on, and forgets it (the next page opens on the first).
 pub fn take_open_at() -> usize {
     OPEN_AT.with(|c| c.replace(0))
 }
@@ -171,8 +171,8 @@ mod tests {
     /// A NOTICES.txt as `cargo xtask notices` writes it (`xtask/src/licenses.rs`).
     fn sample() -> String {
         [
-            "Pley for LG TV includes the following third-party software, each under its own licence.",
-            "Pley itself is under the licence in LICENSE.txt (see LICENSING.md).",
+            "Pley for LG TV includes the following third-party software, each under its own license.",
+            "Pley itself is under the license in LICENSE.txt (see LICENSING.md).",
             "",
             RULE,
             "Roboto (the typeface), OFL-1.1",

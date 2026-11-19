@@ -41,7 +41,7 @@ private func liveRepository(_ server: FixtureServer) async throws -> LiveTvRepos
         server.refuseLiveFavorite(status: 503)
         let before = live.version
         await #expect(throws: PleyError.self) { try await live.setFavorite(1, false) }
-        // Put back: still a favourite here and on the server, and nothing asked again.
+        // Put back: still a favorite here and on the server, and nothing asked again.
         #expect(live.marked(news).favorite)
         #expect(server.liveFavorites.contains(1))
         #expect(live.version == before)

@@ -539,7 +539,7 @@ impl MusicSession {
             let mut body = req(caps().map(|r| r.caps));
             body.client_id = Some(client_id);
             body.keyed_urls = keyed;
-            // Not cancelled with the player: a session the server made is always let go.
+            // Not canceled with the player: a session the server made is always let go.
             let result = Cancel::new().scope(|| server.play(&body));
             if let Ok(info) = &result
                 && generation.load(Ordering::SeqCst) != g

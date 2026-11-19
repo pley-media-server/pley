@@ -83,7 +83,7 @@ impl ProfileFence {
 }
 
 /// The sign-in as a player made under the fence's `at` sees it: the tokens until the fence
-/// closes, then none, the request let go as cancelled (never shown, nothing doubted).
+/// closes, then none, the request let go as canceled (never shown, nothing doubted).
 struct Fenced {
     tokens: Arc<Tokens>,
     fence: Arc<ProfileFence>,

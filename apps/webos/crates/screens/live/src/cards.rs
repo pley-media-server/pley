@@ -1,6 +1,6 @@
 //! The channels as cards (`ChannelTiles`, `ChannelTileCard` in `TvLiveTvScreen.kt`): three across
 //! beside the categories, a page of channels loaded at a time as they come near. A card is the
-//! channel's logo in its well with its number at the top left, a star for a favourite and how far
+//! channel's logo in its well with its number at the top left, a star for a favorite and how far
 //! what's on is along its foot, captioned with its name and what's on. OK watches; holding OK,
 //! Menu or Info opens the details; Left from the first column goes to the category shown, on a
 //! press of its own rather than a held key.
@@ -129,7 +129,7 @@ fn card(ui: &mut Ui, cx: &AppCx, slot: &TileSlot, c: &LiveChannel, category: &Ca
     Tile::new(TileKind::Episode, &name).subtitle(&on).custom(&well).paint(ui, slot);
 }
 
-/// A card's well: the logo (or the name on a gradient), the number, the favourite's star and how
+/// A card's well: the logo (or the name on a gradient), the number, the favorite's star and how
 /// far what's on is.
 fn card_well(ui: &mut Ui, cx: &AppCx, rect: Rect, c: &LiveChannel, now: i64) {
     channel_tile(ui, cx, rect, c, Well::PAGE.named().styled(theme::TITLE));

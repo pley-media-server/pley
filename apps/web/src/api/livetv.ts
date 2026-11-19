@@ -46,7 +46,7 @@ export interface Channel {
   /** Same-origin logo URL, when the channel has one. */
   logo: string | null;
   favorite: boolean;
-  /** The guide has programmes for it. */
+  /** The guide has programs for it. */
   has_guide: boolean;
   now: Program | null;
   next: Program | null;
@@ -55,7 +55,7 @@ export interface Channel {
 export interface Guide {
   from: Timestamp;
   to: Timestamp;
-  /** Programmes by channel id. */
+  /** Programs by channel id. */
   programs: Record<string, Program[]>;
 }
 
@@ -560,7 +560,7 @@ export function leaveChannel(sessionId: string, keepalive = false): Promise<void
 
 // ---------------------------------------------------------------- helpers
 
-/** The programme's place between its start and stop at `now` (0–1). */
+/** The program's place between its start and stop at `now` (0–1). */
 export function programProgress(p: Pick<Program, "start" | "stop">, now: number): number {
   return Math.max(0, Math.min(1, (now - p.start) / Math.max(1, p.stop - p.start)));
 }

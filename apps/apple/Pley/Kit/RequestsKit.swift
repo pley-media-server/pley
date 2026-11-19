@@ -3,7 +3,7 @@ import PleyScreens
 import SwiftUI
 
 // The pieces the request screens share: TMDB's posters with their badges,
-// stage pills in their colours, the download's bar, the states a page
+// stage pills in their colors, the download's bar, the states a page
 // can't show in, the count on the ways in, and TMDB's credit.
 
 /// A TMDB title's poster, its status badge on it ("In library",
@@ -102,7 +102,7 @@ struct RequestTileView: View {
     }
 }
 
-/// A stage pill's colours: waiting for approval amber; on its way blue;
+/// A stage pill's colors: waiting for approval amber; on its way blue;
 /// ready green; declined and failed red; gone gray.
 enum PillColors {
     static func of(_ tone: PillTone) -> Color {
@@ -126,7 +126,7 @@ enum PillColors {
     }
 }
 
-/// A request's stage: its words beside a dot in the stage's colour, the
+/// A request's stage: its words beside a dot in the stage's color, the
 /// download's bar under it while one runs (gray while paused, red with a
 /// problem), and the line a failed request has.
 struct StagePillView: View {
@@ -243,7 +243,7 @@ struct StaleLine: View {
     }
 }
 
-/// The number on the ways into requests: the accent's colour, red while
+/// The number on the ways into requests: the accent's color, red while
 /// failed requests wait for a manager. Its words are on what holds it.
 struct CountBadge: View {
     let text: String

@@ -1,5 +1,5 @@
 //! A headless app for this crate's tests: the shell with Settings, History, Diagnostics and
-//! Licences alone (other pages are the shell's placeholder), over a fake TV, signed in to the fake
+//! Licenses alone (other pages are the shell's placeholder), over a fake TV, signed in to the fake
 //! server. Frames run with pley-ui's stub shaper and pictures.
 
 #![allow(dead_code)]

@@ -366,7 +366,7 @@ export function useServerEvents(userId: Id | null) {
           } else if (fetched && Date.now() - fetched >= ACTIVITY_POLL_MS) {
             // Each patch restarts the poll's timer, and events come more
             // often than it: the activity is fetched here once it's due,
-            // joining a fetch under way rather than cancelling it.
+            // joining a fetch under way rather than canceling it.
             void qc.refetchQueries({ queryKey: keys.activity, exact: true, type: "active" }, { cancelRefetch: false });
           }
           break;

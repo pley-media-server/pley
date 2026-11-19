@@ -8,7 +8,7 @@ import { Badge, Button, ProgressBar } from "@/components/ui";
 import { sizedImage } from "@/lib/images";
 import { ChannelLogo, formatGuideDay, formatSpan, liveUrl, timeLeft, useNow } from "./common";
 
-/** A programme's details, with what can be done with its channel. */
+/** A program's details, with what can be done with its channel. */
 export function ProgramModal({
   channel,
   program,

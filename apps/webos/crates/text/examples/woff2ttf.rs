@@ -10,7 +10,7 @@
 //! Without a file, it looks for `@fontsource/roboto` in the `node_modules` of
 //! this checkout or a folder above it, converts the Latin and Latin Extended
 //! subsets of the three weights the design uses (400, 500, 700) and writes the
-//! package's licence as `OFL.txt` beside them.
+//! package's license as `OFL.txt` beside them.
 //!
 //! A WOFF 1 file is an sfnt whose tables are each zlib-compressed (or stored
 //! when that saves nothing), behind a header of its own. Converting means

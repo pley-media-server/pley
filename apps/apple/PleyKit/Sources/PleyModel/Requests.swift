@@ -253,7 +253,7 @@ public struct RequestSummary: Codable, Hashable, Sendable {
     /// The number on the way into requests: for managers, what waits for them too.
     public var badge: Int { manage ? pending + failed + unseen : unseen }
 
-    /// The badge is in the danger colour: requests failed and wait for a manager.
+    /// The badge is in the danger color: requests failed and wait for a manager.
     public var badgeAlarm: Bool { manage && failed > 0 }
 }
 
@@ -1063,7 +1063,7 @@ public struct RequestQuery: Hashable, Sendable {
 
 // MARK: What the screens make of them
 
-/// A pill's colour: pending amber, on its way blue, ready green, refused red, gone gray.
+/// A pill's color: pending amber, on its way blue, ready green, refused red, gone gray.
 public enum PillTone: Hashable, Sendable {
     case amber, blue, green, red, gray
 }

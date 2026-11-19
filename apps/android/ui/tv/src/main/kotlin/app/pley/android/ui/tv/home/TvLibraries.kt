@@ -379,7 +379,7 @@ private fun LibraryCard(
     }
 }
 
-/** A card's colours: focused, the accent fill with [onAccent][PleyColors.OnAccent] content. */
+/** A card's colors: focused, the accent fill with [onAccent][PleyColors.OnAccent] content. */
 @Composable
 private fun cardColors() = ClickableSurfaceDefaults.colors(
     containerColor = PleyColors.Surface2,
@@ -391,8 +391,8 @@ private fun cardColors() = ClickableSurfaceDefaults.colors(
 )
 
 /**
- * A card's inside, in its content colour: the icon on a tint, the name,
- * the [line] under it, and while sorting a handle in [grip]'s colour.
+ * A card's inside, in its content color: the icon on a tint, the name,
+ * the [line] under it, and while sorting a handle in [grip]'s color.
  */
 @Composable
 private fun CardBody(icon: PleyIcon, name: String, line: String, grip: Color? = null) {

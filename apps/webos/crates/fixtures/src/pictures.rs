@@ -1,5 +1,5 @@
 //! The fixture server's pictures, drawn on request without fonts: a
-//! gradient in a colour from the picture's seed with a simple shape or two,
+//! gradient in a color from the picture's seed with a simple shape or two,
 //! so tiles look apart. Sized like the server's: widths rounded up to its
 //! buckets (apps/server/src/images.rs), the height from the picture's shape;
 //! JPEG at quality 82 as the server resizes, PNG where there is transparency
@@ -94,7 +94,7 @@ impl Pictures {
     pub fn artwork(&self, seed: i64, shape: Shape, width: Option<u32>) -> Arc<[u8]> {
         let w = width.map(bucket).unwrap_or(shape.original());
         let h = shape.height(w);
-        // A handful of colours and layouts: enough to tell tiles apart, few
+        // A handful of colors and layouts: enough to tell tiles apart, few
         // enough to keep.
         let hue = (seed * 37).rem_euclid(24) as u32;
         let layout = (seed * 7).rem_euclid(3) as u32;
@@ -117,7 +117,7 @@ impl Pictures {
         })
     }
 
-    /// A profile's picture: a head and shoulders on its colour, 256 pixels square.
+    /// A profile's picture: a head and shoulders on its color, 256 pixels square.
     pub fn avatar(&self, rgb: u32) -> Arc<[u8]> {
         self.cached(format!("avatar:{rgb:06x}"), || {
             let color = [(rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8];
@@ -279,7 +279,7 @@ fn shade(color: [u8; 3], f: f32) -> [u8; 3] {
     color.map(|c| (c as f32 * f) as u8)
 }
 
-/// A colour from its hue (degrees), saturation and value (0 to 1).
+/// A color from its hue (degrees), saturation and value (0 to 1).
 fn hsv(hue: u32, saturation: f32, value: f32) -> [u8; 3] {
     let c = value * saturation;
     let x = c * (1.0 - ((hue as f32 / 60.0) % 2.0 - 1.0).abs());

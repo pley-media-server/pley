@@ -121,7 +121,7 @@ struct Viewer {
     /// Its device's volume, 0 to 100, where its player says it (a cast to
     /// a Google Cast device).
     volume: Option<u8>,
-    /// Cancelled when it is stopped from elsewhere: a stream reader's
+    /// Canceled when it is stopped from elsewhere: a stream reader's
     /// response ends, though others still watch the channel.
     stopped: CancellationToken,
 }

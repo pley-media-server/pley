@@ -11,12 +11,12 @@ built for two places:
   `ghcr.io/pley-media-server/pley-ffmpeg:<tag>`. The Pley image copies them
   ([../docker/Dockerfile](../docker/Dockerfile)) instead of compiling them
   on every build. The image holds files only: `/usr` (the programs,
-  libplacebo, their licences and sources, the patches among them) and
+  libplacebo, their licenses and sources, the patches among them) and
   `/packages`, the Debian packages they link.
 - **Windows** ([Dockerfile.windows](Dockerfile.windows)): `ffmpeg.exe` and
   `ffprobe.exe` for x64, with their libraries built in, so they need no DLL
   beside them. They come in a folder the installer takes as it is: `bin`,
-  FFmpeg's licence, a [README](windows/README.txt) and `source`, what they
+  FFmpeg's license, a [README](windows/README.txt) and `source`, what they
   were built from, published as a files-only image,
   `ghcr.io/pley-media-server/pley-ffmpeg-windows:<tag>`. Releases' Windows
   installers carry it.

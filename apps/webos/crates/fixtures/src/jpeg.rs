@@ -1,5 +1,5 @@
 //! A baseline JPEG encoder: JFIF, YCbCr with 4:2:0 chroma, the example
-//! quantisation tables scaled by quality as libjpeg does, and the standard
+//! quantization tables scaled by quality as libjpeg does, and the standard
 //! Huffman tables (ITU-T T.81, Annex K). What the server answers for resized
 //! pictures (JPEG, quality 82), drawn here without an image library.
 
@@ -120,7 +120,7 @@ fn category(value: i32) -> (u32, u32) {
     (size, bits)
 }
 
-/// The quantisation table for `quality` (1 to 100), as libjpeg scales it.
+/// The quantization table for `quality` (1 to 100), as libjpeg scales it.
 fn scaled(base: &[u16; 64], quality: u8) -> [u16; 64] {
     let quality = quality.clamp(1, 100) as u32;
     let scale = if quality < 50 { 5_000 / quality } else { 200 - 2 * quality };
@@ -139,7 +139,7 @@ fn basis() -> [[f32; 8]; 8] {
     c
 }
 
-/// Transforms, quantises and codes one block of samples (level-shifted).
+/// Transforms, quantizes and codes one block of samples (level-shifted).
 struct BlockCoder {
     basis: [[f32; 8]; 8],
 }

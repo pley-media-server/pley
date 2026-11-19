@@ -373,7 +373,7 @@ class ArtworkPipelineTest {
         }
     }
 
-    /** Answers nothing until cancelled, remembering what was asked and what was let go. */
+    /** Answers nothing until canceled, remembering what was asked and what was let go. */
     private class SlowServer : Interceptor {
         val asked = mutableListOf<String>()
         val cancelled = mutableListOf<String>()

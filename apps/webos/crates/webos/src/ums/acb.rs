@@ -1,7 +1,7 @@
 //! LG's app-switching control block (`libAcbAPI.so.1`, webOS 4.x only), one
 //! of webOS 4's candidates for binding an address playback's picture.
 //!
-//! The handle is made and initialised once per process with the app id SAM
+//! The handle is made and initialized once per process with the app id SAM
 //! launched (a wrong id binds the plane for another app: sound, a black
 //! picture, no error). Per playback, once the pipeline has loaded: the main
 //! sink, the pipeline's `mediaId`, `LOADED`, the display window, then the
@@ -62,7 +62,7 @@ unsafe extern "C" fn on_event(
 
 impl Acb {
     /// The process's handle, made on first use for `app_id`; `None` where the
-    /// library isn't (webOS 5 and later, or off the TV) or won't initialise.
+    /// library isn't (webOS 5 and later, or off the TV) or won't initialize.
     pub fn get(app_id: &str) -> Option<&'static Mutex<Acb>> {
         static ACB: OnceLock<Option<Mutex<Acb>>> = OnceLock::new();
         ACB.get_or_init(|| {
@@ -74,7 +74,7 @@ impl Acb {
             let handle = unsafe {
                 let handle = (api.AcbAPI_create)();
                 if handle == 0 || !ok((api.AcbAPI_initialize)(handle, PLAYER_TYPE_MSE, id.as_ptr(), on_event)) {
-                    crate::log::line("acb: the control block wouldn't initialise");
+                    crate::log::line("acb: the control block wouldn't initialize");
                     return None;
                 }
                 handle

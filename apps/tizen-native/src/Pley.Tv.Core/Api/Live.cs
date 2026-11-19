@@ -23,7 +23,7 @@ public sealed record LiveSummary
     public IReadOnlyList<long> Recent { get; init; } = Array.Empty<long>();
 }
 
-/// <summary>A programme of the guide; <see cref="Image"/> is an address on the server, when the guide has a picture.</summary>
+/// <summary>A program of the guide; <see cref="Image"/> is an address on the server, when the guide has a picture.</summary>
 public sealed record LiveProgram
 {
     public long ChannelId { get; init; }
@@ -63,7 +63,7 @@ public sealed record LiveChannel
     public string Group { get; init; } = "";
     public string? Logo { get; init; }
     public bool Favorite { get; init; }
-    /// <summary>The guide has programmes for it.</summary>
+    /// <summary>The guide has programs for it.</summary>
     public bool HasGuide { get; init; }
     public LiveProgram? Now { get; init; }
     public LiveProgram? Next { get; init; }
@@ -114,7 +114,7 @@ public sealed record LiveChannelPage
     public IReadOnlyList<LiveChannel> Channels { get; init; } = Array.Empty<LiveChannel>();
 }
 
-/// <summary>GET /api/live/guide: the programmes between <see cref="From"/> and <see cref="To"/>, by channel.</summary>
+/// <summary>GET /api/live/guide: the programs between <see cref="From"/> and <see cref="To"/>, by channel.</summary>
 public sealed record LiveGuide
 {
     public long From { get; init; }
@@ -189,7 +189,7 @@ public sealed record BusyConnection
 
 /// <summary>
 /// Which channels a list has (<c>category</c> of GET /api/live/browse): every one, the
-/// favourites, those watched lately, or one group's.
+/// favorites, those watched lately, or one group's.
 /// </summary>
 public abstract record LiveCategory
 {

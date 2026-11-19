@@ -8,7 +8,7 @@
 //!   proofs of who it is (docs/API.md, "Telling servers apart"), the
 //!   household's profiles and switching between them (Sam's PIN is
 //!   [`ids::PIN`]);
-//! - the catalogue of [`ids`]: libraries with sorting, filters and paging,
+//! - the catalog of [`ids`]: libraries with sorting, filters and paging,
 //!   Home's and libraries' hubs, items with files, streams, chapters, markers
 //!   and people, collections, playlists, My List, history and search;
 //! - playback: sessions answered direct or as HLS, at keyed addresses when

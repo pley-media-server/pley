@@ -767,7 +767,7 @@ export interface PlayingSession {
   /** What plays (kind "item"). */
   item: ItemSummary | null;
   /**
-   * The channel watched (kind "live"): `now`, the programme on, from
+   * The channel watched (kind "live"): `now`, the program on, from
    * `now_start` to `now_stop` (unix seconds), and `next`, the one after it.
    * The times and `next` are absent from servers before them.
    */

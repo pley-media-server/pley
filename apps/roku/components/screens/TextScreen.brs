@@ -1,6 +1,6 @@
 ' A page of text from Settings (its route says which): Diagnostics, the
 ' app and this Roku, then what the Roku tells the server it plays, as it
-' asks for each title (lib/Caps.brs); or the open-source licences: Pley's
+' asks for each title (lib/Caps.brs); or the open-source licenses: Pley's
 ' own, then the notices of what the package bundles (licenses/).
 
 sub init()

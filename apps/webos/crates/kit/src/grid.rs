@@ -233,7 +233,7 @@ impl PosterGrid {
         let first_row = (((shown - theme::GRID_CONTENT_TOP - cell_h) / pitch).floor() + 1.0).max(0.0) as usize;
         let past_row = ((((theme::CANVAS_H - wells_top) + shown) / pitch).ceil().max(0.0) as usize).min(rows);
         let first_row = first_row.min(past_row);
-        // The focused row and its neighbours are drawn even while the grid is still sliding.
+        // The focused row and its neighbors are drawn even while the grid is still sliding.
         let focused_row = state.index / cols;
         let r0 = first_row.saturating_sub(1).min(focused_row.saturating_sub(1));
         let r1 = (past_row + 1).max(focused_row + 2).min(rows);
@@ -334,7 +334,7 @@ impl PosterGrid {
 /// The A–Z jump control (`JumpControl.kt`, `AlphaIndex.kt`): a 40 × 40 Surface3
 /// box (radius 6) at x 872, level with the grid's first row, with 20 dp of room above and below.
 /// At rest it shows the letter of the focused tile's section in `Tv.Title`; focused (Accent, 1.08)
-/// Up and Down step through `# A … Z` with the neighbours shown above and below in `Tv.Caption`
+/// Up and Down step through `# A … Z` with the neighbors shown above and below in `Tv.Caption`
 /// (Muted, or Disabled at 60 % when no title starts with them); Up at "#" leaves upward; OK jumps;
 /// Left goes back to the grid.
 #[derive(Clone, Copy, Debug)]
@@ -417,7 +417,7 @@ impl JumpControl<'_> {
             text_centred(ui, rect, &JUMP_LETTERS[*letter].to_string(), &theme::TITLE, s.content);
         });
         if s.progress > 0.0 {
-            // The neighbours, in the 20 dp rooms above and below.
+            // The neighbors, in the 20 dp rooms above and below.
             let neighbour = |ui: &mut Ui, i: usize, y: f32| {
                 let c = if self.available[i] { theme::MUTED } else { theme::DISABLED.alpha(0.6) };
                 let r = Rect::new(rect.x, y, Self::SIZE, 20.0);

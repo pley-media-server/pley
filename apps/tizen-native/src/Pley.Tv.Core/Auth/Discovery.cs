@@ -21,7 +21,7 @@ public interface IDatagramPort : IDisposable
     /// <summary>Sends <paramref name="payload"/> to <paramref name="to"/>; throws when the network refuses.</summary>
     void Send(byte[] payload, IPEndPoint to);
 
-    /// <summary>The next datagram; cancelled by <paramref name="cancel"/>.</summary>
+    /// <summary>The next datagram; canceled by <paramref name="cancel"/>.</summary>
     Task<(byte[] Bytes, IPEndPoint From)> Receive(CancellationToken cancel);
 }
 
@@ -34,7 +34,7 @@ public sealed class UdpPort : IDatagramPort
 
     public async Task<(byte[] Bytes, IPEndPoint From)> Receive(CancellationToken cancel)
     {
-        // UdpClient of .NET Standard takes no token: the wait ends with the socket, closed when cancelled.
+        // UdpClient of .NET Standard takes no token: the wait ends with the socket, closed when canceled.
         using (cancel.Register(client.Dispose))
         {
             try

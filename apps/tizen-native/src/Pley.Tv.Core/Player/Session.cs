@@ -141,7 +141,7 @@ public sealed class PlaybackSession : IPlaybackSession
     }
 
     /// <summary>
-    /// Starts a session for <paramref name="request"/>. The request isn't cancelled halfway: the
+    /// Starts a session for <paramref name="request"/>. The request isn't canceled halfway: the
     /// server may have made the session (and its conversion) already.
     /// </summary>
     public static async Task<PlaybackSession> Start(Api.Api api, long itemId, IReadOnlyDictionary<string, object?> request, SessionReporter reporter)

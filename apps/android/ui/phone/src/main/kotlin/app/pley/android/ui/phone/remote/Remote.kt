@@ -488,7 +488,7 @@ private fun DeviceControls(
 
 /**
  * What a device plays, top to bottom: its picture and title, how far (a
- * channel's programme), the transport, then its audio, subtitles and
+ * channel's program), the transport, then its audio, subtitles and
  * quality on the left and Stop on the right; Stop asks first. A command
  * shows what it asks at once ([RemoteRepository.asSent]); one it didn't act
  * on within [RemoteRepository.ANSWER_WAIT_MS] says so, and what it plays
@@ -673,7 +673,7 @@ private class SkipOffer(val kind: MarkerKind, val device: String, val skip: () -
 /**
  * What plays, beside its poster or the channel's logo: an episode as its
  * show and place over its title, a track over its artist, a channel's
- * number and name over Live TV (its programme is under it, with how far
+ * number and name over Live TV (its program is under it, with how far
  * it is: [LiveProgress]), a movie over its year. In an intro or the credits,
  * Skip Intro or Skip Credits at its end ([skip]), where the player's own
  * shows over the picture.
@@ -749,7 +749,7 @@ private fun SkipButton(offer: SkipOffer) {
 }
 
 /**
- * A channel's programme on, in a title's progress' place: its title, how
+ * A channel's program on, in a title's progress' place: its title, how
  * far it is by the clock (drawn only), its start and end times as the
  * device writes them ("20:00 – 21:00"), and the one after it. Nothing
  * without a guide.
@@ -858,7 +858,7 @@ private fun Progress(session: RemoteSession, device: String, now: Long, onSeek: 
 }
 
 /**
- * The transport, one centred row. A title's: previous, back 30 s, play or
+ * The transport, one centered row. A title's: previous, back 30 s, play or
  * pause, forward 30 s and next, each where the player declares it. Next
  * shows where the player declares it or what plays has a next by nature
  * (an episode, a track), dimmed when the player can't go there; a movie
@@ -924,7 +924,7 @@ private fun Transport(session: RemoteSession, device: String, live: Boolean, sen
     }
 }
 
-/** Play or pause ([toggle]): a 48 dp circle in a 56 dp touch target, between its neighbours. */
+/** Play or pause ([toggle]): a 48 dp circle in a 56 dp touch target, between its neighbors. */
 @Composable
 private fun PlayPause(toggle: Control, device: String, send: (PlayerCommandRequest) -> Unit) {
     val label = stringResource(if (toggle == Control.Play) R.string.remote_play else R.string.remote_pause, device)
@@ -984,7 +984,7 @@ private fun ChannelRocker(session: RemoteSession, device: String, send: (PlayerC
 /**
  * Audio, Subtitles and Quality, as icons, each where the player declares
  * it and has something to pick: more than one audio track, any subtitles,
- * the qualities its menu offers. Each opens a menu labelled as the
+ * the qualities its menu offers. Each opens a menu labeled as the
  * player's own menu labels it, what plays ticked (subtitles' Off first; no
  * quality ticked until the player says which). Then the device's volume,
  * where its player takes it and has said it (a Google Cast device's).
@@ -1173,7 +1173,7 @@ private fun linesOf(playing: PlayingSession, liveTv: String, words: FormatWords)
     val item = playing.item
     return when {
         playing.kind == PlayingKind.Live -> {
-            // The programme on is under it, with how far it is (LiveProgress).
+            // The program on is under it, with how far it is (LiveProgress).
             val name = channel?.let { listOfNotNull(it.number, it.name.takeIf { n -> n.isNotEmpty() }).joinToString(" ") }.orEmpty()
             if (name.isEmpty()) liveTv to null else name to liveTv
         }
@@ -1222,7 +1222,7 @@ internal const val REMOTE_VOLUME = "pley.phone.remote_volume"
 /** A channel's up and down. */
 internal const val REMOTE_ROCKER = "pley.phone.remote_rocker"
 
-/** A channel's programme, with how far it is. */
+/** A channel's program, with how far it is. */
 internal const val REMOTE_LIVE = "pley.phone.remote_live"
 
 /** Skip Intro or Skip Credits, while what plays is in one. */

@@ -104,7 +104,7 @@ end function
 
 ' The number on what opens the requests: { count, danger }. A manager's
 ' counts what waits for them (pending, failed) and their own news, in
-' the danger colour while some failed; anyone else's, their news.
+' the danger color while some failed; anyone else's, their news.
 function reqBadge(summary as object) as object
     if summary.manage = true then return { count: summary.pending + summary.failed + summary.unseen, danger: summary.failed > 0 }
     return { count: summary.unseen, danger: false }
@@ -452,7 +452,7 @@ function reqTitleBadge(status as string, itemId as dynamic, words = invalid as d
     return words.declined
 end function
 
-' The badge's colour: green in a library, the accent asked for, red
+' The badge's color: green in a library, the accent asked for, red
 ' declined.
 function reqBadgeColor(status as string, itemId as dynamic) as string
     if status = "library" or (status = "partial" and httpNumber(itemId, 0) > 0) then return "0x3FB27FFF"
@@ -1187,9 +1187,9 @@ function reqProgress(value as dynamic) as float
     return progress
 end function
 
-' A stage's colour: pending amber; approved, waiting, searching,
+' A stage's color: pending amber; approved, waiting, searching,
 ' downloading and importing blue; partial and available green; declined
-' and failed red; gone grey.
+' and failed red; gone gray.
 function reqToneColor(tone as string) as string
     colors = { pending: "0xE8B04BFF", active: "0x38BDF8FF", ready: "0x3FB27FFF", problem: "0xEB6B70FF", gone: "0x8B95A5FF" }
     if colors.DoesExist(tone) then return colors[tone]
@@ -1296,7 +1296,7 @@ function reqSeasonNumbers(seasons as dynamic) as object
 end function
 
 ' A request as a tile (Discover's Your requests): its poster, its title
-' and its stage in the stage's colour, the download's progress. It opens
+' and its stage in the stage's color, the download's progress. It opens
 ' the title's page.
 function reqRequestTile(request as object, server as string, manage as boolean, now as integer, zone as integer) as object
     kind = httpString(request.kind)

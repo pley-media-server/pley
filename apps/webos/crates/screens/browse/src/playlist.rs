@@ -272,7 +272,7 @@ pub struct PlaylistScreen {
     at: Option<usize>,
     /// The places of the entries drawn last frame: only they can have focus.
     drawn: (usize, usize),
-    /// Focus goes here once it is drawn (a removed entry's neighbour).
+    /// Focus goes here once it is drawn (a removed entry's neighbor).
     focus_next: Option<Id>,
     /// Where the pointer was last frame: only its moves carry a lifted entry.
     last_pointer: Option<Point>,
@@ -904,7 +904,7 @@ impl Screen for PlaylistScreen {
             ui.text(Point::new(x, ey), text, &theme::BODY, &TextOpts::wrap(TEXT_W, 3), theme::MUTED);
         }
 
-        // The entries near the screen, and always the focused one's neighbours.
+        // The entries near the screen, and always the focused one's neighbors.
         let first_row = (((shift - LIST_TOP) / ROW_H).floor() - 2.0).max(0.0) as usize;
         let past_row = (first_row + (theme::CANVAS_H / ROW_H).ceil() as usize + 4).min(n);
         let (r0, r1) = match self.at {

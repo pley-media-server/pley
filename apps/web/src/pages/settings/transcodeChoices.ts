@@ -112,7 +112,7 @@ export function accelInUse(accel: HwAccel, system: SystemInfo | undefined): HwAc
   return accelReason(accel, system) ? null : accel;
 }
 
-/** A choice's text in its menu: with why it is greyed out, when it is. */
+/** A choice's text in its menu: with why it is grayed out, when it is. */
 export const choiceLabel = (choice: Choice<unknown>) => (choice.reason ? `${choice.label} (${choice.reason})` : choice.label);
 
 /** The tone mappers to offer with `accel` chosen, each with why it can't work here or with it. */

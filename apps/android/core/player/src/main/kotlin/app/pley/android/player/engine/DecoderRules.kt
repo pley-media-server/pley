@@ -80,7 +80,7 @@ class DecoderRules(
      * playlist does. Media3 names the track ([tracks], the renderer's) by
      * the playlist, Dolby Vision, and each sample by its segment, HEVC, and
      * picks the decoder by the sample: the HEVC decoder, which plays the
-     * base layer (profile 5, which has none, in wrong colours). Named as
+     * base layer (profile 5, which has none, in wrong colors). Named as
      * its track, the sample goes to the Dolby Vision decoder, as a file
      * played as it is does. Media3 gives a sample its track's id (none, for
      * the server's stream of one size): a sample goes by the one track with

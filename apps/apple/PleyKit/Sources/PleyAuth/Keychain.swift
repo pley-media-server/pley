@@ -32,7 +32,7 @@ extension KeychainError: LocalizedError {
 /// `account` name it, and it holds bytes.
 ///
 /// Items are readable after the first unlock, on this device only: never
-/// synchronised to iCloud and never restored to another device, so tokens
+/// synchronized to iCloud and never restored to another device, so tokens
 /// and server lists stay where they were made. No access group is named, so
 /// items go to the app's own group, `$(AppIdentifierPrefix)` and the bundle
 /// ID, which no other app or extension reads: Apple TV's Top Shelf

@@ -112,14 +112,14 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.math.roundToInt
 
 /**
- * The programme guide on TV (the web's GuideGrid, for a remote): what has
+ * The program guide on TV (the web's GuideGrid, for a remote): what has
  * focus is described above the grid, channels down and time across, now
- * marked by a line with the time in a pill over it. Focus is a programme,
+ * marked by a line with the time in a pill over it. Focus is a program,
  * moved by the guide itself rather than by geometry ([GuideCursor]; rows
  * only compose what is in view):
  *
- * - Left and Right go to the programme before and after, the grid
- *   following by half hours, back through a long programme a screen at a
+ * - Left and Right go to the program before and after, the grid
+ *   following by half hours, back through a long program a screen at a
  *   time, and by half hours on a channel without a guide; Left from the
  *   guide's first half hour goes to the categories ([onLeave]) on a press
  *   of its own, not held nor within [EDGE_PAUSE_MS] of Left moving;
@@ -128,7 +128,7 @@ import kotlin.math.roundToInt
  *   tabs above on a press, not held; Channel up and down page through the
  *   lineup;
  * - rewind and fast forward (or Previous and Next) move the grid two hours;
- * - OK on a programme on now (or a channel without guide) watches the
+ * - OK on a program on now (or a channel without guide) watches the
  *   channel, on another opens its details, as does holding OK or Menu;
  * - Back away from now comes back to now first.
  *
@@ -198,7 +198,7 @@ internal fun TvGuide(
         label = "guide",
     )
     // The grid's scroll and the time, read while drawing: as the grid slides only layers move, and
-    // as the time goes on only the bars grow; a row is composed again when a programme begins or ends.
+    // as the time goes on only the bars grow; a row is composed again when a program begins or ends.
     val x = remember(slide) { { slide.value } }
     val nowState = rememberUpdatedState(now)
     val nowAt = remember(nowState) { { nowState.value } }
@@ -260,7 +260,7 @@ internal fun TvGuide(
                                 leftMovedAt[0] = native.eventTime
                             } else if (!gate.holding && native.eventTime - leftMovedAt[0] >= EDGE_PAUSE_MS) {
                                 // Out to the categories on a press of its own: not under a held key, nor
-                                // straight after Left went back through the programmes (Samsung's).
+                                // straight after Left went back through the programs (Samsung's).
                                 onLeave()
                             }
                             true
@@ -410,7 +410,7 @@ private fun Focused(channel: LiveChannel?, name: String?, program: LiveProgram?,
                 )
             }
             val meta = buildList {
-                // Without a programme the title is the channel's name already.
+                // Without a program the title is the channel's name already.
                 if (program != null) add(listOfNotNull(channel.number, name).joinToString(" ")) else channel.number?.let(::add)
                 if (program != null) {
                     add("${dayOf(program.start, now)} ${spanOf(program, clock)}")
@@ -447,7 +447,7 @@ private fun Focused(channel: LiveChannel?, name: String?, program: LiveProgram?,
  */
 @Composable
 private fun GuideTimes(left: Long, start: Long, now: Long, clock: (Long) -> String, pxPerSecond: Float, x: () -> Float) {
-    // The half hours a screen either way of the grid's edge, as the programmes are, and which begin a day.
+    // The half hours a screen either way of the grid's edge, as the programs are, and which begin a day.
     val slots = remember(left, start, clock) {
         buildList {
             var t = GuideCursor.slot(left - VIEW_S)
@@ -507,7 +507,7 @@ private fun midnight(time: Long): Boolean =
 /**
  * The guide's time, two days of it from its start, on a layer the grid's
  * scroll ([x]) moves: as the grid slides, only the layer moves, where each
- * programme's cell was placed again at every frame. In view through its
+ * program's cell was placed again at every frame. In view through its
  * parent's clip.
  */
 private fun Modifier.strip(x: () -> Float): Modifier =
@@ -516,7 +516,7 @@ private fun Modifier.strip(x: () -> Float): Modifier =
         .graphicsLayer { translationX = -x() }
 
 /**
- * What a programme's cell draws ([ProgramCell] is drawn again only when it
+ * What a program's cell draws ([ProgramCell] is drawn again only when it
  * changes): its times and title, whether it airs or has ended, whether it
  * has focus, and how far its title is moved in to stay in view at the
  * grid's left edge ([shift], in seconds of the guide's time).
@@ -532,12 +532,12 @@ internal data class CellLook(
 )
 
 /**
- * What a guide row draws of its programmes (Samsung's ProgramsLook): the
+ * What a guide row draws of its programs (Samsung's ProgramsLook): the
  * cells of those that may come into view as the grid moves a screen either
  * way; with none, whether the guide has answered for them ([blank]: the
  * channel says why across the row) and whether focus is there. Equal when
  * the row would look the same, whatever the time or the grid's edge: each
- * guide answer brings new lists of the same programmes, and the time ticks
+ * guide answer brings new lists of the same programs, and the time ticks
  * every 15 s, which drew every row again.
  */
 internal data class RowCells(val cells: List<CellLook>, val blank: Boolean, val blankFocused: Boolean) {
@@ -547,7 +547,7 @@ internal data class RowCells(val cells: List<CellLook>, val blank: Boolean, val 
     companion object {
         /**
          * The row of [programs] with the grid at [left] (the guide starting
-         * at [start]) at [now]; [focus] is the start of the programme with
+         * at [start]) at [now]; [focus] is the start of the program with
          * focus (-1 where there is none under the cursor), `null` on a row
          * without focus. [loaded]: the guide has answered for the time in view.
          */
@@ -561,7 +561,7 @@ internal data class RowCells(val cells: List<CellLook>, val blank: Boolean, val 
                     airing = p.airingAt(now),
                     ended = p.stop <= now,
                     focused = focus == p.start,
-                    // A programme begun before the grid's edge keeps its title in view, with room for it.
+                    // A program begun before the grid's edge keeps its title in view, with room for it.
                     shift = (left - from).coerceIn(0L, maxOf(0L, p.stop - from - TITLE_ROOM_S)),
                 )
             }
@@ -571,7 +571,7 @@ internal data class RowCells(val cells: List<CellLook>, val blank: Boolean, val 
 }
 
 /**
- * One channel's row ([index] of the list): its cell, and its programmes on
+ * One channel's row ([index] of the list): its cell, and its programs on
  * a layer that slides with the grid, the one with focus filled with the
  * accent. Drawn again only when [cells] or the focus change, and then in
  * its turn ([fill]) but for focus coming to the row or leaving it; coming
@@ -651,8 +651,8 @@ internal class RowFill {
     /**
      * Returns once row [index] may draw. A row waiting under the same index
      * (the list reordered under it: Recently watched after a watch, a
-     * favourite gone) draws now: cancelled, it would keep what it last drew
-     * until its programmes changed again.
+     * favorite gone) draws now: canceled, it would keep what it last drew
+     * until its programs changed again.
      */
     suspend fun turn(index: Int) = suspendCancellableCoroutine { turn ->
         waiting.put(index, turn)?.resume(Unit)
@@ -672,7 +672,7 @@ internal class RowFill {
     }
 }
 
-/** A row's channel: its logo, number (a star when a favourite) and name; the focused row's filled. */
+/** A row's channel: its logo, number (a star when a favorite) and name; the focused row's filled. */
 @Composable
 private fun ChannelCell(channel: LiveChannel, name: String, origin: String, focused: Boolean) {
     Row(
@@ -703,9 +703,9 @@ private fun ChannelCell(channel: LiveChannel, name: String, origin: String, focu
 }
 
 /**
- * A programme's cell at its time on its row's layer: focused in the
+ * A program's cell at its time on its row's layer: focused in the
  * accent, airing marked with an edge and a bar to the now line, ended
- * dimmed. Drawn in its shape and dimmed by its colours, without graphics
+ * dimmed. Drawn in its shape and dimmed by its colors, without graphics
  * layers: clipped and faded, each cell was a layer, and each ended one
  * drawn off screen first.
  */
@@ -716,7 +716,7 @@ private fun ProgramCell(cell: CellLook, start: Long, pxPerSecond: Float, now: ()
     val from = maxOf(cell.start, start)
     val leftPx = (from - start) * pxPerSecond
     val widthPx = (cell.stop - from) * pxPerSecond
-    // Made once for the programme, not each time its cell is drawn again.
+    // Made once for the program, not each time its cell is drawn again.
     val span = remember(cell.start, cell.stop, clock, resources) { resources.getString(R.string.tv_livetv_span, clock(cell.start), clock(cell.stop)) }
     val fade = if (cell.ended && !cell.focused) PAST_ALPHA else 1f
     val fill = when {
@@ -769,7 +769,7 @@ private fun ProgramCell(cell: CellLook, start: Long, pxPerSecond: Float, now: ()
 }
 
 /**
- * An airing programme's bar along the foot of its cell, from the cell's
+ * An airing program's bar along the foot of its cell, from the cell's
  * left edge ([fromPx], on the guide's time line) to the now line
  * (Samsung's BarWidth), in the cell's shape so it meets its rounded corner.
  * [now] is read as it is drawn: the time moves it without composing.
@@ -811,25 +811,25 @@ private const val SLOT_LABEL_S = 18 * 60L
 /** How long after Left last moved within the guide a Left at its start still stays: taps in a row. */
 internal const val EDGE_PAUSE_MS = 500L
 
-/** A programme's cell is inset this far at either side, 4 dp above and below. */
+/** A program's cell is inset this far at either side, 4 dp above and below. */
 private val CELL_INSET_X = 2.dp
 
-/** Narrower than this, a programme shows no text. */
+/** Narrower than this, a program shows no text. */
 private const val MIN_TEXT_PX = 70f
 
 /** The room a title keeps in its cell as it is moved in to stay in view: 90 dp, 25 minutes of the guide. */
 private const val TITLE_ROOM_S = 25 * 60L
 
-/** An ended programme's cell, text and fill, at this much of its colours. */
+/** An ended program's cell, text and fill, at this much of its colors. */
 private const val PAST_ALPHA = 0.55f
 
 /** Rows drawing what changed in them each frame, the rest waiting their turn ([RowFill]). */
 private const val ROWS_PER_FRAME = 2
 
-/** How tall an airing programme's bar is, along its cell's foot. */
+/** How tall an airing program's bar is, along its cell's foot. */
 private val BAR_HEIGHT = 2.dp
 
-/** The guide's two days, as wide as the grid draws them: the layer the programmes and the times are on. */
+/** The guide's two days, as wide as the grid draws them: the layer the programs and the times are on. */
 private val STRIP_WIDTH = DP_PER_MINUTE * (LiveTv.GUIDE_SPAN_S / 60f)
 
 internal const val TV_LIVE_GUIDE = "pley.tv.live.guide"

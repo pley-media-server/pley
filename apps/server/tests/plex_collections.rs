@@ -422,7 +422,7 @@ async fn kometa_places_collections_on_pleys_pages() {
     let manage = format!("/hubs/sections/{}/manage", w.movies);
     let identifier = format!("custom.collection.{}.{made}", w.movies);
 
-    // Labelled Kometa and Seasonal: the Seasonal category.
+    // Labeled Kometa and Seasonal: the Seasonal category.
     let labelled = format!("{section}?type=18&id={made}&label[0].tag.tag=Kometa&label[1].tag.tag=Seasonal");
     assert_eq!(w.send(Method::PUT, &labelled).await.status, StatusCode::OK);
     let id = made - 1_000_000_000;

@@ -83,7 +83,7 @@
           TVs, with the 320x180 banner on Android TV's home screen. Its icon
           is the app's: Google TV's home screen draws it in a circle, and Fire
           TV's shows a sideloaded app by the app's icon in a square, between
-          grey bars, whatever its shape. A remote or keyboard connecting
+          gray bars, whatever its shape. A remote or keyboard connecting
           doesn't restart it.
         -->
         <activity

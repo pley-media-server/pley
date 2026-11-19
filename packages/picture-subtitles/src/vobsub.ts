@@ -4,7 +4,7 @@ import { FrameCache, MAX_PIXELS, type PictureDecoder, type PictureFrame } from "
  * DVD subtitles (VobSub, `S_VOBSUB`): each sample is one subpicture unit
  * (SPU): two interlaced fields of 2-bit run-length pixels, then control
  * sequences that say when it shows and stops, which 4 of the 16 palette
- * colours its pixels take, their alpha, and where it goes. The palette
+ * colors its pixels take, their alpha, and where it goes. The palette
  * and the plane's size come from the track's private data, the `.idx`
  * header (`size: 720x480`, `palette: 000000, ffffff, …`).
  */
@@ -12,7 +12,7 @@ import { FrameCache, MAX_PIXELS, type PictureDecoder, type PictureFrame } from "
 export interface VobSubHeader {
   width: number;
   height: number;
-  /** 16 RGB colours. */
+  /** 16 RGB colors. */
   palette: [number, number, number][];
 }
 
@@ -23,7 +23,7 @@ const MAX_SPU_BYTES = 0xffff;
 const MAX_SEQUENCES = 64;
 
 export function parseIdx(codecPrivate: Uint8Array | null): VobSubHeader {
-  // The header is a KiB or two; its palette, 16 colours.
+  // The header is a KiB or two; its palette, 16 colors.
   const text = codecPrivate ? latin1(codecPrivate.subarray(0, 64 << 10)) : "";
   const size = /size:\s*(\d+)\s*x\s*(\d+)/i.exec(text);
   const palette: [number, number, number][] = [];
@@ -34,7 +34,7 @@ export function parseIdx(codecPrivate: Uint8Array | null): VobSubHeader {
       if (!isNaN(v)) palette.push([(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff]);
     }
   }
-  // A DVD's default greys when the header has none.
+  // A DVD's default grays when the header has none.
   while (palette.length < 16) palette.push(palette.length % 2 ? [255, 255, 255] : [0, 0, 0]);
   return { width: size ? Number(size[1]) : 720, height: size ? Number(size[2]) : 576, palette };
 }

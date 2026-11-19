@@ -60,7 +60,7 @@ pub enum Overlay {
     /// Nothing: the keys change channel.
     #[default]
     None,
-    /// What's on, with the channel list and favourite buttons (OK).
+    /// What's on, with the channel list and favorite buttons (OK).
     Controls,
     /// The channel list beside the picture (Menu, Guide, or Channels in the controls).
     Channels,
@@ -152,7 +152,7 @@ enum CardAction {
     Back,
 }
 
-/// A favourite being marked on the server.
+/// A favorite being marked on the server.
 struct Marking {
     id: i64,
     on: bool,
@@ -195,10 +195,10 @@ pub struct LivePlayerScreen {
     info_until: Option<f64>,
     list: ChannelList,
     marking: Vec<Marking>,
-    /// What's on, asked again once the programme playing ended.
+    /// What's on, asked again once the program playing ended.
     refresh: Option<Promise<Result<LiveChannel, ApiError>>>,
     refreshed_for: Option<(i64, i64)>,
-    /// The channel playing as asked last (what's on, the favourite), over the session's.
+    /// The channel playing as asked last (what's on, the favorite), over the session's.
     fresh: Option<LiveChannel>,
     /// Whether the picture was last put aside.
     aside: Option<bool>,
@@ -443,7 +443,7 @@ impl LivePlayerScreen {
         self.trouble_focused = None;
     }
 
-    /// Takes what came back: the channel up or down, a number looked up, favourites, what's on.
+    /// Takes what came back: the channel up or down, a number looked up, favorites, what's on.
     fn collect(&mut self, cx: &mut AppCx, now: f64, seconds: i64) {
         let ms = now_ms();
         let found = self.zap.as_mut().and_then(|zap| {
@@ -486,7 +486,7 @@ impl LivePlayerScreen {
             let mut m = self.marking.swap_remove(i);
             let why = match m.job.take() {
                 Some(Ok(())) => {
-                    // The list's Favourites counts it.
+                    // The list's Favorites counts it.
                     self.list.groups_changed();
                     continue;
                 }
@@ -497,7 +497,7 @@ impl LivePlayerScreen {
             self.mark(m.id, !m.on);
             cx.toast_error(t!("livetv.favorites.failed", error = why));
         }
-        // What's on, asked again once the programme playing ended.
+        // What's on, asked again once the program playing ended.
         if let Some(p) = self.refresh.as_mut()
             && (p.ready() || p.failed())
         {
@@ -521,7 +521,7 @@ impl LivePlayerScreen {
         }
     }
 
-    /// Marks the channel playing a favourite or not, at once; undone if the server refuses.
+    /// Marks the channel playing a favorite or not, at once; undone if the server refuses.
     fn toggle_favourite(&mut self, cx: &AppCx) {
         let Some(c) = self.channel() else { return };
         let (id, on) = (c.id, !c.favorite);
@@ -686,7 +686,7 @@ impl Screen for LivePlayerScreen {
                 }
             }
             // OK opens the channel list as it is let go, tuning or playing, as Menu does; held, it
-            // shows the controls (the list, the favourite) over what's on, as a long press opens
+            // shows the controls (the list, the favorite) over what's on, as a long press opens
             // actions elsewhere. Android's OK shows the controls; Samsung's opens the list.
             if r.menu || r.activated {
                 self.open_list();
@@ -922,7 +922,7 @@ fn sound_only(ui: &mut Ui, cx: &AppCx, stage: Rect, c: &LiveChannel, seconds: i6
     }
 }
 
-/// One line of `text` centred on `x` from `y`, cut at `width`.
+/// One line of `text` centered on `x` from `y`, cut at `width`.
 fn centred(ui: &mut Ui, text: &str, style: &pley_base::TextStyle, x: f32, y: f32, width: f32, color: Color) {
     let layout = ui.layout(text, style, &TextOpts::line(width.max(1.0)));
     let w = layout.size.w;
@@ -949,7 +949,7 @@ fn bar_height(c: &LiveChannel, seconds: i64, controls: bool) -> (f32, f32, f32) 
 
 /// The bar at the foot (`InfoBar`): the channel's logo, number and name, what's on with its times, how
 /// far it is and what's next, the Live badge at the right; with `controls`, the channel list and
-/// favourite buttons, else the hint. It slides up a third of its height and fades as `p` goes to 1.
+/// favorite buttons, else the hint. It slides up a third of its height and fades as `p` goes to 1.
 #[allow(clippy::too_many_arguments)]
 fn info_bar(
     ui: &mut Ui,
@@ -1088,7 +1088,7 @@ fn info_bar(
     action
 }
 
-/// Live: a red pill with a white dot, its right edge at `right`, centred on `mid`; its width.
+/// Live: a red pill with a white dot, its right edge at `right`, centered on `mid`; its width.
 fn live_pill(ui: &mut Ui, right: f32, mid: f32) -> f32 {
     let text = ui.layout(t!("livetv.player.live"), &theme::BADGE, &TextOpts::default());
     let (tw, th) = (text.size.w, text.size.h);
@@ -1127,7 +1127,7 @@ fn connections_shown(n: usize, room: f32, note: f32, more: f32) -> usize {
     fit.min(n.saturating_sub(1)).max(1).min(n)
 }
 
-/// Why the channel doesn't play, centred over black (`Trouble`): the channel's logo (or a warning), the
+/// Why the channel doesn't play, centered over black (`Trouble`): the channel's logo (or a warning), the
 /// title, the server's words or the connections in use, then Try again (Watch again when watching ended
 /// on the server), Other channels and Back to the guide. `focus` sends focus to its first button: Watch
 /// here instead, else Try again, else Other channels.
