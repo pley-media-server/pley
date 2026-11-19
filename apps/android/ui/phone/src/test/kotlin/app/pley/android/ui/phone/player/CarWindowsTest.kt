@@ -1,6 +1,7 @@
 package app.pley.android.ui.phone.player
 
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -40,17 +41,41 @@ class CarWindowsTest {
     }
 
     @Test
-    fun aDialogOnACarsScreenIsCarSized() {
+    fun aDialogOnACarsScreenIsCarSized() = fitsTheCar("small")
+
+    /** The dialog on a car's [screen]: its buttons on screen and 64 dp tall, none of its words under 24 sp. */
+    private fun fitsTheCar(screen: String) {
         ask(car = true)
         for (button in listOf(CONFIRM, "Cancel")) {
+            compose.onNode(hasText(button) and hasClickAction()).assertIsDisplayed()
             val height = buttonHeight(button)
-            assertTrue("$button is $height dp tall", height >= 64f - 0.5f)
+            assertTrue("$screen: $button is $height dp tall", height >= 64f - 0.5f)
         }
         for (words in listOf(TITLE, BODY, CONFIRM, "Cancel")) {
             val size = drawnSp(words)
-            assertTrue("$words at $size sp", size >= 24f - 0.1f)
+            assertTrue("$screen: $words at $size sp", size >= 24f - 0.1f)
         }
     }
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.WIDE)
+    fun onTheWideStripOfACarScreenADialogIsCarSizedAndInView() = fitsTheCar("wide")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL_SPLIT)
+    fun onACarScreenSplitInTwoADialogIsCarSizedAndInView() = fitsTheCar("tall-split")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.PORTRAIT)
+    fun onAPortraitCarScreenADialogIsCarSizedAndInView() = fitsTheCar("portrait")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL_PORTRAIT)
+    fun onATallPortraitCarScreenADialogIsCarSizedAndInView() = fitsTheCar("tall-portrait")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.NARROW)
+    fun onANarrowCarScreenADialogIsCarSizedAndInView() = fitsTheCar("narrow")
 
     @Test
     fun onAPhoneTheDialogIsAsItWas() {

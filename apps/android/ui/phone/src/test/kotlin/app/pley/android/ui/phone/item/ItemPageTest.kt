@@ -274,15 +274,41 @@ class ItemPageTest {
     @Test
     @Config(qualifiers = CarScreenChecks.SMALL)
     fun onACarsScreenTheActionsTakeMoreRowsRatherThanDrawTheirLabelsSmaller() {
+        carItem("small")
+        assertTrue(top("Trailer") > top("From start"))
+    }
+
+    /** On a car's [screen]: Resume in view and a car's 64 dp, and no action's label under 24 sp. */
+    private fun carItem(screen: String) {
         show(withTrailer(movie(positionMs = 3_480_000)), withDownloads = true, car = true)
+        CarScreenChecks.controls(compose, screen, listOf("Resume"))
         // No text on a car's screen is under 24 sp: a label of that size has a line 32 dp tall, in the screen's own dp.
         for (label in listOf("From start", "Watched", "Playlist", "Download", "Trailer")) {
             val bounds = compose.onNodeWithText(label).getUnclippedBoundsInRoot()
             val height = bounds.bottom - bounds.top
-            assertTrue("$label is $height tall", height >= 31.dp)
+            assertTrue("$screen: $label is $height tall", height >= 31.dp)
         }
-        assertTrue(top("Trailer") > top("From start"))
     }
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.WIDE)
+    fun onAWideCarScreenResumeIsInViewAndNoLabelIsSmall() = carItem("wide")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.PORTRAIT)
+    fun onAPortraitCarScreenResumeIsInViewAndNoLabelIsSmall() = carItem("portrait")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL_SPLIT)
+    fun onASplitCarScreenResumeIsInViewAndNoLabelIsSmall() = carItem("tall-split")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.ULTRAWIDE)
+    fun onAWideLowCarScreenResumeIsInViewAndNoLabelIsSmall() = carItem("ultrawide")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.NARROW)
+    fun onANarrowCarScreenResumeIsInViewAndNoLabelIsSmall() = carItem("narrow")
 
     @Test
     @Config(qualifiers = "fr-w360dp-h780dp-xxhdpi")

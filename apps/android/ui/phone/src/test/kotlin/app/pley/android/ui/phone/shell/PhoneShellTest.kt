@@ -206,9 +206,8 @@ class PhoneShellTest {
     @Config(qualifiers = CarScreenChecks.TALL_SPLIT)
     fun onATallCarScreenSplitInTwoEveryTabOfTheRailIsOnScreen() = railFitsTheCar("tall-split")
 
-    @Test
-    @Config(qualifiers = CarScreenChecks.NARROW)
-    fun underANarrowCarPageTheBarShowsItsTabsIconsAloneEachNamedAndACarsSize() {
+    /** Every tab of the bar under a narrow car page on screen, its icon alone and named, each a car's 64 dp at least and none over another. */
+    private fun barFitsTheCar(screen: String) {
         show(PhoneStart(server = TestGraph.SERVER, signedIn = true), car = true)
         showsHome()
         val density = compose.density.density
@@ -217,16 +216,36 @@ class PhoneShellTest {
         for ((tab, bounds) in tabs) {
             // No name drawn (five of 24 sp ran into each other): the icon says it to whoever listens.
             tab(tab).assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Text))
-            assertTrue("$tab at $bounds, in $window", bounds.left >= 0f && bounds.right <= window.right + 0.5f && bounds.bottom <= window.bottom + 0.5f)
-            assertTrue("$tab is ${bounds.width / density} × ${bounds.height / density} dp", minOf(bounds.width, bounds.height) / density >= 63.5f)
+            assertTrue("$screen: $tab at $bounds, in $window", bounds.left >= 0f && bounds.right <= window.right + 0.5f && bounds.bottom <= window.bottom + 0.5f)
+            assertTrue("$screen: $tab is ${bounds.width / density} × ${bounds.height / density} dp", minOf(bounds.width, bounds.height) / density >= 63.5f)
         }
         for ((before, after) in tabs.zipWithNext()) {
-            assertTrue("${before.first} over ${after.first}", before.second.right <= after.second.left + 0.5f)
+            assertTrue("$screen: ${before.first} over ${after.first}", before.second.right <= after.second.left + 0.5f)
         }
-        compose.onAllNodesWithContentDescription("Libraries").fetchSemanticsNodes().let { assertTrue("Libraries isn't named", it.isNotEmpty()) }
+        compose.onAllNodesWithContentDescription("Libraries").fetchSemanticsNodes().let { assertTrue("$screen: Libraries isn't named", it.isNotEmpty()) }
         tab(PhoneTab.Playlists).performClick()
         tab(PhoneTab.Playlists).assertIsSelected()
     }
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.PORTRAIT)
+    fun onAPortraitCarScreenEveryTabOfTheRailIsOnScreen() = railFitsTheCar("portrait")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.ULTRAWIDE)
+    fun onAWideLowCarScreenEveryTabOfTheRailIsOnScreen() = railFitsTheCar("ultrawide")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.FULL_HD)
+    fun onAFullHdCarScreenEveryTabOfTheRailIsOnScreen() = railFitsTheCar("full-hd")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL_PORTRAIT)
+    fun underATallPortraitCarPageTheBarShowsItsTabsIconsAloneEachNamedAndACarsSize() = barFitsTheCar("tall-portrait")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.NARROW)
+    fun underANarrowCarPageTheBarShowsItsTabsIconsAloneEachNamedAndACarsSize() = barFitsTheCar("narrow")
 
     @Test
     fun theMiniPlayerLeavesAsNowPlayingDrawsAndIsBackAsItCloses() {
