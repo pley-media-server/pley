@@ -51,7 +51,9 @@
     "names": {
       "en": "English",
       "fr": "Français",
-      "es": "Español"
+      "es": "Español",
+      "zh-CN": "简体中文",
+      "zh-TW": "繁體中文"
     },
     "accountHint": "What Pley is in for you, on every device you sign in on. Automatic follows each device's language.",
     "serverHint": "The language of the server's own words, and of the devices whose language Pley isn't in yet. Each person can choose their own on their Account page.",

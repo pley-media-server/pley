@@ -1,0 +1,385 @@
+{
+  "actions": {
+    "add": "新增",
+    "apply": "應用",
+    "back": "返回",
+    "cancel": "取消",
+    "clear": "清除",
+    "close": "關閉",
+    "confirm": "確認",
+    "continue": "繼續",
+    "copy": "複製",
+    "copied": "已複製",
+    "create": "建立",
+    "delete": "刪除",
+    "done": "完成",
+    "download": "下載",
+    "edit": "編輯",
+    "more": "更多",
+    "next": "下一步",
+    "no": "否",
+    "ok": "確定",
+    "play": "播放",
+    "previous": "上一步",
+    "refresh": "重新整理",
+    "remove": "移除",
+    "rename": "重新命名",
+    "reset": "重置",
+    "resume": "繼續",
+    "retry": "重試",
+    "save": "儲存",
+    "saving": "儲存中…",
+    "search": "搜尋",
+    "showLess": "收起",
+    "showMore": "顯示更多",
+    "signOut": "退出登入",
+    "tryAgain": "重試",
+    "upload": "上傳",
+    "yes": "是"
+  },
+  "states": {
+    "loading": "載入中…",
+    "saved": "已儲存",
+    "none": "無",
+    "off": "關",
+    "on": "開",
+    "unknown": "未知",
+    "somethingWentWrong": "出了點問題"
+  },
+  "language": {
+    "label": "語言",
+    "names": {
+      "en": "English",
+      "fr": "Français",
+      "es": "Español",
+      "zh-CN": "簡體中文",
+      "zh-TW": "繁體中文"
+    },
+    "accountHint": "你登入每臺裝置時 Pley 使用的語言。“自動”跟隨每臺裝置的語言。",
+    "serverHint": "伺服器自身文案的語言，以及裝置語言尚未被 Pley 支援時所用的語言。每個人都可以在自己的“賬戶”頁面選擇語言。",
+    "automatic": "自動（{{language}}）",
+    "serverLabel": "Pley 的語言",
+    "choose": "選擇語言"
+  },
+  "format": {
+    "never": "從不",
+    "seconds": "{{n}}秒",
+    "minutes": "{{n}}分鐘",
+    "hours": "{{n}}小時",
+    "hoursMinutes": "{{hours}}小時 {{minutes}}分鐘",
+    "daysHours": "{{days}}天 {{hours}}小時",
+    "left": "剩餘 {{time}}",
+    "timeLeft": {
+      "underAMinute": "剩餘不到一分鐘",
+      "minutes_other": "約剩 {{count, number}} 分鐘",
+      "hours_other": "約剩 {{count, number}} 小時"
+    },
+    "bitrateUnknown": "位元速率未知",
+    "specials": "特別篇",
+    "season": "季",
+    "seasonNumber": "第 {{number}} 季",
+    "episodeShort": "S{{season}} · E{{episode}}",
+    "seasonShort": "S{{season}}",
+    "episodeOnly": "E{{episode}}",
+    "anyHdr": "任意 HDR",
+    "bytes": {
+      "B": "B",
+      "KB": "KB",
+      "MB": "MB",
+      "GB": "GB",
+      "TB": "TB"
+    },
+    "mbps": "{{n}} Mbps",
+    "kbps": "{{n}} kbps",
+    "seasons_other": "{{count, number}} 季",
+    "episodes_other": "{{count, number}} 集",
+    "albums_other": "{{count, number}} 張專輯",
+    "mono": "單聲道",
+    "stereo": "立體聲",
+    "channels": "{{n}} 聲道",
+    "forced": "強制",
+    "external": "外部",
+    "bitDepth": "{{n}} 位",
+    "automatic": "自動",
+    "automaticLanguage": "自動（{{language}}）",
+    "transcode": {
+      "videoTranscode": "影片轉碼",
+      "video": "影片",
+      "copy": "{{stream}}（複製）",
+      "decode": "{{decoder}} 解碼",
+      "size": "大小 {{n}} / {{total}}",
+      "burnIn": "內嵌字幕"
+    }
+  },
+  "languages": {
+    "und": "未知",
+    "mul": "多種",
+    "zxx": "無語言內容",
+    "qaa": "原聲",
+    "cmn": "普通話"
+  },
+  "access": {
+    "noLimit": "無限制",
+    "ageSystem": "年齡",
+    "age": "年齡 {{age}}",
+    "upTo": "不超過 {{rating}}",
+    "upToAge": "不超過 {{age}} 歲",
+    "upToByBirthday": "不超過 {{rating}}（{{age}} 歲，按生日計算）",
+    "upToAgeByBirthday": "不超過 {{age}} 歲（按生日計算）",
+    "ratingFor": {
+      "film": "{{rating}}（電影）",
+      "tv": "{{rating}}（電視）"
+    },
+    "allLibraries": "所有媒體庫",
+    "noLibraries": "沒有媒體庫",
+    "libraries_other": "{{count, number}} 個媒體庫"
+  },
+  "passwords": {
+    "tooShort": "密碼至少使用 {{min}} 個字元。",
+    "sameAsUsername": "密碼不能與使用者名稱相同。"
+  },
+  "twoStep": {
+    "codesFor": "{{username}} 的 Pley 恢復碼",
+    "codesForOn": "{{server}} 上 {{username}} 的 Pley 恢復碼",
+    "codesHint": "每個程式碼只能登入一次，用來代替驗證器應用中的程式碼。"
+  },
+  "play": {
+    "nothing": "沒有可播放的內容",
+    "nothingYet": "暫時沒有可播放的內容",
+    "albumEmpty": "此專輯沒有曲目",
+    "artistEmpty": "未找到此藝人的曲目",
+    "bookEmpty": "此有聲書沒有分節"
+  },
+  "remote": {
+    "unknownDevice": "未知裝置",
+    "thisDevice": "此裝置",
+    "notPlaying": "{{device}} 已停止播放",
+    "cantDoThat": "{{device}} 無法執行此操作",
+    "notOn": "{{device}} 已關閉",
+    "cantPlay": "{{device}} 無法播放該內容",
+    "tooMany": "同時播放的裝置太多：請稍後再試",
+    "castUnreachable": "{{device}} 無法連線此伺服器",
+    "castFailed": "{{device}} 未能播放",
+    "connectionsFull": "{{device}} 無法播放該頻道：直播電視的連線已全部佔用",
+    "pairingFailed": "{{device}} 配對失敗",
+    "pairFirst": "{{device}} 需要先配對：請在“在…上播放”中再次選擇它",
+    "wrongDevicePin": "這不是 {{device}} 顯示的程式碼",
+    "pairingWait": "{{device}} 暫不允許再試：請稍等片刻"
+  },
+  "errors": {
+    "unreachable": "無法連線伺服器",
+    "notAnswering": "伺服器暫時沒有響應",
+    "failed": "伺服器無法響應（錯誤 {{status}}）"
+  },
+  "apps": {
+    "scopes": {
+      "library": "媒體庫",
+      "play": "播放",
+      "playlists": "播放列表",
+      "profiles": "配置檔案",
+      "requests": "請求影視",
+      "approvals": "審批請求",
+      "activity": "正在播放",
+      "server": "管理伺服器"
+    }
+  },
+  "tokens": {
+    "play": {
+      "label": "觀看",
+      "hint": "瀏覽和播放。"
+    },
+    "activity": {
+      "label": "檢視所有人的活動",
+      "hint": "供 Tautulli 等工具使用。"
+    },
+    "manage": {
+      "label": "管理媒體庫",
+      "hint": "供 Kometa 等工具使用。"
+    },
+    "onlyFrom": "僅限 {{places}}",
+    "homeNetwork": "家庭網路"
+  },
+  "smartFilter": {
+    "sort": {
+      "titleSort": {
+        "asc": "按標題",
+        "desc": "按標題，Z 到 A"
+      },
+      "year": {
+        "asc": "最早優先",
+        "desc": "最新優先"
+      },
+      "originallyAvailableAt": {
+        "asc": "上映最早優先",
+        "desc": "上映最晚優先"
+      },
+      "addedAt": {
+        "asc": "最先新增優先",
+        "desc": "最近新增優先"
+      },
+      "rating": {
+        "asc": "評分最低優先",
+        "desc": "評分最高優先"
+      },
+      "userRating": {
+        "asc": "我的評分最低優先",
+        "desc": "我的評分最高優先"
+      },
+      "lastViewedAt": {
+        "asc": "最久未播放優先",
+        "desc": "最近播放優先"
+      },
+      "duration": {
+        "asc": "最短優先",
+        "desc": "最長優先"
+      },
+      "viewCount": {
+        "asc": "播放最少優先",
+        "desc": "播放最多優先"
+      }
+    },
+    "sortedBy": "排序方式：{{name}}",
+    "genre": "型別：{{value}}",
+    "label": "標籤：{{value}}",
+    "studio": "製作公司：{{value}}",
+    "rated": "分級 {{value}}",
+    "watched": "已觀看",
+    "unwatched": "未觀看",
+    "inProgress": "進行中",
+    "notInProgress": "未進行",
+    "year": "{{value}} 年",
+    "after": "{{value}} 年之後",
+    "before": "{{value}} 年之前",
+    "decade": "{{value}} 年代",
+    "resolution": "解析度：{{value}}",
+    "dynamicRange": "動態範圍：{{value}}",
+    "limit": "最多 {{value}}"
+  },
+  "requests": {
+    "movie": "電影",
+    "show": "劇集",
+    "quoted": "“{{title}}”",
+    "seasonList_other": "第 {{list}} 季",
+    "andSpecials": "{{seasons}} 和特別篇",
+    "soon": "即將",
+    "inMinutes": "{{n}} 分鐘後",
+    "inHours_other": "{{count, number}} 小時後",
+    "inDays_other": "{{count, number}} 天后",
+    "todayAt": "今天 {{time}}",
+    "tomorrowAt": "明天 {{time}}",
+    "badge": {
+      "library": "已在媒體庫",
+      "partial": "部分在媒體庫",
+      "requested": "已請求",
+      "declined": "已拒絕"
+    },
+    "canAsk": "你可以請求 {{list}}。",
+    "moreMovies_other": "再請求 {{count, number}} 部電影",
+    "moreSeasons_other": "再請求 {{count, number}} 季",
+    "moviesUsedUp": "目前你能請求的電影都已請求完。",
+    "moviesUsedUpUntil": "目前你能請求的電影都已請求完：{{when}} 可以再次請求。",
+    "seasonsUsedUp": "目前你能請求的劇季都已請求完。",
+    "seasonsUsedUpUntil": "目前你能請求的劇季都已請求完：{{when}} 可以再次請求。",
+    "allUsedUp": "目前你能請求的都已請求完。",
+    "allUsedUpUntil": "目前你能請求的都已請求完：{{when}}。",
+    "moreMoviesWhen": "{{when}} 再請求電影",
+    "moreSeasonsWhen": "{{when}} 再請求劇季",
+    "limits": "限制：每 7 天 {{list}}。",
+    "movies_other": "{{count, number}} 部電影",
+    "seasons_other": "{{count, number}} 季",
+    "requestSeasons_other": "請求 {{count, number}} 季",
+    "season": {
+      "declined": "已拒絕",
+      "library": "已在媒體庫",
+      "partial": "部分在媒體庫",
+      "requested": "已請求",
+      "notAired": "尚未播出"
+    },
+    "airs": "{{day}} 播出",
+    "out": "{{day}} 上線",
+    "notOut": "尚未上線",
+    "declined": "已拒絕。",
+    "declinedBecause": "已拒絕：{{reason}}。",
+    "askAgain": "{{when}} 可以再次請求。",
+    "restricted": "超過此賬戶的年齡限制。",
+    "download": {
+      "downloading": "下載中",
+      "queued": "等待下載",
+      "paused": "下載已暫停",
+      "warning": "下載出現問題",
+      "importing": "正在新增到媒體庫",
+      "progress": "正在下載 {{percent}}%"
+    },
+    "stage": {
+      "pending": "等待審批",
+      "approved": "已批准",
+      "searching": "搜尋中",
+      "importing": "正在新增到媒體庫",
+      "partial": "{{seasons}} 已就緒",
+      "partialNoSeasons": "部分已就緒",
+      "available": "可以觀看",
+      "gone": "已不在媒體庫中",
+      "declined": "已拒絕",
+      "failed": "傳送失敗",
+      "notSent": "尚未傳送",
+      "notSentLine": "暫時無法傳送到下載：管理員會檢視處理。",
+      "retry": "{{when}} 重試。"
+    },
+    "asked": {
+      "following": "{{title}} 就緒時會通知你。",
+      "pending": "已請求 {{title}}：由管理員決定。",
+      "failed": "已請求 {{title}}，但暫時無法傳送到下載。",
+      "approved": "{{title}} 已批准，正在處理。"
+    },
+    "action": {
+      "withdraw": "撤回",
+      "unwatch": "取消關注",
+      "approve": "批准",
+      "decline": "拒絕",
+      "handled": "標記為手動新增",
+      "askAgain": "再次請求"
+    },
+    "question": {
+      "remove": "從請求中移除 {{title}}？",
+      "withdraw": "撤回對 {{title}} 的請求？",
+      "delete": "刪除此請求？"
+    },
+    "ready": "{{title}} 可以觀看了。",
+    "seasonsReady_other": "{{title}} 的 {{seasons}} 可以觀看了。",
+    "specialsReady": "{{title}} 的特別篇可以觀看了。",
+    "approved": "{{title}} 已獲批准。",
+    "declinedNews": "{{title}} 已被拒絕。",
+    "declinedNewsBecause": "{{title}} 已被拒絕：{{reason}}。",
+    "created": "{{name}} 請求了 {{title}}。",
+    "createdSeasons": "{{name}} 請求了 {{title}}（{{seasons}}）。",
+    "notSentTo": "{{title}} 無法傳送到 {{service}}。",
+    "notSentToBecause": "{{title}} 無法傳送到 {{service}}：{{reason}}",
+    "news_other": "你的 {{count}} 個請求有新動態",
+    "problem": {
+      "off": "請求功能已關閉",
+      "offText": "此伺服器不接受影視請求。",
+      "tmdbKey": "TMDB 拒絕了此伺服器的金鑰",
+      "tmdbKeyManage": "請在 設定 → 伺服器 中檢查。",
+      "tmdbKeyText": "需要管理員檢查。",
+      "tmdbDown": "TMDB 沒有響應",
+      "tmdbDownText": "請稍後再試。",
+      "noAccess": "此賬戶沒有請求許可權",
+      "noAccessText": "管理員可以允許其請求影視。",
+      "signIn": "重新登入以請求影視",
+      "declined": "請求已被拒絕。",
+      "askMore": "{{when}} 可以再次請求。",
+      "atMostMovies_other": "每 7 天最多可請求 {{count, number}} 部電影：請減少數量。",
+      "atMostSeasons_other": "每 7 天最多可請求 {{count, number}} 季：請減少數量。",
+      "overLimit": "超過了限制允許的數量：請減少數量。",
+      "removeWhen": "{{when}} 可以移除。",
+      "tryAgainWhen": "{{when}} 可以重試。"
+    }
+  },
+  "importTitle": {
+    "running": "{{percent}} · 正在從 Plex 匯入",
+    "done": "Plex 匯入完成",
+    "failed": "Plex 匯入失敗",
+    "cancelled": "Plex 匯入已停止",
+    "interrupted": "Plex 匯入提前結束"
+  }
+}

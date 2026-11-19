@@ -14,17 +14,32 @@ import i18next from "i18next";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
 import fr from "./locales/fr.json";
+import zhCN from "./locales/zh-CN.json";
+import zhTW from "./locales/zh-TW.json";
 
-export const LANGUAGES = ["en", "fr", "es"] as const;
+export const LANGUAGES = ["en", "fr", "es", "zh-CN", "zh-TW"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
-/** The words of each language, English first: what the others are checked against (`i18n.test.ts`). */
-export const CATALOGS: Record<Language, typeof en> = { en, fr, es };
+/**
+ * The words of each language, English first: what the others are checked
+ * against (`i18n.test.ts`). Chinese counts every number the same way, so its
+ * catalogs have only the `_other` form of a counted word.
+ */
+export const CATALOGS = { en, fr, es, "zh-CN": zhCN, "zh-TW": zhTW };
 
-/** The language Pley has for a tag ("fr-CA" → "fr"), if any. */
+/** The language Pley has for a tag ("fr-CA" → "fr", "zh-Hant" → "zh-TW"), if any. */
 export function supportedLanguage(tag: string | null | undefined): Language | undefined {
-  const base = tag?.trim().split(/[-_]/)[0]?.toLowerCase();
-  return LANGUAGES.find((language) => language === base);
+  const normalized = tag?.trim().replace(/_/g, "-").toLowerCase();
+  if (!normalized) return undefined;
+  // A whole code first: the two Chinese ones share a base but not their words.
+  const full = LANGUAGES.find((language) => language.toLowerCase() === normalized);
+  if (full) return full;
+  if (normalized === "zh" || normalized.startsWith("zh-")) {
+    // The script, or a region that writes traditional characters, picks one.
+    const traditional = normalized.includes("hant") || ["tw", "hk", "mo"].some((r) => normalized.split("-").includes(r));
+    return traditional ? "zh-TW" : "zh-CN";
+  }
+  return LANGUAGES.find((language) => language === normalized.split("-")[0]);
 }
 
 /** The first of the desktop's languages that Pley has. */

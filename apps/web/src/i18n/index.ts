@@ -19,7 +19,7 @@ import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import { en, type LazyNamespace } from "./resources";
 
-export const LANGUAGES = ["en", "fr", "es"] as const;
+export const LANGUAGES = ["en", "fr", "es", "zh-CN", "zh-TW"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 const STORAGE_KEY = "pley.language";
@@ -37,10 +37,19 @@ const catalogs = import.meta.glob<{ default: Record<string, unknown> }>([
   "!./locales/en/requests.json",
 ]);
 
-/** The language Pley has for a tag ("fr-CA" → "fr"), if any. */
+/** The language Pley has for a tag ("fr-CA" → "fr", "zh-Hant" → "zh-TW"), if any. */
 export function supportedLanguage(tag: string | null | undefined): Language | undefined {
-  const base = tag?.trim().split(/[-_]/)[0]?.toLowerCase();
-  return LANGUAGES.find((language) => language === base);
+  const normalized = tag?.trim().replace(/_/g, "-").toLowerCase();
+  if (!normalized) return undefined;
+  // A whole code first: the two Chinese ones share a base but not their words.
+  const full = LANGUAGES.find((language) => language.toLowerCase() === normalized);
+  if (full) return full;
+  if (normalized === "zh" || normalized.startsWith("zh-")) {
+    // The script, or a region that writes traditional characters, picks one.
+    const traditional = normalized.includes("hant") || ["tw", "hk", "mo"].some((r) => normalized.split("-").includes(r));
+    return traditional ? "zh-TW" : "zh-CN";
+  }
+  return LANGUAGES.find((language) => language === normalized.split("-")[0]);
 }
 
 /** The browser's (or the desktop's) languages, the one it prefers first. */

@@ -1,0 +1,60 @@
+{
+  "hubs": {
+    "continueWatching": "继续观看",
+    "continueListening": "继续收听",
+    "myList": "我的片单",
+    "recentlyAddedIn": "最近添加到 {{library}}",
+    "recentlyAdded": "最近添加",
+    "recentlyAddedShows": "最近添加的剧集",
+    "recentlyAddedAlbums": "最近添加的专辑",
+    "recentlyAddedBooks": "最近添加的书籍",
+    "recentlyReleased": "最近上映",
+    "topRated": "评分最高",
+    "topUnwatched": "未观看精选"
+  },
+  "collections": {
+    "highlights": "精选集",
+    "box_sets": "系列套装",
+    "other": "其他"
+  },
+  "tray": {
+    "open": "&打开 Pley",
+    "scan": "&扫描所有媒体库",
+    "logs": "显示&日志",
+    "autostart": "登录时&启动 Pley",
+    "quit": "&退出 Pley",
+    "mac": {
+      "scan": "扫描所有媒体库",
+      "logs": "显示日志",
+      "autostart": "登录时启动 Pley"
+    },
+    "status": {
+      "idle": "空闲",
+      "stopping": "正在关闭",
+      "streams_one": "{{count}} 个播放",
+      "streams_other": "{{count}} 个播放",
+      "transcoding": "{{streams}}（{{count}} 个转码中）",
+      "scanning": "正在扫描 {{library}}",
+      "scanningLibraries": "正在扫描媒体库"
+    }
+  },
+  "requests": {
+    "addedByHand": "手动添加",
+    "notAnswering": "{{service}} 没有响应",
+    "unsaved": "Pley 无法保存发送结果：{{why}}",
+    "arr": {
+      "unauthorized": "{{service}} 拒绝了 API 密钥",
+      "unreachable": "无法连接到 {{service}}：{{why}}",
+      "refused": "{{service}} 拒绝了：{{why}}",
+      "unexpected": "{{service}} 返回了意外内容：{{why}}",
+      "redirected": "它返回了重定向：请用其设置中显示的基址填写地址",
+      "tooLarge": "它的响应超过 {{size}} MB",
+      "noMovie": "未找到匹配的电影",
+      "noId": "响应中没有 id",
+      "noShow": "未找到 TheTVDB ID 为 {{tvdb}} 的剧集",
+      "noTvdbId": "TMDB 不知道这部剧的 TheTVDB ID，而 Sonarr 需要它：请手动添加到 Sonarr",
+      "qualityProfile": "在 设置 → 请求 中选择 {{service}} 的质量配置",
+      "rootFolder": "在 设置 → 请求 中选择 {{service}} 的根文件夹"
+    }
+  }
+}

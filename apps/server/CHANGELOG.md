@@ -11,6 +11,10 @@ describes how they are made.
 
 ### Added
 
+- Simplified and Traditional Chinese (`zh-CN`, `zh-TW`) for the server's own
+  words and the web app: hub titles, why a request couldn't be sent, and every
+  page. Pick one on your Account page or in Settings → General, or let Pley
+  follow your device's language.
 - `.strm` files in movie and TV libraries, as Kodi, Jellyfin and Emby read
   them: a text file that names the `http` or `https` address a video is at
   is listed, played, converted and downloaded like a video on disk, on
