@@ -108,6 +108,9 @@ interface SnapshotStore {
     /** Keeps [bytes] as [scope]'s snapshot of [key], whichever profile is signed in now. */
     suspend fun write(scope: ProfileScope, key: String, bytes: ByteArray)
 
+    /** Deletes [scope]'s snapshot of [key]. */
+    suspend fun delete(scope: ProfileScope, key: String)
+
     /** Deletes everything saved for [issuer]. */
     suspend fun clear(issuer: String)
 }

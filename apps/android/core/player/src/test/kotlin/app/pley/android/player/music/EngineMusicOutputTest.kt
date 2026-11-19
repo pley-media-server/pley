@@ -36,5 +36,14 @@ class EngineMusicOutputTest {
         )
         // A parser's words, with Media3's flags after them.
         assertTrue(EngineMusicOutput.describeFailure(parse).startsWith("ERROR_CODE_PARSING_CONTAINER_MALFORMED < ParserException: Invalid FLAC stream marker"))
+
+        // A playlist's line it quotes, address and all: the address is left out.
+        val playlist = ExoPlaybackException.createForSource(
+            ParserException.createForMalformedManifest("Couldn't match #EXT-X-KEY in https://192.0.2.1/api/stream/7/key?token=abc", null),
+            PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED,
+        )
+        val quoted = EngineMusicOutput.describeFailure(playlist)
+        assertTrue(quoted, quoted.contains("Couldn't match #EXT-X-KEY in <address>"))
+        assertFalse(quoted, quoted.contains("192.0.2.1") || quoted.contains("token"))
     }
 }

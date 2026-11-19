@@ -9,8 +9,11 @@ import android.os.ParcelFileDescriptor
 import app.pley.android.player.PlayerGraphOwner
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -88,14 +91,19 @@ class MusicArtProvider : ContentProvider() {
      */
     private fun pipe(bytes: () -> ByteArray?): ParcelFileDescriptor {
         val (read, write) = ParcelFileDescriptor.createPipe()
-        FETCHES.execute {
-            ParcelFileDescriptor.AutoCloseOutputStream(write).use { out ->
-                try {
-                    bytes()?.let(out::write)
-                } catch (_: IOException) {
-                    // The car stopped reading.
+        try {
+            FETCHES.execute {
+                ParcelFileDescriptor.AutoCloseOutputStream(write).use { out ->
+                    try {
+                        bytes()?.let(out::write)
+                    } catch (_: IOException) {
+                        // The car stopped reading.
+                    }
                 }
             }
+        } catch (_: RejectedExecutionException) {
+            // More waiting than any car's screen shows at once: this one ends empty now, and shows no cover.
+            write.close()
         }
         return read
     }
@@ -113,7 +121,7 @@ class MusicArtProvider : ContentProvider() {
     private companion object {
         const val FETCH_MS = 10_000L
 
-        /** The pictures fetched at once; the rest wait their turn. */
-        val FETCHES: ExecutorService = Executors.newFixedThreadPool(4)
+        /** The pictures fetched at once, and the most that wait their turn. */
+        val FETCHES: ExecutorService = ThreadPoolExecutor(4, 4, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(128))
     }
 }

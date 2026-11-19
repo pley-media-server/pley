@@ -99,7 +99,7 @@ class FileSnapshotStore(
     }
 
     /** Deletes [scope]'s snapshot of [key]. */
-    suspend fun delete(scope: ProfileScope, key: String) {
+    override suspend fun delete(scope: ProfileScope, key: String) {
         withContext(io) {
             val file = fileOf(scope, key)
             file.delete()

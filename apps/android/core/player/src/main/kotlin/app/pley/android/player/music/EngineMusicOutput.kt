@@ -142,6 +142,9 @@ class EngineMusicOutput(
         private const val MAX_CAUSES = 6
         private const val MAX_MESSAGE = 120
 
+        /** An address in a parser's message (`https://…`, a relative one's scheme-less part stays): left out of the log. */
+        private val ADDRESS = Regex("""[A-Za-z][A-Za-z0-9+.-]*://\S+""")
+
         /** The extra of the player's item's metadata that holds the track's id. */
         const val TRACK_ID = "pley.track"
 
@@ -156,7 +159,8 @@ class EngineMusicOutput(
             val causes = generateSequence(error.cause) { it.cause }.take(MAX_CAUSES).map { cause ->
                 when (cause) {
                     is HttpDataSource.InvalidResponseCodeException -> "HTTP ${cause.responseCode}"
-                    is ParserException -> "${cause.javaClass.simpleName}: ${cause.message?.take(MAX_MESSAGE)}"
+                    // A parser quotes the line it couldn't read, which can be a playlist's address.
+                    is ParserException -> "${cause.javaClass.simpleName}: ${cause.message?.replace(ADDRESS, "<address>")?.take(MAX_MESSAGE)}"
                     else -> cause.javaClass.simpleName
                 }
             }

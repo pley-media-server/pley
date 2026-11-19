@@ -184,7 +184,14 @@ class ServiceMusicControl(
             val resume = MusicResume(
                 profile = { snapshots.active },
                 read = { whose, key -> snapshots.read(whose, key) },
-                write = { whose, key, bytes -> snapshots.write(whose, key, bytes) },
+                write = { whose, key, bytes ->
+                    // Only for a server still signed in, and taken back if it was signed out of as it was written: signing
+                    // out deletes what was saved from the server, which a write on its way would leave behind.
+                    if (snapshots.active?.server == whose.server) {
+                        snapshots.write(whose, key, bytes)
+                        if (snapshots.active?.server != whose.server) snapshots.delete(whose, key)
+                    }
+                },
                 scope = main,
             )
             val keep = { resume.keep(playback.queueState.value, playback.position().positionMs) }
