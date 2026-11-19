@@ -15,7 +15,9 @@ import kotlin.random.Random
  * With [repeat] on the queue, the track after the last is the first, in
  * the order it has (a shuffled queue plays the same shuffle again), and
  * Previous on the first goes to the last. With [repeat] on the track, it
- * plays again once it ends ([advance]); Next and Previous still move.
+ * plays again once it ends ([advance]); Next and Previous still move, and
+ * stop at the queue's ends as without Repeat, as Media3 has it for the
+ * car, the notification and Bluetooth.
  */
 class MusicQueue(private val random: Random = Random.Default) {
     private var given: List<ItemSummary> = emptyList()
@@ -43,7 +45,7 @@ class MusicQueue(private val random: Random = Random.Default) {
     var repeat: MusicRepeat = MusicRepeat.Off
 
     /** Whether [next] has a track to go to. */
-    val hasNext: Boolean get() = index + 1 < order.size || (repeat != MusicRepeat.Off && order.isNotEmpty())
+    val hasNext: Boolean get() = index + 1 < order.size || (repeat == MusicRepeat.All && order.isNotEmpty())
 
     val state: MusicQueueState get() = MusicQueueState(tracks, index, shuffle, repeat)
 

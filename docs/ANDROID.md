@@ -1068,7 +1068,9 @@ phone's media controls have both, as do Now Playing on the phone and on
 a TV). A queue that repeats plays again from its start once it ends, in
 the order it has, and Next on its last track and Previous on its first go
 round; a track that repeats plays again by itself, and Next and Previous
-still move. Repeat stays as another album plays, until the music stops.
+still move, stopping at the queue's ends as they do without Repeat (on
+the phone as in the car). Repeat stays as another album plays, until the
+music stops.
 
 A track is one entry of the car's Now Playing from the moment it is the
 queue's: its title, artist, cover and length as the library has them,

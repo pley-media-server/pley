@@ -70,12 +70,17 @@ class MusicQueueTest {
         assertEquals(MusicQueue.Previous.Moved, queue.previous(positionMs = 0))
         assertEquals(12L, queue.current?.id)
 
-        // The track repeats by itself; Next and Previous still move.
+        // The track repeats by itself; Next and Previous still move, and stop at the queue's ends as without Repeat.
         queue.repeat = MusicRepeat.One
         assertTrue(queue.advance())
         assertEquals(12L, queue.current?.id)
+        assertFalse(queue.hasNext)
+        assertFalse(queue.next())
+        assertEquals(MusicQueue.Previous.Moved, queue.previous(positionMs = 0))
+        assertEquals(11L, queue.current?.id)
         assertTrue(queue.next())
-        assertEquals(1L, queue.current?.id)
+        assertEquals(12L, queue.current?.id)
+        queue.jumpTo(0)
         assertEquals(MusicQueue.Previous.Restart, queue.previous(positionMs = 0))
 
         // A shuffled queue repeats the shuffle it has.

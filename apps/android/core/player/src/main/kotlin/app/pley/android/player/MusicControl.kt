@@ -56,8 +56,8 @@ data class NowPlaying(
      */
     val nextIn: Int? = null,
 ) {
-    /** Whether Next has a track to go to: the one after, or with [repeat] the first again. */
-    val hasNext: Boolean get() = index + 1 < count || repeat != MusicRepeat.Off
+    /** Whether Next has a track to go to: the one after, or with the queue repeating the first again. */
+    val hasNext: Boolean get() = index + 1 < count || repeat == MusicRepeat.All
 
     /** "Artist · Album", as the mini player says it. */
     val byline: String get() = listOfNotNull(artist, album).filter { it.isNotBlank() }.joinToString(" · ")

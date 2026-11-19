@@ -235,6 +235,12 @@ class QueuePlayerTest {
         player.queueChanged()
         idle()
         assertEquals(Player.REPEAT_MODE_ONE, player.repeatMode)
+        // The track repeating, the last one has no next one: not in the car, nor on the phone.
+        playback.jumpTo(2)
+        player.queueChanged()
+        idle()
+        assertFalse(player.hasNextMediaItem())
+        assertFalse(playback.nowPlaying.value!!.hasNext)
     }
 
     @Test
