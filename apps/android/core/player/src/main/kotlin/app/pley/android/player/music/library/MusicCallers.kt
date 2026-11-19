@@ -1,6 +1,8 @@
 package app.pley.android.player.music.library
 
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.os.Process
 import androidx.core.content.pm.PackageInfoCompat
 
 /**
@@ -29,9 +31,12 @@ object MusicCallers {
      * as hasSignatures given several wants every one of them (an Android Auto signed before its key rotated has the
      * first alone).
      */
-    fun allowed(packageManager: PackageManager, packageName: String): Boolean {
-        val keys = KEYS[packageName] ?: return false
-        return keys.any { key ->
+    fun allowed(packageManager: PackageManager, packageName: String): Boolean = allowed(packageManager, packageName, KEYS)
+
+    /** [allowed], with the keys each app may be signed with ([KEYS]; a test's own in tests). */
+    internal fun allowed(packageManager: PackageManager, packageName: String, keys: Map<String, List<String>>): Boolean {
+        val wanted = keys[packageName] ?: return false
+        return wanted.any { key ->
             try {
                 PackageInfoCompat.hasSignatures(packageManager, packageName, mapOf(hex(key) to PackageManager.CERT_INPUT_SHA256), false)
             } catch (_: PackageManager.NameNotFoundException) {
@@ -39,6 +44,42 @@ object MusicCallers {
             }
         }
     }
+
+    /**
+     * Whether the caller named [name], asking from [uid], is Android Auto or the Google app: the name owned by that
+     * uid, and the app under it signed by Google. Media3 takes a controller's name unchecked from an app this one can't
+     * see (package visibility hides its packages), and from the system's controllers below Android 13. [own] is the
+     * app's own name, never a car's.
+     */
+    fun isCar(packageManager: PackageManager, own: String, name: String, uid: Int): Boolean =
+        isCar(packageManager, own, name, uid, KEYS)
+
+    /** [isCar], with the keys each app may be signed with ([KEYS]; a test's own in tests). */
+    internal fun isCar(packageManager: PackageManager, own: String, name: String, uid: Int, keys: Map<String, List<String>>): Boolean {
+        if (name == own) return false
+        val owner = runCatching { packageManager.getPackageUid(name, 0) }.getOrNull() ?: return false
+        return owner == uid && allowed(packageManager, name, keys)
+    }
+
+    /**
+     * Whether the caller named [name], asking from [uid], is the system's own (its media controls, Bluetooth, the lock
+     * screen): a system uid, or a system app's under its own name. Media3 also trusts any app given access to
+     * notifications (a watch's companion, an automation app), which may not drive the music.
+     */
+    fun isSystem(packageManager: PackageManager, name: String, uid: Int): Boolean {
+        if (uid in 0 until Process.FIRST_APPLICATION_UID) return true
+        val info = runCatching { packageManager.getApplicationInfo(name, 0) }.getOrNull() ?: return false
+        return info.uid == uid && systemFlags(info)
+    }
+
+    /** Whether [name] is installed as part of the system: no other app can take a system app's name. */
+    fun systemApp(packageManager: PackageManager, name: String): Boolean {
+        val info = runCatching { packageManager.getApplicationInfo(name, 0) }.getOrNull() ?: return false
+        return systemFlags(info)
+    }
+
+    private fun systemFlags(info: ApplicationInfo): Boolean =
+        info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
 
     private fun hex(text: String): ByteArray = ByteArray(text.length / 2) { text.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 }

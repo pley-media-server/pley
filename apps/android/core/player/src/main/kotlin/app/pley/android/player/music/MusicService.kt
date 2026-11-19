@@ -3,7 +3,6 @@ package app.pley.android.player.music
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Bundle
 import android.os.Process
@@ -150,7 +149,7 @@ class MusicService : MediaLibraryService() {
         // Repeat for whoever found it.
         addSession(made)
         // The phone's own media controls show the covers the session names, read from the app as the car's are.
-        if (systemApp(SYSTEM_UI)) grantArt(SYSTEM_UI)
+        if (MusicCallers.systemApp(packageManager, SYSTEM_UI)) grantArt(SYSTEM_UI)
         following = scope.launch {
             launch {
                 playback.queueState.collect { queue ->
@@ -353,7 +352,7 @@ class MusicService : MediaLibraryService() {
     private fun allowed(controller: MediaSession.ControllerInfo, session: MediaSession?): Boolean =
         (controller.packageName == packageName && controller.uid == Process.myUid()) ||
             (session != null && session.isMediaNotificationController(controller)) ||
-            (controller.isTrusted && isSystem(controller)) ||
+            (controller.isTrusted && MusicCallers.isSystem(packageManager, controller.packageName, controller.uid)) ||
             isCar(controller)
 
     /** Lets [packageName] read the library's pictures ([MusicArt]), and nothing else of the app's. */
@@ -367,33 +366,9 @@ class MusicService : MediaLibraryService() {
         }
     }
 
-    /**
-     * Whether [controller] is the system's own (its media controls, Bluetooth, the lock screen): Media3 also trusts
-     * any app given access to notifications (a watch's companion, an automation app), which may not drive the music.
-     */
-    private fun isSystem(controller: MediaSession.ControllerInfo): Boolean {
-        if (controller.uid in 0 until Process.FIRST_APPLICATION_UID) return true
-        val info = runCatching { packageManager.getApplicationInfo(controller.packageName, 0) }.getOrNull() ?: return false
-        return info.uid == controller.uid && info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-    }
-
-    /**
-     * Whether [controller] is Android Auto or the Google app: the name it gives, owned by the uid it asks from, and the
-     * app under that name signed by Google. Media3 takes a controller's name unchecked from an app this one can't see
-     * (package visibility hides its packages), and from the system's controllers below Android 13.
-     */
-    private fun isCar(controller: MediaSession.ControllerInfo): Boolean {
-        val name = controller.packageName
-        if (name == packageName) return false
-        val owner = runCatching { packageManager.getPackageUid(name, 0) }.getOrNull() ?: return false
-        return owner == controller.uid && MusicCallers.allowed(packageManager, name)
-    }
-
-    /** Whether [name] is installed as part of the system: no other app can take a system app's name. */
-    private fun systemApp(name: String): Boolean {
-        val info = runCatching { packageManager.getApplicationInfo(name, 0) }.getOrNull() ?: return false
-        return info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-    }
+    /** Whether [controller] is Android Auto or the Google app, as the app that asks ([MusicCallers.isCar]). */
+    private fun isCar(controller: MediaSession.ControllerInfo): Boolean =
+        MusicCallers.isCar(packageManager, packageName, controller.packageName, controller.uid)
 
     /**
      * The buttons beside Previous, Play and Next (Android Auto's Now
