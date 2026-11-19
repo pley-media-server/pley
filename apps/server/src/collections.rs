@@ -65,6 +65,16 @@ impl Builtin {
         format!("{prefix}.{name}")
     }
 
+    /// The icon its poster starts with, and its color ([`crate::collection_art`]).
+    pub fn icon(self) -> (&'static str, &'static str) {
+        match self {
+            Builtin::RecentlyAdded => ("clock", "blue"),
+            Builtin::RecentlyReleased => ("calendar", "teal"),
+            Builtin::TopRated => ("star", "amber"),
+            Builtin::TopUnwatched => ("eye-off", "pink"),
+        }
+    }
+
     /// Its name (the server's words), by the library's kind.
     pub fn title_key(self, kind: LibraryKind) -> &'static str {
         match self {
@@ -193,6 +203,12 @@ pub(crate) struct CollectionRow {
     backdrop: Option<String>,
     /// A poster an administrator uploaded: it wins over `poster`.
     custom_poster: Option<String>,
+    /// An icon and its color ([`crate::collection_art`]) drawn over its
+    /// films' posters: it wins over `poster` too.
+    icon: Option<String>,
+    icon_color: Option<String>,
+    /// `color`: the icon on its color alone, not over the posters.
+    poster_background: Option<String>,
     pub(crate) sort: String,
     pub(crate) smart_filter: Option<String>,
     category_id: Option<i64>,
@@ -204,7 +220,8 @@ pub(crate) struct CollectionRow {
 }
 
 const COLUMNS: &str =
-    "id, library_id, title, sort_title, summary, tmdb_id, poster, backdrop, custom_poster, sort, smart_filter,
+    "id, library_id, title, sort_title, summary, tmdb_id, poster, backdrop, custom_poster, icon, icon_color, poster_background, sort,
+    smart_filter,
     category_id, home_position, recommended_position, builtin, created_at, updated_at";
 
 #[derive(Debug, Clone, Serialize)]
@@ -236,8 +253,12 @@ pub struct CollectionDto {
     /// Items this user can see.
     pub item_count: i64,
     /// Where its poster comes from: `custom`, a picture an administrator
-    /// uploaded, or `automatic`, TMDB's or its first visible item's.
+    /// uploaded; `icon`, `icon` in `icon_color` over its first items'
+    /// posters; `color`, `icon` on `icon_color` alone; or `automatic`,
+    /// TMDB's, else its first items' posters.
     pub artwork: &'static str,
+    pub icon: Option<String>,
+    pub icon_color: Option<String>,
     /// The collection's own artwork, else its first visible item's.
     pub poster_url: String,
     pub backdrop_url: String,
@@ -246,19 +267,28 @@ pub struct CollectionDto {
 }
 
 impl CollectionRow {
+    /// Its icon is drawn on its color alone.
+    fn on_color(&self) -> bool {
+        self.poster_background.as_deref() == Some("color")
+    }
+
     /// The poster URL's version: it changes with what the poster is drawn
     /// from, even within the second `updated_at` counts in.
     fn poster_version(&self) -> String {
         use sha2::{Digest, Sha256};
         let mut hash = Sha256::new();
         hash.update(self.updated_at.to_le_bytes());
-        hash.update(self.custom_poster.as_deref().unwrap_or_default());
+        for part in [&self.custom_poster, &self.icon, &self.icon_color, &self.poster_background] {
+            hash.update(part.as_deref().unwrap_or_default());
+            hash.update([0]);
+        }
         hash.finalize().iter().take(6).map(|b| format!("{b:02x}")).collect()
     }
 
     fn into_dto(self, item_count: i64, names: &Names) -> CollectionDto {
         let untouched = names.untouched(&self).is_some();
         let poster_version = self.poster_version();
+        let on_color = self.on_color();
         let title = names.title(&self);
         CollectionDto {
             // Pley's own, named in the user's language, sort by that name.
@@ -268,7 +298,17 @@ impl CollectionRow {
             home_position: self.home_position,
             recommended_position: self.recommended_position,
             builtin: self.builtin,
-            artwork: if self.custom_poster.is_some() { "custom" } else { "automatic" },
+            artwork: match (&self.custom_poster, &self.icon) {
+                (Some(_), _) => "custom",
+                (None, Some(_)) if on_color => "color",
+                (None, Some(_)) => "icon",
+                (None, None) => "automatic",
+            },
+            icon_color: self
+                .icon
+                .as_ref()
+                .map(|_| self.icon_color.clone().unwrap_or_else(|| crate::collection_art::DEFAULT_COLOR.to_owned())),
+            icon: self.icon,
             poster_url: format!("/api/collections/{}/images/poster?v={}", self.id, poster_version),
             backdrop_url: format!("/api/collections/{}/images/backdrop?v={}", self.id, self.updated_at),
             id: self.id,
@@ -411,6 +451,15 @@ pub(crate) async fn rows(db: &Db, ids: &[i64]) -> sqlx::Result<Vec<CollectionRow
         }
     }
     Ok(out)
+}
+
+/// Collection `id`'s icon, its color, and whether it's drawn on the color
+/// alone; `None`: no such collection.
+pub async fn icon_of(db: &Db, id: i64) -> sqlx::Result<Option<(Option<String>, Option<String>, bool)>> {
+    Ok(row(db, id).await?.map(|r| {
+        let on_color = r.on_color();
+        (r.icon, r.icon_color, on_color)
+    }))
 }
 
 async fn row(db: &Db, id: i64) -> sqlx::Result<Option<CollectionRow>> {
@@ -700,35 +749,107 @@ pub async fn move_item(db: &Db, id: i64, item_id: i64, after: Option<i64>) -> sq
     Ok(true)
 }
 
-/// Own artwork of the collection, or `Err(item)` to fall back to: the first
-/// visible item that has such artwork (else the first one).
-pub async fn artwork(
-    db: &Db,
-    store: &Store,
-    user: &AuthUser,
-    id: i64,
-    kind: &str,
-) -> sqlx::Result<Option<Result<PathBuf, i64>>> {
+/// What a collection's poster or backdrop is ([`artwork`]).
+pub enum Artwork {
+    /// A picture of its own.
+    File(PathBuf),
+    /// One drawn ([`crate::collection_art`]) from the posters of the first
+    /// [`DRAWN_POSTERS`] of these items whose posters can be read, and the
+    /// icon (its name and its color's), if any. Without an icon, the first
+    /// item's poster when fewer than [`DRAWN_POSTERS_ALONE`] can be read.
+    Drawn { items: Vec<i64>, icon: Option<(String, String)> },
+    /// This item's.
+    Item(i64),
+}
+
+/// The items whose posters a drawn poster shows.
+pub const DRAWN_POSTERS: usize = 4;
+
+/// Without an icon, the posters a drawn poster needs: from one, it would
+/// only be that item's own poster.
+pub const DRAWN_POSTERS_ALONE: usize = 2;
+
+/// Items a drawn poster may take its posters from: a few more than it
+/// shows, for posters that can't be read.
+const DRAWN_CANDIDATES: usize = 8;
+
+/// A collection's artwork of `kind` (`poster` or `backdrop`), for `user`.
+/// The poster is the uploaded one, else its icon over its first visible
+/// items' posters (or on its color alone), else TMDB's, else those posters in a grid when there are
+/// two or more; and a backdrop its own. Else the first visible item's that has
+/// such artwork; a poster with none, its library's icon on slate, and a
+/// backdrop the first item's.
+pub async fn artwork(db: &Db, store: &Store, user: &AuthUser, id: i64, kind: &str) -> sqlx::Result<Option<Artwork>> {
     let Some(row) = row(db, id).await? else { return Ok(None) };
     let Some(items) = visible_items(db, user, &row, None).await? else { return Ok(None) };
+    let file = |r: Option<String>| r.and_then(|r| store.path(&r)).filter(|p| p.is_file());
     let poster = kind == "poster";
-    let own = if poster { row.custom_poster.or(row.poster) } else { row.backdrop };
-    if let Some(path) = own.and_then(|r| store.path(&r)).filter(|p| p.is_file()) {
-        return Ok(Some(Ok(path)));
+    let with_posters: Vec<i64> = items.iter().filter(|i| i.has_poster).take(DRAWN_CANDIDATES).map(|i| i.id).collect();
+    let on_color = row.on_color();
+    if poster {
+        if let Some(path) = file(row.custom_poster) {
+            return Ok(Some(Artwork::File(path)));
+        }
+        if let Some(icon) = row.icon {
+            let color = row.icon_color.unwrap_or_else(|| crate::collection_art::DEFAULT_COLOR.to_owned());
+            let items = if on_color { Vec::new() } else { with_posters };
+            return Ok(Some(Artwork::Drawn { items, icon: Some((icon, color)) }));
+        }
+    }
+    if let Some(path) = file(if poster { row.poster } else { row.backdrop }) {
+        return Ok(Some(Artwork::File(path)));
+    }
+    if poster && with_posters.len() >= DRAWN_POSTERS_ALONE {
+        return Ok(Some(Artwork::Drawn { items: with_posters, icon: None }));
     }
     let with_art = items.iter().find(|i| if poster { i.has_poster } else { i.has_backdrop });
-    Ok(with_art.or(items.first()).map(|i| Err(i.id)))
+    if poster && with_art.is_none() {
+        // No poster to show: its library's icon on a quiet color, the same
+        // on every app, rather than each app's own placeholder.
+        let kind: Option<String> = sqlx::query_scalar("SELECT kind FROM libraries WHERE id = ?")
+            .bind(row.library_id)
+            .fetch_optional(&db.read)
+            .await?;
+        let kind = kind.as_deref().and_then(LibraryKind::parse).unwrap_or(LibraryKind::Movies);
+        let icon = crate::collection_art::default_icon(kind).to_owned();
+        return Ok(Some(Artwork::Drawn {
+            items: Vec::new(),
+            icon: Some((icon, crate::collection_art::EMPTY_COLOR.to_owned())),
+        }));
+    }
+    Ok(with_art.or(items.first()).map(|i| Artwork::Item(i.id)))
 }
 
 /// Sets or clears (`None`) the poster an administrator uploaded for
-/// collection `id`.
+/// collection `id`; either way, it has no icon after.
 pub async fn set_custom_poster(db: &Db, id: i64, blob: Option<&str>) -> sqlx::Result<()> {
-    sqlx::query("UPDATE collections SET custom_poster = ?, updated_at = ? WHERE id = ?")
-        .bind(blob)
-        .bind(now())
-        .bind(id)
-        .execute(&db.write)
-        .await?;
+    sqlx::query(
+        "UPDATE collections SET custom_poster = ?, icon = NULL, icon_color = NULL, poster_background = NULL,
+         updated_at = ? WHERE id = ?",
+    )
+    .bind(blob)
+    .bind(now())
+    .bind(id)
+    .execute(&db.write)
+    .await?;
+    Ok(())
+}
+
+/// Gives collection `id` an icon in a color (names checked by the caller),
+/// over its films' posters or (`on_color`) on the color alone; or none
+/// (`None`). An uploaded poster goes either way.
+pub async fn set_icon(db: &Db, id: i64, icon: Option<(&str, &str)>, on_color: bool) -> sqlx::Result<()> {
+    sqlx::query(
+        "UPDATE collections SET icon = ?, icon_color = ?, poster_background = ?, custom_poster = NULL, updated_at = ?
+         WHERE id = ?",
+    )
+    .bind(icon.map(|(name, _)| name))
+    .bind(icon.map(|(_, color)| color))
+    .bind(icon.filter(|_| on_color).map(|_| "color"))
+    .bind(now())
+    .bind(id)
+    .execute(&db.write)
+    .await?;
     Ok(())
 }
 
@@ -751,9 +872,10 @@ pub async fn restore_defaults(db: &Db, library_id: i64) -> sqlx::Result<u64> {
         let title = i18n::t("en", builtin.title_key(kind));
         let home = if builtin == Builtin::RecentlyAdded { Some(next_home_position(&mut tx).await?) } else { None };
         made += sqlx::query(
-            "INSERT INTO collections (library_id, title, sort_title, sort, smart_filter, builtin, category_id,
-                category_from, home_position, recommended_position, created_at, updated_at)
-             SELECT ?, ?, ?, 'release', ?, ?, (SELECT id FROM collection_categories WHERE key = 'highlights'), 'pley',
+            "INSERT INTO collections (library_id, title, sort_title, sort, smart_filter, builtin, icon, icon_color,
+                category_id, category_from, home_position, recommended_position, created_at, updated_at)
+             SELECT ?, ?, ?, 'release', ?, ?, ?, ?, (SELECT id FROM collection_categories WHERE key = 'highlights'),
+                'pley',
                 ?, CASE WHEN ? IS NOT NULL THEN (SELECT COALESCE(MAX(recommended_position) + 1, ?)
                     FROM collections WHERE library_id = ?) END, ?, ?
              WHERE NOT EXISTS (SELECT 1 FROM collections WHERE library_id = ? AND builtin = ?)",
@@ -763,6 +885,8 @@ pub async fn restore_defaults(db: &Db, library_id: i64) -> sqlx::Result<u64> {
         .bind(sort_title(&title))
         .bind(builtin.filter(kind))
         .bind(builtin.key())
+        .bind(builtin.icon().0)
+        .bind(builtin.icon().1)
         .bind(home)
         .bind(builtin.position())
         .bind(builtin.position())

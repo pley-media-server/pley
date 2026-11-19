@@ -14,6 +14,7 @@ pub mod bonjour;
 pub mod cast;
 pub mod catalog;
 pub mod categories;
+pub mod collection_art;
 pub mod collections;
 pub mod config;
 pub mod db;

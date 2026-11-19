@@ -55,6 +55,7 @@ const CACHES: &[(&str, Duration)] = &[
     ("fingerprints", Duration::from_secs(90 * DAY)), // markers: audio fingerprints
     ("bif", Duration::from_secs(30 * DAY)),          // trickplay.rs: Plex's BIF indexes of seek previews
     ("discover", Duration::from_secs(30 * DAY)),     // discover/pictures.rs: TMDB's pictures
+    ("collections", Duration::from_secs(30 * DAY)),  // collection_art.rs: collections' drawn posters
 ];
 
 /// Hosts pictures may be downloaded from: metadata providers' image servers,

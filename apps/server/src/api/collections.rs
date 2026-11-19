@@ -13,6 +13,7 @@ use super::items::item_or_404;
 use super::libraries::visible_library;
 use crate::auth::{AdminUser, AuthUser};
 use crate::catalog::ItemSummary;
+use crate::collection_art::{self, Shown};
 use crate::collections::{self, CollectionDto, CollectionRef};
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
@@ -231,6 +232,18 @@ pub struct CollectionPatch {
     /// A row on its library's Recommended tab (last) or not.
     #[serde(default)]
     on_recommended: Option<bool>,
+    /// Its poster an icon ([`crate::collection_art::ICONS`]) over its
+    /// films' posters, in `icon_color` (else the color it had, else blue);
+    /// `null`: the
+    /// automatic poster again.
+    #[serde(default, deserialize_with = "nullable")]
+    icon: Option<Option<String>>,
+    #[serde(default)]
+    icon_color: Option<String>,
+    /// `color`: the icon on its color alone (its library's icon unless one
+    /// is given); `posters`: over its films' posters.
+    #[serde(default)]
+    background: Option<String>,
 }
 
 async fn library_of(state: &AppState, id: i64) -> ApiResult<i64> {
@@ -257,6 +270,28 @@ pub async fn update(
         return Err(AppError::bad_request("sort must be release, title or custom"));
     }
     let summary = body.summary.map(|s| s.map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()));
+    if let Some(Some(icon)) = &body.icon
+        && !collection_art::is_icon(icon)
+    {
+        return Err(AppError::bad_request("unknown icon"));
+    }
+    if let Some(color) = &body.icon_color {
+        if !collection_art::is_color(color) {
+            return Err(AppError::bad_request("unknown icon color"));
+        }
+        if body.icon.is_none() && body.background.is_none() {
+            return Err(AppError::bad_request("an icon color goes with an icon"));
+        }
+    }
+    if let Some(background) = &body.background
+        && !matches!(background.as_str(), "posters" | "color")
+    {
+        return Err(AppError::bad_request("background must be posters or color"));
+    }
+    let on_color = body.background.as_deref().map(|b| b == "color");
+    if on_color == Some(true) && matches!(body.icon, Some(None)) {
+        return Err(AppError::bad_request("a color background needs an icon"));
+    }
     if let Some(filter) = &body.smart_filter {
         if !collections::is_smart(&state.db, id).await? {
             return Err(AppError::bad_request("only smart collections have a filter"));
@@ -276,6 +311,27 @@ pub async fn update(
     }
     if let Some(on) = body.on_recommended {
         collections::set_on_recommended(&state.db, id, on).await?;
+    }
+    if body.icon.is_some() || on_color.is_some() {
+        let (icon, color, was_on_color) = collections::icon_of(&state.db, id).await?.unwrap_or_default();
+        let icon = match &body.icon {
+            Some(icon) => icon.clone(),
+            None => icon,
+        };
+        // No icon is the automatic poster, whatever it was drawn on.
+        let on_color = on_color.unwrap_or(was_on_color && icon.is_some());
+        // On its color alone a poster needs an icon: its library's, unless one is chosen.
+        let icon = match icon {
+            None if on_color => {
+                let lib = crate::library::get_library(&state.db, library_id)
+                    .await?
+                    .ok_or_else(|| AppError::not_found("library not found"))?;
+                Some(collection_art::default_icon(lib.kind()).to_owned())
+            }
+            icon => icon,
+        };
+        let color = body.icon_color.or(color).unwrap_or_else(|| collection_art::DEFAULT_COLOR.to_owned());
+        collections::set_icon(&state.db, id, icon.as_deref().map(|icon| (icon, color.as_str())), on_color).await?;
     }
     state.events.send(ServerEvent::LibraryChanged { library_id });
     let language = language(&state, &admin, &headers).await?;
@@ -442,7 +498,7 @@ pub async fn upload_poster(
 }
 
 /// `DELETE /api/collections/{id}/artwork/poster`: back to the automatic
-/// poster.
+/// poster, from an uploaded one or an icon.
 pub async fn reset_poster(
     State(state): State<AppState>,
     AdminUser(admin): AdminUser,
@@ -456,8 +512,7 @@ pub async fn reset_poster(
     Ok(Json(detail(&state, &admin, id, false, language).await?))
 }
 
-/// Collection artwork: the uploaded poster, else its own, else the first
-/// visible item's.
+/// Collection artwork ([`collections::artwork`]).
 pub async fn image(
     State(state): State<AppState>,
     user: AuthUser,
@@ -469,9 +524,12 @@ pub async fn image(
         return Err(AppError::not_found("unknown image kind"));
     }
     let width = query.get("w").and_then(|w| w.parse::<u32>().ok()).filter(|w| *w > 0);
-    match collections::artwork(&state.db, &state.store, &user, id, &kind).await? {
-        Some(Ok(path)) => serve_file(&state, &path, width, query.contains_key("v"), &headers).await,
-        Some(Err(item_id)) => {
+    match collection_art::shown(&state, &user, id, &kind).await? {
+        // A drawn one changes with the films, without the collection.
+        Some(Shown::File { path, drawn }) => {
+            serve_file(&state, &path, width, query.contains_key("v") && !drawn, &headers).await
+        }
+        Some(Shown::Item(item_id)) => {
             let w = width.map(|w| format!("?w={w}")).unwrap_or_default();
             Ok(Redirect::temporary(&format!("/api/items/{item_id}/images/{kind}{w}")).into_response())
         }

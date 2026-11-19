@@ -263,6 +263,8 @@ mod tests {
             builtin: None,
             item_count: 1,
             artwork: "automatic",
+            icon: None,
+            icon_color: None,
             poster_url: String::new(),
             backdrop_url: String::new(),
             created_at: id,

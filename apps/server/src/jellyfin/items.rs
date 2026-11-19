@@ -18,6 +18,7 @@ use super::ids::Kind;
 use super::{Body, Jellyfin, JfError, JfResult, JfUser, Q, QueryResult};
 use crate::auth::{AuthUser, SourceIp};
 use crate::catalog::{self, ItemRow};
+use crate::collection_art::Shown;
 use crate::events::ServerEvent;
 use crate::library::LibraryRow;
 use crate::listing::{self, Page, Params, SectionQuery};
@@ -1426,11 +1427,12 @@ async fn picture(
                 }
             };
             let kind = if image == "backdrop" { "backdrop" } else { "poster" };
-            match crate::collections::artwork(&state.db, &state.store, &viewer, number, kind).await? {
-                Some(Ok(path)) => {
+            match crate::collection_art::shown(state, &viewer, number, kind).await? {
+                Some(Shown::File { path, drawn }) => {
+                    let versioned = versioned && !drawn;
                     Ok(crate::api::collections::serve_file(state, &path, image_width(q), versioned, headers).await?)
                 }
-                Some(Err(item)) => {
+                Some(Shown::Item(item)) => {
                     Ok(crate::api::items::artwork(state, item, kind, image_width(q), versioned, headers).await?)
                 }
                 None => Err(JfError::NotFound),

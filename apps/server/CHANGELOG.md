@@ -27,8 +27,11 @@ describes how they are made.
   tool such as Kometa to make them: Make collections from TMDB, in the
   library's settings, removes them when turned off, edits and all, and
   makes them again when turned back on.
-- Administrators can upload a collection's poster, in place of TMDB's or
-  its first film's. A poster Kometa sets is kept the same way.
+- A collection without a poster of its own shows up to its first four
+  films' posters in a grid, or its library's icon when it has none;
+  Recently Added, Recently Released, Top Rated and Top Unwatched start
+  with icons of their own. Administrators can upload a poster, and a
+  poster Kometa sets counts as uploaded.
 
 ### Changed
 

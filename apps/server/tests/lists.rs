@@ -275,7 +275,9 @@ async fn collections_are_curated_by_admins() {
     let of_item = app.get(&format!("/api/items/{}/collections", m["Gamma"]), &admin).await;
     assert_eq!(of_item.body["collections"], json!([{"id": id, "title": "Favourites"}]));
 
-    // Without artwork of its own, the first item's is used.
+    // Without artwork of its own, the first item's is used (films with
+    // posters: with none, the library's icon is drawn).
+    sqlx::query("UPDATE items SET poster = 'poster.jpg'").execute(&app.state.db.write).await.unwrap();
     let poster = app.get(&format!("/api/collections/{id}/images/poster?w=320"), &admin).await;
     assert_eq!(poster.status, StatusCode::TEMPORARY_REDIRECT);
     assert_eq!(poster.headers[header::LOCATION], format!("/api/items/{}/images/poster?w=320", m["Gamma"]).as_str());
@@ -393,7 +395,8 @@ async fn hidden_items_stay_hidden_in_collections_and_playlists() {
     assert_eq!(app.get(&format!("/api/items/{adult}/collections"), &kid).await.status, StatusCode::NOT_FOUND);
     let of_cartoon = app.get(&format!("/api/items/{cartoon}/collections"), &kid).await;
     assert_eq!(of_cartoon.body["collections"], json!([]));
-    // The artwork fallback never points at the hidden film.
+    // The artwork fallback never points at the hidden film (both with posters).
+    sqlx::query("UPDATE items SET poster = 'poster.jpg'").execute(&app.state.db.write).await.unwrap();
     let poster = app.get(&format!("/api/collections/{mixed}/images/poster"), &kid).await;
     assert_eq!(poster.headers[header::LOCATION], format!("/api/items/{family}/images/poster").as_str());
     // The Jellyfin API applies the same rules.
