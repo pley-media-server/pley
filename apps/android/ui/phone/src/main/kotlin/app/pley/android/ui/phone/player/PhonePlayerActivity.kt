@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.media.AudioManager
@@ -123,10 +122,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         PlayerWindows.opened(this)
 
         immersive()
-        // A car's screen keeps its orientation: asking to turn it would letterbox the picture.
-        if (resources.configuration.smallestScreenWidthDp < TABLET_DP && !onOtherScreen) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        }
+        turnForScreen()
         val graph = (application as PleyGraphOwner).screensGraph
         services = graph.player.services
         settings = runCatching { graph.data.settings }.getOrNull()
@@ -152,7 +148,8 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         val settingsFlow: Flow<Settings> = settings?.settings ?: flowOf(Settings())
         setContent {
             PhoneTheme {
-                CarSized(onCar) {
+                // Asked as it is drawn: the window moves to the phone's screen, and is phone-sized again, as the car goes.
+                CarSized(onCarScreen()) {
                     val current = controller.value
                     val chosen by settingsFlow.collectAsStateWithLifecycle(Settings())
                     if (current == null) {
@@ -310,6 +307,12 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Moved to the phone's screen as the car went (the window isn't made anew): turned as a phone's player is.
+        turnForScreen()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(STATE_KEY, key)
@@ -442,7 +445,6 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         private const val STATE_SAVED = "pley.player.saved"
         private const val PREFS = "phone_player"
         private const val PREF_FILL = "fill"
-        private const val TABLET_DP = 600
 
         /** The longest a playback restored after process death waits for the sign-in to be read. */
         private const val SIGN_IN_WAIT_MS = 5_000L

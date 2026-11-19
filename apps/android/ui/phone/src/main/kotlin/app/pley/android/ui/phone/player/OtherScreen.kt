@@ -2,6 +2,7 @@ package app.pley.android.ui.phone.player
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.view.Display
 import androidx.activity.compose.LocalActivity
@@ -10,8 +11,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
@@ -23,6 +27,8 @@ import androidx.core.content.ContextCompat
 import app.pley.android.designsystem.text.LocalMinTextSize
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 import app.pley.android.ui.phone.theme.rememberPhoneMetrics
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Whether a window shows on a screen other than the device's own: the
@@ -45,7 +51,7 @@ object OtherScreen {
      */
     fun isCar(activity: Activity): Boolean {
         if (!shows(activity)) return false
-        if (projected != false) return true
+        if (projection.value != false) return true
         val debuggable = activity.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         return debuggable && ContextCompat.getDisplayOrDefault(activity).name.startsWith(SIMULATED_DISPLAY)
     }
@@ -54,23 +60,45 @@ object OtherScreen {
     private const val SIMULATED_DISPLAY = "Overlay #"
 
     /** Whether Android Auto projects now; `null` until it says. */
-    @Volatile
-    private var projected: Boolean? = null
+    private val projection = MutableStateFlow<Boolean?>(null)
+
+    /** Whether Android Auto projects, as it says it: what is drawn follows it ([onCarScreen]). */
+    val projected: StateFlow<Boolean?> get() = projection
 
     /** Follows Android Auto's connection for the app's life: the Application calls it once. */
     fun follow(context: Context) {
         CarConnection(context.applicationContext).type.observeForever { type ->
-            projected = type == CarConnection.CONNECTION_TYPE_PROJECTION
+            projection.value = type == CarConnection.CONNECTION_TYPE_PROJECTION
         }
     }
 }
 
-/** Whether what is composed shows on a car's screen ([OtherScreen.isCar]). */
+/**
+ * Whether what is composed shows on a car's screen ([OtherScreen.isCar]): asked again as Android Auto answers (a window
+ * on another screen counts as a car's until it has) and as the window moves to another screen, the phone's as Android
+ * Auto goes, which changes its configuration.
+ */
 @Composable
 internal fun onCarScreen(): Boolean {
     val activity = LocalActivity.current
-    return remember(activity) { activity != null && OtherScreen.isCar(activity) }
+    val projected by OtherScreen.projected.collectAsState()
+    val configuration = LocalConfiguration.current
+    return remember(activity, projected, configuration) { activity != null && OtherScreen.isCar(activity) }
 }
+
+/**
+ * A player's window turned for its screen: landscape, either way up, on a phone's own; a tablet's and another screen's
+ * left as they are, as turning a car's would letterbox the picture. Asked again as the window moves, to the phone's
+ * screen as the car goes.
+ */
+internal fun Activity.turnForScreen() {
+    val phone = resources.configuration.smallestScreenWidthDp < TABLET_DP && !OtherScreen.shows(this)
+    val wanted = if (phone) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    if (requestedOrientation != wanted) requestedOrientation = wanted
+}
+
+/** The smallest width, in dp, from which a screen is a tablet's. */
+private const val TABLET_DP = 600
 
 /** The player draws for a car's screen ([CarSized]): fewer, larger controls. */
 internal val LocalCarScreen = staticCompositionLocalOf { false }

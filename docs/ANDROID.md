@@ -1201,10 +1201,12 @@ bar rises from the bottom edge as music starts (all in place with
 reduced motion). Whether a screen is a car's comes from
 Android Auto (`CarConnection`, as Google tells parked apps to check):
 another screen the phone drives, such as a monitor, keeps the phone's
-sizes, though a window opened there before Android Auto has answered,
-as the app starts, counts it as a car's. A debuggable build counts the displays the developer options
-simulate as cars' too, so these layouts can be tried on an emulator,
-where Android Auto itself doesn't run. As the car moves off, Android Auto covers the
+sizes. A window opened there as the app starts, before Android Auto has
+answered, is car-sized until it does; one moved to the phone's screen as
+the car goes is the phone's again, a player turned to landscape. A
+debuggable build counts the displays the developer options simulate as
+cars' too, so these layouts can be tried on an emulator, where Android
+Auto itself doesn't run. As the car moves off, Android Auto covers the
 window: the video pauses at once and its media session goes, so neither
 the car's buttons nor the steering wheel's can play it while driving; a
 channel is let go. Parked again, Play carries on (a channel plays again

@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Build
@@ -47,6 +46,8 @@ import app.pley.android.ui.phone.player.CarSized
 import app.pley.android.ui.phone.player.OtherScreen
 import app.pley.android.ui.phone.player.PictureInPicture
 import app.pley.android.ui.phone.player.PipActions
+import app.pley.android.ui.phone.player.onCarScreen
+import app.pley.android.ui.phone.player.turnForScreen
 import app.pley.android.ui.phone.remote.CastNotice
 import app.pley.android.ui.phone.remote.CastsSent
 import app.pley.android.ui.phone.remote.PlayOnWindow
@@ -105,10 +106,7 @@ class LivePlayerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         PlayerWindows.opened(this)
         immersive()
-        // A car's screen keeps its orientation (OtherScreen).
-        if (resources.configuration.smallestScreenWidthDp < TABLET_DP && !onOtherScreen) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        }
+        turnForScreen()
         ContextCompat.registerReceiver(
             this,
             pipReceiver,
@@ -123,7 +121,8 @@ class LivePlayerActivity : ComponentActivity() {
         val remote = (application as PleyGraphOwner).screensGraph.data.remote
         setContent {
             PhoneTheme {
-                CarSized(onCar) {
+                // Asked as it is drawn: the window moves to the phone's screen, and is phone-sized again, as the car goes.
+                CarSized(onCarScreen()) {
                     // Watch on…: the channel goes to the device, and the app's shell says so as this closes.
                     PlayOnWindow(
                         remote,
@@ -181,6 +180,12 @@ class LivePlayerActivity : ComponentActivity() {
         stoppedCovered = false
         vm.resume()
         immersive()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Moved to the phone's screen as the car went (the window isn't made anew): turned as a phone's player is.
+        turnForScreen()
     }
 
     /** On a car's screen, covered as the car moves off: the channel goes at once, as it does out of sight. */
@@ -339,8 +344,6 @@ class LivePlayerActivity : ComponentActivity() {
         /** Picture in picture's channel buttons ([PipActions.channel]). */
         internal const val ACTION_CHANNEL_UP = "app.pley.android.livetv.CHANNEL_UP"
         internal const val ACTION_CHANNEL_DOWN = "app.pley.android.livetv.CHANNEL_DOWN"
-
-        private const val TABLET_DP = 600
 
         fun intent(context: Context, channelId: Long, category: String, castFrom: CastFrom? = null): Intent =
             Intent(context, LivePlayerActivity::class.java)
