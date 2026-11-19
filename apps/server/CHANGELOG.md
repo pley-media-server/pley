@@ -30,6 +30,9 @@ describes how they are made.
 
 ### Changed
 
+- The web app's sidebar lists Playlists as one more row under the
+  libraries, opening the page of all your playlists, in place of a section
+  of its own.
 - The Franchises category of collections is Box sets, and its key in the
   API is `box_sets`.
 
