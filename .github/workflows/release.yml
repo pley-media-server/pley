@@ -264,16 +264,11 @@ jobs:
       - name: Notes
         env:
           NOTES: ${{ needs.prepare.outputs.notes }}
-          # The native Samsung app's version, when it is in the release.
-          NATIVE: ${{ fromJSON(needs.prepare.outputs.versions || '{}')['samsung-native'] }}
         run: |
           printf '%s\n' "$NOTES" > notes.md
           if jq -e 'any(. == "samsung")' <<< "$UNITS" > /dev/null; then
             printf '\n---\n\n%s\n' "The Samsung package is signed with a Samsung certificate, so it is made by hand: \`bun run --cwd apps/tizen package\` (docs/TV_PLATFORMS.md)." >> notes.md
             echo "::notice::Samsung's package is made by hand: bun run --cwd apps/tizen package, then attach it to $TAG"
-          fi
-          if [ -n "$NATIVE" ]; then
-            printf '\n---\n\n%s\n' "The native Samsung package has Tizen's default certificate only, which no TV takes: sign it with your own Samsung certificate, \`tizen package -t tpk -s <profile> -- pley-samsung-native-$NATIVE.tpk\`, then install it (docs/TV_PLATFORMS.md)." >> notes.md
           fi
           if jq -e 'any(. == "android")' <<< "$UNITS" > /dev/null && [ "$SIGNED" != true ]; then
             printf '\n---\n\nNo Android APK or Play bundle: the release key was not configured (docs/ANDROID.md, Releases).\n' >> notes.md
