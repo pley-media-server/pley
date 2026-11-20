@@ -22,6 +22,10 @@ What Pley does, in full. The [README](../README.md) has the short version.
   Administrators turn them on in Settings → Server, where they're off by
   default ([.strm files](CONFIGURATION.md#strm-files)).
 - Each profile can order its libraries, on every app.
+- Movie and show libraries filter by resolution (4K, 1080p, 720p, SD) and
+  dynamic range (HDR, Dolby Vision, HDR10+, HLG, SDR), by each title's best
+  file, on every app; smart collections and playlists saved from a filtered
+  library keep the filter.
 - Moving from Plex: its libraries, its Home users as profiles with their
   restrictions, labels, dates added, and what everyone watched
   ([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)).
@@ -111,6 +115,11 @@ the Plex- and Jellyfin-compatible APIs don't get them.
   the 5.1 track for a player that passes it to a receiver).
 - Resume, Up Next, Skip Intro and Skip Credits (from chapters, and by
   comparing the audio of episodes), seek-bar previews and chapter pictures.
+- Picture in picture for videos and Live TV in the web app and on Android
+  phones and tablets; on Live TV, next and previous change channel there.
+- Android TV, Google TV, Fire TV, Samsung and LG TVs play videos from a USB
+  drive plugged into the TV, with no server
+  ([TV_PLATFORMS.md](TV_PLATFORMS.md#videos-on-a-usb-drive)).
 - A remote for your other devices: the web and desktop apps' header lists
   those that are on, the ones playing first, then those ready to play,
   then the devices of your household's other profiles whose app can switch
@@ -162,11 +171,24 @@ the Plex- and Jellyfin-compatible APIs don't get them.
 ## Watching
 
 - Progress, history, star ratings, Continue Watching and Next Up per user.
-- Recently Added, Recently Released, Top Rated, More Like This and full-text
-  search.
+- Home opens on a banner of the newest films and shows you haven't
+  watched, with Play, More info and My List, in the web, desktop, Android
+  and Samsung apps.
+- Recently Added, Recently Released, Top Rated, Top Unwatched and More Like
+  This.
+- Search across titles, people and Live TV channels that forgives typos
+  ("the matirx"), words run together ("spiderman") and missing apostrophes,
+  with the closest matches first.
 - Collections (from TMDB, curated, or smart) and playlists (ordered or smart).
   A film library can do without the collections from TMDB, for a tool such
   as Kometa to make its own.
+- Collections are grouped in categories (Highlights, Box sets, Other and
+  administrators' own) on every app, and administrators choose which are
+  rows on Home and on a library's Recommended tab, and in what order.
+  Kometa's group labels and visibility settings place them too.
+- A collection without a poster shows its first four films' posters in a
+  grid; administrators can put an icon in a color over it, use an icon on a
+  color alone, or upload a poster.
 
 ## Requests
 
@@ -187,6 +209,12 @@ the Plex- and Jellyfin-compatible APIs don't get them.
 
 - Administrators, users and managed profiles for children, each with their
   own libraries and age limit.
+- An age limit is set by rating, in one of 29 countries' rating systems
+  ("Up to PG-13"), by age, or by birthday, rising each year until it ends
+  at 21. Ratings are read with their own country's system, so a "PG" or an
+  "A" isn't misread. Labels make exceptions: a profile can always see
+  titles with some labels, whatever their rating, and never see titles
+  with others.
 - A profile switcher with optional PINs, invitation links, and a list of
   signed-in devices that can be signed out remotely.
 - PINs work the same way on every app. A profile with one shows a lock, and
@@ -222,12 +250,27 @@ the Plex- and Jellyfin-compatible APIs don't get them.
   icon fills in. Passwords have at least 8 characters and can't be common
   ones ([SECURITY.md](../SECURITY.md)).
 
+## Languages
+
+- Pley is in English, French and Spanish on every app: an account's own
+  language, which follows it everywhere, else the device's. The server's
+  language, in Settings, is for its own words (Home's rows, the tray's
+  menu) and for devices in a language Pley doesn't have.
+
 ## Administration
 
+- First start asks for the server's name, languages, country and TMDB key,
+  then brings over a Plex server or makes Movies, TV Shows and Music
+  libraries ([CONFIGURATION.md](CONFIGURATION.md#first-start)).
 - Metadata editing with locked fields, Fix Match and a choice of artwork.
 - Settings with a Test button for each API key and service, a live dashboard
   (playback, transcoder, scans, and charts of Pley's and the computer's CPU
-  and memory) and daily database backups ([STORAGE.md](STORAGE.md)).
+  and memory) and daily database backups ([STORAGE.md](STORAGE.md)). The
+  dashboard says what plays each stream: a Pley app, an app through the
+  Plex- or Jellyfin-compatible API, Google Cast or AirPlay.
+- Limits on how many streams play and how many transcode video at once,
+  and a switch that turns video transcoding off, so videos play as they
+  are or with only their sound converted.
 - On an Android phone or tablet, Me → Manage server has the dashboard,
   libraries, users and invitations; the server's settings, network,
   transcoder, backups and Live TV stay in the web app

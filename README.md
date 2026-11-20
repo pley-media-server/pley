@@ -28,21 +28,30 @@
 
 ## Features
 
+- Movies, shows, music and audiobooks, with metadata from TMDB, TheTVDB,
+  TVmaze, MusicBrainz and Open Library, and NFO files
 - Plays files as they are, or transcodes on the GPU
 - HDR10, HLG and Dolby Vision tone mapping
+- Picture subtitles drawn by the apps, Skip Intro and Skip Credits
 - Live TV from M3U and Xtream Codes, with XMLTV guides
+- A remote for your other devices, and casting to Chromecasts and AirPlay
+- Collections from TMDB, curated or smart, as rows on Home
 - Requests for movies and shows, fetched by Radarr and Sonarr
-- Profiles, PINs and two-step sign-in
-- Works offline on the home network
+- Profiles, PINs, age limits and two-step sign-in
+- Moving from Plex: libraries, users and what everyone watched
+- In English, French and Spanish
+- Works offline on the home network, and downloads play away from it
 
 [All features](docs/FEATURES.md)
 
 ## Apps
 
-Web, Windows, macOS, Linux, [Android](docs/ANDROID.md), [Kodi](docs/KODI.md),
+Web, Windows, macOS, Linux, [Android](docs/ANDROID.md) (phones, tablets,
+Android TV, Google TV and Fire TV), [Kodi](docs/KODI.md),
 [Roku](docs/ROKU.md), [Samsung TV](docs/TV_PLATFORMS.md),
-[LG TV](docs/LG.md). Jellyfin's apps work too, and tools built on Plex's API
-such as Kometa and Tautulli, through the
+[LG TV](docs/LG.md). Apps for iPhone, iPad, Mac and Apple TV are
+[in development](docs/APPLE.md). Jellyfin's apps work too, and tools built
+on Plex's API such as Kometa and Tautulli, through the
 [compatibility APIs](docs/COMPATIBILITY.md).
 
 ## Install
