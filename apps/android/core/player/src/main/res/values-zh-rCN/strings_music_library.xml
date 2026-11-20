@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Music in the car (Android Auto) and for the Assistant: the library's tabs, and what it says when it can't show them. -->
+<resources>
+    <string name="music_library_recent">最近</string>
+    <string name="music_library_recently_played">最近播放</string>
+    <string name="music_library_recently_added">最近添加</string>
+    <string name="music_library_recently_added_in">%1$s 中最近添加</string>
+    <string name="music_library_artists">艺人</string>
+    <string name="music_library_playlists">播放列表</string>
+    <string name="music_library_albums">专辑</string>
+    <string name="music_library_songs">曲目</string>
+    <string name="music_library_shuffle">随机播放</string>
+    <string name="music_library_shuffle_off">关闭随机播放</string>
+    <string name="music_library_repeat">重复播放</string>
+    <string name="music_library_repeat_one">单曲重复</string>
+    <string name="music_library_repeat_off">关闭重复播放</string>
+    <plurals name="music_library_tracks">
+        <item quantity="other">%1$,d 首曲目</item>
+    </plurals>
+    <plurals name="music_library_albums_count">
+        <item quantity="other">%1$,d 张专辑</item>
+    </plurals>
+    <string name="music_library_live_tv">直播电视</string>
+    <string name="music_library_live_favorites">收藏</string>
+    <string name="music_library_live_watched_lately">最近观看</string>
+    <string name="music_library_live_groups">分组</string>
+    <string name="music_library_live_all_channels">所有频道</string>
+    <string name="music_library_live_channels">频道</string>
+    <plurals name="music_library_live_channel_count">
+        <item quantity="other">%1$,d 个频道</item>
+    </plurals>
+    <string name="music_library_signed_out">请在安全时打开手机上的 Pley 并登录</string>
+    <string name="music_library_open_pley">打开 Pley</string>
+    <string name="music_library_offline">无法连接你的 Pley 服务器</string>
+    <string name="music_library_no_match">Pley 没有找到“%1$s”的音乐</string>
+    <string name="music_library_failed">出了点问题，请重试。</string>
+    <string name="music_library_unplayable">此曲目无法播放</string>
+    <plurals name="music_library_unplayable_next">
+        <item quantity="other">此曲目无法播放。%1$d 秒后播放下一首</item>
+    </plurals>
+    <string name="music_library_stopped">服务器已停止播放</string>
+</resources>
