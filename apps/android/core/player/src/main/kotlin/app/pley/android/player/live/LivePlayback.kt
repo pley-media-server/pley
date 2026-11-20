@@ -28,6 +28,7 @@ import app.pley.android.player.R
 import app.pley.android.player.session.clientIdOf
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -519,9 +520,10 @@ class LivePlayback(
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
             if (playWhenReady || holding) return
             // The radio lets the channel go: playing on would take the sound back from whatever took it. Not
-            // inside the engine's own callback, which stop() releases.
+            // inside the engine's own callback, which stop() releases: posted, as the scope's own dispatcher (the main
+            // thread's, immediate) would run it here.
             if (pausable) {
-                scope.launch { if (!closed) stop() }
+                scope.launch(Dispatchers.Main) { if (!closed) stop() }
                 return
             }
             // Live has no pause (headphones pulled out, a stray media key): it plays on, as a browser's does.

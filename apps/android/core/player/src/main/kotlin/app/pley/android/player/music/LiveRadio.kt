@@ -44,6 +44,9 @@ class LiveRadio(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var playback: LivePlayback? = null
+
+    /** [playback]'s own: what it started (the server's events it follows) ends with it, not with the service. */
+    private var playbackScope: CoroutineScope? = null
     private var following: Job? = null
     private var channels: List<LiveChannel> = emptyList()
     private var index = 0
@@ -99,6 +102,8 @@ class LiveRadio(
         following = null
         playback?.close()
         playback = null
+        playbackScope?.cancel()
+        playbackScope = null
         channels = emptyList()
         index = 0
         waits = false
@@ -120,7 +125,11 @@ class LiveRadio(
         player.changed()
     }
 
-    private fun playback(): LivePlayback = playback ?: make(scope).also { made ->
+    private fun playback(): LivePlayback = playback ?: run {
+        val own = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
+        playbackScope = own
+        make(own)
+    }.also { made ->
         playback = made
         // The profile's remote, on another device, changes channel as Next and Previous do.
         made.zap = ::step

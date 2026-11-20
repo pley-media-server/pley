@@ -429,7 +429,11 @@ class MusicService : MediaLibraryService() {
         private val playback: MusicPlayback,
         private val graph: MusicLibraryGraph?,
     ) : MediaLibrarySession.Callback {
-        private val stop = StopKey(playback::pause)
+        // What plays pauses: the radio, while the session shows it, else the music.
+        private val stop = StopKey {
+            val live = radio
+            if (live?.active == true) live.player.pause() else playback.pause()
+        }
         private val searches = HashMap<String, List<MediaItem>>()
 
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
