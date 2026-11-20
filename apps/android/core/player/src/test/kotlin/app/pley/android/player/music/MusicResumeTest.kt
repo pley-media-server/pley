@@ -54,7 +54,7 @@ class MusicResumeTest {
     fun aNewProcessWaitsForTheSignInToBeReadBackBeforeLookingForWhatWasKept() = runTest {
         resume().apply {
             keep(MusicQueueState(album, index = 4), positionMs = 61_000)
-            keepRadio("channel:7@favourites")
+            keepRadio("channel:7@favorites")
         }
         runCurrent()
 
@@ -76,7 +76,7 @@ class MusicResumeTest {
         signedIn = PARENT
         read.complete(Unit)
         assertEquals(4, music.await()!!.index)
-        assertEquals("channel:7@favourites", radio.await())
+        assertEquals("channel:7@favorites", radio.await())
     }
 
     @Test
@@ -110,15 +110,15 @@ class MusicResumeTest {
     fun theRadiosChannelIsKeptUntilMusicPlaysAgainAndWrittenOnlyWhenItChanges() = runTest {
         val first = resume()
         assertEquals(null, first.savedRadio())
-        first.keepRadio("channel:7@favourites")
-        first.keepRadio("channel:7@favourites")
+        first.keepRadio("channel:7@favorites")
+        first.keepRadio("channel:7@favorites")
         runCurrent()
         assertEquals(1, written.count { it == MusicResume.RADIO })
         // Another process reads it back; the music kept beside it stays.
         first.keep(MusicQueueState(album, index = 1), positionMs = 0)
         runCurrent()
         val second = resume()
-        assertEquals("channel:7@favourites", second.savedRadio())
+        assertEquals("channel:7@favorites", second.savedRadio())
         assertEquals(1, second.saved()!!.index)
 
         second.keepRadio(null)
@@ -279,7 +279,7 @@ class MusicResumeTest {
     @Test
     fun theRadiosChannelIsKeptForTheProfileThatPlayedIt() = runTest {
         val resume = resume()
-        resume.keepRadio("channel:7@favourites")
+        resume.keepRadio("channel:7@favorites")
         runCurrent()
         signedIn = CHILD
         assertNull(resume.savedRadio())
@@ -287,7 +287,7 @@ class MusicResumeTest {
         resume.keepRadio(null)
         runCurrent()
         signedIn = PARENT
-        assertEquals("channel:7@favourites", resume().savedRadio())
+        assertEquals("channel:7@favorites", resume().savedRadio())
         // Signed out, nothing is kept or read.
         signedIn = null
         val writes = written.size

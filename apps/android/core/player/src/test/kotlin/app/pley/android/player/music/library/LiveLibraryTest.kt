@@ -58,7 +58,7 @@ class LiveLibraryTest {
             items.map { it.mediaId },
         )
         // A favourite watched lately shows once, as a favourite.
-        assertEquals(listOf("Favourites", "Recently watched", "Groups", "Groups"), items.map { it.group })
+        assertEquals(listOf("Favorites", "Recently watched", "Groups", "Groups"), items.map { it.group })
         assertEquals("2 channels", items[2].mediaMetadata.subtitle.toString())
         assertTrue(items[2].mediaMetadata.isBrowsable == true)
     }
@@ -153,7 +153,7 @@ class LiveLibraryTest {
 
     private object Look : LiveLook {
         override val liveTv = "Live TV"
-        override val favorites = "Favourites"
+        override val favorites = "Favorites"
         override val watchedLately = "Recently watched"
         override val groups = "Groups"
         override val allChannels = "All channels"

@@ -63,14 +63,14 @@ class CarLivePlayerSizesTest {
         }
         compose.waitForIdle()
         CarScreenChecks.save(compose, "live-$screen")
-        val controls = listOf("Back", favourite(), "Channels", "Channel down", "Channel up")
+        val controls = listOf("Back", favorite(), "Channels", "Channel down", "Channel up")
         CarScreenChecks.controls(compose, "Live TV, $screen", controls)
         CarScreenChecks.apart(compose, "Live TV, $screen", controls)
     }
 
     /** The channel's star, said by what a press does. */
-    private fun favourite(): String =
-        FAVOURITE.firstOrNull { compose.onAllNodes(hasContentDescription(it)).fetchSemanticsNodes().isNotEmpty() } ?: FAVOURITE.first()
+    private fun favorite(): String =
+        FAVORITE.firstOrNull { compose.onAllNodes(hasContentDescription(it)).fetchSemanticsNodes().isNotEmpty() } ?: FAVORITE.first()
 
     @Test
     @Config(qualifiers = CarScreenChecks.SMALL)
@@ -113,6 +113,6 @@ class CarLivePlayerSizesTest {
     fun narrow() = check("narrow")
 
     private companion object {
-        val FAVOURITE = listOf("Add to favourites", "Remove from favourites")
+        val FAVORITE = listOf("Add to favorites", "Remove from favorites")
     }
 }
