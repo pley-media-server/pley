@@ -30,4 +30,5 @@ My List.
   Google Play takes nothing longer than 2:1.
 - `bun scripts/store-library/devices.mjs <tv.png> <phone.png>` draws the
   README's picture (`docs/images/apps.webp`) from screenshots of the TV and
-  phone apps on Home. It needs `ffmpeg` on `PATH`.
+  phone apps on Home, the phone at `pley_test`'s own 1080 × 2280. It needs
+  `ffmpeg` on `PATH`.
