@@ -131,6 +131,15 @@ class SessionArtTest {
         gates.clear()
         assertFalse(art.loadBitmap(cover(50)).isDone)
 
+        // A cover still on its way for the profile before is neither kept nor shown.
+        val before = art.loadBitmap(cover(51))
+        art.clear()
+        arrives(51)
+        assertTrue(before.isDone)
+        assertTrue(runCatching { before.get() }.isFailure)
+        gates.remove("/api/items/51/images/poster")
+        assertFalse(art.loadBitmap(cover(51)).isDone)
+
         val icon = Uri.parse("android.resource://app.pley/drawable/music_library_recent")
         assertTrue(art.loadBitmap(icon).isDone)
         assertEquals(listOf(icon), elsewhere)

@@ -49,6 +49,9 @@ internal class SessionArt(
     private val kept = LruCache<Uri, Bitmap>(KEPT)
     private val reading = HashMap<Uri, ListenableFuture<Bitmap>>()
 
+    /** Counts [clear]s: a cover read for the profile before is neither kept nor shown. */
+    private var generation = 0
+
     override fun supportsMimeType(mimeType: String): Boolean = other.supportsMimeType(mimeType)
 
     override fun decodeBitmap(data: ByteArray): ListenableFuture<Bitmap> = other.decodeBitmap(data)
@@ -58,19 +61,22 @@ internal class SessionArt(
         reading[uri]?.let { return it }
         val path = pathOf(uri) ?: return keep(uri, other.loadBitmap(uri))
         val future = SettableFuture.create<Bitmap>()
+        val mine = generation
         reading[uri] = future
         scope.launch {
             val bitmap = try {
                 picture(path)?.let { bytes -> withContext(Dispatchers.Default) { decode(bytes) } }
             } catch (e: CancellationException) {
-                reading.remove(uri)
+                reading.remove(uri, future)
                 future.cancel(false)
                 throw e
             } catch (_: Exception) {
                 null
             }
-            reading.remove(uri)
-            if (bitmap != null) {
+            reading.remove(uri, future)
+            if (mine != generation) {
+                future.setException(IOException("Another profile's cover"))
+            } else if (bitmap != null) {
                 kept.put(uri, bitmap)
                 future.set(bitmap)
             } else {
@@ -83,11 +89,12 @@ internal class SessionArt(
 
     /** [future], [other]'s reading of [uri], kept once it is in as the library's pictures are. */
     private fun keep(uri: Uri, future: ListenableFuture<Bitmap>): ListenableFuture<Bitmap> {
+        val mine = generation
         reading[uri] = future
         future.addListener({
-            reading.remove(uri)
+            reading.remove(uri, future)
             val bitmap = runCatching { Futures.getDone(future) }.getOrNull()
-            if (bitmap != null) kept.put(uri, bitmap)
+            if (bitmap != null && mine == generation) kept.put(uri, bitmap)
         }, MAIN)
         return future
     }
@@ -101,8 +108,12 @@ internal class SessionArt(
         for (uri in uris) if (uri != null && (pathOf(uri) != null || drawn(uri))) loadBitmap(uri)
     }
 
-    /** Forgets every cover: another profile's are not this one's. */
-    fun clear() = kept.evictAll()
+    /** Forgets every cover, and those still on their way: another profile's are not this one's. */
+    fun clear() {
+        generation++
+        kept.evictAll()
+        reading.clear()
+    }
 
     private companion object {
         /** The covers kept: the one playing, those around it, and a few albums back. */
