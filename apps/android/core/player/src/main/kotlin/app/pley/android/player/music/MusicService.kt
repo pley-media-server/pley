@@ -348,10 +348,13 @@ class MusicService : MediaLibraryService() {
         PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
-    /** Whether [controller] may connect: the app, the system's controllers, Media3's notification, Android Auto and the Google app. */
-    private fun allowed(controller: MediaSession.ControllerInfo, session: MediaSession?): Boolean =
+    /**
+     * Whether [controller] may connect: the app (Media3's notification among it), the system's controllers, Android
+     * Auto and the Google app. Each name is held to the uid asking: Media3 knows its notification's controller by the
+     * name and a hint the controller sends, which an app holding the session's token can send too.
+     */
+    private fun allowed(controller: MediaSession.ControllerInfo): Boolean =
         (controller.packageName == packageName && controller.uid == Process.myUid()) ||
-            (session != null && session.isMediaNotificationController(controller)) ||
             (controller.isTrusted && MusicCallers.isSystem(packageManager, controller.packageName, controller.uid)) ||
             isCar(controller)
 
@@ -439,8 +442,18 @@ class MusicService : MediaLibraryService() {
         /** What a car or the Assistant asked to play, still being looked up ([onSetMediaItems]): the latest only. */
         private var picking: Job? = null
 
+        /**
+         * Whether [controller] is answered. Once the notification is connected, Media3 lets a controller named System UI
+         * in as it does the notification, without asking [onConnect]; one that only takes the name is refused here.
+         */
+        private fun answers(controller: MediaSession.ControllerInfo): Boolean =
+            controller.packageName != SYSTEM_UI || allowed(controller)
+
+        private fun <T : Any> refused(): ListenableFuture<LibraryResult<T>> =
+            Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED))
+
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
-            if (!allowed(controller, session)) return MediaSession.ConnectionResult.reject()
+            if (!allowed(controller)) return MediaSession.ConnectionResult.reject()
             val car = isCar(controller)
             // The car reads the library's pictures from the app (MusicArt): it may read them, and only them.
             if (car) grantArt(controller.packageName)
@@ -465,6 +478,7 @@ class MusicService : MediaLibraryService() {
             customCommand: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
+            if (!answers(controller)) return Futures.immediateFuture(SessionResult(SessionError.ERROR_PERMISSION_DENIED))
             val shuffle = customCommand.customAction == SHUFFLE.customAction
             val repeat = customCommand.customAction == REPEAT.customAction
             if (!shuffle && !repeat) return super.onCustomCommand(session, controller, customCommand, args)
@@ -492,6 +506,7 @@ class MusicService : MediaLibraryService() {
          * means and a driver doesn't.
          */
         override fun onPlayerCommandRequest(session: MediaSession, controller: MediaSession.ControllerInfo, playerCommand: Int): Int {
+            if (!answers(controller)) return SessionError.ERROR_PERMISSION_DENIED
             if (playerCommand == Player.COMMAND_STOP && isCar(controller)) {
                 session.player.pause()
                 return SessionResult.RESULT_INFO_SKIPPED
@@ -515,6 +530,7 @@ class MusicService : MediaLibraryService() {
             stop.handle(intent) || super.onMediaButtonEvent(session, controllerInfo, intent)
 
         override fun onGetLibraryRoot(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, params: LibraryParams?): ListenableFuture<LibraryResult<MediaItem>> {
+            if (!answers(browser)) return refused()
             val library = graph?.library ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED))
             // Lists by default; the grids of albums and playlists say so themselves.
             val extras = Bundle().apply {
@@ -525,7 +541,7 @@ class MusicService : MediaLibraryService() {
         }
 
         override fun onGetItem(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, mediaId: String): ListenableFuture<LibraryResult<MediaItem>> =
-            answer {
+            if (!answers(browser)) refused() else answer {
                 val id = MusicId.parse(mediaId) ?: return@answer LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
                 library().item(id)?.let { LibraryResult.ofItem(it, null) } ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             }
@@ -537,14 +553,14 @@ class MusicService : MediaLibraryService() {
             page: Int,
             pageSize: Int,
             params: LibraryParams?,
-        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = answer {
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!answers(browser)) refused() else answer {
             val id = MusicId.parse(parentId) ?: return@answer LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             LibraryResult.ofItemList(library().children(id, page, pageSize), params)
         }
 
         override fun onSearch(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, query: String, params: LibraryParams?): ListenableFuture<LibraryResult<Void>> =
             // Media3 answers a MediaBrowserCompat car's search only once its results are said to have changed.
-            answer(slow = { session.notifySearchResultChanged(browser, query, 0, params) }) {
+            if (!answers(browser)) refused() else answer(slow = { session.notifySearchResultChanged(browser, query, 0, params) }) {
                 val found = try {
                     library().search(query.take(MAX_QUERY))
                 } catch (e: Exception) {
@@ -565,7 +581,7 @@ class MusicService : MediaLibraryService() {
             page: Int,
             pageSize: Int,
             params: LibraryParams?,
-        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = answer {
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!answers(browser)) refused() else answer {
             val found = searches[query] ?: library().search(query.take(MAX_QUERY))
             val size = pageSize.coerceIn(1, MusicLibrary.MAX_PAGE)
             LibraryResult.ofItemList(found.drop(page * size).take(size), params)
@@ -589,7 +605,7 @@ class MusicService : MediaLibraryService() {
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
             val picked = mediaItems.getOrNull(startIndex.coerceAtLeast(0)) ?: mediaItems.firstOrNull()
             val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
-            if (picked == null || graph == null) return Futures.immediateFailedFuture(UnsupportedOperationException())
+            if (picked == null || graph == null || !answers(controller)) return Futures.immediateFailedFuture(UnsupportedOperationException())
             val made = mediaSession as MediaLibrarySession
             // The latest request is what plays. Media3 doesn't wait for one from a car or the Assistant to be answered
             // before the next (a request to have it ready, then one to play it; a second album tapped), and one looked up
@@ -676,6 +692,7 @@ class MusicService : MediaLibraryService() {
             controller: MediaSession.ControllerInfo,
             isForPlayback: Boolean,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            if (!answers(controller)) return Futures.immediateFailedFuture(UnsupportedOperationException())
             val describe = { track: ItemSummary -> graph?.library?.queueItem(track) ?: QueuePlayer.plainItem(track) }
             val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
             scope.launch {
