@@ -436,6 +436,9 @@ class MusicService : MediaLibraryService() {
         }
         private val searches = HashMap<String, List<MediaItem>>()
 
+        /** What a car or the Assistant asked to play, still being looked up ([onSetMediaItems]): the latest only. */
+        private var picking: Job? = null
+
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
             if (!allowed(controller, session)) return MediaSession.ConnectionResult.reject()
             val car = isCar(controller)
@@ -588,7 +591,13 @@ class MusicService : MediaLibraryService() {
             val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
             if (picked == null || graph == null) return Futures.immediateFailedFuture(UnsupportedOperationException())
             val made = mediaSession as MediaLibrarySession
-            scope.launch {
+            // The latest request is what plays. Media3 doesn't wait for one from a car or the Assistant to be answered
+            // before the next (a request to have it ready, then one to play it; a second album tapped), and one looked up
+            // longer would end last and replace the other, or stop it playing. What played last, still being read back
+            // as a car connects, gives way too.
+            picking?.cancel()
+            bringingBack?.cancel()
+            picking = scope.launch {
                 try {
                     val live = graph.live
                     val id = MusicId.parse(picked.mediaId)
