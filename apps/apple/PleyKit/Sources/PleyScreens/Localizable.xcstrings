@@ -1455,7 +1455,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "配置檔案的名稱、頭像和 PIN 碼可在網頁端 Pley 中更改。"
+            "value" : "設定檔的名稱、頭像和 PIN 碼可在網頁端 Pley 中更改。"
           }
         }
       }
@@ -1542,7 +1542,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新增到播放列表…"
+            "value" : "新增到播放清單…"
           }
         }
       }
@@ -2275,7 +2275,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "投屏"
+            "value" : "投放"
           }
         }
       }
@@ -2623,7 +2623,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法載入此播放列表"
+            "value" : "無法載入此播放清單"
           }
         }
       }
@@ -2739,7 +2739,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法載入播放列表"
+            "value" : "無法載入播放清單"
           }
         }
       }
@@ -2768,7 +2768,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法建立播放列表：%@"
+            "value" : "無法建立播放清單：%@"
           }
         }
       }
@@ -3087,7 +3087,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自定義順序"
+            "value" : "自訂順序"
           }
         }
       }
@@ -4189,7 +4189,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "主頁"
+            "value" : "首頁"
           }
         }
       }
@@ -4653,7 +4653,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "受管理的配置檔案"
+            "value" : "受管理的設定檔"
           }
         }
       }
@@ -5146,7 +5146,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "尚無播放列表"
+            "value" : "尚無播放清單"
           }
         }
       }
@@ -5320,7 +5320,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此播放列表中還沒有內容"
+            "value" : "此播放清單中還沒有內容"
           }
         }
       }
@@ -5697,7 +5697,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "開源許可：無。Pley for Apple 僅使用 Apple 的框架構建，不含第三方程式碼。"
+            "value" : "開源許可：無。Pley for Apple 僅使用 Apple 的框架構建，不含第三方代碼。"
           }
         }
       }
@@ -6016,7 +6016,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "播放列表"
+            "value" : "播放清單"
           }
         }
       }
@@ -6799,7 +6799,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在網頁端 Pley 的“設定 → 伺服器”中配置。"
+            "value" : "在網頁端 Pley 的“設定 → 伺服器”中設定。"
           }
         }
       }
@@ -7118,7 +7118,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此伺服器未配置字幕搜尋"
+            "value" : "此伺服器未設定字幕搜尋"
           }
         }
       }
@@ -7466,7 +7466,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這會刪除此裝置上的所有下載，包括所有伺服器和配置檔案的。"
+            "value" : "這會刪除此裝置上的所有下載，包括所有伺服器和設定檔的。"
           }
         }
       }
@@ -7553,7 +7553,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此播放列表不可用"
+            "value" : "此播放清單不可用"
           }
         }
       }
@@ -8495,7 +8495,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "音樂播放列表"
+            "value" : "音樂播放清單"
           }
         }
       }
@@ -8582,7 +8582,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "播放列表"
+            "value" : "播放清單"
           }
         }
       }
@@ -8698,7 +8698,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "智慧播放列表"
+            "value" : "智慧播放清單"
           }
         }
       }

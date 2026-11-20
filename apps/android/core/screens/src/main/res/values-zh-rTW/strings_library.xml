@@ -62,5 +62,5 @@
     <!-- A collection's own order (CollectionViewModel.sortNoteText). -->
     <string name="collection_order_release">按發行日期</string>
     <string name="collection_order_title">按標題</string>
-    <string name="collection_order_custom">自定義順序</string>
+    <string name="collection_order_custom">自訂順序</string>
 </resources>

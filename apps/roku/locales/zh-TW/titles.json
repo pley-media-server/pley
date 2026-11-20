@@ -7,7 +7,7 @@
     "markUnwatched": "標記為未觀看",
     "addToMyList": "新增到我的片單",
     "removeFromMyList": "從我的片單中移除",
-    "addToPlaylist": "新增到播放列表",
+    "addToPlaylist": "新增到播放清單",
     "removeFromContinueWatching": "從“繼續觀看”中移除",
     "goToShow": "前往劇集",
     "goToSeason": "前往季",
@@ -20,7 +20,7 @@
     "nowPlaying": "正在播放",
     "rename": "重新命名",
     "move": "移動",
-    "removeFromPlaylist": "從播放列表移除"
+    "removeFromPlaylist": "從播放清單移除"
   },
   "counts": {
     "seasons_other": "{{count, number}} 季",
@@ -89,7 +89,7 @@
     "order": {
       "release": "按發行日期",
       "title": "按標題",
-      "custom": "自定義順序"
+      "custom": "自訂順序"
     },
     "onlyLibrary": "僅 {{library}}"
   },
@@ -157,17 +157,17 @@
     "noTracksToPlay": "沒有可播放的內容：此專輯沒有曲目。"
   },
   "playlist": {
-    "new": "新建播放列表",
-    "newMenu": "新建播放列表…",
+    "new": "新建播放清單",
+    "newMenu": "新建播放清單…",
     "create": "建立",
     "added": "已新增",
     "addedTo": "已新增到 {{title}}。",
-    "refused": "此登入方式無法更改播放列表：請在設定中退出登入並重新登入以允許此操作。",
-    "renameTitle": "重新命名播放列表",
+    "refused": "此登入方式無法更改播放清單：請在設定中登出並重新登入以允許此操作。",
+    "renameTitle": "重新命名播放清單",
     "deleteTitle": "刪除 {{title}}？",
-    "deleteBody": "播放列表將被刪除，其中的內容仍保留在你的媒體庫中。",
-    "notDeleted": "播放列表刪除失敗",
-    "empty": "此播放列表是空的。在內容上按“選項”鍵即可新增。",
+    "deleteBody": "播放清單將被刪除，其中的內容仍保留在你的媒體庫中。",
+    "notDeleted": "播放清單刪除失敗",
+    "empty": "此播放清單是空的。在內容上按“選項”鍵即可新增。",
     "moving": "{{title}}（移動中）",
     "movingHint": "用上下鍵移動，按“確定”放在這裡，按“返回”放回原處。"
   },

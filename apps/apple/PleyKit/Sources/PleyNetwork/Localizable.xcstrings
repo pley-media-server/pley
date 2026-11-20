@@ -25,7 +25,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pley 未被允許訪問你的本地網路：在設定 → 隱私與安全性 → 本地網路中允許"
+            "value" : "Pley 未被允許存取你的本地網路：在設定 → 隱私與安全性 → 本地網路中允許"
           }
         }
       }
@@ -54,7 +54,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "另一臺裝置在該地址響應"
+            "value" : "另一臺裝置在該位址回應"
           }
         }
       }
@@ -141,7 +141,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "沒有及時響應"
+            "value" : "沒有及時回應"
           }
         }
       }
@@ -199,7 +199,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "該地址沒有響應"
+            "value" : "該位址沒有回應"
           }
         }
       }
@@ -344,7 +344,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此網路無法識別該地址"
+            "value" : "此網路無法識別該位址"
           }
         }
       }
@@ -402,7 +402,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這不是伺服器地址"
+            "value" : "這不是伺服器位址"
           }
         }
       }
@@ -431,7 +431,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這不是伺服器上的地址"
+            "value" : "這不是伺服器上的位址"
           }
         }
       }
@@ -518,7 +518,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "伺服器提供的地址不是其媒體的地址"
+            "value" : "伺服器提供的位址不是其媒體的位址"
           }
         }
       }
@@ -576,7 +576,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法讀取伺服器的響應（HTTP %@）"
+            "value" : "無法讀取伺服器的回應（HTTP %@）"
           }
         }
       }
@@ -605,7 +605,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "伺服器的響應過大"
+            "value" : "伺服器的回應過大"
           }
         }
       }
@@ -692,7 +692,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此裝置只在你網路內開啟未加密的 http 地址：請用 https 地址、IP 地址或不帶點的名稱開啟此伺服器"
+            "value" : "此裝置只在你網路內開啟未加密的 http 位址：請用 https 位址、IP 位址或不帶點的名稱開啟此伺服器"
           }
         }
       }
@@ -721,7 +721,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此伺服器在另一地址響應：請用該地址開啟"
+            "value" : "此伺服器在另一位址回應：請用該位址開啟"
           }
         }
       }
@@ -779,7 +779,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此伺服器地址不在你的網路中，且連線未加密：請用其 https 地址開啟並登入"
+            "value" : "此伺服器位址不在你的網路中，且連線未加密：請用其 https 位址開啟並登入"
           }
         }
       }
@@ -808,7 +808,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已退出登入：重新登入"
+            "value" : "已登出：重新登入"
           }
         }
       }

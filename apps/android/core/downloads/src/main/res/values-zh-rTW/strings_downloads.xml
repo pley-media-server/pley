@@ -13,7 +13,7 @@
     <string name="downloads_notification_waiting_text">連線 Wi-Fi 後會繼續；若設定中允許，也會使用行動數據繼續。</string>
     <!-- The server didn't answer: away from home, or it is off. -->
     <string name="downloads_notification_waiting_server">下載正在等待你的伺服器</string>
-    <string name="downloads_notification_waiting_server_text">伺服器恢復響應後會繼續，就像在家開啟應用時一樣。</string>
+    <string name="downloads_notification_waiting_server_text">伺服器恢復回應後會繼續，就像在家開啟應用時一樣。</string>
     <string name="downloads_notification_starting">正在準備下載</string>
     <!-- While the server makes a smaller (or playable) file for this phone. -->
     <string name="downloads_notification_converting">正在準備 %1$s</string>

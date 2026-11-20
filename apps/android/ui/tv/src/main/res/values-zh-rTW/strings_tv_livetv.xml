@@ -6,7 +6,7 @@
     <string name="tv_livetv_channels">頻道</string>
     <string name="tv_livetv_failed">直播電視載入失敗</string>
     <string name="tv_livetv_retry">重試</string>
-    <string name="tv_livetv_not_allowed_title">此配置檔案無權使用直播電視</string>
+    <string name="tv_livetv_not_allowed_title">此設定檔無權使用直播電視</string>
     <string name="tv_livetv_not_allowed_body">管理員可在 Pley 網頁應用的“設定 → 直播電視”中開啟。</string>
     <string name="tv_livetv_none_title">暫無頻道</string>
     <string name="tv_livetv_none_body">管理員在 Pley 網頁應用中新增 IPTV 提供商後，頻道會顯示在這裡。</string>
@@ -84,7 +84,7 @@
     <string name="tv_live_player_stopped">直播電視已停止</string>
     <string name="tv_live_player_watch_again">重新觀看</string>
     <string name="tv_live_player_missing">此頻道已不存在</string>
-    <string name="tv_live_player_not_allowed">此配置檔案無權使用直播電視</string>
+    <string name="tv_live_player_not_allowed">此設定檔無權使用直播電視</string>
     <string name="tv_live_player_unavailable">%1$s 未播放</string>
     <string name="tv_live_player_offline">無法連線到伺服器</string>
     <string name="tv_live_player_failed">%1$s 未能啟動</string>

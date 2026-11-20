@@ -7,7 +7,7 @@
   "page": {
     "failed": "直播電視載入失敗",
     "retry": "重試",
-    "notAllowedTitle": "此配置檔案未開放直播電視",
+    "notAllowedTitle": "此設定檔未開放直播電視",
     "notAllowedBody": "管理員可在 Pley 網頁應用的“設定 → 直播電視”中開放。",
     "noneTitle": "還沒有頻道",
     "noneBody": "管理員在 Pley 網頁應用中新增 IPTV 提供商後，頻道就會出現在這裡。",
@@ -88,7 +88,7 @@
     "stoppedByAdmin": "伺服器管理員停止了直播電視。",
     "stoppedElsewhere": "已從另一臺裝置停止直播電視。",
     "missing": "此頻道已不存在",
-    "notAllowed": "此配置檔案未開放直播電視",
+    "notAllowed": "此設定檔未開放直播電視",
     "offline": "無法連線你的伺服器",
     "unavailable": "{{channel}} 未在播放",
     "didNotStart": "{{channel}} 未能開始播放",

@@ -67,7 +67,7 @@
     <!-- States (design spec §8; the web's words, for viewers). -->
     <string name="library_failed">無法載入此媒體庫</string>
     <string name="library_missing_title">此媒體庫不存在</string>
-    <string name="library_missing_body">它可能已被移除，或此配置檔案無權檢視。</string>
+    <string name="library_missing_body">它可能已被移除，或此設定檔無權檢視。</string>
     <string name="library_empty_title">此媒體庫為空</string>
     <string name="library_empty_body">這裡還沒有內容。伺服器新增內容後會顯示出來。</string>
     <string name="library_no_matches_title">沒有匹配項</string>

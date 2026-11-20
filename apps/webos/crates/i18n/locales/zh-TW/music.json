@@ -19,7 +19,7 @@
     "nothingToPlay": "沒有可播放的內容：其中沒有曲目。",
     "artistNotFound": "未找到藝人",
     "albumNotFound": "未找到專輯",
-    "notFoundBody": "它可能已被刪除，或此配置檔案無法檢視它。",
+    "notFoundBody": "它可能已被刪除，或此設定檔無法檢視它。",
     "offline": "無法連線到你的伺服器",
     "artistFailed": "無法載入此藝人",
     "albumFailed": "無法載入此專輯",

@@ -4,7 +4,7 @@
     "home": "首頁",
     "discover": "發現",
     "liveTv": "直播電視",
-    "playlists": "播放列表",
+    "playlists": "播放清單",
     "collections": "合集",
     "nowPlaying": "正在播放",
     "settings": "設定"
@@ -52,7 +52,7 @@
     "goToSeason": "前往季",
     "mediaInfo": "媒體資訊",
     "details": "詳情",
-    "addToPlaylist": "新增到播放列表",
+    "addToPlaylist": "新增到播放清單",
     "directedBy": "導演：{{names}}",
     "createdBy": "創作者：{{names}}",
     "starring": "主演：{{names}}"
@@ -225,14 +225,14 @@
     "resultsFor": "“{{query}}”的搜尋結果"
   },
   "playlists": {
-    "new": "新建播放列表",
-    "none": "還沒有播放列表。用“新建播放列表”，或在標題上按“選項”鍵選擇“新增到播放列表”來建立。",
+    "new": "新建播放清單",
+    "none": "還沒有播放清單。用“新建播放清單”，或在標題上按“選項”鍵選擇“新增到播放清單”來建立。",
     "whatFor": "用於什麼？",
     "moviesTv": "電影和電視",
     "music": "音樂",
-    "nameHint": "先起個名字，然後在標題上按“選項”鍵選擇“新增到播放列表”。",
+    "nameHint": "先起個名字，然後在標題上按“選項”鍵選擇“新增到播放清單”。",
     "create": "建立",
-    "notMade": "播放列表建立失敗"
+    "notMade": "播放清單建立失敗"
   },
   "history": {
     "title": "觀看歷史",

@@ -10,8 +10,8 @@
   "seeAll": "檢視全部",
   "nothingToPlay": "暫無可播放內容",
   "states": {
-    "offline": "無法訪問你的伺服器",
-    "failed": "無法載入主頁",
+    "offline": "無法存取你的伺服器",
+    "failed": "無法載入首頁",
     "noLibraries": "暫無媒體庫",
     "noLibrariesBody": "請讓伺服器所有者新增媒體庫。",
     "scanning": "正在掃描媒體庫…",

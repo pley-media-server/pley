@@ -9,9 +9,9 @@
   },
   "video": {
     "nextEpisode": "下一集",
-    "fullscreen": "全屏",
-    "exitFullscreen": "退出全屏",
-    "fullscreenShortcut": "全屏 (f)",
+    "fullscreen": "全螢幕",
+    "exitFullscreen": "離開全螢幕",
+    "fullscreenShortcut": "全螢幕 (f)",
     "speed": "速度：{{speed}}",
     "subtitlesShown": "字幕：{{track}}",
     "subtitlesOff": "關閉字幕",

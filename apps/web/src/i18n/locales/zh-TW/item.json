@@ -10,7 +10,7 @@
   "smart": "智慧",
   "moveUp": "上移",
   "moveDown": "下移",
-  "cast": "投屏",
+  "cast": "投放",
   "guestStars": "客串演員",
   "moreLikeThis": "更多類似內容",
   "versionNumber": "版本 {{number}}",
@@ -81,10 +81,10 @@
   },
   "actions": {
     "more": "更多操作",
-    "addToPlaylist": "新增到播放列表…",
+    "addToPlaylist": "新增到播放清單…",
     "addToCollection": "新增到合集…",
-    "refreshMetadata": "重新整理後設資料",
-    "refreshing": "正在重新整理後設資料…",
+    "refreshMetadata": "重新整理中介資料",
+    "refreshing": "正在重新整理中介資料…",
     "findMarkers": "查詢片頭片尾",
     "findingMarkers": {
       "season": "正在此季中查詢片頭片尾…",
@@ -102,8 +102,8 @@
     },
     "details": {
       "title": "編輯詳情",
-      "hint": "編輯過的欄位會被鎖定 <lock/>，這樣重新整理後設資料時會保留它們。解鎖某個欄位後，下次重新整理會重新填充它。",
-      "nfoHint": "旁邊的 NFO 檔案中的欄位優先於後設資料源；而此處的編輯優先於它們。",
+      "hint": "編輯過的欄位會被鎖定 <lock/>，這樣重新整理中介資料時會保留它們。解鎖某個欄位後，下次重新整理會重新填充它。",
+      "nfoHint": "旁邊的 NFO 檔案中的欄位優先於中介資料源；而此處的編輯優先於它們。",
       "genresPlaceholder": "劇情、驚悚",
       "locked": "已鎖定：點選解鎖",
       "willUnlock": "將被解鎖",
@@ -124,7 +124,7 @@
         "summary": "簡介",
         "labels": "標籤"
       },
-      "labelsHint": "只有管理員可見。“設定 → 使用者”中配置檔案的例外依據它們。",
+      "labelsHint": "只有管理員可見。“設定 → 使用者”中設定檔的例外依據它們。",
       "removeLabel": "移除 {{label}}"
     },
     "match": {
@@ -143,7 +143,7 @@
         "thumb": "選擇縮圖"
       },
       "reset": "使用自動封面",
-      "resetDone": "已恢復自動封面",
+      "resetDone": "已還原自動封面",
       "updated": "封面已更新",
       "upload": "上傳圖片…",
       "uploading": "正在上傳…",
@@ -214,7 +214,7 @@
     "sortNotes": {
       "release": "按發行日期",
       "title": "按標題",
-      "custom": "自定義順序"
+      "custom": "自訂順序"
     },
     "edit": "編輯合集",
     "manage": "排序和移除",
@@ -225,11 +225,11 @@
     "emptyMovies": "此合集暫時為空。可以從電影頁面新增，或右鍵點選海報新增。",
     "emptyShows": "此合集暫時為空。可以從劇集頁面新增，或右鍵點選海報新增。",
     "deleteTitle": "刪除合集？",
-    "deleteAutomatic": "“{{title}}”由 TMDB 生成：下次重新整理這些電影的後設資料時會重新出現。",
+    "deleteAutomatic": "“{{title}}”由 TMDB 生成：下次重新整理這些電影的中介資料時會重新出現。",
     "deleteMovies": "“{{title}}”將被刪除。其中的電影仍保留在媒體庫中。",
     "deleteShows": "“{{title}}”將被刪除。其中的劇集仍保留在媒體庫中。",
     "deleted": "合集已刪除",
-    "customOrderNote": "移動專案會將此合集切換為自定義順序。",
+    "customOrderNote": "移動專案會將此合集切換為自訂順序。",
     "remove": "從合集中移除",
     "removed": "已移除 {{title}}"
   },
@@ -239,16 +239,16 @@
     "title": "標題",
     "summary": "簡介",
     "order": "順序",
-    "orderHint": "此處修改的標題或簡介會在重新整理 TMDB 後設資料時保留。",
+    "orderHint": "此處修改的標題或簡介會在重新整理 TMDB 中介資料時保留。",
     "sorts": {
       "release": "發行日期",
       "title": "標題",
-      "custom": "自定義"
+      "custom": "自訂"
     },
     "category": "分類",
     "categoryHint": "合集在“合集”標籤頁中按分類分組。",
     "onRecommended": "顯示在媒體庫的“推薦”標籤頁",
-    "onHome": "顯示在主頁"
+    "onHome": "顯示在首頁"
   },
   "collections": {
     "loadError": "無法載入合集",
@@ -270,33 +270,33 @@
     "noMatches": "沒有符合這些篩選條件的合集"
   },
   "playlist": {
-    "loadError": "無法載入此播放列表",
-    "video": "影片播放列表",
-    "music": "音樂播放列表",
-    "rename": "重新命名播放列表",
-    "delete": "刪除播放列表",
-    "noMatches": "目前沒有符合此播放列表篩選條件的內容。",
-    "emptyVideo": "此播放列表為空。可以在電影、劇集或單集上使用“新增到播放列表”，或右鍵點選海報。",
-    "emptyMusic": "此播放列表為空。可以在藝術家或專輯上使用“新增到播放列表”，或右鍵點選海報。",
-    "items": "播放列表條目",
-    "remove": "從播放列表中移除",
-    "deleteTitle": "刪除播放列表？",
+    "loadError": "無法載入此播放清單",
+    "video": "影片播放清單",
+    "music": "音樂播放清單",
+    "rename": "重新命名播放清單",
+    "delete": "刪除播放清單",
+    "noMatches": "目前沒有符合此播放清單篩選條件的內容。",
+    "emptyVideo": "此播放清單為空。可以在電影、劇集或單集上使用“新增到播放清單”，或右鍵點選海報。",
+    "emptyMusic": "此播放清單為空。可以在藝術家或專輯上使用“新增到播放清單”，或右鍵點選海報。",
+    "items": "播放清單條目",
+    "remove": "從播放清單中移除",
+    "deleteTitle": "刪除播放清單？",
     "deleteMessage": "“{{title}}”將被刪除。其中的內容仍保留在你的媒體庫中。",
-    "deleted": "播放列表已刪除"
+    "deleted": "播放清單已刪除"
   },
   "playlistForm": {
-    "new": "新播放列表",
+    "new": "新播放清單",
     "title": "標題",
     "for": "用於",
-    "kind": "播放列表型別",
+    "kind": "播放清單型別",
     "video": "電影和劇集",
     "audio": "音樂"
   },
   "playlists": {
-    "title": "播放列表",
-    "loadError": "無法載入你的播放列表",
-    "empty": "還沒有播放列表",
-    "emptyHint": "可以在此處建立，或在電影、劇集、專輯或單集上使用“新增到播放列表”（也可以右鍵點選海報）。"
+    "title": "播放清單",
+    "loadError": "無法載入你的播放清單",
+    "empty": "還沒有播放清單",
+    "emptyHint": "可以在此處建立，或在電影、劇集、專輯或單集上使用“新增到播放清單”（也可以右鍵點選海報）。"
   },
   "book": {
     "kind": "有聲書",
@@ -344,13 +344,13 @@
     "moved": "{{title}} 已移到第 {{position}} 位，共 {{total}} 個",
     "recommendedTitle": "推薦欄目",
     "recommendedHint": "在此媒體庫的“推薦”標籤頁中顯示為欄目的合集，位於“繼續觀看”之後，對所有人可見。",
-    "restore": "恢復 Pley 的預設設定",
-    "restored_other": "已恢復 {{count, number}} 個合集",
-    "nothingToRestore": "無需恢復：Pley 的合集都已就位",
+    "restore": "還原 Pley 的預設設定",
+    "restored_other": "已還原 {{count, number}} 個合集",
+    "nothingToRestore": "無需還原：Pley 的合集都已就位",
     "noRows": "還沒有欄目。",
     "add": "新增欄目",
     "pick": "選擇合集",
-    "homeTitle": "主頁欄目",
-    "homeHint": "主頁上位於“繼續觀看”和“我的片單”之後的欄目，對所有人可見。多個媒體庫中同名的合集會合併為一個欄目。可以在合集的編輯視窗中將其新增到主頁。"
+    "homeTitle": "首頁欄目",
+    "homeHint": "首頁上位於“繼續觀看”和“我的片單”之後的欄目，對所有人可見。多個媒體庫中同名的合集會合併為一個欄目。可以在合集的編輯視窗中將其新增到首頁。"
   }
 }

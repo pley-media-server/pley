@@ -24,7 +24,7 @@
     "refresh": "重新整理",
     "remove": "移除",
     "rename": "重新命名",
-    "reset": "重置",
+    "reset": "重設",
     "resume": "繼續",
     "retry": "重試",
     "save": "儲存",
@@ -32,7 +32,7 @@
     "search": "搜尋",
     "showLess": "收起",
     "showMore": "顯示更多",
-    "signOut": "退出登入",
+    "signOut": "登出",
     "tryAgain": "重試",
     "upload": "上傳",
     "yes": "是"
@@ -56,7 +56,7 @@
       "zh-TW": "繁體中文"
     },
     "accountHint": "你登入每臺裝置時 Pley 使用的語言。“自動”跟隨每臺裝置的語言。",
-    "serverHint": "伺服器自身文案的語言，以及裝置語言尚未被 Pley 支援時所用的語言。每個人都可以在自己的“賬戶”頁面選擇語言。",
+    "serverHint": "伺服器自身文案的語言，以及裝置語言尚未被 Pley 支援時所用的語言。每個人都可以在自己的“帳戶”頁面選擇語言。",
     "automatic": "自動（{{language}}）",
     "serverLabel": "Pley 的語言",
     "choose": "選擇語言"
@@ -139,9 +139,9 @@
     "sameAsUsername": "密碼不能與使用者名稱相同。"
   },
   "twoStep": {
-    "codesFor": "{{username}} 的 Pley 恢復碼",
-    "codesForOn": "{{server}} 上 {{username}} 的 Pley 恢復碼",
-    "codesHint": "每個程式碼只能登入一次，用來代替驗證器應用中的程式碼。"
+    "codesFor": "{{username}} 的 Pley 復原碼",
+    "codesForOn": "{{server}} 上 {{username}} 的 Pley 復原碼",
+    "codesHint": "每個代碼只能登入一次，用來代替驗證器應用中的代碼。"
   },
   "play": {
     "nothing": "沒有可播放的內容",
@@ -163,20 +163,20 @@
     "connectionsFull": "{{device}} 無法播放該頻道：直播電視的連線已全部佔用",
     "pairingFailed": "{{device}} 配對失敗",
     "pairFirst": "{{device}} 需要先配對：請在“在…上播放”中再次選擇它",
-    "wrongDevicePin": "這不是 {{device}} 顯示的程式碼",
+    "wrongDevicePin": "這不是 {{device}} 顯示的代碼",
     "pairingWait": "{{device}} 暫不允許再試：請稍等片刻"
   },
   "errors": {
     "unreachable": "無法連線伺服器",
-    "notAnswering": "伺服器暫時沒有響應",
-    "failed": "伺服器無法響應（錯誤 {{status}}）"
+    "notAnswering": "伺服器暫時沒有回應",
+    "failed": "伺服器無法回應（錯誤 {{status}}）"
   },
   "apps": {
     "scopes": {
       "library": "媒體庫",
       "play": "播放",
-      "playlists": "播放列表",
-      "profiles": "配置檔案",
+      "playlists": "播放清單",
+      "profiles": "設定檔",
       "requests": "請求影視",
       "approvals": "審批請求",
       "activity": "正在播放",
@@ -301,7 +301,7 @@
     "declined": "已拒絕。",
     "declinedBecause": "已拒絕：{{reason}}。",
     "askAgain": "{{when}} 可以再次請求。",
-    "restricted": "超過此賬戶的年齡限制。",
+    "restricted": "超過此帳戶的年齡限制。",
     "download": {
       "downloading": "下載中",
       "queued": "等待下載",
@@ -361,9 +361,9 @@
       "tmdbKey": "TMDB 拒絕了此伺服器的金鑰",
       "tmdbKeyManage": "請在 設定 → 伺服器 中檢查。",
       "tmdbKeyText": "需要管理員檢查。",
-      "tmdbDown": "TMDB 沒有響應",
+      "tmdbDown": "TMDB 沒有回應",
       "tmdbDownText": "請稍後再試。",
-      "noAccess": "此賬戶沒有請求許可權",
+      "noAccess": "此帳戶沒有請求權限",
       "noAccessText": "管理員可以允許其請求影視。",
       "signIn": "重新登入以請求影視",
       "declined": "請求已被拒絕。",

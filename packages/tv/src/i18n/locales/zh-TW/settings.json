@@ -12,18 +12,18 @@
   },
   "title": "設定",
   "categories": {
-    "profile": "配置檔案",
+    "profile": "設定檔",
     "playback": "播放",
     "audio": "音訊",
     "display": "字幕與顯示",
     "server": "伺服器",
     "diagnostics": "診斷",
     "about": "關於",
-    "signout": "退出登入"
+    "signout": "登出"
   },
   "profile": {
-    "managed": "受管理配置檔案",
-    "switch": "切換配置檔案",
+    "managed": "受管理設定檔",
+    "switch": "切換設定檔",
     "audioLanguage": "音訊語言",
     "fileDefault": "檔案的預設語言",
     "subtitles": "字幕",
@@ -36,8 +36,8 @@
     "sortNeedsNewer": "需要伺服器上更新版本的 Pley",
     "yourOrder": "你的順序，適用於所有裝置",
     "alwaysStartAs": "始終以此身份啟動",
-    "usedLast": "上次使用的配置檔案",
-    "web": "在網頁上管理你的賬戶",
+    "usedLast": "上次使用的設定檔",
+    "web": "在網頁上管理你的帳戶",
     "webHint": "名稱、頭像、密碼、PIN、兩步驗證、裝置和應用"
   },
   "modes": {
@@ -152,15 +152,15 @@
     "credits": "致謝"
   },
   "signOut": {
-    "intro": "將這臺電視從伺服器退出登入。重新登入需要新的關聯程式碼。",
-    "introServer": "將這臺電視從 {{server}} 退出登入。重新登入需要新的關聯程式碼。",
-    "button": "退出登入",
-    "title": "退出登入？",
-    "body": "這臺電視將從 {{server}} 退出登入。"
+    "intro": "將這臺電視從伺服器登出。重新登入需要新的關聯代碼。",
+    "introServer": "將這臺電視從 {{server}} 登出。重新登入需要新的關聯代碼。",
+    "button": "登出",
+    "title": "登出？",
+    "body": "這臺電視將從 {{server}} 登出。"
   },
   "web": {
-    "title": "在網頁上管理你的賬戶",
-    "body": "用手機掃描二維碼，或在同一網路的手機或電腦上開啟此地址："
+    "title": "在網頁上管理你的帳戶",
+    "body": "用手機掃描 QR 碼，或在同一網路的手機或電腦上開啟此位址："
   },
   "history": {
     "title": "觀看歷史",

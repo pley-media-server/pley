@@ -45,7 +45,7 @@
     "nothingFoundHint": "換一種拼寫，或使用標題的原語言試試。",
     "backToDiscover": "返回發現",
     "emptyList": "這裡暫時沒有內容",
-    "emptyListAgeLimit": "TMDB 在此列出的內容超出了此配置檔案的年齡限制。",
+    "emptyListAgeLimit": "TMDB 在此列出的內容超出了此設定檔的年齡限制。",
     "emptyListToday": "TMDB 今天在此列表中沒有內容。",
     "trendingNow": "當前熱門",
     "moreAboutIt": "瞭解更多",
@@ -129,7 +129,7 @@
     "declinedByWhen": "由 {{name}} 於 <when/> 拒絕",
     "reason": "：“{{reason}}”",
     "sentTo": "已傳送至 {{where}}",
-    "outOfReach": "已就緒，但位於你無法訪問的媒體庫中：聯絡管理員"
+    "outOfReach": "已就緒，但位於你無法存取的媒體庫中：聯絡管理員"
   },
   "actions": {
     "more": "{{title}} 的更多操作",
@@ -147,15 +147,15 @@
     "retryWithSettings": "按設定中的選項重試",
     "notConnected": "{{service}} 未連線",
     "notConnectedText": "在連線之前它會保持批准狀態，除非有人手動新增。",
-    "lastOptions": "它的質量配置和資料夾是它上次提供的。",
-    "optionsFailed": "無法載入 {{service}} 的質量配置和資料夾",
-    "qualityProfile": "質量配置",
+    "lastOptions": "它的品質設定和資料夾是它上次提供的。",
+    "optionsFailed": "無法載入 {{service}} 的品質設定和資料夾",
+    "qualityProfile": "品質設定",
     "folder": "資料夾",
     "settingsChoice": "設定中的選擇",
-    "goneProfile": "配置 {{id}}（已不存在）",
+    "goneProfile": "設定檔 {{id}}（已不存在）",
     "goneFolder": "{{folder}}（已不存在）",
     "freeSpace": "{{path}}（剩餘 {{free}}）",
-    "seasonsHint": "未選中的季會退出請求，之後可以再次請求。"
+    "seasonsHint": "未選中的季會從請求中移除，之後可以再次請求。"
   },
   "decline": {
     "title": "拒絕“{{title}}”？",
@@ -170,7 +170,7 @@
     "open": "開放",
     "inLibrary": "在媒體庫中",
     "requestMoreSeasons": "請求更多季",
-    "notOpen": "此賬戶未開放請求。",
+    "notOpen": "此帳戶未開放請求。",
     "signInToAsk": "重新登入以請求電影和劇集",
     "requested": "已請求",
     "following": "已關注",
@@ -183,7 +183,7 @@
   },
   "picker": {
     "title": "選擇哪些季？",
-    "auto": "請求後立即批准，併發送到下載。",
+    "auto": "請求後立即批准，並發送到下載。",
     "decided": "由管理員決定。準備觀看時會通知你。"
   }
 }

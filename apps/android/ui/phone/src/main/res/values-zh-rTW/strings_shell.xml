@@ -4,7 +4,7 @@
     <string name="shell_tab_home">首頁</string>
     <string name="shell_tab_libraries">媒體庫</string>
     <string name="shell_tab_search">搜尋</string>
-    <string name="shell_tab_playlists">播放列表</string>
+    <string name="shell_tab_playlists">播放清單</string>
     <string name="shell_tab_me">我</string>
     <string name="shell_brand" translatable="false">Pley</string>
 
@@ -13,7 +13,7 @@
     <!-- A page with nothing saved, the server out of reach: "No answer in time. Check that…". -->
     <string name="kit_offline_title">無法連線伺服器</string>
     <string name="kit_offline_body">%1$s 請檢查伺服器是否已開啟，以及此裝置是否連線到同一網路。</string>
-    <string name="shell_scope">Pley 沒有許可權執行此操作：重新登入以授權</string>
+    <string name="shell_scope">Pley 沒有權限執行此操作：重新登入以授權</string>
     <string name="shell_scope_action">登入</string>
     <string name="shell_now_playing">開啟“正在播放”</string>
 

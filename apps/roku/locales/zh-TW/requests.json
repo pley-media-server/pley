@@ -44,7 +44,7 @@
     "limits": "限額：每 7 天 {{movies}} 和 {{seasons}}。"
   },
   "asking": {
-    "auto": "請求後自動批准併發送到下載佇列。",
+    "auto": "請求後自動批准並發送到下載佇列。",
     "decided": "由管理員決定。就緒時會通知你。",
     "confirm": "請求“{{title}}”？",
     "following": "“{{title}}”就緒時會通知你。",
@@ -73,8 +73,8 @@
     "tmdbKey": "TMDB 拒絕了此伺服器的金鑰",
     "tmdbKeyText": "需要管理員檢查。",
     "tmdbKeyManage": "請在網頁版 Pley 的“設定 → 伺服器”中修復。",
-    "tmdbDown": "TMDB 沒有響應",
-    "noAccess": "此賬戶未開放請求功能",
+    "tmdbDown": "TMDB 沒有回應",
+    "noAccess": "此帳戶未開放請求功能",
     "noAccessText": "管理員可以允許它請求電影和劇集。",
     "signIn": "請重新登入後請求電影和劇集",
     "askAgain": "你可以在 {{when}} 再次請求。",
@@ -114,7 +114,7 @@
   "title": {
     "requested": "已請求",
     "askedAlready": "已經有人請求過了。",
-    "notOpen": "此賬戶未開放請求功能。",
+    "notOpen": "此帳戶未開放請求功能。",
     "loadFailed": "無法載入此作品",
     "seasons": "季",
     "cast": "演員"
@@ -151,7 +151,7 @@
     "airs": "{{day}} 播出",
     "airsAt": "{{time}} 播出",
     "airsTomorrow": "明天 {{time}} 播出",
-    "outOfReach": "已就緒，但位於你無法訪問的媒體庫中：請聯絡管理員"
+    "outOfReach": "已就緒，但位於你無法存取的媒體庫中：請聯絡管理員"
   },
   "download": {
     "queued": "等待下載",

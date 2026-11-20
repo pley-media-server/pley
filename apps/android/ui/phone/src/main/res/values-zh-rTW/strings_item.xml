@@ -10,7 +10,7 @@
     <string name="item_watched">已觀看</string>
     <string name="item_mark_watched">標記為已觀看</string>
     <string name="item_mark_unwatched">標記為未觀看</string>
-    <string name="item_playlist">播放列表</string>
+    <string name="item_playlist">播放清單</string>
     <string name="item_trailer">預告片</string>
     <string name="item_more_actions">更多操作</string>
     <string name="item_play_named">播放 %1$s</string>
@@ -28,7 +28,7 @@
     <string name="item_subtitles">字幕</string>
     <string name="item_subtitles_off">關閉</string>
     <string name="item_extras">花絮</string>
-    <string name="item_cast">投屏</string>
+    <string name="item_cast">投放</string>
     <string name="item_guest_stars">客串演員</string>
     <string name="item_more_like_this">更多類似內容</string>
     <string name="item_details">詳情</string>
@@ -73,7 +73,7 @@
     <!-- States (design spec §8). -->
     <string name="item_failed">無法載入此內容</string>
     <string name="item_not_found">未找到內容</string>
-    <string name="item_not_found_body">它可能已被移除，或此配置檔案無權檢視。</string>
+    <string name="item_not_found_body">它可能已被移除，或此設定檔無權檢視。</string>
     <string name="item_nothing_to_play">無法播放：此內容沒有媒體檔案。</string>
     <string name="item_loading">載入中</string>
 
@@ -83,7 +83,7 @@
     <string name="item_action_from_start">從頭播放</string>
     <string name="item_action_mark_watched">標記為已觀看</string>
     <string name="item_action_mark_unwatched">標記為未觀看</string>
-    <string name="item_action_add_to_playlist">新增到播放列表…</string>
+    <string name="item_action_add_to_playlist">新增到播放清單…</string>
     <string name="item_action_go_to_show">前往劇集</string>
     <string name="item_action_go_to_season">前往季</string>
     <string name="item_action_open">開啟</string>

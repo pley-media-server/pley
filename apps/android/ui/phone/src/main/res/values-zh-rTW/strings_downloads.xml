@@ -68,7 +68,7 @@
     <string name="downloads_mobile_data_value">否則下載會等待 Wi-Fi</string>
     <string name="downloads_delete_all">刪除所有下載</string>
     <string name="downloads_delete_all_title">刪除所有下載？</string>
-    <string name="downloads_delete_all_body">這將刪除此裝置上所有伺服器和配置檔案的下載內容。</string>
+    <string name="downloads_delete_all_body">這將刪除此裝置上所有伺服器和設定檔的下載內容。</string>
     <string name="downloads_delete_all_confirm">全部刪除</string>
     <string name="downloads_keep">保留</string>
 </resources>

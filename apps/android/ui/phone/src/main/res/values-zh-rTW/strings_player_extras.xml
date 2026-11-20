@@ -5,7 +5,7 @@
     <string name="player_sync">同步</string>
     <string name="player_sync_earlier">提前顯示字幕</string>
     <string name="player_sync_later">延後顯示字幕</string>
-    <string name="player_sync_reset">重置</string>
+    <string name="player_sync_reset">重設</string>
     <!-- The audio page's row that moves the sound against the picture, in 50 ms steps. -->
     <string name="player_audio_delay">音訊延遲</string>
     <string name="player_audio_earlier">提前播放聲音</string>

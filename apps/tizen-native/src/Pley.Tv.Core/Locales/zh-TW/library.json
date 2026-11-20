@@ -62,7 +62,7 @@
   "messages": {
     "failed": "無法載入此媒體庫",
     "missingTitle": "此媒體庫不存在",
-    "missingBody": "它可能已被移除，或此配置檔案無權檢視。",
+    "missingBody": "它可能已被移除，或此設定檔無權檢視。",
     "emptyTitle": "此媒體庫是空的",
     "emptyBody": "這裡還沒有內容。伺服器新增內容後就會顯示。",
     "noMatchesTitle": "沒有匹配項",

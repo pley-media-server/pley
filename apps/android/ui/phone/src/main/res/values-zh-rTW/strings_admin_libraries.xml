@@ -63,7 +63,7 @@
     <string name="admin_libraries_phase_queued">排隊中</string>
     <string name="admin_libraries_phase_walking">查詢檔案</string>
     <string name="admin_libraries_phase_probing">分析媒體</string>
-    <string name="admin_libraries_phase_metadata">獲取後設資料</string>
+    <string name="admin_libraries_phase_metadata">取得中介資料</string>
     <string name="admin_libraries_phase_done">已完成</string>
     <string name="admin_libraries_delete">刪除</string>
     <string name="admin_libraries_add_path">新增</string>

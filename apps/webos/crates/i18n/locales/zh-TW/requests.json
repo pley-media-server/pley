@@ -23,8 +23,8 @@
     "requested": "已請求",
     "declined": "已拒絕"
   },
-  "restricted": "超過此賬戶的年齡限制",
-  "notOpen": "此賬戶無法使用請求功能。",
+  "restricted": "超過此帳戶的年齡限制",
+  "notOpen": "此帳戶無法使用請求功能。",
   "signInToDecide": "重新登入以在此審批或拒絕。",
   "askedAlready": "已經有人請求過了。",
   "unreachable": "無法連線到你的伺服器",
@@ -83,7 +83,7 @@
     "partial": "{{seasons}} 已就緒",
     "partialSome": "部分季已就緒",
     "available": "可以觀看了",
-    "outOfReach": "已就緒，但在你無法訪問的媒體庫中：請聯絡管理員",
+    "outOfReach": "已就緒，但在你無法存取的媒體庫中：請聯絡管理員",
     "gone": "已不在媒體庫中"
   },
   "download": {
@@ -144,9 +144,9 @@
   "problem": {
     "off": "請求功能已關閉",
     "offText": "此伺服器不接受電影和劇集請求。",
-    "noAccess": "此賬戶無法使用請求功能",
+    "noAccess": "此帳戶無法使用請求功能",
     "noAccessText": "管理員可以允許它請求電影和劇集。",
-    "tmdbDown": "TMDB 沒有響應",
+    "tmdbDown": "TMDB 沒有回應",
     "tmdbDownText": "請稍後重試。",
     "tmdbKey": "TMDB 拒絕了此伺服器的金鑰",
     "tmdbKeyManage": "在網頁版的「設定 → 伺服器」中檢視。",
@@ -179,8 +179,8 @@
   },
   "signInAgain": {
     "title": "重新登入？",
-    "body": "此電視將從伺服器退出登入，並顯示一個用於重新關聯的驗證碼。",
-    "bodyServer": "此電視將從 {{server}} 退出登入，並顯示一個用於重新關聯的驗證碼。"
+    "body": "此電視將從伺服器登出，並顯示一個用於重新關聯的驗證碼。",
+    "bodyServer": "此電視將從 {{server}} 登出，並顯示一個用於重新關聯的驗證碼。"
   },
   "title": {
     "notOnTmdb": "不在 TMDB 中",
@@ -199,10 +199,10 @@
     },
     "loadFailed": "無法載入「發現」",
     "nothing": "這裡暫時沒有內容",
-    "nothingText": "TMDB 的列表中沒有此配置檔案可請求的內容。請改為搜尋標題。",
-    "nothingInList": "TMDB 的列表中沒有此配置檔案可請求的內容。",
+    "nothingText": "TMDB 的列表中沒有此設定檔可請求的內容。請改為搜尋標題。",
+    "nothingInList": "TMDB 的列表中沒有此設定檔可請求的內容。",
     "nothingYet": "這裡暫時沒有內容",
-    "nothingSoFar": "目前已讀取的 TMDB 頁面中沒有此配置檔案可請求的內容。",
+    "nothingSoFar": "目前已讀取的 TMDB 頁面中沒有此設定檔可請求的內容。",
     "couldNotLoad": "無法載入",
     "resultsFor": "「{{query}}」的搜尋結果",
     "searchFailed": "搜尋 TMDB 失敗",

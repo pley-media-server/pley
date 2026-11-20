@@ -10,7 +10,7 @@
     <string name="tv_item_mark_watched">標為已觀看</string>
     <string name="tv_item_mark_unwatched">標為未觀看</string>
     <string name="tv_item_tracks">音訊和字幕</string>
-    <string name="tv_item_add_to_playlist">新增到播放列表</string>
+    <string name="tv_item_add_to_playlist">新增到播放清單</string>
     <string name="tv_item_trailer">預告片</string>
     <string name="tv_item_more">更多</string>
     <string name="tv_item_full_summary">完整簡介</string>
@@ -81,7 +81,7 @@
     <!-- States (design spec §8). -->
     <string name="tv_item_failed">無法載入此內容</string>
     <string name="tv_item_not_found">未找到此內容</string>
-    <string name="tv_item_not_found_body">它可能已被刪除，或此配置檔案無權檢視。</string>
+    <string name="tv_item_not_found_body">它可能已被刪除，或此設定檔無權檢視。</string>
     <string name="tv_item_nothing_to_play">無法播放：此內容沒有媒體檔案。</string>
 
     <!-- Person pages (design spec §4.9). -->

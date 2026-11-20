@@ -5,18 +5,18 @@
     "retry": "重試"
   },
   "network": {
-    "nothingAnswers": "那裡沒有響應",
-    "noAnswerInTime": "未及時收到響應",
-    "unknownAddress": "此網路上找不到該地址",
+    "nothingAnswers": "那裡沒有回應",
+    "noAnswerInTime": "未及時收到回應",
+    "unknownAddress": "此網路上找不到該位址",
     "secureConnection": "安全連線失敗",
     "cancelled": "已取消",
-    "anotherDevice": "另一臺裝置在該地址響應",
-    "serverFailed": "伺服器無法響應",
+    "anotherDevice": "另一臺裝置在該位址回應",
+    "serverFailed": "伺服器無法回應",
     "connectionFailed": "與伺服器的連線失敗"
   },
   "errors": {
     "notPley": "那不是 Pley 伺服器",
-    "unreadable": "無法讀取伺服器的響應：它是 Pley 嗎，版本是否最新？",
+    "unreadable": "無法讀取伺服器的回應：它是 Pley 嗎，版本是否最新？",
     "refused": "伺服器拒絕了（HTTP {{status}}）",
     "offlineTitle": "無法連線你的伺服器",
     "offlineBody": "{{reason}} 請確認伺服器已開啟，且此裝置與其在同一網路中。"

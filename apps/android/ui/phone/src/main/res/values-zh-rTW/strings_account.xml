@@ -2,24 +2,24 @@
 <resources>
     <!-- Me (design spec §4.8; apps/web/src/pages/AccountPage.tsx). -->
     <string name="account_me">我</string>
-    <string name="account_role_managed">受管配置檔案</string>
-    <string name="account_switch_profile">切換配置檔案</string>
+    <string name="account_role_managed">受管設定檔</string>
+    <string name="account_switch_profile">切換設定檔</string>
     <string name="account_activity">活動</string>
     <string name="account_history">觀看歷史</string>
     <string name="account_this_device">此裝置</string>
     <string name="account_settings">設定</string>
-    <string name="account_settings_value">畫質、重新整理率、字幕、隱私</string>
+    <string name="account_settings_value">畫質、更新率、字幕、隱私</string>
     <string name="account_diagnostics">診斷</string>
     <string name="account_diagnostics_value">此裝置能播放什麼及原因</string>
-    <string name="account_account">賬戶</string>
-    <string name="account_manage_web">在網頁版管理你的賬戶</string>
+    <string name="account_account">帳戶</string>
+    <string name="account_manage_web">在網頁版管理你的帳戶</string>
     <string name="account_manage_web_value">名稱、頭像、密碼、PIN、兩步驗證、裝置和應用</string>
     <string name="account_link_tv">關聯電視</string>
     <string name="account_link_tv_value">輸入電視上顯示的驗證碼</string>
     <string name="account_switch_server">切換伺服器</string>
-    <string name="account_sign_out">退出登入</string>
-    <string name="account_sign_out_title">退出登入？</string>
-    <string name="account_sign_out_body">你將退出 %1$s。</string>
+    <string name="account_sign_out">登出</string>
+    <string name="account_sign_out_title">登出？</string>
+    <string name="account_sign_out_body">你將登出 %1$s。</string>
     <string name="account_version">Pley %1$s Android 版</string>
 
     <!-- Track defaults (AccountPage.tsx PlaybackCard). -->
@@ -63,13 +63,13 @@
     <string name="settings_quality_automatic_hint">根據網路情況動態調整。</string>
     <!-- "8 Mbps 1080p", "30 Mbps 4K": the lines, then the bitrate. -->
     <string name="settings_quality_preset">%2$d Mbps %1$s</string>
-    <string name="settings_refresh_rate">匹配重新整理率</string>
+    <string name="settings_refresh_rate">匹配更新率</string>
     <string name="settings_refresh_seamless">無縫時</string>
     <string name="settings_refresh_seamless_hint">在不中斷播放的情況下，讓螢幕跟隨影片幀率。</string>
     <string name="settings_refresh_auto">自動</string>
     <string name="settings_refresh_always">總是</string>
     <string name="settings_refresh_off">關閉</string>
-    <string name="settings_refresh_off_hint">螢幕保持自身重新整理率。</string>
+    <string name="settings_refresh_off_hint">螢幕保持自身更新率。</string>
     <string name="settings_autoplay">自動播放下一集</string>
     <string name="settings_autoplay_hint">倒計時 10 秒後</string>
     <string name="settings_playback_details">播放詳情</string>

@@ -3,5 +3,5 @@
 <resources>
     <!-- %1$s: why ("no answer in time"). -->
     <string name="onboarding_cant_reach_server">無法連線你的伺服器：%1$s</string>
-    <string name="onboarding_demo_failed">演示伺服器沒有響應</string>
+    <string name="onboarding_demo_failed">演示伺服器沒有回應</string>
 </resources>

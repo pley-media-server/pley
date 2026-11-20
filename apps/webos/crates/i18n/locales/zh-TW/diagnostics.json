@@ -5,7 +5,7 @@
     "firmware": "韌體",
     "tier": "檔位",
     "savedData": "儲存的資料",
-    "lostOnRestart": "電視重啟後丟失"
+    "lostOnRestart": "電視重新啟動後丟失"
   },
   "tiers": {
     "low": "低",
@@ -19,7 +19,7 @@
     "panel": "面板：{{panel}}",
     "hdr": "HDR：{{formats}}",
     "none": "無",
-    "dolbyVision": "杜比視界：配置檔案 {{profiles}}，來自 {{containers}}",
+    "dolbyVision": "杜比視界：Profile {{profiles}}，來自 {{containers}}",
     "video": "影片：{{decoders}}",
     "audioDecoded": "音訊解碼：{{formats}}",
     "sent": "傳送給接收端：{{formats}}",

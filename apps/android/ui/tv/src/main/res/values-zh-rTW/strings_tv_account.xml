@@ -2,7 +2,7 @@
 <resources>
     <!-- Settings, two panes (design spec §4.8). -->
     <string name="tv_settings_title">設定</string>
-    <string name="tv_settings_profile">配置檔案</string>
+    <string name="tv_settings_profile">設定檔</string>
     <string name="tv_settings_playback">播放</string>
     <string name="tv_settings_audio">音訊</string>
     <string name="tv_settings_display">字幕與顯示</string>
@@ -14,8 +14,8 @@
     <string name="tv_settings_switch_off">關</string>
 
     <!-- Profile: who is watching and their track defaults (AccountPage.tsx). -->
-    <string name="tv_account_role_managed">受管配置檔案</string>
-    <string name="tv_account_switch_profile">切換配置檔案</string>
+    <string name="tv_account_role_managed">受管設定檔</string>
+    <string name="tv_account_switch_profile">切換設定檔</string>
     <string name="tv_account_audio_language">音訊語言</string>
     <string name="tv_account_subtitles">字幕</string>
     <string name="tv_account_subtitle_language">字幕語言</string>
@@ -37,18 +37,18 @@
     <string name="tv_account_sort_libraries_value">你的順序，適用於所有裝置</string>
     <string name="tv_account_always_start_as">始終以此身份啟動</string>
     <!-- "Always start as" left unset: the TV starts as the profile it was left on, and asks only for a profile with a PIN. -->
-    <string name="tv_account_ask_who">上次使用的配置檔案</string>
-    <string name="tv_account_manage_web">在網頁上管理你的賬戶</string>
+    <string name="tv_account_ask_who">上次使用的設定檔</string>
+    <string name="tv_account_manage_web">在網頁上管理你的帳戶</string>
     <string name="tv_account_manage_web_value">名稱、頭像、密碼、PIN、兩步驗證、裝置和應用</string>
-    <string name="tv_account_web_title">在網頁上管理你的賬戶</string>
-    <string name="tv_account_web_body">用手機掃描二維碼，或在同一個網路中的手機或電腦上開啟此地址：</string>
+    <string name="tv_account_web_title">在網頁上管理你的帳戶</string>
+    <string name="tv_account_web_body">用手機掃描 QR 碼，或在同一個網路中的手機或電腦上開啟此位址：</string>
     <string name="tv_account_close">關閉</string>
 
     <!-- Sign out. -->
-    <string name="tv_account_sign_out">退出登入</string>
-    <string name="tv_account_sign_out_title">退出登入？</string>
-    <string name="tv_account_sign_out_body">你將退出 %1$s。</string>
-    <string name="tv_account_sign_out_intro">將這臺電視從 %1$s 退出登入。再次登入時需要新的配對碼。</string>
+    <string name="tv_account_sign_out">登出</string>
+    <string name="tv_account_sign_out_title">登出？</string>
+    <string name="tv_account_sign_out_body">你將登出 %1$s。</string>
+    <string name="tv_account_sign_out_intro">將這臺電視從 %1$s 登出。再次登入時需要新的配對碼。</string>
     <string name="tv_account_cancel">取消</string>
 
     <!-- Watch history. -->
@@ -72,13 +72,13 @@
     <string name="tv_settings_quality_automatic_hint">根據網路情況自動調整。</string>
     <!-- "8 Mbps 1080p", "30 Mbps 4K": the lines, then the bitrate. -->
     <string name="tv_settings_quality_preset">%2$d Mbps %1$s</string>
-    <string name="tv_settings_refresh_rate">匹配重新整理率</string>
+    <string name="tv_settings_refresh_rate">匹配更新率</string>
     <string name="tv_settings_refresh_auto">自動</string>
     <string name="tv_settings_refresh_auto_hint">對 10 分鐘及以上的影片，跟隨電視的匹配內容設定</string>
     <string name="tv_settings_refresh_always">始終</string>
     <string name="tv_settings_refresh_always_hint">無論電視自身設定如何，都切換到影片的幀率</string>
     <string name="tv_settings_refresh_off">關</string>
-    <string name="tv_settings_refresh_off_hint">電視保持自己的重新整理率</string>
+    <string name="tv_settings_refresh_off_hint">電視保持自己的更新率</string>
     <string name="tv_settings_autoplay">自動播放下一集</string>
     <string name="tv_settings_autoplay_hint">10 秒倒計時後</string>
     <string name="tv_settings_playback_details">播放詳情</string>

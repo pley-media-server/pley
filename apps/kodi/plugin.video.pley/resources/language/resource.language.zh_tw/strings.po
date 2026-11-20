@@ -19,7 +19,7 @@ msgstr "登入 %s"
 
 msgctxt "#30002"
 msgid "Sign out"
-msgstr "退出登入"
+msgstr "登出"
 
 msgctxt "#30003"
 msgid "Search"
@@ -27,7 +27,7 @@ msgstr "搜尋"
 
 msgctxt "#30004"
 msgid "Playlists"
-msgstr "播放列表"
+msgstr "播放清單"
 
 msgctxt "#30005"
 msgid "Collections"
@@ -39,7 +39,7 @@ msgstr "下一頁"
 
 msgctxt "#30007"
 msgid "Enter an address"
-msgstr "輸入地址"
+msgstr "輸入位址"
 
 msgctxt "#30009"
 msgid "Looking for Pley servers on this network"
@@ -55,11 +55,11 @@ msgstr "已以 %s 身份登入"
 
 msgctxt "#30013"
 msgid "Signed out of Pley"
-msgstr "已退出 Pley"
+msgstr "已登出 Pley"
 
 msgctxt "#30014"
 msgid "The code expired. Sign in again for a new one."
-msgstr "驗證碼已過期。重新登入獲取新的驗證碼。"
+msgstr "驗證碼已過期。重新登入取得新的驗證碼。"
 
 msgctxt "#30015"
 msgid "Signing in was refused on the server's page."
@@ -67,7 +67,7 @@ msgstr "登入在伺服器頁面上被拒絕。"
 
 msgctxt "#30016"
 msgid "%s doesn't answer. Check the address, and that the server is running."
-msgstr "%s 沒有響應。檢查地址，並確認伺服器正在執行。"
+msgstr "%s 沒有回應。檢查位址，並確認伺服器正在執行。"
 
 msgctxt "#30017"
 msgid "%s isn't a Pley server, or isn't one Kodi can sign in to."
@@ -75,7 +75,7 @@ msgstr "%s 不是 Pley 伺服器，或不是 Kodi 可以登入的伺服器。"
 
 msgctxt "#30018"
 msgid "Pley's service isn't running: restart Kodi."
-msgstr "Pley 的服務未執行：重啟 Kodi。"
+msgstr "Pley 的服務未執行：重新啟動 Kodi。"
 
 msgctxt "#30019"
 msgid "Mark as watched"
@@ -167,7 +167,7 @@ msgstr "伺服器"
 
 msgctxt "#30041"
 msgid "Server address"
-msgstr "伺服器地址"
+msgstr "伺服器位址"
 
 msgctxt "#30042"
 msgid "Server name"
@@ -215,7 +215,7 @@ msgstr "2 Mbps 480p"
 
 msgctxt "#30100"
 msgid "Home"
-msgstr "主頁"
+msgstr "首頁"
 
 msgctxt "#30101"
 msgid "From start"
@@ -347,7 +347,7 @@ msgstr "附加內容"
 
 msgctxt "#30133"
 msgid "Couldn't load your home screen"
-msgstr "無法載入主頁"
+msgstr "無法載入首頁"
 
 msgctxt "#30134"
 msgid "Couldn't load this page"
@@ -447,7 +447,7 @@ msgstr "完整簡介"
 
 msgctxt "#30158"
 msgid "No playlists yet. Use “Add to playlist” on a movie, show or episode, or press Menu on a poster."
-msgstr "還沒有播放列表。在電影、劇集或集上使用“新增到播放列表”，或在海報上按選單鍵。"
+msgstr "還沒有播放清單。在電影、劇集或集上使用“新增到播放清單”，或在海報上按選單鍵。"
 
 msgctxt "#30159"
 msgid "No collections yet."
@@ -487,7 +487,7 @@ msgstr "登入 Pley"
 
 msgctxt "#30172"
 msgid "Scan the code with your phone"
-msgstr "用手機掃描二維碼"
+msgstr "用手機掃描 QR 碼"
 
 msgctxt "#30173"
 msgid "or go to [B]%s[/B]"
@@ -519,15 +519,15 @@ msgstr "前往 [B]%s[/B]"
 
 msgctxt "#30180"
 msgid "Add to playlist"
-msgstr "新增到播放列表"
+msgstr "新增到播放清單"
 
 msgctxt "#30181"
 msgid "New video playlist"
-msgstr "新建影片播放列表"
+msgstr "新建影片播放清單"
 
 msgctxt "#30182"
 msgid "New music playlist"
-msgstr "新建音樂播放列表"
+msgstr "新建音樂播放清單"
 
 msgctxt "#30183"
 msgid "Added to %s"
@@ -635,11 +635,11 @@ msgstr "正在掃描…"
 
 msgctxt "#30210"
 msgid "Sign out?"
-msgstr "退出登入？"
+msgstr "登出？"
 
 msgctxt "#30211"
 msgid "You'll be signed out of %s."
-msgstr "你將退出 %s。"
+msgstr "你將登出 %s。"
 
 msgctxt "#30212"
 msgid "Automatic"
@@ -675,7 +675,7 @@ msgstr "是誰在看？"
 
 msgctxt "#30220"
 msgid "Switch profile"
-msgstr "切換配置檔案"
+msgstr "切換設定檔"
 
 msgctxt "#30221"
 msgid "Enter %s's PIN"
@@ -691,19 +691,19 @@ msgstr "PIN 錯誤次數過多：幾分鐘後重試。"
 
 msgctxt "#30224"
 msgid "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it."
-msgstr "此配置檔案的 PIN 因錯誤次數過多已被鎖定。其所有者或管理員可以重置。"
+msgstr "此設定檔的 PIN 因錯誤次數過多已被鎖定。其所有者或管理員可以重設。"
 
 msgctxt "#30225"
 msgid "You can't switch to this profile."
-msgstr "無法切換到此配置檔案。"
+msgstr "無法切換到此設定檔。"
 
 msgctxt "#30226"
 msgid "This profile can't be used from the app."
-msgstr "此配置檔案無法在此應用中使用。"
+msgstr "此設定檔無法在此應用中使用。"
 
 msgctxt "#30227"
 msgid "This sign-in can't switch profiles: sign in again to allow it."
-msgstr "此登入無法切換配置檔案：重新登入以啟用。"
+msgstr "此登入無法切換設定檔：重新登入以啟用。"
 
 msgctxt "#30228"
 msgid "%s needs a password. Sign in again with a code and choose %s on your phone or computer."
@@ -719,7 +719,7 @@ msgstr "以 %s 身份觀看"
 
 msgctxt "#30231"
 msgid "There's no other profile to switch to."
-msgstr "沒有其他可切換的配置檔案。"
+msgstr "沒有其他可切換的設定檔。"
 
 msgctxt "#30232"
 msgid "PIN"
@@ -727,19 +727,19 @@ msgstr "PIN"
 
 msgctxt "#30233"
 msgid "Remove from playlist"
-msgstr "從播放列表中移除"
+msgstr "從播放清單中移除"
 
 msgctxt "#30234"
 msgid "Rename playlist"
-msgstr "重新命名播放列表"
+msgstr "重新命名播放清單"
 
 msgctxt "#30235"
 msgid "Delete playlist"
-msgstr "刪除播放列表"
+msgstr "刪除播放清單"
 
 msgctxt "#30236"
 msgid "Delete playlist?"
-msgstr "刪除播放列表？"
+msgstr "刪除播放清單？"
 
 msgctxt "#30237"
 msgid "“%s” will be deleted. What's in it stays in your libraries."
@@ -751,15 +751,15 @@ msgstr "刪除"
 
 msgctxt "#30239"
 msgid "Playlist deleted"
-msgstr "播放列表已刪除"
+msgstr "播放清單已刪除"
 
 msgctxt "#30240"
 msgid "This playlist is empty. Use “Add to playlist” on a title, or press Menu on a poster."
-msgstr "此播放列表為空。在影片上使用“新增到播放列表”，或在海報上按選單鍵。"
+msgstr "此播放清單為空。在影片上使用“新增到播放清單”，或在海報上按選單鍵。"
 
 msgctxt "#30241"
 msgid "Nothing matches this playlist's filter yet."
-msgstr "目前沒有符合此播放列表篩選條件的內容。"
+msgstr "目前沒有符合此播放清單篩選條件的內容。"
 
 msgctxt "#30242"
 msgid "Your rating"
@@ -779,7 +779,7 @@ msgstr "查詢字幕需要更新版本的 Pley 伺服器。"
 
 msgctxt "#30246"
 msgid "%s isn't on your network and its connection isn't encrypted. Open it by its https address."
-msgstr "%s 不在你的網路中，且連線未加密。請使用其 https 地址開啟。"
+msgstr "%s 不在你的網路中，且連線未加密。請使用其 https 位址開啟。"
 
 msgctxt "#30247"
 msgid "Live TV"
@@ -827,7 +827,7 @@ msgstr "管理員新增 IPTV 提供商後，頻道會顯示在這裡。"
 
 msgctxt "#30261"
 msgid "Add your IPTV provider's playlist or Xtream Codes account on the web, in Settings → Live TV."
-msgstr "在網頁的“設定 → 直播電視”中新增 IPTV 提供商的播放列表或 Xtream Codes 賬戶。"
+msgstr "在網頁的“設定 → 直播電視”中新增 IPTV 提供商的播放清單或 Xtream Codes 帳戶。"
 
 msgctxt "#30262"
 msgid "Today"
@@ -1175,7 +1175,7 @@ msgstr "此伺服器不接受電影和劇集的請求。"
 
 msgctxt "#30518"
 msgid "Requests aren't open to this account"
-msgstr "此賬戶無權使用請求功能"
+msgstr "此帳戶無權使用請求功能"
 
 msgctxt "#30519"
 msgid "An administrator can let it ask for movies and shows."
@@ -1183,7 +1183,7 @@ msgstr "管理員可以讓它請求電影和劇集。"
 
 msgctxt "#30520"
 msgid "TMDB isn't answering"
-msgstr "TMDB 沒有響應"
+msgstr "TMDB 沒有回應"
 
 msgctxt "#30521"
 msgid "TMDB refused this server's key"
@@ -1291,7 +1291,7 @@ msgstr "此伺服器需要兩步驗證：若尚未設定，在手機上完成設
 
 msgctxt "#30550"
 msgid "Another device answers at %s's address"
-msgstr "另一臺裝置在 %s 的地址上響應"
+msgstr "另一臺裝置在 %s 的位址上回應"
 
 msgctxt "#30551"
 msgid "Your rating"
@@ -1391,7 +1391,7 @@ msgstr "畫質：%s"
 
 msgctxt "#30575"
 msgid "Couldn't switch to the remote's profile"
-msgstr "無法切換到遙控器的配置檔案"
+msgstr "無法切換到遙控器的設定檔"
 
 msgctxt "#30577"
 msgid "Category"
@@ -1412,7 +1412,7 @@ msgstr "語言"
 
 msgctxt "#30601"
 msgid "Profile language"
-msgstr "配置檔案語言"
+msgstr "設定檔語言"
 
 #. Named in itself, the same in every language
 msgctxt "#30602"

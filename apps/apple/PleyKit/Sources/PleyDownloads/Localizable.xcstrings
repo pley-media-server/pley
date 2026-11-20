@@ -257,7 +257,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "伺服器地址不是 https，也不在你的家庭網路中，因此下載已停止"
+            "value" : "伺服器位址不是 https，也不在你的家庭網路中，因此下載已停止"
           }
         }
       }

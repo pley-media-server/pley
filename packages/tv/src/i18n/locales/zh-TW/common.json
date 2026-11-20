@@ -23,9 +23,9 @@
   "server": {
     "cantReach": "無法連線到你的伺服器",
     "check": "{{reason}} 檢查伺服器是否已開啟，以及本機是否在同一網路。",
-    "nothingAnswers": "那邊沒有響應。",
-    "noAnswerInTime": "響應超時。",
-    "anotherDevice": "那邊有另一臺裝置響應。",
+    "nothingAnswers": "那邊沒有回應。",
+    "noAnswerInTime": "回應逾時。",
+    "anotherDevice": "那邊有另一臺裝置回應。",
     "refused": "伺服器拒絕了連線（HTTP {{status}}）"
   }
 }

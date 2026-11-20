@@ -54,7 +54,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這不是伺服器地址"
+            "value" : "這不是伺服器位址"
           }
         }
       }
@@ -112,7 +112,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "響應來自另一臺伺服器，而不是你登入的那臺：重試"
+            "value" : "回應來自另一臺伺服器，而不是你登入的那臺：重試"
           }
         }
       }
@@ -141,7 +141,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "響應與這次登入不符：重試"
+            "value" : "回應與這次登入不符：重試"
           }
         }
       }
@@ -170,7 +170,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "驗證碼已過期：重新獲取"
+            "value" : "驗證碼已過期：重新取得"
           }
         }
       }
@@ -199,7 +199,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "伺服器授予的許可權超出應用所需：已退出登入"
+            "value" : "伺服器授予的權限超出應用所需：已登出"
           }
         }
       }
@@ -228,7 +228,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "伺服器無法響應（HTTP %@）"
+            "value" : "伺服器無法回應（HTTP %@）"
           }
         }
       }
@@ -344,7 +344,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法讀取伺服器的響應：重試"
+            "value" : "無法讀取伺服器的回應：重試"
           }
         }
       }
@@ -489,7 +489,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此驗證碼已失效：重新獲取"
+            "value" : "此驗證碼已失效：重新取得"
           }
         }
       }
@@ -547,7 +547,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此配置檔案需要密碼：重新登入後才能使用"
+            "value" : "此設定檔需要密碼：重新登入後才能使用"
           }
         }
       }
@@ -576,7 +576,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此配置檔案需要密碼：用驗證碼重新登入並在其中選擇"
+            "value" : "此設定檔需要密碼：用驗證碼重新登入並在其中選擇"
           }
         }
       }
@@ -605,7 +605,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "輸錯次數過多，此配置檔案的 PIN 已鎖定。所有者或管理員可以重置"
+            "value" : "輸錯次數過多，此設定檔的 PIN 已鎖定。所有者或管理員可以重設"
           }
         }
       }
@@ -634,7 +634,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此伺服器從不在你網路內、且未加密的地址響應：為保護登入安全，已退出登入"
+            "value" : "此伺服器從不在你網路內、且未加密的位址回應：為保護登入安全，已登出"
           }
         }
       }
@@ -663,7 +663,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此伺服器自稱為 %@：請用該地址開啟，或檢查其前面的代理是否傳遞 Host"
+            "value" : "此伺服器自稱為 %@：請用該位址開啟，或檢查其前面的代理是否傳遞 Host"
           }
         }
       }
@@ -750,7 +750,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此伺服器讓應用前往另一地址登入：Pley 不會這樣做"
+            "value" : "此伺服器讓應用前往另一位址登入：Pley 不會這樣做"
           }
         }
       }
@@ -779,7 +779,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此伺服器讓你前往另一地址授權應用：Pley 不會這樣做"
+            "value" : "此伺服器讓你前往另一位址授權應用：Pley 不會這樣做"
           }
         }
       }
@@ -808,7 +808,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此次登入無法切換配置檔案：重新登入以允許"
+            "value" : "此次登入無法切換設定檔：重新登入以允許"
           }
         }
       }
@@ -895,7 +895,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法切換到此配置檔案"
+            "value" : "無法切換到此設定檔"
           }
         }
       }

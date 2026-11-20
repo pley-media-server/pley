@@ -24,11 +24,11 @@
   },
   "errors": {
     "unreachable": "無法連線到伺服器。",
-    "signedOut": "你已退出登入：請重新登入。",
+    "signedOut": "你已登出：請重新登入。",
     "forbidden": "Pley Roku 版無權執行此操作：請使用網頁版 Pley。",
     "gone": "此內容已不在伺服器上。",
     "stopped": "播放已被伺服器管理員停止。",
     "busy": "伺服器繁忙：請稍後重試。",
-    "status": "伺服器無響應（HTTP {{status}}）。"
+    "status": "伺服器無回應（HTTP {{status}}）。"
   }
 }

@@ -9,7 +9,7 @@
     "markWatched": "標記為已觀看",
     "markUnwatched": "標記為未觀看",
     "tracks": "音軌和字幕",
-    "addToPlaylist": "新增到播放列表",
+    "addToPlaylist": "新增到播放清單",
     "addToMyList": "新增到我的片單",
     "inMyList": "在我的片單中",
     "trailer": "預告片",
@@ -84,7 +84,7 @@
   "states": {
     "failed": "無法載入此內容",
     "notFound": "未找到內容",
-    "notFoundBody": "它可能已被移除，或此配置檔案無權檢視。",
+    "notFoundBody": "它可能已被移除，或此設定檔無權檢視。",
     "nothingToPlay": "沒有可播放的內容：此內容沒有媒體檔案。",
     "close": "關閉",
     "back": "返回",
@@ -126,7 +126,7 @@
     "level": "級別 {{level}}",
     "fps": "{{rate}} fps",
     "kilohertz": "{{rate}} kHz",
-    "dvProfile": "配置 {{profile}}",
+    "dvProfile": "Profile {{profile}}",
     "dvNoBaseLayer": "無相容的基礎層",
     "dvBaseLayer": "相容 {{format}} 的基礎層",
     "dvFullLayer": "完整增強層",
@@ -147,7 +147,7 @@
     "duration": "時長",
     "overallBitrate": "總位元速率",
     "codec": "編解碼器",
-    "profile": "配置",
+    "profile": "Profile",
     "resolution": "解析度",
     "frameRate": "幀率",
     "interlaced": "{{rate}}，隔行掃描",
@@ -191,7 +191,7 @@
     "nothingToPlay": "沒有可播放的內容：這部劇還沒有任何一集",
     "byRelease": "按上映日期",
     "byTitle": "按標題",
-    "customOrder": "自定義順序",
+    "customOrder": "自訂順序",
     "from": "來自"
   }
 }

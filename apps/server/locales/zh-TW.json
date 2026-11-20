@@ -22,7 +22,7 @@
     "scan": "&掃描所有媒體庫",
     "logs": "顯示&日誌",
     "autostart": "登入時&啟動 Pley",
-    "quit": "&退出 Pley",
+    "quit": "&結束 Pley",
     "mac": {
       "scan": "掃描所有媒體庫",
       "logs": "顯示日誌",
@@ -40,20 +40,20 @@
   },
   "requests": {
     "addedByHand": "手動新增",
-    "notAnswering": "{{service}} 沒有響應",
+    "notAnswering": "{{service}} 沒有回應",
     "unsaved": "Pley 無法儲存傳送結果：{{why}}",
     "arr": {
       "unauthorized": "{{service}} 拒絕了 API 金鑰",
       "unreachable": "無法連線到 {{service}}：{{why}}",
       "refused": "{{service}} 拒絕了：{{why}}",
       "unexpected": "{{service}} 返回了意外內容：{{why}}",
-      "redirected": "它返回了重定向：請用其設定中顯示的基址填寫地址",
-      "tooLarge": "它的響應超過 {{size}} MB",
+      "redirected": "它返回了重新導向：請用其設定中顯示的基址填寫位址",
+      "tooLarge": "它的回應超過 {{size}} MB",
       "noMovie": "未找到匹配的電影",
-      "noId": "響應中沒有 id",
+      "noId": "回應中沒有 id",
       "noShow": "未找到 TheTVDB ID 為 {{tvdb}} 的劇集",
       "noTvdbId": "TMDB 不知道這部劇的 TheTVDB ID，而 Sonarr 需要它：請手動新增到 Sonarr",
-      "qualityProfile": "在 設定 → 請求 中選擇 {{service}} 的質量配置",
+      "qualityProfile": "在 設定 → 請求 中選擇 {{service}} 的品質設定",
       "rootFolder": "在 設定 → 請求 中選擇 {{service}} 的根資料夾"
     }
   }

@@ -5,12 +5,12 @@
     <string name="tv_shell_rail_home">首頁</string>
     <string name="tv_shell_rail_live_tv">直播電視</string>
     <string name="tv_shell_rail_libraries">媒體庫</string>
-    <string name="tv_shell_rail_playlists">播放列表</string>
+    <string name="tv_shell_rail_playlists">播放清單</string>
     <string name="tv_shell_rail_collections">合集</string>
     <string name="tv_shell_rail_now_playing">正在播放</string>
     <string name="tv_shell_rail_drive">USB 裝置</string>
     <string name="tv_shell_rail_settings">設定</string>
-    <string name="tv_shell_switch_profile">切換配置檔案</string>
+    <string name="tv_shell_switch_profile">切換設定檔</string>
 
     <!-- What shows came from what was saved: the server can't be reached. -->
     <string name="tv_shell_offline">Pley 離線</string>
@@ -22,6 +22,6 @@
 
     <!-- Screens not built yet. -->
     <string name="tv_shell_placeholder_title">%1$s 尚未上線</string>
-    <string name="tv_shell_placeholder_body">這是電視版 Pley，正在開發中：用遙控器瀏覽、用程式碼登入，並按電視自身的幀率和 HDR 播放。</string>
+    <string name="tv_shell_placeholder_body">這是電視版 Pley，正在開發中：用遙控器瀏覽、用代碼登入，並按電視自身的幀率和 HDR 播放。</string>
     <string name="tv_shell_placeholder_next">開啟其他頁面</string>
 </resources>

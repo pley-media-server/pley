@@ -1,13 +1,13 @@
 {
   "title": "誰在看？",
-  "useAnother": "使用其他配置檔案",
+  "useAnother": "使用其他設定檔",
   "pin": {
     "title": "輸入 {{name}} 的 PIN 碼",
     "keysHint": "你也可以用遙控器上的數字鍵輸入。"
   },
   "errors": {
-    "locked": "此配置檔案無法在此應用中使用。",
-    "cantSwitch": "此次登入無法切換配置檔案：重新登入以啟用。",
-    "notAllowed": "你不能切換到此配置檔案。"
+    "locked": "此設定檔無法在此應用中使用。",
+    "cantSwitch": "此次登入無法切換設定檔：重新登入以啟用。",
+    "notAllowed": "你不能切換到此設定檔。"
   }
 }

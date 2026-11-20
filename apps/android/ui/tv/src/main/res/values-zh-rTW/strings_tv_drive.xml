@@ -15,6 +15,6 @@
     <string name="tv_drive_empty_body">此資料夾中沒有影片或子資料夾。</string>
     <!-- Leave to read the drive, refused. -->
     <string name="tv_drive_refused_title">允許 Pley 讀取裝置</string>
-    <string name="tv_drive_refused_body">Pley 需要訪問你的影片，才能列出並播放 USB 裝置上的內容。</string>
+    <string name="tv_drive_refused_body">Pley 需要存取你的影片，才能列出並播放 USB 裝置上的內容。</string>
     <string name="tv_drive_open_settings">開啟設定</string>
 </resources>

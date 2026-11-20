@@ -4,7 +4,7 @@
     <string name="admin_dashboard_now_playing">正在播放</string>
     <string name="admin_dashboard_nobody_watching">當前沒有人在觀看。</string>
     <string name="admin_dashboard_stale_title">未更新：這些資料來自 %1$s</string>
-    <string name="admin_dashboard_stale_text">伺服器恢復響應後會重新更新。</string>
+    <string name="admin_dashboard_stale_text">伺服器恢復回應後會重新更新。</string>
     <string name="admin_dashboard_method_direct">直接播放</string>
     <string name="admin_dashboard_method_remux">重封裝</string>
     <string name="admin_dashboard_method_transcode">轉碼</string>
@@ -66,8 +66,8 @@
     <string name="admin_dashboard_supported">支援</string>
     <string name="admin_dashboard_not_supported">不支援</string>
     <string name="admin_dashboard_jobs">任務</string>
-    <string name="admin_dashboard_job_count" tools:ignore="PluralsCandidate">%1$d 個執行中 / 最多 %2$d 個</string>
-    <string name="admin_dashboard_transcoder_unavailable">無法獲取轉碼器狀態：%1$s</string>
+    <string name="admin_dashboard_job_count" tools:ignore="PluralsCandidate">%1$d 个运行中 / 最多 %2$d 个</string>
+    <string name="admin_dashboard_transcoder_unavailable">無法取得轉碼器狀態：%1$s</string>
     <string name="admin_dashboard_none">無</string>
     <string name="admin_dashboard_no_jobs">當前沒有轉碼任務。</string>
     <string name="admin_dashboard_job_video">影片</string>
@@ -78,7 +78,7 @@
     <string name="admin_dashboard_job_fps">FPS</string>
     <string name="admin_dashboard_job_segments">分段</string>
     <plurals name="admin_dashboard_restarts">
-        <item quantity="other">%1$d 次重啟</item>
+        <item quantity="other">%1$d 次重新啟動</item>
     </plurals>
     <string name="admin_dashboard_burn_in">內嵌字幕</string>
     <string name="admin_dashboard_copied">%1$s（複製）</string>
@@ -87,7 +87,7 @@
     <plurals name="admin_dashboard_created">
         <item quantity="other">已建立 %1$s</item>
     </plurals>
-    <string name="admin_dashboard_hw_sessions">硬體會話</string>
+    <string name="admin_dashboard_hw_sessions">硬體工作階段</string>
     <string name="admin_dashboard_segments_served">已提供分段</string>
     <plurals name="admin_dashboard_produced">
         <item quantity="other">已生成 %1$s</item>
@@ -106,10 +106,10 @@
     <string name="admin_dashboard_scan_queued">排隊中</string>
     <string name="admin_dashboard_scan_walking">查詢檔案</string>
     <string name="admin_dashboard_scan_probing">分析媒體</string>
-    <string name="admin_dashboard_scan_metadata">獲取後設資料</string>
+    <string name="admin_dashboard_scan_metadata">取得中介資料</string>
     <string name="admin_dashboard_scan_done">已完成</string>
     <string name="admin_dashboard_finding_markers">識別片頭與片尾</string>
-    <string name="admin_dashboard_fingerprints" tools:ignore="PluralsCandidate">%1$d / %2$d 個音訊指紋</string>
+    <string name="admin_dashboard_fingerprints" tools:ignore="PluralsCandidate">%1$d / %2$d 个音频指纹</string>
     <plurals name="admin_dashboard_seasons_left">
         <item quantity="other">還剩 %1$s 季</item>
     </plurals>

@@ -93,7 +93,7 @@
     "font": "字幕字型",
     "position": "字幕位置",
     "sync": "同步",
-    "syncHint": "按 OK 重置"
+    "syncHint": "按 OK 重設"
   },
   "find": {
     "searching": "搜尋中…",
@@ -194,7 +194,7 @@
   },
   "music": {
     "offline": "無法連線到伺服器。",
-    "signedOut": "你已退出登入：請重新登入。",
+    "signedOut": "你已登出：請重新登入。",
     "stopped": "播放已被伺服器停止。",
     "unplayable": "此曲目無法播放。"
   }

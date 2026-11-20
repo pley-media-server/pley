@@ -1,34 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The playlists page (apps/web/src/pages/playlists/PlaylistsPage.tsx). -->
-    <string name="playlists_title">播放列表</string>
-    <string name="playlists_new">新建播放列表</string>
-    <string name="playlists_failed">無法載入播放列表</string>
-    <string name="playlists_none_title">暫無播放列表</string>
-    <string name="playlists_none_body">可在此建立，或在電影、劇集、專輯或分集頁面上點“新增到播放列表”（長按海報也可以）。</string>
+    <string name="playlists_title">播放清單</string>
+    <string name="playlists_new">新建播放清單</string>
+    <string name="playlists_failed">無法載入播放清單</string>
+    <string name="playlists_none_title">暫無播放清單</string>
+    <string name="playlists_none_body">可在此建立，或在電影、劇集、專輯或分集頁面上點“新增到播放清單”（長按海報也可以）。</string>
     <string name="playlists_smart">智慧</string>
 
     <!-- A playlist's page (PlaylistPage.tsx, design spec §4.9). -->
-    <string name="playlist_video">影片播放列表</string>
-    <string name="playlist_music">音樂播放列表</string>
+    <string name="playlist_video">影片播放清單</string>
+    <string name="playlist_music">音樂播放清單</string>
     <string name="playlist_play">播放</string>
     <string name="playlist_shuffle">隨機播放</string>
-    <string name="playlist_rename">重新命名播放列表</string>
-    <string name="playlist_delete">刪除播放列表</string>
-    <string name="playlist_failed">無法載入此播放列表</string>
-    <string name="playlist_not_found">未找到播放列表</string>
-    <string name="playlist_not_found_body">它已被刪除，或屬於其他配置檔案。</string>
-    <string name="playlist_empty_smart">暫時沒有符合此播放列表篩選條件的內容。</string>
-    <string name="playlist_empty_video">此播放列表為空。可在電影、劇集或分集頁面上點“新增到播放列表”，或長按海報。</string>
-    <string name="playlist_empty_music">此播放列表為空。可在音樂人或專輯頁面上點“新增到播放列表”，或長按封面。</string>
+    <string name="playlist_rename">重新命名播放清單</string>
+    <string name="playlist_delete">刪除播放清單</string>
+    <string name="playlist_failed">無法載入此播放清單</string>
+    <string name="playlist_not_found">未找到播放清單</string>
+    <string name="playlist_not_found_body">它已被刪除，或屬於其他設定檔。</string>
+    <string name="playlist_empty_smart">暫時沒有符合此播放清單篩選條件的內容。</string>
+    <string name="playlist_empty_video">此播放清單為空。可在電影、劇集或分集頁面上點“新增到播放清單”，或長按海報。</string>
+    <string name="playlist_empty_music">此播放清單為空。可在音樂人或專輯頁面上點“新增到播放清單”，或長按封面。</string>
     <string name="playlist_play_entry">播放 %1$s</string>
     <string name="playlist_move_up">上移</string>
     <string name="playlist_move_down">下移</string>
-    <string name="playlist_remove">從播放列表移除</string>
+    <string name="playlist_remove">從播放清單移除</string>
     <string name="playlist_removed">已移除“%1$s”</string>
     <string name="playlist_undo">撤銷</string>
-    <string name="playlist_deleted">播放列表已刪除</string>
-    <string name="playlist_delete_title">刪除播放列表？</string>
+    <string name="playlist_deleted">播放清單已刪除</string>
+    <string name="playlist_delete_title">刪除播放清單？</string>
     <string name="playlist_delete_body">“%1$s”將被刪除。其中的內容仍保留在你的媒體庫中。</string>
     <string name="playlist_delete_confirm">刪除</string>
     <string name="playlist_rename_save">儲存</string>
@@ -45,12 +45,12 @@
     <string name="playlist_smart_body_plain">它會隨媒體庫自動更新。</string>
 
     <!-- Add to playlist (AddToPlaylistModal.tsx). -->
-    <string name="add_to_playlist">新增到播放列表</string>
-    <string name="add_new_video">新建影片播放列表</string>
-    <string name="add_new_music">新建音樂播放列表</string>
+    <string name="add_to_playlist">新增到播放清單</string>
+    <string name="add_new_video">新建影片播放清單</string>
+    <string name="add_new_music">新建音樂播放清單</string>
     <string name="add_create">建立</string>
-    <string name="add_none_video">暫無影片播放列表：請在上方命名一個。</string>
-    <string name="add_none_music">暫無音樂播放列表：請在上方命名一個。</string>
+    <string name="add_none_video">暫無影片播放清單：請在上方命名一個。</string>
+    <string name="add_none_music">暫無音樂播放清單：請在上方命名一個。</string>
     <string name="add_added">已新增到 %1$s</string>
     <!-- %1$d: how many entries were added (more than one); %2$s: the playlist. -->
     <plurals name="add_added_many">

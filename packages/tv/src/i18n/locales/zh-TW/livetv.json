@@ -42,11 +42,11 @@
     "resultsFor": "“{{search}}”的搜尋結果"
   },
   "page": {
-    "notOpen": "此配置檔案未開放直播電視",
+    "notOpen": "此設定檔未開放直播電視",
     "notOpenHint": "管理員可在網頁版 Pley 中開放：設定 → 直播電視。",
     "didntLoad": "無法載入直播電視",
     "setUpTitle": "在網頁上設定直播電視",
-    "setUpHint": "在網頁版 Pley 的“設定 → 直播電視”中新增 IPTV 提供商的播放列表或 Xtream Codes 賬戶。頻道和節目指南會顯示在這裡。",
+    "setUpHint": "在網頁版 Pley 的“設定 → 直播電視”中新增 IPTV 提供商的播放清單或 Xtream Codes 帳戶。頻道和節目指南會顯示在這裡。",
     "noChannelsTitle": "還沒有頻道",
     "noChannelsHint": "管理員新增 IPTV 提供商後，頻道就會顯示在這裡。",
     "channelCount_other": "{{count, number}} 個頻道",
@@ -112,14 +112,14 @@
     "stoppedElsewhere": "直播電視已從另一臺裝置停止。",
     "busy": "所有連線都在使用中",
     "gone": "此頻道已不存在",
-    "notOpen": "此配置檔案未開放直播電視",
+    "notOpen": "此設定檔未開放直播電視",
     "notPlaying": "{{channel}} 未播放",
     "didntStart": "{{channel}} 未能開始",
     "olderTitle": "直播電視需要伺服器上更新版本的 Pley",
     "olderMessage": "此伺服器無法向電視自帶播放器傳送直播頻道。請更新伺服器上的 Pley，然後重試。",
     "channelStopped": "{{channel}} 已停止",
     "playerSaid": "電視播放器提示：{{detail}}",
-    "startedLate": "啟動超時",
+    "startedLate": "啟動逾時",
     "streamEnded": "影片流已結束",
     "stalled": "播放卡頓"
   }

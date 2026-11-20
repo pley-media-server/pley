@@ -56,7 +56,7 @@
     <string name="requests_declined_plain">已拒絕。%1$s 可以再次請求。</string>
     <string name="requests_declined_reason_only">已拒絕：“%1$s”。</string>
     <string name="requests_declined_only">已拒絕。</string>
-    <string name="requests_ready_elsewhere">已就緒，但位於你無法訪問的媒體庫中：請聯絡管理員</string>
+    <string name="requests_ready_elsewhere">已就緒，但位於你無法存取的媒體庫中：請聯絡管理員</string>
     <string name="requests_watch">觀看</string>
     <string name="requests_details">詳情</string>
 
@@ -175,7 +175,7 @@
 
     <!-- The managers' dialogs. -->
     <string name="requests_approve_title">批准“%1$s”</string>
-    <string name="requests_approve_profile">質量配置</string>
+    <string name="requests_approve_profile">品質設定</string>
     <string name="requests_approve_folder">資料夾</string>
     <string name="requests_approve_seasons">季</string>
     <string name="requests_approve_settings">按設定中的選項批准</string>
@@ -248,10 +248,10 @@
     <!-- When requests can't be used. -->
     <string name="requests_off_title">請求功能已關閉</string>
     <string name="requests_off_body">此伺服器不接受電影和劇集請求。</string>
-    <string name="requests_no_access_title">此賬戶未開放請求功能</string>
-    <string name="requests_no_access_body">管理員可以允許此賬戶請求電影和劇集。</string>
-    <string name="requests_tmdb_down">TMDB 沒有響應</string>
-    <string name="requests_tmdb_down_body">它恢復響應後，詳情和圖片就會回來。</string>
+    <string name="requests_no_access_title">此帳戶未開放請求功能</string>
+    <string name="requests_no_access_body">管理員可以允許此帳戶請求電影和劇集。</string>
+    <string name="requests_tmdb_down">TMDB 沒有回應</string>
+    <string name="requests_tmdb_down_body">它恢復回應後，詳情和圖片就會回來。</string>
     <string name="requests_tmdb_key">TMDB 拒絕了此伺服器的金鑰</string>
     <string name="requests_tmdb_key_manage">請在 設定 → 伺服器 中修復（在網頁版中）。</string>
     <string name="requests_tmdb_key_others">需要管理員檢查。</string>
@@ -262,7 +262,7 @@
     <string name="requests_not_found_body">可能後來被下架了。</string>
     <string name="requests_retry">重試</string>
     <!-- Where Request would be, with access "off". -->
-    <string name="requests_no_access_line">此賬戶未開放請求功能。</string>
+    <string name="requests_no_access_line">此帳戶未開放請求功能。</string>
     <!-- Any other failure, over the error's own sentence. -->
     <string name="requests_discover_failed">無法載入“發現”</string>
     <string name="requests_search_failed">無法搜尋 TMDB</string>

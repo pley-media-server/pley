@@ -21,7 +21,7 @@
     <!-- A device in the list that plays nothing: only listed, it has no controls. -->
     <string name="remote_ready">可播放</string>
     <!-- A device on another profile of the household, by that profile's name; what it plays stays theirs. -->
-    <string name="remote_on_profile">在 %1$s 的配置檔案中</string>
+    <string name="remote_on_profile">在 %1$s 的設定檔中</string>
     <!-- What TalkBack says a device's row, and the bar, do, and the way back from its controls. -->
     <string name="remote_open_device">顯示控制選項</string>
     <string name="remote_back_to_devices">返回裝置列表</string>
@@ -65,7 +65,7 @@
     <string name="remote_live_next">接下來：%1$s</string>
 
     <!-- A command that didn't go through, said under the device's controls. -->
-    <string name="remote_no_answer">%1$s 沒有響應。</string>
+    <string name="remote_no_answer">%1$s 沒有回應。</string>
     <string name="remote_gone">%1$s 已停止播放。</string>
     <string name="remote_cant">%1$s 無法執行此操作。</string>
     <string name="remote_too_many">同時操作過多，請稍後再試。</string>
@@ -81,10 +81,10 @@
     <string name="play_on_cant">%1$s 無法播放該內容。</string>
     <!-- To a device on another profile, when this one has a PIN: the PIN pad, what it is for, and its way back. -->
     <string name="play_on_pin_title">輸入你的 PIN</string>
-    <string name="play_on_pin_body">%1$s 會從 %2$s 的配置檔案切換到你的配置檔案。</string>
+    <string name="play_on_pin_body">%1$s 會從 %2$s 的設定檔切換到你的設定檔。</string>
     <string name="play_on_back">返回裝置列表</string>
     <string name="play_on_wrong_pin">PIN 錯誤，請重試。</string>
-    <string name="play_on_pin_locked">多次輸入錯誤後，你的 PIN 已被鎖定。你或管理員可以重置它。</string>
+    <string name="play_on_pin_locked">多次輸入錯誤後，你的 PIN 已被鎖定。你或管理員可以重設它。</string>
 
     <!-- A Google Cast or AirPlay device the server plays on itself: what its row says under its name. -->
     <string name="remote_google_cast">Google Cast</string>

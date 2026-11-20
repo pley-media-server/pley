@@ -402,7 +402,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ 沒有響應。"
+            "value" : "%@ 沒有回應。"
           }
         }
       }
@@ -3987,7 +3987,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "投屏"
+            "value" : "投放"
           }
         }
       }
@@ -5582,7 +5582,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "它恢復響應後，詳情和圖片會重新顯示。"
+            "value" : "它恢復回應後，詳情和圖片會重新顯示。"
           }
         }
       }
@@ -6423,7 +6423,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出 %@"
+            "value" : "登出 %@"
           }
         }
       }
@@ -7032,7 +7032,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "質量配置"
+            "value" : "品質設定"
           }
         }
       }
@@ -7119,7 +7119,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已就緒，但位於你無權訪問的媒體庫中：請聯絡管理員"
+            "value" : "已就緒，但位於你無權存取的媒體庫中：請聯絡管理員"
           }
         }
       }
@@ -7599,7 +7599,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此賬戶未開放請求功能"
+            "value" : "此帳戶未開放請求功能"
           }
         }
       }
@@ -7628,7 +7628,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此賬戶未開放請求功能。"
+            "value" : "此帳戶未開放請求功能。"
           }
         }
       }
@@ -8904,7 +8904,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TMDB 沒有響應"
+            "value" : "TMDB 沒有回應"
           }
         }
       }
@@ -8962,7 +8962,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TMDB 的列表中沒有此賬戶可請求的內容。"
+            "value" : "TMDB 的列表中沒有此帳戶可請求的內容。"
           }
         }
       }
@@ -8991,7 +8991,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TMDB 的列表中沒有此賬戶可請求的內容。請改為搜尋標題。"
+            "value" : "TMDB 的列表中沒有此帳戶可請求的內容。請改為搜尋標題。"
           }
         }
       }
@@ -9020,7 +9020,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "目前已讀取的 TMDB 頁面中沒有此賬戶可請求的內容。"
+            "value" : "目前已讀取的 TMDB 頁面中沒有此帳戶可請求的內容。"
           }
         }
       }

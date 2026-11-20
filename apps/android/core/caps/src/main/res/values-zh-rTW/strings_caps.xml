@@ -18,10 +18,10 @@
     <string name="caps_no_video">沒有播放器可用的影片解碼器</string>
     <string name="caps_screen_hdr">螢幕 HDR：%1$s</string>
     <string name="caps_hdr_played">HDR 直接播放：%1$s</string>
-    <string name="caps_dolby_vision">Dolby Vision 配置：%1$s</string>
-    <string name="caps_dolby_vision_no_screen">Dolby Vision 配置：%1$s，未使用：螢幕不支援 Dolby Vision</string>
+    <string name="caps_dolby_vision">Dolby Vision Profile：%1$s</string>
+    <string name="caps_dolby_vision_no_screen">Dolby Vision Profile：%1$s，未使用：螢幕不支援 Dolby Vision</string>
     <string name="caps_profile_level">%1$d（等級 %2$s）</string>
-    <string name="caps_screen">螢幕：%1$d×%2$d，%3$s Hz，可切換的重新整理率：%4$s</string>
+    <string name="caps_screen">螢幕：%1$d×%2$d，%3$s Hz，可切換的更新率：%4$s</string>
     <string name="caps_modes">螢幕模式：%1$s</string>
     <string name="caps_match_content">匹配內容幀率：%1$s</string>
     <string name="caps_match_never">從不</string>

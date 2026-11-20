@@ -5,6 +5,6 @@
       in lower case and without a full stop, as errorText's phrases: they go
       inside sentences, and errorSentence makes one of them alone.
     -->
-    <string name="network_not_allowed">Pley 未獲準使用你的家庭網路：請在應用許可權中允許</string>
-    <string name="network_unreadable_answer">無法讀取伺服器的響應：確認它是 Pley 且已是最新版本？</string>
+    <string name="network_not_allowed">Pley 未獲準使用你的家庭網路：請在應用權限中允許</string>
+    <string name="network_unreadable_answer">無法讀取伺服器的回應：確認它是 Pley 且已是最新版本？</string>
 </resources>

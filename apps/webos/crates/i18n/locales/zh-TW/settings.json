@@ -5,14 +5,14 @@
   },
   "title": "設定",
   "categories": {
-    "profile": "配置檔案",
+    "profile": "設定檔",
     "playback": "播放",
     "audio": "音訊",
     "display": "字幕和顯示",
     "server": "伺服器",
     "diagnostics": "診斷",
     "about": "關於",
-    "signOut": "退出登入"
+    "signOut": "登出"
   },
   "saved": "已儲存",
   "readOnly": "此伺服器不允許應用更改這些設定：請在網頁版中修改",
@@ -22,8 +22,8 @@
     "back": "返回"
   },
   "profile": {
-    "managed": "受管理的配置檔案",
-    "switchProfile": "切換配置檔案",
+    "managed": "受管理的設定檔",
+    "switchProfile": "切換設定檔",
     "audioLanguage": "音訊語言",
     "subtitles": "字幕",
     "subtitleLanguage": "字幕語言",
@@ -33,9 +33,9 @@
     "history": "觀看記錄",
     "sortLibraries": "媒體庫排序",
     "sortLibrariesValue": "你的順序，適用於所有裝置",
-    "alwaysStartAs": "始終以此配置檔案啟動",
-    "usedLast": "上次使用的配置檔案",
-    "manageWeb": "在網頁版管理你的賬戶",
+    "alwaysStartAs": "始終以此設定檔啟動",
+    "usedLast": "上次使用的設定檔",
+    "manageWeb": "在網頁版管理你的帳戶",
     "manageWebValue": "名稱、頭像、密碼、PIN 碼、兩步驗證、裝置和應用"
   },
   "subtitleModes": {
@@ -107,7 +107,7 @@
     "failed": "此電視的檢查失敗。",
     "again": "重新檢查",
     "network": "網路",
-    "address": "地址",
+    "address": "位址",
     "noNetwork": "無網路",
     "server": "伺服器",
     "none": "無",
@@ -127,20 +127,20 @@
     "noNotices": "此 Pley 版本沒有 NOTICES.txt，其中列出了這些內容及其文本。"
   },
   "signOut": {
-    "intro": "將此電視從 {{server}} 退出登入。再次登入需要新的關聯碼。",
-    "introNoServer": "將此電視從伺服器退出登入。再次登入需要新的關聯碼。",
-    "button": "退出登入",
-    "title": "退出登入？",
-    "body": "你將從 {{server}} 退出登入。",
-    "bodyNoServer": "你將從伺服器退出登入。",
-    "deleteData": "刪除所有本地資料",
+    "intro": "將此電視從 {{server}} 登出。再次登入需要新的關聯碼。",
+    "introNoServer": "將此電視從伺服器登出。再次登入需要新的關聯碼。",
+    "button": "登出",
+    "title": "登出？",
+    "body": "你將從 {{server}} 登出。",
+    "bodyNoServer": "你將從伺服器登出。",
+    "deleteData": "刪除所有本機資料",
     "deleteDataValue": "此電視上的所有伺服器、登入、設定和已儲存的圖片",
-    "deleteTitle": "刪除所有本地資料？",
+    "deleteTitle": "刪除所有本機資料？",
     "deleteBody": "Pley 會忘記此電視上的所有伺服器、登入、設定和已儲存的圖片，就像剛安裝時一樣。",
     "delete": "刪除"
   },
   "web": {
-    "title": "在網頁版管理你的賬戶",
-    "body": "用手機掃描二維碼，或在同一網路中的手機或電腦上開啟此地址："
+    "title": "在網頁版管理你的帳戶",
+    "body": "用手機掃描 QR 碼，或在同一網路中的手機或電腦上開啟此位址："
   }
 }

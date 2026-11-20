@@ -11,7 +11,7 @@
   },
   "sync": {
     "hint": "左鍵：更早 · 右鍵：更晚",
-    "reset": "重置"
+    "reset": "重設"
   },
   "menu": {
     "title": "播放",
@@ -131,7 +131,7 @@
     "duration": "時長",
     "overallBitrate": "總位元速率",
     "codec": "編解碼器",
-    "profile": "配置",
+    "profile": "Profile",
     "resolution": "解析度",
     "frameRate": "幀率",
     "bitDepth": "位深",
@@ -153,7 +153,7 @@
     "bits": "{{n}} 位",
     "default": "預設",
     "beside": "與媒體檔案放在一起",
-    "dvProfile": "配置 {{profile}}",
+    "dvProfile": "Profile {{profile}}",
     "noBaseLayer": "沒有相容的基礎層",
     "baseLayer": "{{range}} 相容的基礎層",
     "fullLayer": "完整增強層",
@@ -164,7 +164,7 @@
     "displayRate": "顯示：{{size}}，{{rate}} Hz",
     "hdr": "HDR：{{list}}",
     "none": "無",
-    "dolbyVision": "Dolby Vision：配置 {{list}}",
+    "dolbyVision": "Dolby Vision：Profile {{list}}",
     "video": "影片：{{list}}",
     "audioDecoded": "音訊解碼：{{list}}",
     "sent": "傳送到功放：{{list}}",
@@ -191,7 +191,7 @@
     "playingFrom": "正在播放 {{device}} 的內容",
     "playingFromAnother": "正在播放另一臺裝置的內容",
     "nothingToPlay": "沒有可播放的內容",
-    "switchFailed": "無法切換到遙控器的配置檔案"
+    "switchFailed": "無法切換到遙控器的設定檔"
   },
   "settings": {
     "audioLanguage": "音訊語言",

@@ -64,7 +64,7 @@
     <!-- States (design spec §8). -->
     <string name="tv_library_failed">無法載入此媒體庫</string>
     <string name="tv_library_missing_title">此媒體庫不存在</string>
-    <string name="tv_library_missing_body">它可能已被刪除，或此配置檔案無權檢視。</string>
+    <string name="tv_library_missing_body">它可能已被刪除，或此設定檔無權檢視。</string>
     <string name="tv_library_empty_title">此媒體庫為空</string>
     <string name="tv_library_empty_body">這裡還是空的。伺服器新增內容後會顯示在這裡。</string>
     <string name="tv_library_no_matches_title">沒有匹配項</string>

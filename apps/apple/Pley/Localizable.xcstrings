@@ -869,7 +869,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新增到播放列表"
+            "value" : "新增到播放清單"
           }
         }
       }
@@ -927,7 +927,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "地址"
+            "value" : "位址"
           }
         }
       }
@@ -2116,7 +2116,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "刪除播放列表"
+            "value" : "刪除播放清單"
           }
         }
       }
@@ -2783,7 +2783,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "全屏"
+            "value" : "全螢幕"
           }
         }
       }
@@ -2899,7 +2899,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "獲取新驗證碼"
+            "value" : "取得新驗證碼"
           }
         }
       }
@@ -2928,7 +2928,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "前往 %@ 輸入此驗證碼，或掃描二維碼。"
+            "value" : "前往 %@ 輸入此驗證碼，或掃描 QR 碼。"
           }
         }
       }
@@ -3073,7 +3073,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "與你的某個伺服器同名，但地址不同：確認是你自己的再開啟。"
+            "value" : "與你的某個伺服器同名，但位址不同：確認是你自己的再開啟。"
           }
         }
       }
@@ -3661,7 +3661,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此配置檔案無法使用直播電視。管理員可在 Pley 網頁應用的「設定 → 直播電視」中開啟。"
+            "value" : "此設定檔無法使用直播電視。管理員可在 Pley 網頁應用的「設定 → 直播電視」中開啟。"
           }
         }
       }
@@ -4212,7 +4212,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新建播放列表"
+            "value" : "新建播放清單"
           }
         }
       }
@@ -4473,7 +4473,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "暫無音樂播放列表"
+            "value" : "暫無音樂播放清單"
           }
         }
       }
@@ -4502,7 +4502,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "暫無播放列表"
+            "value" : "暫無播放清單"
           }
         }
       }
@@ -4531,7 +4531,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在此網路上未找到伺服器。請在伺服器的「設定 → 網路」中開啟 Bonjour，或通過地址新增。"
+            "value" : "在此網路上未找到伺服器。請在伺服器的「設定 → 網路」中開啟 Bonjour，或通過位址新增。"
           }
         }
       }
@@ -5778,7 +5778,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "播放列表"
+            "value" : "播放清單"
           }
         }
       }
@@ -5952,7 +5952,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pley 無法訪問本地網路"
+            "value" : "Pley 無法存取本地網路"
           }
         }
       }
@@ -6126,7 +6126,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "允許 Pley 的二維碼"
+            "value" : "允許 Pley 的 QR 碼"
           }
         }
       }
@@ -6445,7 +6445,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重新命名播放列表"
+            "value" : "重新命名播放清單"
           }
         }
       }
@@ -6532,7 +6532,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重置"
+            "value" : "重設"
           }
         }
       }
@@ -6619,7 +6619,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "另存為智慧播放列表"
+            "value" : "另存為智慧播放清單"
           }
         }
       }
@@ -6648,7 +6648,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "另存為智慧播放列表…"
+            "value" : "另存為智慧播放清單…"
           }
         }
       }
@@ -7199,7 +7199,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出登入"
+            "value" : "登出"
           }
         }
       }
@@ -7228,7 +7228,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出登入…"
+            "value" : "登出…"
           }
         }
       }
@@ -7373,7 +7373,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出登入"
+            "value" : "登出"
           }
         }
       }
@@ -7402,7 +7402,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出 %@？"
+            "value" : "登出 %@？"
           }
         }
       }
@@ -7431,7 +7431,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出此伺服器？"
+            "value" : "登出此伺服器？"
           }
         }
       }
@@ -7924,7 +7924,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切換配置檔案…"
+            "value" : "切換設定檔…"
           }
         }
       }
@@ -7953,7 +7953,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切換配置檔案"
+            "value" : "切換設定檔"
           }
         }
       }
@@ -8185,7 +8185,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "要在家中找到伺服器，請在「設定 → 隱私與安全性 → 本地網路」中允許 Pley。仍可通過地址新增伺服器。"
+            "value" : "要在家中找到伺服器，請在「設定 → 隱私與安全性 → 本地網路」中允許 Pley。仍可通過位址新增伺服器。"
           }
         }
       }

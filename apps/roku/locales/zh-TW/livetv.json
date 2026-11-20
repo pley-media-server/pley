@@ -27,7 +27,7 @@
     "channelsPrompt": "頻道和正在播出的節目"
   },
   "page": {
-    "notOpen": "此賬戶未開放直播電視。",
+    "notOpen": "此帳戶未開放直播電視。",
     "notOpenHint": "管理員可在網頁版 Pley 的“設定 → 直播電視”中開放。",
     "noChannels": "還沒有頻道。",
     "noChannelsHint": "管理員在網頁版 Pley 的“設定 → 直播電視”中新增 IPTV 提供商後，頻道就會顯示在這裡。",
@@ -103,7 +103,7 @@
     "notPlaying": "{{channel}} 未在播放",
     "gone": "此頻道已不存在",
     "goneHint": "它可能已被隱藏，或其來源已被移除。",
-    "notOpen": "此賬戶未開放直播電視",
+    "notOpen": "此帳戶未開放直播電視",
     "notOpenHint": "管理員可在網頁版的“設定 → 直播電視”中開放。",
     "stopped": "直播電視已停止",
     "notWatched": "此頻道已不再被觀看。",
