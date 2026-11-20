@@ -39,7 +39,6 @@
 - Requests for movies and shows, fetched by Radarr and Sonarr
 - Profiles, PINs, age limits and two-step sign-in
 - Moving from Plex: libraries, users and what everyone watched
-- In English, French and Spanish
 - Works offline on the home network, and downloads play away from it
 
 [All features](docs/FEATURES.md)

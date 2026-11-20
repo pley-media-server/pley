@@ -212,9 +212,7 @@ the Plex- and Jellyfin-compatible APIs don't get them.
 - An age limit is set by rating, in one of 29 countries' rating systems
   ("Up to PG-13"), by age, or by birthday, rising each year until it ends
   at 21. Ratings are read with their own country's system, so a "PG" or an
-  "A" isn't misread. Labels make exceptions: a profile can always see
-  titles with some labels, whatever their rating, and never see titles
-  with others.
+  "A" isn't misread.
 - A profile switcher with optional PINs, invitation links, and a list of
   signed-in devices that can be signed out remotely.
 - PINs work the same way on every app. A profile with one shows a lock, and
@@ -250,27 +248,12 @@ the Plex- and Jellyfin-compatible APIs don't get them.
   icon fills in. Passwords have at least 8 characters and can't be common
   ones ([SECURITY.md](../SECURITY.md)).
 
-## Languages
-
-- Pley is in English, French and Spanish on every app: an account's own
-  language, which follows it everywhere, else the device's. The server's
-  language, in Settings, is for its own words (Home's rows, the tray's
-  menu) and for devices in a language Pley doesn't have.
-
 ## Administration
 
-- First start asks for the server's name, languages, country and TMDB key,
-  then brings over a Plex server or makes Movies, TV Shows and Music
-  libraries ([CONFIGURATION.md](CONFIGURATION.md#first-start)).
 - Metadata editing with locked fields, Fix Match and a choice of artwork.
 - Settings with a Test button for each API key and service, a live dashboard
   (playback, transcoder, scans, and charts of Pley's and the computer's CPU
-  and memory) and daily database backups ([STORAGE.md](STORAGE.md)). The
-  dashboard says what plays each stream: a Pley app, an app through the
-  Plex- or Jellyfin-compatible API, Google Cast or AirPlay.
-- Limits on how many streams play and how many transcode video at once,
-  and a switch that turns video transcoding off, so videos play as they
-  are or with only their sound converted.
+  and memory) and daily database backups ([STORAGE.md](STORAGE.md)).
 - On an Android phone or tablet, Me → Manage server has the dashboard,
   libraries, users and invitations; the server's settings, network,
   transcoder, backups and Live TV stay in the web app
