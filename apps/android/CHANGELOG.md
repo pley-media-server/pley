@@ -10,10 +10,6 @@ describes how they are made.
 
 ### Added
 
-- Choose Simplified Chinese (简体中文) or Traditional Chinese (繁體中文) as
-  the app's language, for your account or on this device.
-- Manage server → Libraries can turn off a film library's collections from
-  TMDB.
 - Music repeats: Repeat in Now Playing, on phones and TVs, and in the
   phone's media controls repeats the queue, then the track playing, then
   nothing.
@@ -54,7 +50,7 @@ With Android Auto:
   tabs' icons alone, in a column centered on its height.
 - A track that can't be played says so for 5 seconds, then the next one
   plays by itself; Play tries it again.
-- Music, films and shows without a picture show Pley's mark on their
+- Music, movies and shows without a picture show Pley's mark on their
   placeholder.
 - Changing tabs fades from one to the next, Now Playing comes up from
   the bar of what plays, and that bar rises in as music starts.
@@ -81,9 +77,17 @@ With Android Auto:
 - Now Playing fits a phone turned on its side, with the cover beside
   the title, instead of the cover hiding the controls.
 
+## [0.1.16] - 2026-11-20
+
+### Added
+
+- Simplified and Traditional Chinese.
+- Manage server → Libraries can turn off a movie library's collections
+  from TMDB.
+
 ### Changed
 
-- English words are spelled the American way: color, favorite, program.
+- English is spelled the American way (color, favorite).
 
 ## [0.1.15] - 2026-11-18
 
@@ -958,7 +962,8 @@ On Android TV:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-18...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-20...HEAD
+[0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-16
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14

@@ -9,64 +9,36 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-11-20
+
 ### Added
 
-- Simplified and Traditional Chinese (`zh-CN`, `zh-TW`) for the server's own
-  words and the web app: hub titles, why a request couldn't be sent, and every
-  page. Pick one on your Account page or in Settings → General, or let Pley
-  follow your device's language.
-- `.strm` files in movie and TV libraries, as Kodi, Jellyfin and Emby read
-  them: a text file that names the `http` or `https` address a video is at
-  is listed, played, converted and downloaded like a video on disk, on
-  every app and through both compatibility APIs. The address, and any
-  password in it, never leaves the server: players read the video through
-  Pley. A scan doesn't ask the address; what the video is (tracks, length,
-  size, 4K and HDR) is found when its page is first opened or it is
-  played, and kept. Kodi's `|User-Agent=…` headers are sent, an address on
-  the internet can't lead to one of your network, and seek previews and
-  intro detection aren't made for it
-  ([docs/CONFIGURATION.md](../../docs/CONFIGURATION.md#strm-files)).
-  Off until an administrator turns them on in Settings → Server.
-- A movie library can do without collections from TMDB, for another
-  tool such as Kometa to make them: Make collections from TMDB, in the
-  library's settings, removes them when turned off, edits and all, and
-  makes them again when turned back on.
-- A collection without a poster of its own shows up to its first four
-  films' posters in a grid. In Change poster, on a collection's page,
-  administrators can add an icon in a color over the grid, put an icon
-  on a color alone, or upload a poster; Recently Added, Recently
-  Released, Top Rated and Top Unwatched start with icons of their own. A
-  poster Kometa sets counts as uploaded.
-- Audiobooks get the summary, year and cover their files lack from Open
-  Library, and narrators, series and genres too from Audnexus when their
-  files carry an Audible ASIN. Administrators turn it off in Settings →
-  Server.
+- Simplified and Traditional Chinese in the web app and the server's messages.
+- `.strm` files in movie and TV libraries play like videos on disk, on every
+  app, and their addresses never leave the server. An administrator turns
+  them on in Settings → Server.
+- A movie library can turn off its collections from TMDB, for a tool such as
+  Kometa to make its own.
+- A collection without a poster shows its first films' posters. In Change
+  poster, administrators can add an icon and a color, or upload a poster.
+- Audiobooks get summaries, years and covers from Open Library, and
+  narrators, series and genres from Audnexus. Administrators can turn this
+  off in Settings → Server.
 
 ### Changed
 
-- The web app's English words are spelled the American way: color,
-  favorite, program.
-- The web app's sidebar lists Playlists as one more row under the
-  libraries, opening the page of all your playlists, in place of a section
-  of its own.
-- The Franchises category of collections is Box sets, and its key in the
-  API is `box_sets`.
+- The web app's English is spelled the American way (color, favorite).
+- Playlists is a row under the libraries in the web app's sidebar.
+- The Franchises category of collections is Box sets (`box_sets` in the API).
 
 ### Fixed
 
-- Copies of a movie whose names give different years or titles, as when
-  TMDB corrects a film after the first copy was named, are one movie with
-  versions once both are matched to the same TMDB title, keeping what was
-  watched, rated and listed of either. Fix Match on it separates them
-  again, and they stay apart. In the web app, Fix Match on a copy that
-  goes into another opens that movie.
-- Videos whose AAC sound is copied from an MPEG-TS or AVI file play on the
-  Apple apps instead of failing with "Malformed AAC bitstream".
-- Films and shows with accents in their names are matched when the names
-  came from a Mac. Ones already scanned are matched by the library's Force
-  full rescan.
-- In the web app, search lists the audiobooks whose title matches. A
-  book's title gave a results page with nothing on it.
+- Copies of a movie matched to the same TMDB title are one movie with
+  versions, keeping what was watched. Fix Match separates them.
+- AAC sound copied from MPEG-TS or AVI files plays on the Apple apps.
+- Names with accents from a Mac are matched on TMDB. Force full rescan
+  matches ones already scanned.
+- The web app's search finds audiobooks by title.
 
 ## [0.1.13] - 2026-11-18
 
@@ -1188,7 +1160,8 @@ On Intel graphics:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-18...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-20...HEAD
+[0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-16
 [0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14

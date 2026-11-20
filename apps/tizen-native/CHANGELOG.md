@@ -8,10 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-11-20
+
 ### Added
 
-- Pley is also in Simplified and Traditional Chinese, picked with the globe
-  before signing in or under Settings → Profile → Language.
+- Simplified and Traditional Chinese.
 
 ## [0.1.11] - 2026-11-18
 
@@ -534,7 +535,8 @@ describes how they are made.
 
 - The version of the builds made by hand before the app had releases.
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-18...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-20...HEAD
+[0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-16
 [0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12

@@ -8,15 +8,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-11-20
+
 ### Added
 
-- The add-on is in Simplified and Traditional Chinese too, in your
-  profile's language or the one chosen in Screens → Language, with dates,
-  numbers and counts written in the language shown.
+- Simplified and Traditional Chinese.
 
 ### Changed
 
-- English words are spelled the American way: color, favorite, program.
+- English is spelled the American way (color, favorite).
 
 ## [0.1.9] - 2026-11-18
 
@@ -272,7 +272,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-18...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-20...HEAD
+[0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.8]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
 [0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06

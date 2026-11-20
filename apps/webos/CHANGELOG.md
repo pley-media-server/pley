@@ -8,14 +8,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-11-20
+
 ### Added
 
-- Choose Simplified Chinese (简体中文) or Traditional Chinese (繁體中文) as
-  the app's language, for your account or on this TV.
+- Simplified and Traditional Chinese.
 
 ### Changed
 
-- English words are spelled the American way: color, favorite, program.
+- English is spelled the American way (color, favorite).
 
 ## [0.1.11] - 2026-11-18
 
@@ -492,7 +493,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-18...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-20...HEAD
+[0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-16
 [0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
