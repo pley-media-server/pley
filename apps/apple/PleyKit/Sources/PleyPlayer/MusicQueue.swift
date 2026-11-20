@@ -8,7 +8,7 @@ import PleyModel
 /// Fisher–Yates order of it that starts with the current track;
 /// unshuffled, it goes back to the order given, at the same track. The
 /// same track may be in it twice: positions, not ids, say which one plays.
-/// There is no repeat, as on Android and the web.
+/// There is no repeat, as on the web; Android's repeats the queue or the track.
 public struct MusicQueue: Sendable {
     /// What Previous did.
     public enum Previous: Equatable, Sendable {
