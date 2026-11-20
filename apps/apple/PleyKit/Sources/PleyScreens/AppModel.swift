@@ -1537,10 +1537,10 @@ public final class AppModel: ObservableObject, SnapshotCache {
     public func chooseLanguage(_ language: Language?) async throws {
         guard let before = user, let api = await session.api else { throw PleyError.signedOut }
         var chosen = before
-        chosen.language = language?.code
+        chosen.language = language?.serverCode
         user = chosen
         do {
-            let fresh = try await api.setLanguage(language?.code)
+            let fresh = try await api.setLanguage(language?.serverCode)
             guard user?.id == fresh.id else { return }
             user = fresh
             if let origin = server?.origin, let snapshots, let data = try? PleyJSON.encoder.encode(fresh) {

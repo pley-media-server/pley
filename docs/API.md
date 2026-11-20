@@ -734,8 +734,7 @@ Chinese are separate languages: `zh-Hans` or plain `zh` picks `zh-CN`, while
    Settings → General; English until there is one), which
    `GET /api/server` shows as `language`.
 
-A Chinese script tag given as an account's language (`zh-Hans`, `zh-Hant`) is
-stored as the language it names. Any other code is `400`. The server writes its own words in that language:
+An account's language is one of those five codes; any other is `400`. The server writes its own words in that language:
 Home's and the libraries' hub titles (`Hub.title`), and on requests why one
 couldn't be sent (`MediaRequest.reason` of a failed one, `request_failed`'s
 `reason`, an approval option's `error`) and `MediaRequest.note`. What

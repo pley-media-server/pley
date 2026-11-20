@@ -1858,8 +1858,8 @@ another drops it.
 
 Pley for Apple is in English, French, Spanish and Simplified and Traditional
 Chinese, as the web app and the Android app are, and says a thing the way
-they do. Apple uses `zh-Hans` and `zh-Hant` for the two Chineses in its
-catalogs and requests, which the server answers as `zh-CN` and `zh-TW`.
+they do. Apple's catalogs name the two Chineses `zh-Hans` and `zh-Hant`;
+the account's language goes to the server as `zh-CN` and `zh-TW`.
 The language it shows follows [docs/API.md](API.md#language), as the other
 apps decide it:
 

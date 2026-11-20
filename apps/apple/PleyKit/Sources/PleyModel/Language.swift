@@ -17,6 +17,15 @@ public enum Language: String, CaseIterable, Codable, Hashable, Sendable, Identif
     /// "en", "fr", "es", "zh-Hans", "zh-Hant".
     public var code: String { rawValue }
 
+    /// The code the server takes and answers: "en", "fr", "es", "zh-CN", "zh-TW".
+    public var serverCode: String {
+        switch self {
+        case .simplifiedChinese: "zh-CN"
+        case .traditionalChinese: "zh-TW"
+        default: rawValue
+        }
+    }
+
     /// The language's name in itself, the same in every language: "Français".
     public var autonym: String {
         switch self {
