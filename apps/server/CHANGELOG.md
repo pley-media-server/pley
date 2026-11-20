@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The dashboard shows the quality a transcode's HDR is tone mapped at
+  (high, balanced or fast), which follows what else the GPU has to do.
+
 ### Changed
 
 - The automatic preset of software transcodes goes by what the computer is
