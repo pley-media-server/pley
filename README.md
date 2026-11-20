@@ -30,17 +30,17 @@
 
 - Support for Movies, TV Shows, Music and Audiobooks
 - IPTV from M3U playlists and Xtream Codes, with XMLTV guides
-- Profiles, PINs, age limits and two-step sign-in
-- Age-based parental controls
-- Requests for movies and shows, sent to Radarr and Sonarr
 - HW accelerated transcoding with dynamic quality adjustment
 - HDR10, HLG and Dolby Vision, tone mapping for SDR screens
 - Skip Intro and Skip Credits
-- Control playback on your other devices, or cast to Chromecast and AirPlay
-- Plex and Jellyfin compatible APIs for tools like Kometa
-- Works offline on your home network, with downloads for when you're away
-- Import from Plex: libraries, users and watch history
 - Customizable Collections (TMDB, hand-picked or smart)
+- Control playback on your other devices, or cast to Chromecast and AirPlay
+- Works offline on your home network, with downloads for when you're away
+- Profiles, PINs, age limits and two-step sign-in
+- Age-based parental controls
+- Requests for movies and shows, sent to Radarr and Sonarr
+- Import from Plex: libraries, users and watch history
+- Plex and Jellyfin compatible APIs for tools like Kometa
 
 [All features](docs/FEATURES.md)
 
