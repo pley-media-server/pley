@@ -389,7 +389,7 @@ apps.
 - **The globe:** Choose your server and typing an address have a small
   globe at the bottom right, on the forget hint's line; the sign-in code
   has it at the top right, on the logo's line. It names the language shown
-  by its two letters ("FR"); Down or Up reaches it, Left and Right don't. OK opens a side panel:
+  by its two letters ("FR"), or 简 or 繁 for Chinese; Down or Up reaches it, Left and Right don't. OK opens a side panel:
   Automatic, with what that is on this TV (its language, else the
   server's, else English), then English, Français, Español, 简体中文 and
   繁體中文, the choice in force checked. A choice shows at once and is kept on the TV
@@ -764,7 +764,7 @@ Samsung apps). Simplified and Traditional Chinese are separate languages:
 Choose your server and typing an address have a small globe at the bottom
 right, the sign-in code at the top right on the logo's line, as the web
 Samsung app has it (`ButtonKind.Small`: 32 tall, no fill until focused),
-naming the language shown by its two letters ("FR"); Down or Up reaches it. OK opens a side
+naming the language shown by its two letters ("FR"), or 简 or 繁 for Chinese; Down or Up reaches it. OK opens a side
 panel: "Automatic (English)" (the TV's language where Pley has it, else
 the server's, else English), then English, Français, Español, 简体中文 and
 繁體中文, the choice in force checked. A choice shows at once, the screen drawn again in

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The globe that picks the language before signing in, as the other TV
-     apps have it: a plain globe and the language's two letters ("FR"),
+     apps have it: a plain globe and the language's two letters ("FR", or 简 or 繁),
      48 high, filled with the accent only while it has the focus. Its
      origin is its top right corner, so a screen puts it at its right
      edge; the screen opens the languages (LanguagePanel) on OK. -->

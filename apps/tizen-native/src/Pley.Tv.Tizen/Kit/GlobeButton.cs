@@ -6,7 +6,7 @@ namespace Pley.Tv.Tizen.Kit;
 
 /// <summary>
 /// The globe of the screens before signing in (<see cref="LanguageGlobe"/>), where the web Samsung
-/// app has it: a small plain globe and the language shown by its two letters, without a fill until
+/// app has it: a small plain globe and the language shown by its two letters (or 简 or 繁), without a fill until
 /// it has focus, "FR" at the screen's right edge. At the bottom right of Choose your server and the
 /// address screen; on the sign-in code at the top right, centered on the logo's line. The remote's
 /// Down or Up reaches it. OK opens the languages in a side panel, as Settings shows its choices.

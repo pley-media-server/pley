@@ -15,9 +15,10 @@ import {
 
 /**
  * The globe of the pages shown before signing in, a small pill with the
- * language shown by its two letters ("FR"): this device's language,
- * Automatic (the browser's) or one picked. Once signed in, an account's own
- * language comes before it; Automatic there means this choice.
+ * language shown by its two letters ("FR"), or 简 or 繁 for Chinese: this
+ * device's language, Automatic (the browser's) or one picked. Once signed
+ * in, an account's own language comes before it; Automatic there means this
+ * choice.
  */
 export function LanguagePicker() {
   const { t } = useTranslation();

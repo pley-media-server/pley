@@ -46,7 +46,7 @@ export function PleyLogo(p: { height: number }) {
 
 /**
  * The globe of the screens before signing in (the web's LanguagePicker): a
- * small plain globe and the language shown, by its two letters ("FR"), heard by
+ * small plain globe and the language shown, by its two letters ("FR") or 简 or 繁, heard by
  * its name; OK opens {@link LanguagePanel}. A row of its own, at the bottom
  * right of Choose your server and the address screen, at the top right on the
  * logo's line on the sign-in code, so the remote reaches it from the buttons.

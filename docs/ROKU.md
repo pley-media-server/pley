@@ -701,7 +701,7 @@ the unit tests run against it.
 - **The globe:** Choose your server has a small globe at the bottom
   right, on the forget hint's line; the sign-in code has it at the top
   right, on the logo's line. It names the language shown by its two
-  letters ("FR", or "ZH" for either Chinese), filled with the accent only
+  letters ("FR"), or 简 or 繁 for Chinese, filled with the accent only
   while it has the focus. Down reaches it on Choose your server and Up on
   the sign-in code; Left and Right never do. OK opens a panel: Automatic,
   with what that is on this Roku (its language, else the server's, else
