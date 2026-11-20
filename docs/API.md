@@ -1781,7 +1781,7 @@ user's watch state and their access are unchanged.
 | PUT | `/api/items/{id}/streams` | `play` | `{ file_id?, audio_index?, subtitle_index? }` → `204`: remembers track choices |
 | PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, match?, labels? }` → `ItemDetail` |
 | GET | `/api/items/{id}/matches?title=&year=` | `admin` | TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` for movies and shows (needs a TMDB key) |
-| POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed |
+| POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed; a movie other copies were merged into lets them go first, each matched again on its own and kept apart from it; a movie matched to another copy's title goes into it, and the answer is that movie |
 | GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]` |
 | PUT | `/api/items/{id}/artwork/{kind}` | `admin` | `{ url }` (a TMDB image, or one on another host Pley takes pictures from: [COMPATIBILITY.md](COMPATIBILITY.md#editing)) → `ItemDetail`; downloaded and locked |
 | POST | `/api/items/{id}/artwork/{kind}/upload` | `admin` | raw image bytes (≤ 25 MB) → `ItemDetail`; stored as JPEG, without the file's metadata but Kometa's overlay mark, and locked |

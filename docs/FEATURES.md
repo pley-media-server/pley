@@ -10,6 +10,9 @@ Everything Pley does. The [README](../README.md) has the short version.
   editions, `S01E02`, `1x02`, date-based and anime episodes, extras, and
   looser episode names like `04 - Title` in a `Season 1` folder
   ([example layout](../deploy/docker/media/README.md)).
+- Copies of a movie matched to the same TMDB title become one movie with
+  several versions, even when their file names differ. Fix Match splits
+  them again.
 - `.strm` files, as in Kodi, Jellyfin and Emby. Off by default
   ([.strm files](CONFIGURATION.md#strm-files)).
 - Filter movies and shows by resolution and HDR type, on every app.

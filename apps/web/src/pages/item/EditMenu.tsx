@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { Check, FileText, ImageUp, Lock, LockOpen, Pencil, RotateCcw, Search } from "lucide-react";
 import { api, errorMessage, request } from "@/api/client";
 import { keys, useRatingSystems } from "@/api/hooks";
@@ -14,6 +15,7 @@ import { t as translate } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { systemName, writtenCountry } from "@/lib/access";
 import { sameLabels } from "@/lib/labels";
+import { itemUrl } from "@/lib/urls";
 
 type ArtworkKind = "poster" | "backdrop" | "thumb";
 
@@ -244,6 +246,8 @@ function FixMatchDialog({ item, onClose }: { item: ItemDetail; onClose: () => vo
   const { t } = useTranslation(["item", "common"]);
   const toast = useToast();
   const refresh = useItemRefresh(item.id);
+  const qc = useQueryClient();
+  const navigate = useNavigate();
   const [title, setTitle] = useState(item.title);
   const [year, setYear] = useState(item.year != null ? String(item.year) : "");
   const [query, setQuery] = useState({ title: item.title, year: item.year != null ? String(item.year) : "" });
@@ -259,9 +263,16 @@ function FixMatchDialog({ item, onClose }: { item: ItemDetail; onClose: () => vo
   const apply = useMutation({
     mutationFn: (tmdbId: number) => api.post<ItemDetail>(`/api/items/${item.id}/match`, { tmdb_id: tmdbId }),
     onSuccess: (detail) => {
-      refresh(detail);
       toast.success(t("edit.match.matched", { title: detail.title }));
       onClose();
+      if (detail.id === item.id) {
+        refresh(detail);
+        return;
+      }
+      // A movie matched to the title of another copy went into it: the
+      // answer is that movie, and this one's page is gone.
+      qc.setQueryData(["item", detail.id], detail);
+      void navigate(itemUrl(detail.id), { replace: true });
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
