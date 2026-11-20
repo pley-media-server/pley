@@ -22,18 +22,10 @@ public static class Languages
     public static string? Supported(string? tag)
     {
         if (string.IsNullOrWhiteSpace(tag)) return null;
-        var normalized = tag!.Trim().Replace('_', '-').ToLowerInvariant();
-        // A whole code first: the two Chinese ones share a base but not their words.
-        var full = All.FirstOrDefault(l => l.ToLowerInvariant() == normalized);
-        if (full != null) return full;
-        if (normalized == "zh" || normalized.StartsWith("zh-", StringComparison.Ordinal))
-        {
-            // The script, or a region that writes traditional characters, picks one.
-            var parts = normalized.Split('-');
-            var traditional = normalized.IndexOf("hant", StringComparison.Ordinal) >= 0 || parts.Any(p => p == "tw" || p == "hk" || p == "mo");
-            return traditional ? "zh-TW" : "zh-CN";
-        }
-        return All.FirstOrDefault(l => l == normalized.Split('-')[0]);
+        var parts = tag!.Trim().ToLowerInvariant().Split('-', '_');
+        // Chinese is two languages: Traditional by its script or a region that writes it.
+        if (parts[0] == "zh") return parts.Any(p => p is "hant" or "tw" or "hk" or "mo") ? "zh-TW" : "zh-CN";
+        return All.FirstOrDefault(l => l == parts[0]);
     }
 
     /// <summary>The first of <paramref name="device"/>'s languages Pley has; null for none.</summary>

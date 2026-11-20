@@ -9,10 +9,11 @@ end sub
 ' The letters, then the globe at their left and the fill around both, all
 ' left of the origin.
 sub onLanguage()
+    ' The language's letters ("FR"), or for Chinese its script, as the
+    ' other apps show it.
     letters = UCase(m.top.language)
-    ' ZH-CN and ZH-TW are too long for the globe; its panel names the
-    ' exact language.
-    if letters = "ZH-CN" or letters = "ZH-TW" then letters = "ZH"
+    if m.top.language = "zh-CN" then letters = "简"
+    if m.top.language = "zh-TW" then letters = "繁"
     m.letters.text = letters
     width = Int(m.letters.boundingRect().width)
     pad = 14

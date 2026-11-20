@@ -69,22 +69,14 @@ impl Language {
 /// The language Pley has for a tag ("fr-CA", "fr_FR", "FR" → French, "zh-Hant" → Traditional
 /// Chinese); none for one it hasn't, or none given.
 pub fn supported(tag: Option<&str>) -> Option<Language> {
-    let tag = tag?.trim();
-    // A whole code first: the two Chinese ones share a base but not their words.
-    if let Some(language) = Language::ALL.into_iter().find(|l| l.code().eq_ignore_ascii_case(tag)) {
-        return Some(language);
+    let tag = tag?.trim().to_ascii_lowercase();
+    let mut parts = tag.split(['-', '_', '.', '@']);
+    match parts.next()? {
+        // Chinese is two languages: Traditional by its script or a region that writes it.
+        "zh" if parts.any(|part| ["hant", "tw", "hk", "mo"].contains(&part)) => Some(Language::ZhTw),
+        "zh" => Some(Language::ZhCn),
+        base => Language::ALL.into_iter().find(|l| l.code() == base),
     }
-    let parts: Vec<&str> = tag.split(['-', '_', '.', '@']).collect();
-    let base = parts.first()?.to_ascii_lowercase();
-    if base == "zh" {
-        // The script, or a region that writes traditional characters, picks one.
-        let traditional = parts.iter().any(|part| {
-            let part = part.to_ascii_lowercase();
-            part == "hant" || ["tw", "hk", "mo"].contains(&part.as_str())
-        });
-        return Some(if traditional { Language::ZhTw } else { Language::ZhCn });
-    }
-    Language::ALL.into_iter().find(|l| l.code() == base)
 }
 
 /// The first of the TV's languages Pley has; none for none.

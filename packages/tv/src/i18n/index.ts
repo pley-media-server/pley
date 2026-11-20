@@ -24,19 +24,17 @@ import { catalogs, type Catalog } from "./catalogs";
 export const LANGUAGES = ["en", "fr", "es", "zh-CN", "zh-TW"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
+/** The globe's mark for a language: its letters ("FR"), or for Chinese its script ("简", "繁"). */
+export function languageMark(language: Language): string {
+  return language === "zh-CN" ? "简" : language === "zh-TW" ? "繁" : language.toUpperCase();
+}
+
 /** The language Pley has for a tag ("fr-CA", "FR_ca" → "fr", "zh-Hant" → "zh-TW"), if any. */
 export function supportedLanguage(tag: string | null | undefined): Language | undefined {
-  const normalized = tag?.trim().replace(/_/g, "-").toLowerCase();
-  if (!normalized) return undefined;
-  // A whole code first: the two Chinese ones share a base but not their words.
-  const full = LANGUAGES.find((language) => language.toLowerCase() === normalized);
-  if (full) return full;
-  if (normalized === "zh" || normalized.startsWith("zh-")) {
-    // The script, or a region that writes traditional characters, picks one.
-    const traditional = normalized.includes("hant") || ["tw", "hk", "mo"].some((region) => normalized.split("-").includes(region));
-    return traditional ? "zh-TW" : "zh-CN";
-  }
-  return LANGUAGES.find((language) => language === normalized.split("-")[0]);
+  const [base, ...rest] = (tag ?? "").trim().toLowerCase().split(/[-_]/);
+  // Chinese is two languages: Traditional by its script or a region that writes it.
+  if (base === "zh") return rest.some((part) => ["hant", "tw", "hk", "mo"].includes(part)) ? "zh-TW" : "zh-CN";
+  return LANGUAGES.find((language) => language === base);
 }
 
 /** The first of the device's languages (its preferred first) that Pley has. */

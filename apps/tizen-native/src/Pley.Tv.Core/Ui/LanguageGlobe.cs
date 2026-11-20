@@ -20,8 +20,13 @@ public sealed class LanguageGlobe
 
     public LanguageGlobe(AppState app) => this.app = app;
 
-    /// <summary>The globe's words: the language shown, by its two letters ("FR").</summary>
-    public string Label => app.Language.Value.ToUpperInvariant();
+    /// <summary>The globe's words: the language shown, by its two letters ("FR"), or for Chinese its script ("简", "繁").</summary>
+    public string Label => app.Language.Value switch
+    {
+        "zh-CN" => "简",
+        "zh-TW" => "繁",
+        var code => code.ToUpperInvariant(),
+    };
 
     /// <summary>The list's title: "Choose a language".</summary>
     public static string Title => Strings.T("signin.language.choose");

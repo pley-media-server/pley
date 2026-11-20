@@ -29,17 +29,10 @@ export const CATALOGS = { en, fr, es, "zh-CN": zhCN, "zh-TW": zhTW };
 
 /** The language Pley has for a tag ("fr-CA" → "fr", "zh-Hant" → "zh-TW"), if any. */
 export function supportedLanguage(tag: string | null | undefined): Language | undefined {
-  const normalized = tag?.trim().replace(/_/g, "-").toLowerCase();
-  if (!normalized) return undefined;
-  // A whole code first: the two Chinese ones share a base but not their words.
-  const full = LANGUAGES.find((language) => language.toLowerCase() === normalized);
-  if (full) return full;
-  if (normalized === "zh" || normalized.startsWith("zh-")) {
-    // The script, or a region that writes traditional characters, picks one.
-    const traditional = normalized.includes("hant") || ["tw", "hk", "mo"].some((r) => normalized.split("-").includes(r));
-    return traditional ? "zh-TW" : "zh-CN";
-  }
-  return LANGUAGES.find((language) => language === normalized.split("-")[0]);
+  const [base, ...rest] = (tag ?? "").trim().toLowerCase().split(/[-_]/);
+  // Chinese is two languages: Traditional by its script or a region that writes it.
+  if (base === "zh") return rest.some((part) => ["hant", "tw", "hk", "mo"].includes(part)) ? "zh-TW" : "zh-CN";
+  return LANGUAGES.find((language) => language === base);
 }
 
 /** The first of the desktop's languages that Pley has. */

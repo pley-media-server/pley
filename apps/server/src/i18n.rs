@@ -62,19 +62,14 @@ fn flatten(prefix: &str, value: &serde_json::Value, into: &mut Catalog) {
 
 /// The language Pley has for `code` ("fr-CA" → "fr", "zh-Hant" → "zh-TW"), if any.
 pub fn supported(code: &str) -> Option<&'static str> {
-    let normalized = code.trim().replace('_', "-").to_ascii_lowercase();
-    // A whole code first: the two Chinese ones share a base but not their words.
-    if let Some(full) = LANGUAGES.into_iter().find(|language| (*language).eq_ignore_ascii_case(&normalized)) {
-        return Some(full);
+    let code = code.trim().to_ascii_lowercase();
+    let mut parts = code.split(['-', '_']);
+    match parts.next()? {
+        // Chinese is two languages: Traditional by its script or a region that writes it.
+        "zh" if parts.any(|part| ["hant", "tw", "hk", "mo"].contains(&part)) => Some("zh-TW"),
+        "zh" => Some("zh-CN"),
+        base => LANGUAGES.into_iter().find(|language| *language == base),
     }
-    let base = normalized.split('-').next()?;
-    if base == "zh" {
-        // The script, or a region that writes traditional characters, picks one.
-        let traditional =
-            normalized.contains("hant") || normalized.split('-').any(|part| ["tw", "hk", "mo"].contains(&part));
-        return Some(if traditional { "zh-TW" } else { "zh-CN" });
-    }
-    LANGUAGES.into_iter().find(|language| *language == base)
 }
 
 /// The first language of an `Accept-Language` header, by weight, that Pley has.

@@ -3,7 +3,15 @@ import { Check, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useServer } from "@/api/hooks";
 import { Menu, MenuItem, MenuSeparator } from "@/components/Menu";
-import { browserLanguage, currentLanguage, deviceChoiceLanguage, LANGUAGES, onDeviceLanguage, setDeviceLanguage } from ".";
+import {
+  browserLanguage,
+  currentLanguage,
+  deviceChoiceLanguage,
+  LANGUAGES,
+  languageMark,
+  onDeviceLanguage,
+  setDeviceLanguage,
+} from ".";
 
 /**
  * The globe of the pages shown before signing in, a small pill with the
@@ -34,7 +42,7 @@ export function LanguagePicker() {
           className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-white/5 hover:text-fg"
         >
           <Globe className="size-3.5" />
-          <span lang={shown}>{shown.toUpperCase()}</span>
+          <span lang={shown}>{languageMark(shown)}</span>
         </button>
       )}
     >

@@ -49,17 +49,10 @@ def supported(tag) -> str | None:
     "zh-Hant" → "zh-TW", "zh" → "zh-CN"), if any."""
     if not isinstance(tag, str):
         return None
-    normalized = tag.strip().replace("_", "-").lower()
-    # A whole code first: the two Chinese ones share a base but not their words.
-    for language in LANGUAGES:
-        if language.lower() == normalized:
-            return language
-    parts = normalized.split("-")
-    base = parts[0]
+    base, *rest = re.split(r"[-_.]", tag.strip().lower())
+    # Chinese is two languages: Traditional by its script or a region that writes it.
     if base == "zh":
-        # The script, or a region that writes traditional characters, picks one.
-        traditional = "hant" in normalized or any(part in ("tw", "hk", "mo") for part in parts)
-        return "zh-TW" if traditional else "zh-CN"
+        return "zh-TW" if any(part in ("hant", "tw", "hk", "mo") for part in rest) else "zh-CN"
     return base if base in LANGUAGES else None
 
 

@@ -23,24 +23,19 @@ end function
 ' "zh-Hant" → "zh-TW", "zh" → "zh-CN"); "" for none.
 function i18nSupported(tag as dynamic) as string
     if GetInterface(tag, "ifString") = invalid then return ""
-    normalized = LCase(tag.Trim().Replace("_", "-"))
-    ' A whole code first: the two Chinese ones share a base but not their words.
-    for each language in i18nLanguages()
-        if LCase(language) = normalized then return language
-    end for
-    parts = normalized.Split("-")
+    parts = LCase(tag.Trim().Replace("_", "-")).Split("-")
+    if parts.Count() = 0 then return ""
     base = parts[0]
+    ' Chinese is two languages: Traditional by its script or a region that
+    ' writes it.
     if base = "zh"
-        ' The script, or a region that writes traditional characters, picks one.
-        traditional = Instr(1, normalized, "hant") > 0
         for each part in parts
-            if part = "tw" or part = "hk" or part = "mo" then traditional = true
+            if part = "hant" or part = "tw" or part = "hk" or part = "mo" then return "zh-TW"
         end for
-        if traditional then return "zh-TW"
         return "zh-CN"
     end if
     for each language in i18nLanguages()
-        if LCase(language) = base then return language
+        if language = base then return language
     end for
     return ""
 end function

@@ -1,7 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import qrcode from "qrcode-generator";
-import { currentLanguage, LANGUAGES, systemLanguage, t, type Language } from "../../../i18n";
+import { currentLanguage, LANGUAGES, languageMark, systemLanguage, t, type Language } from "../../../i18n";
 import { useUi } from "../../context";
 import { PanelRow } from "../../kit/buttons";
 import type { Dir } from "../../focus";
@@ -58,7 +58,7 @@ export function LanguageGlobe(p: { onOpen: () => void; class?: string }) {
     <G kind="row" class={p.class}>
       <F class="text-btn link t-caption globe-btn" fid="language-globe" label={`${t("onboarding.language.choose")}, ${name}`} onSelect={p.onOpen}>
         <Icon name="globe" size={16} />
-        <span lang={shown}>{shown.toUpperCase()}</span>
+        <span lang={shown}>{languageMark(shown)}</span>
       </F>
     </G>
   );

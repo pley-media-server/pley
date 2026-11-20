@@ -30,24 +30,15 @@ impl Language {
 
     /// The language Pley has for a tag ("fr-CA" → French, "zh-Hant" → traditional Chinese), if any.
     pub fn of(tag: &str) -> Option<Self> {
-        let normalized = tag.trim().replace('_', "-").to_ascii_lowercase();
-        // A whole code first: the two Chinese ones share a base but not their words.
-        if let Some(language) = [Self::En, Self::Fr, Self::Es, Self::ZhCn, Self::ZhTw]
-            .into_iter()
-            .find(|language| language.code().eq_ignore_ascii_case(&normalized))
-        {
-            return Some(language);
-        }
-        if normalized == "zh" || normalized.starts_with("zh-") {
-            // The script, or a region that writes traditional characters, picks one.
-            let traditional =
-                normalized.contains("hant") || normalized.split('-').any(|part| ["tw", "hk", "mo"].contains(&part));
-            return Some(if traditional { Self::ZhTw } else { Self::ZhCn });
-        }
-        match normalized.split('-').next()? {
+        let tag = tag.trim().to_ascii_lowercase();
+        let mut parts = tag.split(['-', '_']);
+        match parts.next()? {
             "en" => Some(Self::En),
             "fr" => Some(Self::Fr),
             "es" => Some(Self::Es),
+            // Chinese is two languages: Traditional by its script or a region that writes it.
+            "zh" if parts.any(|part| ["hant", "tw", "hk", "mo"].contains(&part)) => Some(Self::ZhTw),
+            "zh" => Some(Self::ZhCn),
             _ => None,
         }
     }

@@ -24,15 +24,10 @@ enum class Language(val code: String, @StringRes val autonym: Int, val short: St
          * a device may name Chinese by its script or a region instead.
          */
         fun of(tag: String?): Language? {
-            val normalized = tag?.trim()?.replace('_', '-')?.lowercase() ?: return null
-            if (normalized.isEmpty()) return null
-            // The full codes first, so zh-CN and zh-TW stay apart.
-            entries.firstOrNull { it.code.lowercase() == normalized }?.let { return it }
-            val parts = normalized.split('-')
+            val parts = tag?.trim()?.lowercase()?.split('-', '_') ?: return null
+            // Chinese is two languages: Traditional by its script or a region that writes it.
             if (parts[0] == "zh") {
-                // The script, or a region that writes Traditional, picks one; the rest, Simplified.
-                val traditional = parts.any { it == "hant" || it == "tw" || it == "hk" || it == "mo" }
-                return if (traditional) TraditionalChinese else SimplifiedChinese
+                return if (parts.any { it in listOf("hant", "tw", "hk", "mo") }) TraditionalChinese else SimplifiedChinese
             }
             return entries.firstOrNull { it.code == parts[0] }
         }

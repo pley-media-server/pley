@@ -60,20 +60,15 @@ public enum Language: String, CaseIterable, Codable, Hashable, Sendable, Identif
     /// other. The script or a region that writes traditional characters
     /// tells the two Chineses apart (docs/API.md, "Language").
     public static func of(_ tag: String?) -> Language? {
-        guard let tag else { return nil }
-        let normalized = tag.trimmingCharacters(in: .whitespaces)
-            .replacingOccurrences(of: "_", with: "-")
-            .lowercased()
-        guard !normalized.isEmpty else { return nil }
-        // A whole code first: the two Chineses share a base but not their words.
-        if let language = Language.allCases.first(where: { $0.code.lowercased() == normalized }) { return language }
-        let parts = normalized.split(separator: "-")
-        if normalized == "zh" || normalized.hasPrefix("zh-") {
-            let traditional = normalized.contains("hant")
-                || parts.contains(where: { ["tw", "hk", "mo"].contains(String($0)) })
-            return traditional ? .traditionalChinese : .simplifiedChinese
+        guard let parts = tag?.trimmingCharacters(in: .whitespaces).lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" }).map(String.init),
+            let base = parts.first
+        else { return nil }
+        // Chinese is two languages: Traditional by its script or a region that writes it.
+        if base == "zh" {
+            return parts.contains(where: { ["hant", "tw", "hk", "mo"].contains($0) }) ? .traditionalChinese : .simplifiedChinese
         }
-        return parts.first.flatMap { Language(rawValue: String($0)) }
+        return Language(rawValue: base)
     }
 
     /// The first of the device's languages (`device`, the one it prefers first) that Pley has.

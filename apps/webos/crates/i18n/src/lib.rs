@@ -186,7 +186,6 @@ pub fn plural(language: Language, count: i64) -> &'static str {
         Language::Fr if n <= 1 => "one",
         Language::Es | Language::En if n == 1 => "one",
         Language::Fr | Language::Es if millions => "many",
-        Language::ZhCn | Language::ZhTw => "other",
         _ => "other",
     }
 }
