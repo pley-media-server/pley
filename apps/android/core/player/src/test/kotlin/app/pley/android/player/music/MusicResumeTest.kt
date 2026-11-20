@@ -9,7 +9,9 @@ import app.pley.android.model.PleyJson
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
 import kotlin.random.Random
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
@@ -47,6 +49,48 @@ class MusicResumeTest {
     )
 
     private val album = (1..12L).map { track(it) }
+
+    @Test
+    fun aNewProcessWaitsForTheSignInToBeReadBackBeforeLookingForWhatWasKept() = runTest {
+        resume().apply {
+            keep(MusicQueueState(album, index = 4), positionMs = 61_000)
+            keepRadio("channel:7@favourites")
+        }
+        runCurrent()
+
+        // Android starts the process again for a car: the sign-in is still being read, and no profile is in use yet.
+        signedIn = null
+        val read = CompletableDeferred<Unit>()
+        val again = MusicResume(
+            profile = { signedIn },
+            read = { whose, key -> snapshotsOf(whose)[key]?.takeIf { it.isNotEmpty() } },
+            write = { _, _, _ -> },
+            scope = backgroundScope,
+            signInRead = { read.await() },
+        )
+        val music = async { again.saved() }
+        val radio = async { again.savedRadio() }
+        runCurrent()
+        assertTrue(music.isActive && radio.isActive)
+
+        signedIn = PARENT
+        read.complete(Unit)
+        assertEquals(4, music.await()!!.index)
+        assertEquals("channel:7@favourites", radio.await())
+    }
+
+    @Test
+    fun aSavedPlaceThatCantBeReadIsNothingKeptRatherThanACrash() = runTest {
+        resume().keep(MusicQueueState(album, index = 4), positionMs = 61_000)
+        runCurrent()
+        val failing = MusicResume(
+            profile = { signedIn },
+            read = { whose, key -> if (key == MusicResume.PLACE) error("The disk said no") else snapshotsOf(whose)[key] },
+            write = { _, _, _ -> },
+            scope = backgroundScope,
+        )
+        assertNull(failing.saved())
+    }
 
     @Test
     fun whatWasPlayingIsReadBackByAnotherRunWhereItWas() = runTest {

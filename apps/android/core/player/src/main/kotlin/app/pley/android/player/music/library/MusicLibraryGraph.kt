@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.map
 /** The music library and Live TV for cars and voice assistants, their pictures, and the radio, over the app's data. */
 class MusicLibraryGraph(
     context: Context,
-    data: DataGraph,
+    private val data: DataGraph,
     network: NetworkGraph,
     /** A playback of Live TV's sound for the radio ([LivePlayback.create] with `radio`), in a scope. */
     private val livePlayback: ((CoroutineScope) -> LivePlayback)? = null,
@@ -44,6 +44,9 @@ class MusicLibraryGraph(
     /** Whether a profile is signed in now: the library has nothing to show otherwise. */
     fun signedIn(): Boolean = sessions.value != null
 
+    /** Waits for the sign-in to be read back from the device, as the process starts ([signInRead]). */
+    suspend fun signInRead() = data.signInRead()
+
     /**
      * Who is signed in ("server/profile"), `null` when no one is, as it
      * changes, now first: another profile has another library and Live TV.
@@ -55,6 +58,7 @@ class MusicLibraryGraph(
     /** The bytes of the server's picture at [path] (a [MusicArt] path); `null` when it can't be had. */
     suspend fun picture(path: String): ByteArray? {
         if (!MusicArt.servable(path)) return null
+        data.signInRead()
         val url = try {
             source.pictureUrl(path, ART_WIDTH)
         } catch (_: SignedOutException) {

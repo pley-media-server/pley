@@ -470,7 +470,12 @@ class MusicService : MediaLibraryService() {
         override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
             val library = graph ?: return
             val tells = isCar(controller) || session.isMediaNotificationController(controller)
-            if (tells && !library.signedIn()) tellCars(session as MediaLibrarySession, signedIn = false)
+            if (!tells) return
+            // Once the sign-in is read back: as the process starts, no one is signed in until it has been.
+            scope.launch {
+                library.signInRead()
+                if (!library.signedIn()) tellCars(session as MediaLibrarySession, signedIn = false)
+            }
         }
 
         /**

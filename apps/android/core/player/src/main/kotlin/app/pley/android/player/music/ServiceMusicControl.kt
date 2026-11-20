@@ -18,6 +18,7 @@ import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
 import app.pley.android.player.PlayerEngine
+import app.pley.android.player.music.library.signInRead
 import app.pley.android.player.session.SessionReporter
 import app.pley.android.player.session.clientIdOf
 import app.pley.android.player.sleep.SleepChoice
@@ -193,8 +194,9 @@ class ServiceMusicControl(
                     }
                 },
                 scope = main,
+                signInRead = { data.signInRead() },
             )
-            val keep = { resume.keep(playback.queueState.value, playback.position().positionMs) }
+            val keep ={ resume.keep(playback.queueState.value, playback.position().positionMs) }
             main.launch { playback.queueState.drop(1).collect { keep() } }
             main.launch {
                 data.session.state.map { it is SessionState.SignedOut || it is SessionState.NoServer }.distinctUntilChanged().collect { out ->

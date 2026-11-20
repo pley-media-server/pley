@@ -53,6 +53,11 @@ class MusicResume(
     private val read: suspend (profile: ProfileScope, key: String) -> ByteArray?,
     private val write: suspend (profile: ProfileScope, key: String, bytes: ByteArray) -> Unit,
     private val scope: CoroutineScope,
+    /**
+     * Waits for the sign-in to be read back as the process starts: until then no profile is in use, and a process
+     * Android started again for the music (a car connecting, a headset's Play) found nothing kept.
+     */
+    private val signInRead: suspend () -> Unit = {},
 ) {
     /** The profile the queue kept is that of: the one signed in as it was first kept, until it is forgotten. */
     private var owner: ProfileScope? = null
@@ -135,6 +140,7 @@ class MusicResume(
 
     /** The channel kept by [keepRadio] for the profile in use, or `null`: music played last, or nothing did. */
     suspend fun savedRadio(): String? {
+        signInRead()
         writer?.join()
         val now = profile() ?: return null
         val kept = try {
@@ -185,16 +191,21 @@ class MusicResume(
 
     /** What was kept for the profile in use; `null` when nothing was, or it can't be read. */
     suspend fun saved(): SavedMusic? {
+        signInRead()
         // What is still on its way to the store is what was kept last.
         writer?.join()
         val now = profile() ?: return null
-        val tracks = try {
-            read(now, QUEUE)?.let { PleyJson.decodeFromString(TRACKS, it.decodeToString()) }
+        return try {
+            saved(now)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             null
         }
+    }
+
+    private suspend fun saved(now: ProfileScope): SavedMusic? {
+        val tracks = read(now, QUEUE)?.let { PleyJson.decodeFromString(TRACKS, it.decodeToString()) }
         if (tracks.isNullOrEmpty() || tracks.size > MAX_TRACKS || tracks.any { it.kind != ItemKind.Track }) return null
         val place = read(now, PLACE)?.decodeToString()?.split(' ').orEmpty()
         val index = place.getOrNull(0)?.toIntOrNull()?.takeIf { it in tracks.indices } ?: 0

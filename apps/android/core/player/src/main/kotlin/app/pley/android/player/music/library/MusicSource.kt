@@ -2,6 +2,7 @@ package app.pley.android.player.music.library
 
 import app.pley.android.data.DataGraph
 import app.pley.android.data.Loadable
+import app.pley.android.data.SessionState
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
@@ -63,10 +64,10 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
         data.hubs.library(libraryId).settled().hubs.firstOrNull { it.key.startsWith(RECENTLY_ADDED) }?.items.orEmpty()
 
     override suspend fun recentlyPlayed(libraryId: Long): List<ItemSummary> =
-        api().history(limit = HISTORY_LIMIT, libraryId = libraryId).entries.map { it.item }
+        signedInApi().history(limit = HISTORY_LIMIT, libraryId = libraryId).entries.map { it.item }
 
     override suspend fun artists(libraryId: Long, offset: Int, limit: Int): List<ItemSummary> =
-        api().libraryItems(libraryId, sort = LibrarySort.Title, offset = offset, limit = limit).items
+        signedInApi().libraryItems(libraryId, sort = LibrarySort.Title, offset = offset, limit = limit).items
 
     override suspend fun children(itemId: Long): List<ItemSummary> = data.items.children(itemId).settled()
 
@@ -82,9 +83,15 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
 
     // Asked of the server itself, not through the app's search: that keeps only its latest query, so a car's search
     // overtaken by its next one (a letter typed, its results read) was never answered, and the car went on waiting.
-    override suspend fun search(query: String): List<ItemSummary> = api().search(query.trim(), SEARCH_LIMIT).items
+    override suspend fun search(query: String): List<ItemSummary> = signedInApi().search(query.trim(), SEARCH_LIMIT).items
 
     override fun pictureUrl(path: String, width: Int): String = api().url(path, width)
+
+    /** [api], once the sign-in has been read back ([signInRead]). */
+    private suspend fun signedInApi(): PleyApi {
+        data.signInRead()
+        return api()
+    }
 
     private fun api(): PleyApi {
         val session = data.session.session.value ?: throw SignedOutException()
@@ -110,6 +117,7 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
  * with nothing saved throws it. Signed out, [SignedOutException].
  */
 internal suspend fun <T> Flow<Loadable<T>>.settledIn(data: DataGraph): T {
+    data.signInRead()
     if (data.session.session.value == null) throw SignedOutException()
     var saved: T? = null
     val fresh = withTimeoutOrNull(FRESH_WAIT_MS) {
@@ -131,3 +139,15 @@ internal suspend fun <T> Flow<Loadable<T>>.settledIn(data: DataGraph): T {
 
 /** How long the server's answer is waited for when something is saved. */
 private const val FRESH_WAIT_MS = 2_500L
+
+/**
+ * Waits, up to [SIGN_IN_WAIT_MS], for the sign-in to be read back from the device. A process Android starts again for
+ * the music (a car connecting, a headset's Play) reads it as the music service starts, and until it has, no profile
+ * is signed in: nothing kept would be found, and the car would be told to sign in.
+ */
+internal suspend fun DataGraph.signInRead() {
+    withTimeoutOrNull(SIGN_IN_WAIT_MS) { session.state.first { it !is SessionState.Starting } }
+}
+
+/** The longest the music waits for the sign-in to be read back; the video player waits as long. */
+private const val SIGN_IN_WAIT_MS = 5_000L
