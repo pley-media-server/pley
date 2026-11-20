@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { liveKeys } from "@/api/livetv";
+import type { Library } from "@/api/types";
 import { mockApi, renderWithProviders } from "@/test/render";
 import { makeSummary } from "@/test/requests";
 import { Sidebar } from "./Sidebar";
@@ -23,7 +24,6 @@ describe("Sidebar drawer", () => {
   it("takes the keyboard while open and gives it back to its button when closed", async () => {
     mockApi({
       "GET /api/libraries": () => [],
-      "GET /api/playlists": () => ({ playlists: [] }),
     });
     const user = userEvent.setup();
     renderWithProviders(<Harness />);
@@ -50,7 +50,6 @@ describe("Sidebar requests", () => {
   const serve = (summary: ReturnType<typeof makeSummary>) =>
     mockApi({
       "GET /api/libraries": () => [],
-      "GET /api/playlists": () => ({ playlists: [] }),
       "GET /api/requests/summary": () => summary,
     });
 
@@ -95,7 +94,6 @@ describe("Sidebar Live TV", () => {
     let channels = 0;
     mockApi({
       "GET /api/libraries": () => [],
-      "GET /api/playlists": () => ({ playlists: [] }),
       "GET /api/live": () => ({ available: channels > 0, allowed: true, channels, sources: channels ? 1 : 0, recent: [] }),
     });
     const { client } = renderWithProviders(<Sidebar open={false} onClose={() => {}} />);
@@ -107,5 +105,29 @@ describe("Sidebar Live TV", () => {
     channels = 5;
     await client.invalidateQueries({ queryKey: liveKeys.all });
     expect(await screen.findByRole("link", { name: "Live TV" })).toHaveAttribute("href", "/live");
+  });
+});
+
+describe("Sidebar playlists", () => {
+  const movies: Library = { id: 1, name: "Movies", kind: "movies", paths: [], item_count: 0, created_at: 0, scanned_at: null, scanning: false };
+
+  it("are one more row under the libraries, with or without any playlists", async () => {
+    mockApi({
+      "GET /api/libraries": () => [movies],
+    });
+    renderWithProviders(<Sidebar open={false} onClose={() => {}} />);
+    const row = await screen.findByRole("link", { name: "Playlists" });
+    expect(row).toHaveAttribute("href", "/playlists");
+    const links = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(links.indexOf("Playlists")).toBe(links.indexOf("Movies") + 1);
+  });
+
+  it("are left out while there are no libraries", async () => {
+    mockApi({
+      "GET /api/libraries": () => [],
+    });
+    const { client } = renderWithProviders(<Sidebar open={false} onClose={() => {}} />);
+    await waitFor(() => expect(client.getQueryState(["libraries"])?.status).toBe("success"));
+    expect(screen.queryByRole("link", { name: "Playlists" })).not.toBeInTheDocument();
   });
 });
