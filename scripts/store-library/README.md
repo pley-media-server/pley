@@ -26,7 +26,8 @@ the libraries and their metadata, something to resume, things watched, and
 My List.
 
 - `bun scripts/store-library/web.mjs <dir> http://127.0.0.1:17560` takes the
-  README's picture of the web app (`docs/images/web-home.jpg`).
+  README's tour of the web app (`docs/images/web-tour.webp`), five screens of
+  three seconds each. It needs `ffmpeg` on `PATH`.
 - Emulators reach the server at `10.0.2.2:17560`.
 - Take phone screenshots at 1080 × 1920 (`adb shell wm size 1080x1920`):
   Google Play takes nothing longer than 2:1.

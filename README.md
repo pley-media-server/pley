@@ -24,7 +24,7 @@
 > [!WARNING]
 > Pley is still in testing: expect rough edges, and keep backups of your data.
 
-![Pley's Home in the web app](docs/images/web-home.jpg)
+![Pley's web app: Home, a movie library, a film, the player and a season of a show](docs/images/web-tour.webp)
 
 ## Features
 

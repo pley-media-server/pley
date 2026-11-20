@@ -1,7 +1,8 @@
-// Takes the README's picture of the web app (docs/images/web-home.jpg) through a
-// headless Chrome, from a server holding the store library.
+// Takes the README's tour of the web app (docs/images/web-tour.webp) through a headless
+// Chrome, from a server holding the store library: a few screens, each held for a moment.
 // Usage: bun web.mjs <dir> <address>, with <dir> as setup.mjs left it (admin.json).
-import { spawn } from "node:child_process";
+// It needs ffmpeg on PATH.
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -76,7 +77,8 @@ async function settle(ms) {
   for (let i = 0; i < 50 && (await evaluate("[...document.images].some((i) => !i.complete)")); i++) await sleep(100);
   await sleep(ms);
 }
-const shot = async (quality) => Buffer.from((await send("Page.captureScreenshot", { format: "jpeg", quality })).data, "base64");
+const screens = [];
+const take = async () => screens.push(Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
 
 // The mouse, moved as a hand would.
 let mouse = { x: width / 2, y: height / 2 };
@@ -97,6 +99,7 @@ async function click(selector, text) {
       const el = [...document.querySelectorAll(${JSON.stringify(selector)})]
         .find((e) => e.textContent.includes(${JSON.stringify(text)}) && e.getBoundingClientRect().width > 0);
       if (!el) return null;
+      el.scrollIntoView({ block: "nearest", behavior: "instant" });
       const r = el.getBoundingClientRect();
       return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + Math.min(r.height / 2, 120)) };
     })()`);
@@ -110,7 +113,6 @@ async function click(selector, text) {
   }
   throw new Error(`nothing to click: ${selector} with "${text}"`);
 }
-const still = async (name) => writeFileSync(join(out, `${name}.jpg`), await shot(80));
 const library = "aside a[href^='/library/'], nav a[href^='/library/']";
 
 try {
@@ -129,8 +131,45 @@ try {
   await evaluate(`[...document.querySelectorAll("button")].find((b) => /dismiss|close/i.test(b.getAttribute("aria-label") ?? ""))?.click()`);
   await goto("/");
   await settle(1500);
-  await still("web-home");
-  console.log(`the picture is in ${out}`);
+  await take();
+  await click(library, "Movies");
+  await settle(1500);
+  await take();
+  await click("a[href^='/item/']", "Paper Moons");
+  await settle(1500);
+  await take();
+  await click("button", "Resume");
+  await sleep(5000);
+  await moveTo(700, 600, 8); // shows the player's controls
+  await sleep(700);
+  await take();
+  await evaluate("history.back()");
+  await settle(500);
+  await click(library, "TV Shows");
+  await settle(1000);
+  await click("a[href^='/item/']", "Harbor Town");
+  await settle(1000);
+  await click("a[href^='/item/']", "Season 1");
+  await moveTo(1100, 150, 8); // off the episode the click left it on
+  await settle(1500);
+  await take();
+
+  // Three seconds a screen, cut rather than faded: each frame of a fade is a whole picture of its
+  // own, which would make the file several times larger.
+  const work = mkdtempSync(join(tmpdir(), "pley-tour-"));
+  const list = screens.flatMap((png, i) => {
+    writeFileSync(join(work, `${i}.png`), png);
+    return [`file '${i}.png'`, "duration 3"];
+  });
+  writeFileSync(join(work, "list.txt"), list.join("\n") + "\n");
+  const ff = spawnSync(
+    "ffmpeg",
+    ["-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i", join(work, "list.txt"), "-fps_mode", "vfr", "-c:v", "libwebp_anim", "-lossless", "0", "-quality", "80", "-compression_level", "6", "-loop", "0", join(out, "web-tour.webp")],
+    { stdio: "inherit" },
+  );
+  rmSync(work, { recursive: true, force: true });
+  if (ff.status !== 0) throw new Error("ffmpeg couldn't make the WebP");
+  console.log(`the tour is in ${out}`);
 } finally {
   socket.close();
   browser.kill();
