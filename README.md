@@ -28,18 +28,23 @@
 
 ## Features
 
-- Movies, shows, music and audiobooks, with metadata from TMDB, TheTVDB,
-  TVmaze, MusicBrainz and Open Library, and NFO files
-- Plays files as they are, or transcodes on the GPU
-- HDR10, HLG and Dolby Vision tone mapping
-- Picture subtitles drawn by the apps, Skip Intro and Skip Credits
-- Live TV from M3U and Xtream Codes, with XMLTV guides
-- A remote for your other devices, and casting to Chromecasts and AirPlay
-- Collections from TMDB, curated or smart, as rows on Home
-- Requests for movies and shows, fetched by Radarr and Sonarr
+- Movies, TV shows, music and audiobooks, with metadata from TMDB,
+  TheTVDB, TVmaze, MusicBrainz, Open Library or your own NFO files
+- Direct play when a device can handle the file, GPU transcoding when it
+  can't
+- Automatic quality that adjusts to your connection while you watch
+- HDR10, HLG and Dolby Vision, tone mapped for SDR screens
+- Image subtitles (PGS, VobSub) drawn by the apps instead of burned in
+- Skip Intro and Skip Credits
+- Live TV from M3U playlists and Xtream Codes, with XMLTV guides
+- Control playback on your other devices, or cast to Chromecast and AirPlay
+- Collections from TMDB, hand-picked or smart, as rows on Home
+- Requests for movies and shows, sent to Radarr and Sonarr
 - Profiles, PINs, age limits and two-step sign-in
-- Moving from Plex: libraries, users and what everyone watched
-- Works offline on the home network, and downloads play away from it
+- Import from Plex: libraries, users and watch history
+- Plex- and Jellyfin-compatible APIs, so Jellyfin clients and tools like
+  Kometa work with Pley
+- Works offline on your home network, with downloads for when you're away
 
 [All features](docs/FEATURES.md)
 
@@ -49,9 +54,8 @@ Web, Windows, macOS, Linux, [Android](docs/ANDROID.md) (phones, tablets,
 Android TV, Google TV and Fire TV), [Kodi](docs/KODI.md),
 [Roku](docs/ROKU.md), [Samsung TV](docs/TV_PLATFORMS.md),
 [LG TV](docs/LG.md). Apps for iPhone, iPad, Mac and Apple TV are
-[in development](docs/APPLE.md). Jellyfin's apps work too, and tools built
-on Plex's API such as Kometa and Tautulli, through the
-[compatibility APIs](docs/COMPATIBILITY.md).
+[in development](docs/APPLE.md). Jellyfin clients, Kometa and Tautulli
+also work, through the [compatibility APIs](docs/COMPATIBILITY.md).
 
 ## Install
 

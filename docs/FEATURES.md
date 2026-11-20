@@ -1,289 +1,281 @@
 # Features
 
-What Pley does, in full. The [README](../README.md) has the short version.
+Everything Pley does. The [README](../README.md) has the short version.
 
 ## Libraries
 
-- Movies, TV shows, music and audiobooks, scanned incrementally and
-  rescanned when files change. An offline drive isn't mistaken for deleted
-  media.
-- Common naming schemes: `Movie (2019)`, release names, `{tmdb-123}` hints,
-  editions (`{edition-Director's Cut}`), `S01E02`, `1x02`, date-based and
-  anime episodes, and extras (`Trailers/` folders,
-  `Movie (2019)-trailer.mkv`). Looser episode names work too: `04 - Title` or
-  `104 - Title` in a `Season 1` folder, `Season 1 Episode 4`, or a title
-  alone, which TMDB numbers by its title. Two files never merge into one
-  episode for lack of a number.
-  [deploy/docker/media](../deploy/docker/media/README.md) shows a layout.
-- `.strm` files, as Kodi, Jellyfin and Emby read them: a text file in a
-  movie or TV library that names the `http` or `https` address its video
-  is at. It is listed, played, converted and downloaded like a video on
-  disk, on every app, and its address never leaves the server.
-  Administrators turn them on in Settings → Server, where they're off by
-  default ([.strm files](CONFIGURATION.md#strm-files)).
-- Each profile can order its libraries, on every app.
-- Movie and show libraries filter by resolution (4K, 1080p, 720p, SD) and
-  dynamic range (HDR, Dolby Vision, HDR10+, HLG, SDR), by each title's best
-  file, on every app; smart collections and playlists saved from a filtered
-  library keep the filter.
-- Moving from Plex: its libraries, its Home users as profiles with their
-  restrictions, labels, dates added, and what everyone watched
-  ([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)).
+- Movie, TV, music and audiobook libraries. Scans are incremental, and
+  Pley picks up changed files on its own. A drive that goes offline isn't
+  treated as deleted media.
+- Understands the usual naming schemes: `Movie (2019)`, release names,
+  `{tmdb-123}` hints, editions (`{edition-Director's Cut}`), `S01E02`,
+  `1x02`, date-based and anime episodes, and extras (`Trailers/` folders,
+  `Movie (2019)-trailer.mkv`). Looser episode names work too, like
+  `04 - Title` or `104 - Title` inside a `Season 1` folder,
+  `Season 1 Episode 4`, or just the episode's title, which TMDB looks up.
+  Two files are never merged into one episode just because neither has a
+  number. [deploy/docker/media](../deploy/docker/media/README.md) shows an
+  example layout.
+- `.strm` files, the way Kodi, Jellyfin and Emby use them: a text file
+  with the `http` or `https` address of a video. Pley lists, plays,
+  converts and downloads it like any other video, on every app, and the
+  address never leaves the server. They're off by default; turn them on
+  in Settings → Server ([.strm files](CONFIGURATION.md#strm-files)).
+- Each profile can reorder its libraries, on every app.
+- Filter movies and shows by resolution (4K, 1080p, 720p, SD) and dynamic
+  range (HDR, Dolby Vision, HDR10+, HLG, SDR), on every app. A title
+  counts by its best file. Smart collections and playlists saved from a
+  filtered view keep the filter.
+- Coming from Plex? Pley imports its libraries, Home users (as profiles,
+  with their restrictions), labels, dates added and everyone's watch
+  history ([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)).
 
 ### Audiobooks
 
-Audiobook libraries are in the web and desktop apps. The other apps and
-the Plex- and Jellyfin-compatible APIs don't get them.
+Audiobook libraries work in the web and desktop apps for now. The other
+apps and the Plex- and Jellyfin-compatible APIs don't show them yet.
 
-- Books are found as Audiobookshelf finds them. A book is a folder of
-  audio files (with `CD 1`, `Disc 2`… folders inside it if it has them),
-  an `.m4b` file, or `.m4b` files of the same `album` tag in one folder.
-  Files directly in the library's folder are books of their own; other
-  files side by side in a folder are parts of one book, `.m4b` files
-  excepted.
-- Folders are read as `Author/Book`, `Author/Series/Book`,
-  `Author/Book/Book.m4b` or `Author/Book.m4b`: of the folders above a
-  book's own, the first is its author's and the second its series'. A
-  folder at the top of the library is a book's own (`Book/01.mp3`), but
-  one with an `.m4b` in it is its author's (`Author/Book.m4b`), unless
-  it is named as the book or the file is. A book's folder may begin with
-  its place in the series (`Book 2 - Title`, `2.5 - Novella`), end with
-  its year (`Title (2007)`), and name its narrator in braces
-  (`Title {Narrator B}`), as Audiobookshelf's do. An `.m4b` without an
-  `album` tag is named by its file.
-- A book's parts play by disc and number (their tags', or the one their
-  files' names begin with), then in their files' names' order, numbers
-  read as numbers: `Part 2` before `Part 10`.
-- A book is what its first part says, by its tags, which win over its
-  folders: `album` is the book, `album_artist` or `artist` its authors
-  (`;`, `&` or `/` between several), `composer` or `narrator` its
-  narrators, `series` and `series-part` (or `part`, as Libation and tone
-  write it) its series, or else a `grouping` as Audiobookshelf writes it
-  (`Series #2`, `Series, Book 2`), `description` or `synopsis` its
-  summary (`comment` without them). A scan reads them again when the
-  book's files change.
-- The cover is a picture named after an `.m4b` beside it, `cover.jpg` or
-  `folder.jpg` in the book's folder, or else the one inside its files.
-  Books side by side in their author's or their series' folder don't take
-  its pictures.
-- An `.m4b` file's chapters are read, and it plays directly where `.m4a`
-  does.
-- Play on a book goes on in the part heard last, where it was left. A part
-  is finished only in its last 30 seconds, not at 90 % as a film is.
-  Books part way through are in Continue Listening, on Home and in their
-  library.
-- A book's page has its writers, narrators and series, how much of it is
-  listened to and how much is left, and its parts, or the chapters of a
-  book in one file, each played from where it starts. The player's bar
-  runs through the chapter playing, named under the book. The player goes back 15 seconds and on 30, plays from
-  0.75× to 3× (kept for every book), and has a sleep timer: 15 to 60
-  minutes, or the end of the chapter or part.
-- Summaries, genres, narrators, series and covers that a book's files and
-  folders don't give come from Open Library, and from Audnexus for books
-  whose files carry an Audible ASIN (see
-  [Metadata sources](CONFIGURATION.md#metadata-sources)).
-- Books have no pages of their writers or narrators, no series as collections and no downloads.
+- Books are found the same way Audiobookshelf finds them. A book can be a
+  folder of audio files (with `CD 1`, `Disc 2` subfolders if needed), a
+  single `.m4b`, or several `.m4b` files with the same `album` tag in one
+  folder. Files sitting directly in the library folder are each their own
+  book.
+- Folder layouts: `Author/Book`, `Author/Series/Book`,
+  `Author/Book/Book.m4b` or `Author/Book.m4b`. A top-level folder is
+  treated as a book (`Book/01.mp3`), unless it holds `.m4b` files, in which
+  case it's the author (`Author/Book.m4b`). Book folders can start with the
+  series number (`Book 2 - Title`, `2.5 - Novella`), end with the year
+  (`Title (2007)`), and name the narrator in braces (`Title {Narrator B}`),
+  like Audiobookshelf's.
+- Parts play in disc and track order (from tags or file names), then by
+  file name, with numbers sorted properly: `Part 2` before `Part 10`.
+- Tags win over folder names: `album` is the title, `album_artist` or
+  `artist` the author (several separated by `;`, `&` or `/`), `composer`
+  or `narrator` the narrator, and `series` with `series-part` (or `part`,
+  as Libation and tone write it) the series. An Audiobookshelf-style
+  `grouping` (`Series #2`, `Series, Book 2`) works too. The summary comes
+  from `description`, `synopsis` or `comment`. Tags are read again when
+  the files change.
+- Covers: an image named after the `.m4b`, `cover.jpg` or `folder.jpg` in
+  the book's folder, or the one embedded in the files. A book doesn't pick
+  up images from its author's or series' folder.
+- Chapters in `.m4b` files are read, and `.m4b` plays directly anywhere
+  `.m4a` does.
+- Play resumes in the part you were last listening to, where you left off.
+  A part only counts as finished in its last 30 seconds (films use 90 %).
+  Books in progress show in Continue Listening on Home and in the library.
+- A book's page shows its authors, narrators and series, your progress and
+  time left, and its parts or chapters, each playable from its start. The
+  player's progress bar follows the current chapter. You can skip back 15
+  seconds and forward 30, change speed from 0.75× to 3× (remembered for
+  every book), and set a sleep timer for 15 to 60 minutes or the end of
+  the chapter or part.
+- Whatever the files and folders don't say (summary, genres, narrators,
+  series, cover) comes from Open Library, or from Audnexus when the files
+  have an Audible ASIN
+  ([Metadata sources](CONFIGURATION.md#metadata-sources)).
+- Not there yet: author and narrator pages, series as collections, and
+  downloads.
 
 ## Metadata
 
-- Movies from TMDB (free API key); TV shows from TMDB, TheTVDB or TVmaze (no
-  key); music from MusicBrainz and the Cover Art Archive (no key);
-  audiobooks from Open Library and Audnexus (no key). See
+- Movies from TMDB (free API key). TV shows from TMDB, TheTVDB or TVmaze
+  (no key needed). Music from MusicBrainz and the Cover Art Archive.
+  Audiobooks from Open Library and Audnexus. See
   [Metadata sources](CONFIGURATION.md#metadata-sources).
-- NFO files from Kodi, Jellyfin, Radarr, Sonarr and the like, for movies,
-  shows, seasons and episodes: their ids decide the match and their fields
-  win over the online source. See [NFO files](CONFIGURATION.md#nfo-files).
-- Local artwork and hand edits always win. Cast and crew have their own
-  pages.
+- Reads NFO files from Kodi, Jellyfin, Radarr, Sonarr and similar tools,
+  for movies, shows, seasons and episodes. Their ids decide the match, and
+  their fields take priority over online sources
+  ([NFO files](CONFIGURATION.md#nfo-files)).
+- Local artwork and your own edits always win. Cast and crew have their
+  own pages.
 
 ## Playback
 
-- Direct play, remux or transcode, chosen per device, with the reason shown.
-  One Quality menu: Original, Automatic, or a lower quality
+- Direct play, remux or transcode, decided per device, and the player
+  tells you why. One Quality menu: Original, Automatic, or a lower quality
   ([QUALITY.md](QUALITY.md)).
+- Automatic quality adjusts to your connection while you watch. It starts
+  at what the network can carry, drops a step when playback starts to
+  stall, and moves back up once the connection recovers. The web and
+  Android apps switch without a pause or a black screen.
 - Hardware encoding (NVENC, Quick Sync, AMF, VAAPI, VideoToolbox) and GPU
-  tone mapping with libplacebo, including Dolby Vision profile 5.
-- Dolby Vision profile 7 (FEL or MEL) and HDR10+ are told apart from plain
-  HDR10 and shown as badges; the player's details say what the screen gets.
-- Subtitles: text tracks as WebVTT; picture tracks (PGS, VobSub, DVB)
-  drawn over the video by the web, desktop, Android, Samsung and LG apps
-  (PGS by Kodi too), so the file still plays as it is, and burned in
-  elsewhere; a timing offset in every player, the TV apps included.
-- Audio and subtitle defaults per profile, on every app; a choice carries
-  over to the next episode. Among tracks in the profile's language, the
-  server picks the one the device plays best (as is rather than converted;
-  the 5.1 track for a player that passes it to a receiver).
-- Resume, Up Next, Skip Intro and Skip Credits (from chapters, and by
-  comparing the audio of episodes), seek-bar previews and chapter pictures.
+  tone mapping with libplacebo, Dolby Vision profile 5 included.
+- Dolby Vision profile 7 (FEL or MEL) and HDR10+ are detected and shown as
+  badges, and the player's details say what your screen is actually
+  getting.
+- Subtitles: text subtitles as WebVTT. Image subtitles (PGS, VobSub, DVB)
+  are drawn by the web, desktop, Android, Samsung and LG apps (and PGS by
+  Kodi), so the video doesn't need transcoding; other players get them
+  burned in. Every player, TVs included, can shift subtitle timing.
+- Audio and subtitle defaults per profile, on every app, and your choice
+  carries over to the next episode. When several tracks match your
+  language, the server picks the one your device handles best: one it can
+  play without conversion, or the 5.1 track if you pass audio through to a
+  receiver.
+- Resume, Up Next, Skip Intro and Skip Credits (from chapters, or by
+  comparing the audio across episodes), seek-bar previews and chapter
+  thumbnails.
 - Picture in picture for videos and Live TV in the web app and on Android
-  phones and tablets; on Live TV, next and previous change channel there.
-- Android TV, Google TV, Fire TV, Samsung and LG TVs play videos from a USB
-  drive plugged into the TV, with no server
+  phones and tablets. On Live TV, next and previous change the channel.
+- Android TV, Google TV, Fire TV, Samsung and LG TVs can play videos from
+  a USB drive plugged into the TV, without a server
   ([TV_PLATFORMS.md](TV_PLATFORMS.md#videos-on-a-usb-drive)).
-- A remote for your other devices: the web and desktop apps' header lists
-  those that are on, the ones playing first, then those ready to play,
-  then the devices of your household's other profiles whose app can switch
-  to yours, each with the profile it is on and never what it plays. For
-  the one chosen it plays, pauses, seeks, skips back and forward 30
-  seconds, goes to the next or previous title (or channel, on Live TV),
-  changes the audio track, the subtitles and the quality, and stops what
-  plays there, once asked to. In an intro or the credits there, it offers
-  Skip Intro or Skip Credits, as the player there would. On Live TV it
-  shows the program's progress and what's next. Each player obeys the
-  commands it can, without bringing up its controls there: a brief notice
-  says what changed. Any can be stopped ([API.md](API.md#remote-control)).
-- Play on… in the web and desktop apps, beside Play on a movie, an episode,
-  a show, a season, an artist, an album, a track and a playlist (Shuffle
-  on… beside Shuffle), and Watch on… for a Live TV channel: it plays there
-  on another of your devices that takes casts, as that device's own Play
-  would, with the audio and subtitles picked on the page, and the remote
-  opens on it ([API.md](API.md#casting)). One on another profile of your
-  household switches to yours first, so it plays as you; when your
-  profile has a PIN, Play on… asks for it in its menu's place. The
-  desktop app takes casts too, as "Pley for Windows", "Pley for Mac" or
-  "Pley for Linux", switching to the profile that sent one; a browser tab
-  doesn't, as a browser won't start sound in a tab in the background.
-- Chromecasts, Google TVs and TVs with Cast built in, Apple TVs and TVs
-  with AirPlay 2 on the server's network take casts of movies and episodes
-  from the household: the server plays them there itself, in HEVC, 4K and
-  HDR on models that play them, with the subtitles picked, keeps their
-  place, and the remote controls them as it does Pley's own players. An
-  AirPlay device that asks for a code is paired once, with the code it
-  shows. Administrators turn casting to these devices on in Settings →
-  Network, where it's off by default, and forget pairings there
-  ([API.md](API.md#casting)).
+- Use the web or desktop app as a remote for your other devices. The
+  header lists your devices that are on (playing ones first), plus devices
+  on other profiles in your household that can switch to yours; you see
+  which profile each is on, never what it's playing. You can play, pause,
+  seek, skip 30 seconds back or forward, go to the next or previous title
+  (or channel), change the audio, subtitles and quality, and stop
+  playback. Skip Intro and Skip Credits show up on the remote when they
+  would on the device. On Live TV you see the current program's progress
+  and what's next. The device shows a short notice for each change instead
+  of popping up its controls ([API.md](API.md#remote-control)).
+- Play on… sends a movie, episode, show, season, artist, album, track or
+  playlist to another of your devices (Shuffle on… and, for Live TV, Watch
+  on… work the same way), with the audio and subtitles you picked, and
+  opens the remote for it ([API.md](API.md#casting)). A device on another
+  profile in your household switches to yours first; if your profile has a
+  PIN, you're asked for it. The desktop app can receive casts too, as
+  "Pley for Windows", "Pley for Mac" or "Pley for Linux". Browser tabs
+  can't, since browsers won't start audio in a background tab.
+- Cast movies and episodes to Chromecasts, Google TVs, TVs with Cast
+  built in, Apple TVs and AirPlay 2 TVs on the server's network. The
+  server streams to them directly, in HEVC, 4K and HDR where the device
+  supports it, with your subtitles, keeps track of where you are, and the
+  remote controls them like any Pley player. AirPlay devices that ask for
+  a code are paired once. Off by default; administrators turn it on, and
+  manage pairings, in Settings → Network ([API.md](API.md#casting)).
 
 ## Live TV
 
-- IPTV channels from M3U playlists and Xtream Codes accounts, with their
-  guide from XMLTV, on every app: categories, a guide, a channel's number
-  typed on the remote, and one search with the rest of the library.
-- A channel is pulled once however many watch it, and a source never plays
-  more channels at once than its provider allows; changing channels frees
-  the connection at once.
-- Channels the TV can play as they are play straight from the provider's
-  stream; the others through the transcoder. Channels that don't play, and
-  divider rows, can be left out.
-- Channels a provider serves as HLS are read segment by segment, their
-  sound taken from the default audio track when it is kept apart from
-  the picture (AAC, or audio in MPEG-TS).
+- IPTV channels from M3U playlists and Xtream Codes accounts, with XMLTV
+  guides, on every app: categories, a guide, typing a channel number on
+  the remote, and channels in the same search as everything else.
+- Each channel is pulled from the provider once, however many people
+  watch it, and Pley never opens more streams than the provider allows.
+  Switching channels frees the connection right away.
+- Channels your TV can play natively come straight from the provider;
+  the rest go through the transcoder. Broken channels and divider rows
+  can be hidden.
+- HLS channels are read segment by segment, including ones that send
+  audio as a separate track (AAC, or audio in MPEG-TS).
 
 ## Watching
 
-- Progress, history, star ratings, Continue Watching and Next Up per user.
+- Progress, history, star ratings, Continue Watching and Next Up, per
+  user.
 - Recently Added, Recently Released, Top Rated and More Like This.
-- Fast search across titles, people and Live TV channels, from full-text
-  indexes with every title and name kept in memory. Each word typed
-  begins a word of a name, in any order, and a year at the end ("alien
-  1979") keeps that year's titles. It forgives slips ("the matirx",
-  "kaenu reeves"), words run together or apart ("spiderman") and a missing
-  apostrophe ("the captains log"), and when nothing matches that way, finds
-  names alike enough to what was typed. Channels are found by name, number
-  or what's on. The closest matches come first: a name that is exactly
-  what was typed, then those that begin with it, then the rest.
-- Collections (from TMDB, curated, or smart) and playlists (ordered or smart).
-  A film library can do without the collections from TMDB, for a tool such
-  as Kometa to make its own.
-- Collections are grouped in categories (Highlights, Box sets, Other and
-  administrators' own) on every app, and administrators choose which are
-  rows on Home and on a library's Recommended tab, and in what order.
-  Kometa's group labels and visibility settings place them too.
-- A collection without a poster shows its first four films' posters in a
-  grid; administrators can put an icon in a color over it, use an icon on a
-  color alone, or upload a poster.
+- Search covers titles, people and Live TV channels, and it's quick even
+  on large libraries. It copes with typos ("the matirx", "kaenu reeves"),
+  words run together or split ("spiderman"), missing apostrophes ("the
+  captains log") and words in any order. Add a year to narrow it down
+  ("alien 1979"). Channels can be found by name, number or what's on now.
+  Exact matches come first.
+- Collections (from TMDB, hand-picked, or smart) and playlists (ordered or
+  smart). A movie library can skip TMDB's collections so a tool like
+  Kometa can make its own.
+- Collections are sorted into categories (Highlights, Box sets, Other, or
+  your own) on every app. Administrators choose which collections appear
+  as rows on Home and on each library's Recommended tab, and in what
+  order. Kometa's group labels and visibility settings work too.
+- A collection without its own poster shows a grid of its first four
+  posters. Administrators can add a colored icon on top, use an icon on a
+  plain color, or upload a poster.
 
 ## Requests
 
-- Discover shows TMDB's movies and shows (trending, popular, upcoming,
-  anime) and marks what the libraries have. Search lists them too, after
-  the libraries' results, for those who may ask.
-- People ask for a movie, or for the seasons of a show the libraries lack;
-  administrators approve or decline, with a reason. Accounts may be allowed
-  to have theirs approved as asked, and limited to so many movies and
-  seasons a week. Profiles without a password and accounts with an age
-  limit don't ask until an administrator allows it.
-- Approved requests go to Radarr and Sonarr (with a quality profile and
-  root folder of their own for anime), and their downloads' progress shows.
-  A request is available, and its maker told, once a library has the movie
-  or every season asked for.
+- Discover shows what's trending, popular, upcoming and anime on TMDB,
+  and marks what you already have. People who can make requests also see
+  these results in Search, after your libraries.
+- People request a movie, or the missing seasons of a show, and
+  administrators approve or decline them, optionally with a reason.
+  Accounts can be set to auto-approve, and limited to a number of movies
+  and seasons per week. Profiles without a password and accounts with an
+  age limit can't request until an administrator allows it.
+- Approved requests go to Radarr and Sonarr (with a separate quality
+  profile and root folder for anime), and download progress shows in
+  Pley. Once everything requested is in a library, the request is marked
+  available and the person who asked is notified.
 
 ## Accounts
 
-- Administrators, users and managed profiles for children, each with their
+- Administrators, users and managed profiles for kids, each with their
   own libraries and age limit.
-- An age limit is set by rating, in one of 29 countries' rating systems
-  ("Up to PG-13"), by age, or by birthday, rising each year until it ends
-  at 21. Ratings are read with their own country's system, so a "PG" or an
-  "A" isn't misread.
-- A profile switcher with optional PINs, invitation links, and a list of
-  signed-in devices that can be signed out remotely.
-- PINs work the same way on every app. A profile with one shows a lock, and
-  switching to it asks the PIN: a wrong one asks again, too many in 15
-  minutes say how long to wait, and after 100 wrong ones in a row the PIN
-  stops working until its owner or an administrator sets it again. A TV
-  starts straight into Home as the profile it was left on when that profile
-  has no PIN (Apple TV asks "Who's watching?" in a household of several,
-  unless Always start as names one). When it has one, the "Who's
-  watching?" a TV asks as it starts asks that PIN too, and one set to
-  always start as a profile asks it first, so a TV never starts as a
-  profile with a PIN without it. Signing in again on the web goes straight
-  in as the profile the browser was last used as, when it has no PIN. A
-  profile that can see more than yours and has no PIN takes its password,
-  in the browser; a TV signs in to it again with a code.
-- Two-step sign-in with an authenticator app, with recovery codes:
-  optional, or required of everyone by an administrator, in which case each
-  person sets it up at their next sign-in (for a TV, on their phone).
-- Apps sign in on Pley's own page and get only what you allow (browsing,
-  playing, playlists, and for an administrator's Android phone, managing
-  the server), never its settings or keys: OAuth 2.1 with client metadata
-  documents. Pley's own apps work without internet access; apps by other
-  publishers are off until an administrator allows them. TVs show a code to
-  type on Pley's `/link` page ([API.md](API.md#apps-oauth-21)).
-- Apps and tools that use the compatibility APIs get tokens of their own,
-  from Account or by signing in to the Jellyfin-compatible API, which work on
-  those APIs only and do only what you allow: watching and, for
-  administrators, seeing everyone's activity or managing libraries, never
-  accounts. A token can be limited to the addresses it is used from; Account
-  lists each one and revokes it
+- Set an age limit by rating, from 29 countries' rating systems ("Up to
+  PG-13"), by age, or by birthday, so it goes up each year until 21.
+  Ratings are read in their own country's system, so a UK "PG" or a Danish
+  "A" means what it should.
+- A profile switcher with optional PINs, invite links, and a list of
+  signed-in devices you can sign out remotely.
+- PINs work the same on every app. Profiles with a PIN show a lock.
+  Too many wrong tries in 15 minutes and you're told how long to wait;
+  after 100 wrong tries in a row the PIN is disabled until its owner or an
+  administrator sets a new one. A TV opens straight to Home on the last
+  profile used, unless that profile has a PIN, in which case "Who's
+  watching?" asks for it. (Apple TV asks "Who's watching?" in a household
+  of several profiles, unless Always start as picks one.) On the web,
+  signing in again goes straight to the last profile used if it has no
+  PIN. Switching to a profile without a PIN that can see more than yours
+  asks for its password in a browser; a TV signs in to it again with a
+  code.
+- Two-step sign-in with an authenticator app and recovery codes. It's
+  optional, or an administrator can require it for everyone; people then
+  set it up the next time they sign in (on their phone, for a TV).
+- Apps sign in through Pley's own page and only get what you allow:
+  browsing, playing, playlists and, for an administrator's Android phone,
+  managing the server. Never the server's settings or keys. It's OAuth 2.1
+  with client metadata documents. Pley's own apps work without internet
+  access; third-party apps are blocked until an administrator allows them.
+  TVs show a code to enter at Pley's `/link` page
+  ([API.md](API.md#apps-oauth-21)).
+- Apps and tools that use the compatibility APIs get their own tokens,
+  made in Account or by signing in through the Jellyfin-compatible API.
+  These only work on those APIs and only for what you allowed: watching
+  and, for administrators, seeing everyone's activity or managing
+  libraries, never accounts. Tokens can be restricted to certain
+  addresses, and Account lists and revokes them
   ([COMPATIBILITY.md](COMPATIBILITY.md#tokens-for-other-apps)).
-- First-run setup needs a one-time code from the server's log, which the tray
-  icon fills in. Passwords have at least 8 characters and can't be common
-  ones ([SECURITY.md](../SECURITY.md)).
+- First-time setup needs a one-time code from the server's log, which the
+  tray icon fills in for you. Passwords need at least 8 characters and
+  can't be common ones ([SECURITY.md](../SECURITY.md)).
 
 ## Administration
 
-- Metadata editing with locked fields, Fix Match and a choice of artwork.
-- Settings with a Test button for each API key and service, a live dashboard
-  (playback, transcoder, scans, and charts of Pley's and the computer's CPU
-  and memory) and daily database backups ([STORAGE.md](STORAGE.md)).
+- Edit metadata, lock fields, fix matches and choose artwork.
+- Settings has a Test button for every API key and service. There's a live
+  dashboard (playback, transcoder, scans, and CPU and memory charts for
+  Pley and the computer) and daily database backups
+  ([STORAGE.md](STORAGE.md)).
 - On an Android phone or tablet, Me → Manage server has the dashboard,
-  libraries, users and invitations; the server's settings, network,
-  transcoder, backups and Live TV stay in the web app
-  ([ANDROID.md](ANDROID.md)). TVs, signed in with a code, never manage the
-  server.
+  libraries, users and invites. Server settings, network, transcoder,
+  backups and Live TV stay in the web app ([ANDROID.md](ANDROID.md)). TVs
+  signed in with a code can never manage the server.
 
 ## Compatibility APIs
 
-The Plex-compatible API, on Pley's own port by default (or 32400), for
-`python-plexapi`, library tools such as Kometa and activity monitors such
-as Tautulli: browsing with their filters, editing, collections, playlists,
+A Plex-compatible API, on Pley's own port by default (or 32400), for
+`python-plexapi`, library tools like Kometa and activity monitors like
+Tautulli: browsing with their filters, editing, collections, playlists,
 play queues, sessions, history and notifications.
 
-The Jellyfin-compatible API, on Pley's own port by default (or 8096):
-Jellyfin's apps and others built on its API browse the libraries, play as
-they are or as HLS from Pley's transcoder, with subtitles, skip intro and
-credits, and keep watch state, favorites (My List) and ratings with Pley's
-accounts ([COMPATIBILITY.md](COMPATIBILITY.md)).
+A Jellyfin-compatible API, on Pley's own port by default (or 8096).
+Jellyfin's apps, and others built on its API, can browse your libraries,
+play files directly or as HLS from Pley's transcoder, with subtitles and
+intro and credit skipping, and keep watch state, favorites (My List) and
+ratings in sync with Pley's accounts
+([COMPATIBILITY.md](COMPATIBILITY.md)).
 
 ## Offline
 
-On the home network everything works without the internet. Item pages
-download a file's original, which the Android app (phones and tablets) and
-the desktop app keep to play while the server is away; the Android app
-reports what was watched once it is back.
+Everything works on your home network without internet access. You can
+download a file's original from its page; the Android app (phones and
+tablets) and the desktop app keep downloads to play while the server is
+out of reach, and the Android app syncs what you watched once it's back.
 
 ## Performance
 
-Single binaries; SQLite in WAL mode with one writer; listings filtered,
-sorted and paged in SQL; compressed responses; pictures resized once and
-cached; transcodes throttled to about twice real time.
+Single binaries. SQLite in WAL mode with a single writer. Listings are
+filtered, sorted and paged in SQL. Responses are compressed. Images are
+resized once and cached. Transcodes are throttled to about twice real
+time.
