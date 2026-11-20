@@ -697,7 +697,7 @@ export interface TranscodeInfo {
   pipeline?: TranscodePipeline | null;
   tonemap: string | null;
   /** libplacebo's quality now ("high", "balanced" or "fast"): it follows the GPU's load. */
-  tonemap_quality?: string | null;
+  tonemap_quality?: "high" | "balanced" | "fast" | null;
   subtitle_burn: boolean;
   speed: number | null;
   fps: number | null;

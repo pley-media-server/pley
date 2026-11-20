@@ -12,28 +12,24 @@ describes how they are made.
 ### Added
 
 - The dashboard shows the quality a transcode's HDR is tone mapped at
-  (high, balanced or fast), which follows what else the GPU has to do.
+  (high, balanced or fast).
 
 ### Changed
 
-- The automatic preset of software transcodes goes by what the computer is
-  measured to make, not by how many processors it has. A fast computer
-  gives a better picture, several transcodes share it evenly as they come
-  and go, and a seek or the next video of the same kind starts from what
-  was measured rather than from a guess.
+- With the software encoder's preset on automatic, a transcode uses the
+  best-looking preset the computer is measured to encode at twice real
+  time, and several transcodes at once leave room for each other.
 
 ### Fixed
 
-- A software transcode at 50 or 60 frames a second no longer starts at a
-  preset too slow for a small computer, which made the player wait.
+- A software transcode at 50 or 60 frames a second starts quickly on a
+  small computer.
 - A transcode tone mapping HDR on the GPU goes back to its best quality
-  once the others beside it end. It could stay at the fastest one for ten
-  minutes.
-- The dashboard no longer shows a speed for a transcode paused ahead of its
-  player, nor one under 1× for the moment after it goes on, and its frames
-  a second are those made now.
-- A transcode whose bitrate changed as it plays (Samsung, LG, Kodi and Roku
-  on Automatic) shows the bitrate it is made at now.
+  once the others beside it end.
+- The dashboard shows no speed for a transcode paused ahead of its player,
+  and the frames a second it makes now.
+- A transcode whose bitrate changes as it plays (Samsung, LG, Kodi and Roku
+  on Automatic) shows the bitrate it is made at.
 
 ## [0.1.14] - 2026-11-20
 
