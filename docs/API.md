@@ -511,7 +511,7 @@ interface PlaybackInfo {
                                     // "Dolby Vision P8.1 (HDR10+ left out)",
                                     // "HDR10 (this screen doesn't show HDR10+)", "HDR10 (HDR10+ left out)",
                                     // "HDR10 (converted from HLG)", "SDR (tone-mapped)", and
-                                    // "Dolby Vision P5 not decoded (wrong colours)" for a direct play the
+                                    // "Dolby Vision P5 not decoded (wrong colors)" for a direct play the
                                     // player insisted on. Version 1 players don't say which HDR formats
                                     // their screen shows, so their HDR10+ is named as it is
   adaptive: boolean;                // the transcode comes in several sizes the player moves between

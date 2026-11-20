@@ -249,7 +249,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
                 try await self.live.setFavorite(channel.id, favorite)
             } catch {
                 let reason = describe(error)
-                self.toast(localized("The favourite wasn't saved: \(reason)"))
+                self.toast(localized("The favorite wasn't saved: \(reason)"))
             }
         }
         remark()

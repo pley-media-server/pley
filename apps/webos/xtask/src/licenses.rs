@@ -208,12 +208,12 @@ pub fn notices(packages: &[&Package], workspace_root: &Path) -> Result<(String, 
     Ok((out, without_text))
 }
 
-/// The license texts in a crate's folder (LICENSE*, LICENSE*, COPYING*, NOTICE*, UNLICENSE*,
+/// The license texts in a crate's folder (LICENSE*, LICENCE*, COPYING*, NOTICE*, UNLICENSE*,
 /// COPYRIGHT*, and the files of a LICENSES folder), sorted by name.
 fn license_texts(dir: &Path) -> Result<Vec<(String, String)>> {
     let is_license = |name: &str| {
         let upper = name.to_ascii_uppercase();
-        ["LICENSE", "LICENSE", "COPYING", "NOTICE", "UNLICENSE", "COPYRIGHT"].iter().any(|p| upper.starts_with(p))
+        ["LICENSE", "LICENCE", "COPYING", "NOTICE", "UNLICENSE", "COPYRIGHT"].iter().any(|p| upper.starts_with(p))
     };
     let mut texts = Vec::new();
     let mut entries: Vec<_> = fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?.flatten().collect();

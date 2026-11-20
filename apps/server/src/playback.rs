@@ -1154,7 +1154,7 @@ pub fn video_range_shown(v: &MediaStream, caps: &Caps, delivery: Delivery) -> Op
             if v.is_dolby_vision_only() {
                 // No base layer of its own: only a direct play the player
                 // insisted on gets here.
-                format!("{dolby_vision} not decoded (wrong colours)")
+                format!("{dolby_vision} not decoded (wrong colors)")
             } else {
                 let direct = delivery == Delivery::Direct;
                 format!(

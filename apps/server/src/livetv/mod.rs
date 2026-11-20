@@ -2258,7 +2258,7 @@ impl LiveTv {
                 .await
                 .map_err(|e| AppError::Internal(e.into()))?
                 .flatten();
-        self.picture(&url.ok_or_else(|| AppError::not_found("the programme has no picture"))?, false).await
+        self.picture(&url.ok_or_else(|| AppError::not_found("the program has no picture"))?, false).await
     }
 
     /// The picture at `url`, kept on this server: downloaded the first time

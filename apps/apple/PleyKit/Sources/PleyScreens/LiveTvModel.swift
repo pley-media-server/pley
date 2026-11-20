@@ -186,7 +186,7 @@ public final class LiveTvModel: ObservableObject {
     public var empty: (title: String, detail: String) {
         if !query.isEmpty {
             return (localized("No channels match"),
-                    localized("No channel's name, number or programme on now has “\(query)” in it."))
+                    localized("No channel's name, number or program on now has “\(query)” in it."))
         }
         switch category {
         case .favorites: return (localized("No favorites yet"), localized("Star a channel to find it here."))
@@ -211,7 +211,7 @@ public final class LiveTvModel: ObservableObject {
                 if let groups = try? await self.live.groups() { self.groups = groups }
             } catch {
                 let reason = describe(error)
-                self.toast(localized("The favourite wasn't saved: \(reason)"))
+                self.toast(localized("The favorite wasn't saved: \(reason)"))
             }
         }
     }
