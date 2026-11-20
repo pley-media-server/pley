@@ -40,6 +40,8 @@ describes how they are made.
 
 ### Fixed
 
+- Videos whose AAC sound is copied from an MPEG-TS or AVI file play on the
+  Apple apps instead of failing with "Malformed AAC bitstream".
 - Films and shows with accents in their names are matched when the names
   came from a Mac. Ones already scanned are matched by the library's Force
   full rescan.

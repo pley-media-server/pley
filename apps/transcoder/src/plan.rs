@@ -615,6 +615,9 @@ pub fn vulkan_encoder() -> EncoderInfo {
 pub struct AudioOut {
     pub stream_index: i64,
     pub copy: bool,
+    /// Copied AAC, which an MP4 holds without the ADTS headers MPEG-TS and
+    /// AVI files give each frame (see [`Plan::mp4_audio`]).
+    pub copied_aac: bool,
     /// The codec when converting.
     pub codec: AudioCodec,
     pub channels: u32,
@@ -1110,6 +1113,7 @@ impl Plan {
                 Some(AudioOut {
                     stream_index: src.index,
                     copy,
+                    copied_aac: copy && src.codec == "aac",
                     codec,
                     channels,
                     bitrate_kbps: bitrate,
@@ -1493,6 +1497,7 @@ impl Plan {
             if self.video.as_ref().is_some_and(|v| !v.copy) {
                 a.push_all(["-fps_mode:v", "cfr"]);
             }
+            self.mp4_audio(&mut a);
             // No timecode track from a MOV source; each fragment reaches the
             // pipe as soon as it is cut.
             a.push_all(["-f", "mp4", "-movflags", FMP4_MOVFLAGS, "-write_tmcd", "0", "-flush_packets", "1", "pipe:1"]);
@@ -1588,12 +1593,23 @@ impl Plan {
                 if hevc {
                     a.push_all(["-tag:v", "hvc1"]);
                 }
+                self.mp4_audio(&mut a);
                 // The index first: it plays as soon as it opens, from anywhere.
                 a.push_all(["-movflags", "+faststart", "-f", "mp4"]);
             }
         }
         a.push_os(output.as_os_str().to_owned());
         a.0
+    }
+
+    /// Copied AAC loses its ADTS headers for MP4, which refuses them
+    /// ("Malformed AAC bitstream"). FFmpeg's MP4 muxer would add this filter
+    /// itself, but not with `delay_moov`, as fMP4 segments are written. AAC
+    /// that has no headers (from MP4 or Matroska) passes through it as it is.
+    fn mp4_audio(&self, a: &mut Args) {
+        if self.audio.as_ref().is_some_and(|au| au.copied_aac) {
+            a.push_all(["-bsf:a", "aac_adtstoasc"]);
+        }
     }
 
     /// Everything but the output: devices, inputs, the video and audio

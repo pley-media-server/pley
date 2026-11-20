@@ -841,3 +841,69 @@ fn dolby_vision_samples_rewrite_and_remux() {
     }
     assert!(tried > 0, "no Dolby Vision HEVC file in {folder:?}");
 }
+
+/// AAC copied from MPEG-TS (or AVI), whose frames carry ADTS headers, makes
+/// fMP4 segments from the start and from a later segment: MP4 refuses the
+/// headers ("Malformed AAC bitstream").
+#[test]
+fn aac_from_mpeg_ts_is_copied_into_fmp4() {
+    if !has_ffmpeg() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let made = ffmpeg(
+        dir.path(),
+        &[
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=s=320x240:r=24:d=8",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=r=48000:d=8",
+            "-c:v",
+            "libx264",
+            "-g",
+            "24",
+            "-c:a",
+            "aac",
+            "-f",
+            "mpegts",
+            "source.ts",
+        ],
+    );
+    assert!(made);
+    let input = dir.path().join("source.ts");
+    let media = probe(&input);
+    let req = JobRequest {
+        segment_format: SegmentFormat::Fmp4,
+        input: input.to_string_lossy().into_owned(),
+        video: Some(VideoRequest { mode: VideoMode::Copy, ..Default::default() }),
+        audio: Some(AudioRequest { mode: AudioMode::Copy, ..Default::default() }),
+        segment_seconds: Some(2.0),
+        options: TranscodeOptions { throttle: false, ..Default::default() },
+        ..Default::default()
+    };
+    let start = media.start_ms.unwrap_or(0);
+    let keyframes: Vec<i64> = (0..8).map(|s| start + s * 1_000).collect();
+    let plan = Plan::build(&req, &media, &ff(), Some(&keyframes)).unwrap();
+    assert!(plan.audio.as_ref().is_some_and(|a| a.copy && a.copied_aac));
+    let ctx =
+        ArgsContext { input: &input, encoder: None, relative_split_times: true, preset: None, shader_cache: None };
+    for from in [0, 2] {
+        let args = plan.ffmpeg_args(&ctx, from, plan.segment_count());
+        let ran = Command::new("ffmpeg").arg("-hide_banner").args(&args).current_dir(dir.path()).output().unwrap();
+        assert!(ran.status.success(), "from segment {from}: {}", String::from_utf8_lossy(&ran.stderr));
+        let out = dir.path().join(format!("from{from}.mp4"));
+        std::fs::write(&out, &ran.stdout).unwrap();
+        assert_eq!(stream(&out, "a")["codec_name"], "aac");
+        let decoded = Command::new("ffmpeg")
+            .args(["-v", "error", "-i"])
+            .arg(&out)
+            .args(["-map", "0:a", "-f", "null", "-"])
+            .output()
+            .unwrap();
+        assert!(decoded.status.success() && decoded.stderr.is_empty(), "{}", String::from_utf8_lossy(&decoded.stderr));
+    }
+}
