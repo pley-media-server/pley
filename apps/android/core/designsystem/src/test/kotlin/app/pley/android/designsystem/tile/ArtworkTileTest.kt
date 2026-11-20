@@ -34,6 +34,7 @@ import app.pley.android.common.Tier
 import app.pley.android.common.formatWords
 import app.pley.android.designsystem.LocalReducedMotion
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.ArtworkInterceptor
 import app.pley.android.designsystem.image.ArtworkLoad
@@ -161,7 +162,7 @@ class ArtworkTileTest {
         val image = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
         val (from, to) = Placeholder.colors(model.title)
         // Near the bottom right corner, about its second color; halfway along the diagonal (top right, clear of
-        // the title in the middle), halfway between the two in sRGB, as CSS blends them.
+        // Pley's mark in the middle), halfway between the two in sRGB, as CSS blends them.
         assertNear(to, image[image.width - 14, image.height - 14])
         val half = Color((from.red + to.red) / 2f, (from.green + to.green) / 2f, (from.blue + to.blue) / 2f)
         assertNear(half, image[image.width * 9 / 10, image.height / 10])
@@ -235,12 +236,32 @@ class ArtworkTileTest {
     }
 
     @Test
-    fun aWordWiderThanThePosterStaysWhole() {
+    fun aTileWithoutAPictureShowsPleysMarkAndNotItsTitle() {
+        // The caption under the tile names it: the placeholder doesn't say it again.
+        val model = model(title = "Northern Lights").copy(image = null)
+        compose.setContent {
+            ArtworkTile(model, TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
+        }
+        compose.waitForIdle()
+        val image = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
+        assertEquals(0, textLines(image))
+        // The mark's posters, in the middle: lighter than the gradient at its lightest corner.
+        val corner = image[14, 14]
+        var lighter = 0
+        for (y in image.height * 2 / 5 until image.height * 3 / 5) {
+            for (x in image.width / 4 until image.width * 3 / 4) {
+                val p = image[x, y]
+                if (p.red > corner.red + 0.1f && p.green > corner.green + 0.1f && p.blue > corner.blue + 0.1f) lighter++
+            }
+        }
+        assertTrue("$lighter pixels lighter than $corner", lighter > 500)
+    }
+
+    @Test
+    fun aWordWiderThanThePlaceholderStaysWhole() {
         // "Extraterrestrial" in Title's 16 sp is wider than a poster's 84 dp of room: smaller, rather than broken.
         compose.setContent {
-            CompositionLocalProvider(LocalArtworkImageLoader provides loader()) {
-                ArtworkTile(model(title = "Extraterrestrial"), TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
-            }
+            Box(Modifier.tvTileSize(TileKind.Poster).testTag("tile").artworkPlaceholder("Extraterrestrial", PleyType.Tv.Title, ArtworkLoad()))
         }
         compose.waitForIdle()
         assertEquals(1, textLines(compose.onNodeWithTag("tile").captureToImage().toPixelMap()))
@@ -326,10 +347,9 @@ class ArtworkTileTest {
 
     @Test
     fun aPlaceholdersTitleIsLaidOutAwayFromTheMainThreadAndDrawn() {
+        // A placeholder given a title's style (a playlist's cover on TV): tiles have none, their caption names them.
         compose.setContent {
-            CompositionLocalProvider(LocalArtworkImageLoader provides loader()) {
-                ArtworkTile(model(title = "Northern Lights"), TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
-            }
+            Box(Modifier.tvTileSize(TileKind.Poster).testTag("tile").artworkPlaceholder("Northern Lights", PleyType.Tv.Title, ArtworkLoad()))
         }
         compose.waitForIdle()
         val image = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
@@ -352,7 +372,7 @@ class ArtworkTileTest {
     @Test
     fun aPlaceholderGivenAnotherTitleAsksForItAsItIsMeasured() {
         var title by mutableStateOf("A first title for a tile used again")
-        val style = TileStyle.Tv.placeholderText
+        val style = PleyType.Tv.Title
         val load = ArtworkLoad()
         compose.setContent {
             Box(Modifier.drawWithContent { }) {

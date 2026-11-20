@@ -159,8 +159,8 @@ rates as the decoder gives them, the same in every language.
 
 - **Pictures**, here and on TVs: a title without one, or whose picture
   doesn't load, shows its title's gradient (the web's) with Pley's mark
-  on it, and its name under the mark on a tile; while a picture loads,
-  the gradient alone.
+  on it; while a picture loads, the gradient alone. A tile's name is in
+  its caption, not on its picture.
 - **The tabs** are a bar under the page on a phone held upright, with
   their names, and a rail beside it on a phone on its side, a tablet or
   a car's screen: icons alone, centered on its height and read out by
@@ -1508,9 +1508,8 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
   Each held glide stays a step and a quarter long, so focus never runs
   further ahead of the grid than the rows on the screen.
 - A tile is few nodes, and costs little to make: its caption is one node
-  drawing its two lines with the platform's paint, its picture draws in
-  its own box, and its placeholder's title is laid out on a thread of its
-  own. While a key holds pictures back, their requests are set aside off
+  drawing its two lines with the platform's paint, and its picture draws
+  in its own box. While a key holds pictures back, their requests are set aside off
   the main thread, and go on there when the key comes up.
 - A held Up or Down on a page of rows moves focus to the next row's
   tile itself (the one nearest across, or the tile that row comes back

@@ -51,7 +51,7 @@ With Android Auto:
 - A track that can't be played says so for 5 seconds, then the next one
   plays by itself; Play tries it again.
 - Music, movies and shows without a picture show Pley's mark on their
-  placeholder.
+  placeholder instead of their title, which the caption under it shows.
 - Changing tabs fades from one to the next, Now Playing comes up from
   the bar of what plays, and that bar rises in as music starts.
 
