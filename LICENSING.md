@@ -161,6 +161,9 @@ What each build contains of others' work, and where its notices are:
 - The server's, the transcoder's and the desktop app's Rust dependencies
   are permissive (MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, MPL-2.0
   unmodified). `scripts/check-licenses.ps1` prints the full list.
+  The server draws collections' posters with pictures made from Lucide's
+  icons (ISC, and MIT for those Lucide took from Feather); their notice is
+  beside them, in `apps/server/assets/collection-icons/LICENSE.txt`.
 - The web UI uses React, React Router, TanStack Query and Virtual,
   i18next and react-i18next, and Tailwind (all MIT), hls.js and mpegts.js
   (Apache-2.0) and lucide (ISC). The desktop app's own pages use i18next

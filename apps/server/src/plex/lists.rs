@@ -20,6 +20,7 @@ use super::meta::Sections;
 use super::{Node, Page, Params, PlexAdmin, PlexError, PlexInfo, PlexResult, PlexUser};
 use crate::auth::AuthUser;
 use crate::catalog::ItemRow;
+use crate::collection_art::Shown;
 use crate::collections::{self, CollectionDto};
 use crate::labels;
 use crate::library::{LibraryKind, LibraryRow};
@@ -75,7 +76,7 @@ fn collection_node(c: &CollectionDto, lib: &LibraryRow, labels: &[String]) -> No
         .attr("librarySectionID", lib.id)
         .attr("librarySectionTitle", &lib.name)
         .attr("librarySectionKey", format!("/library/sections/{}", lib.id))
-        .attr("thumb", format!("/library/collections/{key}/thumb/{}", c.updated_at))
+        .attr("thumb", format!("/library/collections/{key}/thumb/{}", c.poster_version))
         .attr("art", format!("/library/collections/{key}/art/{}", c.updated_at))
         .attr("childCount", c.item_count)
         .attr("collectionMode", MODE)
@@ -306,7 +307,7 @@ pub(super) async fn collection_items(
         .attr("ratingKey", key.to_string())
         .attr("title2", &collection.title)
         .opt("summary", collection.summary.as_deref())
-        .attr("thumb", format!("/library/collections/{key}/thumb/{}", collection.updated_at))
+        .attr("thumb", format!("/library/collections/{key}/thumb/{}", collection.poster_version))
         .attr("art", format!("/library/collections/{key}/art/{}", collection.updated_at))
         .attr("viewGroup", view_group))
 }
@@ -338,12 +339,13 @@ pub(super) async fn collection_artwork(
         "art" => ("backdrop", "art"),
         _ => return Err(PlexError::NotFound),
     };
-    match collections::artwork(&state.db, &state.store, &super::collections_viewer(&user), id, kind).await? {
-        Some(Ok(path)) => {
-            Ok(crate::api::collections::serve_file(&state, &path, width, version.is_some(), &headers).await?)
+    match crate::collection_art::shown(&state, &super::collections_viewer(&user), id, kind).await? {
+        Some(Shown::File { path, drawn }) => {
+            let versioned = version.is_some() && !drawn;
+            Ok(crate::api::collections::serve_file(&state, &path, width, versioned, &headers).await?)
         }
         // Not versioned: the first item may change without the collection.
-        Some(Err(item)) => serve_image(state, user, item, item_image, None, width, headers).await,
+        Some(Shown::Item(item)) => serve_image(state, user, item, item_image, None, width, headers).await,
         None => Err(PlexError::NotFound),
     }
 }

@@ -55,6 +55,7 @@ const CACHES: &[(&str, Duration)] = &[
     ("fingerprints", Duration::from_secs(90 * DAY)), // markers: audio fingerprints
     ("bif", Duration::from_secs(30 * DAY)),          // trickplay.rs: Plex's BIF indexes of seek previews
     ("discover", Duration::from_secs(30 * DAY)),     // discover/pictures.rs: TMDB's pictures
+    ("collections", Duration::from_secs(30 * DAY)),  // collection_art.rs: collections' drawn posters
 ];
 
 /// Hosts pictures may be downloaded from: metadata providers' image servers,
@@ -463,7 +464,8 @@ impl Store {
              UNION SELECT thumb FROM items WHERE thumb LIKE 'blob:%'",
             "SELECT value FROM item_overrides WHERE value LIKE 'blob:%'",
             "SELECT poster FROM collections WHERE poster LIKE 'blob:%'
-             UNION SELECT backdrop FROM collections WHERE backdrop LIKE 'blob:%'",
+             UNION SELECT backdrop FROM collections WHERE backdrop LIKE 'blob:%'
+             UNION SELECT custom_poster FROM collections WHERE custom_poster LIKE 'blob:%'",
             // People's photos are only known by URL.
             "SELECT r.blob FROM remote_images r JOIN people p ON r.url = p.photo_url",
         ];

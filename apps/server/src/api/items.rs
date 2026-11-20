@@ -476,7 +476,7 @@ pub(crate) async fn artwork(
 
 /// Path of the artwork file, generating it (frame grab, embedded cover) or
 /// falling back to the parent's artwork when the item has none.
-async fn resolve_artwork(state: &AppState, id: i64, kind: &str) -> ApiResult<PathBuf> {
+pub(crate) async fn resolve_artwork(state: &AppState, id: i64, kind: &str) -> ApiResult<PathBuf> {
     let mut current = id;
     for _ in 0..3 {
         let row: ArtworkPaths =

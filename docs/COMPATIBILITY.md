@@ -722,9 +722,11 @@ Many players open streams, subtitles and pictures without a token:
   session ends, the token is revoked or ends, or the account is disabled.
 - **Pictures.** `/Items/{id}/Images/{type}` answers without a token for an
   id it was given; with a token, only for what its user may see. A
-  collection's picture, its own or its first title's, is chosen by whose
-  list the collection was in: its `ImageTags` say whose, so that a title
-  someone may not see never shows through it.
+  collection's picture (its own, one drawn from the posters of the titles
+  its user may see, or its first such title's, as
+  [API.md](API.md)'s Posters says) is chosen by whose list the collection
+  was in: its `ImageTags` say whose, and change with the titles it's
+  drawn from, so that a title someone may not see never shows through it.
 
 Files are shown by their names alone (`Path: "/Film (2020).mkv"`), never
 where the server keeps them.

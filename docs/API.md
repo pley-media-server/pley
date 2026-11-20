@@ -1784,7 +1784,7 @@ user's watch state and their access are unchanged.
 | PUT | `/api/items/{id}/streams` | `play` | `{ file_id?, audio_index?, subtitle_index? }` → `204`: remembers track choices |
 | PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, match?, labels? }` → `ItemDetail` |
 | GET | `/api/items/{id}/matches?title=&year=` | `admin` | TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` for movies and shows (needs a TMDB key) |
-| POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed |
+| POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed; a movie other copies were merged into lets them go first, each matched again on its own and kept apart from it; a movie matched to another copy's title goes into it, and the answer is that movie |
 | GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]` |
 | PUT | `/api/items/{id}/artwork/{kind}` | `admin` | `{ url }` (a TMDB image, or one on another host Pley takes pictures from: [COMPATIBILITY.md](COMPATIBILITY.md#editing)) → `ItemDetail`; downloaded and locked |
 | POST | `/api/items/{id}/artwork/{kind}/upload` | `admin` | raw image bytes (≤ 25 MB) → `ItemDetail`; stored as JPEG, without the file's metadata but Kometa's overlay mark, and locked |
@@ -2112,7 +2112,10 @@ interface Collection {
   home_position: number | null;     // a row on Home, in this place; null: not one
   recommended_position: number | null;   // a row on its library's Recommended tab
   item_count: number;               // items this user can see
-  poster_url: string;               // own artwork, else the first item's that has some
+  artwork: "custom" | "icon" | "color" | "automatic";   // its poster: uploaded, an icon over its items' posters or on its color alone, or TMDB's or its items'
+  icon: string | null;              // with artwork "icon" or "color": one of the icons below
+  icon_color: string | null;        // and its color
+  poster_url: string;               // see "Posters" below
   backdrop_url: string;
   created_at: Timestamp;
   updated_at: Timestamp;
@@ -2124,14 +2127,46 @@ interface Collection {
 | GET | `/api/libraries/{id}/collections` | `library` | `{ collections: Collection[] }` by title |
 | POST | `/api/libraries/{id}/collections` | `admin` | `{ title, summary?, item_ids?: Id[], smart_filter?, category_id? }` → `201` `Collection & { items: ItemSummary[] }`; `400` for music and audiobook libraries, or a `category_id` that is no category's |
 | GET | `/api/collections/{id}` | `library` | `Collection & { items: ItemSummary[] }` in the collection's order |
-| PATCH | `/api/collections/{id}` | `admin` | `{ title?, summary? (null clears), sort?, smart_filter?, category_id? (null, or Other's id: none), on_home?, on_recommended? }` → `Collection & { items }`. `on_home: true` puts it on Home with a collection of the same title (case aside) when there is one, else last; `on_recommended: true` last on its library's Recommended tab; `400` for a `category_id` that is no category's |
+| PATCH | `/api/collections/{id}` | `admin` | `{ title?, summary? (null clears), sort?, smart_filter?, category_id? (null, or Other's id: none), on_home?, on_recommended?, icon? (null: the automatic poster), icon_color? (with icon or background; else the color it had, else blue), background? (`posters` or `color`) }` → `Collection & { items }`; `400` for an icon or color not listed below, or for `background` `color` with `icon` `null`. `on_home: true` puts it on Home with a collection of the same title (case aside) when there is one, else last; `on_recommended: true` last on its library's Recommended tab; `400` for a `category_id` that is no category's |
 | DELETE | `/api/collections/{id}` | `admin` | `204` (an automatic one comes back when its movies are refreshed) |
 | POST | `/api/collections/{id}/items` | `admin` | `{ item_ids: Id[] }` → `{ added: number }`. Only movies and shows of the same library; `400` if none could be added |
 | DELETE | `/api/collections/{id}/items/{item_id}` | `admin` | `204` |
 | PUT | `/api/collections/{id}/order` | `admin` | `{ item_ids: Id[] }` → `204`: these first in this order, the rest after; sets `sort` to `custom` |
 | GET | `/api/collections/{id}/images/{poster\|backdrop}` | `library` | image bytes (`w`, `v` as for items), or a `307` to the item artwork it falls back to |
+| POST | `/api/collections/{id}/artwork/poster/upload` | `admin` | raw image bytes (≤ 25 MB) → `Collection & { items }`, `artwork` `custom`; stored as items' uploads are. A poster set through the Plex-compatible API is the uploaded one too |
+| DELETE | `/api/collections/{id}/artwork/poster` | `admin` | → `Collection & { items }`, `artwork` `automatic`, from an uploaded poster or an icon |
 | GET | `/api/items/{id}/collections` | `library` | `{ collections: { id, title }[] }` the movie or show is in ("Part of …") |
 | POST | `/api/libraries/{id}/collections/defaults` | `admin` | `{ restored: number }`: makes again those of Pley's four the library no longer has; `400` for music and audiobook libraries |
+
+**Posters.** A collection's poster is, in this order: the one uploaded
+(`artwork` `custom`); its icon (`icon`) in its color (`icon_color`) over
+the posters of its first four items the viewer may see, in a 2×2 grid
+(one fills it, two side by side, three one tall and two stacked) fading
+into the color at the bottom (`artwork` `icon`), or on its color
+alone (`background` `color`, `artwork` `color`); TMDB's, for an
+automatic collection; those posters in a grid, laid out the same, when two
+or more items have posters; else its first item's with a poster (a `307`); and when
+none has one, or it's empty, its library's icon (as below) on `slate`.
+Setting an icon drops an
+uploaded poster and uploading one drops the icon. On its color alone a
+poster always has an icon: set without one, it's the library's (`clapperboard`
+for films, `tv` for shows, `music`, `book-headphones` for audiobooks,
+`layers` for any other kind). Pley's four start with
+icons: Recently Added a clock in blue, Recently Released a calendar in
+teal, Top Rated a star in amber, Top Unwatched `eye-off` in pink. A drawn
+poster changes with the items without the collection changing, so it's
+served with a short cache (`max-age=300`) even at a versioned address, and
+that address's version (`poster_url`'s `v`, and the Plex and Jellyfin
+APIs' versions of it) changes with the items it's drawn from as the viewer
+sees them: two viewers who may see different items never share it.
+
+Icons (Lucide's names): `star`, `clock`, `calendar`, `eye-off`, `heart`,
+`flame`, `trophy`, `award`, `sparkles`, `ghost`, `rocket`, `wand-sparkles`,
+`drama`, `face-grinning`, `swords`, `zap`, `fingerprint`, `mountain-snow`,
+`globe`, `landmark`, `video`, `dog`, `baby`, `users`, `popcorn`,
+`book-open`, `snowflake`, `sun`, `leaf`, `tree-pine`, `clapperboard`, `tv`,
+`music`, `book-headphones`, `layers`. Colors: `red`, `orange`, `amber`,
+`green`, `teal`, `blue`, `violet`, `pink`, `slate`.
 
 **Smart collections** hold no items. `smart_filter` is a library listing in
 the Plex-compatible API's syntax: the query string of

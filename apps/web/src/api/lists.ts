@@ -1,10 +1,12 @@
 // Collections and playlists (docs/API.md): types and React Query hooks.
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { api } from "./client";
+import { api, request } from "./client";
 import type { Id, ItemKind, ItemSummary, Timestamp } from "./types";
 
 export type CollectionSort = "release" | "title" | "custom";
+
+export type CollectionArtwork = "custom" | "icon" | "color" | "automatic";
 
 export interface Collection {
   id: Id;
@@ -27,7 +29,12 @@ export interface Collection {
   recommended_position: number | null;
   /** Items the user can see. */
   item_count: number;
-  /** The collection's own artwork, else its first item's. */
+  /** Where its poster comes from: an uploaded picture, an icon over its
+   * films' posters, or TMDB's or its films' posters. */
+  artwork: CollectionArtwork;
+  /** With `artwork` "icon": its name (`lib/collectionIcons`) and color. */
+  icon: string | null;
+  icon_color: string | null;
   poster_url: string;
   backdrop_url: string;
   created_at: Timestamp;
@@ -221,7 +228,37 @@ export function useUpdateCollection() {
       category_id?: Id | null;
       on_home?: boolean;
       on_recommended?: boolean;
+      /** `null`: the automatic poster. */
+      icon?: string | null;
+      icon_color?: string;
+      /** The icon over the posters, or on its color alone. */
+      background?: "posters" | "color";
     }) => api.patch<CollectionDetail>(`/api/collections/${id}`, body),
+    onSuccess: (data) => {
+      qc.setQueryData(listKeys.collection(data.id), data);
+      collectionChanged(qc, data);
+    },
+  });
+}
+
+/** Uploads a picture as a collection's poster. */
+export function useUploadCollectionPoster() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: Id; file: File }) =>
+      request<CollectionDetail>(`/api/collections/${id}/artwork/poster/upload`, { method: "POST", rawBody: file }),
+    onSuccess: (data) => {
+      qc.setQueryData(listKeys.collection(data.id), data);
+      collectionChanged(qc, data);
+    },
+  });
+}
+
+/** Back to a collection's automatic poster, from an uploaded one or an icon. */
+export function useResetCollectionPoster() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: Id) => api.del<CollectionDetail>(`/api/collections/${id}/artwork/poster`),
     onSuccess: (data) => {
       qc.setQueryData(listKeys.collection(data.id), data);
       collectionChanged(qc, data);

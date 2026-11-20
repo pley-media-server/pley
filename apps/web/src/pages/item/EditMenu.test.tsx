@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { ItemDetail } from "@/api/types";
 import { makeItem } from "@/test/fixtures";
-import { mockApi, renderWithProviders } from "@/test/render";
+import { itemUrl } from "@/lib/urls";
+import { LocationDisplay, mockApi, renderWithProviders } from "@/test/render";
 import { EditDialogs } from "./EditMenu";
 
 function movie(overrides: Partial<ItemDetail> = {}): ItemDetail {
@@ -124,6 +125,26 @@ describe("EditDialogs", () => {
     await user.click(screen.getByRole("button", { name: "Undo Fix Match" }));
     await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ match: null }));
     expect(await screen.findByText("Fix Match undone")).toBeInTheDocument();
+  });
+
+  it("goes to the movie a copy went into when Fix Match matched it to that one's title", async () => {
+    const user = userEvent.setup();
+    mockApi({
+      "GET /api/items/5/matches": () => [
+        { tmdb_id: 679, title: "Aliens", original_title: null, year: 1986, overview: null, poster_url: null },
+      ],
+      "POST /api/items/5/match": () => movie({ id: 9, tmdb_id: 679, title: "Aliens" }),
+    });
+    renderWithProviders(
+      <>
+        <EditDialogs item={movie()} dialog="match" onClose={() => {}} />
+        <LocationDisplay />
+      </>,
+      { route: itemUrl(5) },
+    );
+
+    await user.click(await screen.findByRole("button", { name: /Aliens/ }));
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(itemUrl(9)));
   });
 
   it("offers no undo for a match nobody fixed", () => {

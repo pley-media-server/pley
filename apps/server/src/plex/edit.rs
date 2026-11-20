@@ -583,16 +583,18 @@ async fn set_artwork_blob(state: &AppState, target: &Target, field: &str, blob: 
             let field = if field == "poster" && target.episode { "thumb" } else { field };
             overrides::set(&state.db, id, &[(field.to_owned(), Some(blob))]).await?
         }
+        // A poster set this way is the collection's own, as one uploaded in
+        // Pley is.
+        Key::Collection(id) if field == "poster" => {
+            crate::collections::set_custom_poster(&state.db, id, Some(&blob)).await?;
+        }
         Key::Collection(id) => {
-            // `field` is `poster` or `backdrop`, both columns of collections.
-            sqlx::query(sqlx::AssertSqlSafe(format!(
-                "UPDATE collections SET {field} = ?, updated_at = ? WHERE id = ?"
-            )))
-            .bind(blob)
-            .bind(crate::util::now())
-            .bind(id)
-            .execute(&state.db.write)
-            .await?;
+            sqlx::query("UPDATE collections SET backdrop = ?, updated_at = ? WHERE id = ?")
+                .bind(blob)
+                .bind(crate::util::now())
+                .bind(id)
+                .execute(&state.db.write)
+                .await?;
         }
         Key::Playlist(_) => return Err(PlexError::NotFound),
     }

@@ -96,4 +96,5 @@ space used.
 | `cache/bif` | seek previews as Roku's player and Plex apps take them (BIF), cut from the previews when asked for | 30 days |
 | `cache/live/pictures` | Live TV channel logos and program pictures | fetched again after 7 days; removed after 30 days unused, or oldest first past 256 MB |
 | `cache/live/downloads` | guide files being read | emptied at every start |
+| `cache/collections` | collections' posters Pley draws from their items' posters | 30 days |
 | `cache/discover` | TMDB's pictures for Discover and requests, as `<size>/<file>` (TMDB's size and file name), with no database row | 30 days, or oldest first past 256 MB |
