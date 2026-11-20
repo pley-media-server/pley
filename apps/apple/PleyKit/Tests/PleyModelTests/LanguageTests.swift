@@ -34,17 +34,17 @@ struct LanguageTests {
 
     @Test(arguments: fixture.pickLanguage)
     private func picksAsTheOtherApps(_ c: Case) {
-        #expect(Language.pick(account: c.account, server: c.server, device: c.device).code == c.out)
+        #expect(Language.pick(account: c.account, server: c.server, device: c.device).serverCode == c.out)
     }
 
     @Test(arguments: fixture.pickLanguageWithChoice)
     private func aLanguagePickedOnTheDeviceComesBeforeItsOwn(_ c: Case) {
         let picked = Language.of(c.choice)
-        #expect(Language.pick(account: c.account, server: c.server, device: c.device, picked: picked).code == c.out)
+        #expect(Language.pick(account: c.account, server: c.server, device: c.device, picked: picked).serverCode == c.out)
     }
 
     @Test func theFixtureIsRead() {
-        #expect(Self.fixture.pickLanguage.count == 9 && Self.fixture.pickLanguageWithChoice.count == 6)
+        #expect(Self.fixture.pickLanguage.count == 12 && Self.fixture.pickLanguageWithChoice.count == 8)
     }
 
     @Test func tagsPleyHas() {

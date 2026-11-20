@@ -112,6 +112,16 @@ import Testing
         #expect(put.count == 2 && put.allSatisfy { $0.method == "PUT" })
     }
 
+    /// The app's catalogs name Chinese by script; the server keeps the account's by region.
+    @Test func chineseGoesToTheServerAsItsOwnCode() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        try await app.chooseLanguage(.traditionalChinese)
+        #expect(app.language == .traditionalChinese && app.user?.language == "zh-TW")
+        #expect(server.language(profile: 2) == "zh-TW")
+    }
+
     @Test func aRefusedChoiceIsPutBack() async throws {
         let server = try await fixture()
         defer { server.stop() }
