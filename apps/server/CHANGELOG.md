@@ -9,6 +9,19 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The automatic preset of software transcodes goes by what the computer is
+  measured to make, not by how many processors it has. A fast computer
+  gives a better picture, several transcodes share it evenly as they come
+  and go, and a seek or the next video of the same kind starts from what
+  was measured rather than from a guess.
+
+### Fixed
+
+- A software transcode at 50 or 60 frames a second no longer starts at a
+  preset too slow for a small computer, which made the player wait.
+
 ## [0.1.14] - 2026-11-20
 
 ### Added

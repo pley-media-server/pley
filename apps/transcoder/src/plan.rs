@@ -1366,6 +1366,30 @@ impl Plan {
         Some((v.src_width.max(1) as u64 * v.src_height.max(1) as u64, fps.unwrap_or(24.0).min(120.0)))
     }
 
+    /// What a software encode of this video takes of its computer, besides
+    /// the preset: the codecs, the sizes, the frame rate, and what is done to
+    /// the frames on the way. Jobs alike share what each preset was measured
+    /// to make ([`crate::adaptive::Speeds`]). `None` for a copy.
+    pub fn encode_kind(&self, media: &MediaInfo) -> Option<String> {
+        let v = self.video.as_ref().filter(|v| !v.copy)?;
+        let (_, fps) = self.source_rate(media)?;
+        let codec_in = media.stream(v.stream_index).map_or("", |s| s.codec.as_str());
+        Some(format!(
+            "{codec_in} {}x{} to {:?} {}x{} at {fps:.0}, decoder {:?}, scaler {:?}, tone mapper {:?}, {}{}{}",
+            v.src_width,
+            v.src_height,
+            v.codec,
+            v.width,
+            v.height,
+            v.hw_decode,
+            v.gpu_scale,
+            v.tonemap,
+            if v.hdr.is_some() { "HDR " } else { "" },
+            if v.deinterlace { "deinterlaced " } else { "" },
+            if self.burn.is_some() { "subtitles" } else { "" },
+        ))
+    }
+
     /// This plan for one process with `share` of the GPU: its tone mapping
     /// quality, and its video decoded by the CPU where the share says so.
     pub fn with_share(&self, share: Share) -> Plan {
