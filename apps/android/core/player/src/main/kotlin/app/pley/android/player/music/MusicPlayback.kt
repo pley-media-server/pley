@@ -363,11 +363,17 @@ class MusicPlayback(
         // Pressed again while the track before is still asked for, it goes one more back: that one hasn't played.
         when (queue.previous(lastPosition())) {
             MusicQueue.Previous.Moved -> startTrack(0)
-            MusicQueue.Previous.Restart -> if (o == null || session == null || ended || error != null) {
-                startTrack(0, sameTrack = !ended)
-            } else {
-                o.seekTo(0)
-                sought()
+            // A queue that waits waits on, at the track's start, as a paused one does.
+            MusicQueue.Previous.Restart -> when {
+                waitingAt != null -> {
+                    waitingAt = 0
+                    sought()
+                }
+                o == null || session == null || ended || error != null -> startTrack(0, sameTrack = !ended)
+                else -> {
+                    o.seekTo(0)
+                    sought()
+                }
             }
         }
     }

@@ -856,6 +856,27 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun previousOnAQueueThatWaitsGoesToTheTracksStartAndWaitsOn() = runTest {
+        val music = music()
+        music.play(album, startIndex = 0)
+        runCurrent()
+        output.startPlaying()
+        // Made ready over music that played: the queue waits all the same, nothing asked of the server.
+        music.cue(album, startIndex = 1, startMs = 90_000)
+        settle()
+        music.previous()
+        runCurrent()
+        assertEquals(1, starts().size)
+        assertEquals(0L, music.position().positionMs)
+        assertEquals(2L, music.nowPlaying.value?.itemId)
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
+        music.play()
+        runCurrent()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        assertEquals(null, starts().last().startMs)
+    }
+
+    @Test
     fun aSeekFromAnywhereIsToldSoWhateverShowsThePositionReadsItAgainPausedToo() = runTest {
         val music = music()
         music.play(album, startIndex = 1)
