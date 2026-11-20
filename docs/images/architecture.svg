@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 670" width="1000" height="670" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-labelledby="title desc">
   <title id="title">Pley's architecture</title>
-  <desc id="desc">Pley's apps, Jellyfin clients, and tools built on Plex's API such as Kometa and Tautulli talk to the Pley server over HTTP. The server casts to Chromecast and AirPlay devices, starts and talks to the transcoder over HTTP and JSON, and the transcoder runs FFmpeg, on the GPU where there is one. The server reads metadata sources and IPTV providers, sends requests to Radarr and Sonarr, and scans the media folders, which the transcoder reads too.</desc>
+  <desc id="desc">Pley's apps, Home Assistant, Jellyfin clients, and tools built on Plex's API such as Kometa and Tautulli talk to the Pley server over HTTP. The server casts to Chromecast and AirPlay devices, starts and talks to the transcoder over HTTP and JSON, and the transcoder runs FFmpeg, on the GPU where there is one. The server reads metadata sources and IPTV providers, sends requests to Radarr and Sonarr, and scans the media folders, which the transcoder reads too.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0 0 L10 5 L0 10 z" fill="#38bdf8"/>
@@ -27,9 +27,9 @@
     <rect class="pill" x="38" y="102" width="202" height="28" rx="7"/><text class="t" x="50" y="121">Web browsers</text>
     <rect class="pill" x="38" y="136" width="202" height="28" rx="7"/><text class="t" x="50" y="155">Windows · macOS · Linux</text>
     <rect class="pill" x="38" y="170" width="202" height="28" rx="7"/><text class="t" x="50" y="189">Android · Android TV · Fire TV</text>
-    <rect class="pill" x="38" y="204" width="202" height="28" rx="7"/><text class="t" x="50" y="223">Kodi</text>
-    <rect class="pill" x="38" y="238" width="202" height="28" rx="7"/><text class="t" x="50" y="257">Roku</text>
-    <rect class="pill" x="38" y="272" width="202" height="28" rx="7"/><text class="t" x="50" y="291">Samsung TV · LG TV</text>
+    <rect class="pill" x="38" y="204" width="202" height="28" rx="7"/><text class="t" x="50" y="223">Samsung TV · LG TV</text>
+    <rect class="pill" x="38" y="238" width="202" height="28" rx="7"/><text class="t" x="50" y="257">Kodi · Roku</text>
+    <rect class="pill" x="38" y="272" width="202" height="28" rx="7"/><text class="t" x="50" y="291">Home Assistant</text>
     <rect class="pill" x="38" y="306" width="202" height="28" rx="7"/><text class="t" x="50" y="325">Jellyfin clients</text>
     <rect class="pill" x="38" y="340" width="202" height="28" rx="7"/><text class="t" x="50" y="359">Kometa · Tautulli</text>
   </g>
