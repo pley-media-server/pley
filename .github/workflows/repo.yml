@@ -32,6 +32,7 @@ on:
       - "**/Locales/en/**"
       - "**/res/values/strings*.xml"
       - "**/resource.language.en_gb/**"
+      - "**/Localizable.xcstrings"
   pull_request:
     paths:
       - .github/workflows/**
@@ -56,6 +57,7 @@ on:
       - "**/Locales/en/**"
       - "**/res/values/strings*.xml"
       - "**/resource.language.en_gb/**"
+      - "**/Localizable.xcstrings"
   workflow_dispatch:
 
 permissions:

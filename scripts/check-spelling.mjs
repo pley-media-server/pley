@@ -12,10 +12,12 @@ const british = [
   "colour(s|ed|ing|ful|less)?",
   "favourite(s|d)?",
   "behaviour(s|al)?",
-  "honour(s|ed)?",
+  "honour(s|ed|ing)?",
+  "favour(s|ed|ing|able)?",
+  "flavour(s|ed)?",
   "neighbour(s|ing)?",
   "humour",
-  "centre(s|d)?",
+  "centr(e|es|ed|ing)",
   "metre(s)?",
   "litre(s)?",
   "theatre(s)?",
@@ -38,7 +40,7 @@ const british = [
   "artefact(s)?",
   "analogue",
   "enquir(y|ies)",
-  "(organ|recogn|custom|priorit|minim|maxim|optim|normal|initial|serial|synchron|util|summar|categor|author|sanit|personal|memor|standard|visual|real|final|capital)is(e|ed|es|ing|ation|ations|er|able)",
+  "(un|re)?(organ|recogn|custom|priorit|minim|maxim|optim|normal|initial|serial|synchron|util|summar|categor|author|sanit|personal|memor|standard|visual|real|final|capital|local|canonical|parenthes|quant|item)is(e|ed|es|ing|ation|ations|er|ers|able)",
 ];
 const word = new RegExp(`\\b(${british.join("|")})\\b`, "gi");
 // Code, link targets, tags, quoted names and addresses keep their spelling.
@@ -51,7 +53,8 @@ const files = execFileSync("git", ["ls-files"], { encoding: "utf8" })
       (f.endsWith(".md") && !/(^|\/)LICENSE/.test(f)) ||
       /\/locales\/en(\/[^/]+)?\.json$/i.test(f) ||
       /\/res\/values\/strings[^/]*\.xml$/.test(f) ||
-      /\/resource\.language\.en_gb\/strings\.po$/.test(f),
+      /\/resource\.language\.en_gb\/strings\.po$/.test(f) ||
+      /\/Localizable\.xcstrings$/.test(f),
   );
 
 const found = [];
@@ -70,7 +73,10 @@ for (const file of files) {
     // In the apps' words, only what people read: values, not keys or names.
     if (file.endsWith(".json")) text = [...line.matchAll(/:\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join(" ");
     else if (file.endsWith(".xml")) text = [...line.matchAll(/>([^<]+)</g)].map((m) => m[1]).join(" ");
-    else if (file.endsWith(".po")) text = /^(msgid|msgstr|#)/.test(line) ? line : "";
+    else if (file.endsWith(".po"))
+      text = line.startsWith("#") ? line : [...line.matchAll(/^(?:msgid |msgstr )?"((?:[^"\\]|\\.)*)"$/g)].map((m) => m[1]).join(" ");
+    // A String Catalog's keys are its English words.
+    else if (file.endsWith(".xcstrings")) text = [...line.matchAll(/^ {4}"((?:[^"\\]|\\.)*)" : \{$/g)].map((m) => m[1]).join(" ");
     for (const m of text.replace(kept, " ").matchAll(word)) found.push(`${file}:${i + 1}: ${m[0]}`);
   }
 }
