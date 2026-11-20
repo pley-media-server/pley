@@ -36,8 +36,7 @@
 - Customizable Collections (TMDB, hand-picked or smart)
 - Control playback on your other devices, or cast to Chromecast and AirPlay
 - Works offline on your home network, with downloads for when you're away
-- Profiles, PINs, age limits and two-step sign-in
-- Age-based parental controls
+- Profiles, PINs, two-step sign-in and age-based parental controls
 - Requests for movies and shows, sent to Radarr and Sonarr
 - Import from Plex: libraries, users and watch history
 - Plex and Jellyfin compatible APIs for tools like Kometa
