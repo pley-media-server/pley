@@ -3,11 +3,13 @@
 //! the USB drive plugged into it, and its player engine. `pley-webos` implements it for LG TVs; [`FakeDevice`]
 //! stands in for tests and the simulator.
 
+use std::cell::RefCell;
 use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use pley_i18n::t;
 
@@ -258,9 +260,10 @@ pub fn user_agent(app_version: &str, os_major: u32, model: &str) -> String {
     format!("pleyLG/{app_version} (webOS {os_major}; {model})")
 }
 
-/// A new, empty folder under the system's temporary folder, for tests, the
-/// simulator and [`FakeDevice`].
-pub fn scratch_dir(prefix: &str) -> PathBuf {
+/// A new, empty folder under the system's temporary folder, kept after the
+/// program ends: the simulator's data with the fake server, whose log is
+/// read afterwards.
+pub fn kept_dir(prefix: &str) -> PathBuf {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let n = NEXT.fetch_add(1, Ordering::SeqCst);
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
@@ -268,6 +271,49 @@ pub fn scratch_dir(prefix: &str) -> PathBuf {
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::create_dir_all(&dir);
     dir
+}
+
+/// A new, empty folder under the system's temporary folder, for tests and
+/// [`FakeDevice`], removed when the thread that made it ends: a test's, as
+/// the test ends. Otherwise every test run would leave its folders behind.
+///
+/// Not when the folder's last value is dropped: the app's tasks and the fake
+/// server keep files open on threads of their own a little longer, and
+/// Windows doesn't remove a file that's open. The removal is tried again
+/// while they close.
+pub fn scratch_dir(prefix: &str) -> PathBuf {
+    let dir = kept_dir(prefix);
+    SCRATCH.with(|left| left.0.borrow_mut().push(dir.clone()));
+    dir
+}
+
+/// How long a thread's scratch folders may take to be let go of once it ends.
+const SCRATCH_GRACE: Duration = Duration::from_secs(10);
+
+/// The scratch folders a thread made, removed when it ends.
+struct Scratch(RefCell<Vec<PathBuf>>);
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let deadline = Instant::now() + SCRATCH_GRACE;
+        for dir in self.0.take() {
+            loop {
+                match std::fs::remove_dir_all(&dir) {
+                    Ok(()) => break,
+                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => break,
+                    Err(err) if Instant::now() >= deadline => {
+                        eprintln!("could not remove {}: {err}", dir.display());
+                        break;
+                    }
+                    Err(_) => std::thread::sleep(Duration::from_millis(20)),
+                }
+            }
+        }
+    }
+}
+
+thread_local! {
+    static SCRATCH: Scratch = const { Scratch(RefCell::new(Vec::new())) };
 }
 
 type EngineFactory = dyn Fn() -> Box<dyn PlayerEngine> + Send + Sync;
@@ -622,6 +668,25 @@ mod tests {
         let mut dts = CapsOverrides::default();
         dts.passthrough.set(PassthroughFormat::Dts, PassthroughChoice::On);
         assert_eq!(lg_2022_caps(&dts).caps.audio_passthrough, ["dts"]);
+    }
+
+    #[test]
+    fn scratch_folders_go_when_their_thread_ends() {
+        let (dir, file) = std::thread::spawn(|| {
+            let dir = scratch_dir("scratch-test");
+            let file = dir.join("store/kept.json");
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(&file, "{}").unwrap();
+            assert!(file.is_file());
+            (dir, file)
+        })
+        .join()
+        .unwrap();
+        assert!(!file.exists() && !dir.exists(), "{} is left behind", dir.display());
+
+        let kept = std::thread::spawn(|| kept_dir("kept-test")).join().unwrap();
+        assert!(kept.is_dir(), "a kept folder stays");
+        std::fs::remove_dir_all(&kept).unwrap();
     }
 
     #[test]
