@@ -52,6 +52,8 @@
     "noChannelsTitle": "Aucune chaîne pour l’instant",
     "noChannelsHint": "Les chaînes apparaissent ici dès qu’un administrateur ajoute un fournisseur IPTV.",
     "setUp": "Configurer la TV en direct",
+    "hideCategories": "Masquer les catégories",
+    "showCategories": "Afficher les catégories",
     "view": "Affichage",
     "guide": "Guide des programmes",
     "resultsFor": "Résultats pour « {{search}} »",
@@ -258,6 +260,8 @@
       "connections": "Connexions",
       "connectionsHint": "0 : sans limite",
       "connectionsNote": "<strong>Connexions</strong> : le nombre de chaînes que le fournisseur permet au compte de lire à la fois. Tous ceux qui regardent la même chaîne en partagent une ; une chaîne que personne ne regarde libère sa connexion au bout de quelques secondes.",
+      "sortGroups": "Trier ses groupes de A à Z",
+      "sortGroupsHint": "Toutes les applications les affichent ainsi. Désactivé : l’ordre du fournisseur.",
       "advanced": "Avancé",
       "userAgent": "Agent utilisateur",
       "userAgentHint": "Certains fournisseurs ne diffusent que vers l’application qu’ils nomment (VLC, par exemple). Vide : celui de Pley.",
@@ -366,6 +370,7 @@
       "guideHintSource": "Son identifiant dans le guide (XMLTV). Vide : celui de la source, {{id}}.",
       "guideHintMatched": "Son identifiant dans le guide (XMLTV). Vide : {{id}}, la chaîne du guide qui lui correspond.",
       "guideHintNone": "Son identifiant dans le guide (XMLTV) : la source n’en donne aucun, et aucun ne correspond à son nom.",
+      "guideAddress": "Ou, pour une chaîne absente du guide de la source, l’adresse d’un guide XMLTV qui lui est propre (https://…), suivie de # et de l’identifiant de la chaîne quand ce guide en compte plusieurs (…/epg-us.xml.gz#DisneyChannel.us).",
       "note": "Une nouvelle chaîne du guide affiche ses programmes une fois le guide actualisé."
     },
     "account": {

@@ -80,6 +80,32 @@ fn guide_xml() -> Vec<u8> {
     gz.finish().unwrap()
 }
 
+/// A guide for a channel alone (`one.xml`), as epg.pw gives them, or with
+/// others (`many.xml`); anything else isn't there.
+fn own_guide(name: &str) -> axum::response::Response {
+    let at = |offset: i64| format!("{} +0000", chrono_like(pley::util::now() + offset));
+    let xml = match name {
+        "one.xml" => format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<tv><channel id="465349"><display-name lang="US">Ten Extra</display-name></channel>
+  <programme channel="465349" start="{}" stop="{}"><title>Ten's Own Show</title></programme></tv>"#,
+            at(-300),
+            at(3000)
+        ),
+        "many.xml" => format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<tv><channel id="a.test"><display-name>Another</display-name></channel>
+  <channel id="b.test"><display-name>Two HD</display-name></channel>
+  <programme channel="a.test" start="{0}" stop="{1}"><title>Not This</title></programme>
+  <programme channel="b.test" start="{0}" stop="{1}"><title>Match of the Day</title></programme></tv>"#,
+            at(-300),
+            at(3000)
+        ),
+        _ => return StatusCode::NOT_FOUND.into_response(),
+    };
+    ([(header::CONTENT_TYPE, "application/xml")], xml).into_response()
+}
+
 /// Unix seconds as XMLTV's `YYYYMMDDHHMMSS` (UTC).
 fn chrono_like(t: i64) -> String {
     let days = t.div_euclid(86_400);
@@ -114,8 +140,11 @@ async fn provider() -> (String, Arc<Provider>) {
          #EXTINF:-1 group-title=\"Films\",A film\n\
          {base}/movie/u/p/5.mkv\n"
     );
+    // The same channels, with no guide named.
+    let bare = playlist.replacen(&format!(" url-tvg=\"{base}/guide.xml.gz\""), "", 1);
     let app = Router::new()
         .route("/list.m3u", get(move || async move { playlist }))
+        .route("/bare.m3u", get(move || async move { bare }))
         .route(
             "/guide.xml.gz",
             get(|State(counts): State<Arc<Provider>>| async move {
@@ -127,6 +156,8 @@ async fn provider() -> (String, Arc<Provider>) {
             }),
         )
         .route("/logo.png", get(|| async { ([(header::CONTENT_TYPE, "image/png")], PNG) }))
+        // Guides of a channel's own: one channel, or several to pick from.
+        .route("/own/{name}", get(|Path(name): Path<String>| async move { own_guide(&name) }))
         .route(
             "/live/{n}",
             get(|State(counts): State<Arc<Provider>>, Path(n): Path<String>| async move {
@@ -365,6 +396,137 @@ async fn a_guide_channel_set_by_hand_has_its_programmes_at_once() {
     assert_eq!(ten["now"]["title"], "The News");
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!(provider.guides.load(Ordering::SeqCst), 2);
+}
+
+/// A channel the source's guide lacks takes a guide of its own by its
+/// address, read with the source's: its only channel, or the one of its
+/// name. One that can't be read says so in the source, and the rest of the
+/// guide is read all the same. Only web addresses are taken.
+#[tokio::test]
+async fn a_channel_takes_a_guide_of_its_own_by_its_address() {
+    let (base, _provider) = provider().await;
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let added = app
+        .post(
+            "/api/live/sources",
+            &admin,
+            json!({"name": "Provider", "kind": "m3u", "url": format!("{base}/list.m3u")}),
+        )
+        .await;
+    assert_eq!(added.status, StatusCode::CREATED, "{:?}", added.body);
+    let source_id = added.body["id"].as_i64().unwrap();
+    wait_until_read(&app, &admin).await;
+    let channels = app.get("/api/live/channels", &admin).await.body;
+    let id_of =
+        |name: &str| channels.as_array().unwrap().iter().find(|c| c["name"] == name).unwrap()["id"].as_i64().unwrap();
+    let (one, two, ten) = (id_of("One"), id_of("Two HD"), id_of("Ten"));
+    let set = |id: i64, guide: String| {
+        let app = &app;
+        let admin = admin.clone();
+        async move { app.patch("/api/live/lineup", &admin, json!({"ids": [id], "guide_id": guide})).await.status }
+    };
+
+    // A guide with the channel alone.
+    assert_eq!(set(ten, format!("{base}/own/one.xml")).await, StatusCode::NO_CONTENT);
+    assert_eq!(on_now(&app, &admin, ten).await["title"], "Ten's Own Show");
+    assert_eq!(on_now(&app, &admin, one).await["title"], "The News", "the source's guide is read too");
+    // One with others: the channel of its name.
+    assert_eq!(set(two, format!("{base}/own/many.xml")).await, StatusCode::NO_CONTENT);
+    for _ in 0..100 {
+        if on_now(&app, &admin, two).await["title"] == "Match of the Day" {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert_eq!(on_now(&app, &admin, two).await["title"], "Match of the Day");
+
+    // Read again on a refresh, from the same addresses.
+    assert_eq!(
+        app.post(&format!("/api/live/sources/{source_id}/refresh"), &admin, json!({})).await.status,
+        StatusCode::ACCEPTED
+    );
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    wait_until_read(&app, &admin).await;
+    assert_eq!(on_now(&app, &admin, ten).await["title"], "Ten's Own Show");
+
+    // Two channels from one guide of many, each the one its address names
+    // after `#` (as typed, or percent-encoded).
+    assert_eq!(set(ten, format!("{base}/own/many.xml#a.test")).await, StatusCode::NO_CONTENT);
+    assert_eq!(set(two, format!("{base}/own/many.xml#b%2Etest")).await, StatusCode::NO_CONTENT);
+    for _ in 0..100 {
+        if on_now(&app, &admin, ten).await["title"] == "Not This" {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert_eq!(on_now(&app, &admin, ten).await["title"], "Not This");
+    assert_eq!(on_now(&app, &admin, two).await["title"], "Match of the Day");
+    // A channel the guide doesn't have: the source says which.
+    assert_eq!(set(ten, format!("{base}/own/many.xml#c.test")).await, StatusCode::NO_CONTENT);
+    let mut error = Value::Null;
+    for _ in 0..100 {
+        error = app.get("/api/live/sources", &admin).await.body[0]["guide_error"].clone();
+        if error.is_string() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert_eq!(error, json!("Ten: the guide has no channel c.test"));
+    assert_eq!(on_now(&app, &admin, two).await["title"], "Match of the Day", "the guide is read for the rest");
+
+    // One that isn't there: the source says so, and the rest stays.
+    assert_eq!(set(ten, format!("{base}/own/gone.xml")).await, StatusCode::NO_CONTENT);
+    let mut error = Value::Null;
+    for _ in 0..100 {
+        let sources = app.get("/api/live/sources", &admin).await.body;
+        error = sources[0]["guide_error"].clone();
+        if error.as_str().is_some_and(|e| e.contains("404")) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let error = error.as_str().unwrap_or_default();
+    assert!(error.starts_with("Ten: ") && error.contains("404"), "{error}");
+    assert_eq!(on_now(&app, &admin, one).await["title"], "The News");
+    assert_eq!(on_now(&app, &admin, two).await["title"], "Match of the Day");
+
+    // A file here, or another kind of address, isn't a guide of its own.
+    for guide in ["file:///etc/passwd", "/etc/passwd", "ftp://example.com/guide.xml", "https://"] {
+        assert_eq!(set(ten, guide.into()).await, StatusCode::BAD_REQUEST, "{guide}");
+    }
+    assert_eq!(set(ten, "x".repeat(2049)).await, StatusCode::BAD_REQUEST);
+}
+
+/// A source with no guide still reads the guides its channels were given.
+#[tokio::test]
+async fn a_source_without_a_guide_reads_its_channels_own() {
+    let (base, provider) = provider().await;
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let added = app
+        .post(
+            "/api/live/sources",
+            &admin,
+            json!({"name": "Provider", "kind": "m3u", "url": format!("{base}/bare.m3u")}),
+        )
+        .await;
+    assert_eq!(added.status, StatusCode::CREATED, "{:?}", added.body);
+    // Its channels read: it has no guide to read.
+    for _ in 0..100 {
+        let s = app.get("/api/live/sources", &admin).await.body[0].clone();
+        if s["channels_at"].is_i64() && !s["refreshing"].as_bool().unwrap_or(true) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let channels = app.get("/api/live/channels", &admin).await.body;
+    let ten = channels.as_array().unwrap().iter().find(|c| c["name"] == "Ten").unwrap()["id"].as_i64().unwrap();
+    let set =
+        app.patch("/api/live/lineup", &admin, json!({"ids": [ten], "guide_id": format!("{base}/own/one.xml")})).await;
+    assert_eq!(set.status, StatusCode::NO_CONTENT);
+    assert_eq!(on_now(&app, &admin, ten).await["title"], "Ten's Own Show");
+    assert_eq!(provider.guides.load(Ordering::SeqCst), 0, "the provider's guide was never named");
 }
 
 /// Channel `id`'s program on now, once it has one (within 10 s).
@@ -772,6 +934,52 @@ async fn a_link_signed_in_by_the_cookie_takes_no_connection_over() {
 }
 
 #[tokio::test]
+async fn a_source_can_list_its_groups_a_to_z() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    // A provider that gives its groups in no order.
+    let playlist = ["US Sports", "Canada News", "US News", "Canada Sports"]
+        .iter()
+        .enumerate()
+        .map(|(i, group)| {
+            format!("#EXTINF:-1 tvg-chno=\"{i}\" group-title=\"{group}\",Channel {i}\n{base}/live/{i}.ts\n")
+        })
+        .fold(String::from("#EXTM3U\n"), |list, entry| list + &entry);
+    let provider = Router::new().route("/list.m3u", get(move || async move { playlist }));
+    tokio::spawn(async move { axum::serve(listener, provider).await.unwrap() });
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (bob, _) = app.user(&admin, "bob", json!({})).await;
+    let input = json!({"name": "P", "kind": "m3u", "url": format!("{base}/list.m3u"), "max_connections": 0});
+    let added = app.post("/api/live/sources", &admin, input.clone()).await;
+    assert_eq!(added.body["sort_groups"], false, "the provider's order unless asked");
+    let id = added.body["id"].as_i64().unwrap();
+    // Its channels read: it has no guide to wait for.
+    for _ in 0..100 {
+        let source = &app.get("/api/live/sources", &admin).await.body[0];
+        if source["channels_at"].is_i64() && source["refreshing"] == false {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let groups = |list: &Value| -> Vec<String> {
+        list.as_array().unwrap().iter().map(|g| g["name"].as_str().unwrap().to_owned()).collect()
+    };
+    assert_eq!(
+        groups(&app.get("/api/live/groups", &bob).await.body["groups"]),
+        ["US Sports", "Canada News", "US News", "Canada Sports"]
+    );
+
+    let mut sorted = input;
+    sorted["sort_groups"] = json!(true);
+    let saved = app.put(&format!("/api/live/sources/{id}"), &admin, sorted).await;
+    assert_eq!((saved.status, &saved.body["sort_groups"]), (StatusCode::OK, &json!(true)), "{:?}", saved.body);
+    let a_to_z = ["Canada News", "Canada Sports", "US News", "US Sports"];
+    assert_eq!(groups(&app.get("/api/live/groups", &bob).await.body["groups"]), a_to_z, "at once, for everyone");
+    assert_eq!(groups(&app.get("/api/live/lineup/groups", &admin).await.body), a_to_z, "the lineup's too");
+}
+
+#[tokio::test]
 async fn channels_that_dont_play_and_divider_rows_are_left_out() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
@@ -942,4 +1150,58 @@ async fn keyed_addresses_open_their_session_alone() {
     let left = app.app_call(Method::DELETE, &format!("/api/live/sessions/{session}"), &tv, None).await;
     assert_eq!(left.status, StatusCode::NO_CONTENT);
     assert_eq!(app.call(Method::GET, &segment, None, None, &[]).await.status, StatusCode::GONE);
+}
+
+/// Two accounts with the same channels and one connection each: a channel
+/// whose own account is busy plays on the other's copy, and whoever asks
+/// for that channel next joins the copy instead of taking a third.
+#[tokio::test]
+async fn a_channel_plays_on_another_source_with_a_connection_free() {
+    let (base, provider) = provider().await;
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (bob, _) = app.user(&admin, "bob", json!({})).await;
+    let (carol, _) = app.user(&admin, "carol", json!({})).await;
+    let url = format!("{base}/list.m3u");
+    for name in ["A", "B"] {
+        let made = app
+            .post("/api/live/sources", &admin, json!({"name": name, "kind": "m3u", "url": url, "max_connections": 1}))
+            .await;
+        assert_eq!(made.status, StatusCode::CREATED, "{:?}", made.body);
+    }
+    for _ in 0..100 {
+        let sources = app.get("/api/live/sources", &admin).await.body;
+        let read = |s: &Value| s["guide_at"].is_i64() && !s["refreshing"].as_bool().unwrap_or(true);
+        if sources.as_array().unwrap().iter().all(read) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let channels = app.get("/api/live/channels", &admin).await.body;
+    let source_a = channels.as_array().unwrap().iter().map(|c| c["source_id"].as_i64().unwrap()).min().unwrap();
+    let on_a = |name: &str| {
+        channels.as_array().unwrap().iter().find(|c| c["name"] == name && c["source_id"] == source_a).unwrap()["id"]
+            .as_i64()
+            .unwrap()
+    };
+    let (one, ten) = (on_a("One"), on_a("Ten"));
+
+    // The administrator takes A's one connection with Ten.
+    let (status, body) = open_stream(&app, &admin, ten, "pc").await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, _ten_reader) = first_bytes(body).await;
+
+    // Bob asks for One on A: it plays, on B's connection.
+    let (status, body) = open_stream(&app, &bob, one, "tv").await;
+    assert_eq!(status, StatusCode::OK, "A is busy, but B has One too");
+    let (first, _bobs_reader) = first_bytes(body).await;
+    assert_eq!(first[4], 1, "One's packets");
+    assert_eq!(provider.open.load(Ordering::SeqCst), 2, "one connection on each account");
+
+    // Carol asks for One on A too: she joins B's tuner.
+    let (status, body) = open_stream(&app, &carol, one, "phone").await;
+    assert_eq!(status, StatusCode::OK);
+    let (first, _carols_reader) = first_bytes(body).await;
+    assert_eq!(first[4], 1);
+    assert_eq!(provider.opened.load(Ordering::SeqCst), 2, "no third connection");
 }

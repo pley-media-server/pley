@@ -52,6 +52,8 @@
     "noChannelsTitle": "Aún no hay canales",
     "noChannelsHint": "Los canales aparecen aquí cuando un administrador añade un proveedor de IPTV.",
     "setUp": "Configurar TV en vivo",
+    "hideCategories": "Ocultar categorías",
+    "showCategories": "Mostrar categorías",
     "view": "Vista",
     "guide": "Guía",
     "resultsFor": "Resultados para “{{search}}”",
@@ -258,6 +260,8 @@
       "connections": "Conexiones",
       "connectionsHint": "0: sin límite",
       "connectionsNote": "<strong>Conexiones</strong> es cuántos canales deja reproducir a la vez el proveedor con la cuenta. Todos los que ven el mismo canal comparten una; un canal que nadie ve libera su conexión a los pocos segundos.",
+      "sortGroups": "Ordenar sus grupos de la A a la Z",
+      "sortGroupsHint": "Todas las apps los muestran así. Desactivado: el orden del proveedor.",
       "advanced": "Avanzado",
       "userAgent": "Agente de usuario",
       "userAgentHint": "Algunos proveedores solo emiten para la app que indican (VLC, por ejemplo). Vacío: el de Pley.",
@@ -366,6 +370,7 @@
       "guideHintSource": "Su identificador en la guía (XMLTV). Vacío: el de la fuente, {{id}}.",
       "guideHintMatched": "Su identificador en la guía (XMLTV). Vacío: {{id}}, el canal de la guía que le corresponde.",
       "guideHintNone": "Su identificador en la guía (XMLTV): la fuente no indica ninguno y ninguno coincide con su nombre.",
+      "guideAddress": "O, para un canal que falta en la guía de la fuente, la dirección de una guía XMLTV propia (https://…), seguida de # y el identificador del canal cuando esa guía tiene varios (…/epg-us.xml.gz#DisneyChannel.us).",
       "note": "Un nuevo canal de la guía muestra sus programas cuando se actualiza la guía."
     },
     "account": {

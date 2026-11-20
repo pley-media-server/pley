@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 import { accountLine } from "./common";
 
 function blank(kind: SourceKind): SourceInput {
-  return { name: "", kind, url: "", username: "", password: "", guide_url: "", user_agent: "", max_connections: 1, enabled: true };
+  return { name: "", kind, url: "", username: "", password: "", guide_url: "", user_agent: "", max_connections: 1, enabled: true, sort_groups: false };
 }
 
 function fromSource(s: LiveSource): SourceInput {
@@ -23,6 +23,7 @@ function fromSource(s: LiveSource): SourceInput {
     user_agent: s.user_agent,
     max_connections: s.max_connections,
     enabled: s.enabled,
+    sort_groups: s.sort_groups,
   };
 }
 
@@ -53,7 +54,8 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
     if (source && !form.password) delete out.password;
     return out;
   };
-  const key = JSON.stringify(form);
+  // What a test found holds while only the order of the groups changes.
+  const key = JSON.stringify({ ...form, sort_groups: undefined });
   const result = tested?.form === key ? tested.result : null;
   const complete = form.url.trim() !== "" && (!xtream || form.username.trim() !== "");
 
@@ -216,6 +218,20 @@ function SourceForm({ source, onClose }: { source: LiveSource | null; onClose: (
         <p className="-mt-2 text-xs text-subtle">
           <Trans t={t} i18nKey="settings.source.connectionsNote" components={{ strong: <strong className="font-medium text-muted" /> }} />
         </p>
+
+        <label htmlFor="live-sort" className="flex items-start gap-3 text-sm">
+          <input
+            id="live-sort"
+            type="checkbox"
+            checked={form.sort_groups}
+            onChange={(e) => set("sort_groups", e.target.checked)}
+            className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+          />
+          <span>
+            <span className="font-medium">{t("settings.source.sortGroups")}</span>
+            <span className="block text-xs text-subtle">{t("settings.source.sortGroupsHint")}</span>
+          </span>
+        </label>
 
         <div>
           <button

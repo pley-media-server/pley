@@ -342,6 +342,7 @@ function ChannelEditor({ channel, onClose }: { channel: LineupChannel; onClose: 
             className="font-mono"
           />
         </Field>
+        <p className="text-xs text-subtle">{t("settings.editor.guideAddress")}</p>
         <p className="text-xs text-subtle">{t("settings.editor.note")}</p>
         <button type="submit" hidden />
       </form>

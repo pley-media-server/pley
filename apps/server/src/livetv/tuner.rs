@@ -758,16 +758,27 @@ impl Tuners {
     /// pulling it, or a new one when its source has a connection free.
     /// `keyed`: the HLS playlist's address carries a key of its own instead
     /// of needing the token (docs/API.md, "Keyed URLs").
-    pub async fn watch(self: &Arc<Self>, user: &AuthUser, tune: Tune<'_>, how: WatchAs) -> Result<Watching, AppError> {
+    ///
+    /// `tunes`: the channel asked for, then the same channel on other
+    /// sources. A tuner already pulling any of them is joined; else the
+    /// first with a connection free is tuned; else the one asked for, as
+    /// though it had no copies (taking `take_over`'s connection, or `409`).
+    pub async fn watch(
+        self: &Arc<Self>,
+        user: &AuthUser,
+        tunes: &[Tune<'_>],
+        how: WatchAs,
+    ) -> Result<Watching, AppError> {
         let WatchAs { client_id, kind, keyed, admin, take_over, home, controls, device, device_id, device_kind } = how;
-        let channel_id = tune.channel.id;
+        let ids: Vec<i64> = tunes.iter().map(|t| t.channel.id).collect();
         // What this device watched before ends: its connection is free. Its
         // stream reader of another channel too, though that response may not
         // have closed yet (channels changed quickly would find them all in use).
+        // A copy of this channel isn't another channel.
         if let Some(client) = client_id.as_deref().filter(|c| !c.is_empty()) {
             self.viewers.lock().retain(|_, v| {
                 let Some(theirs) = v.client_id.as_deref() else { return true };
-                let same = theirs == client || (device_of(theirs) == device_of(client) && v.channel_id != channel_id);
+                let same = theirs == client || (device_of(theirs) == device_of(client) && !ids.contains(&v.channel_id));
                 !(v.user_id == user.id && same)
             });
         }
@@ -780,11 +791,16 @@ impl Tuners {
         let tuner = {
             let _one = self.starting.lock().await;
             // Not in the match: its guard would live through start_tuner's own lock.
-            let pulling = self.tuners.lock().get(&channel_id).filter(|t| t.is_live()).cloned();
+            let pulling = {
+                let tuners = self.tuners.lock();
+                ids.iter().find_map(|id| tuners.get(id).filter(|t| t.is_live()).cloned())
+            };
             let tuner = match pulling {
                 Some(t) => t,
-                None => self.start_tuner(user, admin, home.as_ref(), &tune, take_over)?,
+                None => self.start_any_tuner(user, admin, home.as_ref(), tunes, take_over)?,
             };
+            // The copy that plays it: its tuner is the viewer's.
+            let channel_id = tuner.channel_id;
             // Watching before the lock goes: a take-over, made under it too,
             // then counts this viewer and tells it, where one made between
             // finding the tuner and adding the viewer would miss it.
@@ -835,6 +851,32 @@ impl Tuners {
             .values()
             .find(|v| v.media_key.as_deref().is_some_and(|k| crate::playback::same_key(k, key)))
             .map(|v| (v.id.clone(), v.user_id, v.app_grant))
+    }
+
+    /// Tunes the first of `tunes` whose source has a connection free (or one
+    /// nobody watches); when none has, the first as [`Self::start_tuner`]
+    /// would, taking `take_over`'s connection or saying who holds them.
+    fn start_any_tuner(
+        self: &Arc<Self>,
+        user: &AuthUser,
+        admin: bool,
+        home: Option<&InHome>,
+        tunes: &[Tune<'_>],
+        take_over: Option<i64>,
+    ) -> Result<Arc<Tuner>, AppError> {
+        let Some((asked, copies)) = tunes.split_first() else {
+            return Err(AppError::not_found("no channel to tune"));
+        };
+        if copies.is_empty() {
+            return self.start_tuner(user, admin, home, asked, take_over);
+        }
+        for tune in tunes {
+            match self.start_tuner(user, admin, home, tune, None) {
+                Err(AppError::ConflictWith(..)) => continue,
+                started => return started,
+            }
+        }
+        self.start_tuner(user, admin, home, asked, take_over)
     }
 
     fn start_tuner(

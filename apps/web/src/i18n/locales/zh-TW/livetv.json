@@ -48,6 +48,8 @@
     "noChannelsTitle": "暫無頻道",
     "noChannelsHint": "管理員新增 IPTV 服務商後，頻道會顯示在這裡。",
     "setUp": "設定直播電視",
+    "hideCategories": "隱藏頻道分組",
+    "showCategories": "顯示頻道分組",
     "view": "檢視",
     "guide": "節目指南",
     "resultsFor": "“{{search}}”的搜尋結果",
@@ -236,6 +238,8 @@
       "connections": "連線",
       "connectionsHint": "0：無限制",
       "connectionsNote": "<strong>連線</strong>是服務商允許該帳戶同時播放的頻道數。觀看同一頻道的人共享一個連線；無人觀看的頻道會在幾秒後釋放連線。",
+      "sortGroups": "依 A 到 Z 排序分組",
+      "sortGroupsHint": "所有應用程式都依此順序顯示。關閉則依服務商的順序。",
       "advanced": "高階",
       "userAgent": "使用者代理",
       "userAgentHint": "有些服務商只允許其指定的應用播放（例如 VLC）。留空則使用 Pley 自己的。",
@@ -316,6 +320,7 @@
       "guideHintSource": "其在節目指南 (XMLTV) 中的 ID。留空則使用來源中的 {{id}}。",
       "guideHintMatched": "其在節目指南 (XMLTV) 中的 ID。留空則使用 {{id}}，即節目指南中與之匹配的頻道。",
       "guideHintNone": "其在節目指南 (XMLTV) 中的 ID：來源未提供，也沒有按名稱匹配到頻道。",
+      "guideAddress": "或者，對於來源指南中缺少的頻道，填寫其專用 XMLTV 指南的網址（https://…）；若該指南包含多個頻道，請在網址後加上 # 和頻道 ID（…/epg-us.xml.gz#DisneyChannel.us）。",
       "note": "重新讀取節目指南後，新的指南頻道才會顯示其節目。"
     },
     "account": {

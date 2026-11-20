@@ -9,6 +9,18 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A Live TV channel its source's guide lacks can take a guide of its own:
+  the address of an XMLTV guide, in its Guide channel in the lineup, with
+  `#` and the channel's id after it for a guide of many channels.
+- A Live TV channel whose source has all its connections in use plays on
+  another source that has the same channel and a connection free.
+- Live TV's categories can be hidden for a wider guide on large screens;
+  the category is then picked from the button above the guide.
+- A Live TV source can list its groups A to Z instead of in its provider's
+  order, on every app: Sort its groups A to Z, in the source's settings.
+
 ## [0.1.14] - 2026-11-20
 
 ### Added

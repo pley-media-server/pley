@@ -50,6 +50,8 @@
     "noChannelsTitle": "No channels yet",
     "noChannelsHint": "Channels appear here once an administrator adds an IPTV provider.",
     "setUp": "Set up Live TV",
+    "hideCategories": "Hide categories",
+    "showCategories": "Show categories",
     "view": "View",
     "guide": "Guide",
     "resultsFor": "Results for “{{search}}”",
@@ -247,6 +249,8 @@
       "connections": "Connections",
       "connectionsHint": "0: no limit",
       "connectionsNote": "<strong>Connections</strong> is how many channels the provider lets the account play at once. Everyone watching the same channel shares one; a channel nobody watches gives its connection back after a few seconds.",
+      "sortGroups": "Sort its groups A to Z",
+      "sortGroupsHint": "Every app lists them this way. Off: the provider's order.",
       "advanced": "Advanced",
       "userAgent": "User agent",
       "userAgentHint": "Some providers play only to the app they name (VLC, say). Empty: Pley's own.",
@@ -341,6 +345,7 @@
       "guideHintSource": "Its id in the guide (XMLTV). Empty: the source's, {{id}}.",
       "guideHintMatched": "Its id in the guide (XMLTV). Empty: {{id}}, the guide's channel that matches it.",
       "guideHintNone": "Its id in the guide (XMLTV): the source names none, and none goes by its name.",
+      "guideAddress": "Or, for a channel the source's guide lacks, the address of an XMLTV guide of its own (https://…), with # and the channel's id after it when that guide has many (…/epg-us.xml.gz#DisneyChannel.us).",
       "note": "A new guide channel shows its programs once the guide is read again."
     },
     "account": {
