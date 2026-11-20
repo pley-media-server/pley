@@ -1434,8 +1434,8 @@ impl JobManager {
     /// what the others get done (see [`share::verdict`]).
     fn judge(&self) {
         let (load, cpu_busy, now) = (self.tonemapping_load(), self.cpu.busy(), Instant::now());
-        // Speeds measured while other jobs started or ended tell of the
-        // load there was.
+        // Speeds measured before other jobs ended tell of the load there
+        // was, more than there is.
         if !self.tonemapping_settled.lock().for_at_least(load, Pace::STEADY, now) {
             return;
         }
