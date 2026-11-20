@@ -65,6 +65,9 @@ In the web and desktop apps only, for now.
   device ([API.md](API.md#casting)).
 - Cast to Chromecast, Google TV, Apple TV and AirPlay 2 TVs, in 4K and HDR
   where supported. Off by default; turn it on in Settings → Network.
+- Pley for Home Assistant signs in with a code, shows what's playing,
+  controls it, and sends titles to your TVs
+  ([API.md](API.md#apps-oauth-21)).
 
 ## Live TV
 

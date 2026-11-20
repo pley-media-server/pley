@@ -35,6 +35,7 @@
 - Skip Intro and Skip Credits
 - Customizable Collections (TMDB, hand-picked or smart)
 - Control playback on your other devices, or cast to Chromecast and AirPlay
+- Home Assistant integration to see and control what's playing
 - Works offline on your home network, with downloads for when you're away
 - Profiles, PINs, two-step sign-in and age-based parental controls
 - Requests for movies and shows, sent to Radarr and Sonarr
