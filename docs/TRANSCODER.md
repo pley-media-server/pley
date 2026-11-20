@@ -725,8 +725,9 @@ server, on by default), and FFmpeg supports `readrate`.
   until it is less than 60 s ahead, or a request waits for a segment it is to
   make.
 - **Speed** is measured over the process's last 4 s of progress since it last
-  resumed. A job's status reports it, and 1× for a process held to the read
-  rate.
+  resumed. A job's status reports it, with the frames a second that speed
+  makes, and 1× for a process held to the read rate. A paused process
+  reports neither, nor does one that just resumed until 2 s are measured.
 
 ### The automatic preset
 

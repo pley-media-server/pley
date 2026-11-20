@@ -552,6 +552,9 @@ struct Proc {
 struct Pace {
     /// When the process was where (ms of media), oldest first.
     samples: VecDeque<(Instant, i64)>,
+    /// It was paused and went on: FFmpeg's own average counts the time it
+    /// stood still from then on, and tells nothing.
+    resumed: bool,
 }
 
 impl Pace {
@@ -629,7 +632,9 @@ impl Proc {
     fn set_paused(&self, on: bool) -> bool {
         let changed = self.pause.send_if_modified(|paused| std::mem::replace(paused, on) != on);
         if changed && !on {
-            self.pace.lock().samples.clear();
+            let mut pace = self.pace.lock();
+            pace.samples.clear();
+            pace.resumed = true;
         }
         changed
     }
@@ -2506,8 +2511,16 @@ impl Job {
     }
 
     fn own_status(&self) -> JobStatus {
+        // A process paused far ahead of its player makes nothing: no speed,
+        // rather than its last one.
+        let paused =
+            self.process.try_lock().is_ok_and(|guard| guard.as_ref().is_some_and(|p| p.running() && p.paused()));
         let rt = self.runtime.lock();
         let mut video = self.plan.video_plan(&self.media, rt.encoder_override.as_ref());
+        // The bitrate its player asked for since (see `JobManager::set_bitrate`).
+        if let (Some(v), Some(kbps)) = (video.as_mut().filter(|v| v.mode != VideoMode::Copy), *self.bitrate.lock()) {
+            v.bitrate_kbps = Some(kbps);
+        }
         // Quick Sync's own decoder failed: FFmpeg's paired with the encoder
         // took over (see `Plan::without_quick_sync_decoding`).
         if rt.qsv_decode_failed
@@ -2566,7 +2579,12 @@ impl Job {
             segments_ready: self.ready_count.load(Relaxed),
             video,
             audio: self.plan.audio_plan(&self.media),
-            process: rt.process.clone(),
+            process: rt.process.clone().map(|mut process| {
+                if paused {
+                    (process.speed, process.fps) = (None, None);
+                }
+                process
+            }),
             restarts: rt.restarts,
             served_segments: self.served_segments.load(Relaxed),
             served_bytes: self.served_bytes.load(Relaxed),
@@ -2579,17 +2597,27 @@ impl Job {
         }
     }
 
-    /// A process's progress, with its speed over the last seconds (`recent`)
-    /// rather than FFmpeg's own, an average since it started.
-    fn update_progress(&self, progress: &HashMap<String, String>, start_ms: i64, recent: Option<f64>) {
+    /// A process's progress, with its speed and frame rate over the last
+    /// seconds (`recent`) rather than FFmpeg's own, averages since it
+    /// started: those stand in until the first seconds are measured, while
+    /// they tell (`averages`: not once it was paused, which they count as
+    /// time it was slow in).
+    fn update_progress(&self, progress: &HashMap<String, String>, start_ms: i64, recent: Option<f64>, averages: bool) {
         let mut rt = self.runtime.lock();
         let Some(p) = rt.process.as_mut() else { return };
         let num = |k: &str| progress.get(k).and_then(|v| v.trim().parse::<f64>().ok());
         p.frame = num("frame").map(|v| v as u64);
-        p.fps = num("fps").filter(|v| *v > 0.0);
+        let average_fps = num("fps").filter(|v| *v > 0.0);
         let average =
             progress.get("speed").and_then(|v| v.trim().trim_end_matches('x').parse().ok()).filter(|v: &f64| *v > 0.0);
-        p.speed = recent.filter(|v| *v > 0.0).or(average);
+        let recent = recent.filter(|v| *v > 0.0);
+        p.speed = recent.or(average.filter(|_| averages));
+        // Both averages are over the same time: one over the other is the
+        // frames made for each second of video, at any speed.
+        p.fps = match (recent, average_fps.zip(average)) {
+            (Some(speed), Some((fps, average))) => Some(speed * fps / average),
+            _ => average_fps.filter(|_| averages),
+        };
         p.bitrate_kbps = progress.get("bitrate").and_then(|v| v.trim().trim_end_matches("kbits/s").parse().ok());
         p.total_size = num("total_size").map(|v| v as u64);
         p.dup_frames = num("dup_frames").map(|v| v as u64);
@@ -2916,10 +2944,14 @@ async fn read_progress(
                 if key == "progress" {
                     let out_us = block.get("out_time_us").and_then(|v| v.trim().parse::<f64>().ok());
                     let mut recent = None;
+                    // FFmpeg's own speed and frame rate are averages since
+                    // it started: right until it is first paused.
+                    let mut averages = true;
                     if let Some(us) = out_us.filter(|us| *us >= 0.0) {
                         let out_ms = start_ms + (us / 1000.0) as i64;
                         let mut pace = pace.lock();
                         pace.record(Instant::now(), out_ms);
+                        averages = !pace.resumed;
                         recent = pace.speed().map(|speed| {
                             // Held to the read rate past its burst: real time, as meant
                             // (players take less than 1× for a transcoder falling behind).
@@ -2929,7 +2961,7 @@ async fn read_progress(
                             if paced { READRATE } else { speed }
                         });
                     }
-                    job.update_progress(&block, start_ms, recent);
+                    job.update_progress(&block, start_ms, recent, averages);
                     block.clear();
                 } else {
                     block.insert(key.to_owned(), value.to_owned());
@@ -3250,6 +3282,30 @@ mod tests {
         p.pace.lock().samples.pop_front();
         assert_eq!(job.measured(&p), None);
     }
+
+    #[test]
+    fn a_paused_process_reports_no_speed() {
+        let dir = crate::testing::tempdir();
+        let mut job = job(dir.path(), (0..=500).map(|i| i * 2_000).collect());
+        (job.plan.segment_seconds, job.plan.throttle) = (2.0, true);
+        job.runtime.lock().process = Some(ProcessStatus { speed: Some(3.8), fps: Some(91.0), ..Default::default() });
+        let (p, _exit) = going(60_000, 3.8);
+        // Paused by the reader of its segments, the moment it is far ahead:
+        // nothing comes from FFmpeg while it stands still, and its status
+        // doesn't go on saying 3.8×.
+        p.pause.send_replace(true);
+        *job.process.try_lock().unwrap() = Some(p);
+        let process = job.status().process.unwrap();
+        assert_eq!((process.speed, process.fps), (None, None));
+        // What it made before still tells what its preset makes.
+        let guard = job.process.try_lock().unwrap();
+        let measured = job.measured(guard.as_ref().unwrap()).map(|(_, of_its_preset, _)| of_its_preset);
+        assert_eq!(measured, Some(adaptive::Measured::Exactly(3.8)));
+        guard.as_ref().unwrap().pause.send_replace(false);
+        drop(guard);
+        assert_eq!(job.status().process.unwrap().speed, Some(3.8));
+    }
+
     #[test]
     fn seeks_just_past_a_throttled_process_restart_it() {
         let dir = crate::testing::tempdir();
@@ -3719,7 +3775,10 @@ mod tests {
         };
         // The player has asked for segment 1: from segment 3 on, the stream goes on at 1.5 Mbps.
         job.last_requested.store(1, Relaxed);
+        let own = job.plan.video.as_ref().unwrap().bitrate_kbps;
+        assert_eq!(job.status().video.unwrap().bitrate_kbps, Some(own));
         assert_eq!(jobs.set_bitrate(&job, 1_500).await.unwrap(), 1_500);
+        assert_eq!(job.status().video.unwrap().bitrate_kbps, Some(1_500), "its status says what it makes now");
         // (A process still running restarts at once: segment 3 may be made again already.)
         assert!(job.is_ready(1) && job.is_ready(2), "what the player may be fetching stays");
         assert_eq!(size(&job.segment_path(2)), before[2].0, "and is the same");
@@ -3731,7 +3790,6 @@ mod tests {
         }
         // Asked again, nothing changes; never above the job's own, nor below 1 Mbps.
         assert_eq!(jobs.set_bitrate(&job, 1_500).await.unwrap(), 1_500);
-        let own = job.plan.video.as_ref().unwrap().bitrate_kbps;
         assert_eq!(jobs.set_bitrate(&job, 50_000).await.unwrap(), own);
         assert_eq!(jobs.set_bitrate(&job, 10).await.unwrap(), MIN_BITRATE_KBPS);
         jobs.remove(&created.id).await;
@@ -3979,7 +4037,7 @@ mod tests {
         let block = |pairs: &[(&str, &str)]| -> HashMap<String, String> {
             pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect()
         };
-        job.update_progress(&block(&[("fps", "50")]), 0, None);
+        job.update_progress(&block(&[("fps", "50")]), 0, None, true);
         assert!(job.status().process.is_none(), "no process, nothing to update");
 
         job.runtime.lock().process = Some(ProcessStatus::default());
@@ -3994,19 +4052,37 @@ mod tests {
             ]),
             12_000,
             None,
+            true,
         );
         let p = job.status().process.unwrap();
         assert_eq!((p.frame, p.fps, p.speed, p.bitrate_kbps), (Some(120), Some(48.5), Some(2.1), Some(3000.5)));
         // How fast it went lately wins over FFmpeg's average since it started.
-        job.update_progress(&block(&[("speed", "6.2x")]), 12_000, Some(1.0));
+        job.update_progress(&block(&[("speed", "6.2x")]), 12_000, Some(1.0), true);
         assert_eq!(job.status().process.unwrap().speed, Some(1.0));
         assert_eq!((p.out_time_ms, p.drop_frames), (17_000, Some(2)), "absolute media time");
+        // The frames a second with it: FFmpeg's 150 at 6.2× are 24.2 for
+        // each second of video, whatever it makes now.
+        job.update_progress(&block(&[("speed", "6.2x"), ("fps", "150")]), 12_000, Some(2.0), true);
+        let p = job.status().process.unwrap();
+        assert_eq!((p.speed, p.fps.map(|fps| (fps * 10.0).round())), (Some(2.0), Some(484.0)));
+
+        // Once it was paused, FFmpeg's averages count the time it stood
+        // still: 0.5× and 12 frames a second of a process that keeps ahead.
+        // Nothing is said until its speed is measured again.
+        let after_a_pause = block(&[("speed", "0.5x"), ("fps", "12")]);
+        job.update_progress(&after_a_pause, 12_000, None, false);
+        let p = job.status().process.unwrap();
+        assert_eq!((p.speed, p.fps), (None, None));
+        job.update_progress(&after_a_pause, 12_000, Some(2.0), false);
+        let p = job.status().process.unwrap();
+        assert_eq!((p.speed, p.fps), (Some(2.0), Some(48.0)));
 
         // Values ffmpeg doesn't know yet.
         job.update_progress(
             &block(&[("fps", "0.00"), ("speed", "N/A"), ("bitrate", "N/A"), ("out_time_us", "-9223372036854775807")]),
             12_000,
             None,
+            true,
         );
         let p = job.status().process.unwrap();
         assert_eq!((p.fps, p.speed, p.bitrate_kbps), (None, None, None));

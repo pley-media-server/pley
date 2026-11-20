@@ -21,6 +21,11 @@ describes how they are made.
 
 - A software transcode at 50 or 60 frames a second no longer starts at a
   preset too slow for a small computer, which made the player wait.
+- The dashboard no longer shows a speed for a transcode paused ahead of its
+  player, nor one under 1× for the moment after it goes on, and its frames
+  a second are those made now.
+- A transcode whose bitrate changed as it plays (Samsung, LG, Kodi and Roku
+  on Automatic) shows the bitrate it is made at now.
 
 ## [0.1.14] - 2026-11-20
 
