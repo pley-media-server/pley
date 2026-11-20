@@ -512,7 +512,7 @@ class Window(xbmcgui.WindowXML):
         self.prop("pley.avatar.name", name)
         self.prop("pley.avatar.server", kodi.setting("server_name") or "")
         tint = (self.me.get("avatar_color") or "").lstrip("#")
-        # Text on a light colour is dark, as the Android app's avatar draws it.
+        # Text on a light color is dark, as the Android app's avatar draws it.
         light = len(tint) == 6 and luminance(tint) > 0.45
         self.c(L.RAIL_COLOR).setColorDiffuse("FF" + tint.upper() if len(tint) == 6 else L.SURFACE3)
         self.c(L.RAIL_INITIAL).setLabel(name[:1].upper(), textColor=L.ON_ACCENT if light else L.FG)
@@ -540,8 +540,8 @@ class Window(xbmcgui.WindowXML):
         self.place_rail_entry(L.RAIL_SETTINGS, L.RAIL_SETTINGS_Y, pitch)
 
     def place_rail_entry(self, entry: int, y: int, pitch: int) -> None:
-        """An entry's group centred on `y`, its pills as tall as `pitch`
-        leaves room for (the icon and name stay centred in the group)."""
+        """An entry's group centered on `y`, its pills as tall as `pitch`
+        leaves room for (the icon and name stay centered in the group)."""
         self.place(L.rail_group(entry), 0, y - L.RAIL_ROW // 2)
         row = L.rail_row(pitch)
         for control in (entry, L.rail_pill(entry)):
@@ -1588,7 +1588,7 @@ class Home(Screen):
         self.rows.fill(self.model)
         self.draw_hero()
         if self.in_rows and found is not None:
-            # Focus stays on the tile, or its neighbour when it went.
+            # Focus stays on the tile, or its neighbor when it went.
             i, row, item = found
             at = next((n for n, r in enumerate(self.model) if r["key"] == row["key"]), None)
             if at is None:
@@ -2289,7 +2289,7 @@ class Library(Screen):
         hidden = (L.LIBRARY_CATEGORY,)
         if self.tab == "collections":
             # A category chosen that has gone since (deleted, emptied) is
-            # let go before its chip is labelled.
+            # let go before its chip is labeled.
             self.category = categories.chosen(self.category, categories.groups(self.collections or [], self.categories))
             hidden = (L.LIBRARY_SORT, L.LIBRARY_FILTER, L.LIBRARY_UNWATCHED, L.LIBRARY_GENRE, L.LIBRARY_YEAR)
             for chip, offered, on, text in self.collection_chips():
@@ -2653,7 +2653,7 @@ class Library(Screen):
 
     def keep_row(self, found: tuple, at: int) -> None:
         """Focus back on the row it was on (by its key), placed as it was,
-        and on the same tile, or its neighbour when it went: drawing again
+        and on the same tile, or its neighbor when it went: drawing again
         put the rows back from the top. The page's first when the row went."""
         _, row, item = found
         i = next((n for n, r in enumerate(self.rows.rows) if r["key"] == row["key"]), None)
@@ -3201,19 +3201,19 @@ class Playlist(Grid):
 
 class Live(Screen):
     """Live TV (livetv.py), as the web lays it out: the
-    categories (Search, Favourites, Recently watched, All channels, then
+    categories (Search, Favorites, Recently watched, All channels, then
     the groups, those of a region gathered under it), the channels of the
     one focus rests on by number with what's on now, and beside them the
-    focused channel's programme now and next. Channels come a page at a
+    focused channel's program now and next. Channels come a page at a
     time as the list is scrolled: a lineup can have tens of thousands. A
     channel plays in Kodi's player with its category's channels in the
     queue, so Next and Previous change channel within it. Menu and Info:
-    its favourite and schedule; number keys go to a channel."""
+    its favorite and schedule; number keys go to a channel."""
 
     name = "live"
     rail = "live"
     # What's on is redrawn this often near focus; a channel whose
-    # programme ended is asked for again.
+    # program ended is asked for again.
     TICK = 30
     # Number keys typed this close together make one number.
     TYPING = 1.5
@@ -3273,7 +3273,7 @@ class Live(Screen):
         self.offset, self.total, self.shown = found["offset"], found["total"], list(found["channels"])
 
     def settle(self) -> None:
-        """All channels where the category went (the last favourite gone, a
+        """All channels where the category went (the last favorite gone, a
         group hidden)."""
         kind, group = self.category
         names = {g["name"] for g in self.lineup.get("groups") or []}
@@ -3426,7 +3426,7 @@ class Live(Screen):
 
     def freshen(self, fetch: bool = True) -> None:
         """What's on now in the rows near focus, as time passed; with
-        `fetch`, the channels among them whose programme ended asked for
+        `fetch`, the channels among them whose program ended asked for
         again (what comes after it)."""
         rows = self.around()
         now = time.time()
@@ -3618,7 +3618,7 @@ class Live(Screen):
             channel_row(self.session.base, channel, time.time(), self.win.c(L.LIVE_LIST).getListItem(at), self.group)
 
     def schedule(self, channel: dict, start=None) -> None:
-        """The channel's programmes, SCHEDULE_HOURS at a time, in Kodi's
+        """The channel's programs, SCHEDULE_HOURS at a time, in Kodi's
         list: what's on watches the channel, the rest say what they are,
         Later shows the hours after."""
         now = time.time()
@@ -3747,7 +3747,7 @@ def channel_row(base: str, channel: dict, now: float, li=None, group=None) -> "x
 
 
 def schedule_entry(program: dict, now: float, logo=None) -> "xbmcgui.ListItem":
-    """A programme in a channel's schedule: when, its title, and its time
+    """A program in a channel's schedule: when, its title, and its time
     and episode under it, beside the channel's logo."""
     when = T("on_now") if livetv.airing(program, now) else "%s %s" % (livetv.day(program["start"], now), livetv.clock(program["start"]))
     under = " · ".join(p for p in [livetv.span(program), livetv.episode(program)] + livetv.badges(program) if p)
@@ -3758,7 +3758,7 @@ def schedule_entry(program: dict, now: float, logo=None) -> "xbmcgui.ListItem":
 
 
 def program_text(channel: dict, program: dict, now: float, group=None) -> str:
-    """A programme still to come, in Kodi's text viewer."""
+    """A program still to come, in Kodi's text viewer."""
     line = " · ".join(
         p for p in ["%s · %s" % (livetv.day(program["start"], now), livetv.span(program)), livetv.episode(program)] + livetv.badges(program) if p
     )

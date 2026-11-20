@@ -47,7 +47,7 @@ import app.pley.android.ui.phone.admin.adminWidth
 /*
  * The dashboard's pieces: a section's heading (the web's SectionTitle),
  * a card, a line of a label and its value (InfoRow and Stat), badges,
- * chips and progress bars, in the phone's colours.
+ * chips and progress bars, in the phone's colors.
  */
 
 /** A section's heading: [icon] in accent, [title], an optional [count] and [action] at the end. */

@@ -184,7 +184,7 @@ impl PinDots {
         from + (PinDots::SHAKE[i] - from) * t
     }
 
-    /// Draws the dots centred on `center_x` from `y`; `shake_since` is when a refusal shook them.
+    /// Draws the dots centered on `center_x` from `y`; `shake_since` is when a refusal shook them.
     pub fn show(&self, ui: &mut Ui, center_x: f32, y: f32, shake_since: Option<f64>) {
         let n = self.typed.clamp(4, 8);
         let width = n as f32 * PinDots::DOT + (n - 1) as f32 * PinDots::GAP;

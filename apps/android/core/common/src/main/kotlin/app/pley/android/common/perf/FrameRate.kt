@@ -297,7 +297,7 @@ object FrameRate {
      * The box: white on translucent black where pages put nothing. On a TV,
      * at the top right in the band above the safe area's top edge, which
      * the pages leave empty (their tabs and buttons start below it); on a
-     * phone, at the top centre under the status bar, between the bar's
+     * phone, at the top center under the status bar, between the bar's
      * title and its buttons. Its width is fixed at its longest text's, so a
      * new reading redraws it without laying the window out again. It takes
      * no focus, touch or reader's attention. Its words are units, as the

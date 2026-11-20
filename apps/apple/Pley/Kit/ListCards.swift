@@ -228,7 +228,7 @@ struct PlayShuffleButtons: View {
                     .labelStyle(.titleAndIcon)
                     .fixedSize(horizontal: true, vertical: false)
                     .frame(minWidth: 90)
-                    // In a list's row the symbol takes the accent colour, the
+                    // In a list's row the symbol takes the accent color, the
                     // button's own, and vanishes; it is drawn as the words are.
                     .foregroundStyle(canPlay ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
             }

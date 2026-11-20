@@ -85,7 +85,7 @@ internal fun TvHistoryScreen() {
     var problem by remember { mutableStateOf<UiText?>(null) }
     LaunchedEffect(model) { model.errors.collect { problem = errorSentence(it) } }
     val memory = rememberFocusMemory()
-    // Each shown row's focus and its cross's, for the neighbour of a row removed.
+    // Each shown row's focus and its cross's, for the neighbor of a row removed.
     val focus = remember { HashMap<Long, Pair<FocusRequester, FocusRequester>>() }
     Column(Modifier.fillMaxSize().padding(top = TvSafeArea.Vertical).testTag(TV_HISTORY_PAGE)) {
         Row(Modifier.padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal), verticalAlignment = Alignment.Bottom) {

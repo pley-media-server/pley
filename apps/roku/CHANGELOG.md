@@ -14,6 +14,10 @@ describes how they are made.
   language or the one picked with the globe, with dates, numbers and counts
   written in the language shown.
 
+### Changed
+
+- English words are spelled the American way: color, favorite, program.
+
 ## [0.1.10] - 2026-11-18
 
 ### Added

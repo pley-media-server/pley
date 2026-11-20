@@ -112,7 +112,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * SurfaceView; while tuning its logo and what's on; a card that says why
  * it doesn't play (the server's own sentence: which channels hold every
  * connection) with Try again and Other channels. A tap shows the
- * controls: Back, the channel and what's on, the favourite, the channel
+ * controls: Back, the channel and what's on, the favorite, the channel
  * list; Live; channel down and up. Live TV is watched as it airs: no
  * pause, no going back (as the web's). A swipe up or
  * down changes channel. What's on and next shows for 5 s when a tap brings

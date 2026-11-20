@@ -55,7 +55,7 @@ fn focus_on_a_category_shows_its_rows() {
     assert!(app.shows("OLED65C2PUA"));
     app.press(Key::Down);
     assert!(app.shows("Version"));
-    assert!(app.shows("Open-source licences"));
+    assert!(app.shows("Open-source licenses"));
     app.press(Key::Down);
     assert_eq!(app.focused(), Some(category(&app, SettingsSection::SignOut)));
     assert!(app.shows("Delete all local data"));

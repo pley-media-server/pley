@@ -208,7 +208,7 @@ impl ChannelPages {
         }
     }
 
-    /// A channel changed here (a favourite marked): the pages show it at once.
+    /// A channel changed here (a favorite marked): the pages show it at once.
     pub fn patch(&mut self, id: i64, change: impl Fn(&mut LiveChannel)) {
         for p in self.pages.values_mut() {
             if let Some(c) = p.channels.as_mut().and_then(|c| c.iter_mut().find(|c| c.id == id)) {

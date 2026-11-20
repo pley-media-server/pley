@@ -337,9 +337,10 @@ impl MetadataAgent {
         Arc::new(Self { db, settings, http, api, store, backfill: tokio::sync::Mutex::new(()), providers })
     }
 
-    /// Whether any metadata source is in use (TMDB, a TV source or MusicBrainz).
+    /// Whether any metadata source is in use (TMDB, a TV source, MusicBrainz
+    /// or the audiobooks' sources).
     pub fn enabled(&self) -> bool {
-        self.tmdb_enabled() || self.can_refresh("show") || self.can_refresh("album")
+        self.tmdb_enabled() || self.can_refresh("show") || self.can_refresh("album") || self.can_refresh("audiobook")
     }
 
     /// TMDB has a key: movies, collections, "Fix match" and artwork choices.
@@ -363,6 +364,7 @@ impl MetadataAgent {
                 None => false,
             },
             "artist" | "album" | "track" => self.providers.music_enabled(),
+            "audiobook" | "part" => self.providers.books_enabled(),
             _ => false,
         }
     }
@@ -373,8 +375,7 @@ impl MetadataAgent {
             LibraryKind::Movies => "movie",
             LibraryKind::Shows => "show",
             LibraryKind::Music => "album",
-            // No source of audiobooks' metadata yet: their tags are it.
-            LibraryKind::Audiobooks => return false,
+            LibraryKind::Audiobooks => "audiobook",
         })
     }
 
@@ -389,7 +390,7 @@ impl MetadataAgent {
             LibraryKind::Movies => "movie",
             LibraryKind::Shows => "show",
             LibraryKind::Music => return self.providers.refresh_music_library(lib, force, progress).await,
-            LibraryKind::Audiobooks => return Ok(()),
+            LibraryKind::Audiobooks => return self.providers.refresh_book_library(lib, force, progress).await,
         };
         let items: Vec<Candidate> = sqlx::query_as(
             "SELECT id, kind, title, year, tmdb_id, imdb_id, tvdb_id, poster, backdrop FROM items
@@ -572,6 +573,8 @@ impl MetadataAgent {
             "season" => parent.context("season without show")?,
             "episode" => grandparent.context("episode without show")?,
             "track" => parent.context("track without album")?,
+            "audiobook" => item_id,
+            "part" => parent.context("part without book")?,
             _ => return Ok(()),
         };
         // Not one locked by its NFO file (Jellyfin's lockdata): that is never
@@ -596,6 +599,7 @@ impl MetadataAgent {
                 _ => self.refresh_show(&item).await?,
             },
             "artist" | "album" => self.providers.refresh_music_item(id).await?,
+            "audiobook" => self.providers.refresh_book_item(id).await?,
             _ => return Ok(()),
         }
         // NFO files win over whatever was just fetched, and hand edits over
@@ -783,7 +787,8 @@ impl MetadataAgent {
         }
     }
 
-    /// Whether TheTVDB (with this key and PIN), TVmaze or MusicBrainz answers.
+    /// Whether TheTVDB (with this key and PIN), TVmaze, MusicBrainz or the
+    /// audiobooks' sources answer.
     pub async fn check_provider(&self, check: crate::providers::Check<'_>) -> Result<(), ProviderError> {
         self.providers.check(check).await
     }

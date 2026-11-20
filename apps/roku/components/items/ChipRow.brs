@@ -65,7 +65,7 @@ sub onChips()
 end sub
 
 ' A chip's number: { back, text, width, gap (from the words), tone }. Where
-' it asks to be seen, in a box in the accent (accent) or the danger colour
+' it asks to be seen, in a box in the accent (accent) or the danger color
 ' (danger), as the menu's; else plain, in bold after the words, as a
 ' row of eight tabs has room for.
 function makeNumber(chip as object) as object
@@ -114,7 +114,7 @@ sub onLook()
 end sub
 
 ' On the accent chip, an accent number is dark instead; a plain one is in
-' its words' colour (words).
+' its words' color (words).
 sub lookNumber(number as object, lit as boolean, words as string)
     if number.tone = "danger"
         number.back.color = "0xEB6B70FF"

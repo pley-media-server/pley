@@ -145,7 +145,7 @@ impl<'a> Row<'a> {
 
     /// Draws the row of `len` tiles. `key` names each tile (an item's id, so focus follows it);
     /// `draw` draws a tile in its slot (with [`crate::Tile::paint`]) or, for slots past the
-    /// screen, asks for its picture. The focused tile is drawn last, over its neighbours.
+    /// screen, asks for its picture. The focused tile is drawn last, over its neighbors.
     pub fn show(
         &self,
         ui: &mut Ui,
@@ -207,7 +207,7 @@ impl<'a> Row<'a> {
         let first = (((shown - self.x - size.w) / pitch).floor() + 1.0).max(0.0) as usize;
         let past = (((shown + theme::CANVAS_W - self.x) / pitch).ceil().max(0.0) as usize).min(len);
         let first = first.min(past);
-        // The focused tile and its neighbours are drawn even while the row is still sliding
+        // The focused tile and its neighbors are drawn even while the row is still sliding
         // toward them, so the next press always has somewhere to go.
         let d0 = first.saturating_sub(1).min(state.index.saturating_sub(1));
         let d1 = (past + 1).max(state.index + 2).min(len);

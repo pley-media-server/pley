@@ -6,7 +6,7 @@ using Pley.Tv.Core.Api;
 namespace Pley.Tv.Core.Live;
 
 /// <summary>
-/// The programme guide's geometry on the 960 × 540 canvas, in dp (the Android app's TvGuide): two
+/// The program guide's geometry on the 960 × 540 canvas, in dp (the Android app's TvGuide): two
 /// hours across at 3.6 dp a minute in 432 dp beside the 160 dp channel column, 52 dp rows, what
 /// has focus described in 92 dp above a 28 dp time header.
 /// </summary>
@@ -39,10 +39,10 @@ public static class GuideLayout
     /// <summary>Channel up and down move this many rows.</summary>
     public const int PageRows = 5;
 
-    /// <summary>Narrower than this (px of the 960 canvas), a programme shows no text.</summary>
+    /// <summary>Narrower than this (px of the 960 canvas), a program shows no text.</summary>
     public const float MinTextWidth = 70;
 
-    /// <summary>A cell's programme keeps its title in view this far from its right end, when it began left of the grid.</summary>
+    /// <summary>A cell's program keeps its title in view this far from its right end, when it began left of the grid.</summary>
     public const float TitleRoom = 90;
 
     /// <summary>Each cell is inset by 4 dp above and below and 2 dp at either side; its text by 10 dp.</summary>
@@ -51,10 +51,10 @@ public static class GuideLayout
     /// <summary>The now line: 2 dp, the accent at 85 %.</summary>
     public const float NowLineWidth = 2;
 
-    /// <summary>A programme's progress line inside an airing cell.</summary>
+    /// <summary>A program's progress line inside an airing cell.</summary>
     public const float ProgressHeight = 2;
 
-    /// <summary>Programmes that ended show at 55 % unless focused.</summary>
+    /// <summary>Programs that ended show at 55 % unless focused.</summary>
     public const float PastAlpha = 0.55f;
 
     /// <summary>The x of <paramref name="time"/> in the grid that starts at <paramref name="start"/>, before it scrolls.</summary>
@@ -63,21 +63,21 @@ public static class GuideLayout
     /// <summary>How far the grid has scrolled when its left edge is at <paramref name="left"/>.</summary>
     public static float Scroll(long left, long start) => X(left, start);
 
-    /// <summary>A programme's cell: its x from the grid's start (what began before the guide starts at its left edge), and its width.</summary>
+    /// <summary>A program's cell: its x from the grid's start (what began before the guide starts at its left edge), and its width.</summary>
     public static (float X, float Width) Cell(LiveProgram program, long start)
     {
         var from = Math.Max(program.Start, start);
         return (X(from, start), (program.Stop - from) * DpPerSecond);
     }
 
-    /// <summary>The programmes that may come into view as the grid moves a screen either way.</summary>
+    /// <summary>The programs that may come into view as the grid moves a screen either way.</summary>
     public static IReadOnlyList<LiveProgram> Visible(IReadOnlyList<LiveProgram>? programs, long left, long start) =>
         LiveRules.Between(programs, Math.Max(left - ViewS, start), left + 2 * ViewS);
 
     /// <summary>
     /// The half hours of the time header around <paramref name="left"/>, a screen either way: each
     /// with its x before the grid scrolls (the label sits 6 dp right of it), and whether it is
-    /// midnight (then the label is the day, in the foreground colour, not the time in muted).
+    /// midnight (then the label is the day, in the foreground color, not the time in muted).
     /// </summary>
     public static IReadOnlyList<(long Time, float X)> Slots(long left, long start)
     {
@@ -93,23 +93,23 @@ public enum GuideOk
 {
     /// <summary>Nothing has focus (a row still loading).</summary>
     None,
-    /// <summary>A programme on now, or a channel without guide: the live player.</summary>
+    /// <summary>A program on now, or a channel without guide: the live player.</summary>
     Watch,
-    /// <summary>Another programme: its details in the side panel.</summary>
+    /// <summary>Another program: its details in the side panel.</summary>
     Details,
 }
 
 /// <summary>
-/// Focus in the programme guide (the Android app's TvGuide), moved by the guide itself rather
-/// than by geometry: a row (the channel), a time (the cursor, which says the programme) and the
+/// Focus in the program guide (the Android app's TvGuide), moved by the guide itself rather
+/// than by geometry: a row (the channel), a time (the cursor, which says the program) and the
 /// grid's left edge.
 ///
-/// - Left and Right go to the programme before and after, the grid following by half hours; Left
-///   from the guide's first half hour, or on a channel without programmes, leaves for the
+/// - Left and Right go to the program before and after, the grid following by half hours; Left
+///   from the guide's first half hour, or on a channel without programs, leaves for the
 ///   categories.
 /// - Up and Down keep the time and change channel; Up from the first row leaves for the tabs.
 /// - Channel up and down move 5 rows.
-/// - OK on a programme on now (or a channel without guide) watches the channel, on another opens
+/// - OK on a program on now (or a channel without guide) watches the channel, on another opens
 ///   its details, as does holding OK or Menu (<see cref="Details"/>).
 /// - Back away from now comes back to now first (<see cref="AwayFromNow"/>, <see cref="BackToNow"/>).
 /// </summary>
@@ -131,7 +131,7 @@ public sealed class GuideCursor
     /// <summary>The row with focus.</summary>
     public int Row { get; private set; }
 
-    /// <summary>The time with focus: the programme on then has it.</summary>
+    /// <summary>The time with focus: the program on then has it.</summary>
     public long Cursor { get; private set; }
 
     /// <summary>The grid's left edge; the grid shows <see cref="GuideLayout.ViewS"/> from it (tell <see cref="LiveTvModel.ShowingTimes"/>).</summary>
@@ -143,7 +143,7 @@ public sealed class GuideCursor
     /// <summary>Where the grid starts for <paramref name="now"/>: the half hour before the one it is in, never before the guide.</summary>
     public static long LeftFor(long now, long start) => Math.Max(Slot(now) - LiveRules.SlotS, start);
 
-    /// <summary>The programme with focus, of the focused row's <paramref name="programs"/>.</summary>
+    /// <summary>The program with focus, of the focused row's <paramref name="programs"/>.</summary>
     public LiveProgram? Current(IReadOnlyList<LiveProgram>? programs) => LiveRules.At(programs, Cursor);
 
     /// <summary>The list opens at <paramref name="row"/> (the landing) within <paramref name="total"/> rows.</summary>
@@ -154,7 +154,7 @@ public sealed class GuideCursor
 
     static int Clamp(int row, int total) => Math.Max(0, Math.Min(row, Math.Max(0, total - 1)));
 
-    /// <summary>Puts the cursor at <paramref name="time"/> (a programme's start, or a half hour), the grid following it.</summary>
+    /// <summary>Puts the cursor at <paramref name="time"/> (a program's start, or a half hour), the grid following it.</summary>
     public void MoveTo(long time)
     {
         Cursor = Math.Max(Start, Math.Min(time, End - 1));
@@ -168,15 +168,15 @@ public sealed class GuideCursor
         var current = Current(programs);
         if (current != null && current.Start <= Start && Left > Start)
         {
-            // The programme began with the guide or before it, and the view is scrolled on: the view
-            // goes back through it first, a screen at a time. Gone by the programme alone, Left took
+            // The program began with the guide or before it, and the view is scrolled on: the view
+            // goes back through it first, a screen at a time. Gone by the program alone, Left took
             // focus to the categories with the view still scrolled on, the time before it unseen.
             Left = Math.Max(Start, Math.Max(Slot(current.Start), Left - (GuideLayout.ViewS - LiveRules.SlotS)));
             Cursor = Math.Max(Math.Max(current.Start, Start), Left);
             return true;
         }
         var target = current != null ? current.Start - 1 : Cursor - LiveRules.SlotS;
-        // Only from the guide's first half hour. Where a channel has no programmes it goes back a
+        // Only from the guide's first half hour. Where a channel has no programs it goes back a
         // half hour at a time, as Right goes on: refused there, Left took focus to the categories
         // from wherever Right had gone, with no way back through the time.
         if (target < Start) return false;
@@ -195,7 +195,7 @@ public sealed class GuideCursor
     /// <summary>Whether the row has nothing in view (a channel without a guide): the cursor would move unseen in it.</summary>
     bool Blank(IReadOnlyList<LiveProgram>? programs) => GuideLayout.Visible(programs, Left, Start).Count == 0;
 
-    /// <summary>Right on the focused row's <paramref name="programs"/>: the next programme, or the next half hour; never past the guide.</summary>
+    /// <summary>Right on the focused row's <paramref name="programs"/>: the next program, or the next half hour; never past the guide.</summary>
     public void MoveRight(IReadOnlyList<LiveProgram>? programs)
     {
         var current = Current(programs);
@@ -233,7 +233,7 @@ public sealed class GuideCursor
     /// <summary>Channel down: 5 rows down.</summary>
     public void PageDown(int total) => Row = Math.Min(Math.Max(0, total - 1), Row + GuideLayout.PageRows);
 
-    /// <summary>What OK (released, not held) does on the focused row: its channel <paramref name="channel"/> and programmes.</summary>
+    /// <summary>What OK (released, not held) does on the focused row: its channel <paramref name="channel"/> and programs.</summary>
     public GuideOk Ok(LiveChannel? channel, IReadOnlyList<LiveProgram>? programs, long now)
     {
         if (channel == null) return GuideOk.None;
@@ -241,13 +241,13 @@ public sealed class GuideCursor
         return current == null || current.AiringAt(now) ? GuideOk.Watch : GuideOk.Details;
     }
 
-    /// <summary>Holding OK, or Menu or Info: the details of the programme with focus, when there is one.</summary>
+    /// <summary>Holding OK, or Menu or Info: the details of the program with focus, when there is one.</summary>
     public LiveProgram? Details(IReadOnlyList<LiveProgram>? programs) => Current(programs);
 
     /// <summary>Whether Back first brings the guide back to now: focus is on something not airing, or the grid moved.</summary>
     public bool AwayFromNow(IReadOnlyList<LiveProgram>? programs, long now) =>
         Left != LeftFor(now, Start)
-        // Where there is no programme (a channel without a guide), now's half hour: taken as away
+        // Where there is no program (a channel without a guide), now's half hour: taken as away
         // there always, Back went on coming back to now and never left the guide.
         || (Current(programs) is { } on ? !on.AiringAt(now) : Slot(Cursor) != Slot(now));
 
@@ -293,7 +293,7 @@ public abstract record CategoryRow
 
 /// <summary>
 /// The categories down the left of Live TV and in the player's channel list (the Android app's
-/// CategoryColumn): under the search, the groups it names, then Favourites, Recently watched and
+/// CategoryColumn): under the search, the groups it names, then Favorites, Recently watched and
 /// All channels with their counts, then the regions (one opened at a time) and the other groups.
 /// Rows are 40 dp tall, 2 dp apart, in a 210 dp column; the one shown is filled with surface3
 /// and its icon is the accent; focused, the accent fill.

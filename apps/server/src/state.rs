@@ -77,7 +77,7 @@ pub struct Inner {
     /// The processors' and memory's use, for the dashboard.
     pub resources: Arc<crate::resources::Monitor>,
     pub started_at: Instant,
-    /// Cancelled when the server starts shutting down (the tray's Quit
+    /// Canceled when the server starts shutting down (the tray's Quit
     /// cancels it to ask for that). Responses that never end on their own,
     /// such as the event stream, end with it.
     pub stopping: CancellationToken,

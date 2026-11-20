@@ -11,7 +11,7 @@ import org.junit.Test
 class TvGuideCellsTest {
     private val start = 1_761_750_000L
 
-    /** A programme of channel 1 from [from] to [to] minutes after the guide's start. */
+    /** A program of channel 1 from [from] to [to] minutes after the guide's start. */
     private fun program(from: Int, to: Int, title: String = "At $from") = LiveProgram(1, start + from * 60L, start + to * 60L, title)
 
     private val programs = listOf(program(0, 30), program(30, 90), program(90, 150), program(150, 240))
@@ -36,7 +36,7 @@ class TvGuideCellsTest {
     @Test
     fun `the grid moving on leaves a row the same, unless a title moves in or a programme comes into reach`() {
         val now = start + 10 * 60
-        // Programmes from an hour on: the grid's half hour moves change nothing of theirs.
+        // Programs from an hour on: the grid's half hour moves change nothing of theirs.
         val later = listOf(program(60, 120), program(120, 180))
         assertEquals(
             RowCells.of(later, start, start, now, focus = null, loaded = true),

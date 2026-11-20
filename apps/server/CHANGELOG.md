@@ -31,14 +31,25 @@ describes how they are made.
   tool such as Kometa to make them: Make collections from TMDB, in the
   library's settings, removes them when turned off, edits and all, and
   makes them again when turned back on.
+- Audiobooks get the summary, year and cover their files lack from Open
+  Library, and narrators, series and genres too from Audnexus when their
+  files carry an Audible ASIN. Administrators turn it off in Settings →
+  Server.
 
 ### Changed
 
+- The web app's English words are spelled the American way: color,
+  favorite, program.
+- The web app's sidebar lists Playlists as one more row under the
+  libraries, opening the page of all your playlists, in place of a section
+  of its own.
 - The Franchises category of collections is Box sets, and its key in the
   API is `box_sets`.
 
 ### Fixed
 
+- Videos whose AAC sound is copied from an MPEG-TS or AVI file play on the
+  Apple apps instead of failing with "Malformed AAC bitstream".
 - Films and shows with accents in their names are matched when the names
   came from a Mac. Ones already scanned are matched by the library's Force
   full rescan.

@@ -118,7 +118,7 @@
       }
     },
     "%@ to %@" : {
-      "comment" : "VoiceOver, Live TV's guide: a programme's times: \"6:00 PM to 6:30 PM\".",
+      "comment" : "VoiceOver, Live TV's guide: a program's times: \"6:00 PM to 6:30 PM\".",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -147,7 +147,7 @@
       }
     },
     "%@, %@" : {
-      "comment" : "Live TV: a programme's day and times: \"Saturday, 6:00 PM – 6:30 PM\".",
+      "comment" : "Live TV: a program's day and times: \"Saturday, 6:00 PM – 6:30 PM\".",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -585,7 +585,7 @@
       }
     },
     "%lld h %lld min left" : {
-      "comment" : "Live TV: what's left of a programme: \"1 h 5 min left\".",
+      "comment" : "Live TV: what's left of a program: \"1 h 5 min left\".",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -614,7 +614,7 @@
       }
     },
     "%lld h left" : {
-      "comment" : "Live TV: what's left of a programme, whole hours.",
+      "comment" : "Live TV: what's left of a program, whole hours.",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -804,7 +804,7 @@
       }
     },
     "%lld min left" : {
-      "comment" : "Live TV: what's left of a programme, under an hour.",
+      "comment" : "Live TV: what's left of a program, under an hour.",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -3759,7 +3759,7 @@
         }
       }
     },
-    "Favourites" : {
+    "Favorites" : {
       "comment" : "Live TV's category: the starred channels.",
       "localizations" : {
         "es" : {
@@ -4861,7 +4861,7 @@
         }
       }
     },
-    "No channel's name, number or programme on now has “%@” in it." : {
+    "No channel's name, number or program on now has “%@” in it." : {
       "comment" : "Live TV: a search that found no channel, with the search.",
       "localizations" : {
         "es" : {
@@ -5006,8 +5006,8 @@
         }
       }
     },
-    "No favourites yet" : {
-      "comment" : "Live TV, Favourites, empty.",
+    "No favorites yet" : {
+      "comment" : "Live TV, Favorites, empty.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -5065,7 +5065,7 @@
       }
     },
     "No information for this time" : {
-      "comment" : "Live TV's guide: a time with no programme.",
+      "comment" : "Live TV's guide: a time with no program.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -5673,7 +5673,7 @@
         }
       }
     },
-    "Open-source licences: none. Pley for Apple is built only with Apple's frameworks and contains no third-party code." : {
+    "Open-source licenses: none. Pley for Apple is built only with Apple's frameworks and contains no third-party code." : {
       "comment" : "About.",
       "localizations" : {
         "es" : {
@@ -6979,7 +6979,7 @@
       }
     },
     "Star a channel to find it here." : {
-      "comment" : "Live TV, Favourites, empty: what to do.",
+      "comment" : "Live TV, Favorites, empty: what to do.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -7355,7 +7355,7 @@
         }
       }
     },
-    "The favourite wasn't saved: %@" : {
+    "The favorite wasn't saved: %@" : {
       "comment" : "Toast: starring a channel failed, with why.",
       "localizations" : {
         "es" : {
@@ -7675,7 +7675,7 @@
       }
     },
     "Tomorrow, %@" : {
-      "comment" : "Live TV: a programme's times on the next day: \"Tomorrow, 6:00 PM – 6:30 PM\".",
+      "comment" : "Live TV: a program's times on the next day: \"Tomorrow, 6:00 PM – 6:30 PM\".",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -8168,7 +8168,7 @@
       }
     },
     "Yesterday, %@" : {
-      "comment" : "Live TV: a programme's times on the day before.",
+      "comment" : "Live TV: a program's times on the day before.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -8530,7 +8530,7 @@
       }
     },
     "on now" : {
-      "comment" : "VoiceOver, Live TV's guide: the programme is on now.",
+      "comment" : "VoiceOver, Live TV's guide: the program is on now.",
       "localizations" : {
         "es" : {
           "stringUnit" : {

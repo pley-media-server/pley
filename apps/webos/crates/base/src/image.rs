@@ -58,7 +58,7 @@ pub enum ImageState {
 
 /// The picture cache, as the interface sees it.
 pub trait ImageProvider {
-    /// What can be shown for `req` now; starts or re-prioritises its loading.
+    /// What can be shown for `req` now; starts or re-prioritizes its loading.
     fn request(&mut self, req: &ImageRequest, priority: Priority) -> ImageState;
 }
 

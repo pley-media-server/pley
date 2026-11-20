@@ -1,9 +1,9 @@
-//! The open-source licences (About's rows open it): the parts Pley for LG TV is built from on the
-//! left, as Settings lays out its categories, and the focused part's licence texts on the right.
+//! The open-source licenses (About's rows open it): the parts Pley for LG TV is built from on the
+//! left, as Settings lays out its categories, and the focused part's license texts on the right.
 //! Right or OK goes into the text, where Up and Down scroll it (and the Magic Remote's wheel);
 //! Left goes back to the list. The texts are NOTICES.txt's, which the package carries.
 //!
-//! A licence text runs to 20 KB: it is laid out a frame's worth at a time from its top, never
+//! A license text runs to 20 KB: it is laid out a frame's worth at a time from its top, never
 //! all in the frame its part gets focus, so moving down the list stays smooth.
 
 use std::sync::Arc;
@@ -50,7 +50,7 @@ fn estimate(line: &str) -> f32 {
     (line.chars().count() as f32 / per_line).ceil().max(1.0) * theme::BODY.line_height
 }
 
-/// The licences page.
+/// The licenses page.
 #[derive(Default)]
 pub struct LicencesScreen {
     opened: bool,

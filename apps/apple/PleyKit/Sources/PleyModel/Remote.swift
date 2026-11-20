@@ -105,7 +105,7 @@ public struct DeviceKind: WireValue {
     public static let other = DeviceKind(rawValue: "other")
 }
 
-/// The channel a Live TV session watches; `now`: the programme on, from
+/// The channel a Live TV session watches; `now`: the program on, from
 /// `nowStart` to `nowStop` (unix seconds); `next`: the one after it.
 public struct PlayingChannel: Codable, Hashable, Sendable {
     public var id: Int
@@ -142,7 +142,7 @@ public struct PlayingChannel: Codable, Hashable, Sendable {
         next = try c.decodeIfPresent(String.self, forKey: .next)
     }
 
-    /// How far along the programme on is at `time` (unix seconds), from 0
+    /// How far along the program on is at `time` (unix seconds), from 0
     /// to 1; `nil` when its times aren't known.
     public func progress(at time: Int64) -> Double? {
         guard let start = nowStart, let stop = nowStop, stop > start else { return nil }
@@ -200,7 +200,7 @@ public struct TrackOption: Codable, Hashable, Sendable, Identifiable {
         forced = try c.value(.forced, or: false)
     }
 
-    /// The track as one of the file's streams of `kind`, so it is labelled
+    /// The track as one of the file's streams of `kind`, so it is labeled
     /// as the player's own menus label tracks (`Words.stream`). Subtitles
     /// numbered from 1000 are files beside the video or added ones.
     public func stream(_ kind: StreamKind) -> MediaStream {

@@ -29,8 +29,8 @@ const WIDE: Layout = { pxPerMin: 5.5, rowHeight: 68, channelWidth: 212, headerHe
 const NARROW: Layout = { pxPerMin: 4, rowHeight: 60, channelWidth: 84, headerHeight: 40 };
 
 /**
- * The programme guide: channels down, time across, now marked. Rows are
- * virtualized, channels fetched a page at a time and their programmes in
+ * The program guide: channels down, time across, now marked. Rows are
+ * virtualized, channels fetched a page at a time and their programs in
  * six-hour chunks as they come into view, so a lineup of tens of thousands
  * scrolls as easily as ten.
  */
@@ -406,7 +406,7 @@ function ProgramCell({
 }) {
   const airing = program.start <= now && program.stop > now;
   const past = program.stop <= now;
-  // A programme begun before the left edge keeps its title in view.
+  // A program begun before the left edge keeps its title in view.
   const indent = Math.max(0, Math.min(viewLeft - left, width - 80));
   return (
     <button

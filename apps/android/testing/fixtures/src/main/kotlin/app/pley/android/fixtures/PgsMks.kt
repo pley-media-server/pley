@@ -6,7 +6,7 @@ import java.io.ByteArrayOutputStream
  * A Matroska file holding one PGS subtitle track, made here rather than
  * committed: what GET /api/files/{id}/subtitles/{index}.mks answers for
  * subtitles shown as pictures. Each cue is a display set drawing its text
- * (a small pixel font) white on a dark box, centred low on a 1080p plane,
+ * (a small pixel font) white on a dark box, centered low on a 1080p plane,
  * and another clearing it at its end. Timestamps are the file's own.
  */
 object PgsMks {

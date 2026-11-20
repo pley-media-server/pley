@@ -116,7 +116,7 @@ export function requestsTitle(s: RequestSummary | null): string {
 
 /**
  * The one number on the way to requests: for managers what waits for
- * them and their own news, in the danger colour while some failed; for
+ * them and their own news, in the danger color while some failed; for
  * everyone else their news.
  */
 export function requestsCount(s: RequestSummary | null): { count: number; danger: boolean } {
@@ -174,7 +174,7 @@ export function titleBadge(title: { status: TitleStatus; item_id: number | null 
   }
 }
 
-/** A badge's colour: what can be watched green, what is on its way blue, what was refused red. */
+/** A badge's color: what can be watched green, what is on its way blue, what was refused red. */
 export function titleTone(title: { status: TitleStatus; item_id: number | null }): Tone {
   if (title.status === "library" || (title.status === "partial" && title.item_id !== null)) return "green";
   if (title.status === "declined") return "red";
@@ -472,7 +472,7 @@ function allowanceFor(a: Allowance, kind: TitleKind): Allowance {
 
 // ---- a request's stage
 
-/** The stage pill's colour: waiting for a decision, on its way, ready, refused or failed, gone. */
+/** The stage pill's color: waiting for a decision, on its way, ready, refused or failed, gone. */
 export type Tone = "amber" | "blue" | "green" | "red" | "gray";
 
 export interface StageWords {
@@ -484,7 +484,7 @@ export interface StageWords {
   note: string | null;
 }
 
-/** Where a request has got to, in words and a colour (managers read why one failed). */
+/** Where a request has got to, in words and a color (managers read why one failed). */
 export function stageWords(r: MediaRequest, opts: { manage: boolean; hours24: boolean }, now = Date.now()): StageWords {
   const words = (text: string, tone: Tone, progress: number | null = null, note: string | null = null): StageWords => ({ text, tone, progress, note });
   switch (r.stage) {

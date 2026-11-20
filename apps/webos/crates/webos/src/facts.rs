@@ -314,7 +314,7 @@ pub struct CodecTable {
 /// One video decoder of the table.
 #[derive(Clone, Debug, PartialEq)]
 pub struct VideoRow {
-    /// Normalised: `h264`, `hevc`, `mpeg2`, `vp8`, `vp9`, `av1`.
+    /// Normalized: `h264`, `hevc`, `mpeg2`, `vp8`, `vp9`, `av1`.
     pub name: String,
     pub max_width: u32,
     pub max_height: u32,
@@ -326,7 +326,7 @@ pub struct VideoRow {
 /// One audio decoder of the table.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AudioRow {
-    /// Normalised: `mpeg`, `aac`, `ac3`, `eac3`, `dts`, `flac`…
+    /// Normalized: `mpeg`, `aac`, `ac3`, `eac3`, `dts`, `flac`…
     pub name: String,
     pub channels: u32,
 }

@@ -14,7 +14,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// <summary>What Live TV's pages and its player draw alike (the Android app's TvLiveKit).</summary>
 static class LiveViews
 {
-    /// <summary>A programme airing in the guide, the New badge: the Android app's PrimaryContainer.</summary>
+    /// <summary>A program airing in the guide, the New badge: the Android app's PrimaryContainer.</summary>
     public static readonly Color PrimaryContainer = new Color(0x14 / 255f, 0x30 / 255f, 0x3E / 255f, 1);
 
     /// <summary>The icon of Core's Lucide name, among those the app ships (packages/tv's set): All channels has layers there.</summary>
@@ -58,7 +58,7 @@ static class LiveViews
         return box;
     }
 
-    /// <summary>The badge a programme carries, if any: Live first, else New.</summary>
+    /// <summary>The badge a program carries, if any: Live first, else New.</summary>
     public static View? BadgeOf(LiveProgram program) => LiveText.Badge(program) is { } text ? Badge(text, program.IsLive) : null;
 
     /// <summary>A ring in the accent, turning while a channel tunes or waits for data.</summary>
@@ -411,10 +411,10 @@ sealed class CategoryColumnView : View
 }
 
 /// <summary>
-/// A programme's details in a side panel (the Android app's ProgramPanel): the channel; the
-/// programme's picture, title, episode, day and times with its badges, how far it is and what the
-/// guide says; then Watch and, beside it, the favourite as a star alone, filled for a favourite, as
-/// in the live player. Without a programme, the channel alone.
+/// A program's details in a side panel (the Android app's ProgramPanel): the channel; the
+/// program's picture, title, episode, day and times with its badges, how far it is and what the
+/// guide says; then Watch and, beside it, the favorite as a star alone, filled for a favorite, as
+/// in the live player. Without a program, the channel alone.
 /// </summary>
 sealed class ProgramPanelSheet : Sheet
 {
@@ -453,7 +453,7 @@ sealed class ProgramPanelSheet : Sheet
         y += 38;
 
         // The buttons at the foot, side by side; the text above them takes the room left. As a pill,
-        // Remove from favourites didn't fit beside Watch and went under it.
+        // Remove from favorites didn't fit beside Watch and went under it.
         var watchButton = new ButtonView(program == null || program.AiringAt(now) ? LiveText.WatchNow : LiveText.WatchChannel, ButtonKind.Pill, () =>
         {
             Close();

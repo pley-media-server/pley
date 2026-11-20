@@ -60,7 +60,7 @@ object PictureGeometry {
 
     /**
      * Where the picture goes on a [width] by [height] screen: fitted, grown
-     * by [scale] and centred. Subtitles burned into the picture sit at its
+     * by [scale] and centered. Subtitles burned into the picture sit at its
      * bottom, so with [keepBottom] the bottom stays on screen and only the
      * top is cropped. [video] of 0 (not known yet) fills the screen.
      */

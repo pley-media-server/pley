@@ -14,7 +14,7 @@ export interface RailEntry {
   label: string;
   icon: IconName;
   key: PageKey;
-  /** A number beside the icon (what waits in requests), in the danger colour with `danger`. */
+  /** A number beside the icon (what waits in requests), in the danger color with `danger`. */
   badge?: { count: number; danger: boolean };
 }
 
@@ -134,7 +134,7 @@ export function currentEntry(root: PageKey | null, entries: RailEntries): string
   }
 }
 
-/** A profile's colour as CSS, or `null` when it isn't one ("#e07a5f" only). */
+/** A profile's color as CSS, or `null` when it isn't one ("#e07a5f" only). */
 export function profileColor(color: string | null | undefined): string | null {
   return color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null;
 }

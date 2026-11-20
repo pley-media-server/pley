@@ -220,7 +220,7 @@ public final class BonjourBrowser: ServiceBrowsing {
     }
 
     /// A connection to `endpoint` over IP `version`: where it went, once
-    /// ready; `nil` when it fails or the task is cancelled.
+    /// ready; `nil` when it fails or the task is canceled.
     private static func connect(_ endpoint: NWEndpoint, version: NWProtocolIP.Options.Version) async
         -> ResolvedService? {
         let parameters = NWParameters.tcp
@@ -294,7 +294,7 @@ public final class BonjourBrowser: ServiceBrowsing {
 }
 
 /// Network's browsers and connections are Sendable from iOS 17 only; each
-/// is used through its own handlers and cancelled once.
+/// is used through its own handlers and canceled once.
 private final class Box<Value>: @unchecked Sendable {
     let value: Value
     init(_ value: Value) { self.value = value }

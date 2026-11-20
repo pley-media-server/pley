@@ -97,7 +97,7 @@ pub enum Fit {
 pub struct ImageOpts {
     pub fit: Fit,
     /// Where the crop (or the placement) leans, as Android's `BiasAlignment`: −1 the left or top
-    /// edge, 0 the centre, 1 the right or bottom ([`theme::BACKDROP_BIAS`] for backdrops).
+    /// edge, 0 the center, 1 the right or bottom ([`theme::BACKDROP_BIAS`] for backdrops).
     pub bias: (f32, f32),
     pub radius: f32,
     pub priority: Priority,
@@ -110,12 +110,12 @@ impl Default for ImageOpts {
 }
 
 impl ImageOpts {
-    /// Filling the rectangle, cropped about the centre.
+    /// Filling the rectangle, cropped about the center.
     pub fn cover() -> ImageOpts {
         ImageOpts::default()
     }
 
-    /// Whole inside the rectangle, centred.
+    /// Whole inside the rectangle, centered.
     pub fn contain() -> ImageOpts {
         ImageOpts { fit: Fit::Contain, ..ImageOpts::default() }
     }
@@ -788,7 +788,7 @@ pub struct Ui<'a> {
 }
 
 impl<'a> Ui<'a> {
-    /// Starts a frame: `list` is cleared to record it (with `Bg` as its clear colour), `scale` is
+    /// Starts a frame: `list` is cleared to record it (with `Bg` as its clear color), `scale` is
     /// device pixels per dp, and `input` is applied against what the previous frame drew.
     pub fn new(
         state: &'a mut UiState,
@@ -925,7 +925,7 @@ impl<'a> Ui<'a> {
         self.st.tier
     }
 
-    /// The colour the frame is cleared to: Bg for pages, transparent while video plays under the
+    /// The color the frame is cleared to: Bg for pages, transparent while video plays under the
     /// interface.
     pub fn set_clear(&mut self, color: Color) {
         self.list.clear = color;
@@ -1083,7 +1083,7 @@ impl<'a> Ui<'a> {
     }
 
     /// Whether the pointer gave the current focus: scrollers then move only as far as brings the
-    /// element in whole ([`crate::nudge`]), never re-centring.
+    /// element in whole ([`crate::nudge`]), never re-centering.
     pub fn pointer_mode(&self) -> bool {
         self.st.focus.by_pointer
     }
@@ -1153,7 +1153,7 @@ impl<'a> Ui<'a> {
 
     // Keys and the pointer.
 
-    /// This frame's key events that focus didn't use: Back, digits, the player's and colour keys,
+    /// This frame's key events that focus didn't use: Back, digits, the player's and color keys,
     /// key-ups, and directions the focused element or its groups take. A held direction comes as
     /// the repeat gate's repeats, on the app's clock, not the TV's.
     pub fn keys(&self) -> &[KeyEvent] {
@@ -1244,7 +1244,7 @@ impl<'a> Ui<'a> {
         self.tween(id, Some([from, 0.0, 0.0, 0.0]), [target, 0.0, 0.0, 0.0], motion)[0]
     }
 
-    /// A colour heading for `target`, channel by channel.
+    /// A color heading for `target`, channel by channel.
     pub fn animate_color(&mut self, id: Id, target: Color, motion: Motion) -> Color {
         let lanes = [target.r as f32, target.g as f32, target.b as f32, target.a as f32];
         let v = self.tween(id, None, lanes, motion);
@@ -1286,7 +1286,7 @@ impl<'a> Ui<'a> {
         }
     }
 
-    /// An outline `width` thick centred on the rectangle's edge.
+    /// An outline `width` thick centered on the rectangle's edge.
     pub fn stroke(&mut self, rect: Rect, color: Color, radius: f32, width: f32) {
         if !color.is_transparent() && width > 0.0 {
             self.list.push(Cmd::Stroke { rect, color, radius, width });

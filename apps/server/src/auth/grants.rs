@@ -5,7 +5,7 @@
 //! grant: someone has a copy.
 //!
 //! Tokens are stored as SHA-256, like session tokens, and carry a prefix
-//! (`pley_at_`, `pley_rt_`) so that leaked ones are recognisable and never
+//! (`pley_at_`, `pley_rt_`) so that leaked ones are recognizable and never
 //! pass for a session token, or for each other. Everything here runs in short
 //! transactions on the writer (see [`crate::db`]); [`super::AuthService`]
 //! wraps it and forgets cached tokens.

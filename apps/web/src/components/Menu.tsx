@@ -19,7 +19,7 @@ export function Menu({
 }: {
   trigger: (props: { open: boolean; toggle: () => void }) => ReactNode;
   children: (close: () => void) => ReactNode;
-  /** Which edge of the trigger it lines up with, or centred under it (the globe under the sign-in card). */
+  /** Which edge of the trigger it lines up with, or centered under it (the globe under the sign-in card). */
   align?: "left" | "right" | "center";
   /**
    * The side it opens on (above: a dialog's footer). Where the window has no room for it there and

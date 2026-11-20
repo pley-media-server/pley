@@ -55,7 +55,7 @@ class StruggleDetector(
  * What a playback did, for Playback details, Diagnostics and benchmarks:
  * the first frame (which ends the trace section pley.play.tapToFirstFrame),
  * the decoders and whether the video one is hardware, the formats with
- * their colour and frame rate, the audio encoding and passthrough, dropped
+ * their color and frame rate, the audio encoding and passthrough, dropped
  * frames and stalls.
  */
 @OptIn(markerClass = [UnstableApi::class])

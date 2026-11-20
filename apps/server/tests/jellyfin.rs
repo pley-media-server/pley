@@ -416,7 +416,7 @@ async fn metadata_is_edited_with_a_token_that_may_manage_libraries() {
     item["Name"] = json!("Alpha Redux");
     item["Overview"] = json!("A new summary.");
     item["Genres"] = json!(["Drama", "Mystery"]);
-    item["Tags"] = json!(["Favourites"]);
+    item["Tags"] = json!(["Favorites"]);
     item["OfficialRating"] = json!("PG-13");
     item["ProductionYear"] = json!(1980);
     let player = app.jf(Method::POST, &format!("/Items/{film}"), admin, Some(item.clone())).await;
@@ -425,7 +425,7 @@ async fn metadata_is_edited_with_a_token_that_may_manage_libraries() {
     assert_eq!(edited.status, StatusCode::NO_CONTENT, "{}", edited.text());
     let item = as_manager(Method::GET, format!("/Items/{film}"), None).await.body;
     assert_eq!((&item["Name"], &item["Overview"]), (&json!("Alpha Redux"), &json!("A new summary.")));
-    assert_eq!((&item["Genres"], &item["Tags"]), (&json!(["Drama", "Mystery"]), &json!(["Favourites"])));
+    assert_eq!((&item["Genres"], &item["Tags"]), (&json!(["Drama", "Mystery"]), &json!(["Favorites"])));
     assert_eq!((&item["OfficialRating"], &item["ProductionYear"]), (&json!("PG-13"), &json!(1980)));
     // Edits are locked, as Pley's editor locks them.
     assert_eq!(item["LockedFields"], json!(["Name", "Overview", "Genres", "OfficialRating"]));

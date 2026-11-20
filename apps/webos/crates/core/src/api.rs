@@ -5,7 +5,7 @@
 //!
 //! Every request carries the access token in `Authorization: Bearer` (the
 //! only place Pley takes an app's token) when it is for this server, and is
-//! cancelled with the task that makes it.
+//! canceled with the task that makes it.
 
 use std::io::Read;
 use std::sync::Arc;
@@ -630,7 +630,7 @@ impl Api {
         self.get_query("/api/live/guide", &query)
     }
 
-    /// Marks a channel a favourite, or not.
+    /// Marks a channel a favorite, or not.
     pub fn set_live_favorite(&self, channel: i64, favorite: bool) -> Result<(), ApiError> {
         self.act(
             if favorite { Method::Put } else { Method::Delete },

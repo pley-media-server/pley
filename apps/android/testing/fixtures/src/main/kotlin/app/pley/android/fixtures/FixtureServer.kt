@@ -19,7 +19,7 @@ import okio.Buffer
  * outside Android 17's local-network permission) on a free port, and
  * answers docs/API.md's routes as an app's token sees them:
  *
- * - the catalogue of [FixtureIds]: libraries, listings with ETag and 304,
+ * - the catalog of [FixtureIds]: libraries, listings with ETag and 304,
  *   hubs, items with their files, streams, chapters and markers, people,
  *   collections, playlists, search and history;
  * - playback: sessions answered direct or as HLS, the files with Range, the

@@ -899,7 +899,7 @@ public final class PlaybackController: ObservableObject {
     }
 
     /// A new session at `atMs`, ending the one before; the previous start
-    /// is cancelled (a new choice wins). `alongside`: a quality change or
+    /// is canceled (a new choice wins). `alongside`: a quality change or
     /// Automatic's step while it plays, made ready beside the session
     /// playing (`beginBeside`). Recoveries from errors and stalls start at
     /// once: the stream playing is what failed.
@@ -931,7 +931,7 @@ public final class PlaybackController: ObservableObject {
         try Task.checkCancellation()
         reset(at: atMs)
         let (started, url) = try await startSession(at: atMs, keepPrevious: false)
-        // Cancelled while its address was checked: another start loads in its place.
+        // Canceled while its address was checked: another start loads in its place.
         guard !closed, !Task.isCancelled else {
             started.discard()
             throw CancellationError()
@@ -980,7 +980,7 @@ public final class PlaybackController: ObservableObject {
                 group.cancelAll()
             }
         }
-        // Cancelled for a newer choice, or the session playing ended meanwhile (its end, the server's stop).
+        // Canceled for a newer choice, or the session playing ended meanwhile (its end, the server's stop).
         guard !Task.isCancelled, session === playing, !closed, !stopped else {
             started.discard()
             if Task.isCancelled { throw CancellationError() }
@@ -1286,7 +1286,7 @@ public final class PlaybackController: ObservableObject {
         state.skipLabel = nil
         updateCues()
         setPhase(.ended)
-        // What comes next, with its countdown (again, when its card was cancelled).
+        // What comes next, with its countdown (again, when its card was canceled).
         guard let item, NextUp.hasNext(item.kind, queue: request.queue), !closed, !stopped else { return }
         lookUpNext { [weak self] found in
             guard let self, let found, self.ended else { return }

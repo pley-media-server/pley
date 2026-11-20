@@ -2,7 +2,7 @@
 //! stored: what GET /api/files/{id}/subtitles/{index}.mks answers for
 //! subtitles shown as pictures (a port of the Android fixtures' `PgsMks`).
 //! Each cue is a display set drawing its text (a small pixel font) white with
-//! a black edge on a dark box, centred low on a 1080p plane, and another
+//! a black edge on a dark box, centered low on a 1080p plane, and another
 //! clearing it at its end. Times are the file's own, in ms.
 
 /// The plane the pictures are placed on.

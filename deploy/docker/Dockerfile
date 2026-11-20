@@ -91,7 +91,7 @@ RUN --mount=type=bind,from=ffmpeg,source=/packages,target=/tmp/ffmpeg-packages \
 # is started (pley.sh).
 COPY --from=build /out/bin/ /usr/local/lib/pley/
 COPY --chmod=755 deploy/docker/pley.sh /usr/local/bin/pley
-# Pley's licence. FFmpeg's and libplacebo's, with their sources, are in
+# Pley's license. FFmpeg's and libplacebo's, with their sources, are in
 # /usr/share/doc/ffmpeg and /usr/share/doc/libplacebo; Debian's packages keep
 # theirs in /usr/share/doc/<package>/copyright (LICENSING.md).
 COPY LICENSE /usr/share/doc/pley/LICENSE.txt

@@ -50,11 +50,11 @@ describe("RecommendedRowsModal", () => {
     const user = userEvent.setup();
     const requests = mockApi({
       "GET /api/libraries/1/collections": () => ({
-        collections: [collection(1, "Recently Added", 0), collection(2, "Top Rated", 1), collection(3, "Favourites", null)],
+        collections: [collection(1, "Recently Added", 0), collection(2, "Top Rated", 1), collection(3, "Favorites", null)],
       }),
       "PUT /api/libraries/1/rows/order": () => undefined,
       "PATCH /api/collections/2": () => collection(2, "Top Rated", null),
-      "PATCH /api/collections/3": () => collection(3, "Favourites", 2),
+      "PATCH /api/collections/3": () => collection(3, "Favorites", 2),
     });
     renderWithProviders(<RecommendedRowsModal open onClose={vi.fn()} libraryId={1} />);
 
@@ -76,7 +76,7 @@ describe("RecommendedRowsModal", () => {
 
   it("keeps the focus on the rows moved or taken off from the keyboard, and says where they went", async () => {
     const user = userEvent.setup();
-    let collections = [collection(1, "Recently Added", 0), collection(2, "Top Rated", 1), collection(3, "Favourites", 2)];
+    let collections = [collection(1, "Recently Added", 0), collection(2, "Top Rated", 1), collection(3, "Favorites", 2)];
     mockApi({
       "GET /api/libraries/1/collections": () => ({ collections }),
       "PUT /api/libraries/1/rows/order": (req) => {
@@ -100,7 +100,7 @@ describe("RecommendedRowsModal", () => {
     // Taken off, a row hands the focus to the one that takes its place.
     await user.click(screen.getByRole("button", { name: "Take Recently Added off" }));
     await waitFor(() => expect(within(list).queryByText("Recently Added")).not.toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Take Favourites off" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Take Favorites off" })).toHaveFocus();
   });
 
   it("says when Pley's collections are all there to restore", async () => {

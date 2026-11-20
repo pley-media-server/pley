@@ -6,7 +6,7 @@
      history, switch profile, the profile to always start as, sort the
      libraries, switch server or sign out. Under the app's version, TMDB's
      notice, then where the account is managed on the web; at the right,
-     Diagnostics and the open-source licences. -->
+     Diagnostics and the open-source licenses. -->
 <component name="SettingsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />

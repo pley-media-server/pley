@@ -185,7 +185,7 @@ async fn more_like_this_as_plex_clients_read_it() {
     let similar = app.plex_json(&format!("/library/metadata/{alien}/similar"), &admin).await;
     assert_eq!(plex_titles(&similar), titles, "the same items as a list");
 
-    // Hidden items have no neighbours either.
+    // Hidden items have no neighbors either.
     let (kid, _) = app.user(&admin, "kid", json!({"max_age": 12})).await;
     let hidden = app.plex(Method::GET, &format!("/library/metadata/{alien}/related"), &kid, &[]).await;
     assert_eq!(hidden.status, StatusCode::NOT_FOUND);

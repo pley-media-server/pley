@@ -43,7 +43,7 @@ export function Row({ label, hint, children, htmlFor }: { label: ReactNode; hint
 }
 
 /**
- * Under a choice: why it is greyed out here, or (`notice`) what happens
+ * Under a choice: why it is grayed out here, or (`notice`) what happens
  * instead of a choice saved before that can't work here.
  */
 export function Note({ notice, children }: { notice?: boolean; children: ReactNode }) {

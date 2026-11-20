@@ -64,7 +64,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Live TV's page on TV with the remote: Back a step at a time, a search left, a programme's details, a held key at a row's end. */
+/** Live TV's page on TV with the remote: Back a step at a time, a search left, a program's details, a held key at a row's end. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
 @OptIn(ExperimentalTestApi::class)

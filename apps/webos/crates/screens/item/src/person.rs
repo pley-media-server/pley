@@ -123,7 +123,7 @@ impl PersonScreen {
         let x = photo.right() + PHOTO_GAP;
         let width = theme::CANVAS_W - theme::SAFE_X - x;
         let Some(page) = &self.page else {
-            // Still blocks while loading, centred beside the photo.
+            // Still blocks while loading, centered beside the photo.
             let y = photo.center().y - (38.0 + 8.0 + 20.0) / 2.0;
             common::block(ui, x, y, 280.0, 38.0);
             common::block(ui, x, y + 46.0, 200.0, 20.0);

@@ -38,7 +38,7 @@ internal class Route(
     val method: String,
     path: String,
     val need: Need,
-    /** Reads only what never changes (the catalogue, the media), so runs without the lock. */
+    /** Reads only what never changes (the catalog, the media), so runs without the lock. */
     val free: Boolean = false,
     val handle: (call: Call, caller: Caller?, values: List<String>) -> MockResponse,
 ) {

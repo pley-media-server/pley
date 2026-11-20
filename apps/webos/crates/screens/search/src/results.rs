@@ -353,7 +353,7 @@ pub const TMDB_TITLES: usize = 20;
 pub const TMDB_PAGES: i64 = 3;
 
 /// A title TMDB has for the words that the libraries lack, as Discover's row shows it: a poster
-/// with its badge ("In library", "Requested"…) in the badge's colour, its name over its year and
+/// with its badge ("In library", "Requested"…) in the badge's color, its name over its year and
 /// kind.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TmdbTile {

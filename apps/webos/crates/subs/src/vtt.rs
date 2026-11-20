@@ -36,7 +36,7 @@ pub struct CueLine {
     pub snap_to_lines: bool,
 }
 
-/// How a cue's lines are aligned (WebVTT's `align`; `middle` reads as centre).
+/// How a cue's lines are aligned (WebVTT's `align`; `middle` reads as center).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum CueAlign {
     Start,
@@ -57,7 +57,7 @@ pub struct TextCue {
     pub lines: Vec<Vec<Span>>,
     /// `None`: the last line, at the bottom.
     pub line: Option<CueLine>,
-    /// Percentage of the width the cue's box is placed at; `None`: centred.
+    /// Percentage of the width the cue's box is placed at; `None`: centered.
     pub position: Option<f32>,
     /// Percentage of the width the cue's box takes; `None`: 100.
     pub size: Option<f32>,

@@ -1,19 +1,19 @@
-//! The programme guide (`TvGuide.kt`): what has focus described above the grid, channels down and
+//! The program guide (`TvGuide.kt`): what has focus described above the grid, channels down and
 //! time across at 3.6 dp a minute (two hours in view), a time ruler, now marked by a line. The grid
-//! is one focusable area; focus is a programme the guide moves itself:
+//! is one focusable area; focus is a program the guide moves itself:
 //!
-//! - Left and Right go to the programme before and after, the grid following by half hours (on a
+//! - Left and Right go to the program before and after, the grid following by half hours (on a
 //!   row with nothing in view, the grid moves a half hour at each press); Left from the guide's
 //!   first half hour goes to the categories, on a press of its own, not a held key nor one within
 //!   half a second of Left moving in the guide;
 //! - Up and Down keep the time and change channel, Up from the first row going to the tabs above;
 //!   CH+ and CH− move five rows;
-//! - OK on a programme on now (or a channel without one) watches the channel, on another opens its
+//! - OK on a program on now (or a channel without one) watches the channel, on another opens its
 //!   details, as do holding OK, Menu and Info;
 //! - Back away from now comes back to now first.
 //!
 //! The guide opens at the half hour before the one now is in and goes 48 hours from there; the
-//! category's channels come 100 at a time as rows come near, and the programmes in six-hour chunks
+//! category's channels come 100 at a time as rows come near, and the programs in six-hour chunks
 //! for the rows near the view.
 
 use pley_base::{Key, Point, Rect, TextOpts, Weight};
@@ -49,9 +49,9 @@ pub const RULER_H: f32 = 28.0;
 pub const BOTTOM: f32 = 27.0;
 /// CH+ and CH− move this many rows.
 pub const PAGE: usize = 5;
-/// Narrower than this a programme shows no text (Android's 70 px at the TV's 2×).
+/// Narrower than this a program shows no text (Android's 70 px at the TV's 2×).
 pub const MIN_TEXT: f32 = 35.0;
-/// A programme begun before the left edge keeps its title in view, up to this much of it.
+/// A program begun before the left edge keeps its title in view, up to this much of it.
 pub const KEEP_TITLE: f32 = 90.0;
 /// Channels are loaded this many rows past those in view (`MARGIN`).
 pub const MARGIN: usize = 20;
@@ -81,12 +81,12 @@ pub fn left_for(now: i64, start: i64) -> i64 {
     (slot(now) - SLOT).max(start)
 }
 
-/// The programme on at `t`.
+/// The program on at `t`.
 pub fn at(programs: Option<&[LiveProgram]>, t: i64) -> Option<&LiveProgram> {
     programs?.iter().find(|p| p.start <= t && p.stop > t)
 }
 
-/// The programmes overlapping `from`–`to`.
+/// The programs overlapping `from`–`to`.
 pub fn between(programs: Option<&[LiveProgram]>, from: i64, to: i64) -> impl Iterator<Item = &LiveProgram> {
     programs.unwrap_or(&[]).iter().filter(move |p| p.stop > from && p.start < to)
 }
@@ -105,7 +105,7 @@ impl Cursor {
         Cursor { row: 0, time: now, left: left_for(now, start) }
     }
 
-    /// Puts the cursor at `time` (a programme's start, or a half hour), the grid following it.
+    /// Puts the cursor at `time` (a program's start, or a half hour), the grid following it.
     pub fn move_to(&mut self, time: i64, start: i64) {
         let end = start + GUIDE_SPAN;
         self.time = time.clamp(start, end - 1);
@@ -116,7 +116,7 @@ impl Cursor {
         }
     }
 
-    /// Back to the programme airing, the grid where it opened.
+    /// Back to the program airing, the grid where it opened.
     pub fn back_to_now(&mut self, now: i64, start: i64) {
         self.time = now;
         self.left = left_for(now, start);
@@ -131,7 +131,7 @@ impl Cursor {
         off || self.left != left_for(now, start)
     }
 
-    /// Left: the programme before. True when it leaves the guide instead, which it does only from
+    /// Left: the program before. True when it leaves the guide instead, which it does only from
     /// the guide's first half hour (`GuideCursor.MoveLeft`).
     pub fn step_left(&mut self, programs: Option<&[LiveProgram]>, start: i64) -> bool {
         let current = at(programs, self.time);
@@ -139,8 +139,8 @@ impl Cursor {
             && p.start <= start
             && self.left > start
         {
-            // The programme began with the guide or before it, and the view is scrolled on: the
-            // view goes back through it first, a screen at a time. Gone by the programme alone,
+            // The program began with the guide or before it, and the view is scrolled on: the
+            // view goes back through it first, a screen at a time. Gone by the program alone,
             // Left took focus to the categories with the view still scrolled on, the time before
             // it unseen.
             self.left = start.max(slot(p.start)).max(self.left - (VIEW_S - SLOT));
@@ -176,7 +176,7 @@ impl Cursor {
         self.time = (self.time + by).min(edge + VIEW_S - 1).max(edge);
     }
 
-    /// Right: the programme after, or the next half hour; never past the guide's end.
+    /// Right: the program after, or the next half hour; never past the guide's end.
     pub fn step_right(&mut self, programs: Option<&[LiveProgram]>, start: i64) {
         let current = at(programs, self.time);
         let target = current.map_or(slot(self.time) + SLOT, |p| p.stop);
@@ -197,7 +197,7 @@ impl Cursor {
     }
 }
 
-/// Whether a row has no programme near the view at `left` (a channel without a guide, or one
+/// Whether a row has no program near the view at `left` (a channel without a guide, or one
 /// still loading): a cursor moving alone there would move unseen.
 fn blank(programs: Option<&[LiveProgram]>, left: i64, start: i64) -> bool {
     between(programs, (left - VIEW_S).max(start), left + 2 * VIEW_S).next().is_none()
@@ -207,7 +207,7 @@ fn blank(programs: Option<&[LiveProgram]>, left: i64, start: i64) -> bool {
 #[derive(Clone, Debug, PartialEq)]
 pub enum GuideAction {
     Watch(Box<LiveChannel>),
-    /// A programme's details (or the channel's, without one).
+    /// A program's details (or the channel's, without one).
     Details(Box<(LiveChannel, Option<LiveProgram>)>),
     /// Left out of the guide: to the categories.
     Leave,
@@ -356,7 +356,7 @@ impl Guide {
                             self.left_moved_at = ui.time();
                         } else if !k.repeat && ui.time() - self.left_moved_at >= EDGE_PAUSE {
                             // Out to the categories on a press of its own: not under a held key,
-                            // nor straight after Left went back through the programmes, so taps in
+                            // nor straight after Left went back through the programs, so taps in
                             // a row stop at the guide's start.
                             out.action = Some(GuideAction::Leave);
                         }
@@ -451,7 +451,7 @@ impl Guide {
         out
     }
 
-    /// The programme under the pointer takes the cursor (a click there is its OK).
+    /// The program under the pointer takes the cursor (a click there is its OK).
     fn point_at(&mut self, p: Point, rows: Rect, data: &GuideData, total: usize) {
         let shown = self.scroll;
         let row = ((p.y - rows.y + shown) / ROW_H).floor();
@@ -550,8 +550,8 @@ impl Guide {
         });
     }
 
-    /// One channel's row: its cell and its programmes, the one with focus in the accent
-    /// (`GuideRow`). `focused_start` is the focused programme's start (−1 for none) on the focused row.
+    /// One channel's row: its cell and its programs, the one with focus in the accent
+    /// (`GuideRow`). `focused_start` is the focused program's start (−1 for none) on the focused row.
     #[allow(clippy::too_many_arguments)]
     fn row(
         &self,
@@ -590,7 +590,7 @@ impl Guide {
         let name_color = if row_focused { theme::FG } else { theme::MUTED };
         ui.text(Point::new(tx, ty + theme::CAPTION.line_height), &name, &theme::LABEL, &TextOpts::line(tw), name_color);
 
-        // Its programmes, as far as the grid may move a screen either way.
+        // Its programs, as far as the grid may move a screen either way.
         let programs = data.programs.programs(c.id);
         let from = (self.cursor.left - VIEW_S).max(self.start);
         let to = self.cursor.left + 2 * VIEW_S;
@@ -641,7 +641,7 @@ impl Guide {
     }
 }
 
-/// One programme's block in a row at `rect` (its whole span; the row's full height): on now in
+/// One program's block in a row at `rect` (its whole span; the row's full height): on now in
 /// the primary container with an accent edge and its progress along the foot, later ones on
 /// Surface2, ended ones faded, the focused one in the accent. `hidden` is how much of its start is
 /// past the grid's left edge, which its words slide past to stay in view.
@@ -688,7 +688,7 @@ fn programme(ui: &mut Ui, rect: Rect, p: &LiveProgram, focused: bool, now: i64, 
     });
 }
 
-/// The rows of channel ids the guide asks programmes for: those near the view, in blocks of 20 so
+/// The rows of channel ids the guide asks programs for: those near the view, in blocks of 20 so
 /// the asking comes in a few requests rather than one per row.
 pub fn guide_rows(rows: (usize, usize), total: usize) -> (usize, usize) {
     let lo = rows.0.saturating_sub(5) / 20 * 20;
@@ -729,7 +729,7 @@ mod tests {
         assert_eq!(c.time, start + 7200);
         // Within the last half hour of the view: the grid moves to the half hour before.
         assert_eq!(c.left, start + 7200 - SLOT);
-        // Left goes to the programme before, the cursor no further back than the half hour before
+        // Left goes to the program before, the cursor no further back than the half hour before
         // where it was (`TvGuide.kt`: its start, at least the half hour).
         assert!(!c.step_left(programs, start));
         assert_eq!(c.time, start + 5400);
@@ -738,7 +738,7 @@ mod tests {
         assert_eq!(c.time, start + 1800);
         assert_eq!(at(programs, c.time), Some(&list[0]));
         assert_eq!(c.left, start + 1800);
-        // The first programme began with the guide, the view scrolled on: Left shows its start.
+        // The first program began with the guide, the view scrolled on: Left shows its start.
         assert!(!c.step_left(programs, start));
         assert_eq!((c.time, c.left), (start, start));
         assert!(c.step_left(programs, start), "from the guide's start Left leaves");
@@ -793,7 +793,7 @@ mod tests {
     #[test]
     fn left_goes_back_through_a_long_programme_before_it_leaves_the_guide() {
         let start = guide_start(NOW);
-        // A five-hour programme from the guide's start, then another.
+        // A five-hour program from the guide's start, then another.
         let list = vec![p(start, start + 18_000), p(start + 18_000, start + 21_600)];
         let programs = Some(list.as_slice());
         let mut c = Cursor::new(NOW, start);
@@ -802,7 +802,7 @@ mod tests {
         assert!(c.left > start);
         assert!(!c.step_left(programs, start));
         assert_eq!(at(programs, c.time), Some(&list[0]));
-        // Back through the long programme a screen at a time, the view with it, to the guide's start.
+        // Back through the long program a screen at a time, the view with it, to the guide's start.
         let mut lefts = Vec::new();
         while c.left > start {
             assert!(!c.step_left(programs, start));

@@ -109,7 +109,7 @@ struct RemoteDecodingTests {
         #expect(session.audioIndex == 2 && session.subtitleIndex == SessionTracks.off)
         #expect(session.tracks.audio.map(\.index) == [1, 2])
         #expect(session.tracks.audio[0].default && session.tracks.subtitles[0].forced)
-        // Labelled as the player's own menus label tracks; from 1000, beside the video.
+        // Labeled as the player's own menus label tracks; from 1000, beside the video.
         #expect(session.tracks.audio.map { Words.stream($0.stream(.audio)) }
             == ["English (AAC Stereo)", "French – Commentary (EAC3 5.1)"])
         #expect(session.tracks.subtitles.map { Words.stream($0.stream(.subtitle)) }
@@ -148,7 +148,7 @@ struct RemoteDecodingTests {
         let channel = try #require(live.channel)
         #expect(channel == PlayingChannel(id: 3, name: "News", number: "101", now: "Evening news",
                                           nowStart: 1_761_300_000, nowStop: 1_761_303_600, next: "Weather"))
-        // How far along by the clock, never outside the programme.
+        // How far along by the clock, never outside the program.
         #expect(channel.progress(at: 1_761_301_800) == 0.5)
         #expect(channel.progress(at: 1_761_200_000) == 0 && channel.progress(at: 1_761_400_000) == 1)
         #expect(PlayingChannel(id: 3, name: "News", now: "Evening news").progress(at: 1_761_301_800) == nil)

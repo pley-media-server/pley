@@ -113,7 +113,7 @@ fn a_row_draws_only_what_is_near_the_screen_and_asks_ahead_for_pictures() {
     assert_eq!(drawn.len(), 11);
     // 1.5 screens of 8 tiles' pictures past them.
     assert_eq!(ahead, (109..121).collect::<Vec<_>>());
-    // The focused tile is drawn last of those on screen, over its neighbours; the rest only ask.
+    // The focused tile is drawn last of those on screen, over its neighbors; the rest only ask.
     assert!(c.drawn[10].response.focused);
 }
 

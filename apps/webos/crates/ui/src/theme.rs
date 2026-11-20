@@ -1,5 +1,5 @@
 //! The design system of the Android TV app, which every screen of Pley for LG TV follows: its
-//! colours, type styles, spacing, radii, scrims and gradients, the focus treatment, the canvas's
+//! colors, type styles, spacing, radii, scrims and gradients, the focus treatment, the canvas's
 //! fixed lines and the device tiers. Values come from the Android app's design system
 //! (`apps/android/core/designsystem/.../PleyColors.kt`, `PleyType.kt`, `PleySpace.kt`,
 //! `PleyShape.kt`) and its TV kit (`apps/android/ui/tv/...`), which the TV web app matched;
@@ -13,7 +13,7 @@ pub const fn alpha(c: Color, f: f32) -> Color {
     Color { r: c.r, g: c.g, b: c.b, a: (c.a as f32 * f + 0.5) as u8 }
 }
 
-// Colours (`PleyColors.kt`). Dark only.
+// Colors (`PleyColors.kt`). Dark only.
 
 /// The window, pages, scrims' base, the rail fade and the curtain.
 pub const BG: Color = Color::rgb(0x0b0d10);
@@ -43,9 +43,9 @@ pub const ACCENT: Color = Color::rgb(0x38bdf8);
 pub const ACCENT_BRIGHT: Color = Color::rgb(0x7dd3fc);
 /// Content on [`ACCENT`] and [`ACCENT_BRIGHT`].
 pub const ON_ACCENT: Color = Color::rgb(0x03131f);
-/// The "New" programme badge's background (Live TV).
+/// The "New" program badge's background (Live TV).
 pub const PRIMARY_CONTAINER: Color = Color::rgb(0x14303e);
-/// Brand colours: the logo and brand gradients only.
+/// Brand colors: the logo and brand gradients only.
 pub const BRAND_LIGHT: Color = Color::rgb(0xbae6fd);
 /// The brand's deep blue.
 pub const BRAND_DEEP: Color = Color::rgb(0x0284c7);
@@ -93,14 +93,14 @@ pub const TRACK_HIGHLIGHT: Color = alpha(ACCENT, 0.14);
 pub const ON_ACCENT_SECONDARY: Color = alpha(ON_ACCENT, 0.8);
 /// The onboarding screens' brand glow: BrandDeep at 18 %.
 pub const BRAND_GLOW: Color = alpha(BRAND_DEEP, 0.18);
-/// A library card's second line, as a fraction of its content colour's alpha.
+/// A library card's second line, as a fraction of its content color's alpha.
 pub const CARD_SUBLINE_ALPHA: f32 = 0.75;
-/// Icon wells, as a fraction of their content colour's alpha.
+/// Icon wells, as a fraction of their content color's alpha.
 pub const ICON_WELL_ALPHA: f32 = 0.12;
 /// Disabled controls are drawn at this opacity, and are not focusable (`TvButtons.kt`).
 pub const DISABLED_ALPHA: f32 = 0.4;
 
-/// Profile colours, in the order the server and every app use; a profile without one takes
+/// Profile colors, in the order the server and every app use; a profile without one takes
 /// `PROFILE_COLORS[hash(name) % 8]` ([`profile_color`]).
 pub const PROFILE_COLORS: [Color; 8] = [
     Color::rgb(0x38bdf8),
@@ -113,7 +113,7 @@ pub const PROFILE_COLORS: [Color; 8] = [
     Color::rgb(0xf87171),
 ];
 
-/// The colour of a profile named `name` that has none of its own: `h = h·31 + c` over its UTF-16
+/// The color of a profile named `name` that has none of its own: `h = h·31 + c` over its UTF-16
 /// units, wrapping at 32 bits.
 pub fn profile_color(name: &str) -> Color {
     PROFILE_COLORS[(utf16_hash(name) % 8) as usize]
@@ -136,7 +136,7 @@ pub fn placeholder_hue(seed: &str) -> u32 {
     utf16_hash(seed) % 360
 }
 
-/// The placeholder's two colours for a title: its 135° gradient runs from hsl(h, 30 %, 22 %) at
+/// The placeholder's two colors for a title: its 135° gradient runs from hsl(h, 30 %, 22 %) at
 /// the top-left to hsl(h + 40, 35 %, 12 %) at the bottom-right. Drawn whenever a picture hasn't
 /// finished loading or doesn't exist; backdrops use it without the title.
 pub fn placeholder_colors(seed: &str) -> (Color, Color) {
@@ -162,7 +162,7 @@ pub fn hsl(hue: f32, saturation: f32, lightness: f32) -> Color {
     Color { r: ch(r), g: ch(g), b: ch(b), a: 0xff }
 }
 
-// Type (`PleyType.Tv`): Roboto at 400, 500 and 700 only, line height centred, no font padding.
+// Type (`PleyType.Tv`): Roboto at 400, 500 and 700 only, line height centered, no font padding.
 
 const fn style(size: f32, line_height: f32, weight: Weight, tracking: f32) -> TextStyle {
     TextStyle { family: Family::Sans, size, line_height, weight, italic: false, tracking }
@@ -340,22 +340,22 @@ pub const READ_ON_STEP: f32 = 160.0;
 pub mod focus {
     use super::*;
 
-    /// A focused tile's art well grows to this, about its centre; the caption stays outside.
+    /// A focused tile's art well grows to this, about its center; the caption stays outside.
     pub const TILE_SCALE: f32 = 1.08;
     /// A tile while OK is held on it: 1.04 in all (the multiplier is 1.04 / 1.08).
     pub const TILE_PRESSED_SCALE: f32 = 1.04;
-    /// The tile ring: 3 dp of AccentBright centred 4.5 dp outside the scaled edge, its radius the
+    /// The tile ring: 3 dp of AccentBright centered 4.5 dp outside the scaled edge, its radius the
     /// tile's plus 4.5, reaching 6 dp past the edge; its alpha follows the focus progress.
     pub const RING_STROKE: f32 = 3.0;
-    /// How far outside the scaled edge the ring's centre line runs.
+    /// How far outside the scaled edge the ring's center line runs.
     pub const RING_OFFSET: f32 = 4.5;
     /// How far past the edge the ring reaches.
     pub const RING_REACH: f32 = 6.0;
-    /// The ring's colour.
+    /// The ring's color.
     pub const RING_COLOR: Color = ACCENT_BRIGHT;
     /// A text field's focused edge: 2 dp of AccentBright, no scale; 1 dp of Control at rest.
     pub const FIELD_EDGE: f32 = 2.0;
-    /// A focused text field's edge colour.
+    /// A focused text field's edge color.
     pub const FIELD_EDGE_COLOR: Color = ACCENT_BRIGHT;
     /// The 1 dp edge of pills, round buttons and fields at rest.
     pub const REST_EDGE: f32 = 1.0;
@@ -415,8 +415,8 @@ pub mod focus {
     pub const JUMP: ControlLook = look(SURFACE3, FG, None, ACCENT, 1.08);
 }
 
-/// A gradient along one axis as the design gives it: colours at positions in dp along that axis,
-/// piecewise linear between them, the end colours held beyond.
+/// A gradient along one axis as the design gives it: colors at positions in dp along that axis,
+/// piecewise linear between them, the end colors held beyond.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ramp(pub &'static [(f32, Color)]);
 
@@ -440,7 +440,7 @@ impl Ramp {
         out
     }
 
-    /// The colour at position `p`.
+    /// The color at position `p`.
     pub fn at(&self, p: f32) -> Color {
         let pts = self.0;
         let Some(&(first, c0)) = pts.first() else { return Color::TRANSPARENT };
@@ -484,7 +484,7 @@ pub const DIM_MAX_ALPHA: f32 = 0.92;
 /// An empty playlist's cover: a linear gradient from Surface3 to Surface2.
 pub const EMPTY_COVER: (Color, Color) = (SURFACE3, SURFACE2);
 /// Backdrops are cropped toward their subject: Android's `BiasAlignment(0.4, −0.6)`, right of
-/// centre and above the middle. Never blurred.
+/// center and above the middle. Never blurred.
 pub const BACKDROP_BIAS: (f32, f32) = (0.4, -0.6);
 
 pub use pley_base::Tier;
@@ -633,7 +633,7 @@ mod tests {
         assert_eq!(s.first(), Some(&GradientStop::new(0.0, BG)));
         assert_eq!(s[1], GradientStop::new(300.0 / 960.0, alpha(BG, 0.92)));
         assert_eq!(s.last().unwrap().color, alpha(BG, 0.0));
-        // A span starting inside the ramp begins with the colour there.
+        // A span starting inside the ramp begins with the color there.
         let s = BOTTOM_SCRIM_HERO.stops(315.0, 225.0);
         assert_eq!(s[0].color.a, 128);
         assert_eq!(s[1], GradientStop::new((410.0 - 315.0) / 225.0, BG));

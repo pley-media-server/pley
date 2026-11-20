@@ -122,7 +122,7 @@ public sealed class ChannelPaging : IDisposable
         Load();
     }
 
-    /// <summary>A channel changed here (a favourite marked): every page shows it at once.</summary>
+    /// <summary>A channel changed here (a favorite marked): every page shows it at once.</summary>
     public void Patch(Func<LiveChannel, LiveChannel> change)
     {
         foreach (var p in held.Keys.ToList()) held[p] = held[p].Select(change).ToList();

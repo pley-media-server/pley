@@ -70,7 +70,7 @@ export function categoryLines(groups: LiveGroups | null, open: string | null): L
 /**
  * Live TV's categories, in a panel at the left:
  * Search at its head (the TV's keyboard; every channel, whatever category
- * was open; Left goes to it from anywhere in the list), then Favourites,
+ * was open; Left goes to it from anywhere in the list), then Favorites,
  * Recently watched and All channels, the regions and the other groups.
  * The one shown has focus as it opens (the search, when it is one); OK on
  * a region opens it (one at a time), on another line shows it; Back or

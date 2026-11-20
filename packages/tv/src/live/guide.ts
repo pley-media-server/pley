@@ -13,14 +13,14 @@ const STALE_MS = 5 * 60_000;
 const RETRY_MS = 15_000;
 
 /**
- * The guide's programmes, asked for in six-hour chunks as the guide moves
+ * The guide's programs, asked for in six-hour chunks as the guide moves
  * through time, and only for the channels in view (`ids`), counted from
  * `origin`, where the guide opens: a lineup of tens of thousands costs the
  * rows on screen.
  */
 export class GuideStore {
   readonly origin: number;
-  /** Programmes by channel id, in order. */
+  /** Programs by channel id, in order. */
   readonly programs = new Map<number, LiveProgram[]>();
   /** Bumped as chunks come in: rows read `programs` again. */
   readonly version = signal(0);
@@ -33,7 +33,7 @@ export class GuideStore {
     this.origin = origin;
   }
 
-  /** Whether channel `id`'s programmes around `t` have been asked for and come (or failed). */
+  /** Whether channel `id`'s programs around `t` have been asked for and come (or failed). */
   answered(id: number, t: number): boolean {
     const start = chunkStarts(t, t + 1, this.origin)[0];
     const a = start === undefined ? undefined : this.asked.get(start)?.get(id);

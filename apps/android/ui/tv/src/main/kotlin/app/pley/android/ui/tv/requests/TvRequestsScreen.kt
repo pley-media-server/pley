@@ -543,7 +543,7 @@ private fun RequestCard(
         val poster = remember(request.posterUrl, origin) { ArtworkImage.of(request.posterUrl, origin) }
         Box {
             Artwork(poster, request.title, Modifier.size(PosterWidth, PosterHeight).clip(PleyShape.Badge).background(PleyColors.Surface3))
-            // On the poster's top right corner, ringed in the card's colour, so the words beside it never move.
+            // On the poster's top right corner, ringed in the card's color, so the words beside it never move.
             if (news) {
                 Box(
                     Modifier
@@ -623,7 +623,7 @@ private val PosterWidth = 48.dp
 private val PosterHeight = 72.dp
 private val StageWidth = 260.dp
 
-/** A focused card grows a little: it is wide, and its neighbours are close. */
+/** A focused card grows a little: it is wide, and its neighbors are close. */
 private const val CARD_SCALE = 1.02f
 
 /** Cards from the end at which the next page is asked for. */

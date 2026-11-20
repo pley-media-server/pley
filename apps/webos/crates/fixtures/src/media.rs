@@ -37,7 +37,7 @@ impl Clip {
         }
     }
 
-    /// The committed file's size, for a catalogue made where the files
+    /// The committed file's size, for a catalog made where the files
     /// aren't (they are then answered 404).
     fn known_size(self) -> i64 {
         match self {

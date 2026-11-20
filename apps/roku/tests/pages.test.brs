@@ -110,7 +110,7 @@ sub test_pages_collections_by_category()
     collections = [
         { id: 1, title: "Recently Added", item_count: 30, smart_filter: "sort=addedAt:desc", automatic: false, category: { id: 1, key: "highlights", title: "Highlights" } },
         { id: 2, title: "Dune Collection", item_count: 2, smart_filter: invalid, automatic: true, category: { id: 2, key: "box_sets", title: "Box sets" } },
-        { id: 3, title: "Favourites", item_count: 5, smart_filter: invalid, automatic: false, category: { id: 3, key: "other", title: "Other" } },
+        { id: 3, title: "Favorites", item_count: 5, smart_filter: invalid, automatic: false, category: { id: 3, key: "other", title: "Other" } },
         { id: 6, title: "Kids", item_count: 4, smart_filter: invalid, automatic: false, category: { id: 3, key: "other", title: "Other" } },
         { id: 4, title: "Christmas", item_count: 9, smart_filter: invalid, automatic: false, category: { id: 5, key: invalid, title: "Seasonal" } },
         { id: 5, title: "New one", item_count: 1, smart_filter: invalid, automatic: false, category: { id: 9, key: invalid, title: "Made since" } }
@@ -140,7 +140,7 @@ sub test_pages_collections_by_category()
     ' A server from before categories: GET /api/collection-categories
     ' answers 404 and collections have none, so they're one group, the
     ' plain grid as before.
-    older = pageCollectionTiles([{ id: 1, title: "Dune Collection", item_count: 2 }, { id: 2, title: "Favourites", item_count: 5 }], server)
+    older = pageCollectionTiles([{ id: 1, title: "Dune Collection", item_count: 2 }, { id: 2, title: "Favorites", item_count: 5 }], server)
     groups = pageCollectionGroups(older, [], "")
     tkEqual(groups.Count(), 1, "one group: the grid, no Category chip")
     tkEqual(groups[0].tiles.Count(), 2, "every collection in it")

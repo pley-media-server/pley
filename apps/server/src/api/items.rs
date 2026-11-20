@@ -392,6 +392,7 @@ pub async fn refresh(
         return Err(AppError::bad_request(match row.kind.as_str() {
             "movie" => "add a TMDB API key in Settings → Server to fetch metadata",
             "artist" | "album" | "track" => "turn on MusicBrainz in Settings → Server to fetch metadata",
+            "audiobook" | "part" => "turn on Open Library and Audnexus in Settings → Server to fetch metadata",
             _ => "choose a TV source in Settings → Server to fetch metadata",
         }));
     }

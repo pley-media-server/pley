@@ -71,7 +71,7 @@ function Checkbox({ checked }: { checked: boolean }) {
   );
 }
 
-/** A labelled checkbox that looks like the app's. */
+/** A labeled checkbox that looks like the app's. */
 export function CheckRow({
   id,
   checked,

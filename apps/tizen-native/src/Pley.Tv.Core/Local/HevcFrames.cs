@@ -16,7 +16,7 @@ public sealed record HevcMarks(bool Mastering, bool Hlg, bool Hdr10Plus, bool Do
 
 /// <summary>
 /// Reads the NAL units of a film's first HEVC frames (length-prefixed, as Matroska and MP4 hold
-/// them) for what its container may not say: a muxer that writes no colour, an older one that
+/// them) for what its container may not say: a muxer that writes no color, an older one that
 /// writes no Dolby Vision configuration. SEI messages are walked as the standard lays them out
 /// (types and sizes in 255 steps, emulation bytes taken out), not matched as bytes.
 /// </summary>

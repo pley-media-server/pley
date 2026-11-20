@@ -1,6 +1,6 @@
 //! An MP4 or QuickTime file's movie box (moov), read for a file played from
 //! a drive as [`crate::matroska`] reads a Matroska head: its length, its
-//! tracks as ffprobe names them (codec, size, colour, Dolby Vision,
+//! tracks as ffprobe names them (codec, size, color, Dolby Vision,
 //! language, channels, Atmos) and its chapters (Nero's chpl). The moov is
 //! found box by box, at the start or the end of the file.
 
@@ -223,7 +223,7 @@ fn walk(b: &[u8], from: usize, to: usize, depth: usize, t: &mut Track) {
     }
 }
 
-/// The stsd's first entry: its codec, and for video its size, colour and
+/// The stsd's first entry: its codec, and for video its size, color and
 /// Dolby Vision, for sound its channels, rate and Atmos.
 fn sample_entry(b: &[u8], s: usize, e: usize, t: &mut Track) {
     if s + 16 > e {

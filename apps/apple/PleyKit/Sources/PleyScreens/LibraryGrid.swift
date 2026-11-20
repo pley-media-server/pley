@@ -10,7 +10,7 @@ import PleyNetwork
 ///   cells of pages not read yet show a placeholder.
 /// - A cell that shows (`showing`) reads its page, and the next page once
 ///   past 70 % of it. Pages being read far from where the grid is are
-///   cancelled.
+///   canceled.
 /// - At most 20 pages (2,000 titles) are kept: the farthest go first.
 /// - Read again (`reload`), each page kept is asked with its `ETag`, and a
 ///   `304` keeps it.

@@ -54,7 +54,7 @@ export function stageOf(app: AppState, r: MediaRequest): StageWords {
   return stageWords(r, { manage: !!app.requests.value?.manage, hours24: hours24(app) });
 }
 
-/** A request's stage: a dot and the words in its colour (waiting amber, on its way blue, ready green, refused red, gone grey). */
+/** A request's stage: a dot and the words in its color (waiting amber, on its way blue, ready green, refused red, gone gray). */
 export function StagePill(p: { words: StageWords; small?: boolean }) {
   return (
     <span class={`stage-pill tone-${p.words.tone}${p.small ? " small" : ""}`}>
@@ -99,7 +99,7 @@ export function ItemRequestLine(p: { request: MediaRequest }) {
 
 /**
  * A title from TMDB as a poster: its badge ("In library", "Requested"…)
- * on the picture in the badge's colour, its name and year under it.
+ * on the picture in the badge's color, its name and year under it.
  * Props are plain values, so a row drawn again draws only the tiles whose
  * badge changed.
  */
@@ -141,7 +141,7 @@ function TitleTileView(p: {
   );
 }
 
-/** A request as a wide tile: its picture, a download's progress on it, the title, and its stage in the stage's colour. */
+/** A request as a wide tile: its picture, a download's progress on it, the title, and its stage in the stage's color. */
 export const RequestTile = memo(RequestTileView, ["priority"]);
 
 function RequestTileView(p: {

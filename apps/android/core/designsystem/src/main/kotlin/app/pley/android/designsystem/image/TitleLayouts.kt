@@ -88,7 +88,7 @@ internal object TitleLayouts {
         }
     }
 
-    /** [key]'s title centred in its box, at most four lines; a word too wide for it makes the title smaller rather than break. */
+    /** [key]'s title centered in its box, at most four lines; a word too wide for it makes the title smaller rather than break. */
     private fun measure(key: TitleKey, context: Context): TextLayoutResult {
         val measurer = measurer ?: TextMeasurer(createFontFamilyResolver(context), Density(key.density, key.fontScale), key.direction, cacheSize = 0)
             .also { measurer = it }

@@ -12,7 +12,7 @@ export const SCRIMS = {
 export type ScrimKind = keyof typeof SCRIMS;
 
 /**
- * A full-screen picture behind a page (TvBackdrop): right of centre and
+ * A full-screen picture behind a page (TvBackdrop): right of center and
  * above the middle, never blurred, under a scrim from the left and one
  * from the bottom. A new picture waits until it has loaded (at most 1 s),
  * then crossfades over 300 ms; at once on low-end TVs.

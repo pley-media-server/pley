@@ -32,7 +32,7 @@ pub struct Announce {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct MediaInfo {
-    /// Normalised container name: `mkv`, `mp4`, `webm`, `avi`, `ts`, `mp3`, `flac`, …
+    /// Normalized container name: `mkv`, `mp4`, `webm`, `avi`, `ts`, `mp3`, `flac`, …
     pub container: Option<String>,
     /// Raw FFmpeg demuxer name(s), e.g. `matroska,webm`.
     pub format_name: Option<String>,
@@ -234,7 +234,7 @@ pub struct MediaStream {
     /// by an older transcoder).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hdr10plus: Option<bool>,
-    /// HDR10's static metadata (the mastering display's colours and
+    /// HDR10's static metadata (the mastering display's colors and
     /// brightness, SMPTE ST 2086) in the video's first frames, looked for
     /// in Dolby Vision and PQ streams. Quick Sync's scaler and VAAPI tone
     /// map by it: without it the first leaves the picture as it is and the
@@ -473,7 +473,7 @@ impl Tonemapper {
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[serde(rename_all = "lowercase")]
 pub enum TonemapQuality {
-    /// Balanced, with colours outside BT.709 clipped rather than mapped,
+    /// Balanced, with colors outside BT.709 clipped rather than mapped,
     /// no dithering and a bilinear downscaler, which samples the source
     /// directly where the output is at least half its size.
     Fast,
@@ -723,7 +723,7 @@ pub struct Capabilities {
     #[serde(default)]
     pub amf_upload: bool,
     /// FFmpeg has the `h264_metadata` bitstream filter, which writes the
-    /// colour primaries `h264_amf` leaves unsaid.
+    /// color primaries `h264_amf` leaves unsaid.
     #[serde(default)]
     pub h264_metadata: bool,
     /// Live channels: an MPEG-TS stream sent in as it comes made into a
@@ -1121,7 +1121,7 @@ pub enum DolbyVisionMode {
     Signal,
     /// Profile 7 made profile 8.1 and named so: the enhancement layer left
     /// out and the RPU rewritten (`dovi_tool`'s mode 2). Other profiles are
-    /// signalled as they are.
+    /// signaled as they are.
     To81,
 }
 
@@ -1688,13 +1688,13 @@ pub struct PrefetchedRange {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct FingerprintRequest {
     pub path: String,
-    /// Audio stream to analyse (default: the first audio stream).
+    /// Audio stream to analyze (default: the first audio stream).
     #[serde(default)]
     pub stream_index: Option<i64>,
     /// Where to start, ms from the beginning of the file.
     #[serde(default)]
     pub start_ms: i64,
-    /// How much audio to analyse; the end of the file may stop it earlier.
+    /// How much audio to analyze; the end of the file may stop it earlier.
     pub duration_ms: i64,
 }
 

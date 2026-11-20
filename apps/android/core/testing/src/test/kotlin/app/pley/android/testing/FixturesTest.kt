@@ -474,7 +474,7 @@ class FixturesTest {
         assertEquals(listOf("101", "102", "105"), channels.map { it.number })
         val news = channels[0]
         assertEquals("S1 E7", news.now?.episodeLabel)
-        // Halfway through the briefing, then into the next programme before the list is asked again.
+        // Halfway through the briefing, then into the next program before the list is asked again.
         assertEquals("Morning Briefing", news.onAt(1761751800)?.title)
         assertEquals(0.5f, news.now!!.progressAt(1761751800), 0.001f)
         assertEquals("World at One", news.nextAt(1761751800)?.title)

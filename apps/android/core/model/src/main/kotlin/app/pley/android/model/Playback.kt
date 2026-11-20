@@ -164,7 +164,7 @@ enum class PlayingKind(override val wire: String) : WireEnum {
 
 /**
  * The channel a live session of GET /api/sessions watches: [now] is the
- * programme on, from [nowStart] to [nowStop] (unix seconds), and [next] the
+ * program on, from [nowStart] to [nowStop] (unix seconds), and [next] the
  * one after it.
  */
 @Serializable

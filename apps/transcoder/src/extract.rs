@@ -160,7 +160,7 @@ impl Extractor {
         let path = existing(&req.path)?;
         let hint = req.duration_ms.filter(|d| (1..=MAX_DURATION_MS).contains(d));
         // The probe (cached per file version) gives the default position, and
-        // the colours of HDR video.
+        // the colors of HDR video.
         let media = if req.hdr || (hint.is_none() && req.time_ms.is_none()) {
             self.prober.probe(&path).await.ok()
         } else {
@@ -184,7 +184,7 @@ impl Extractor {
         Metrics::inc(&self.metrics.thumbnails);
         let (picture, mut bytes) = match self.grab_frame(&path, at, &picture).await {
             // Tone mapping can fail where a plain frame doesn't (no Vulkan
-            // device, colours it can't convert): HDR colours beat no picture.
+            // device, colors it can't convert): HDR colors beat no picture.
             Err(err) if picture.tone_mapped => {
                 tracing::warn!("tone-mapped frame grab of {} failed, taking it as it is: {err:?}", path.display());
                 let bytes = self.grab_frame(&path, at, &plain).await?;
@@ -1790,9 +1790,9 @@ impl Picture {
     }
 
     /// HDR tone-mapped to SDR the best way available. Dolby Vision without a
-    /// compatible base layer (profile 5) only gets its colours right through
+    /// compatible base layer (profile 5) only gets its colors right through
     /// libplacebo, which applies the RPU; other HDR is cheaper on the CPU with
-    /// zimg, given the colour properties it needs. libplacebo tone maps as it
+    /// zimg, given the color properties it needs. libplacebo tone maps as it
     /// does the video ([`PLACEBO_FALLBACK_PEAK`]).
     fn hdr(width: u32, video: Option<&MediaStream>, caps: &Capabilities) -> Self {
         let placebo = caps.tonemappers.contains(&Tonemapper::Libplacebo);
@@ -2066,7 +2066,7 @@ mod tests {
         assert_eq!(picture.vf, format!("{ZSCALE_TONEMAP},scale=640:-2:flags=bicubic"));
         assert!(picture.init.is_empty() && picture.tone_mapped);
         // Without libplacebo, profile 5 frames are tagged for zimg: off
-        // colours, but a picture.
+        // colors, but a picture.
         let picture = Picture::hdr(640, Some(&p5), &caps(&[Tonemapper::Zscale]));
         assert!(
             picture.vf.starts_with("setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc,zscale="),

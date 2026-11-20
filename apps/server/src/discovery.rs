@@ -30,7 +30,7 @@ pub struct Announcement<'a> {
     pub port: u16,
 }
 
-/// Answer discovery requests on `socket` until `stopping` is cancelled.
+/// Answer discovery requests on `socket` until `stopping` is canceled.
 pub async fn serve(state: AppState, socket: UdpSocket, web_port: u16, stopping: CancellationToken) {
     let id = state.identity.id.clone();
     let mut buf = [0u8; 64];

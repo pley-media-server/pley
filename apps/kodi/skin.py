@@ -179,7 +179,7 @@ def group(id_, left, top, width, height, children, visible=None, animations=()):
 def grouplist(id_, left, top, width, height, children, orientation="horizontal", gap=0, align=None, visible=None, navigation=None, animations=()):
     # A round button is a group (the button and its label). Kodi moves focus
     # by the focused control's own navigation, which a grouplist gives only
-    # its children: the button inside gets its group's, the neighbours by id
+    # its children: the button inside gets its group's, the neighbors by id
     # (a hidden one passes focus on along the grouplist's chain).
     ids = [child.get("id") for child in children if child is not None]
     around = navigation or {}
@@ -574,9 +574,9 @@ def rail() -> list:
         i = order.index(entry)
         return nav(onup=str(order[i - 1]) if i else None, ondown=str(order[i + 1]) if i + 1 < len(order) else None)
 
-    # The avatar: the profile's initial on its colour, or its picture; open,
-    # its name and the server. The window colours the circle and the initial
-    # itself: Kodi reads a colour's $INFO in the window on top, a dialog's
+    # The avatar: the profile's initial on its color, or its picture; open,
+    # its name and the server. The window colors the circle and the initial
+    # itself: Kodi reads a color's $INFO in the window on top, a dialog's
     # while one is open.
     avatar = L.RAIL_AVATAR
     focused = "Control.HasFocus(%d)" % avatar
@@ -1115,7 +1115,7 @@ def libraries_page() -> ET.Element:
     """Every library (TvLibrariesScreen): the title, Sort libraries at the
     row's other end, and a card for each library, three to a row. A card
     (LibraryCard) is surface2 with its kind's icon in a box of the text's
-    colour at 12 %, its name and how much it holds; focused, the accent with
+    color at 12 %, its name and how much it holds; focused, the accent with
     on-accent content, at 1.05."""
     width, height = L.LIBRARIES_CARD
     margin = 16  # room for a focused card's zoom inside the list

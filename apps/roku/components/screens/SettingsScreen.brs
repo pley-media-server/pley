@@ -31,7 +31,7 @@ sub init()
     m.panelTitle = m.top.findNode("panelTitle")
     m.choices = m.top.findNode("choices")
     m.panelHint = m.top.findNode("panelHint")
-    ' Diagnostics and the licences, at the right: Right and Left go between
+    ' Diagnostics and the licenses, at the right: Right and Left go between
     ' them and the settings, and the focus comes back to the one it was on.
     m.about = m.top.findNode("about")
     m.about.observeField("buttonSelected", "onAbout")

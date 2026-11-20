@@ -198,7 +198,7 @@ movies[11].summary = "A linguist is called in when twelve ships come to rest abo
 const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, newerAlbum, ...tracks, trailer].map((item) => [item.id, item]));
 // Collections: TMDB's of five movies, under Box sets; a smart one a
 // filter fills with the show, under Highlights; and one of each library
-// called Fixture Favourites, under Other (the category the server gives
+// called Fixture Favorites, under Other (the category the server gives
 // one without), one row on Home. Other comes before Box sets, as on a
 // new server.
 const categories = [
@@ -209,8 +209,8 @@ const categories = [
 const collections = [
   { id: 1, library_id: 1, title: "Fixture Collection", summary: "Five films of the fake server, in the order they came out.", automatic: true, sort: "release", smart_filter: null, category: categories[2], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(0, 5) },
   { id: 2, library_id: 2, title: "Fixture Dramas", summary: null, automatic: false, sort: "release", smart_filter: "type=2&genre=Drama&sort=year%3Adesc", category: categories[0], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: [show] },
-  { id: 3, library_id: 2, title: "Fixture Favourites", summary: null, automatic: false, sort: "custom", smart_filter: null, category: categories[1], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: [show] },
-  { id: 4, library_id: 1, title: "Fixture Favourites", summary: null, automatic: false, sort: "custom", smart_filter: null, category: categories[1], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(5, 7) },
+  { id: 3, library_id: 2, title: "Fixture Favorites", summary: null, automatic: false, sort: "custom", smart_filter: null, category: categories[1], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: [show] },
+  { id: 4, library_id: 1, title: "Fixture Favorites", summary: null, automatic: false, sort: "custom", smart_filter: null, category: categories[1], poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(5, 7) },
 ];
 const collectionOf = ({ items: held, ...collection }) => ({ ...collection, item_count: held.length });
 
@@ -566,7 +566,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
           { key: "recently_added:1", title: "Recently Added in Movies", library_id: 1, items: movies.slice(0, 20) },
           { key: "recently_added:2", title: "Recently Added in TV Shows", library_id: 2, items: [show] },
           { key: "recently_added:3", title: "Recently Added in Music", library_id: 3, collection_ids: [], items: [album] },
-          { key: "collections:4,3", title: "Fixture Favourites", library_id: null, collection_ids: [4, 3], items: [...collections[3].items, ...collections[2].items] },
+          { key: "collections:4,3", title: "Fixture Favorites", library_id: null, collection_ids: [4, 3], items: [...collections[3].items, ...collections[2].items] },
         ],
       });
     }
@@ -886,7 +886,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       res.writeHead(200, { "Content-Type": "image/png" });
       return res.end(STILL);
     }
-    // A channel with what's on now: the player asks once its programme ends.
+    // A channel with what's on now: the player asks once its program ends.
     if ((match = path.match(/^\/api\/live\/channels\/(\d+)$/)) && req.method === "GET") {
       const channel = liveChannels().find((c) => c.id === Number(match[1]));
       return channel ? json(200, channel) : json(404, { code: "not_found", message: "No such channel." });

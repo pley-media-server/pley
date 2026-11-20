@@ -31,7 +31,7 @@ import app.pley.android.ui.tv.R
 /**
  * Media info at the end of an item page: for each version, the file and
  * every stream in full (codec, profile and level, size, frame rate, bit
- * depth, HDR and Dolby Vision, colour, channels, languages, flags), as text
+ * depth, HDR and Dolby Vision, color, channels, languages, flags), as text
  * in two columns of blocks. Nothing here takes focus.
  */
 @Composable

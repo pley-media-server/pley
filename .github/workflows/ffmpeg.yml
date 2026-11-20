@@ -152,7 +152,7 @@ jobs:
           subject-digest: ${{ steps.publish.outputs.digest }}
 
   # The Windows build: files only (bin/ffmpeg.exe and ffprobe.exe, the
-  # licence, the sources), cross-compiled on Linux, which the Server
+  # license, the sources), cross-compiled on Linux, which the Server
   # workflow's release takes for the installers.
   windows:
     name: Build (Windows)

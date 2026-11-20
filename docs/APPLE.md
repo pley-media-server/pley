@@ -157,7 +157,7 @@ behind it.
 - **Who's watching?**: after signing in, when the household has more than
   one profile, and from Me's Switch profile (where Cancel, or Menu on
   Apple TV, keeps the profile in use). Each profile shows its picture, or
-  its initials on its colour; one with a PIN asks for it (4 to 8 digits,
+  its initials on its color; one with a PIN asks for it (4 to 8 digits,
   typed on the number pad), one that needs its password says how to choose
   it, and a locked one can't be chosen.
 - **Home**: the server's rows for the profile, each a line of tiles in the
@@ -172,7 +172,7 @@ behind it.
   one scrolled away before it comes isn't fetched. They are kept in memory
   up to 32 MB on a device with 3 GB of memory or less (otherwise 64 MB on
   Apple TV and 96 MB elsewhere), half of that when the app goes to the
-  background, and none after a memory warning. While loading, still grey
+  background, and none after a memory warning. While loading, still gray
   rows show; a load that fails says why with Try again. With no rows,
   Home says why: no library this profile may open, the libraries being
   scanned, or nothing in them yet. Home's rows after Continue Watching
@@ -318,7 +318,7 @@ behind it.
     the caps report sent with each playback request, as JSON, with Copy
     (not on Apple TV).
   - **About**: the version and build ("Pley 1.0 (build 12) for iPhone"),
-    that the app holds no third-party code, and Pley's licence; on
+    that the app holds no third-party code, and Pley's license; on
     iPhone, iPad and Mac, TMDB's notice ("This product uses the TMDB API
     but is not endorsed or certified by TMDB."), as its terms ask.
 - **A title's page** (movies, shows, seasons and episodes): the backdrop
@@ -441,11 +441,11 @@ behind it.
   when the lineup changes and when the event stream connects again): the
   first row of the iPhone's Libraries (with its channel count), the
   sidebar's row after Home on iPad and Mac (View → Live TV, ⌘L), and a tab
-  after Home on Apple TV. The categories (Favourites, Recently watched, All
+  after Home on Apple TV. The categories (Favorites, Recently watched, All
   channels, each region's groups under it when two regions or more have
   groups, then More groups) are a sheet on iPhone and a column on iPad, Mac
   and Apple TV; a search lists the groups it names first, then the
-  channels whose name, number or programme on now has it. Channels come a
+  channels whose name, number or program on now has it. Channels come a
   page of 100 at a time as the list scrolls, ten pages kept at most, so a
   lineup of tens of thousands costs what is on screen. Two views, kept per
   server and profile with the category: the **guide** (channels by time,
@@ -457,7 +457,7 @@ behind it.
   **channels** (cards with the logo, number and name, what's on with its
   progress and what's next, and the star). Logos are asked for at the size
   they show. The list opens again on the channel watched last. A
-  programme opens its picture, time, Live and New, what it is about, and
+  program opens its picture, time, Live and New, what it is about, and
   Watch now while it is on. A star shows at once and goes back, with a
   toast saying why, when the server refuses it. A profile without Live
   TV, or a server without channels, says so, as the web app does.
@@ -478,7 +478,7 @@ behind it.
   ⌘W leaves, and the Playback menu has Channel Up (⌘↑) and Channel Down
   (⌘↓). On Apple TV a banner with the channel and what's on shows for 5
   seconds after each change; up and down change channel, Select opens
-  Channels, Channel number, Favourite and Back to the guide, Play/Pause
+  Channels, Channel number, Favorite and Back to the guide, Play/Pause
   shows the banner, and Menu hides the overlay, then leaves. The number
   pad (1 to 9, Delete, 0 and OK, each named for VoiceOver) tunes on OK,
   since moving to the next key can take longer than a keyboard's wait;
@@ -517,7 +517,7 @@ behind it.
   See all, a show's Seasons above its season's link, and Play above
   Shuffle; a title page's header, buttons and facts stack; captions take
   three lines; episode rows wrap; and the iPad's sidebar is wider. Live
-  TV's guide gets wider with the text, so a programme's title still fits;
+  TV's guide gets wider with the text, so a program's title still fits;
   the mini player puts its words and buttons on lines of their own, Now
   Playing's buttons and Up next's rows wrap, and a download's row grows
   with its text. Nothing has a fixed height that clips its text.
@@ -526,7 +526,7 @@ behind it.
   actions; rows' titles are headings; the A to Z strip ("Jump to letter")
   and the star rating are adjustable; toasts are read out; pictures are
   hidden; and while the player is open, only the player is read. A guide
-  programme reads its channel, number, title, time and whether it is on
+  program reads its channel, number, title, time and whether it is on
   now ("BBC One, 101, News at Six, 6:00 to 6:30 PM, on now"); a channel's
   row is one element with its star beside it; the live player's buttons
   and Apple TV's number pad keys ("One", "Delete", "Tune") are named, and
@@ -702,7 +702,7 @@ when the server proves it holds that sign-in's key (below).
 
 Tokens are kept in the Keychain, one item per server (service
 `app.pley.apple.signin`), readable after the first unlock and on this
-device only: never synchronised or restored to another device. On the Mac
+device only: never synchronized or restored to another device. On the Mac
 they go to the data protection keychain; a build signed to run locally
 without a team uses the login keychain. The list of servers is kept in the
 Keychain the same way (`app.pley.apple.servers`).
@@ -981,7 +981,7 @@ skipped by itself.
 credits begin). Entering the credits brings up a card, once per segment
 (seeking back out of them hides it, and coming back into the same credits
 doesn't bring it again); the end of the episode brings it up too, also
-after it was cancelled. The card shows the next episode's picture, "Up
+after it was canceled. The card shows the next episode's picture, "Up
 next · S1 E2", its title, and counts 10 seconds down while it plays (the
 countdown waits while paused), then plays it; Play Next plays it at once,
 Cancel hides the card. With Play the next episode automatically off
@@ -1105,7 +1105,7 @@ plays (`PleySubtitles`):
 The text is white and bold with a dark outline and no box, 4.8 % of the
 video's height and 6 % above its bottom, as on the web and Android. When
 a caption style is chosen in the system's settings (Accessibility →
-Subtitles & Captioning), what it sets wins: colours, background, font,
+Subtitles & Captioning), what it sets wins: colors, background, font,
 size and edges; a change there shows at once.
 
 The app's own Subtitles settings then apply on top, each left at System
@@ -1409,11 +1409,11 @@ A playing device's controls, top to bottom:
    the intro when it is shorter than 1.5 s), at the end of the credits.
    VoiceOver reads it "Skip intro on Living room TV";
 2. for a title, how far it is, with a seek slider when its player seeks;
-   for a channel, no seek: a thin bar of how far along the programme on
+   for a channel, no seek: a thin bar of how far along the program on
    is, by this device's clock between its start and end (`now_start`,
    `now_stop`), its times under it ("8:00 PM – 9:00 PM", in the system's
    time format), and "Next: …" when the guide says what follows;
-3. the buttons, centred. For a title: Previous where the player listed
+3. the buttons, centered. For a title: Previous where the player listed
    it, Back 30 seconds and Forward 30 seconds where it skips, Play or
    Pause, and Next, which shows for every episode and track and for a
    title with one after it, dimmed when the player doesn't take it. For a
@@ -1469,7 +1469,7 @@ out as it shows.
 episode, a show or a season (with the title page's other buttons), an
 album, an artist and a playlist (beside Play and Shuffle), in a track's
 menu on its album's page, and as **Watch on…** for a Live TV channel (a
-channel's menu in the guide and the cards, beside a programme's Watch
+channel's menu in the guide and the cards, beside a program's Watch
 now, and in the live player's overlay). It shows while another device's
 app takes that (`casts`: `item` for titles, music and playlists, `live`
 for channels), and lists those devices as the remote does, with what each
@@ -1589,7 +1589,7 @@ profile's downloads on this device, newest first, with their pictures,
 what they are and where they are ("Waiting for Wi-Fi", "Waiting for your
 server", "Didn't download: Not enough space on this device"), and what
 they take and what is free; a finished one plays when chosen, and a row
-swiped (a right-click on the Mac) is deleted, cancelled or tried again.
+swiped (a right-click on the Mac) is deleted, canceled or tried again.
 
 **What downloads** (`docs/API.md`, "Downloads"): the app asks the server
 (`POST /api/conversions`, with this device's caps report and, below
@@ -1668,7 +1668,7 @@ fixtures. On iPhone, iPad and Mac:
   and Your requests (Requests for administrators, "Approve, decline and
   follow what was asked for") with its number; Me's tab carries the
   number, and so does Me's row at the sidebar's foot, in the accent
-  colour, and in red while a request couldn't be sent.
+  color, and in red while a request couldn't be sent.
   Search shows Discover before anything is typed, and its Discover row
   after the results. The Mac's View menu has Discover (⇧⌘D) and Requests
   (⇧⌘R), which open under Me. An account that may not ask and has no
@@ -2068,7 +2068,7 @@ each target's `ASSETCATALOG_COMPILER_APPICON_NAME` names:
   `apple-touch-icon.png`, larger), and the Mac's sizes on Apple's grid,
   as the desktop app's `icon.icns`.
 - `tvOS/Assets.xcassets`, `App Icon & Top Shelf Image`: Apple TV's icon
-  in two layers, the tile's colour behind and the mark in front, which
+  in two layers, the tile's color behind and the mark in front, which
   part as it's focused, at 400×240 (800×480 at 2×) and the App Store's
   1280×768; and the Top Shelf's own picture, the iPhone icon beside
   Pley's name at 1920×720 and 2320×720, shown while the app has no row there
@@ -2162,11 +2162,11 @@ Settings → Downloads → Delete all downloads leaves Downloads empty.
 
 Live TV is a test of its own (`testLiveTv`), against `live-source.sh`'s
 four channels with one connection: All channels shows the guide with Test
-One's programmes; a channel plays ("playing" in the player); channel up
+One's programs; a channel plays ("playing" in the player); channel up
 tunes Test Two (on Apple TV, up on the remote, then 1, 0, 3 and OK on the
-number pad tune Test Three); the star makes the channel a favourite on
+number pad tune Test Three); the star makes the channel a favorite on
 the server; leaving ends the session at the server within 4 seconds;
-Favourites and Recently watched list the channels; with another device
+Favorites and Recently watched list the channels; with another device
 holding the connection, the player says "All connections are in use" and
 Watch here instead takes it, the other device's playlist answering 410;
 and Search finds the channels.
@@ -2242,7 +2242,7 @@ collection" of two movies. It starts `live-source.sh` on 127.0.0.1 and
 adds it as the Live TV source "Test channels" with one connection.
 `live-source.sh <dir> <port>` is a made-up IPTV provider: an M3U lineup
 of four channels in three groups (H.264, MPEG-2, 720p50 and a radio
-station, each with a logo), an XMLTV guide of half-hour programmes, and
+station, each with a logo), an XMLTV guide of half-hour programs, and
 live HLS from FFmpeg's test pictures and tones, served until it is
 stopped. Playlists the walk makes are deleted, by
 title, before and after it.
@@ -2317,7 +2317,7 @@ PleyKit's modules, each depending only on those before it:
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
 | `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, the typed API calls (browsing in `PleyAPI+Browse`, with ETags; collections and playlists in `PleyAPI+Lists`; search, history and track defaults in `PleyAPI+Account`; Live TV in `PleyAPI+Live`; downloads in `PleyAPI+Downloads`; subtitle search in `PleyAPI+Subtitles`; requests and Discover in `PleyAPI+Requests`), and the server's events (`EventStream`, `EventParser`), and the network's changes that ask for new proofs (`NetworkChanges`) |
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the server's proofs before a token goes (`ServerProof`), the scope guard and profile switching |
-| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, Live TV's lists, guide and favourites (`LiveTvRepository`), requests' summary, its polling and the news told once (`RequestsRepository`), the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, the profile used last, recent searches, the downloads' quality and mobile data, the language picked on the device and the one shown last), the screens saved for offline (`SnapshotStore`), what the screens and the player take from downloads (`DownloadsService`, `LocalMedia`), and pictures (`ImageLoader`) |
+| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, Live TV's lists, guide and favorites (`LiveTvRepository`), requests' summary, its polling and the news told once (`RequestsRepository`), the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, the profile used last, recent searches, the downloads' quality and mobile data, the language picked on the device and the one shown last), the screens saved for offline (`SnapshotStore`), what the screens and the player take from downloads (`DownloadsService`, `LocalMedia`), and pictures (`ImageLoader`) |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
 | `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, Live TV (`LivePlayback`, with the `AVLiveEngine` behind a protocol), music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |

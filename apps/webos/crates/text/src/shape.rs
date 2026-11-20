@@ -1,4 +1,4 @@
-//! Itemising a string into runs that one face draws in one direction and
+//! Itemizing a string into runs that one face draws in one direction and
 //! script, and shaping each run with rustybuzz.
 
 use std::ops::Range;
@@ -223,7 +223,7 @@ fn shape_item(text: &str, item: &Item, style: &TextStyle, features: u8, out: &mu
 
 /// Letter spacing as Android's text engine (Minikin) applies it: every cluster
 /// that advances gets half the spacing before it and half after, so spaced
-/// text stays centred on its ink. Marks and invisible characters get none.
+/// text stays centered on its ink. Marks and invisible characters get none.
 fn track(glyphs: &mut [ShapedGlyph], tracking: f32) {
     let mut start = 0;
     while start < glyphs.len() {

@@ -48,14 +48,14 @@ sealed class TileView : View
         radius = kind.Round ? w / 2 : Ui.Dp(PleyShape.TileRadius);
         Size = new Size(w, h + Ui.Dp(PleyTv.TilesToCaption + PleyTv.CaptionHeight));
 
-        // The well and its ring scale together, about the well's centre.
+        // The well and its ring scale together, about the well's center.
         frame = new View
         {
             Size = new Size(w, h),
             PivotPoint = global::Tizen.NUI.PivotPoint.Center,
             PositionUsesPivotPoint = false,
         };
-        // The ring: a 3 dp stroke centred 4.5 dp outside the well, so 3 dp clear of it. Hidden at
+        // The ring: a 3 dp stroke centered 4.5 dp outside the well, so 3 dp clear of it. Hidden at
         // rest rather than drawn clear: a grid has thirty tiles on screen.
         var reach = Ui.Dp(PleyShape.RingOffset + PleyShape.RingStroke / 2);
         ring = new View
@@ -159,7 +159,7 @@ sealed class TileView : View
             // A picture shown before comes back at once: no title and gradient under it to flash by.
             // A person's circle is Surface2, as on Android (the gradient is for a title, which it has
             // none of): the TV's gradient visual stays square whatever its corner radius, and drew a
-            // dark square behind each round picture. A colour takes the well's.
+            // dark square behind each round picture. A color takes the well's.
             var known = key != null && Seen.Contains(key);
             if (kind.Round || known) well.BackgroundColor = PleyColors.Surface2;
             else
@@ -333,7 +333,7 @@ sealed class TileView : View
     {
         // Let go already: a focus change can still reach it on its way to the view in its place.
         if (Disposed) return;
-        // Drawn over its neighbours and their captions while focused.
+        // Drawn over its neighbors and their captions while focused.
         if (on) RaiseToTop();
         var weight = on ? PleyType.Bold : PleyType.Caption.Weight;
         title.FontStyle = Text.Weight(weight);

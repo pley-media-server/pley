@@ -1,5 +1,5 @@
 //! Live TV: the lineup, the guide, watching at keyed addresses, plans,
-//! leaving, favourites and the busy connection, against the fixture server.
+//! leaving, favorites and the busy connection, against the fixture server.
 
 mod common;
 

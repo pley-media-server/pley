@@ -4,7 +4,7 @@
 # from the folder it runs in, so run cargo from here.
 #
 # Every crate is under LICENSE (AGPL-3.0-only) and none may depend on a crate that
-# is only available under a copyleft licence (LICENSING.md); the TV's own
+# is only available under a copyleft license (LICENSING.md); the TV's own
 # libraries are opened at run time, never linked or shipped.
 [workspace]
 resolver = "3"
@@ -53,7 +53,7 @@ lto = "thin"
 codegen-units = 1
 strip = "symbols"
 
-# The fake server draws pictures and seek previews; unoptimised it takes a
+# The fake server draws pictures and seek previews; unoptimized it takes a
 # third of a second for the first big one.
 [profile.dev.package.pley-fixtures]
 opt-level = 2

@@ -472,7 +472,7 @@ internal class DownloadRunner(
     }
 
     /**
-     * Sends [request], then reads its answer on [io]. Cancelling cancels
+     * Sends [request], then reads its answer on [io]. Canceling cancels
      * the call, which also ends a read waiting on the network.
      */
     private suspend fun <T> call(client: OkHttpClient, request: Request, read: suspend (Response) -> T): T {

@@ -10,7 +10,7 @@ public enum MediaMaker {
     }
 
     /// An MP4 of `seconds` of H.264 video, `width`×`height` at `fps`, each
-    /// second a colour of its own, with its index at the start
+    /// second a color of its own, with its index at the start
     /// (`+faststart`), as bytes.
     public static func mp4(seconds: Int = 4, width: Int = 320, height: Int = 180, fps: Int = 30) async throws -> Data {
         let file = FileManager.default.temporaryDirectory

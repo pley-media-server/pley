@@ -1,5 +1,5 @@
 //! The renderer's test page: every type style of the design system in its
-//! colours, fills, outlines and radii, a focused tile with its ring, a
+//! colors, fills, outlines and radii, a focused tile with its ring, a
 //! backdrop with its scrims, the brand glow, every icon, a picture from a file
 //! and a punched-through rectangle.
 //!

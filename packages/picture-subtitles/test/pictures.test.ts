@@ -83,7 +83,7 @@ function mksFile(tracks: number[], cluster: number[]): ArrayBuffer {
 
 describe("PGS", () => {
   it("decodes runs, line ends and long runs", () => {
-    // Line 1: 2 × colour 1, 2 × colour 0. Line 2: 4 × colour 2 (short coloured run).
+    // Line 1: 2 × color 1, 2 × color 0. Line 2: 4 × color 2 (short colored run).
     const rle = [1, 1, 0, 0x02, 0, 0, 0, 0x84, 2, 0, 0];
     expect(Array.from(decodeRle(new Uint8Array(rle), 4, 2))).toEqual([1, 1, 0, 0, 2, 2, 2, 2]);
     const long = [0, 0xc1, 0x00, 7, 0, 0];
@@ -91,7 +91,7 @@ describe("PGS", () => {
     expect(Array.from(decodeRle(new Uint8Array(long), 300, 1).slice(0, 256)).every((p) => p === 7)).toBe(true);
   });
 
-  it("places an object on the plane in its palette's colours", () => {
+  it("places an object on the plane in its palette's colors", () => {
     const set = pgsDisplaySet({ state: 0x80, objects: true, rle: [1, 1, 0, 0x02, 0, 0, 0, 0x84, 2, 0, 0] });
     const frame = new PgsDecoder([set]).decode(0)!;
     expect(frame.planeWidth).toBe(1920);
@@ -345,19 +345,19 @@ describe("VobSub", () => {
   const idx = str("size: 720x480\npalette: 000000, ffffff, 808080, ff0000, 00ff00, 0000ff, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000\n");
 
   /**
-   * An SPU of a 4×2 picture at (10, 400): top line pattern colour, bottom
+   * An SPU of a 4×2 picture at (10, 400): top line pattern color, bottom
    * line emphasis 1, shown for 2 s; or of the corners `area` says.
    */
   function spu(area = [0x00, 0xa0, 0x0d, 0x19, 0x01, 0x91]): Uint8Array {
-    // Nibble codes: 0x11 → 4 px... use 8-bit codes: 0001 00cc = count 4, colour cc.
-    const top = [0x11, 0x00]; // count 4 colour 1, then padding nibble byte align
-    const bottom = [0x12, 0x00]; // count 4 colour 2
+    // Nibble codes: 0x11 → 4 px... use 8-bit codes: 0001 00cc = count 4, color cc.
+    const top = [0x11, 0x00]; // count 4 color 1, then padding nibble byte align
+    const bottom = [0x12, 0x00]; // count 4 color 2
     const pixels = [...top, ...bottom];
     const ctrlAt = 4 + pixels.length;
     const stopSeqAt = ctrlAt + 4 + 1 + 3 + 3 + 7 + 5 + 1;
     const ctrl = [
       ...u16(0), ...u16(stopSeqAt), 0x01,
-      0x03, 0x32, 0x10, // colours: e2=3 e1=2 p=1 b=0
+      0x03, 0x32, 0x10, // colors: e2=3 e1=2 p=1 b=0
       0x04, 0xff, 0xf0, // alpha: e2 15, e1 15, p 15, b 0
       0x05, ...area, // x 10..13, y 400..401
       0x06, ...u16(4), ...u16(6),
@@ -375,7 +375,7 @@ describe("VobSub", () => {
     expect(h.palette[3]).toEqual([255, 0, 0]);
   });
 
-  it("reads control sequences: place, colours and when it stops", () => {
+  it("reads control sequences: place, colors and when it stops", () => {
     const s = parseSpu(spu())!;
     expect([s.x1, s.x2, s.y1, s.y2]).toEqual([10, 13, 400, 401]);
     expect(s.colors).toEqual([0, 1, 2, 3]);
@@ -383,7 +383,7 @@ describe("VobSub", () => {
     expect(s.stopMs).toBe(Math.round((175 * 1024) / 90));
   });
 
-  it("decodes interlaced fields in the palette's colours", () => {
+  it("decodes interlaced fields in the palette's colors", () => {
     const decoder = new VobSubDecoder([spu()], new Uint8Array(idx));
     const frame = decoder.decode(0)!;
     expect([frame.planeWidth, frame.planeHeight]).toEqual([720, 480]);
@@ -421,7 +421,7 @@ describe("VobSub", () => {
     expect(parseSpu(late(0x10010))!.stopMs).toBeNull();
   });
 
-  it("reads the idx header's first 64 KiB and 16 colours", () => {
+  it("reads the idx header's first 64 KiB and 16 colors", () => {
     const colours = Array.from({ length: 20 }, () => "ffffff").join(", ");
     expect(parseIdx(new Uint8Array(str(`palette: ${colours}\n`))).palette).toHaveLength(16);
     const late = new Uint8Array([...new Array<number>(64 << 10).fill(0x20), ...str("size: 100x200\n")]);
@@ -549,7 +549,7 @@ describe("DVB", () => {
     const scanned = (n: number) => new DvbDecoder([held, ...Array.from({ length: n }, () => objects)]).decode(n)?.bitmaps.length ?? null;
     expect(scanned(20)).toBe(1);
     expect(scanned(40)).toBeNull();
-    // Colour tables of 65,000 bytes at 16 a byte: 60 come to 62 million, 70 to 73.
+    // Color tables of 65,000 bytes at 16 a byte: 60 come to 62 million, 70 to 73.
     const table = dvbSegment(0x12, [0, 0, ...new Array<number[]>(16_249).fill([1, 0x40, 0x80, 0x80]).flat()]);
     const tables = (n: number) => sizes(placing([0, 0, 0]), filled(0, 4, 2), ...new Array<number[]>(n).fill(table), red);
     expect(tables(60)).toEqual([[4, 2]]);

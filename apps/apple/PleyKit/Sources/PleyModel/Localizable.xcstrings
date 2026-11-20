@@ -4921,7 +4921,7 @@
       }
     },
     "E%lld" : {
-      "comment" : "A guide programme's episode: \"S2 E14\".",
+      "comment" : "A guide program's episode: \"S2 E14\".",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -7779,7 +7779,7 @@
       }
     },
     "S%lld E%lld" : {
-      "comment" : "A guide programme's episode: \"S2 E14\".",
+      "comment" : "A guide program's episode: \"S2 E14\".",
       "localizations" : {
         "es" : {
           "stringUnit" : {

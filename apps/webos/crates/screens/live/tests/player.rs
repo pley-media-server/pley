@@ -57,13 +57,13 @@ fn next_and_previous_change_channel_as_channel_up_and_down_do() {
 
 #[test]
 fn favourites_zap_among_themselves() {
-    // Alex's favourites are 1, 3, 9 and 17.
+    // Alex's favorites are 1, 3, 9 and 17.
     let mut app = watching(3, LiveCategory::Favorites);
     app.press(Key::ChannelUp);
-    assert!(tuned(&mut app, 9), "the next favourite");
+    assert!(tuned(&mut app, 9), "the next favorite");
     app.press(Key::ChannelUp);
     app.press(Key::ChannelUp);
-    assert!(tuned(&mut app, ids::LIVE_CHANNEL), "round the favourites' end");
+    assert!(tuned(&mut app, ids::LIVE_CHANNEL), "round the favorites' end");
     assert_eq!(app.state.live_last_watched, Some((ids::LIVE_CHANNEL, LiveCategory::Favorites)));
 }
 
@@ -243,7 +243,7 @@ fn the_groups_open_on_the_category_listed() {
     app.press(Key::Up);
     assert_eq!(app.focused(), Some(app.id(&["list", "heading"])));
     app.press(Key::Ok);
-    // Favourites, Recently watched, then All channels.
+    // Favorites, Recently watched, then All channels.
     let all = app.id(&["list", "groups"]).with(2_u64);
     assert!(app.until(|a| a.focused() == Some(all)), "focus isn't on All channels: {:?}", app.focused());
 }
@@ -350,7 +350,7 @@ fn live_tv_stopped_from_another_device_says_so_with_the_message_on_its_own_line(
     assert_eq!((app.watches(ids::LIVE_CHANNEL), app.watches(2)), (1, 0));
 }
 
-/// For a player watching channel 2 through Alex's favourites, which don't have it: the server made
+/// For a player watching channel 2 through Alex's favorites, which don't have it: the server made
 /// slow, so a step from 2, which asks the server where it is, finds its channel 1.5 s later. The live
 /// session the remote acts on.
 fn stepping_from_outside_the_favourites(app: &mut TestApp) -> String {
@@ -369,9 +369,9 @@ fn wait(app: &mut TestApp, secs: f64) {
 fn a_channel_picked_while_the_remotes_step_finds_its_channel_stays() {
     let mut app = watching(2, LiveCategory::Favorites);
     app.press(Key::Menu);
-    // Not a favourite: the list opens on the first, 1 (where the step goes); the next is 3.
+    // Not a favorite: the list opens on the first, 1 (where the step goes); the next is 3.
     let row = |a: &TestApp, i: u64| a.id(&["list", "rows"]).with(i);
-    assert!(app.until(|a| a.focused() == Some(row(a, 0))), "the list didn't open on the first favourite");
+    assert!(app.until(|a| a.focused() == Some(row(a, 0))), "the list didn't open on the first favorite");
     let session = stepping_from_outside_the_favourites(&mut app);
     app.server.emit(remote(&session, "next"));
     // The remote's next comes, and its step asks where channel 2 is.

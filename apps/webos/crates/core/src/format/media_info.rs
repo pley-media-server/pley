@@ -1,6 +1,6 @@
 //! A file's facts in blocks of "label: value" lines, for the title page's
 //! media info and Playback details, as the Android app's `MediaFacts` words
-//! them (packages/tv/src/format/media-info.ts), in the language shown. Colour
+//! them (packages/tv/src/format/media-info.ts), in the language shown. Color
 //! standards (BT.709, PQ) are named the same in every language.
 
 use pley_i18n::t;
@@ -26,7 +26,7 @@ pub struct FactBlock {
 }
 
 impl FactBlock {
-    /// The value of the fact labelled `label`.
+    /// The value of the fact labeled `label`.
     pub fn value(&self, label: &str) -> Option<&str> {
         self.facts.iter().find(|f| f.label == label).map(|f| f.value.as_str())
     }

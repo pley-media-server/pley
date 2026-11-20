@@ -1,7 +1,7 @@
 ' Live TV (docs/API.md, "Live TV"), as the web app shows it: the
 ' categories (GET /api/live/groups) down the left, and the category's
 ' channels a page of 50 at a time (GET /api/live/browse) at the right, as
-' the guide, its programmes fetched for those channels only (GET
+' the guide, its programs fetched for those channels only (GET
 ' /api/live/guide?ids=) six hours at a time as it is scrolled to, two days
 ' at most, or as cards. A provider's lineup runs to tens of thousands of
 ' channels in hundreds of groups: nothing here asks for all of them. The
@@ -233,7 +233,7 @@ function guideLeft() as integer
     return left
 end function
 
-' Back in the guide away from now (another time shown, or a programme not
+' Back in the guide away from now (another time shown, or a program not
 ' on now in focus) brings it back to now, before it goes on to the
 ' categories; not twice from where it stands, when the guide found nothing
 ' nearer now.
@@ -254,7 +254,7 @@ function backToNow() as boolean
     return true
 end function
 
-' Where the guide stands: the row and programme in focus, and the time at
+' Where the guide stands: the row and program in focus, and the time at
 ' its left edge.
 function guidePlace() as string
     details = m.guide.programFocusedDetails
@@ -312,7 +312,7 @@ end sub
 
 ' --- Search ---
 
-' Roku's keyboard: every channel whose name, number or programme on now
+' Roku's keyboard: every channel whose name, number or program on now
 ' has the words in it, and the groups whose names do.
 sub askSearch()
     dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
@@ -535,7 +535,7 @@ sub onGuide(event as object)
     data = answer.data
     if data.upto > m.loadedTo then m.loadedTo = data.upto
     ' From now at the left edge: the focus is on what's on now (at the
-    ' half hour, the programme then could have ended).
+    ' half hour, the program then could have ended).
     left = nowSeconds()
     keepRow = -1
     if m.guide.content <> invalid
@@ -618,7 +618,7 @@ sub onLeftEdge()
     uiRequest({ op: "liveGuide", channels: m.page.channels, start: m.guideStart, upto: missing.to, asked: m.asked, focus: "keep", focusId: 0 }, "onGuide")
 end sub
 
-' The focus moved: the programme above the guide, and past the page's last
+' The focus moved: the program above the guide, and past the page's last
 ' row (or before its first) the next page (or the one before), round the
 ' ends of the category, as the guide itself goes round.
 sub onProgramFocused()
@@ -647,7 +647,7 @@ sub onProgramFocused()
     showProgram()
 end sub
 
-' The channel and programme in focus: { channel, program } (program
+' The channel and program in focus: { channel, program } (program
 ' invalid for a channel without one there).
 function focusedGuide() as dynamic
     content = m.guide.content
@@ -666,7 +666,7 @@ function focusedGuide() as dynamic
     return { channel: m.page.channels[channelAt], program: program }
 end function
 
-' Above the guide: the channel, the programme's title, when it is on
+' Above the guide: the channel, the program's title, when it is on
 ' (and how long it has left, on now), its episode and what it is.
 sub showProgram()
     focused = focusedGuide()
@@ -740,7 +740,7 @@ function localDay(seconds as integer) as integer
     return Int(when.AsSeconds() / 86400)
 end function
 
-' OK on a programme: one on now (or time without a guide) watches the
+' OK on a program: one on now (or time without a guide) watches the
 ' channel; another says what it is, with Watch.
 sub onProgramSelected()
     focused = focusedGuide()
@@ -857,10 +857,10 @@ function cardsInView() as object
     return { from: from, upto: upto }
 end function
 
-' Each 15 s, what's on moves on: above the guide, the programme in focus
+' Each 15 s, what's on moves on: above the guide, the program in focus
 ' (its time left); on the cards in view, how far along, and once a
-' programme listed as on now has ended, those cards asked for again (the
-' guide's programmes are fetched hours ahead).
+' program listed as on now has ended, those cards asked for again (the
+' guide's programs are fetched hours ahead).
 sub onClock()
     if m.guide.visible then showProgram()
     if not m.cards.visible or m.cards.content = invalid then return
@@ -905,14 +905,14 @@ sub onCardSelected(event as object)
     if at >= 0 and at < m.cardChannels.Count() then watch(m.cardChannels[at])
 end sub
 
-' --- Watching and favourites ---
+' --- Watching and favorites ---
 
 ' The player, with the category: up and down stay in it.
 sub watch(channel as object)
     uiNavigate({ to: "livePlayer", params: { channel: channel, category: m.view.category, categoryName: liveCategoryName(m.view.category, m.groups) } })
 end sub
 
-' A programme of the guide (its ContentNode) as Live.brs keeps one ({
+' A program of the guide (its ContentNode) as Live.brs keeps one ({
 ' start, ends, title, description }), or invalid for time without a guide.
 function programOf(program as dynamic) as dynamic
     if program = invalid or program.id = "gap" then return invalid
@@ -922,7 +922,7 @@ function programOf(program as dynamic) as dynamic
     return p
 end function
 
-' The programme the Options key shows the details of: the one in focus in
+' The program the Options key shows the details of: the one in focus in
 ' the guide, what's on now on a card.
 function programInFocus(channel as object) as dynamic
     if m.view.tab = "channels" then return liveOnNow(channel, nowSeconds())
@@ -931,9 +931,9 @@ function programInFocus(channel as object) as dynamic
     return programOf(focused.program)
 end function
 
-' The Options key on a programme or a card (or OK on a programme not on
-' now): the channel's name, the programme's details (p, as Live.brs keeps
-' one, or invalid), Watch, and Add to or Remove from favourites.
+' The Options key on a program or a card (or OK on a program not on
+' now): the channel's name, the program's details (p, as Live.brs keeps
+' one, or invalid), Watch, and Add to or Remove from favorites.
 sub channelOptions(channel as object, p as dynamic)
     m.optionsChannel = channel
     ' onOptionChosen goes by their order.
@@ -972,7 +972,7 @@ sub onOptionChosen(event as object)
 end sub
 
 ' PUT or DELETE …/favorite done: the counts, and the list again where it
-' was (a favourite's star, or the Favourites list itself).
+' was (a favorite's star, or the Favorites list itself).
 sub onFavorite(event as object)
     answer = event.getData()
     if not answer.ok
@@ -992,7 +992,7 @@ end sub
 ' the category before, the channels to the categories, and on the rail it
 ' leaves. Left from the channels goes to the categories too, Right from
 ' them to the channels; up from the rail's top, the tabs. The Options key
-' on a programme or a card: the channel's options.
+' on a program or a card: the channel's options.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
     if key = "back" and m.guide.isInFocusChain() and backToNow() then return true

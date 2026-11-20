@@ -202,7 +202,7 @@ pub enum SearchNews {
 /// Looks for servers on the discovery thread, as the servers screen opens
 /// (the broadcast) or asks to "Search this network" (`sweep`, the /24 of
 /// `local`): each server once to `tx` as it answers, then [`SearchNews::Done`],
-/// each with a wake of the main loop. Cancelling the token stops it.
+/// each with a wake of the main loop. Canceling the token stops it.
 pub fn search(http: Http, local: Option<Ipv4Addr>, sweep_too: bool, tx: Sender<SearchNews>, waker: Waker) -> Cancel {
     let cancel = Cancel::new();
     let c = cancel.clone();

@@ -306,13 +306,13 @@ public static class ItemFormat
         ["smpte240m"] = "SMPTE 240M", ["fcc"] = "FCC",
     };
 
-    /// <summary>ffprobe's colour primaries as people know them: "bt2020" → "BT.2020"; others as they are; null when unknown.</summary>
+    /// <summary>ffprobe's color primaries as people know them: "bt2020" → "BT.2020"; others as they are; null when unknown.</summary>
     public static string? ColorPrimariesLabel(string? name) => ColorName(name, Primaries);
 
     /// <summary>ffprobe's transfer: "smpte2084" → "PQ (SMPTE ST 2084)", "arib-std-b67" → "HLG (ARIB STD-B67)".</summary>
     public static string? ColorTransferLabel(string? name) => ColorName(name, Transfers);
 
-    /// <summary>ffprobe's colour space (the matrix): "bt2020nc" → "BT.2020 non-constant".</summary>
+    /// <summary>ffprobe's color space (the matrix): "bt2020nc" → "BT.2020 non-constant".</summary>
     public static string? ColorMatrixLabel(string? name) => ColorName(name, Matrices);
 
     static string? ColorName(string? name, Dictionary<string, string> names)

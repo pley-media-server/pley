@@ -14,11 +14,11 @@ namespace Pley.Tv.Tizen.Screens;
 
 /// <summary>
 /// Live TV (the Android app's TvLiveTvScreen): "Live TV" with the Guide and
-/// Channels tabs; down the left the categories under the search (Favourites, Recently watched,
+/// Channels tabs; down the left the categories under the search (Favorites, Recently watched,
 /// All channels, then the provider's groups, those of a region under it); beside them the chosen
 /// category's guide (the page's first focus) or tiles, a page of channels loaded at a time,
 /// opening on the channel last watched. OK on a channel watches it in the live player; holding OK
-/// (or Menu, or Info) opens what's on in a side panel, with Watch and the favourite.
+/// (or Menu, or Info) opens what's on in a side panel, with Watch and the favorite.
 /// </summary>
 sealed class LiveTvScreen : ShellPage
 {

@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Pley.Tv.Core.Tests;
 
-/// <summary>The artwork placeholder's colours: the Android app's PlaceholderTest.</summary>
+/// <summary>The artwork placeholder's colors: the Android app's PlaceholderTest.</summary>
 public class PlaceholderTests
 {
     /// <summary>Hues from apps/web/src/lib/images.ts's placeholderGradient, run in Node for these titles.</summary>

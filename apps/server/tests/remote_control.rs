@@ -710,7 +710,7 @@ async fn live_viewers_are_listed_with_their_channel() {
         "id": one, "name": "One", "number": "1", "logo": listed["logo"], "now": "The News",
         "now_start": listed["now"]["start"], "now_stop": listed["now"]["stop"], "next": null,
     });
-    assert!(listed["now"]["start"].is_i64(), "the programme's times: {listed}");
+    assert!(listed["now"]["start"].is_i64(), "the program's times: {listed}");
     assert_eq!(live["channel"], channel);
     assert!(live["channel"]["logo"].as_str().unwrap().starts_with(&format!("/api/live/channels/{one}/logo")));
     assert_eq!(live["state"], json!("playing"));

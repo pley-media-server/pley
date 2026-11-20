@@ -39,7 +39,7 @@ impl BackdropScrim {
 }
 
 /// A backdrop to show: its picture's addresses (first choice first) and what its placeholder's
-/// colour comes from.
+/// color comes from.
 #[derive(Clone, Debug, PartialEq)]
 pub struct BackdropArt {
     /// Names it (an item's id): the backdrop changes when the key does.
@@ -174,7 +174,7 @@ pub fn backdrop_px(ui: &Ui) -> u32 {
     ui.image_px(theme::CANVAS_W).min(ui.tier().rules().backdrop_max_px)
 }
 
-/// Asks ahead for backdrops focus may rest on next (the focused tile's neighbours), so they swap
+/// Asks ahead for backdrops focus may rest on next (the focused tile's neighbors), so they swap
 /// in as soon as it does.
 pub fn prefetch_backdrops(ui: &mut Ui, arts: &[&[ImageRequest]]) {
     for art in arts {

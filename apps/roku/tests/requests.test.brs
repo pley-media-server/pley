@@ -323,7 +323,7 @@ sub test_requests_lists_are_asked_again_without_events()
     tkEqual(reqListPoll(false, true), 0, "events tell of changes")
 end sub
 
-' Discover's Your requests: the stage under the poster, in its colour;
+' Discover's Your requests: the stage under the poster, in its color;
 ' and the managers' person filter.
 sub test_requests_request_tiles_and_people()
     tile = reqRequestTile(reqTestRequest({ status: "approved", stage: "downloading", download: { progress: 0.42, state: "downloading", eta: invalid, episodes: 3 } }), "http://nas:7539", false, reqTestNow(), 0)

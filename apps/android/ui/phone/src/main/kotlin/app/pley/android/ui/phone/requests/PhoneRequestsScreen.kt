@@ -311,7 +311,7 @@ private fun RequestList(
     val navigator = LocalPhoneNavigator.current
     val metrics = LocalPhoneMetrics.current
     val skeleton = rememberSkeleton(animated = true)
-    // Centred on tablets, as history's rows are.
+    // Centered on tablets, as history's rows are.
     val sides = Modifier.padding(start = metrics.marginStart, end = metrics.marginEnd).widthIn(max = REQUEST_CARD_MAX)
     when (val shown = state.list) {
         RequestListState.Loading -> Column(

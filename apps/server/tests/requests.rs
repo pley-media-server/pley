@@ -340,6 +340,9 @@ async fn world_with(adjust: impl FnOnce(&mut pley::Config)) -> World {
             tmdb: format!("{base}/tmdb"),
             tmdb_images: format!("{base}/tmdb-images"),
             opensubtitles: format!("{base}/opensubtitles"),
+            audnexus: format!("{base}/audnexus"),
+            openlibrary: format!("{base}/ol"),
+            openlibrary_covers: format!("{base}/olcovers"),
         });
         adjust(c);
     })

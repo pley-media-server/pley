@@ -113,7 +113,7 @@ private class CardPressNode(
         val p = progress.value
         if (p <= 0f) return
         val stroke = PleyFocus.PhonePressRing.toPx()
-        // The ring's centre runs half a stroke outside the art, so it hugs the edge.
+        // The ring's center runs half a stroke outside the art, so it hugs the edge.
         val ring = Size(size.width + stroke, size.height + stroke)
         val outline = ringOutline?.takeIf { ringSize == ring } ?: shape.createOutline(ring, layoutDirection, this).also {
             ringOutline = it

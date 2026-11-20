@@ -874,7 +874,7 @@
         }
       }
     },
-    "Add to favourites" : {
+    "Add to favorites" : {
       "comment" : "VoiceOver: a channel's star.",
       "localizations" : {
         "es" : {
@@ -1512,7 +1512,7 @@
         }
       }
     },
-    "Channels and programmes" : {
+    "Channels and programs" : {
       "comment" : "Live TV's search prompt.",
       "localizations" : {
         "es" : {
@@ -1716,7 +1716,7 @@
       }
     },
     "Close" : {
-      "comment" : "Closes the player, live player or a programme's sheet.",
+      "comment" : "Closes the player, live player or a program's sheet.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2469,8 +2469,8 @@
         }
       }
     },
-    "Favourite" : {
-      "comment" : "VoiceOver: a favourite channel's star in the guide.",
+    "Favorite" : {
+      "comment" : "VoiceOver: a favorite channel's star in the guide.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2498,8 +2498,8 @@
         }
       }
     },
-    "Favourites" : {
-      "comment" : "Live TV's category of favourite channels.",
+    "Favorites" : {
+      "comment" : "Live TV's category of favorite channels.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3137,7 +3137,7 @@
       }
     },
     "It has ended." : {
-      "comment" : "A programme's sheet, once it has ended.",
+      "comment" : "A program's sheet, once it has ended.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3551,7 +3551,7 @@
       }
     },
     "Live" : {
-      "comment" : "The live player's badge; a programme's Live badge.",
+      "comment" : "The live player's badge; a program's Live badge.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -4160,7 +4160,7 @@
       }
     },
     "New" : {
-      "comment" : "A programme's badge: a new episode.",
+      "comment" : "A program's badge: a new episode.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -4421,7 +4421,7 @@
       }
     },
     "No information for this time" : {
-      "comment" : "The guide: a programme without a title.",
+      "comment" : "The guide: a program without a title.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -4624,7 +4624,7 @@
       }
     },
     "Nothing in the guide now" : {
-      "comment" : "A channel with no programme now.",
+      "comment" : "A channel with no program now.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -6363,8 +6363,8 @@
         }
       }
     },
-    "Remove from favourites" : {
-      "comment" : "VoiceOver: a favourite channel's star.",
+    "Remove from favorites" : {
+      "comment" : "VoiceOver: a favorite channel's star.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -8046,7 +8046,7 @@
       }
     },
     "The guide says nothing more of it." : {
-      "comment" : "A programme's sheet, without a description.",
+      "comment" : "A program's sheet, without a description.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -8684,7 +8684,7 @@
       }
     },
     "Watch now" : {
-      "comment" : "A programme's sheet, while it is on.",
+      "comment" : "A program's sheet, while it is on.",
       "localizations" : {
         "es" : {
           "stringUnit" : {

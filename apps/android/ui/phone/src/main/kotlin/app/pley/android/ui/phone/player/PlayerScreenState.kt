@@ -114,7 +114,7 @@ class PlayerScreenState(
 
     // ---------------------------------------------------------------- the screen's own state
 
-    /** The controls show (top bar, centre buttons, seek bar and bottom row). */
+    /** The controls show (top bar, center buttons, seek bar and bottom row). */
     var controlsVisible by mutableStateOf(true)
 
     var sheet by mutableStateOf<SheetPage?>(null)
@@ -284,7 +284,7 @@ class PlayerScreenState(
     }
 
     companion object {
-        /** Double-tap and the centre buttons seek this far. */
+        /** Double-tap and the center buttons seek this far. */
         const val SEEK_STEP_MS = 10_000L
 
         /** The controls hide after this long untouched. */

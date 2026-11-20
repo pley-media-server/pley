@@ -368,7 +368,7 @@ function mediaBitDepth(depth as dynamic, pixFmt as dynamic) as string
     return parts.Join(" · ")
 end function
 
-' A colour property by name ("BT.2020", "PQ (SMPTE ST 2084)"); one not
+' A color property by name ("BT.2020", "PQ (SMPTE ST 2084)"); one not
 ' known as ffprobe names it; "" for none.
 function mediaColour(table as object, name as dynamic) as string
     value = httpString(name)

@@ -101,8 +101,8 @@ async fn a_rewatch_goes_on_in_order() {
     assert_eq!(s.next_up().await, (vec!["A Man Alone".to_owned()], json!("A Man Alone")));
 }
 
-/// One favourite seen again while part way through: back to where the user
-/// had got to, not to the episode after the favourite.
+/// One favorite seen again while part way through: back to where the user
+/// had got to, not to the episode after the favorite.
 #[tokio::test]
 async fn a_favourite_seen_again_keeps_the_place() {
     let s = Show::new().await;

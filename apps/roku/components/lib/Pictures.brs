@@ -224,7 +224,7 @@ function picPlan(pictures as dynamic, positionMs as integer, syncMs as integer) 
     return plan
 end function
 
-' width × height fitted to a screen of screenWidth × screenHeight, centred:
+' width × height fitted to a screen of screenWidth × screenHeight, centered:
 ' { x, y, width, height }, in whole pixels.
 function picFit(width as dynamic, height as dynamic, screenWidth as integer, screenHeight as integer) as object
     scale = screenWidth / width

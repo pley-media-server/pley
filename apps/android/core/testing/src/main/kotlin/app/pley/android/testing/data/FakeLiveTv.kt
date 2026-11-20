@@ -49,7 +49,7 @@ class FakeLiveTv : LiveTvRepository {
     /** How long the server takes to answer a watch: 0, at once, unless the test sets it. */
     var watchTakesMs = 0L
 
-    /** Setting a favourite fails with this until set back to `null`. */
+    /** Setting a favorite fails with this until set back to `null`. */
     var favoriteFails: Exception? = null
 
     /** What every session's channel is made into: `null` (not known in time, the HLS is played) unless the test sets one. */

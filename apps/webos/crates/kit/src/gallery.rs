@@ -203,7 +203,7 @@ fn buttons(ui: &mut Ui, y: f32, state: &mut GalleryState) {
         state.toast.show("Added to My List", false, now);
     }
     if r[4].activated {
-        state.toast.show("The favourite wasn't saved: no answer in time.", true, now);
+        state.toast.show("The favorite wasn't saved: no answer in time.", true, now);
     }
 }
 

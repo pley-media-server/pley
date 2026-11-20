@@ -6,7 +6,7 @@ namespace Pley.Tv.Core.Ui;
 /// The picture shown while artwork loads and when there is none (the Android app's Placeholder, the
 /// web's <c>placeholderGradient</c> in apps/web/src/lib/images.ts): a 135° gradient from
 /// hsl(h, 30 %, 22 %) to hsl(h + 40, 35 %, 12 %), where h comes from a hash of the title, so each
-/// title has its own colour.
+/// title has its own color.
 /// </summary>
 public static class Placeholder
 {

@@ -6,13 +6,13 @@ import PleyNetwork
 /// Live TV through the open server (docs/API.md, "Live TV"), shared by
 /// its pages, Search and the live player: whether it shows, its groups,
 /// a category's channels a page at a time, the guide of the channels in
-/// view, favourites, and watching a channel. A provider lists tens of
+/// view, favorites, and watching a channel. A provider lists tens of
 /// thousands of channels: nothing here asks for them all.
 ///
-/// A favourite shows at once on every page and in the player
+/// A favorite shows at once on every page and in the player
 /// (`marked`), and is put back when the server refuses it. `version` goes
 /// up when what the lists show may have changed (what's on moved on, the
-/// lineup changed, a favourite was saved), and the screens ask again.
+/// lineup changed, a favorite was saved), and the screens ask again.
 @MainActor
 public final class LiveTvRepository: ObservableObject {
     /// Channels asked for at once, as the web asks.
@@ -20,7 +20,7 @@ public final class LiveTvRepository: ObservableObject {
     /// The guide is fetched in chunks of six hours, a page of channels at a time.
     public nonisolated static let guideChunk: Int64 = 6 * 3600
 
-    /// Favourites set on this device, by channel: shown at once, before
+    /// Favorites set on this device, by channel: shown at once, before
     /// the server's own lists say so.
     @Published public private(set) var favorites: [Int: Bool] = [:]
     /// Goes up whenever the lists may have changed: their pages are asked again.
@@ -29,7 +29,7 @@ public final class LiveTvRepository: ObservableObject {
     private let api: @Sendable () async throws -> PleyAPI
     /// Saves the lists' answers, and gives them back while the server is out of reach (the app's).
     public weak var cache: (any SnapshotCache)?
-    /// Favourites on their way to the server: the counts it gives don't have them yet.
+    /// Favorites on their way to the server: the counts it gives don't have them yet.
     private var unsaved: Set<Int> = []
 
     /// Live TV on the server `api` gives (the open one).
@@ -46,7 +46,7 @@ public final class LiveTvRepository: ObservableObject {
         try await load(SnapshotKeys.live) { try await $0.liveSummary() }
     }
 
-    /// The groups and the counts, the favourites' as set here.
+    /// The groups and the counts, the favorites' as set here.
     public func groups() async throws -> LiveGroups {
         var groups = try await load(SnapshotKeys.liveGroups) { try await $0.liveGroups() }
         let pending = unsaved.reduce(0) { sum, id in sum + (favorites[id] == true ? 1 : -1) }
@@ -56,7 +56,7 @@ public final class LiveTvRepository: ObservableObject {
 
     /// Page `page` (`LiveTvRepository.page` channels) of `category`'s
     /// channels matching `query`, as the server has them (`marked` shows
-    /// the favourites set here).
+    /// the favorites set here).
     public func page(_ category: LiveCategory, query: String = "", page: Int) async throws -> LiveChannelPage {
         try await load(SnapshotKeys.livePage(category.key, query, page)) {
             try await $0.liveBrowse(category, query: query, offset: page * Self.page, limit: Self.page)
@@ -93,7 +93,7 @@ public final class LiveTvRepository: ObservableObject {
         return try await fetch(api())
     }
 
-    /// `channel` with its favourite as set on this device.
+    /// `channel` with its favorite as set on this device.
     public func marked(_ channel: LiveChannel) -> LiveChannel {
         guard let favorite = favorites[channel.id], favorite != channel.favorite else { return channel }
         var channel = channel
@@ -102,13 +102,13 @@ public final class LiveTvRepository: ObservableObject {
     }
 
     /// What's on moved on, or the lineup changed: the lists ask again.
-    /// Favourites set here are the server's by now.
+    /// Favorites set here are the server's by now.
     public func refresh() {
         favorites = favorites.filter { unsaved.contains($0.key) }
         version += 1
     }
 
-    /// A favourite channel or not: at once on screen, put back if the server refuses.
+    /// A favorite channel or not: at once on screen, put back if the server refuses.
     public func setFavorite(_ channelId: Int, _ favorite: Bool) async throws {
         let before = favorites[channelId]
         favorites[channelId] = favorite
@@ -120,7 +120,7 @@ public final class LiveTvRepository: ObservableObject {
             favorites[channelId] = before
             throw error
         }
-        // Favourites' own pages and counts come from the server.
+        // Favorites' own pages and counts come from the server.
         version += 1
     }
 

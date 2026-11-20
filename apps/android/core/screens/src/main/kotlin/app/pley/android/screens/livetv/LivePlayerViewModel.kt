@@ -66,7 +66,7 @@ data class ChannelDigits(val typed: String = "", val notFound: String? = null)
  * at a time for the channel list, which can show another category's (a
  * channel tuned from there makes channel up and down go through that one,
  * as the web's does); watched as it airs, without pausing or going back; a
- * favourite; the profile's remote changes channel as channel up and down
+ * favorite; the profile's remote changes channel as channel up and down
  * do. The channel and its category are kept with the screen's saved
  * state, and the channel for the profile too: the guide opens back at it.
  * The playback ends with the ViewModel.
@@ -120,7 +120,7 @@ class LivePlayerViewModel(
     /** The engine, for the video surface and the media session. */
     val engine: StateFlow<PlayerEngine?> = playback.engine
 
-    /** The channel playing, as the server has it now (a favourite set shows at once). */
+    /** The channel playing, as the server has it now (a favorite set shows at once). */
     val channel: StateFlow<LiveChannel?> = current.flatMapLatest { id ->
         deps.live.channel(id).map { it.valueOrNull ?: known[id] }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, known[current.value])
@@ -154,7 +154,7 @@ class LivePlayerViewModel(
 
     init {
         tuneNow(current.value)
-        // What's on moves on while watching: asked again when the programme playing ends.
+        // What's on moves on while watching: asked again when the program playing ends.
         viewModelScope.launch {
             combine(now, channel) { t, c -> c?.now?.let { it.stop <= t } == true }.distinctUntilChanged().collect { ended ->
                 if (ended) deps.live.refresh()

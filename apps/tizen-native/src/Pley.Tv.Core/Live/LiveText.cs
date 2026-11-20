@@ -57,7 +57,7 @@ public sealed class LiveClock
 
 /// <summary>
 /// What Live TV says (the Android app's strings_tv_livetv.xml), in the language shown, and how it
-/// says programmes' times.
+/// says programs' times.
 /// </summary>
 public static class LiveText
 {
@@ -145,10 +145,10 @@ public static class LiveText
     /// <summary>"The TV's player said: it stalled".</summary>
     public static string PlayerSaid(string detail) => Strings.T("livetv.engine.said", ("detail", detail));
 
-    /// <summary>"No channel's name, number or programme on now has “bbc” in it."</summary>
+    /// <summary>"No channel's name, number or program on now has “bbc” in it."</summary>
     public static string NoMatchSearch(string query) => Strings.T("livetv.page.noMatchSearch", ("query", query.Trim()));
 
-    /// <summary>"The favourite wasn't saved: No answer in time."</summary>
+    /// <summary>"The favorite wasn't saved: No answer in time."</summary>
     public static string FavoriteFailed(Exception e) => Strings.T("livetv.favorites.failed", ("error", Errors.Message(e)));
 
     /// <summary>"12 min left", "1 h left", "1 h 5 min left".</summary>
@@ -212,7 +212,7 @@ public static class LiveText
     /// <summary>A count beside a category, grouped as the language shown groups thousands: "1,234", "1 234".</summary>
     public static string Count(int count) => count.ToString("N0", Strings.Culture);
 
-    /// <summary>The badge a programme carries, if any: Live first, else New.</summary>
+    /// <summary>The badge a program carries, if any: Live first, else New.</summary>
     public static string? Badge(LiveProgram program) => program.IsLive ? BadgeLive : program.IsNew ? BadgeNew : null;
 
     /// <summary>A channel's number and name, two spaces apart, as the player's lists and cards say them: "101  BBC One".</summary>
@@ -227,9 +227,9 @@ public static class LiveText
     public static string OnNowOf(LiveChannel channel, long now) => channel.OnAt(now)?.Title ?? (channel.HasGuide ? NothingNow : NoGuide);
 
     /// <summary>
-    /// The guide's line under the title of what has focus: the channel (when a programme has
+    /// The guide's line under the title of what has focus: the channel (when a program has
     /// focus), its day and times, the time left while it airs and the episode, "  ·  " apart;
-    /// without a programme, the number and why there is none.
+    /// without a program, the number and why there is none.
     /// </summary>
     public static string GuideMeta(LiveChannel channel, string name, LiveProgram? program, long now, LiveClock clock)
     {
@@ -259,6 +259,6 @@ public static class LiveText
         return text.Length > 0 ? text : null;
     }
 
-    /// <summary>What a programme cell says to a screen reader: "The News, 20:00 – 21:00".</summary>
+    /// <summary>What a program cell says to a screen reader: "The News, 20:00 – 21:00".</summary>
     public static string Spoken(LiveProgram program, LiveClock clock) => $"{program.Title}, {clock.Span(program)}";
 }

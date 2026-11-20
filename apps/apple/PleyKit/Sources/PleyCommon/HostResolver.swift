@@ -25,7 +25,7 @@ public struct SystemHostResolver: HostResolver {
     }
 
     public func addresses(of host: String) async throws -> [String] {
-        // getaddrinfo blocks and can't be cancelled: it runs on a detached
+        // getaddrinfo blocks and can't be canceled: it runs on a detached
         // task, and a lookup that outlives the timeout finishes unheard.
         let lookup = Task.detached(priority: .userInitiated) { try Self.lookUp(host) }
         let timeout = self.timeout

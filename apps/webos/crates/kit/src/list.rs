@@ -183,7 +183,7 @@ impl<'a> ListRow<'a> {
             }
             x += ART_SIZE + LEAD_GAP;
         } else if let Some(icon) = self.icon {
-            // Settings rows' icons rest in Muted; panel rows' take the label's colour.
+            // Settings rows' icons rest in Muted; panel rows' take the label's color.
             let tint =
                 if self.padding > 16.0 && !self.danger { mix(theme::MUTED, theme::ON_ACCENT, p.max(q)) } else { fg };
             let r = Rect::new(x, rect.y + (rect.h - theme::ICON_SIZE) / 2.0, theme::ICON_SIZE, theme::ICON_SIZE);

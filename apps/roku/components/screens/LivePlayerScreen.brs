@@ -483,7 +483,7 @@ function listHintText() as string
 end function
 
 ' Replay in the list: Roku's keyboard, every channel whose name, number or
-' programme on now has the words in it.
+' program on now has the words in it.
 sub askListSearch()
     dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
     dialog.title = t("livetv.search.channelsTitle")
@@ -510,7 +510,7 @@ sub onListSearch(event as object)
 end sub
 
 ' The Options key in the list: the channel in focus in or out of the
-' favourites.
+' favorites.
 sub toggleListed()
     if m.listPage = invalid then return
     at = m.channelList.itemFocused
@@ -518,7 +518,7 @@ sub toggleListed()
     toggleFavorite(m.listPage.channels[at])
 end sub
 
-' A channel in or out of the favourites (PUT or DELETE
+' A channel in or out of the favorites (PUT or DELETE
 ' /api/live/channels/{id}/favorite): its star changes at once wherever it
 ' shows, and goes back if the server refuses.
 sub toggleFavorite(channel as object)
@@ -971,7 +971,7 @@ sub onBannerTimer()
 end sub
 
 ' Each 15 s: what's on moves on, on the banner and in the list; once the
-' programme listed as on now has ended, the channel playing is asked for
+' program listed as on now has ended, the channel playing is asked for
 ' again (GET /api/live/channels/{id}), at most once a minute.
 sub onClock()
     if m.banner.visible then showBanner(false)
@@ -1101,9 +1101,9 @@ end sub
 ' Up and down change channel (Up: the next number); Left opens the
 ' category's channels, Right and OK show what's on (it never shows by
 ' itself as a channel starts), and the Options key (*) puts the channel in
-' the favourites or takes it out, the banner showing its star; play,
+' the favorites or takes it out, the banner showing its star; play,
 ' rewind, fast forward and Replay do nothing. In the list:
-' the Options key adds to or takes out of the favourites, up and down past
+' the Options key adds to or takes out of the favorites, up and down past
 ' its ends go to the page before or after, Left opens the categories
 ' (Back and Right close them), Replay searches, Back leaves a search for
 ' the category before, and Back and Right close it. Back with the banner

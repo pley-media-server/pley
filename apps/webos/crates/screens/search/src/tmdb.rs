@@ -12,7 +12,7 @@ use crate::results::TmdbTile;
 /// What the Discover row shows for its words.
 #[derive(Debug)]
 pub enum TmdbState {
-    /// On its way: grey wells.
+    /// On its way: gray wells.
     Loading,
     /// The titles; none leaves the row out.
     Ready(Vec<TmdbTile>),
@@ -75,7 +75,7 @@ impl OnTmdb {
         self.asking.clone()
     }
 
-    /// The answer to `words` came. Asked again, titles shown stay when it fails; a cancelled
+    /// The answer to `words` came. Asked again, titles shown stay when it fails; a canceled
     /// request says nothing, and its words are asked again at the next chance.
     pub fn answered(&mut self, words: &str, answer: Result<Vec<TmdbTile>, ApiError>) {
         if self.asking.as_deref() != Some(words) {

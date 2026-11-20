@@ -86,13 +86,13 @@ public abstract record RequestNotice(long Key)
 
 /// <summary>
 /// The ways into requests, for the rail and search: Discover, and Your requests (Requests for
-/// managers) carrying one number, in the danger colour while failed requests wait for a manager.
+/// managers) carrying one number, in the danger color while failed requests wait for a manager.
 /// </summary>
 public sealed record RequestsEntry(bool Discover = false, bool Requests = false, bool Manage = false, int Badge = 0, int Failed = 0)
 {
     public static readonly RequestsEntry None = new RequestsEntry();
 
-    /// <summary>The number is in the danger colour.</summary>
+    /// <summary>The number is in the danger color.</summary>
     public bool Alarm => Failed > 0;
 
     public static RequestsEntry Of(RequestsState state)

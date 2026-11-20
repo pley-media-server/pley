@@ -37,7 +37,7 @@ const PROOF_CONTEXT: &str = "pley-server-proof";
 /// The file in the data folder that holds the server's id.
 pub const ID_FILE: &str = "server-id";
 /// Where older versions kept it, renamed to [`ID_FILE`] on start so apps
-/// keep recognising the server.
+/// keep recognizing the server.
 const OLD_ID_FILE: &str = "plex-machine-id";
 
 /// The server's id, 40 hexadecimal characters: read from the data folder,

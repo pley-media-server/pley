@@ -7,7 +7,7 @@ import SwiftUI
 /// The live player on Apple TV. A banner with the channel and what's on
 /// shows for 5 seconds when a channel is tuned. Up and down change
 /// channel; Select opens the overlay (Channels, Channel number,
-/// Favourite, Back to the guide); Play/Pause shows the banner, as live
+/// Favorite, Back to the guide); Play/Pause shows the banner, as live
 /// plays on. Menu hides the overlay, then leaves. The number pad tunes a
 /// channel on OK, or 1.4 seconds after its last digit. A channel cast from
 /// another device says where it came from at the top for 4 seconds.
@@ -175,7 +175,7 @@ struct LivePlayerScreen: View {
                 }
                 .accessibilityIdentifier("live.numberPad")
                 Button { model.toggleFavorite() } label: {
-                    Label(model.channel?.favorite == true ? localized("Remove from favourites") : localized("Add to favourites"),
+                    Label(model.channel?.favorite == true ? localized("Remove from favorites") : localized("Add to favorites"),
                           systemImage: model.channel?.favorite == true ? "star.fill" : "star")
                 }
                 .accessibilityIdentifier("live.favorite")
@@ -316,7 +316,7 @@ private struct TVChannelsList: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     Text("Other channels").font(.headline).foregroundStyle(.secondary)
-                    category(.favorites, localized("Favourites"))
+                    category(.favorites, localized("Favorites"))
                     category(.recent, localized("Recently watched"))
                     category(.all, localized("All channels"))
                     ForEach(groups) { category(.group($0.name), LiveTvRules.groupName($0, name: $0.name)) }

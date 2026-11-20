@@ -85,7 +85,7 @@ import kotlinx.coroutines.launch
  * [initialFocus] or [rememberedFocus].
  *
  * A [current] tile is the one its page is about (an episode's page, in
- * its season's row): at rest it has a thin ring in the text's colour at
+ * its season's row): at rest it has a thin ring in the text's color at
  * the well's edge and its caption in bold, so it is found without focus;
  * with focus it looks like any focused tile.
  */
@@ -307,7 +307,7 @@ internal fun Modifier.menuKey(onActions: (() -> Unit)?): Modifier =
         }
     }
 
-/** The focused tile draws over its neighbours and their captions (zIndex 1), decided while placing, not composing. */
+/** The focused tile draws over its neighbors and their captions (zIndex 1), decided while placing, not composing. */
 private fun Modifier.focusedOnTop(look: TileFocusLook): Modifier = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints)
     layout(placeable.width, placeable.height) {
@@ -317,7 +317,7 @@ private fun Modifier.focusedOnTop(look: TileFocusLook): Modifier = layout { meas
 
 /**
  * The focus ring (design spec §1.4) around a well scaled by [scale] about
- * its centre: a 3 dp accentBright stroke ([stroke], made once) centred
+ * its center: a 3 dp accentBright stroke ([stroke], made once) centered
  * 4.5 dp outside the scaled edge. It is drawn outside the well's layer, so
  * its width stays the same as the well grows, and nothing is made per frame.
  */
@@ -339,7 +339,7 @@ internal fun DrawScope.drawFocusRing(kind: TileKind, alpha: Float, scale: Float,
 
 /**
  * The ring of a [current][TvTile] tile, around a well scaled by [scale]:
- * a 2 dp stroke ([stroke], made once) in the text's colour, its inner
+ * a 2 dp stroke ([stroke], made once) in the text's color, its inner
  * edge on the well's, so it frames the picture where the focus ring
  * stands off it.
  */

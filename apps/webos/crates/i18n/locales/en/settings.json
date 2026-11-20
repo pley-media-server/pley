@@ -121,9 +121,9 @@
   },
   "about": {
     "version": "Version",
-    "licences": "Open-source licences",
+    "licences": "Open-source licenses",
     "credits": "Credits",
-    "noLicences": "No licence texts",
+    "noLicences": "No license texts",
     "noNotices": "This copy of Pley carries no NOTICES.txt, which lists them with their texts."
   },
   "signOut": {

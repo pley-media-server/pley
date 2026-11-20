@@ -1217,7 +1217,7 @@ impl PlaybackController {
 
     /// The task that opens a session: the request, then the Dolby Vision guard
     /// and the burn-in indexes, asking again where they say. Its requests
-    /// aren't cancelled with the player: a session the server made is always
+    /// aren't canceled with the player: a session the server made is always
     /// let go when nobody takes it.
     fn open(&mut self, item_id: i64, g: u64, asked: Asked, flush: bool) {
         let server = self.env.server.clone();

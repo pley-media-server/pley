@@ -138,14 +138,14 @@ impl ChannelList {
         self.typing
     }
 
-    /// Channel `id` was marked a favourite (`on`) or not in the player: its row shows it at once.
+    /// Channel `id` was marked a favorite (`on`) or not in the player: its row shows it at once.
     pub fn patch(&mut self, id: i64, on: bool) {
         if let Some(p) = self.pages.as_mut() {
             p.patch(id, |c| c.favorite = on);
         }
     }
 
-    /// The favourites changed on the server: the groups' counts are asked for again.
+    /// The favorites changed on the server: the groups' counts are asked for again.
     pub fn groups_changed(&mut self) {
         self.groups.invalidate();
     }
@@ -385,7 +385,7 @@ pub fn list_label(c: &Category) -> String {
     }
 }
 
-/// One channel's row: its logo, "number  name" and what's on, a star for a favourite; the channel
+/// One channel's row: its logo, "number  name" and what's on, a star for a favorite; the channel
 /// playing on Surface3, the focused row in the accent.
 #[allow(clippy::too_many_arguments)]
 fn channel_row(
@@ -446,7 +446,7 @@ mod tests {
     #[test]
     fn the_heading_names_the_category_listed() {
         assert_eq!(list_label(&Category::All), "All channels");
-        assert_eq!(list_label(&Category::Favorites), "Favourites");
+        assert_eq!(list_label(&Category::Favorites), "Favorites");
         assert_eq!(list_label(&Category::Group("UK| Sport".into())), "UK · Sport");
         assert_eq!(list_label(&Category::Group("Kids".into())), "Kids");
         pley_i18n::with_language(pley_i18n::Language::Fr, || {

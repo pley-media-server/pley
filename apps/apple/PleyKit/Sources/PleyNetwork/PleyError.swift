@@ -115,7 +115,7 @@ extension PleyError: LocalizedError {
 
 extension PleyError {
     /// `error` from URLSession as a `PleyError`, or `CancellationError`
-    /// when the request was cancelled because its task was.
+    /// when the request was canceled because its task was.
     static func from(_ error: any Error) -> any Error {
         if error is PleyError || error is CancellationError { return error }
         if let resolver = error as? HostResolverError {

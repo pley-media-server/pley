@@ -428,7 +428,7 @@ private fun CastRow(cast: List<CastMember>, origin: String, modifier: Modifier =
  * specials last, those that may be asked for ticked lowest first up to
  * what's left; the rest show their state and can't be ticked. Ticking
  * more than may be asked for disables Request and shows the allowance in
- * the danger colour.
+ * the danger color.
  */
 @Composable
 private fun SeasonPickerSheet(

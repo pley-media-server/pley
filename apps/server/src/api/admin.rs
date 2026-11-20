@@ -142,6 +142,8 @@ pub enum Service {
     Tvdb,
     Tvmaze,
     Musicbrainz,
+    /// Audnexus and Open Library.
+    Audiobooks,
     Transcoder,
     Opensubtitles,
 }
@@ -153,6 +155,7 @@ impl Service {
             Service::Tvdb => "TheTVDB",
             Service::Tvmaze => "TVmaze",
             Service::Musicbrainz => "MusicBrainz",
+            Service::Audiobooks => "Audnexus or Open Library",
             Service::Transcoder => "The transcoder",
             Service::Opensubtitles => "OpenSubtitles",
         }
@@ -218,6 +221,7 @@ pub async fn test_service(
             Service::Tvdb => state.metadata.check_provider(Check::Tvdb { key: &key, pin: &pin }).await.map(|()| None),
             Service::Tvmaze => state.metadata.check_provider(Check::Tvmaze).await.map(|()| None),
             Service::Musicbrainz => state.metadata.check_provider(Check::MusicBrainz).await.map(|()| None),
+            Service::Audiobooks => state.metadata.check_provider(Check::Books).await.map(|()| None),
             Service::Opensubtitles => unreachable!("tested above"),
             Service::Transcoder => match state.transcoder.status().await {
                 Ok(status) => Ok(Some(match status.ffmpeg_version {

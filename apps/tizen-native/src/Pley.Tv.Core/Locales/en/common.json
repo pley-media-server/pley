@@ -9,7 +9,7 @@
     "noAnswerInTime": "no answer in time",
     "unknownAddress": "that address isn't known on this network",
     "secureConnection": "its secure connection failed",
-    "cancelled": "cancelled",
+    "cancelled": "canceled",
     "anotherDevice": "another device answers there",
     "serverFailed": "the server couldn't answer",
     "connectionFailed": "the connection to the server failed"

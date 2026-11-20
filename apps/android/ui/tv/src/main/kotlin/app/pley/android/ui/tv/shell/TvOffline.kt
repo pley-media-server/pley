@@ -162,7 +162,7 @@ internal const val ANNOUNCE_MS = 6_000L
 
 /**
  * The rail avatar's mark while the server is out of reach: the server-off
- * icon on a surface3 disc ringed in the page's colour, astride its lower
+ * icon on a surface3 disc ringed in the page's color, astride its lower
  * right edge as a status badge is.
  */
 @Composable

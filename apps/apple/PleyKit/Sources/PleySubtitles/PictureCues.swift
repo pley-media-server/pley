@@ -17,7 +17,7 @@ public struct DecodedPicture: Equatable, Sendable {
 }
 
 /// Decodes a picture track's samples away from the main actor. A decode
-/// can read back hundreds of samples and colour a 4K screen's pixels; the
+/// can read back hundreds of samples and color a 4K screen's pixels; the
 /// decoders and their caches stay here, the only place they are used.
 public actor PictureRenderer {
     private var subtitles: PictureSubtitles
@@ -28,7 +28,7 @@ public actor PictureRenderer {
         self.subtitles = subtitles
     }
 
-    /// Sample `index`, decoded; `nil` when the decode was cancelled before it began.
+    /// Sample `index`, decoded; `nil` when the decode was canceled before it began.
     public func decode(_ index: Int) -> DecodedPicture? {
         guard !Task.isCancelled else { return nil }
         return subtitles.decoded(index)
@@ -76,7 +76,7 @@ public final class PictureCueTrack: CueTrack {
     /// Sample `index` is being decoded: it isn't wanted again until it is.
     public func asking(_ index: Int) { asked.insert(index) }
 
-    /// Sample `index`, decoded; `nil` when its decode was cancelled, so it is wanted again.
+    /// Sample `index`, decoded; `nil` when its decode was canceled, so it is wanted again.
     public func decoded(_ index: Int, _ picture: DecodedPicture?) {
         asked.remove(index)
         guard let picture, times.indices.contains(index) else { return }

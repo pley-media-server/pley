@@ -3,7 +3,7 @@ import type { Id } from "@/api/types";
 /**
  * Short ids for page URLs: `/item/kx7bq2m` rather than `/item/1234`. The
  * API keeps its numbers; links carry them scrambled (a fixed 32-bit
- * permutation) and spelled with consonants and digits, so neighbouring
+ * permutation) and spelled with consonants and digits, so neighboring
  * numbers don't look related and no ids spell words. They hide nothing: the
  * server checks access as it always does. Plain numbers (older links) still
  * work.

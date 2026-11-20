@@ -423,7 +423,7 @@ sealed class RequestsScreen : ShellPage
         View? dot = null;
         if (news.Contains(request.Id))
         {
-            // On the poster's top right corner, ringed in the card's colour.
+            // On the poster's top right corner, ringed in the card's color.
             dot = new View
             {
                 Position = new Position(Ui.Dp(12 + PosterWidth - 8), Ui.Dp((CardHeight - PosterHeight) / 2 - 4)),

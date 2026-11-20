@@ -212,7 +212,7 @@ impl DeviceSignIn {
 
     /// Asks whether `code` was approved, every interval (slower when the
     /// server says so), until it is signed in, denied, expired or failed;
-    /// `on` hears each change. Answers [`DevicePoll::Waiting`] when cancelled.
+    /// `on` hears each change. Answers [`DevicePoll::Waiting`] when canceled.
     pub fn poll(&self, code: &DeviceCode, on: &mut dyn FnMut(&DevicePoll), cancel: &Cancel) -> DevicePoll {
         let mut interval = if code.interval.is_zero() { DEFAULT_INTERVAL } else { code.interval };
         let mut failures = 0usize;
@@ -352,7 +352,7 @@ impl DeviceSignIn {
 
     /// [`DeviceSignIn::run`] on a thread of its own (a sign-in lasts minutes:
     /// it would hold a task thread all that time), its states sent to `tx`
-    /// with a wake of the main loop. Cancelling the token stops it; the
+    /// with a wake of the main loop. Canceling the token stops it; the
     /// thread's answer is how it ended.
     pub fn run_on_thread(
         self,

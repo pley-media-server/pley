@@ -170,7 +170,7 @@ public struct ItemDetails: Hashable, Sendable {
     /// Each version in long form, the one that plays selected.
     public var versions: [TrackChoice]
 
-    /// The facts under Details, labelled: original title, released, studio
+    /// The facts under Details, labeled: original title, released, studio
     /// or network, plays, and the versions when there are several.
     public var rows: [InfoRow] {
         var rows: [InfoRow] = []

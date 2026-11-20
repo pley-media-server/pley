@@ -44,7 +44,7 @@ export function formatGuideDay(ts: number, now: number): string {
   return guideFormats().day.format(new Date(ts * 1000));
 }
 
-/** Minutes left of a programme: "12 min left". */
+/** Minutes left of a program: "12 min left". */
 export function timeLeft(p: Pick<Program, "stop">, now: number): string {
   const minutes = Math.max(1, Math.round((p.stop - now) / 60));
   if (minutes >= 60) {

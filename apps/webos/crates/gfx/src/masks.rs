@@ -52,7 +52,7 @@ pub fn corner(extent: f32, radius: f32, width: Option<f32>) -> (u32, Vec<u8>) {
 /// `radius`: negative inside, positive outside. The rectangle extends without
 /// end to the right and down.
 fn rounded_corner_distance(x: f32, y: f32, edge: f32, radius: f32) -> f32 {
-    // Distances past the corner circle's centre toward the outside.
+    // Distances past the corner circle's center toward the outside.
     let qx = edge + radius - x;
     let qy = edge + radius - y;
     let outside = (qx.max(0.0).powi(2) + qy.max(0.0).powi(2)).sqrt();

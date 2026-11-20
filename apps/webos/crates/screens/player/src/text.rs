@@ -1,5 +1,5 @@
 //! What the player writes: times, the episode line, chapters, speeds, the subtitle search's rows
-//! and messages, and the colour of how a video plays (the Android TV app's `TvPlayerText`,
+//! and messages, and the color of how a video plays (the Android TV app's `TvPlayerText`,
 //! `TvPlayerControls.kt`, `strings.xml`; the TV app's `ui/player/panels.tsx`).
 
 use pley_base::Color;
@@ -193,7 +193,7 @@ fn reason(e: &ApiError) -> String {
     }
 }
 
-/// The colour of how a video plays, for the badge at the top right: a file played as it is in
+/// The color of how a video plays, for the badge at the top right: a file played as it is in
 /// Success, a direct stream in Info, a transcode in the Accent (`MethodBadge`). `method` is in the
 /// language shown, as the player wrote it.
 pub fn method_color(method: &str) -> Color {

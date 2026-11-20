@@ -265,7 +265,7 @@ public final class LivePlayback: ObservableObject {
         stoppedWhileTuning = [:]
         state = LiveState(channelId: channelId, phase: .tuning)
         let generation = generation
-        // Not cancelled when another tune comes: the server may have
+        // Not canceled when another tune comes: the server may have
         // opened the session already, and only its answer says which to let go.
         tuning = Task { [weak self] in
             guard let self else { return }

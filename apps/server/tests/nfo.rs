@@ -147,6 +147,9 @@ async fn world() -> (TestApp, Mock, String) {
             tmdb: format!("{base}/tmdb"),
             tmdb_images: format!("{base}/tmdb-images"),
             opensubtitles: format!("{base}/opensubtitles"),
+            audnexus: format!("{base}/audnexus"),
+            openlibrary: format!("{base}/ol"),
+            openlibrary_covers: format!("{base}/olcovers"),
         });
     })
     .await;

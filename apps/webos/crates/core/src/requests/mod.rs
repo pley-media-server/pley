@@ -238,8 +238,8 @@ pub fn requests_title(s: Option<&RequestSummary>) -> &'static str {
     if s.is_some_and(|s| s.manage) { t!("requests.names.requests") } else { t!("requests.names.yourRequests") }
 }
 
-/// The one number on the way to requests, and whether it takes the danger colour: for managers
-/// what waits for them and their own news, in the danger colour while some failed; for everyone
+/// The one number on the way to requests, and whether it takes the danger color: for managers
+/// what waits for them and their own news, in the danger color while some failed; for everyone
 /// else their news.
 pub fn requests_count(s: Option<&RequestSummary>) -> (i64, bool) {
     match s {
@@ -300,7 +300,7 @@ pub fn library_item(t: &DiscoverTitle) -> Option<i64> {
     t.item_id.filter(|_| t.status == TitleStatus::Library)
 }
 
-/// A badge's or a stage pill's colour: waiting for a decision amber, on its way blue, ready green,
+/// A badge's or a stage pill's color: waiting for a decision amber, on its way blue, ready green,
 /// refused or failed red, gone gray.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Tone {
@@ -311,7 +311,7 @@ pub enum Tone {
     Gray,
 }
 
-/// A badge's colour: what can be watched green, what is on its way blue, what was refused red.
+/// A badge's color: what can be watched green, what is on its way blue, what was refused red.
 pub fn title_tone(status: TitleStatus, item_id: Option<i64>) -> Tone {
     match status {
         TitleStatus::Library => Tone::Green,
@@ -765,7 +765,7 @@ fn both(parts: Vec<String>) -> String {
 
 // ---- a request's stage
 
-/// Where a request has got to, in words and a colour.
+/// Where a request has got to, in words and a color.
 #[derive(Clone, Debug, PartialEq)]
 pub struct StageWords {
     pub text: String,
@@ -787,7 +787,7 @@ impl StageWords {
     }
 }
 
-/// Where a request has got to, in words and a colour (managers read why one failed).
+/// Where a request has got to, in words and a color (managers read why one failed).
 pub fn stage_words(r: &MediaRequest, manage: bool, time: TvTime) -> StageWords {
     stage_words_at(r, r.stage, manage, time)
 }

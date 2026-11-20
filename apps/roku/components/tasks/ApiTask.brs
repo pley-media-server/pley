@@ -350,7 +350,7 @@ sub apiAnswered(job as object, status as integer, body as string, headers as dyn
     end if
 end sub
 
-' Transfers that hang are cancelled, later ones go when due, and the
+' Transfers that hang are canceled, later ones go when due, and the
 ' device code is polled on time.
 sub apiTick()
     now = m.clock.TotalMilliseconds()
@@ -1552,7 +1552,7 @@ end sub
 
 ' A page of a category's channels (GET /api/live/browse; spec: category,
 ' offset, limit, around), made into what spec.kind shows: "cards", the
-' player's "list", or the "guide" with their programmes from spec.start
+' player's "list", or the "guide" with their programs from spec.start
 ' to spec.upto (GET /api/live/guide?ids=, for these channels only).
 ' Answers { total, offset, channels }; the guide's, with upto.
 sub apiLivePage(request as object, spec as object)
@@ -1574,7 +1574,7 @@ sub apiLivePage(request as object, spec as object)
     apiSend(job)
 end sub
 
-' A page came: built, or for the guide its programmes asked for first; a
+' A page came: built, or for the guide its programs asked for first; a
 ' part of the guide came: kept, then built.
 sub apiLiveAnswered(job as object, answer as object)
     request = job.request

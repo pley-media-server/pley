@@ -5,7 +5,7 @@ import { channelsLabel, codecLabel, formatBitrate, formatBytes, formatDuration, 
 /*
  * The item page's media info (TvMediaInfo): a file's facts in blocks of
  * "label: value" lines, as the Android app's MediaFacts words them, in the
- * language shown. The colour standards keep their own names.
+ * language shown. The color standards keep their own names.
  */
 
 export interface FactBlock {

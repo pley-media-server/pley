@@ -14,6 +14,10 @@ describes how they are made.
   profile's language or the one chosen in Screens → Language, with dates,
   numbers and counts written in the language shown.
 
+### Changed
+
+- English words are spelled the American way: color, favorite, program.
+
 ## [0.1.9] - 2026-11-18
 
 ### Added

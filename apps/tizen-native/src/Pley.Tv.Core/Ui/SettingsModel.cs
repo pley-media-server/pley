@@ -95,7 +95,7 @@ public abstract record SettingPick
 /// <summary>What selecting a row does.</summary>
 public abstract record SettingAction
 {
-    /// <summary>A row that only says something (the server, the version, a licence).</summary>
+    /// <summary>A row that only says something (the server, the version, a license).</summary>
     public sealed record None : SettingAction;
 
     /// <summary>Opens the side panel of <paramref name="Choice"/> (<see cref="SettingsModel.Panel"/>).</summary>
@@ -142,7 +142,7 @@ public abstract record SettingsItem
         public override string Key => RowKey;
     }
 
-    /// <summary>A heading over rows (label, subtle; 20 dp in, 16 above, 6 below): "Advanced", "Open-source licences".</summary>
+    /// <summary>A heading over rows (label, subtle; 20 dp in, 16 above, 6 below): "Advanced", "Open-source licenses".</summary>
     public sealed record Heading(string Text) : SettingsItem
     {
         public override string Key => "heading:" + Text;
@@ -403,7 +403,7 @@ public sealed class SettingsModel : IDisposable
         return items;
     }
 
-    /// <summary>What the native app is made of, with their licences (LICENSING.md).</summary>
+    /// <summary>What the native app is made of, with their licenses (LICENSING.md).</summary>
     public static readonly IReadOnlyList<(string Name, string Licence)> Licences = new[]
     {
         ("Tizen .NET (NUI, Multimedia…)", "Apache-2.0"),

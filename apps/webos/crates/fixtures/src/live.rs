@@ -3,7 +3,7 @@
 //! with live HLS (the sample stream's segments over and over, in a sliding
 //! window), a channel's `stream.ts` (the same segments one after another, in
 //! real time, for as long as it is read), keyed addresses, plans, leaving,
-//! favourites and the channels watched last. The second source allows one connection at once, and
+//! favorites and the channels watched last. The second source allows one connection at once, and
 //! another of Alex's devices holds it at start ([`ids::LIVE_BUSY_CHANNEL`]),
 //! so watching another of its channels answers `409` until that one is
 //! taken over. Live TV isn't open to Sam.
@@ -29,7 +29,7 @@ use crate::server::{
 use crate::words::{ADJECTIVES, GENRES, NOUNS};
 use crate::{ServerEvent, ids};
 
-/// A guide block: programmes never cross one, so any span can be made alone.
+/// A guide block: programs never cross one, so any span can be made alone.
 const BLOCK_S: i64 = 3 * 3_600;
 const SLOT_S: i64 = 30 * 60;
 /// How a block is cut, in half hours.
@@ -93,7 +93,7 @@ impl Channel {
     }
 }
 
-/// A programme, as apps get it.
+/// A program, as apps get it.
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct Program {
     channel_id: i64,
@@ -334,7 +334,7 @@ fn matches(channel: &Channel, q: &str, now: i64) -> bool {
         || (channel.has_guide && now_and_next(channel, now).0.is_some_and(|p| p.title.to_lowercase().contains(&q)))
 }
 
-/// The programmes of a channel between `from` and `to` (unix seconds).
+/// The programs of a channel between `from` and `to` (unix seconds).
 fn programs(channel: &Channel, from: i64, to: i64) -> Vec<Program> {
     let mut out = Vec::new();
     let mut block = from.div_euclid(BLOCK_S);
@@ -358,7 +358,7 @@ fn now_and_next(channel: &Channel, now: i64) -> (Option<Program>, Option<Program
     (around.next(), around.next())
 }
 
-/// A programme's title, episode title, categories, and season and episode.
+/// A program's title, episode title, categories, and season and episode.
 type Listing = (String, Option<String>, Vec<String>, Option<(i64, i64)>);
 
 fn program(channel: &Channel, start: i64, stop: i64) -> Program {
@@ -587,7 +587,7 @@ fn browse(cx: &Cx<'_>, state: &mut State) -> Answer {
     Ok(json(200, &json!({ "total": list.len(), "offset": offset, "channels": channels })))
 }
 
-/// GET /api/live/guide?from=&to=&ids=: programmes by channel, from half an
+/// GET /api/live/guide?from=&to=&ids=: programs by channel, from half an
 /// hour ago for six hours unless asked otherwise, two days at most.
 fn guide(cx: &Cx<'_>, state: &mut State) -> Answer {
     open(cx, state)?;
@@ -892,7 +892,7 @@ mod tests {
         for pair in list.windows(2) {
             assert_eq!(pair[0].stop, pair[1].start);
         }
-        // The same span asked in two halves gives the same programmes.
+        // The same span asked in two halves gives the same programs.
         let halves: Vec<i64> = programs(channel, from, from + 43_200)
             .into_iter()
             .chain(programs(channel, from + 43_200, from + 86_400))

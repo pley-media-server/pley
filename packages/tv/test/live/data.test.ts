@@ -182,7 +182,7 @@ describe("the guide", () => {
     expect(chunkStarts(47 * 3600, 60 * 3600, 0)).toEqual([7 * GUIDE_CHUNK]);
   });
 
-  it("merges chunks each programme once, in order", () => {
+  it("merges chunks each program once, in order", () => {
     const into = new Map<number, LiveProgram[]>();
     mergeGuide(into, { from: 0, to: 100, programs: { "1": [program(1, 60, 120), program(1, 0, 60)] } });
     mergeGuide(into, { from: 100, to: 200, programs: { "1": [program(1, 60, 120), program(1, 120, 300)], "2": [program(2, 0, 300)] } });

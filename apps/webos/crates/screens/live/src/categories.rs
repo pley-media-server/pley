@@ -1,6 +1,6 @@
 //! The categories column (`CategoryColumn` in `TvLiveTvScreen.kt`, `LiveTv.groupSections`): beside
 //! the guide, and in the player's channel list when another group is chosen. In order: the search
-//! field (on the page), the groups a search names, Favourites, Recently watched and All channels with
+//! field (on the page), the groups a search names, Favorites, Recently watched and All channels with
 //! their counts, then the regions (one open at a time, OK opening or closing it) and the other
 //! groups. The category shown is marked; focused rows take the accent; OK on a category shows it.
 

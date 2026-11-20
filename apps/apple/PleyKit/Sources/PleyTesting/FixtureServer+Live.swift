@@ -2,8 +2,8 @@ import Foundation
 import PleyModel
 
 /// Live TV: a lineup (the Android fixtures' three channels, or one made up
-/// as large as a test needs), favourites and Recently watched kept as the
-/// server keeps them, a guide of half-hour programmes made around the time
+/// as large as a test needs), favorites and Recently watched kept as the
+/// server keeps them, a guide of half-hour programs made around the time
 /// asked for, and watching: sessions with keyed playlists, a source with
 /// one connection that answers `409` (Android's `live/busy.json`) until a
 /// take over, plans, and leaving.
@@ -94,7 +94,7 @@ extension FixtureServer {
         state.withLock { $0.live.heldBy = channelId }
     }
 
-    /// Setting a favourite answers this status from now on (`nil`: normally).
+    /// Setting a favorite answers this status from now on (`nil`: normally).
     public func refuseLiveFavorite(status: Int?) {
         state.withLock { $0.live.favoriteRefusal = status }
     }
@@ -114,7 +114,7 @@ extension FixtureServer {
         state.withLock { $0.live.sessions[id]?.stopped = message }
     }
 
-    /// The favourite channels now.
+    /// The favorite channels now.
     public var liveFavorites: Set<Int> { state.withLock { $0.live.favorites } }
 
     /// The bodies of `POST /api/live/channels/{id}/watch`, in order.
@@ -254,7 +254,7 @@ extension FixtureServer {
         return json(200, ["total": list.count, "offset": offset, "channels": page.map { channelJSON(s, $0) }])
     }
 
-    /// Programmes are half an hour each, from the hour and the half hour.
+    /// Programs are half an hour each, from the hour and the half hour.
     private static func slot(_ time: Int64) -> Int64 { time / 1800 * 1800 }
 
     private static func programTitle(_ channelId: Int, _ start: Int64) -> String {

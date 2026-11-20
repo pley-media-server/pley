@@ -594,7 +594,7 @@ describe("a live channel and the user's remote, on another device", () => {
 
   /**
    * A player with the screen's channel step (CH+ and CH−, and the remote's
-   * next and previous), whose neighbour, the channel `by` from the one
+   * next and previous), whose neighbor, the channel `by` from the one
    * playing, is found only when `found()` is called.
    */
   function stepping() {
@@ -611,7 +611,7 @@ describe("a live channel and the user's remote, on another device", () => {
     return { ...w, step, found };
   }
 
-  it("leaves a channel picked while the remote's step looked for its neighbour playing", async () => {
+  it("leaves a channel picked while the remote's step looked for its neighbor playing", async () => {
     const { c, engine, asked, send, found } = stepping();
     c.tune(channel(1));
     await vi.advanceTimersByTimeAsync(0);
@@ -626,7 +626,7 @@ describe("a live channel and the user's remote, on another device", () => {
     expect(c.state.value.channel.id).toBe(7);
   });
 
-  it("watches nothing for a step whose neighbour came once the app was hidden, or the session stopped", async () => {
+  it("watches nothing for a step whose neighbor came once the app was hidden, or the session stopped", async () => {
     const hidden = stepping();
     hidden.c.tune(channel(1));
     await vi.advanceTimersByTimeAsync(0);

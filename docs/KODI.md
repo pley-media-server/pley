@@ -114,7 +114,7 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   Kodi's lists show every title and channel found.
 - **Kodi's lists:** Settings → Screens → "Kodi's lists, in this skin's
   views" shows the add-on as folders in the skin's own views. Skin widgets
-  and favourites always get these folders.
+  and favorites always get these folders.
 
 ### Audio and subtitles
 
@@ -177,8 +177,8 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Kodi:
 
 - **The page** (`livetv.py`): the categories, then the focused category's
   channels (100 to a page) with what's on, then the focused channel's
-  programme.
-- **A channel:** Select watches it. Menu has Watch, the favourite and
+  program.
+- **A channel:** Select watches it. Menu has Watch, the favorite and
   Schedule; Info is Schedule, the channel's next six hours. Number keys
   typed together go to that channel.
 - **Search channels** opens Kodi's keyboard.
@@ -613,4 +613,4 @@ add-on's changelog.
   context menu; the other apps open its Discover page.
 - Live TV has no guide grid: Kodi draws one only for PVR add-ons. Kodi's
   PVR IPTV Simple client isn't used either: it would mean another add-on to
-  set up, and favourites and recents the server doesn't know.
+  set up, and favorites and recents the server doesn't know.

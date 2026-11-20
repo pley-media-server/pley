@@ -658,7 +658,7 @@ public sealed class Api
 
     public Task<LiveChannel> LiveChannel(long id, CancellationToken cancel = default) => Get<LiveChannel>($"/api/live/channels/{id}", cancel: cancel);
 
-    /// <summary>The programmes of channels <paramref name="ids"/> between <paramref name="from"/> and <paramref name="to"/> (unix seconds).</summary>
+    /// <summary>The programs of channels <paramref name="ids"/> between <paramref name="from"/> and <paramref name="to"/> (unix seconds).</summary>
     public Task<LiveGuide> LiveGuide(long from, long to, IReadOnlyList<long> ids, CancellationToken cancel = default) =>
         Get<LiveGuide>("/api/live/guide", new[]
         {

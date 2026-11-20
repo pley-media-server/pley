@@ -143,7 +143,7 @@ class DashboardViewModel(
 
     /**
      * Reads what changes while the page shows on the web's timers, each
-     * at once and then after its wait, until the caller is cancelled: the
+     * at once and then after its wait, until the caller is canceled: the
      * screen runs it while it is started, so nothing is read while it
      * isn't on screen. A read that fails keeps what was shown. Showing
      * again (back from a title it opened, or from another app), it reads

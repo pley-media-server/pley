@@ -71,7 +71,7 @@ struct ArtworkTile: View {
             .clipShape(RoundedRectangle(cornerRadius: Metrics.corner))
     }
 
-    /// White on a dark fill: the accent colour is white on Apple TV.
+    /// White on a dark fill: the accent color is white on Apple TV.
     @ViewBuilder private var badge: some View {
         if tile.unwatched > 0 {
             Text(verbatim: "\(tile.unwatched)")

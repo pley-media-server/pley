@@ -15,6 +15,10 @@ describes how they are made.
 - Manage server → Libraries can turn off a film library's collections from
   TMDB.
 
+### Changed
+
+- English words are spelled the American way: color, favorite, program.
+
 ## [0.1.15] - 2026-11-18
 
 ### Added

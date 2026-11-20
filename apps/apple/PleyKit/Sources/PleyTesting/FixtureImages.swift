@@ -4,7 +4,7 @@ import ImageIO
 
 /// Pictures for the tests, made in code.
 public enum FixtureImages {
-    /// A `width` × `height` picture of one colour, encoded as `type`
+    /// A `width` × `height` picture of one color, encoded as `type`
     /// (`public.png`, `public.jpeg`).
     public static func make(width: Int, height: Int, type: String = "public.png") -> Data {
         guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,

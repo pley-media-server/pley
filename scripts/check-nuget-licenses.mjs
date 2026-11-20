@@ -1,13 +1,13 @@
 // Verifies the licensing rules (LICENSING.md) for the native Samsung app's
 // .NET packages: every NuGet package its projects ship with, transitive ones
-// included, must be under a permissive licence. Copyleft licences ((L/A)GPL,
-// MPL and the like) and licences this script doesn't know fail it, so a new
+// included, must be under a permissive license. Copyleft licenses ((L/A)GPL,
+// MPL and the like) and licenses this script doesn't know fail it, so a new
 // one is looked at before it ships. The tests' packages don't ship and aren't
-// checked. Run after a build (`dotnet build`): licences are read from the
+// checked. Run after a build (`dotnet build`): licenses are read from the
 // packages' .nuspec files in the NuGet cache.
 //
 // It also checks the app's NOTICES.txt (shared/res, so in the .tpk): the full
-// licence of each package whose files the .tpk carries, as their licences ask
+// license of each package whose files the .tpk carries, as their licenses ask
 // of a copy. `--write` writes it again, after a package changes.
 // Exit code 1 on violations.
 
@@ -26,16 +26,16 @@ const write = process.argv.includes("--write");
 
 const ALLOWED = new Set(["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Zlib", "0BSD"]);
 
-// Licence URLs older packages give instead of an SPDX expression.
+// License URLs older packages give instead of an SPDX expression.
 const URLS = [
   [/^https?:\/\/(www\.)?apache\.org\/licenses\/LICENSE-2\.0(\.txt|\.html)?$/i, "Apache-2.0"],
   [/^https?:\/\/opensource\.org\/licenses\/MIT$/i, "MIT"],
   [/^https?:\/\/github\.com\/dotnet\/(corefx|runtime|standard)\/blob\/(master|main)\/LICENSE\.TXT$/i, "MIT"],
 ];
 
-// Packages NuGet reads while restoring that put nothing into the app, so their licence doesn't reach it.
+// Packages NuGet reads while restoring that put nothing into the app, so their license doesn't reach it.
 const NOT_SHIPPED = {
-  // Its old versions are under Microsoft's .NET library licence; they hold only runtime.json and empty `_._` folders.
+  // Its old versions are under Microsoft's .NET library license; they hold only runtime.json and empty `_._` folders.
   "Microsoft.NETCore.Platforms": "only the runtime graph NuGet restores with",
 };
 
@@ -57,7 +57,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.`;
 
-// Licence texts of packages that carry none as a file: their repository's LICENSE at the commit
+// License texts of packages that carry none as a file: their repository's LICENSE at the commit
 // their .nuspec names.
 const TEXTS = {
   "Net.Codecrete.QrCodeGenerator": `MIT License\n\nCopyright (c) 2018 Manuel Bleichenbacher\n\n${MIT}`,
@@ -71,7 +71,7 @@ function nuspecOf(id, version) {
   return existsSync(nuspec) ? readFileSync(nuspec, "utf8") : null;
 }
 
-/** The package's licence as an SPDX expression, from its .nuspec; null when it can't be told. */
+/** The package's license as an SPDX expression, from its .nuspec; null when it can't be told. */
 function licenseOf(id, version) {
   const xml = nuspecOf(id, version);
   if (!xml) return null;
@@ -124,14 +124,14 @@ function shippedPackages() {
   return [...found.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-/** NOTICES.txt for the packages shipped: a list, then each licence in full. Pushes what it lacks onto `failures`. */
+/** NOTICES.txt for the packages shipped: a list, then each license in full. Pushes what it lacks onto `failures`. */
 function noticesText(shipped, failures) {
   const line = "-".repeat(72);
   const parts = [
     "Pley for Samsung TV (native) includes the following open-source software,",
-    "each under its licence, copied in full below. Pley is under the GNU AGPL,",
+    "each under its license, copied in full below. Pley is under the GNU AGPL,",
     "version 3 only (LICENSE.txt beside this file; LICENSING.md says the rest).",
-    "The icons' and the typeface's licences are in icons/LICENSE.txt and",
+    "The icons' and the typeface's licenses are in icons/LICENSE.txt and",
     "fonts/LICENSE.txt.",
     "",
     ...shipped.map((p) => `- ${p.id} ${p.version} (${licenseOf(p.id, p.version) ?? "?"})`),
@@ -140,7 +140,7 @@ function noticesText(shipped, failures) {
   const noticesOf = new Map();
   for (const p of shipped) {
     const text = packageText(p.id, p.version, /^licen[cs]e(\.(txt|md))?$/i) ?? TEXTS[p.id];
-    if (!text) failures.push(`${p.id} ${p.version}: no licence file in the package; add its text to TEXTS in scripts/check-nuget-licenses.mjs`);
+    if (!text) failures.push(`${p.id} ${p.version}: no license file in the package; add its text to TEXTS in scripts/check-nuget-licenses.mjs`);
     const url = /<projectUrl>([^<]+)<\/projectUrl>/.exec(nuspecOf(p.id, p.version) ?? "")?.[1].trim();
     parts.push("", line, `${p.id} ${p.version}${url ? `, ${url}` : ""}`, line, "", text ?? "");
     const notices = packageText(p.id, p.version, /^third-party-notices\.txt$/i);
@@ -168,8 +168,8 @@ for (const project of projects) {
 for (const { id, version } of [...seen.values()].sort((a, b) => a.id.localeCompare(b.id))) {
   const license = licenseOf(id, version);
   if (NOT_SHIPPED[id] && (license === null || !permitted(license))) console.log(`${id} ${version}: not shipped (${NOT_SHIPPED[id]})`);
-  else if (license === null) failures.push(`${id} ${version}: licence unknown (restore first, or add its licence URL here once checked)`);
-  else if (!permitted(license)) failures.push(`${id} ${version}: ${license} is not a permissive licence`);
+  else if (license === null) failures.push(`${id} ${version}: license unknown (restore first, or add its license URL here once checked)`);
+  else if (!permitted(license)) failures.push(`${id} ${version}: ${license} is not a permissive license`);
   else console.log(`${id} ${version}: ${license}`);
 }
 
@@ -182,8 +182,8 @@ else {
     writeFileSync(noticesFile, text);
     console.log(`\nWrote ${where}: ${shipped.map((p) => p.id).join(", ")}.`);
   } else if (!existsSync(noticesFile) || readFileSync(noticesFile, "utf8").replace(/\r\n/g, "\n") !== text) {
-    failures.push(`${where} doesn't have the licences of the packages the app ships: bun scripts/check-nuget-licenses.mjs --write`);
-  } else console.log(`\n${where} has the licences of the ${shipped.length} packages the app ships.`);
+    failures.push(`${where} doesn't have the licenses of the packages the app ships: bun scripts/check-nuget-licenses.mjs --write`);
+  } else console.log(`\n${where} has the licenses of the ${shipped.length} packages the app ships.`);
 }
 
 if (failures.length) {
@@ -191,4 +191,4 @@ if (failures.length) {
   for (const f of failures) console.error(`  ${f}`);
   process.exit(1);
 }
-console.log(`${seen.size} packages, all under permissive licences.`);
+console.log(`${seen.size} packages, all under permissive licenses.`);

@@ -3,8 +3,8 @@
 //!
 //! - `build`: the TV's release binary for armv7-unknown-linux-gnueabi, keeping its symbols and
 //!   with this machine's folders replaced in the paths it records;
-//! - `check`: the licences of every crate the TV binary is built from, then the binary itself;
-//! - `notices`: NOTICES.txt, the licences of what the binary and the package carry;
+//! - `check`: the licenses of every crate the TV binary is built from, then the binary itself;
+//! - `notices`: NOTICES.txt, the licenses of what the binary and the package carry;
 //! - `ipk`: `out/app.pley.tv_<version>_arm.ipk`, the same bytes from the same inputs;
 //! - `ipk-verify`: reads an .ipk back and checks what the TV relies on.
 //!
@@ -239,11 +239,11 @@ fn check(ws: &Workspace, binary: Option<PathBuf>, target: &str, licenses_only: b
     let deny = ws.repo.join("deny.toml");
     let allowed =
         licenses::allowed_licenses(&fs::read_to_string(&deny).map_err(|e| format!("{}: {e}", deny.display()))?)?;
-    // Build scripts and procedural macros run while building, but their licences count too,
+    // Build scripts and procedural macros run while building, but their licenses count too,
     // as in scripts/check-licenses.ps1 and cargo-deny.
     let graph = meta.select(&ws.tree(target, Graph::Build)?)?;
     let mut wrong = licenses::problems(&graph, &allowed);
-    println!("{APP_PACKAGE} for {target}: {} crates, licences checked against deny.toml", graph.len());
+    println!("{APP_PACKAGE} for {target}: {} crates, licenses checked against deny.toml", graph.len());
 
     if !licenses_only {
         let path = binary.unwrap_or_else(|| default_binary(&meta.target_directory));
@@ -279,7 +279,7 @@ fn notices(ws: &Workspace, meta: &Metadata, target: &str) -> Result<String> {
     let (text, without) = licenses::notices(&release, &ws.root)?;
     if !without.is_empty() {
         eprintln!(
-            "note: these packages carry no licence text, so NOTICES.txt names their licence: {}",
+            "note: these packages carry no license text, so NOTICES.txt names their license: {}",
             without.join(", ")
         );
     }

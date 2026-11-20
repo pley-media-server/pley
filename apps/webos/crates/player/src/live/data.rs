@@ -16,7 +16,7 @@ pub const SLOT: i64 = 1800;
 pub const GUIDE_CHUNK: i64 = 6 * 3600;
 /// How far ahead the guide goes from where it opens.
 pub const GUIDE_SPAN: i64 = 48 * 3600;
-/// A gap in a channel's guide shorter than this belongs to the programme before it.
+/// A gap in a channel's guide shorter than this belongs to the program before it.
 const MIN_GAP: i64 = 60;
 /// Channels asked for at once.
 pub const CHANNEL_PAGE: i64 = 100;
@@ -47,7 +47,7 @@ pub fn now_and_next(c: &LiveChannel, now: i64) -> NowAndNext {
     NowAndNext { on: None, next }
 }
 
-/// How far a programme is at `now`, 0–1.
+/// How far a program is at `now`, 0–1.
 pub fn program_progress(p: &LiveProgram, now: i64) -> f32 {
     p.progress_at(now)
 }
@@ -261,7 +261,7 @@ pub fn groups_matching(groups: &[LiveGroup], q: &str, max: usize) -> Vec<LiveGro
     groups.iter().filter(|g| g.name.to_lowercase().contains(&s)).take(max).cloned().collect()
 }
 
-/// What a category is called: "Favourites", "UK · Sport", "Results for “bbc”".
+/// What a category is called: "Favorites", "UK · Sport", "Results for “bbc”".
 pub fn category_name(c: &Category, groups: &[LiveGroup]) -> String {
     match c {
         Category::All => t!("livetv.categories.all").into(),
@@ -351,7 +351,7 @@ pub fn chunk_starts(from: i64, to: i64, origin: i64) -> Vec<i64> {
     (first..=last).map(|i| origin + i * GUIDE_CHUNK).collect()
 }
 
-/// A chunk's programmes added to what was had, each once (by its start), in order.
+/// A chunk's programs added to what was had, each once (by its start), in order.
 pub fn merge_guide(into: &mut HashMap<i64, Vec<LiveProgram>>, guide: &LiveGuide) {
     for (id, programs) in &guide.programs {
         let known = into.entry(*id).or_default();
@@ -360,7 +360,7 @@ pub fn merge_guide(into: &mut HashMap<i64, Vec<LiveProgram>>, guide: &LiveGuide)
         if added.is_empty() {
             continue;
         }
-        // A chunk can list the same programme twice: once each.
+        // A chunk can list the same program twice: once each.
         added.sort_by_key(|p| p.start);
         added.dedup_by_key(|p| p.start);
         known.append(&mut added);
@@ -368,10 +368,10 @@ pub fn merge_guide(into: &mut HashMap<i64, Vec<LiveProgram>>, guide: &LiveGuide)
     }
 }
 
-/// The programmes of a guide answer by channel, as [`merge_guide`] takes them.
+/// The programs of a guide answer by channel, as [`merge_guide`] takes them.
 pub type Programs = BTreeMap<i64, Vec<LiveProgram>>;
 
-/// One cell of a guide row: a programme, or a stretch the guide says nothing of (`program` none).
+/// One cell of a guide row: a program, or a stretch the guide says nothing of (`program` none).
 #[derive(Clone, Debug, PartialEq)]
 pub struct GuideCell {
     pub key: String,
@@ -380,7 +380,7 @@ pub struct GuideCell {
     pub program: Option<LiveProgram>,
 }
 
-/// A channel's row between `from` and `to`: its programmes there, with what
+/// A channel's row between `from` and `to`: its programs there, with what
 /// the guide says nothing of between them as cells of their own, so the
 /// remote moves through time without jumping over a hole. A channel without
 /// a guide is one cell.

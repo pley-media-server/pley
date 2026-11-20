@@ -24,12 +24,12 @@ import app.pley.android.designsystem.PleyType
 import coil3.compose.AsyncImage
 
 /**
- * The web's profile colours and how it picks text on them
+ * The web's profile colors and how it picks text on them
  * (apps/web/src/components/Avatar.tsx), so a profile looks the same in
  * the browser and the app.
  */
 object AvatarColors {
-    /** The colours profiles can choose, and the fallback picked from the name. */
+    /** The colors profiles can choose, and the fallback picked from the name. */
     val palette: List<Color> = listOf(
         Color(0xFF38BDF8), Color(0xFFA78BFA), Color(0xFFF472B6), Color(0xFFFB923C),
         Color(0xFFFACC15), Color(0xFF4ADE80), Color(0xFF2DD4BF), Color(0xFFF87171),
@@ -37,7 +37,7 @@ object AvatarColors {
 
     private val DarkText = Color(0xFF0B0D10)
 
-    /** The profile's [chosen] colour ("#a78bfa"), or one picked from [name] as the web picks it. */
+    /** The profile's [chosen] color ("#a78bfa"), or one picked from [name] as the web picks it. */
     fun of(name: String, chosen: String?): Color {
         chosen?.let(::parse)?.let { return it }
         // As `for (const ch of name)` with charCodeAt(0): one step per code point, its first UTF-16 unit.
@@ -50,7 +50,7 @@ object AvatarColors {
         return palette[(hash % palette.size).toInt()]
     }
 
-    /** Dark text on light colours, white on dark ones: the web's luminance test, on unconverted channels. */
+    /** Dark text on light colors, white on dark ones: the web's luminance test, on unconverted channels. */
     fun textOn(color: Color): Color {
         val luminance = 0.2126f * color.red + 0.7152f * color.green + 0.0722f * color.blue
         return if (luminance > 0.45f) DarkText else Color.White
@@ -66,7 +66,7 @@ object AvatarColors {
 }
 
 /**
- * A profile's picture, or its colour with the name's first letter in bold
+ * A profile's picture, or its color with the name's first letter in bold
  * (design spec §4.1, §4.7). [imageUrl] is the picture's full address; if
  * it fails, the letter shows. Decoration for screen readers: the name is
  * always said next to it.

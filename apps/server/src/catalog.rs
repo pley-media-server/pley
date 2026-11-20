@@ -1635,7 +1635,7 @@ async fn show_episodes(db: &Db, user_id: i64, show_id: i64) -> sqlx::Result<Vec<
 ///   either nothing after it is left unwatched or the one before it was
 ///   rewatched too, after anything later was seen): the one right after it,
 ///   seen or not, so a rewatch doesn't jump over episodes;
-/// - otherwise (filling a gap, or one favourite seen again): the first
+/// - otherwise (filling a gap, or one favorite seen again): the first
 ///   unwatched one after it, where the user had got to.
 fn next_after_last_watched(episodes: &[EpisodeState]) -> Option<i64> {
     let last = episodes
@@ -2195,7 +2195,7 @@ mod tests {
         // rewatched episodes goes on in order (not on to episode 5).
         let eps = vec![seen(1, 2, 100), seen(2, 2, 110), seen(3, 1, 3), seen(4, 1, 4), ep(5, false, 0, None)];
         assert_eq!(next_after_last_watched(&eps), Some(3));
-        // One favourite seen again while part way through the show: back to
+        // One favorite seen again while part way through the show: back to
         // where the user had got to.
         let eps = vec![seen(1, 1, 1), seen(2, 2, 100), seen(3, 1, 3), seen(4, 1, 4), ep(5, false, 0, None)];
         assert_eq!(next_after_last_watched(&eps), Some(5));

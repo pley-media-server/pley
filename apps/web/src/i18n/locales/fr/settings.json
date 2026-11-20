@@ -56,12 +56,16 @@
       "musicHint": "Genres et dates de sortie depuis <a>MusicBrainz</a>, et pochettes depuis le Cover Art Archive pour les albums qui n’en ont pas. Les tags des fichiers priment. Aucune clé requise ; la première recherche prend environ une seconde par album.",
       "musicToggle": "Métadonnées musicales depuis MusicBrainz",
       "testMusicBrainz": "Tester MusicBrainz",
+      "books": "Métadonnées des livres audio",
+      "booksHint": "Résumés, années et couvertures depuis <openlibrary>Open Library</openlibrary>, par titre et auteur. Pour les livres dont les fichiers portent un ASIN Audible, comme l’écrivent Libation et OpenAudible, aussi les narrateurs, séries et genres, depuis <audnexus>Audnexus</audnexus>. Les tags des fichiers priment. Aucune clé requise.",
+      "booksToggle": "Métadonnées des livres audio depuis Open Library et Audnexus",
+      "testBooks": "Tester Open Library et Audnexus",
       "nfo": "Fichiers NFO",
       "nfoHint": "Les fichiers NFO que Kodi, Jellyfin, Radarr et Sonarr gardent à côté des films et des séries : leurs identifiants décident de la correspondance, et leurs informations l’emportent sur celles de la source de métadonnées. Vos modifications l’emportent sur elles. Pley ne les modifie jamais.",
       "nfoToggle": "Lire les fichiers NFO",
       "language": "Titres et résumés",
       "languageHint": "Pour TMDB et TheTVDB. TVmaze est en anglais.",
-      "attribution": "Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB. Métadonnées TV de <tvdb>TheTVDB</tvdb>. Les données TV de TVmaze sont sous licence <license>CC BY-SA</license> ; les données musicales de MusicBrainz sont dans le domaine public."
+      "attribution": "Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB. Métadonnées TV de <tvdb>TheTVDB</tvdb>. Les données TV de TVmaze sont sous licence <license>CC BY-SA</license> ; les données musicales de MusicBrainz et celles des livres audio d’Open Library sont dans le domaine public ; les données et couvertures de livres audio d’Audnexus appartiennent à leurs ayants droit."
     },
     "subtitles": {
       "title": "Sous-titres",

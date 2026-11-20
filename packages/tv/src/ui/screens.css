@@ -86,8 +86,8 @@
 .status-line .breathing-dot { margin-right: 12px; }
 
 /* The globe before signing in: small, "FR" at the screen's right edge (48 less its own 10). At the
-   bottom right of Choose your server and the address screen, centred on the forget hint's line (17
-   tall, 27 from the bottom); on the sign-in code at the top right, centred on the logo's line (40
+   bottom right of Choose your server and the address screen, centered on the forget hint's line (17
+   tall, 27 from the bottom); on the sign-in code at the top right, centered on the logo's line (40
    tall from 56). */
 .globe-btn { height: 32px; min-width: 0; padding: 0 10px; }
 .globe-btn .icon { margin-right: 6px; }
@@ -616,7 +616,7 @@
 .playlist-page,
 .sheet-page,
 .music-page { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden; }
-/* New playlist at the page title's right, centred on its line. */
+/* New playlist at the page title's right, centered on its line. */
 .playlists-new { position: absolute; right: 48px; top: 24px; z-index: 2; }
 .search-rows { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
 .search-field { position: absolute; left: 96px; top: 27px; display: flex; align-items: center; z-index: 3; }
@@ -691,7 +691,7 @@
 .entry[data-focused] { background: var(--accent); color: var(--on-accent); }
 .entry[data-focused] .entry-number,
 .entry[data-focused] .entry-sub { color: var(--on-accent); }
-/* Lifted to move: surface3 with the focus ring's 3 px, its own colours kept. */
+/* Lifted to move: surface3 with the focus ring's 3 px, its own colors kept. */
 .entry.moving,
 .entry.moving[data-focused] { background: var(--surface3); color: var(--fg); box-shadow: inset 0 0 0 2.78px var(--accent-bright); }
 .entry.moving .entry-number { color: var(--subtle); }
@@ -785,8 +785,8 @@
 /* ---------------------------------------------------------------- requests: tones, pills, badges */
 
 /*
- * A request's colours: waiting amber, on its way blue, ready green, refused
- * red, gone grey. A pill or badge in one is that colour at 20 % on art at
+ * A request's colors: waiting amber, on its way blue, ready green, refused
+ * red, gone gray. A pill or badge in one is that color at 20 % on art at
  * 80 %, as the player's method badge, so it reads on posters and pages alike.
  */
 .tone-amber,
@@ -815,7 +815,7 @@
 .stage-pill.tone-gray,
 .title-badge.tone-gray { background: linear-gradient(rgba(161, 169, 182, 0.16), rgba(161, 169, 182, 0.16)), var(--on-art); }
 
-/* A request's stage: a dot and its words, 26 high (22 small); beside a 40 px button, centred on it. */
+/* A request's stage: a dot and its words, 26 high (22 small); beside a 40 px button, centered on it. */
 .stage-pill {
   display: inline-flex;
   align-items: center;
@@ -835,7 +835,7 @@
 /* How much of a download is in: blue, as its stage. */
 .download-bar { height: 4px; margin-top: 8px; border-radius: 2px; background: rgba(233, 235, 239, 0.16); overflow: hidden; }
 .download-bar > div { height: 100%; border-radius: 2px; background: var(--info); }
-/* A stage with a download's bar 4 under it, as wide as the pill; beside a 40 px button, the two centred on it. */
+/* A stage with a download's bar 4 under it, as wide as the pill; beside a 40 px button, the two centered on it. */
 .stage-block { display: flex; flex-direction: column; align-items: flex-start; flex: 0 1 auto; min-width: 0; max-width: 100%; }
 .stage-block > .download-bar { align-self: stretch; margin-top: 4px; }
 .buttons > .stage-block { margin-top: 7px; }
@@ -862,7 +862,7 @@
 /*
  * What a title's main action says under it, muted and close together: a
  * stage's line, the allowance, why it can't be asked for (its icon in the
- * danger colour once declined). Over the buttons where no button of the
+ * danger color once declined). Over the buttons where no button of the
  * main action's shows, and on Discover's hero (the first of it only).
  */
 .title-notes { max-width: 464px; margin-top: 12px; color: var(--muted); }
@@ -1082,7 +1082,7 @@ html.avplay .engine-host { background: transparent; }
 /*
  * The controls (the Android TV app's TvPlayerControls): one black scrim over
  * the whole picture, under the subtitles, fading with them; the title and
- * clock at the top; the times at 399, the track's centre at 425, the row at
+ * clock at the top; the times at 399, the track's center at 425, the row at
  * 441, so the focused labels end above the safe area's 513.
  */
 .player-scrim {
@@ -1129,7 +1129,7 @@ html.avplay .engine-host { background: transparent; }
 .scrubber[data-focused] .thumb::after { opacity: 1; }
 .marker-label { position: absolute; top: 431px; transform: translateX(-50%); white-space: nowrap; }
 .player-row { position: absolute; left: 48px; right: 48px; top: 441px; height: 80px; }
-/* The 36 px buttons sit 4 down, so their centres line up with Play/Pause's 44. */
+/* The 36 px buttons sit 4 down, so their centers line up with Play/Pause's 44. */
 .row-left,
 .row-right { position: absolute; top: 4px; display: flex; }
 .row-left { left: 0; }
@@ -1224,7 +1224,7 @@ html.avplay .engine-host { background: transparent; }
 
 .seek-badge { position: absolute; top: 238px; width: 64px; height: 64px; border-radius: 6px; background: rgba(11, 13, 16, 0.6); color: var(--fg); display: flex; align-items: center; justify-content: center; z-index: 5; }
 .player-ring { position: absolute; left: 460px; top: 250px; width: 40px; height: 40px; z-index: 5; }
-/* 16 under the ring, centred on it, on the page colour at 60 %. */
+/* 16 under the ring, centered on it, on the page color at 60 %. */
 .player-reconnecting { position: absolute; left: 480px; top: 306px; transform: translateX(-50%); padding: 6px 12px; border-radius: 6px; background: rgba(11, 13, 16, 0.6); white-space: nowrap; z-index: 5; }
 .player-ring > div {
   width: 36px;
@@ -1275,7 +1275,7 @@ html.avplay .engine-host { background: transparent; }
 .live-digits { position: absolute; right: 48px; top: 27px; z-index: 45; padding: 6px 18px; border-radius: 6px; background: rgba(11, 13, 16, 0.88); box-shadow: inset 0 0 0 1px var(--surface4); }
 .live-digits-n { display: block; font-size: 36px; line-height: 44px; font-weight: 700; letter-spacing: 4px; color: var(--fg); }
 
-/* The guide: channels down at 96, programmes across from 288 to 912, four px a minute. */
+/* The guide: channels down at 96, programs across from 288 to 912, four px a minute. */
 .live-guide { position: absolute; left: 0; top: 0; width: 960px; height: 540px; }
 .guide-head { position: absolute; left: 0; width: 960px; height: 28px; z-index: 3; }
 .guide-day { position: absolute; left: 96px; top: 0; width: 184px; height: 28px; line-height: 28px; }
@@ -1364,7 +1364,7 @@ html.avplay .engine-host { background: transparent; }
 .live-card[data-focused] .live-progress { background: rgba(3, 19, 31, 0.2); }
 .live-card[data-focused] .live-progress > div { background: var(--on-accent); }
 
-/* A programme's details in the side panel. */
+/* A program's details in the side panel. */
 .live-panel-channel { display: flex; align-items: center; padding: 8px 16px 4px; }
 .live-panel-text { padding: 8px 16px 14px; }
 .live-panel-facts { display: flex; align-items: center; flex-wrap: wrap; margin-top: 8px; }
@@ -1405,13 +1405,13 @@ html.avplay .engine-host { background: transparent; }
 .live-now-text { flex: 1; min-width: 0; max-width: 640px; }
 .live-now-title { display: flex; align-items: center; min-width: 0; margin-top: 4px; }
 .live-now-time { display: flex; align-items: center; margin-top: 6px; }
-/* LIVE in red at the live edge; how far behind it on grey otherwise. */
+/* LIVE in red at the live edge; how far behind it on gray otherwise. */
 .live-badge { display: inline-flex; align-items: center; height: 21px; padding: 0 8px; border-radius: 2px; background: rgba(233, 235, 239, 0.16); color: var(--fg); letter-spacing: 0.6px; }
 .live-badge.at-live { background: #e5484d; color: #fff; }
 .live-dot { width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: currentColor; opacity: 0.7; }
 .live-badge.at-live .live-dot { opacity: 1; animation: live-pulse 1600ms ease-in-out infinite; }
 .reduced .live-badge.at-live .live-dot { animation: none; }
-/* With the buttons: centred on the 36 px buttons' line; behind live, a button that goes back to it. */
+/* With the buttons: centered on the 36 px buttons' line; behind live, a button that goes back to it. */
 .live-chip-box { position: relative; height: 36px; display: flex; align-items: center; margin-right: 6px; }
 @keyframes live-pulse {
   0% { opacity: 1; }

@@ -1,4 +1,4 @@
-//! Live TV: the summary, channels and programmes, categories, the guide,
+//! Live TV: the summary, channels and programs, categories, the guide,
 //! watching, and the answers of a source whose connections are all in use.
 
 use std::collections::BTreeMap;
@@ -25,7 +25,7 @@ pub struct LiveSummary {
     pub recent: Vec<i64>,
 }
 
-/// A programme of the guide. Times are unix seconds.
+/// A program of the guide. Times are unix seconds.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct LiveProgram {
     #[serde(default, deserialize_with = "nd")]
@@ -89,7 +89,7 @@ pub struct LiveChannel {
     pub logo: Option<String>,
     #[serde(default, deserialize_with = "nd")]
     pub favorite: bool,
-    /// The guide has programmes for it.
+    /// The guide has programs for it.
     #[serde(default, deserialize_with = "nd")]
     pub has_guide: bool,
     pub now: Option<LiveProgram>,
@@ -208,7 +208,7 @@ impl LiveCategory {
     }
 }
 
-/// `GET /api/live/guide`: the programmes between `from` and `to` (unix seconds), by channel id.
+/// `GET /api/live/guide`: the programs between `from` and `to` (unix seconds), by channel id.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct LiveGuide {
     #[serde(default, deserialize_with = "nd")]

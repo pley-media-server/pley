@@ -130,7 +130,7 @@ public class RemoteRuleTests
     public void In_recently_watched_a_channel_not_in_it_counts_from_its_first_as_on_android()
     {
         // Deviation from packages/tv (and the fixture's channel not in the order, which goes to the
-        // first): Android's neighbour counts from Recently watched's first channel when the one
+        // first): Android's neighbor counts from Recently watched's first channel when the one
         // playing isn't in it, so next goes to its second and previous to its last.
         var live = new FakeLive { Recent = new List<long> { 2, 1, 1001 } };
         var scheduler = new FakeScheduler();

@@ -155,7 +155,7 @@ public enum NetworkFailure
     ServerFailed,
 }
 
-/// <summary>No answer: the network, a timeout, or a request cancelled. Its message is the reason, in a few words.</summary>
+/// <summary>No answer: the network, a timeout, or a request canceled. Its message is the reason, in a few words.</summary>
 public class NetworkException : Exception
 {
     public NetworkException(NetworkFailure failure, Exception? inner = null) : base(Transports.Reason(failure), inner) => Failure = failure;

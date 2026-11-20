@@ -79,7 +79,7 @@ pub struct Request {
 }
 
 impl Request {
-    /// A request with the default timeout, cancelled with the running task.
+    /// A request with the default timeout, canceled with the running task.
     pub fn new(method: Method, url: impl Into<String>) -> Request {
         Request {
             method,

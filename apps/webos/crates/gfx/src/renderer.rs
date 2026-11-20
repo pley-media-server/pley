@@ -1,8 +1,8 @@
 //! The GL half of the renderer: three tiny programs, one streamed vertex
 //! buffer a frame, the atlas texture, picture textures and their uploads.
 //!
-//! Colours are premultiplied and the blend is `ONE, ONE_MINUS_SRC_ALPHA` for
-//! colour and alpha alike, so alpha accumulates as coverage (`a + dst·(1 − a)`):
+//! Colors are premultiplied and the blend is `ONE, ONE_MINUS_SRC_ALPHA` for
+//! color and alpha alike, so alpha accumulates as coverage (`a + dst·(1 − a)`):
 //! a half-transparent scrim over an opaque page leaves it opaque, and the video
 //! plane under the interface shows only where the interface is transparent.
 //! This leaves the same framebuffer as the straight-alpha separate blend

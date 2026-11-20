@@ -270,7 +270,7 @@ sealed class PlayerScreen : Sheet
         Profile.Took("player screen: its picture layers, banner and scrubber", part);
         part = Profile.Start();
         // The control row: Chapters · Sleep timer · Speed at the left; Previous · Play/Pause ·
-        // Next centred; Subtitles · Audio · Quality · Info at the right.
+        // Next centered; Subtitles · Audio · Quality · Info at the right.
         chapters = new PlayerButton(PlayerText.Chapters, "list-video", Button, PleyTv.IconSize, OpenChapters);
         sleep = new PlayerButton(PlayerText.Sleep, "moon", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Sleep));
         speed = new PlayerButton(PlayerText.Speed, "fast-forward", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Speed));
@@ -541,7 +541,7 @@ sealed class PlayerScreen : Sheet
     /// The control row for <paramref name="options"/> (the Android app's TvControlRow): Chapters
     /// when the file has them, the sleep timer and Speed (where the TV's player has other speeds)
     /// from the left safe edge; Previous and Next around the transport when an episode or chapters
-    /// have them, centred; Subtitles, Audio and Quality when there is a choice, and Info, to the
+    /// have them, centered; Subtitles, Audio and Quality when there is a choice, and Info, to the
     /// right safe edge. Focus goes along them all; it stays on the button it was on, else Play/Pause.
     /// </summary>
     void BuildRow(RowOptions options)
@@ -569,7 +569,7 @@ sealed class PlayerScreen : Sheet
         {
             foreach (var b in buttons)
             {
-                // The smaller ones' centres in line with Play/Pause's.
+                // The smaller ones' centers in line with Play/Pause's.
                 b.Position = new Position(Ui.Dp(x), Ui.Dp(RowTop + (PlayButton - b.SizeDp) / 2));
                 x += b.SizeDp + gap;
                 b.Show();
@@ -839,7 +839,7 @@ sealed class PlayerScreen : Sheet
     }
 
     /// <summary>
-    /// The seek preview while a seek is coming and the controls show: centred on the target, kept
+    /// The seek preview while a seek is coming and the controls show: centered on the target, kept
     /// in the safe area; asked for every 2 s of the target at most.
     /// </summary>
     void Preview(long? target, long duration)
@@ -1168,7 +1168,7 @@ sealed class PlayerScreen : Sheet
 
     /// <summary>
     /// A playback that stopped (design spec §8): its heading, why, and "Try again" (focused) when it
-    /// may help, with Back; else Back alone. Centred on black.
+    /// may help, with Back; else Back alone. Centered on black.
     /// </summary>
     void ShowError(PlayerPhase phase)
     {

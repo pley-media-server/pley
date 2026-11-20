@@ -135,7 +135,7 @@ impl<'a> Button<'a> {
         Button { max_label: Some(width), ..self }
     }
 
-    /// The label's colour at rest (a link's AccentBright, a destructive DangerText).
+    /// The label's color at rest (a link's AccentBright, a destructive DangerText).
     pub fn color(self, color: Color) -> Button<'a> {
         Button { color: Some(color), ..self }
     }

@@ -140,7 +140,7 @@
     <string name="tv_settings_show_frame_rate">Show frame rate</string>
     <string name="tv_settings_show_frame_rate_hint">At the top while something moves: frames a second, the longest frame, and late frames</string>
     <string name="tv_settings_version">Version</string>
-    <string name="tv_settings_licences">Open-source licences</string>
+    <string name="tv_settings_licences">Open-source licenses</string>
     <string name="tv_settings_credits">Credits</string>
     <string name="tv_diagnostics_title">Diagnostics</string>
     <string name="tv_diagnostics_device">This TV</string>

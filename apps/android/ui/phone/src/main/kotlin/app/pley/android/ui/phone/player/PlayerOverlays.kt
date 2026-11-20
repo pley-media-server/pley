@@ -85,7 +85,7 @@ private val AboveControls = 112.dp
 
 /**
  * The spinner, after [PlayerScreenState.SPINNER_DELAY_MS] of waiting, so
- * short waits never flash one: a 48 dp ring in accent, centred. While the
+ * short waits never flash one: a 48 dp ring in accent, centered. While the
  * server is out of reach ([reconnecting]), "Reconnecting…" 16 dp under it,
  * backed like the fit mode's label.
  */
@@ -118,7 +118,7 @@ internal fun BoxScope.Spinner(spinning: Boolean, reconnecting: Boolean = false) 
 
 private val SPINNER_SIZE = 48.dp
 
-/** Lays the label [gap] under the spinner, centred as the spinner is: the spinner stays where it is. */
+/** Lays the label [gap] under the spinner, centered as the spinner is: the spinner stays where it is. */
 private fun Modifier.underSpinner(gap: Dp): Modifier = layout { measurable, constraints ->
     val label = measurable.measure(constraints)
     layout(label.width, label.height) { label.place(0, (SPINNER_SIZE / 2 + gap).roundToPx() + label.height / 2) }

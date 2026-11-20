@@ -94,7 +94,7 @@ class QualityAndGuardsTest {
 
     @Test
     fun `a remux of Dolby Vision profile 5 is asked again as a transcode`() {
-        // Profile 5 decoded, AC-3 not: the server would remux, losing the Dolby Vision signalling.
+        // Profile 5 decoded, AC-3 not: the server would remux, losing the Dolby Vision signaling.
         use(SessionHarness(caps = TestCaps.hdrTv(dv = listOf(5), passthrough = emptyList())))
         val c = h.play(PlayRequest(FixtureIds.DOLBY_VISION_P5))
         h.settle()

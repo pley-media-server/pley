@@ -1,7 +1,7 @@
 """Skip Intro, Skip Credits and Up Next, by the web player's rules
 (apps/web/src/player/SkipButton.tsx): a button from a marker's start until
 a second before its end; an episode's credits bring up the next episode,
-which plays after a countdown unless it is cancelled."""
+which plays after a countdown unless it is canceled."""
 
 from __future__ import annotations
 
