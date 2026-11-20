@@ -92,7 +92,8 @@ public static class Strings
     internal static IEnumerable<(string Area, string Json)> Sources(string language)
     {
         var assembly = typeof(Strings).Assembly;
-        var prefix = Prefix + language + ".";
+        // A resource's name writes its folder's hyphen as an underscore: Locales/zh-CN is "zh_CN".
+        var prefix = Prefix + language.Replace('-', '_') + ".";
         foreach (var name in assembly.GetManifestResourceNames().OrderBy(n => n, StringComparer.Ordinal))
         {
             if (!name.StartsWith(prefix, StringComparison.Ordinal) || !name.EndsWith(".json", StringComparison.Ordinal)) continue;
