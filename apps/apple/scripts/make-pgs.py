@@ -29,7 +29,7 @@ def segment(kind, pts, data):
 
 
 def run(colour, length):
-    """A run of `length` pixels of palette entry `colour`, as PGS codes it."""
+    """A run of `length` pixels of palette entry `color`, as PGS codes it."""
     if colour != 0 and length < 3:
         return bytes([colour]) * length
     if colour == 0:
@@ -70,7 +70,7 @@ def display_set(pts, number, width, height, rle):
     pcs = struct.pack(">HHBHBBBB", width, height, 0x10, number, 0x80, 0, 0, 1)
     pcs += struct.pack(">HBBHH", 0, 0, 0, x, y)
     wds = struct.pack(">BBHHHH", 1, 0, x, y, BOX_W, BOX_H)
-    # Entries: id, Y, Cr, Cb, alpha. White and a dark grey, both opaque.
+    # Entries: id, Y, Cr, Cb, alpha. White and a dark gray, both opaque.
     pds = struct.pack(">BB", 0, 0) + bytes([1, 235, 128, 128, 255, 2, 32, 128, 128, 255])
     body = struct.pack(">HH", BOX_W, BOX_H) + rle
     ods = struct.pack(">HBB", 0, 0, 0xC0) + len(body).to_bytes(3, "big") + body

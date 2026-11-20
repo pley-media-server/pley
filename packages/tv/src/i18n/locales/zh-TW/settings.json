@@ -1,0 +1,174 @@
+{
+  "language": {
+    "label": "語言",
+    "names": {
+      "en": "English",
+      "fr": "Français",
+      "es": "Español",
+      "zh-CN": "简体中文",
+      "zh-TW": "繁體中文"
+    },
+    "automatic": "自動（{{language}}）"
+  },
+  "title": "設定",
+  "categories": {
+    "profile": "設定檔",
+    "playback": "播放",
+    "audio": "音訊",
+    "display": "字幕與顯示",
+    "server": "伺服器",
+    "diagnostics": "診斷",
+    "about": "關於",
+    "signout": "登出"
+  },
+  "profile": {
+    "managed": "受管理設定檔",
+    "switch": "切換設定檔",
+    "audioLanguage": "音訊語言",
+    "fileDefault": "檔案的預設語言",
+    "subtitles": "字幕",
+    "subtitleLanguage": "字幕語言",
+    "sameAsAudio": "與音訊語言相同",
+    "changeOnWeb": "在網頁上更改",
+    "readOnly": "此伺服器不允許應用更改這些設定：請在網頁上更改",
+    "history": "觀看歷史",
+    "sortLibraries": "媒體庫排序",
+    "sortNeedsNewer": "需要伺服器上更新版本的 Pley",
+    "yourOrder": "你的順序，適用於所有裝置",
+    "alwaysStartAs": "始終以此身份啟動",
+    "usedLast": "上次使用的設定檔",
+    "web": "在網頁上管理你的帳戶",
+    "webHint": "名稱、頭像、密碼、PIN、兩步驗證、裝置和應用"
+  },
+  "modes": {
+    "off": {
+      "label": "關閉",
+      "hint": "字幕保持關閉，直到你手動開啟。"
+    },
+    "forced": {
+      "label": "僅外語對白",
+      "hint": "只顯示強制字幕，用於標牌和外語對白。"
+    },
+    "foreign": {
+      "label": "音訊為其他語言時",
+      "hint": "當音訊不是你的字幕語言時，自動顯示完整字幕。"
+    },
+    "always": {
+      "label": "始終",
+      "hint": "只要有你語言的字幕，就自動顯示。"
+    }
+  },
+  "playback": {
+    "quality": "畫質",
+    "automatic": "自動",
+    "original": "原始",
+    "automaticHint": "根據網路狀況動態調整",
+    "originalHint": "完整畫質。網路較慢時可能會緩衝",
+    "autoplay": "自動播放下一集",
+    "autoplayHint": "10 秒倒計時後",
+    "details": "播放詳情",
+    "detailsHint": "在畫面上顯示影片的播放方式（直接播放、直接串流或轉碼）"
+  },
+  "audio": {
+    "intro": "Dolby Digital、Dolby Digital Plus 和 Atmos 始終直通。如果你的功放支援這些格式，請開啟以下選項；否則 Pley 會進行轉換。",
+    "truehd": "直通 Dolby TrueHD",
+    "truehdHint": "僅適用於能從電視接收 TrueHD 的功放",
+    "dts": "直通 DTS",
+    "dtsHint": "僅適用於能從電視接收 DTS 的功放"
+  },
+  "display": {
+    "size": "字幕大小",
+    "sizes": {
+      "small": "小",
+      "normal": "中",
+      "large": "大",
+      "largest": "最大"
+    },
+    "background": "字幕背景",
+    "box": "深色底框",
+    "outline": "無底框，帶描邊",
+    "font": "字幕字型",
+    "fonts": {
+      "default": "預設",
+      "serif": "襯線",
+      "mono": "等寬",
+      "casual": "手寫體"
+    },
+    "position": "字幕位置",
+    "positions": {
+      "bottom": "底部",
+      "raised": "略高",
+      "higher": "較高",
+      "highest": "最高"
+    },
+    "motion": "減少動態效果",
+    "motionHint": "不縮放、不滑動、不淡入淡出：內容原地變化"
+  },
+  "server": {
+    "none": "沒有伺服器",
+    "thisTv": "這臺電視使用的伺服器",
+    "switch": "更換伺服器"
+  },
+  "diagnostics": {
+    "title": "診斷",
+    "open": "開啟診斷資訊",
+    "openHint": "這臺電視能解碼和顯示什麼，以及原因",
+    "app": "應用",
+    "model": "型號",
+    "system": "系統",
+    "firmware": "韌體",
+    "engine": "網頁引擎",
+    "tier": "檔次",
+    "tiers": {
+      "low": "低",
+      "mid": "中",
+      "high": "高"
+    },
+    "line": "{{label}}：{{value}}",
+    "thisTv": "這臺電視",
+    "plays": "可播放的內容",
+    "checking": "正在檢查這臺電視的播放能力…",
+    "failed": "對此電視的檢查失敗。",
+    "again": "重新檢查",
+    "caps": {
+      "tv": "電視：{{model}}",
+      "tvFirmware": "電視：{{model}}（韌體 {{firmware}}）",
+      "tizen": "Tizen {{version}}（{{year}} 年型號）",
+      "panel": "面板：{{panel}}",
+      "hdr": "HDR：{{list}} · 沒有三星電視支援 Dolby Vision",
+      "none": "無",
+      "video": "影片：{{list}}",
+      "audio": "音訊解碼：{{list}}",
+      "receiver": "傳送到功放：{{list}}",
+      "receiverOutput": "傳送到功放：{{list}}（聲音輸出 {{output}}）",
+      "nothing": "無",
+      "streams": "流：HLS {{list}}"
+    }
+  },
+  "about": {
+    "appName": "Pley 三星電視版",
+    "version": "版本",
+    "licences": "開源許可證",
+    "credits": "致謝"
+  },
+  "signOut": {
+    "intro": "將這臺電視從伺服器登出。重新登入需要新的關聯代碼。",
+    "introServer": "將這臺電視從 {{server}} 登出。重新登入需要新的關聯代碼。",
+    "button": "登出",
+    "title": "登出？",
+    "body": "這臺電視將從 {{server}} 登出。"
+  },
+  "web": {
+    "title": "在網頁上管理你的帳戶",
+    "body": "用手機掃描 QR 碼，或在同一網路的手機或電腦上開啟此位址："
+  },
+  "history": {
+    "title": "觀看歷史",
+    "loadFailed": "無法載入觀看歷史",
+    "empty": "還沒有歷史記錄",
+    "emptyText": "你看完的電影、單集和歌曲會顯示在這裡。",
+    "plays_other": "{{count}} 次播放",
+    "loadingMore": "載入中…",
+    "remove": "從歷史記錄中移除 {{title}}"
+  }
+}

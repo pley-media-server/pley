@@ -1,0 +1,66 @@
+{
+  "duration": {
+    "seconds": "{{n}} 秒",
+    "minutes": "{{n}} 分",
+    "hours": "{{n}} 小时",
+    "hoursMinutes": "{{hours}} 小时 {{minutes}} 分",
+    "runtimeMinutes": "{{n}} 分钟",
+    "left": "剩余 {{time}}"
+  },
+  "spoken": {
+    "seconds_other": "{{count}} 秒",
+    "minutes_other": "{{count}} 分钟",
+    "hours_other": "{{count}} 小时",
+    "hoursMinutes": "{{hours}} {{minutes}}",
+    "left": "剩余 {{time}}"
+  },
+  "count": {
+    "seasons_other": "{{count, number}} 季",
+    "episodes_other": "{{count, number}} 集",
+    "albums_other": "{{count, number}} 张专辑"
+  },
+  "episode": {
+    "short": "S{{season}} · E{{episode}}",
+    "seasonShort": "S{{season}}",
+    "episodeShort": "E{{episode}}",
+    "season": "第 {{number}} 季",
+    "episode": "第 {{number}} 集",
+    "specials": "特别篇"
+  },
+  "tile": {
+    "watched": "已观看",
+    "unwatched_other": "{{count}} 个未观看"
+  },
+  "relative": {
+    "never": "从不",
+    "now": "现在",
+    "today": "今天",
+    "yesterday": "昨天",
+    "tomorrow": "明天",
+    "thisMinute": "这一分钟",
+    "thisHour": "这一小时",
+    "thisWeek": "本周",
+    "thisMonth": "本月",
+    "thisYear": "今年",
+    "lastWeek": "上周",
+    "lastMonth": "上月",
+    "lastYear": "去年",
+    "nextWeek": "下周",
+    "nextMonth": "下月",
+    "nextYear": "明年",
+    "secondsAgo_other": "{{count}} 秒前",
+    "minutesAgo_other": "{{count}} 分钟前",
+    "hoursAgo_other": "{{count}} 小时前",
+    "daysAgo_other": "{{count}} 天前",
+    "weeksAgo_other": "{{count}} 周前",
+    "monthsAgo_other": "{{count}} 个月前",
+    "yearsAgo_other": "{{count}} 年前",
+    "inSeconds_other": "{{count}} 秒后",
+    "inMinutes_other": "{{count}} 分钟后",
+    "inHours_other": "{{count}} 小时后",
+    "inDays_other": "{{count}} 天后",
+    "inWeeks_other": "{{count}} 周后",
+    "inMonths_other": "{{count}} 个月后",
+    "inYears_other": "{{count}} 年后"
+  }
+}

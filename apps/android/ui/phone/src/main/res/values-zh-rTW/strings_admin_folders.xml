@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Picking a folder on the server (apps/web/src/components/FolderPicker.tsx), in the web's words. -->
+    <string name="admin_folders_title">選擇資料夾</string>
+    <string name="admin_folders_select">選擇此資料夾</string>
+    <string name="admin_folders_up">上一級</string>
+    <string name="admin_folders_placeholder">輸入路徑，例如 D:\\Media\\Movies 或 /mnt/media</string>
+    <string name="admin_folders_path_label">資料夾路徑</string>
+    <string name="admin_folders_go">前往</string>
+    <string name="admin_folders_back_to_top">返回頂部</string>
+    <string name="admin_folders_empty">這裡沒有子資料夾。</string>
+</resources>

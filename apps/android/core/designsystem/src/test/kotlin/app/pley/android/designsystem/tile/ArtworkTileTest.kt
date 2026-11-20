@@ -145,7 +145,7 @@ class ArtworkTileTest {
             }
         }
         compose.waitForIdle()
-        // Near the top left corner the 135° gradient is at its first colour.
+        // Near the top left corner the 135° gradient is at its first color.
         assertNear(Placeholder.colors(model.title).first, pixel("tile", 14, 14))
     }
 
@@ -160,7 +160,7 @@ class ArtworkTileTest {
         compose.waitForIdle()
         val image = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
         val (from, to) = Placeholder.colors(model.title)
-        // Near the bottom right corner, about its second colour; halfway along the diagonal (top right, clear of
+        // Near the bottom right corner, about its second color; halfway along the diagonal (top right, clear of
         // the title in the middle), halfway between the two in sRGB, as CSS blends them.
         assertNear(to, image[image.width - 14, image.height - 14])
         val half = Color((from.red + to.red) / 2f, (from.green + to.green) / 2f, (from.blue + to.blue) / 2f)

@@ -291,9 +291,9 @@ private struct KeyboardShortcuts: View {
     }
 }
 
-/// Colours the tab bar's badge as Android colours its tab's number: the
-/// accent colour, and red only while a request couldn't be sent, so the
-/// red keeps its meaning. SwiftUI has no say in a badge's colour, so the
+/// Colors the tab bar's badge as Android colors its tab's number: the
+/// accent color, and red only while a request couldn't be sent, so the
+/// red keeps its meaning. SwiftUI has no say in a badge's color, so the
 /// tab bar's own appearance is set, again whenever the alarm changes.
 private struct TabBadgeColour: UIViewControllerRepresentable {
     let alarm: Bool

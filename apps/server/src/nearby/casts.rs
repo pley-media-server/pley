@@ -389,7 +389,7 @@ struct Attempt<'a> {
     /// ([`start_session`]).
     stream: bool,
     base: &'a str,
-    /// Cancelled when a newer cast to the device takes this one's place.
+    /// Canceled when a newer cast to the device takes this one's place.
     ours: &'a CancellationToken,
     /// When the cast's time to start runs out ([`CAST_WITHIN`]).
     deadline: tokio::time::Instant,

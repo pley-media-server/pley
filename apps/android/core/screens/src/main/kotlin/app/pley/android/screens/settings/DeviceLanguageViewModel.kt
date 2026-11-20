@@ -13,11 +13,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import java.util.Locale
 
 /** The globe of the screens without an account: this device's language. */
 data class DeviceLanguageUiState(
-    /** The language shown, which the globe is labelled with. */
+    /** The language shown, which the globe is labeled with. */
     val shown: Language = Language.English,
     /** The language picked on this device; `null`: Automatic. */
     val picked: Language? = null,
@@ -30,8 +29,8 @@ data class DeviceLanguageUiState(
     /** What Settings' Language row says: the language shown, by its own name. */
     val value: UiText get() = UiText.res(shown.autonym)
 
-    /** What the globe before signing in says: the language shown, by its two letters ("FR"). */
-    val short: String get() = shown.code.uppercase(Locale.ROOT)
+    /** What the globe before signing in says: the language shown, by its mark ("FR", "简", "繁"). */
+    val short: String get() = shown.short
 
     /** How [choice] reads: a language by its own name ("Français"), Automatic by what it is here: "Automatic (English)". */
     fun label(choice: Language?): UiText = when (choice) {
@@ -43,8 +42,8 @@ data class DeviceLanguageUiState(
 /**
  * The language picker of the screens shown before signing in, on phones
  * and TVs (docs/ANDROID.md, "Language"): "Automatic", the system's
- * language where Pley has it, else English, then English, Français and
- * Español. A pick shows at once and is remembered on the device
+ * language where Pley has it, else English, then English, Français,
+ * Español, 简体中文 and 繁體中文. A pick shows at once and is remembered on the device
  * (AppLanguage.pick); Automatic forgets it. Once signed in, an account's
  * own language comes before it, and an account's Automatic means it.
  */

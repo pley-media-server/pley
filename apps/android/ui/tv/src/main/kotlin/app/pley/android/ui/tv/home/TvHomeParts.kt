@@ -566,7 +566,7 @@ internal fun TvHomeSkeleton() {
 
 /**
  * A state with a sentence instead of rows (design spec §8): [title] in
- * tvPageTitle and [body] in tvBody [muted][PleyColors.Muted], centred, and
+ * tvPageTitle and [body] in tvBody [muted][PleyColors.Muted], centered, and
  * a Retry pill with focus when [retry] is given. Without one there is
  * nothing to focus on the page, so focus goes to the rail.
  */
@@ -651,7 +651,7 @@ internal fun MarkHomeDrawn(model: TvHomeModel) {
     }
 }
 
-/** [error]'s sentence, capitalised, with a full stop, in the language shown. */
+/** [error]'s sentence, capitalized, with a full stop, in the language shown. */
 @Composable
 @ReadOnlyComposable
 internal fun sentence(error: Throwable): String = errorSentence(error).asString()

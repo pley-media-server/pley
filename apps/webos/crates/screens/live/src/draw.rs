@@ -1,5 +1,5 @@
 //! Pieces Live TV's pages share (`TvLiveKit.kt`): a channel's logo in its well, how far a
-//! programme is, its Live or New badge, and text placed in a box.
+//! program is, its Live or New badge, and text placed in a box.
 
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -78,7 +78,7 @@ pub fn progress(ui: &mut Ui, rect: Rect, program: &LiveProgram, now: i64, track:
     }
 }
 
-/// The badge a programme carries, Live before New, drawn from `at`; its width (0 for none).
+/// The badge a program carries, Live before New, drawn from `at`; its width (0 for none).
 pub fn programme_badge(ui: &mut Ui, at: Point, program: &LiveProgram) -> f32 {
     let badge = if program.is_live {
         Badge::live()
@@ -90,16 +90,16 @@ pub fn programme_badge(ui: &mut Ui, at: Point, program: &LiveProgram) -> f32 {
     badge.show(ui, at).w
 }
 
-/// The height of a programme badge (`Tv.Badge` and 2 dp above and below).
+/// The height of a program badge (`Tv.Badge` and 2 dp above and below).
 pub const BADGE_H: f32 = 17.0;
 
-/// Draws `layout` centred vertically in the box from `top`, `height` tall, from `x`.
+/// Draws `layout` centered vertically in the box from `top`, `height` tall, from `x`.
 pub fn text_mid(ui: &mut Ui, x: f32, top: f32, height: f32, layout: Arc<TextLayout>, color: Color) {
     let y = top + (height - layout.size.h) / 2.0;
     ui.draw_text(Point::new(x, y), layout, color);
 }
 
-/// One line of `text` cut at `width`, centred vertically in the box from `top`; its width.
+/// One line of `text` cut at `width`, centered vertically in the box from `top`; its width.
 #[allow(clippy::too_many_arguments)]
 pub fn line_mid(
     ui: &mut Ui,
@@ -122,7 +122,7 @@ pub fn measure(ui: &Ui, text: &str, style: &TextStyle) -> f32 {
     ui.measure(text, style, &TextOpts { max_width: None, ellipsis: false, ..TextOpts::default() }).w
 }
 
-/// The rectangle `aspect` (width / height) wide that fits whole in `area`, centred.
+/// The rectangle `aspect` (width / height) wide that fits whole in `area`, centered.
 pub fn fit(area: Rect, aspect: f32) -> Rect {
     if aspect <= 0.0 || area.w <= 0.0 || area.h <= 0.0 {
         return area;

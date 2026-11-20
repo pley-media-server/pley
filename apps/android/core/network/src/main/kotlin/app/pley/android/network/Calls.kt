@@ -19,7 +19,7 @@ import okhttp3.Response
 /**
  * Sends [request] and reads its answer with [read], on OkHttp's own
  * threads (never the caller's: the main thread neither waits nor decodes).
- * Cancelling the coroutine cancels the call, also while its body is read.
+ * Canceling the coroutine cancels the call, also while its body is read.
  * Failures come out as the app knows them (see [failure]).
  */
 internal suspend fun <T> OkHttpClient.fetch(request: Request, read: (Response) -> T): T =
@@ -29,7 +29,7 @@ internal suspend fun <T> OkHttpClient.fetch(request: Request, read: (Response) -
         call.enqueue(
             object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    // Ignored when the coroutine was cancelled: it is what cancelled the call.
+                    // Ignored when the coroutine was canceled: it is what canceled the call.
                     continuation.resumeWith(Result.failure(failure(e)))
                 }
 

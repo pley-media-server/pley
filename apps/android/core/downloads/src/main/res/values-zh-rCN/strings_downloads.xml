@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The notification's channel, in the system's settings. -->
+    <string name="downloads_channel">下载</string>
+    <string name="downloads_channel_description">下载进度</string>
+
+    <string name="downloads_notification_downloading">正在下载 %1$s</string>
+    <!-- "1.2 GB of 4.6 GB". -->
+    <string name="downloads_notification_progress">%1$s / %2$s</string>
+    <!-- "1.2 GB of 4.6 GB · 2 more". -->
+    <string name="downloads_notification_progress_more">%1$s / %2$s · 还有 %3$d 项</string>
+    <string name="downloads_notification_waiting">下载正在等待 Wi-Fi</string>
+    <string name="downloads_notification_waiting_text">连接 Wi-Fi 后会继续；若设置中允许，也会使用移动数据继续。</string>
+    <!-- The server didn't answer: away from home, or it is off. -->
+    <string name="downloads_notification_waiting_server">下载正在等待你的服务器</string>
+    <string name="downloads_notification_waiting_server_text">服务器恢复响应后会继续，就像在家打开应用时一样。</string>
+    <string name="downloads_notification_starting">正在准备下载</string>
+    <!-- While the server makes a smaller (or playable) file for this phone. -->
+    <string name="downloads_notification_converting">正在准备 %1$s</string>
+    <string name="downloads_notification_converting_text">服务器正在为此手机处理 · %1$d%%</string>
+
+    <!--
+      Why a download failed (Failure), one sentence without its full stop:
+      the screens put it after "Didn't download:".
+    -->
+    <string name="downloads_error_missing">下载的文件已丢失</string>
+    <string name="downloads_error_no_space">此设备存储空间不足</string>
+    <string name="downloads_error_no_conversions">服务器无法生成更小的下载文件：请在 设置 → 下载 中选择“原始”</string>
+    <string name="downloads_error_conversion">服务器无法为此设备处理该文件</string>
+    <!-- %1$s: the server's own words, as it wrote them. -->
+    <string name="downloads_error_conversion_said">服务器无法为此设备处理该文件：%1$s</string>
+    <string name="downloads_error_sign_in">请重新登录服务器后再下载</string>
+    <string name="downloads_error_gone">此文件已不在服务器上</string>
+    <!-- %1$d: the server's answer, "502". -->
+    <string name="downloads_error_server">服务器无法发送此文件（%1$d）</string>
+</resources>

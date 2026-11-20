@@ -72,7 +72,7 @@ object AppLanguage {
         val device = deviceLocales(base)
         val (remembered, picked) = remembered(base)
         val last = if (Build.VERSION.SDK_INT >= 33) {
-            base.getSystemService(LocaleManager::class.java)?.applicationLocales?.takeIf { !it.isEmpty }?.get(0)?.language.let(Language::of)
+            base.getSystemService(LocaleManager::class.java)?.applicationLocales?.takeIf { !it.isEmpty }?.get(0)?.toLanguageTag().let(Language::of)
         } else {
             remembered
         }

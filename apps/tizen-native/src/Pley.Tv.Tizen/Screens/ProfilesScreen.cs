@@ -146,7 +146,7 @@ sealed class ProfilesScreen : Sheet
             rowGroup.Clear();
             var count = state.Profiles.Count;
             var width = count * Avatar + Math.Max(0, count - 1) * AvatarGap;
-            // Centred while they fit; from the side margin when they don't.
+            // Centered while they fit; from the side margin when they don't.
             var left = Math.Max(48, (PleyTv.CanvasWidth - width) / 2);
             for (var i = 0; i < count; i++)
             {
@@ -231,7 +231,7 @@ sealed class ProfileChoice : View
         Item = new FocusItem(tile.Name) { Selected = onPick };
         avatar = new View { Size = new Size(Ui.Dp(AvatarSize), Ui.Dp(AvatarSize)), PivotPoint = global::Tizen.NUI.PivotPoint.Center };
         avatar.Add(new AvatarView(tile.Name, tile.Color, tile.AvatarUrl, AvatarSize, images));
-        // The ring: a 3 dp AccentBright stroke centred 4.5 dp outside the circle.
+        // The ring: a 3 dp AccentBright stroke centered 4.5 dp outside the circle.
         var reach = PleyShape.RingOffset + PleyShape.RingStroke / 2;
         ring = new View
         {

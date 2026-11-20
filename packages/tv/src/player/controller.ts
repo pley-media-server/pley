@@ -120,7 +120,7 @@ export interface PlayerState {
   subtitles: TrackChoice[];
   quality: string;
   qualities: QualityChoice[];
-  /** How it plays, in words ("Direct play"), and which way, for the badge's colour. */
+  /** How it plays, in words ("Direct play"), and which way, for the badge's color. */
   method: string | null;
   methodKind: PlaybackMethod | null;
   note: string | null;
@@ -348,7 +348,7 @@ export class PlaybackController {
   private sessionEnded = true;
   /** Bumped by every new start: what an older one finds when it resumes is no longer its own. */
   private generation = 0;
-  /** A session being made ready beside the one playing (`begin`'s `prepared`): cancelled when a newer start takes over. */
+  /** A session being made ready beside the one playing (`begin`'s `prepared`): canceled when a newer start takes over. */
   private preparing: Cancel | null = null;
 
   private lastPositionMs = 0;

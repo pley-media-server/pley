@@ -56,7 +56,7 @@ sealed class ServersScreen : Sheet
         title.SizeHeight = Ui.Dp(38);
         title.Position = new Position(Ui.Dp(Left), Ui.Dp(Top));
         View.Add(title);
-        // As tall as on the sign-in code, centred on the title's 38 dp line.
+        // As tall as on the sign-in code, centered on the title's 38 dp line.
         var logo = Onboarding.Logo(40);
         logo.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - Right) - logo.SizeWidth, Ui.Dp(Top - 1));
         View.Add(logo);
@@ -148,7 +148,7 @@ sealed class ServersScreen : Sheet
         if (!state.Rows.SequenceEqual(shownRows)) ShowRows(state.Rows);
         foreach (var r in rows) r.SetConnecting(state.Busy == r.Row.Url);
         searchNetwork.Enabled = !state.Sweeping;
-        // Disabled while it has focus: focus goes to its neighbour, so it always shows.
+        // Disabled while it has focus: focus goes to its neighbor, so it always shows.
         if (state.Sweeping && Tree.Current == searchNetwork.Item) Tree.Focus(enterAddress.Item);
         if (state.Rows.Any(r => r.Saved)) forgetHint.Show();
         else forgetHint.Hide();

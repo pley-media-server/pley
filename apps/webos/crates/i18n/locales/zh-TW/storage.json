@@ -1,0 +1,18 @@
+{
+  "title": "U 盤",
+  "noDrive": {
+    "title": "沒有 U 盤",
+    "body": "將 U 盤插入電視，即可在此播放其中的影片。"
+  },
+  "unreadable": {
+    "title": "無法讀取此資料夾",
+    "body": "U 盤可能已被拔出。"
+  },
+  "empty": {
+    "title": "這裡沒有可播放的內容",
+    "body": "此資料夾中沒有影片或資料夾。"
+  },
+  "space": "共 {{total}}，可用 {{free}}",
+  "up": "返回上一級資料夾",
+  "resumesAt": "{{kind}} · 從 {{time}} 繼續"
+}

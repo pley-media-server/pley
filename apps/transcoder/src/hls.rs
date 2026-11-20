@@ -431,6 +431,7 @@ mod tests {
         AudioOut {
             stream_index: 1,
             copy,
+            copied_aac: copy && codec == AudioCodec::Aac,
             codec,
             channels: 6,
             bitrate_kbps: 640,

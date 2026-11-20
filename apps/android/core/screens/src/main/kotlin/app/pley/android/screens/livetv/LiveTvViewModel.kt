@@ -70,7 +70,7 @@ data class LivePage(
     val category: LiveCategory = LiveCategory.All,
     val query: String = "",
     val view: LiveView = LiveView.Guide,
-    /** The server's origin: logos and programme pictures are on it. */
+    /** The server's origin: logos and program pictures are on it. */
     val origin: String = "",
     /** The groups a search names, as quick links to them. */
     val found: List<LiveGroup> = emptyList(),
@@ -85,25 +85,25 @@ data class LivePage(
 data class Landing(val category: LiveCategory, val query: String, val index: Int?)
 
 /**
- * The guide's programmes by channel, and whether those in view are in.
+ * The guide's programs by channel, and whether those in view are in.
  * Each is a new merge of the chunks, told apart by identity: the state
  * flow compares each value with the one before on the main thread, and two
- * merges, every list made anew, were compared programme by programme each
+ * merges, every list made anew, were compared program by program each
  * time a chunk came in. The guides' rows skip what didn't change.
  */
 class GuidePrograms(val byChannel: Map<Long, List<LiveProgram>> = emptyMap(), val loaded: Boolean = false)
 
-/** Something to tell: a favourite the server refused. */
+/** Something to tell: a favorite the server refused. */
 sealed interface LiveTvEvent {
     data class Failed(val error: Throwable) : LiveTvEvent
 }
 
 /**
  * Live TV (apps/web/src/pages/livetv/LiveTvPage.tsx): the
- * categories first (Favourites, Recently watched, All channels, then the
+ * categories first (Favorites, Recently watched, All channels, then the
  * provider's groups, those of a region gathered under it), then the
  * chosen one's channels, a page at a time as they scroll, as a guide that
- * scrolls through time (asking for the programmes of the rows in view
+ * scrolls through time (asking for the programs of the rows in view
  * only) or as cards; searched by name, number or what's on. A channel
  * opens the live player, which changes channel within the category. The
  * list opens back at the channel last watched.
@@ -122,7 +122,7 @@ class LiveTvViewModel(private val deps: LiveTvDeps, private val saved: SavedStat
     private val view = MutableStateFlow(viewOf(saved[VIEW]) ?: LiveView.Guide)
     private val eventChannel = Channel<LiveTvEvent>(Channel.BUFFERED)
 
-    /** A favourite refused, to tell. */
+    /** A favorite refused, to tell. */
     val events: Flow<LiveTvEvent> = eventChannel.receiveAsFlow()
 
     /** Unix seconds, every [TICK_MS]: progress bars, the guide's now line. */
@@ -185,7 +185,7 @@ class LiveTvViewModel(private val deps: LiveTvDeps, private val saved: SavedStat
 
     private val window = MutableStateFlow<Pair<Long, Long>?>(null)
 
-    /** The guide's programmes, for the pages of channels in view and the time in view, either side too. */
+    /** The guide's programs, for the pages of channels in view and the time in view, either side too. */
     val guide: StateFlow<GuidePrograms> = combine(
         window.map { span -> span?.let { (from, to) -> LiveTv.chunks(guideStart, from, to) }.orEmpty() }.distinctUntilChanged(),
         channels.map { pages -> pages.pages.values.map { page -> page.map { it.id } }.filter { it.isNotEmpty() } }.distinctUntilChanged(),
@@ -211,7 +211,7 @@ class LiveTvViewModel(private val deps: LiveTvDeps, private val saved: SavedStat
             if (saved.get<String>(VIEW) == null) viewOf(kept.view)?.let { view.value = it }
             if (chosen.value == null) chosen.value = kept.category?.let(LiveCategory::parse) ?: LiveCategory.All
         }
-        // What's on moves on: a programme listed as now that ended asks for the pages again.
+        // What's on moves on: a program listed as now that ended asks for the pages again.
         viewModelScope.launch {
             var asked = 0L
             combine(now, channels) { t, pages -> pages.pages.values.any { page -> page.any { c -> c.now?.let { it.stop <= t } == true } } }

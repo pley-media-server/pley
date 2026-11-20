@@ -4,9 +4,10 @@
 Every Localizable.xcstrings under apps/apple (the app targets, Top Shelf
 and each PleyKit module) must have, for every key:
 
-- a French and a Spanish translation, marked translated;
-- the plural forms French and Spanish need (one, many, other) wherever a
-  count varies the words;
+- a French, a Spanish and a Simplified and a Traditional Chinese
+  translation, marked translated;
+- the plural forms each language needs where a count varies the words:
+  French and Spanish one, many and other, Chinese only other;
 - the same placeholders (%@, %lld, %1$@ ...) as the English;
 - no stale entry: one Xcode no longer finds in the code.
 
@@ -30,8 +31,11 @@ import sys
 from pathlib import Path
 
 APPLE = Path(__file__).resolve().parent.parent
-LANGUAGES = ("fr", "es")
-PLURAL_FORMS = ("one", "many", "other")
+LANGUAGES = ("fr", "es", "zh-Hans", "zh-Hant")
+# Chinese counts don't change the word, so its catalogs need only "other".
+PLURAL_FORMS = {"fr": ("one", "many", "other"), "es": ("one", "many", "other"),
+                "zh-Hans": ("other",), "zh-Hant": ("other",)}
+ALL_FORMS = {form for forms in PLURAL_FORMS.values() for form in forms}
 
 # A printf placeholder as String(localized:) writes them, `%%` aside.
 PLACEHOLDER = re.compile(r"%(?:(\d+)\$)?[-+ #0']*\d*(?:\.\d+)?(hh|h|ll|l|q|z|t|j|L)?([@dDuUxXoOfFeEgGcCsSpaA])")
@@ -99,10 +103,11 @@ def check_entry(key, entry, where):
             problems.append(f"{where}: {key!r} has no {language} translation")
             continue
         forms = units(found)
-        if english_plural and not ({"one", "other"} <= set(forms)):
-            problems.append(f"{where}: {key!r}: {language} has no plural forms, as the English does")
-        if set(forms) & set(PLURAL_FORMS):
-            missing = [form for form in PLURAL_FORMS if form not in forms]
+        forms_needed = PLURAL_FORMS[language]
+        # A count varies the words in English, so a translation must vary
+        # them too, in the forms its own language has.
+        if english_plural or set(forms) & ALL_FORMS:
+            missing = [form for form in forms_needed if form not in forms]
             if missing:
                 problems.append(f"{where}: {key!r}: {language} lacks the plural form(s) {', '.join(missing)}")
         for form, unit in forms.items():

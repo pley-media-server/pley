@@ -14,16 +14,24 @@ import i18next from "i18next";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
 import fr from "./locales/fr.json";
+import zhCN from "./locales/zh-CN.json";
+import zhTW from "./locales/zh-TW.json";
 
-export const LANGUAGES = ["en", "fr", "es"] as const;
+export const LANGUAGES = ["en", "fr", "es", "zh-CN", "zh-TW"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
-/** The words of each language, English first: what the others are checked against (`i18n.test.ts`). */
-export const CATALOGS: Record<Language, typeof en> = { en, fr, es };
+/**
+ * The words of each language, English first: what the others are checked
+ * against (`i18n.test.ts`). Chinese counts every number the same way, so its
+ * catalogs have only the `_other` form of a counted word.
+ */
+export const CATALOGS = { en, fr, es, "zh-CN": zhCN, "zh-TW": zhTW };
 
-/** The language Pley has for a tag ("fr-CA" → "fr"), if any. */
+/** The language Pley has for a tag ("fr-CA" → "fr", "zh-Hant" → "zh-TW"), if any. */
 export function supportedLanguage(tag: string | null | undefined): Language | undefined {
-  const base = tag?.trim().split(/[-_]/)[0]?.toLowerCase();
+  const [base, ...rest] = (tag ?? "").trim().toLowerCase().split(/[-_]/);
+  // Chinese is two languages: Traditional by its script or a region that writes it.
+  if (base === "zh") return rest.some((part) => ["hant", "tw", "hk", "mo"].includes(part)) ? "zh-TW" : "zh-CN";
   return LANGUAGES.find((language) => language === base);
 }
 

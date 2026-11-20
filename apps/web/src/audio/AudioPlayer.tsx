@@ -117,7 +117,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const fallbackRef = useRef<PlaybackMode | null>(null);
   /** `network`/`media` count per session; `recreate` (new sessions) is reset once media loads again. */
   const recoveries = useRef({ network: 0, media: 0, recreate: 0 });
-  /** POST /api/playback of the previous run, which ends its own session if that run was cancelled. */
+  /** POST /api/playback of the previous run, which ends its own session if that run was canceled. */
   const pendingStartRef = useRef<Promise<void>>(Promise.resolve());
 
   const [queue, setQueue] = useState<ItemSummary[]>([]);
@@ -241,7 +241,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     recoveries.current.media = 0;
 
     // Release the previous session before asking for the next one (the
-    // transcode limit), even if this run gets cancelled.
+    // transcode limit), even if this run gets canceled.
     const prev = sessionRef.current;
     sessionRef.current = null;
     const released = prev ? release(prev) : Promise.resolve();
@@ -254,7 +254,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setTime({ position: startMs / 1000, duration: (current.duration_ms ?? 0) / 1000, buffered: 0 });
 
     // Recorded as soon as it exists so the next run (or unmount) ends it; a
-    // run cancelled before that ends it here.
+    // run canceled before that ends it here.
     const acquired = (async () => {
       await Promise.all([released, previousStart]);
       if (cancelled) return null;

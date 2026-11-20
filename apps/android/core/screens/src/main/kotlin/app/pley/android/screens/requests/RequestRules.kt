@@ -66,7 +66,7 @@ val MediaRequest.moving: Boolean
 
 // ---------------------------------------------------------------- stage pills
 
-/** A pill's colour: pending amber, on its way blue, ready green, refused red, gone gray. */
+/** A pill's color: pending amber, on its way blue, ready green, refused red, gone gray. */
 enum class PillTone { Amber, Blue, Green, Red, Gray }
 
 /** Where a request is, as its pill says it. */

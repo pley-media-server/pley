@@ -75,6 +75,11 @@ describe("the desktop's language", () => {
   it("matches tags by their language", () => {
     expect(supportedLanguage("fr-CA")).toBe("fr");
     expect(supportedLanguage("ES_es")).toBe("es");
+    expect(supportedLanguage("zh-CN")).toBe("zh-CN");
+    expect(supportedLanguage("zh-TW")).toBe("zh-TW");
+    expect(supportedLanguage("zh-Hans")).toBe("zh-CN");
+    expect(supportedLanguage("zh_Hant")).toBe("zh-TW");
+    expect(supportedLanguage("zh")).toBe("zh-CN");
     expect(supportedLanguage("de")).toBeUndefined();
     expect(supportedLanguage(null)).toBeUndefined();
   });

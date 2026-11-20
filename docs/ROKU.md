@@ -77,8 +77,8 @@ yet, Scanning your libraries…, or Nothing here yet.
 | Down | The player | Pley's menu: Subtitles, Audio, Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
 | Options (\*) | The player | Roku's own options: subtitles and audio tracks |
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
-| Options (\*) | Live TV | A programme's details (a card's: what's on), Watch, Add to or remove from favourites |
-| Options (\*) | The live player | Add to or remove from favourites |
+| Options (\*) | Live TV | A program's details (a card's: what's on), Watch, Add to or remove from favorites |
+| Options (\*) | The live player | Add to or remove from favorites |
 | Replay | Live TV, the live player's channel list | Search (Roku remotes have no search key for apps) |
 
 ### A title's page
@@ -112,7 +112,7 @@ Lovelace, Alan Turing"; a show's "Created by").
 - **Media info** (a movie or an episode with a file): each file, under its
   edition or "VERSION 2" when there are several, and every stream in
   full, in the other apps' words (codec, profile and level, size, frame
-  rate, bit depth, HDR and Dolby Vision, colour, channels, sample rate,
+  rate, bit depth, HDR and Dolby Vision, color, channels, sample rate,
   language, title, flags), as text that Up and Down scroll.
 - **Details**, Android TV's section of them: the whole summary, which the
   page cuts, then who created, directed and wrote it (four names a role,
@@ -268,7 +268,7 @@ collection's next), its title shows at the top for 4 s, a show's name over
 the episode's "S1 E2 · Pilot", as on Android TV.
 
 - **Up Next** shows at the credits (else 30 s before the end) with its
-  countdown. Cancelled, or with Play the next episode by itself off, it
+  countdown. Canceled, or with Play the next episode by itself off, it
   waits at the end, paused, as on the other apps: Play now (or Play) plays
   the next one, Cancel or Back leaves. With the setting on, the countdown
   starts again there.
@@ -414,25 +414,25 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   before.
 - **Guide:** Roku's TimeGrid, 50 channels by two hours. Rewind and fast
   forward move two hours, Play goes back to now. OK on what's on watches
-  the channel; on a later programme it shows its details, as Options (\*)
-  does on any programme (on a card, what's on), with Watch and the
-  favourite.
+  the channel; on a later program it shows its details, as Options (\*)
+  does on any program (on a card, what's on), with Watch and the
+  favorite.
 - **Channels:** the other tab, as cards with what's on and what's next.
-- **What's on moves on** each 15 s: the programme above the guide, the
+- **What's on moves on** each 15 s: the program above the guide, the
   cards in view and the player's banner and list show how far along it
-  is. Once a programme listed as on now has ended, the cards in view are
+  is. Once a program listed as on now has ended, the cards in view are
   asked for again, and in the player the channel playing
   (`GET /api/live/channels/{id}`), each at most once a minute. The guide's
-  programmes come six hours ahead, so the guide itself needs nothing new.
+  programs come six hours ahead, so the guide itself needs nothing new.
 - **Back** goes up a step at a time: the guide back to now (when another
-  time shows, or a programme not on now has focus), a search back to the
+  time shows, or a program not on now has focus), a search back to the
   category before, the guide or the cards to the categories, then out of
   Live TV.
 - **The player** tunes with `POST …/watch`, waits for the server's live HLS
   playlist (up to 50 s), then plays it with `Live = true`. Up and Down
   change channel, tuning 0.7 s after the last press. Left opens the
   channel list; Right or OK show the banner. Options (\*) puts the channel
-  in the favourites or takes it out, in the list the channel in focus,
+  in the favorites or takes it out, in the list the channel in focus,
   else the one playing, the banner showing its star. Leaving, or changing
   channel, sends `DELETE /api/live/sessions/{session}`.
 - **The channel list** opens on the category Up and Down go through, at
@@ -529,7 +529,7 @@ remote did shows instead for 2 s in the player's notice at the top:
 "Paused", "Playing", the skip asked for ("+30 s", "−10 s"), where a seek
 went ("Jumped to 12:34"), and the audio, subtitles ("Subtitles off") or
 quality picked, named as the player's menus name them
-(`remoteNotice` and its neighbours in `components/lib/Remote.brs`). A
+(`remoteNotice` and its neighbors in `components/lib/Remote.brs`). A
 command that changes nothing shows nothing; next shows the title as it
 begins, and Live TV's channel up and down the channel's card, as Up and
 Down do. Music shows nothing of a command: Now Playing is its controls.
@@ -673,8 +673,8 @@ history, Switch profile, Always start as, Sort libraries, Switch server
 and Sign out. It says where the account is managed on the web (the
 server's address and `/account`), and carries TMDB's notice. Right of the
 settings, Diagnostics shows this Roku and what it tells the server it
-plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licences
-shows Pley's licence and the notices of what the package bundles.
+plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licenses
+shows Pley's license and the notices of what the package bundles.
 
 Always start as, for a household of several profiles, names the profile
 the app starts as, or Profile used last. As on the other TVs, the app
@@ -690,9 +690,10 @@ It is kept on the Roku for each server.
 
 ### Language
 
-The app is in English, French and Spanish ([API.md](API.md#language)),
-as the other TVs: the account's language, else the one picked on this
-Roku, else the Roku's own (`roDeviceInfo`'s `GetCurrentLocale`, where
+The app is in English, French, Spanish and Simplified and Traditional
+Chinese (`zh-CN`, `zh-TW`) ([API.md](API.md#language)), as the other TVs:
+the account's language, else the one picked on this Roku, else the Roku's
+own (`roDeviceInfo`'s `GetCurrentLocale`, where
 `fr_CA` counts as French), else the server's (`GET /api/server`), else
 English. `packages/tv/test/fixtures/language.json` pins that order, and
 the unit tests run against it.
@@ -700,12 +701,13 @@ the unit tests run against it.
 - **The globe:** Choose your server has a small globe at the bottom
   right, on the forget hint's line; the sign-in code has it at the top
   right, on the logo's line. It names the language shown by its two
-  letters ("FR"), filled with the accent only while it has the focus.
-  Down reaches it on Choose your server and Up on the sign-in code; Left
-  and Right never do. OK opens a panel: Automatic, with what that is on
-  this Roku (its language, else the server's, else English), then
-  English, Français and Español, the choice in force checked. A choice
-  shows at once and is kept on the Roku (registry section `language`);
+  letters ("FR"), or 简 or 繁 for Chinese, filled with the accent only
+  while it has the focus. Down reaches it on Choose your server and Up on
+  the sign-in code; Left and Right never do. OK opens a panel: Automatic,
+  with what that is on this Roku (its language, else the server's, else
+  English), then English, Français, Español, 简体中文 and 繁體中文, the
+  choice in force checked. A choice shows at once and is kept on the Roku
+  (registry section `language`);
   Automatic forgets it. Typing an address is Roku's own keyboard dialog,
   which has no room for the globe.
 - **At a start** the app shows the language it showed last, never another
@@ -722,8 +724,8 @@ the unit tests run against it.
   show them.
 - **Settings → Language:** Automatic, with what that is on this Roku (the
   one picked with the globe, else its language, else the server's), then
-  English, Français and Español, each in itself. A choice is the
-  account's, on all its devices (`PUT /api/me/language`), and shows once
+  English, Français, Español, 简体中文 and 繁體中文, each in itself. A choice
+  is the account's, on all its devices (`PUT /api/me/language`), and shows once
   the server has it. A Pley from before languages keeps no account's
   language (its `GET /api/server` names none, and the route answers 404
   or 405): there the row is this Roku's, as the globe picks it, with
@@ -735,12 +737,14 @@ the unit tests run against it.
   message the app has none for, comes in English.
 - **Dates, times and numbers** are written by the app in the language
   shown (`components/lib/I18n.brs`, `Format.brs`): "12,345", "12 345" or
-  "12.345"; "Nov 4" or "4 nov."; a 12-hour clock in English when the Roku
-  uses one. Counts take CLDR's plural forms: one and other in English,
-  one, many and other in French and Spanish.
-- **The words** are in `locales/<language>/<area>.json`, in the other
-  apps' format (i18next's: `{{name}}`, `_one`, `_many`, `_other`), read
-  with `ParseJson` an area at a time and looked up with the app's own
+  "12.345" ("12,345" in Chinese); "Nov 4" or "4 nov."; a 12-hour clock in
+  English when the Roku uses one, 24 hours in the other languages.
+  Counts take CLDR's plural forms: one and other in English, one, many
+  and other in French and Spanish, only other in Chinese.
+- **The words** are in `locales/<language>/<area>.json` (`en`, `fr`, `es`,
+  `zh-CN`, `zh-TW`), in the other apps' format (i18next's: `{{name}}`,
+  `_one`, `_many`, `_other`; Chinese writes all three forms as `_other`),
+  read with `ParseJson` an area at a time and looked up with the app's own
   `t()`: Roku's `tr()` follows the device's language only, so it can't
   show the account's. English stands in for a word missing elsewhere. The
   tests check that every language has every key, with the same values in
@@ -765,7 +769,7 @@ the unit tests run against it.
 | `components/lib/` | Plain BrightScript (no SceneGraph): the logic the unit tests cover |
 | `tests/` | Unit tests of `components/lib` |
 | `scripts/` | Test runner, smoke run, preview, bench, images |
-| `locales/` | The words, in English, French and Spanish (`<language>/<area>.json`) |
+| `locales/` | The words, in English, French, Spanish and Chinese (`<language>/<area>.json`) |
 | `licenses/` | Notices for bundled third-party code (BrighterScript's `bslib.brs`) |
 
 Rules the code keeps:

@@ -2,7 +2,7 @@
 // the Android app's record-android.mjs) into an animated PNG for a pull request, marked as mark-screenshot.mjs marks
 // a screenshot: red boxes and arrows, on every frame (docs/DEVELOPMENT.md,
 // "Screenshots for a pull request"). Places are in the frames' own pixels.
-// An animated PNG rather than a GIF: a GIF's 256 colours band a dark page's
+// An animated PNG rather than a GIF: a GIF's 256 colors band a dark page's
 // gradients.
 //
 //   bun scripts/mark-animation.mjs <frames folder> <out.png> [--box x,y,w,h]... [--arrow x1,y1,x2,y2]...

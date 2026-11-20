@@ -195,7 +195,7 @@ sealed class ChannelCardsView : View
 }
 
 /// <summary>
-/// A channel's tile: its logo (or name) with its number, a star when a favourite and how far
+/// A channel's tile: its logo (or name) with its number, a star when a favorite and how far
 /// what's on is; captioned with its name and what's on. Focused, it grows to 1.08 in the
 /// accent ring and its name turns bold. A channel still loading is a still skeleton. Live TV's
 /// Channels view draws them, and search's Live TV row.
@@ -286,7 +286,7 @@ sealed class ChannelCard : View
         if (Disposed || Channel == null || onNow == null) return;
         Text.Show(onNow, LiveText.OnNowOf(Channel, now));
         var on = Channel.OnAt(now);
-        // The same programme on: its bar moves in place, rather than made again at each 15 s tick.
+        // The same program on: its bar moves in place, rather than made again at each 15 s tick.
         if (on != null && progress != null && progressOf is { } was && was.Start == on.Start && was.Stop == on.Stop)
         {
             if (progress.ChildCount > 0 && progress.GetChildAt(0) is View fill) fill.SizeWidth = Ui.Dp(Kind.Width * on.ProgressAt(now));

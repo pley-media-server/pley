@@ -3,7 +3,7 @@ name = "pley-i18n"
 version = "0.0.0"
 edition = "2024"
 rust-version = "1.95"
-description = "Pley for LG TV: the app's words in English, French and Spanish, the language shown, plurals and numbers"
+description = "Pley for LG TV: the app's words in English, French, Spanish and Chinese, the language shown, plurals and numbers"
 license = "AGPL-3.0-only"
 publish = false
 

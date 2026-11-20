@@ -23,7 +23,7 @@ public sealed record LivePage
     public LiveCategory Category { get; init; } = new LiveCategory.All();
     public string Query { get; init; } = "";
     public LiveView View { get; init; } = LiveView.Guide;
-    /// <summary>The server's origin: logos and programme pictures are on it.</summary>
+    /// <summary>The server's origin: logos and program pictures are on it.</summary>
     public string Origin { get; init; } = "";
     /// <summary>The groups a search names, as quick links to them.</summary>
     public IReadOnlyList<LiveGroup> Found { get; init; } = Array.Empty<LiveGroup>();
@@ -37,7 +37,7 @@ public sealed record LivePage
 /// <summary>Where a list opens: at <paramref name="Index"/> of <paramref name="Category"/> searched for <paramref name="Query"/> (the channel last watched).</summary>
 public sealed record Landing(LiveCategory Category, string Query, int? Index);
 
-/// <summary>The guide's programmes by channel, and whether those in view are in.</summary>
+/// <summary>The guide's programs by channel, and whether those in view are in.</summary>
 public sealed record GuidePrograms(IReadOnlyDictionary<long, IReadOnlyList<LiveProgram>> ByChannel, bool Loaded)
 {
     public static readonly GuidePrograms None = new GuidePrograms(new Dictionary<long, IReadOnlyList<LiveProgram>>(), false);
@@ -50,9 +50,9 @@ public sealed record LiveWatch(long ChannelId, string CategoryKey, LiveChannel? 
 
 /// <summary>
 /// Live TV (the Android app's LiveTvViewModel): the categories first
-/// (Favourites, Recently watched, All channels, then the provider's groups, those of a region
+/// (Favorites, Recently watched, All channels, then the provider's groups, those of a region
 /// gathered under it), then the chosen one's channels, a page at a time as they scroll, as a guide
-/// that scrolls through time (asking for the programmes of the rows in view only) or as cards;
+/// that scrolls through time (asking for the programs of the rows in view only) or as cards;
 /// searched by name, number or what's on. A channel opens the live player
 /// (<see cref="WatchRequested"/>), which changes channel within the category. The list opens back
 /// at the channel last watched (<see cref="Landing"/>).
@@ -68,7 +68,7 @@ public sealed class LiveTvModel : IDisposable
     /// <summary>What's on is asked for again at most this often.</summary>
     public const long RefreshFloorMs = 60_000;
 
-    /// <summary>A notice (a favourite refused) shows this long.</summary>
+    /// <summary>A notice (a favorite refused) shows this long.</summary>
     public const long NoticeMs = 4_000;
 
     const long HalfChunk = LiveRules.GuideChunkS / 2;
@@ -118,7 +118,7 @@ public sealed class LiveTvModel : IDisposable
     /// <summary>The listed category's channels, as far as they are loaded.</summary>
     public Signal<ChannelPages> Channels { get; } = new Signal<ChannelPages>(ChannelPages.Empty);
 
-    /// <summary>The guide's programmes, for the pages of channels in view and the time in view, either side too.</summary>
+    /// <summary>The guide's programs, for the pages of channels in view and the time in view, either side too.</summary>
     public Signal<GuidePrograms> Guide { get; } = new Signal<GuidePrograms>(GuidePrograms.None);
 
     /// <summary>Unix seconds, every <see cref="TickMs"/>: progress bars, the guide's now line.</summary>
@@ -134,7 +134,7 @@ public sealed class LiveTvModel : IDisposable
     /// </summary>
     public Signal<Landing?> Landing { get; } = new Signal<Landing?>(null);
 
-    /// <summary>A favourite the server refused: the notice says <see cref="LiveText.FavoriteFailed"/>.</summary>
+    /// <summary>A favorite the server refused: the notice says <see cref="LiveText.FavoriteFailed"/>.</summary>
     public event Action<Exception>? Told;
 
     /// <summary>A channel to watch: the live player opens on it.</summary>
@@ -193,7 +193,7 @@ public sealed class LiveTvModel : IDisposable
         WatchRequested?.Invoke(new LiveWatch(channel.Id, from.Key, channel));
     }
 
-    /// <summary>Marks <paramref name="channel"/> a favourite, or not: at once on screen, put back if the server refuses.</summary>
+    /// <summary>Marks <paramref name="channel"/> a favorite, or not: at once on screen, put back if the server refuses.</summary>
     public void ToggleFavorite(LiveChannel channel)
     {
         var favorite = !channel.Favorite;
@@ -201,7 +201,7 @@ public sealed class LiveTvModel : IDisposable
         Plays.When(scheduler, () => source.SetFavorite(channel.Id, favorite), () =>
         {
             if (gone) return;
-            // Favourites' own pages and counts come from the server.
+            // Favorites' own pages and counts come from the server.
             LoadGroups();
             if (State.Value.Listed is LiveCategory.Favorites) paging.Refresh();
         }, e =>
@@ -296,7 +296,7 @@ public sealed class LiveTvModel : IDisposable
         {
             if (gone) return;
             Now.Value = scheduler.Now / 1000;
-            // What's on moves on: a programme listed as now that ended asks for the pages again.
+            // What's on moves on: a program listed as now that ended asks for the pages again.
             var t = Now.Value;
             var ended = Channels.Value.Pages.Values.Any(page => page.Any(c => c.Now != null && c.Now.Stop <= t));
             if (ended && (lastRefresh == long.MinValue || scheduler.Elapsed - lastRefresh > RefreshFloorMs)) Refresh();
@@ -350,7 +350,7 @@ public sealed class LiveTvModel : IDisposable
             }, _ =>
             {
                 if (gone) return;
-                // Shown as without programmes; asked again with the next refresh.
+                // Shown as without programs; asked again with the next refresh.
                 guides[key] = new LiveGuide { From = chunk, To = chunk + LiveRules.GuideChunkS };
                 failedGuides.Add(key);
                 ComputeGuide();
@@ -358,7 +358,7 @@ public sealed class LiveTvModel : IDisposable
         }
     }
 
-    /// <summary>Chunks of programmes held, past which those out of view go.</summary>
+    /// <summary>Chunks of programs held, past which those out of view go.</summary>
     const int MaxGuides = 60;
 
     static LiveView? ViewOf(string? name) => Enum.TryParse<LiveView>(name, out var v) && Enum.IsDefined(typeof(LiveView), v) ? v : null;

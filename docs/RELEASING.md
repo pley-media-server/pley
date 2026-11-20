@@ -186,13 +186,13 @@ A CHANGELOG change alone runs only Repository. Prepare release and Audit
 
 LG TV runs two jobs. One formats, lints and tests `apps/webos` on Linux
 (clippy also with the TV's code, the `tv` feature) and checks its
-licences. The other builds the TV binary with the webOS toolchain, pinned
+licenses. The other builds the TV binary with the webOS toolchain, pinned
 by address and SHA-256 and cached, then runs `cargo xtask check`, packs
 the .ipk and reads it back; it keeps the package (`lg-ipk`) and the binary
 before stripping (`lg-symbols`) as artifacts. A release adds the package
 as `pley-lg-<version>.ipk` ([LG.md](LG.md#releases)).
 
 Samsung TV (native) checks its version, tests the app's logic, builds its
-.tpk and checks the licences of its NuGet packages and its `NOTICES.txt`; a
+.tpk and checks the licenses of its NuGet packages and its `NOTICES.txt`; a
 release adds that .tpk as `pley-samsung-native-<version>.tpk`
 ([TV_PLATFORMS.md](TV_PLATFORMS.md#installing-a-release)).

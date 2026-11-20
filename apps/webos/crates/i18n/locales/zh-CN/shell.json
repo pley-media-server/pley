@@ -1,0 +1,58 @@
+{
+  "rail": {
+    "search": "搜索",
+    "home": "首页",
+    "discover": "发现",
+    "liveTv": "直播电视",
+    "libraries": "媒体库",
+    "playlists": "播放列表",
+    "collections": "合集",
+    "nowPlaying": "正在播放",
+    "storage": "U 盘",
+    "settings": "设置",
+    "profiles": "配置文件",
+    "switchProfile": "切换配置文件"
+  },
+  "exit": {
+    "title": "退出 Pley？",
+    "exit": "退出"
+  },
+  "offline": "Pley 处于离线状态",
+  "cast": {
+    "playingFrom": "正在播放来自 {{device}} 的内容",
+    "playingFromAnother": "正在播放来自其他设备的内容",
+    "nothingToPlay": "没有可播放的内容",
+    "switchFailed": "无法切换到遥控器的配置文件"
+  },
+  "placeholder": {
+    "notBuilt": "此页面尚未构建。",
+    "goBack": "返回"
+  },
+  "errors": {
+    "noServer": "未使用服务器"
+  },
+  "pages": {
+    "pin": "输入 PIN 码",
+    "library": "媒体库 {{id}}",
+    "collection": "合集 {{id}}",
+    "mergedCollection": "合集 {{ids}}",
+    "playlist": "播放列表 {{id}}",
+    "addToPlaylist": "将「{{title}}」添加到播放列表",
+    "newPlaylist": "新建播放列表",
+    "item": "项目 {{id}}",
+    "itemActions": "项目 {{id}} 的操作",
+    "person": "人物 {{id}}",
+    "artist": "艺人 {{id}}",
+    "album": "专辑 {{id}}",
+    "discoverList": "发现：{{list}}",
+    "discoverSearch": "在 TMDB 上：{{query}}",
+    "title": "TMDB 上的 {{kind}} {{id}}",
+    "requests": "请求",
+    "channel": "频道 {{id}}",
+    "player": "正在播放项目 {{id}}",
+    "settingsSection": "设置：{{section}}",
+    "history": "观看记录",
+    "diagnostics": "诊断",
+    "licences": "开源许可证"
+  }
+}

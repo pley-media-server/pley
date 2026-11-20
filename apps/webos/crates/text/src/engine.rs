@@ -15,7 +15,7 @@ use crate::raster::{self, GlyphBitmap};
 /// item page draws about a hundred).
 const CACHED_LAYOUTS: usize = 4096;
 /// Glyphs kept across those layouts: 4 MiB of placed glyphs, so a long text
-/// (a licence) can't hold memory without bound.
+/// (a license) can't hold memory without bound.
 const CACHED_GLYPHS: usize = 256 * 1024;
 
 /// Lays text out and rasterises its glyphs; shared by the interface (as its

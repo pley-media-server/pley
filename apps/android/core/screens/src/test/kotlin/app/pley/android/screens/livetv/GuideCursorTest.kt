@@ -73,14 +73,14 @@ class GuideCursorTest {
 
     @Test
     fun `Left goes back through a long programme before it leaves the guide`() {
-        // A five-hour programme from the guide's start, then another.
+        // A five-hour program from the guide's start, then another.
         val row = listOf(LiveProgram(1, start, start + 18_000, "Long"), LiveProgram(1, start + 18_000, start + 21_600, "Next"))
         var c = GuideCursor(start, now).moveRight(row)
         assertEquals("Next", c.current(row)?.title)
         assertTrue(c.left > start)
         c = c.moveLeft(row)!!
         assertEquals("Long", c.current(row)?.title)
-        // Back through the long programme a screen at a time, the grid with it, to the guide's start.
+        // Back through the long program a screen at a time, the grid with it, to the guide's start.
         val lefts = mutableListOf<Long>()
         while (c.left > start) {
             val back = c.moveLeft(row)

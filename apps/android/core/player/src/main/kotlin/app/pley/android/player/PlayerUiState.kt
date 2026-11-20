@@ -129,7 +129,7 @@ data class UpNextUi(
     val heading: String,
     /** Absolute address of its still (16:9), for the card; preloaded. */
     val imageUrl: String?,
-    /** Seconds before it plays by itself; `null` when it won't (autoplay off, or cancelled). */
+    /** Seconds before it plays by itself; `null` when it won't (autoplay off, or canceled). */
     val secondsLeft: Int?,
 )
 
@@ -212,7 +212,7 @@ data class PlayerUiState(
     val qualities: List<QualityChoice> = emptyList(),
     /** "Direct play", "Direct stream", "Transcoding"; `null` before the server answered. */
     val method: String? = null,
-    /** The way [method] names, for its badge's colour: a download plays as it is ([PlaybackMethod.Direct]). */
+    /** The way [method] names, for its badge's color: a download plays as it is ([PlaybackMethod.Direct]). */
     val playbackMethod: PlaybackMethod? = null,
     /** Why it plays this way when the player chose it: "The original didn't play smoothly on this device." */
     val note: String? = null,

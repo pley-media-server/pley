@@ -578,7 +578,7 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   and MP4 sample tables can't take more memory than a real one's.
 - Pictures come only from the metadata services' hosts over HTTPS,
   redirects included, and are read up to 25 MB whatever their headers say.
-  Live TV's channel logos and programme pictures are the exception: they
+  Live TV's channel logos and program pictures are the exception: they
   come from wherever the provider's lists say, plain HTTP included, as its
   streams do, up to 1 MB for a logo and 4 MB for a picture, and are kept
   only when they are JPEG, PNG, WebP or GIF.
@@ -775,7 +775,7 @@ Pley for iPhone, iPad, Mac and Apple TV (in development).
 - A token answer with more than the app asked for is revoked at once and
   never used.
 - Tokens are kept in the Keychain, readable after the first unlock, on this
-  device only: never synchronised to iCloud, never in a backup restored to
+  device only: never synchronized to iCloud, never in a backup restored to
   another device. A Mac build signed to run locally, without a team, keeps
   them in the login keychain instead, where "this device only" doesn't
   apply ([APPLE.md](docs/APPLE.md)). Signing out revokes them on the

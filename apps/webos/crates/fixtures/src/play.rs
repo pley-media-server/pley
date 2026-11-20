@@ -1427,8 +1427,8 @@ fn account_language(cx: &Cx<'_>, state: &mut State) -> Answer {
     let body = cx.req.json().filter(Value::is_object).ok_or_else(|| bad_request("the body isn't a language"))?;
     let language = match &body["language"] {
         Value::Null => None,
-        Value::String(l) if matches!(l.as_str(), "en" | "fr" | "es") => Some(l.clone()),
-        _ => return Err(bad_request("language is en, fr, es or null")),
+        Value::String(l) if matches!(l.as_str(), "en" | "fr" | "es" | "zh-CN" | "zh-TW") => Some(l.clone()),
+        _ => return Err(bad_request("language is en, fr, es, zh-CN, zh-TW or null")),
     };
     let profile = state.profile_mut(cx.caller().profile);
     profile.language = language;

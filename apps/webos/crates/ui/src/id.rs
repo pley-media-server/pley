@@ -50,7 +50,7 @@ impl Hasher for Fnv {
     }
 }
 
-/// MurmurHash3's finaliser, so ids made from neighbouring keys spread over a map's buckets.
+/// MurmurHash3's finalizer, so ids made from neighboring keys spread over a map's buckets.
 fn mix(mut h: u64) -> u64 {
     h ^= h >> 33;
     h = h.wrapping_mul(0xff51_afd7_ed55_8ccd);

@@ -1,0 +1,31 @@
+{
+  "actions": {
+    "back": "返回",
+    "cancel": "取消",
+    "close": "关闭",
+    "delete": "删除",
+    "done": "完成",
+    "ok": "确定",
+    "open": "打开",
+    "play": "播放",
+    "remove": "移除",
+    "resume": "继续播放",
+    "retry": "重试",
+    "save": "保存",
+    "seeAll": "查看全部",
+    "showMore": "显示更多",
+    "tryAgain": "重试"
+  },
+  "states": {
+    "loading": "加载中",
+    "saved": "已保存"
+  },
+  "server": {
+    "cantReach": "无法连接到你的服务器",
+    "check": "{{reason}} 检查服务器是否已开启，以及本机是否在同一网络。",
+    "nothingAnswers": "那边没有响应。",
+    "noAnswerInTime": "响应超时。",
+    "anotherDevice": "那边有另一台设备响应。",
+    "refused": "服务器拒绝了连接（HTTP {{status}}）"
+  }
+}

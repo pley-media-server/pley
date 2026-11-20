@@ -85,7 +85,7 @@ function profNeedsLabel(needs as string) as string
     return ""
 end function
 
-' A profile's colour ("#38bdf8") as Roku writes colours; the app's own
+' A profile's color ("#38bdf8") as Roku writes colors; the app's own
 ' surface without one.
 function profColor(hex as dynamic) as string
     text = httpString(hex)

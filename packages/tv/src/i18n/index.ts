@@ -1,5 +1,6 @@
 /**
- * The languages the Samsung app is in: English, French and Spanish.
+ * The languages the Samsung app is in: English, French, Spanish and Chinese
+ * (Simplified and Traditional, as {@link supportedLanguage} tells them apart).
  *
  * Each language's words are in `locales/<language>/<area>.json`, in the
  * web app's format (nested keys, `{{name}}`, `_one`/`_many`/`_other`),
@@ -20,13 +21,20 @@ import { createElement, Fragment, type ComponentChildren, type VNode } from "pre
 import { signal, type ReadonlySignal } from "@preact/signals";
 import { catalogs, type Catalog } from "./catalogs";
 
-export const LANGUAGES = ["en", "fr", "es"] as const;
+export const LANGUAGES = ["en", "fr", "es", "zh-CN", "zh-TW"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
-/** The language Pley has for a tag ("fr-CA", "FR_ca" → "fr"), if any. */
+/** The globe's mark for a language: its letters ("FR"), or for Chinese its script ("简", "繁"). */
+export function languageMark(language: Language): string {
+  return language === "zh-CN" ? "简" : language === "zh-TW" ? "繁" : language.toUpperCase();
+}
+
+/** The language Pley has for a tag ("fr-CA", "FR_ca" → "fr", "zh-Hant" → "zh-TW"), if any. */
 export function supportedLanguage(tag: string | null | undefined): Language | undefined {
-  const base = (tag ?? "").trim().split(/[-_]/)[0]!.toLowerCase();
-  return LANGUAGES.filter((language) => language === base)[0];
+  const [base, ...rest] = (tag ?? "").trim().toLowerCase().split(/[-_]/);
+  // Chinese is two languages: Traditional by its script or a region that writes it.
+  if (base === "zh") return rest.some((part) => ["hant", "tw", "hk", "mo"].includes(part)) ? "zh-TW" : "zh-CN";
+  return LANGUAGES.find((language) => language === base);
 }
 
 /** The first of the device's languages (its preferred first) that Pley has. */
@@ -117,8 +125,10 @@ export type PluralForm = "one" | "many" | "other";
  * The plural form of `n` in `language`, as CLDR has it: English "one" is
  * exactly 1; French "one" is 0 to 1.99…; Spanish "one" is 1. French and
  * Spanish say "many" for a whole number of millions (1 000 000, 2 000 000…).
+ * Chinese counts nothing: every number takes "other".
  */
 export function pluralForm(lang: Language, n: number): PluralForm {
+  if (lang === "zh-CN" || lang === "zh-TW") return "other";
   const abs = Math.abs(n);
   const whole = Math.floor(abs);
   const integer = whole === abs;

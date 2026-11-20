@@ -10,36 +10,44 @@ pub enum Language {
     En,
     Fr,
     Es,
+    ZhCn,
+    ZhTw,
 }
 
 impl Language {
     /// Every language, English first: the fallback.
-    pub const ALL: [Language; 3] = [Language::En, Language::Fr, Language::Es];
+    pub const ALL: [Language; 5] = [Language::En, Language::Fr, Language::Es, Language::ZhCn, Language::ZhTw];
 
-    /// Its ISO 639-1 code, as the server and `Accept-Language` write it: "fr".
+    /// Its code, as the server and `Accept-Language` write it: "fr", "zh-CN".
     pub const fn code(self) -> &'static str {
         match self {
             Language::En => "en",
             Language::Fr => "fr",
             Language::Es => "es",
+            Language::ZhCn => "zh-CN",
+            Language::ZhTw => "zh-TW",
         }
     }
 
-    /// Its name in itself, as the language lists show it: "Français".
+    /// Its name in itself, as the language lists show it: "Français", "简体中文".
     pub const fn name(self) -> &'static str {
         match self {
             Language::En => "English",
             Language::Fr => "Français",
             Language::Es => "Español",
+            Language::ZhCn => "简体中文",
+            Language::ZhTw => "繁體中文",
         }
     }
 
-    /// Its two letters as the globe shows them: "FR".
+    /// Its short mark as the globe shows it: "FR", or one character for Chinese ("简").
     pub const fn letters(self) -> &'static str {
         match self {
             Language::En => "EN",
             Language::Fr => "FR",
             Language::Es => "ES",
+            Language::ZhCn => "简",
+            Language::ZhTw => "繁",
         }
     }
 
@@ -51,16 +59,24 @@ impl Language {
         match i {
             1 => Language::Fr,
             2 => Language::Es,
+            3 => Language::ZhCn,
+            4 => Language::ZhTw,
             _ => Language::En,
         }
     }
 }
 
-/// The language Pley has for a tag ("fr-CA", "fr_FR", "FR" → French); none for one it hasn't, or
-/// none given.
+/// The language Pley has for a tag ("fr-CA", "fr_FR", "FR" → French, "zh-Hant" → Traditional
+/// Chinese); none for one it hasn't, or none given.
 pub fn supported(tag: Option<&str>) -> Option<Language> {
-    let code = tag?.trim().split(['-', '_', '.', '@']).next()?.to_ascii_lowercase();
-    Language::ALL.into_iter().find(|l| l.code() == code)
+    let tag = tag?.trim().to_ascii_lowercase();
+    let mut parts = tag.split(['-', '_', '.', '@']);
+    match parts.next()? {
+        // Chinese is two languages: Traditional by its script or a region that writes it.
+        "zh" if parts.any(|part| ["hant", "tw", "hk", "mo"].contains(&part)) => Some(Language::ZhTw),
+        "zh" => Some(Language::ZhCn),
+        base => Language::ALL.into_iter().find(|l| l.code() == base),
+    }
 }
 
 /// The first of the TV's languages Pley has; none for none.

@@ -25,6 +25,9 @@ function collection(id: number, title: string): Collection {
     builtin: null,
     home_position: null,
     recommended_position: null,
+    artwork: "automatic",
+    icon: null,
+    icon_color: null,
     item_count: 3,
     poster_url: "",
     backdrop_url: "",
@@ -37,7 +40,7 @@ const collections: Collection[] = [
   { ...collection(1, "Alien Collection"), automatic: true, category: ref(boxSets) },
   { ...collection(2, "Recently Added"), smart_filter: "sort=addedAt:desc", builtin: "recently_added", category: ref(highlights) },
   { ...collection(3, "Christmas"), smart_filter: "label=Christmas", category: ref(seasonal) },
-  collection(4, "Favourites"),
+  collection(4, "Favorites"),
 ];
 
 describe("groupByCategory", () => {
@@ -152,7 +155,7 @@ describe("CollectionsTab", () => {
 
   it("heads no group when there is only one", async () => {
     mockApi({
-      "GET /api/libraries/1/collections": () => ({ collections: [collection(4, "Favourites"), collection(5, "Westerns")] }),
+      "GET /api/libraries/1/collections": () => ({ collections: [collection(4, "Favorites"), collection(5, "Westerns")] }),
       "GET /api/collection-categories": () => ({ categories: [highlights, boxSets, seasonal] }),
     });
     renderWithProviders(<CollectionsTab libraryId={1} kind="movies" />);
@@ -174,7 +177,7 @@ describe("CollectionsTab", () => {
     await waitFor(() => expect(requests.some((r) => r.path === "/api/libraries/1/collections")).toBe(true));
     await screen.findByText("4 collections");
     // Not everything under Other while they're on their way.
-    expect(screen.queryByText("Favourites")).not.toBeInTheDocument();
+    expect(screen.queryByText("Favorites")).not.toBeInTheDocument();
 
     answer({ categories: [highlights, boxSets, seasonal] });
     const sections = await screen.findAllByRole("region");

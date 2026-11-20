@@ -1,0 +1,285 @@
+{
+  "names": {
+    "requests": "請求",
+    "yourRequests": "你的請求"
+  },
+  "kind": {
+    "movie": "電影",
+    "show": "劇集"
+  },
+  "tmdb": {
+    "credit": "詳情和圖片來自 TMDB。",
+    "notice": "本產品使用 TMDB API，但未獲得 TMDB 背書或認證。"
+  },
+  "counts": {
+    "seasons_other": "{{count, number}} 季",
+    "episodes_other": "{{count, number}} 集",
+    "movies_other": "{{count, number}} 部電影"
+  },
+  "quoted": "「{{text}}」",
+  "badge": {
+    "library": "媒體庫中",
+    "partial": "部分在媒體庫中",
+    "requested": "已請求",
+    "declined": "已拒絕"
+  },
+  "restricted": "超過此帳戶的年齡限制",
+  "notOpen": "此帳戶無法使用請求功能。",
+  "signInToDecide": "重新登入以在此審批或拒絕。",
+  "askedAlready": "已經有人請求過了。",
+  "unreachable": "無法連線到你的伺服器",
+  "declined": {
+    "plain": "已拒絕。",
+    "because": "已拒絕：「{{reason}}」。",
+    "when": "已拒絕。你可以在 {{when}} 再次請求。",
+    "becauseWhen": "已拒絕：「{{reason}}」。你可以在 {{when}} 再次請求。"
+  },
+  "seasons": {
+    "list_other": "第 {{list}} 季",
+    "andSpecials": "{{seasons}} 和特別篇",
+    "specials": "特別篇",
+    "season": "第 {{number}} 季"
+  },
+  "season": {
+    "library": "媒體庫中",
+    "partly": "部分在媒體庫中",
+    "requested": "已請求",
+    "declined": "已拒絕",
+    "episodesInLibrary_other": "媒體庫中有 {{count}} / {{episodes}} 集",
+    "airs": "{{day}} 播出",
+    "notAired": "尚未播出"
+  },
+  "picker": {
+    "title": "選擇哪些季？",
+    "pickOne": "選擇一季。",
+    "request_other": "請求 {{count}} 季"
+  },
+  "allowance": {
+    "canAsk": "你可以請求 {{list}}。",
+    "moreMovies_other": "還可請求 {{count, number}} 部電影",
+    "moreSeasons_other": "還可請求 {{count, number}} 季",
+    "moviesUsedUp": "你目前已用完可請求的電影數量。",
+    "moviesUsedUpUntil": "你目前已用完可請求的電影數量：{{when}} 後可再次請求。",
+    "seasonsUsedUp": "你目前已用完可請求的季數量。",
+    "seasonsUsedUpUntil": "你目前已用完可請求的季數量：{{when}} 後可再次請求。",
+    "allUsedUp": "你目前已用完可請求的數量。",
+    "allUsedUpUntil": "你目前已用完可請求的數量：電影 {{movies}}，季 {{seasons}}。",
+    "limits": "限制：每 7 天 {{list}}。",
+    "and": "{{first}} 和 {{second}}"
+  },
+  "stage": {
+    "pending": "等待審批",
+    "approved": "已批准",
+    "declined": "已拒絕",
+    "failed": "傳送失敗",
+    "notSent": "尚未傳送",
+    "notSentLine": "暫時無法傳送到下載：管理員會進行處理。",
+    "retry": "將在 {{when}} 重試。",
+    "notOut": "尚未上映",
+    "out": "{{day}} 上映",
+    "airs": "{{day}} 播出",
+    "searching": "搜尋中",
+    "importing": "正在新增到媒體庫",
+    "partial": "{{seasons}} 已就緒",
+    "partialSome": "部分季已就緒",
+    "available": "可以觀看了",
+    "outOfReach": "已就緒，但在你無法存取的媒體庫中：請聯絡管理員",
+    "gone": "已不在媒體庫中"
+  },
+  "download": {
+    "downloading": "下載中",
+    "queued": "等待下載",
+    "paused": "下載已暫停",
+    "warning": "下載出現問題",
+    "importing": "正在新增到媒體庫",
+    "progress": "下載中 {{percent}}%"
+  },
+  "asked": {
+    "byYou": "由你請求",
+    "byName": "由 {{name}} 請求",
+    "bySomeone": "由其他人請求",
+    "youFollow": "你已關注",
+    "following_other": "{{count}} 人關注"
+  },
+  "actions": {
+    "remove": "移除",
+    "withdraw": "撤回",
+    "unwatch": "取消關注",
+    "approve": "批准",
+    "retry": "重試",
+    "decline": "拒絕",
+    "declineReason": "註明原因後拒絕…",
+    "handled": "標記為手動新增",
+    "delete": "刪除",
+    "askAgain": "再次請求"
+  },
+  "confirm": {
+    "remove": "從你的請求中移除「{{title}}」？",
+    "withdraw": "撤回你對「{{title}}」的請求？",
+    "delete": "刪除此請求？",
+    "deleteBody": "Radarr 和 Sonarr 會保留已有內容。"
+  },
+  "done": {
+    "removed": "已從你的請求中移除「{{title}}」。",
+    "withdrew": "已撤回你對「{{title}}」的請求。",
+    "unfollowed": "你不再關注「{{title}}」。",
+    "approved": "已批准「{{title}}」。",
+    "retrying": "正在重試「{{title}}」。",
+    "declined": "已拒絕「{{title}}」。",
+    "handled": "已將「{{title}}」標記為手動新增。",
+    "deleted": "已刪除對「{{title}}」的請求。"
+  },
+  "asking": {
+    "following": "「{{title}}」就緒時會通知你。",
+    "failed": "已請求「{{title}}」，但暫時無法傳送到下載。",
+    "pending": "已請求「{{title}}」：由管理員決定。",
+    "approved": "「{{title}}」已批准，正在處理中。"
+  },
+  "news": {
+    "ready": "「{{title}}」可以觀看了。",
+    "seasonsReady_other": "「{{title}}」的 {{seasons}} 可以觀看了。",
+    "specialsReady": "「{{title}}」的特別篇可以觀看了。",
+    "several_other": "你的 {{count}} 個請求有新動態"
+  },
+  "problem": {
+    "off": "請求功能已關閉",
+    "offText": "此伺服器不接受電影和劇集請求。",
+    "noAccess": "此帳戶無法使用請求功能",
+    "noAccessText": "管理員可以允許它請求電影和劇集。",
+    "tmdbDown": "TMDB 沒有回應",
+    "tmdbDownText": "請稍後重試。",
+    "tmdbKey": "TMDB 拒絕了此伺服器的金鑰",
+    "tmdbKeyManage": "在網頁版的「設定 → 伺服器」中檢視。",
+    "tmdbKeyText": "需要管理員進行檢查。",
+    "signIn": "重新登入以請求電影和劇集",
+    "askAgain": "你可以在 {{when}} 再次請求。",
+    "declined": "請求已被拒絕。",
+    "askMore": "你可以在 {{when}} 請求更多。",
+    "atMostMovies_other": "每 7 天最多可請求 {{count, number}} 部電影：請少選一些。",
+    "atMostSeasons_other": "每 7 天最多可請求 {{count, number}} 季：請少選一些。",
+    "tooMany": "這超過了單次可請求的數量：請少選一些。",
+    "missing": "TMDB 中沒有此標題。"
+  },
+  "buttons": {
+    "signIn": "登入",
+    "open": "開啟",
+    "details": "詳情",
+    "request": "請求",
+    "requested": "已請求",
+    "following": "已關注",
+    "stopFollowing": "取消關注",
+    "tellMeToo": "也通知我",
+    "requestMoreSeasons": "請求更多季",
+    "overview": "簡介",
+    "retry": "重試",
+    "showMore": "顯示更多",
+    "seeAll": "檢視全部",
+    "back": "返回",
+    "cancel": "取消"
+  },
+  "signInAgain": {
+    "title": "重新登入？",
+    "body": "此電視將從伺服器登出，並顯示一個用於重新關聯的驗證碼。",
+    "bodyServer": "此電視將從 {{server}} 登出，並顯示一個用於重新關聯的驗證碼。"
+  },
+  "title": {
+    "notOnTmdb": "不在 TMDB 中",
+    "notOnTmdbText": "TMDB 中沒有此標題，或無法在此顯示。",
+    "loadFailed": "無法載入此標題",
+    "seasons": "季",
+    "cast": "演員"
+  },
+  "discover": {
+    "lists": {
+      "trending": "本週熱門",
+      "movies": "熱門電影",
+      "shows": "熱門劇集",
+      "upcoming": "即將上映",
+      "anime": "熱門動漫"
+    },
+    "loadFailed": "無法載入「發現」",
+    "nothing": "這裡暫時沒有內容",
+    "nothingText": "TMDB 的列表中沒有此設定檔可請求的內容。請改為搜尋標題。",
+    "nothingInList": "TMDB 的列表中沒有此設定檔可請求的內容。",
+    "nothingYet": "這裡暫時沒有內容",
+    "nothingSoFar": "目前已讀取的 TMDB 頁面中沒有此設定檔可請求的內容。",
+    "couldNotLoad": "無法載入",
+    "resultsFor": "「{{query}}」的搜尋結果",
+    "searchFailed": "搜尋 TMDB 失敗",
+    "nothingFound": "TMDB 中沒有與「{{query}}」匹配的內容",
+    "nothingFoundHint": "換個拼寫，或試試該標題的原語言。",
+    "nothingYetFor": "「{{query}}」暫時沒有結果"
+  },
+  "page": {
+    "loadFailed": "無法載入請求",
+    "all": "全部",
+    "attention": "需要處理",
+    "statuses": {
+      "pending": "待審批",
+      "approved": "已批准",
+      "available": "可用",
+      "declined": "已拒絕",
+      "failed": "失敗"
+    },
+    "kinds": {
+      "all": "電影和劇集",
+      "movie": "電影",
+      "show": "劇集"
+    },
+    "everyone": "所有人",
+    "askedBy": "請求人",
+    "titleFilter": "標題",
+    "search": "搜尋",
+    "findSomething": "查詢想請求的內容",
+    "newest": "最新 {{number}} 條顯示在此：篩選出其他內容。",
+    "deletedMeanwhile": "此請求已被刪除。",
+    "empty": {
+      "filtered": "沒有匹配的請求",
+      "filteredText": "試試其他篩選條件。",
+      "attention": "無需處理",
+      "attentionText": "等待決定的請求，以及傳送失敗的請求，會顯示在這裡。",
+      "none": "還沒有請求",
+      "noneText": "在「發現」中查詢電影和劇集，請求媒體庫中還沒有的內容。",
+      "noneTextOff": "你發起或關注的請求會顯示在這裡。"
+    }
+  },
+  "decline": {
+    "title": "拒絕「{{title}}」？",
+    "nameSees": "{{name}} 會看到它被拒絕，如果你填寫原因，也會看到原因。",
+    "someoneSees": "請求人會看到它被拒絕，如果你填寫原因，也會看到原因。",
+    "reason": "原因（可選）",
+    "done": "完成"
+  },
+  "dates": {
+    "day": "{{month}}{{day}}日",
+    "dayYear": "{{year}}年{{month}}{{day}}日"
+  },
+  "months": {
+    "jan": "1月",
+    "feb": "2月",
+    "mar": "3月",
+    "apr": "4月",
+    "may": "5月",
+    "jun": "6月",
+    "jul": "7月",
+    "aug": "8月",
+    "sep": "9月",
+    "oct": "10月",
+    "nov": "11月",
+    "dec": "12月"
+  },
+  "time": {
+    "justNow": "剛剛",
+    "minutesAgo": "{{minutes}} 分鐘前",
+    "hoursAgo_other": "{{count}} 小時前",
+    "yesterday": "昨天",
+    "daysAgo_other": "{{count}} 天前",
+    "now": "現在",
+    "inMinutes": "{{minutes}} 分鐘後",
+    "inHours_other": "{{count}} 小時後",
+    "tomorrow": "明天",
+    "inDays_other": "{{count}} 天后",
+    "today": "今天",
+    "dayAt": "{{day}} {{time}}"
+  }
+}

@@ -1,0 +1,227 @@
+{
+  "controls": {
+    "play": "播放",
+    "pause": "暫停",
+    "previous": "上一個",
+    "next": "下一個",
+    "subtitles": "字幕",
+    "audio": "音訊",
+    "quality": "畫質",
+    "chapters": "章節",
+    "info": "資訊",
+    "sleep": "睡眠定時",
+    "speed": "速度"
+  },
+  "status": {
+    "loading": "載入中",
+    "reconnecting": "重新連線中…",
+    "endsAt": "於 {{time}} 結束"
+  },
+  "markers": {
+    "intro": "片頭",
+    "credits": "片尾",
+    "skipIntro": "跳過片頭",
+    "skipCredits": "跳過片尾"
+  },
+  "upNext": {
+    "title": "接下來播放",
+    "episode": "接下來 · {{episode}}",
+    "playNow": "立即播放",
+    "cancel": "取消",
+    "nextIn": "{{seconds}} 秒後播放",
+    "lastEpisode": "這是最後一集",
+    "lastInQueue": "這是最後一個"
+  },
+  "subtitles": {
+    "off": "關閉",
+    "offToast": "字幕已關閉",
+    "shown": "字幕：{{track}}",
+    "failed": "無法載入這些字幕。",
+    "sync": "同步",
+    "syncHint": "OK 重設"
+  },
+  "look": {
+    "size": "字幕大小",
+    "background": "字幕背景",
+    "font": "字幕字型",
+    "position": "字幕位置",
+    "sizes": {
+      "small": "小",
+      "normal": "正常",
+      "large": "大",
+      "huge": "超大"
+    },
+    "positions": {
+      "bottom": "底部",
+      "raised": "略高",
+      "higher": "較高",
+      "highest": "最高"
+    },
+    "backgrounds": {
+      "none": "無",
+      "darkBox": "深色底框"
+    },
+    "fonts": {
+      "sansSerif": "無襯線",
+      "serif": "襯線",
+      "monospace": "等寬",
+      "casual": "手寫"
+    }
+  },
+  "audio": {
+    "delay": "音訊延遲",
+    "notOffered": "這臺電視的播放器不提供 {{chosen}}：當前播放 {{playing}}"
+  },
+  "quality": {
+    "original": "原始",
+    "automatic": "自動",
+    "preset": "{{mbps}} Mbps {{lines}}",
+    "automaticHint": "根據網路狀況動態調整",
+    "automaticPlaying": "自動 · {{quality}}",
+    "automaticNow": "當前 {{quality}}",
+    "lowered": "畫質已降至 {{quality}}",
+    "loweredNetwork": "因你的網路狀況降低",
+    "loweredDevice": "因這臺裝置降低",
+    "playOriginal": "播放原始畫質",
+    "playOriginalHint": "再次嘗試原始畫質",
+    "transcodeToast": "{{note}} “播放原始畫質”在“畫質”中。",
+    "slowServer": "伺服器無法跟上此影片。請嘗試更低畫質。",
+    "slowServerToast": "{{note}} 請在“畫質”中選擇。"
+  },
+  "fallback": {
+    "unplayable": "此裝置無法播放原始檔案。",
+    "notSmooth": "原始檔案在此裝置上播放不流暢。"
+  },
+  "speed": {
+    "passthrough": "聲音原樣傳給接收端時無法調整：它按其自身速度播放"
+  },
+  "method": {
+    "direct": "直接播放",
+    "remux": "直接轉封裝",
+    "transcode": "轉碼中",
+    "remuxAudio": "直接轉封裝 · 音訊轉碼"
+  },
+  "details": {
+    "title": "播放詳情",
+    "waiting": "正在詢問伺服器…",
+    "video": "影片",
+    "audio": "音訊",
+    "bitrate": "位元速率",
+    "encoder": "編碼器",
+    "shownAs": "顯示為",
+    "subtitles": "字幕",
+    "speed": "速度",
+    "network": "電視網路速度",
+    "burnedIn": "內嵌",
+    "toneMapped": "SDR（用 {{method}} 做色調對映）",
+    "realTime": "{{speed}}× 即時",
+    "realTimeReady": "{{speed}}× 即時 · 已就緒 {{seconds}} 秒",
+    "channels": "{{n}} 聲道",
+    "pipeline": {
+      "hybrid": "GPU 和 CPU",
+      "copy": "複製"
+    }
+  },
+  "readout": {
+    "howItPlays": "播放方式",
+    "thisTv": "這臺電視",
+    "file": "檔案",
+    "video": "影片",
+    "audio": "音訊",
+    "subtitles": "字幕",
+    "playback": "播放",
+    "why": "原因",
+    "quality": "畫質",
+    "currentBitrate": "當前位元速率",
+    "asInFile": "與檔案中一致",
+    "output": "輸出",
+    "track": "軌道",
+    "off": "關閉",
+    "shown": "顯示",
+    "fromServerText": "來自伺服器的文本",
+    "fromServerPictures": "來自伺服器的影像",
+    "burnedInByServer": "由伺服器內嵌",
+    "convertsTo": "轉換為",
+    "bitrate": "位元速率",
+    "decoder": "解碼器",
+    "videoDecoder": "影片解碼器",
+    "hardware": "{{decoder}}（硬體）",
+    "software": "{{decoder}}（軟體）",
+    "decoded": "已解碼",
+    "bitDepth": "{{n}} 位",
+    "codecString": "編解碼器字串",
+    "dropped": "掉幀",
+    "droppedFrames": "掉幀數",
+    "droppedOf": "{{dropped}} / {{frames}}",
+    "buffer": "緩衝",
+    "ahead": "領先 {{seconds}} 秒",
+    "bufferedAhead": "預緩衝",
+    "stalls": "卡頓",
+    "firstFrame": "首幀"
+  },
+  "chapters": {
+    "word": "章節",
+    "numbered": "第 {{number}} 章",
+    "named": "第 {{number}} 章 · {{name}}"
+  },
+  "sleep": {
+    "off": "關閉",
+    "minutes": "{{minutes}} 分鐘",
+    "minutesLeft_other": "剩餘 {{count}} 分鐘",
+    "endOfEpisode": "本集結束時",
+    "endOfTrack": "本曲目結束時",
+    "pausingIn": "{{seconds}} 秒後暫停",
+    "keepWatching": "繼續觀看",
+    "keepListening": "繼續收聽"
+  },
+  "spoken": {
+    "position": "{{elapsed}} / {{duration}}",
+    "hours_other": "{{count}} 小時",
+    "minutes_other": "{{count}} 分鐘",
+    "seconds_other": "{{count}} 秒"
+  },
+  "units": {
+    "seconds": "{{value}} 秒",
+    "milliseconds": "{{value}} 毫秒"
+  },
+  "cast": {
+    "nothingToPlay": "沒有可播放的內容",
+    "switchFailed": "無法切換到遙控器的設定檔",
+    "playingFrom": "從 {{device}} 播放",
+    "anotherDevice": "另一臺裝置"
+  },
+  "remote": {
+    "paused": "已暫停",
+    "playing": "正在播放",
+    "jumpedTo": "已跳轉到 {{time}}",
+    "audio": "音訊：{{track}}",
+    "quality": "畫質：{{quality}}"
+  },
+  "errors": {
+    "title": "無法播放此內容",
+    "stoppedTitle": "播放已停止",
+    "tryAgain": "重試",
+    "back": "返回",
+    "unplayable": "此影片無法在此裝置上播放。",
+    "stuck": "此影片無法在此裝置上播放：每次都在同一位置停止。",
+    "short": "此影片在預定播放位置之前就結束了。",
+    "stopped": "播放已停止，無法繼續。",
+    "network": "請確認伺服器已開啟，且此裝置與其在同一網路中。",
+    "failed": "播放失敗（{{details}}）。",
+    "noFile": "此內容沒有可播放的檔案。",
+    "serverTooOld": "此伺服器版本太舊，無法在此電視上播放：請更新。"
+  },
+  "stopped": {
+    "byAdmin": "伺服器管理員停止了播放。",
+    "elsewhere": "已從另一臺裝置停止播放。"
+  },
+  "engine": {
+    "cantDecodeSound": "電視無法解碼其聲音",
+    "cantDecodePicture": "電視無法解碼其畫面",
+    "cantOpenFile": "電視無法開啟此檔案",
+    "protected": "它受到保護",
+    "connectionFailed": "連線失敗",
+    "nothingAtAddress": "伺服器在其位址上沒有內容",
+    "interrupted": "電視把播放器挪作他用"
+  }
+}

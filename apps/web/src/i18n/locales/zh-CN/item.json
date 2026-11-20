@@ -1,0 +1,421 @@
+{
+  "loadError": "无法加载此项目",
+  "playTitle": "播放 {{title}}",
+  "playTitleOn": "在设备上播放 {{title}}…",
+  "pauseTitle": "暂停 {{title}}",
+  "playEpisode": "播放 {{episode}}",
+  "resumeEpisode": "继续播放 {{episode}}",
+  "shuffle": "随机播放",
+  "shuffleOn": "随机播放到…",
+  "smart": "智能",
+  "moveUp": "上移",
+  "moveDown": "下移",
+  "cast": "投屏",
+  "guestStars": "客串演员",
+  "moreLikeThis": "更多类似内容",
+  "versionNumber": "版本 {{number}}",
+  "counts": {
+    "albums_other": "{{count, number}} 张专辑",
+    "tracks_other": "{{count, number}} 首曲目",
+    "seasons_other": "{{count, number}} 季",
+    "episodes_other": "{{count, number}} 集",
+    "movies_other": "{{count, number}} 部电影",
+    "shows_other": "{{count, number}} 部剧集",
+    "collections_other": "{{count, number}} 个合集",
+    "items_other": "{{count, number}} 个条目",
+    "parts_other": "{{count, number}} 个部分"
+  },
+  "sectionError": {
+    "albums": "无法加载专辑：{{error}}",
+    "tracks": "无法加载曲目：{{error}}",
+    "seasons": "无法加载季：{{error}}",
+    "episodes": "无法加载剧集：{{error}}",
+    "parts": "无法加载分段：{{error}}"
+  },
+  "summary": {
+    "readMore": "阅读更多"
+  },
+  "watched": {
+    "markWatched": "标记为已观看",
+    "markUnwatched": "标记为未观看",
+    "watched": "已观看",
+    "unwatched": "未观看"
+  },
+  "myList": {
+    "add": "添加到我的片单",
+    "remove": "从我的片单中移除",
+    "inList": "已在我的片单中"
+  },
+  "video": {
+    "episodeNumber": "第 {{number}} 集",
+    "unavailable": "不可用",
+    "fromStart": "从头开始",
+    "version": "版本",
+    "audio": "音频",
+    "subtitles": "字幕",
+    "subtitlesOff": "关闭",
+    "originalTitle": "原始标题",
+    "released": "发行日期",
+    "network": "电视网",
+    "studio": "制作公司",
+    "plays": "播放次数"
+  },
+  "crew": {
+    "creator_other": "创作者",
+    "director_other": "导演",
+    "writer_other": "编剧",
+    "more_other": "还有 {{count}} 位"
+  },
+  "extras": {
+    "title": "花絮",
+    "types": {
+      "trailer": "预告片",
+      "behind_the_scenes": "幕后花絮",
+      "deleted_scene": "删减片段",
+      "featurette": "特别短片",
+      "interview": "访谈",
+      "scene": "片段",
+      "short": "短片",
+      "other": "其他花絮"
+    }
+  },
+  "actions": {
+    "more": "更多操作",
+    "addToPlaylist": "添加到播放列表…",
+    "addToCollection": "添加到合集…",
+    "refreshMetadata": "刷新元数据",
+    "refreshing": "正在刷新元数据…",
+    "findMarkers": "查找片头片尾",
+    "findingMarkers": {
+      "season": "正在此季中查找片头片尾…",
+      "show": "正在每一季中查找片头片尾…",
+      "item": "正在此项目中查找片头片尾…"
+    }
+  },
+  "edit": {
+    "menu": {
+      "details": "编辑详情…",
+      "match": "修正匹配…",
+      "thumb": "选择缩略图…",
+      "poster": "选择海报…",
+      "backdrop": "选择背景图…"
+    },
+    "details": {
+      "title": "编辑详情",
+      "hint": "编辑过的字段会被锁定 <lock/>，这样刷新元数据时会保留它们。解锁某个字段后，下次刷新会重新填充它。",
+      "nfoHint": "旁边的 NFO 文件中的字段优先于元数据源；而此处的编辑优先于它们。",
+      "genresPlaceholder": "剧情、惊悚",
+      "locked": "已锁定：点击解锁",
+      "willUnlock": "将被解锁",
+      "ratingCountry": "国家：{{country}}",
+      "ratingRegion": "按服务器所在国家的分级解读，在“设置 › 服务器”中设定",
+      "ratingCommon": "按美国及其他常用分级解读：服务器所在国家在此没有分级",
+      "fromNfo": "来自 NFO 文件",
+      "fields": {
+        "title": "标题",
+        "sort_title": "排序标题",
+        "original_title": "原始标题",
+        "year": "年份",
+        "release_date": "发行日期",
+        "content_rating": "分级",
+        "studio": "制作公司",
+        "tagline": "宣传语",
+        "genres": "类型",
+        "summary": "简介",
+        "labels": "标签"
+      },
+      "labelsHint": "只有管理员可见。“设置 → 用户”中配置文件的例外依据它们。",
+      "removeLabel": "移除 {{label}}"
+    },
+    "match": {
+      "title": "修正匹配",
+      "byHand": "此处为手动匹配。旁边的 NFO 文件不会改变此匹配，除非你撤销它。",
+      "undo": "撤销修正匹配",
+      "undone": "已撤销修正匹配",
+      "matched": "已匹配到“{{title}}”",
+      "noMatches": "没有匹配结果。试试其他标题或不填年份。",
+      "current": "当前"
+    },
+    "artwork": {
+      "titles": {
+        "poster": "选择海报",
+        "backdrop": "选择背景图",
+        "thumb": "选择缩略图"
+      },
+      "reset": "使用自动封面",
+      "resetDone": "已恢复自动封面",
+      "updated": "封面已更新",
+      "upload": "上传图片…",
+      "uploading": "正在上传…",
+      "loadError": "{{error}} 你仍然可以上传图片。",
+      "none": "TMDB 没有此项目的其他封面。"
+    }
+  },
+  "request": {
+    "see": "查看请求",
+    "moreSeasons": "请求更多季"
+  },
+  "mediaInfo": {
+    "title": "媒体信息",
+    "versions_other": "（{{count}} 个版本）",
+    "columns": {
+      "type": "类型",
+      "codec": "编解码器",
+      "language": "语言",
+      "details": "详情"
+    },
+    "kinds": {
+      "video": "视频",
+      "audio": "音频",
+      "subtitle": "字幕"
+    },
+    "rows": {
+      "file": "文件",
+      "container": "容器",
+      "size": "大小",
+      "duration": "时长",
+      "bitrate": "码率",
+      "video": "视频",
+      "audio": "音频"
+    },
+    "fps": "{{value}} fps",
+    "bitDepth": "{{depth}} 位",
+    "dvLevel": "DV 等级 {{level}}",
+    "imageBased": "基于图像",
+    "text": "文本",
+    "external": "外部",
+    "forced": "强制",
+    "default": "默认"
+  },
+  "music": {
+    "artist": "艺术家",
+    "album": "专辑",
+    "albums": "专辑",
+    "noAlbums": "未找到专辑。",
+    "tracks": "曲目",
+    "noTracks": "未找到曲目",
+    "title": "标题",
+    "time": "时长",
+    "disc": "碟 {{number}}"
+  },
+  "season": {
+    "breadcrumb": "面包屑导航",
+    "show": "剧集",
+    "episodes": "分集",
+    "noEpisodes": "未找到剧集。"
+  },
+  "show": {
+    "seasons": "季",
+    "noSeasons": "未找到季。"
+  },
+  "collection": {
+    "loadError": "无法加载此合集",
+    "label": "合集",
+    "sortNotes": {
+      "release": "按发行日期",
+      "title": "按标题",
+      "custom": "自定义顺序"
+    },
+    "edit": "编辑合集",
+    "manage": "排序和移除",
+    "doneManaging": "完成排序",
+    "delete": "删除合集",
+    "movies": "电影",
+    "shows": "剧集",
+    "emptyMovies": "此合集暂时为空。可以从电影页面添加，或右键点击海报添加。",
+    "emptyShows": "此合集暂时为空。可以从剧集页面添加，或右键点击海报添加。",
+    "deleteTitle": "删除合集？",
+    "deleteAutomatic": "“{{title}}”由 TMDB 生成：下次刷新这些电影的元数据时会重新出现。",
+    "deleteMovies": "“{{title}}”将被删除。其中的电影仍保留在媒体库中。",
+    "deleteShows": "“{{title}}”将被删除。其中的剧集仍保留在媒体库中。",
+    "deleted": "合集已删除",
+    "customOrderNote": "移动项目会将此合集切换为自定义顺序。",
+    "remove": "从合集中移除",
+    "removed": "已移除 {{title}}"
+  },
+  "collectionForm": {
+    "new": "新合集",
+    "saved": "合集已保存",
+    "title": "标题",
+    "summary": "简介",
+    "order": "顺序",
+    "orderHint": "此处修改的标题或简介会在刷新 TMDB 元数据时保留。",
+    "sorts": {
+      "release": "发行日期",
+      "title": "标题",
+      "custom": "自定义"
+    },
+    "category": "分类",
+    "categoryHint": "合集在“合集”标签页中按分类分组。",
+    "onRecommended": "显示在媒体库的“推荐”标签页",
+    "onHome": "显示在主页"
+  },
+  "collectionPoster": {
+    "title": "更换海报",
+    "background": "背景",
+    "posters": "海报",
+    "custom": "图片",
+    "customHint": "上传一张图片作为此合集的海报。",
+    "customHas": "此合集使用你上传的图片。再上传一张即可替换。",
+    "postersHint": "最多四张海报排成网格；只有一张时就用那一张。",
+    "postersTmdb": "TMDB 上此合集的海报；TMDB 没有时，用其中前几张海报。",
+    "postersIconHint": "前四张海报排成网格，底部一条色带上显示其图标。",
+    "colorHint": "其图标显示在专属的颜色上。",
+    "color": "颜色",
+    "iconLabel": "图标",
+    "noIcon": "无图标",
+    "noIconOnColor": "颜色背景需要一个图标",
+    "saved": "海报已更新",
+    "colors": {
+      "red": "红色",
+      "orange": "橙色",
+      "amber": "琥珀色",
+      "green": "绿色",
+      "teal": "青色",
+      "blue": "蓝色",
+      "violet": "紫罗兰色",
+      "pink": "粉色",
+      "slate": "石板灰"
+    },
+    "icons": {
+      "star": "星星",
+      "clock": "时钟",
+      "calendar": "日历",
+      "eye-off": "未观看",
+      "heart": "爱心",
+      "flame": "火焰",
+      "trophy": "奖杯",
+      "award": "奖章",
+      "sparkles": "闪光",
+      "ghost": "幽灵",
+      "rocket": "火箭",
+      "wand-sparkles": "魔杖",
+      "drama": "戏剧面具",
+      "face-grinning": "笑脸",
+      "swords": "双剑",
+      "zap": "闪电",
+      "fingerprint": "指纹",
+      "mountain-snow": "雪山",
+      "globe": "地球",
+      "landmark": "纪念碑",
+      "video": "摄像机",
+      "dog": "狗",
+      "baby": "婴儿",
+      "users": "人物",
+      "popcorn": "爆米花",
+      "book-open": "书",
+      "snowflake": "雪花",
+      "sun": "太阳",
+      "leaf": "叶子",
+      "tree-pine": "松树",
+      "clapperboard": "场记板",
+      "tv": "电视",
+      "music": "音乐",
+      "book-headphones": "有声书",
+      "layers": "图层"
+    }
+  },
+  "collections": {
+    "loadError": "无法加载合集",
+    "empty": "还没有合集",
+    "moviesHint": "当同一 TMDB 合集中有两部电影在此媒体库中时，就会在此分组。",
+    "moviesHintAdmin": "当同一 TMDB 合集中有两部电影在此媒体库中时，就会在此分组。你也可以自行创建合集。",
+    "showsHintAdmin": "将剧集分组到你自己的合集中。",
+    "noneHere": "此媒体库中还没有合集。",
+    "type": "类型",
+    "types": {
+      "all": "所有类型",
+      "manual": "手动创建",
+      "smart": "智能",
+      "tmdb": "来自 TMDB"
+    },
+    "category": "分类",
+    "allCategories": "所有分类",
+    "clearFilters": "清除筛选",
+    "noMatches": "没有符合这些筛选条件的合集"
+  },
+  "playlist": {
+    "loadError": "无法加载此播放列表",
+    "video": "视频播放列表",
+    "music": "音乐播放列表",
+    "rename": "重命名播放列表",
+    "delete": "删除播放列表",
+    "noMatches": "目前没有符合此播放列表筛选条件的内容。",
+    "emptyVideo": "此播放列表为空。可以在电影、剧集或单集上使用“添加到播放列表”，或右键点击海报。",
+    "emptyMusic": "此播放列表为空。可以在艺术家或专辑上使用“添加到播放列表”，或右键点击海报。",
+    "items": "播放列表条目",
+    "remove": "从播放列表中移除",
+    "deleteTitle": "删除播放列表？",
+    "deleteMessage": "“{{title}}”将被删除。其中的内容仍保留在你的媒体库中。",
+    "deleted": "播放列表已删除"
+  },
+  "playlistForm": {
+    "new": "新播放列表",
+    "title": "标题",
+    "for": "用于",
+    "kind": "播放列表类型",
+    "video": "电影和剧集",
+    "audio": "音乐"
+  },
+  "playlists": {
+    "title": "播放列表",
+    "loadError": "无法加载你的播放列表",
+    "empty": "还没有播放列表",
+    "emptyHint": "可以在此处创建，或在电影、剧集、专辑或单集上使用“添加到播放列表”（也可以右键点击海报）。"
+  },
+  "book": {
+    "kind": "有声书",
+    "and": "和",
+    "by": "作者：{{names}}",
+    "readBy": "由 {{names}} 朗读",
+    "seriesPlace": "{{series}}，第 {{number, number}} 册",
+    "progress": "已收听",
+    "pause": "暂停",
+    "resume": "继续",
+    "listenAgain": "重新收听",
+    "fromStart": "从头开始",
+    "upTo": "至 {{part}}",
+    "parts": "分段",
+    "chapters": "章节",
+    "heard": "已完成",
+    "markListened": "标记为已收听",
+    "markUnlistened": "标记为未收听",
+    "listened": "已收听",
+    "unlistened": "未收听",
+    "percentListened": "已收听 {{percent}}"
+  },
+  "categories": {
+    "manage": "分类",
+    "title": "分类",
+    "hint": "合集在每个媒体库中按这些分类及此顺序分组。没有分类的归入“其他”。",
+    "newName": "新分类",
+    "deleteTitle": "删除分类？",
+    "deleteMessage": "“{{title}}”将被删除。其中的合集会保留在“其他”下。",
+    "drag": "拖动以排序",
+    "rename": "重命名 {{title}}",
+    "delete": "删除 {{title}}",
+    "moveUp": "将 {{title}} 上移",
+    "moveDown": "将 {{title}} 下移",
+    "moved": "{{title}} 已移到第 {{position}} 位，共 {{total}} 个",
+    "fromLabel": "来自标签 {{label}}",
+    "pleys": "Pley 的",
+    "taken": "已有其他分类使用此名称。"
+  },
+  "rows": {
+    "drag": "拖动以排序",
+    "moveUp": "将 {{title}} 上移",
+    "moveDown": "将 {{title}} 下移",
+    "remove": "移除 {{title}}",
+    "moved": "{{title}} 已移到第 {{position}} 位，共 {{total}} 个",
+    "recommendedTitle": "推荐栏目",
+    "recommendedHint": "在此媒体库的“推荐”标签页中显示为栏目的合集，位于“继续观看”之后，对所有人可见。",
+    "restore": "恢复 Pley 的默认设置",
+    "restored_other": "已恢复 {{count, number}} 个合集",
+    "nothingToRestore": "无需恢复：Pley 的合集都已就位",
+    "noRows": "还没有栏目。",
+    "add": "添加栏目",
+    "pick": "选择合集",
+    "homeTitle": "主页栏目",
+    "homeHint": "主页上位于“继续观看”和“我的片单”之后的栏目，对所有人可见。多个媒体库中同名的合集会合并为一个栏目。可以在合集的编辑窗口中将其添加到主页。"
+  }
+}

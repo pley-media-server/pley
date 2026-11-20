@@ -1,5 +1,5 @@
 //! Live TV (docs/API.md, "Live TV"): a source's channels and guide read from
-//! a stand-in IPTV provider, favourites, who may watch, and the connections
+//! a stand-in IPTV provider, favorites, who may watch, and the connections
 //! to the provider: one per channel however many watch it, no more than the
 //! source allows, and a device changing channels freeing its own.
 
@@ -230,7 +230,7 @@ async fn channels_guide_favourites_and_connections() {
     assert_eq!(logo.bytes, PNG);
     assert!(channels[1]["logo"].is_null());
 
-    // Favourites are each user's own.
+    // Favorites are each user's own.
     assert_eq!(
         app.put(&format!("/api/live/channels/{two_id}/favorite"), &bob, json!({})).await.status,
         StatusCode::NO_CONTENT
@@ -328,7 +328,7 @@ async fn channels_guide_favourites_and_connections() {
 }
 
 /// A guide channel set by hand that no channel wanted when the guide was
-/// read has its programmes at once: the guide is read again for it, and
+/// read has its programs at once: the guide is read again for it, and
 /// only for it.
 #[tokio::test]
 async fn a_guide_channel_set_by_hand_has_its_programmes_at_once() {
@@ -358,7 +358,7 @@ async fn a_guide_channel_set_by_hand_has_its_programmes_at_once() {
     wait_until_read(&app, &admin).await;
     assert_eq!(provider.guides.load(Ordering::SeqCst), 2);
 
-    // One's guide channel has its programmes already: no read for it.
+    // One's guide channel has its programs already: no read for it.
     let set = app.patch("/api/live/lineup", &admin, json!({"ids": [ten_id], "guide_id": "one.test"})).await;
     assert_eq!(set.status, StatusCode::NO_CONTENT);
     let ten = app.get(&format!("/api/live/channels/{ten_id}"), &admin).await.body;
@@ -367,7 +367,7 @@ async fn a_guide_channel_set_by_hand_has_its_programmes_at_once() {
     assert_eq!(provider.guides.load(Ordering::SeqCst), 2);
 }
 
-/// Channel `id`'s programme on now, once it has one (within 10 s).
+/// Channel `id`'s program on now, once it has one (within 10 s).
 async fn on_now(app: &TestApp, admin: &str, id: i64) -> Value {
     for _ in 0..100 {
         let now = app.get(&format!("/api/live/channels/{id}"), admin).await.body["now"].clone();

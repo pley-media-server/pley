@@ -392,6 +392,7 @@ pub async fn refresh(
         return Err(AppError::bad_request(match row.kind.as_str() {
             "movie" => "add a TMDB API key in Settings → Server to fetch metadata",
             "artist" | "album" | "track" => "turn on MusicBrainz in Settings → Server to fetch metadata",
+            "audiobook" | "part" => "turn on Open Library and Audnexus in Settings → Server to fetch metadata",
             _ => "choose a TV source in Settings → Server to fetch metadata",
         }));
     }
@@ -475,7 +476,7 @@ pub(crate) async fn artwork(
 
 /// Path of the artwork file, generating it (frame grab, embedded cover) or
 /// falling back to the parent's artwork when the item has none.
-async fn resolve_artwork(state: &AppState, id: i64, kind: &str) -> ApiResult<PathBuf> {
+pub(crate) async fn resolve_artwork(state: &AppState, id: i64, kind: &str) -> ApiResult<PathBuf> {
     let mut current = id;
     for _ in 0..3 {
         let row: ArtworkPaths =

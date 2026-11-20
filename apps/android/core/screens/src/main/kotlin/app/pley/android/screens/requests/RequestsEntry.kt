@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.stateIn
 /**
  * The ways into requests, for the shells' menus and the
  * search screens: Discover, and Your requests (Requests for managers)
- * carrying one number, in the danger colour while failed requests wait
+ * carrying one number, in the danger color while failed requests wait
  * for a manager.
  */
 data class RequestsEntry(
@@ -33,7 +33,7 @@ data class RequestsEntry(
     /** Managers: of [badge], the failed requests waiting for one. */
     val failed: Int = 0,
 ) {
-    /** The number is in the danger colour. */
+    /** The number is in the danger color. */
     val alarm: Boolean get() = failed > 0
 
     companion object {

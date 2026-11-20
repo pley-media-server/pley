@@ -1,0 +1,23 @@
+{
+  "hero": {
+    "play": "播放",
+    "resume": "继续播放",
+    "fromStart": "从头播放",
+    "info": "详情",
+    "markWatched": "标记为已看",
+    "markUnwatched": "标记为未看"
+  },
+  "seeAll": "查看全部",
+  "nothingToPlay": "暂无可播放内容",
+  "states": {
+    "offline": "无法访问你的服务器",
+    "failed": "无法加载主页",
+    "noLibraries": "暂无媒体库",
+    "noLibrariesBody": "请让服务器所有者添加媒体库。",
+    "scanning": "正在扫描媒体库…",
+    "scanningBody": "发现新内容后会立即显示在这里。",
+    "empty": "这里还是空的",
+    "emptyBody": "媒体库为空。将媒体放入库文件夹后运行扫描。",
+    "retry": "重试"
+  }
+}

@@ -6,7 +6,7 @@ private struct NoBody: Encodable, Sendable {}
 
 /// Live TV (docs/API.md, "Live TV"): whether it shows, its groups, a
 /// category's channels a page at a time, the guide of the channels in
-/// view, favourites, and watching a channel. A provider lists tens of
+/// view, favorites, and watching a channel. A provider lists tens of
 /// thousands of channels: nothing here asks for them all.
 extension PleyAPI {
     /// `GET /api/live`: whether Live TV is open to this profile and has channels.
@@ -41,7 +41,7 @@ extension PleyAPI {
         try await client.get("/api/live/channels/\(id)", as: LiveChannel.self)
     }
 
-    /// `GET /api/live/guide`: the programmes of `ids` between `from` and `to` (unix seconds).
+    /// `GET /api/live/guide`: the programs of `ids` between `from` and `to` (unix seconds).
     public func liveGuide(from: Int64, to: Int64, ids: [Int]) async throws -> LiveGuide {
         try await client.get("/api/live/guide", query: [
             URLQueryItem(name: "from", value: String(from)),

@@ -12,12 +12,12 @@
   "noGuideHere": "No guide for this channel",
   "noChannel": "No channel {{number}}",
   "favourites": {
-    "add": "Add to favourites",
-    "remove": "Remove from favourites",
-    "added": "{{name}} is a favourite",
-    "removed": "{{name}} isn't a favourite any more",
-    "addFailed": "Couldn't add it to your favourites",
-    "removeFailed": "Couldn't take it out of your favourites"
+    "add": "Add to favorites",
+    "remove": "Remove from favorites",
+    "added": "{{name}} is a favorite",
+    "removed": "{{name}} isn't a favorite any more",
+    "addFailed": "Couldn't add it to your favorites",
+    "removeFailed": "Couldn't take it out of your favorites"
   },
   "time": {
     "today": "Today",
@@ -34,7 +34,7 @@
     "title": "Categories",
     "search": "Search channels and groups",
     "all": "All channels",
-    "favourites": "Favourites",
+    "favourites": "Favorites",
     "recent": "Recently watched",
     "regions": "Regions",
     "moreGroups": "More groups",
@@ -54,12 +54,12 @@
     "noChannelsHint": "Channels show here once an administrator adds an IPTV provider.",
     "channelCount_one": "{{count, number}} channel",
     "channelCount_other": "{{count, number}} channels",
-    "noFavourites": "No favourites yet",
+    "noFavourites": "No favorites yet",
     "noFavouritesHint": "Mark a channel with its menu key, or in the player, to find it here.",
     "nothingWatched": "Nothing watched yet",
     "nothingWatchedHint": "The channels you watch show here.",
     "noMatch": "No channels match",
-    "noMatchHint": "No channel's name, number or programme on now has “{{search}}” in it.",
+    "noMatchHint": "No channel's name, number or program on now has “{{search}}” in it.",
     "empty": "No channels here",
     "emptyHint": "This group has no channels to show.",
     "searchAgain": "Search again"

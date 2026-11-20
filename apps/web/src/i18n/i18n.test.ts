@@ -107,6 +107,15 @@ describe("pickLanguage", () => {
     }
   });
 
+  it("tells the two Chinese languages apart by their tag", () => {
+    expect(supportedLanguage("zh-CN")).toBe("zh-CN");
+    expect(supportedLanguage("zh-TW")).toBe("zh-TW");
+    expect(supportedLanguage("zh-Hans")).toBe("zh-CN");
+    expect(supportedLanguage("zh_Hant")).toBe("zh-TW");
+    expect(supportedLanguage("zh-HK")).toBe("zh-TW");
+    expect(supportedLanguage("zh")).toBe("zh-CN");
+  });
+
   it("writes dates and numbers the browser's way when it is in the language shown", async () => {
     Object.defineProperty(navigator, "languages", { value: ["en-GB", "fr-CA"], configurable: true });
     try {

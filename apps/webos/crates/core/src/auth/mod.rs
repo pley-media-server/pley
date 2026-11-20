@@ -169,7 +169,7 @@ impl From<AuthError> for ApiError {
 /// POSTs `fields` as a form to a token, device or revocation endpoint (15 s,
 /// no redirects); the answer when it is 2xx, else the refusal.
 ///
-/// Never cancelled with the task that asks: a refresh or switch whose answer
+/// Never canceled with the task that asks: a refresh or switch whose answer
 /// is lost has spent the refresh token on the server, which ends the sign-in.
 pub(crate) fn post_form(http: &Http, url: &str, fields: &[(&str, &str)]) -> Result<Response, AuthError> {
     let req = Request::new(crate::http::Method::Post, url)

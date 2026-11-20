@@ -13,6 +13,8 @@ pub enum Language {
     En,
     Fr,
     Es,
+    ZhCn,
+    ZhTw,
 }
 
 impl Language {
@@ -21,16 +23,22 @@ impl Language {
             Self::En => "en",
             Self::Fr => "fr",
             Self::Es => "es",
+            Self::ZhCn => "zh-CN",
+            Self::ZhTw => "zh-TW",
         }
     }
 
-    /// The language Pley has for a tag ("fr-CA" → French), if any.
+    /// The language Pley has for a tag ("fr-CA" → French, "zh-Hant" → traditional Chinese), if any.
     pub fn of(tag: &str) -> Option<Self> {
-        let base = tag.trim().split(['-', '_']).next()?.to_ascii_lowercase();
-        match base.as_str() {
+        let tag = tag.trim().to_ascii_lowercase();
+        let mut parts = tag.split(['-', '_']);
+        match parts.next()? {
             "en" => Some(Self::En),
             "fr" => Some(Self::Fr),
             "es" => Some(Self::Es),
+            // Chinese is two languages: Traditional by its script or a region that writes it.
+            "zh" if parts.any(|part| ["hant", "tw", "hk", "mo"].contains(&part)) => Some(Self::ZhTw),
+            "zh" => Some(Self::ZhCn),
             _ => None,
         }
     }
@@ -52,7 +60,7 @@ impl Language {
     }
 
     fn notices(self) -> &'static Map<String, Value> {
-        static CATALOGS: OnceLock<[Map<String, Value>; 3]> = OnceLock::new();
+        static CATALOGS: OnceLock<[Map<String, Value>; 5]> = OnceLock::new();
         let catalogs = CATALOGS.get_or_init(|| {
             let notices = |json: &str| match serde_json::from_str::<Value>(json) {
                 Ok(Value::Object(mut catalog)) => match catalog.remove("notices") {
@@ -65,6 +73,8 @@ impl Language {
                 notices(include_str!("../../src/locales/en.json")),
                 notices(include_str!("../../src/locales/fr.json")),
                 notices(include_str!("../../src/locales/es.json")),
+                notices(include_str!("../../src/locales/zh-CN.json")),
+                notices(include_str!("../../src/locales/zh-TW.json")),
             ]
         });
         &catalogs[self as usize]
@@ -114,6 +124,8 @@ impl Language {
                     "other"
                 }
             }
+            // Chinese has one form for every count.
+            Self::ZhCn | Self::ZhTw => "other",
         }
     }
 }
@@ -153,17 +165,23 @@ mod tests {
         assert_eq!(Language::pick(Some("de"), &device(&["de-DE"]), Some("fr")), Language::Fr);
         assert_eq!(Language::pick(None, &device(&["de-DE"]), None), Language::En);
         assert_eq!(Language::of("FR_ca"), Some(Language::Fr));
+        assert_eq!(Language::of("zh-CN"), Some(Language::ZhCn));
+        assert_eq!(Language::of("zh-TW"), Some(Language::ZhTw));
+        assert_eq!(Language::of("zh-Hans"), Some(Language::ZhCn));
+        assert_eq!(Language::of("zh_Hant"), Some(Language::ZhTw));
+        assert_eq!(Language::of("zh"), Some(Language::ZhCn));
         assert_eq!(Language::of(""), None);
     }
 
     #[test]
     fn each_language_has_its_words_and_english_fills_in() {
-        for language in [Language::En, Language::Fr, Language::Es] {
+        for language in [Language::En, Language::Fr, Language::Es, Language::ZhCn, Language::ZhTw] {
             for key in ["quoted", "andSpecials", "specials", "ready", "specialsReady", "approved", "declined"] {
                 assert!(!language.notices().get(key).and_then(Value::as_str).unwrap_or_default().is_empty(), "{key}");
             }
         }
         assert_eq!(Language::Fr.say("ready", &[("title", "Heat")]), "Heat est prêt à regarder.");
+        assert_eq!(Language::ZhCn.say("ready", &[("title", "Heat")]), "Heat 可以观看了。");
         assert_eq!(Language::Es.say("missing", &[]), "", "nothing for a key no language has");
     }
 
@@ -173,6 +191,9 @@ mod tests {
         assert_eq!(Language::En.say_counted("news", 1, &[]), "1 of your requests has news.");
         assert_eq!(Language::Fr.say_counted("news", 0, &[]), "0 de vos demandes a du nouveau.");
         assert_eq!(Language::Es.say_counted("news", 2, &[]), "2 de tus solicitudes tienen novedades.");
+        assert_eq!(Language::ZhCn.say_counted("news", 3, &[]), "你的 3 个请求有新动态。");
+        assert_eq!(Language::ZhTw.say_counted("news", 3, &[]), "你的 3 個請求有新動態。");
+        assert_eq!(Language::ZhCn.plural(2_000_000), "other");
         assert_eq!(Language::Fr.plural(2_000_000), "many");
         assert_eq!(Language::En.plural(2_000_000), "other");
     }

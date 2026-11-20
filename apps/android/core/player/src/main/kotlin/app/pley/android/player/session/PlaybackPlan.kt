@@ -284,12 +284,12 @@ object PlaybackPlan {
 }
 
 /**
- * The Dolby Vision guards: a session that would show wrong colours is
+ * The Dolby Vision guards: a session that would show wrong colors is
  * asked for again another way.
  *
  * - A remux of profile 5 that doesn't name its Dolby Vision (an older
  *   server, or none in its master playlist): TS segments lose the
- *   signalling, and profile 5 has no base layer to fall back to, so the
+ *   signaling, and profile 5 has no base layer to fall back to, so the
  *   picture comes out green and purple. It is transcoded instead
  *   (tone-mapped). One whose answer says it stays Dolby Vision
  *   ([PlaybackInfo.videoRange], "Dolby Vision P5") plays as it comes.

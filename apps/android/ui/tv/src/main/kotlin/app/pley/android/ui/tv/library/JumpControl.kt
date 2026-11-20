@@ -139,7 +139,7 @@ private fun Neighbour(letter: Int, index: AlphaIndex) {
     }
 }
 
-/** Above and below the circle, for the neighbouring letters. */
+/** Above and below the circle, for the neighboring letters. */
 internal val NeighbourRoom = 20.dp
 
 /** The jump control's test tag. */

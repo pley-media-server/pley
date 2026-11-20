@@ -161,7 +161,7 @@ describe("the rail's way to requests", () => {
     expect(withRequests(2, summary())).toEqual(["search", "home", "discover", "library:1", "library:2", "playlists", "collections"]);
   });
 
-  it("carries the one number: managers' waiting requests in the danger colour while some failed, everyone else's news", () => {
+  it("carries the one number: managers' waiting requests in the danger color while some failed, everyone else's news", () => {
     expect(requestsEntry(summary({ manage: true, pending: 2, failed: 1, unseen: 1 }))?.badge).toEqual({ count: 4, danger: true });
     expect(requestsEntry(summary({ unseen: 2, pending: 9 }))?.badge).toEqual({ count: 2, danger: false });
     expect(requestsEntry(summary())?.badge).toBeUndefined();

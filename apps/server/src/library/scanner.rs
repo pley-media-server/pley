@@ -120,6 +120,26 @@ pub struct Scanner {
     /// Home ticks them off until the last is done.
     first_done: Mutex<Vec<ScanStatus>>,
     failures: Mutex<ScanFailures>,
+    /// Movie libraries whose scans leave copies of a movie unmerged
+    /// ([`super::merge`]), while the Plex import holds the ids of their
+    /// titles (see [`MergesHeld`]).
+    merges_held: Mutex<HashSet<i64>>,
+}
+
+/// Holds off merging copies of a movie in libraries after their scans until
+/// dropped (see [`Scanner::hold_merges`]).
+pub struct MergesHeld {
+    scanner: Arc<Scanner>,
+    libraries: Vec<i64>,
+}
+
+impl Drop for MergesHeld {
+    fn drop(&mut self) {
+        let mut held = self.scanner.merges_held.lock();
+        for library in &self.libraries {
+            held.remove(library);
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -221,9 +241,18 @@ impl Scanner {
             status: Mutex::default(),
             first_done: Mutex::default(),
             failures: Mutex::default(),
+            merges_held: Mutex::default(),
         });
         tokio::spawn(scanner.clone().worker(rx));
         scanner
+    }
+
+    /// Scans of `libraries` leave copies of a movie unmerged until the
+    /// answer is dropped: the Plex import's, while it brings what was done
+    /// with the titles it found by their ids.
+    pub fn hold_merges(self: &Arc<Self>, libraries: &[i64]) -> MergesHeld {
+        self.merges_held.lock().extend(libraries);
+        MergesHeld { scanner: self.clone(), libraries: libraries.to_vec() }
     }
 
     /// Whether the periodic scan of `lib` is due ([`ScanFailures::due`]).
@@ -461,6 +490,15 @@ impl Scanner {
                 tracing::warn!("metadata refresh for library {} failed: {err:#}", lib.id);
             }
             self.events.send(ServerEvent::LibraryChanged { library_id });
+        }
+        // Copies of a movie matched to the same title (by TMDB, or by their
+        // NFO files without it) become one movie.
+        if lib.kind() == LibraryKind::Movies && !self.merges_held.lock().contains(&library_id) {
+            match super::merge::same_movies(&self.db, library_id).await {
+                Ok(merged) if !merged.is_empty() => self.events.send(ServerEvent::LibraryChanged { library_id }),
+                Ok(_) => {}
+                Err(err) => tracing::warn!("merging copies of the same movie in library {library_id} failed: {err}"),
+            }
         }
         if totals.removed > 0 {
             self.metadata.prune_people().await;
@@ -1073,18 +1111,7 @@ impl<'a> Writer<'a> {
         file: &FoundFile,
         duration: Option<i64>,
     ) -> anyhow::Result<i64> {
-        let name = parse_movie(&file.path, &file.root);
-        let key = match name.tmdb_id {
-            Some(id) => format!("movie:tmdb:{id}"),
-            None => format!("movie:{}:{}", normalize_key(&name.title), name.year.unwrap_or(0)),
-        };
-        let mut item = NewItem::new("movie", key, name.title);
-        item.year = name.year;
-        item.duration_ms = duration;
-        item.tmdb_id = name.tmdb_id;
-        item.imdb_id = name.imdb_id;
-        item.path = file.path.parent().filter(|p| *p != file.root).map(path_str);
-        Ok(upsert_item(conn, self.library_id, &item).await?)
+        Ok(movie_for_file(conn, self.library_id, &file.path, &file.root, duration, true).await?)
     }
 
     async fn write_episode(
@@ -1250,7 +1277,9 @@ struct StoredTags {
 }
 
 /// Writes what a book's first part says of it where that changed: its
-/// folder, and unless its details are locked, the rest.
+/// folder, and unless its details are locked, the rest. That takes away
+/// what an online source filled in, so the book is looked up again after
+/// the scan.
 async fn save_book(conn: &mut SqliteConnection, id: i64, name: &AudiobookName, now: i64) -> anyhow::Result<()> {
     let path = name.book_dir.as_deref().map(path_str);
     sqlx::query("UPDATE items SET path = ?1, updated_at = ?2 WHERE id = ?3 AND path IS NOT ?1")
@@ -1264,7 +1293,7 @@ async fn save_book(conn: &mut SqliteConnection, id: i64, name: &AudiobookName, n
     let narrators = (!name.narrators.is_empty()).then(|| serde_json::to_string(&name.narrators)).transpose()?;
     sqlx::query(
         "UPDATE items SET title = ?1, sort_title = ?2, year = ?3, genres = ?4, authors = ?5, narrators = ?6,
-                          series = ?7, series_index = ?8, summary = ?9, updated_at = ?10
+                          series = ?7, series_index = ?8, summary = ?9, updated_at = ?10, metadata_at = NULL
          WHERE id = ?11 AND metadata_locked = 0
            AND (title IS NOT ?1 OR sort_title IS NOT ?2 OR year IS NOT ?3 OR genres IS NOT ?4 OR authors IS NOT ?5
                 OR narrators IS NOT ?6 OR series IS NOT ?7 OR series_index IS NOT ?8 OR summary IS NOT ?9)",
@@ -1298,6 +1327,49 @@ fn episode_title(name: &EpisodeName, file: &Path) -> String {
         (Some(number), None) => format!("Episode {number}"),
         (None, _) => file.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default(),
     })
+}
+
+/// A movie file's key: its TMDB id when its name gives one, else its title
+/// and year.
+pub(super) fn movie_key(path: &Path, root: &Path) -> String {
+    let name = parse_movie(path, root);
+    match name.tmdb_id {
+        Some(id) => format!("movie:tmdb:{id}"),
+        None => format!("movie:{}:{}", normalize_key(&name.title), name.year.unwrap_or(0)),
+    }
+}
+
+/// The movie a file is a copy of: the one its name's key makes, or, with
+/// `aliases`, the movie that key's movie was merged into
+/// ([`super::merge`]).
+pub(super) async fn movie_for_file(
+    conn: &mut SqliteConnection,
+    library_id: i64,
+    path: &Path,
+    root: &Path,
+    duration: Option<i64>,
+    aliases: bool,
+) -> sqlx::Result<i64> {
+    let key = movie_key(path, root);
+    if aliases {
+        let merged: Option<i64> =
+            sqlx::query_scalar("SELECT item_id FROM item_aliases WHERE library_id = ? AND key = ?")
+                .bind(library_id)
+                .bind(&key)
+                .fetch_optional(&mut *conn)
+                .await?;
+        if let Some(id) = merged {
+            return Ok(id);
+        }
+    }
+    let name = parse_movie(path, root);
+    let mut item = NewItem::new("movie", key, name.title);
+    item.year = name.year;
+    item.duration_ms = duration;
+    item.tmdb_id = name.tmdb_id;
+    item.imdb_id = name.imdb_id;
+    item.path = path.parent().filter(|p| *p != root).map(path_str);
+    upsert_item(conn, library_id, &item).await
 }
 
 async fn upsert_item(conn: &mut SqliteConnection, library_id: i64, item: &NewItem) -> sqlx::Result<i64> {

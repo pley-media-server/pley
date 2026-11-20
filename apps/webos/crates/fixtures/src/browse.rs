@@ -590,7 +590,7 @@ fn home_hubs(cx: &Cx<'_>, profile: &mut Profile) -> Vec<Hub> {
             ));
         }
     }
-    // Holiday Favourites of the movies and the shows libraries: one row of both.
+    // Holiday Favorites of the movies and the shows libraries: one row of both.
     let holiday = [ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS];
     let items: Vec<&ItemDetail> = holiday
         .iter()
@@ -598,7 +598,7 @@ fn home_hubs(cx: &Cx<'_>, profile: &mut Profile) -> Vec<Hub> {
         .flat_map(|c| views::collection_items(catalog, c))
         .collect();
     let key = format!("collections:{},{}", holiday[0], holiday[1]);
-    let mut row = hub(catalog, key, "Holiday Favourites".into(), None, items, profile, opts);
+    let mut row = hub(catalog, key, "Holiday Favorites".into(), None, items, profile, opts);
     row.collection_ids = holiday.to_vec();
     hubs.push(row);
     hubs

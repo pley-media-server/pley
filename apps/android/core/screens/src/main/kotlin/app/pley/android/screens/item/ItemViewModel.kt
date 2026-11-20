@@ -482,7 +482,7 @@ class ItemViewModel(
     /**
      * Asks for the episodes of the seasons beside [season] ahead, the
      * nearest first, one at a time. Only those: each is an answer kept, and
-     * the next ones are asked for when focus gets to this one's neighbour.
+     * the next ones are asked for when focus gets to this one's neighbor.
      */
     private suspend fun warmBeside(season: Long?, seasons: List<ItemSummary>?) {
         val at = seasons?.indexOfFirst { it.id == season }?.takeIf { it >= 0 } ?: return

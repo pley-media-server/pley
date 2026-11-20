@@ -230,7 +230,7 @@ public class SettingsModelTests
         Assert.Equal(new SettingAction.Open(new DiagnosticsPage()), Row(m, SettingsCategory.Diagnostics, "row-diagnostics").Action);
         Assert.Equal("QE55S95D", Assert.Single(((SettingsItem.Facts)m.Items(SettingsCategory.Diagnostics)[1]).List).Value);
         Assert.Equal("0.1.0", Row(m, SettingsCategory.About, "row-version").Value);
-        // The version, the licences under their heading, and TMDB's credit under its own, as TMDB's terms ask.
+        // The version, the licenses under their heading, and TMDB's credit under its own, as TMDB's terms ask.
         Assert.Equal(SettingsModel.Licences.Count + 4, m.Items(SettingsCategory.About).Count);
         Assert.Equal("This product uses the TMDB API but is not endorsed or certified by TMDB.", Row(m, SettingsCategory.About, "row-tmdb").Value);
         var signOut = m.Items(SettingsCategory.SignOut);
@@ -296,7 +296,7 @@ public class SettingsModelTests
 
         var panel = m.Panel(new SettingPick.Language());
         Assert.Equal("Language", panel.Title);
-        Assert.Equal(new[] { "Automatic (Français)", "English", "Français", "Español" }, panel.Choices.Select(c => c.Label));
+        Assert.Equal(new[] { "Automatic (Français)", "English", "Français", "Español", "简体中文", "繁體中文" }, panel.Choices.Select(c => c.Label));
         Assert.Equal(0, panel.Focus);
         Assert.Equal("row-language", panel.Pick.RowKey);
 
@@ -357,7 +357,7 @@ public class SettingsModelTests
         Assert.Equal(new SettingAction.Pick(new SettingPick.Language()), row.Action);
         // Automatic is the TV's own language, not the one picked.
         var panel = m.Panel(new SettingPick.Language());
-        Assert.Equal(new[] { "Automatic (English)", "English", "Français", "Español" }, panel.Choices.Select(c => c.Label));
+        Assert.Equal(new[] { "Automatic (English)", "English", "Français", "Español", "简体中文", "繁體中文" }, panel.Choices.Select(c => c.Label));
         Assert.Equal(3, panel.Focus);
         m.Choose(new SettingPick.Language(), 2);
         Assert.Equal("fr", account.DeviceLanguage);

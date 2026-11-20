@@ -1,5 +1,6 @@
-"""The languages Pley is in (English, French and Spanish), and the add-on's
-words in each: its strings.po files, read here rather than through Kodi.
+"""The languages Pley is in (English, French, Spanish and Simplified and
+Traditional Chinese), and the add-on's words in each: its strings.po files,
+read here rather than through Kodi.
 
 Kodi's getLocalizedString gives an add-on's words in Kodi's own language
 only, and Pley shows the account's when it has one (docs/API.md,
@@ -10,7 +11,8 @@ draws itself, reads them as any add-on's.
 
 A word that counts has three ids in a row, one for each plural form CLDR
 gives French and Spanish: one, many (a whole number of millions), other.
-English, which has only one and other, writes many as it writes other.
+English, which has only one and other, writes many as it writes other;
+Chinese, which has only other, writes all three the same.
 
 No Kodi here: kodi.py says which language is shown."""
 
@@ -20,9 +22,15 @@ import os
 import re
 
 ENGLISH = "en"
-LANGUAGES = (ENGLISH, "fr", "es")
+LANGUAGES = (ENGLISH, "fr", "es", "zh-CN", "zh-TW")
 # Kodi's folder for each language's strings.po.
-FOLDERS = {"en": "resource.language.en_gb", "fr": "resource.language.fr_fr", "es": "resource.language.es_es"}
+FOLDERS = {
+    "en": "resource.language.en_gb",
+    "fr": "resource.language.fr_fr",
+    "es": "resource.language.es_es",
+    "zh-CN": "resource.language.zh_cn",
+    "zh-TW": "resource.language.zh_tw",
+}
 # Where the folders are: resources/language, beside resources/lib.
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "language")
 
@@ -32,15 +40,19 @@ FORMS = ("one", "many", "other")
 # How each language writes numbers: what groups the thousands, and the
 # decimal mark. A no-break space for French, as CLDR has it, where Kodi's
 # fonts have the narrow one only sometimes.
-GROUPS = {"en": ",", "fr": " ", "es": "."}
-POINTS = {"en": ".", "fr": ",", "es": ","}
+GROUPS = {"en": ",", "fr": " ", "es": ".", "zh-CN": ",", "zh-TW": ","}
+POINTS = {"en": ".", "fr": ",", "es": ",", "zh-CN": ".", "zh-TW": "."}
 
 
 def supported(tag) -> str | None:
-    """The language Pley has for a tag ("fr-CA", "FR_ca", "fr" → "fr"), if any."""
+    """The language Pley has for a tag ("fr-CA", "FR_ca", "fr" → "fr",
+    "zh-Hant" → "zh-TW", "zh" → "zh-CN"), if any."""
     if not isinstance(tag, str):
         return None
-    base = re.split(r"[-_.]", tag.strip(), maxsplit=1)[0].lower()
+    base, *rest = re.split(r"[-_.]", tag.strip().lower())
+    # Chinese is two languages: Traditional by its script or a region that writes it.
+    if base == "zh":
+        return "zh-TW" if any(part in ("hant", "tw", "hk", "mo") for part in rest) else "zh-CN"
     return base if base in LANGUAGES else None
 
 
@@ -70,7 +82,9 @@ def pick(account, server, device, choice=None) -> str:
 def plural_form(language: str, n) -> str:
     """The plural form of `n`, as CLDR has it: English "one" is exactly 1;
     French "one" is 0 to 1.99…; Spanish "one" is 1. French and Spanish say
-    "many" of a whole number of millions."""
+    "many" of a whole number of millions. Chinese has only "other"."""
+    if language in ("zh-CN", "zh-TW"):
+        return "other"
     value = abs(n)
     whole = int(value)
     if language == ENGLISH:
@@ -81,8 +95,9 @@ def plural_form(language: str, n) -> str:
 
 
 def number(n, language: str) -> str:
-    """A whole number as `language` writes it: "12,345", "12 345", "12.345".
-    Spanish groups from five digits ("1234")."""
+    """A whole number as `language` writes it: "12,345" (English and Chinese),
+    "12 345" (French), "12.345" (Spanish). Spanish groups from five digits
+    ("1234")."""
     text = "{:,}".format(int(n))
     if language == "es" and abs(int(n)) < 10_000:
         return text.replace(",", "")
@@ -90,7 +105,8 @@ def number(n, language: str) -> str:
 
 
 def decimal(value, digits: int, language: str) -> str:
-    """`value` with `digits` decimals, as `language` writes it: "7.4", "7,4"."""
+    """`value` with `digits` decimals, as `language` writes it: "7.4"
+    (English and Chinese), "7,4" (French and Spanish)."""
     return ("%.*f" % (digits, value)).replace(".", POINTS.get(language, "."))
 
 

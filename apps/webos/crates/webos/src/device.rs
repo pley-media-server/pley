@@ -297,7 +297,7 @@ fn watch_network(inner: &Arc<Inner>) {
             }
         },
     );
-    // The one before, if any, is cancelled.
+    // The one before, if any, is canceled.
     *inner.network_watch.lock().unwrap_or_else(|e| e.into_inner()) = Some(watch);
 }
 

@@ -13,7 +13,7 @@ static class Qr
     /// <summary>
     /// Draws a QR code of <paramref name="text"/> in <paramref name="box"/> (a white square of
     /// <paramref name="sizePx"/>), black, with its 4-module quiet zone: each module a whole number
-    /// of pixels, the code centred in what is left (tv-addendum §4.2). Each row's dark runs are one
+    /// of pixels, the code centered in what is left (tv-addendum §4.2). Each row's dark runs are one
     /// view. False, with nothing drawn, when the text is too long for a QR code.
     /// </summary>
     public static bool Draw(View box, string text, int sizePx)

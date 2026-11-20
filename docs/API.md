@@ -229,7 +229,7 @@ interface User {
   audio_language: string | null;    // ISO 639 code ("eng", "fr"); null = the file's default track
   subtitle_language: string | null; // null = the audio language
   subtitle_mode: "off" | "forced" | "foreign" | "always";
-  language: "en" | "fr" | "es" | null; // the language Pley is in for the account; null = automatic (see Language)
+  language: "en" | "fr" | "es" | "zh-CN" | "zh-TW" | null; // the language Pley is in for the account; null = automatic (see Language)
   has_password: boolean;            // false: a managed profile, or an account without a password
   two_step: boolean;                // two-step sign-in is on
   request_access: "off" | "ask" | "auto"; // Requests: may not ask, asks an administrator, or approved as
@@ -511,7 +511,7 @@ interface PlaybackInfo {
                                     // "Dolby Vision P8.1 (HDR10+ left out)",
                                     // "HDR10 (this screen doesn't show HDR10+)", "HDR10 (HDR10+ left out)",
                                     // "HDR10 (converted from HLG)", "SDR (tone-mapped)", and
-                                    // "Dolby Vision P5 not decoded (wrong colours)" for a direct play the
+                                    // "Dolby Vision P5 not decoded (wrong colors)" for a direct play the
                                     // player insisted on. Version 1 players don't say which HDR formats
                                     // their screen shows, so their HDR10+ is named as it is
   adaptive: boolean;                // the transcode comes in several sizes the player moves between
@@ -684,7 +684,7 @@ it of every account with a password (`require_two_step` in the
 |---|---|---|---|
 | PATCH | `/api/me` | `user` | `{ display_name?, avatar_color?, audio_language?, subtitle_language?, subtitle_mode?, language? }` (`null` clears) → `User` |
 | PUT | `/api/me/track-defaults` | `play` | `{ audio_language?, subtitle_language?, subtitle_mode? }` → the profile as [`GET /api/auth/me`](#auth) shows it |
-| PUT | `/api/me/language` | `play` | `{ language }` (`"en"`, `"fr"`, `"es"`, or `null` for the server's) → the profile as [`GET /api/auth/me`](#auth) shows it |
+| PUT | `/api/me/language` | `play` | `{ language }` (`"en"`, `"fr"`, `"es"`, `"zh-CN"`, `"zh-TW"`, or `null` for the server's) → the profile as [`GET /api/auth/me`](#auth) shows it |
 | PUT | `/api/me/pin` | `user` | `{ pin: string \| null, password }` → `204`. 4–8 digits; `null` removes it; `403` for a wrong password, and for a managed profile (an administrator sets its PIN) |
 | PUT | `/api/me/avatar` | `user` | raw image bytes (JPEG, PNG, WebP, GIF, BMP; ≤ 10 MB) → `User`. Stored as a 256 px square JPEG |
 | DELETE | `/api/me/avatar` | `user` | `204` |
@@ -718,8 +718,11 @@ as forced when flagged so, or when their title says so ("forced", or
 
 ## Language
 
-Pley is in English, French and Spanish (`en`, `fr`, `es`). The language
-an account sees is, in order:
+The server, its web app and the desktop app are in English, French, Spanish
+and Chinese (`en`, `fr`, `es`, `zh-CN`, `zh-TW`). Simplified and Traditional
+Chinese are separate languages: `zh-Hans` or plain `zh` picks `zh-CN`, while
+`zh-Hant`, `zh-TW` or a region that writes traditional characters picks
+`zh-TW`. The language an account sees is, in order:
 
 1. its own, `User.language` (`PATCH /api/me` with `{ "language": "fr" }`,
    or `PUT /api/me/language` from an app; `null`, Automatic, goes back to
@@ -731,7 +734,7 @@ an account sees is, in order:
    Settings → General; English until there is one), which
    `GET /api/server` shows as `language`.
 
-Any other code is `400`. The server writes its own words in that language:
+An account's language is one of those five codes; any other is `400`. The server writes its own words in that language:
 Home's and the libraries' hub titles (`Hub.title`), and on requests why one
 couldn't be sent (`MediaRequest.reason` of a failed one, `request_failed`'s
 `reason`, an approval option's `error`) and `MediaRequest.note`. What
@@ -1781,7 +1784,7 @@ user's watch state and their access are unchanged.
 | PUT | `/api/items/{id}/streams` | `play` | `{ file_id?, audio_index?, subtitle_index? }` → `204`: remembers track choices |
 | PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, match?, labels? }` → `ItemDetail` |
 | GET | `/api/items/{id}/matches?title=&year=` | `admin` | TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` for movies and shows (needs a TMDB key) |
-| POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed |
+| POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed; a movie other copies were merged into lets them go first, each matched again on its own and kept apart from it; a movie matched to another copy's title goes into it, and the answer is that movie |
 | GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]` |
 | PUT | `/api/items/{id}/artwork/{kind}` | `admin` | `{ url }` (a TMDB image, or one on another host Pley takes pictures from: [COMPATIBILITY.md](COMPATIBILITY.md#editing)) → `ItemDetail`; downloaded and locked |
 | POST | `/api/items/{id}/artwork/{kind}/upload` | `admin` | raw image bytes (≤ 25 MB) → `ItemDetail`; stored as JPEG, without the file's metadata but Kometa's overlay mark, and locked |
@@ -2109,7 +2112,10 @@ interface Collection {
   home_position: number | null;     // a row on Home, in this place; null: not one
   recommended_position: number | null;   // a row on its library's Recommended tab
   item_count: number;               // items this user can see
-  poster_url: string;               // own artwork, else the first item's that has some
+  artwork: "custom" | "icon" | "color" | "automatic";   // its poster: uploaded, an icon over its items' posters or on its color alone, or TMDB's or its items'
+  icon: string | null;              // with artwork "icon" or "color": one of the icons below
+  icon_color: string | null;        // and its color
+  poster_url: string;               // see "Posters" below
   backdrop_url: string;
   created_at: Timestamp;
   updated_at: Timestamp;
@@ -2121,14 +2127,46 @@ interface Collection {
 | GET | `/api/libraries/{id}/collections` | `library` | `{ collections: Collection[] }` by title |
 | POST | `/api/libraries/{id}/collections` | `admin` | `{ title, summary?, item_ids?: Id[], smart_filter?, category_id? }` → `201` `Collection & { items: ItemSummary[] }`; `400` for music and audiobook libraries, or a `category_id` that is no category's |
 | GET | `/api/collections/{id}` | `library` | `Collection & { items: ItemSummary[] }` in the collection's order |
-| PATCH | `/api/collections/{id}` | `admin` | `{ title?, summary? (null clears), sort?, smart_filter?, category_id? (null, or Other's id: none), on_home?, on_recommended? }` → `Collection & { items }`. `on_home: true` puts it on Home with a collection of the same title (case aside) when there is one, else last; `on_recommended: true` last on its library's Recommended tab; `400` for a `category_id` that is no category's |
+| PATCH | `/api/collections/{id}` | `admin` | `{ title?, summary? (null clears), sort?, smart_filter?, category_id? (null, or Other's id: none), on_home?, on_recommended?, icon? (null: the automatic poster), icon_color? (with icon or background; else the color it had, else blue), background? (`posters` or `color`) }` → `Collection & { items }`; `400` for an icon or color not listed below, or for `background` `color` with `icon` `null`. `on_home: true` puts it on Home with a collection of the same title (case aside) when there is one, else last; `on_recommended: true` last on its library's Recommended tab; `400` for a `category_id` that is no category's |
 | DELETE | `/api/collections/{id}` | `admin` | `204` (an automatic one comes back when its movies are refreshed) |
 | POST | `/api/collections/{id}/items` | `admin` | `{ item_ids: Id[] }` → `{ added: number }`. Only movies and shows of the same library; `400` if none could be added |
 | DELETE | `/api/collections/{id}/items/{item_id}` | `admin` | `204` |
 | PUT | `/api/collections/{id}/order` | `admin` | `{ item_ids: Id[] }` → `204`: these first in this order, the rest after; sets `sort` to `custom` |
 | GET | `/api/collections/{id}/images/{poster\|backdrop}` | `library` | image bytes (`w`, `v` as for items), or a `307` to the item artwork it falls back to |
+| POST | `/api/collections/{id}/artwork/poster/upload` | `admin` | raw image bytes (≤ 25 MB) → `Collection & { items }`, `artwork` `custom`; stored as items' uploads are. A poster set through the Plex-compatible API is the uploaded one too |
+| DELETE | `/api/collections/{id}/artwork/poster` | `admin` | → `Collection & { items }`, `artwork` `automatic`, from an uploaded poster or an icon |
 | GET | `/api/items/{id}/collections` | `library` | `{ collections: { id, title }[] }` the movie or show is in ("Part of …") |
 | POST | `/api/libraries/{id}/collections/defaults` | `admin` | `{ restored: number }`: makes again those of Pley's four the library no longer has; `400` for music and audiobook libraries |
+
+**Posters.** A collection's poster is, in this order: the one uploaded
+(`artwork` `custom`); its icon (`icon`) in its color (`icon_color`) over
+the posters of its first four items the viewer may see, in a 2×2 grid
+(one fills it, two side by side, three one tall and two stacked) fading
+into the color at the bottom (`artwork` `icon`), or on its color
+alone (`background` `color`, `artwork` `color`); TMDB's, for an
+automatic collection; those posters in a grid, laid out the same, when two
+or more items have posters; else its first item's with a poster (a `307`); and when
+none has one, or it's empty, its library's icon (as below) on `slate`.
+Setting an icon drops an
+uploaded poster and uploading one drops the icon. On its color alone a
+poster always has an icon: set without one, it's the library's (`clapperboard`
+for films, `tv` for shows, `music`, `book-headphones` for audiobooks,
+`layers` for any other kind). Pley's four start with
+icons: Recently Added a clock in blue, Recently Released a calendar in
+teal, Top Rated a star in amber, Top Unwatched `eye-off` in pink. A drawn
+poster changes with the items without the collection changing, so it's
+served with a short cache (`max-age=300`) even at a versioned address, and
+that address's version (`poster_url`'s `v`, and the Plex and Jellyfin
+APIs' versions of it) changes with the items it's drawn from as the viewer
+sees them: two viewers who may see different items never share it.
+
+Icons (Lucide's names): `star`, `clock`, `calendar`, `eye-off`, `heart`,
+`flame`, `trophy`, `award`, `sparkles`, `ghost`, `rocket`, `wand-sparkles`,
+`drama`, `face-grinning`, `swords`, `zap`, `fingerprint`, `mountain-snow`,
+`globe`, `landmark`, `video`, `dog`, `baby`, `users`, `popcorn`,
+`book-open`, `snowflake`, `sun`, `leaf`, `tree-pine`, `clapperboard`, `tv`,
+`music`, `book-headphones`, `layers`. Colors: `red`, `orange`, `amber`,
+`green`, `teal`, `blue`, `violet`, `pink`, `slate`.
 
 **Smart collections** hold no items. `smart_filter` is a library listing in
 the Plex-compatible API's syntax: the query string of
@@ -2509,7 +2547,7 @@ Transcoder), the server copies video or doesn't play it:
 
 - Direct plays and remuxes are as ever, and so is converted sound: a file
   whose video the player plays gets its audio converted in a remux. Music
-  is converted as ever, a track never analysed too.
+  is converted as ever, a track never analyzed too.
 - A quality asked for (`max_bitrate`, `max_height`) plays the original as
   it plays best: the limits are left out, and `mode: "transcode"` asked
   with them is answered as `"auto"` is, so a device that kept a quality
@@ -3941,7 +3979,7 @@ profile of the remote that sent it something.
   device's own level, whatever sets it; a change sends `sessions_changed`.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
   `device_name` and `device_kind` too. Its session is listed with
-  `kind: "live"`, its `channel` (with the programme on, when it started
+  `kind: "live"`, its `channel` (with the program on, when it started
   and ends, and the next) and `item: null`, while its player is there
   (see Leaving, under [Live TV](#live-tv)); it is always `playing`, at
   `position_ms` 0 with `duration_ms` `null`. Commands go to it the same way.
@@ -4542,7 +4580,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | GET | `/api/live/browse` | `library` | `?category=all\|favorites\|recent\|group&group=&q=&offset=&limit=&around=` → `{ total, offset, channels: LiveChannel[] }`: a page (100 by default, 500 at most) of a category's channels matching `q` as search finds them (by name, slips too, a number's beginning, or the title of what's on), the closest first as in search (`recent` keeps the order they were watched); `around` gives the page with that channel in it |
 | GET | `/api/live/channels/{id}` | `library` | `LiveChannel` |
 | GET | `/api/live/channels/{id}/logo` | `library` | the logo, kept a week at a time (no larger than 1 MB and 400 px; one drawn dark on a see-through background is made light, for dark screens); `?w=` resizes it, a see-through one staying see-through |
-| GET | `/api/live/channels/{id}/programs/{start}/image` | `library` | a programme's picture; `?w=` resizes it |
+| GET | `/api/live/channels/{id}/programs/{start}/image` | `library` | a program's picture; `?w=` resizes it |
 | GET | `/api/live/guide` | `library` | `?from=&to=&ids=` (unix seconds; default half an hour ago to six hours on, two days at most; `ids`: the channels wanted, with commas between, else every one) → `{ from, to, programs: { [channel_id]: LiveProgram[] } }` |
 | PUT | `/api/live/channels/{id}/favorite` | `play` | `204` |
 | DELETE | `/api/live/channels/{id}/favorite` | `play` | `204` |
@@ -4701,10 +4739,10 @@ interface LiveTuner {                  // a connection in use
 - **Hidden channels** are nobody's to watch, administrators' included,
   until shown again. Names, numbers and guide channels set in the lineup
   stay when the source is read again.
-- **Guide channels set by hand.** A guide read keeps the programmes of the
+- **Guide channels set by hand.** A guide read keeps the programs of the
   guide channels the source's channels take as it reads, by guide channel
   or, when the guide lacks theirs, by name. A channel given a guide channel
-  with no programmes in the lineup, or renamed while its name decides its
+  with no programs in the lineup, or renamed while its name decides its
   guide channel, has the source's guide read again in the background; a
   read under way is followed by one more when it had already listed the
   channels.
@@ -4816,7 +4854,8 @@ on another administrator's account, but for the `GET`s
   `"auto"` and turns `hardware_decoding` on; a combination saved before
   stays.
 - **`settings/test`** makes one request to `service` (`"tmdb"`, `"tvdb"`,
-  `"tvmaze"`, `"musicbrainz"`, `"transcoder"` or `"opensubtitles"`) with the
+  `"tvmaze"`, `"musicbrainz"`, `"audiobooks"` (Open Library and Audnexus),
+  `"transcoder"` or `"opensubtitles"`) with the
   key and PIN given (not saved), else the saved ones. OpenSubtitles: its
   key, or with a `username`, a sign-in of that account (`password` left
   out: the saved one, for the saved username). `message` says what
@@ -4888,7 +4927,7 @@ interface Network {
 
 interface Settings {
   server_name: string;
-  language: "" | "en" | "fr" | "es"; // the server language (see Language); "" = not chosen, English
+  language: "" | "en" | "fr" | "es" | "zh-CN" | "zh-TW"; // the server language (see Language); "" = not chosen, English
   tmdb_api_key: string;             // "" = movies only from file names and local artwork
   metadata_language: string;        // "en-US" (TMDB and TheTVDB; TVmaze is English)
   country: string;                  // "NZ" (ISO 3166-1 alpha-2): whose ratings are read, and the systems
@@ -4899,6 +4938,7 @@ interface Settings {
   tvdb_api_key: string;             // TheTVDB v4 key; "" = not set
   tvdb_pin: string;                 // TheTVDB subscriber PIN, for user-supported keys
   music_metadata: boolean;          // MusicBrainz + Cover Art Archive for music libraries (default true)
+  book_metadata: boolean;           // Open Library and Audnexus for audiobook libraries (default true)
   read_nfo: boolean;                // read NFO files next to movies, shows, seasons and episodes (default
                                     // true; see CONFIGURATION.md). A change scans every library
   strm_files: boolean;              // movie and TV libraries list and play .strm files (default false; see

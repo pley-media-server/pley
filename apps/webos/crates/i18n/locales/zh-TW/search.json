@@ -1,0 +1,39 @@
+{
+  "field": "搜尋電影、劇集、人物…",
+  "searching": "搜尋中…",
+  "recent": {
+    "title": "最近搜尋",
+    "clear": "清除"
+  },
+  "empty": {
+    "title": "搜尋你的媒體庫",
+    "body": "查詢電影、劇集、集、人物、藝人、專輯、曲目和直播電影片道。在搜尋框上按 OK 即可輸入。"
+  },
+  "none": {
+    "title": "「{{query}}」沒有結果",
+    "body": "換個拼寫，或減少關鍵詞。"
+  },
+  "failed": "搜尋失敗",
+  "offline": "無法連線到你的伺服器",
+  "retry": "重試",
+  "keyboardAction": "搜尋",
+  "discover": "發現",
+  "seeAll": "檢視全部",
+  "nothingInLibraries": "你的媒體庫中沒有匹配的內容",
+  "tmdbFailed": "搜尋 TMDB 失敗",
+  "groups": {
+    "people": "人物",
+    "liveTv": "直播電視",
+    "movies": "電影",
+    "shows": "劇集",
+    "seasons": "季",
+    "episodes": "集",
+    "artists": "藝人",
+    "albums": "專輯",
+    "tracks": "曲目"
+  },
+  "channel": {
+    "nothingNow": "節目指南中現在沒有內容",
+    "noGuide": "此頻道沒有節目指南"
+  }
+}

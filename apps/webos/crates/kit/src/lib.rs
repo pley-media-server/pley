@@ -8,7 +8,7 @@
 //! keep a small state the screen owns ([`RowState`], …), so a page drawn again after Back opens
 //! where it was left; they draw only what is near the screen and call back for each tile or row.
 //!
-//! Geometry is in dp on the 960×540 canvas, colours and type come from [`pley_ui::theme`], and
+//! Geometry is in dp on the 960×540 canvas, colors and type come from [`pley_ui::theme`], and
 //! motion from [`pley_ui::Motion`] (snapping while a key is held, with Reduce motion and, for some,
 //! on Low-tier TVs). Where a number comes from is said beside it: the Android TV app's files
 //! (`apps/android/ui/tv/...`, its design system under `apps/android/core/designsystem/...`) and the

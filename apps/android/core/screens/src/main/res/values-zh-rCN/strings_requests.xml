@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Requests and Discover, on phones and tablets.
+        Buttons say Request; running text says "ask for". Limits are "per
+        7 days" or "for now", never "this week".
+    -->
+
+    <!-- Pages. -->
+    <string name="requests_discover">发现</string>
+    <string name="requests_yours">你的请求</string>
+    <!-- The managers' page: everyone's requests. -->
+    <string name="requests_manage">请求</string>
+    <string name="requests_attention">需要处理</string>
+    <!-- Under Discover's way in (search, Me). -->
+    <string name="requests_discover_hint">查找想请求的电影和剧集</string>
+    <!-- Under Requests' way in, for managers. -->
+    <string name="requests_manage_hint">批准、拒绝并跟进大家的请求</string>
+    <!-- The number on the way into requests, said: "3 requests need you, 1 couldn't be sent". -->
+    <plurals name="requests_count_manage">
+        <item quantity="other">%1$d 个请求需要你处理</item>
+    </plurals>
+    <plurals name="requests_count_failed">
+        <item quantity="other">%1$d 个无法发送</item>
+    </plurals>
+    <string name="requests_count_and">%1$s，%2$s</string>
+
+    <!-- Discover's rows, in their order. -->
+    <string name="requests_row_trending">本周热门</string>
+    <string name="requests_row_movies">热门电影</string>
+    <string name="requests_row_shows">热门剧集</string>
+    <string name="requests_row_upcoming">即将上映</string>
+    <string name="requests_row_anime">热门动漫</string>
+    <string name="requests_search_none">TMDB 上没有匹配“%1$s”的内容</string>
+    <string name="requests_search_none_body">换一种拼写，或使用标题的原语言试试。</string>
+    <string name="requests_kind_movie">电影</string>
+    <string name="requests_kind_show">剧集</string>
+
+    <!-- Badges on posters. -->
+    <string name="requests_badge_library">已在媒体库</string>
+    <string name="requests_badge_partial">部分在媒体库</string>
+    <string name="requests_badge_requested">已请求</string>
+    <string name="requests_badge_declined">已拒绝</string>
+
+    <!-- A title page's main action. -->
+    <string name="requests_open">打开</string>
+    <string name="requests_request">请求</string>
+    <string name="requests_requested">已请求</string>
+    <string name="requests_following">已关注</string>
+    <string name="requests_stop_following">取消关注</string>
+    <string name="requests_tell_me_too">也通知我</string>
+    <string name="requests_asked_already">已经有人请求过了。</string>
+    <string name="requests_more_seasons">请求更多季</string>
+    <!-- "Declined: “Not on our servers”. You can ask again in 12 days." -->
+    <string name="requests_declined_reason">已拒绝：“%1$s”。%2$s 可以再次请求。</string>
+    <string name="requests_declined_plain">已拒绝。%1$s 可以再次请求。</string>
+    <string name="requests_declined_reason_only">已拒绝：“%1$s”。</string>
+    <string name="requests_declined_only">已拒绝。</string>
+    <string name="requests_ready_elsewhere">已就绪，但位于你无法访问的媒体库中：请联系管理员</string>
+    <string name="requests_watch">观看</string>
+    <string name="requests_details">详情</string>
+
+    <!-- Stage pills. -->
+    <string name="requests_stage_pending">等待审批</string>
+    <string name="requests_stage_approved">已批准</string>
+    <!-- "Out Nov 4": a movie's release. -->
+    <string name="requests_stage_out">%1$s 上线</string>
+    <!-- "Airs Nov 4": a show's next episode. -->
+    <string name="requests_stage_airs">%1$s 播出</string>
+    <string name="requests_stage_not_out">尚未上线</string>
+    <string name="requests_stage_searching">搜索中</string>
+    <string name="requests_stage_downloading">正在下载 %1$d%%</string>
+    <!-- After "Downloading 42%": " · in 20 min". -->
+    <string name="requests_stage_eta">%1$s · %2$s</string>
+    <string name="requests_stage_importing">正在添加到媒体库</string>
+    <!-- "Seasons 1–2 ready". -->
+    <string name="requests_stage_partial">%1$s 已就绪</string>
+    <string name="requests_stage_available">可以观看</string>
+    <string name="requests_stage_gone">已不在媒体库中</string>
+    <string name="requests_stage_declined">已拒绝</string>
+    <string name="requests_stage_failed">发送失败：%1$s</string>
+    <string name="requests_stage_failed_plain">发送失败</string>
+    <string name="requests_stage_not_sent">尚未发送</string>
+    <string name="requests_not_sent_body">暂时无法发送到下载：管理员会查看处理。</string>
+    <!-- "Trying again in 5 min." -->
+    <string name="requests_trying_again">%1$s 重试。</string>
+    <string name="requests_download_queued">等待下载</string>
+    <string name="requests_download_paused">下载已暂停</string>
+    <string name="requests_download_warning">下载出现问题</string>
+    <string name="requests_by_someone">由其他人请求</string>
+    <!-- "Ann · 3 days ago". -->
+    <string name="requests_by_when">%1$s · %2$s</string>
+    <string name="requests_stage_unknown">已请求</string>
+
+    <!-- When: "today, 9:00 PM", a day, or in so long. -->
+    <string name="requests_today_at">今天 %1$s</string>
+    <string name="requests_tomorrow_at">明天 %1$s</string>
+    <string name="requests_tomorrow">明天</string>
+    <string name="requests_soon">即将</string>
+    <plurals name="requests_in_minutes">
+        <item quantity="other">%1$d 分钟后</item>
+    </plurals>
+    <plurals name="requests_in_hours">
+        <item quantity="other">%1$d 小时后</item>
+    </plurals>
+    <plurals name="requests_in_days">
+        <item quantity="other">%1$d 天后</item>
+    </plurals>
+
+    <!-- Allowance. -->
+    <plurals name="requests_more_movies">
+        <item quantity="other">再请求 %1$d 部电影</item>
+    </plurals>
+    <plurals name="requests_more_seasons_count">
+        <item quantity="other">再请求 %1$d 季</item>
+    </plurals>
+    <plurals name="requests_movies">
+        <item quantity="other">%1$d 部电影</item>
+    </plurals>
+    <plurals name="requests_seasons">
+        <item quantity="other">%1$d 季</item>
+    </plurals>
+    <!-- "You can ask for 2 more movies and 5 more seasons." -->
+    <string name="requests_allowance_both">你可以请求 %1$s 和 %2$s。</string>
+    <string name="requests_allowance_one">你可以请求 %1$s。</string>
+    <!-- "Limits: 3 movies and 10 seasons per 7 days." -->
+    <string name="requests_limits_both">限制：每 7 天 %1$s 和 %2$s。</string>
+    <string name="requests_limits_one">限制：每 7 天 %1$s。</string>
+    <string name="requests_all_movies">目前你能请求的电影都已请求完：%1$s 可以再请求。</string>
+    <string name="requests_all_seasons">目前你能请求的剧季都已请求完：%1$s 可以再请求。</string>
+    <!-- "You've asked for all you can for now: more movies in 3 days, more seasons in 5 days." -->
+    <string name="requests_all_both">目前你能请求的都已请求完：%1$s 再请求电影，%2$s 再请求剧季。</string>
+    <string name="requests_all_for_now">目前你能请求的都已请求完。</string>
+
+    <!-- Asking. -->
+    <string name="requests_asked_pending">已请求“%1$s”：由管理员决定。</string>
+    <string name="requests_asked_approved">“%1$s”已批准，正在处理。</string>
+    <string name="requests_asked_failed">已请求“%1$s”，但暂时无法发送到下载。</string>
+    <string name="requests_asked_following">“%1$s”就绪时会通知你。</string>
+    <string name="requests_picker_title">选择哪些季？</string>
+    <plurals name="requests_picker_request">
+        <item quantity="other">请求 %1$d 季</item>
+    </plurals>
+    <string name="requests_picker_none">请选择季。</string>
+    <string name="requests_season_library">已在媒体库</string>
+    <string name="requests_season_requested">已请求</string>
+    <string name="requests_season_declined">已拒绝</string>
+    <string name="requests_season_partial">媒体库中有 %1$d / %2$d 集</string>
+    <string name="requests_season_unaired">尚未播出</string>
+    <string name="requests_season_airs">%1$s 播出</string>
+    <plurals name="requests_season_episodes">
+        <item quantity="other">%1$d 集</item>
+    </plurals>
+    <string name="requests_ask_again_at">%1$s 可以再次请求</string>
+    <string name="requests_ask_more_at">%1$s 可以再请求</string>
+    <!-- 429 with no time: more was asked than the limit itself. -->
+    <string name="requests_at_most_seasons">每 7 天最多可请求 %1$s：请减少数量。</string>
+    <string name="requests_at_most_movies">每 7 天最多可请求 %1$s。</string>
+
+    <!-- Actions on a request. -->
+    <string name="requests_withdraw">撤回</string>
+    <string name="requests_withdraw_confirm">撤回对“%1$s”的请求？</string>
+    <string name="requests_remove">移除</string>
+    <string name="requests_remove_confirm">从你的请求中移除“%1$s”？</string>
+    <string name="requests_approve">批准</string>
+    <string name="requests_approve_with">批准…</string>
+    <string name="requests_try_again">重试</string>
+    <string name="requests_decline">拒绝</string>
+    <string name="requests_decline_with_reason">填写原因并拒绝…</string>
+    <string name="requests_handled">标记为手动添加</string>
+    <string name="requests_delete">删除</string>
+    <string name="requests_delete_confirm">删除此请求？Radarr 和 Sonarr 会保留已有内容。</string>
+    <string name="requests_ask_again">再次请求</string>
+    <string name="requests_cancel">取消</string>
+
+    <!-- The managers' dialogs. -->
+    <string name="requests_approve_title">批准“%1$s”</string>
+    <string name="requests_approve_profile">质量配置</string>
+    <string name="requests_approve_folder">文件夹</string>
+    <string name="requests_approve_seasons">季</string>
+    <string name="requests_approve_settings">按设置中的选项批准</string>
+    <string name="requests_approve_default">与设置中一致</string>
+    <!-- "1.2 TB free". -->
+    <string name="requests_folder_free">剩余 %1$s</string>
+    <string name="requests_decline_title">拒绝“%1$s”？</string>
+    <string name="requests_decline_reason">原因（可选）</string>
+    <string name="requests_decline_reason_hint">请求者会看到。</string>
+
+    <!-- Lists. -->
+    <string name="requests_filter_all">全部</string>
+    <string name="requests_filter_pending">待处理</string>
+    <string name="requests_filter_approved">已批准</string>
+    <string name="requests_filter_available">可用</string>
+    <string name="requests_filter_declined">已拒绝</string>
+    <string name="requests_filter_failed">失败</string>
+    <string name="requests_filter_movies">电影</string>
+    <string name="requests_filter_shows">剧集</string>
+    <string name="requests_filter_everyone">所有人</string>
+    <string name="requests_filter_mine">你的</string>
+    <string name="requests_filter_title">搜索请求</string>
+    <!-- A view with how many it holds: "Pending · 2". -->
+    <string name="requests_filter_count">%1$s · %2$d</string>
+    <string name="requests_none_title">还没有人请求任何内容</string>
+    <string name="requests_none_body">在“发现”中查找电影和剧集，请求媒体库中还没有的内容。</string>
+    <string name="requests_none_body_off">你发起或关注的请求会显示在这里。</string>
+    <string name="requests_attention_none">没有需要你处理的内容</string>
+    <string name="requests_attention_none_body">等待审批的请求和发送失败的请求会显示在这里。</string>
+    <string name="requests_filtered_none">没有符合条件的请求</string>
+    <string name="requests_filtered_none_body">试试其他筛选条件。</string>
+    <!-- Why it was declined, in the words of whoever declined it. -->
+    <string name="requests_reason_quoted">“%1$s”</string>
+    <plurals name="requests_watchers">
+        <item quantity="other">%1$d 人关注</item>
+    </plurals>
+    <!-- Managers: where it went. "Radarr · HD-1080p · /movies". -->
+    <string name="requests_sent_to_radarr" translatable="false">Radarr</string>
+    <string name="requests_sent_to_sonarr" translatable="false">Sonarr</string>
+
+    <!-- Notices. -->
+    <string name="requests_notice_ready">“%1$s”可以观看了。</string>
+    <!-- "Season 2 of “Severance” is ready to watch." -->
+    <string name="requests_notice_season_ready">“%2$s”的 %1$s 可以观看了。</string>
+    <string name="requests_notice_seasons_ready">“%2$s”的 %1$s 可以观看了。</string>
+    <!-- The specials alone. -->
+    <string name="requests_notice_specials_ready">“%1$s”的特别篇可以观看了。</string>
+    <string name="requests_notice_approved">“%1$s”已获批准。</string>
+    <string name="requests_notice_declined_reason">“%1$s”已被拒绝：“%2$s”。</string>
+    <string name="requests_notice_declined">“%1$s”已被拒绝。</string>
+    <!-- Managers: "Ann asked for “Arcane” (Seasons 1–3)." -->
+    <string name="requests_notice_asked_seasons">%1$s 请求了“%2$s”（%3$s）。</string>
+    <string name="requests_notice_asked">%1$s 请求了“%2$s”。</string>
+    <string name="requests_notice_someone">有人</string>
+    <string name="requests_notice_failed_radarr">“%1$s”无法发送到 Radarr：%2$s</string>
+    <string name="requests_notice_failed_sonarr">“%1$s”无法发送到 Sonarr：%2$s</string>
+    <string name="requests_notice_failed_radarr_plain">“%1$s”无法发送到 Radarr。</string>
+    <string name="requests_notice_failed_sonarr_plain">“%1$s”无法发送到 Sonarr。</string>
+    <plurals name="requests_notice_news">
+        <item quantity="other">你的 %1$d 个请求有新动态</item>
+    </plurals>
+
+    <!-- Seasons: "Season 2", "Seasons 1–3, 5", "Seasons 1–2 and specials", "Specials". -->
+    <string name="requests_season">第 %1$s 季</string>
+    <string name="requests_seasons">第 %1$s 季</string>
+    <string name="requests_season_and_specials">第 %1$s 季和特别篇</string>
+    <string name="requests_seasons_and_specials">第 %1$s 季和特别篇</string>
+    <string name="requests_specials">特别篇</string>
+
+    <!-- When requests can't be used. -->
+    <string name="requests_off_title">请求功能已关闭</string>
+    <string name="requests_off_body">此服务器不接受电影和剧集请求。</string>
+    <string name="requests_no_access_title">此账户未开放请求功能</string>
+    <string name="requests_no_access_body">管理员可以允许此账户请求电影和剧集。</string>
+    <string name="requests_tmdb_down">TMDB 没有响应</string>
+    <string name="requests_tmdb_down_body">它恢复响应后，详情和图片就会回来。</string>
+    <string name="requests_tmdb_key">TMDB 拒绝了此服务器的密钥</string>
+    <string name="requests_tmdb_key_manage">请在 设置 → 服务器 中修复（在网页版中）。</string>
+    <string name="requests_tmdb_key_others">需要管理员检查。</string>
+    <string name="requests_sign_in_title">重新登录以请求电影和剧集</string>
+    <string name="requests_sign_in_approvals">重新登录以在此批准或拒绝请求。</string>
+    <string name="requests_sign_in">登录</string>
+    <string name="requests_not_found">TMDB 上没有此标题</string>
+    <string name="requests_not_found_body">可能后来被下架了。</string>
+    <string name="requests_retry">重试</string>
+    <!-- Where Request would be, with access "off". -->
+    <string name="requests_no_access_line">此账户未开放请求功能。</string>
+    <!-- Any other failure, over the error's own sentence. -->
+    <string name="requests_discover_failed">无法加载“发现”</string>
+    <string name="requests_search_failed">无法搜索 TMDB</string>
+    <string name="requests_title_failed">无法加载此标题</string>
+    <string name="requests_list_failed">无法加载请求</string>
+
+    <!-- A title page's sections. -->
+    <string name="requests_seasons_heading">季</string>
+    <string name="requests_cast">演员</string>
+    <string name="requests_more_actions">更多操作</string>
+
+    <!-- Global search. -->
+    <string name="requests_search_row">发现</string>
+    <string name="requests_see_all">查看全部</string>
+    <string name="requests_nothing_in_libraries">你的媒体库中没有匹配的内容</string>
+
+    <!-- Credits. -->
+    <string name="requests_credit">详情和图片来自 TMDB。</string>
+    <string name="requests_credit_about">本产品使用 TMDB API，但未获得 TMDB 的认可或认证。</string>
+</resources>

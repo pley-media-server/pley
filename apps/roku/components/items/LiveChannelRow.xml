@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A channel in the player's channel list (a MarkupList): its number,
-     logo, name, what's on with how far along, and a star for a favourite;
+     logo, name, what's on with how far along, and a star for a favorite;
      the channel playing in the accent. -->
 <component name="LiveChannelRow" extends="Group">
     <interface>

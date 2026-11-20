@@ -60,6 +60,20 @@ import Testing
         #expect(shown.languages == [.french, .spanish, .french])
     }
 
+    /// The device's Chinese tag, script or region, picks the right words.
+    @Test func aChineseDeviceLanguagePicksTheScriptItWrites() async {
+        let shown = Shown()
+        let simplified = app(settings: freshSettings(), deviceLanguages: { ["zh-Hans-CN", "en-US"] },
+                             applyLanguage: { shown.languages.append($0); shown.locales.append($1) })
+        await simplified.start()
+        #expect(simplified.language == .simplifiedChinese)
+        let traditional = app(settings: freshSettings(), deviceLanguages: { ["zh-Hant-TW", "en-US"] },
+                              applyLanguage: { shown.languages.append($0); shown.locales.append($1) })
+        await traditional.start()
+        #expect(traditional.language == .traditionalChinese)
+        #expect(shown.languages == [.simplifiedChinese, .traditionalChinese])
+    }
+
     @Test func theAccountsLanguageComesFirst() async throws {
         let server = try await fixture()
         defer { server.stop() }
@@ -96,6 +110,16 @@ import Testing
         #expect(server.language(profile: 2) == nil)
         let put = server.requests("/api/me/language")
         #expect(put.count == 2 && put.allSatisfy { $0.method == "PUT" })
+    }
+
+    /// The app's catalogs name Chinese by script; the server keeps the account's by region.
+    @Test func chineseGoesToTheServerAsItsOwnCode() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        try await app.chooseLanguage(.traditionalChinese)
+        #expect(app.language == .traditionalChinese && app.user?.language == "zh-TW")
+        #expect(server.language(profile: 2) == "zh-TW")
     }
 
     @Test func aRefusedChoiceIsPutBack() async throws {

@@ -111,7 +111,7 @@ data class RequestSummary(
     /** The number on the way into requests: for managers, what waits for them too. */
     val badge: Int get() = if (manage) pending + failed + unseen else unseen
 
-    /** The badge is in the danger colour: requests failed and wait for a manager. */
+    /** The badge is in the danger color: requests failed and wait for a manager. */
     val badgeAlarm: Boolean get() = manage && failed > 0
 }
 

@@ -1,0 +1,18 @@
+{
+  "title": "U 盘",
+  "noDrive": {
+    "title": "没有 U 盘",
+    "body": "将 U 盘插入电视，即可在此播放其中的视频。"
+  },
+  "unreadable": {
+    "title": "无法读取此文件夹",
+    "body": "U 盘可能已被拔出。"
+  },
+  "empty": {
+    "title": "这里没有可播放的内容",
+    "body": "此文件夹中没有视频或文件夹。"
+  },
+  "space": "共 {{total}}，可用 {{free}}",
+  "up": "返回上一级文件夹",
+  "resumesAt": "{{kind}} · 从 {{time}} 继续"
+}

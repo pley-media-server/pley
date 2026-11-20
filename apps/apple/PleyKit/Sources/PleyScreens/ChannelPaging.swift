@@ -54,13 +54,13 @@ public final class ChannelPaging: ObservableObject {
     /// Goes up with each new list: an answer for an older one is dropped.
     private var generation = 0
     private var watches: Set<AnyCancellable> = []
-    /// The pages as the server gave them, before the favourites set here.
+    /// The pages as the server gave them, before the favorites set here.
     private var raw: [Int: [LiveChannel]] = [:]
 
     public init(live: LiveTvRepository, maxPages: Int = ChannelPaging.maxPages) {
         self.live = live
         self.maxPages = maxPages
-        // A favourite set shows at once; a change at the server asks for the pages in view again.
+        // A favorite set shows at once; a change at the server asks for the pages in view again.
         live.$favorites.dropFirst().sink { [weak self] _ in
             Task { @MainActor in self?.remark() }
         }.store(in: &watches)
@@ -92,7 +92,7 @@ public final class ChannelPaging: ObservableObject {
         load(wanted())
     }
 
-    /// Asks again for the pages in view (what's on moved on, a favourite was saved), keeping what shows meanwhile.
+    /// Asks again for the pages in view (what's on moved on, a favorite was saved), keeping what shows meanwhile.
     public func reload() {
         guard category != nil else { return }
         generation += 1
@@ -147,7 +147,7 @@ public final class ChannelPaging: ObservableObject {
         raw = raw.filter { keep.contains($0.key) }
     }
 
-    /// The pages as the server gave them, marked again with the favourites set here.
+    /// The pages as the server gave them, marked again with the favorites set here.
     private func remark() {
         pages.pages = raw.filter { pages.pages[$0.key] != nil }.mapValues { $0.map(live.marked) }
     }

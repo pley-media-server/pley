@@ -159,7 +159,7 @@ internal fun ProgramBadge(text: String, live: Boolean, modifier: Modifier = Modi
     )
 }
 
-/** The badge a programme carries, if any: Live first, else New. */
+/** The badge a program carries, if any: Live first, else New. */
 @Composable
 internal fun BadgeOf(program: LiveProgram, modifier: Modifier = Modifier) {
     when {

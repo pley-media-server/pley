@@ -288,7 +288,7 @@ pub struct Report {
     #[serde(default)]
     pub started_at: i64,
     pub finished_at: i64,
-    /// How it ended: done, failed or cancelled.
+    /// How it ended: done, failed or canceled.
     #[serde(default)]
     pub outcome: RunState,
     /// Why it failed.
@@ -483,7 +483,7 @@ pub struct PlanUser {
     pub limits: PlanLimits,
     /// Their picture can be had, from `GET /api/import/plex/users/{id}/picture`.
     pub picture: bool,
-    /// The colour of Plex's picture for them, which their profile takes.
+    /// The color of Plex's picture for them, which their profile takes.
     pub color: Option<String>,
 }
 
@@ -1080,7 +1080,7 @@ async fn imported_profile(db: &Db, plex_id: i64) -> sqlx::Result<Option<i64>> {
 }
 
 /// Home user `user`'s picture, made as a profile's is (a small JPEG, read
-/// and written afresh), and the colour of Plex's picture for them.
+/// and written afresh), and the color of Plex's picture for them.
 async fn home_picture(plex: &Plex, user: &HomeUser) -> (i64, (Option<Vec<u8>>, Option<String>)) {
     let Some(thumb) = user.thumb.as_deref() else { return (user.id, (None, None)) };
     let picture = plex.picture(thumb).await;
@@ -1436,6 +1436,9 @@ impl Run {
         self.check(&choices, &sections).await?;
         let paired = self.libraries(&choices, &sections).await?;
         self.paired = paired.iter().map(|p| p.library_id).collect();
+        // Scans don't merge copies of a movie (a title's id going) while what
+        // was done with the titles found is brought; the fetch's scan does.
+        let merges_held = self.state.scanner.hold_merges(&self.paired);
         // Profiles come with their limits before anything else, so a
         // child's is never open while the rest runs, or if it stops.
         let people = self.people(&choices, &sections, &paired, &folders).await?;
@@ -1461,6 +1464,7 @@ impl Run {
         if all_found {
             self.importer.set(&self.state, self.admin, |p| p.steps.retain(|r| r.step != Step::MatchingAgain));
         }
+        drop(merges_held);
         self.fetch(&paired).await?;
         if all_found {
             return Ok(());
@@ -1971,7 +1975,7 @@ impl Run {
         Ok((!has).then_some(PinOutcome::Missing))
     }
 
-    /// Home user `user`'s Plex picture and colour for profile `user_id`,
+    /// Home user `user`'s Plex picture and color for profile `user_id`,
     /// each only where the profile has none. A picture that can't be had,
     /// or isn't a picture, is left out without a word.
     async fn picture(&self, user_id: i64, user: &HomeUser) -> ImportResult<()> {
@@ -2386,7 +2390,9 @@ impl Run {
                 .await?
                 .unwrap_or(false);
                 if unmatched && self.state.metadata.tmdb_enabled() {
-                    match self.state.metadata.rematch(id, *tmdb).await {
+                    // Copies matched to the same title merge at the fetch's
+                    // scan, once what Plex has of each was brought to it.
+                    match self.state.metadata.rematch_unmerged(id, *tmdb).await {
                         Ok(()) => self.report.matches_fixed += 1,
                         Err(e) => tracing::debug!("the Plex import couldn't match {title}: {e:#}"),
                     }
@@ -2402,7 +2408,7 @@ impl Run {
                     .await?;
                 }
             } else if self.state.metadata.tmdb_enabled() {
-                match self.state.metadata.rematch(id, *tmdb).await {
+                match self.state.metadata.rematch_unmerged(id, *tmdb).await {
                     Ok(()) => self.report.matches_fixed += 1,
                     Err(e) => tracing::debug!("the Plex import couldn't match {title} again: {e:#}"),
                 }

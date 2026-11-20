@@ -17,7 +17,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// The live player (the Android app's TvLivePlayerScreen): the channel full screen on the TV's
 /// own player, under a clear window. With nothing over it, Up and Down and Channel up and down
 /// change channel (Up the next), digits tune a number; OK, Menu or Guide opens the channel list;
-/// OK held shows the controls (the channel list, the favourite) over what's on; Info shows what's
+/// OK held shows the controls (the channel list, the favorite) over what's on; Info shows what's
 /// on for 5 s; Back hides what shows, then leaves. Live TV is watched as it airs: play, pause, rewind,
 /// fast forward, Left and Right do nothing. A channel that doesn't start says why, with Try again
 /// (or Watch here instead, every connection being in use), Other channels and Back to the guide.
@@ -208,7 +208,7 @@ sealed class LivePlayerScreen : Sheet
             case "Return":
             case "KP_Enter":
                 // The channel list on the way up, as OK selects elsewhere; held, the controls
-                // (the favourite, the list), as a long press opens actions elsewhere. Timed from
+                // (the favorite, the list), as a long press opens actions elsewhere. Timed from
                 // the press, not counted in the remote's repeats, which the TV may not send.
                 if (down)
                 {
@@ -423,7 +423,7 @@ sealed class LivePlayerScreen : Sheet
         }
         var barKey = $"{channel!.GetHashCode()}|{name}|{now / 60}|{controlsShown}|{playing}";
         if (barKey == barShown) return;
-        // Drawn again (the favourite changed, a minute passed): focus stays on the same button.
+        // Drawn again (the favorite changed, a minute passed): focus stays on the same button.
         var focusedAt = Tree.Current != null && Tree.Current.Parent == controls ? controls.Children.ToList().IndexOf(Tree.Current) : 0;
         barShown = barKey;
         Clear(infoBar);
@@ -528,7 +528,7 @@ sealed class LivePlayerScreen : Sheet
 
     /// <summary>
     /// The bar at the foot: the channel's logo, number and name, what's on with its times, how far
-    /// it is and what's next; Live; then the controls (the channel list first, the favourite) or
+    /// it is and what's next; Live; then the controls (the channel list first, the favorite) or
     /// the hint.
     /// </summary>
     void InfoBar(LiveChannel channel, string name, long now)
@@ -557,7 +557,7 @@ sealed class LivePlayerScreen : Sheet
         var right = PleyTv.CanvasWidth - PleyTv.SafeHorizontal - (live != null ? live.SizeWidth / Ui.Scale + 16 : 0);
         var textWidth = right - x;
 
-        // The number and name, a star for a favourite.
+        // The number and name, a star for a favorite.
         var lineX = x;
         if (channel.Number is { } number)
         {
@@ -778,7 +778,7 @@ sealed class LivePlayerScreen : Sheet
         Tree.Focus(first ?? retry?.Item ?? others.Item);
     }
 
-    /// <summary>A centred line or a few in the card, from <paramref name="top"/>: where the next goes.</summary>
+    /// <summary>A centered line or a few in the card, from <paramref name="top"/>: where the next goes.</summary>
     static float CentredIn(View card, string text, TextStyle style, Color color, float top, float width, float left, int maxLines)
     {
         var label = Text.Label(text, style, color, maxLines: maxLines, width: width);

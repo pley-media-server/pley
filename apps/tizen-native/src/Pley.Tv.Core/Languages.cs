@@ -15,15 +15,17 @@ public static class Languages
 {
     public const string English = "en";
 
-    /// <summary>ISO 639-1 codes, English first: the fallback.</summary>
-    public static readonly IReadOnlyList<string> All = new[] { "en", "fr", "es" };
+    /// <summary>The codes Pley is in, English first: the fallback. The two Chinese ones are separate languages.</summary>
+    public static readonly IReadOnlyList<string> All = new[] { "en", "fr", "es", "zh-CN", "zh-TW" };
 
-    /// <summary>The language Pley has for a tag ("fr-CA", "fr_FR" → "fr"); null for one it hasn't, or none.</summary>
+    /// <summary>The language Pley has for a tag ("fr-CA", "fr_FR" → "fr", "zh-Hant" → "zh-TW"); null for one it hasn't, or none.</summary>
     public static string? Supported(string? tag)
     {
         if (string.IsNullOrWhiteSpace(tag)) return null;
-        var code = tag!.Trim().Split('-', '_')[0].ToLowerInvariant();
-        return All.FirstOrDefault(l => l == code);
+        var parts = tag!.Trim().ToLowerInvariant().Split('-', '_', '.', '@');
+        // Chinese is two languages: Traditional by its script or a region that writes it.
+        if (parts[0] == "zh") return parts.Any(p => p is "hant" or "tw" or "hk" or "mo") ? "zh-TW" : "zh-CN";
+        return All.FirstOrDefault(l => l == parts[0]);
     }
 
     /// <summary>The first of <paramref name="device"/>'s languages Pley has; null for none.</summary>
@@ -40,11 +42,13 @@ public static class Languages
     /// <summary>The first of <paramref name="device"/>'s languages Pley has, else <paramref name="server"/>'s, else English: what the globe's Automatic is.</summary>
     public static string OfSystem(string? server, IEnumerable<string> device) => OfDevice(device) ?? Supported(server) ?? English;
 
-    /// <summary>A language's name in itself, as the Language row lists it: "Français".</summary>
+    /// <summary>A language's name in itself, as the Language row lists it: "Français", "简体中文".</summary>
     public static string NameOf(string language) => language switch
     {
         "fr" => "Français",
         "es" => "Español",
+        "zh-CN" => "简体中文",
+        "zh-TW" => "繁體中文",
         _ => "English",
     };
 

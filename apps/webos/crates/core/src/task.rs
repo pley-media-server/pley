@@ -61,7 +61,7 @@ impl std::fmt::Debug for Cancel {
 }
 
 impl Cancel {
-    /// A new token, not cancelled.
+    /// A new token, not canceled.
     pub fn new() -> Cancel {
         Cancel(Arc::new(CancelInner {
             flag: AtomicBool::new(false),
@@ -87,12 +87,12 @@ impl Cancel {
         }
     }
 
-    /// Whether this was cancelled.
+    /// Whether this was canceled.
     pub fn is_cancelled(&self) -> bool {
         self.0.flag.load(Ordering::SeqCst)
     }
 
-    /// Runs `f` when this is cancelled (at once when it already is). The
+    /// Runs `f` when this is canceled (at once when it already is). The
     /// listener is forgotten when the guard is dropped.
     pub fn on_cancel(&self, f: impl FnOnce() + Send + 'static) -> CancelGuard {
         let mut s = lock(&self.0.state);
@@ -107,7 +107,7 @@ impl Cancel {
         CancelGuard { cancel: Some(self.clone()), id }
     }
 
-    /// Waits `d`, or less when cancelled meanwhile: true when it waited the
+    /// Waits `d`, or less when canceled meanwhile: true when it waited the
     /// whole time.
     pub fn sleep(&self, d: Duration) -> bool {
         let until = Instant::now() + d;
@@ -224,7 +224,7 @@ impl<T> Promise<T> {
         }
     }
 
-    /// No answer will ever come: the task panicked, or was cancelled before it ran.
+    /// No answer will ever come: the task panicked, or was canceled before it ran.
     pub fn failed(&self) -> bool {
         matches!(*lock(&self.slot.value), SlotState::Failed)
     }
@@ -517,7 +517,7 @@ mod tests {
         c.cancel();
         c.cancel();
         assert_eq!(runs.load(Ordering::SeqCst), 1);
-        // Already cancelled: runs at once.
+        // Already canceled: runs at once.
         let r = runs.clone();
         let _late = c.on_cancel(move || {
             r.fetch_add(100, Ordering::SeqCst);

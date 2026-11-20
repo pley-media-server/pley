@@ -3,7 +3,8 @@ name: Repository
 # What belongs to no single app: the workflows themselves, and the scripts
 # that version and release the apps (docs/RELEASING.md), with every unit's
 # manifests and CHANGELOG checked against each other, its version against
-# the last release's, and README.md's latest releases against the CHANGELOGs.
+# the last release's, and README.md's latest releases against the CHANGELOGs;
+# and the spelling of the docs and the apps' English words.
 on:
   push:
     branches: [master]
@@ -24,6 +25,14 @@ on:
       - apps/webos/appinfo.json
       - apps/kodi/plugin.video.pley/addon.xml
       - apps/roku/manifest
+      - scripts/check-spelling.mjs
+      - "**/*.md"
+      - "**/locales/en/**"
+      - "**/locales/en.json"
+      - "**/Locales/en/**"
+      - "**/res/values/strings*.xml"
+      - "**/resource.language.en_gb/**"
+      - "**/Localizable.xcstrings"
   pull_request:
     paths:
       - .github/workflows/**
@@ -41,6 +50,14 @@ on:
       - apps/webos/appinfo.json
       - apps/kodi/plugin.video.pley/addon.xml
       - apps/roku/manifest
+      - scripts/check-spelling.mjs
+      - "**/*.md"
+      - "**/locales/en/**"
+      - "**/locales/en.json"
+      - "**/Locales/en/**"
+      - "**/res/values/strings*.xml"
+      - "**/resource.language.en_gb/**"
+      - "**/Localizable.xcstrings"
   workflow_dispatch:
 
 permissions:
@@ -87,3 +104,16 @@ jobs:
       # waits for the next release is normal here, so pending isn't run.
       - run: bun scripts/release.mjs check
       - run: bun scripts/release.mjs
+
+  spelling:
+    name: Spelling
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - run: bun scripts/check-spelling.mjs

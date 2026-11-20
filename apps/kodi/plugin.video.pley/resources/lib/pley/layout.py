@@ -31,7 +31,7 @@ def word(id_: int) -> str:
         raise ValueError("%d isn't one of layout.WORDS" % id_)
     return "$INFO[Window(Home).Property(pley.word.%d)]" % id_
 
-# pley's colours (PleyColors.kt), as Kodi writes them: AARRGGBB.
+# pley's colors (PleyColors.kt), as Kodi writes them: AARRGGBB.
 BG = "FF0B0D10"
 SURFACE = "FF12151A"
 SURFACE2 = "FF191D24"
@@ -304,7 +304,7 @@ LIBRARIES_CARD = (522, 160)
 LIBRARIES_GAP = 32
 
 # "Who's watching?" (TvProfilesScreen), without the rail: the title, the
-# household's faces in a row, centred while six fit, and what a refused
+# household's faces in a row, centered while six fit, and what a refused
 # switch said.
 PROFILES_TITLE, PROFILES_NOTE = 9011, 9012
 PROFILES_LIST = 9020
@@ -316,7 +316,7 @@ PROFILE_MARGIN = 30  # room in the list for a focused face's growth and ring
 
 
 def profiles_left(count: int) -> int:
-    """Where the row of `count` faces starts: centred while they fit, else
+    """Where the row of `count` faces starts: centered while they fit, else
     at the safe area's edge, and it scrolls."""
     if count > PROFILES_FIT:
         return SAFE_X
@@ -325,10 +325,10 @@ def profiles_left(count: int) -> int:
 
 
 # Live TV (livetv.py), as the web's LiveTvPage lays it out:
-# the categories (Search, Favourites, Recently watched, All channels and
+# the categories (Search, Favorites, Recently watched, All channels and
 # the groups, a region's under it), the channels of the one shown by
 # number with what's on now under its name and count, and beside them the
-# focused channel's programme now and next, which the skin reads from the
+# focused channel's program now and next, which the skin reads from the
 # list's own item.
 LIVE_TITLE, LIVE_HEADING, LIVE_COUNT = 10011, 10012, 10013
 LIVE_CATEGORIES = 10030

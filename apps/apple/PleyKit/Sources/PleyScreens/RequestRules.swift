@@ -11,7 +11,7 @@ import PleyPlayer
 
 /// The ways into requests, for Me, Search and the sidebar: Discover, and
 /// Your requests (Requests for managers) carrying one number, in the
-/// danger colour while failed requests wait for a manager.
+/// danger color while failed requests wait for a manager.
 public struct RequestsEntry: Hashable, Sendable {
     /// Discover shows: requests are on and open to this account (perhaps only to say "Sign in again").
     public var discover = false
@@ -42,7 +42,7 @@ public struct RequestsEntry: Hashable, Sendable {
                              failed: requests && summary.manage ? summary.failed : 0)
     }
 
-    /// The number is in the danger colour.
+    /// The number is in the danger color.
     public var alarm: Bool { failed > 0 }
 
     /// Some way in shows.

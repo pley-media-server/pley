@@ -1,6 +1,6 @@
-//! Colours as straight (not premultiplied) RGBA, 8 bits a channel.
+//! Colors as straight (not premultiplied) RGBA, 8 bits a channel.
 
-/// A colour. The renderer premultiplies when it draws.
+/// A color. The renderer premultiplies when it draws.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Color {
     pub r: u8,
@@ -14,23 +14,23 @@ impl Color {
     pub const BLACK: Color = Color::rgb(0x000000);
     pub const WHITE: Color = Color::rgb(0xffffff);
 
-    /// An opaque colour from `0xRRGGBB`, as the design system writes them.
+    /// An opaque color from `0xRRGGBB`, as the design system writes them.
     pub const fn rgb(hex: u32) -> Color {
         Color { r: (hex >> 16) as u8, g: (hex >> 8) as u8, b: hex as u8, a: 0xff }
     }
 
-    /// A colour from `0xRRGGBBAA`.
+    /// A color from `0xRRGGBBAA`.
     pub const fn rgba(hex: u32) -> Color {
         Color { r: (hex >> 24) as u8, g: (hex >> 16) as u8, b: (hex >> 8) as u8, a: hex as u8 }
     }
 
-    /// This colour with its alpha multiplied by `f` (0 to 1): "Bg @ 60 %" is
+    /// This color with its alpha multiplied by `f` (0 to 1): "Bg @ 60 %" is
     /// `BG.alpha(0.6)`.
     pub fn alpha(self, f: f32) -> Color {
         Color { a: (self.a as f32 * f.clamp(0.0, 1.0)).round() as u8, ..self }
     }
 
-    /// The colour `t` of the way from `self` to `to`, channel by channel.
+    /// The color `t` of the way from `self` to `to`, channel by channel.
     pub fn lerp(self, to: Color, t: f32) -> Color {
         let t = t.clamp(0.0, 1.0);
         let mix = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round() as u8;

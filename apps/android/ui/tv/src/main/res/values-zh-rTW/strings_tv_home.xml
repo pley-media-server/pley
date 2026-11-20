@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home: the hero's buttons (design spec §2.2). -->
+    <string name="tv_home_resume">繼續播放</string>
+    <string name="tv_home_play">播放</string>
+    <string name="tv_home_from_start">從頭播放</string>
+    <string name="tv_home_info">資訊</string>
+    <string name="tv_home_turns">第 %1$d 部，共 %2$d 部</string>
+    <string name="tv_home_mark_watched">標為已觀看</string>
+    <string name="tv_home_mark_unwatched">標為未觀看</string>
+    <string name="tv_home_see_all">檢視全部</string>
+    <string name="tv_home_rating">分級 %1$s</string>
+
+    <!-- Home's states (design spec §8), in the web's words. -->
+    <string name="tv_home_no_libraries">暫無媒體庫</string>
+    <string name="tv_home_no_libraries_body">請伺服器所有者新增媒體庫。</string>
+    <string name="tv_home_empty">這裡還是空的</string>
+    <string name="tv_home_empty_body">媒體庫為空。將媒體放入媒體庫資料夾後執行掃描。</string>
+    <string name="tv_home_scanning">正在掃描媒體庫…</string>
+    <string name="tv_home_scanning_body">找到新內容後會立即顯示在這裡。</string>
+    <string name="tv_home_failed">無法載入首頁</string>
+    <string name="tv_home_retry">重試</string>
+    <string name="tv_home_nothing_to_play">沒有可播放內容</string>
+    <string name="tv_home_loading">正在載入首頁</string>
+
+    <!-- The list of libraries. -->
+    <string name="tv_libraries_title">媒體庫</string>
+    <string name="tv_libraries_failed">無法載入媒體庫</string>
+    <string name="tv_libraries_scanning">正在掃描…</string>
+    <string name="tv_libraries_sort">排序媒體庫</string>
+    <string name="tv_libraries_sort_done">完成</string>
+    <string name="tv_libraries_server_order">使用伺服器的順序</string>
+    <string name="tv_libraries_open">開啟</string>
+    <string name="tv_libraries_move">移動</string>
+    <string name="tv_libraries_sorting">選擇要移動的媒體庫。你的排序會應用到所有裝置。</string>
+    <string name="tv_libraries_sort_needs_newer_server">排序媒體庫需要伺服器上安裝更新版本的 Pley。</string>
+    <string name="tv_libraries_moving">用方向鍵移動，按 OK 放到此處，按返回鍵放回原位</string>
+</resources>

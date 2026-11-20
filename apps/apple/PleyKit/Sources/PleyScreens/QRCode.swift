@@ -67,7 +67,7 @@ public enum QRCode {
         return grid
     }
 
-    /// Whether a finder pattern (a 7×7 dark ring around a 3×3 dark centre) starts at `row`, `column`.
+    /// Whether a finder pattern (a 7×7 dark ring around a 3×3 dark center) starts at `row`, `column`.
     static func finder(_ grid: [[Bool]], row: Int, column: Int) -> Bool {
         guard row >= 0, column >= 0, row + 7 <= grid.count, column + 7 <= grid.count else { return false }
         for y in 0..<7 {

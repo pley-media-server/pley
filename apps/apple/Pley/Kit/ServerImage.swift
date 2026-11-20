@@ -6,7 +6,7 @@ import SwiftUI
 /// the width it shows (in pixels, rounded up to a multiple of 64 so near
 /// sizes share one cached picture). Each of `paths` is tried in turn until
 /// one comes. Until then, a plain box with `symbol` faintly in its middle.
-/// It fades in, except under Reduce Motion, and its fetch is cancelled when
+/// It fades in, except under Reduce Motion, and its fetch is canceled when
 /// it goes off screen. The picture says nothing to VoiceOver: what holds it
 /// carries the label.
 struct ServerImage: View {
@@ -74,7 +74,7 @@ struct ServerImage: View {
     }
 }
 
-/// A profile's round picture, or its initials on its colour.
+/// A profile's round picture, or its initials on its color.
 struct AvatarView: View {
     let app: AppModel
     let name: String

@@ -1497,3 +1497,90 @@ async fn loosely_named_episodes_each_stay_an_episode() {
     rescan(&app, &admin, lib).await;
     assert_eq!(episodes("Babylon 5").await.as_array().unwrap().len(), 4);
 }
+
+/// Two movies with the same TMDB id (here as their NFO files would give it,
+/// with no key for TMDB) are one after a scan, and what was done with each
+/// adds up: plays, the latest position, playlists, labels, hand edits.
+#[tokio::test]
+async fn movies_with_the_same_tmdb_id_merge_with_what_was_done_with_them() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Heat (1995).mkv", 1024);
+    app.media_file("movies/Heat (1996) Remux.mkv", 2048);
+    let lib = app.library(&admin, "Movies", "movies", "movies").await;
+    // Added by the same scan, in the order the folder lists them: the one
+    // with the lower id is the first.
+    let both: Vec<i64> = sqlx::query_scalar("SELECT id FROM items WHERE kind = 'movie' ORDER BY id")
+        .fetch_all(&app.state.db.read)
+        .await
+        .unwrap();
+    let (first, second) = (both[0], both[1]);
+    let user: i64 = sqlx::query_scalar("SELECT id FROM users").fetch_one(&app.state.db.read).await.unwrap();
+    let db = &app.state.db.write;
+    for sql in [
+        "UPDATE items SET tmdb_id = 949 WHERE kind = 'movie'",
+        // Played once to the end as the first, twice and halfway as the
+        // second, later.
+        "INSERT INTO user_item_state (user_id, item_id, position_ms, watched, play_count, last_played_at, updated_at)
+         VALUES (?1, ?2, 0, 1, 1, 100, 100), (?1, ?3, 60000, 0, 2, 200, 200)",
+        "INSERT INTO play_history (user_id, item_id, viewed_at) VALUES (?1, ?2, 100), (?1, ?3, 200)",
+        "INSERT INTO playlists (id, user_id, title, kind, created_at, updated_at) VALUES (1, ?1, 'Both', 'video', 0, 0),
+                                                                                       (2, ?1, 'One', 'video', 0, 0)",
+        "INSERT INTO playlist_items (playlist_id, item_id, position, added_at) VALUES (1, ?2, 0, 0), (1, ?3, 1, 0),
+                                                                                     (2, ?3, 0, 0)",
+        "INSERT INTO item_labels (item_id, label) VALUES (?2, 'Crime'), (?3, '4K'), (?3, 'crime')",
+        "INSERT INTO item_overrides (item_id, field, value) VALUES (?2, 'title', 'Heat'), (?3, 'title', 'Heat 4K'),
+                                                                   (?3, 'tagline', 'A Los Angeles crime saga')",
+    ] {
+        sqlx::query(sql).bind(user).bind(first).bind(second).execute(db).await.unwrap();
+    }
+
+    app.post(&format!("/api/libraries/{lib}/scan"), &admin, json!({})).await;
+    app.wait_for_scans().await;
+    let left: Vec<i64> =
+        sqlx::query_scalar("SELECT id FROM items WHERE kind = 'movie'").fetch_all(&app.state.db.read).await.unwrap();
+    assert_eq!(left, [first]);
+    let read = &app.state.db.read;
+    let state: (i64, i64, i64, i64) = sqlx::query_as(
+        "SELECT position_ms, watched, play_count, last_played_at FROM user_item_state WHERE item_id = ?",
+    )
+    .bind(first)
+    .fetch_one(read)
+    .await
+    .unwrap();
+    assert_eq!(state, (60_000, 1, 3, 200), "the latest position, watched, plays added up");
+    let history: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM play_history WHERE item_id = ?")
+        .bind(first)
+        .fetch_one(read)
+        .await
+        .unwrap();
+    assert_eq!(history, 2);
+    let playlists: Vec<(i64, i64)> =
+        sqlx::query_as("SELECT playlist_id, item_id FROM playlist_items ORDER BY playlist_id, position")
+            .fetch_all(read)
+            .await
+            .unwrap();
+    assert_eq!(playlists, [(1, first), (2, first)], "once in each playlist");
+    let labels: Vec<String> = sqlx::query_scalar("SELECT label FROM item_labels WHERE item_id = ? ORDER BY label")
+        .bind(first)
+        .fetch_all(read)
+        .await
+        .unwrap();
+    assert_eq!(labels, ["4K", "Crime"]);
+    let overrides: Vec<(String, String)> =
+        sqlx::query_as("SELECT field, value FROM item_overrides WHERE item_id = ? ORDER BY field")
+            .bind(first)
+            .fetch_all(read)
+            .await
+            .unwrap();
+    assert_eq!(overrides, [("tagline".into(), "A Los Angeles crime saga".into()), ("title".into(), "Heat".into())]);
+    let tagline: Option<String> =
+        sqlx::query_scalar("SELECT tagline FROM items WHERE id = ?").bind(first).fetch_one(read).await.unwrap();
+    assert_eq!(tagline.as_deref(), Some("A Los Angeles crime saga"), "the edit shows at once");
+    let files: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM media_files WHERE item_id = ?")
+        .bind(first)
+        .fetch_one(read)
+        .await
+        .unwrap();
+    assert_eq!(files, 2);
+}

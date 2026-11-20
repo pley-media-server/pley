@@ -60,7 +60,7 @@ const CHIP_GAP: f32 = 12.0;
 const CHIP_LABEL_WIDTH: f32 = 320.0 - 2.0 * 16.0 - theme::ICON_SIZE - 8.0;
 /// A channel's logo inside its well.
 const LOGO_INSET: f32 = 8.0;
-/// A channel tile's marks: the number badge and the favourite star, 6 in from the corners.
+/// A channel tile's marks: the number badge and the favorite star, 6 in from the corners.
 const MARK_INSET: f32 = 6.0;
 const STAR_SIZE: f32 = 16.0;
 /// What's on along a channel tile's foot.
@@ -835,7 +835,7 @@ fn asks_tmdb(cx: &AppCx) -> bool {
 /// The Discover row after the libraries' rows, for the words of the results shown.
 struct Discover<'a> {
     words: String,
-    /// `None` before TMDB was asked for the words: grey wells, as while it answers.
+    /// `None` before TMDB was asked for the words: gray wells, as while it answers.
     state: Option<&'a TmdbState>,
     /// The sign-in manages requests: why requests can't be used says what to do about it.
     manage: bool,
@@ -890,7 +890,7 @@ fn tmdb_problem(e: &ApiError, manage: bool) -> (String, String, bool) {
 }
 
 /// The Discover row: TMDB's titles badged, and See all for everything TMDB has for the words;
-/// grey wells while they come; why TMDB didn't answer, with Retry where it may help.
+/// gray wells while they come; why TMDB didn't answer, with Retry where it may help.
 fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Discover, act: &mut Option<Act>) {
     let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
     match d.state {
@@ -952,7 +952,7 @@ fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Disc
     }
 }
 
-/// A TMDB title's poster, with its badge at the upper left in the badge's colour.
+/// A TMDB title's poster, with its badge at the upper left in the badge's color.
 fn paint_tmdb_tile(ui: &mut Ui, slot: &TileSlot, t: &TmdbTile) {
     let tile = Tile::new(TileKind::Poster, &t.title).subtitle(&t.subtitle).art(&t.art);
     let Some(badge) = t.badge.filter(|_| slot.mode == SlotMode::Draw) else {
@@ -1043,7 +1043,7 @@ fn channel_row(
 
 /// A channel's tile (`ChannelTileCard`, `TvLiveTvScreen.kt`): the logo fitted 8 dp inside a
 /// Surface3 well (without one, or when it fails, the name on its gradient; while it loads, the well
-/// alone), the number as a badge at the top left, a star at the top right for a favourite, what's
+/// alone), the number as a badge at the top left, a star at the top right for a favorite, what's
 /// on's progress along the foot; captioned with the name over what's on.
 fn channel_tile(ui: &mut Ui, slot: &TileSlot, found: &ChannelResult, now: i64) {
     if slot.mode == SlotMode::Prefetch {

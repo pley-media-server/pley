@@ -136,12 +136,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 /**
  * Live TV on TV (the web's LiveTvPage, for a remote):
  * "Live TV" with the Guide and Channels tabs; down the left the
- * categories (Favourites, Recently watched, All channels, then the
+ * categories (Favorites, Recently watched, All channels, then the
  * provider's groups, those of a region under it, opened with OK); beside
  * them the chosen category's guide ([TvGuide], the page's first focus) or
  * tiles, a page of channels loaded at a time, opening on the channel last
  * watched. OK on a channel watches it; holding OK (or Menu) opens a side
- * panel with what's on, Watch and the favourite.
+ * panel with what's on, Watch and the favorite.
  *
  * Back goes up a step at a time (Samsung's page, the web's search): the
  * guide back to now first, a search back to the category before, the
@@ -711,16 +711,16 @@ internal fun ChannelTileCard(
 }
 
 /**
- * A programme's details in the side panel (the web's ProgramModal): the
+ * A program's details in the side panel (the web's ProgramModal): the
  * channel, the title, episode, day and times with its badges, how far it
- * is, what the guide says, then Watch and the favourite. Without a
- * programme, the channel alone.
+ * is, what the guide says, then Watch and the favorite. Without a
+ * program, the channel alone.
  *
  * As Samsung's panel, the buttons keep their room at the foot and the
  * text takes what is left above them: the title two lines at most, what
  * the guide says the lines that fit, one to six. Watch is a pill and the
- * favourite a star beside it, filled for a favourite, as in the live
- * player; its words are only heard. As a pill, Remove from favourites
+ * favorite a star beside it, filled for a favorite, as in the live
+ * player; its words are only heard. As a pill, Remove from favorites
  * didn't fit beside Watch and went under it.
  */
 @Composable
@@ -740,7 +740,7 @@ private fun ProgramPanel(
             Spacer(Modifier.width(12.dp))
             BasicText(listOfNotNull(channel.number, channel.name).joinToString("  "), style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 1)
         }
-        // Measured after the buttons: they keep their height however long the programme's text. Cut at
+        // Measured after the buttons: they keep their height however long the program's text. Cut at
         // its foot: a picture, a long title and badges can leave the description less than a line,
         // which would otherwise draw over the buttons.
         Column(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
@@ -766,7 +766,7 @@ private fun ProgramPanel(
 }
 
 /**
- * The programme in [ProgramPanel], in the room above its buttons: what the
+ * The program in [ProgramPanel], in the room above its buttons: what the
  * guide says gets the lines left after the rest (and Ended under it), one
  * at least, six at most, cut with "…" at the last that fits.
  */

@@ -1,0 +1,52 @@
+{
+  "actions": {
+    "play": "播放",
+    "pause": "暫停",
+    "shuffle": "隨機播放",
+    "shuffleOff": "停止隨機播放",
+    "nowPlaying": "正在播放",
+    "next": "下一個",
+    "previous": "上一個",
+    "retry": "重試",
+    "back": "返回"
+  },
+  "pages": {
+    "artist": "藝人",
+    "albums": "專輯",
+    "loading": "載入中…",
+    "noAlbums": "未找到專輯。",
+    "noTracks": "未找到曲目",
+    "nothingToPlay": "沒有可播放的內容：其中沒有曲目。",
+    "artistNotFound": "未找到藝人",
+    "albumNotFound": "未找到專輯",
+    "notFoundBody": "它可能已被刪除，或此設定檔無法檢視它。",
+    "offline": "無法連線到你的伺服器",
+    "artistFailed": "無法載入此藝人",
+    "albumFailed": "無法載入此專輯",
+    "disc": "光碟 {{number}}"
+  },
+  "count": {
+    "albums_other": "{{count, number}} 張專輯",
+    "tracks_other": "{{count, number}} 首曲目"
+  },
+  "nowPlaying": {
+    "upNext": "接下來播放",
+    "loading": "載入中…",
+    "nothingTitle": "當前沒有播放",
+    "nothingBody": "播放專輯或藝人後，會在這裡顯示。"
+  },
+  "errors": {
+    "offline": "無法連線到伺服器。",
+    "signedOut": "重新登入後再播放。",
+    "stopped": "播放已被伺服器停止。",
+    "unplayable": "此曲目無法播放。"
+  },
+  "sleep": {
+    "timer": "睡眠定時",
+    "pausingIn": "{{seconds}} 秒後暫停",
+    "keepListening": "繼續收聽",
+    "minutesLeft_other": "睡眠定時：剩餘 {{count}} 分鐘",
+    "minutes": "睡眠定時：{{minutes}} 分鐘",
+    "endOfTrack": "睡眠定時：本曲目結束時"
+  }
+}

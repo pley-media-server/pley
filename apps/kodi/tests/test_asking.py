@@ -271,7 +271,7 @@ class ListTest(Case):
         self.answers["GET /api/discover/search"] = (200, {"page": 1, "total_pages": 0, "results": []})
         self.run_plugin("route=discover_search&q=" + urllib.parse.quote("  " + "é" * 250))
         self.assertEqual(self.sent("GET", "/api/discover/search")[0][1], "/api/discover/search?" + urllib.parse.urlencode({"q": "é" * 200, "page": 1}))
-        # No words (a favourite of Discover's search from before): Search asks
+        # No words (a favorite of Discover's search from before): Search asks
         # for them, on Kodi's keyboard.
         with Dialogs("saltwind") as dialogs:
             self.run_plugin("route=discover_search")
@@ -486,7 +486,7 @@ class RequestsTest(Case):
         self.run_plugin("route=request_filter&pick=q&view=pending", handle="-1")
         self.assertEqual(xbmc.builtins, [filtered])
         self.run_plugin("route=request_filter&pick=q&view=pending&q=saltwind", handle="-1")
-        self.assertEqual(xbmc.builtins, [filtered], "cancelled: the list stays as it is")
+        self.assertEqual(xbmc.builtins, [filtered], "canceled: the list stays as it is")
         self.run_plugin("route=request_filter&pick=q&view=pending&q=saltwind", handle="-1")
         self.assertEqual(xbmc.builtins[-1], "Container.Update(%s?route=requests&view=pending,replace)" % BASE, "emptied: none")
         self.assertEqual(xbmc.Keyboard.shown, [("Search", ""), ("Search", "saltwind"), ("Search", "saltwind")])

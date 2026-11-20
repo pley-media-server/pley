@@ -4,7 +4,7 @@ import SwiftUI
 
 // The pieces Apple TV's request screens share, sized for a television:
 // TMDB's posters with their badges, requests as tiles, stage pills in
-// their colours, the download's bar, the states a page can't show in,
+// their colors, the download's bar, the states a page can't show in,
 // Sign in (which asks first), the count on the ways in, TMDB's
 // credit, the panel down the right of the screen, rows the focus comes
 // back to, and the grid of TMDB's titles.
@@ -66,7 +66,7 @@ struct DiscoverCardView: View {
 }
 
 /// A request as a tile: its poster, the download's progress along the
-/// picture, and its title and stage under it, the stage in its colour. One
+/// picture, and its title and stage under it, the stage in its color. One
 /// element for VoiceOver ("Arrival, Downloading 40%"). It opens what the
 /// request leads to.
 struct RequestTileView: View {
@@ -147,7 +147,7 @@ private struct TileCaption: View {
     }
 }
 
-/// White on a dark fill over a picture's corner: the accent colour is white on Apple TV.
+/// White on a dark fill over a picture's corner: the accent color is white on Apple TV.
 struct TileBadge: View {
     let text: String
 
@@ -235,9 +235,9 @@ struct CardRow<Item: Identifiable, Cell: View>: View where Item.ID: Hashable {
     }
 }
 
-/// A stage pill's colours: waiting for approval amber; on its way blue;
+/// A stage pill's colors: waiting for approval amber; on its way blue;
 /// ready green; declined and failed red; gone gray. Blue is named, as the
-/// accent colour is white on Apple TV.
+/// accent color is white on Apple TV.
 enum PillColors {
     static func of(_ tone: PillTone) -> Color {
         switch tone {
@@ -260,7 +260,7 @@ enum PillColors {
     }
 }
 
-/// A request's stage: its words beside a dot in the stage's colour, the
+/// A request's stage: its words beside a dot in the stage's color, the
 /// download's bar under it while one runs (gray while paused, red with a
 /// problem), and the line a failed request has.
 struct StagePillView: View {

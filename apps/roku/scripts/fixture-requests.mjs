@@ -13,7 +13,7 @@ const ACTIVE = ["pending", "approved", "failed"];
 const LISTS = ["trending", "movies", "shows", "upcoming", "anime"];
 const PICTURE_KINDS = ["poster", "backdrop", "profile", "still"];
 const PICTURE_FILE = /^[A-Za-z0-9]{1,64}\.(jpg|png)$/;
-// Pictures in these colours, picked by the file's name.
+// Pictures in these colors, picked by the file's name.
 const PALETTE = [[0x2b, 0x6c, 0xb0], [0x1f, 0x8a, 0x70], [0x8a, 0x5a, 0x3c], [0x6b, 0x4c, 0x9a], [0xa8, 0x3f, 0x5b], [0x3f, 0x7f, 0x8f], [0x9a, 0x7b, 0x2e], [0x4a, 0x5d, 0x7a]];
 
 // Who asks (RequestUser): the household's two, and an administrator of
@@ -43,7 +43,7 @@ const SHOWS = [
   "The Understudy", "Harbor Lights", "Cold Case Garden", "The Night Desk", "Field Notes", "Lighthouse Keepers", "Paper Trail", "The Long Winter",
 ];
 const ANIME = ["Sky Lantern Academy", "Starlit Courier", "Blade of Morning", "The Paper Dragon", "Moonwake", "Spirit Ferry", "Neon Shrine", "Little Comet"];
-const CAST = [["Ada Brook", "The Keeper"], ["Milo Hart", "Her Brother"], ["June Okafor", "The Captain"], ["Theo Lind", "The Stranger"], ["Rosa Vale", "Dr. Marsh"], ["Ivan Petrov", "The Neighbour"]];
+const CAST = [["Ada Brook", "The Keeper"], ["Milo Hart", "Her Brother"], ["June Okafor", "The Captain"], ["Theo Lind", "The Stranger"], ["Rosa Vale", "Dr. Marsh"], ["Ivan Petrov", "The Neighbor"]];
 
 const now = () => Math.floor(Date.now() / 1000);
 const newest = (a, b) => b.createdAt - a.createdAt || b.id - a.id;

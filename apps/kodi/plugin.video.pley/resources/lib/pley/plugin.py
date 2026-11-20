@@ -210,7 +210,7 @@ class Plugin(asking.Asking):
 
     def opened(self) -> bool:
         """Whether someone opened the add-on (from Kodi's add-ons, a
-        favourite), rather than a skin's widget filling itself on Home, or
+        favorite), rather than a skin's widget filling itself on Home, or
         something asking for its folders while pley's window is open."""
         if kodi.get_property(kodi.WINDOW_OPEN):
             return False
@@ -488,7 +488,7 @@ class Plugin(asking.Asking):
     # --------------------------------------------------------------- Live TV
 
     def route_live(self) -> None:
-        """Live TV (livetv.py), by category: Favourites, Recently
+        """Live TV (livetv.py), by category: Favorites, Recently
         watched and All channels, then the groups, those of a region
         gathered under it. Nothing asks for more than a page of channels."""
         found = livetv.groups(self.client())
@@ -573,7 +573,7 @@ class Plugin(asking.Asking):
         self.end()
 
     def channel_menu(self, channel: dict) -> list:
-        """A channel's menu in Kodi's lists: its favourite, its schedule."""
+        """A channel's menu in Kodi's lists: its favorite, its schedule."""
         favourite = bool(channel.get("favorite"))
         toggle = self.url(route="live_favourite", id=channel["id"], value="0" if favourite else "1")
         schedule = self.url(route="live_schedule", id=channel["id"])
@@ -583,7 +583,7 @@ class Plugin(asking.Asking):
         ]
 
     def route_live_schedule(self) -> None:
-        """A channel's programmes, SCHEDULE_HOURS at a time from what's on
+        """A channel's programs, SCHEDULE_HOURS at a time from what's on
         now: what's on plays the channel; the rest say what they are."""
         client = self.client()
         channel_id = int(self.params["id"])
@@ -633,7 +633,7 @@ class Plugin(asking.Asking):
         self.end()
 
     def route_live_info(self) -> None:
-        """A programme still to come, chosen: its info."""
+        """A program still to come, chosen: its info."""
         xbmc.executebuiltin("Action(Info)")
 
     def route_live_play(self) -> None:
@@ -885,7 +885,7 @@ class Plugin(asking.Asking):
             # Signed in there already.
             choose(server, name, server_id or current.get("server_id", ""))
             return xbmc.executebuiltin("Container.Refresh")
-        # The sign-in there stays until this one is made (cancelled, it's
+        # The sign-in there stays until this one is made (canceled, it's
         # kept). A server found at a new address signs in again: anyone on
         # the network can answer a broadcast with its id, and its tokens
         # would go to them.

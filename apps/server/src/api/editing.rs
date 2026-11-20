@@ -147,7 +147,9 @@ pub async fn rematch(
     if !matches!(row.kind.as_str(), "movie" | "show") {
         return Err(AppError::bad_request("only movies and shows are matched"));
     }
-    state.metadata.rematch(id, body.tmdb_id).await.map_err(AppError::Internal)?;
+    // A movie matched to the title of another copy went into it: that's the
+    // movie now.
+    let id = state.metadata.rematch(id, body.tmdb_id).await.map_err(AppError::Internal)?;
     state.events.send(ServerEvent::LibraryChanged { library_id: row.library_id });
     Ok(Json(detail(&state, user.id, id).await?))
 }

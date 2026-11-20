@@ -1,0 +1,121 @@
+{
+  "language": {
+    "label": "語言",
+    "automatic": "自動（{{language}}）"
+  },
+  "title": "設定",
+  "categories": {
+    "profile": "設定檔",
+    "playback": "播放",
+    "audio": "音訊",
+    "display": "字幕和顯示",
+    "server": "伺服器",
+    "diagnostics": "診斷",
+    "about": "關於",
+    "signOut": "登出"
+  },
+  "profile": {
+    "roleManaged": "受管理的設定檔",
+    "switchProfile": "切換設定檔",
+    "audioLanguage": "音訊語言",
+    "subtitles": "字幕",
+    "subtitleLanguage": "字幕語言",
+    "fileDefault": "跟隨檔案預設設定",
+    "sameAsAudio": "與音訊語言相同",
+    "changeOnWeb": "在網頁端更改",
+    "readOnly": "此伺服器不允許應用更改這些設定：請在網頁端更改",
+    "saved": "已儲存",
+    "history": "觀看記錄",
+    "sortLibraries": "媒體庫排序",
+    "sortLibrariesValue": "你的順序，適用於所有裝置",
+    "alwaysStartAs": "始終以此設定檔啟動",
+    "usedLast": "上次使用的設定檔",
+    "manageWeb": "在網頁端管理你的帳戶",
+    "manageWebValue": "名稱、頭像、密碼、PIN、兩步驗證、裝置和應用"
+  },
+  "subtitleModes": {
+    "off": "關閉",
+    "offHint": "字幕保持關閉，直到你手動開啟。",
+    "forced": "僅外語對白",
+    "forcedHint": "僅強制字幕，用於標識和外語對白。",
+    "foreign": "音訊為其他語言時",
+    "foreignHint": "音訊不是你的字幕語言時自動開啟完整字幕。",
+    "always": "始終",
+    "alwaysHint": "只要有你的語言的字幕就會開啟。"
+  },
+  "web": {
+    "title": "在網頁端管理你的帳戶",
+    "body": "用手機掃描 QR 碼，或在同一網路的手機或電腦上開啟此位址："
+  },
+  "signOut": {
+    "title": "登出？",
+    "body": "你將登出 {{server}}。",
+    "intro": "將這臺電視從 {{server}} 登出。再次登入需要新的關聯代碼。"
+  },
+  "playback": {
+    "quality": "畫質",
+    "original": "原始",
+    "originalHint": "完整畫質。網路較慢時可能緩衝。",
+    "automatic": "自動",
+    "automaticHint": "根據網路狀況動態調整。",
+    "preset": "{{mbps}} Mbps {{lines}}",
+    "autoplay": "自動播放下一集",
+    "autoplayHint": "10 秒倒計時後",
+    "details": "播放詳情",
+    "detailsHint": "在影片上顯示其播放方式（直接播放、轉封裝或轉碼）"
+  },
+  "audio": {
+    "intro": "將環繞聲傳送給電視或接收端，或在此解碼。",
+    "dtsHd": "DTS-HD 和 DTS:X",
+    "auto": "自動",
+    "autoHint": "按電視或接收端支援的格式播放",
+    "on": "開",
+    "onHint": "始終原樣透傳",
+    "off": "關",
+    "offHint": "從不：由 Pley 轉換"
+  },
+  "display": {
+    "subtitleSize": "字幕大小",
+    "subtitleBackground": "字幕背景",
+    "subtitleFont": "字幕字型",
+    "subtitlePosition": "字幕位置",
+    "reduceMotion": "減少動態效果",
+    "reduceMotionHint": "無縮放、滑動或淡入淡出：內容原地切換",
+    "sizes": {
+      "small": "小",
+      "normal": "正常",
+      "large": "大",
+      "huge": "超大"
+    },
+    "backgrounds": {
+      "none": "無",
+      "darkBox": "深色底框"
+    },
+    "fonts": {
+      "sans": "無襯線",
+      "serif": "襯線",
+      "monospace": "等寬",
+      "casual": "手寫"
+    },
+    "positions": {
+      "bottom": "底部",
+      "raised": "略高",
+      "higher": "較高",
+      "highest": "最高"
+    }
+  },
+  "server": {
+    "value": "這臺電視使用的伺服器",
+    "unknown": "沒有伺服器",
+    "switch": "切換伺服器"
+  },
+  "diagnostics": {
+    "open": "開啟診斷",
+    "openValue": "這臺電視能解碼和顯示什麼，以及原因"
+  },
+  "about": {
+    "version": "版本",
+    "licences": "開源許可",
+    "credits": "致謝"
+  }
+}

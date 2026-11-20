@@ -1,6 +1,6 @@
 //! The words the generated titles, names and summaries are made of: made up,
 //! so no generated title is a real film's, and fixed, so every run has the
-//! same catalogue (the Android app's fixture server uses the same ones).
+//! same catalog (the Android app's fixture server uses the same ones).
 
 pub(crate) const ADJECTIVES: [&str; 30] = [
     "Silent", "Golden", "Broken", "Hidden", "Last", "Crimson", "Distant", "Electric", "Frozen", "Wild", "Quiet",

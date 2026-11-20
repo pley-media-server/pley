@@ -1,0 +1,118 @@
+{
+  "title": "直播电视",
+  "tabs": {
+    "guide": "节目指南",
+    "channels": "频道"
+  },
+  "categories": {
+    "title": "分类",
+    "all": "所有频道",
+    "favourites": "收藏",
+    "recent": "最近观看",
+    "regions": "地区",
+    "groups": "频道组",
+    "moreGroups": "更多频道组",
+    "noGroup": "无频道组",
+    "region_other": "{{region}} · {{count, number}} 个频道组",
+    "resultsFor": "“{{search}}”的搜索结果"
+  },
+  "search": {
+    "rail": "搜索",
+    "railWith": "搜索：“{{search}}”",
+    "title": "搜索直播电视",
+    "prompt": "频道、频道组和正在播出的节目",
+    "search": "搜索",
+    "clear": "清除",
+    "channelsTitle": "搜索频道",
+    "channelsPrompt": "频道和正在播出的节目"
+  },
+  "page": {
+    "notOpen": "此账户未开放直播电视。",
+    "notOpenHint": "管理员可在网页版 Pley 的“设置 → 直播电视”中开放。",
+    "noChannels": "还没有频道。",
+    "noChannelsHint": "管理员在网页版 Pley 的“设置 → 直播电视”中添加 IPTV 提供商后，频道就会显示在这里。",
+    "loadingGuide": "正在加载节目指南…",
+    "channelCount_other": "{{count, number}} 个频道",
+    "noMatch": "没有频道的名称、号码或当前节目包含“{{search}}”。",
+    "noFavourites": "还没有收藏：在频道上按“选项”(*) 键即可收藏。",
+    "nothingWatched": "还没有观看记录。",
+    "empty": "这里没有频道。",
+    "guideHint": "确定：观看 · 选项(*)：收藏 · 快退和快进：更早和更晚 · 播放：现在 · 重播：搜索",
+    "cardsHint": "确定：观看 · 选项(*)：收藏 · 重播：搜索"
+  },
+  "channelRange": "第 {{from, number}}–{{to, number}} 个，共 {{total, number}} 个频道",
+  "unnamedChannel": "频道 {{id}}",
+  "nothingNow": "当前节目指南中没有内容",
+  "noGuide": "没有节目指南",
+  "noGuideHere": "此频道没有节目指南",
+  "guide": {
+    "noInformation": "无节目信息",
+    "noGuide": "此频道没有节目指南",
+    "onNow": "正在播出"
+  },
+  "program": {
+    "untitled": "无标题",
+    "live": "直播",
+    "new": "新"
+  },
+  "time": {
+    "tomorrow": "明天",
+    "yesterday": "昨天",
+    "days": {
+      "sunday": "星期日",
+      "monday": "星期一",
+      "tuesday": "星期二",
+      "wednesday": "星期三",
+      "thursday": "星期四",
+      "friday": "星期五",
+      "saturday": "星期六"
+    },
+    "dayAndTime": "{{day}} {{time}}",
+    "minutesLeft_other": "剩余 {{count}} 分钟",
+    "hoursLeft_other": "剩余 {{count}} 小时",
+    "hoursMinutesLeft": "剩余 {{hours}} 小时 {{minutes}} 分钟"
+  },
+  "options": {
+    "watch": "观看 {{name}}"
+  },
+  "favourites": {
+    "add": "加入收藏",
+    "remove": "从收藏中移除",
+    "added": "{{name}} 已加入收藏",
+    "removed": "{{name}} 已取消收藏",
+    "mark": "收藏"
+  },
+  "player": {
+    "tuning": "调谐中…",
+    "radio": "广播",
+    "next": "接下来 {{time}} · {{title}}",
+    "bannerHint": "上下键：频道 · 左键：{{category}} · 选项(*)：收藏 · 确定：关闭",
+    "listHint": "确定：观看 · 选项(*)：收藏 · 返回：关闭",
+    "listMoreHint": "左键：分类 · 重播：搜索",
+    "categoriesHint": "确定：该分类的频道 · 返回：频道列表",
+    "stalled": "播放中断，无法继续。",
+    "channelStopped": "{{channel}} 已停止",
+    "watchAgain": "重新观看",
+    "otherChannels": "其他频道",
+    "watchHere": "改为在这里观看",
+    "watchHereFor": "改为在这里观看，而不是 {{channel}}"
+  },
+  "trouble": {
+    "busy": "所有连接都在使用中",
+    "didntStart": "{{channel}} 未能开始播放",
+    "notPlaying": "{{channel}} 未在播放",
+    "gone": "此频道已不存在",
+    "goneHint": "它可能已被隐藏，或其来源已被移除。",
+    "notOpen": "此账户未开放直播电视",
+    "notOpenHint": "管理员可在网页版的“设置 → 直播电视”中开放。",
+    "stopped": "直播电视已停止",
+    "notWatched": "此频道已不再被观看。",
+    "stoppedByAdmin": "直播电视已被服务器管理员停止。",
+    "stoppedElsewhere": "直播电视已从另一台设备停止。",
+    "you": "你，在另一台设备上",
+    "someoneElse": "其他人",
+    "people_other": "{{count, number}} 人",
+    "connectionsWatching_other": "它的 {{count, number}} 个连接正在观看：",
+    "joinHint": "正在被观看的频道可以加入观看，或等其中一个停止后再试。"
+  }
+}

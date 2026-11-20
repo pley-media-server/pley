@@ -99,6 +99,8 @@
               <option label="30602">en</option>
               <option label="30603">fr</option>
               <option label="30604">es</option>
+              <option label="30608">zh-CN</option>
+              <option label="30609">zh-TW</option>
             </options>
           </constraints>
           <control type="list" format="string">

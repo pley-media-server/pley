@@ -1,0 +1,189 @@
+{
+  "names": {
+    "requests": "请求",
+    "yourRequests": "你的请求",
+    "discover": "发现"
+  },
+  "counts": {
+    "episodes_other": "{{count}} 集",
+    "seasons_other": "{{count}} 季"
+  },
+  "shared": {
+    "loadFailed": "无法加载：{{error}}",
+    "couldNotLoad": "无法加载",
+    "seeAll": "查看全部",
+    "progress": "{{title}}：{{stage}}",
+    "tmdbCredit": "详情和图片来自 TMDB。",
+    "tmdbEndorsement": "本产品使用 TMDB API，但未获得 TMDB 的认可或认证。",
+    "checkKey": "检查密钥",
+    "signIn": "登录",
+    "pickSeason": "选择季。",
+    "seasons": "季",
+    "request": "请求",
+    "reason": "原因",
+    "approve": "批准",
+    "decline": "拒绝"
+  },
+  "off": {
+    "title": "请求功能已关闭",
+    "text": "开启后，用户可以请求电影和剧集，你批准的内容会发送到 Radarr 和 Sonarr。",
+    "setUp": "设置请求功能"
+  },
+  "discover": {
+    "documentTitle": "发现：{{query}}",
+    "lists": {
+      "trending": "本周热门",
+      "movies": "热门电影",
+      "shows": "热门剧集",
+      "upcoming": "即将上映",
+      "anime": "热门动漫"
+    },
+    "backToSearch": "返回搜索",
+    "resultsFor": "“{{query}}”的搜索结果",
+    "searchFailed": "无法搜索 TMDB",
+    "nothingFound": "TMDB 上没有“{{query}}”",
+    "nothingFoundHint": "换一种拼写，或使用标题的原语言试试。",
+    "backToDiscover": "返回发现",
+    "emptyList": "这里暂时没有内容",
+    "emptyListAgeLimit": "TMDB 在此列出的内容超出了此配置文件的年龄限制。",
+    "emptyListToday": "TMDB 今天在此列表中没有内容。",
+    "trendingNow": "当前热门",
+    "moreAboutIt": "了解更多",
+    "waiting_other": "等待中",
+    "loadFailed": "无法加载发现页",
+    "seeYourRequests": "查看你的请求"
+  },
+  "page": {
+    "manageHint": "用户请求的内容。批准后会将其发送到已连接的 Radarr 或 Sonarr。",
+    "ownHint": "你请求和关注的内容，以及它们的进展。",
+    "signInToDecide": "重新登录以在此批准或拒绝请求。",
+    "loadFailed": "无法加载请求",
+    "tabs": {
+      "attention": "需要处理",
+      "all": "所有请求",
+      "mine": "我的"
+    },
+    "statusGroup": "状态",
+    "kindGroup": "类型",
+    "all": "全部",
+    "statuses": {
+      "pending": "待处理",
+      "approved": "已批准",
+      "available": "可用",
+      "declined": "已拒绝",
+      "failed": "失败"
+    },
+    "movies": "电影",
+    "shows": "剧集",
+    "whoAsked": "请求者",
+    "everyone": "所有人",
+    "findTitle": "查找标题",
+    "searchLabel": "标题包含以下内容的请求",
+    "clearFilters": "清除筛选",
+    "attentionHint": "新请求和发送失败的请求会显示在这里。",
+    "seeAll": "查看所有请求",
+    "findSomething": "查找想请求的内容",
+    "empty": {
+      "match": "没有符合条件的请求。",
+      "attention": "没有需要你处理的内容。",
+      "everyone": {
+        "pending": "没有等待处理的请求。",
+        "approved": "没有正在处理的请求。",
+        "available": "还没有可以观看的请求。",
+        "declined": "没有请求被拒绝。",
+        "failed": "没有请求失败。",
+        "none": "还没有人请求任何内容。"
+      },
+      "yours": {
+        "pending": "你没有等待处理的请求。",
+        "approved": "你没有正在处理的请求。",
+        "available": "你的请求还没有可以观看的。",
+        "declined": "你的请求没有被拒绝。",
+        "failed": "你的请求没有失败。",
+        "none": "你还没有请求任何内容。"
+      }
+    }
+  },
+  "bulk": {
+    "region": "已选请求",
+    "picked_other": "已选 {{count}} 个请求",
+    "approved_other": "已批准 {{count}} 个请求。",
+    "declined_other": "已拒绝 {{count}} 个请求。",
+    "approvedSome": "已批准 {{done}} / {{total}}。“{{title}}”：{{error}}",
+    "declinedSome": "已拒绝 {{done}} / {{total}}。“{{title}}”：{{error}}",
+    "declineTitle_other": "拒绝 {{count}} 个请求？",
+    "reasonHint": "可选。请求者可以看到。"
+  },
+  "card": {
+    "select": "选择 {{title}}",
+    "new": "新",
+    "watch": "观看",
+    "youAsked": "你在 <when/> 请求",
+    "nameAsked": "<name>{{name}}</name> 在 <when/> 请求",
+    "someoneAsked": "由其他人在 <when/> 请求",
+    "youFollow": "你已关注",
+    "followers_other": "{{count}} 人关注",
+    "declined": "已拒绝",
+    "declinedBy": "由 {{name}} 拒绝",
+    "declinedWhen": "于 <when/> 拒绝",
+    "declinedByWhen": "由 {{name}} 于 <when/> 拒绝",
+    "reason": "：“{{reason}}”",
+    "sentTo": "已发送至 {{where}}",
+    "outOfReach": "已就绪，但位于你无法访问的媒体库中：联系管理员"
+  },
+  "actions": {
+    "more": "{{title}} 的更多操作",
+    "markedByHand": "“{{title}}”已标记为手动添加。",
+    "unfollowed": "你不会再收到关于“{{title}}”的通知。",
+    "deleteText": "所有请求或关注 <strong>{{title}}</strong> 的人都将失去它。Radarr 和 Sonarr 会保留已有内容。",
+    "askAgain": "可以再次请求。",
+    "noMore": "不能再次请求。",
+    "noMoreUnlessFollowed": "不能再次请求，除非关注者保留它。"
+  },
+  "approve": {
+    "title": "批准“{{title}}”",
+    "retryTitle": "重试“{{title}}”",
+    "withSettings": "按设置中的选项批准",
+    "retryWithSettings": "按设置中的选项重试",
+    "notConnected": "{{service}} 未连接",
+    "notConnectedText": "在连接之前它会保持批准状态，除非有人手动添加。",
+    "lastOptions": "它的质量配置和文件夹是它上次提供的。",
+    "optionsFailed": "无法加载 {{service}} 的质量配置和文件夹",
+    "qualityProfile": "质量配置",
+    "folder": "文件夹",
+    "settingsChoice": "设置中的选择",
+    "goneProfile": "配置 {{id}}（已不存在）",
+    "goneFolder": "{{folder}}（已不存在）",
+    "freeSpace": "{{path}}（剩余 {{free}}）",
+    "seasonsHint": "未选中的季会退出请求，之后可以再次请求。"
+  },
+  "decline": {
+    "title": "拒绝“{{title}}”？",
+    "nameHears": "{{name}} 会收到被拒绝的通知，如果你填写原因，也会一并看到。",
+    "someoneHears": "请求者会收到被拒绝的通知，如果你填写原因，也会一并看到。",
+    "followersHear": "关注者也会收到通知，但不包含原因。",
+    "optional": "可选。",
+    "placeholder": "我们已有实体碟片"
+  },
+  "title": {
+    "coming": "{{date}} 推出",
+    "open": "开放",
+    "inLibrary": "在媒体库中",
+    "requestMoreSeasons": "请求更多季",
+    "notOpen": "此账户未开放请求。",
+    "signInToAsk": "重新登录以请求电影和剧集",
+    "requested": "已请求",
+    "following": "已关注",
+    "stopFollowing": "取消关注",
+    "tellMeToo": "也通知我",
+    "askedAlready": "已经有人请求过了。",
+    "requests_other": "请求",
+    "cast": "演员",
+    "loadFailed": "无法加载此标题"
+  },
+  "picker": {
+    "title": "选择哪些季？",
+    "auto": "请求后立即批准，并发送到下载。",
+    "decided": "由管理员决定。准备观看时会通知你。"
+  }
+}

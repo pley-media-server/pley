@@ -137,6 +137,9 @@ async fn world() -> World {
             tmdb: format!("{base}/tmdb"),
             tmdb_images: format!("{base}/tmdb-images"),
             opensubtitles: format!("{base}/os"),
+            audnexus: format!("{base}/audnexus"),
+            openlibrary: format!("{base}/ol"),
+            openlibrary_covers: format!("{base}/olcovers"),
         });
     })
     .await;

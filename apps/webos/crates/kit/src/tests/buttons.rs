@@ -65,7 +65,7 @@ fn a_round_buttons_label_shows_under_it_only_while_focused() {
     h.idle(&mut screen);
     let f = settle(&mut h, &mut screen);
     assert_eq!(f.focused, Some(Id::new("bar").with("watched")));
-    // Centred on the button, 46 below its top, as wide as it needs (15 characters of 6.7).
+    // Centered on the button, 46 below its top, as wide as it needs (15 characters of 6.7).
     let at = text_at(&f.list, "Mark as watched").unwrap();
     assert!((at.x - (116.0 - 15.0 * 6.7 / 2.0)).abs() < 0.01 && at.y == 346.0);
     assert_eq!(text_at(&f.list, "Info"), None);

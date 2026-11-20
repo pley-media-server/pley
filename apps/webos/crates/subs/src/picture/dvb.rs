@@ -1,6 +1,6 @@
 //! Broadcast subtitles (DVB, ETSI EN 300 743, `S_DVBSUB`): each sample is a
 //! display set of segments. A page composition places regions on the
-//! display; each region has a colour table (CLUT) and objects drawn into it
+//! display; each region has a color table (CLUT) and objects drawn into it
 //! as 2, 4 or 8-bit run-length coded pixels, a field at a time. A page in
 //! "normal case" only updates what an acquisition point or mode change
 //! defined, so a sample is decoded from the last of those.
@@ -70,7 +70,7 @@ struct Region {
 /// A CLUT's three tables (2, 4 and 8-bit), RGBA each.
 type Tables = [Vec<[u8; 4]>; 3];
 
-/// The colour tables of ETSI EN 300 743 §10 for pixels a CLUT doesn't define.
+/// The color tables of ETSI EN 300 743 §10 for pixels a CLUT doesn't define.
 fn default_clut(depth: u8) -> Vec<[u8; 4]> {
     // Halves round to even, as JavaScript's Uint8ClampedArray stores them.
     let c = |v: f64| v.round_ties_even().clamp(0.0, 255.0) as u8;

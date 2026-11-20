@@ -1,0 +1,178 @@
+{
+  "tabs": {
+    "recommended": "推荐",
+    "library": "媒体库",
+    "collections": "合集"
+  },
+  "sorts": {
+    "title": "标题",
+    "year": "年份",
+    "added": "添加日期",
+    "rating": "评分",
+    "userRating": "你的评分",
+    "release": "发行日期",
+    "duration": "时长",
+    "lastPlayed": "最近播放",
+    "bitrate": "码率"
+  },
+  "chips": {
+    "filter": "筛选",
+    "unwatched": "未看",
+    "genre": "类型",
+    "year": "年份"
+  },
+  "panel": {
+    "sortBy": "排序方式",
+    "order": "顺序",
+    "ascending": "升序",
+    "descending": "降序",
+    "filter": "筛选",
+    "show": "显示",
+    "all": "全部",
+    "unwatched": "未看",
+    "watched": "已看",
+    "genre": "类型",
+    "allGenres": "所有类型",
+    "year": "年份",
+    "allYears": "所有年份",
+    "resolution": "分辨率",
+    "allResolutions": "所有分辨率",
+    "dynamicRange": "动态范围",
+    "allDynamicRanges": "所有动态范围",
+    "clearFilters": "清除筛选",
+    "saveAs": "另存为…",
+    "unchosen": {
+      "genre": "所有类型",
+      "year": "所有年份",
+      "resolution": "所有分辨率",
+      "dynamicRange": "所有动态范围"
+    }
+  },
+  "anyHdr": "任意 HDR",
+  "bitrateUnknown": "码率未知",
+  "count": {
+    "movies_other": "{{count, number}} 部电影",
+    "shows_other": "{{count, number}} 部剧集",
+    "artists_other": "{{count, number}} 位艺术家",
+    "items_other": "{{count, number}} 个项目",
+    "collections_other": "{{count, number}} 个合集",
+    "titles_other": "{{count, number}} 个标题"
+  },
+  "countOf": {
+    "movies_other": "{{shown, number}} / {{count, number}} 部电影",
+    "shows_other": "{{shown, number}} / {{count, number}} 部剧集",
+    "artists_other": "{{shown, number}} / {{count, number}} 位艺术家"
+  },
+  "messages": {
+    "offline": "无法访问你的服务器",
+    "failed": "无法加载此媒体库",
+    "missingTitle": "此媒体库不存在",
+    "missingBody": "它可能已被移除，或此配置文件无法查看。",
+    "emptyTitle": "此媒体库为空",
+    "emptyBody": "这里还是空的。服务器添加内容后会显示在这里。",
+    "noMatchesTitle": "无匹配结果",
+    "noMatchesBody": "此媒体库中没有符合当前筛选条件的内容。",
+    "recommendedFailed": "无法加载推荐内容",
+    "recommendedEmptyTitle": "暂无可推荐内容",
+    "recommendedEmptyBody": "媒体库中有内容后才会显示推荐。",
+    "collectionsFailed": "无法加载合集",
+    "collectionsEmptyTitle": "暂无合集",
+    "collectionsEmptyMovies": "当同一 TMDB 合集有两部电影在此媒体库中时，会在此分组显示。",
+    "collectionsEmptyShows": "此媒体库中暂无合集。"
+  },
+  "retry": "重试",
+  "seeAll": "查看全部",
+  "libraries": {
+    "title": "媒体库",
+    "offline": "无法访问你的服务器",
+    "failed": "无法加载媒体库",
+    "scanning": "扫描中…",
+    "sort": "排序媒体库",
+    "done": "完成",
+    "serverOrder": "使用服务器顺序",
+    "open": "打开",
+    "move": "移动",
+    "sortingHint": "选择一个媒体库进行移动。你的排序会应用到所有设备。",
+    "movingHint": "方向键移动，确定键放此处，返回键放回原处",
+    "needsNewerServer": "媒体库排序需要服务器上更新版本的 Pley。",
+    "refused": "此服务器不允许应用排序媒体库：请在网页端排序",
+    "raced": "媒体库在此期间发生了变化：请重试",
+    "noneTitle": "暂无媒体库",
+    "noneBody": "请让服务器所有者添加媒体库。",
+    "retry": "重试"
+  },
+  "collections": {
+    "title": "合集",
+    "label": "合集",
+    "smart": "智能",
+    "failed": "无法加载合集",
+    "failedOne": "无法加载此合集",
+    "noneTitle": "暂无合集",
+    "noneBody": "当同一 TMDB 合集有两部电影在媒体库中时，会在此分组显示。",
+    "play": "播放",
+    "shuffle": "随机播放",
+    "empty": "此合集暂时为空。",
+    "noEpisodes": "暂无可播放内容：此剧集还没有分集",
+    "byRelease": "按发行日期",
+    "byTitle": "按标题",
+    "customOrder": "自定义顺序",
+    "retry": "重试",
+    "category": "分类",
+    "allCategories": "所有分类"
+  },
+  "smartFilter": {
+    "genre": "类型：{{value}}",
+    "label": "标签：{{value}}",
+    "studio": "制作公司：{{value}}",
+    "rated": "分级 {{value}}",
+    "watched": "已看",
+    "unwatched": "未看",
+    "inProgress": "观看中",
+    "notInProgress": "未观看",
+    "from": "从 {{value}} 起",
+    "after": "{{value}} 之后",
+    "before": "{{value}} 之前",
+    "decade": "{{value}} 年代",
+    "limit": "最多 {{value}}",
+    "other": "{{name}}：{{value}}",
+    "sortedBy": "按 {{name}} 排序",
+    "sort": {
+      "titleSort": {
+        "asc": "按标题",
+        "desc": "按标题，Z 到 A"
+      },
+      "year": {
+        "asc": "最早优先",
+        "desc": "最新优先"
+      },
+      "originallyAvailableAt": {
+        "asc": "最早发行优先",
+        "desc": "最新发行优先"
+      },
+      "addedAt": {
+        "asc": "最早添加优先",
+        "desc": "最近添加优先"
+      },
+      "rating": {
+        "asc": "评分最低优先",
+        "desc": "评分最高优先"
+      },
+      "userRating": {
+        "asc": "你的最低评分优先",
+        "desc": "你的最高评分优先"
+      },
+      "lastViewedAt": {
+        "asc": "最久未看优先",
+        "desc": "最近观看优先"
+      },
+      "duration": {
+        "asc": "最短优先",
+        "desc": "最长优先"
+      },
+      "viewCount": {
+        "asc": "播放最少优先",
+        "desc": "播放最多优先"
+      }
+    }
+  }
+}

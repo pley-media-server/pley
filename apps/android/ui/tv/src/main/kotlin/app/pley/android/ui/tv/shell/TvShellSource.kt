@@ -117,7 +117,7 @@ interface TvShellSource {
 @Immutable
 data class TvNotice(val notice: RequestNotice, val poster: ArtworkImage? = null)
 
-/** The rail's avatar: the profile's name, colour and picture. */
+/** The rail's avatar: the profile's name, color and picture. */
 @Immutable
 data class RailProfile(
     val name: String,
@@ -128,7 +128,7 @@ data class RailProfile(
     val initial: String get() = name.trim().firstOrNull()?.uppercase() ?: "?"
 
     companion object {
-        /** "#e07a5f" as a colour; `null` when it isn't one. */
+        /** "#e07a5f" as a color; `null` when it isn't one. */
         fun parseColor(hex: String?): Color? {
             val digits = hex?.removePrefix("#") ?: return null
             if (digits.length != 6) return null

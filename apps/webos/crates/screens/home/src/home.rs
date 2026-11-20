@@ -10,7 +10,7 @@
 //! the rail, whose Right lands on Resume again. Once focus has rested 400 ms on a tile, the info
 //! block and the backdrop follow it, its details come (and the next two tiles'), and the server
 //! is asked to read ahead what Play would play. A tile its actions took out of its row (Remove
-//! from Continue Watching) leaves focus to its neighbour.
+//! from Continue Watching) leaves focus to its neighbor.
 
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -463,7 +463,7 @@ impl HomeScreen {
             && !ui.holding()
             && let Some((row, i)) = self.focused.and_then(|at| tile_at(&self.model.rows, at))
         {
-            // The focused tile's backdrop and its neighbours' load now: focus may rest on any of
+            // The focused tile's backdrop and its neighbors' load now: focus may rest on any of
             // them next.
             let art = |i: usize| row.tiles.get(i).map_or(&[][..], |t| t.backdrop.art.as_slice());
             prefetch_backdrops(ui, &[art(i), art(i + 1), i.checked_sub(1).map_or(&[][..], art)]);

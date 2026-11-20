@@ -51,7 +51,9 @@
     "names": {
       "en": "English",
       "fr": "Français",
-      "es": "Español"
+      "es": "Español",
+      "zh-CN": "简体中文",
+      "zh-TW": "繁體中文"
     },
     "accountHint": "El idioma de Pley para ti, en todos los dispositivos en los que inicies sesión. Automático sigue el idioma de cada dispositivo.",
     "serverHint": "El idioma de los textos del propio servidor, y de los dispositivos en un idioma que Pley aún no tiene. Cada persona puede elegir el suyo en su página Cuenta.",

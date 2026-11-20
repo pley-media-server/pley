@@ -29,7 +29,7 @@ public static class Strings
 
     static volatile Catalog current = new Catalog(Languages.English, null);
 
-    /// <summary>The language shown: "en", "fr" or "es".</summary>
+    /// <summary>The language shown: "en", "fr", "es", "zh-CN" or "zh-TW".</summary>
     public static string Language => current.Language;
 
     /// <summary>What dates and numbers are written in: the language shown's culture (<see cref="Languages.CultureOf"/>).</summary>
@@ -64,10 +64,11 @@ public static class Strings
     /// <summary>
     /// The plural form <paramref name="count"/> takes in <paramref name="language"/>, as CLDR has it:
     /// "one" for 1 (in French 0 and 1 too), "many" in French and Spanish for a whole number of
-    /// millions, "other" for the rest.
+    /// millions, "other" for the rest. Chinese counts nothing: every number takes "other".
     /// </summary>
     public static string Plural(string language, long count)
     {
+        if (language is "zh-CN" or "zh-TW") return "other";
         var n = Math.Abs(count);
         var millions = n != 0 && n % 1_000_000 == 0;
         return language switch
@@ -78,8 +79,9 @@ public static class Strings
         };
     }
 
-    /// <summary>The plural forms a counted key has in <paramref name="language"/>: English "one" and "other", French and Spanish "many" too.</summary>
+    /// <summary>The plural forms a counted key has in <paramref name="language"/>: English "one" and "other", French and Spanish "many" too, Chinese only "other".</summary>
     public static IReadOnlyList<string> PluralForms(string language) =>
+        language is "zh-CN" or "zh-TW" ? new[] { "other" } :
         language is "fr" or "es" ? new[] { "one", "many", "other" } : new[] { "one", "other" };
 
     /// <summary><paramref name="language"/>'s words, every area's, by their whole key.</summary>
@@ -90,7 +92,8 @@ public static class Strings
     internal static IEnumerable<(string Area, string Json)> Sources(string language)
     {
         var assembly = typeof(Strings).Assembly;
-        var prefix = Prefix + language + ".";
+        // A resource's name writes its folder's hyphen as an underscore: Locales/zh-CN is "zh_CN".
+        var prefix = Prefix + language.Replace('-', '_') + ".";
         foreach (var name in assembly.GetManifestResourceNames().OrderBy(n => n, StringComparer.Ordinal))
         {
             if (!name.StartsWith(prefix, StringComparison.Ordinal) || !name.EndsWith(".json", StringComparison.Ordinal)) continue;

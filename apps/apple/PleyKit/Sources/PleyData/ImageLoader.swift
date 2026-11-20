@@ -23,7 +23,7 @@ public enum ImageError: Error, Sendable, Equatable {
 ///   a device with 3 GB or less (the iPad 5th generation has 2 GB).
 /// - It is emptied on a memory warning and halved when the app goes to the
 ///   background (iPhone, iPad and Apple TV).
-/// - Requests for one picture at once share one fetch, which is cancelled
+/// - Requests for one picture at once share one fetch, which is canceled
 ///   when the last of them is: tiles scrolled past quickly don't queue
 ///   downloads nobody waits for.
 /// - At most `maxFetches` fetches run at once; later ones wait, the newest
@@ -117,7 +117,7 @@ public actor ImageLoader {
 
     /// The picture the server named at `path`, at most `widthPx` pixels
     /// wide. Requests for the same picture at once share one fetch; it is
-    /// cancelled when every request for it is.
+    /// canceled when every request for it is.
     public func image(path: String, widthPx: Int) async throws -> CGImage {
         let width = max(1, widthPx)
         let key = "\(width) \(path)"
@@ -173,7 +173,7 @@ public actor ImageLoader {
         cache.trim(to: bytes)
     }
 
-    /// A request for `key` was cancelled: the fetch is too when nobody else waits.
+    /// A request for `key` was canceled: the fetch is too when nobody else waits.
     private func leave(_ key: String, id: Int) {
         guard var flight = flights[key], flight.id == id else { return }
         flight.waiters -= 1
@@ -202,7 +202,7 @@ public actor ImageLoader {
         }
     }
 
-    /// A fetch waiting for its turn was cancelled.
+    /// A fetch waiting for its turn was canceled.
     private func giveUp(_ id: Int) {
         guard let index = queue.firstIndex(where: { $0.id == id }) else { return }
         queue.remove(at: index).turn.resume(throwing: CancellationError())

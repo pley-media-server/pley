@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What signing in says when it doesn't go through (AuthException and the
+  sign-in states), in lower case and without a full stop: the screens put
+  them inside sentences, or make a sentence of one alone.
+-->
+<resources>
+    <!-- The address and the way there. -->
+    <string name="auth_not_an_address">這不是伺服器位址</string>
+    <string name="auth_unencrypted">此伺服器的位址不在你的網路中，連線也未加密：請用它的 https 位址開啟以登入</string>
+    <string name="auth_too_old">此伺服器版本太舊，無法與此應用配合使用</string>
+    <string name="auth_redirected">此伺服器在另一個位址上回應：請用那個位址開啟</string>
+    <!-- %1$s: the address the server gives for itself, "https://pley.example.com". -->
+    <string name="auth_other_issuer">此伺服器自稱 %1$s：請用該位址開啟，或檢查其前面的代理是否正確傳遞 Host</string>
+    <string name="auth_other_endpoint">此伺服器讓應用去另一個位址登入：Pley 不會這樣做</string>
+    <string name="auth_not_your_server">那裡有另一臺裝置在回應</string>
+    <string name="auth_no_browser">此裝置上沒有可用於登入的瀏覽器</string>
+
+    <!-- The server's answers. -->
+    <string name="auth_unreadable">無法讀取伺服器的回應：請重試</string>
+    <string name="auth_server_failed">伺服器無法回應（HTTP %1$d）</string>
+    <string name="auth_refused">伺服器拒絕了：請重試</string>
+    <!-- %1$s: the server's own words, as it wrote them. -->
+    <string name="auth_refused_said">伺服器拒絕了：%1$s</string>
+    <!-- %1$s: the error's code, "invalid_request". -->
+    <string name="auth_refused_code">伺服器拒絕（%1$s）</string>
+    <string name="auth_refused_status">伺服器拒絕（HTTP %1$d）</string>
+
+    <!-- The sign-in in the browser. -->
+    <string name="auth_other_server">回應來自另一臺伺服器，而非你登入的那臺：請重試</string>
+    <string name="auth_denied">你沒有允許此應用</string>
+    <string name="auth_no_code">伺服器沒有傳送代碼：請重試</string>
+    <string name="auth_too_long">登入耗時過長：請重試</string>
+    <string name="auth_not_finished">登入未能完成：請重試</string>
+
+    <!-- The TV's code. -->
+    <string name="auth_no_codes">此伺服器暫不支援用代碼登入：請更新伺服器，或用密碼登入</string>
+    <string name="auth_code_used">此代碼已失效：請取得新代碼</string>
+
+    <!-- Profiles and their PINs. -->
+    <string name="auth_cant_switch">此登入無法切換設定檔：請重新登入以允許切換</string>
+    <string name="auth_profile_locked">此設定檔無法在此應用中使用</string>
+    <string name="auth_wrong_pin">PIN 碼錯誤</string>
+    <string name="auth_throttled">PIN 碼錯誤次數過多：請幾分鐘後重試</string>
+    <string name="auth_pin_locked">此設定檔的 PIN 碼因多次輸錯已被鎖定。可由其所有者或管理員重設</string>
+    <string name="auth_needs_password">此設定檔需要密碼：請重新登入以使用</string>
+    <string name="auth_not_allowed">你無法切換到此設定檔</string>
+
+    <!-- Signed out without asking. -->
+    <string name="auth_signed_out">你已登出：請重新登入</string>
+    <string name="auth_unreadable_here">此裝置無法再讀取登入資訊：請重新登入</string>
+    <string name="auth_not_kept">無法在此裝置上保留登入狀態：請重新登入</string>
+    <string name="auth_wider_scope">伺服器授予的權限超出此應用的請求：已登出</string>
+</resources>

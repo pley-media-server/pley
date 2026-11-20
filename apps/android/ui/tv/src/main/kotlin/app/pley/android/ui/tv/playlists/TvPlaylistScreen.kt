@@ -227,14 +227,14 @@ private fun PlaylistContent(page: PlaylistPage<ArtworkTileModel>, vm: PlaylistVi
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     var moving by remember { mutableStateOf<Long?>(null) }
-    /** Each shown row's focus, so focus can go back to the row a panel was opened from, or to a neighbour. */
+    /** Each shown row's focus, so focus can go back to the row a panel was opened from, or to a neighbor. */
     val rowFocus = remember { HashMap<Long, FocusRequester>() }
     var focusNext by remember { mutableStateOf<Long?>(null) }
     /** Delete's, which Cancel goes back to, as does the last entry removed. */
     val deleteFocus = remember { FocusRequester() }
     val heroPx = with(density) { HeroHeight.toPx() }
 
-    // A removed entry's neighbour takes focus once the entry has gone; Delete, when it was the last.
+    // A removed entry's neighbor takes focus once the entry has gone; Delete, when it was the last.
     LaunchedEffect(page.rows, focusNext) {
         val next = focusNext ?: return@LaunchedEffect
         if (next == NO_ENTRY && page.rows.isEmpty()) {
@@ -658,7 +658,7 @@ private val HeroHeight = 436.dp
 /** Where a focused entry's top settles once the page has scrolled. */
 private val RowAnchor = 140.dp
 
-/** The neighbour of the last entry removed: Delete takes focus. */
+/** The neighbor of the last entry removed: Delete takes focus. */
 private const val NO_ENTRY = -1L
 
 /** Text stays in the backdrop's 85 % scrim: x 96 to 560. */

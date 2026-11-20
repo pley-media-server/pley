@@ -93,7 +93,7 @@ public sealed record RequestSummary
     /// <summary>The number on the way into requests: for managers, what waits for them too.</summary>
     public int Badge => Manage ? Pending + Failed + Unseen : Unseen;
 
-    /// <summary>The badge is in the danger colour: requests failed and wait for a manager.</summary>
+    /// <summary>The badge is in the danger color: requests failed and wait for a manager.</summary>
     public bool BadgeAlarm => Manage && Failed > 0;
 }
 

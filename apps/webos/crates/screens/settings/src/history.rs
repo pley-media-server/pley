@@ -619,7 +619,7 @@ fn remove_button(ui: &mut Ui, id: Id, y: f32) -> pley_ui::Response {
 
 /// A page-sized message with one focused button (`Message` in `TvHistoryScreen.kt`): x 96, 60
 /// under the header, the title in `Tv.Title`, 10, the text in `Tv.Body` Muted, then the pill 32
-/// below. Licences says it has nothing to show the same way.
+/// below. Licenses says it has nothing to show the same way.
 pub(crate) fn message(ui: &mut Ui, id: Id, title: &str, body: &str, action: &str) -> bool {
     let x = theme::GUTTER;
     let w = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;

@@ -186,7 +186,7 @@ private fun rememberClock(now: () -> Long): String {
 }
 
 /**
- * The scrubber (design spec §2.7) from x = 48 to 912, its track's centre
+ * The scrubber (design spec §2.7) from x = 48 to 912, its track's center
  * at y = 425: the played part in accent, buffered in fg 45 %, gaps at
  * chapter starts; the thumb, 10 dp, grows to 12 with a slim ring while
  * focused (18 dp across, where the tiles' ring made it 32); the
@@ -335,7 +335,7 @@ private fun MarkerLabel(state: State<PlayerUiState>) {
 
 /**
  * The seek preview while scrubbing (design spec §2.7): 240 × 135 with a
- * 2 dp fg 20 % edge, its bottom at y = 347, centred on the thumb but kept
+ * 2 dp fg 20 % edge, its bottom at y = 347, centered on the thumb but kept
  * in the safe area; the target time under it and the chapter's name. The
  * server's seek previews when the file has them, else the chapter's
  * picture, letterboxed on black as the video is: a 2.39:1 film's previews
@@ -419,7 +419,7 @@ internal data class RowOptions(
 
 /**
  * The control row, top y = 441 (design spec §2.7): Previous · Play/Pause ·
- * Next centred; Subtitles · Audio · Quality · Info at the right safe edge;
+ * Next centered; Subtitles · Audio · Quality · Info at the right safe edge;
  * Chapters (their cards over the scrubber, [onChapters]), when the file has
  * them, the sleep timer and Speed at the left one. Up goes back to the
  * scrubber. As in streaming apps' players, the icons stand on the scrim
@@ -440,7 +440,7 @@ internal fun BoxScope.TvControlRow(
         this.up = ui.requester(PlayerFocus.Scrubber)
         down = FocusRequester.Cancel
     }
-    // The 36 dp buttons sit this far down, so their centres line up with Play/Pause's.
+    // The 36 dp buttons sit this far down, so their centers line up with Play/Pause's.
     val beside = Modifier.padding(top = (PLAY_BUTTON - BUTTON) / 2).then(up)
     Box(
         Modifier

@@ -15,6 +15,18 @@
             "state" : "translated",
             "value" : "%@ (niveau %@)"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（级别 %@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（級別 %@）"
+          }
         }
       }
     },
@@ -31,6 +43,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ non"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 否"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 否"
           }
         }
       }
@@ -49,6 +73,18 @@
             "state" : "translated",
             "value" : "%@ oui"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 是"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 是"
+          }
         }
       }
     },
@@ -65,6 +101,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ bits"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 位"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 位"
           }
         }
       }
@@ -83,6 +131,18 @@
             "state" : "translated",
             "value" : "%@ : %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：%@"
+          }
         }
       }
     },
@@ -99,6 +159,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Décodeurs audio : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音频解码器：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音訊解碼器：%@"
           }
         }
       }
@@ -167,6 +239,30 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "Sortie audio : %@, %lld canaux"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "音频输出：%@，%lld 个声道"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "音訊輸出：%@，%lld 個聲道"
                 }
               }
             }
@@ -242,6 +338,30 @@
               }
             }
           }
+        },
+        "zh-Hans" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "音频输出：%@，%lld 个声道，空间音频"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hant" : {
+          "variations" : {
+            "plural" : {
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "音訊輸出：%@，%lld 個聲道，空間音訊"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -258,6 +378,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Appareil : %@, %@ (simulateur), niveau %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设备：%@，%@（模拟器），档位 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裝置：%@，%@（模擬器），檔位 %@"
           }
         }
       }
@@ -276,6 +408,18 @@
             "state" : "translated",
             "value" : "Appareil : %@, %@, niveau %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设备：%@，%@，档位 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裝置：%@，%@，檔位 %@"
+          }
         }
       }
     },
@@ -292,6 +436,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Profils Dolby Vision : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dolby Vision 配置文件：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dolby Vision Profile檔案：%@"
           }
         }
       }
@@ -310,6 +466,18 @@
             "state" : "translated",
             "value" : "HDR lu tel quel : %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HDR 原样播放：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HDR 原樣播放：%@"
+          }
         }
       }
     },
@@ -326,6 +494,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "HDR : %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HDR：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HDR：%@"
           }
         }
       }
@@ -344,6 +524,18 @@
             "state" : "translated",
             "value" : "Décodage matériel : %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "硬件解码：%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "硬體解碼：%@"
+          }
         }
       }
     },
@@ -360,6 +552,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucun décodeur vidéo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有视频解码器"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有影片解碼器"
           }
         }
       }
@@ -378,6 +582,18 @@
             "state" : "translated",
             "value" : "Écran : %@, %@ Hz"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "屏幕：%@，%@ Hz"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "螢幕：%@，%@ Hz"
+          }
         }
       }
     },
@@ -394,6 +610,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Écran : %@, %@ Hz, Ajuster le contenu activé"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "屏幕：%@，%@ Hz，匹配内容已开启"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "螢幕：%@，%@ Hz，匹配內容已開啟"
           }
         }
       }
@@ -412,6 +640,18 @@
             "state" : "translated",
             "value" : "Écran : inconnu"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "屏幕：未知"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "螢幕：未知"
+          }
         }
       }
     },
@@ -428,6 +668,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "tout profil"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "任意配置文件"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "任意設定檔"
           }
         }
       }
@@ -446,6 +698,18 @@
             "state" : "translated",
             "value" : "compatible"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "符合"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "符合"
+          }
         }
       }
     },
@@ -462,6 +726,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "marge %@×"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "余量 %@×"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "餘量 %@×"
           }
         }
       }
@@ -480,6 +756,18 @@
             "state" : "translated",
             "value" : "niveau %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "级别 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "級別 %@"
+          }
         }
       }
     },
@@ -496,6 +784,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "modes %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模式 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模式 %@"
           }
         }
       }
@@ -514,6 +814,18 @@
             "state" : "translated",
             "value" : "aucun"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無"
+          }
         }
       }
     },
@@ -530,6 +842,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "non indiqué"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未说明"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未說明"
           }
         }
       }
@@ -548,6 +872,18 @@
             "state" : "translated",
             "value" : "non compatible"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不符合"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不符合"
+          }
         }
       }
     },
@@ -564,6 +900,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "inconnu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知"
           }
         }
       }
@@ -582,6 +930,18 @@
             "state" : "translated",
             "value" : "jusqu’à %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高 %@"
+          }
         }
       }
     },
@@ -598,6 +958,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "jusqu’à %@ à %@ i/s"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高 %@，%@ fps"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最高 %@，%@ fps"
           }
         }
       }

@@ -1,0 +1,20 @@
+{
+  "rail": {
+    "search": "搜索",
+    "home": "首页",
+    "discover": "发现",
+    "live": "直播电视",
+    "libraries": "媒体库",
+    "playlists": "播放列表",
+    "collections": "合集",
+    "nowPlaying": "正在播放",
+    "settings": "设置",
+    "profiles": "配置文件",
+    "switchProfile": "切换配置文件"
+  },
+  "offline": "Pley 处于离线状态",
+  "exit": {
+    "title": "退出 Pley？",
+    "exit": "退出"
+  }
+}

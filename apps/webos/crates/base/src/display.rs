@@ -11,7 +11,7 @@ use crate::icon::Icon;
 use crate::image::{ImageId, RgbaImage};
 use crate::text::TextLayout;
 
-/// A colour at a position along a gradient, 0 at its start and 1 at its end.
+/// A color at a position along a gradient, 0 at its start and 1 at its end.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GradientStop {
     pub at: f32,
@@ -34,7 +34,7 @@ pub enum Cmd {
         color: Color,
         radius: f32,
     },
-    /// An outline of `width` centred on the rectangle's edge.
+    /// An outline of `width` centered on the rectangle's edge.
     Stroke {
         rect: Rect,
         color: Color,
@@ -42,16 +42,16 @@ pub enum Cmd {
         width: f32,
     },
     /// A gradient along x (`vertical` false) or y, through its stops, which
-    /// are piecewise linear (the renderer draws them as coloured vertices, not
+    /// are piecewise linear (the renderer draws them as colored vertices, not
     /// per-pixel work).
     LinearGradient {
         rect: Rect,
         vertical: bool,
         stops: Vec<GradientStop>,
     },
-    /// A rectangle whose colour blends between its four corners (top-left,
+    /// A rectangle whose color blends between its four corners (top-left,
     /// top-right, bottom-left, bottom-right): diagonal gradients such as the
-    /// placeholder art's 135° one, drawn as coloured vertices.
+    /// placeholder art's 135° one, drawn as colored vertices.
     Quad {
         rect: Rect,
         colors: [Color; 4],
@@ -117,7 +117,7 @@ pub enum Cmd {
     PopOpacity,
 }
 
-/// A frame: the colour the screen is cleared to, then the commands.
+/// A frame: the color the screen is cleared to, then the commands.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct DisplayList {
     /// Opaque `Bg` for pages; transparent while video plays under the

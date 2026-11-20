@@ -1,0 +1,212 @@
+{
+  "controls": {
+    "pause": "暂停",
+    "mute": "静音",
+    "unmute": "取消静音",
+    "volume": "音量",
+    "seek": "跳转",
+    "seekValue": "{{time}} / {{duration}}"
+  },
+  "video": {
+    "nextEpisode": "下一集",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "fullscreenShortcut": "全屏 (f)",
+    "speed": "速度：{{speed}}",
+    "subtitlesShown": "字幕：{{track}}",
+    "subtitlesOff": "关闭字幕",
+    "subtitlesAdded": "已添加字幕：{{track}}",
+    "subtitlesDeleted": "字幕已删除",
+    "subtitlesNotDeleted": "无法删除这些字幕。{{error}}",
+    "subtitlesNotLoaded": "无法加载这些字幕。",
+    "lastInQueue": "这是最后一个",
+    "lastEpisode": "这是最后一集",
+    "qualityLowered": "画质已降至 {{quality}}",
+    "remotePlaying": "正在播放",
+    "remotePaused": "已暂停",
+    "jumpedTo": "已跳转到 {{time}}",
+    "skippedAhead": "+{{seconds}} 秒",
+    "skippedBack": "−{{seconds}} 秒",
+    "audioShown": "音频：{{track}}",
+    "qualityShown": "画质：{{quality}}",
+    "lowered": {
+      "network": "因你的网络状况而降低",
+      "device": "因本设备而降低"
+    },
+    "originalNotSmooth": "原始画质在此浏览器中播放不流畅。",
+    "originalFailed": "此浏览器无法播放原始文件。",
+    "sleepEnd": {
+      "episode": "本集结束",
+      "movie": "本片结束",
+      "video": "本视频结束"
+    },
+    "stoppedElsewhere": "播放已被另一台设备停止",
+    "stoppedByAdmin": "播放已被服务器管理员停止",
+    "unreachable": "无法连接到你的服务器",
+    "reachHint": "检查服务器是否已开启，且本设备是否与其在同一网络中。",
+    "errorTitle": "播放错误",
+    "errors": {
+      "noHls": "此浏览器无法播放 HLS 流。",
+      "failed": "播放失败（{{details}}）。",
+      "cantPlay": "此视频无法在你的浏览器中播放。",
+      "sameSpot": "此视频无法在此浏览器中播放：每次都在同一位置停止。",
+      "stalled": "播放已停止，无法继续。"
+    }
+  },
+  "page": {
+    "goBack": "返回",
+    "cantPlay": "无法播放此项目",
+    "nothingToPlay": "没有可播放的内容",
+    "noFiles": "此项目没有媒体文件。"
+  },
+  "quality": {
+    "original": "原始",
+    "automatic": "自动"
+  },
+  "speed": {
+    "normal": "正常"
+  },
+  "skip": {
+    "intro": "跳过片头",
+    "credits": "跳过片尾"
+  },
+  "upNext": {
+    "title": "接下来播放",
+    "episode": "接下来 · {{episode}}",
+    "playNow": "立即播放",
+    "cancel": "取消自动播放"
+  },
+  "sleep": {
+    "pausingIn": "{{seconds}} 秒后暂停",
+    "keepWatching": "继续观看",
+    "minutes_other": "{{count}} 分钟",
+    "minutesShort": "{{minutes}} 分钟"
+  },
+  "chapters": {
+    "title": "章节",
+    "numbered": "第 {{number}} 章"
+  },
+  "details": {
+    "method": {
+      "direct": "直接播放",
+      "remux": "直接流式传输",
+      "transcode": "转码中"
+    },
+    "audioTranscoding": "音频转码",
+    "pipeline": {
+      "gpu": "GPU",
+      "hybrid": "GPU 和 CPU",
+      "cpu": "CPU",
+      "copy": "复制"
+    },
+    "toneMapped": "SDR（使用 {{method}} 进行色调映射）",
+    "video": "视频",
+    "audio": "音频",
+    "bitrate": "比特率",
+    "encoder": "编码器",
+    "shownAs": "显示为",
+    "subtitles": "字幕",
+    "burnedIn": "内嵌",
+    "speed": "速度",
+    "realTime": "{{speed}}× 实时",
+    "ready": "{{seconds}} 秒后就绪"
+  },
+  "settings": {
+    "label": "播放设置",
+    "panel": {
+      "quality": "画质",
+      "audio": "音频",
+      "subtitles": "字幕",
+      "find": "查找字幕",
+      "upload": "添加字幕文件",
+      "style": "字幕样式",
+      "speed": "速度",
+      "sleep": "睡眠定时器",
+      "details": "播放详情"
+    },
+    "defaultAudio": "默认",
+    "subtitlesOff": "关闭",
+    "automaticNow": "当前 {{quality}}",
+    "automaticHint": "根据情况动态调整",
+    "fileTooBig": "字幕文件最大为 2 MB。",
+    "added": "已添加",
+    "deleteTrack": "删除 {{track}}",
+    "deleteForEveryone": "为所有人删除？",
+    "keep": "保留",
+    "deleteSubtitles": "删除这些字幕",
+    "searchNotSetUp": "尚未设置字幕搜索",
+    "findSubtitles": "查找字幕…",
+    "addSubtitleFile": "添加字幕文件…",
+    "timing": "时间",
+    "earlier": "提前显示字幕",
+    "later": "延后显示字幕",
+    "offset": "{{value}} 秒",
+    "style": {
+      "size": "大小",
+      "background": "背景",
+      "font": "字体",
+      "position": "位置"
+    },
+    "sizes": {
+      "small": "小",
+      "normal": "正常",
+      "large": "大",
+      "huge": "超大"
+    },
+    "backgrounds": {
+      "none": "无",
+      "box": "深色底框"
+    },
+    "fonts": {
+      "sans": "默认",
+      "serif": "衬线",
+      "mono": "等宽",
+      "casual": "休闲"
+    },
+    "positions": {
+      "bottom": "底部",
+      "raised": "略高",
+      "higher": "较高",
+      "highest": "最高"
+    }
+  },
+  "find": {
+    "notSetUp": "此服务器尚未设置字幕搜索。",
+    "searchNeedsUpdate": "此服务器无法搜索字幕：需要更新。",
+    "setUp": "在「设置 → 服务器」中设置",
+    "language": "字幕语言",
+    "fileLanguage": "字幕的语言",
+    "searching": "正在搜索…",
+    "searchFailed": "无法搜索字幕。{{error}}",
+    "noResults": "未找到此视频的 {{language}} 字幕。",
+    "sdh": "SDH",
+    "forced": "强制",
+    "downloads_other": "{{count, number}} 次下载",
+    "madeForFile": "专为此文件制作",
+    "addFailed": "无法添加这些字幕。{{error}}",
+    "uploadNeedsUpdate": "此服务器无法接收字幕文件：需要更新。",
+    "adding": "正在添加…"
+  },
+  "music": {
+    "queue": "播放队列",
+    "shuffleOn": "随机播放已开启",
+    "shuffleOff": "随机播放已关闭",
+    "close": "关闭播放器",
+    "stoppedElsewhere": "播放已被另一台设备停止。",
+    "stoppedByAdmin": "播放已被服务器管理员停止。",
+    "failed": "播放失败",
+    "noHls": "此浏览器无法播放 HLS 流",
+    "noSound": "没有声音输出：检查扬声器或耳机"
+  },
+  "book": {
+    "speed": "速度：{{rate}}",
+    "sleep": "睡眠定时器",
+    "sleepIn": "睡眠定时器：剩余 {{time}}",
+    "sleepAtEnd": "睡眠定时器：结束时暂停",
+    "sleepEndOfChapter": "本章结束",
+    "sleepEndOfPart": "本部分结束",
+    "sleepOff": "关闭定时器",
+    "back_other": "后退 {{count}} 秒",
+    "forward_other": "前进 {{count}} 秒"
+  }
+}

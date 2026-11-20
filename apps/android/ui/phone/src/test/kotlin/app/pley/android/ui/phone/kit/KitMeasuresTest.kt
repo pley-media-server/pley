@@ -10,7 +10,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Card widths, grid columns, page metrics and avatar colours, as the design spec and the web give them. */
+/** Card widths, grid columns, page metrics and avatar colors, as the design spec and the web give them. */
 class KitMeasuresTest {
     /** A 412 dp phone less its two 16 dp margins. */
     private val phone = 380.dp
@@ -75,7 +75,7 @@ class KitMeasuresTest {
         assertEquals(Color(0xFFAABBCC), AvatarColors.of("Alex", "abc"))
         // The web's hash: "A" is 65, and 65 % 8 is 1.
         assertEquals(AvatarColors.palette[1], AvatarColors.of("A", null))
-        assertEquals(AvatarColors.palette[1], AvatarColors.of("A", "not a colour"))
+        assertEquals(AvatarColors.palette[1], AvatarColors.of("A", "not a color"))
     }
 
     @Test

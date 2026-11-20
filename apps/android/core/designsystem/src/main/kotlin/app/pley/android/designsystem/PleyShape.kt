@@ -53,17 +53,17 @@ object PleyShape {
 
 /**
  * The TV focus ring (design spec §1.4, §2.3): a 3 dp [PleyColors.AccentBright]
- * stroke whose centre runs 4.5 dp outside the tile, so it leaves a 3 dp
+ * stroke whose center runs 4.5 dp outside the tile, so it leaves a 3 dp
  * gap and has a 7 dp inner and 10 dp outer radius around the tile's 4.
  * It is drawn in the draw phase, never as a border that changes layout.
  */
 object PleyFocus {
     val RingStroke = 3.dp
 
-    /** From the tile's edge to the stroke's centre. */
+    /** From the tile's edge to the stroke's center. */
     val RingOffset = 4.5.dp
 
-    /** The ring's radius at the stroke's centre, around a [PleyShape.TileTv] corner. */
+    /** The ring's radius at the stroke's center, around a [PleyShape.TileTv] corner. */
     val RingRadius = 8.5.dp
 
     /** How far the ring reaches past the tile's edge: [RingOffset] plus half the stroke. */

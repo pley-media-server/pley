@@ -140,7 +140,7 @@ extension FixtureServer {
                     return json(400, ["code": "bad_request", "message": "language is missing"])
                 }
                 let language = body["language"] as? String
-                if let language, !["en", "fr", "es"].contains(language) {
+                if let language, !["en", "fr", "es", "zh-CN", "zh-TW"].contains(language) {
                     return json(400, ["code": "bad_request", "message": "an unknown language"])
                 }
                 s.account.languages[access.profile] = language

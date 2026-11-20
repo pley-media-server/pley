@@ -85,12 +85,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 /**
  * Live TV on phones and tablets (the web's LiveTvPage):
  * "Live TV" with a button that switches between the guide and the
- * channels; the category in a picker (Favourites, Recently watched, All
+ * channels; the category in a picker (Favorites, Recently watched, All
  * channels, the groups); a search of names, numbers and what's on. The
  * guide is channels down and time across; the channels are cards. Both
  * load a page of channels at a time as they scroll, and open back at the
- * channel last watched. A channel plays at a tap; a programme's details
- * open in a sheet, with Watch and the favourite.
+ * channel last watched. A channel plays at a tap; a program's details
+ * open in a sheet, with Watch and the favorite.
  */
 @Composable
 internal fun PhoneLiveTvScreen() {

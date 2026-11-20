@@ -71,7 +71,7 @@ final class ScreensTests: XCTestCase {
 
     /// Live TV against live-source.sh's channels (one connection at a
     /// time): the tab after Home, the categories, the guide, a channel
-    /// played, channel up, a number on the number pad, a favourite,
+    /// played, channel up, a number on the number pad, a favorite,
     /// Recently watched, Watch here instead, leaving, and Search's channels.
     func testLiveTv() async throws {
         guard let one = await Admin.channelId("Test One"), let two = await Admin.channelId("Test Two"),
@@ -89,7 +89,7 @@ final class ScreensTests: XCTestCase {
         walk.tabsFit()
         walk.chooseCategory("all")
         let programme = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Test One at'")).firstMatch
-        walk.wait(programme, "Test One's programme in the guide", timeout: 30)
+        walk.wait(programme, "Test One's program in the guide", timeout: 30)
         walk.shot("71-live-guide")
         walk.select(walk.element("live.guide.channel.\(one)"), "Test One", first: [.right, .down])
         await walk.livePlayer(says: "playing")
@@ -109,9 +109,9 @@ final class ScreensTests: XCTestCase {
         await walk.liveChannel(is: "Test Three")
         await walk.livePlayer(says: "playing")
 
-        walk.selectInOverlay("live.favorite", "Add to favourites")
+        walk.selectInOverlay("live.favorite", "Add to favorites")
         let starred = await walk.holds { await Admin.favoriteChannels().contains(three) }
-        XCTAssertTrue(starred, "Test Three is a favourite at the server")
+        XCTAssertTrue(starred, "Test Three is a favorite at the server")
         // Menu hides the overlay, then leaves.
         walk.remote.press(.menu)
         walk.remote.press(.menu)
@@ -119,7 +119,7 @@ final class ScreensTests: XCTestCase {
         XCTAssertTrue(left, "leaving ends the session at the server")
 
         walk.chooseCategory("favorites")
-        walk.wait(walk.element("live.guide.channel.\(three)"), "Test Three in Favourites")
+        walk.wait(walk.element("live.guide.channel.\(three)"), "Test Three in Favorites")
         walk.chooseCategory("recent")
         walk.wait(walk.element("live.guide.channel.\(two)"), "Test Two in Recently watched")
 

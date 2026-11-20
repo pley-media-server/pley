@@ -5,7 +5,7 @@ import SwiftUI
 /// Live TV on Apple TV: the categories down the left, and the category's
 /// channels as the guide or as cards. The guide shows two hours at a time:
 /// moving the focus past its right edge moves it on half an hour, past its
-/// left edge back. A channel plays; a programme opens what it is, with
+/// left edge back. A channel plays; a program opens what it is, with
 /// Watch now while it is on.
 struct LiveTvView: View {
     @ObservedObject var app: AppModel
@@ -102,14 +102,14 @@ private struct TVProgramChoice: Identifiable {
     var id: String { "\(channel.id):\(program.start)" }
 }
 
-/// Favourites, Recently watched and All channels, then the regions' groups and the others.
+/// Favorites, Recently watched and All channels, then the regions' groups and the others.
 private struct TVCategories: View {
     @ObservedObject var model: LiveTvModel
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
-                row(.favorites, localized("Favourites"), model.groups.favorites)
+                row(.favorites, localized("Favorites"), model.groups.favorites)
                 row(.recent, localized("Recently watched"), model.groups.recent)
                 row(.all, localized("All channels"), model.groups.total)
                 let sections = model.sections
@@ -145,7 +145,7 @@ private struct TVCategories: View {
     }
 }
 
-/// The guide on Apple TV: two hours across, programmes the focus moves through.
+/// The guide on Apple TV: two hours across, programs the focus moves through.
 private struct TVGuide: View {
     let app: AppModel
     @ObservedObject var model: LiveTvModel
@@ -331,7 +331,7 @@ private struct TVChannelCards: View {
             .frame(height: 140)
         }
         .contextMenu {
-            Button(channel.favorite ? localized("Remove from favourites") : localized("Add to favourites")) { model.toggleFavorite(channel) }
+            Button(channel.favorite ? localized("Remove from favorites") : localized("Add to favorites")) { model.toggleFavorite(channel) }
                 .accessibilityIdentifier("live.channel.\(channel.id).favorite")
         }
         .accessibilityIdentifier("live.channel.\(channel.id)")
@@ -359,7 +359,7 @@ struct TVChannelLogo: View {
     }
 }
 
-/// A programme: its picture, time, Live and New, what it is about, and Watch now while it is on.
+/// A program: its picture, time, Live and New, what it is about, and Watch now while it is on.
 private struct TVProgramView: View {
     let app: AppModel
     @ObservedObject var model: LiveTvModel

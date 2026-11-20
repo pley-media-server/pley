@@ -8,7 +8,7 @@ import java.util.zip.Deflater
  * The FixtureServer's pictures: PNGs drawn on request (no AWT, so they are
  * drawn on Android too), sized like the server's: widths rounded up to its
  * buckets (apps/server/src/images.rs), the height from the picture's shape.
- * A picture is a gradient in a colour from its seed, so tiles look apart.
+ * A picture is a gradient in a color from its seed, so tiles look apart.
  * Recent ones are kept.
  */
 internal class Pictures {
@@ -27,7 +27,7 @@ internal class Pictures {
     fun artwork(seed: Long, shape: Shape, width: Int?): ByteArray {
         val w = width?.let(::bucket) ?: shape.defaultWidth
         val h = (w / shape.ratio).toInt().coerceAtLeast(1)
-        // A handful of colours: enough to tell tiles apart, few enough to keep.
+        // A handful of colors: enough to tell tiles apart, few enough to keep.
         val hue = Math.floorMod(seed * 37, 24L).toInt()
         return cached("art:$hue:$w:$h") { gradient(w, h, hue) }
     }
@@ -140,7 +140,7 @@ internal object Png {
         val b = ByteArrayOutputStream()
         b.write(int(width))
         b.write(int(height))
-        // 8 bits per channel, colour type 2 (RGB), deflate, no filter method, no interlace.
+        // 8 bits per channel, color type 2 (RGB), deflate, no filter method, no interlace.
         b.write(byteArrayOf(8, 2, 0, 0, 0))
         return b.toByteArray()
     }

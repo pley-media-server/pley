@@ -1,0 +1,299 @@
+{
+  "accessFields": {
+    "libraries": "媒体库",
+    "allLibraries": "所有媒体库",
+    "onlySome": "仅部分",
+    "includesLater": "包括你以后添加的媒体库。",
+    "noLibraries": "还没有媒体库。",
+    "ageLimit": "年龄限制",
+    "mode": {
+      "none": "无限制",
+      "rating": "按分级",
+      "age": "按年龄",
+      "birthday": "按生日"
+    },
+    "age": "年龄",
+    "ratingSystem": "分级制度",
+    "rating": "分级",
+    "ratingOption": "{{rating}}（{{age}} 岁）",
+    "noLimitHint": "所有电影和剧集，无论是否有分级。",
+    "ratingHint": "适合 {{age}} 岁观看的影片：{{rating}} 及更温和的分级，来自任何国家。",
+    "ageHint": "适合 {{age}} 岁观看的影片，依据任何国家的分级。",
+    "ratingHintAllAges": "仅适合所有年龄段观看的影片，例如 {{rating}}，来自任何国家。",
+    "ageHintAllAges": "仅适合所有年龄段观看的影片，依据任何国家的分级。",
+    "birthMonth": "生日月份",
+    "birthYear": "年份",
+    "birthdayHint": "限制每年在 {{month}} 的第一天提高，到 {{end}} 结束。",
+    "grownUpHint": "无限制：他们已满 {{age}} 岁。",
+    "exceptions": "例外",
+    "exceptionsHint": "依据影片上的标签，你在影片的“编辑详情”中设置。",
+    "exceptionsNone": "无",
+    "exceptionsShown_other": "始终显示 {{count, number}} 个标签",
+    "exceptionsHidden_other": "从不显示 {{count, number}} 个标签",
+    "exceptionsAdd": "添加",
+    "exceptionsChange": "更改",
+    "showLabels": "始终显示",
+    "showLabelsHint": "带有其中任一标签的影片即使超过年龄限制也会显示。",
+    "hideLabels": "从不显示",
+    "hideLabelsHint": "带有其中任一标签的影片从不显示，无论其分级如何。",
+    "removeLabel": "移除 {{label}}",
+    "inBoth": "一个标签不能既始终显示又从不显示：{{labels}}。",
+    "unrated": {
+      "title": "未分级的电影会被隐藏",
+      "text": "没有 TMDB 密钥时，只有 NFO 文件能为电影提供分级。<settings>添加 TMDB 密钥</settings>"
+    }
+  },
+  "labelPicker": {
+    "placeholder": "添加标签",
+    "titles_other": "{{count, number}} 部影片",
+    "inRules": "在例外中",
+    "create": "添加“{{label}}”",
+    "suggestions": "建议"
+  },
+  "addToCollection": {
+    "title": "添加到合集",
+    "placeholder": "新合集",
+    "nameLabel": "新合集名称",
+    "empty": "此媒体库还没有合集：请在上方命名。",
+    "alreadyIn": "已在其中"
+  },
+  "addToPlaylist": {
+    "title": "添加到播放列表",
+    "nothingToAdd": "没有可添加的内容",
+    "addedItems_other": "已将 {{count}} 个条目添加到 {{title}}",
+    "newMusic": "新音乐播放列表",
+    "newVideo": "新视频播放列表",
+    "nameLabel": "新播放列表名称",
+    "emptyMusic": "还没有音乐播放列表：请在上方命名。",
+    "emptyVideo": "还没有视频播放列表：请在上方命名。"
+  },
+  "appDownloads": {
+    "place": "服务器与下载",
+    "preparing": "正在服务器上准备",
+    "preparingPercent": "正在服务器上准备 · {{percent}}%",
+    "waiting": "等待服务器响应",
+    "queued": "等待中",
+    "progress": "{{received}} / {{size}}",
+    "percent": "{{percent}}%",
+    "saved": "已将 {{name}} 保存到你的下载文件夹",
+    "failed": "无法下载 {{name}}。{{error}}",
+    "already": "{{name}} 已下载",
+    "done": "已下载 {{name}}",
+    "downloading": "正在下载 {{name}}",
+    "downloadingFiles_other": "正在下载 {{count}} 个文件",
+    "panel": "下载",
+    "hint": "即使服务器离线，也可以从账户菜单的 {{place}} 播放下载内容。",
+    "why": {
+      "notMedia": "Pley 只保留音频和视频文件。",
+      "notSaved": "无法保存该文件。",
+      "invalidAddress": "此服务器的地址无效。",
+      "noAnswer": "服务器没有响应。",
+      "namedOtherwise": "服务器在此处显示的名称不同：请检查其前面的代理。",
+      "anotherDevice": "另一个设备响应了此服务器的地址。",
+      "notOnServer": "该文件已不在服务器上。",
+      "signedOut": "请重新登录服务器，然后再次下载。",
+      "diskFull": "磁盘已满。",
+      "notWritten": "无法写入文件：{{detail}}",
+      "cantMake": "服务器无法为此电脑的播放器生成文件：请更新它。",
+      "notMade": "服务器无法为此电脑生成该文件。",
+      "notMadeBecause": "服务器无法为此电脑生成该文件：{{detail}}",
+      "unreadable": "无法读取服务器的响应。",
+      "busy": "服务器目前无法生成该文件。",
+      "noReply": "服务器无法响应。",
+      "unreachable": "无法连接到服务器。",
+      "dropped": "与服务器的连接已断开。",
+      "notSent": "服务器无法发送文件。",
+      "stoppedSending": "服务器停止了发送。",
+      "downloadGone": "此下载已不存在。",
+      "notWhole": "此下载不完整。"
+    }
+  },
+  "cards": {
+    "playTitle": "播放 {{title}}"
+  },
+  "castReceiver": {
+    "playingFrom": "正在从 {{device}} 播放",
+    "anotherDevice": "另一台设备",
+    "switchFailed": "无法切换到遥控器的配置文件"
+  },
+  "collectionCard": {
+    "movies_other": "{{count, number}} 部电影",
+    "shows_other": "{{count, number}} 部剧集"
+  },
+  "connectionBanner": {
+    "offline": "Pley 处于离线状态",
+    "downloads": "下载"
+  },
+  "folderPicker": {
+    "title": "选择文件夹",
+    "select": "选择此文件夹",
+    "up": "上一级",
+    "placeholder": "输入路径，例如 D:\\Media\\Movies 或 /mnt/media",
+    "pathLabel": "文件夹路径",
+    "go": "前往",
+    "backToTop": "返回顶部",
+    "empty": "此处没有子文件夹。",
+    "hint": "单击打开文件夹，双击可直接选择它。"
+  },
+  "historyList": {
+    "remove": "从历史记录中移除"
+  },
+  "hubRow": {
+    "seeAll": "查看全部"
+  },
+  "listMenu": {
+    "shuffle": "随机播放",
+    "addToPlaylist": "添加到播放列表…",
+    "addToCollection": "添加到合集…",
+    "addToMyList": "添加到我的片单",
+    "removeFromMyList": "从我的片单中移除",
+    "markWatched": "标记为已观看",
+    "markUnwatched": "标记为未观看",
+    "removeFromContinueWatching": "从继续观看中移除"
+  },
+  "lists": {
+    "addedTo": "已添加到 {{title}}",
+    "items_other": "{{count, number}} 个条目"
+  },
+  "metadataNotice": {
+    "dismiss": "忽略",
+    "tmdbKey": "电影海报、简介和演职员信息来自 TMDB，需要一个 API 密钥。<settings>在设置中添加免费密钥</settings>即可补全。",
+    "missingKey": "暂无详情：电影详情来自 TMDB，需要一个 API 密钥。<settings>在设置中添加免费密钥</settings>。"
+  },
+  "partOfCollections": {
+    "partOf": "属于"
+  },
+  "passwordInput": {
+    "show": "显示密码",
+    "hide": "隐藏密码"
+  },
+  "playOn": {
+    "label": "在其他设备上播放…",
+    "playingOn": "正在 {{device}} 上播放",
+    "starting": "正在 {{device}} 上启动…",
+    "otherProfile": "{{device}} 当前使用 {{profile}} 的配置文件：会先切换到你的配置文件。",
+    "enterPin": "输入你的 PIN",
+    "pairWith": "与 {{device}} 配对",
+    "pairWhy": "输入 {{device}} 显示的代码。之后家里的每个人都可以用它播放。",
+    "showCodeAgain": "没有显示代码？重新显示"
+  },
+  "remote": {
+    "readyToPlay": "可以播放",
+    "onProfile": "在 {{name}} 的配置文件上",
+    "liveTv": "直播电视",
+    "buttonPlaying_other": "遥控器，{{count, number}} 台设备正在播放",
+    "buttonReady_other": "遥控器，{{count, number}} 台设备可以播放",
+    "yourDevices": "你的设备",
+    "nothingPlaying": "没有正在播放的内容",
+    "sendHint": "用“在其他设备上播放…”把内容发送到这里",
+    "noAnswer": "{{device}} 没有响应。",
+    "audioOn": "{{device}} 的音轨",
+    "subtitlesOn": "{{device}} 的字幕",
+    "qualityOn": "{{device}} 的画质",
+    "subtitlesOff": "关闭",
+    "seekOn": "在 {{device}} 上跳转",
+    "timeOf": "{{position}} / {{duration}}",
+    "progressOn": "{{device}} 的进度",
+    "playOnDevice": "在 {{device}} 上播放",
+    "pauseOnDevice": "在 {{device}} 上暂停",
+    "pause": "暂停",
+    "previousChannelOn": "在 {{device}} 上上一个频道",
+    "nextChannelOn": "在 {{device}} 上下一个频道",
+    "channel": "频道",
+    "previousOn": "在 {{device}} 上上一个",
+    "backOn": "在 {{device}} 上后退 30 秒",
+    "forwardOn": "在 {{device}} 上快进 30 秒",
+    "skip": {
+      "intro": "跳过片头",
+      "credits": "跳过片尾"
+    },
+    "skipOn": {
+      "intro": "在 {{device}} 上跳过片头",
+      "credits": "在 {{device}} 上跳过片尾"
+    },
+    "nextOn": "在 {{device}} 上播放下一集",
+    "waitingFor": "等待 {{device}}",
+    "stopOn": "在 {{device}} 上停止",
+    "stop": "停止",
+    "stopConfirm": "停止在 {{device}} 上播放？",
+    "programme": "{{title}}，{{start}} 至 {{end}}",
+    "next": "接下来：{{title}}",
+    "googleCast": "Google Cast",
+    "volumeOn": "{{device}} 的音量",
+    "airPlay": "AirPlay"
+  },
+  "requestNotices": {
+    "open": "打开"
+  },
+  "sidebar": {
+    "main": "主菜单",
+    "pleyHome": "Pley 主页",
+    "menu": "菜单",
+    "closeMenu": "关闭菜单",
+    "home": "主页",
+    "liveTv": "直播电视",
+    "libraries": "媒体库",
+    "sortLibraries": "媒体库排序",
+    "scanning": "正在扫描",
+    "addLibrary": "添加媒体库",
+    "noLibraries": "还没有媒体库。",
+    "settings": "设置",
+    "discover": "发现",
+    "requests": "请求",
+    "yourRequests": "你的请求",
+    "waiting": "等待中",
+    "playlists": "播放列表"
+  },
+  "sortLibraries": {
+    "title": "媒体库排序",
+    "hint": "你的排序会应用到你使用 Pley 的每一台设备上。",
+    "list": "你的媒体库",
+    "useServerOrder": "使用服务器的排序",
+    "backInServerOrder": "媒体库已恢复服务器的排序",
+    "moved": "{{name}} 已移到第 {{position}} 位，共 {{total}} 个",
+    "movedBack": "{{name}} 已移回第 {{position}} 位，共 {{total}} 个",
+    "notMoved": "{{name}} 未移动",
+    "drag": "拖动以排序",
+    "moveUp": "将 {{name}} 上移",
+    "moveDown": "将 {{name}} 下移"
+  },
+  "starRating": {
+    "label": "你的评分",
+    "stars_other": "{{count, number}} 星",
+    "notRated": "未评分",
+    "yourRating": "你的评分：{{stars}}",
+    "rateIt": "评分"
+  },
+  "toast": {
+    "dismiss": "忽略"
+  },
+  "topBar": {
+    "searchLabel": "搜索你的媒体库",
+    "clearSearch": "清除搜索",
+    "phases": {
+      "queued": "排队中",
+      "walking": "正在查找文件",
+      "probing": "正在分析",
+      "metadata": "正在获取元数据",
+      "done": "完成"
+    },
+    "scanLine": "{{library}}：{{phase}}",
+    "scanLinePercent": "{{library}}：{{phase}} {{percent}}%",
+    "scanningLine": "{{library}}：正在扫描",
+    "scanning": "正在扫描 {{library}}",
+    "scanningLibraries_other": "正在扫描 {{count}} 个媒体库",
+    "accountMenu": "账户菜单",
+    "administrator": "管理员",
+    "managedProfile": "受管理的配置文件",
+    "user": "用户",
+    "switchProfile": "切换配置文件",
+    "account": "账户",
+    "settings": "设置",
+    "switchServer": "切换服务器",
+    "openMenu": "打开菜单",
+    "openMenuWaiting_other": "打开菜单，{{count, number}} 个请求等待中"
+  },
+  "ui": {
+    "loading": "加载中"
+  }
+}

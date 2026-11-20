@@ -28,22 +28,31 @@
 
 ## Features
 
-- Plays files as they are, or transcodes on the GPU
-- HDR10, HLG and Dolby Vision tone mapping
-- Live TV from M3U and Xtream Codes, with XMLTV guides
-- Requests for movies and shows, fetched by Radarr and Sonarr
-- Profiles, PINs and two-step sign-in
-- Works offline on the home network
+- Support for Movies, TV Shows, Music and Audiobooks
+- IPTV from M3U playlists and Xtream Codes, with XMLTV guides
+- HW accelerated transcoding with dynamic quality adjustment
+- HDR10, HLG and Dolby Vision, tone mapping for SDR screens
+- Skip Intro and Skip Credits
+- Customizable Collections (TMDB, hand-picked or smart)
+- Control playback on your other devices, or cast to Chromecast and AirPlay
+- [Home Assistant integration](https://github.com/pley-media-server/pley-homeassistant)
+  to see and control what's playing
+- Works offline on your home network, with downloads for when you're away
+- Profiles, PINs, two-step sign-in and age-based parental controls
+- Requests for movies and shows, sent to Radarr and Sonarr
+- Import from Plex: libraries, users and watch history
+- Plex and Jellyfin compatible APIs for tools like Kometa
 
 [All features](docs/FEATURES.md)
 
 ## Apps
 
-Web, Windows, macOS, Linux, [Android](docs/ANDROID.md), [Kodi](docs/KODI.md),
+Web, Windows, macOS, Linux, [Android](docs/ANDROID.md) (phones, tablets,
+Android TV, Google TV and Fire TV), [Kodi](docs/KODI.md),
 [Roku](docs/ROKU.md), [Samsung TV](docs/TV_PLATFORMS.md),
-[LG TV](docs/LG.md). Jellyfin's apps work too, and tools built on Plex's API
-such as Kometa and Tautulli, through the
-[compatibility APIs](docs/COMPATIBILITY.md).
+[LG TV](docs/LG.md). Apps for iPhone, iPad, Mac and Apple TV are
+[in development](docs/APPLE.md). Jellyfin clients, Kometa and Tautulli
+also work, through the [compatibility APIs](docs/COMPATIBILITY.md).
 
 ## Install
 
@@ -58,7 +67,7 @@ Then [first start](docs/CONFIGURATION.md#first-start), and
 
 ## Architecture
 
-![Pley's architecture: the apps talk to the server, which runs the transcoder, reads metadata sources and IPTV providers, sends requests to Radarr and Sonarr, and scans your media folders](docs/images/architecture.svg)
+![Pley's architecture: the apps talk to the server, which runs the transcoder, casts to Chromecast and AirPlay devices, reads metadata sources and IPTV providers, sends requests to Radarr and Sonarr, and scans your media folders](docs/images/architecture.svg)
 
 ## Docs
 
@@ -79,5 +88,5 @@ Then [first start](docs/CONFIGURATION.md#first-start), and
 Pley is free software under the GNU Affero General Public License, version
 3 ([LICENSE](LICENSE)). The Kodi add-on is GPL-2.0-or-later. What that
 means, and third-party notices: [LICENSING.md](LICENSING.md). How to
-contribute, and the licence of a contribution:
+contribute, and the license of a contribution:
 [CONTRIBUTING.md](CONTRIBUTING.md).

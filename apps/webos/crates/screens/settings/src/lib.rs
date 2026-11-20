@@ -1,13 +1,13 @@
 //! Pley for LG TV's Settings, watch history, Diagnostics and About, as the Android TV app has them
 //! (`TvSettingsScreen.kt`, `TvHistoryScreen.kt`, `TvDiagnosticsScreen.kt`), with what LG adds:
 //! "Delete all local data" (a native app's data outlives it), the
-//! network and the log on Diagnostics, and the licence texts of NOTICES.txt.
+//! network and the log on Diagnostics, and the license texts of NOTICES.txt.
 //!
 //! - [`SettingsScreen`]: the categories and their rows, the side panels of choices, the questions
 //!   before signing out or deleting, and "Manage your account on the web".
 //! - [`HistoryScreen`]: the profile's plays, 15 at a time, each removable.
 //! - [`DiagnosticsScreen`]: the TV's facts, what it plays, the network, the log's last lines.
-//! - [`LicencesScreen`]: the open-source parts and their licence texts.
+//! - [`LicencesScreen`]: the open-source parts and their license texts.
 //!
 //! What each pane holds is data ([`pane`]), so it is tested without drawing.
 

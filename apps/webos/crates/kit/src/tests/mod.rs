@@ -35,7 +35,7 @@ fn fills_of(list: &DisplayList, color: Color) -> Vec<Rect> {
         .collect()
 }
 
-/// Every outline: its rectangle, colour, radius and width.
+/// Every outline: its rectangle, color, radius and width.
 fn strokes(list: &DisplayList) -> Vec<(Rect, Color, f32, f32)> {
     list.cmds
         .iter()
@@ -65,7 +65,7 @@ fn text_at(list: &DisplayList, text: &str) -> Option<Point> {
     })
 }
 
-/// The colour `text` is drawn in.
+/// The color `text` is drawn in.
 fn text_color(list: &DisplayList, text: &str) -> Option<Color> {
     list.cmds.iter().find_map(|c| match c {
         Cmd::Text { layout, color, .. } if &*layout.text == text => Some(*color),

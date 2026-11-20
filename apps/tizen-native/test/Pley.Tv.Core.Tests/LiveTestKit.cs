@@ -12,7 +12,7 @@ namespace Pley.Tv.Core.Tests;
 /// <summary>
 /// A Live TV server in a test (the Android app's FakeLiveTv): a lineup it browses as the server
 /// does (a category, a search by name, number or what's on, pages of 100, the page around a
-/// channel), a guide, favourites and watching, with what it was asked.
+/// channel), a guide, favorites and watching, with what it was asked.
 /// </summary>
 sealed class FakeLive : ILiveSource, ILiveServer
 {
@@ -93,7 +93,7 @@ sealed class FakeLive : ILiveSource, ILiveServer
         return Task.FromResult(new LiveChannelPage { Total = all.Count, Offset = page * LiveRules.Page, Channels = all.Skip(page * LiveRules.Page).Take(LiveRules.Page).ToList() });
     }
 
-    /// <summary>The pages around a channel wait for <see cref="AnswerAround"/>: a channel step's neighbour found late.</summary>
+    /// <summary>The pages around a channel wait for <see cref="AnswerAround"/>: a channel step's neighbor found late.</summary>
     public bool HoldAround { get; set; }
     readonly List<(LiveChannelPage Page, TaskCompletionSource<LiveChannelPage> Answer)> heldAround = new List<(LiveChannelPage, TaskCompletionSource<LiveChannelPage>)>();
 

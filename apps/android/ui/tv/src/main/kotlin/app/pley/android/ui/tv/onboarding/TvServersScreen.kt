@@ -181,7 +181,7 @@ internal fun TvServersContent(
     var forgetting by remember { mutableStateOf<ServerRow?>(null) }
     val picker = rememberTvLanguagePicker()
     val firstRow = remember { FocusRequester() }
-    // Each row's focus, for the row a cancelled Forget goes back to.
+    // Each row's focus, for the row a canceled Forget goes back to.
     val rowFocus = remember { HashMap<String, FocusRequester>() }
     val enterAddress = remember { FocusRequester() }
     var touched by remember { mutableStateOf(false) }
@@ -269,7 +269,7 @@ internal fun TvServersContent(
                 BasicText(stringResource(R.string.tv_onboarding_forget_hint), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle))
             }
         }
-        // "FR" at the screen's right edge, centred on the forget hint's line (Caption, 27 from the bottom).
+        // "FR" at the screen's right edge, centered on the forget hint's line (Caption, 27 from the bottom).
         TvLanguageButton(picker, language, Modifier.align(Alignment.BottomEnd).padding(end = 48.dp - GLOBE_PADDING, bottom = 20.dp))
         TvLanguagePanel(picker, language, onLanguage)
     }

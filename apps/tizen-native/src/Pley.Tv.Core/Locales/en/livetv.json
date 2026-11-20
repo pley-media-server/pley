@@ -14,15 +14,15 @@
     "noMatch": "No channels in this group.",
     "search": "Search",
     "noMatchTitle": "No channels match",
-    "noMatchSearch": "No channel's name, number or programme on now has “{{query}}” in it.",
-    "noneFavoritesTitle": "No favourites yet",
-    "noneFavoritesBody": "Hold OK on a channel and add it to your favourites to find it here.",
+    "noMatchSearch": "No channel's name, number or program on now has “{{query}}” in it.",
+    "noneFavoritesTitle": "No favorites yet",
+    "noneFavoritesBody": "Hold OK on a channel and add it to your favorites to find it here.",
     "noneRecentTitle": "Nothing watched yet",
     "noneRecentBody": "The channels you watch show here, the last first."
   },
   "categories": {
     "all": "All channels",
-    "favorites": "Favourites",
+    "favorites": "Favorites",
     "recent": "Recently watched",
     "groups": "Groups",
     "regions": "Regions",
@@ -58,9 +58,9 @@
     "episodeOnly": "E{{episode}}"
   },
   "favorites": {
-    "add": "Add to favourites",
-    "remove": "Remove from favourites",
-    "failed": "The favourite wasn't saved: {{error}}"
+    "add": "Add to favorites",
+    "remove": "Remove from favorites",
+    "failed": "The favorite wasn't saved: {{error}}"
   },
   "player": {
     "tuning": "Tuning…",

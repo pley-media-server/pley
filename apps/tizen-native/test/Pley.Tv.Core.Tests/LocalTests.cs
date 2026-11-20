@@ -187,7 +187,7 @@ public class LocalTests
     [Fact]
     public void A_Dolby_Vision_file_without_its_colour_says_HDR10plus_when_its_frames_carry_it()
     {
-        // Profile 8.1 (dvcC: version 1.0, profile 8 level 6, base layer 1), no Colour element, HDR10+ in the first frame.
+        // Profile 8.1 (dvcC: version 1.0, profile 8 level 6, base layer 1), no Color element, HDR10+ in the first frame.
         var dvcc = new byte[] { 1, 0, (8 << 1) | 0, 6 << 3, 1 << 4, 0, 0, 0 };
         var ebml = El(0x1a45dfa3, El(0x4282, S("matroska")));
         var tracks = El(0x1654ae6b, El(0xae, El(0xd7, U(1)), El(0x83, U(1)), El(0x86, S("V_MPEGH/ISO/HEVC")),

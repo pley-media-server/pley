@@ -27,7 +27,7 @@ fn press(app: &mut TestApp, keys: &[Key]) {
 fn playlists_open_on_the_first_cover() {
     let mut app = TestApp::start();
     app.open(Route::Playlists);
-    assert!(app.until(|a| a.shows("Favourites") && a.shows("Road Trip")));
+    assert!(app.until(|a| a.shows("Favorites") && a.shows("Road Trip")));
     let first = app.id(&["grid"]).with(0u64);
     assert!(app.until(|a| a.focused() == Some(first)), "the first cover takes focus");
     assert!(app.shows_part("Smart"), "a smart playlist says so under its cover");
@@ -123,7 +123,7 @@ fn a_removed_entry_goes_at_once_and_focus_moves_on() {
 fn rename_types_a_title_and_sends_it() {
     let mut app = TestApp::start();
     app.open(Route::Playlist { id: ids::PLAYLIST_VIDEO });
-    assert!(app.until(|a| a.shows("Favourites")));
+    assert!(app.until(|a| a.shows("Favorites")));
     press(&mut app, &[Key::Right, Key::Right, Key::Ok]);
     assert!(app.until(|a| a.shows("Rename playlist")));
     // OK on the title types it; Back closes the keyboard, Down reaches Save.
@@ -132,15 +132,15 @@ fn rename_types_a_title_and_sends_it() {
     press(&mut app, &[Key::Back, Key::Down, Key::Ok]);
     assert!(app.until(|a| !a.server.writes("PATCH", "/api/playlists/1").is_empty()));
     let sent = app.server.writes("PATCH", "/api/playlists/1")[0].body.clone();
-    assert!(sent.contains("Favourites two"), "sent {sent}");
-    assert!(app.until(|a| a.shows("Favourites two")));
+    assert!(sent.contains("Favorites two"), "sent {sent}");
+    assert!(app.until(|a| a.shows("Favorites two")));
 }
 
 #[test]
 fn delete_asks_first_then_leaves_the_page() {
     let mut app = TestApp::start();
     app.open(Route::Playlist { id: ids::PLAYLIST_VIDEO });
-    assert!(app.until(|a| a.shows("Favourites")));
+    assert!(app.until(|a| a.shows("Favorites")));
     press(&mut app, &[Key::Right, Key::Right, Key::Right, Key::Ok]);
     assert!(app.until(|a| a.shows("Delete playlist?")));
     // Cancel has focus: Right reaches Delete.
@@ -213,7 +213,7 @@ fn adding_to_a_playlist_says_so_and_closes() {
     assert!(app.until(|a| a.focused() == Some(first)), "the first video playlist takes focus");
     assert!(!app.shows("Road Trip"), "music playlists don't take a movie");
     app.press(Key::Ok);
-    assert!(app.until(|a| a.shows("Added to Favourites")));
+    assert!(app.until(|a| a.shows("Added to Favorites")));
     assert_eq!(app.server.writes("POST", "/api/playlists/1/items").len(), 1);
     app.advance(1.6);
     assert!(app.until(|a| !matches!(a.route(), Some(Route::AddToPlaylist { .. }))));
@@ -450,7 +450,7 @@ fn a_librarys_collections_show_by_category_and_filter_by_category() {
     // Seasonal: one group left, a grid without headings, the chip named for it.
     press(&mut app, &[Key::Down, Key::Down, Key::Down, Key::Down, Key::Ok]);
     assert!(app.until(|a| a.shows("7 collections") && !a.shows("Box sets")), "Seasonal didn't filter");
-    assert!(app.shows("Holiday Favourites") && !app.shows("Highlights"), "one group has no heading");
+    assert!(app.shows("Holiday Favorites") && !app.shows("Highlights"), "one group has no heading");
     assert_eq!(app.focused(), Some(chip));
     app.press(Key::Down);
     assert_eq!(app.focused(), Some(app.id(&["collections-grid"]).with(0u64)), "the grid is under the chip");
@@ -463,7 +463,7 @@ fn a_librarys_collections_show_by_category_and_filter_by_category() {
     assert!(app.until(|a| a.shows("Highlights") && a.shows("Box sets")), "the filter wasn't cleared");
 }
 
-/// The shows library's own collections: four of Other, then Holiday Favourites in Seasonal.
+/// The shows library's own collections: four of Other, then Holiday Favorites in Seasonal.
 const SHOWS_OTHER: [i64; 4] = [ids::COLLECTION + 24, ids::COLLECTION + 25, ids::COLLECTION + 26, ids::COLLECTION + 27];
 
 #[test]
@@ -508,7 +508,7 @@ fn a_chosen_category_emptied_by_the_server_moves_focus_from_its_chip() {
     assert_eq!(app.focused(), Some(chip));
     app.server.hide_collections(&SHOWS_OTHER);
     app.server.emit(ServerEvent::LibrariesChanged);
-    assert!(app.until(|a| a.shows("1 collection") && a.shows("Holiday Favourites")));
+    assert!(app.until(|a| a.shows("1 collection") && a.shows("Holiday Favorites")));
     app.advance(0.5);
     let grid = app.id(&["collections-grid"]);
     assert_eq!(app.focused(), Some(grid.with(0u64)), "focus was lost with the chip");
@@ -518,7 +518,7 @@ fn a_chosen_category_emptied_by_the_server_moves_focus_from_its_chip() {
 fn the_merged_page_shows_both_libraries_and_opens_each() {
     let mut app = TestApp::start();
     app.open(Route::MergedCollection { ids: vec![ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS] });
-    assert!(app.until(|a| a.shows("Holiday Favourites") && a.shows("Movies") && a.shows("TV Shows")));
+    assert!(app.until(|a| a.shows("Holiday Favorites") && a.shows("Movies") && a.shows("TV Shows")));
     assert!(app.shows_part("4 movies") && app.shows_part("4 shows"), "the facts count both");
     let play = app.id(&["buttons", "play"]);
     assert!(app.until(|a| a.focused() == Some(play)), "Play takes focus");

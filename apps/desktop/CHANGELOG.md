@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Simplified and Traditional Chinese for the server picker and the request
+  notifications, in the language of the computer or the server's pages.
+
 ## [0.1.5] - 2026-11-14
 
 ### Added

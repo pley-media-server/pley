@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Managing the server: the dashboard (apps/web/src/pages/settings/DashboardSettings.tsx, ResourcesSection.tsx, StorageSection.tsx). -->
+    <string name="admin_dashboard_now_playing">正在播放</string>
+    <string name="admin_dashboard_nobody_watching">當前沒有人在觀看。</string>
+    <string name="admin_dashboard_stale_title">未更新：這些資料來自 %1$s</string>
+    <string name="admin_dashboard_stale_text">伺服器恢復回應後會重新更新。</string>
+    <string name="admin_dashboard_method_direct">直接播放</string>
+    <string name="admin_dashboard_method_remux">重封裝</string>
+    <string name="admin_dashboard_method_transcode">轉碼</string>
+    <string name="admin_dashboard_player_pley">Pley 應用</string>
+    <string name="admin_dashboard_player_plex">Plex API</string>
+    <string name="admin_dashboard_player_jellyfin">Jellyfin API</string>
+    <string name="admin_dashboard_player_cast" translatable="false">Google Cast</string>
+    <string name="admin_dashboard_player_airplay" translatable="false">AirPlay</string>
+    <string name="admin_dashboard_state_playing">播放中</string>
+    <string name="admin_dashboard_state_paused">已暫停</string>
+    <string name="admin_dashboard_state_buffering">緩衝中</string>
+    <string name="admin_dashboard_state_stopped">已停止</string>
+    <string name="admin_dashboard_pipeline_gpu">GPU</string>
+    <string name="admin_dashboard_pipeline_gpu_title">在 GPU 上解碼、過濾並編碼，無需資料複製</string>
+    <string name="admin_dashboard_pipeline_hybrid">混合</string>
+    <string name="admin_dashboard_pipeline_hybrid_title">部分由 GPU、部分由 CPU 處理</string>
+    <string name="admin_dashboard_pipeline_cpu">CPU</string>
+    <string name="admin_dashboard_pipeline_cpu_title">軟體解碼和編碼</string>
+    <string name="admin_dashboard_pipeline_copy">複製</string>
+    <string name="admin_dashboard_pipeline_copy_title">影片流直接複製，不重新編碼</string>
+    <string name="admin_dashboard_job_starting">啟動中</string>
+    <string name="admin_dashboard_job_running">執行中</string>
+    <string name="admin_dashboard_job_idle">空閒</string>
+    <string name="admin_dashboard_job_finished">已完成</string>
+    <string name="admin_dashboard_job_failed">失敗</string>
+    <string name="admin_dashboard_waits_playing">有其他內容播放時等待</string>
+    <string name="admin_dashboard_waits_busy">其他程式佔用處理器時等待</string>
+    <string name="admin_dashboard_waits_auto">優先處理可能馬上要看的內容，其餘安排在低峰時段</string>
+    <string name="admin_dashboard_waits_auto_from">優先處理可能馬上要看的內容，其餘安排在低峰時段（來自 %1$s）</string>
+    <string name="admin_dashboard_waits_hours">等待到指定時段</string>
+    <string name="admin_dashboard_waits_hours_from">等待到指定時段（來自 %1$s）</string>
+    <string name="admin_dashboard_stop_title">停止播放</string>
+    <string name="admin_dashboard_stopped">播放已停止</string>
+    <string name="admin_dashboard_stop">停止</string>
+    <string name="admin_dashboard_stops_for">%1$s 會立即停止 %2$s。</string>
+    <string name="admin_dashboard_stop_message">訊息</string>
+    <string name="admin_dashboard_stop_message_hint">可選。會顯示在對方螢幕上。</string>
+    <string name="admin_dashboard_stop_label">為 %2$s 停止 %1$s</string>
+    <string name="admin_dashboard_stop_label_on">在 %3$s 上為 %2$s 停止 %1$s</string>
+    <string name="admin_dashboard_preparing">準備中…</string>
+    <!-- Counts beside their totals, which the web writes without plurals. -->
+    <string name="admin_dashboard_segments" tools:ignore="PluralsCandidate">%1$s/%2$s 段</string>
+    <string name="admin_dashboard_size">大小 %1$d / %2$d</string>
+    <string name="admin_dashboard_transcoder">轉碼器</string>
+    <string name="admin_dashboard_available">可用</string>
+    <string name="admin_dashboard_unavailable">不可用</string>
+    <string name="admin_dashboard_managed">由 Pley 管理</string>
+    <string name="admin_dashboard_external">外部</string>
+    <string name="admin_dashboard_status">狀態</string>
+    <string name="admin_dashboard_version">版本</string>
+    <string name="admin_dashboard_url">URL</string>
+    <string name="admin_dashboard_ffmpeg">ffmpeg</string>
+    <string name="admin_dashboard_encoders">編碼器</string>
+    <string name="admin_dashboard_active_encoder">當前編碼器</string>
+    <string name="admin_dashboard_hw_accel">硬體加速</string>
+    <string name="admin_dashboard_tone_mapping">色調對映</string>
+    <string name="admin_dashboard_not_available">不可用</string>
+    <string name="admin_dashboard_dolby_vision">Dolby Vision</string>
+    <string name="admin_dashboard_supported">支援</string>
+    <string name="admin_dashboard_not_supported">不支援</string>
+    <string name="admin_dashboard_jobs">任務</string>
+    <string name="admin_dashboard_job_count" tools:ignore="PluralsCandidate">%1$d 个运行中 / 最多 %2$d 个</string>
+    <string name="admin_dashboard_transcoder_unavailable">無法取得轉碼器狀態：%1$s</string>
+    <string name="admin_dashboard_none">無</string>
+    <string name="admin_dashboard_no_jobs">當前沒有轉碼任務。</string>
+    <string name="admin_dashboard_job_video">影片</string>
+    <string name="admin_dashboard_job_audio">音訊</string>
+    <string name="admin_dashboard_job_codecs">編碼器 / 解碼器</string>
+    <string name="admin_dashboard_job_tone_map">色調對映</string>
+    <string name="admin_dashboard_job_speed">速度</string>
+    <string name="admin_dashboard_job_fps">FPS</string>
+    <string name="admin_dashboard_job_segments">分段</string>
+    <plurals name="admin_dashboard_restarts">
+        <item quantity="other">%1$d 次重新啟動</item>
+    </plurals>
+    <string name="admin_dashboard_burn_in">內嵌字幕</string>
+    <string name="admin_dashboard_copied">%1$s（複製）</string>
+    <string name="admin_dashboard_preset">預設 %1$s</string>
+    <string name="admin_dashboard_running_jobs">執行中的任務</string>
+    <plurals name="admin_dashboard_created">
+        <item quantity="other">已建立 %1$s</item>
+    </plurals>
+    <string name="admin_dashboard_hw_sessions">硬體工作階段</string>
+    <string name="admin_dashboard_segments_served">已提供分段</string>
+    <plurals name="admin_dashboard_produced">
+        <item quantity="other">已生成 %1$s</item>
+    </plurals>
+    <string name="admin_dashboard_data_served">已傳輸資料</string>
+    <string name="admin_dashboard_on_disk">磁碟佔用 %1$s</string>
+    <string name="admin_dashboard_probes">探測次數</string>
+    <string name="admin_dashboard_average">平均 %1$d 毫秒</string>
+    <string name="admin_dashboard_failures">失敗次數</string>
+    <string name="admin_dashboard_thumbs_and_subs">%1$s 張縮圖 · %2$s 條字幕</string>
+    <string name="admin_dashboard_recently_played">最近播放</string>
+    <string name="admin_dashboard_nothing_played">還沒有完整播放過任何內容。</string>
+    <string name="admin_dashboard_show_more">顯示更多</string>
+    <string name="admin_dashboard_remove">從歷史記錄中移除 %1$s</string>
+    <string name="admin_dashboard_library_scans">媒體庫掃描</string>
+    <string name="admin_dashboard_scan_queued">排隊中</string>
+    <string name="admin_dashboard_scan_walking">查詢檔案</string>
+    <string name="admin_dashboard_scan_probing">分析媒體</string>
+    <string name="admin_dashboard_scan_metadata">取得中介資料</string>
+    <string name="admin_dashboard_scan_done">已完成</string>
+    <string name="admin_dashboard_finding_markers">識別片頭與片尾</string>
+    <string name="admin_dashboard_fingerprints" tools:ignore="PluralsCandidate">%1$d / %2$d 个音频指纹</string>
+    <plurals name="admin_dashboard_seasons_left">
+        <item quantity="other">還剩 %1$s 季</item>
+    </plurals>
+    <string name="admin_dashboard_making_previews">生成拖動預覽圖</string>
+    <plurals name="admin_dashboard_files_left">
+        <item quantity="other">還剩 %1$s 個檔案</item>
+    </plurals>
+    <string name="admin_dashboard_at_a_time">每次 %1$d 個</string>
+    <string name="admin_dashboard_system">系統</string>
+    <string name="admin_dashboard_couldnt_load_system">無法載入系統資訊</string>
+    <string name="admin_dashboard_platform">平臺</string>
+    <string name="admin_dashboard_uptime">執行時間</string>
+    <string name="admin_dashboard_data_directory">資料目錄</string>
+    <string name="admin_dashboard_movies">電影</string>
+    <string name="admin_dashboard_shows">劇集</string>
+    <plurals name="admin_dashboard_episodes">
+        <item quantity="other">%1$s 集</item>
+    </plurals>
+    <string name="admin_dashboard_artists">音樂人</string>
+    <plurals name="admin_dashboard_albums">
+        <item quantity="other">%1$s 張專輯</item>
+    </plurals>
+    <string name="admin_dashboard_tracks">曲目</string>
+    <string name="admin_dashboard_files">檔案</string>
+    <string name="admin_dashboard_users">使用者</string>
+    <plurals name="admin_dashboard_libraries">
+        <item quantity="other">%1$s 個媒體庫</item>
+    </plurals>
+    <string name="admin_dashboard_resources">資源</string>
+    <string name="admin_dashboard_pley_hint">伺服器、轉碼器及其 FFmpeg</string>
+    <string name="admin_dashboard_machine">系統</string>
+    <string name="admin_dashboard_summary">%1$s: %2$s</string>
+    <string name="admin_dashboard_no_readings">%1$s：暫無資料</string>
+    <string name="admin_dashboard_five_minutes_ago">5 分鐘前</string>
+    <string name="admin_dashboard_right_now">現在</string>
+    <string name="admin_dashboard_couldnt_read">無法讀取處理器和記憶體資訊：%1$s</string>
+    <string name="admin_dashboard_unmeasurable">此係統無法測量處理器和記憶體。</string>
+    <string name="admin_dashboard_cpu">CPU</string>
+    <plurals name="admin_dashboard_processors">
+        <item quantity="other">%1$d 個處理器</item>
+    </plurals>
+    <string name="admin_dashboard_memory">記憶體</string>
+    <string name="admin_dashboard_in_all">共 %1$s</string>
+    <string name="admin_dashboard_storage">儲存</string>
+    <string name="admin_dashboard_clean_up">清理</string>
+    <string name="admin_dashboard_clean_up_title">清理儲存空間？</string>
+    <string name="admin_dashboard_clean_up_body">刪除不再使用的圖片和拖動預覽圖，以及舊的快取檔案。</string>
+    <plurals name="admin_dashboard_removed">
+        <item quantity="other">已刪除 %1$s 個未使用檔案（%2$s）</item>
+    </plurals>
+    <string name="admin_dashboard_nothing_to_clean">沒有需要清理的內容</string>
+    <string name="admin_dashboard_damaged">資料庫已損壞</string>
+    <string name="admin_dashboard_damaged_hint">%1$s。停止 Pley，將 pley.db 及其 -wal 和 -shm 檔案移開，再把最新備份複製到原位置。</string>
+    <string name="admin_dashboard_pictures">圖片</string>
+    <plurals name="admin_dashboard_stored_once">
+        <item quantity="other">每份僅存一次，共 %1$s</item>
+    </plurals>
+    <string name="admin_dashboard_generated">已生成</string>
+    <plurals name="admin_dashboard_previews_of">
+        <item quantity="other">%1$s 個檔案的預覽圖</item>
+    </plurals>
+    <string name="admin_dashboard_cache">快取</string>
+    <string name="admin_dashboard_safe_to_delete">可安全刪除</string>
+</resources>

@@ -3,7 +3,7 @@ import PleyScreens
 import SwiftUI
 
 /// The globe of the screens before signing in: the language shown by its
-/// two letters, small and out of the way (the bottom right of the servers,
+/// short mark, small and out of the way (the bottom right of the servers,
 /// the top right of the code screen); its menu picks this device's
 /// language. Only while no account is signed in.
 struct LanguageGlobe: View {

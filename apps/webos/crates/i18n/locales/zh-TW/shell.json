@@ -1,0 +1,58 @@
+{
+  "rail": {
+    "search": "搜尋",
+    "home": "首頁",
+    "discover": "發現",
+    "liveTv": "直播電視",
+    "libraries": "媒體庫",
+    "playlists": "播放清單",
+    "collections": "合集",
+    "nowPlaying": "正在播放",
+    "storage": "U 盤",
+    "settings": "設定",
+    "profiles": "設定檔",
+    "switchProfile": "切換設定檔"
+  },
+  "exit": {
+    "title": "結束 Pley？",
+    "exit": "結束"
+  },
+  "offline": "Pley 處於離線狀態",
+  "cast": {
+    "playingFrom": "正在播放來自 {{device}} 的內容",
+    "playingFromAnother": "正在播放來自其他裝置的內容",
+    "nothingToPlay": "沒有可播放的內容",
+    "switchFailed": "無法切換到遙控器的設定檔"
+  },
+  "placeholder": {
+    "notBuilt": "此頁面尚未構建。",
+    "goBack": "返回"
+  },
+  "errors": {
+    "noServer": "未使用伺服器"
+  },
+  "pages": {
+    "pin": "輸入 PIN 碼",
+    "library": "媒體庫 {{id}}",
+    "collection": "合集 {{id}}",
+    "mergedCollection": "合集 {{ids}}",
+    "playlist": "播放清單 {{id}}",
+    "addToPlaylist": "將「{{title}}」新增到播放清單",
+    "newPlaylist": "新建播放清單",
+    "item": "專案 {{id}}",
+    "itemActions": "專案 {{id}} 的操作",
+    "person": "人物 {{id}}",
+    "artist": "藝人 {{id}}",
+    "album": "專輯 {{id}}",
+    "discoverList": "發現：{{list}}",
+    "discoverSearch": "在 TMDB 上：{{query}}",
+    "title": "TMDB 上的 {{kind}} {{id}}",
+    "requests": "請求",
+    "channel": "頻道 {{id}}",
+    "player": "正在播放專案 {{id}}",
+    "settingsSection": "設定：{{section}}",
+    "history": "觀看記錄",
+    "diagnostics": "診斷",
+    "licences": "開源許可證"
+  }
+}

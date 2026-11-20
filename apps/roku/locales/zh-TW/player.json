@@ -1,0 +1,233 @@
+{
+  "reconnecting": "重新連線中…",
+  "skip": {
+    "intro": "跳過片頭",
+    "credits": "跳過片尾"
+  },
+  "upNext": {
+    "title": "接下來播放",
+    "playNow": "立即播放",
+    "nextIn": "{{seconds}} 秒後播放"
+  },
+  "sync": {
+    "hint": "左鍵：更早 · 右鍵：更晚",
+    "reset": "重設"
+  },
+  "menu": {
+    "title": "播放",
+    "subtitles": "字幕",
+    "subtitlesNow": "字幕：{{track}}",
+    "audio": "音訊",
+    "audioNow": "音訊：{{track}}",
+    "quality": "畫質",
+    "qualityNow": "畫質：{{quality}}",
+    "sync": "字幕同步",
+    "syncNow": "字幕同步：{{offset}}",
+    "chapters": "章節",
+    "find": "查詢字幕…",
+    "details": "播放詳情",
+    "backCloses": "按“返回”將關閉此選單。",
+    "backGoesBack": "按“返回”將返回上一級。"
+  },
+  "details": {
+    "picturesDrawn": "字幕：由 Pley 繪製",
+    "qualityLowered": "畫質：{{quality}} · 已因你的網路降低"
+  },
+  "toasts": {
+    "paused": "已暫停",
+    "playing": "正在播放",
+    "jumpedTo": "已跳轉到 {{time}}",
+    "audio": "音訊：{{track}}",
+    "subtitles": "字幕：{{track}}",
+    "subtitlesOff": "字幕已關閉",
+    "quality": "畫質：{{quality}}",
+    "qualityLowered": "畫質已降至 {{quality}}",
+    "slowServer": "伺服器處理此影片時力不從心。請嘗試降低畫質：按“下”，再選“畫質”。",
+    "notSaved": "無法儲存此次選擇供下次使用。",
+    "subtitlesAdded": "已新增字幕：{{track}}"
+  },
+  "errors": {
+    "cantPlay": "無法播放此內容",
+    "unplayable": "此影片無法在此 Roku 裝置上播放。",
+    "endsEarly": "此影片在預定播放位置之前就結束了。",
+    "stalled": "播放停止後無法繼續。",
+    "cantReach": "無法連線到 {{server}}",
+    "cantReachText": "Pley Roku 版無法連線到 {{address}} 處的伺服器。請檢查伺服器是否已開啟，以及這臺電視是否與伺服器在同一網路。",
+    "stoppedByAdmin": "播放已被伺服器管理員停止。",
+    "stoppedElsewhere": "播放已從另一臺裝置停止。"
+  },
+  "quality": {
+    "original": "原始",
+    "automatic": "自動",
+    "automaticAt": "自動 · {{quality}}",
+    "preset": "{{mbps}} Mbps {{lines}}",
+    "originalHint": "完整畫質。網路較慢時可能會緩衝。",
+    "automaticHint": "根據網路狀況動態調整。"
+  },
+  "sleep": {
+    "title": "睡眠定時",
+    "titleNow": "睡眠定時：{{state}}",
+    "off": "關閉",
+    "minutes": "{{minutes}} 分鐘",
+    "minutesLeft_other": "剩餘 {{count}} 分鐘",
+    "secondsLeft_other": "剩餘 {{count}} 秒",
+    "end": {
+      "episode": "本集結束",
+      "movie": "本片結束",
+      "track": "本曲目結束",
+      "video": "本影片結束"
+    },
+    "pausingIn": "{{seconds}} 秒後暫停",
+    "keepWatching": "繼續觀看",
+    "keepListening": "繼續收聽"
+  },
+  "find": {
+    "title": "查詢字幕",
+    "language": "字幕語言",
+    "searching": "搜尋中…",
+    "languageEntry": "語言：{{language}}",
+    "yourLanguage": "你的字幕語言",
+    "yourLanguageInSentence": "你的字幕語言",
+    "languageHint": "搜尋時使用的語言。",
+    "nothingFound": "未找到此檔案在 {{language}} 中的字幕。按“語言”可換一種。",
+    "subtitles": "字幕",
+    "madeForFile": "專為此檔案製作",
+    "hearingImpaired": "聽障人士",
+    "downloads_other": "{{count, number}} 次下載",
+    "adding": "正在新增 {{name}}…",
+    "noTrack": "伺服器沒有返回字幕。",
+    "notSetUp": "此伺服器尚未設定字幕搜尋。管理員可在網頁版 Pley 的“設定 → 伺服器”中設定。",
+    "needsNewer": "查詢字幕需要伺服器上更新版本的 Pley。",
+    "unreachable": "無法連線到伺服器。",
+    "failed": "出錯了。請再試一次。"
+  },
+  "tracks": {
+    "off": "關閉",
+    "automatic": "自動",
+    "automaticLanguage": "自動（{{language}}）",
+    "unknown": "未知",
+    "forced": "強制",
+    "external": "外部",
+    "version": "版本 {{number}}"
+  },
+  "media": {
+    "languages": {
+      "und": "未知",
+      "mul": "多種語言",
+      "zxx": "無語言內容"
+    },
+    "mono": "單聲道",
+    "stereo": "立體聲",
+    "channelCount": "{{n}} 聲道",
+    "fact": "{{label}}：{{value}}",
+    "file": "檔案",
+    "video": "影片",
+    "audio": "音訊",
+    "subtitles": "字幕",
+    "numbered": "{{kind}} {{n}}",
+    "name": "名稱",
+    "container": "容器",
+    "size": "大小",
+    "duration": "時長",
+    "overallBitrate": "總位元速率",
+    "codec": "編解碼器",
+    "profile": "Profile",
+    "resolution": "解析度",
+    "frameRate": "幀率",
+    "bitDepth": "位深",
+    "primaries": "原色",
+    "transfer": "傳遞特性",
+    "matrix": "矩陣",
+    "bitrate": "位元速率",
+    "title": "標題",
+    "channels": "聲道",
+    "sampleRate": "取樣率",
+    "language": "語言",
+    "flags": "標記",
+    "format": "格式",
+    "formatPicture": "{{codec}}，影像",
+    "formatText": "{{codec}}，文本",
+    "level": "級別 {{level}}",
+    "fps": "{{fps}} 幀/秒",
+    "fpsInterlaced": "{{fps}} 幀/秒，隔行掃描",
+    "bits": "{{n}} 位",
+    "default": "預設",
+    "beside": "與媒體檔案放在一起",
+    "dvProfile": "Profile {{profile}}",
+    "noBaseLayer": "沒有相容的基礎層",
+    "baseLayer": "{{range}} 相容的基礎層",
+    "fullLayer": "完整增強層",
+    "minimalLayer": "最小增強層"
+  },
+  "caps": {
+    "display": "顯示：{{size}}",
+    "displayRate": "顯示：{{size}}，{{rate}} Hz",
+    "hdr": "HDR：{{list}}",
+    "none": "無",
+    "dolbyVision": "Dolby Vision：Profile {{list}}",
+    "video": "影片：{{list}}",
+    "audioDecoded": "音訊解碼：{{list}}",
+    "sent": "傳送到功放：{{list}}",
+    "nothing": "無",
+    "sound": "聲音：{{sound}}",
+    "surround": "環繞聲（5.1）",
+    "pictures": "影像字幕：PGS 在此繪製，VobSub 和 DVB 直接壓制",
+    "containers": "容器：{{list}}",
+    "streams": "流：HLS，多種尺寸"
+  },
+  "nowPlaying": {
+    "title": "正在播放",
+    "position": "第 {{at, number}} 首，共 {{total, number}} 首",
+    "shuffle": "隨機播放",
+    "stopShuffling": "停止隨機播放",
+    "previous": "上一曲",
+    "pause": "暫停",
+    "next": "下一曲",
+    "stop": "停止",
+    "cantPlay": "此曲目無法在此 Roku 裝置上播放。",
+    "trackProblem": "{{title}}：{{message}}"
+  },
+  "cast": {
+    "playingFrom": "正在播放 {{device}} 的內容",
+    "playingFromAnother": "正在播放另一臺裝置的內容",
+    "nothingToPlay": "沒有可播放的內容",
+    "switchFailed": "無法切換到遙控器的設定檔"
+  },
+  "settings": {
+    "audioLanguage": "音訊語言",
+    "subtitles": "字幕",
+    "subtitleLanguage": "字幕語言",
+    "fileDefault": "檔案的預設語言",
+    "sameAsAudio": "與音訊語言相同",
+    "rows": {
+      "audio": "音訊語言：{{language}}",
+      "mode": "字幕：{{mode}}",
+      "subtitle": "字幕語言：{{language}}",
+      "fileDefault": "檔案的預設語言",
+      "sameAsAudio": "與音訊語言相同",
+      "readOnly": "{{row}} · 在網頁上更改"
+    },
+    "modes": {
+      "off": {
+        "label": "關閉",
+        "row": "關閉",
+        "hint": "字幕保持關閉，直到你手動開啟。"
+      },
+      "forced": {
+        "label": "僅外語對白",
+        "row": "僅外語對白",
+        "hint": "只顯示強制字幕，用於標牌和外語對白。"
+      },
+      "foreign": {
+        "label": "音訊為其他語言時",
+        "row": "音訊為其他語言時",
+        "hint": "當音訊不是你的字幕語言時，自動顯示完整字幕。"
+      },
+      "always": {
+        "label": "始終",
+        "row": "始終",
+        "hint": "只要有你語言的字幕，就自動顯示。"
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@
 //! the text in byte mode with error correction M, raised to Q or H when that fits in the same
 //! version (qrcodegen's `boostecl`, MIT), drawn black on white as a picture at the screen's pixels:
 //! each module a whole number of pixels (the tile's pixels over the modules plus the 4-module quiet
-//! zone either side), the code centred in the tile, the quiet zone and what is left white.
+//! zone either side), the code centered in the tile, the quiet zone and what is left white.
 
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;

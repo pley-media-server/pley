@@ -51,7 +51,9 @@
     "names": {
       "en": "English",
       "fr": "Français",
-      "es": "Español"
+      "es": "Español",
+      "zh-CN": "简体中文",
+      "zh-TW": "繁體中文"
     },
     "accountHint": "La langue de Pley pour vous, sur tous les appareils où vous vous connectez. Automatique suit la langue de chaque appareil.",
     "serverHint": "La langue des textes du serveur lui-même, et des appareils dans une langue que Pley ne parle pas encore. Chacun peut choisir la sienne sur sa page Compte.",

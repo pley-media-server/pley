@@ -250,7 +250,7 @@ public sealed class AppState
     }
 
     /// <summary>
-    /// The language the app shows ("en", "fr", "es"): the account's own, else the one picked on
+    /// The language the app shows ("en", "fr", "es", "zh-CN" or "zh-TW"): the account's own, else the one picked on
     /// this TV, else the TV's that Pley has, else the server's, else English (<see cref="Languages.Pick"/>). It starts as the last one
     /// shown, and changes once the account or the server says otherwise; requests ask for answers
     /// in it (<c>Accept-Language</c>).

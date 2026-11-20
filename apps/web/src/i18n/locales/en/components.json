@@ -252,9 +252,7 @@
     "requests": "Requests",
     "yourRequests": "Your requests",
     "waiting": "waiting",
-    "playlists": "Playlists",
-    "allPlaylists": "All playlists",
-    "yourPlaylists": "Your playlists"
+    "playlists": "Playlists"
   },
   "sortLibraries": {
     "title": "Sort libraries",

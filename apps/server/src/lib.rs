@@ -1,6 +1,6 @@
 //! pley — a fast, self-hosted media server.
 //!
-//! The crate is organised as a library so integration tests can build the full
+//! The crate is organized as a library so integration tests can build the full
 //! application in-process; `main.rs` only parses the command line.
 
 pub mod access;
@@ -14,6 +14,7 @@ pub mod bonjour;
 pub mod cast;
 pub mod catalog;
 pub mod categories;
+pub mod collection_art;
 pub mod collections;
 pub mod config;
 pub mod db;
@@ -490,7 +491,7 @@ fn display_addr(addr: SocketAddr) -> String {
     if addr.ip().is_unspecified() { format!("localhost:{}", addr.port()) } else { addr.to_string() }
 }
 
-/// Ctrl+C, SIGTERM, [`request_shutdown`] or `stopping` cancelled (the tray's
+/// Ctrl+C, SIGTERM, [`request_shutdown`] or `stopping` canceled (the tray's
 /// Quit). On Windows also Ctrl+Break, the console window closing and, for a
 /// service, the system shutting down: Windows waits for pley to stop then
 /// (a few seconds at most), as tokio holds those events until the process

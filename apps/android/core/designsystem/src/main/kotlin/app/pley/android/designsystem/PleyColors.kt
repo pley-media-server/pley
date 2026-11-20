@@ -3,11 +3,11 @@ package app.pley.android.designsystem
 import androidx.compose.ui.graphics.Color
 
 /**
- * pley's colours (design spec §1.1): the web's (apps/web/src/index.css),
+ * pley's colors (design spec §1.1): the web's (apps/web/src/index.css),
  * dark only, with four native changes for contrast: `subtle` is lighter,
  * its old value is now [Disabled] and [Control], and [DangerText] is new.
  * The phone builds its Material 3 scheme from these and the TV its
- * tv-material one; neither defines a colour of its own.
+ * tv-material one; neither defines a color of its own.
  *
  * Contrast ratios are against [Bg] unless said otherwise.
  */

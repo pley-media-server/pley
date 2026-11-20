@@ -15,6 +15,18 @@
             "state" : "translated",
             "value" : "%@ s"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 秒"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 秒"
+          }
         }
       }
     }

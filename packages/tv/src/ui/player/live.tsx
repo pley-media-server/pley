@@ -537,7 +537,7 @@ function NowCard(p: { channel: LiveChannel; name: string; on: OnNow; next: Retur
   );
 }
 
-/** The channel being tuned: its logo, the spinner centred under it, and what's on, on black. */
+/** The channel being tuned: its logo, the spinner centered under it, and what's on, on black. */
 /** Connections shown at most on the busy card; past them, how many more. */
 const BUSY_SHOWN = 4;
 

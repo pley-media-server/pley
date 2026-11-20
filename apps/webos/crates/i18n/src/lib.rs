@@ -67,7 +67,8 @@ pub fn share_from_this_thread() {
 
 /// `language`'s words by their whole key, read from its catalogs the first time.
 fn words(language: Language) -> &'static HashMap<String, String> {
-    static WORDS: [OnceLock<HashMap<String, String>>; 3] = [OnceLock::new(), OnceLock::new(), OnceLock::new()];
+    static WORDS: [OnceLock<HashMap<String, String>>; 5] =
+        [OnceLock::new(), OnceLock::new(), OnceLock::new(), OnceLock::new(), OnceLock::new()];
     WORDS[usize::from(language.index())].get_or_init(|| read(language))
 }
 
@@ -176,7 +177,8 @@ pub fn count(key: &str, count: i64, values: &[(&str, &dyn Display)]) -> String {
 }
 
 /// The plural form `count` takes in `language`, as CLDR has it: "one" for 1 (in French 0 and 1
-/// too), "many" in French and Spanish for a whole number of millions, "other" for the rest.
+/// too), "many" in French and Spanish for a whole number of millions, "other" for the rest;
+/// Chinese has "other" for every count.
 pub fn plural(language: Language, count: i64) -> &'static str {
     let n = count.unsigned_abs();
     let millions = n != 0 && n.is_multiple_of(1_000_000);
@@ -189,11 +191,12 @@ pub fn plural(language: Language, count: i64) -> &'static str {
 }
 
 /// The plural forms a counted key has in `language`: English "one" and "other", French and
-/// Spanish "many" too.
+/// Spanish "many" too, Chinese only "other".
 pub fn plural_forms(language: Language) -> &'static [&'static str] {
     match language {
         Language::En => &["one", "other"],
         Language::Fr | Language::Es => &["one", "many", "other"],
+        Language::ZhCn | Language::ZhTw => &["other"],
     }
 }
 
@@ -236,7 +239,7 @@ pub fn catalog(language: Language) -> &'static HashMap<String, String> {
 /// Runs `f` with `language` shown on this thread, then puts back what was, even when `f` panics.
 /// The app uses it for words in a language other than the one shown (track titles name their
 /// language in English, so the formats look for the English name too); tests, to check words in
-/// French or Spanish.
+/// French, Spanish or Chinese.
 pub fn with_language<T>(language: Language, f: impl FnOnce() -> T) -> T {
     struct Restore(Option<Language>);
     impl Drop for Restore {

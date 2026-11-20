@@ -61,7 +61,7 @@ pub struct RailEntry {
     pub label: String,
     pub icon: Icon,
     pub route: Route,
-    /// A number beside the icon (what waits in requests), in the danger colour with `.1`.
+    /// A number beside the icon (what waits in requests), in the danger color with `.1`.
     pub badge: Option<(i64, bool)>,
 }
 
@@ -198,7 +198,7 @@ pub fn current_entry(root: Option<&Route>, entries: &RailEntries) -> Option<Stri
     }
 }
 
-/// A profile's own colour (`#e07a5f` only), else none.
+/// A profile's own color (`#e07a5f` only), else none.
 pub fn avatar_color(color: Option<&str>) -> Option<Color> {
     let hex = color?.strip_prefix('#')?;
     if hex.len() != 6 {
@@ -526,7 +526,7 @@ fn entry_at(view: &RailView, p: Point, scroll: f32) -> Option<String> {
     inside.then(|| view.entries.top.get(i as usize).map(|e| e.id.clone())).flatten()
 }
 
-/// How an entry looks this frame: its fill and content colour.
+/// How an entry looks this frame: its fill and content color.
 fn entry_look(ui: &mut Ui, id: Id, focused: bool, pressed: bool, current: bool, t: f32) -> (Color, Color) {
     let look = if current { focus::RAIL_ENTRY_CURRENT } else { focus::RAIL_ENTRY };
     let rest = if current { theme::alpha(theme::SURFACE3, t) } else { Color::TRANSPARENT };

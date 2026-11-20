@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home: the hero's buttons (design spec §2.2). -->
+    <string name="tv_home_resume">继续播放</string>
+    <string name="tv_home_play">播放</string>
+    <string name="tv_home_from_start">从头播放</string>
+    <string name="tv_home_info">信息</string>
+    <string name="tv_home_turns">第 %1$d 部，共 %2$d 部</string>
+    <string name="tv_home_mark_watched">标为已观看</string>
+    <string name="tv_home_mark_unwatched">标为未观看</string>
+    <string name="tv_home_see_all">查看全部</string>
+    <string name="tv_home_rating">分级 %1$s</string>
+
+    <!-- Home's states (design spec §8), in the web's words. -->
+    <string name="tv_home_no_libraries">暂无媒体库</string>
+    <string name="tv_home_no_libraries_body">请服务器所有者添加媒体库。</string>
+    <string name="tv_home_empty">这里还是空的</string>
+    <string name="tv_home_empty_body">媒体库为空。将媒体放入媒体库文件夹后运行扫描。</string>
+    <string name="tv_home_scanning">正在扫描媒体库…</string>
+    <string name="tv_home_scanning_body">找到新内容后会立即显示在这里。</string>
+    <string name="tv_home_failed">无法加载首页</string>
+    <string name="tv_home_retry">重试</string>
+    <string name="tv_home_nothing_to_play">没有可播放内容</string>
+    <string name="tv_home_loading">正在加载首页</string>
+
+    <!-- The list of libraries. -->
+    <string name="tv_libraries_title">媒体库</string>
+    <string name="tv_libraries_failed">无法加载媒体库</string>
+    <string name="tv_libraries_scanning">正在扫描…</string>
+    <string name="tv_libraries_sort">排序媒体库</string>
+    <string name="tv_libraries_sort_done">完成</string>
+    <string name="tv_libraries_server_order">使用服务器的顺序</string>
+    <string name="tv_libraries_open">打开</string>
+    <string name="tv_libraries_move">移动</string>
+    <string name="tv_libraries_sorting">选择要移动的媒体库。你的排序会应用到所有设备。</string>
+    <string name="tv_libraries_sort_needs_newer_server">排序媒体库需要服务器上安装更新版本的 Pley。</string>
+    <string name="tv_libraries_moving">用方向键移动，按 OK 放到此处，按返回键放回原位</string>
+</resources>

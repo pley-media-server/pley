@@ -75,26 +75,30 @@ the device; until the TV has heard it for that profile, the start asks
 
 ### Language
 
-Pley is in English, French and Spanish. The app shows the language of the
-account, else this device's (one picked with the globe, below, else the
-first of the device's languages that Pley has), else the server
-language, else English ([API.md](API.md#language)): `language` of
-`GET /api/auth/me` and of `GET /api/server`, which the app asks while
-signed in. Without an account (no server chosen, or signed out of the one
-chosen), it shows this device's. A code Pley doesn't have counts as none,
-and a region doesn't count (`fr-CA` is French).
+Pley is in English, French, Spanish, Simplified Chinese and Traditional
+Chinese. The app shows the language of the account, else this device's
+(one picked with the globe, below, else the first of the device's
+languages that Pley has), else the server language, else English
+([API.md](API.md#language)): `language` of `GET /api/auth/me` and of
+`GET /api/server`, which the app asks while signed in. Without an account
+(no server chosen, or signed out of the one chosen), it shows this
+device's. A code Pley doesn't have counts as none, and a region doesn't
+count for the first three (`fr-CA` is French). Chinese is the one pair a
+tag's region or script chooses: `zh-CN`, `zh-Hans` and plain `zh` are
+Simplified, `zh-TW`, `zh-Hant`, `zh-HK` and `zh-MO` Traditional.
 
-The screens shown before signing in have a globe, labelled with the
-language shown by its two letters ("FR") and heard as "Choose a
-language". On phones it is at the top left of the sign-in screen
-(choosing a server, or typing its address) and of the code screen, in
-line with their text; "Continue in browser" has an arrow out of a box, so
+The screens shown before signing in have a globe, labeled with the
+language shown by its mark ("FR", or "简"/"繁" for the two Chineses) and
+heard as "Choose a language". On phones it is at the top left of the
+sign-in screen (choosing a server, or typing its address) and of the code
+screen, in line with their text; "Continue in browser" has an arrow out of a box, so
 the globe only means the language. On TVs it is a small button at the
 bottom right of "Choose your server", on the forget hint's line, and at
 the top right of the code screen, on the logo's line: Down from the
 buttons, or Up from Change server, reaches it, and Left or Right never
 does. It opens **Automatic (English)** (the device's language where Pley
-has it, else English), then English, Français and Español, each named in itself,
+has it, else English), then English, Français, Español, 简体中文 and
+繁體中文, each named in itself,
 the current choice checked: in a sheet on phones, in a side panel on TVs,
 as Settings' choices open. A pick shows at once and is this device's
 language, kept on the device and read before the first screen; Automatic
@@ -104,11 +108,11 @@ Automatic means this one.
 Settings has a **Language** row, on phones at the top and on TVs under
 Profile: **Automatic**, naming what that is on this device ("Automatic
 (Français)": this device's language, or the server's on a device in a
-language Pley doesn't have), then English, Français and Español, each
-named in itself. A choice is the account's, on every device it signs
-in on (`PUT /api/me/language`); it shows at once, and is put back, with a
-word, if the server refuses. A Pley from before languages keeps no
-account's language (its `GET /api/server` names none, and the route
+language Pley doesn't have), then English, Français, Español, 简体中文
+and 繁體中文, each named in itself. A choice is the account's, on every
+device it signs in on (`PUT /api/me/language`); it shows at once, and is
+put back, with a word, if the server refuses. A Pley from before languages
+keeps no account's language (its `GET /api/server` names none, and the route
 answers 404 or 405): there the row is this device's, as the globe picks it, and
 a choice shows and stays on this device. A language picked in the
 system's settings is too. On phones the hint under the row says so:
@@ -136,7 +140,8 @@ the next time it opens.
 
 Dates, times and numbers follow the language shown, in the device's
 region when the device is in that language (en-GB keeps its 24-hour
-clock). The app's requests to its server say the language shown
+clock, a zh-TW device its numbers). The app's requests to its server say
+the language shown
 (`Accept-Language`), in which the server writes the titles of Home's and
 the libraries' rows; they are asked for again when it changes.
 
@@ -306,7 +311,7 @@ rates as the decoder gives them, the same in every language.
   tile is the 16:9 icon in its listing
   (`deploy/stores/tv-banner-1280x720.png`, the mark and name); a
   sideloaded app's is drawn from the app's icon, squeezed into a square in
-  the middle of a grey tile, whatever its shape or banner.
+  the middle of a gray tile, whatever its shape or banner.
 - **Watch Next** (Android TV and Google TV): the home screen's row shows
   the profile's Continue Watching, ten at most.
 - **Dolby Vision and HDR** go by the display mode each video plays in: the
@@ -394,17 +399,17 @@ A device's controls, top to bottom:
   number and name over Live TV, a movie over its year;
 - how far it is, estimated each second while it plays from the last
   report, its age and the time since, by the phone's clock: a slider when
-  its player seeks, a bar otherwise. On Live TV, the programme on, a thin
+  its player seeks, a bar otherwise. On Live TV, the program on, a thin
   bar of how far it is by the phone's clock, from when it started to when
   it ends (the channel's `now_start` and `now_stop`), its times as the
-  phone writes them ("20:00 – 21:00"), and **Next:** the programme after
+  phone writes them ("20:00 – 21:00"), and **Next:** the program after
   it; no seek bar;
 - **Skip Intro** or **Skip Credits** at the end of the poster's row while
   what plays is in an intro or the credits of its file (the session's
   `markers`), from the start until a second before the end, where its
   player seeks: a seek to where the player's own button lands, just before
   the intro ends or at the credits' end. The title gives way to it;
-- the transport, one centred row: previous, back 30 s, play or pause,
+- the transport, one centered row: previous, back 30 s, play or pause,
   forward 30 s and next, each where its player declares it. Next shows
   where its player declares it or what plays has a next by nature (an
   episode, a track), dimmed when the player didn't declare it; a movie
@@ -419,7 +424,7 @@ A device's controls, top to bottom:
   track, any subtitles, the qualities its Quality menu offers for the file
   (the session's `qualities`). A long press says which is which; each
   opens a menu, showing as selected while it is open, of the tracks
-  labelled as the phone's own player labels them, or of the qualities, the
+  labeled as the phone's own player labels them, or of the qualities, the
   one playing ticked (no quality is until its player says which);
   Subtitles starts with **Off**. Then the device's volume, a slider read
   out as a percentage, where its player declares `volume` and has said
@@ -515,7 +520,7 @@ shows only while one does:
   episode;
 - beside Play and Shuffle on an album's and an artist's page;
 - under Play on a playlist's page, where the row beside it is full;
-- as **Watch on…** under Watch in a programme's details in Live TV, and
+- as **Watch on…** under Watch in a program's details in Live TV, and
   in the live player's bar;
 - in an item's actions (a long press on its tile or row, a track's too),
   after the ways to play it here.
@@ -769,7 +774,7 @@ are added or removed (`live_channels_changed`). Sources, the lineup and
 connections are set up in the web app's Settings → Live TV
 ([API.md](API.md#live-tv)).
 
-- **Categories:** Favourites, Recently watched, All channels, then the
+- **Categories:** Favorites, Recently watched, All channels, then the
   regions in alphabetical order, each opening to its groups ("UK| Sport"),
   then More groups in the provider's order. The category, the view (guide
   or cards) and the last channel are kept per server and profile.
@@ -826,16 +831,16 @@ player. The screen turning off lets the session go too, and the channel
 is tuned again in the small window once the screen is back on.
 
 On TVs, OK in the player opens the channel list, as Menu and Guide do;
-holding OK shows the controls (the channel list and the favourite's star) over
+holding OK shows the controls (the channel list and the favorite's star) over
 what's on. Up and Down, Channel up and down, and Previous and Next change
-channel. In the guide, Left and Right go programme by programme, back
-through a programme that began before the guide a screen at a time, and a
+channel. In the guide, Left and Right go program by program, back
+through a program that began before the guide a screen at a time, and a
 half hour at a time on a channel without a guide; rewind and fast forward
 (or Previous and Next) move it two hours, and the time now shows in a pill
-over the now line. Holding OK, Menu or Info on a programme or a channel's
-tile opens its details, with Watch and, beside it, the favourite as a star
-alone, filled for a favourite, as in the player's controls (screen readers
-say Add to or Remove from favourites). Back goes up a step at a time: the
+over the now line. Holding OK, Menu or Info on a program or a channel's
+tile opens its details, with Watch and, beside it, the favorite as a star
+alone, filled for a favorite, as in the player's controls (screen readers
+say Add to or Remove from favorites). Back goes up a step at a time: the
 guide back to now, a search back to the category before, the guide or the tiles to the
 categories, then the rail. A held Left stops at the start of the guide or of the
 tiles, and a held Up at the top: a press of its own goes on to the
@@ -1236,7 +1241,7 @@ the folder's path ("/Films/2019"), at the drive's top "/" and how full the
 drive is. A folder opens over the one before, with ".." first to go back
 up. A video's line gives its kind, or where it resumes with a bar of how
 far through it is, and its size. No drive, an empty folder and one that
-can't be read say so centred on the page under an icon, as in the native
+can't be read say so centered on the page under an icon, as in the native
 Samsung app; with nothing to focus (no ".." line) focus waits on that
 message, showing nothing, so the rail closes over the page and Left opens
 it. A video plays in Pley's player as it is, with no server, also while
@@ -1304,7 +1309,7 @@ sees only what it builds on.
 | `:core:caps` | What the device plays: decoders, Dolby Vision, HDR, display modes, passthrough | common, model, Media3 |
 | `:core:player` | The Media3 engine, playback sessions, subtitles, music | caps, data, network |
 | `:core:downloads` | The download queue, its service, offline progress | data |
-| `:core:designsystem` | Colours, icons, image loading, tiles (Compose foundation only) | common, model |
+| `:core:designsystem` | Colors, icons, image loading, tiles (Compose foundation only) | common, model |
 | `:core:screens` | One ViewModel per screen, shared by phone and TV; routes (`PleyKey`), `Navigator` | data, player, caps, auth |
 | `:core:testing` | Fakes, JSON fixtures from [API.md](API.md), test rules | the contracts |
 | `:ui:phone` | The phone and tablet interface (Material 3) | screens, designsystem, player |
@@ -1328,8 +1333,9 @@ Rules the build keeps:
 
 Each module keeps the words people read in
 `src/main/res/values/strings_<area>.xml`, with the same file in
-`values-fr/` and `values-es/`; a count is a `<plurals>` (English one and
-other, French and Spanish one, many and other). Lint fails on a word, or a
+`values-fr/`, `values-es/`, `values-zh-rCN/` and `values-zh-rTW/`; a count
+is a `<plurals>` (English one and other, French and Spanish one, many and
+other, Chinese only `other`). Lint fails on a word, or a
 count's form, missing in one of them (`MissingTranslation`,
 `MissingQuantity`, set in `build-logic`).
 
@@ -1470,7 +1476,7 @@ display's refresh, which also counts as late a frame that took longer
 than a refresh but still showed in time, its drawing overlapping the
 next one's). The screen is the route shown in the TV's or phone's
 shell, else the activity (`TvPlayerActivity`). A box shows the same, on
-a TV at the top right above the safe area, on a phone at the top centre
+a TV at the top right above the safe area, on a phone at the top center
 under the status bar: green with none late, amber with a few, red with a
 frame in four or more. Dialogs and popups are windows of their own and
 aren't counted. At rest nothing is drawn, so nothing is told. Off, none

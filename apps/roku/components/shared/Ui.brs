@@ -2,7 +2,7 @@
 ' task (never roUrlTransfer here); pictures and video carry the server's
 ' token in their HTTP agent.
 
-' The app's colours (Android's, kept within Roku's broadcast-safe range).
+' The app's colors (Android's, kept within Roku's broadcast-safe range).
 function uiColors() as object
     return {
         bg: "0x16191EFF",
@@ -20,7 +20,7 @@ function uiColors() as object
     }
 end function
 
-' Dialogs and keyboards in the app's colours: the Scene's palette.
+' Dialogs and keyboards in the app's colors: the Scene's palette.
 function uiPalette() as object
     colors = uiColors()
     palette = CreateObject("roSGNode", "RSGPalette")

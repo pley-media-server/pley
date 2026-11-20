@@ -1,0 +1,212 @@
+{
+  "controls": {
+    "pause": "暫停",
+    "mute": "靜音",
+    "unmute": "取消靜音",
+    "volume": "音量",
+    "seek": "跳轉",
+    "seekValue": "{{time}} / {{duration}}"
+  },
+  "video": {
+    "nextEpisode": "下一集",
+    "fullscreen": "全螢幕",
+    "exitFullscreen": "離開全螢幕",
+    "fullscreenShortcut": "全螢幕 (f)",
+    "speed": "速度：{{speed}}",
+    "subtitlesShown": "字幕：{{track}}",
+    "subtitlesOff": "關閉字幕",
+    "subtitlesAdded": "已新增字幕：{{track}}",
+    "subtitlesDeleted": "字幕已刪除",
+    "subtitlesNotDeleted": "無法刪除這些字幕。{{error}}",
+    "subtitlesNotLoaded": "無法載入這些字幕。",
+    "lastInQueue": "這是最後一個",
+    "lastEpisode": "這是最後一集",
+    "qualityLowered": "畫質已降至 {{quality}}",
+    "remotePlaying": "正在播放",
+    "remotePaused": "已暫停",
+    "jumpedTo": "已跳轉到 {{time}}",
+    "skippedAhead": "+{{seconds}} 秒",
+    "skippedBack": "−{{seconds}} 秒",
+    "audioShown": "音訊：{{track}}",
+    "qualityShown": "畫質：{{quality}}",
+    "lowered": {
+      "network": "因你的網路狀況而降低",
+      "device": "因本裝置而降低"
+    },
+    "originalNotSmooth": "原始畫質在此瀏覽器中播放不流暢。",
+    "originalFailed": "此瀏覽器無法播放原始檔案。",
+    "sleepEnd": {
+      "episode": "本集結束",
+      "movie": "本片結束",
+      "video": "本影片結束"
+    },
+    "stoppedElsewhere": "播放已被另一臺裝置停止",
+    "stoppedByAdmin": "播放已被伺服器管理員停止",
+    "unreachable": "無法連線到你的伺服器",
+    "reachHint": "檢查伺服器是否已開啟，且本裝置是否與其在同一網路中。",
+    "errorTitle": "播放錯誤",
+    "errors": {
+      "noHls": "此瀏覽器無法播放 HLS 流。",
+      "failed": "播放失敗（{{details}}）。",
+      "cantPlay": "此影片無法在你的瀏覽器中播放。",
+      "sameSpot": "此影片無法在此瀏覽器中播放：每次都在同一位置停止。",
+      "stalled": "播放已停止，無法繼續。"
+    }
+  },
+  "page": {
+    "goBack": "返回",
+    "cantPlay": "無法播放此專案",
+    "nothingToPlay": "沒有可播放的內容",
+    "noFiles": "此專案沒有媒體檔案。"
+  },
+  "quality": {
+    "original": "原始",
+    "automatic": "自動"
+  },
+  "speed": {
+    "normal": "正常"
+  },
+  "skip": {
+    "intro": "跳過片頭",
+    "credits": "跳過片尾"
+  },
+  "upNext": {
+    "title": "接下來播放",
+    "episode": "接下來 · {{episode}}",
+    "playNow": "立即播放",
+    "cancel": "取消自動播放"
+  },
+  "sleep": {
+    "pausingIn": "{{seconds}} 秒後暫停",
+    "keepWatching": "繼續觀看",
+    "minutes_other": "{{count}} 分鐘",
+    "minutesShort": "{{minutes}} 分鐘"
+  },
+  "chapters": {
+    "title": "章節",
+    "numbered": "第 {{number}} 章"
+  },
+  "details": {
+    "method": {
+      "direct": "直接播放",
+      "remux": "直接流式傳輸",
+      "transcode": "轉碼中"
+    },
+    "audioTranscoding": "音訊轉碼",
+    "pipeline": {
+      "gpu": "GPU",
+      "hybrid": "GPU 和 CPU",
+      "cpu": "CPU",
+      "copy": "複製"
+    },
+    "toneMapped": "SDR（使用 {{method}} 進行色調對映）",
+    "video": "影片",
+    "audio": "音訊",
+    "bitrate": "位元率",
+    "encoder": "編碼器",
+    "shownAs": "顯示為",
+    "subtitles": "字幕",
+    "burnedIn": "內嵌",
+    "speed": "速度",
+    "realTime": "{{speed}}× 即時",
+    "ready": "{{seconds}} 秒後就緒"
+  },
+  "settings": {
+    "label": "播放設定",
+    "panel": {
+      "quality": "畫質",
+      "audio": "音訊",
+      "subtitles": "字幕",
+      "find": "查詢字幕",
+      "upload": "新增字幕檔案",
+      "style": "字幕樣式",
+      "speed": "速度",
+      "sleep": "睡眠定時器",
+      "details": "播放詳情"
+    },
+    "defaultAudio": "預設",
+    "subtitlesOff": "關閉",
+    "automaticNow": "當前 {{quality}}",
+    "automaticHint": "根據情況動態調整",
+    "fileTooBig": "字幕檔案最大為 2 MB。",
+    "added": "已新增",
+    "deleteTrack": "刪除 {{track}}",
+    "deleteForEveryone": "為所有人刪除？",
+    "keep": "保留",
+    "deleteSubtitles": "刪除這些字幕",
+    "searchNotSetUp": "尚未設定字幕搜尋",
+    "findSubtitles": "查詢字幕…",
+    "addSubtitleFile": "新增字幕檔案…",
+    "timing": "時間",
+    "earlier": "提前顯示字幕",
+    "later": "延後顯示字幕",
+    "offset": "{{value}} 秒",
+    "style": {
+      "size": "大小",
+      "background": "背景",
+      "font": "字型",
+      "position": "位置"
+    },
+    "sizes": {
+      "small": "小",
+      "normal": "正常",
+      "large": "大",
+      "huge": "超大"
+    },
+    "backgrounds": {
+      "none": "無",
+      "box": "深色底框"
+    },
+    "fonts": {
+      "sans": "預設",
+      "serif": "襯線",
+      "mono": "等寬",
+      "casual": "休閒"
+    },
+    "positions": {
+      "bottom": "底部",
+      "raised": "略高",
+      "higher": "較高",
+      "highest": "最高"
+    }
+  },
+  "find": {
+    "notSetUp": "此伺服器尚未設定字幕搜尋。",
+    "searchNeedsUpdate": "此伺服器無法搜尋字幕：需要更新。",
+    "setUp": "在「設定 → 伺服器」中設定",
+    "language": "字幕語言",
+    "fileLanguage": "字幕的語言",
+    "searching": "正在搜尋…",
+    "searchFailed": "無法搜尋字幕。{{error}}",
+    "noResults": "未找到此影片的 {{language}} 字幕。",
+    "sdh": "SDH",
+    "forced": "強制",
+    "downloads_other": "{{count, number}} 次下載",
+    "madeForFile": "專為此檔案製作",
+    "addFailed": "無法新增這些字幕。{{error}}",
+    "uploadNeedsUpdate": "此伺服器無法接收字幕檔案：需要更新。",
+    "adding": "正在新增…"
+  },
+  "music": {
+    "queue": "播放佇列",
+    "shuffleOn": "隨機播放已開啟",
+    "shuffleOff": "隨機播放已關閉",
+    "close": "關閉播放器",
+    "stoppedElsewhere": "播放已被另一臺裝置停止。",
+    "stoppedByAdmin": "播放已被伺服器管理員停止。",
+    "failed": "播放失敗",
+    "noHls": "此瀏覽器無法播放 HLS 流",
+    "noSound": "沒有聲音輸出：檢查揚聲器或耳機"
+  },
+  "book": {
+    "speed": "速度：{{rate}}",
+    "sleep": "睡眠定時器",
+    "sleepIn": "睡眠定時器：剩餘 {{time}}",
+    "sleepAtEnd": "睡眠定時器：結束時暫停",
+    "sleepEndOfChapter": "本章結束",
+    "sleepEndOfPart": "本部分結束",
+    "sleepOff": "關閉定時器",
+    "back_other": "後退 {{count}} 秒",
+    "forward_other": "前進 {{count}} 秒"
+  }
+}

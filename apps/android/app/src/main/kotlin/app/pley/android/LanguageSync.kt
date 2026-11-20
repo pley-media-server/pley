@@ -75,7 +75,7 @@ internal class LanguageSync(private val app: Application) : Application.Activity
     fun configurationChanged() {
         if (Build.VERSION.SDK_INT < 33) return
         val locales = app.getSystemService(LocaleManager::class.java)?.applicationLocales ?: return
-        val picked = if (locales.isEmpty) null else Language.of(locales[0].language) ?: return
+        val picked = if (locales.isEmpty) null else Language.of(locales[0].toLanguageTag()) ?: return
         // The app's own setting (AppLanguage.show) is heard here too: the language shown already.
         if (picked != null && picked == AppLanguage.shown.value) return
         val device = Language.ofDevice(AppLanguage.deviceLocales(app))

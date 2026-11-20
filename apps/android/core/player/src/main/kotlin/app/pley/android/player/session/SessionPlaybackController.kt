@@ -461,7 +461,7 @@ class SessionPlaybackController(
 
     /**
      * Starts a server session at [atMs] and loads it, ending the one before.
-     * The previous run of this is cancelled (a new choice wins). [alongside]:
+     * The previous run of this is canceled (a new choice wins). [alongside]:
      * a quality, track or Automatic change while it plays, made ready beside
      * the session playing ([beginBeside]). Recoveries from errors and stalls
      * start at once: the stream playing is what failed. [refused], for a

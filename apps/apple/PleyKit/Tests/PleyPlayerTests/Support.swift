@@ -29,7 +29,7 @@ func api(_ server: FixtureServer) -> PleyAPI {
     return PleyAPI(client: APIClient(origin: server.origin, tokens: StaticTokens(server: server), transport: http))
 }
 
-/// A clock the test moves. Its sleep lasts until cancelled, so the
+/// A clock the test moves. Its sleep lasts until canceled, so the
 /// controller's ticker never runs by itself: tests call `tick()`.
 final class FakeClock: PlayerClock, @unchecked Sendable {
     private let state = OSAllocatedUnfairLock(initialState: (now: Int64(1_000_000), wall: Date(timeIntervalSince1970: 1_761_000_000)))

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Requests and Discover on TV, the words the phone has no use for
+        (packages/tv's discover.tsx, title.tsx, requests-page.tsx). The rest
+        are the shared ones in core/screens' strings_requests.xml.
+    -->
+
+    <!-- Discover and its grids. -->
+    <string name="tv_requests_loading">正在加载发现</string>
+    <string name="tv_requests_nothing_title">当前暂无内容</string>
+    <string name="tv_requests_nothing_body">TMDB 的列表中没有此配置文件可请求的内容。请改为搜索标题。</string>
+    <string name="tv_requests_list_nothing_body">TMDB 的列表中没有此配置文件可请求的内容。</string>
+    <string name="tv_requests_list_failed">无法加载</string>
+    <!-- Beside a grid's lone Show more: the pages read so far had nothing. -->
+    <string name="tv_requests_none_yet">暂无内容</string>
+    <string name="tv_requests_search_none_yet">“%1$s”暂无结果</string>
+    <string name="tv_requests_none_yet_body">目前读取的 TMDB 页面中没有此配置文件可请求的内容。</string>
+    <string name="tv_requests_show_more">显示更多</string>
+    <!-- Over the grid of everything TMDB finds: "Results for “dune”". -->
+    <string name="tv_requests_results_for">“%1$s”的搜索结果</string>
+
+    <!-- A title's page. -->
+    <string name="tv_requests_overview">简介</string>
+    <string name="tv_requests_back">返回</string>
+
+    <!-- Signing in again, so this TV may ask for movies and shows. -->
+    <string name="tv_requests_sign_in_title">重新登录？</string>
+    <string name="tv_requests_sign_in_body">这台电视会显示一个代码，用于重新关联到 %1$s。</string>
+
+    <!-- The requests. -->
+    <string name="tv_requests_kind_all">电影和剧集</string>
+    <string name="tv_requests_asked_by">请求人</string>
+    <string name="tv_requests_find">查找要请求的内容</string>
+
+    <!-- The pop-up of what is ready to watch. -->
+    <string name="tv_requests_close">关闭</string>
+</resources>

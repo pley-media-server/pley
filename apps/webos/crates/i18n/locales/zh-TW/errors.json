@@ -1,0 +1,65 @@
+{
+  "network": {
+    "cancelled": "已取消",
+    "timedOut": "未及時回應",
+    "refused": "該位址無回應",
+    "unknownHost": "此網路中找不到該位址",
+    "secureConnection": "安全連線失敗",
+    "tooBig": "伺服器返回的資料過大",
+    "connectionFailed": "連線伺服器失敗",
+    "anotherDevice": "該位址由另一臺裝置回應",
+    "serverFailed": "伺服器無法回應"
+  },
+  "server": {
+    "refused": "伺服器拒絕（HTTP {{status}}）",
+    "refusedCode": "伺服器拒絕（{{code}}）",
+    "couldntAnswer": "伺服器無法回應（HTTP {{status}}）",
+    "stoppedByAdmin": "播放已被伺服器管理員停止",
+    "signedOut": "你已登出：請重新登入",
+    "unreadable": "無法讀取伺服器的回應：它是否是 Pley，且為最新版本？",
+    "check": "{{reason}}請檢查伺服器是否開啟，且此裝置與其在同一網路中。"
+  },
+  "signIn": {
+    "tooOld": "此伺服器版本過舊，不支援此應用",
+    "noCodes": "此伺服器暫不支援電視用代碼登入：請更新伺服器",
+    "widerScope": "伺服器授予的權限超出應用請求：已登出",
+    "unencrypted": "此伺服器位址不在你的網路中，且連線未加密：請用 https 位址開啟以登入",
+    "notAddress": "這不是伺服器位址",
+    "unknownApp": "此伺服器尚不支援 Pley 電視應用：請更新伺服器",
+    "busy": "當前登入的電視過多：請稍後再試",
+    "codeSpent": "此代碼已失效：請取得新代碼",
+    "unreadable": "無法讀取伺服器的回應：請重試",
+    "approveElsewhere": "此伺服器會跳轉到其他位址審批電視：Pley 不會",
+    "signInElsewhere": "此伺服器會跳轉到其他位址登入：Pley 不會",
+    "callsItself": "此伺服器自報位址為 {{address}}：請用該位址開啟，或檢查其前的代理是否傳遞 Host 頭",
+    "unreachable": "無法存取伺服器：請檢查其位址及是否開啟",
+    "otherServer": "這些令牌屬於另一臺伺服器"
+  },
+  "oauth": {
+    "invalidClient": "伺服器不認識此應用",
+    "unauthorizedClient": "伺服器不允許此應用以此方式登入",
+    "invalidGrant": "伺服器拒絕了此次登入",
+    "accessDenied": "登入被拒絕",
+    "expiredToken": "代碼已過期",
+    "invalidScope": "伺服器拒絕了此應用的請求",
+    "invalidRequest": "伺服器無法理解該請求",
+    "unsupportedGrantType": "伺服器不支援這種登入方式"
+  },
+  "profiles": {
+    "wrongPin": "PIN 碼錯誤。",
+    "throttled": "PIN 碼錯誤次數過多：請幾分鐘後再試",
+    "pinLocked": "此設定檔的 PIN 因多次輸錯已鎖定。其所有者或管理員可重設。",
+    "needsPassword": "此設定檔需要密碼：請重新登入以使用。",
+    "notAllowed": "你無法切換到此設定檔。",
+    "cantSwitch": "當前登入無法切換設定檔：請重新登入以啟用。",
+    "ticketSpent": "此次投放無法再切換設定檔：請重新投放。",
+    "unreachable": "無法存取你的伺服器：{{reason}}。",
+    "signedOut": "你已登出：請重新登入。",
+    "refused": "伺服器拒絕：請重試。"
+  },
+  "connect": {
+    "badAddress": "輸入位址，例如 nas、192.168.1.20 或 pley.example.com。",
+    "notPley": "{{address}} 有回應，但不是 Pley。",
+    "unreachable": "無法存取 {{address}}：{{reason}}。"
+  }
+}

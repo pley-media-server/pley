@@ -12,11 +12,11 @@
   "notOpen": "Live TV isn't open to this account",
   "didntLoad": "Live TV didn't load",
   "favourites": {
-    "add": "Add to favourites",
-    "remove": "Remove from favourites",
-    "addChannel": "Add {{name}} to favourites",
-    "removeChannel": "Remove {{name}} from favourites",
-    "favourite": "Favourite"
+    "add": "Add to favorites",
+    "remove": "Remove from favorites",
+    "addChannel": "Add {{name}} to favorites",
+    "removeChannel": "Remove {{name}} from favorites",
+    "favourite": "Favorite"
   },
   "time": {
     "today": "Today",
@@ -31,7 +31,7 @@
   "categories": {
     "label": "Channel groups",
     "all": "All channels",
-    "favourites": "Favourites",
+    "favourites": "Favorites",
     "recent": "Recently watched",
     "regions": "Regions",
     "moreGroups": "More groups",
@@ -61,7 +61,7 @@
     "groups": "Groups",
     "channelsDidntLoad": "The channels didn't load",
     "noMatch": "No channels match",
-    "noMatchHint": "No channel's name, number or programme on now has “{{search}}” in it.",
+    "noMatchHint": "No channel's name, number or program on now has “{{search}}” in it.",
     "empty": "No channels here",
     "emptyHint": "Nothing in this group now."
   },
@@ -188,7 +188,7 @@
       "addFirst": "Add a source",
       "removeTitle": "Remove {{name}}?",
       "thisSource": "this source",
-      "removeMessage": "Its channels, their guide and everyone's favourites of them go too. Anyone watching one stops.",
+      "removeMessage": "Its channels, their guide and everyone's favorites of them go too. Anyone watching one stops.",
       "remove": "Remove",
       "removed": "{{name}} removed",
       "off": "Off",
@@ -341,7 +341,7 @@
       "guideHintSource": "Its id in the guide (XMLTV). Empty: the source's, {{id}}.",
       "guideHintMatched": "Its id in the guide (XMLTV). Empty: {{id}}, the guide's channel that matches it.",
       "guideHintNone": "Its id in the guide (XMLTV): the source names none, and none goes by its name.",
-      "note": "A new guide channel shows its programmes once the guide is read again."
+      "note": "A new guide channel shows its programs once the guide is read again."
     },
     "account": {
       "trial": "{{status}} (trial)",

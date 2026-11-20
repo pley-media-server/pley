@@ -7,7 +7,7 @@ import org.junit.Test
 
 /**
  * The TV tree never uses Compose Material 3: tv-material and Material 3
- * each have a MaterialTheme, and mixing them mixes colours, type and
+ * each have a MaterialTheme, and mixing them mixes colors, type and
  * shapes (https://developer.android.com/training/tv/playback/compose).
  * This reads every source file of :ui:tv.
  */

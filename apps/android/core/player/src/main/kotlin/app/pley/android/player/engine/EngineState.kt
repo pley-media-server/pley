@@ -61,7 +61,7 @@ data class PlaybackStats(
      * video's format is known.
      */
     val dynamicRange: String? = null,
-    /** The colour information as Media3 reads it (primaries, transfer, range). */
+    /** The color information as Media3 reads it (primaries, transfer, range). */
     val colorInfo: String? = null,
     /** The video's bit depth as decoded (luma), when the format says. */
     val bitDepth: Int? = null,

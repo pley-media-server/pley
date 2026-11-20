@@ -3,7 +3,9 @@ use std::collections::BTreeSet;
 use serde_json::Value;
 
 use crate::numbers::{group, write_decimal};
-use crate::{CATALOGS, Language, catalog, count, fill, of_system, pick, plural, plural_forms, t, with_language};
+use crate::{
+    CATALOGS, Language, catalog, count, fill, of_system, pick, plural, plural_forms, supported, t, with_language,
+};
 
 /// The order the TV apps choose the language in (packages/tv/test/fixtures/language.json), which
 /// the Samsung apps' tests read too.
@@ -40,6 +42,20 @@ fn automatic_is_the_tvs_language_else_the_servers_else_english() {
     assert_eq!(of_system(Some("es"), &["de-DE".into()]), Language::Es);
     assert_eq!(of_system(None, &["de-DE".into()]), Language::En);
     assert_eq!(of_system(Some("pt"), &[]), Language::En);
+}
+
+#[test]
+fn chinese_tags_pick_the_right_language() {
+    assert_eq!(supported(Some("zh-CN")), Some(Language::ZhCn));
+    assert_eq!(supported(Some("zh-TW")), Some(Language::ZhTw));
+    assert_eq!(supported(Some("zh-cn")), Some(Language::ZhCn));
+    assert_eq!(supported(Some("ZH_tw")), Some(Language::ZhTw));
+    assert_eq!(supported(Some("zh-Hans")), Some(Language::ZhCn));
+    assert_eq!(supported(Some("zh_Hant")), Some(Language::ZhTw));
+    assert_eq!(supported(Some("zh-HK")), Some(Language::ZhTw));
+    assert_eq!(supported(Some("zh-MO")), Some(Language::ZhTw));
+    assert_eq!(supported(Some("zh")), Some(Language::ZhCn));
+    assert_eq!(supported(Some("zh-SG")), Some(Language::ZhCn));
 }
 
 /// Every catalog's words by their whole key.
@@ -82,7 +98,7 @@ fn every_language_has_every_word_with_the_same_values() {
     let english = words_of("en");
     assert!(!english.is_empty());
     let areas = |code: &str| -> BTreeSet<&str> { CATALOGS.iter().filter(|c| c.0 == code).map(|c| c.1).collect() };
-    for language in [Language::Fr, Language::Es] {
+    for language in [Language::Fr, Language::Es, Language::ZhCn, Language::ZhTw] {
         let code = language.code();
         assert_eq!(areas(code), areas("en"), "{code} has the same areas as English");
         let words = words_of(code);
@@ -149,6 +165,14 @@ fn plural_forms_follow_cldr() {
     assert_eq!(plural(Language::Es, 0), "other");
     assert_eq!(plural(Language::Es, 1), "one");
     assert_eq!(plural(Language::Es, 3_000_000), "many");
+    assert_eq!(plural(Language::ZhCn, 0), "other");
+    assert_eq!(plural(Language::ZhCn, 1), "other");
+    assert_eq!(plural(Language::ZhCn, 2), "other");
+    assert_eq!(plural(Language::ZhCn, 1_000_000), "other");
+    assert_eq!(plural(Language::ZhTw, 0), "other");
+    assert_eq!(plural(Language::ZhTw, 3_000_000), "other");
+    assert_eq!(plural_forms(Language::ZhCn), &["other"]);
+    assert_eq!(plural_forms(Language::ZhTw), &["other"]);
 }
 
 #[test]
@@ -165,6 +189,11 @@ fn numbers_are_grouped_as_each_language_writes_them() {
     assert_eq!(write_decimal(Language::Es, 12345.5, 1), "12.345,5");
     assert_eq!(write_decimal(Language::En, -0.04, 1), "0.0");
     assert_eq!(write_decimal(Language::En, 3.0, 0), "3");
+    assert_eq!(group(Language::ZhCn, 12345), "12,345");
+    assert_eq!(group(Language::ZhCn, 999), "999");
+    assert_eq!(group(Language::ZhTw, -1234567), "-1,234,567");
+    assert_eq!(write_decimal(Language::ZhCn, 12345.5, 1), "12,345.5");
+    assert_eq!(write_decimal(Language::ZhTw, 1.5, 1), "1.5");
 }
 
 #[test]

@@ -3,13 +3,22 @@ import { Check, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useServer } from "@/api/hooks";
 import { Menu, MenuItem, MenuSeparator } from "@/components/Menu";
-import { browserLanguage, currentLanguage, deviceChoiceLanguage, LANGUAGES, onDeviceLanguage, setDeviceLanguage } from ".";
+import {
+  browserLanguage,
+  currentLanguage,
+  deviceChoiceLanguage,
+  LANGUAGES,
+  languageMark,
+  onDeviceLanguage,
+  setDeviceLanguage,
+} from ".";
 
 /**
  * The globe of the pages shown before signing in, a small pill with the
- * language shown by its two letters ("FR"): this device's language,
- * Automatic (the browser's) or one picked. Once signed in, an account's own
- * language comes before it; Automatic there means this choice.
+ * language shown by its two letters ("FR"), or 简 or 繁 for Chinese: this
+ * device's language, Automatic (the browser's) or one picked. Once signed
+ * in, an account's own language comes before it; Automatic there means this
+ * choice.
  */
 export function LanguagePicker() {
   const { t } = useTranslation();
@@ -34,7 +43,7 @@ export function LanguagePicker() {
           className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-white/5 hover:text-fg"
         >
           <Globe className="size-3.5" />
-          <span lang={shown}>{shown.toUpperCase()}</span>
+          <span lang={shown}>{languageMark(shown)}</span>
         </button>
       )}
     >

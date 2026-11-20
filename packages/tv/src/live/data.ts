@@ -14,7 +14,7 @@ export const SLOT = 1800;
 export const GUIDE_CHUNK = 6 * 3600;
 /** How far ahead the guide goes from where it opens. */
 export const GUIDE_SPAN = 48 * 3600;
-/** A gap in a channel's guide shorter than this belongs to the programme before it. */
+/** A gap in a channel's guide shorter than this belongs to the program before it. */
 const MIN_GAP = 60;
 
 /** Unix seconds now. */
@@ -38,7 +38,7 @@ export function nowAndNext(c: Pick<LiveChannel, "now" | "next">, now: number): {
   return { on: null, next };
 }
 
-/** How far a programme is at `now`, 0–1. */
+/** How far a program is at `now`, 0–1. */
 export function programProgress(p: Pick<LiveProgram, "start" | "stop">, now: number): number {
   return Math.max(0, Math.min(1, (now - p.start) / Math.max(1, p.stop - p.start)));
 }
@@ -233,7 +233,7 @@ export function chunkStarts(from: number, to: number, origin: number): number[] 
   return out;
 }
 
-/** A chunk's programmes added to what was had, each once (by its start), in order. */
+/** A chunk's programs added to what was had, each once (by its start), in order. */
 export function mergeGuide(into: Map<number, LiveProgram[]>, guide: LiveGuide): void {
   for (const key in guide.programs) {
     const id = Number(key);
@@ -249,7 +249,7 @@ export function mergeGuide(into: Map<number, LiveProgram[]>, guide: LiveGuide): 
   }
 }
 
-/** One cell of a guide row: a programme, or a stretch the guide says nothing of (`program` null). */
+/** One cell of a guide row: a program, or a stretch the guide says nothing of (`program` null). */
 export interface GuideCell {
   key: string;
   start: number;
@@ -258,7 +258,7 @@ export interface GuideCell {
 }
 
 /**
- * A channel's row between `from` and `to`: its programmes there, with what
+ * A channel's row between `from` and `to`: its programs there, with what
  * the guide says nothing of between them as cells of their own, so the
  * remote moves through time without jumping over a hole. A channel without
  * a guide is one cell.

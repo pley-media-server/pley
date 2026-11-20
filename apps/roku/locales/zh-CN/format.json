@@ -1,0 +1,103 @@
+{
+  "duration": {
+    "hours": "{{hours}} 小时",
+    "minutes": "{{minutes}} 分钟",
+    "hoursMinutes": "{{hours}} 小时 {{minutes}} 分钟",
+    "left": "剩余 {{time}}"
+  },
+  "episode": {
+    "both": "S{{season}} · E{{episode}}",
+    "episode": "E{{episode}}"
+  },
+  "resume": "从 {{time}} 继续播放",
+  "counts": {
+    "movies_other": "{{count, number}} 部电影",
+    "shows_other": "{{count, number}} 部剧集",
+    "artists_other": "{{count, number}} 位艺人",
+    "titles_other": "{{count, number}} 个标题"
+  },
+  "bitrate": {
+    "mbps": "{{n}} Mbps",
+    "kbps": "{{n}} kbps"
+  },
+  "bytes": {
+    "B": "{{n}} B",
+    "KB": "{{n}} KB",
+    "MB": "{{n}} MB",
+    "GB": "{{n}} GB",
+    "TB": "{{n}} TB"
+  },
+  "ranges": {
+    "anyHdr": "任意 HDR"
+  },
+  "time": {
+    "now": "现在",
+    "minutesAgo": "{{n}} 分钟前",
+    "hoursAgo_other": "{{count}} 小时前",
+    "yesterday": "昨天",
+    "daysAgo_other": "{{count}} 天前",
+    "inMoment": "稍后",
+    "inMinutes": "{{n}} 分钟后",
+    "inHours_other": "{{count}} 小时后",
+    "tomorrow": "明天",
+    "inDays_other": "{{count}} 天后"
+  },
+  "date": {
+    "monthDay": "{{month}} {{day}}",
+    "monthDayYear": "{{month}} {{day}}，{{year}}",
+    "months": {
+      "jan": "1月",
+      "feb": "2月",
+      "mar": "3月",
+      "apr": "4月",
+      "may": "5月",
+      "jun": "6月",
+      "jul": "7月",
+      "aug": "8月",
+      "sep": "9月",
+      "oct": "10月",
+      "nov": "11月",
+      "dec": "12月"
+    }
+  },
+  "clock": {
+    "am": "上午 {{time}}",
+    "pm": "下午 {{time}}"
+  },
+  "languages": {
+    "ara": "阿拉伯语",
+    "bul": "保加利亚语",
+    "cat": "加泰罗尼亚语",
+    "chi": "中文",
+    "hrv": "克罗地亚语",
+    "cze": "捷克语",
+    "dan": "丹麦语",
+    "dut": "荷兰语",
+    "eng": "英语",
+    "fin": "芬兰语",
+    "fre": "法语",
+    "ger": "德语",
+    "gre": "希腊语",
+    "heb": "希伯来语",
+    "hin": "印地语",
+    "hun": "匈牙利语",
+    "ind": "印度尼西亚语",
+    "ita": "意大利语",
+    "jpn": "日语",
+    "kor": "韩语",
+    "nor": "挪威语",
+    "per": "波斯语",
+    "pol": "波兰语",
+    "por": "葡萄牙语",
+    "rum": "罗马尼亚语",
+    "rus": "俄语",
+    "srp": "塞尔维亚语",
+    "slo": "斯洛伐克语",
+    "spa": "西班牙语",
+    "swe": "瑞典语",
+    "tha": "泰语",
+    "tur": "土耳其语",
+    "ukr": "乌克兰语",
+    "vie": "越南语"
+  }
+}

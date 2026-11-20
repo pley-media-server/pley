@@ -1,0 +1,20 @@
+{
+  "hero": {
+    "info": "信息"
+  },
+  "states": {
+    "failed": "无法加载主屏幕",
+    "noLibraries": "还没有媒体库",
+    "noLibrariesBody": "请让服务器所有者添加一个媒体库。",
+    "scanning": "正在扫描媒体库…",
+    "scanningBody": "找到的新内容会很快出现在这里。",
+    "empty": "这里还没有内容",
+    "emptyBody": "媒体库是空的。把媒体文件放进媒体库文件夹，然后运行扫描。"
+  },
+  "comesNext": "此页面在原生应用中将在后续推出。",
+  "featured": {
+    "newIn": "{{library}} 中的新内容",
+    "new": "新",
+    "onList": "在你的片单中"
+  }
+}

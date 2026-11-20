@@ -539,6 +539,7 @@ mod tests {
         let audio = AudioOut {
             stream_index: 1,
             copy: false,
+            copied_aac: false,
             codec: pley_transcoder_api::AudioCodec::Aac,
             channels: 2,
             bitrate_kbps: 192,

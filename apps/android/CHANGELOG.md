@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Added
 
+- Choose Simplified Chinese (简体中文) or Traditional Chinese (繁體中文) as
+  the app's language, for your account or on this device.
 - Manage server → Libraries can turn off a film library's collections from
   TMDB.
 - Music repeats: Repeat in Now Playing, on phones and TVs, and in the
@@ -78,6 +80,10 @@ With Android Auto:
 - Play and Shuffle on an artist's or album's page are the same height.
 - Now Playing fits a phone turned on its side, with the cover beside
   the title, instead of the cover hiding the controls.
+
+### Changed
+
+- English words are spelled the American way: color, favorite, program.
 
 ## [0.1.15] - 2026-11-18
 

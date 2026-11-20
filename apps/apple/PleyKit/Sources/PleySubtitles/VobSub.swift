@@ -3,7 +3,7 @@ import Foundation
 /// DVD subtitles (VobSub, `S_VOBSUB`), a port of packages/picture-subtitles'
 /// `vobsub.ts`: each sample is one subpicture unit (SPU): two interlaced
 /// fields of 2-bit run-length pixels, then control sequences that say when
-/// it shows and stops, which 4 of the 16 palette colours its pixels take,
+/// it shows and stops, which 4 of the 16 palette colors its pixels take,
 /// their alpha, and where it goes. The palette and the plane's size come
 /// from the track's private data, the `.idx` header (`size: 720x480`,
 /// `palette: 000000, ffffff, …`).
@@ -11,7 +11,7 @@ public final class VobSubDecoder: PictureDecoder {
     public struct Header: Equatable, Sendable {
         public var width: Int
         public var height: Int
-        /// 16 RGB colours.
+        /// 16 RGB colors.
         public var palette: [[UInt8]]
     }
 
@@ -60,7 +60,7 @@ public final class VobSubDecoder: PictureDecoder {
                 }
             }
         }
-        // A DVD's default greys when the header has none.
+        // A DVD's default grays when the header has none.
         while palette.count < 16 { palette.append(palette.count % 2 == 1 ? [255, 255, 255] : [0, 0, 0]) }
         return Header(width: width, height: height, palette: palette)
     }

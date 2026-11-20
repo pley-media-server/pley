@@ -236,7 +236,7 @@ class Asking:
         title with its badge, titled for the words."""
         query = requests.search_text(self.params.get("q") or "")
         if not query:
-            # No words (a favourite of Discover's search from before):
+            # No words (a favorite of Discover's search from before):
             # Search asks for them.
             self.params.pop("q", None)
             return self.route_search()
@@ -680,7 +680,7 @@ class Asking:
         pick = self.params.get("pick")
         dialog = xbmcgui.Dialog()
         if pick == "q":
-            # Kodi's keyboard, which tells cancelling from an empty entry
+            # Kodi's keyboard, which tells canceling from an empty entry
             # (that clears the filter); Dialog.input says "" for both.
             keyboard = xbmc.Keyboard(chosen.get("q", ""), T("search"))
             keyboard.doModal()

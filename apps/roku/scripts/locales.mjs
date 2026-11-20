@@ -8,9 +8,15 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const LANGUAGES = ["en", "fr", "es"];
+const LANGUAGES = ["en", "fr", "es", "zh-CN", "zh-TW"];
 // The plural forms each language counts in, as CLDR has them.
-const FORMS = { en: ["one", "other"], fr: ["one", "many", "other"], es: ["one", "many", "other"] };
+const FORMS = {
+  en: ["one", "other"],
+  fr: ["one", "many", "other"],
+  es: ["one", "many", "other"],
+  "zh-CN": ["other"],
+  "zh-TW": ["other"],
+};
 const PLURAL = /_(zero|one|two|few|many|other)$/;
 const VALUE = /\{\{\s*([^,}\s]+)[^}]*\}\}/g;
 

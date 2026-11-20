@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.sp
  * would vanish there), never below 400 on TV. Titles break like headings
  * and never hyphenate, as the web's `text-wrap: balance`.
  *
- * The styles carry no colour: the shells' themes and components add it.
+ * The styles carry no color: the shells' themes and components add it.
  */
 object PleyType {
     /** Body text. */

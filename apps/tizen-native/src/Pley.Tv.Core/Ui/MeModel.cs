@@ -31,7 +31,7 @@ public sealed record TrackDefaultsState(TrackDefaults Defaults, bool Editable, b
 }
 
 /// <summary>The language the profile chose for Pley, and whether this app may change it.</summary>
-/// <param name="Code">"en", "fr" or "es"; null: Automatic.</param>
+/// <param name="Code">"en", "fr", "es", "zh-CN" or "zh-TW"; null: Automatic.</param>
 /// <param name="Editable">False: shown read-only, to change on the web (no "play" scope).</param>
 /// <param name="OnDevice">
 /// The server keeps no account's language (a Pley from before languages): the row is this TV's, as
@@ -79,7 +79,7 @@ public interface IMeSource
     /// <summary>PUT /api/me/track-defaults: the profile as the server has it after.</summary>
     Task<User> SaveTrackDefaults(TrackDefaults defaults);
 
-    /// <summary>PUT /api/me/language ("en", "fr", "es", or null for the server's): the profile as the server has it after.</summary>
+    /// <summary>PUT /api/me/language ("en", "fr", "es", "zh-CN", "zh-TW", or null for the server's): the profile as the server has it after.</summary>
     Task<User> SaveLanguage(string? language);
 
     /// <summary>The server keeps an account's language; false for a Pley from before languages (<see cref="AppState.KeepsLanguage"/>).</summary>
@@ -134,7 +134,7 @@ public sealed class MeModel : IDisposable
     public void SetSubtitleLanguage(string? code) => Save(TrackField.SubtitleLanguage, d => d with { SubtitleLanguage = code });
 
     /// <summary>
-    /// The profile's language ("en", "fr", "es"; null: the server's), on all its devices. The
+    /// The profile's language ("en", "fr", "es", "zh-CN" or "zh-TW"; null: the server's), on all its devices. The
     /// profile the server answers is the app's from then on, so the app shows the language once
     /// the server has it: a refusal leaves everything as it was. A Pley from before languages
     /// keeps none (its GET /api/server names none, and the route answers 404 or 405): there the

@@ -36,6 +36,6 @@ rustflags = [
     # An id that pairs the stripped binary in the package with the one kept for crash reports.
     "-C", "link-arg=-Wl,--build-id=sha1",
     # Not the toolchain's libglibc_polyfills.a, which its GCC otherwise adds to every link: its
-    # licence isn't known. The app defines getauxval, the one function std needs from it.
+    # license isn't known. The app defines getauxval, the one function std needs from it.
     "-C", "link-arg=-tno-glibc-polyfill",
 ]

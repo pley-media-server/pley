@@ -38,7 +38,7 @@ class CatalogTest(unittest.TestCase):
     def test_every_language_has_every_word_with_the_same_values(self):
         english = catalog("en")
         self.assertGreater(len(english), 400)
-        for language_ in ("fr", "es"):
+        for language_ in ("fr", "es", "zh-CN", "zh-TW"):
             found = catalog(language_)
             self.assertEqual(sorted(found), sorted(english), language_)
             for id_, text in found.items():
@@ -55,7 +55,7 @@ class CatalogTest(unittest.TestCase):
                 return re.findall(r'msgctxt "(#\d+)"\nmsgid "(.*)"', f.read())
 
         english = entries("en")
-        for language_ in ("fr", "es"):
+        for language_ in ("fr", "es", "zh-CN", "zh-TW"):
             self.assertEqual(entries(language_), english, language_)
         with open(os.path.join(i18n.ROOT, i18n.FOLDERS["en"], "strings.po"), encoding="utf-8") as f:
             self.assertNotRegex(f.read(), r'msgstr "[^"]', "English's words are its msgids")
@@ -196,6 +196,12 @@ class PickTest(unittest.TestCase):
         self.assertEqual(i18n.supported("ES_mx"), "es")
         self.assertEqual(i18n.supported("en_US.UTF-8"), "en")
         self.assertEqual(i18n.supported("fr"), "fr")
+        self.assertEqual(i18n.supported("zh-CN"), "zh-CN")
+        self.assertEqual(i18n.supported("zh_TW"), "zh-TW")
+        self.assertEqual(i18n.supported("zh-Hans"), "zh-CN")
+        self.assertEqual(i18n.supported("zh_Hant"), "zh-TW")
+        self.assertEqual(i18n.supported("zh-HK"), "zh-TW", "a region that writes traditional characters")
+        self.assertEqual(i18n.supported("zh"), "zh-CN", "Chinese without a script or region")
         self.assertIsNone(i18n.supported("de-DE"))
         self.assertIsNone(i18n.supported("auto"))
         self.assertIsNone(i18n.supported(""))
@@ -209,6 +215,8 @@ class FormsTest(unittest.TestCase):
                          ["one", "one", "one", "other", "many", "many", "other"])
         self.assertEqual([i18n.plural_form("es", n) for n in (0, 1, 1.5, 2, 1_000_000, 1_000_001)],
                          ["other", "one", "other", "other", "many", "other"])
+        self.assertEqual([i18n.plural_form("zh-CN", n) for n in (0, 1, 1.5, 2, 1_000_000)], ["other"] * 5)
+        self.assertEqual([i18n.plural_form("zh-TW", n) for n in (0, 1, 1.5, 2, 1_000_000)], ["other"] * 5)
 
     def test_numbers_as_each_language_writes_them(self):
         self.assertEqual(i18n.number(12345, "en"), "12,345")
@@ -219,6 +227,10 @@ class FormsTest(unittest.TestCase):
         self.assertEqual(i18n.decimal(7.43, 1, "en"), "7.4")
         self.assertEqual(i18n.decimal(7.43, 1, "fr"), "7,4")
         self.assertEqual(i18n.decimal(7.43, 1, "es"), "7,4")
+        self.assertEqual(i18n.number(12345, "zh-CN"), "12,345", "Chinese groups with a comma")
+        self.assertEqual(i18n.number(12345, "zh-TW"), "12,345")
+        self.assertEqual(i18n.decimal(7.43, 1, "zh-CN"), "7.4", "Chinese writes a decimal point")
+        self.assertEqual(i18n.decimal(7.43, 1, "zh-TW"), "7.4")
 
 
 class Shown(unittest.TestCase):
@@ -232,14 +244,16 @@ class Shown(unittest.TestCase):
         self.addCleanup(xbmcaddon.settings.pop, "_profile", None)
         self.addCleanup(xbmcaddon.settings.pop, "language", None)
         self.addCleanup(setattr, xbmc, "language", xbmc.language)
+        self.addCleanup(setattr, xbmc, "region_code", xbmc.region_code)
         self.addCleanup(kodi.begin)
         kodi.begin()
 
-    def show(self, account=None, choice=None, kodi_language="en", server=None):
+    def show(self, account=None, choice=None, kodi_language="en", region="", server=None):
         kodi.heard_account({"language": account})
         kodi.heard_server({"language": server})
         xbmcaddon.settings["language"] = choice or "auto"
         xbmc.language = kodi_language
+        xbmc.region_code = region
         kodi.forget_language()
         return kodi.language()
 
@@ -254,6 +268,13 @@ class LanguageTest(Shown):
         self.assertEqual(self.show(account="fr", choice="es"), "fr", "the account's before all")
         self.assertEqual(self.show(account="de", choice="es"), "es", "an account's Pley isn't in counts as none")
         self.assertEqual(kodi.remembered(kodi.ACCOUNT_LANGUAGE), "")
+
+    def test_kodis_region_tells_the_two_chineses_apart(self):
+        self.assertEqual(self.show(kodi_language="zh", region="CN"), "zh-CN", "Kodi's region")
+        self.assertEqual(self.show(kodi_language="zh", region="TW"), "zh-TW", "Traditional by its region")
+        self.assertEqual(self.show(kodi_language="zh", region="HK"), "zh-TW")
+        self.assertEqual(self.show(kodi_language="zh"), "zh-CN", "without a region: Simplified")
+        self.assertEqual(self.show(kodi_language="fr", region="CA"), "fr", "a region doesn't split French")
 
     def test_forgotten_on_another_thread_as_it_is_found(self):
         class Forgetful(dict):
@@ -348,6 +369,10 @@ class LanguageTest(Shown):
         self.assertEqual(livetv.time_format(), "%H:%M", "Kodi in English, the add-on in French: French's clock")
         self.show(kodi_language="de", server="es")
         self.assertEqual(livetv.time_format(), "%I:%M %p", "Kodi in German, the add-on in Spanish: Kodi's region")
+        self.show(kodi_language="fr", choice="zh-CN")
+        self.assertEqual(livetv.time_format(), "%H:%M", "the add-on in Simplified Chinese: a 24-hour clock")
+        self.show(kodi_language="fr", choice="zh-TW")
+        self.assertEqual(livetv.time_format(), "%H:%M", "the add-on in Traditional Chinese: a 24-hour clock")
 
 
 class ProfileLanguageTest(Shown):
@@ -376,7 +401,10 @@ class ProfileLanguageTest(Shown):
 
     def test_automatic_says_what_it_is_here_then_each_language_in_itself(self):
         self.show(kodi_language="fr")
-        self.assertEqual([label for _, label in language.choices()], ["Automatique (Français)", "English", "Français", "Español"])
+        self.assertEqual(
+            [label for _, label in language.choices()],
+            ["Automatique (Français)", "English", "Français", "Español", "简体中文", "繁體中文"],
+        )
 
     def test_a_choice_is_saved_and_shown(self):
         self.show()
@@ -395,6 +423,16 @@ class ProfileLanguageTest(Shown):
         self.assertEqual(asked[0][2], 2)
         self.assertEqual(client.puts[-1], ("/api/me/language", {"language": None}))
         self.assertEqual(kodi.language(), "en")
+
+    def test_the_chinese_choices_are_last_and_can_be_picked(self):
+        self.show()
+        self.assertEqual([value for value, _ in language.choices()][4:], ["zh-CN", "zh-TW"])
+        client = self.Client()
+        found, asked, _ = self.choose(client, 5)
+        self.assertEqual(asked[0][2], 0)
+        self.assertEqual(client.puts, [("/api/me/language", {"language": "zh-TW"})])
+        self.assertEqual(found["language"], "zh-TW")
+        self.assertEqual(kodi.language(), "zh-TW")
 
     def test_the_one_in_force_changes_nothing(self):
         client = self.Client()

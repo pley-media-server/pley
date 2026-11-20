@@ -84,7 +84,7 @@ try {
         "-f", "lavfi", "-i", "sine=frequency=330:sample_rate=48000:duration=20",
         "-i", $srt, "-i", $chapters,
         "-map", "0:v", "-map", "1:a", "-map", "2:s", "-map_metadata", "-1", "-map_chapters", "3",
-        # The frames carry the colours, or the stream and the container say "unknown".
+        # The frames carry the colors, or the stream and the container say "unknown".
         "-vf", "format=yuv420p10le,setparams=range=tv:color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc",
         "-c:v", "libx265", "-preset", "fast", "-profile:v", "main10",
         "-b:v", "700k", "-maxrate", "1000k", "-bufsize", "2000k", "-x265-params", $x265,

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What signing in says when it doesn't go through (AuthException and the
+  sign-in states), in lower case and without a full stop: the screens put
+  them inside sentences, or make a sentence of one alone.
+-->
+<resources>
+    <!-- The address and the way there. -->
+    <string name="auth_not_an_address">这不是服务器地址</string>
+    <string name="auth_unencrypted">此服务器的地址不在你的网络中，连接也未加密：请用它的 https 地址打开以登录</string>
+    <string name="auth_too_old">此服务器版本太旧，无法与此应用配合使用</string>
+    <string name="auth_redirected">此服务器在另一个地址上响应：请用那个地址打开</string>
+    <!-- %1$s: the address the server gives for itself, "https://pley.example.com". -->
+    <string name="auth_other_issuer">此服务器自称 %1$s：请用该地址打开，或检查其前面的代理是否正确传递 Host</string>
+    <string name="auth_other_endpoint">此服务器让应用去另一个地址登录：Pley 不会这样做</string>
+    <string name="auth_not_your_server">那里有另一台设备在响应</string>
+    <string name="auth_no_browser">此设备上没有可用于登录的浏览器</string>
+
+    <!-- The server's answers. -->
+    <string name="auth_unreadable">无法读取服务器的响应：请重试</string>
+    <string name="auth_server_failed">服务器无法响应（HTTP %1$d）</string>
+    <string name="auth_refused">服务器拒绝了：请重试</string>
+    <!-- %1$s: the server's own words, as it wrote them. -->
+    <string name="auth_refused_said">服务器拒绝了：%1$s</string>
+    <!-- %1$s: the error's code, "invalid_request". -->
+    <string name="auth_refused_code">服务器拒绝（%1$s）</string>
+    <string name="auth_refused_status">服务器拒绝（HTTP %1$d）</string>
+
+    <!-- The sign-in in the browser. -->
+    <string name="auth_other_server">响应来自另一台服务器，而非你登录的那台：请重试</string>
+    <string name="auth_denied">你没有允许此应用</string>
+    <string name="auth_no_code">服务器没有发送代码：请重试</string>
+    <string name="auth_too_long">登录耗时过长：请重试</string>
+    <string name="auth_not_finished">登录未能完成：请重试</string>
+
+    <!-- The TV's code. -->
+    <string name="auth_no_codes">此服务器暂不支持用代码登录：请更新服务器，或用密码登录</string>
+    <string name="auth_code_used">此代码已失效：请获取新代码</string>
+
+    <!-- Profiles and their PINs. -->
+    <string name="auth_cant_switch">此登录无法切换配置文件：请重新登录以允许切换</string>
+    <string name="auth_profile_locked">此配置文件无法在此应用中使用</string>
+    <string name="auth_wrong_pin">PIN 码错误</string>
+    <string name="auth_throttled">PIN 码错误次数过多：请几分钟后重试</string>
+    <string name="auth_pin_locked">此配置文件的 PIN 码因多次输错已被锁定。可由其所有者或管理员重置</string>
+    <string name="auth_needs_password">此配置文件需要密码：请重新登录以使用</string>
+    <string name="auth_not_allowed">你无法切换到此配置文件</string>
+
+    <!-- Signed out without asking. -->
+    <string name="auth_signed_out">你已退出登录：请重新登录</string>
+    <string name="auth_unreadable_here">此设备无法再读取登录信息：请重新登录</string>
+    <string name="auth_not_kept">无法在此设备上保留登录状态：请重新登录</string>
+    <string name="auth_wider_scope">服务器授予的权限超出此应用的请求：已退出登录</string>
+</resources>

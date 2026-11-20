@@ -204,7 +204,7 @@ fn a_profile_grows_to_1_1_and_says_its_name_under_it() {
     h.idle(&mut screen);
     let f = settle(&mut h, &mut screen);
     assert!(close(scales(&f.list)[0].0, 1.1));
-    // The initial on the profile's colour, the name 12 under the circle, centred.
+    // The initial on the profile's color, the name 12 under the circle, centered.
     assert!(f.list.says("A"));
     let at = text_at(&f.list, "anna").unwrap();
     assert_eq!(at.y, 312.0);

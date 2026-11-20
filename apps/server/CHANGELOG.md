@@ -11,6 +11,10 @@ describes how they are made.
 
 ### Added
 
+- Simplified and Traditional Chinese (`zh-CN`, `zh-TW`) for the server's own
+  words and the web app: hub titles, why a request couldn't be sent, and every
+  page. Pick one on your Account page or in Settings → General, or let Pley
+  follow your device's language.
 - `.strm` files in movie and TV libraries, as Kodi, Jellyfin and Emby read
   them: a text file that names the `http` or `https` address a video is at
   is listed, played, converted and downloaded like a video on disk, on
@@ -27,14 +31,37 @@ describes how they are made.
   tool such as Kometa to make them: Make collections from TMDB, in the
   library's settings, removes them when turned off, edits and all, and
   makes them again when turned back on.
+- A collection without a poster of its own shows up to its first four
+  films' posters in a grid. In Change poster, on a collection's page,
+  administrators can add an icon in a color over the grid, put an icon
+  on a color alone, or upload a poster; Recently Added, Recently
+  Released, Top Rated and Top Unwatched start with icons of their own. A
+  poster Kometa sets counts as uploaded.
+- Audiobooks get the summary, year and cover their files lack from Open
+  Library, and narrators, series and genres too from Audnexus when their
+  files carry an Audible ASIN. Administrators turn it off in Settings →
+  Server.
 
 ### Changed
 
+- The web app's English words are spelled the American way: color,
+  favorite, program.
+- The web app's sidebar lists Playlists as one more row under the
+  libraries, opening the page of all your playlists, in place of a section
+  of its own.
 - The Franchises category of collections is Box sets, and its key in the
   API is `box_sets`.
 
 ### Fixed
 
+- Copies of a movie whose names give different years or titles, as when
+  TMDB corrects a film after the first copy was named, are one movie with
+  versions once both are matched to the same TMDB title, keeping what was
+  watched, rated and listed of either. Fix Match on it separates them
+  again, and they stay apart. In the web app, Fix Match on a copy that
+  goes into another opens that movie.
+- Videos whose AAC sound is copied from an MPEG-TS or AVI file play on the
+  Apple apps instead of failing with "Malformed AAC bitstream".
 - Films and shows with accents in their names are matched when the names
   came from a Mac. Ones already scanned are matched by the library's Force
   full rescan.

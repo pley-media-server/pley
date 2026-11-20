@@ -1,7 +1,7 @@
 //! Tiles (`TvTile.kt`, `designsystem/tile/`, `designsystem/image/Placeholder.kt`): a well of
 //! the kind's size holding the picture (or its placeholder until the picture covers it), the
 //! overlays on the art, and a caption 14 dp under it. Focused, the well grows to 1.08 about its
-//! centre with a 3 dp AccentBright ring 4.5 dp outside the grown edge, one progress value driving
+//! center with a 3 dp AccentBright ring 4.5 dp outside the grown edge, one progress value driving
 //! both (150 ms in, 120 ms out; under a held key evenly from move to move, as the Samsung app's
 //! tiles do; Low-tier TVs animate only the focused tile); while OK is held it shrinks to 1.04. The caption stays outside the growth, its title bold when
 //! focused. No glow.
@@ -46,7 +46,7 @@ impl TileKind {
         }
     }
 
-    /// The gap between neighbours in a row: 18 between wide tiles, 14 between the others.
+    /// The gap between neighbors in a row: 18 between wide tiles, 14 between the others.
     pub const fn gap(self) -> f32 {
         match self {
             TileKind::Landscape | TileKind::Episode => theme::WIDE_TILE_GAP,
@@ -139,7 +139,7 @@ pub struct Tile<'a> {
     pub subtitle: &'a str,
     /// Picture addresses, tried in order: the first that loads wins.
     pub art: &'a [ImageRequest],
-    /// What the placeholder's colour is made from (the title by default).
+    /// What the placeholder's color is made from (the title by default).
     pub seed: &'a str,
     /// How far it was played, 0 to 1, when in progress.
     pub progress: Option<f32>,
@@ -386,7 +386,7 @@ pub fn caption(ui: &mut Ui, at: Point, width: f32, title: &str, subtitle: &str, 
 pub struct TileLook {
     /// 0 at rest, 1 focused: the ring's alpha and the growth.
     pub progress: f32,
-    /// The well's scale about its centre.
+    /// The well's scale about its center.
     pub scale: f32,
 }
 
@@ -399,7 +399,7 @@ pub fn tile_look(ui: &mut Ui, id: Id, kind: TileKind, r: &Response) -> TileLook 
     TileLook { progress: p, scale: (1.0 + (kind.focus_scale() - 1.0) * p) * press }
 }
 
-/// The focus ring around a well at `rect` grown to `look.scale`: 3 dp of AccentBright centred
+/// The focus ring around a well at `rect` grown to `look.scale`: 3 dp of AccentBright centered
 /// 4.5 dp outside the grown edge, its corners the tile's grown radius plus 4.5 (a circle around
 /// round tiles), its alpha the focus progress.
 pub fn ring(ui: &mut Ui, rect: Rect, kind: TileKind, look: &TileLook) {
@@ -426,13 +426,13 @@ pub fn first_art(ui: &mut Ui, art: &[ImageRequest], priority: Priority) -> Optio
 }
 
 /// The placeholder art (`Placeholder.kt`): a 135° gradient from hsl(h, 30 %, 22 %) at the top-left
-/// to hsl(h + 40, 35 %, 12 %) at the bottom-right, `h` from the seed, with `title` centred on it
+/// to hsl(h + 40, 35 %, 12 %) at the bottom-right, `h` from the seed, with `title` centered on it
 /// in `Tv.Title` at Fg 70 % (12 dp in, up to 4 lines), smaller (down to 0.7×) when its longest
 /// word wouldn't fit whole. An empty title draws the gradient alone (backdrops, a channel's or an
 /// album's well); a person's round well is Surface2 instead.
 pub fn placeholder(ui: &mut Ui, rect: Rect, seed: &str, title: &str, corner: f32) {
     let (a, b) = theme::placeholder_colors(seed);
-    // CSS's 135° gradient puts the end colours on the top-left and bottom-right corners; the other
+    // CSS's 135° gradient puts the end colors on the top-left and bottom-right corners; the other
     // two corners sit where their projection on the gradient line falls.
     let k = if rect.w + rect.h > 0.0 { (rect.w - rect.h) / (2.0 * (rect.w + rect.h)) } else { 0.0 };
     let colors = [a, a.lerp(b, 0.5 + k), a.lerp(b, 0.5 - k), b];
@@ -470,12 +470,12 @@ fn placeholder_style(title: &str, avail: f32) -> TextStyle {
 }
 
 /// A profile on Who's watching? (`TvProfilesScreen.kt`): a circle of `size` (100) holding the
-/// profile's picture, or its initial on its colour; its name 12 below in `Tv.Label`, centred, bold
+/// profile's picture, or its initial on its color; its name 12 below in `Tv.Label`, centered, bold
 /// when focused. Focused it grows to 1.1 with the tile ring; PIN profiles carry a lock badge.
 #[derive(Clone, Copy, Debug)]
 pub struct ProfileTile<'a> {
     pub name: &'a str,
-    /// Its colour, or the one its name gives ([`theme::profile_color`]).
+    /// Its color, or the one its name gives ([`theme::profile_color`]).
     pub color: Option<Color>,
     pub picture: &'a [ImageRequest],
     pub locked: bool,
@@ -490,7 +490,7 @@ impl<'a> ProfileTile<'a> {
         ProfileTile { name, color: None, picture: &[], locked: false, size: 100.0, dimmed: false }
     }
 
-    /// The profile's own colour.
+    /// The profile's own color.
     pub fn color(self, color: Option<Color>) -> ProfileTile<'a> {
         ProfileTile { color, ..self }
     }
@@ -545,7 +545,7 @@ impl<'a> ProfileTile<'a> {
             ui.transform(Point::ZERO, look.scale, rect.center(), |ui| {
                 self.avatar(ui, rect);
                 if self.locked {
-                    // A 28 circle centred at 0.86 of the avatar on both axes: a 2 dp Bg ring round
+                    // A 28 circle centered at 0.86 of the avatar on both axes: a 2 dp Bg ring round
                     // a Surface3 disc with a 14 dp lock.
                     let c = Point::new(rect.x + rect.w * 0.86, rect.y + rect.h * 0.86);
                     let badge = Rect::new(c.x - 14.0, c.y - 14.0, 28.0, 28.0);

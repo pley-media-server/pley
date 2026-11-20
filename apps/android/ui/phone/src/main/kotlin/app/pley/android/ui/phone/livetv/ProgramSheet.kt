@@ -42,10 +42,10 @@ import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.remote.canPlayOn
 
 /**
- * A programme's details (the web's ProgramModal), in a sheet: its
+ * A program's details (the web's ProgramModal), in a sheet: its
  * channel, picture, title, episode, day and times with On now, Live, New
  * and its rating, how far it is, what the guide says of it and its
- * categories; then Watch (now, or the channel) and the favourite, and
+ * categories; then Watch (now, or the channel) and the favorite, and
  * Watch on… under them while another device takes Live TV.
  */
 @OptIn(ExperimentalLayoutApi::class)

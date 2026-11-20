@@ -16,11 +16,11 @@
     <string name="livetv_none_title">No channels yet</string>
     <string name="livetv_none_body">Channels appear here once an administrator adds an IPTV provider in Pley\'s web app.</string>
     <string name="livetv_no_match_title">No channels match</string>
-    <string name="livetv_no_match_search">No channel\'s name, number or programme on now has “%1$s” in it.</string>
+    <string name="livetv_no_match_search">No channel\'s name, number or program on now has “%1$s” in it.</string>
     <string name="livetv_no_match_group">No channels in this group.</string>
     <string name="livetv_categories">Channel groups</string>
     <string name="livetv_category_all">All channels</string>
-    <string name="livetv_category_favorites">Favourites</string>
+    <string name="livetv_category_favorites">Favorites</string>
     <string name="livetv_category_recent">Recently watched</string>
     <string name="livetv_groups">Groups</string>
     <string name="livetv_regions">Regions</string>
@@ -28,11 +28,11 @@
     <string name="livetv_no_group_name">No group</string>
     <string name="livetv_found_groups">Groups</string>
     <string name="livetv_results_for">Results for “%1$s”</string>
-    <string name="livetv_none_favorites_title">No favourites yet</string>
+    <string name="livetv_none_favorites_title">No favorites yet</string>
     <string name="livetv_none_favorites_body">Star a channel to find it here.</string>
     <string name="livetv_none_recent_title">Nothing watched yet</string>
     <string name="livetv_none_recent_body">The channels you watch show here, the last first.</string>
-    <string name="livetv_favorite_failed">The favourite wasn\'t saved: %1$s</string>
+    <string name="livetv_favorite_failed">The favorite wasn\'t saved: %1$s</string>
 
     <!-- What's on. -->
     <string name="livetv_nothing_now">Nothing in the guide now</string>
@@ -62,9 +62,9 @@
     <!-- A programme's details (ProgramModal.tsx). -->
     <string name="livetv_watch_now">Watch now</string>
     <string name="livetv_watch_channel">Watch channel</string>
-    <string name="livetv_favorite_add">Add to favourites</string>
-    <string name="livetv_favorite_remove">Remove from favourites</string>
-    <string name="livetv_favorite_on">Favourite</string>
+    <string name="livetv_favorite_add">Add to favorites</string>
+    <string name="livetv_favorite_remove">Remove from favorites</string>
+    <string name="livetv_favorite_on">Favorite</string>
     <string name="livetv_no_description">The guide says nothing more of it.</string>
     <string name="livetv_ended">It has ended.</string>
     <string name="livetv_episode">S%1$d E%2$d</string>

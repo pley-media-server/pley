@@ -934,7 +934,7 @@ internal fun raiseLabel(raise: Float): Int = when (Settings.SUBTITLE_RAISES.inde
 /** The app's version and commit, or an empty string when the system won't say. */
 internal fun versionOf(context: android.content.Context): String = app.pley.android.common.AppBuild.label(context)
 
-/** The libraries in the app, with their licences. */
+/** The libraries in the app, with their licenses. */
 @OptIn(UnstableApi::class)
 internal fun licences(): List<Pair<String, String>> = listOf(
     "AndroidX (Compose, TV Material, Navigation…)" to "Apache-2.0",

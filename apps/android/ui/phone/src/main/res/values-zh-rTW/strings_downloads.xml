@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The Downloads page. -->
+    <string name="downloads_title">下載</string>
+    <string name="downloads_empty">暫無下載</string>
+    <string name="downloads_empty_body">在電影或劇集頁面下載後即可離線觀看。</string>
+    <!-- "4.2 GB on this phone · 51 GB free". -->
+    <string name="downloads_storage">此裝置佔用 %1$s · 可用 %2$s</string>
+    <!-- A show's group: "3 episodes · 4.2 GB". -->
+    <plurals name="downloads_episodes">
+        <item quantity="other">%1$d 集 · %2$s</item>
+    </plurals>
+    <!-- Lines under a download's title. -->
+    <string name="downloads_queued">等待下載</string>
+    <string name="downloads_waiting">等待 Wi-Fi</string>
+    <string name="downloads_waiting_server">等待伺服器</string>
+    <!-- While the server makes the file for this phone (smaller, or one it plays): "Preparing on the server · 42 %". -->
+    <string name="downloads_preparing">在伺服器上準備中 · %1$d%%</string>
+    <!-- For screen readers: "Preparing Episode 2, 42 %". -->
+    <string name="downloads_preparing_item">正在準備 %1$s，%2$d%%</string>
+    <!-- "Downloading · 45 % of 1.4 GB". -->
+    <string name="downloads_progress">下載中 · %2$s 的 %1$d%%</string>
+    <string name="downloads_failed">下載失敗：%1$s</string>
+    <!-- "1.4 GB · 1h 20m left". -->
+    <string name="downloads_left">%1$s · 剩餘 %2$s</string>
+    <string name="downloads_watched">%1$s · 已觀看</string>
+    <!-- Its menu. -->
+    <string name="downloads_play">播放</string>
+    <string name="downloads_retry">重試</string>
+    <string name="downloads_delete">刪除下載</string>
+    <string name="downloads_cancel">取消下載</string>
+    <string name="downloads_open">前往頁面</string>
+
+    <!-- Item pages. -->
+    <string name="downloads_download">下載</string>
+    <string name="downloads_downloaded">已下載</string>
+    <!-- Its action when it failed: tapping says why, and tries it again or deletes it. -->
+    <string name="downloads_failed_short">下載失敗</string>
+    <!-- Under its ring while it waits (its menu says for what), while the server prepares it, and while it comes: "45%". -->
+    <string name="downloads_queued_short">排隊中</string>
+    <string name="downloads_waiting_short">等待中</string>
+    <string name="downloads_preparing_short">準備中</string>
+    <string name="downloads_percent">%1$d%%</string>
+    <string name="downloads_download_season">下載整季</string>
+    <!-- "Download Episode 2", for screen readers. -->
+    <string name="downloads_download_item">下載 %1$s</string>
+    <string name="downloads_downloaded_item">%1$s 已下載</string>
+    <string name="downloads_downloading_item">正在下載 %1$s，%2$d%%</string>
+    <!-- For screen readers while it waits: "Saltwind, Waiting for Wi-Fi". -->
+    <string name="downloads_status_item">%1$s，%2$s</string>
+    <string name="downloads_failed_toast">無法下載：%1$s</string>
+    <string name="downloads_started">開始下載。可在“我”中的“下載”裡找到。</string>
+    <string name="downloads_started_action">下載</string>
+
+    <!-- The offline banner's way to them. -->
+    <string name="downloads_offline_action">下載</string>
+
+    <!-- Me and Settings. -->
+    <string name="downloads_me_value">無需伺服器也能觀看</string>
+    <!-- "3 downloads · 4.2 GB". -->
+    <plurals name="downloads_me_count">
+        <item quantity="other">%1$d 項下載 · %2$s</item>
+    </plurals>
+    <string name="downloads_settings">下載</string>
+    <string name="downloads_quality">畫質</string>
+    <string name="downloads_quality_hint">當此手機能直接播放時，“原始”會原樣下載檔案。較低畫質佔用空間更少；伺服器會先進行轉換。</string>
+    <string name="downloads_mobile_data">使用行動數據下載</string>
+    <string name="downloads_mobile_data_value">否則下載會等待 Wi-Fi</string>
+    <string name="downloads_delete_all">刪除所有下載</string>
+    <string name="downloads_delete_all_title">刪除所有下載？</string>
+    <string name="downloads_delete_all_body">這將刪除此裝置上所有伺服器和設定檔的下載內容。</string>
+    <string name="downloads_delete_all_confirm">全部刪除</string>
+    <string name="downloads_keep">保留</string>
+</resources>

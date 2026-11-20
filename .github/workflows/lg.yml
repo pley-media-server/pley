@@ -2,7 +2,7 @@ name: LG TV
 
 # Pley for LG TV (apps/webos): a native webOS app in Rust, a Cargo workspace
 # of its own and one release unit (docs/RELEASING.md). Runs when it changes.
-# The host job formats, lints and tests it and checks its licences; the TV job
+# The host job formats, lints and tests it and checks its licenses; the TV job
 # cross-builds it for the TV's ARMv7 with the webOS toolchain, checks the
 # binary and packs the .ipk that a TV in Developer Mode or the Homebrew
 # Channel installs (LG's store takes no native apps). The Release workflow
@@ -159,7 +159,7 @@ jobs:
       - run: arm-webos-linux-gnueabi-gcc --version
       - name: Build
         run: cargo xtask build --locked
-      # Licences of the TV binary's crates; the binary's ABI, libraries, glibc versions, libm and size.
+      # Licenses of the TV binary's crates; the binary's ABI, libraries, glibc versions, libm and size.
       - name: Check the binary
         run: cargo xtask check
       - name: Package

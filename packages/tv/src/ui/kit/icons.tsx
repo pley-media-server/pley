@@ -154,7 +154,7 @@ const ICONS = {
   "skip-forward": SkipForward,
   "sliders-horizontal": SlidersHorizontal,
   star: Star,
-  /** The star unfilled: not a favourite yet. */
+  /** The star unfilled: not a favorite yet. */
   "star-outline": Star,
   tag: Tag,
   timer: Timer,

@@ -369,7 +369,7 @@ struct LiveChannelsSheet: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
-                        Button("Favourites") { model.show(.favorites) }
+                        Button("Favorites") { model.show(.favorites) }
                         Button("Recently watched") { model.show(.recent) }
                         Button("All channels") { model.show(.all) }
                         ForEach(groups) { group in

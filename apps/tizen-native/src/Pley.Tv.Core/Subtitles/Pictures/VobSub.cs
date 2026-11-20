@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace Pley.Tv.Core.Subtitles.Pictures;
 
-/// <summary>The <c>.idx</c> header of a VobSub track: the plane's size and the 16 colours of its palette.</summary>
+/// <summary>The <c>.idx</c> header of a VobSub track: the plane's size and the 16 colors of its palette.</summary>
 public sealed class VobSubHeader
 {
     public VobSubHeader(int width, int height, IReadOnlyList<(byte R, byte G, byte B)> palette)
@@ -18,11 +18,11 @@ public sealed class VobSubHeader
 
     public int Width { get; }
     public int Height { get; }
-    /// <summary>16 RGB colours.</summary>
+    /// <summary>16 RGB colors.</summary>
     public IReadOnlyList<(byte R, byte G, byte B)> Palette { get; }
 }
 
-/// <summary>The control sequences of a subpicture unit: where it goes, its colours and alpha, and when it shows and stops.</summary>
+/// <summary>The control sequences of a subpicture unit: where it goes, its colors and alpha, and when it shows and stops.</summary>
 public sealed class Spu
 {
     public int X1, Y1, X2 = -1, Y2 = -1;
@@ -39,7 +39,7 @@ public sealed class Spu
 /// <summary>
 /// DVD subtitles (VobSub, <c>S_VOBSUB</c>): each sample is one subpicture unit (SPU): two
 /// interlaced fields of 2-bit run-length pixels, then control sequences that say when it shows and
-/// stops, which 4 of the 16 palette colours its pixels take, their alpha, and where it goes. The
+/// stops, which 4 of the 16 palette colors its pixels take, their alpha, and where it goes. The
 /// palette and the plane's size come from the track's private data, the <c>.idx</c> header
 /// (<c>size: 720x480</c>, <c>palette: 000000, ffffff, …</c>).
 /// </summary>
@@ -70,7 +70,7 @@ public sealed class VobSubDecoder : IPictureDecoder
 
     public static VobSubHeader ParseIdx(byte[]? codecPrivate)
     {
-        // The header is a KiB or two; its palette, 16 colours.
+        // The header is a KiB or two; its palette, 16 colors.
         var text = codecPrivate != null ? Latin1(codecPrivate, Math.Min(codecPrivate.Length, 64 << 10)) : "";
         var size = Size.Match(text);
         var palette = new List<(byte, byte, byte)>();
@@ -82,7 +82,7 @@ public sealed class VobSubDecoder : IPictureDecoder
                 if (LeadingHex(hex.Trim()) is long v) palette.Add(((byte)((v >> 16) & 0xff), (byte)((v >> 8) & 0xff), (byte)(v & 0xff)));
             }
         }
-        // A DVD's default greys when the header has none.
+        // A DVD's default grays when the header has none.
         while (palette.Count < 16) palette.Add(palette.Count % 2 == 1 ? ((byte)255, (byte)255, (byte)255) : ((byte)0, (byte)0, (byte)0));
         return new VobSubHeader(size.Success ? Number(size.Groups[1].Value, 720) : 720, size.Success ? Number(size.Groups[2].Value, 576) : 576, palette);
     }

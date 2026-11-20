@@ -1,4 +1,4 @@
-//! The guide's programmes, asked for in six-hour chunks as the guide moves
+//! The guide's programs, asked for in six-hour chunks as the guide moves
 //! through time, and only for the channels in view, counted from `origin`,
 //! where the guide opens (packages/tv/src/live/guide.ts): a lineup of tens of
 //! thousands costs the rows on screen.
@@ -59,12 +59,12 @@ impl GuideStore {
         self.origin
     }
 
-    /// Channel `id`'s programmes, in order.
+    /// Channel `id`'s programs, in order.
     pub fn programs(&self, id: i64) -> Option<&[LiveProgram]> {
         self.programs.get(&id).map(Vec::as_slice)
     }
 
-    /// Changes as chunks come in: rows read their programmes again.
+    /// Changes as chunks come in: rows read their programs again.
     pub fn version(&self) -> u64 {
         self.version
     }
@@ -74,7 +74,7 @@ impl GuideStore {
         !self.jobs.is_empty()
     }
 
-    /// Whether channel `id`'s programmes around `t` have been asked for and came (or failed).
+    /// Whether channel `id`'s programs around `t` have been asked for and came (or failed).
     pub fn answered(&self, id: i64, t: i64) -> bool {
         let Some(start) = chunk_starts(t, t + 1, self.origin).first().copied() else { return false };
         self.asked.get(&start).and_then(|c| c.get(&id)).is_some_and(|a| !a.pending)
@@ -107,7 +107,7 @@ impl GuideStore {
         }
     }
 
-    /// Takes the chunks that came; true when rows should read their programmes again.
+    /// Takes the chunks that came; true when rows should read their programs again.
     pub fn poll(&mut self, now: i64) -> bool {
         let before = self.version;
         let mut i = 0;

@@ -143,7 +143,7 @@ static class NetTrace
     /// <summary>
     /// The listener's "wifi": the access point the TV is joined to (its BSSID: which mesh node), and
     /// every access point of the same network in the TV's last scan, strongest first, with signal,
-    /// band and rate. Other networks are left out: they are the neighbours'. With <paramref name="scan"/>,
+    /// band and rate. Other networks are left out: they are the neighbors'. With <paramref name="scan"/>,
     /// the TV scans first (the debug build has network.set for it), as its last scan may hold only its own.
     /// </summary>
     /// <summary>An access point by the last two bytes of its address ("node …:b5:3f"): a mesh's nodes told apart, no more.</summary>

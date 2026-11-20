@@ -16,6 +16,7 @@ const SETTINGS = {
   tvdb_api_key: "",
   tvdb_pin: "",
   music_metadata: true,
+  book_metadata: true,
   hwaccel: "auto",
   hardware_decoding: true,
   tonemapping: "auto",
@@ -219,7 +220,7 @@ describe("ServerSettings", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
-  it("greys out previews for whole libraries without seek previews", async () => {
+  it("grays out previews for whole libraries without seek previews", async () => {
     const user = userEvent.setup();
     mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => ({}) });
     renderWithProviders(<ServerSettings />);
@@ -231,14 +232,14 @@ describe("ServerSettings", () => {
     expect(screen.getByText("Needs Seek previews.")).toBeInTheDocument();
   });
 
-  it("greys out intro detection when the transcoder's FFmpeg has no Chromaprint, and says why", async () => {
+  it("grays out intro detection when the transcoder's FFmpeg has no Chromaprint, and says why", async () => {
     mockApi({
       "GET /api/settings": () => SETTINGS,
       "GET /api/system": () => ({ os: "windows", transcoder: { available: true, managed: true, encoders: ["libx264"], accels: [], chromaprint: false } }),
     });
     renderWithProviders(<ServerSettings />);
     const detect = await screen.findByRole("switch", { name: "Detect intros and credits" });
-    // The current value stays, greyed out with the reason.
+    // The current value stays, grayed out with the reason.
     expect(detect).toBeDisabled();
     expect(detect).toBeChecked();
     expect(screen.getByText(/lacks Chromaprint/)).toBeInTheDocument();
@@ -276,7 +277,7 @@ describe("ServerSettings", () => {
     );
   });
 
-  it("leaves library work out on a server before it, and greys it out with nothing to run", async () => {
+  it("leaves library work out on a server before it, and grays it out with nothing to run", async () => {
     const user = userEvent.setup();
     mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => ({}) });
     const first = renderWithProviders(<ServerSettings />);

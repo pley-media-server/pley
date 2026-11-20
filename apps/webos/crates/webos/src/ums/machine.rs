@@ -1131,7 +1131,7 @@ fn pixel_aspect(v: Option<&Value>) -> Option<f32> {
     (w > 0.0 && h > 0.0).then_some((w / h) as f32)
 }
 
-/// The largest rectangle of `aspect` (width over height) centred in `area`.
+/// The largest rectangle of `aspect` (width over height) centered in `area`.
 pub fn fit(area: Rect, aspect: f32) -> Rect {
     if !(aspect.is_finite() && aspect > 0.0) || area.w <= 0.0 || area.h <= 0.0 {
         return area;

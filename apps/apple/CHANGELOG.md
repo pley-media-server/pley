@@ -21,12 +21,12 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The remote offers Skip Intro and Skip Credits while what a device plays
   is in an intro or the credits, and its back button goes 30 seconds, as far
   as forward.
-- Pley in French and Spanish, as well as English: your account's language
-  from Settings → Language, else the one picked with the globe before you
-  sign in, else your device's, else your server's. Every screen on iPhone,
-  iPad, Mac and Apple TV is in it, and so are dates, times, counts, the
-  names of audio and subtitle languages, and errors. It changes at once,
-  without starting again.
+- Pley in French, Spanish and Simplified and Traditional Chinese, as well
+  as English: your account's language from Settings → Language, else the
+  one picked with the globe before you sign in, else your device's, else
+  your server's. Every screen on iPhone, iPad, Mac and Apple TV is in it,
+  and so are dates, times, counts, the names of audio and subtitle
+  languages, and errors. It changes at once, without starting again.
 - Finds Pley servers on your network, keeps the ones you opened, and adds
   one by its address.
 - Sign in with your browser on iPhone, iPad and Mac, or with a code and its
@@ -83,7 +83,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   button, and by itself when you leave the app on iPhone and iPad; its ✕
   ends the playback.
 - Live TV on iPhone, iPad, Mac and Apple TV: the categories, the guide and
-  the channel cards, favourites and recently watched, a programme's
+  the channel cards, favorites and recently watched, a program's
   details, and the live player with channel up and down, a channel number
   typed or on Apple TV's number pad, AirPlay, and Watch here instead when
   every connection is in use. Search shows the channels it finds. Live TV
@@ -147,7 +147,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to an iPhone, iPad or Apple TV no longer waits behind a sheet open on it.
 - The remote on iPhone, iPad and Mac: Audio, Subtitles and a new Quality
   are symbols beside Stop, which now asks first. Live TV shows how far
-  along the programme is, its times and what's next, with a channel
+  along the program is, its times and what's next, with a channel
   rocker in place of the seek bar and skips. A device playing nothing says
   "Send something here with Play on…"
 - When the server has video transcoding turned off, the Quality menu
@@ -155,6 +155,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- English words are spelled the American way: color, favorite, program.
 - A library's Recommended tab no longer ends with a row of every collection.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.

@@ -10,7 +10,7 @@
 // libraries' collections opened together and one library's from it, a
 // show's page, its episodes and a person's
 // page, music (an artist, an album, Now Playing), playlists, Live TV (its
-// guide, a channel watched, the next one, the channel list, a favourite
+// guide, a channel watched, the next one, the channel list, a favorite
 // and another category listed there, every connection in use, the
 // Channels tab), Search (and its Discover row's
 // See all), Discover (a movie asked for, a show's seasons picked), the
@@ -104,7 +104,7 @@ function shoot(name) {
 }
 
 // Whether the sign-in screen shows a QR code: its quiet zone is white where
-// the screen is dark (LinkScreen.xml centres the picture in a column from
+// the screen is dark (LinkScreen.xml centers the picture in a column from
 // 1384 to 1824, from 432 down).
 function qrDrawn() {
   if (!frame) return false;
@@ -153,7 +153,7 @@ function infoDrawn() {
 }
 
 // The live player's notice: its dark panel over the whole screen, its
-// title in the app's text colour at the left (from 96, 120 when it lists what
+// title in the app's text color at the left (from 96, 120 when it lists what
 // holds each connection).
 function noticeDrawn() {
   if (!frame) return false;
@@ -181,7 +181,7 @@ function readyNoticeDrawn() {
 }
 
 // A Settings text page's text (TextScreen.xml, from 96, 180), in the app's
-// text colour.
+// text color.
 function pageTextDrawn() {
   if (!frame) return false;
   for (let y = 186; y < 230; y += 2) {
@@ -575,7 +575,7 @@ async function walk() {
   shoot("see-all");
   await press("back");
   await settle();
-  // The row under it: Fixture Favourites, a collection of each library;
+  // The row under it: Fixture Favorites, a collection of each library;
   // its See all opens them together. Movies only, after Play and Shuffle,
   // opens that library's own; Back to them, then to Home.
   since = mark();
@@ -595,9 +595,9 @@ async function walk() {
   await settle();
   seeAll.after = mark();
   // Live TV: the categories and the guide of every channel (a page, its
-  // programmes for those channels), OK on what's on now watches the
+  // programs for those channels), OK on what's on now watches the
   // channel, Up the next one (the server ends the first by the
-  // client_id), the channel list, a favourite and another category
+  // client_id), the channel list, a favorite and another category
   // listed there, then a channel whose
   // source has no connection left; Back leaves to the guide at that
   // channel, then the Channels tab.
@@ -620,8 +620,8 @@ async function walk() {
   shoot("live-list");
   since = mark();
   await press("options");
-  await waitFor(/^PUT \/api\/live\/channels\/2\/favorite$/, since, "a channel put in the favourites");
-  // Left in the list: the categories, on All channels; Favourites, two up,
+  await waitFor(/^PUT \/api\/live\/channels\/2\/favorite$/, since, "a channel put in the favorites");
+  // Left in the list: the categories, on All channels; Favorites, two up,
   // lists its channels there. Back closes the list: up and down still go
   // through All channels.
   since = mark();
@@ -631,7 +631,7 @@ async function walk() {
   await press("up", 2);
   since = mark();
   await press("select");
-  await waitFor(/^GET \/api\/live\/browse\?.*category=favorites/, since, "the favourites listed in the player");
+  await waitFor(/^GET \/api\/live\/browse\?.*category=favorites/, since, "the favorites listed in the player");
   await sleep(800);
   shoot("live-list-favourites");
   await press("back");
@@ -652,7 +652,7 @@ async function walk() {
   await settle();
   shoot("live-back");
   await press("back"); // the categories, on All channels
-  await press("up", 4); // the tabs, above Search and Favourites
+  await press("up", 4); // the tabs, above Search and Favorites
   await press("right"); // Channels
   since = mark();
   await press("select");
@@ -1217,7 +1217,7 @@ async function walk() {
   await settle();
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   shoot("settings");
-  // Diagnostics and the licences, at the right; Left back to the settings.
+  // Diagnostics and the licenses, at the right; Left back to the settings.
   await press("right");
   await press("select"); // Diagnostics
   pages.diagnostics = await drawnWithin(3000, pageTextDrawn);
@@ -1225,7 +1225,7 @@ async function walk() {
   await press("back");
   await settle();
   await press("down");
-  await press("select"); // Open-source licences
+  await press("select"); // Open-source licenses
   pages.licences = await drawnWithin(3000, pageTextDrawn);
   shoot("licences");
   await press("back");
@@ -1499,7 +1499,7 @@ const checks = [
   ["kept 8 Mbps 1080p chosen in Settings", registry !== null && /playback.quality","8m"/.test(JSON.stringify([...registry]))],
   ["kept Anna as the profile to always start as", registry !== null && /startAs\.http[^"]*","1"/.test(JSON.stringify([...registry]))],
   ["showed subtitle sync", sync.label],
-  ["showed Diagnostics and the open-source licences from Settings", pages.diagnostics && pages.licences],
+  ["showed Diagnostics and the open-source licenses from Settings", pages.diagnostics && pages.licences],
   ["showed the playback's details", asked(/^GET \/api\/playback\/s\d+$/)],
   ["saved Movies after TV Shows, every library in the order", fixture.orders.some((ids) => JSON.stringify(ids) === "[2,1,3]")],
   ["went back to the server's order", fixture.orders.includes(null) && fixture.libraryOrder.join() === "1,2,3"],
@@ -1568,13 +1568,13 @@ const checks = [
   ["showed search's results in rows by kind, People last, a person's page opened from it", asked(/^GET \/api\/people\/11$/)],
   ["searched a recent search again from the list shown before typing", searched.again],
   ["kept the recent searches on the Roku for the server and profile", registry !== null && /searches\.http[^"]*\|1","\[\\"mo\\"\]"/.test(JSON.stringify([...registry]))],
-  ["showed Live TV's guide, its programmes for the channels in view", fixture.liveGuides.length > 0 && fixture.liveGuides.every((g) => g.ids.length > 0 && g.ids.length <= 50)],
+  ["showed Live TV's guide, its programs for the channels in view", fixture.liveGuides.length > 0 && fixture.liveGuides.every((g) => g.ids.length > 0 && g.ids.length <= 50)],
   ["listed channels a page at a time", fixture.liveBrowses.length > 0 && fixture.liveBrowses.every((b) => b.limit <= 50)],
   ["opened Live TV back at the channel watched", fixture.liveBrowses.some((b) => b.around === 3)],
   ["kept the last channel watched on the Roku for the server and profile", registry !== null && /liveViews\.http[^"]*\|1","\{[^}]*\\"channel\\":3\b/.test(JSON.stringify([...registry]))],
   ["watched channels with one client_id, so zapping holds one connection", fixture.liveWatches.length >= 2 && new Set(fixture.liveWatches.map((w) => w.client_id)).size === 1 && fixture.liveWatches[0].client_id !== null],
   ["asked for a channel's playlist before playing it", fixture.livePlaylists.length >= 2],
-  ["put a channel in the favourites from the player's list", fixture.liveFavoriteChanges.some((c) => c.id === 2 && c.favorite)],
+  ["put a channel in the favorites from the player's list", fixture.liveFavoriteChanges.some((c) => c.id === 2 && c.favorite)],
   ["listed another category's channels in the player's list", fixture.liveBrowses.some((b) => b.category === "favorites")],
   ["said every connection is in use", live.busy],
   ["took over the connection with Watch here instead", fixture.liveWatches.some((w) => w.id === 3 && w.take_over === 1)],

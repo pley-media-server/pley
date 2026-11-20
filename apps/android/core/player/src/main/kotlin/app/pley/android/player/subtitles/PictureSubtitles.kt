@@ -329,10 +329,10 @@ class OkHttpPictureSource(
                 },
             )
         }
-        // Read to the end even when cancelled meanwhile (the read can't be
+        // Read to the end even when canceled meanwhile (the read can't be
         // interrupted), and closed below: a result thrown away would keep its
         // samples open. withContext drops what another thread hands back to
-        // a cancelled caller, but not to one within NonCancellable.
+        // a canceled caller, but not to one within NonCancellable.
         val loaded = withContext(NonCancellable) {
             withContext(io) {
                 val store = SampleStore(samples)

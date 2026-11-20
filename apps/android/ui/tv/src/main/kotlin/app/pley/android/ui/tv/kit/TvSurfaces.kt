@@ -102,7 +102,7 @@ data class BackdropScrim(val from: Dp, val to: Dp) {
 /**
  * The page's backdrop (design spec §2.2, §3.6 of the TV addendum): one
  * picture layer under everything, cropped towards its subject (right of
- * centre, above the middle), with the two gradients that keep the text
+ * center, above the middle), with the two gradients that keep the text
  * column on at least 85 % [bg][PleyColors.Bg], drawn together.
  *
  * It follows [image] at once after a press, and where a held key lands
@@ -320,7 +320,7 @@ fun rememberBackdropPrefetcher(): BackdropPrefetcher {
     return remember(context, loader, tier, size, gate) { BackdropPrefetcher(context, loader, tier, size, gate) }
 }
 
-/** Subjects sit right of centre and above the middle. */
+/** Subjects sit right of center and above the middle. */
 private val SubjectAlignment = BiasAlignment(0.4f, -0.6f)
 
 /**

@@ -1,0 +1,20 @@
+{
+  "rail": {
+    "search": "搜尋",
+    "home": "首頁",
+    "discover": "發現",
+    "live": "直播電視",
+    "libraries": "媒體庫",
+    "playlists": "播放清單",
+    "collections": "合集",
+    "nowPlaying": "正在播放",
+    "settings": "設定",
+    "profiles": "設定檔",
+    "switchProfile": "切換設定檔"
+  },
+  "offline": "Pley 處於離線狀態",
+  "exit": {
+    "title": "結束 Pley？",
+    "exit": "結束"
+  }
+}

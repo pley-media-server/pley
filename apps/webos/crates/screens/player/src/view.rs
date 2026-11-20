@@ -36,7 +36,7 @@ pub const BANNER_MS: i64 = 4_000;
 pub const STOPPED_LEAVE_MS: i64 = 20_000;
 /// Skip, the notice and Up Next fade in and out over 150 ms.
 const CORNER_FADE: Motion = Motion::new(0.150, Easing::FAST_OUT_SLOW_IN);
-/// The buffering ring's centre.
+/// The buffering ring's center.
 const RING_CENTRE: Point = Point::new(theme::CANVAS_W / 2.0, theme::CANVAS_H / 2.0);
 /// "Ends at" counts at most this far ahead: a duration past it is the server's mistake.
 const ENDS_AT_MAX_MS: i64 = 7 * 24 * 3_600_000;
@@ -413,7 +413,7 @@ impl PlayerView {
     }
 
     /// Back, in the Android app's order: the search back to Subtitles, a panel closes, Up Next
-    /// is cancelled, the controls hide; otherwise the player leaves (false).
+    /// is canceled, the controls hide; otherwise the player leaves (false).
     pub fn back(&mut self, p: &mut dyn Playback) -> bool {
         match self.panel {
             Some(Panel::Find) => {

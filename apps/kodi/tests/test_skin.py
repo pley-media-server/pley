@@ -32,7 +32,7 @@ class SkinTest(unittest.TestCase):
 
     def test_round_buttons_pass_focus_on(self):
         # Kodi moves focus by the focused control's own navigation: the button
-        # inside a round button's group has its neighbours', which a grouplist
+        # inside a round button's group has its neighbors', which a grouplist
         # gives only the group.
         controls = {c.get("id"): c for c in parse(L.WINDOW).iter("control") if c.get("id")}
 

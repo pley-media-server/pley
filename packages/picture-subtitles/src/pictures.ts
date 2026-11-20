@@ -42,7 +42,7 @@ export const MAX_SIDE = 4096;
 /**
  * The most pixels a frame decodes, all its pictures together: a 4K
  * screen's worth. A file can place a 4096² picture many times over, and
- * each pixel costs 4 bytes once coloured.
+ * each pixel costs 4 bytes once colored.
  */
 export const MAX_PIXELS = 3840 * 2160;
 

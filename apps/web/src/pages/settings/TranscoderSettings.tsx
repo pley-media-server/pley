@@ -157,7 +157,7 @@ export function TranscoderSettings() {
     <SettingsForm draft={draft} title={t("transcoder.title")} description={t("transcoder.description")}>
       {(form) => {
         const tc = system.data?.transcoder;
-        // What the transcoder's FFmpeg can do, once it says (nothing is greyed out before).
+        // What the transcoder's FFmpeg can do, once it says (nothing is grayed out before).
         const known = knownTranscoder(system.data);
         const os = transcoderOs(system.data);
         const accels = accelChoices(saved?.hwaccel ?? form.hwaccel, system.data);

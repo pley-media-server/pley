@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- What a library holds, in the list of libraries (libraryCountText). -->
+    <plurals name="library_entry_movies">
+        <item quantity="other">%1$,d 部電影</item>
+    </plurals>
+    <plurals name="library_entry_shows">
+        <item quantity="other">%1$,d 部劇集</item>
+    </plurals>
+    <plurals name="library_entry_artists">
+        <item quantity="other">%1$,d 位藝術家</item>
+    </plurals>
+    <plurals name="library_entry_items">
+        <item quantity="other">%1$,d 個條目</item>
+    </plurals>
+
+    <!--
+      What a smart filter finds, in words (SmartFilter.words), as the web
+      says it. %1$s is the filter's value as it is ("Comedy", "2019").
+    -->
+    <string name="library_filter_genre">型別：%1$s</string>
+    <string name="library_filter_label">標籤：%1$s</string>
+    <string name="library_filter_studio">製作公司：%1$s</string>
+    <string name="library_filter_rated">分級 %1$s</string>
+    <string name="library_filter_watched">已觀看</string>
+    <string name="library_filter_unwatched">未觀看</string>
+    <string name="library_filter_in_progress">進行中</string>
+    <string name="library_filter_not_in_progress">未進行</string>
+    <string name="library_filter_from">從 %1$s 起</string>
+    <string name="library_filter_after">%1$s 之後</string>
+    <string name="library_filter_before">%1$s 之前</string>
+    <!-- %1$s: the decade's first year, "1990". -->
+    <string name="library_filter_decade">%1$s 年代</string>
+    <string name="library_filter_at_most">最多 %1$s</string>
+    <!-- A filter Pley has no words for: its field and value as they are, "country: France". -->
+    <string name="library_filter_other">%1$s：%2$s</string>
+    <!-- The dynamic range filter that takes every kind of HDR. -->
+    <string name="library_filter_any_hdr">任意 HDR</string>
+
+    <!-- A smart filter's order, by field: first, then reversed. -->
+    <string name="library_filter_title_asc">按標題</string>
+    <string name="library_filter_title_desc">按標題，Z 到 A</string>
+    <string name="library_filter_year_asc">最早優先</string>
+    <string name="library_filter_year_desc">最新優先</string>
+    <string name="library_filter_release_asc">上映最早優先</string>
+    <string name="library_filter_release_desc">上映最晚優先</string>
+    <string name="library_filter_added_asc">最先新增優先</string>
+    <string name="library_filter_added_desc">最近新增優先</string>
+    <string name="library_filter_rating_asc">評分最低優先</string>
+    <string name="library_filter_rating_desc">評分最高優先</string>
+    <string name="library_filter_user_rating_asc">你評分最低的優先</string>
+    <string name="library_filter_user_rating_desc">你評分最高的優先</string>
+    <string name="library_filter_played_asc">最久未播放優先</string>
+    <string name="library_filter_played_desc">最近播放優先</string>
+    <string name="library_filter_duration_asc">最短優先</string>
+    <string name="library_filter_duration_desc">最長優先</string>
+    <string name="library_filter_plays_asc">播放最少優先</string>
+    <string name="library_filter_plays_desc">播放最多優先</string>
+    <!-- An order Pley has no words for: %1$s is its field, "originalTitle". -->
+    <string name="library_filter_sorted_by">排序方式：%1$s</string>
+
+    <!-- A collection's own order (CollectionViewModel.sortNoteText). -->
+    <string name="collection_order_release">按發行日期</string>
+    <string name="collection_order_title">按標題</string>
+    <string name="collection_order_custom">自訂順序</string>
+</resources>

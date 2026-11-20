@@ -1,0 +1,97 @@
+{
+  "duration": {
+    "seconds": "{{n}}秒",
+    "minutes": "{{n}}分",
+    "hours": "{{n}}小时",
+    "hoursMinutes": "{{hours}}小时{{minutes}}分",
+    "runtime": "{{n}} 分钟",
+    "left": "剩余 {{time}}"
+  },
+  "clock": {
+    "am": "上午",
+    "pm": "下午"
+  },
+  "episode": {
+    "both": "S{{season}} · E{{episode}}",
+    "season": "S{{season}}",
+    "episode": "E{{episode}}"
+  },
+  "season": {
+    "specials": "特别篇",
+    "numbered": "第 {{number}} 季",
+    "plain": "季"
+  },
+  "counts": {
+    "seasons_other": "{{count, number}} 季",
+    "episodes_other": "{{count, number}} 集",
+    "albums_other": "{{count, number}} 张专辑"
+  },
+  "channels": {
+    "mono": "单声道",
+    "stereo": "立体声",
+    "count": "{{n}} 声道"
+  },
+  "track": {
+    "unknown": "未知",
+    "forced": "强制",
+    "external": "外部",
+    "bitDepth": "{{n}} 位",
+    "automatic": "自动",
+    "automaticLanguage": "自动（{{language}}）",
+    "version": "版本 {{number}}"
+  },
+  "sizes": {
+    "bytes": "{{n}} B",
+    "kilobytes": "{{n}} KB",
+    "megabytes": "{{n}} MB",
+    "gigabytes": "{{n}} GB",
+    "terabytes": "{{n}} TB"
+  },
+  "rates": {
+    "mbps": "{{n}} Mbps",
+    "kbps": "{{n}} kbps",
+    "kilohertz": "{{rate}} kHz",
+    "fps": "{{rate}} fps",
+    "fpsInterlaced": "{{rate}} fps，隔行"
+  },
+  "media": {
+    "file": "文件",
+    "video": "视频",
+    "audio": "音频",
+    "subtitles": "字幕",
+    "numbered": "{{kind}} {{n}}",
+    "name": "名称",
+    "container": "容器",
+    "size": "大小",
+    "duration": "时长",
+    "overallBitrate": "总码率",
+    "codec": "编解码器",
+    "profile": "配置文件",
+    "resolution": "分辨率",
+    "frameRate": "帧率",
+    "bitDepth": "位深",
+    "hdr": "HDR",
+    "dolbyVision": "杜比视界",
+    "primaries": "原色",
+    "transfer": "传输特性",
+    "matrix": "矩阵",
+    "bitrate": "码率",
+    "title": "标题",
+    "channels": "声道",
+    "sampleRate": "采样率",
+    "language": "语言",
+    "flags": "标记",
+    "format": "格式",
+    "default": "默认",
+    "forced": "强制",
+    "beside": "与媒体同目录",
+    "picture": "图片",
+    "text": "文本",
+    "level": "级别 {{level}}",
+    "dvProfile": "配置文件 {{profile}}",
+    "noBaseLayer": "无兼容的基础层",
+    "baseLayer": "兼容 {{range}} 的基础层",
+    "fullLayer": "完整增强层",
+    "minimalLayer": "最小增强层"
+  }
+}

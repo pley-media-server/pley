@@ -1,0 +1,39 @@
+{
+  "field": "搜索电影、剧集、人物…",
+  "searching": "搜索中…",
+  "recent": {
+    "title": "最近搜索",
+    "clear": "清除"
+  },
+  "empty": {
+    "title": "搜索你的媒体库",
+    "body": "查找电影、剧集、集、人物、艺人、专辑、曲目和直播电视频道。在搜索框上按 OK 即可输入。"
+  },
+  "none": {
+    "title": "「{{query}}」没有结果",
+    "body": "换个拼写，或减少关键词。"
+  },
+  "failed": "搜索失败",
+  "offline": "无法连接到你的服务器",
+  "retry": "重试",
+  "keyboardAction": "搜索",
+  "discover": "发现",
+  "seeAll": "查看全部",
+  "nothingInLibraries": "你的媒体库中没有匹配的内容",
+  "tmdbFailed": "搜索 TMDB 失败",
+  "groups": {
+    "people": "人物",
+    "liveTv": "直播电视",
+    "movies": "电影",
+    "shows": "剧集",
+    "seasons": "季",
+    "episodes": "集",
+    "artists": "艺人",
+    "albums": "专辑",
+    "tracks": "曲目"
+  },
+  "channel": {
+    "nothingNow": "节目指南中现在没有内容",
+    "noGuide": "此频道没有节目指南"
+  }
+}

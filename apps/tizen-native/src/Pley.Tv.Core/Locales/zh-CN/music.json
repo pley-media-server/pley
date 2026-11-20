@@ -1,0 +1,44 @@
+{
+  "actions": {
+    "play": "播放",
+    "pause": "暂停",
+    "shuffle": "随机播放",
+    "shuffleOff": "停止随机播放",
+    "nowPlaying": "正在播放",
+    "next": "下一首",
+    "previous": "上一首",
+    "retry": "重试",
+    "back": "返回"
+  },
+  "pages": {
+    "artist": "艺人",
+    "albums": "专辑",
+    "noAlbums": "未找到专辑。",
+    "noTracks": "未找到曲目",
+    "nothingToPlay": "没有可播放的内容：它没有曲目。",
+    "artistNotFound": "未找到艺人",
+    "albumNotFound": "未找到专辑",
+    "notFoundBody": "它可能已被移除，或此配置文件无权查看。",
+    "artistFailed": "无法加载此艺人",
+    "albumFailed": "无法加载此专辑",
+    "disc": "第 {{number}} 张光盘"
+  },
+  "count": {
+    "albums_other": "{{count, number}} 张专辑",
+    "tracks_other": "{{count, number}} 首曲目"
+  },
+  "nowPlaying": {
+    "upNext": "接下来播放",
+    "position": "曲目进度",
+    "loading": "加载中…",
+    "nothingTitle": "没有正在播放的内容",
+    "nothingBody": "播放专辑或艺人后，就会显示在这里。",
+    "sleep": "{{timer}}：{{left}}"
+  },
+  "errors": {
+    "offline": "无法连接服务器。",
+    "signedOut": "请重新登录后再播放。",
+    "stopped": "服务器停止了播放。",
+    "unplayable": "无法播放此曲目。"
+  }
+}

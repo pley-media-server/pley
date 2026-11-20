@@ -11,7 +11,7 @@ use crate::model::{ErrorBody, LiveBusy};
 
 use super::Response;
 
-/// No answer: the network failed, it took too long, or it was cancelled.
+/// No answer: the network failed, it took too long, or it was canceled.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NetError {
     /// Stopped on purpose (a screen went away): never shown.
@@ -168,7 +168,7 @@ impl ApiError {
         }
     }
 
-    /// Whether this only says the work was cancelled: never shown.
+    /// Whether this only says the work was canceled: never shown.
     pub fn cancelled(&self) -> bool {
         matches!(self, ApiError::Net(NetError::Cancelled))
     }
@@ -245,7 +245,7 @@ impl fmt::Display for ApiError {
 
 impl std::error::Error for ApiError {}
 
-/// `text` as a sentence: trimmed, its first letter capitalised, a full stop
+/// `text` as a sentence: trimmed, its first letter capitalized, a full stop
 /// added unless it ends in `.`, `…`, `!` or `?` (the TV app's `sentence`).
 pub fn sentence(text: &str) -> String {
     let t = text.trim();

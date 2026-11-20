@@ -99,7 +99,7 @@ export function ChannelLogo(p: { channel: Pick<LiveChannel, "logo" | "name" | "n
   );
 }
 
-/** A programme's progress, as a thin line. */
+/** A program's progress, as a thin line. */
 export function ProgressLine(p: { fraction: number; class?: string }) {
   return (
     <div class={`live-progress ${p.class ?? ""}`}>
@@ -108,7 +108,7 @@ export function ProgressLine(p: { fraction: number; class?: string }) {
   );
 }
 
-/** The Live and New marks a guide gives a programme. */
+/** The Live and New marks a guide gives a program. */
 export function ProgramMarks(p: { program: LiveProgram }) {
   return (
     <>

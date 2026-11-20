@@ -14,13 +14,13 @@
 //!   resolved against the previous frame, so the frame after a key press draws the new focus.
 //! - **Input**: the repeat gate ([`KeyGate`]: a key held 180 ms moves focus every 45 ms on the
 //!   app's own clock, [`Ui::holding`], [`Ui::rested`]), OK and its 500 ms long press, the menu key, and the Magic
-//!   Remote's pointer (hover focuses without re-centring, a click is OK, the wheel steps focus or
+//!   Remote's pointer (hover focuses without re-centering, a click is OK, the wheel steps focus or
 //!   scrolls a group that takes it).
-//! - **Animation**: [`Ui::animate`] and its colour and rectangle forms, with the design's
+//! - **Animation**: [`Ui::animate`] and its color and rectangle forms, with the design's
 //!   [`Motion`]s; held keys, Reduce motion and Low-tier TVs snap them, except that under a held
 //!   key scrolls and a tile's focus glide evenly from move to move ([`Motion::GLIDE`], on every
 //!   tier); only a running animation asks for another frame.
-//! - **Theme**: every colour, type style, spacing, radius, scrim and focus treatment of the
+//! - **Theme**: every color, type style, spacing, radius, scrim and focus treatment of the
 //!   design, the canvas's fixed lines and the device tiers ([`theme`]).
 //!
 //! [`testing`] runs frames headless with scripted input, for this crate, the kit and the screens.

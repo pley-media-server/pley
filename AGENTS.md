@@ -20,7 +20,7 @@ Read the doc for the part you touch; they say how things work and why.
 | Android, Kodi, Roku, Samsung and LG apps | [docs/ANDROID.md](docs/ANDROID.md), [docs/KODI.md](docs/KODI.md), [docs/ROKU.md](docs/ROKU.md), [docs/TV_PLATFORMS.md](docs/TV_PLATFORMS.md) (Samsung), [docs/LG.md](docs/LG.md) |
 | Apple apps (iPhone, iPad, Mac, Apple TV) | [docs/APPLE.md](docs/APPLE.md) |
 | Docker, Unraid, Windows, services | [deploy/README.md](deploy/README.md) |
-| Licences and dependencies | [LICENSING.md](LICENSING.md) |
+| Licenses and dependencies | [LICENSING.md](LICENSING.md) |
 | Versions, changelogs, CI | [docs/RELEASING.md](docs/RELEASING.md) |
 
 ## Check your work
@@ -33,6 +33,7 @@ too, each app's workflow when that app changes.
 | Rust (server, transcoder, protocol) | `cargo clippy --workspace --all-targets`, `cargo fmt --all`, `cargo test -p <crate>` (the whole workspace before a large change) |
 | A Rust dependency | `scripts/check-licenses.ps1` and `cargo deny check licenses` |
 | Web or desktop app | `bun run check` (type check, ESLint, Vitest) |
+| Docs, or an app's English words | `bun scripts/check-spelling.mjs` |
 | Samsung app, `packages/tv` | `bun run tv:check` |
 | Native Samsung app (`apps/tizen-native`), `packages/tv/test/fixtures` | `dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests`, `dotnet build apps/tizen-native/src/Pley.Tv.Tizen` (and `bun run tv:check` for a fixture) |
 | A NuGet package | `bun scripts/check-nuget-licenses.mjs` after a build (`--write` when the packages the app ships change) |
@@ -44,9 +45,11 @@ too, each app's workflow when that app changes.
 | Docker image | built and checked by CI (`.github/workflows/server.yml`) |
 
 **Languages.** The server and every app (web and desktop, Samsung, LG,
-Android, Apple, Kodi and Roku) are in English, French and Spanish. As the
-last step of a change, put every word people read in each language: no
-text written into the code. Where each keeps its words:
+Android, Apple, Kodi and Roku) are in English, French, Spanish and Simplified
+and Traditional Chinese (`en`, `fr`, `es`, `zh-CN`, `zh-TW`; Apple's catalogs
+use `zh-Hans` and `zh-Hant`). As the last step of a change, put every word
+people read in each language: no text written into the code. Where each keeps
+its words:
 
 | App | Words | How |
 |---|---|---|
@@ -55,14 +58,16 @@ text written into the code. Where each keeps its words:
 | Samsung, web | `packages/tv/src/i18n/locales/<language>/<area>.json` | its own `t("key")` and `<Trans>`, in i18next's format |
 | Samsung, native | `apps/tizen-native/src/Pley.Tv.Core/Locales/<language>/<area>.json` | `Strings.T`, `Strings.Count`, in i18next's format |
 | LG | `apps/webos/crates/i18n/locales/<language>/<area>.json` | `pley_i18n::t!("area.key")`, checked against the English catalogs as the code builds; `t!("key", name = value)` for `{{name}}`, `count = n` for counts (in i18next's format) |
-| Android | `apps/android/**/src/main/res/values{,-fr,-es}/strings_<area>.xml` | Android resources: `stringResource`, `pluralStringResource` (one and other, plus many in French and Spanish); `UiText` for words made where nothing is drawn; the format functions' words from `formatWords` |
-| Kodi | `apps/kodi/plugin.video.pley/resources/language/resource.language.{en_gb,fr_fr,es_es}/strings.po` | Kodi's .po files, read by the add-on itself (`i18n.py`): `kodi.text("name")` by the names in `kodi.TEXT`, `kodi.count("name", n)` for counts (`kodi.COUNTS`: three ids in a row, one, many and other); `%s` for values, `{name}` where languages order them differently; the windows' XML through `layout.WORDS` |
+| Android | `apps/android/**/src/main/res/values{,-fr,-es,-zh-rCN,-zh-rTW}/strings_<area>.xml` | Android resources: `stringResource`, `pluralStringResource` (one and other, plus many in French and Spanish; only other in Chinese); `UiText` for words made where nothing is drawn; the format functions' words from `formatWords` |
+| Kodi | `apps/kodi/plugin.video.pley/resources/language/resource.language.{en_gb,fr_fr,es_es,zh_cn,zh_tw}/strings.po` | Kodi's .po files, read by the add-on itself (`i18n.py`): `kodi.text("name")` by the names in `kodi.TEXT`, `kodi.count("name", n)` for counts (`kodi.COUNTS`: three ids in a row, one, many and other); `%s` for values, `{name}` where languages order them differently; the windows' XML through `layout.WORDS` |
 | Roku | `apps/roku/locales/<language>/<area>.json` | its own `t("area.key")` (`components/lib/I18n.brs`), in i18next's format; component XML sets no text, the code does |
-| Apple | `apps/apple/{Pley,tvOS,TopShelf}/Localizable.xcstrings`, and `Localizable.xcstrings` in each PleyKit module with words | String Catalogs, the English the key: SwiftUI's literals (`Text("…")`, and `Text("…", bundle: .module)` in a module), `localized("…")` for words made in code, plural variations for counts (one and other, plus many in French and Spanish); `python3 apps/apple/scripts/check-strings.py` checks them |
+| Apple | `apps/apple/{Pley,tvOS,TopShelf}/Localizable.xcstrings`, and `Localizable.xcstrings` in each PleyKit module with words | String Catalogs, the English the key: SwiftUI's literals (`Text("…")`, and `Text("…", bundle: .module)` in a module), `localized("…")` for words made in code, plural variations for counts (one and other, plus many in French and Spanish; only other in Chinese); `python3 apps/apple/scripts/check-strings.py` checks them |
 
-Write English first, then French and Spanish as a native speaker would
+Write English first, then the other languages as a native speaker would
 put them, in Pley's tone, and check that they fit where the TVs' fixed
-layouts show them. Dates and numbers go through the language shown:
+layouts show them. Chinese counts every number the same way: one `other`
+form in each app, the same words in Kodi's three count ids. Dates and
+numbers go through the language shown:
 `currentLocale()` (`@/i18n`) on the web, `formatNumber`/`formatDate` in
 `packages/tv`, `Strings.Culture` in the native app, `pley_i18n::number`
 and `decimal` in the LG app, `shownLocale()` and `formatWords` on
@@ -81,9 +86,9 @@ claimed as checked.
 **Licensing** ([LICENSING.md](LICENSING.md)). Pley is under the GNU
 AGPL, version 3 only (`AGPL-3.0-only`, the root [LICENSE](LICENSE)); only
 the Kodi add-on is GPL-2.0-or-later. Contributions come under the same
-licences ([CONTRIBUTING.md](CONTRIBUTING.md)).
+licenses ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
-- Add no dependency that is only available under a copyleft licence (GPL,
+- Add no dependency that is only available under a copyleft license (GPL,
   LGPL, AGPL and the like) to the server, the transcoder or any app other
   than the Kodi add-on. `scripts/check-licenses.ps1` and `deny.toml` enforce
   this for Rust, `scripts/check-nuget-licenses.mjs` for the native Samsung
@@ -101,8 +106,8 @@ licences ([CONTRIBUTING.md](CONTRIBUTING.md)).
   TV's C library: SDL2, EGL and GLES, luna-service2, GLib and LG's media
   libraries are the TV's own, opened at run time with `dlopen`, never
   linked or shipped. `cargo xtask check` enforces the libraries and the
-  crates' licences.
-- Don't add licence texts or headers of your own; new transcoder files
+  crates' licenses.
+- Don't add license texts or headers of your own; new transcoder files
   start with `// SPDX-License-Identifier: AGPL-3.0-only`, as the
   others do.
 
@@ -150,6 +155,11 @@ anywhere else people can see.
 
 ## Writing
 
+- **English** is American in everything people read: color, favorite,
+  center, license, canceled, program, -ize. Names in code, the API and
+  file formats keep the spelling of what they name (XMLTV's
+  `<programme>`). `bun scripts/check-spelling.mjs` checks the docs and
+  the apps' English words.
 - **Code** reads like the code around it: its naming, structure, error
   handling and comment density. Comments explain why, in plain sentences.
 - **Docs** are plain and in the present tense: what Pley does, for whom,
@@ -222,7 +232,7 @@ anywhere else people can see.
 
 Every pull request and issue gets labels when it's opened (`gh pr create
 --label`, `gh issue create --label`), and one that came without them is
-labelled when it's picked up. `gh label list` has them all.
+labeled when it's picked up. `gh label list` has them all.
 
 - One kind: `bug`, `enhancement`, `documentation` for a change to docs
   alone, or `release` for a release's pull request.

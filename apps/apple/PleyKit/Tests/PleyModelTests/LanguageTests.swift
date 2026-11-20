@@ -34,17 +34,17 @@ struct LanguageTests {
 
     @Test(arguments: fixture.pickLanguage)
     private func picksAsTheOtherApps(_ c: Case) {
-        #expect(Language.pick(account: c.account, server: c.server, device: c.device).code == c.out)
+        #expect(Language.pick(account: c.account, server: c.server, device: c.device).serverCode == c.out)
     }
 
     @Test(arguments: fixture.pickLanguageWithChoice)
     private func aLanguagePickedOnTheDeviceComesBeforeItsOwn(_ c: Case) {
         let picked = Language.of(c.choice)
-        #expect(Language.pick(account: c.account, server: c.server, device: c.device, picked: picked).code == c.out)
+        #expect(Language.pick(account: c.account, server: c.server, device: c.device, picked: picked).serverCode == c.out)
     }
 
     @Test func theFixtureIsRead() {
-        #expect(Self.fixture.pickLanguage.count == 9 && Self.fixture.pickLanguageWithChoice.count == 6)
+        #expect(Self.fixture.pickLanguage.count == 12 && Self.fixture.pickLanguageWithChoice.count == 8)
     }
 
     @Test func tagsPleyHas() {
@@ -52,10 +52,24 @@ struct LanguageTests {
         #expect(Language.of(" FR_ca") == .french)
         #expect(Language.of("es-419") == .spanish)
         #expect(Language.of("en-GB") == .english)
+        #expect(Language.of("zh-Hans") == .simplifiedChinese)
+        #expect(Language.of("zh-CN") == .simplifiedChinese)
+        #expect(Language.of("zh") == .simplifiedChinese)
+        #expect(Language.of("zh-Hant") == .traditionalChinese)
+        #expect(Language.of("zh-TW") == .traditionalChinese)
+        #expect(Language.of("zh_HK") == .traditionalChinese)
+        #expect(Language.of("zh-MO") == .traditionalChinese)
         #expect(Language.of("de") == nil)
         #expect(Language.of("") == nil)
         #expect(Language.of(nil) == nil)
-        #expect(Language.ofDevice(["de-DE", "zh-Hans-CN", "es-MX", "fr-FR"]) == .spanish)
+        #expect(Language.ofDevice(["de-DE", "zh-Hans-CN", "es-MX", "fr-FR"]) == .simplifiedChinese)
+    }
+
+    @Test func theChineseNamesAndMarks() {
+        #expect(Language.simplifiedChinese.autonym == "简体中文")
+        #expect(Language.traditionalChinese.autonym == "繁體中文")
+        #expect(Language.simplifiedChinese.short == "简")
+        #expect(Language.traditionalChinese.short == "繁")
     }
 
     /// The device's own locale where it is in the language shown, so its region's ways stay.

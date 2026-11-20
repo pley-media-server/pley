@@ -78,7 +78,7 @@ import Testing
         // A section another device has isn't restored here.
         #expect(ShellModel(settings: settings, tv: true).section == .home)
         shell.sheet = .addToPlaylist([1])
-        shell.show("Added to Favourites")
+        shell.show("Added to Favorites")
         shell.reset()
         #expect(shell.section == .home)
         #expect(shell.paths.isEmpty)

@@ -40,7 +40,7 @@ public static class MediaFacts
         (Strings.T("item.mediaInfo.duration"), f.DurationMs > 0 ? Format.Duration(f.DurationMs) : null),
         (Strings.T("item.mediaInfo.overallBitrate"), ItemFormat.Bitrate(f.Bitrate)));
 
-    /// <summary>Codec, profile and level, size, frame rate, bit depth, HDR and Dolby Vision, colour, bitrate.</summary>
+    /// <summary>Codec, profile and level, size, frame rate, bit depth, HDR and Dolby Vision, color, bitrate.</summary>
     public static IReadOnlyList<MediaFact> Video(MediaStream s)
     {
         var rate = ItemFormat.FrameRateLabel(s.FrameRate);

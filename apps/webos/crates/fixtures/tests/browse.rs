@@ -189,10 +189,10 @@ fn home_search_and_collections() {
             "collections:30,31"
         ]
     );
-    // Holiday Favourites: both libraries' collections, one row opened as the merged page.
+    // Holiday Favorites: both libraries' collections, one row opened as the merged page.
     assert_eq!(hubs["hubs"][5]["collection_ids"], json!([ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS]));
     let merged = api.get(&format!("/api/collections/merged?ids={},{}", ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS)).json();
-    assert_eq!(merged["title"], "Holiday Favourites");
+    assert_eq!(merged["title"], "Holiday Favorites");
     assert_eq!(merged["collections"][1]["library_id"], ids::SHOWS);
     assert_eq!(merged["items"], hubs["hubs"][5]["items"]);
     assert_eq!(hubs["hubs"][0]["items"][0]["id"], 7, "the last played first");
@@ -245,7 +245,7 @@ fn playlists_made_changed_and_reordered() {
     let server = FixtureServer::start();
     let api = Api::alex(&server);
     let list = api.get("/api/playlists").json();
-    assert_eq!(titles(&list["playlists"]), ["Favourites", "Road Trip", "Unwatched Comedies"]);
+    assert_eq!(titles(&list["playlists"]), ["Favorites", "Road Trip", "Unwatched Comedies"]);
     let audio = api.get(&format!("/api/playlists/{}", ids::PLAYLIST_AUDIO)).json();
     assert_eq!(audio["kind"], "audio");
     assert_eq!(audio["entries"].as_array().unwrap().len(), 20);

@@ -163,7 +163,7 @@ sealed class StorageScreen : ShellPage
         }
         if (title != null)
         {
-            // Centred on the page, under its icon.
+            // Centered on the page, under its icon.
             var width = PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal;
             // Under the ".." line when there is one, where it was drawn over it.
             message.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(ListTop + (HasUp ? TrackLineView.IconLine + 24 : 40)));

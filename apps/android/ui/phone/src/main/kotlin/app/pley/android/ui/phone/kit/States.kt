@@ -39,7 +39,7 @@ import kotlinx.coroutines.delay
 /**
  * A page with nothing to show (design spec §8): an optional [icon], the
  * [title] in headlineSmall and the [body] (when there is one) in bodyMedium
- * [muted][PleyColors.Muted], centred, then an optional action ("Clear
+ * [muted][PleyColors.Muted], centered, then an optional action ("Clear
  * filters"). "No libraries yet", "Nothing here yet", "No matches".
  */
 @Composable

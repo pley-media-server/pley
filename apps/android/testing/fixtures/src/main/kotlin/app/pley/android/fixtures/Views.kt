@@ -21,7 +21,7 @@ import app.pley.android.model.SubtitleMode
 import app.pley.android.model.UserState
 
 /**
- * The catalogue as a profile sees it: its own positions, watched marks,
+ * The catalog as a profile sees it: its own positions, watched marks,
  * ratings and track choices in every item, playlist and collection.
  */
 internal class Views(private val catalog: Catalog) {

@@ -55,6 +55,7 @@ const CACHES: &[(&str, Duration)] = &[
     ("fingerprints", Duration::from_secs(90 * DAY)), // markers: audio fingerprints
     ("bif", Duration::from_secs(30 * DAY)),          // trickplay.rs: Plex's BIF indexes of seek previews
     ("discover", Duration::from_secs(30 * DAY)),     // discover/pictures.rs: TMDB's pictures
+    ("collections", Duration::from_secs(30 * DAY)),  // collection_art.rs: collections' drawn posters
 ];
 
 /// Hosts pictures may be downloaded from: metadata providers' image servers,
@@ -69,7 +70,16 @@ const IMAGE_HOSTS: &[&str] = &[
     "assets.fanart.tv",
     "theposterdb.com",
     "raw.githubusercontent.com",
+    // Audnexus's covers, Audible's.
+    "m.media-amazon.com",
+    // Open Library's, which redirect to the Internet Archive.
+    "covers.openlibrary.org",
+    "archive.org",
 ];
+
+/// The Internet Archive serves Open Library's covers from numbered servers
+/// (`ia801609.us.archive.org`).
+const IMAGE_HOST_SUFFIXES: &[&str] = &[".us.archive.org"];
 
 /// Whether a stored reference is a blob (as opposed to a local file path).
 pub fn is_blob(reference: &str) -> bool {
@@ -100,6 +110,10 @@ pub fn allowed_image_url(url: &str) -> bool {
     let Some(rest) = url.strip_prefix("https://") else { return false };
     let host = rest.split(['/', '?', '#']).next().unwrap_or_default();
     IMAGE_HOSTS.contains(&host)
+        || IMAGE_HOST_SUFFIXES.iter().any(|suffix| {
+            host.strip_suffix(suffix)
+                .is_some_and(|name| !name.is_empty() && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
+        })
 }
 
 /// The OpenSubtitles hash of a file: its size plus the sum of the 64-bit
@@ -450,7 +464,8 @@ impl Store {
              UNION SELECT thumb FROM items WHERE thumb LIKE 'blob:%'",
             "SELECT value FROM item_overrides WHERE value LIKE 'blob:%'",
             "SELECT poster FROM collections WHERE poster LIKE 'blob:%'
-             UNION SELECT backdrop FROM collections WHERE backdrop LIKE 'blob:%'",
+             UNION SELECT backdrop FROM collections WHERE backdrop LIKE 'blob:%'
+             UNION SELECT custom_poster FROM collections WHERE custom_poster LIKE 'blob:%'",
             // People's photos are only known by URL.
             "SELECT r.blob FROM remote_images r JOIN people p ON r.url = p.photo_url",
         ];
@@ -1110,10 +1125,22 @@ mod tests {
             "https://127.0.0.1/x.jpg",
             "file:///etc/passwd",
             "https://evil.example/x.jpg",
+            "https://us.archive.org/x.jpg",
+            "https://a.b.us.archive.org/x.jpg",
+            "https://evil.example/.us.archive.org/x.jpg",
+            "https://ia801609.us.archive.org:8080@127.0.0.1/x.jpg",
         ] {
             let err = store.remote(url).await.unwrap_err();
             assert!(err.to_string().contains("not downloaded"), "{url}: {err}");
         }
+    }
+
+    #[test]
+    fn audiobook_covers_hosts() {
+        assert!(allowed_image_url("https://m.media-amazon.com/images/I/91qW00x+vWL._SL1024_.jpg"));
+        assert!(allowed_image_url("https://covers.openlibrary.org/b/id/7-L.jpg"));
+        assert!(allowed_image_url("https://ia801609.us.archive.org/view_archive.php?archive=x&file=7-L.jpg"));
+        assert!(!allowed_image_url("http://ia801609.us.archive.org/x.jpg"));
     }
 
     #[test]

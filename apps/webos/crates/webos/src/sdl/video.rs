@@ -18,7 +18,7 @@ use pley_platform::VideoWindow;
 use super::{SdlRect, sdl};
 
 /// The video type of exported window (`SDL_WEBOS_EXPORED_WINDOW_TYPE_VIDEO`,
-/// spelt so in LG's header).
+/// spelled so in LG's header).
 const VIDEO: c_int = 0;
 
 /// The full 1920×1080 interface plane, the size placed when none is known.

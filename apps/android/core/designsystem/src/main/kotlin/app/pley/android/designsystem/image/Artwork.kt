@@ -147,7 +147,7 @@ private fun SuccessResult.fadeMillis(): Int =
 /**
  * A picture filling its box: [image]'s first address that loads, at the
  * box's width. Until then, and when none does, the title's gradient
- * ([Placeholder]) with [title] centred on it in [titleStyle] (none for
+ * ([Placeholder]) with [title] centered on it in [titleStyle] (none for
  * backdrops: leave [titleStyle] null); a picture that has loaded before
  * comes back without it, and without fading in, as none does with reduced
  * motion. Nothing here recomposes when the picture arrives: the
@@ -471,7 +471,7 @@ private fun wordsOf(text: String): List<String> {
 /**
  * A letter or digit of a word. Not in the scripts whose lines may break
  * between any two letters (Chinese, Japanese, Korean, Thai and their
- * neighbours): there a break is no broken word.
+ * neighbors): there a break is no broken word.
  */
 private fun Char.inWord(): Boolean = isLetterOrDigit() && when (Character.UnicodeScript.of(code)) {
     Character.UnicodeScript.HAN, Character.UnicodeScript.HIRAGANA, Character.UnicodeScript.KATAKANA,

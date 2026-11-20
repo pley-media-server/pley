@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Me (design spec §4.8; apps/web/src/pages/AccountPage.tsx). -->
+    <string name="account_me">我</string>
+    <string name="account_role_managed">受管設定檔</string>
+    <string name="account_switch_profile">切換設定檔</string>
+    <string name="account_activity">活動</string>
+    <string name="account_history">觀看歷史</string>
+    <string name="account_this_device">此裝置</string>
+    <string name="account_settings">設定</string>
+    <string name="account_settings_value">畫質、更新率、字幕、隱私</string>
+    <string name="account_diagnostics">診斷</string>
+    <string name="account_diagnostics_value">此裝置能播放什麼及原因</string>
+    <string name="account_account">帳戶</string>
+    <string name="account_manage_web">在網頁版管理你的帳戶</string>
+    <string name="account_manage_web_value">名稱、頭像、密碼、PIN、兩步驗證、裝置和應用</string>
+    <string name="account_link_tv">關聯電視</string>
+    <string name="account_link_tv_value">輸入電視上顯示的驗證碼</string>
+    <string name="account_switch_server">切換伺服器</string>
+    <string name="account_sign_out">登出</string>
+    <string name="account_sign_out_title">登出？</string>
+    <string name="account_sign_out_body">你將登出 %1$s。</string>
+    <string name="account_version">Pley %1$s Android 版</string>
+
+    <!-- Track defaults (AccountPage.tsx PlaybackCard). -->
+    <string name="account_audio_and_subtitles">音訊和字幕</string>
+    <string name="account_defaults_footer">在你為某個影片選擇軌道前一直生效。你的選擇會按影片分別記住。</string>
+    <string name="account_defaults_web_only">此伺服器只允許在網頁版更改這些設定。</string>
+    <string name="account_defaults_read_only">此伺服器不允許應用更改這些設定：請在網頁版中更改</string>
+    <string name="account_change_on_web">在網頁版更改</string>
+    <string name="account_audio_language">音訊語言</string>
+    <string name="account_subtitles">字幕</string>
+    <string name="account_subtitle_language">字幕語言</string>
+    <string name="account_language_file_default">檔案預設</string>
+    <string name="account_language_same_as_audio">與音訊語言相同</string>
+    <string name="account_subtitles_off">關閉</string>
+    <string name="account_subtitles_off_hint">字幕保持關閉，直到你手動開啟。</string>
+    <string name="account_subtitles_forced">僅外語對白</string>
+    <string name="account_subtitles_forced_hint">僅顯示強制字幕，用於標牌和外語對白。</string>
+    <string name="account_subtitles_foreign">音訊為其他語言時</string>
+    <string name="account_subtitles_foreign_hint">當音訊語言與你的字幕語言不同時，自動開啟完整字幕。</string>
+    <string name="account_subtitles_always">總是</string>
+    <string name="account_subtitles_always_hint">只要有你語言的字幕就自動開啟。</string>
+    <string name="account_saved_audio">音訊語言已儲存</string>
+    <string name="account_saved_subtitles">字幕設定已儲存</string>
+    <string name="account_saved_subtitle_language">字幕語言已儲存</string>
+
+    <!-- Watch history (apps/web/src/components/HistoryList.tsx). -->
+    <string name="account_history_empty_title">暫無歷史記錄</string>
+    <string name="account_history_empty">看完的電影、劇集和歌曲會顯示在這裡。</string>
+    <string name="account_history_failed">無法載入觀看歷史</string>
+    <string name="account_history_more">顯示更多</string>
+    <string name="account_history_loading">載入更多…</string>
+    <string name="account_history_remove">從歷史記錄中移除 %1$s</string>
+
+    <!-- Settings: this device's own. -->
+    <string name="settings_playback">播放</string>
+    <string name="settings_quality_home">Wi-Fi 下的畫質</string>
+    <string name="settings_quality_mobile">行動數據下的畫質</string>
+    <string name="settings_quality_original">原始</string>
+    <string name="settings_quality_original_hint">原始畫質。網路較慢時可能卡頓緩衝。</string>
+    <string name="settings_quality_automatic">自動</string>
+    <string name="settings_quality_automatic_hint">根據網路情況動態調整。</string>
+    <!-- "8 Mbps 1080p", "30 Mbps 4K": the lines, then the bitrate. -->
+    <string name="settings_quality_preset">%2$d Mbps %1$s</string>
+    <string name="settings_refresh_rate">匹配更新率</string>
+    <string name="settings_refresh_seamless">無縫時</string>
+    <string name="settings_refresh_seamless_hint">在不中斷播放的情況下，讓螢幕跟隨影片幀率。</string>
+    <string name="settings_refresh_auto">自動</string>
+    <string name="settings_refresh_always">總是</string>
+    <string name="settings_refresh_off">關閉</string>
+    <string name="settings_refresh_off_hint">螢幕保持自身更新率。</string>
+    <string name="settings_autoplay">自動播放下一集</string>
+    <string name="settings_autoplay_hint">倒計時 10 秒後</string>
+    <string name="settings_playback_details">播放詳情</string>
+    <string name="settings_playback_details_hint">在畫面上顯示影片的播放方式（直接播放、重封裝或轉碼）</string>
+    <string name="settings_subtitle_style">字幕樣式</string>
+    <string name="settings_subtitle_style_hint">在 Android 無障礙設定中開啟的字幕會保持其自身樣式，直到你在此更改。</string>
+    <string name="settings_subtitle_size">字號</string>
+    <string name="settings_size_small">小</string>
+    <string name="settings_size_medium">正常</string>
+    <string name="settings_size_large">大</string>
+    <string name="settings_size_largest">超大</string>
+    <string name="settings_subtitle_background">背景</string>
+    <string name="settings_background_none">無</string>
+    <string name="settings_background_box">深色底框</string>
+    <string name="settings_subtitle_font">字型</string>
+    <!-- The system's own typefaces. -->
+    <string name="settings_font_sans">無襯線</string>
+    <string name="settings_font_serif">襯線</string>
+    <string name="settings_font_monospace">等寬</string>
+    <string name="settings_font_casual">休閒</string>
+    <string name="settings_subtitle_position">位置</string>
+    <!-- How far subtitles are raised from the bottom of the picture. -->
+    <string name="settings_position_bottom">底部</string>
+    <string name="settings_position_raised">略高</string>
+    <string name="settings_position_higher">較高</string>
+    <string name="settings_position_highest">最高</string>
+    <string name="settings_display">顯示</string>
+    <string name="settings_grid_density">網格密度</string>
+    <string name="settings_density_small">更多、更小的卡片</string>
+    <string name="settings_density_medium">中等</string>
+    <string name="settings_density_large">更少、更大的卡片</string>
+    <string name="settings_privacy">隱私</string>
+    <string name="settings_private_tab">在無痕標籤頁中登入</string>
+    <string name="settings_private_tab_hint">瀏覽器不會保持登入狀態，因此每次都要輸入密碼</string>
+    <string name="settings_advanced">高階</string>
+    <string name="settings_software_video">軟體影片解碼</string>
+    <string name="settings_software_video_hint">除錯版本：讓模擬器在沒有硬體解碼器時也能播放影片</string>
+    <string name="settings_about">關於</string>
+    <string name="settings_version">版本</string>
+    <string name="settings_licences">開源許可</string>
+    <string name="settings_licences_value" translatable="false">AndroidX, Media3, OkHttp, Coil, kotlinx, Lucide, QR Code generator</string>
+
+    <!-- Diagnostics. -->
+    <string name="diagnostics_device">此裝置</string>
+    <string name="diagnostics_app">應用</string>
+    <string name="diagnostics_app_value" translatable="false">Pley %1$s</string>
+    <string name="diagnostics_plays">播放能力</string>
+    <string name="diagnostics_probing">正在檢查此裝置的播放能力…</string>
+    <string name="diagnostics_probe_failed">此裝置檢測失敗。</string>
+    <string name="diagnostics_probe_again">重新檢測</string>
+    <string name="diagnostics_report">Pley 向伺服器報告的資訊</string>
+    <string name="diagnostics_show_frame_rate">顯示幀率</string>
+    <string name="diagnostics_show_frame_rate_hint">播放時在頂部顯示：每秒幀數、最長幀和延遲幀</string>
+    <string name="diagnostics_copy">複製</string>
+    <string name="diagnostics_copied">已複製</string>
+</resources>

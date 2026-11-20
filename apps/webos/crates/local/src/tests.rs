@@ -309,7 +309,7 @@ fn reading_a_track_stops_when_asked() {
 #[test]
 fn a_dolby_vision_file_without_its_colour_says_hdr10plus_when_its_frames_carry_it() {
     // Profile 8.1 (dvcC: version 1.0, profile 8 level 6, base layer 1), no
-    // Colour element, HDR10+ in the first frame.
+    // Color element, HDR10+ in the first frame.
     let dvcc = vec![1, 0, 8 << 1, 6 << 3, 1 << 4, 0, 0, 0];
     let mapping = el(0x41E4, &[el(0x41E7, &[u(0x64766343)]), el(0x41ED, &[dvcc])]);
     let entry = el(0xAE, &[el(0xD7, &[u(1)]), el(0x83, &[u(1)]), el(0x86, &[s("V_MPEGH/ISO/HEVC")]), mapping]);

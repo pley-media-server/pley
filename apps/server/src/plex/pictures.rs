@@ -107,15 +107,15 @@ async fn current(state: &AppState, user: &AuthUser, key: i64, kind: Kind) -> Ple
             let (collection, ..) = super::lists::collection_for(state, user, id).await?;
             let column = if kind == Kind::Poster { "poster" } else { "backdrop" };
             // `column` is one of two of collections' columns.
-            let own: bool = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
-                "SELECT {column} IS NOT NULL FROM collections WHERE id = ?"
+            let (own, uploaded): (bool, bool) = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+                "SELECT {column} IS NOT NULL, custom_poster IS NOT NULL FROM collections WHERE id = ?"
             )))
             .bind(id)
             .fetch_one(&state.db.read)
             .await?;
-            // Its own, set by hand unless it came with an automatic
-            // collection; else its first item's.
-            let by_hand = own && !collection.automatic;
+            // An uploaded poster, or its own set by hand unless it came with
+            // an automatic collection; else TMDB's or its first item's.
+            let by_hand = (kind == Kind::Poster && uploaded) || (own && !collection.automatic);
             Ok(Some(named(kind, by_hand, collection.updated_at, "tv.plex.agents.movie")))
         }
         Key::Playlist(id) => {

@@ -126,7 +126,14 @@ describe("the globe on Choose your server", () => {
     act(() => void focus.focus(globe()));
     press("ok");
     expect(document.querySelector(".side-panel .panel-title")!.textContent).toBe("Choose a language");
-    expect(rows().map((r) => r.textContent)).toEqual(["Automatic (English)", "English", "Français", "Español"]);
+    expect(rows().map((r) => r.textContent)).toEqual([
+      "Automatic (English)",
+      "English",
+      "Français",
+      "Español",
+      "简体中文",
+      "繁體中文",
+    ]);
     expect(checked()).toEqual(["Automatic (English)"]);
     expect(focus.current?.textContent).toBe("Automatic (English)");
   });
@@ -146,7 +153,14 @@ describe("the globe on Choose your server", () => {
     expect(focus.current).toBe(globe());
 
     press("ok");
-    expect(rows().map((r) => r.textContent)).toEqual(["Automatique (English)", "English", "Français", "Español"]);
+    expect(rows().map((r) => r.textContent)).toEqual([
+      "Automatique (English)",
+      "English",
+      "Français",
+      "Español",
+      "简体中文",
+      "繁體中文",
+    ]);
     expect(checked()).toEqual(["Français"]);
     expect(focus.current?.textContent).toBe("Français");
   });
@@ -174,7 +188,7 @@ describe("the globe on Choose your server", () => {
     expect(page.querySelector(".address-entry")).not.toBeNull();
     act(() => void focus.focus(globe()));
     press("ok");
-    expect(rows()).toHaveLength(4);
+    expect(rows()).toHaveLength(6);
     press("back");
     expect(document.querySelector(".side-panel")).toBeNull();
     expect(page.querySelector(".address-entry")).not.toBeNull();

@@ -1,7 +1,7 @@
-//! Numbers as the language shown writes them, as CLDR has it: English groups thousands with a
-//! comma and writes a decimal point ("12,345.5"); French groups with a no-break space and writes a
-//! decimal comma ("12 345,5"); Spanish groups with a point from five digits on and writes a decimal
-//! comma ("1234,5", "12.345,5").
+//! Numbers as the language shown writes them, as CLDR has it: English and Chinese group thousands
+//! with a comma and write a decimal point ("12,345.5"); French groups with a no-break space and
+//! writes a decimal comma ("12 345,5"); Spanish groups with a point from five digits on and writes
+//! a decimal comma ("1234,5", "12.345,5").
 
 use crate::{Language, language};
 
@@ -17,7 +17,7 @@ pub fn number(n: i64) -> String {
 pub(crate) fn group(language: Language, n: i64) -> String {
     let digits = n.unsigned_abs().to_string();
     let (separator, least) = match language {
-        Language::En => (',', 4),
+        Language::En | Language::ZhCn | Language::ZhTw => (',', 4),
         Language::Fr => (NO_BREAK_SPACE, 4),
         // Spanish leaves four digits whole: "1234", "12.345".
         Language::Es => ('.', 5),
@@ -58,7 +58,7 @@ pub(crate) fn write_decimal(language: Language, v: f64, places: usize) -> String
         out.insert(0, '-');
     }
     if let Some(f) = fraction {
-        out.push(if language == Language::En { '.' } else { ',' });
+        out.push(if matches!(language, Language::En | Language::ZhCn | Language::ZhTw) { '.' } else { ',' });
         out.push_str(f);
     }
     out

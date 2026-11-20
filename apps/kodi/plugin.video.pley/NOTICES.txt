@@ -4,14 +4,14 @@ Copyright (C) the Pley authors
 Pley for Kodi is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free
 Software Foundation, either version 2 of the License, or (at your option)
-any later version. It comes with ABSOLUTELY NO WARRANTY. The licence is in
+any later version. It comes with ABSOLUTELY NO WARRANTY. The license is in
 LICENSE.txt.
 
 ---
 
 The add-on's pictures (resources/skins/default/media) are drawn from
 Lucide's icons (https://lucide.dev), lucide-react 1.61.0, under this
-licence:
+license:
 
 ISC License
 

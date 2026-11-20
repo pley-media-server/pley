@@ -18,14 +18,14 @@ const HEAD_TOP = 132;
 const ROWS_TOP = 164;
 /** A row is 52 high, 6 apart. */
 const PITCH = 58;
-/** The channels' column, and the programmes' box right of it (to 912). */
+/** The channels' column, and the programs' box right of it (to 912). */
 const CHANNEL_W = 184;
 const PROGRAMS_LEFT = 96 + CHANNEL_W + 8;
 const PROGRAMS_W = 912 - PROGRAMS_LEFT;
 /** Four px a minute: two and a half hours show. */
 const PX_PER_SEC = 4 / 60;
 const VIEW_SPAN = PROGRAMS_W / PX_PER_SEC;
-/** Programmes drawn either side of what shows, so the remote moves into them without waiting. */
+/** Programs drawn either side of what shows, so the remote moves into them without waiting. */
 const DRAW_BEFORE = 2 * 3600;
 const DRAW_AFTER = 4 * 3600;
 /** The focused row sits this many rows from the top once the guide scrolls. */
@@ -47,7 +47,7 @@ function slotOf(t: number): number {
 /**
  * The guide (the web's GuideGrid on a TV): channels down and time across,
  * now marked, two and a half hours in view. Up and Down keep the time
- * focus is at; Left and Right go programme by programme, the guide moving
+ * focus is at; Left and Right go program by program, the guide moving
  * through time as they leave what shows; rewind and fast-forward move it
  * two hours; Back goes back to now first; Left from the channels opens
  * the categories. Only the rows near the screen are drawn: their page of
@@ -174,7 +174,7 @@ export function LiveGuide(p: {
     if (inChannels.current) return el.querySelector<HTMLElement>(".guide-channel");
     return cellIn(el, cursor.current);
   };
-  // Right past the programmes drawn: the guide moves on, and focus to the next one. Left of the channels: the categories.
+  // Right past the programs drawn: the guide moves on, and focus to the next one. Left of the channels: the categories.
   const onRowEdge = (dir: Dir, from: HTMLElement): boolean => {
     if (dir === "left" && from.classList.contains("guide-channel")) {
       p.onCategories();
@@ -357,7 +357,7 @@ interface RowProps {
   onDetails: (c: LiveChannel, program: LiveProgram | null) => void;
 }
 
-/** One channel's row: its logo, number and name, then its programmes, drawn again only when they or the time shown change. */
+/** One channel's row: its logo, number and name, then its programs, drawn again only when they or the time shown change. */
 const GuideRow = memo(function GuideRow(p: RowProps) {
   const c = p.channel;
   const group = useRef<HTMLElement | null>(null);

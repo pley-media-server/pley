@@ -50,7 +50,7 @@ pub use xml::Node;
 /// Plex version reported to clients. Tools gate features on it.
 pub const PLEX_VERSION: &str = concat!("1.41.0.0-pley.", env!("CARGO_PKG_VERSION"));
 
-/// The Plex API as a service: paths are normalised before routing.
+/// The Plex API as a service: paths are normalized before routing.
 pub type Service = MapRequest<Router, fn(Request) -> Request>;
 
 pub fn service(state: AppState) -> Service {
@@ -382,7 +382,7 @@ fn normalize(mut req: Request) -> Request {
 
 // ------------------------------------------------------------------ rendering
 
-/// Handlers return a [`Node`]; it is serialised here once the requested
+/// Handlers return a [`Node`]; it is serialized here once the requested
 /// format (XML or JSON) is known.
 #[derive(Clone)]
 struct NodeBody(Arc<Node>);

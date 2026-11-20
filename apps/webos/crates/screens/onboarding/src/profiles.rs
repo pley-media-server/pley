@@ -1,5 +1,5 @@
 //! "Who's watching?" (`TvProfilesScreen.kt`, `ProfilesViewModel.kt`; the TV app's
-//! `onboarding/profiles.tsx`): the household in one centred row, the PIN pad of a profile that
+//! `onboarding/profiles.tsx`): the household in one centered row, the PIN pad of a profile that
 //! has one, and approval on a phone for a profile that needs its password. The steps replace each
 //! other with a 200 ms crossfade, and Back on the PIN pad or the approval returns to the row.
 //!
@@ -39,7 +39,7 @@ pub fn enter_pin(name: &str) -> String {
     t!("profiles.pin.title", name = name)
 }
 
-/// The left edge of the row of `n` profiles with the one at `focused` focused: centred while
+/// The left edge of the row of `n` profiles with the one at `focused` focused: centered while
 /// they fit, else the focused one's left edge at x 288, never past 48 from either end.
 pub fn row_left(n: usize, focused: usize) -> f32 {
     let span = n as f32 * AVATAR + n.saturating_sub(1) as f32 * AVATAR_GAP;
@@ -491,7 +491,7 @@ impl ProfilesScreen {
             }
         });
 
-        // Under the row at y 400, centred and 12 apart: what went wrong, Retry, another profile.
+        // Under the row at y 400, centered and 12 apart: what went wrong, Retry, another profile.
         let mut y = 400.0;
         if let Some(e) = &self.error {
             let opts = TextOpts::wrap(560.0, 0).aligned(pley_base::Align::Center);
@@ -792,7 +792,7 @@ mod tests {
 
     #[test]
     fn the_row_centres_or_scrolls_to_the_focused_profile() {
-        // Three: 100 + 40 + 100 + 40 + 100 = 380, centred.
+        // Three: 100 + 40 + 100 + 40 + 100 = 380, centered.
         assert_eq!(row_left(3, 0), (960.0 - 380.0) / 2.0);
         // Ten: the focused one's left edge at 288, never past 48 from either end.
         assert_eq!(row_left(10, 0), 48.0);

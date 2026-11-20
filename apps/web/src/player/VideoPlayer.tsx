@@ -307,7 +307,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
    * a session starts or hls.js reattaches): only then is its time the playhead.
    */
   const mediaShown = useRef(false);
-  /** POST /api/playback of the previous run, which ends its own session if that run was cancelled. */
+  /** POST /api/playback of the previous run, which ends its own session if that run was canceled. */
   const pendingStartRef = useRef<Promise<void>>(Promise.resolve());
   /** A new session or a seek: waits for data don't count for Automatic until it plays again. */
   const autoSettling = useRef(true);
@@ -748,7 +748,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
      * tab's sessions itself before it starts another (and before it checks
      * its transcode limit), unless it was prepared alongside. It does wait
      * for the previous run's start, which ends its own session if that run
-     * was cancelled.
+     * was canceled.
      */
     const release = (at: number) => {
       recoveries.current.network = 0;
@@ -806,7 +806,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     };
 
     // The new session is recorded as soon as it plays, so the next run (or
-    // unmount) ends it; a run cancelled before that ends it here instead.
+    // unmount) ends it; a run canceled before that ends it here instead.
     const acquired = (async (): Promise<PlaybackInfo | null> => {
       await previousStart;
       if (cancelled) return null;

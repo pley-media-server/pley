@@ -191,7 +191,7 @@ pub async fn start(
     req.fmp4_segments = state.transcoder.info().is_some_and(|info| info.capabilities.fmp4_segments);
     let settings = state.settings.get();
     // Music and audiobooks have no video: a track or part is converted as
-    // ever, also one never analysed, whose streams aren't known to be sound
+    // ever, also one never analyzed, whose streams aren't known to be sound
     // alone.
     req.copy_video_only = !settings.transcode_video && !matches!(row.kind.as_str(), "track" | "part");
     if !matches!(row.kind.as_str(), "movie" | "episode" | "track" | "part" | "extra") {

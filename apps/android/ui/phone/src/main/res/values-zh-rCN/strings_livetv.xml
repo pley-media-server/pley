@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Live TV's page (apps/web/src/pages/livetv/LiveTvPage.tsx). -->
+    <string name="livetv_title">直播电视</string>
+    <plurals name="livetv_entry_channels">
+        <item quantity="other">%1$,d 个频道</item>
+    </plurals>
+    <string name="livetv_show_guide">显示节目指南</string>
+    <string name="livetv_show_channels">显示频道</string>
+    <string name="livetv_search">搜索频道、分组和节目</string>
+    <string name="livetv_search_clear">清除</string>
+    <string name="livetv_failed">直播电视加载失败</string>
+    <string name="livetv_not_allowed_title">此配置文件无法使用直播电视</string>
+    <string name="livetv_not_allowed_body">管理员可在 Pley 网页版的“设置 → 直播电视”中开启。</string>
+    <string name="livetv_none_title">暂无频道</string>
+    <string name="livetv_none_body">管理员在 Pley 网页版中添加 IPTV 提供商后，频道会显示在这里。</string>
+    <string name="livetv_no_match_title">没有匹配的频道</string>
+    <string name="livetv_no_match_search">没有频道名称、频道号或正在播放的节目包含“%1$s”。</string>
+    <string name="livetv_no_match_group">此分组中没有频道。</string>
+    <string name="livetv_categories">频道分组</string>
+    <string name="livetv_category_all">所有频道</string>
+    <string name="livetv_category_favorites">收藏</string>
+    <string name="livetv_category_recent">最近观看</string>
+    <string name="livetv_groups">分组</string>
+    <string name="livetv_regions">地区</string>
+    <string name="livetv_more_groups">更多分组</string>
+    <string name="livetv_no_group_name">未分组</string>
+    <string name="livetv_found_groups">分组</string>
+    <string name="livetv_results_for">“%1$s”的搜索结果</string>
+    <string name="livetv_none_favorites_title">暂无收藏</string>
+    <string name="livetv_none_favorites_body">收藏频道后即可在这里找到。</string>
+    <string name="livetv_none_recent_title">暂无观看记录</string>
+    <string name="livetv_none_recent_body">你观看过的频道会显示在这里，最近观看的排在前面。</string>
+    <string name="livetv_favorite_failed">收藏失败：%1$s</string>
+
+    <!-- What's on. -->
+    <string name="livetv_nothing_now">当前节目指南中没有内容</string>
+    <string name="livetv_no_guide">此频道没有节目指南</string>
+    <string name="livetv_no_info">此时段没有信息</string>
+    <string name="livetv_next">接下来 %1$s · %2$s</string>
+    <string name="livetv_span" translatable="false">%1$s – %2$s</string>
+    <plurals name="livetv_minutes_left">
+        <item quantity="other">剩余 %1$d 分钟</item>
+    </plurals>
+    <plurals name="livetv_hours_left">
+        <item quantity="other">剩余 %1$d 小时</item>
+    </plurals>
+    <string name="livetv_hours_minutes_left">剩余 %1$d 小时 %2$d 分钟</string>
+    <string name="livetv_today">今天</string>
+    <string name="livetv_tomorrow">明天</string>
+    <string name="livetv_yesterday">昨天</string>
+    <string name="livetv_now">现在</string>
+    <string name="livetv_badge_live">直播</string>
+    <string name="livetv_badge_new">新</string>
+    <string name="livetv_on_now">正在播出</string>
+    <string name="livetv_watch">观看 %1$s</string>
+    <string name="livetv_watch_with_now">观看 %1$s，正在播出：%2$s</string>
+
+    <!-- A programme's details (ProgramModal.tsx). -->
+    <string name="livetv_watch_now">立即观看</string>
+    <string name="livetv_watch_channel">观看频道</string>
+    <string name="livetv_favorite_add">添加到收藏</string>
+    <string name="livetv_favorite_remove">从收藏移除</string>
+    <string name="livetv_favorite_on">已收藏</string>
+    <string name="livetv_no_description">节目指南没有更多介绍。</string>
+    <string name="livetv_ended">已结束。</string>
+    <string name="livetv_episode">S%1$d E%2$d</string>
+    <string name="livetv_episode_only">E%1$d</string>
+
+    <!-- The live player (apps/web/src/player/live/LivePlayerPage.tsx). -->
+    <string name="live_player_back">返回</string>
+    <string name="live_player_tuning">调台中…</string>
+    <string name="live_player_channels">频道</string>
+    <string name="live_player_change_group">切换分组</string>
+    <string name="live_player_search">搜索频道</string>
+    <string name="live_player_channel_up">上一个频道</string>
+    <string name="live_player_channel_down">下一个频道</string>
+    <string name="live_player_live">直播</string>
+    <string name="live_player_radio">仅声音</string>
+    <string name="live_player_no_channel">没有频道 %1$s</string>
+    <string name="live_player_retry">重试</string>
+    <string name="live_player_other_channels">其他频道</string>
+    <string name="live_player_back_to_guide">返回节目指南</string>
+    <string name="live_player_busy">所有连接都已占用</string>
+    <plurals name="live_player_connections_watching">
+        <item quantity="other">有 %1$d 个连接正在观看：</item>
+    </plurals>
+    <string name="live_player_held_by_you">你，在另一台设备上</string>
+    <plurals name="live_player_held_by_people">
+        <item quantity="other">%1$d 人</item>
+    </plurals>
+    <string name="live_player_take_over">改为在此观看</string>
+    <string name="live_player_none_to_take">可以加入已在观看的频道，或等某个频道停止后再试。</string>
+    <string name="live_player_stopped">直播电视已停止</string>
+    <string name="live_player_watch_again">重新观看</string>
+    <string name="live_player_missing">此频道已不可用</string>
+    <string name="live_player_not_allowed">此配置文件无法使用直播电视</string>
+    <string name="live_player_unavailable">%1$s 未播放</string>
+    <string name="live_player_offline">无法连接服务器</string>
+    <string name="live_player_failed">%1$s 未能启动</string>
+</resources>

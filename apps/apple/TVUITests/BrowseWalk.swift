@@ -46,7 +46,7 @@ extension Walk {
             remote.press(.down)
         }
         focus(tile, "the movie", first: [.left, .down])
-        // `hasFocus` can say yes of the first tile while its neighbour has
+        // `hasFocus` can say yes of the first tile while its neighbor has
         // the focus. The tile is its row's first: Left from anywhere in the
         // row comes to it, and stops there.
         press(.left, 3)

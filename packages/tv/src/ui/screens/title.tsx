@@ -362,7 +362,7 @@ function TitleHero(p: {
   );
 }
 
-/** Under a season's name: its own stage from its request in the stage's colour, else what it holds or when it airs. */
+/** Under a season's name: its own stage from its request in the stage's color, else what it holds or when it airs. */
 function seasonCaption(s: DiscoverSeason, stage: { text: string; tone: Tone } | null): { text: string; tone: Tone | null } {
   if (stage) return { text: stage.text, tone: stage.tone };
   if (s.state === "unaired") return { text: seasonLine(s), tone: null };

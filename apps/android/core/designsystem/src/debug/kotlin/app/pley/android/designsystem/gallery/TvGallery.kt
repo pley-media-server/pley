@@ -140,7 +140,7 @@ private fun Section(title: String) {
 private fun TvRow(models: List<app.pley.android.designsystem.tile.ArtworkTileModel>, kind: TileKind, glow: Boolean) {
     // A lazy row clips 15 dp beyond its height; the focused tile's growth,
     // ring and glow reach further, so the row is laid out 28 dp taller on
-    // each side and pulled back over its neighbours.
+    // each side and pulled back over its neighbors.
     LazyRow(
         modifier = Modifier.bleed(28.dp),
         contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeEnd + kind.tvWidth, top = 28.dp, bottom = 28.dp),

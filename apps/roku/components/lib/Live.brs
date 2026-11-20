@@ -26,7 +26,7 @@ function liveGuideSpan() as integer
 end function
 
 ' Where the guide starts: the half hour before the one now is in, so the
-' programme on now shows whole.
+' program on now shows whole.
 function liveGuideStart(now as integer) as integer
     return Int(now / 1800) * 1800 - 1800
 end function
@@ -35,7 +35,7 @@ end function
 
 ' A category: "all", "favorites", "recent" or "group:<name>", as the web
 ' app writes them, or "search:<query>", every channel whose name, number
-' or programme on now has the query in it. The query GET /api/live/browse
+' or program on now has the query in it. The query GET /api/live/browse
 ' takes for it.
 function liveBrowseQuery(category as string, offset as integer, limit as integer) as object
     query = { category: "all", offset: offset, limit: limit }
@@ -118,7 +118,7 @@ function liveGroups(answer as dynamic) as object
     return out
 end function
 
-' What a category is called: "Favourites", "UK · Sport".
+' What a category is called: "Favorites", "UK · Sport".
 function liveCategoryName(category as string, groups as object) as string
     if Left(category, 7) = "search:" then return t("livetv.categories.resultsFor", { search: Mid(category, 8) })
     if category = "favorites" then return t("livetv.categories.favourites")
@@ -253,7 +253,7 @@ end function
 
 ' The categories down the side, under the Search entry pinned above them:
 ' the groups whose names match the words searched for, as links,
-' Favourites, Recently watched, All channels, then "Regions" in
+' Favorites, Recently watched, All channels, then "Regions" in
 ' alphabetical order, the one open with its groups under it, and "More
 ' groups", the rest in the provider's order (one plain list, "Groups",
 ' with fewer than two regions). [{ kind ("category", "region" or
@@ -345,13 +345,13 @@ end function
 
 ' --- Channels ---
 
-' The words a programme may take: its badges, and its title when it has
-' none. A list of programmes looks them up once, before it.
+' The words a program may take: its badges, and its title when it has
+' none. A list of programs looks them up once, before it.
 function liveProgramWords() as object
     return { untitled: t("livetv.program.untitled"), live: t("livetv.program.live"), fresh: t("livetv.program.new") }
 end function
 
-' A programme as the screens keep it: { start, ends, title, line,
+' A program as the screens keep it: { start, ends, title, line,
 ' description, badges, live, isNew }, or invalid for none (or one that
 ' ends before it starts). words: liveProgramWords', invalid to look them
 ' up.
@@ -450,7 +450,7 @@ function liveOnNow(channel as object, now as integer) as dynamic
     return invalid
 end function
 
-' Whether a programme listed as on now has ended on one of channels,
+' Whether a program listed as on now has ended on one of channels,
 ' from index from to upto - 1 (those in view): what they show is then
 ' asked for again, as on Android.
 function liveNowEnded(channels as object, from as integer, upto as integer, now as integer) as boolean
@@ -620,8 +620,8 @@ end function
 
 ' --- The guide ---
 
-' Programmes of GET /api/live/guide added to kept ({ "<channel id>": {
-' "<start>": programme } }), each once.
+' Programs of GET /api/live/guide added to kept ({ "<channel id>": {
+' "<start>": program } }), each once.
 sub liveGuideKeep(kept as object, programs as dynamic)
     byChannel = httpObject(programs)
     if byChannel = invalid then return
@@ -638,8 +638,8 @@ sub liveGuideKeep(kept as object, programs as dynamic)
     end for
 end sub
 
-' A channel's programmes kept, by start, none overlapping the one before
-' (the TimeGrid draws nothing of programmes that overlap).
+' A channel's programs kept, by start, none overlapping the one before
+' (the TimeGrid draws nothing of programs that overlap).
 function liveGuidePrograms(kept as object, channelId as integer) as object
     known = kept["c" + channelId.ToStr()]
     if known = invalid then return []
@@ -671,7 +671,7 @@ end function
 ' logo doesn't show, the logo, its id) and programs its children's
 ' (TITLE, PLAYSTART, PLAYDURATION; the details as the screen above the
 ' grid shows them). Between from and upto (what is fetched), time the
-' guide says nothing of is a programme too (id "gap"), else the TimeGrid
+' guide says nothing of is a program too (id "gap"), else the TimeGrid
 ' would say it is still loading: "No guide information", or across a
 ' channel without a guide, its name.
 function liveGuideRows(channels as object, kept as object, from as integer, upto as integer) as object
@@ -719,8 +719,8 @@ end function
 
 ' Whether the guide is away from now, so that Back brings it back first:
 ' now isn't in the time shown (left, and shown seconds on), or the
-' programme in focus (from, upto; upto 0 for none) isn't on at now. Time
-' without a guide is a programme too (liveGuideRows), on now where it
+' program in focus (from, upto; upto 0 for none) isn't on at now. Time
+' without a guide is a program too (liveGuideRows), on now where it
 ' spans now.
 function liveGuideAway(left as integer, shown as integer, from as integer, upto as integer, now as integer) as boolean
     if now < left or now >= left + shown then return true

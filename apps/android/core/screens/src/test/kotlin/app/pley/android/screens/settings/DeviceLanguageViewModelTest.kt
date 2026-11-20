@@ -21,7 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * The globe of the screens before signing in: labelled with the language
+ * The globe of the screens before signing in: labeled with the language
  * shown; "Automatic" (the system's language where Pley has it, else
  * English), then each language by its own name, the pick checked. A pick
  * is this device's; Automatic forgets it.
@@ -59,8 +59,27 @@ class DeviceLanguageViewModelTest {
         assertEquals("Français", state.value.inEnglish())
         assertEquals("FR", state.short)
         assertNull(state.picked)
-        assertEquals(listOf(null, Language.English, Language.French, Language.Spanish), state.choices)
-        assertEquals(listOf("Automatic (Français)", "English", "Français", "Español"), state.choices.map { state.label(it).inEnglish() })
+        assertEquals(
+            listOf(
+                null,
+                Language.English,
+                Language.French,
+                Language.Spanish,
+                Language.SimplifiedChinese,
+                Language.TraditionalChinese,
+            ),
+            state.choices,
+        )
+        assertEquals(
+            listOf("Automatic (Français)", "English", "Français", "Español", "简体中文", "繁體中文"),
+            state.choices.map { state.label(it).inEnglish() },
+        )
+    }
+
+    @Test
+    fun theGlobeMarksTheTwoChinesesByScript() {
+        assertEquals("简", DeviceLanguageUiState(shown = Language.SimplifiedChinese).short)
+        assertEquals("繁", DeviceLanguageUiState(shown = Language.TraditionalChinese).short)
     }
 
     @Test

@@ -11,7 +11,7 @@ extension Admin {
         return channels.first { $0["name"] as? String == name }?["id"] as? Int
     }
 
-    /// The administrator's favourite channels' ids.
+    /// The administrator's favorite channels' ids.
     static func favoriteChannels() async -> Set<Int> {
         let (_, answer) = await call("GET", "/api/live/browse?category=favorites&limit=100")
         let channels = (answer as? [String: Any])?["channels"] as? [[String: Any]] ?? []

@@ -2,17 +2,29 @@ import Foundation
 import os
 
 /// The languages Pley is in (docs/API.md, "Language"), English first, the
-/// fallback. The raw value is the ISO 639-1 code the server takes and
-/// answers.
+/// fallback. The raw value is the tag the app asks for: the two-letter code
+/// for English, French and Spanish, the script code for Chinese, which the
+/// server answers as `zh-CN` and `zh-TW`.
 public enum Language: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
     case english = "en"
     case french = "fr"
     case spanish = "es"
+    case simplifiedChinese = "zh-Hans"
+    case traditionalChinese = "zh-Hant"
 
     public var id: String { rawValue }
 
-    /// "en", "fr", "es".
+    /// "en", "fr", "es", "zh-Hans", "zh-Hant".
     public var code: String { rawValue }
+
+    /// The code the server takes and answers: "en", "fr", "es", "zh-CN", "zh-TW".
+    public var serverCode: String {
+        switch self {
+        case .simplifiedChinese: "zh-CN"
+        case .traditionalChinese: "zh-TW"
+        default: rawValue
+        }
+    }
 
     /// The language's name in itself, the same in every language: "Français".
     public var autonym: String {
@@ -20,11 +32,21 @@ public enum Language: String, CaseIterable, Codable, Hashable, Sendable, Identif
         case .english: "English"
         case .french: "Français"
         case .spanish: "Español"
+        case .simplifiedChinese: "简体中文"
+        case .traditionalChinese: "繁體中文"
         }
     }
 
-    /// The two letters the globe shows: "EN", "FR", "ES".
-    public var short: String { rawValue.uppercased() }
+    /// The short mark the globe shows: "EN", "FR", "ES", "简", "繁".
+    public var short: String {
+        switch self {
+        case .english: "EN"
+        case .french: "FR"
+        case .spanish: "ES"
+        case .simplifiedChinese: "简"
+        case .traditionalChinese: "繁"
+        }
+    }
 
     /// How a choice of the Language row and the globe reads: a language by
     /// its own name ("Français"), Automatic (`nil`) by the language it
@@ -33,11 +55,19 @@ public enum Language: String, CaseIterable, Codable, Hashable, Sendable, Identif
         choice?.autonym ?? localized("Automatic (\(automatic.autonym))")
     }
 
-    /// The language Pley has for `tag` ("fr", "fr-CA", "es_ES", " FR_ca"), `nil` for any other.
+    /// The language Pley has for `tag` ("fr", "fr-CA", "es_ES", " FR_ca",
+    /// "zh-Hans", "zh-CN", "zh-Hant", "zh-TW", "zh-HK"), `nil` for any
+    /// other. The script or a region that writes traditional characters
+    /// tells the two Chineses apart (docs/API.md, "Language").
     public static func of(_ tag: String?) -> Language? {
-        guard let base = tag?.trimmingCharacters(in: .whitespaces).split(whereSeparator: { $0 == "-" || $0 == "_" })
-            .first?.lowercased()
+        guard let parts = tag?.trimmingCharacters(in: .whitespaces).lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" }).map(String.init),
+            let base = parts.first
         else { return nil }
+        // Chinese is two languages: Traditional by its script or a region that writes it.
+        if base == "zh" {
+            return parts.contains(where: { ["hant", "tw", "hk", "mo"].contains($0) }) ? .traditionalChinese : .simplifiedChinese
+        }
         return Language(rawValue: base)
     }
 

@@ -786,7 +786,7 @@ msgid "Live TV"
 msgstr ""
 
 msgctxt "#30249"
-msgid "Favourites"
+msgid "Favorites"
 msgstr ""
 
 msgctxt "#30250"
@@ -794,11 +794,11 @@ msgid "Recently watched"
 msgstr ""
 
 msgctxt "#30253"
-msgid "Add to favourites"
+msgid "Add to favorites"
 msgstr ""
 
 msgctxt "#30254"
-msgid "Remove from favourites"
+msgid "Remove from favorites"
 msgstr ""
 
 msgctxt "#30255"
@@ -2213,4 +2213,14 @@ msgstr ""
 #. Counted, other
 msgctxt "#30787"
 msgid "%s collections"
+msgstr ""
+
+#. Named in itself, the same in every language
+msgctxt "#30608"
+msgid "简体中文"
+msgstr ""
+
+#. Named in itself, the same in every language
+msgctxt "#30609"
+msgid "繁體中文"
 msgstr ""

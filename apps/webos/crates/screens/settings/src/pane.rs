@@ -130,7 +130,7 @@ pub fn mode_hint(mode: SubtitleMode) -> &'static str {
 /// Everything a pane needs to know, gathered from the app's state when it changes.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Facts {
-    /// The profile's name, picture and colour, once known.
+    /// The profile's name, picture and color, once known.
     pub profile: Option<ProfileFacts>,
     /// The profile's audio and subtitle defaults as they show now (a change shows at once).
     pub defaults: Option<TrackDefaults>,
@@ -152,7 +152,7 @@ pub struct Facts {
     pub device: Vec<(String, String)>,
     /// The app's version as About shows it ([`build_label`]).
     pub version: String,
-    /// The open-source parts the app is built from (name, licence), once read; `None` while
+    /// The open-source parts the app is built from (name, license), once read; `None` while
     /// reading, an empty list when the app carries no NOTICES.txt.
     pub licences: Option<Vec<(String, String)>>,
     /// The account's own language, or on a server that keeps none the one picked on this TV;
@@ -209,7 +209,7 @@ pub enum RowAction {
     SignOut,
     /// Asks before deleting everything the app keeps.
     DeleteData,
-    /// Opens the licence of the part at this place in NOTICES.txt.
+    /// Opens the license of the part at this place in NOTICES.txt.
     Licence(usize),
 }
 
@@ -279,7 +279,7 @@ pub enum Item {
     Profile,
     /// A paragraph before the rows (`Tv.Body` Muted).
     Intro(String),
-    /// A heading inside the pane ("Open-source licences").
+    /// A heading inside the pane ("Open-source licenses").
     Heading(&'static str),
     /// The device's facts, label and value, in `Tv.Caption`.
     Facts(Vec<(String, String)>),
@@ -294,7 +294,7 @@ impl Item {
     }
 
     /// What names a row in its pane wherever it is: its label, and its part's place for a
-    /// licence. Focus stays on the row so named when rows come or go above it.
+    /// license. Focus stays on the row so named when rows come or go above it.
     pub fn key(&self) -> Option<(&str, usize)> {
         match self {
             Item::Row(r) => Some((r.label.as_str(), if let RowAction::Licence(i) = r.action { i } else { 0 })),
@@ -391,7 +391,7 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
             match &f.licences {
                 // Read off the main thread: the rows come when it is done.
                 None => {}
-                // The Licences page says the same without the file.
+                // The Licenses page says the same without the file.
                 Some(list) if list.is_empty() => out.push(Item::Intro(crate::licences::no_notices().into())),
                 Some(list) => {
                     for (i, (name, licence)) in list.iter().enumerate() {
@@ -753,7 +753,7 @@ mod tests {
         // Its panel: Automatic, then each language in itself, the account's checked.
         let p = panel(Picking::Language, &own, &[]);
         let labels: Vec<&str> = p.choices.iter().map(|c| c.label.as_str()).collect();
-        assert_eq!(labels, ["Automatic (Français)", "English", "Français", "Español"]);
+        assert_eq!(labels, ["Automatic (Français)", "English", "Français", "Español", "简体中文", "繁體中文"]);
         assert_eq!(p.current, 3);
         assert_eq!(panel(Picking::Language, &f, &[]).current, 0);
         // In French, Automatic is too; the languages keep their own names.
@@ -859,7 +859,7 @@ mod tests {
         let mut f = Facts { version: "0.2.0".into(), ..alex() };
         let reading = items(SettingsSection::About, &f);
         assert_eq!(labels(&reading), ["Version", "TMDB"]);
-        assert_eq!(reading[1], Item::Heading("Open-source licences"));
+        assert_eq!(reading[1], Item::Heading("Open-source licenses"));
         f.licences = Some(Vec::new());
         assert!(matches!(items(SettingsSection::About, &f)[2], Item::Intro(_)));
         let parts = vec![("Roboto (the typeface)".into(), "OFL-1.1".into()), ("serde 1.0.219".into(), "MIT".into())];

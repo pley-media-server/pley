@@ -150,7 +150,7 @@ class SignInViewModel(
 
     /**
      * The screen is back. If the browser didn't come back with an answer
-     * (the tab was closed), the sign-in was cancelled: back to the list,
+     * (the tab was closed), the sign-in was canceled: back to the list,
      * without a word.
      */
     fun resumed() {

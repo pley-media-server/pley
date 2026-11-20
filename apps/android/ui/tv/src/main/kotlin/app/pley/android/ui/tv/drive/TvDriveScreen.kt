@@ -311,7 +311,7 @@ internal fun TvDriveLine(
 
 /**
  * What the page says in a folder's place (no drive, refused, nothing to
- * play, can't be read), as the Samsung app has it: centred on the page
+ * play, can't be read), as the Samsung app has it: centered on the page
  * under a 64 dp icon, under the ".." line when there is one ([up]). Its
  * [action] takes focus; without one, and with no ".." to focus, the
  * message holds focus itself, showing nothing of it, so the rail closes

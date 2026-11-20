@@ -114,7 +114,7 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   Kodi's lists show every title and channel found.
 - **Kodi's lists:** Settings → Screens → "Kodi's lists, in this skin's
   views" shows the add-on as folders in the skin's own views. Skin widgets
-  and favourites always get these folders.
+  and favorites always get these folders.
 
 ### Audio and subtitles
 
@@ -177,8 +177,8 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Kodi:
 
 - **The page** (`livetv.py`): the categories, then the focused category's
   channels (100 to a page) with what's on, then the focused channel's
-  programme.
-- **A channel:** Select watches it. Menu has Watch, the favourite and
+  program.
+- **A channel:** Select watches it. Menu has Watch, the favorite and
   Schedule; Info is Schedule, the channel's next six hours. Number keys
   typed together go to that channel.
 - **Search channels** opens Kodi's keyboard.
@@ -427,7 +427,8 @@ TMDB API but is not endorsed or certified by TMDB."
 
 ### Language
 
-The add-on is in English, French and Spanish, in the language
+The add-on is in English, French, Spanish and Simplified and Traditional
+Chinese (`en`, `fr`, `es`, `zh-CN`, `zh-TW`), in the language
 [API.md](API.md#language) describes: the account's own, else the one
 chosen in the add-on's settings, else Kodi's where Pley has it, else the
 server's, else English. `packages/tv/test/fixtures/language.json` pins
@@ -435,25 +436,28 @@ that order for the Samsung apps, and the add-on's tests hold it to the
 same answers.
 
 - **Kodi's language:** what Kodi says of its own
-  (`xbmc.getLanguage(xbmc.ISO_639_1)`). A region doesn't count: a Kodi
-  in Canadian French is in French.
+  (`xbmc.getLanguage(xbmc.ISO_639_1, True)`). For French and Spanish a
+  region doesn't count: a Kodi in Canadian French is in French. For
+  Chinese it does: a region of TW, HK or MO means Traditional Chinese,
+  CN means Simplified, and a Kodi that names no region defaults to
+  Simplified.
 - **This device's choice:** Settings → Screens → Language: Automatic,
-  English, Français or Español, each named in itself. Kodi has no globe
-  as the TVs' sign-in screens do; this setting stands for it, and its
-  Automatic is Kodi's language, else the server's. Signed in, a profile's
-  own language comes first.
+  English, Français, Español, 简体中文 or 繁體中文, each named in itself.
+  Kodi has no globe as the TVs' sign-in screens do; this setting stands
+  for it, and its Automatic is Kodi's language, else the server's.
+  Signed in, a profile's own language comes first.
 - **Profile language:** in the profile's menu, and in the add-on's
   settings under Switch profile: "Automatic (Français)", with what that is
-  here, then English, Français and Español. A choice is the profile's on
-  all its devices (`PUT /api/me/language`), and shows once the server has
-  it. A Pley from before languages keeps no account's language (its
-  `GET /api/server` names none, and that route answers 404 or 405):
-  there Profile language is this device's choice, as the Language setting
-  is, whose Automatic is Kodi's language; a choice shows at once and stays
-  on this device, with no error. So does a choice a server answers with
-  404 or 405 though it names a language, until another server, or this
-  one updated, is the one in use. A 403 (no permission) is said, as other
-  refusals are.
+  here, then English, Français, Español, 简体中文 and 繁體中文. A choice is
+  the profile's on all its devices (`PUT /api/me/language`), and shows once
+  the server has it. A Pley from before languages keeps no account's
+  language (its `GET /api/server` names none, and that route answers 404
+  or 405): there Profile language is this device's choice, as the Language
+  setting is, whose Automatic is Kodi's language; a choice shows at once
+  and stays on this device, with no error. So does a choice a server
+  answers with 404 or 405 though it names a language, until another server,
+  or this one updated, is the one in use. A 403 (no permission) is said, as
+  other refusals are.
 - **When it changes:** the account's language is heard as the service's
   event stream opens (as Kodi starts, on another sign-in or profile, when
   the server is back), on signing in, and in the profile's menu; the
@@ -466,12 +470,14 @@ same answers.
 - **Requests** to the server carry `Accept-Language` with the language
   shown, so what the server writes itself (Home's rows) comes in it.
 - **Dates and numbers** are written in the language shown: "Mar 5, 2024",
-  "5 mars 2024", "5 mar 2024"; "12,345", "12 345", "12.345"; "7.4" or
-  "7,4". Times of Live TV's guide take Kodi's region format, unless Kodi
-  is in another of Pley's languages than the one shown: then they take
-  that language's own clock (24 hours in French and Spanish). Counts take each language's plural forms, as CLDR
-  has them: English one and other, French and Spanish one, many and
-  other.
+  "5 mars 2024" or "5 mar 2024" (a Chinese date puts the year first);
+  "12,345", "12 345" or "12.345", with Chinese using the same commas and
+  decimal point as English ("12,345", "7.4"). Times of Live TV's guide
+  take Kodi's region format, unless Kodi is in another of Pley's languages
+  than the one shown: then they take that language's own clock (24 hours
+  in French, Spanish and Chinese). Counts take each language's plural
+  forms, as CLDR has them: English one and other, French and Spanish one,
+  many and other, Chinese only other.
 - **What Kodi draws itself** stays in Kodi's language: the add-on's
   settings screen, and Kodi's own dialogs' buttons. Track languages in the
   player's notices are named as Kodi's menus name them.
@@ -526,12 +532,13 @@ same answers.
   Android app's icons, and `bun scripts/render-icons.mjs` the add-on's icon
   and fanart.
 - **The words** are in `resources/language/resource.language.<code>/strings.po`
-  (`en_gb`, `fr_fr`, `es_es`), in Kodi's layout, each by its id. Kodi's
-  `getLocalizedString` would give them in Kodi's language only, so the
-  add-on reads the files itself (`i18n.py`) in the language shown:
-  `kodi.text("name")` by the names in `kodi.TEXT`, `kodi.count("name", n)`
-  for a count, whose three ids in a row are its forms one, many and other
-  (`kodi.COUNTS`; English writes many as other). Values are `%s` and `%d`,
+  (`en_gb`, `fr_fr`, `es_es`, `zh_cn`, `zh_tw`), in Kodi's layout, each by
+  its id. Kodi's `getLocalizedString` would give them in Kodi's language
+  only, so the add-on reads the files itself (`i18n.py`) in the language
+  shown: `kodi.text("name")` by the names in `kodi.TEXT`,
+  `kodi.count("name", n)` for a count, whose three ids in a row are its
+  forms one, many and other (`kodi.COUNTS`; English writes many as other,
+  Chinese all three). Values are `%s` and `%d`,
   or `{name}` where languages order them differently (dates). A word a
   language lacks shows in English. The windows' XML draws its words from
   Home window properties (`pley.word.<id>`, the ids in `layout.WORDS`)
@@ -566,9 +573,9 @@ and the requests' lists and actions, `test_news.py` the service's
 summary, refreshes and notices, and `test_requests.py` the rules and
 words; none reaches TMDB. `test_language.py` holds every language to
 English's words with the same values, French and Spanish to their
-punctuation, the language order to `packages/tv/test/fixtures/language.json`,
-and checks the lookup, counts, dates and Profile language. CI runs all of
-them.
+punctuation, Chinese to one plural form and Western numbers, the language
+order to `packages/tv/test/fixtures/language.json`, and checks the lookup,
+counts, dates and Profile language. CI runs all of them.
 
 By hand, use a portable Kodi (`kodi.exe -p` on Windows) with the add-on
 copied into `portable_data/addons`. With JSON-RPC on (Settings → Services →
@@ -606,4 +613,4 @@ add-on's changelog.
   context menu; the other apps open its Discover page.
 - Live TV has no guide grid: Kodi draws one only for PVR add-ons. Kodi's
   PVR IPTV Simple client isn't used either: it would mean another add-on to
-  set up, and favourites and recents the server doesn't know.
+  set up, and favorites and recents the server doesn't know.

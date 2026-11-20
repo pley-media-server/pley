@@ -150,7 +150,7 @@ async fn collections_and_playlists_have_keys_of_their_own() {
     let uploaded =
         w.app.plex_upload(Method::POST, &format!("/library/metadata/{collection}/posters"), &w.admin, png()).await;
     assert_eq!(uploaded.status, StatusCode::OK, "{}", uploaded.text());
-    let own: Option<String> = sqlx::query_scalar("SELECT poster FROM collections WHERE builtin IS NULL")
+    let own: Option<String> = sqlx::query_scalar("SELECT custom_poster FROM collections WHERE builtin IS NULL")
         .fetch_one(&w.app.state.db.read)
         .await
         .unwrap();
@@ -422,7 +422,7 @@ async fn kometa_places_collections_on_pleys_pages() {
     let manage = format!("/hubs/sections/{}/manage", w.movies);
     let identifier = format!("custom.collection.{}.{made}", w.movies);
 
-    // Labelled Kometa and Seasonal: the Seasonal category.
+    // Labeled Kometa and Seasonal: the Seasonal category.
     let labelled = format!("{section}?type=18&id={made}&label[0].tag.tag=Kometa&label[1].tag.tag=Seasonal");
     assert_eq!(w.send(Method::PUT, &labelled).await.status, StatusCode::OK);
     let id = made - 1_000_000_000;

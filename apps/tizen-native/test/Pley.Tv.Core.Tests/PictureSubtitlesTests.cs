@@ -101,7 +101,7 @@ public class PgsTests
     [Fact]
     public void Decodes_runs_line_ends_and_long_runs()
     {
-        // Line 1: 2 × colour 1, 2 × colour 0. Line 2: 4 × colour 2 (short coloured run).
+        // Line 1: 2 × color 1, 2 × color 0. Line 2: 4 × color 2 (short colored run).
         var rle = PictureKit.Bytes(new[] { 1, 1, 0, 0x02, 0, 0, 0, 0x84, 2, 0, 0 });
         Assert.Equal(new byte[] { 1, 1, 0, 0, 2, 2, 2, 2 }, PgsDecoder.DecodeRle(rle, 4, 2));
         var isLong = PictureKit.Bytes(new[] { 0, 0xc1, 0x00, 7, 0, 0 });
@@ -397,20 +397,20 @@ public class VobSubTests
     static readonly byte[] Idx = PictureKit.Bytes(PictureKit.Str("size: 720x480\npalette: 000000, ffffff, 808080, ff0000, 00ff00, 0000ff, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000\n"));
 
     /// <summary>
-    /// An SPU of a 4×2 picture at (10, 400): top line pattern colour, bottom line emphasis 1, shown
+    /// An SPU of a 4×2 picture at (10, 400): top line pattern color, bottom line emphasis 1, shown
     /// for 2 s; or of the corners <paramref name="area"/> says.
     /// </summary>
     static byte[] Spu(int[]? area = null)
     {
-        // Nibble codes: 0x11 → 4 px... use 8-bit codes: 0001 00cc = count 4, colour cc.
-        var top = new[] { 0x11, 0x00 }; // count 4 colour 1, then padding nibble byte align
-        var bottom = new[] { 0x12, 0x00 }; // count 4 colour 2
+        // Nibble codes: 0x11 → 4 px... use 8-bit codes: 0001 00cc = count 4, color cc.
+        var top = new[] { 0x11, 0x00 }; // count 4 color 1, then padding nibble byte align
+        var bottom = new[] { 0x12, 0x00 }; // count 4 color 2
         var pixels = PictureKit.Cat(top, bottom);
         var ctrlAt = 4 + pixels.Length;
         var stopSeqAt = ctrlAt + 4 + 1 + 3 + 3 + 7 + 5 + 1;
         var ctrl = PictureKit.Cat(
             PictureKit.U16(0), PictureKit.U16(stopSeqAt), new[] { 0x01 },
-            new[] { 0x03, 0x32, 0x10 }, // colours: e2=3 e1=2 p=1 b=0
+            new[] { 0x03, 0x32, 0x10 }, // colors: e2=3 e1=2 p=1 b=0
             new[] { 0x04, 0xff, 0xf0 }, // alpha: e2 15, e1 15, p 15, b 0
             new[] { 0x05 }, area ?? new[] { 0x00, 0xa0, 0x0d, 0x19, 0x01, 0x91 }, // x 10..13, y 400..401
             new[] { 0x06 }, PictureKit.U16(4), PictureKit.U16(6),
@@ -639,7 +639,7 @@ public class DvbTests
         int? Scanned(int n) => new DvbDecoder(new[] { held }.Concat(Enumerable.Repeat(objects, n)).ToArray()).Decode(n)?.Bitmaps.Count;
         Assert.Equal(1, Scanned(20));
         Assert.Null(Scanned(40));
-        // Colour tables of 65,000 bytes at 16 a byte: 60 come to 62 million, 70 to 73.
+        // Color tables of 65,000 bytes at 16 a byte: 60 come to 62 million, 70 to 73.
         var table = DvbSegment(0x12, PictureKit.Cat(new[] { 0, 0 }, Enumerable.Repeat(new[] { 1, 0x40, 0x80, 0x80 }, 16_249).SelectMany(e => e)));
         (int, int)[]? Tables(int n) => Sizes(new[] { Placing((0, 0, 0)), Filled(0, 4, 2) }.Concat(Enumerable.Repeat(table, n)).Append(Red).ToArray());
         Assert.Equal(new[] { (4, 2) }, Tables(60));

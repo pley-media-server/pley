@@ -95,7 +95,7 @@ data class SubtitleText(
  * JSON routes are suspending functions answering the model's types; a
  * refusal throws [ApiException], a network failure [OfflineException], an
  * answer that isn't pley's [UnreadableAnswerException] (all IOExceptions).
- * Cancelling the coroutine cancels the request.
+ * Canceling the coroutine cancels the request.
  * Routes answering bytes for Coil or Media3 (pictures, streams, HLS files,
  * seek-preview sheets) are address builders instead: absolute addresses
  * on the server in use, without the token, which goes in the
@@ -458,7 +458,7 @@ interface PleyApi {
     suspend fun liveChannel(id: Long): LiveChannel
 
     /**
-     * GET /api/live/guide (scope library): the programmes between [from]
+     * GET /api/live/guide (scope library): the programs between [from]
      * and [to] (unix seconds, two days at most) of the channels [ids]
      * (every one when `null`), by channel.
      */

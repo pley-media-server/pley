@@ -88,7 +88,7 @@ fn a_dialog_sits_in_the_middle_keeps_focus_and_back_dismisses_it() {
     h.idle(&mut screen);
     let f = settle(&mut h, &mut screen);
     assert_eq!(f.focused, Some(Id::new("dialog").with(0usize)));
-    // At least 320 wide, centred.
+    // At least 320 wide, centered.
     let card = fills_of(&f.list, theme::SURFACE2)[0];
     assert_eq!((card.w, card.x), (320.0, 320.0));
     assert!(((card.y + card.h / 2.0) - 270.0).abs() < 0.01);

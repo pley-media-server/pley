@@ -229,7 +229,7 @@ describe("RemoteButton", () => {
     expect(within(panel).getByRole("group", { name: "Den TV" })).toHaveTextContent("1:00");
   });
 
-  it("offers the controls the player obeys, and Next greyed out where it doesn't take it", async () => {
+  it("offers the controls the player obeys, and Next grayed out where it doesn't take it", async () => {
     serve(() => [episode({ controls: ["play", "pause", "seek", "skip"] })]);
     renderWithProviders(<RemoteButton />);
     const { panel } = await openRemote();
@@ -823,7 +823,7 @@ describe("RemoteButton", () => {
     await waitFor(() => expect(within(panel).queryByRole("button", { name: "Quality on Living room TV" })).toBeNull());
   });
 
-  it("shows a channel's programme, how far along it is and what's next, with channel buttons", async () => {
+  it("shows a channel's program, how far along it is and what's next, with channel buttons", async () => {
     const start = nowSecs() - 15 * 60;
     const channel = { id: 3, name: "Channel One", number: "1", logo: null, now: "Evening News", now_start: start, now_stop: start + 3_600, next: "Late Show" };
     serve(() => [live({ channel, controls: ["next", "previous", "skip"] })]);

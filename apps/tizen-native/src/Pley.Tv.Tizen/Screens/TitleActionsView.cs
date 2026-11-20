@@ -139,7 +139,7 @@ sealed class TitleActionsView : View
         }
         if (stage != null)
         {
-            // Beside a 40 dp button, centred on it.
+            // Beside a 40 dp button, centered on it.
             var block = RequestKit.StageBlock(stage, manage, StageWidth);
             block.PositionY = (Ui.Dp(PleyTv.ButtonHeight) - block.SizeHeight) / 2;
             Place(block, null, block.SizeWidth / Ui.Scale);

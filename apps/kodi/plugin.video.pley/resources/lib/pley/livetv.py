@@ -49,9 +49,9 @@ PLAY_ROUTE = "live_play"
 # Channels queued either side of the one played.
 QUEUED = 100
 
-# A language's own clock where Kodi is in another: 24 hours in French and
-# Spanish, 12 in English.
-CLOCKS = {"en": "%I:%M %p", "fr": "%H:%M", "es": "%H:%M"}
+# A language's own clock where Kodi is in another: 24 hours in French,
+# Spanish and Chinese, 12 in English.
+CLOCKS = {"en": "%I:%M %p", "fr": "%H:%M", "es": "%H:%M", "zh-CN": "%H:%M", "zh-TW": "%H:%M"}
 
 
 # ------------------------------------------------------------ the server
@@ -140,7 +140,7 @@ def stream_path(channel_id: int, client_id: str, take_over=None) -> str:
 
 
 def schedule(client, channel_id: int, start: float, hours: int = SCHEDULE_HOURS) -> list:
-    """The channel's programmes from `start` (the one on then included) over
+    """The channel's programs from `start` (the one on then included) over
     `hours`: the guide of that channel alone (`ids`)."""
     begin = int(start)
     guide = client.get(GUIDE, **{"from": begin, "to": begin + hours * 3600, "ids": channel_id}) or {}
@@ -229,7 +229,7 @@ def episode(program: dict) -> str:
 
 
 def badges(program: dict) -> list:
-    """Live, New and the rating, as the web's programme details show them."""
+    """Live, New and the rating, as the web's program details show them."""
     found = []
     if program.get("is_live"):
         found.append(kodi.text("live"))
@@ -249,12 +249,12 @@ def name(channel: dict, group=None) -> str:
 
 
 def nothing_on(channel: dict) -> str:
-    """What a channel without a programme now says (the web's words)."""
+    """What a channel without a program now says (the web's words)."""
     return kodi.text("nothing_on_now") if channel.get("has_guide") else kodi.text("no_guide")
 
 
 def headline(program: dict) -> str:
-    """A programme's title, with its episode's own title: "Morning
+    """A program's title, with its episode's own title: "Morning
     Briefing: Part 7"."""
     title = program.get("title") or ""
     subtitle = program.get("subtitle")
@@ -367,7 +367,7 @@ def logo(base: str, channel: dict, width: int = LOGO_WIDTH):
 def list_item(base: str, channel: dict, now: float, group=None) -> xbmcgui.ListItem:
     """A channel in Kodi's lists, its queue of channels and its player:
     its number and name (in `group`, without the group's region), what's on
-    now beside it, now and next in its info, its logo, and the programme's
+    now beside it, now and next in its info, its logo, and the program's
     picture as fanart. Kodi plays it as a stream without an end: no
     duration, never watched, no resume point."""
     current = on_now(channel, now)

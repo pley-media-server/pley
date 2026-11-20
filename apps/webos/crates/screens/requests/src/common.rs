@@ -1,5 +1,5 @@
 //! What Discover, a title's page and the requests share (the TV app's `request-kit.tsx`): the
-//! TV's clock for words about time, the colours of a request's tones, the stage pill and a
+//! TV's clock for words about time, the colors of a request's tones, the stage pill and a
 //! download's bar, a title's badge on its poster, the tiles of titles, seasons and requests,
 //! asking and following, the badges titles' details left, the pages that say why requests
 //! can't be used, signing in again, and asking again on a timer.
@@ -24,7 +24,7 @@ use pley_ui::{Id, Ui};
 /// Waiting for a decision: the TV app's `--warning`.
 pub const WARNING: Color = Color::rgb(0xf2b544);
 
-/// A tone's colour, for words and the stage's dot.
+/// A tone's color, for words and the stage's dot.
 pub fn tone_color(tone: Tone) -> Color {
     match tone {
         Tone::Amber => WARNING,
@@ -35,7 +35,7 @@ pub fn tone_color(tone: Tone) -> Color {
     }
 }
 
-/// A pill or badge in a tone: the tone at 20 % (grey 16 %) over art's Bg at 80 %, so it reads on
+/// A pill or badge in a tone: the tone at 20 % (gray 16 %) over art's Bg at 80 %, so it reads on
 /// posters and pages alike.
 fn tone_fill(ui: &mut Ui, rect: Rect, tone: Tone, corner: f32) {
     ui.fill(rect, theme::ON_ART, corner);
@@ -80,7 +80,7 @@ pub fn pill_size(ui: &Ui, words: &StageWords, small: bool, max_w: f32) -> Size {
     Size::new(before + dot + gap + w + after, h)
 }
 
-/// A request's stage (`StagePill`): a dot and the words in the stage's colour, on its tone.
+/// A request's stage (`StagePill`): a dot and the words in the stage's color, on its tone.
 pub fn stage_pill(ui: &mut Ui, at: Point, words: &StageWords, small: bool, max_w: f32) -> Size {
     let (h, before, after, dot, gap) = pill_spec(small);
     let style = if small { theme::CAPTION } else { theme::LABEL };

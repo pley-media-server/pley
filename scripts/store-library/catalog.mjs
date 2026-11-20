@@ -19,7 +19,7 @@ export const movies = [
   { title: "Deep Blue", year: 2022, scene: "underwater", pal: ["#001219", "#005f73", "#0a9396", "#94d2bd"], font: "sans", genres: ["Documentary"], rating: "G", minutes: 92,
     tagline: "Ninety percent of the ocean is still a mystery.", summary: "A year with the divers and scientists mapping the deepest reef walls of the Pacific, and the creatures no one had filmed before." },
   { title: "The Night Train", year: 2024, scene: "train", pal: ["#0b1020", "#1f2a52", "#facc15", "#e2e8f0"], font: "serif", genres: ["Thriller", "Mystery"], rating: "PG-13", minutes: 115,
-    tagline: "Eleven passengers. Ten tickets.", summary: "On the last sleeper train across the mountains, a conductor realises one passenger boarded without ever getting on." },
+    tagline: "Eleven passengers. Ten tickets.", summary: "On the last sleeper train across the mountains, a conductor realizes one passenger boarded without ever getting on." },
   { title: "Wildflower", year: 2023, scene: "flowers", pal: ["#14532d", "#65a30d", "#f472b6", "#fef9c3"], font: "rounded", genres: ["Comedy", "Drama"], rating: "PG", minutes: 99,
     tagline: "Bloom where you're planted.", summary: "A burnt-out chef inherits a failing flower farm and a stubborn goat, and finds out she's better at one of them than the other." },
   { title: "Orbit", year: 2025, scene: "planet", pal: ["#030712", "#312e81", "#f59e0b", "#fde68a"], font: "sans", genres: ["Science Fiction", "Adventure"], rating: "PG-13", minutes: 134,
@@ -54,7 +54,7 @@ export const shows = [
   { title: "The Glasshouse", year: 2022, scene: "glasshouse", pal: ["#052e16", "#166534", "#86efac", "#f0fdf4"], font: "serif", genres: ["Mystery", "Drama"], rating: "TV-14",
     summary: "A botanist inherits a Victorian glasshouse full of plants that shouldn't exist, and a family that wants it burned down.",
     seasons: [[
-      ["Seedling", "Eleanor arrives at Ashcombe to catalogue her late aunt's collection."],
+      ["Seedling", "Eleanor arrives at Ashcombe to catalog her late aunt's collection."],
       ["Root and Branch", "A plant in the east wing flowers overnight, and the gardener quits."],
       ["Cuttings", "Eleanor finds her aunt's notebooks, written in a cipher of Latin plant names."],
       ["Graft", "Cousin Edmund makes an offer for the house, and a second offer no one could refuse."],
@@ -63,9 +63,9 @@ export const shows = [
   { title: "Wild Coast", year: 2025, scene: "cliffs", pal: ["#03045e", "#0077b6", "#90e0ef", "#caf0f8"], font: "sans", genres: ["Documentary"], rating: "TV-G",
     summary: "A year on the wildest stretch of coastline in the world, from the seal nurseries of winter to the orca hunts of summer.",
     seasons: [[
-      ["Winter Shores", "Grey seals give birth on beaches battered by Atlantic storms."],
+      ["Winter Shores", "Gray seals give birth on beaches battered by Atlantic storms."],
       ["Cliff Cities", "A million seabirds return to the same ledges every spring."],
-      ["Kelp Forest", "Below the waves, otters and urchins fight over a forest that grows half a metre a day."],
+      ["Kelp Forest", "Below the waves, otters and urchins fight over a forest that grows half a meter a day."],
       ["Hunters", "Orca pods arrive for the summer, and they've learned a new trick."],
     ]] },
 ];

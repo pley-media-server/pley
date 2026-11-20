@@ -161,13 +161,13 @@ impl Rect {
         Rect::new(self.x + i.left, self.y + i.top, self.w - i.left - i.right, self.h - i.top - i.bottom)
     }
 
-    /// Scaled by `s` about `pivot`, as a focused tile grows about its centre.
+    /// Scaled by `s` about `pivot`, as a focused tile grows about its center.
     pub fn scale_about(&self, pivot: Point, s: f32) -> Rect {
         Rect::new(pivot.x + (self.x - pivot.x) * s, pivot.y + (self.y - pivot.y) * s, self.w * s, self.h * s)
     }
 
     /// A rectangle of `size` placed inside this one: `fx` and `fy` from 0 (start)
-    /// to 1 (end), 0.5 centring it.
+    /// to 1 (end), 0.5 centering it.
     pub fn place(&self, size: Size, fx: f32, fy: f32) -> Rect {
         Rect::new(self.x + (self.w - size.w) * fx, self.y + (self.h - size.h) * fy, size.w, size.h)
     }

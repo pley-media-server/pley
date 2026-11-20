@@ -132,7 +132,7 @@ sealed class Shell
             else sheets[i].View.Show();
         }
         // The window has an alpha while a covering sheet shows, and none otherwise, set each time.
-        // Set once and kept, only its colour changing, every second player showed the TV's menu
+        // Set once and kept, only its color changing, every second player showed the TV's menu
         // where its picture was, with its sound; and an opaque window is less for the TV to draw.
         var clear = cover >= 0;
         if (clear != transparent)

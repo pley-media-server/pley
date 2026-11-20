@@ -457,7 +457,7 @@ private fun densityLabel(density: GridDensity): Int = when (density) {
     GridDensity.Large -> R.string.settings_density_large
 }
 
-/** The libraries in the app, with their licences. */
+/** The libraries in the app, with their licenses. */
 @OptIn(UnstableApi::class)
 internal fun licences(): List<Pair<String, String>> = listOf(
     "AndroidX (Compose, Navigation, DataStore, Lifecycle…)" to "Apache-2.0",

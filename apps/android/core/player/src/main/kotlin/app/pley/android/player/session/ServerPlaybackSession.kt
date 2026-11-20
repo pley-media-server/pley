@@ -170,9 +170,9 @@ class ServerPlaybackSession(
     companion object {
         /**
          * Starts a session for [request], whose reports say the [tracks]
-         * playing. The request isn't cancelled halfway: the server may have
+         * playing. The request isn't canceled halfway: the server may have
          * made the session (and its transcode) already, so a caller
-         * cancelled meanwhile gets it deleted, then the cancellation.
+         * canceled meanwhile gets it deleted, then the cancellation.
          */
         suspend fun start(
             api: PleyApi,

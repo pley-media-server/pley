@@ -1,5 +1,5 @@
 //! What a film's first HEVC frames say of its picture, whatever its
-//! container left out: a muxer that writes no colour, an older one that
+//! container left out: a muxer that writes no color, an older one that
 //! writes no Dolby Vision configuration. The NAL units are length-prefixed,
 //! as Matroska and MP4 hold them; SEI messages are walked as the standard
 //! lays them out (types and sizes in 255 steps, emulation bytes taken out),

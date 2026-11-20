@@ -56,12 +56,16 @@
       "musicHint": "Géneros y fechas de lanzamiento de <a>MusicBrainz</a>, y portadas del Cover Art Archive para los álbumes que no tienen. Las etiquetas de los archivos tienen prioridad. No hace falta clave; la primera búsqueda tarda alrededor de un segundo por álbum.",
       "musicToggle": "Metadatos de música de MusicBrainz",
       "testMusicBrainz": "Probar MusicBrainz",
+      "books": "Metadatos de audiolibros",
+      "booksHint": "Sinopsis, años y portadas de <openlibrary>Open Library</openlibrary>, por título y autor. Para los libros cuyos archivos llevan un ASIN de Audible, como lo escriben Libation y OpenAudible, también narradores, series y géneros, de <audnexus>Audnexus</audnexus>. Las etiquetas de los archivos tienen prioridad. No hace falta clave.",
+      "booksToggle": "Metadatos de audiolibros de Open Library y Audnexus",
+      "testBooks": "Probar Open Library y Audnexus",
       "nfo": "Archivos NFO",
       "nfoHint": "Los archivos NFO que Kodi, Jellyfin, Radarr y Sonarr guardan junto a las películas y series: sus identificadores deciden la coincidencia y sus datos prevalecen sobre los de la fuente de metadatos. Tus cambios prevalecen sobre ellos. Pley nunca los modifica.",
       "nfoToggle": "Leer los archivos NFO",
       "language": "Títulos y resúmenes",
       "languageHint": "Para TMDB y TheTVDB. TVmaze está en inglés.",
-      "attribution": "Este producto usa la API de TMDB, pero TMDB no lo respalda ni lo certifica. Metadatos de TV de <tvdb>TheTVDB</tvdb>. Los datos de TV de TVmaze tienen licencia <license>CC BY-SA</license>; los datos de música de MusicBrainz son de dominio público."
+      "attribution": "Este producto usa la API de TMDB, pero TMDB no lo respalda ni lo certifica. Metadatos de TV de <tvdb>TheTVDB</tvdb>. Los datos de TV de TVmaze tienen licencia <license>CC BY-SA</license>; los datos de música de MusicBrainz y los de audiolibros de Open Library son de dominio público; los datos y las portadas de audiolibros de Audnexus pertenecen a sus titulares."
     },
     "subtitles": {
       "title": "Subtítulos",

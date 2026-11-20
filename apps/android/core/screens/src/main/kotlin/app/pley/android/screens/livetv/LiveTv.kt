@@ -133,7 +133,7 @@ object LiveTv {
         return (first..last step size).filter { it >= floor && it < start + GUIDE_SPAN_S }
     }
 
-    /** The programmes of [guides] by channel, each list by start, one programme per start. */
+    /** The programs of [guides] by channel, each list by start, one program per start. */
     fun merge(guides: List<LiveGuide>): Map<Long, List<LiveProgram>> {
         val out = HashMap<Long, MutableMap<Long, LiveProgram>>()
         for (guide in guides) {
@@ -145,11 +145,11 @@ object LiveTv {
         return out.mapValues { (_, byStart) -> byStart.values.sortedBy { it.start } }
     }
 
-    /** The programmes that show between [from] and [to] (unix seconds). */
+    /** The programs that show between [from] and [to] (unix seconds). */
     fun between(programs: List<LiveProgram>?, from: Long, to: Long): List<LiveProgram> =
         programs.orEmpty().filter { it.stop > from && it.start < to }
 
-    /** A programme's rest at [now], as hours and minutes ("1 h 5 min left"). */
+    /** A program's rest at [now], as hours and minutes ("1 h 5 min left"). */
     fun left(program: LiveProgram, now: Long): Pair<Int, Int> {
         val minutes = maxOf(1, Math.round((program.stop - now) / 60.0).toInt())
         return minutes / 60 to minutes % 60
@@ -268,7 +268,7 @@ class ChannelPaging(
 }
 
 /**
- * Where Live TV's changes run (a favourite set): to their end on the main
+ * Where Live TV's changes run (a favorite set): to their end on the main
  * thread's loop, whatever happens to the screen that asked.
  */
 internal val LiveWork: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)

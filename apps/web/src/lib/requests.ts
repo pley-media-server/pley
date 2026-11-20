@@ -304,7 +304,7 @@ export function mainAction(detail: DiscoverDetail, summary: Pick<RequestSummary,
   }
 }
 
-/** A stage pill's colour: waiting for a decision amber, on its way blue, ready green, declined and failed red, gone gray. */
+/** A stage pill's color: waiting for a decision amber, on its way blue, ready green, declined and failed red, gone gray. */
 export type StageTone = "warning" | "info" | "success" | "danger" | "neutral";
 
 const STAGE_TONES: Record<RequestStage, StageTone> = {
@@ -549,7 +549,7 @@ export function markTold(mark: NewsMark, id: Id, status: RequestStatus, seasons:
   return { ...mark, told: Object.fromEntries(kept) };
 }
 
-/** The number on the entry that opens requests: managers' include what waits for them, in the danger colour while some failed. */
+/** The number on the entry that opens requests: managers' include what waits for them, in the danger color while some failed. */
 export function requestsBadge(summary: RequestSummary | undefined): { count: number; danger: boolean } {
   if (!summary?.enabled || summary.sign_in_again === "requests") return { count: 0, danger: false };
   if (!summary.manage) return { count: summary.unseen, danger: false };

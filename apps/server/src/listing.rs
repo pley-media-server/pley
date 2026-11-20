@@ -1254,7 +1254,7 @@ impl Filter {
         self.any_sql(vec![test], args)
     }
 
-    /// [`Filter::boolean`] of `expr`, a parenthesised condition.
+    /// [`Filter::boolean`] of `expr`, a parenthesized condition.
     fn boolean_sql(&self, expr: &str) -> Condition {
         let wanted = !self.values.first().is_some_and(|v| matches!(v.as_str(), "0" | "false"));
         let negated = matches!(self.op, Op::Not | Op::NotExactly);
@@ -1563,12 +1563,19 @@ pub(crate) async fn smart_items_up_to(
     Ok(query.page(db, user_id, &Page::default()).await?.0)
 }
 
-/// How many items a smart collection's filter finds.
-pub(crate) async fn smart_count(db: &Db, user_id: i64, lib: &LibraryRow, filter: &str) -> sqlx::Result<usize> {
+/// The first `first` items a smart collection's filter finds, and how many it
+/// finds: as cheap as the count alone, which reads a page anyway.
+pub(crate) async fn smart_first(
+    db: &Db,
+    user_id: i64,
+    lib: &LibraryRow,
+    filter: &str,
+    first: usize,
+) -> sqlx::Result<(Vec<ItemRow>, usize)> {
     let params = filter_params(filter);
-    let Some(kind) = smart_kind(lib, &params) else { return Ok(0) };
-    let Ok(query) = SectionQuery::new(lib.id, kind, &params) else { return Ok(0) };
-    Ok(query.page(db, user_id, &Page { start: 0, size: Some(0) }).await?.1)
+    let Some(kind) = smart_kind(lib, &params) else { return Ok((Vec::new(), 0)) };
+    let Ok(query) = SectionQuery::new(lib.id, kind, &params) else { return Ok((Vec::new(), 0)) };
+    query.page(db, user_id, &Page { start: 0, size: Some(first) }).await
 }
 
 #[cfg(test)]

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The playlists page (apps/web/src/pages/playlists/PlaylistsPage.tsx). -->
+    <string name="playlists_title">播放列表</string>
+    <string name="playlists_new">新建播放列表</string>
+    <string name="playlists_failed">无法加载播放列表</string>
+    <string name="playlists_none_title">暂无播放列表</string>
+    <string name="playlists_none_body">可在此创建，或在电影、剧集、专辑或分集页面上点“添加到播放列表”（长按海报也可以）。</string>
+    <string name="playlists_smart">智能</string>
+
+    <!-- A playlist's page (PlaylistPage.tsx, design spec §4.9). -->
+    <string name="playlist_video">视频播放列表</string>
+    <string name="playlist_music">音乐播放列表</string>
+    <string name="playlist_play">播放</string>
+    <string name="playlist_shuffle">随机播放</string>
+    <string name="playlist_rename">重命名播放列表</string>
+    <string name="playlist_delete">删除播放列表</string>
+    <string name="playlist_failed">无法加载此播放列表</string>
+    <string name="playlist_not_found">未找到播放列表</string>
+    <string name="playlist_not_found_body">它已被删除，或属于其他配置文件。</string>
+    <string name="playlist_empty_smart">暂时没有符合此播放列表筛选条件的内容。</string>
+    <string name="playlist_empty_video">此播放列表为空。可在电影、剧集或分集页面上点“添加到播放列表”，或长按海报。</string>
+    <string name="playlist_empty_music">此播放列表为空。可在音乐人或专辑页面上点“添加到播放列表”，或长按封面。</string>
+    <string name="playlist_play_entry">播放 %1$s</string>
+    <string name="playlist_move_up">上移</string>
+    <string name="playlist_move_down">下移</string>
+    <string name="playlist_remove">从播放列表移除</string>
+    <string name="playlist_removed">已移除“%1$s”</string>
+    <string name="playlist_undo">撤销</string>
+    <string name="playlist_deleted">播放列表已删除</string>
+    <string name="playlist_delete_title">删除播放列表？</string>
+    <string name="playlist_delete_body">“%1$s”将被删除。其中的内容仍保留在你的媒体库中。</string>
+    <string name="playlist_delete_confirm">删除</string>
+    <string name="playlist_rename_save">保存</string>
+
+    <!-- New playlist and Save these filters (PlaylistFormModal, SaveFiltersModal). -->
+    <string name="playlist_form_title">标题</string>
+    <string name="playlist_form_for">类型</string>
+    <string name="playlist_form_video">电影与剧集</string>
+    <string name="playlist_form_music">音乐</string>
+    <string name="playlist_form_create">创建</string>
+    <string name="playlist_form_save">保存</string>
+    <string name="playlist_smart_title">保存这些筛选条件</string>
+    <string name="playlist_smart_body">%1$s。它会随媒体库自动更新。</string>
+    <string name="playlist_smart_body_plain">它会随媒体库自动更新。</string>
+
+    <!-- Add to playlist (AddToPlaylistModal.tsx). -->
+    <string name="add_to_playlist">添加到播放列表</string>
+    <string name="add_new_video">新建视频播放列表</string>
+    <string name="add_new_music">新建音乐播放列表</string>
+    <string name="add_create">创建</string>
+    <string name="add_none_video">暂无视频播放列表：请在上方命名一个。</string>
+    <string name="add_none_music">暂无音乐播放列表：请在上方命名一个。</string>
+    <string name="add_added">已添加到 %1$s</string>
+    <!-- %1$d: how many entries were added (more than one); %2$s: the playlist. -->
+    <plurals name="add_added_many">
+        <item quantity="other">已将 %1$d 个项目添加到 %2$s</item>
+    </plurals>
+    <string name="add_nothing">没有可添加的内容</string>
+</resources>

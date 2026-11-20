@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The words an item page is made with (ItemPages), on phones and TVs. -->
+<resources>
+    <!-- What an extra is, under its tile (the web's extras.types). -->
+    <string name="item_extra_trailer">预告片</string>
+    <string name="item_extra_behind_the_scenes">幕后花絮</string>
+    <string name="item_extra_deleted_scene">删减片段</string>
+    <string name="item_extra_featurette">特别短片</string>
+    <string name="item_extra_interview">访谈</string>
+    <string name="item_extra_scene">片段</string>
+    <string name="item_extra_short">短片</string>
+    <string name="item_extra_other">其他花絮</string>
+    <!-- %1$s: what the extra is, "Trailer"; %2$s: its length, "2m". -->
+    <string name="item_extra_caption" translatable="false">%1$s · %2$s</string>
+
+    <!-- A show's metadata line, and a season's. -->
+    <plurals name="item_season_count">
+        <item quantity="other">%1$,d 季</item>
+    </plurals>
+    <plurals name="item_episode_count">
+        <item quantity="other">%1$,d 集</item>
+    </plurals>
+
+    <!-- Media info (the web's MediaInfo.tsx): a file among several, and a stream's details. -->
+    <string name="item_media_version">版本 %1$d</string>
+    <!-- %1$s: frames a second, "23.98". -->
+    <string name="item_media_fps">%1$s fps</string>
+    <string name="item_media_bit_depth">%1$d 位</string>
+    <string name="item_media_khz" translatable="false">%1$.1f kHz</string>
+    <string name="item_media_image_based">基于图像</string>
+    <string name="item_media_text">文本</string>
+    <string name="item_media_external">外部</string>
+    <string name="item_media_forced">强制</string>
+    <string name="item_media_default">默认</string>
+</resources>

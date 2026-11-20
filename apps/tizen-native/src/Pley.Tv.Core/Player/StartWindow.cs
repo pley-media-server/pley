@@ -43,7 +43,7 @@ public sealed class StartWindow : IDisposable
     /// <summary>The playlists asked for ahead of the player, by address; each is given once.</summary>
     readonly Dictionary<string, Task<Answer>> ahead = new Dictionary<string, Task<Answer>>();
     readonly Task askedAhead;
-    /// <summary>Cancelled as the film goes: its requests to the server, and connections still open, end with it.</summary>
+    /// <summary>Canceled as the film goes: its requests to the server, and connections still open, end with it.</summary>
     readonly CancellationTokenSource ending = new CancellationTokenSource();
 
     /// <summary>The most of a playlist read: a film's media playlist is a few hundred KB.</summary>

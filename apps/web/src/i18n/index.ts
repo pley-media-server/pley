@@ -19,7 +19,7 @@ import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import { en, type LazyNamespace } from "./resources";
 
-export const LANGUAGES = ["en", "fr", "es"] as const;
+export const LANGUAGES = ["en", "fr", "es", "zh-CN", "zh-TW"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 const STORAGE_KEY = "pley.language";
@@ -37,9 +37,16 @@ const catalogs = import.meta.glob<{ default: Record<string, unknown> }>([
   "!./locales/en/requests.json",
 ]);
 
-/** The language Pley has for a tag ("fr-CA" → "fr"), if any. */
+/** The globe's mark for a language: its letters ("FR"), or for Chinese its script ("简", "繁"). */
+export function languageMark(language: Language): string {
+  return language === "zh-CN" ? "简" : language === "zh-TW" ? "繁" : language.toUpperCase();
+}
+
+/** The language Pley has for a tag ("fr-CA" → "fr", "zh-Hant" → "zh-TW"), if any. */
 export function supportedLanguage(tag: string | null | undefined): Language | undefined {
-  const base = tag?.trim().split(/[-_]/)[0]?.toLowerCase();
+  const [base, ...rest] = (tag ?? "").trim().toLowerCase().split(/[-_]/);
+  // Chinese is two languages: Traditional by its script or a region that writes it.
+  if (base === "zh") return rest.some((part) => ["hant", "tw", "hk", "mo"].includes(part)) ? "zh-TW" : "zh-CN";
   return LANGUAGES.find((language) => language === base);
 }
 

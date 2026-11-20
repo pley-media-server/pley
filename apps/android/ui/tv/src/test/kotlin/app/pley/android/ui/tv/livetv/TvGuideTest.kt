@@ -152,7 +152,7 @@ class TvGuideTest {
     @Test
     fun `Left leaves for the categories on a press of its own, not straight after moving`() {
         show()
-        // Back to the guide's first half hour (the channels have no programmes).
+        // Back to the guide's first half hour (the channels have no programs).
         key(AndroidKeyEvent.KEYCODE_DPAD_LEFT, at = 100_000)
         assertEquals(0, leaves)
         // At the start, a tap straight after: it stays.
@@ -192,7 +192,7 @@ class TvGuideTest {
     fun `programmes sit at their time on the grid, and slide with it`() {
         show()
         val start = vm.guideStart
-        // Now is in the guide's second half hour: the first programme is on, the second next.
+        // Now is in the guide's second half hour: the first program is on, the second next.
         val on = LiveProgram(1, start, start + 90 * 60, "Morning Briefing")
         val next = LiveProgram(1, start + 90 * 60, start + 150 * 60, "World at One")
         for (chunk in live.guides.keys) {
@@ -204,7 +204,7 @@ class TvGuideTest {
         // 3.6 dp a minute, each cell inset 2 dp.
         assertEquals(2f, leftOf("Morning Briefing").value, 0.5f)
         assertEquals(90 * 3.6f + 2f, leftOf("World at One").value, 0.5f)
-        // Right to the next programme, near the grid's edge: the grid moves on an hour.
+        // Right to the next program, near the grid's edge: the grid moves on an hour.
         key(AndroidKeyEvent.KEYCODE_DPAD_RIGHT, at = 100_000)
         assertEquals(30 * 3.6f + 2f, leftOf("World at One").value, 0.5f)
         assertEquals(-60 * 3.6f + 2f, leftOf("Morning Briefing").value, 0.5f)
@@ -285,7 +285,7 @@ class TvGuideTest {
         /** The test clock's frame. */
         const val FRAME_MS = 16L
 
-        /** The channels' column, left of the programmes. */
+        /** The channels' column, left of the programs. */
         val CHANNEL = 160.dp
     }
 }

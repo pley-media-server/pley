@@ -19,7 +19,7 @@ public sealed record LiveTvView(string? Category = null, string? View = null, lo
 /// <summary>What Live TV's pages read and change: the app's state, or a fake in tests.</summary>
 public interface ILiveSource
 {
-    /// <summary>The server's origin: logos and programme pictures are on it.</summary>
+    /// <summary>The server's origin: logos and program pictures are on it.</summary>
     string Origin { get; }
 
     Task<LiveSummary> Summary();

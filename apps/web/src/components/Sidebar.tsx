@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router";
-import { ArrowUpDown, BookHeadphones, Compass, Film, House, Inbox, List, ListMusic, ListVideo, LoaderCircle, Music, Plus, Settings, Tv, Tv2, X } from "lucide-react";
+import { ArrowUpDown, BookHeadphones, Compass, Film, House, Inbox, List, LoaderCircle, Music, Plus, Settings, Tv, Tv2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLibraries } from "@/api/hooks";
 import { useLiveSummary } from "@/api/livetv";
-import { usePlaylists } from "@/api/lists";
 import { hasRequests, mayRequest, useRequestSummary } from "@/api/requests";
 import type { LibraryKind } from "@/api/types";
 import { useAuth } from "@/auth";
@@ -14,7 +13,7 @@ import { Logo } from "./Logo";
 import { keepTabInside } from "./Modal";
 import { SortLibrariesModal } from "./SortLibrariesModal";
 import { IconButton, Skeleton } from "./ui";
-import { discoverUrl, libraryUrl, playlistUrl, requestsUrl } from "@/lib/urls";
+import { discoverUrl, libraryUrl, requestsUrl } from "@/lib/urls";
 
 export function LibraryIcon({ kind, className }: { kind: LibraryKind; className?: string }) {
   // A size in `className` replaces the default: `cn` doesn't merge classes, and the later rule would win.
@@ -109,6 +108,12 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 {lib.name}
               </NavItem>
             ))}
+        {/* Playlists sit with the libraries, as one more place to browse; the page explains how to make one. */}
+        {libs.data?.length ? (
+          <NavItem to="/playlists" icon={<List className="size-4" />}>
+            {t("sidebar.playlists")}
+          </NavItem>
+        ) : null}
         {libs.data && libs.data.length === 0 ? (
           user.is_admin ? (
             <Link
@@ -123,8 +128,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           )
         ) : null}
       </div>
-
-      <PlaylistsSection />
 
       <div className="flex-1" />
 
@@ -142,7 +145,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 /**
  * Discover, where this account may ask for titles, and its requests where
  * it has any (everyone's, for managers), with how many wait to be looked
- * at: in the danger colour while some failed.
+ * at: in the danger color while some failed.
  */
 function RequestsNav() {
   const { t } = useTranslation("components");
@@ -179,32 +182,6 @@ function RequestsNav() {
       >
         {data?.manage ? t("sidebar.requests") : t("sidebar.yourRequests")}
       </NavItem>
-    </>
-  );
-}
-
-/** The user's playlists (the first few) and a link to all of them. */
-function PlaylistsSection() {
-  const { t } = useTranslation("components");
-  const playlists = usePlaylists();
-  const shown = playlists.data?.slice(0, 8) ?? [];
-  return (
-    <>
-      <div className="mb-0.5 mt-4 flex h-7 items-center px-3 text-xs font-medium text-subtle">{t("sidebar.playlists")}</div>
-      <div className="space-y-0.5">
-        {shown.map((p) => (
-          <NavItem
-            key={p.id}
-            to={playlistUrl(p.id)}
-            icon={p.kind === "audio" ? <ListMusic className="size-4" /> : <ListVideo className="size-4" />}
-          >
-            {p.title}
-          </NavItem>
-        ))}
-        <NavItem to="/playlists" end icon={<List className="size-4" />}>
-          {shown.length ? t("sidebar.allPlaylists") : t("sidebar.yourPlaylists")}
-        </NavItem>
-      </div>
     </>
   );
 }

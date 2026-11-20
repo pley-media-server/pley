@@ -363,7 +363,7 @@ public sealed class Api
     public Task<JsonElement?> SetTrackDefaults(string? audio, string? subtitle, string mode) =>
         Call("PUT", "/api/me/track-defaults", new Dictionary<string, object?> { ["audio_language"] = audio, ["subtitle_language"] = subtitle, ["subtitle_mode"] = mode });
 
-    /// <summary>The language the profile sees Pley in (scope play): "en", "fr", "es", or null for the server's; the profile as GET /api/auth/me shows it.</summary>
+    /// <summary>The language the profile sees Pley in (scope play): "en", "fr", "es", "zh-CN", "zh-TW", or null for the server's; the profile as GET /api/auth/me shows it.</summary>
     public Task<JsonElement?> SetLanguage(string? language) =>
         Call("PUT", "/api/me/language", new Dictionary<string, object?> { ["language"] = language });
 
@@ -658,7 +658,7 @@ public sealed class Api
 
     public Task<LiveChannel> LiveChannel(long id, CancellationToken cancel = default) => Get<LiveChannel>($"/api/live/channels/{id}", cancel: cancel);
 
-    /// <summary>The programmes of channels <paramref name="ids"/> between <paramref name="from"/> and <paramref name="to"/> (unix seconds).</summary>
+    /// <summary>The programs of channels <paramref name="ids"/> between <paramref name="from"/> and <paramref name="to"/> (unix seconds).</summary>
     public Task<LiveGuide> LiveGuide(long from, long to, IReadOnlyList<long> ids, CancellationToken cancel = default) =>
         Get<LiveGuide>("/api/live/guide", new[]
         {

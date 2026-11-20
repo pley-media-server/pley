@@ -85,7 +85,7 @@ import kotlinx.coroutines.flow.Flow
 /*
  * The pieces the TV's request screens share, as the Samsung and LG apps
  * have them (packages/tv's request-kit.tsx), built on the TV's kit: the
- * words, posters with their status badges, stage pills in their colours,
+ * words, posters with their status badges, stage pills in their colors,
  * the download bar, the page a problem leaves, signing in again, and what
  * a screen tells once.
  */
@@ -151,7 +151,7 @@ internal fun titleMeta(title: DiscoverTitle, texts: RequestTexts): List<MetaPart
     title.rating?.takeIf { it > 0 }?.let { add(MetaPart.Rating(texts.rating(it))) }
 }
 
-/** A stage's colours: its words and dot, and the tint behind them. */
+/** A stage's colors: its words and dot, and the tint behind them. */
 @Immutable
 internal class Tone(val content: Color, val container: Color)
 

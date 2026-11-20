@@ -82,7 +82,7 @@ public struct ServerProbe: Sendable {
             return .pley(origin: Addresses.origin(origin) ?? origin, info)
         }
         if let notPley { return notPley }
-        // Cancelled, or every address failed.
+        // Canceled, or every address failed.
         return .unreachable(failure?.userMessage ?? PleyError.nothingAnswers)
     }
 

@@ -4,7 +4,9 @@
     "names": {
       "en": "English",
       "fr": "Français",
-      "es": "Español"
+      "es": "Español",
+      "zh-CN": "简体中文",
+      "zh-TW": "繁體中文"
     },
     "automatic": "Automatic ({{language}})"
   },
@@ -146,7 +148,7 @@
   "about": {
     "appName": "Pley for Samsung TV",
     "version": "Version",
-    "licences": "Open-source licences",
+    "licences": "Open-source licenses",
     "credits": "Credits"
   },
   "signOut": {

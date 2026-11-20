@@ -8,6 +8,16 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The app is in Simplified and Traditional Chinese too, in your profile's
+  language or the one picked with the globe, with dates, numbers and counts
+  written in the language shown.
+
+### Changed
+
+- English words are spelled the American way: color, favorite, program.
+
 ## [0.1.10] - 2026-11-18
 
 ### Added

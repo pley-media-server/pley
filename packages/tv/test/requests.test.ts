@@ -160,7 +160,7 @@ describe("who sees what", () => {
     expect(hasRequests(summary({ enabled: false, own: 3 }))).toBe(false);
   });
 
-  it("counts what waits for managers, in the danger colour while some failed, and only news for everyone else", () => {
+  it("counts what waits for managers, in the danger color while some failed, and only news for everyone else", () => {
     expect(requestsCount(summary({ manage: true, pending: 2, failed: 1, unseen: 1 }))).toEqual({ count: 4, danger: true });
     expect(requestsCount(summary({ manage: true, pending: 2, unseen: 1 }))).toEqual({ count: 3, danger: false });
     expect(requestsCount(summary({ pending: 5, unseen: 1 }))).toEqual({ count: 1, danger: false });
@@ -318,7 +318,7 @@ describe("seasons", () => {
 describe("a request's stage", () => {
   const opts = { manage: false, hours24: true };
 
-  it("is coloured by where it has got to", () => {
+  it("is colored by where it has got to", () => {
     expect(stageWords(request({ stage: "pending" }), opts, NOW)).toMatchObject({ text: "Waiting for approval", tone: "amber" });
     expect(stageWords(request({ status: "approved", stage: "approved" }), opts, NOW)).toMatchObject({ text: "Approved", tone: "blue" });
     expect(stageWords(request({ status: "approved", stage: "searching" }), opts, NOW)).toMatchObject({ text: "Searching", tone: "blue" });

@@ -3,7 +3,7 @@
 //!
 //! - [`rpu_to_p81`] rewrites a profile 7 RPU (NAL unit type 62) as a
 //!   profile 8.1 one, as `dovi_tool`'s mode 2 does: no residual, no
-//!   enhancement-layer resampling, no NLQ, the P8.1 colour coefficients,
+//!   enhancement-layer resampling, no NLQ, the P8.1 color coefficients,
 //!   and for a full enhancement layer a no-op mapping (its curves only make
 //!   sense together with the layer). The enhancement layer itself (type 63)
 //!   is simply left out by the caller.
@@ -677,7 +677,7 @@ struct DmColour {
     source_diagonal: u64,
 }
 
-/// Profile 8.1's colour coefficients (`dovi_tool`'s `set_p81_coeffs`):
+/// Profile 8.1's color coefficients (`dovi_tool`'s `set_p81_coeffs`):
 /// BT.2020 YCbCr to RGB, and RGB to LMS.
 const P81_YCC_TO_RGB: [i16; 9] = [9574, 0, 13802, 9574, -1540, -5348, 9574, 17610, 0];
 const P81_YCC_TO_RGB_OFFSET: [u32; 3] = [16_777_216, 134_217_728, 134_217_728];
@@ -914,14 +914,14 @@ pub fn rpu_to_p81(nal: &[u8]) -> anyhow::Result<NalEdit> {
     Ok(NalEdit::Replace(out))
 }
 
-/// Profile 5's colour coefficients, as its streams carry them: its own
+/// Profile 5's color coefficients, as its streams carry them: its own
 /// YCbCr (IPT-PQ-C2) to RGB, and that RGB to LMS.
 const P5_YCC_TO_RGB: [i16; 9] = [8192, 799, 1681, 8192, -933, 1091, 8192, 267, -5545];
 const P5_YCC_TO_RGB_OFFSET: [u32; 3] = [0, 134_217_728, 134_217_728];
 const P5_RGB_TO_LMS: [i16; 9] = [17081, -349, -349, -349, 17081, -349, -349, -349, 17081];
 
 /// A profile 5 RPU NAL unit for 10-bit video, as plain as one can be: each
-/// component mapped onto itself by one linear piece, profile 5's colour
+/// component mapped onto itself by one linear piece, profile 5's color
 /// coefficients, no extension blocks. The start-up test of a tone mapper
 /// that must find Dolby Vision's metadata on its frames puts it on its
 /// clip's ([`crate::ffmpeg`]): FFmpeg's encoders write RPUs only from

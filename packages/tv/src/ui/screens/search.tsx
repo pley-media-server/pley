@@ -319,7 +319,7 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
     }
   }
 
-  // The Discover row after the libraries' rows: grey wells while it comes, or why it didn't; with nothing in the libraries, the line saying so above it.
+  // The Discover row after the libraries' rows: gray wells while it comes, or why it didn't; with nothing in the libraries, the line saying so above it.
   const fromLibraries = sections.length;
   const onTmdb = tmdb && tmdb.query === words ? tmdb : null;
   if (asks && results && words && (!onTmdb || !!onTmdb.error || onTmdb.titles.length > 0)) {

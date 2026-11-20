@@ -184,7 +184,7 @@ Errors are `{"code": "...", "message": "..."}`:
 |---|---|
 | `name`, `version`, `api_version` | the program and its API version |
 | `commit` | the build's short hash, when known |
-| `license` | the program's licence, as SPDX: `AGPL-3.0-only` |
+| `license` | the program's license, as SPDX: `AGPL-3.0-only` |
 | `source` | where its source can be obtained: Pley's repository, or a changed build's own |
 | `started_at_ms` | start time |
 | `capabilities` | what this transcoder and its FFmpeg can do (below) |
@@ -200,7 +200,7 @@ before using what it names:
 | `encoders` | video encoders that passed a test encode, best first; `main10` on HEVC ones that passed in 10 bits too |
 | `hwaccels` | decoding hwaccels `ffmpeg -hwaccels` reports |
 | `tonemappers` | working tone mappers, best first: `libplacebo`, `opencl`, `zscale` |
-| `dolby_vision` | Dolby Vision profile 5 renders with correct colours (needs libplacebo) |
+| `dolby_vision` | Dolby Vision profile 5 renders with correct colors (needs libplacebo) |
 | `vulkan_decode` | codecs the GPU decodes straight into Vulkan memory, for libplacebo |
 | `vulkan_encode` | `h264_vulkan` encodes libplacebo's output on the GPU |
 | `gpu_pipelines` | GPU-only decode → scale → encode pipelines, with the codecs each passed for, and `main10`: those Quick Sync's keeps in 10 bits into its HEVC Main 10 encoder (HDR kept) |
@@ -213,12 +213,12 @@ before using what it names:
 | `tonemap_speed?` | `{high, balanced, fast}`: frames a second libplacebo tone maps 4K to 4K at each quality ([libplacebo quality](#libplacebo-quality)) |
 | `placebo_software` | libplacebo runs on a CPU's Vulkan (Mesa's llvmpipe), where no GPU is: it tone maps at `fast` ([libplacebo quality](#libplacebo-quality)) |
 | `amf_upload` | FFmpeg uploads AMF's frames to the AMD GPU ([AMF on Windows](#amf-on-windows)) |
-| `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the colour primaries `h264_amf` leaves out |
+| `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the color primaries `h264_amf` leaves out |
 | `subtitle_burn_image`, `subtitle_burn_text` | picture and text subtitles can be burned in |
 | `qsv_overlay` | Quick Sync lays picture subtitles on frames it decoded ([Subtitle burn-in](#subtitle-burn-in)) |
 | `readrate`, `readrate_catchup` | `-readrate` and `-readrate_catchup` work ([Throttling](#throttling)) |
 | `chromaprint` | `POST /v1/fingerprint` works |
-| `hls_master_playlist` | jobs have `master.m3u8`, and remuxes honour `dolby_vision` and `strip_hdr10plus` |
+| `hls_master_playlist` | jobs have `master.m3u8`, and remuxes honor `dolby_vision` and `strip_hdr10plus` |
 | `hdr_transcode` | a 10-bit HEVC encoder works: transcodes can keep HDR |
 | `subtitle_matroska` | `POST /v1/subtitles/mks` works |
 | `subtitle_matroska_partial` | `POST /v1/subtitles/mks` takes `partial` |
@@ -905,7 +905,7 @@ the VPS, SPS and PPS with every forced keyframe.
 
   libplacebo makes a Vulkan device of its own. A software encoder standing in
   for AMF, and OpenCL tone mapping, take frames from memory.
-- `h264_amf` writes no colour primaries, so
+- `h264_amf` writes no color primaries, so
   `-bsf:v h264_metadata=colour_primaries=…` adds them (BT.709 after tone
   mapping, else the source's own), where FFmpeg has the filter
   (`h264_metadata`). `hevc_amf` writes them itself.
@@ -946,7 +946,7 @@ the VPS, SPS and PPS with every forced keyframe.
   decodes 8-bit video kept at its size (its copy to memory costs the CPU
   less), interlaced and turned video, and Dolby Vision and HDR10+ that
   libplacebo tone maps: Quick Sync's decoder reads neither's metadata, and
-  Dolby Vision profile 5's colours are in it. A software encoder standing in
+  Dolby Vision profile 5's colors are in it. A software encoder standing in
   for Quick Sync's gets its frames through `vpp_qsv`.
 - **Where that decoder fails.** Some Intel drivers give Direct3D 11 no HEVC,
   and FFmpeg then decodes on the CPU. For Dolby Vision over an HDR10 base
@@ -957,7 +957,7 @@ the VPS, SPS and PPS with every forced keyframe.
   maps the HDR10 picture, the metadata unread. The job's status then says
   `decoder: qsv`, without the warning. On an Iris Xe, a 4K60 profile 8.1
   clip made 1080p went from 1.2 times real time on 2.8 cores to 2.2 times
-  on half a core. Profile 5, whose colours are in the metadata, stays on
+  on half a core. Profile 5, whose colors are in the metadata, stays on
   the CPU.
 - **Chroma and depth.** The start-up tests decode 8- and 10-bit 4:2:0
   video, and 10-bit 4:2:2 HEVC (what cameras record). Other video (4:2:2
@@ -977,7 +977,7 @@ available tone mapper:
 
 | Order | Tone mapper | Runs on | Notes |
 |---|---|---|---|
-| 1 | `libplacebo` | GPU (Vulkan) | Applies Dolby Vision RPU reshaping, so **profile 5** has correct colours. |
+| 1 | `libplacebo` | GPU (Vulkan) | Applies Dolby Vision RPU reshaping, so **profile 5** has correct colors. |
 | 2 | `tonemap_opencl` | GPU (OpenCL) | |
 | 3 | `zscale` + `tonemap` (zimg) | CPU | Scales to the output size first. |
 
@@ -989,7 +989,7 @@ available tone mapper:
   (`tonemapping=bt.2390`, libplacebo's knee): the master's luminance is
   kept below the knee, against BT.2408's 203 cd/m² reference white for
   SDR, the highlights above it are rolled off to the target's peak, and
-  black stays black, so letterbox bars stay at luma 16. On a PQ grey ramp
+  black stays black, so letterbox bars stay at luma 16. On a PQ gray ramp
   mastered at 1000 cd/m² and made SDR it came within 9 code values on
   average of the master's luminance up to 203 cd/m²; libplacebo's default
   curve (`tonemapping=auto`, a spline) was 21 off, darkening the
@@ -1019,7 +1019,7 @@ available tone mapper:
   stream with content light levels alone is taken for 1000 cd/m² as well.
 - Dolby Vision profiles 7 and 8 have an HDR10- or HLG-compatible base layer
   and work with any tone mapper. Profile 5 without libplacebo, or Pley's
-  FFmpeg's OpenCL, plays with off colours, with a warning. Profile 7 with
+  FFmpeg's OpenCL, plays with off colors, with a warning. Profile 7 with
   a full enhancement layer is tone mapped from its base layer alone
   ([Profile 7's full enhancement layer](#profile-7s-full-enhancement-layer)).
 - libplacebo caches compiled shaders in `libplacebo/` (saving about 0.2 s at
@@ -1173,7 +1173,7 @@ Several jobs tone mapping with libplacebo share the GPU (`src/share.rs`):
   - its start-up test passed (`qsv_opencl_dovi`): Windows, with pley-ffmpeg
     ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) or jellyfin-ffmpeg. The
     test's clip has a Dolby Vision RPU on every frame, which the transcoder
-    writes there itself, and no colour tags, as profile 5 has none:
+    writes there itself, and no color tags, as profile 5 has none:
     `tonemap_opencl` refuses such frames without the metadata, so the test
     passes only where it arrives;
   - the video is profile 5, or profile 7 or 8 over an HDR10 base layer, in
@@ -1261,7 +1261,7 @@ device is made from VAAPI's, and frames are uploaded back to it:
   (`vaapi_vulkan_decode`).
 - Jobs with a VAAPI encoder use only the tone mappers that passed, and zimg.
   Where none is left, or Dolby Vision profile 5 would lose libplacebo's
-  colours, the job encodes with x264, with a warning.
+  colors, the job encodes with x264, with a warning.
 - HDR kept in HEVC that libplacebo would convert is tone mapped instead when
   libplacebo's frames don't reach VAAPI's encoder.
 
@@ -1354,7 +1354,7 @@ asked to be copied is converted, with a warning.
   or 5.1 from the matching substream (`-downmix`).
 - **Downmix to stereo**: 5.0, 5.1 and 7.1 use Pley's own matrix
   (`DOWNMIX_51`, `DOWNMIX_71` in `plan.rs`) instead of `-ac 2`: FFmpeg's
-  default (fronts whole, surrounds at -3 dB, LFE dropped) but the centre at
+  default (fronts whole, surrounds at -3 dB, LFE dropped) but the center at
   0 dB for dialogue, then a limiter at -2 dBFS. TrueHD decoded to stereo by
   its own decoder, and other layouts, use `-ac 2`.
 - **Copied sound beside transcoded video**: a process that starts past 0
@@ -1418,7 +1418,7 @@ segment before it is ready.
 
 - The enhancement layer's NAL units (type 63) are left out.
 - Each RPU is rewritten as `dovi_tool`'s mode 2 does: no residual data (NLQ),
-  no enhancement-layer resampling, one partition, the P8.1 colour
+  no enhancement-layer resampling, one partition, the P8.1 color
   coefficients, and no-op mapping curves. Extension blocks and the rest are
   kept; the CRC is recomputed. The code is the transcoder's own
   (`src/dovi.rs`); nothing of FFmpeg's or `dovi_tool`'s is linked or run.
@@ -1561,7 +1561,7 @@ episodes' fingerprints to find shared intros and credits.
 | `path` | the file |
 | `stream_index?` | audio stream (default: the first) |
 | `start_ms` | where to start, from the beginning of the file |
-| `duration_ms` | how much to analyse; the end of the file may stop it earlier |
+| `duration_ms` | how much to analyze; the end of the file may stop it earlier |
 
 - Runs FFmpeg's `chromaprint` muxer (`-f chromaprint -fp_format raw`) on the
   audio downmixed to mono 11025 Hz. Each value covers 1365 samples (0.124 s,
@@ -1729,5 +1729,5 @@ Public License, version 3. See the LICENSE file.
 Source: https://github.com/pley-media-server/pley
 ```
 
-FFmpeg is run as a separate program, never linked, and has its own licence
+FFmpeg is run as a separate program, never linked, and has its own license
 ([LICENSING.md](../LICENSING.md#ffmpeg)).

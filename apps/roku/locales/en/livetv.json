@@ -7,7 +7,7 @@
   "categories": {
     "title": "Categories",
     "all": "All channels",
-    "favourites": "Favourites",
+    "favourites": "Favorites",
     "recent": "Recently watched",
     "regions": "Regions",
     "groups": "Groups",
@@ -35,12 +35,12 @@
     "loadingGuide": "Loading the guide…",
     "channelCount_one": "{{count, number}} channel",
     "channelCount_other": "{{count, number}} channels",
-    "noMatch": "No channel's name, number or programme on now has “{{search}}” in it.",
-    "noFavourites": "No favourites yet: the Options key (*) on a channel adds it.",
+    "noMatch": "No channel's name, number or program on now has “{{search}}” in it.",
+    "noFavourites": "No favorites yet: the Options key (*) on a channel adds it.",
     "nothingWatched": "Nothing watched yet.",
     "empty": "No channels here.",
-    "guideHint": "OK: watch   ·   Options (*): favourite   ·   Rewind and fast forward: earlier and later   ·   Play: now   ·   Replay: search",
-    "cardsHint": "OK: watch   ·   Options (*): favourite   ·   Replay: search"
+    "guideHint": "OK: watch   ·   Options (*): favorite   ·   Rewind and fast forward: earlier and later   ·   Play: now   ·   Replay: search",
+    "cardsHint": "OK: watch   ·   Options (*): favorite   ·   Replay: search"
   },
   "channelRange": "Channels {{from, number}}–{{to, number}} of {{total, number}}",
   "unnamedChannel": "Channel {{id}}",
@@ -80,18 +80,18 @@
     "watch": "Watch {{name}}"
   },
   "favourites": {
-    "add": "Add to favourites",
-    "remove": "Remove from favourites",
-    "added": "{{name}} is in your favourites",
-    "removed": "{{name}} is out of your favourites",
-    "mark": "Favourite"
+    "add": "Add to favorites",
+    "remove": "Remove from favorites",
+    "added": "{{name}} is in your favorites",
+    "removed": "{{name}} is out of your favorites",
+    "mark": "Favorite"
   },
   "player": {
     "tuning": "Tuning…",
     "radio": "Radio",
     "next": "Next   {{time}}   {{title}}",
-    "bannerHint": "Up and down: channels   ·   Left: {{category}}   ·   Options (*): favourite   ·   OK: close",
-    "listHint": "OK: watch   ·   Options (*): favourite   ·   Back: close",
+    "bannerHint": "Up and down: channels   ·   Left: {{category}}   ·   Options (*): favorite   ·   OK: close",
+    "listHint": "OK: watch   ·   Options (*): favorite   ·   Back: close",
     "listMoreHint": "Left: categories   ·   Replay: search",
     "categoriesHint": "OK: its channels   ·   Back: the channels",
     "stalled": "It stopped and couldn't get going again.",

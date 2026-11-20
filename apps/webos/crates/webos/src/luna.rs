@@ -31,7 +31,7 @@ use crate::dl::{Lib, fn_table};
 pub enum LunaError {
     /// luna-service2 isn't there (not a TV), or the hub refused the registration.
     Unavailable(String),
-    /// No answer in time; the call was cancelled.
+    /// No answer in time; the call was canceled.
     Timeout,
     /// The service answered `returnValue: false`.
     Refused { code: Option<i64>, text: String },
@@ -305,7 +305,7 @@ impl LsError {
             padding: ptr::null_mut(),
             magic: 0,
         };
-        // SAFETY: `e` is a valid LSError for the library to initialise.
+        // SAFETY: `e` is a valid LSError for the library to initialize.
         unsafe { (api.LSErrorInit)(&mut e) };
         e
     }
@@ -318,7 +318,7 @@ impl LsError {
             // SAFETY: luna-service2 set `message` to a C string it owns until LSErrorFree.
             unsafe { CStr::from_ptr(self.message) }.to_string_lossy().into_owned()
         };
-        // SAFETY: initialised by LSErrorInit and filled by a failed call.
+        // SAFETY: initialized by LSErrorInit and filled by a failed call.
         unsafe { (api.LSErrorFree)(&mut self) };
         format!("{text} ({})", self.error_code)
     }
@@ -439,7 +439,7 @@ thread_local! {
 fn register(api: &Api, name: Option<&CStr>, context: *mut c_void) -> Result<*mut c_void, String> {
     let mut handle = ptr::null_mut();
     let mut error = LsError::new(&api.ls);
-    // SAFETY: a NUL-terminated name or null, an initialised LSError, and the
+    // SAFETY: a NUL-terminated name or null, an initialized LSError, and the
     // luna thread's own context.
     unsafe {
         let name = name.map_or(ptr::null(), CStr::as_ptr);
@@ -683,7 +683,7 @@ unsafe extern "C" fn on_answer(_handle: *mut c_void, message: *mut c_void, conte
     if let Some(mut reply) = taken
         && let Some(back) = deliver(&mut reply, answer)
     {
-        // A subscription goes on, unless it was cancelled meanwhile.
+        // A subscription goes on, unless it was canceled meanwhile.
         with_state(|s| {
             if let Some(call) = s.calls.get_mut(&id) {
                 call.reply = Some(back);

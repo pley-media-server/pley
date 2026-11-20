@@ -1,0 +1,44 @@
+{
+  "actions": {
+    "play": "播放",
+    "pause": "暫停",
+    "shuffle": "隨機播放",
+    "shuffleOff": "停止隨機播放",
+    "nowPlaying": "正在播放",
+    "next": "下一首",
+    "previous": "上一首",
+    "retry": "重試",
+    "back": "返回"
+  },
+  "pages": {
+    "artist": "藝人",
+    "albums": "專輯",
+    "noAlbums": "未找到專輯。",
+    "noTracks": "未找到曲目",
+    "nothingToPlay": "沒有可播放的內容：它沒有曲目。",
+    "artistNotFound": "未找到藝人",
+    "albumNotFound": "未找到專輯",
+    "notFoundBody": "它可能已被移除，或此設定檔無權檢視。",
+    "artistFailed": "無法載入此藝人",
+    "albumFailed": "無法載入此專輯",
+    "disc": "第 {{number}} 張光碟"
+  },
+  "count": {
+    "albums_other": "{{count, number}} 張專輯",
+    "tracks_other": "{{count, number}} 首曲目"
+  },
+  "nowPlaying": {
+    "upNext": "接下來播放",
+    "position": "曲目進度",
+    "loading": "載入中…",
+    "nothingTitle": "沒有正在播放的內容",
+    "nothingBody": "播放專輯或藝人後，就會顯示在這裡。",
+    "sleep": "{{timer}}：{{left}}"
+  },
+  "errors": {
+    "offline": "無法連線伺服器。",
+    "signedOut": "請重新登入後再播放。",
+    "stopped": "伺服器停止了播放。",
+    "unplayable": "無法播放此曲目。"
+  }
+}

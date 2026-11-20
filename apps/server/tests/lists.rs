@@ -237,7 +237,7 @@ async fn collections_are_curated_by_admins() {
         .post(
             &format!("/api/libraries/{movies}/collections"),
             &admin,
-            json!({"title": "Favourites", "summary": "The best", "item_ids": [m["Alpha"], m["Beta"]]}),
+            json!({"title": "Favorites", "summary": "The best", "item_ids": [m["Alpha"], m["Beta"]]}),
         )
         .await;
     assert_eq!(created.status, StatusCode::CREATED, "{:?}", created.body);
@@ -273,9 +273,11 @@ async fn collections_are_curated_by_admins() {
 
     // Item pages know their collections.
     let of_item = app.get(&format!("/api/items/{}/collections", m["Gamma"]), &admin).await;
-    assert_eq!(of_item.body["collections"], json!([{"id": id, "title": "Favourites"}]));
+    assert_eq!(of_item.body["collections"], json!([{"id": id, "title": "Favorites"}]));
 
-    // Without artwork of its own, the first item's is used.
+    // Without artwork of its own, the first item's is used (films with
+    // posters: with none, the library's icon is drawn).
+    sqlx::query("UPDATE items SET poster = 'poster.jpg'").execute(&app.state.db.write).await.unwrap();
     let poster = app.get(&format!("/api/collections/{id}/images/poster?w=320"), &admin).await;
     assert_eq!(poster.status, StatusCode::TEMPORARY_REDIRECT);
     assert_eq!(poster.headers[header::LOCATION], format!("/api/items/{}/images/poster?w=320", m["Gamma"]).as_str());
@@ -297,8 +299,8 @@ async fn collections_are_curated_by_admins() {
     let later = app.post(&format!("/api/libraries/{movies}/collections"), &admin, json!({"title": "Later"})).await;
     let later = later.body["id"].as_i64().unwrap();
     assert_eq!(app.get(&format!("/api/collections/{later}"), &bob).await.status, StatusCode::NOT_FOUND);
-    assert_eq!(titles(&app.collections(movies, &bob).await), vec!["Favourites"]);
-    assert_eq!(titles(&app.collections(movies, &admin).await), vec!["Favourites", "Later"]);
+    assert_eq!(titles(&app.collections(movies, &bob).await), vec!["Favorites"]);
+    assert_eq!(titles(&app.collections(movies, &admin).await), vec!["Favorites", "Later"]);
 
     assert_eq!(app.delete(&format!("/api/collections/{id}"), &admin).await.status, StatusCode::NO_CONTENT);
     assert_eq!(app.get(&format!("/api/collections/{id}"), &admin).await.status, StatusCode::NOT_FOUND);
@@ -393,7 +395,8 @@ async fn hidden_items_stay_hidden_in_collections_and_playlists() {
     assert_eq!(app.get(&format!("/api/items/{adult}/collections"), &kid).await.status, StatusCode::NOT_FOUND);
     let of_cartoon = app.get(&format!("/api/items/{cartoon}/collections"), &kid).await;
     assert_eq!(of_cartoon.body["collections"], json!([]));
-    // The artwork fallback never points at the hidden film.
+    // The artwork fallback never points at the hidden film (both with posters).
+    sqlx::query("UPDATE items SET poster = 'poster.jpg'").execute(&app.state.db.write).await.unwrap();
     let poster = app.get(&format!("/api/collections/{mixed}/images/poster"), &kid).await;
     assert_eq!(poster.headers[header::LOCATION], format!("/api/items/{family}/images/poster").as_str());
     // The Jellyfin API applies the same rules.
@@ -471,7 +474,7 @@ async fn lists_carry_synopses_when_asked() {
         let edited = app.patch(&format!("/api/items/{id}"), &admin, json!({"summary": text})).await;
         assert_eq!(edited.status, StatusCode::OK, "{:?}", edited.body);
     }
-    let collection = app.collection(&admin, movies, "Favourites", &[alpha]).await;
+    let collection = app.collection(&admin, movies, "Favorites", &[alpha]).await;
     let playlist = app.post("/api/playlists", &admin, json!({"title": "Tonight", "item_ids": [alpha]})).await;
     let playlist = playlist.body["id"].as_i64().unwrap();
     let recent = format!("recently_added:{movies}");

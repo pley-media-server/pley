@@ -100,7 +100,7 @@ impl Ffmpeg {
         self.caps.encoders.iter().find(|e| e.codec == codec && !e.hardware && (e.main10 || !main10))
     }
 
-    /// Choose an encoder for `codec` honouring the requested acceleration.
+    /// Choose an encoder for `codec` honoring the requested acceleration.
     /// Returns the encoder plus a warning when the request could not be met.
     pub fn pick_encoder(&self, codec: VideoCodec, accel: HwAccel) -> (Option<&EncoderInfo>, Option<String>) {
         self.pick(codec, accel, false)
@@ -331,7 +331,7 @@ async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool, l
 
 const HDR_TAGS: &str = "setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc";
 
-/// Frames without colour properties, as Dolby Vision profile 5's come:
+/// Frames without color properties, as Dolby Vision profile 5's come:
 /// what tone maps them goes by their metadata, or fails.
 const UNTAGGED: &str = "setparams=color_trc=unknown:color_primaries=unknown:colorspace=unknown";
 

@@ -1,5 +1,5 @@
 //! Live TV's page against the fake server: where focus goes, the categories, the views, a
-//! programme's details and favourites, search, and the profile it isn't open to.
+//! program's details and favorites, search, and the profile it isn't open to.
 
 mod common;
 
@@ -20,8 +20,8 @@ fn live() -> TestApp {
     app.open(Route::LiveTv);
     let guide = app.id(&["guide"]);
     assert!(app.until(|a| a.shows("Today") && a.focused() == Some(guide)), "the guide didn't take focus");
-    // The guide's programmes are in once the info block says how long what's on has left.
-    assert!(app.until(|a| a.list.texts().any(|t| t.contains(" left"))), "no programmes");
+    // The guide's programs are in once the info block says how long what's on has left.
+    assert!(app.until(|a| a.list.texts().any(|t| t.contains(" left"))), "no programs");
     app
 }
 
@@ -50,7 +50,7 @@ fn kept(store: &Store, prefix: &str) -> Option<String> {
 #[test]
 fn the_page_opens_on_the_guide_of_every_channel() {
     let app = live();
-    for text in ["Live TV", "Guide", "Channels", "Favourites", "Recently watched", "All channels", "Groups"] {
+    for text in ["Live TV", "Guide", "Channels", "Favorites", "Recently watched", "All channels", "Groups"] {
         assert!(app.shows(text) || app.shows(&text.to_uppercase()), "no {text}");
     }
     // The counts come with the categories, with thousands' separators.
@@ -61,7 +61,7 @@ fn the_page_opens_on_the_guide_of_every_channel() {
 fn left_goes_to_the_category_shown_and_ok_on_a_group_lists_it() {
     let mut app = live();
     to_categories(&mut app);
-    // The search, Favourites, Recently watched, then All channels.
+    // The search, Favorites, Recently watched, then All channels.
     assert_eq!(app.focused(), Some(category_row(&app, 3)));
     app.press(Key::Down);
     assert_eq!(app.focused(), Some(category_row(&app, 5)), "the heading is passed over");
@@ -169,19 +169,19 @@ fn menu_opens_the_details_and_the_favourite_changes_at_once() {
     let watch = app.id(&["details", "content", "watch"]);
     assert!(app.until(|a| a.focused() == Some(watch)), "the details' Watch now hasn't focus");
     assert!(app.shows("Watch now") && app.shows("ON NOW"));
-    // Channel 1 is one of Alex's favourites: the star beside Watch says so to Audio Guidance alone.
+    // Channel 1 is one of Alex's favorites: the star beside Watch says so to Audio Guidance alone.
     app.ui.set_speaking(true);
     app.press(Key::Right);
     assert_eq!(app.focused(), Some(app.id(&["details", "content", "favourite"])), "the star isn't beside Watch");
     let words = app.ui.take_speech().unwrap_or_default();
-    assert!(words.starts_with("Remove from favourites"), "{words}");
-    assert!(!app.shows("Remove from favourites"), "the star shows its words");
+    assert!(words.starts_with("Remove from favorites"), "{words}");
+    assert!(!app.shows("Remove from favorites"), "the star shows its words");
     app.press(Key::Ok);
     // Audio Guidance reads a name as focus comes: to Watch and back.
     app.press(Key::Left);
     app.press(Key::Right);
     let words = app.ui.take_speech().unwrap_or_default();
-    assert!(words.ends_with("Add to favourites"), "the star didn't change at once: {words}");
+    assert!(words.ends_with("Add to favorites"), "the star didn't change at once: {words}");
     assert!(app.until(|a| !a.server.writes("DELETE", "/api/live/channels/1/favorite").is_empty()));
     // Back closes the panel, focus back in the guide.
     app.press(Key::Back);
@@ -193,7 +193,7 @@ fn menu_opens_the_details_and_the_favourite_changes_at_once() {
 #[test]
 fn back_away_from_now_comes_back_to_now_before_leaving() {
     let mut app = live();
-    // The info block says how long what's on has left; a programme later doesn't.
+    // The info block says how long what's on has left; a program later doesn't.
     let on_now = |a: &TestApp| a.list.texts().any(|t| t.contains(" left"));
     assert!(on_now(&app));
     app.press(Key::Right);
@@ -322,7 +322,7 @@ fn a_search_looks_through_every_channel() {
     app.press(Key::Ok);
     app.type_text("zzz");
     assert!(app.until(|a| a.shows("No channels match")), "no empty search");
-    assert!(app.shows("No channel's name, number or programme on now has “zzz” in it."));
+    assert!(app.shows("No channel's name, number or program on now has “zzz” in it."));
 }
 
 #[test]
@@ -344,7 +344,7 @@ fn a_search_keeps_the_category_shown_marked_and_left_goes_back_to_it() {
     let guide = app.id(&["guide"]);
     assert!(app.until(|a| a.focused() == Some(guide)), "the results haven't focus");
     to_categories(&mut app);
-    // The field, the heading, UK| News found, Favourites, Recently watched, then All channels.
+    // The field, the heading, UK| News found, Favorites, Recently watched, then All channels.
     assert_eq!(app.focused(), Some(category_row(&app, 5)), "Left from the results isn't on the category shown");
 }
 

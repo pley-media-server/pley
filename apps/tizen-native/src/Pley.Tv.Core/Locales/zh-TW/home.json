@@ -1,0 +1,20 @@
+{
+  "hero": {
+    "info": "資訊"
+  },
+  "states": {
+    "failed": "無法載入主螢幕",
+    "noLibraries": "還沒有媒體庫",
+    "noLibrariesBody": "請讓伺服器所有者新增一個媒體庫。",
+    "scanning": "正在掃描媒體庫…",
+    "scanningBody": "找到的新內容會很快出現在這裡。",
+    "empty": "這裡還沒有內容",
+    "emptyBody": "媒體庫是空的。把媒體檔案放進媒體庫資料夾，然後執行掃描。"
+  },
+  "comesNext": "此頁面在原生應用中將在後續推出。",
+  "featured": {
+    "newIn": "{{library}} 中的新內容",
+    "new": "新",
+    "onList": "在你的片單中"
+  }
+}

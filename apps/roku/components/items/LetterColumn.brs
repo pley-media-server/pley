@@ -34,7 +34,7 @@ function rowHeight() as integer
 end function
 
 ' The letter in focus on the accent; without the focus, the grid's letter
-' in the text colour on a lighter ground; the others muted, or dimmed where
+' in the text color on a lighter ground; the others muted, or dimmed where
 ' no title starts with them.
 sub onLook()
     focused = m.top.hasFocus()

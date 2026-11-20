@@ -137,7 +137,7 @@ public static class LiveRules
         return out_;
     }
 
-    /// <summary>The programmes of <paramref name="guides"/> by channel, each list by start, one programme per start.</summary>
+    /// <summary>The programs of <paramref name="guides"/> by channel, each list by start, one program per start.</summary>
     public static IReadOnlyDictionary<long, IReadOnlyList<LiveProgram>> Merge(IEnumerable<LiveGuide> guides)
     {
         var byChannel = new Dictionary<long, Dictionary<long, LiveProgram>>();
@@ -153,15 +153,15 @@ public static class LiveRules
         return byChannel.ToDictionary(e => e.Key, e => (IReadOnlyList<LiveProgram>)e.Value.Values.OrderBy(p => p.Start).ToList());
     }
 
-    /// <summary>The programmes that show between <paramref name="from"/> and <paramref name="to"/>.</summary>
+    /// <summary>The programs that show between <paramref name="from"/> and <paramref name="to"/>.</summary>
     public static IReadOnlyList<LiveProgram> Between(IReadOnlyList<LiveProgram>? programs, long from, long to) =>
         (programs ?? Array.Empty<LiveProgram>()).Where(p => p.Stop > from && p.Start < to).ToList();
 
-    /// <summary>The programme on at <paramref name="time"/> of <paramref name="programs"/>.</summary>
+    /// <summary>The program on at <paramref name="time"/> of <paramref name="programs"/>.</summary>
     public static LiveProgram? At(IReadOnlyList<LiveProgram>? programs, long time) =>
         programs?.FirstOrDefault(p => p.Start <= time && p.Stop > time);
 
-    /// <summary>A programme's rest at <paramref name="now"/>, as hours and minutes, a minute at least.</summary>
+    /// <summary>A program's rest at <paramref name="now"/>, as hours and minutes, a minute at least.</summary>
     public static (int Hours, int Minutes) Left(LiveProgram program, long now)
     {
         var minutes = Math.Max(1, (int)Math.Floor((program.Stop - now) / 60.0 + 0.5));

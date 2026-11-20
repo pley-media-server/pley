@@ -1,8 +1,8 @@
 //! The globe of the screens before signing in (the web app's LanguagePicker, the Samsung apps'
 //! `LanguageGlobe`): a small plain globe and the language shown by its two letters ("FR"), with
 //! no fill until it has focus, "FR" at the screen's right edge. At the bottom right of Choose your
-//! server and the address entry, centred on the forget hint's line; on the sign-in code at the top
-//! right, centred on the logo's line. Down or Up reaches it, Left and Right never do.
+//! server and the address entry, centered on the forget hint's line; on the sign-in code at the top
+//! right, centered on the logo's line. Down or Up reaches it, Left and Right never do.
 //!
 //! OK opens the languages in a side panel, as Settings shows its choices: Automatic, with what
 //! that is on this TV (its own language where Pley has it, else the server's, else English), then
@@ -18,7 +18,7 @@ use pley_ui::{Dir, Edge, Group, Id, Ui};
 
 /// From the screen's right edge to what the globe shows ("FR").
 const RIGHT: f32 = 48.0;
-/// From the screen's bottom edge to the globe at the bottom right, which centres it on the forget
+/// From the screen's bottom edge to the globe at the bottom right, which centers it on the forget
 /// hint's line (`Caption`, 27 from the bottom).
 const BOTTOM: f32 = 20.0;
 /// The gap between the panel's rows, as in Settings.
@@ -29,7 +29,7 @@ const ROW_GAP: f32 = 2.0;
 pub enum Place {
     /// The bottom right: Choose your server, the address entry.
     BottomRight,
-    /// The top right, centred on `y` (dp): the logo's line on the sign-in code.
+    /// The top right, centered on `y` (dp): the logo's line on the sign-in code.
     TopRight { centre: f32 },
 }
 

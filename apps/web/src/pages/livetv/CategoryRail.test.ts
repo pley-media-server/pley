@@ -37,7 +37,7 @@ describe("categories", () => {
     const groups = [group("UK| Sport", "UK", "Sport")];
     expect(categoryName({ kind: "group", group: "UK| Sport" }, groups)).toBe("UK · Sport");
     expect(categoryName({ kind: "group", group: "Gone" }, groups)).toBe("Gone");
-    expect(categoryName({ kind: "favorites" }, groups)).toBe("Favourites");
+    expect(categoryName({ kind: "favorites" }, groups)).toBe("Favorites");
   });
 
   it("leave channel names without the region their group says", () => {

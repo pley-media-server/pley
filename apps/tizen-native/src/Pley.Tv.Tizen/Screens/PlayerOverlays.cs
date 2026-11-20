@@ -449,7 +449,7 @@ sealed class MethodBadge : View
         tint.CornerRadius = Ui.Dp(PleyShape.BadgeRadius);
         Add(tint);
         text = Text.Label("", PleyType.Caption, PleyColors.Fg);
-        // The label has a little room past its text (Text.Width): centred, the text stays in the badge's middle.
+        // The label has a little room past its text (Text.Width): centered, the text stays in the badge's middle.
         text.HorizontalAlignment = HorizontalAlignment.Center;
         text.Position = new Position(Ui.Dp(8), Ui.Dp(3));
         Add(text);
@@ -476,7 +476,7 @@ sealed class MethodBadge : View
 
 /// <summary>
 /// A video's frame in a box of another shape (the seek preview, a chapter's card), as the player
-/// shows the video: as large as fits, centred, black where it doesn't reach; never stretched to the
+/// shows the video: as large as fits, centered, black where it doesn't reach; never stretched to the
 /// box. The server's previews keep the video's shape (a 2.39:1 film's are 320 × 134).
 /// </summary>
 static class Letterbox
@@ -511,7 +511,7 @@ static class Letterbox
         }
     }
 
-    /// <summary><paramref name="picture"/> at <paramref name="aspect"/> (width over height) in <paramref name="box"/> less <paramref name="inset"/> each side, centred; 0 fills it.</summary>
+    /// <summary><paramref name="picture"/> at <paramref name="aspect"/> (width over height) in <paramref name="box"/> less <paramref name="inset"/> each side, centered; 0 fills it.</summary>
     static void Fit(View picture, View box, float aspect, float inset)
     {
         float w = box.SizeWidth - 2 * inset, h = box.SizeHeight - 2 * inset;

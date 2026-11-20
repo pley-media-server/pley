@@ -302,7 +302,7 @@ impl Household {
             });
         }
 
-        let video = self.new_playlist(ids::ALEX, "Favourites", "video", None, None, BASE_TIME - 10 * DAY);
+        let video = self.new_playlist(ids::ALEX, "Favorites", "video", None, None, BASE_TIME - 10 * DAY);
         for id in [1, 2, 15, 16, 17, 30, 31, 32, 101, 202, 303, ids::SHOW_S1E1] {
             let entry = self.new_entry();
             self.playlists.get_mut(&video).expect("just made").entries.push((entry, id));
@@ -320,7 +320,7 @@ impl Household {
             Some(ids::MOVIES),
             BASE_TIME - DAY,
         );
-        // Alex's favourite channels and the ones watched last.
+        // Alex's favorite channels and the ones watched last.
         let alex = self.profiles.get_mut(&ids::ALEX).expect("Alex is in the household");
         alex.live_favorites = vec![ids::LIVE_CHANNEL, 3, 9, 17];
         alex.live_recent = vec![ids::LIVE_CHANNEL, 9, 31];
