@@ -14,7 +14,7 @@ describes how they are made.
   phone's media controls repeats the queue, then the track playing, then
   nothing.
 - Music's notification and the phone's media controls have Shuffle and
-  Repeat buttons.
+  Repeat buttons, with a dot under the one that is on.
 - Now Playing moves from one track to the next: the cover stays until the
   next one fades in, the title slides to the next track's, and the
   scrubber glides.

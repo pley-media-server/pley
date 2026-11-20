@@ -1069,8 +1069,9 @@ sent within 8 seconds shows as the server out of reach, as cars are to
 show what they ask for within 10 seconds. Picking a track plays on through
 its album or playlist; a track found by search plays on through its
 album. Now Playing shows the whole queue, which the car can pick from,
-a Shuffle button, lit while the queue is shuffled, and a Repeat button,
-which repeats the queue, then the track playing, then nothing (the
+a Shuffle button and a Repeat button, which repeats the queue, then the
+track playing, then nothing; a dot under each says it is on, and each
+is as bright off as on, so it doesn't look as if it can't be pressed (the
 phone's media controls have both, as do Now Playing on the phone and on
 a TV). A queue that repeats plays again from its start once it ends, in
 the order it has, and Next on its last track and Previous on its first go

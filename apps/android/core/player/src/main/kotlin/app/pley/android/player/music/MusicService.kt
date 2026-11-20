@@ -377,22 +377,27 @@ class MusicService : MediaLibraryService() {
     /**
      * The buttons beside Previous, Play and Next (Android Auto's Now
      * Playing, the notification, the system's media controls): Shuffle,
-     * lit while it is on, then Repeat, showing whether the queue or the
-     * track repeats. Each is named for what a press does.
+     * then Repeat, showing whether the queue or the track repeats. Each is
+     * named for what a press does. Their pictures are Pley's: Media3's draw
+     * a mode that is off at 30% opacity, which a car shows as a button that
+     * can't be pressed; Pley's are as bright off as on, with a dot under one
+     * that is on.
      */
     private fun buttons(queue: MusicQueueState): List<CommandButton> {
         val res = AppLanguage.resources(this)
         val shuffle = CommandButton.Builder(if (queue.shuffle) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF)
+            .setCustomIconResId(if (queue.shuffle) R.drawable.music_session_shuffle_on else R.drawable.music_session_shuffle)
             .setDisplayName(res.getString(if (queue.shuffle) R.string.music_library_shuffle_off else R.string.music_library_shuffle))
             .setSessionCommand(SHUFFLE)
             .setSlots(CommandButton.SLOT_BACK_SECONDARY, CommandButton.SLOT_OVERFLOW)
             .build()
-        val (icon, name) = when (queue.repeat) {
-            MusicRepeat.Off -> CommandButton.ICON_REPEAT_OFF to R.string.music_library_repeat
-            MusicRepeat.All -> CommandButton.ICON_REPEAT_ALL to R.string.music_library_repeat_one
-            MusicRepeat.One -> CommandButton.ICON_REPEAT_ONE to R.string.music_library_repeat_off
+        val (icon, picture, name) = when (queue.repeat) {
+            MusicRepeat.Off -> Triple(CommandButton.ICON_REPEAT_OFF, R.drawable.music_session_repeat, R.string.music_library_repeat)
+            MusicRepeat.All -> Triple(CommandButton.ICON_REPEAT_ALL, R.drawable.music_session_repeat_on, R.string.music_library_repeat_one)
+            MusicRepeat.One -> Triple(CommandButton.ICON_REPEAT_ONE, R.drawable.music_session_repeat_one_on, R.string.music_library_repeat_off)
         }
         val repeat = CommandButton.Builder(icon)
+            .setCustomIconResId(picture)
             .setDisplayName(res.getString(name))
             .setSessionCommand(REPEAT)
             .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
