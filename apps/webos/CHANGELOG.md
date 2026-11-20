@@ -12,12 +12,11 @@ describes how they are made.
 
 ### Added
 
-- Choose Simplified Chinese (简体中文) or Traditional Chinese (繁體中文) as
-  the app's language, for your account or on this TV.
+- Simplified and Traditional Chinese.
 
 ### Changed
 
-- English words are spelled the American way: color, favorite, program.
+- English is spelled the American way (color, favorite).
 
 ## [0.1.11] - 2026-11-18
 

@@ -12,13 +12,11 @@ describes how they are made.
 
 ### Added
 
-- The add-on is in Simplified and Traditional Chinese too, in your
-  profile's language or the one chosen in Screens → Language, with dates,
-  numbers and counts written in the language shown.
+- Simplified and Traditional Chinese.
 
 ### Changed
 
-- English words are spelled the American way: color, favorite, program.
+- English is spelled the American way (color, favorite).
 
 ## [0.1.9] - 2026-11-18
 

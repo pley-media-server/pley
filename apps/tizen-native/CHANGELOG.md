@@ -12,8 +12,7 @@ describes how they are made.
 
 ### Added
 
-- Pley is also in Simplified and Traditional Chinese, picked with the globe
-  before signing in or under Settings → Profile → Language.
+- Simplified and Traditional Chinese.
 
 ## [0.1.11] - 2026-11-18
 

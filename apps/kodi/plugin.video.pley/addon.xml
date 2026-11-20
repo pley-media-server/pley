@@ -39,10 +39,10 @@
     <news>0.1.10 (2026-11-20)
 Added:
 
-- The add-on is in Simplified and Traditional Chinese too, in your profile's language or the one chosen in Screens → Language, with dates, numbers and counts written in the language shown.
+- Simplified and Traditional Chinese.
 
 Changed:
 
-- English words are spelled the American way: color, favorite, program.</news>
+- English is spelled the American way (color, favorite).</news>
   </extension>
 </addon>

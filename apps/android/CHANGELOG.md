@@ -12,14 +12,13 @@ describes how they are made.
 
 ### Added
 
-- Choose Simplified Chinese (简体中文) or Traditional Chinese (繁體中文) as
-  the app's language, for your account or on this device.
-- Manage server → Libraries can turn off a film library's collections from
-  TMDB.
+- Simplified and Traditional Chinese.
+- Manage server → Libraries can turn off a movie library's collections
+  from TMDB.
 
 ### Changed
 
-- English words are spelled the American way: color, favorite, program.
+- English is spelled the American way (color, favorite).
 
 ## [0.1.15] - 2026-11-18
 
