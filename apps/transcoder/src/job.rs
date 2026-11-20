@@ -2197,9 +2197,12 @@ impl Job {
     /// them, a process may have read as much video as time has gone by
     /// since it started, and those 120 s: at that limit it is held to real
     /// time. Behind the limit (it is slower than that, or was paused), it
-    /// is held to twice real time until it reaches it; an FFmpeg without
+    /// is held to twice real time until it reaches it, counted from when it
+    /// last fell further behind than it had been: paused again before it
+    /// caught up, it reads freely for a while. An FFmpeg without
     /// `-readrate_catchup` reads freely there. A speed under what holds it
-    /// is the computer's.
+    /// is the computer's, and one over it is at least what the preset
+    /// makes.
     fn measured(&self, p: &Proc) -> Option<(adaptive::Measured, adaptive::Measured, Instant)> {
         use adaptive::Measured::{AtLeast, Exactly};
         let (speed, steady, at, out_ms) = p.pace.lock().latest()?;

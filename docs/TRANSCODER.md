@@ -722,8 +722,10 @@ server, on by default), and FFmpeg supports `readrate`.
   it reads at real time (`-readrate 1`).
 - **Catch-up**: behind that limit (a computer that makes less, a slow disk or
   share, or a process that was paused), it reads at up to 2× until it is back
-  at it, where FFmpeg can (`-readrate_catchup`, FFmpeg 8). An older FFmpeg
-  reads as fast as it can there.
+  at it, where FFmpeg can (`-readrate_catchup`, FFmpeg 8). FFmpeg counts the
+  2× from when it last fell further behind than it had been, so a process
+  paused again before it caught up can read faster for a while. An older
+  FFmpeg reads as fast as it can there.
 - **Pause far ahead**: a process 90 s ahead of the last segment the player
   asked for is suspended (`NtSuspendProcess` on Windows, `SIGSTOP` on Linux)
   until it is less than 60 s ahead, or a request waits for a segment it is to
