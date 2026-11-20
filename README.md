@@ -28,23 +28,19 @@
 
 ## Features
 
-- Movies, TV shows, music and audiobooks, with metadata from TMDB,
-  TheTVDB, TVmaze, MusicBrainz, Open Library or your own NFO files
-- Direct play when a device can handle the file, GPU transcoding when it
-  can't
-- Automatic quality that adjusts to your connection while you watch
-- HDR10, HLG and Dolby Vision, tone mapped for SDR screens
-- Image subtitles (PGS, VobSub) drawn by the apps instead of burned in
-- Skip Intro and Skip Credits
-- Live TV from M3U playlists and Xtream Codes, with XMLTV guides
-- Control playback on your other devices, or cast to Chromecast and AirPlay
-- Collections from TMDB, hand-picked or smart, as rows on Home
-- Requests for movies and shows, sent to Radarr and Sonarr
+- Support for Movies, TV Shows, Music and Audiobooks
+- IPTV from M3U playlists and Xtream Codes, with XMLTV guides
 - Profiles, PINs, age limits and two-step sign-in
-- Import from Plex: libraries, users and watch history
-- Plex- and Jellyfin-compatible APIs, so Jellyfin clients and tools like
-  Kometa work with Pley
+- Age-based parental controls
+- Requests for movies and shows, sent to Radarr and Sonarr
+- HW accelerated transcoding with dynamic quality adjustment
+- HDR10, HLG and Dolby Vision, tone mapping for SDR screens
+- Skip Intro and Skip Credits
+- Control playback on your other devices, or cast to Chromecast and AirPlay
+- Plex and Jellyfin compatible APIs for tools like Kometa
 - Works offline on your home network, with downloads for when you're away
+- Import from Plex: libraries, users and watch history
+- Customizable Collections (TMDB, hand-picked or smart)
 
 [All features](docs/FEATURES.md)
 
