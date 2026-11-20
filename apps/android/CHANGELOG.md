@@ -34,7 +34,7 @@ With Android Auto:
   Google, play … on Pley", which finds music playlists by name ("my …
   playlist" too) and says so when it finds nothing. Signed out, the car
   says to open Pley on the phone.
-- Live TV's channels play as radio: a Live TV tab with favourites,
+- Live TV's channels play as radio: a Live TV tab with favorites,
   channels watched lately and groups, channel search, and "Hey Google,
   play … on Pley" by channel name.
 - As the car connects, what played last waits in its Now Playing, paused
@@ -51,7 +51,7 @@ With Android Auto:
   title on a phone on its side and on tablets, with Play in view, and
   keeps Play and Shuffle side by side above the bar of what plays.
 - The rail beside the page on a phone on its side or a tablet shows its
-  tabs' icons alone, in a column centred on its height.
+  tabs' icons alone, in a column centered on its height.
 - A track that can't be played says so for 5 seconds, then the next one
   plays by itself; Play tries it again.
 - Music, films and shows without a picture show Pley's mark on their

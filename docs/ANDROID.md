@@ -163,7 +163,7 @@ rates as the decoder gives them, the same in every language.
   the gradient alone.
 - **The tabs** are a bar under the page on a phone held upright, with
   their names, and a rail beside it on a phone on its side, a tablet or
-  a car's screen: icons alone, centred on its height and read out by
+  a car's screen: icons alone, centered on its height and read out by
   name. A narrow car screen has the bar, its icons alone.
 - **The player** shows its controls, the title with them, for 3 s as
   playback starts and as each later item begins (the next episode, a
@@ -1136,7 +1136,7 @@ pick what plays; a media button (a headset's, the steering wheel's, or
 one another app sends) only plays, pauses and skips.
 
 **Live TV**, while driving or parked, to a profile Live TV is open to:
-its tab lists the favourites, then the channels watched lately, each
+its tab lists the favorites, then the channels watched lately, each
 under its heading, then the provider's groups (or All channels, without
 groups); a list holds 500 channels at most, as cars don't page. A
 channel shows its logo and what is on. Picked, it plays its sound alone,
@@ -1172,7 +1172,7 @@ Settings, chapters show on the seek bar, and there is no Lock), with
 their icons alone where the names don't fit the width (a narrow screen,
 longer words): a car's row doesn't scroll. Every
 page of the app is car-sized the same way, its dialogs too. The rail
-shows icons alone, centred on its height, as Android Auto's own does
+shows icons alone, centered on its height, as Android Auto's own does
 (all five tabs fit the smallest screen), and so does the bar under a
 narrow portrait page, where five names of 24 sp don't fit;
 tiles' captions and badges are

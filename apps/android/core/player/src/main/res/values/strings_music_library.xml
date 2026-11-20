@@ -28,7 +28,7 @@
     </plurals>
     <!-- Live TV in the car: its tab, the tab's headings, a group's channel count ("120 channels"), search's group. -->
     <string name="music_library_live_tv">Live TV</string>
-    <string name="music_library_live_favorites">Favourites</string>
+    <string name="music_library_live_favorites">Favorites</string>
     <string name="music_library_live_watched_lately">Recently watched</string>
     <string name="music_library_live_groups">Groups</string>
     <string name="music_library_live_all_channels">All channels</string>
