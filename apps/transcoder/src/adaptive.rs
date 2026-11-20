@@ -34,8 +34,13 @@
 
 use std::time::{Duration, Instant};
 
-/// Presets from the fastest to the slowest used.
-pub const LADDER: [&str; 6] = ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium"];
+/// Presets from the fastest to the slowest used. `fast` and `medium` are
+/// left out: encoded as the transcoder does at 2 to 8 Mbps, a 1080p film, the
+/// same with grain added and a 1080p60 clip each gained 0.5 to 2 dB (PSNR) a
+/// step up to `faster`, and between nothing and 0.6 dB past it (the most on
+/// the 1080p60 clip, less than nothing on the grain), for 1.3 to 1.6 times
+/// the processor's time. x265 gained 0.1 dB on the film.
+pub const LADDER: [&str; 4] = ["ultrafast", "superfast", "veryfast", "faster"];
 
 /// The preset setting that asks for this.
 pub const AUTO: &str = "auto";
@@ -44,10 +49,9 @@ pub const AUTO: &str = "auto";
 /// in [`LADDER`]), about the middle of what was measured: x264 on 2 to 24
 /// threads of a 12-core Ryzen, 1080p at 24 and 60 frames a second and 720p,
 /// made 0.43 to 0.64 for superfast, 0.62 to 0.88 for veryfast, 0.60 to 0.87
-/// for faster, 0.77 to 0.95 for fast, 0.66 to 0.92 for medium. Used one
-/// step at a time, an estimate is off by a quarter at most, and the preset
-/// is measured as soon as a job is on it.
-const STEP: [f64; 6] = [1.0, 0.55, 0.7, 0.7, 0.8, 0.8];
+/// for faster. Used one step at a time, an estimate is off by a quarter at
+/// most, and the preset is measured as soon as a job is on it.
+const STEP: [f64; LADDER.len()] = [1.0, 0.55, 0.7, 0.7];
 
 /// The speed (× real time) a preset must be expected to make to be moved
 /// to: the encode then takes half the computer's time, which leaves room
@@ -70,12 +74,13 @@ const FIRST_SEGMENT_SECS: f64 = 0.7;
 /// The frames x264 reads before its first comes out, by preset
 /// (`rc-lookahead`): a slower preset must go faster for its first segment
 /// to come as soon.
-const LOOKAHEAD_FRAMES: [f64; 6] = [0.0, 0.0, 10.0, 20.0, 30.0, 40.0];
+const LOOKAHEAD_FRAMES: [f64; LADDER.len()] = [0.0, 0.0, 10.0, 20.0];
 /// What the encoder needs past the segment's own length before it is
 /// written, besides the frames it looks ahead (seconds of video): measured
 /// with [`FIRST_SEGMENT_SECS`] on 24 threads, where a 2 s segment took 0.44
 /// s from the job's creation at ultrafast (38 × real time) and 0.96 s at
-/// medium (7.8 ×), 0.4 s of it FFmpeg's start whatever the preset.
+/// medium (7.8 ×, 40 frames looked ahead), 0.4 s of it FFmpeg's start
+/// whatever the preset.
 const SEGMENT_TAIL_SECS: f64 = 0.5;
 
 /// A measurement that says a preset makes more than was known counts in
@@ -107,7 +112,7 @@ pub enum Need {
     Steady,
     /// For the first segment to come soon ([`FIRST_SEGMENT_SECS`]), by the
     /// segments' length and the video's frames a second: with 2 s segments
-    /// at 24 frames a second, 3.6 × real time at ultrafast and 6 at medium.
+    /// at 24 frames a second, 3.6 × real time at ultrafast and 4.8 at faster.
     Quick { segment_secs: f64, fps: f64 },
     /// To get a job that falls behind ahead again ([`RECOVER`]).
     Recover,
@@ -223,9 +228,9 @@ impl Speeds {
         })
     }
 
-    /// The preset for a process that has to run at one: the slowest that is
-    /// fast enough for `need`; where none is, the slowest that still gets
-    /// ahead ([`RECOVER`]), or the fastest. `None` when nothing was
+    /// The preset a running job moves to when it has to: the slowest that
+    /// is fast enough for `need`; where none is, the slowest that still
+    /// gets ahead ([`RECOVER`]), or the fastest. `None` when nothing was
     /// measured.
     pub fn settle_for(&self, jobs: u32, need: Need, now: Instant) -> Option<usize> {
         self.any(now)
@@ -294,6 +299,13 @@ pub struct Load {
 /// start that is too slow keeps the player waiting and one too fast costs a
 /// few seconds of a lesser picture.
 pub fn target(load: Load) -> usize {
+    room(load).min(LADDER.len() - 1)
+}
+
+/// How much room the load leaves each encode, as steps up a ladder that
+/// goes two past [`LADDER`]'s end: a load with room to spare starts at the
+/// slowest preset even where a start is a step faster.
+fn room(load: Load) -> usize {
     let size = (load.pixels as f64 / (1920.0 * 1080.0)).max(0.25);
     // Films and television are 24 to 30 frames a second; 50 or 60 take
     // twice the work.
@@ -312,17 +324,42 @@ pub fn target(load: Load) -> usize {
 }
 
 /// The preset a process starts with, `lead_secs` of video ready past what
-/// the player asked for: fast enough for the player to wait little when
-/// nothing is ready ahead (a start or a seek), for the encode to keep ahead
-/// otherwise. Before anything was measured, the load's ([`target`]), a step
-/// faster when nothing is ready ahead.
-pub fn start(speeds: &Speeds, load: Load, lead_secs: f64, now: Instant) -> usize {
+/// the player asked for, for a job whose last process ran at `current`.
+///
+/// - Before anything was measured: the load's ([`target`]), a step faster
+///   when nothing is ready ahead (a start or a seek), where the player
+///   waits.
+/// - With video ready ahead: the slowest preset that keeps ahead with room
+///   to spare ([`Need::Steady`]).
+/// - With nothing ready ahead: the slowest whose first segment comes soon
+///   ([`Need::Quick`]), or the fastest where none's does.
+/// - Where no preset keeps ahead with room to spare (tone mapping takes
+///   more than the encoder, or more encodes run than the computer has room
+///   for), what was measured picks nothing, and only rules out: the job
+///   keeps the preset it had, or takes the load's, unless that one is known
+///   not to keep ahead ([`TOO_SLOW`]). Then it takes the slowest that gets
+///   ahead ([`RECOVER`]), or the fastest.
+pub fn start(speeds: &Speeds, load: Load, lead_secs: f64, current: Option<usize>, now: Instant) -> usize {
     let waiting = lead_secs <= 0.0;
-    let need = if waiting { Need::Quick { segment_secs: load.segment_secs, fps: load.fps } } else { Need::Steady };
-    speeds.settle_for(load.software_jobs, need, now).unwrap_or_else(|| {
-        let target = target(load);
-        if waiting { target.saturating_sub(1) } else { target }
-    })
+    let by_load = if waiting { room(load).saturating_sub(1).min(LADDER.len() - 1) } else { target(load) };
+    if !speeds.any(now) {
+        return by_load;
+    }
+    let jobs = load.software_jobs;
+    match speeds.choose(jobs, Need::Steady, now) {
+        Some(steady) if !waiting => steady,
+        Some(_) => {
+            let quick = Need::Quick { segment_secs: load.segment_secs, fps: load.fps };
+            speeds.choose(jobs, quick, now).unwrap_or(0)
+        }
+        None => {
+            let keeps_ahead = |preset: &usize| {
+                speeds.expect(*preset, now).is_some_and(|(alone, _)| alone / f64::from(jobs.max(1)) >= TOO_SLOW)
+            };
+            let kept = current.or(Some(by_load)).filter(keeps_ahead);
+            kept.or_else(|| speeds.choose(jobs, Need::Recover, now)).unwrap_or(0)
+        }
+    }
 }
 
 /// How a job on the automatic preset goes: see [`decide`].
@@ -386,19 +423,17 @@ mod tests {
     const SF: usize = 1;
     const VF: usize = 2;
     const FASTER: usize = 3;
-    const FAST: usize = 4;
-    const MEDIUM: usize = 5;
 
     /// What each preset made flat out on a Ryzen 9 5900X held to 8, 4 and 2
     /// threads: a 1080p film at 24 frames a second, a 1080p video at 60,
     /// and 4K HDR10 tone mapped on the CPU, which the tone mapping holds
     /// back more than the encoder.
-    const FILM_8: [f64; 6] = [15.58, 9.52, 7.29, 5.2, 4.1, 3.22];
-    const FILM_4: [f64; 6] = [7.65, 4.07, 3.57, 2.13, 1.99, 1.63];
-    const FILM_2: [f64; 6] = [3.75, 2.4, 1.88, 1.29, 1.04, 0.69];
-    const P60_2: [f64; 6] = [1.9, 0.92, 0.7, 0.5, 0.4, 0.3];
-    const HDR_8: [f64; 6] = [1.52, 1.31, 1.36, 1.2, 1.17, 1.07];
-    const HDR_4: [f64; 6] = [0.81, 0.69, 0.7, 0.52, 0.54, 0.47];
+    const FILM_8: [f64; 4] = [15.58, 9.52, 7.29, 5.2];
+    const FILM_4: [f64; 4] = [7.65, 4.07, 3.57, 2.13];
+    const FILM_2: [f64; 4] = [3.75, 2.4, 1.88, 1.29];
+    const P60_2: [f64; 4] = [1.9, 0.92, 0.7, 0.5];
+    const HDR_8: [f64; 4] = [1.52, 1.31, 1.36, 1.2];
+    const HDR_4: [f64; 4] = [0.81, 0.69, 0.7, 0.52];
 
     fn load(software_jobs: u32, cores: u32, pixels: u64) -> Load {
         Load { software_jobs, cores, pixels, fps: 24.0, hevc: false, segment_secs: 2.0 }
@@ -413,8 +448,8 @@ mod tests {
         speeds
     }
 
-    fn all(machine: &[f64; 6], now: Instant) -> Speeds {
-        knowing(&[0, 1, 2, 3, 4, 5].map(|preset| (preset, machine[preset])), now)
+    fn all(machine: &[f64; 4], now: Instant) -> Speeds {
+        knowing(&[0, 1, 2, 3].map(|preset| (preset, machine[preset])), now)
     }
 
     /// A job at `preset` going flat out at `speed`, two minutes after its
@@ -434,10 +469,10 @@ mod tests {
     /// A job alone on a computer that makes `machine` at each preset, from
     /// a cold start: the presets it goes through, each measured flat out
     /// and the job moved as [`decide`] says once it is a minute ahead.
-    fn settles(machine: &[f64; 6], load: Load) -> Vec<usize> {
+    fn settles(machine: &[f64; 4], load: Load) -> Vec<usize> {
         let mut now = Instant::now();
         let mut speeds = Speeds::default();
-        let mut preset = start(&speeds, load, 0.0, now);
+        let mut preset = start(&speeds, load, 0.0, None, now);
         let mut through = vec![preset];
         for _ in 0..8 {
             now += Duration::from_secs(30);
@@ -453,30 +488,32 @@ mod tests {
 
     #[test]
     fn before_anything_is_measured_the_start_follows_the_load() {
-        assert_eq!(LADDER[target(load(1, 16, HD))], "medium");
-        assert_eq!(LADDER[target(load(1, 8, HD))], "fast");
+        assert_eq!(LADDER[target(load(1, 16, HD))], "faster");
+        assert_eq!(LADDER[target(load(1, 6, HD))], "faster");
         assert_eq!(LADDER[target(load(2, 8, HD))], "veryfast");
         assert_eq!(LADDER[target(load(4, 8, HD))], "superfast");
         assert_eq!(LADDER[target(load(8, 8, HD))], "ultrafast");
         // Smaller pictures leave room; 4K and HEVC take more.
-        assert_eq!(LADDER[target(load(2, 8, 1280 * 720))], "fast");
+        assert_eq!(LADDER[target(load(2, 8, 1280 * 720))], "faster");
         assert_eq!(LADDER[target(load(1, 8, 3840 * 2160))], "superfast");
         assert_eq!(LADDER[target(Load { hevc: true, ..load(1, 8, HD) })], "superfast");
         // So do 60 frames a second, twice 30's work.
         assert_eq!(LADDER[target(Load { fps: 60.0, ..load(1, 8, HD) })], "veryfast");
-        assert_eq!(LADDER[target(Load { fps: 30.0, ..load(1, 8, HD) })], "fast");
-        // A step faster at a start or a seek, where the player waits.
+        assert_eq!(LADDER[target(Load { fps: 30.0, ..load(1, 8, HD) })], "faster");
+        // A step faster at a start or a seek, where the player waits,
+        // unless the load has room to spare.
         let (cold, now) = (Speeds::default(), Instant::now());
-        assert_eq!(start(&cold, load(1, 8, HD), 0.0, now), FASTER);
-        assert_eq!(start(&cold, load(1, 8, HD), 20.0, now), FAST);
-        assert_eq!(start(&cold, load(8, 8, HD), 0.0, now), UF);
+        assert_eq!(start(&cold, load(1, 6, HD), 0.0, None, now), VF);
+        assert_eq!(start(&cold, load(1, 6, HD), 20.0, None, now), FASTER);
+        assert_eq!(start(&cold, load(1, 8, HD), 0.0, None, now), FASTER);
+        assert_eq!(start(&cold, load(8, 8, HD), 0.0, None, now), UF);
     }
 
     #[test]
     fn a_job_alone_ends_on_the_slowest_preset_that_makes_twice_real_time() {
-        // One measured step at a time: 8 threads make 3.2 × at medium.
-        assert_eq!(settles(&FILM_8, load(1, 8, HD)), [FASTER, FAST, MEDIUM]);
-        // 4 threads make 2.1 × at faster, and fast is estimated at 1.7.
+        // 8 threads make 5.2 × at faster, the slowest there is: no move.
+        assert_eq!(settles(&FILM_8, load(1, 8, HD)), [FASTER]);
+        // 4 threads make 2.1 × at faster, one measured step at a time.
         assert_eq!(settles(&FILM_4, load(1, 4, HD)), [SF, VF, FASTER]);
         // 2 threads make 2.4 × at superfast, and veryfast is estimated at 1.7.
         assert_eq!(settles(&FILM_2, load(1, 2, HD)), [UF, SF]);
@@ -494,8 +531,8 @@ mod tests {
             assert_eq!(decide(&speeds, going(UF, 1.7, lead, 1), now), None, "{lead} s ahead");
         }
         // And only one step past what was measured, however fast that is.
-        let speeds = knowing(&[(FASTER, 5.2)], now);
-        assert_eq!(speeds.choose(1, Need::Steady, now), Some(FAST));
+        let speeds = knowing(&[(SF, 9.5)], now);
+        assert_eq!(speeds.choose(1, Need::Steady, now), Some(VF));
     }
 
     #[test]
@@ -505,7 +542,7 @@ mod tests {
         assert_eq!(settles(&HDR_8, load(1, 8, HD)), [FASTER]);
         let now = Instant::now();
         let speeds = all(&HDR_8, now);
-        for preset in [VF, FASTER, FAST, MEDIUM] {
+        for preset in [SF, VF, FASTER] {
             for lead in [9.0, 50.0, 90.0] {
                 assert_eq!(decide(&speeds, going(preset, HDR_8[preset], lead, 1), now), None);
             }
@@ -519,25 +556,25 @@ mod tests {
     #[test]
     fn a_job_about_to_keep_its_player_waiting_moves_as_many_steps_as_it_takes() {
         let now = Instant::now();
-        // 4K HDR on 4 threads at fast makes half of real time: only
+        // 4K HDR on 4 threads at faster makes half of real time: only
         // ultrafast is estimated fast enough.
-        let speeds = knowing(&[(FAST, HDR_4[FAST])], now);
-        assert_eq!(decide(&speeds, going(FAST, 0.54, 4.0, 1), now), Some(UF));
+        let speeds = knowing(&[(FASTER, HDR_4[FASTER])], now);
+        assert_eq!(decide(&speeds, going(FASTER, 0.52, 4.0, 1), now), Some(UF));
         // With enough ready ahead it waits, past its first minute.
-        assert_eq!(decide(&speeds, going(FAST, 0.54, 20.0, 1), now), None);
+        assert_eq!(decide(&speeds, going(FASTER, 0.52, 20.0, 1), now), None);
         // With nothing measured, a step.
-        assert_eq!(decide(&Speeds::default(), going(FAST, 0.9, 4.0, 1), now), Some(FASTER));
+        assert_eq!(decide(&Speeds::default(), going(FASTER, 0.9, 4.0, 1), now), Some(VF));
         // Fast enough to keep ahead, or the fastest already: it stays.
-        assert_eq!(decide(&speeds, going(FAST, 1.2, 4.0, 1), now), None);
+        assert_eq!(decide(&speeds, going(FASTER, 1.2, 4.0, 1), now), None);
         assert_eq!(decide(&speeds, going(UF, 0.5, 0.0, 1), now), None);
         // Just moved: its speed isn't known yet.
-        let just = Going { since_move: Duration::from_secs(3), ..going(FAST, 0.54, 4.0, 1) };
+        let just = Going { since_move: Duration::from_secs(3), ..going(FASTER, 0.52, 4.0, 1) };
         assert_eq!(decide(&speeds, just, now), None);
         // The read rate holding it at real time isn't the preset's doing.
-        let held = Going { speed: Some(Measured::AtLeast(1.0)), made: None, ..going(FAST, 1.0, 4.0, 1) };
+        let held = Going { speed: Some(Measured::AtLeast(1.0)), made: None, ..going(FASTER, 1.0, 4.0, 1) };
         assert_eq!(decide(&speeds, held, now), None);
         // Nor is input that stopped coming.
-        assert_eq!(decide(&speeds, going(FAST, 0.02, 4.0, 1), now), None);
+        assert_eq!(decide(&speeds, going(FASTER, 0.02, 4.0, 1), now), None);
     }
 
     #[test]
@@ -557,20 +594,21 @@ mod tests {
         let speeds = all(&FILM_8, now);
         // Four need 8 × alone: superfast makes 9.5, veryfast 7.3.
         assert_eq!(speeds.choose(4, Need::Steady, now), Some(SF));
-        assert_eq!(decide(&speeds, going(MEDIUM, 3.2, 60.0, 4), now), Some(SF));
+        assert_eq!(decide(&speeds, going(FASTER, 5.2, 60.0, 4), now), Some(SF));
         assert_eq!(decide(&speeds, going(UF, 15.0, 60.0, 4), now), Some(SF));
         assert_eq!(decide(&speeds, going(SF, 9.5, 60.0, 4), now), None);
         // Not before the same four have run for a while, nor one that
         // isn't well ahead.
-        let unsettled = Going { settled: false, ..going(MEDIUM, 3.2, 60.0, 4) };
+        let unsettled = Going { settled: false, ..going(FASTER, 5.2, 60.0, 4) };
         assert_eq!(decide(&speeds, unsettled, now), None);
-        assert_eq!(decide(&speeds, going(MEDIUM, 3.2, 30.0, 4), now), None);
-        // Two: medium makes 1.6 × for each, enough to stay at, where fast
-        // would be taken anew.
-        assert_eq!(decide(&speeds, going(MEDIUM, 3.2, 60.0, 2), now), None);
-        assert_eq!(speeds.choose(2, Need::Steady, now), Some(FAST));
-        // Alone again: back to medium.
-        assert_eq!(decide(&speeds, going(SF, 9.5, 60.0, 1), now), Some(MEDIUM));
+        assert_eq!(decide(&speeds, going(FASTER, 5.2, 30.0, 4), now), None);
+        // Three: faster makes 1.7 × for each, enough to stay at, where
+        // veryfast would be taken anew. Two fit at faster.
+        assert_eq!(decide(&speeds, going(FASTER, 5.2, 60.0, 3), now), None);
+        assert_eq!(speeds.choose(3, Need::Steady, now), Some(VF));
+        assert_eq!(speeds.choose(2, Need::Steady, now), Some(FASTER));
+        // Alone again: back to faster.
+        assert_eq!(decide(&speeds, going(SF, 9.5, 60.0, 1), now), Some(FASTER));
         // More than the computer has room for: the fastest.
         assert_eq!(decide(&speeds, going(SF, 9.5, 60.0, 12), now), Some(UF));
     }
@@ -580,19 +618,37 @@ mod tests {
         let now = Instant::now();
         let speeds = all(&FILM_8, now);
         let film = load(1, 8, HD);
-        // 2 s segments: faster makes 5.2 × where 4.8 is needed, fast 4.1
-        // where 5.4 is.
-        assert_eq!(start(&speeds, film, 0.0, now), FASTER);
-        // With video ready ahead, nobody waits: the steady preset.
-        assert_eq!(start(&speeds, film, 20.0, now), MEDIUM);
+        // 2 s segments: faster makes 5.2 × where 4.8 is needed.
+        assert_eq!(start(&speeds, film, 0.0, None, now), FASTER);
         // Longer segments take longer to fill.
-        assert_eq!(start(&speeds, Load { segment_secs: 6.0, ..film }, 0.0, now), SF);
-        // Two encodes: each has half.
-        assert_eq!(start(&speeds, Load { software_jobs: 2, ..film }, 0.0, now), SF);
-        // Where no preset is fast enough, the slowest that gets ahead, or
-        // the fastest.
-        assert_eq!(start(&all(&HDR_8, now), film, 0.0, now), UF);
-        assert_eq!(start(&all(&HDR_4, now), film, 0.0, now), UF);
+        assert_eq!(start(&speeds, Load { segment_secs: 6.0, ..film }, 0.0, None, now), SF);
+        // Two encodes: each has half. With video ready ahead, nobody
+        // waits: the steady preset.
+        assert_eq!(start(&speeds, Load { software_jobs: 2, ..film }, 0.0, None, now), SF);
+        assert_eq!(start(&speeds, Load { software_jobs: 2, ..film }, 20.0, None, now), FASTER);
+        // Where none makes the first segment that soon, the fastest: 4
+        // threads and 6 s segments.
+        let slow = Load { segment_secs: 6.0, ..load(1, 4, HD) };
+        assert_eq!(start(&all(&FILM_4, now), slow, 0.0, None, now), UF);
+        assert_eq!(start(&all(&FILM_4, now), slow, 20.0, None, now), FASTER);
+    }
+
+    #[test]
+    fn where_no_preset_is_fast_enough_a_job_keeps_the_one_it_had() {
+        let now = Instant::now();
+        let film = load(1, 8, HD);
+        // 4K HDR tone mapped on 8 threads makes 1.2 to 1.5 × whatever the
+        // preset: a seek leaves the job where it was…
+        let speeds = all(&HDR_8, now);
+        assert_eq!(start(&speeds, film, 0.0, Some(VF), now), VF);
+        assert_eq!(start(&speeds, film, 0.0, Some(FASTER), now), FASTER);
+        // …and a new job starts by its load, as the first one did.
+        assert_eq!(start(&speeds, film, 0.0, None, now), FASTER);
+        // Unless that preset is known not to keep ahead: then the slowest
+        // that gets ahead, or the fastest.
+        let speeds = knowing(&[(UF, 1.6), (FASTER, 1.0)], now);
+        assert_eq!(start(&speeds, film, 0.0, Some(FASTER), now), UF);
+        assert_eq!(start(&all(&HDR_4, now), film, 0.0, None, now), UF);
     }
 
     #[test]
@@ -615,8 +671,8 @@ mod tests {
         speeds.learn(VF, Measured::AtLeast(2.0), at(85));
         assert_eq!(alone(&speeds, at(85)), 6.0);
         // …and nothing of a preset never measured.
-        speeds.learn(FAST, Measured::AtLeast(2.0), at(85));
-        assert_eq!(speeds.expect(FAST, at(85)).map(|(_, sure)| sure), Some(false), "estimated from veryfast");
+        speeds.learn(UF, Measured::AtLeast(2.0), at(85));
+        assert_eq!(speeds.expect(UF, at(85)).map(|(alone, _)| alone > 6.0), Some(true), "estimated from veryfast");
         // Input that stopped coming tells nothing.
         speeds.learn(VF, Measured::Exactly(0.01), at(90));
         assert_eq!(alone(&speeds, at(90)), 6.0);
@@ -626,14 +682,14 @@ mod tests {
     fn what_was_measured_is_forgotten_after_ten_minutes_unless_a_process_still_shows_it() {
         let start = Instant::now();
         let at = |mins: u64| start + Duration::from_secs(mins * 60);
-        let mut speeds = knowing(&[(MEDIUM, 3.2)], start);
+        let mut speeds = knowing(&[(VF, 3.2)], start);
         assert!(speeds.any(at(9)));
         assert!(!speeds.any(at(11)));
-        assert_eq!(super::start(&speeds, load(1, 8, HD), 0.0, at(11)), FASTER, "by the processors again");
+        assert_eq!(super::start(&speeds, load(1, 4, HD), 0.0, None, at(11)), SF, "by the processors again");
         // A process held at its preset keeps it known.
-        speeds.learn(MEDIUM, Measured::AtLeast(2.0), at(9));
+        speeds.learn(VF, Measured::AtLeast(2.0), at(9));
         assert!(speeds.any(at(18)));
-        assert_eq!(speeds.expect(MEDIUM, at(18)).unwrap().0, 3.2);
+        assert_eq!(speeds.expect(VF, at(18)).unwrap().0, 3.2);
     }
 
     #[test]

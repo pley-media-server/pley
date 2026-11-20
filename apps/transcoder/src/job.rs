@@ -1168,7 +1168,8 @@ impl JobManager {
         let now = Instant::now();
         let kind = job.plan.encode_kind(&job.media);
         let speeds = kind.and_then(|kind| self.preset_speeds.lock().get(&kind).cloned()).unwrap_or_default();
-        adaptive::start(&speeds, self.load_for(job), job.lead_secs(start), now)
+        let current = job.runtime.lock().preset.map(|(preset, _)| preset);
+        adaptive::start(&speeds, self.load_for(job), job.lead_secs(start), current, now)
     }
 
     /// Learns what the presets of jobs on the automatic one make from how
@@ -5095,7 +5096,7 @@ mod tests {
     fn fmp4_restarts_keep_the_encoder_their_init_was_made_with() {
         let gpu = InitEncoder { hardware: true, stand_in: None, preset: None };
         let x264 = InitEncoder { hardware: false, stand_in: Some("libx264".into()), preset: Some(2) };
-        let software = InitEncoder { hardware: false, stand_in: None, preset: Some(4) };
+        let software = InitEncoder { hardware: false, stand_in: None, preset: Some(3) };
         // (pinned, planned on the GPU, a stand-in, the hardware failed, preset asked, a hardware session).
         let choose = |pinned: Option<&InitEncoder>, failed: bool, preset: Option<usize>, hw_slot: bool| {
             restart_encoder(pinned, true, true, failed, preset, hw_slot)
@@ -5120,7 +5121,7 @@ mod tests {
 
         // Made by the stand-in: it stays, with a hardware session free,
         // at its preset whatever is asked.
-        assert_eq!(choose(Some(&x264), false, Some(5), true).unwrap(), (EncoderChoice::Kept, Some(2)));
+        assert_eq!(choose(Some(&x264), false, Some(3), true).unwrap(), (EncoderChoice::Kept, Some(2)));
         assert_eq!(choose(Some(&x264), true, None, false).unwrap(), (EncoderChoice::Kept, Some(2)));
         let err = restart_encoder(Some(&x264), true, false, false, None, true).unwrap_err();
         assert!(matches!(err, ApiError::Failed(_)), "{err:?}");
@@ -5128,7 +5129,7 @@ mod tests {
         // A software encode planned: the planned encoder, at the init's preset.
         assert_eq!(
             restart_encoder(Some(&software), false, false, false, Some(0), false).unwrap(),
-            (EncoderChoice::Planned, Some(4))
+            (EncoderChoice::Planned, Some(3))
         );
         assert_eq!(
             restart_encoder(None, false, false, false, Some(0), false).unwrap(),

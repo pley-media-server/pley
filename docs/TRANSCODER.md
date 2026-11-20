@@ -737,8 +737,16 @@ server, on by default), and FFmpeg supports `readrate`.
 
 With `preset: auto` (what the Pley server asks for by default), the
 transcoder picks the software encoder's preset, from `ultrafast` to
-`medium`, and changes it while the job plays (`src/adaptive.rs`). A job's
+`faster`, and changes it while the job plays (`src/adaptive.rs`). A job's
 status names the preset its process runs at (`process.preset`).
+
+It stops at `faster` because that is where the picture stops getting
+better for the time it takes. Encoded as the transcoder does at 2 to 8 Mbps,
+a 1080p film, the same film with grain added and a 1080p60 clip each gained
+0.5 to 2 dB (PSNR) a step up to `faster`. `fast` and `medium` gained
+between nothing and 0.6 dB over `faster`, the most on the 1080p60 clip, for
+1.3 to 1.6 times the processor's time. x265 on the film gained 0.1 dB.
+Both presets can still be set by hand.
 
 The rule: the software encodes together take at most half the computer's
 time. One encode alone uses the slowest preset that makes twice real time;
@@ -759,21 +767,21 @@ N of them use the slowest that makes 2 N times real time alone.
   - A speed under 0.1 × tells nothing: the input stopped coming.
 - **Estimating.** The preset one step slower than a measured one is
   estimated from it: `superfast` makes 0.55 of what `ultrafast` does,
-  `veryfast` and `faster` 0.7 of the preset before, `fast` and `medium`
-  0.8. Nothing is estimated further than that step, so a job reaches a
-  slow preset one measured step at a time. Presets faster than a measured
-  one are estimated the same way, however many steps away.
+  `veryfast` and `faster` 0.7 of the preset before. Nothing is estimated
+  further than that step, so a job reaches a slow preset one measured step
+  at a time. Presets faster than a measured one are estimated the same
+  way, however many steps away.
 - **Starting.** At a start or a seek the player waits, so the process
   starts at the slowest preset expected to encode its first segment within
   0.7 s: with 2 s segments at 24 frames a second, 3.6 × real time at
-  `ultrafast` and 6 × at `medium`, which reads 40 frames ahead. Where none
-  is that fast, the slowest expected to make 1.5 ×, or `ultrafast`.
+  `ultrafast` and 4.8 × at `faster`, which reads 20 frames ahead. Where
+  none is that fast, `ultrafast`.
 - **Before anything is measured**, a job starts by the processors each
-  software encode has: 12 for each 1080p x264 encode give `medium`, 8
-  `fast`, 5 `faster`, 3 `veryfast`, 1.5 `superfast`, fewer `ultrafast`,
-  and a step faster at a start or a seek. 4K counts as four 1080p encodes,
-  720p as 0.44, x265 as three, and 60 frames a second as two at 30 or
-  fewer.
+  software encode has: 5 for each 1080p x264 encode give `faster`, 3
+  `veryfast`, 1.5 `superfast`, fewer `ultrafast`, and a step faster at a
+  start or a seek unless there are 8 or more. 4K counts as four 1080p
+  encodes, 720p as 0.44, x265 as three, and 60 frames a second as two at
+  30 or fewer.
 - **Moves**, looked at every 5 s. Each restarts FFmpeg at the next segment.
   - *Slower*: a job 45 s ahead of its player, 10 s after its last start or
     move, goes to the slowest preset expected to make twice real time for
@@ -793,6 +801,11 @@ N of them use the slowest that makes 2 N times real time alone.
   restarted because another program takes the processor for a while, nor
   because no preset makes twice real time (4K HDR tone mapped on the CPU,
   where the tone mapping takes more than the encoder).
+- Where no preset makes twice real time, what was measured picks none: a
+  job keeps the preset it had across a seek, and a new job starts by its
+  processors as above. Unless that preset is known not to keep ahead
+  (under 1.15 ×): then the job takes the slowest expected to make 1.5 ×,
+  or `ultrafast`.
 - A process the player went past (a seek into segments made before) is left
   alone until it ends where they begin.
 - An fMP4 job keeps the preset of its first process
