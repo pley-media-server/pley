@@ -53,6 +53,7 @@ public class LanguageFixtureTests
         Assert.Equal("zh-CN", Languages.Supported("zh-Hans"));
         Assert.Equal("zh-TW", Languages.Supported("zh_Hant"));
         Assert.Equal("zh-TW", Languages.Supported("zh-HK"));
+        Assert.Equal("zh-TW", Languages.Supported("zh_TW.UTF-8"));
         Assert.Equal("zh-CN", Languages.Supported("zh"));
         Assert.Null(Languages.Supported("de-DE"));
         Assert.Null(Languages.Supported(""));

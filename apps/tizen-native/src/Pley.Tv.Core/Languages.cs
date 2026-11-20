@@ -22,7 +22,7 @@ public static class Languages
     public static string? Supported(string? tag)
     {
         if (string.IsNullOrWhiteSpace(tag)) return null;
-        var parts = tag!.Trim().ToLowerInvariant().Split('-', '_');
+        var parts = tag!.Trim().ToLowerInvariant().Split('-', '_', '.', '@');
         // Chinese is two languages: Traditional by its script or a region that writes it.
         if (parts[0] == "zh") return parts.Any(p => p is "hant" or "tw" or "hk" or "mo") ? "zh-TW" : "zh-CN";
         return All.FirstOrDefault(l => l == parts[0]);
