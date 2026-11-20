@@ -171,14 +171,16 @@ the Plex- and Jellyfin-compatible APIs don't get them.
 ## Watching
 
 - Progress, history, star ratings, Continue Watching and Next Up per user.
-- Home opens on a banner of the newest films and shows you haven't
-  watched, with Play, More info and My List, in the web, desktop, Android
-  and Samsung apps.
-- Recently Added, Recently Released, Top Rated, Top Unwatched and More Like
-  This.
-- Search across titles, people and Live TV channels that forgives typos
-  ("the matirx"), words run together ("spiderman") and missing apostrophes,
-  with the closest matches first.
+- Recently Added, Recently Released, Top Rated and More Like This.
+- Fast search across titles, people and Live TV channels, from full-text
+  indexes with every title and name kept in memory. Each word typed
+  begins a word of a name, in any order, and a year at the end ("alien
+  1979") keeps that year's titles. It forgives slips ("the matirx",
+  "kaenu reeves"), words run together or apart ("spiderman") and a missing
+  apostrophe ("the captains log"), and when nothing matches that way, finds
+  names alike enough to what was typed. Channels are found by name, number
+  or what's on. The closest matches come first: a name that is exactly
+  what was typed, then those that begin with it, then the rest.
 - Collections (from TMDB, curated, or smart) and playlists (ordered or smart).
   A film library can do without the collections from TMDB, for a tool such
   as Kometa to make its own.
