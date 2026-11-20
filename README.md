@@ -65,7 +65,7 @@ Then [first start](docs/CONFIGURATION.md#first-start), and
 
 ## Architecture
 
-![Pley's architecture: the apps talk to the server, which runs the transcoder, reads metadata sources and IPTV providers, sends requests to Radarr and Sonarr, and scans your media folders](docs/images/architecture.svg)
+![Pley's architecture: the apps talk to the server, which runs the transcoder, casts to Chromecast and AirPlay devices, reads metadata sources and IPTV providers, sends requests to Radarr and Sonarr, and scans your media folders](docs/images/architecture.svg)
 
 ## Docs
 
