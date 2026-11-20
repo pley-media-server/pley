@@ -770,7 +770,7 @@ internal class PlayRoutes(private val s: State) {
         return Reply.json(Me.serializer(), s.views.me(caller.profile, caller.scope))
     }
 
-    /** PUT /api/me/language: "en", "fr", "es" or `null` (the server's); answers the profile. */
+    /** PUT /api/me/language: "en", "fr", "es", "zh-CN", "zh-TW" or `null` (the server's); answers the profile. */
     private fun language(call: Call, caller: Caller): MockResponse {
         val choice = call.body(LanguageChoice.serializer()) ?: return Reply.badRequest("the body isn't a language")
         if (choice.language != null && choice.language !in LANGUAGES) return Reply.badRequest("language is one of en, fr, es, or null")
@@ -781,7 +781,7 @@ internal class PlayRoutes(private val s: State) {
 
     companion object {
         /** The languages Pley is in. */
-        private val LANGUAGES = setOf("en", "fr", "es")
+        private val LANGUAGES = setOf("en", "fr", "es", "zh-CN", "zh-TW")
 
         /** Segments of the committed HLS stream (20 s in 4 s segments). */
         const val HLS_SEGMENTS = 5
