@@ -107,11 +107,11 @@ public enum LiveTvRules {
         return group.label.isEmpty ? localized("No group") : group.label
     }
 
-    /// A category's name: "All channels", "Favourites", "Recently watched", or its group's.
+    /// A category's name: "All channels", "Favorites", "Recently watched", or its group's.
     public static func categoryName(_ category: LiveCategory, groups: [LiveGroup]) -> String {
         switch category {
         case .all: localized("All channels")
-        case .favorites: localized("Favourites")
+        case .favorites: localized("Favorites")
         case .recent: localized("Recently watched")
         case .group(let name): groupName(groups.first { $0.name == name }, name: splitRegion(name).map {
             "\($0.region) · \($0.rest)"
@@ -136,7 +136,7 @@ public enum LiveTvRules {
         return stride(from: first, through: last, by: Int(size)).filter { $0 >= floor && $0 < start + guideSpan }
     }
 
-    /// The programmes of `guides` by channel, each list by start, one programme per start.
+    /// The programs of `guides` by channel, each list by start, one program per start.
     public static func merge(_ guides: [LiveGuide]) -> [Int: [LiveProgram]] {
         var out: [Int: [Int64: LiveProgram]] = [:]
         for guide in guides {
@@ -149,12 +149,12 @@ public enum LiveTvRules {
         return out.mapValues { $0.values.sorted { $0.start < $1.start } }
     }
 
-    /// The programmes that show between `from` and `to` (unix seconds).
+    /// The programs that show between `from` and `to` (unix seconds).
     public static func between(_ programs: [LiveProgram]?, from: Int64, to: Int64) -> [LiveProgram] {
         (programs ?? []).filter { $0.stop > from && $0.start < to }
     }
 
-    /// A programme's rest at `now`, as hours and minutes.
+    /// A program's rest at `now`, as hours and minutes.
     public static func left(_ program: LiveProgram, now: Int64) -> (hours: Int, minutes: Int) {
         let minutes = max(1, Int((Double(program.stop - now) / 60).rounded()))
         return (minutes / 60, minutes % 60)
@@ -198,7 +198,7 @@ public enum LiveTvRules {
         }
     }
 
-    /// What VoiceOver reads for a programme of the guide: "BBC One, 101,
+    /// What VoiceOver reads for a program of the guide: "BBC One, 101,
     /// News at Six, 6:00 to 6:30 PM, on now".
     public static func spoken(_ program: LiveProgram, channel: LiveChannel, now: Int64) -> String {
         var parts = [channel.name]
@@ -216,7 +216,7 @@ public enum LiveTvRules {
     }
 }
 
-/// Where each programme of the guide goes (pure): from its start and stop,
+/// Where each program of the guide goes (pure): from its start and stop,
 /// at `pointsPerMinute` from the guide's `start`. The scale grows with the
 /// text size, so a half hour's title still fits.
 public struct GuideLayout: Equatable, Sendable {

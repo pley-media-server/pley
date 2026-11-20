@@ -2,7 +2,7 @@
 of buttons (images/button-focus.9.png, and where it was as a button group
 lost it, images/button-footprint.9.png): nine-patch pictures, a rounded
 box in the app's accent or its raised surface, as its lists have. The
-Live TV guide's programmes sit on images/guide-cell.9.png, and what has
+Live TV guide's programs sit on images/guide-cell.9.png, and what has
 aired on images/guide-past.9.png; images/spinner.png turns while a channel
 tunes, images/round.png makes a person's photo round, and images/globe.png
 is the globe that picks the language before signing in, drawn in white
@@ -22,7 +22,7 @@ import zlib
 DARK = (0x16, 0x19, 0x1E)  # the app's background (components/shared/Ui.brs)
 ACCENT = (0x38, 0xBD, 0xF8)  # the app's accent
 SURFACE3 = (0x2E, 0x34, 0x40)  # its raised surface
-SURFACE2 = (0x26, 0x2B, 0x35)  # a guide's programme
+SURFACE2 = (0x26, 0x2B, 0x35)  # a guide's program
 PAST = (0x1E, 0x22, 0x2A, 0x99)  # the guide's time gone, over the screen
 
 # A button's box: its size inside the nine-patch's border, and its corners.

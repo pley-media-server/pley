@@ -9,7 +9,7 @@
 
     <!--
       The native app on phones: the system's splash (Android 12's, or the
-      library's below it) in pley's colours, kept only for the startup read.
+      library's below it) in pley's colors, kept only for the startup read.
     -->
     <style name="Theme.Pley.Native" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/pley_bg</item>
@@ -18,7 +18,7 @@
         <item name="postSplashScreenTheme">@style/Theme.Pley</item>
     </style>
 
-    <!-- The native app on TVs: no splash animation (Google's TV rule), the window already pley's colour. -->
+    <!-- The native app on TVs: no splash animation (Google's TV rule), the window already pley's color. -->
     <style name="Theme.Pley.Tv">
         <item name="android:windowBackground">@color/pley_bg</item>
     </style>

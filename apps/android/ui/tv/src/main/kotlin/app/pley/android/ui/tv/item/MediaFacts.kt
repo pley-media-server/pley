@@ -51,7 +51,7 @@ internal object MediaFactText {
         add(r.getString(R.string.tv_readout_overall_bitrate), formatBitrate(f.bitrate, words))
     }
 
-    /** Codec, profile and level, size, frame rate, bit depth, HDR and Dolby Vision, colour, bitrate. */
+    /** Codec, profile and level, size, frame rate, bit depth, HDR and Dolby Vision, color, bitrate. */
     fun video(r: Resources, s: MediaStream): List<MediaFact> = facts {
         val words = formatWords(r)
         add(r.getString(R.string.tv_readout_codec), codecLabel(s.codec))

@@ -196,7 +196,7 @@ sealed class AddToPlaylistScreen : ShellPage
         if (!(first != null && Tree.Focus(first.Item)) && field != null) Tree.Focus(field.Item);
     }
 
-    /// <summary>"Added to Road trip": the accent check and the words, centred in the panel, until the page closes.</summary>
+    /// <summary>"Added to Road trip": the accent check and the words, centered in the panel, until the page closes.</summary>
     void Done(string message)
     {
         column.Clear();

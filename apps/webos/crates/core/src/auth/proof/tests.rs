@@ -183,7 +183,7 @@ fn the_server_proves_itself_once_before_the_token_goes() {
     let asked = rig.fake.requests();
     assert_eq!(asked.len(), 1);
     assert_eq!(asked[0].url, format!("{SERVER}/api/server?challenge={CHALLENGE}&proof_id=17"));
-    // Without the token, and never cancelled with the screen that asked.
+    // Without the token, and never canceled with the screen that asked.
     assert_eq!(asked[0].header_value("Authorization"), None);
     assert!(asked[0].cancel.is_none());
 }

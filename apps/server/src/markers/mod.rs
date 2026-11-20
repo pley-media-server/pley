@@ -22,7 +22,7 @@
 //! the worker's next turn). A season being watched goes first, during
 //! playback (the transcoder holds it back while a playback starts), one
 //! request at a time: the episodes playing before the rest of it, and their
-//! players are told when they have markers. Nothing is analysed while
+//! players are told when they have markers. Nothing is analyzed while
 //! something is being transcoded (a playback's or a download's): the
 //! transcoder pauses what it was making until it is done. Seasons an
 //! administrator asks for go next; then those of shows likely to be watched
@@ -54,7 +54,7 @@ use crate::transcoder::{TRANSCODING_LOOK, Transcoder, TranscoderError};
 use crate::util::now;
 use matcher::{MatchParams, consensus, shared_run};
 
-/// Bump when detection improves so every file is analysed again.
+/// Bump when detection improves so every file is analyzed again.
 pub const ALGORITHM_VERSION: i64 = 2;
 /// Episodes each episode is compared with (the nearest ones in the season).
 const NEIGHBORS: usize = 8;
@@ -80,7 +80,7 @@ const CREDITS_TAIL_MS: i64 = 5_000;
 /// near black…
 const PAGE_BLACK: f32 = 85.0;
 /// …or a smaller share is, around text on true black (studio-range luma 16,
-/// no colour, dark overall): longer lines take more room.
+/// no color, dark overall): longer lines take more room.
 const PAGE_BLACK_WITH_TEXT: f32 = 65.0;
 /// Luma range of a page with text on it.
 const PAGE_TEXT: f32 = 60.0;
@@ -138,7 +138,7 @@ pub struct AnalysisStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Job {
-    /// Queue whatever in the library is not analysed yet.
+    /// Queue whatever in the library is not analyzed yet.
     Library(i64),
     Season {
         id: i64,
@@ -170,14 +170,14 @@ pub struct MarkerService {
     /// Something was queued.
     more: Notify,
     queued: Mutex<HashSet<Job>>,
-    /// Seasons being watched that aren't analysed yet: before any [`Job`].
+    /// Seasons being watched that aren't analyzed yet: before any [`Job`].
     watched: Mutex<VecDeque<i64>>,
     /// Wakes the worker for a season in `watched`.
     wake: Notify,
     /// What library work the job in progress is, if it waits for its hours.
     class: Mutex<Option<Class>>,
     status: Mutex<Option<AnalysisStatus>>,
-    /// Cancelled when the server shuts down: the worker stops.
+    /// Canceled when the server shuts down: the worker stops.
     stopping: CancellationToken,
 }
 
@@ -243,7 +243,7 @@ const EPISODE_FILES: &str = "SELECT f.id AS file_id, f.path, f.size, f.mtime, f.
 #[derive(Debug, Clone)]
 struct Fp {
     start_ms: i64,
-    /// End of the analysed audio (ms in the file).
+    /// End of the analyzed audio (ms in the file).
     end_ms: i64,
     item_ms: f64,
     data: Vec<u32>,
@@ -290,7 +290,7 @@ impl MarkerService {
         })
     }
 
-    /// Start the worker: analyse what is missing shortly after start-up and
+    /// Start the worker: analyze what is missing shortly after start-up and
     /// after every library scan.
     pub fn start(self: &Arc<Self>) {
         tokio::spawn(self.clone().worker());
@@ -326,7 +326,7 @@ impl MarkerService {
         });
     }
 
-    /// Put the seasons of the episodes playing that aren't analysed yet
+    /// Put the seasons of the episodes playing that aren't analyzed yet
     /// before everything else.
     async fn watch_playing(&self) -> sqlx::Result<()> {
         let files: Vec<i64> = self.sessions.active().iter().map(|s| s.file_id).collect();
@@ -364,7 +364,7 @@ impl MarkerService {
         self.status.lock().clone()
     }
 
-    /// Analyse an item again: a movie, or every episode of an episode's
+    /// Analyze an item again: a movie, or every episode of an episode's
     /// season, a season or a show.
     pub async fn analyze_item(&self, item_id: i64, kind: &str) -> sqlx::Result<bool> {
         match kind {
@@ -430,7 +430,7 @@ impl MarkerService {
 
     /// Analyses what is queued until the server shuts down, which drops the
     /// job in progress (it would only fail without the database and the
-    /// transcoder; its season is analysed again next time).
+    /// transcoder; its season is analyzed again next time).
     async fn worker(self: Arc<Self>) {
         let stopping = self.stopping.clone();
         tokio::select! {
@@ -577,7 +577,7 @@ impl MarkerService {
         self.save(&found, true).await
     }
 
-    /// Analyse a season. `watched`: it plays, so it runs during playback, the
+    /// Analyze a season. `watched`: it plays, so it runs during playback, the
     /// episodes playing first, and players are told about new markers.
     async fn season(&self, season_id: i64, force: bool, watched: bool) -> anyhow::Result<()> {
         let chromaprint = self.chromaprint();
@@ -600,7 +600,7 @@ impl MarkerService {
             Some(show) => self.episode_files("e.grandparent_id = ?", show, chromaprint).await?,
             None => season.clone(),
         };
-        // Single-episode seasons borrow neighbours from the rest of the show.
+        // Single-episode seasons borrow neighbors from the rest of the show.
         let pool = if season.len() < 2 { whole_show.clone() } else { season.clone() };
         // Episodes of other seasons, for what the season shares nothing of.
         let elsewhere: Vec<EpisodeFile> =
@@ -635,7 +635,7 @@ impl MarkerService {
                     }
                     Err(FpError::Retry(why)) => {
                         // Keep the season queued for the next scan instead of
-                        // recording it as analysed without fingerprints.
+                        // recording it as analyzed without fingerprints.
                         tracing::info!("intro/credits detection postponed: {why}");
                         return Ok(());
                     }
@@ -687,7 +687,7 @@ impl MarkerService {
                     .map(move |kind| (i, kind))
             })
             .collect();
-        // Which fingerprints are needed: the targets and their neighbours.
+        // Which fingerprints are needed: the targets and their neighbors.
         let mut needed: Vec<(usize, MarkerKind)> = Vec::new();
         let mut plans: Vec<(usize, MarkerKind, usize, Vec<usize>)> = Vec::new();
         for &(i, kind) in &wanted {
@@ -893,7 +893,7 @@ impl MarkerService {
         }
     }
 
-    /// Replace the markers of every analysed file and record the analysis.
+    /// Replace the markers of every analyzed file and record the analysis.
     async fn save(&self, found: &[(EpisodeFile, Vec<Found>)], fingerprinted: bool) -> anyhow::Result<()> {
         let now = now();
         let mut tx = self.db.write.begin().await?;
@@ -972,7 +972,7 @@ fn nearest(pos: usize, len: usize, count: usize) -> Vec<usize> {
     out
 }
 
-/// An episode's marker of `kind` from its fingerprint and its neighbours'.
+/// An episode's marker of `kind` from its fingerprint and its neighbors'.
 fn detect_one(own: &Fp, others: &[&Fp], kind: MarkerKind, duration_ms: i64) -> Option<Found> {
     let candidates: Vec<(i64, i64)> = others.iter().filter_map(|other| shared_segment(own, other, kind)).collect();
     finalize(consensus(&candidates), kind, duration_ms)
@@ -1254,7 +1254,7 @@ mod tests {
                     "page" => (95.0, 16.0, 16.0, 200.0, 0.1),
                     // Plain black between scenes or pages.
                     "black" => (100.0, 16.0, 16.0, 17.0, 0.0),
-                    // A dark scene: never true black, some colour.
+                    // A dark scene: never true black, some color.
                     "dark" => (70.0, 22.0, 45.0, 180.0, 2.5),
                     _ => (10.0, 30.0, 150.0, 235.0, 20.0),
                 };

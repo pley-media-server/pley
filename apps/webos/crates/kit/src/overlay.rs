@@ -221,7 +221,7 @@ impl<'a> Dialog<'a> {
         if self.reading { (theme::BODY_LARGE, theme::SUMMARY, 16.0) } else { (theme::BODY, theme::MUTED, 8.0) }
     }
 
-    /// Where the dialog sits: centred, as wide as its content within 320 to 560 unless it has a
+    /// Where the dialog sits: centered, as wide as its content within 320 to 560 unless it has a
     /// width of its own.
     pub fn rect(&self, ui: &Ui) -> Rect {
         let pad = self.padding();

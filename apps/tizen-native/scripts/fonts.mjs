@@ -1,6 +1,6 @@
 // Writes the native Samsung app's fonts, src/Pley.Tv.Tizen/shared/res/fonts/roboto-<weight>.ttf:
 // Roboto (OFL-1.1), the face the Android app's type uses, from the same @fontsource/roboto files
-// the web TV app ships (latin, weights 400, 500 and 700), and its licence beside them. NUI loads
+// the web TV app ships (latin, weights 400, 500 and 700), and its license beside them. NUI loads
 // TrueType, so each WOFF is unpacked to the font it holds; nothing in the font changes. Run again
 // when @fontsource/roboto changes; the output is committed.
 

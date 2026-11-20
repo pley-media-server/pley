@@ -132,7 +132,7 @@ struct FontTag {
 /// `<b>`, `<i>`, `<u>`, `<s>` and `<br>` become codes, other tags go,
 /// lines lose their outer spaces, and a blank line ends the subtitle. ASS
 /// codes in braces are dropped, except from the first `{\anN}` on.
-/// Font colours and sizes are left out: the WebVTT encoder drops them all
+/// Font colors and sizes are left out: the WebVTT encoder drops them all
 /// the same. Font faces are kept, for the rare face that has braces in it.
 fn html_to_ass(input: &[u8]) -> Vec<u8> {
     let at = |i: usize| input.get(i).copied().unwrap_or(0);

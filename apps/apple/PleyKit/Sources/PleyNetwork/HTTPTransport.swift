@@ -3,7 +3,7 @@ import os
 import PleyCommon
 import PleyModel
 
-/// How much of an answer the app reads; past it the request is cancelled
+/// How much of an answer the app reads; past it the request is canceled
 /// and fails with `.tooLarge`.
 public enum BodyLimit {
     /// `/api/server`, the metadata and the sign-in endpoints' answers.

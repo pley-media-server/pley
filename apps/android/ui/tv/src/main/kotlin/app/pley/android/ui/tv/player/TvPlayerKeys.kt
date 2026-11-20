@@ -80,7 +80,7 @@ internal object TvPlayerKeys {
 
     /**
      * A key with the controls hidden; `null` leaves it to focus (a showing
-     * Skip button takes Centre) or to the system (Back, volume). Centre
+     * Skip button takes Center) or to the system (Back, volume). Center
      * shows the controls rather than pausing, as Up does: OK on the
      * scrubber plays and pauses.
      */
@@ -95,7 +95,7 @@ internal object TvPlayerKeys {
     }
 
     /**
-     * A key while the scrubber has focus: Left and Right seek, Centre goes
+     * A key while the scrubber has focus: Left and Right seek, Center goes
      * to a seek waiting or plays or pauses. Up opens the chapters' cards while a seek waits for OK
      * ([chaptersOnUp]), as YouTube's TV app does; otherwise Up and Down are
      * left to focus (Skip above while it shows, the control row below).

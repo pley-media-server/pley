@@ -104,7 +104,7 @@ sealed class PersonScreen : ShellPage
 
     /// <summary>
     /// The photo on Surface2 (without one, the initials in PageTitle at 80 %), and 32 dp to its right
-    /// the name (2 lines at most) over the count line, 8 apart, centred on the photo. Still blocks
+    /// the name (2 lines at most) over the count line, 8 apart, centered on the photo. Still blocks
     /// while nothing is known.
     /// </summary>
     void Header(PersonPage? page)
@@ -197,7 +197,7 @@ sealed class PersonScreen : ShellPage
     }
 
     /// <summary>
-    /// Not found (Back) or failed (Retry), as the Android app's TvMessage: centred down the page at
+    /// Not found (Back) or failed (Retry), as the Android app's TvMessage: centered down the page at
     /// the gutter, an icon in Muted, 16 dp, the title in PageTitle, 8 dp, the sentence in Body Muted
     /// (464 wide at most), 24 dp, and the button, which has focus.
     /// </summary>

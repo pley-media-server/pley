@@ -1,6 +1,6 @@
 //! One of Discover's rows whole (its See all), and everything TMDB has for words (the See all of
 //! search's Discover row) (`discover.tsx`'s `TitlesPage`): titles as a grid of posters under the
-//! page's title, read a page at a time as focus comes near the end, with a row of grey wells
+//! page's title, read a page at a time as focus comes near the end, with a row of gray wells
 //! while more come; at the end, Show more when 5 pages brought too few, which reads 5 more, or
 //! Retry when a page failed.
 

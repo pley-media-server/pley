@@ -111,10 +111,10 @@ fun TvPillButton(
             disabledBorder = Border(BorderStroke(1.dp, PleyColors.Control), shape = PleyShape.Control),
             focusedDisabledBorder = Border.None,
         ),
-        // tv-material's Row starts at the top: as tall as the pill, it centres the label.
+        // tv-material's Row starts at the top: as tall as the pill, it centers the label.
         contentPadding = PaddingValues(horizontal = padding, vertical = 0.dp),
     ) {
-        // That Row starts its content at the left; a short label sits centred in the pill.
+        // That Row starts its content at the left; a short label sits centered in the pill.
         Row(
             Modifier.widthIn(min = minWidth - padding * 2),
             horizontalArrangement = Arrangement.Center,
@@ -280,7 +280,7 @@ private val CompactIconSize = 16.dp
 /**
  * Disabled buttons can't take focus (§2.5), and focus always shows (§5.2
  * rule 1): a button disabled while it has focus keeps it only until it has
- * handed it to a neighbour, across first, then down or up.
+ * handed it to a neighbor, across first, then down or up.
  */
 @Composable
 private fun HandOffFocus(enabled: Boolean, focused: Boolean) {
@@ -292,7 +292,7 @@ private fun HandOffFocus(enabled: Boolean, focused: Boolean) {
     }
 }
 
-/** Lets a label be wider than the button it sits under, centred on it. */
+/** Lets a label be wider than the button it sits under, centered on it. */
 private fun Modifier.wrapContentWidthUnbounded(): Modifier = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = androidx.compose.ui.unit.Constraints.Infinity))
     val width = constraints.constrainWidth(placeable.width)

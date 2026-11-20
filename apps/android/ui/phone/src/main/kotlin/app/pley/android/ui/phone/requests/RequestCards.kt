@@ -462,7 +462,7 @@ internal fun CheckRow(label: String, hint: String?, checked: Boolean, enabled: B
 /**
  * The number on the way into requests: [accent][PleyColors.Accent], or
  * [danger][PleyColors.Danger] while failed requests wait for a manager
- * ([alarm]). Screen readers say [description] instead: the colour and a
+ * ([alarm]). Screen readers say [description] instead: the color and a
  * capped number say too little.
  */
 @Composable

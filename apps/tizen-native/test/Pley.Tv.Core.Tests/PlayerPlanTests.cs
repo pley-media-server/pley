@@ -193,7 +193,7 @@ public class PlaybackPlanTests
         Assert.Equal("transcode", DvGuards.RetryMode(InfoOf("remux"), p5, Tv));
         // A remux that names its Dolby Vision keeps it: never tone-mapped instead.
         Assert.Null(DvGuards.RetryMode(InfoOf("remux") with { VideoRange = "Dolby Vision P5" }, p5, TestCaps.HdrTv(dv: new[] { 5 })));
-        Assert.Equal("transcode", DvGuards.RetryMode(InfoOf("remux") with { VideoRange = "Dolby Vision P5 not decoded (wrong colours)" }, p5, Tv));
+        Assert.Equal("transcode", DvGuards.RetryMode(InfoOf("remux") with { VideoRange = "Dolby Vision P5 not decoded (wrong colors)" }, p5, Tv));
         Assert.Null(DvGuards.RetryMode(InfoOf("direct"), p5, TestCaps.HdrTv(dv: new[] { 5 })));
         Assert.Null(DvGuards.RetryMode(InfoOf("transcode"), p5, Tv));
         Assert.Equal("remux", DvGuards.RetryMode(InfoOf("direct"), p7, Tv));

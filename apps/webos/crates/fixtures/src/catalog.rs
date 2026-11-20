@@ -1,4 +1,4 @@
-//! The catalogue, made the same on every run (a port of the Android app's
+//! The catalog, made the same on every run (a port of the Android app's
 //! fixture server's `Catalog`, with the same seed, so both have the same
 //! titles): three libraries, their items with files, streams, chapters,
 //! markers, extras and credits, the people credited, and the collections.
@@ -88,7 +88,7 @@ enum Range {
     DolbyVision81,
 }
 
-/// The fixture server's catalogue.
+/// The fixture server's catalog.
 pub(crate) struct Catalog {
     pub libraries: Vec<Library>,
     items: Vec<ItemDetail>,
@@ -110,7 +110,7 @@ pub(crate) struct Catalog {
 }
 
 impl Catalog {
-    /// The catalogue, with the clips' sizes in bytes.
+    /// The catalog, with the clips' sizes in bytes.
     pub fn new(sdr_size: i64, hdr_size: i64) -> Catalog {
         let mut catalog = Catalog {
             libraries: Vec::new(),
@@ -657,7 +657,7 @@ impl Catalog {
             self.add_collection(Collection {
                 id,
                 library_id: library,
-                title: "Holiday Favourites".to_string(),
+                title: "Holiday Favorites".to_string(),
                 summary: None,
                 automatic: false,
                 sort: "release",

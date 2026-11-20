@@ -18,7 +18,7 @@ data class LiveSummary(
 )
 
 /**
- * A programme of the guide (docs/API.md, `LiveProgram`). Times are unix
+ * A program of the guide (docs/API.md, `LiveProgram`). Times are unix
  * seconds; [image] is an address on the server, when the guide has a
  * picture.
  */
@@ -68,7 +68,7 @@ data class LiveChannel(
     val group: String = "",
     val logo: String? = null,
     val favorite: Boolean = false,
-    /** The guide has programmes for it. */
+    /** The guide has programs for it. */
     val hasGuide: Boolean = false,
     val now: LiveProgram? = null,
     val next: LiveProgram? = null,
@@ -114,7 +114,7 @@ data class LiveChannelPage(
 
 /**
  * Which channels a list has (`category` of GET /api/live/browse): every
- * one, the favourites, those watched lately, or one group's.
+ * one, the favorites, those watched lately, or one group's.
  */
 sealed interface LiveCategory {
     /** How it is kept and passed on: "all", "favorites", "recent" or "group:UK| Sport". */
@@ -153,7 +153,7 @@ sealed interface LiveCategory {
     }
 }
 
-/** GET /api/live/guide: the programmes between [from] and [to] (unix seconds), by channel. */
+/** GET /api/live/guide: the programs between [from] and [to] (unix seconds), by channel. */
 @Serializable
 data class LiveGuide(
     val from: Long,

@@ -871,7 +871,7 @@ internal class TvRowColumnFocus {
 
 internal val LocalTvRowColumn = staticCompositionLocalOf<TvRowColumnFocus?> { null }
 
-/** One row's focus: whether it has it (for drawing over its neighbours) and which tile. */
+/** One row's focus: whether it has it (for drawing over its neighbors) and which tile. */
 @Stable
 private class RowFocus {
     var hasFocus by mutableStateOf(false)

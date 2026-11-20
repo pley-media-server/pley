@@ -199,7 +199,7 @@ impl RowColumn {
         };
         let first = (0..len).find(|&i| visible(i)).unwrap_or(state.section);
         let past = (first..len).take_while(|&i| visible(i)).last().map_or(first + 1, |i| i + 1);
-        // The focused section and its neighbours are drawn even while the page is still moving.
+        // The focused section and its neighbors are drawn even while the page is still moving.
         let d0 = first.saturating_sub(1).min(state.section.saturating_sub(1));
         let d1 = (past + 1).max(state.section + 2).min(len);
         state.drawn = (d0, d1);

@@ -235,7 +235,7 @@ private const val ERROR_TOAST_MS = 6_000L
 
 /**
  * A dialog (design spec §2.10): [surface2][PleyColors.Surface2], 16 dp
- * corners, at most 560 wide, centred over a [scrim][PleyColors.Scrim].
+ * corners, at most 560 wide, centered over a [scrim][PleyColors.Scrim].
  * Close has focus; Back closes it too.
  */
 @Composable

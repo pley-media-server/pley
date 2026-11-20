@@ -21,14 +21,14 @@ public sealed record ChannelDigits(string Typed = "", string? NotFound = null)
 /// as the player opened); a channel number typed, found among every channel; the category's
 /// channels a page at a time for the channel list, which can show another category's (a channel
 /// tuned from there makes channel up and down go through that one); watched as it airs, without
-/// pausing or going back; a favourite; the profile's remote changes channel as channel up and
+/// pausing or going back; a favorite; the profile's remote changes channel as channel up and
 /// down do. The channel is kept for the profile: the guide opens back at it. The playback ends
 /// with the model.
 ///
 /// The screen (the Android app's TvLivePlayerScreen): with nothing over the picture, Up and Down
 /// and Channel up and down change channel (<see cref="Step"/>: Up the next), digits tune a
 /// number, OK, Menu or Guide the channel list, OK held the controls (the channel list, the
-/// favourite) over what's on, Info what's on for <see cref="InfoMs"/>; Back hides what shows, then
+/// favorite) over what's on, Info what's on for <see cref="InfoMs"/>; Back hides what shows, then
 /// leaves.
 /// Play, pause, rewind, fast forward, Left and Right do nothing. The controls hide after
 /// <see cref="ControlsMs"/> untouched while it plays.
@@ -101,7 +101,7 @@ public sealed class LivePlayerModel : IDisposable
     /// <summary>The TV's player playing now, for the video plane; null while none is.</summary>
     public Player.IMediaEngine? Engine => playback.Engine;
 
-    /// <summary>The channel playing, as the server has it now (a favourite set shows at once).</summary>
+    /// <summary>The channel playing, as the server has it now (a favorite set shows at once).</summary>
     public Signal<LiveChannel?> Channel { get; } = new Signal<LiveChannel?>(null);
 
     /// <summary>The server's origin, for logos.</summary>
@@ -246,7 +246,7 @@ public sealed class LivePlayerModel : IDisposable
     /// <summary>Back in front: the channel plays again.</summary>
     public void Resume() => playback.Resume();
 
-    /// <summary>The favourite: at once on screen, put back if the server refuses (the star shows it).</summary>
+    /// <summary>The favorite: at once on screen, put back if the server refuses (the star shows it).</summary>
     public void ToggleFavorite()
     {
         var c = Channel.Value;
@@ -336,7 +336,7 @@ public sealed class LivePlayerModel : IDisposable
         {
             if (gone) return;
             Now.Value = scheduler.Now / 1000;
-            // What's on moves on while watching: asked again when the programme playing ends.
+            // What's on moves on while watching: asked again when the program playing ends.
             if (Channel.Value?.Now is { } on && on.Stop <= Now.Value && endedAsked != on.Stop)
             {
                 endedAsked = on.Stop;

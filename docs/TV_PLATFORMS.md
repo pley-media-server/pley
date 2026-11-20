@@ -51,7 +51,7 @@ The native Samsung app installs the same way, as a `.tpk`
 
 Sign-in, server discovery (a sweep of the TV's subnet), "Who's watching?"
 and its PINs, the screens, the player's keys and panels, and offline
-behaviour follow the Android TV app. A start goes straight into Home as
+behavior follow the Android TV app. A start goes straight into Home as
 the profile the TV was left on when that profile has no PIN, and never
 goes on as one with a PIN without it, with Always start as too: the TV
 keeps the profile it was left on (`GET /api/auth/me`, with `has_pin`), and
@@ -134,12 +134,12 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
 - **Categories:** Left from the channels opens them, with Search at their
   head (the TV's own keyboard). Back leaves search results for the category
   before.
-- **Guide:** two and a half hours across. Left and Right go programme by
-  programme, rewind and fast forward (or Previous and Next) move two hours,
+- **Guide:** two and a half hours across. Left and Right go program by
+  program, rewind and fast forward (or Previous and Next) move two hours,
   CH+ and CH− a screen of channels, and Back returns to now before it goes
-  to the rail. A long OK or the menu key opens a programme's details, with
-  Watch and, beside it, the favourite as a star alone, filled for a
-  favourite, as in the player's controls.
+  to the rail. A long OK or the menu key opens a program's details, with
+  Watch and, beside it, the favorite as a star alone, filled for a
+  favorite, as in the player's controls.
 - **Tuning:** `POST …/watch` with this TV's id (`pley.installId`) and
   `keyed_urls`, so AVPlay can play the playlist without the token. The app
   waits for the playlist, then plays the server's live HLS from its live
@@ -603,8 +603,8 @@ playlist and saving a library's filters as a smart playlist); Settings
 (its categories and their rows, the side panels of choices, the web
 page's address and QR code, signing out); Diagnostics (the TV's facts and
 what it tells the server it plays); Live TV's page (the categories and
-their search, the guide and the channels' tiles, a programme's details
-and favourites) and its live player (changing channel, number keys, what's
+their search, the guide and the channels' tiles, a program's details
+and favorites) and its live player (changing channel, number keys, what's
 on, the channel list on OK and the controls on OK held, and why a channel
 doesn't play); music's artist and
 album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
@@ -995,7 +995,7 @@ Media3 reading the file, and without M2TS.
   and Chapters (`MatroskaHead`), an MP4's movie box (`Mp4Head`). The audio
   it starts with is the default track the TV decodes, else the first it
   decodes (TrueHD and DTS don't play).
-- **HDR** is read from the head (Matroska's Colour and Dolby Vision
+- **HDR** is read from the head (Matroska's Color and Dolby Vision
   configuration, MP4's `colr` and `dvcC`) and from the first HEVC frames
   (`HevcFrames`): HDR10's mastering display, HLG's transfer, HDR10+'s
   metadata and Dolby Vision's RPU, which many files' heads leave out.

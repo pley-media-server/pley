@@ -1,5 +1,5 @@
 //! The vocabulary the crates of Pley for LG TV share: geometry on the 960×540
-//! canvas, colours, remote keys and the pointer, the display list a frame is
+//! canvas, colors, remote keys and the pointer, the display list a frame is
 //! drawn from, and the contracts through which the interface measures text,
 //! asks for pictures and wakes the main loop.
 //!

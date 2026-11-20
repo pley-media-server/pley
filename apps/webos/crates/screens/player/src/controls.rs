@@ -16,7 +16,7 @@ use crate::text;
 
 /// The times row's top (`TIMES_TOP`).
 pub const TIMES_TOP: f32 = 399.0;
-/// The track's centre line (`TRACK_CENTRE`).
+/// The track's center line (`TRACK_CENTRE`).
 pub const TRACK_CENTRE: f32 = 425.0;
 /// The focusable bar's height around the track (`SCRUB_HEIGHT`).
 pub const SCRUB_HEIGHT: f32 = 40.0;
@@ -45,7 +45,7 @@ const BUTTON: f32 = 36.0;
 const TRANSPORT_ICON: f32 = 24.0;
 const PLAY_BUTTON: f32 = 44.0;
 const PLAY_ICON: f32 = 26.0;
-/// Between the centre group's buttons (`TRANSPORT_GAP`), and the side groups' (`PleyTv.ButtonGap`).
+/// Between the center group's buttons (`TRANSPORT_GAP`), and the side groups' (`PleyTv.ButtonGap`).
 const TRANSPORT_GAP: f32 = 16.0;
 const SIDE_GAP: f32 = 10.0;
 /// A focused button's label, below it.
@@ -253,7 +253,7 @@ fn track(ui: &mut Ui, s: &Scrub, focus: f32) {
 
 /// The seek preview over the scrubber while a seek is on its way (`TvSeekPreview`): the server's
 /// seek preview (`tile`, cut out of its sheet) or the chapter's picture in a 240 × 135 box with a
-/// 2 dp Fg 20 % edge, its bottom at 347, and under it the target time and the chapter; centred
+/// 2 dp Fg 20 % edge, its bottom at 347, and under it the target time and the chapter; centered
 /// on the target, inside the safe area.
 pub fn preview(
     ui: &mut Ui,
@@ -294,7 +294,7 @@ pub fn preview(
 }
 
 /// The preview's picture: the tile cut out of its seek-preview sheet (none while the sheet comes),
-/// or a chapter's picture, letterboxed (`PlayerOverlays.Letterbox`): as large as fits, centred,
+/// or a chapter's picture, letterboxed (`PlayerOverlays.Letterbox`): as large as fits, centered,
 /// black where it doesn't reach, never stretched or cropped, as the server's previews keep the
 /// film's shape.
 fn draw_preview(ui: &mut Ui, rect: Rect, p: &SeekPreview, tile: Option<&Tile>) {
@@ -322,7 +322,7 @@ pub(crate) fn letterboxed(ui: &mut Ui, rect: Rect, t: &Tile) {
     ui.cmd(Cmd::Raw { rect: at, image, key, radius: round, opacity: 1.0 });
 }
 
-/// A `w` × `h` picture as large as fits in `rect`, centred.
+/// A `w` × `h` picture as large as fits in `rect`, centered.
 pub fn letterbox(rect: Rect, w: f32, h: f32) -> Rect {
     if w <= 0.0 || h <= 0.0 {
         return rect;
@@ -413,7 +413,7 @@ fn size_of(b: Btn) -> f32 {
 }
 
 /// Where each button of the row goes: the side groups at the safe area's edges, the transport
-/// centred; the 36 dp buttons 4 dp down so their centres line up with Play/Pause's.
+/// centered; the 36 dp buttons 4 dp down so their centers line up with Play/Pause's.
 pub fn layout_row(options: &RowOptions) -> Vec<(Btn, Rect)> {
     let [left, centre, right] = options.groups();
     let mut out = Vec::new();
@@ -479,7 +479,7 @@ const LOOK: ControlLook = ControlLook {
     focus_scale: theme::focus::ROUND.focus_scale,
 };
 
-/// One button of the row, its label fading in 8 dp under it while focused: centred under it, but
+/// One button of the row, its label fading in 8 dp under it while focused: centered under it, but
 /// kept inside the safe area, where a long label under a button at either end would run off.
 fn button(ui: &mut Ui, id: Id, rect: Rect, b: Btn, playing: bool) -> Response {
     let r = register(ui, id, rect, FocusOpts::default());

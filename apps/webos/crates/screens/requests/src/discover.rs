@@ -682,7 +682,7 @@ fn draw_info(ui: &mut Ui, f: &Focused, manage: bool, time: pley_core::requests::
 }
 
 /// A request at the foot as a wide tile: its picture, a download's progress on it, the title, its
-/// stage in the stage's colour; See all after them.
+/// stage in the stage's color; See all after them.
 fn paint_mine(ui: &mut Ui, slot: &TileSlot, mine: &[MineTile], manage: bool, time: pley_core::requests::TvTime) {
     let Some(t) = mine.get(slot.index) else {
         Tile::see_all(TileKind::Landscape, t!("requests.buttons.seeAll")).paint(ui, slot);
@@ -703,7 +703,7 @@ fn paint_mine(ui: &mut Ui, slot: &TileSlot, mine: &[MineTile], manage: bool, tim
     .paint(ui, slot);
 }
 
-/// A row's place while its first page comes: its title and grey wells; nothing takes focus.
+/// A row's place while its first page comes: its title and gray wells; nothing takes focus.
 pub fn row_skeleton(ui: &mut Ui, top: f32, title: &str) {
     let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
     ui.text(Point::new(theme::GUTTER, top), title, &theme::SECTION, &TextOpts::line(width), theme::FG);
@@ -715,7 +715,7 @@ pub fn row_skeleton(ui: &mut Ui, top: f32, title: &str) {
     }
 }
 
-/// Discover while its first list comes (after 300 ms): grey blocks where the hero and the first row go.
+/// Discover while its first list comes (after 300 ms): gray blocks where the hero and the first row go.
 fn skeleton(ui: &mut Ui) {
     let x = theme::GUTTER;
     let block = |ui: &mut Ui, y: f32, w: f32, h: f32, r: f32| skeleton_block(ui, Rect::new(x, y, w, h), r);

@@ -753,7 +753,7 @@ function RecommendedTab(p: { entry: Entry; library: Library; initial: boolean; f
   );
 }
 
-/** Two rows of grey wells while a page's rows load. */
+/** Two rows of gray wells while a page's rows load. */
 export function RowsSkeleton(p: { top: number; kind?: TileKind }) {
   const spec = TILES[p.kind ?? "poster"];
   const one = (y: number) => (
@@ -933,7 +933,7 @@ function CollectionsTab(p: { entry: Entry; library: Library; initial: boolean; f
       </div>
     );
   } else {
-    // One group, or still loading: a grid, of grey wells until the collections come, so Down from the tabs lands somewhere.
+    // One group, or still loading: a grid, of gray wells until the collections come, so Down from the tabs lands somewhere.
     const shown = view ? (view.groups[0]?.collections ?? []) : null;
     content = (
       <PosterGrid

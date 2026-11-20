@@ -23,7 +23,7 @@ typealias DrawingOptions = NSString.DrawingOptions
 /// white, bold, a dark outline and no box, 4.8 % of the video's height.
 /// When the person chose a caption style in the system's settings
 /// (Accessibility → Subtitles & Captioning), what that style sets wins:
-/// colours, background, font, size and edges. What they chose in Pley's
+/// colors, background, font, size and edges. What they chose in Pley's
 /// Settings (size, background, font, position) wins over both.
 public struct CaptionStyle: Sendable, Equatable {
     public enum Edge: Sendable {
@@ -48,7 +48,7 @@ public struct CaptionStyle: Sendable, Equatable {
     /// How far bottom text subtitles are raised, a share of the video's height.
     public var raise: CGFloat = 0
 
-    /// A colour as four components (sRGB), so the style stays a value.
+    /// A color as four components (sRGB), so the style stays a value.
     public struct RGBA: Sendable, Equatable {
         public var red, green, blue, alpha: CGFloat
 
@@ -171,7 +171,7 @@ public struct CaptionStyle: Sendable, Equatable {
 }
 
 /// Draws subtitles over the video, into a flipped Core Graphics context (y
-/// down): text cues centred at the bottom (or the top, for those placed in
+/// down): text cues centered at the bottom (or the top, for those placed in
 /// the upper half), pictures where their plane puts them, scaled to the
 /// video's rectangle.
 enum SubtitleDrawing {
@@ -242,7 +242,7 @@ enum SubtitleDrawing {
         text.draw(with: rect, options: options, context: nil)
     }
 
-    /// A cue's text in the style's font and colour, with its italics, bold and underlining.
+    /// A cue's text in the style's font and color, with its italics, bold and underlining.
     private static func attributed(_ text: AttributedString, size: CGFloat, style: CaptionStyle) -> NSAttributedString {
         let out = NSMutableAttributedString()
         for run in text.runs {

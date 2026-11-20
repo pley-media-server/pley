@@ -61,7 +61,7 @@ describe("a category's channels", () => {
     expect((await pages.neighbor(42, -1))?.id).toBe(41);
   });
 
-  it("show a favourite marked at once", async () => {
+  it("show a favorite marked at once", async () => {
     const { api } = server(10);
     const pages = new ChannelPages(api, { kind: "all" });
     pages.want(0, 10);

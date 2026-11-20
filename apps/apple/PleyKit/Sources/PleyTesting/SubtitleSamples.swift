@@ -74,6 +74,6 @@ public enum SubtitleSamples {
         return el(0x1A45_DFA3, el(0x4282, ascii("matroska"))) + segment
     }
 
-    /// A 4×2 object: colour 1 on both lines.
+    /// A 4×2 object: color 1 on both lines.
     public static let rle2x4: [UInt8] = [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0]
 }

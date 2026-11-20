@@ -39,7 +39,7 @@ class PolicyVideoRendererTest {
 
     private val hdr10 = ColorInfo.Builder().setColorSpace(C.COLOR_SPACE_BT2020).setColorTransfer(C.COLOR_TRANSFER_ST2084).setLumaBitdepth(10).setChromaBitdepth(10).build()
 
-    /** Profile 7 as Media3 reads it from a Matroska file: its Dolby Vision type, the HDR10 base layer's colour. */
+    /** Profile 7 as Media3 reads it from a Matroska file: its Dolby Vision type, the HDR10 base layer's color. */
     private val profile7 = Format.Builder()
         .setSampleMimeType(MimeTypes.VIDEO_DOLBY_VISION)
         .setCodecs("dvhe.07.06")

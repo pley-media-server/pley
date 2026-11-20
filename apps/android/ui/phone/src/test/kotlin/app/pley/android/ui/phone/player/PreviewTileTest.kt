@@ -34,7 +34,7 @@ class PreviewTileTest {
         compose.setContent { PreviewTile(frame, 160.dp, 90.dp, Modifier.testTag("tile")) }
         compose.waitForIdle()
         val tile = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
-        // The picture fills the tile's width, about three quarters of its height, centred.
+        // The picture fills the tile's width, about three quarters of its height, centered.
         val middle = tile.width / 2
         assertTrue("the picture in the middle", near(Color.Red, tile[middle, tile.height / 2]))
         assertTrue("black above it", near(Color.Black, tile[middle, tile.height * 7 / 90]))

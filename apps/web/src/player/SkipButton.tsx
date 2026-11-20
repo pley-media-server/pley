@@ -30,7 +30,7 @@ export function skipTarget(marker: Marker): number {
 }
 
 /**
- * Skip Intro / Skip Credits behaviour. Returns the marker the playhead is in.
+ * Skip Intro / Skip Credits behavior. Returns the marker the playhead is in.
  * Entering credits calls `onCredits` (Up Next for episodes), once per
  * segment, so seeking back into them later lets them play.
  */

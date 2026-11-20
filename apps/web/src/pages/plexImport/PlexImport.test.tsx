@@ -165,7 +165,7 @@ describe("PlexImport", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(await screen.findByRole("heading", { name: "Who comes over" })).toBeInTheDocument();
-    // Alex's Plex picture; Sam's initial on Plex's colour for them.
+    // Alex's Plex picture; Sam's initial on Plex's color for them.
     expect(document.querySelector('img[src="/api/import/plex/users/1/picture"]')).toBeInTheDocument();
     expect(screen.getByText("S", { exact: true })).toHaveStyle({ backgroundColor: "#eb9f9f" });
     expect(screen.getByText("Up to age 7")).toBeInTheDocument();

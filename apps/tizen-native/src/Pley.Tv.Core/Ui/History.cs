@@ -159,7 +159,7 @@ public sealed class HistoryModel : IDisposable
 
     public Signal<HistoryState> State { get; } = new Signal<HistoryState>(new HistoryState.Loading());
 
-    /// <summary>Failures of Show more and of removals: said at the header's right, in the danger colour.</summary>
+    /// <summary>Failures of Show more and of removals: said at the header's right, in the danger color.</summary>
     public event Action<Exception>? Failed;
 
     /// <summary>Asks for the history again: the first page, or as many plays as are shown.</summary>

@@ -24,7 +24,7 @@ pub enum Graph {
     /// What is compiled into the binary: normal dependencies, without procedural macros.
     Release,
     /// Everything it is built from: normal and build dependencies and procedural macros, not
-    /// dev-dependencies. The licence rules hold for all of it, as in cargo-deny.
+    /// dev-dependencies. The license rules hold for all of it, as in cargo-deny.
     Build,
 }
 
@@ -40,7 +40,7 @@ impl Workspace {
     /// The workspace this xtask was built in.
     pub fn locate() -> Workspace {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("xtask sits in the workspace").to_path_buf();
-        // apps/webos → apps → the repository. Not canonicalised: on Windows that adds `\\?\`,
+        // apps/webos → apps → the repository. Not canonicalized: on Windows that adds `\\?\`,
         // which matches none of the paths the compiler records.
         let repo = root.parent().and_then(Path::parent).expect("apps/webos sits two folders down").to_path_buf();
         Workspace { root, repo }
@@ -113,9 +113,9 @@ pub struct Package {
     pub name: String,
     /// Its version.
     pub version: String,
-    /// Its SPDX licence expression, if it declares one.
+    /// Its SPDX license expression, if it declares one.
     pub license: Option<String>,
-    /// The licence file it names instead, if any.
+    /// The license file it names instead, if any.
     pub license_file: Option<String>,
     /// Its `Cargo.toml`, in the cargo registry for a third-party crate.
     pub manifest_path: PathBuf,

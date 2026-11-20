@@ -65,7 +65,7 @@ fn track(number: u64, kind: u64, codec: &str, default: bool, language: &str, ext
     element(0xAE, &parts.concat())
 }
 
-/// A video's size and, when given, its colour.
+/// A video's size and, when given, its color.
 fn video(width: u64, height: u64, colour: Vec<u8>) -> Vec<u8> {
     element(0xE0, &[uint(0xB0, width), uint(0xBA, height), colour].concat())
 }

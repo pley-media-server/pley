@@ -40,7 +40,7 @@ import org.robolectric.annotation.Config
 /**
  * Remove from Continue Watching on TV, in the app's frame: Menu on a
  * Continue Watching tile opens its actions, which offer it; after it, Home
- * is back with the tile gone and focus on its neighbour, never on the
+ * is back with the tile gone and focus on its neighbor, never on the
  * hero. Also when the row goes with its last tile.
  */
 @RunWith(RobolectricTestRunner::class)

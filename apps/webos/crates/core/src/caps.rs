@@ -212,7 +212,7 @@ pub fn container_of(extension: &str) -> String {
 /// (`video_range_shown` with `Delivery::Direct`, apps/server/src/playback.rs):
 /// "HDR10", "Dolby Vision P8.1", "HDR10 (this screen doesn't show HDR10+)",
 /// "HDR10 (Dolby Vision base layer, as this screen doesn't show Dolby
-/// Vision)", "Dolby Vision P5 not decoded (wrong colours)". With LG's rule
+/// Vision)", "Dolby Vision P5 not decoded (wrong colors)". With LG's rule
 /// beside the server's: Dolby Vision shows only from the containers in
 /// `dv_containers` (none: any), and from the others the TV plays its base
 /// layer. `None` for SDR video.
@@ -244,10 +244,10 @@ pub fn direct_range_shown(
     if decodes && shown_from {
         return crate::format::dynamic_range_label(Some(range), profile, compat, None, video.dv_el.as_deref(), None);
     }
-    // No base layer of its own: the TV shows it in the wrong colours.
+    // No base layer of its own: the TV shows it in the wrong colors.
     if profile == Some(5) || compat == Some(0) {
         let named = crate::format::dynamic_range_label(Some(range), profile, compat, None, None, None)?;
-        return Some(format!("{named} not decoded (wrong colours)"));
+        return Some(format!("{named} not decoded (wrong colors)"));
     }
     let base = match compat {
         Some(BL_HLG) => "HLG",
@@ -439,7 +439,7 @@ mod tests {
         );
         assert_eq!(
             shown(&dv(5, 0), &caps(), "mkv", true).as_deref(),
-            Some("Dolby Vision P5 not decoded (wrong colours)")
+            Some("Dolby Vision P5 not decoded (wrong colors)")
         );
         // Profile 7, which no LG decodes: its base layer.
         assert_eq!(

@@ -27,7 +27,7 @@ pub fn last_watched_key(server: &str, profile: i64) -> String {
 /// How the page shows a category's channels.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum View {
-    /// The programme guide.
+    /// The program guide.
     #[default]
     Guide,
     /// The channels as cards.

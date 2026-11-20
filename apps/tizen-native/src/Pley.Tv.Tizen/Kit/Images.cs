@@ -83,7 +83,7 @@ sealed class Images
 
     /// <summary>
     /// <paramref name="url"/>'s download, shared with whoever asked for it first. It goes from the
-    /// shared ones as it ends, however it ends: one cancelled and left there answered everyone who
+    /// shared ones as it ends, however it ends: one canceled and left there answered everyone who
     /// asked after with nothing, until the app started again. When the one who asked first gave up,
     /// another who still wants it asks again.
     /// </summary>
@@ -108,7 +108,7 @@ sealed class Images
         }
     }
 
-    /// <summary>The file for <paramref name="url"/>, null when it can't be had; cancelled only when <paramref name="cancel"/> is.</summary>
+    /// <summary>The file for <paramref name="url"/>, null when it can't be had; canceled only when <paramref name="cancel"/> is.</summary>
     async Task<string?> Fetch(string url, CancellationToken cancel)
     {
         var file = Path.Combine(dir, Hash(url) + ".img");

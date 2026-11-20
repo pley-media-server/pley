@@ -186,9 +186,9 @@ impl Plex {
         Ok(home.users)
     }
 
-    /// Home user's picture and colour, from their `thumb` on plex.tv,
+    /// Home user's picture and color, from their `thumb` on plex.tv,
     /// asked for without a token (the addresses are public). Plex's own
-    /// default, an initial on a colour, brings only its colour; so does a
+    /// default, an initial on a color, brings only its color; so does a
     /// Gravatar that doesn't exist. Whatever can't be had is left out
     /// without a word: a picture is never worth failing an import for.
     pub async fn picture(&self, thumb: &str) -> Picture {
@@ -535,7 +535,7 @@ pub struct HomeUser {
 }
 
 /// A Home user's picture as plex.tv leads to it: the picture's bytes, not
-/// yet checked as a picture, and Plex's colour for them (`#eb9f9f`).
+/// yet checked as a picture, and Plex's color for them (`#eb9f9f`).
 #[derive(Debug, Default, PartialEq)]
 pub struct Picture {
     pub bytes: Option<Vec<u8>>,
@@ -545,9 +545,9 @@ pub struct Picture {
 /// What to do at one address on the way to a Home user's picture.
 #[derive(Debug, PartialEq)]
 enum Hop {
-    /// Ask this address, which may bring Plex's colour along.
+    /// Ask this address, which may bring Plex's color along.
     Ask(Url, Option<String>),
-    /// Plex's default picture: its colour, and no picture.
+    /// Plex's default picture: its color, and no picture.
     Default(String),
     /// Not a host a picture comes from.
     Refuse,
@@ -583,7 +583,7 @@ fn picture_hop(url: &Url, tv: &Url) -> Hop {
     }
 }
 
-/// The colour of Plex's default picture, `/avatars/<colour>/<initial>/…` on
+/// The color of Plex's default picture, `/avatars/<colour>/<initial>/…` on
 /// plex.tv, lower-cased with a `#`.
 fn default_color(url: &Url, tv: &Url) -> Option<String> {
     let on_plex = same_origin(url, tv) || (url.scheme() == "https" && url.host_str() == tv.host_str());
@@ -1090,7 +1090,7 @@ mod tests {
         ] {
             assert_eq!(hop(elsewhere), Hop::Refuse, "{elsewhere}");
         }
-        // Not a colour: asked for as any other address on plex.tv.
+        // Not a color: asked for as any other address on plex.tv.
         let odd = "https://plex.tv/avatars/EB9F9/54/3";
         assert_eq!(hop(odd), ask(odd, None));
     }

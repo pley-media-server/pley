@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn decodes_runs_line_ends_and_long_runs() {
-        // Line 1: 2 × colour 1, 2 × colour 0. Line 2: 4 × colour 2 (a short coloured run).
+        // Line 1: 2 × color 1, 2 × color 0. Line 2: 4 × color 2 (a short colored run).
         let rle = [1, 1, 0, 0x02, 0, 0, 0, 0x84, 2, 0, 0];
         assert_eq!(decode_rle(&rle, 4, 2), [1, 1, 0, 0, 2, 2, 2, 2]);
         let long = decode_rle(&[0, 0xC1, 0x00, 7, 0, 0], 300, 1);
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn crops_objects_joins_fragments_and_skips_the_sup_header() {
-        // A 4×1 object of colours 1 1 2 2 in two ODS fragments, shown cropped to its right half.
+        // A 4×1 object of colors 1 1 2 2 in two ODS fragments, shown cropped to its right half.
         let mut pcs = vec![0x07, 0x80, 0x04, 0x38, 0x10, 0, 1, 0x80, 0, 0, 1];
         pcs.extend([0, 0, 0, 0x40, 0, 50, 0, 60, 0, 2, 0, 0, 0, 2, 0, 1]);
         let mut set = vec![0x50, 0x47, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -349,7 +349,7 @@ mod tests {
         let frame = PgsDecoder::new().decode(&[sample(set)], 0).unwrap();
         let b = &frame.bitmaps[0];
         assert_eq!((b.x, b.y, b.image.width, b.image.height), (50, 60, 2, 1));
-        // Colour 2 is red; the plane is HD, so through BT.709.
+        // Color 2 is red; the plane is HD, so through BT.709.
         let [r, g, bl] = ycbcr_to_rgb(81, 90, 240, true);
         assert_eq!(b.image.pixels, [r, g, bl, 255, r, g, bl, 255]);
     }

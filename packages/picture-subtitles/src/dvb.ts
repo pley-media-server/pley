@@ -14,7 +14,7 @@ import {
 /**
  * Broadcast subtitles (DVB, ETSI EN 300 743, `S_DVBSUB`): each sample is a
  * display set of segments. A page composition places regions on the
- * display; each region has a colour table (CLUT) and objects drawn into
+ * display; each region has a color table (CLUT) and objects drawn into
  * it as 2, 4 or 8-bit run-length coded pixels, a field at a time. A page
  * in "normal case" only updates what an acquisition point or mode change
  * defined, so a sample is decoded from the last of those.
@@ -34,7 +34,7 @@ const MAX_PLACED = 32;
 
 /**
  * What reading a byte costs against MAX_WORK, next to filling a pixel: a
- * segment's (a colour table's entries) about 16 times as long, and a pixel
+ * segment's (a color table's entries) about 16 times as long, and a pixel
  * string's, walked a bit at a time, about 32. A segment costs 512 besides,
  * a few hundred nanoseconds to read and keep.
  */
@@ -124,7 +124,7 @@ function readPage(b: Uint8Array): Page {
   return { timeoutS: b[0] ?? 0, state: ((b[1] ?? 0) >> 2) & 3, regions };
 }
 
-/** The colour tables of ETSI EN 300 743 §10 for pixels a CLUT doesn't define. */
+/** The color tables of ETSI EN 300 743 §10 for pixels a CLUT doesn't define. */
 function defaultClut(depth: number): Uint8ClampedArray {
   const n = 1 << depth;
   const out = new Uint8ClampedArray(n * 4);

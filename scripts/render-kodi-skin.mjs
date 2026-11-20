@@ -20,7 +20,7 @@ import { renderer } from "./svg-render.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "apps/kodi/plugin.video.pley/resources/skins/default/media");
 
-// pley's colours (apps/android/core/designsystem/.../PleyColors.kt).
+// pley's colors (apps/android/core/designsystem/.../PleyColors.kt).
 const BG = "#0b0d10";
 const FG = "#e9ebef";
 const CONTROL = "#6c7584";

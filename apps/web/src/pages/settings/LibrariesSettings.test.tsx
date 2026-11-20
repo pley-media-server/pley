@@ -183,7 +183,7 @@ describe("LibrariesSettings", () => {
     const drag = dataTransfer();
     fireEvent.dragStart(gripOf("Movies"), { dataTransfer: drag });
     fireEvent.dragOver(rowOf("Music"), { dataTransfer: drag });
-    // Off the cards, between them: the drop is still taken (cancelled).
+    // Off the cards, between them: the drop is still taken (canceled).
     expect(fireEvent.dragOver(list, { dataTransfer: drag })).toBe(false);
     fireEvent.drop(list, { dataTransfer: drag });
 

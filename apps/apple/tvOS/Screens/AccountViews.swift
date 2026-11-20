@@ -136,7 +136,7 @@ struct DiagnosticsView: View {
 }
 
 /// About on Apple TV: the version, that the app holds no third-party code,
-/// Pley's licence, and that the details of titles to ask for come from TMDB.
+/// Pley's license, and that the details of titles to ask for come from TMDB.
 struct AboutView: View {
     private let model = AboutModel()
 

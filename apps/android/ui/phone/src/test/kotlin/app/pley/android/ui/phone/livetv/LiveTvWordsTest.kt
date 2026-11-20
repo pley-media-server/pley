@@ -46,7 +46,7 @@ class LiveTvWordsTest {
         assertEquals("Its one connection is watching:", english.plural(R.plurals.live_player_connections_watching, 1))
         assertEquals("Its 3 connections are watching:", english.plural(R.plurals.live_player_connections_watching, 3))
         assertEquals("Someone else", english.plural(R.plurals.live_player_held_by_people, 1))
-        assertEquals("The favourite wasn't saved: No answer in time.", favoriteFailed.resolve(english))
+        assertEquals("The favorite wasn't saved: No answer in time.", favoriteFailed.resolve(english))
         assertEquals("S2 E14", english.getString(R.string.livetv_episode, 2, 14))
     }
 

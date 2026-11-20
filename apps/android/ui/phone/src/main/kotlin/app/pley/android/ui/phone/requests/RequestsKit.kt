@@ -62,7 +62,7 @@ import kotlinx.coroutines.flow.Flow
 
 /*
  * The pieces the phone's request screens share: the
- * words, posters with their status badges, stage pills in their colours,
+ * words, posters with their status badges, stage pills in their colors,
  * the download bar, the states a page can't show in, and what a screen
  * tells once.
  */
@@ -108,7 +108,7 @@ internal fun requestTile(request: MediaRequest, origin: String, texts: RequestTe
     )
 }
 
-/** A stage pill's colours: its words and dot, and the tint behind them. */
+/** A stage pill's colors: its words and dot, and the tint behind them. */
 private class Tone(val content: Color, val container: Color)
 
 private fun toneOf(tone: PillTone): Tone = when (tone) {

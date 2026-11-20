@@ -15,7 +15,7 @@ describe("short ids", () => {
   it("don't look like counting", () => {
     const shorts = [1, 2, 3, 4].map(encodeId);
     expect(new Set(shorts).size).toBe(4);
-    // Neighbours share no position.
+    // Neighbors share no position.
     for (let i = 0; i < 7; i++) expect(new Set(shorts.map((s) => s.charAt(i))).size).toBeGreaterThan(1);
   });
 

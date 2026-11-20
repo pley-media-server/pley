@@ -820,7 +820,7 @@ fn range_problem(v: &MediaStream, caps: &Caps) -> Option<String> {
             return None;
         }
         if v.is_dolby_vision_only() {
-            // No HDR10/SDR base layer: colours are wrong without DV processing.
+            // No HDR10/SDR base layer: colors are wrong without DV processing.
             return Some(format!("{label} converted to SDR."));
         }
         // Profile 7/8: an HDR10 or HLG base layer plays as plain HDR.
@@ -879,7 +879,7 @@ const DV_BL_BLU_RAY: i64 = 6;
 ///   enhancement layer Media3 can't decode, is repackaged so its HDR10 base
 ///   layer plays; profile 5, with no base layer, is converted like the
 ///   above, never repackaged (an MPEG-TS remux loses the Dolby Vision
-///   signalling, which leaves its colours wrong).
+///   signaling, which leaves its colors wrong).
 ///
 /// Players that read multivariant playlists ([`Caps::master_playlist`])
 /// get Dolby Vision kept in remuxes, named in the playlist's `CODECS`:
@@ -1154,7 +1154,7 @@ pub fn video_range_shown(v: &MediaStream, caps: &Caps, delivery: Delivery) -> Op
             if v.is_dolby_vision_only() {
                 // No base layer of its own: only a direct play the player
                 // insisted on gets here.
-                format!("{dolby_vision} not decoded (wrong colours)")
+                format!("{dolby_vision} not decoded (wrong colors)")
             } else {
                 let direct = delivery == Delivery::Direct;
                 format!(
@@ -1531,7 +1531,7 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
             }
             video_copy_ok = ok;
             // Version 1 remuxes never name Dolby Vision, and a stream with
-            // no base layer of its own shows the wrong colours unnamed: it
+            // no base layer of its own shows the wrong colors unnamed: it
             // plays only as it is, else converted.
             if ok && v.is_dolby_vision_only() {
                 video_copy_ok = false;
@@ -1937,7 +1937,7 @@ pub struct Session {
     /// its player asked for them (`keyed_urls`): 256 random bits that open
     /// this session's media and nothing else, for as long as it lasts.
     pub media_key: Option<String>,
-    /// Serialises job re-creation when the transcoder lost the job.
+    /// Serializes job re-creation when the transcoder lost the job.
     pub recreate: tokio::sync::Mutex<()>,
     /// The video bitrate its player asked for since it started (kbps),
     /// which a recreated job goes on at too.
@@ -2236,7 +2236,7 @@ pub struct Stopped {
 }
 
 /// A key for a session's keyed addresses (`/api/media/{key}/…`): 256
-/// random bits, prefixed so a leaked one is easy to recognise.
+/// random bits, prefixed so a leaked one is easy to recognize.
 pub fn new_media_key() -> String {
     format!("pley_mk_{}", crate::auth::new_token())
 }
@@ -3110,7 +3110,7 @@ mod tests {
         let through_hls = PlaybackRequest { stream_only: true, ..req.clone() };
         let d = decide(&f, Some(&i), &i.streams, &through_hls);
         assert_eq!((d.method, d.video.unwrap().mode), (Method::Remux, VideoMode::Copy));
-        // A file never analysed is decided as when its original is asked
+        // A file never analyzed is decided as when its original is asked
         // for: as it is where the player opens it, and else not copied.
         assert_eq!(decide(&f, None, &[], &req).method, Method::Direct);
         let d = decide(&file("mkv", 20_000_000), None, &[], &req);

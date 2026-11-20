@@ -11,11 +11,11 @@ import app.pley.android.player.subtitles.CaptionLook
 import java.util.Locale
 import kotlin.math.abs
 
-/** The method badge's colours: its text and its fill (the text at 20 %), as on the web. */
+/** The method badge's colors: its text and its fill (the text at 20 %), as on the web. */
 @Immutable
 data class BadgeColors(val text: Color, val fill: Color)
 
-/** The sizes and colours the player draws with (design spec §3.5). */
+/** The sizes and colors the player draws with (design spec §3.5). */
 object PlayerLook {
     /**
      * The method badge (apps/web/src/player/VideoPlayer.tsx): direct play in

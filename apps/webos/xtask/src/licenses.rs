@@ -1,4 +1,4 @@
-//! Third-party licences: the allow list in `deny.toml`, SPDX expressions, and NOTICES.txt.
+//! Third-party licenses: the allow list in `deny.toml`, SPDX expressions, and NOTICES.txt.
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -8,7 +8,7 @@ use std::path::Path;
 use crate::Result;
 use crate::workspace::Package;
 
-/// The licences `deny.toml`'s `[licenses]` table allows (its `allow` array).
+/// The licenses `deny.toml`'s `[licenses]` table allows (its `allow` array).
 pub fn allowed_licenses(deny_toml: &str) -> Result<Vec<String>> {
     let mut table = String::new();
     let mut collecting = false;
@@ -52,7 +52,7 @@ fn collect_strings(line: &str, into: &mut Vec<String>) {
     }
 }
 
-/// Whether the SPDX licence expression is satisfied by the allowed licences: an `OR` needs one
+/// Whether the SPDX license expression is satisfied by the allowed licenses: an `OR` needs one
 /// side allowed, an `AND` both. `A WITH exception` counts as `A` (an exception only adds
 /// permissions) unless the list names the pair. The legacy `/` separator reads as `OR`.
 pub fn is_allowed(expression: &str, allowed: &[String]) -> Result<bool> {
@@ -61,7 +61,7 @@ pub fn is_allowed(expression: &str, allowed: &[String]) -> Result<bool> {
     let mut parser = Parser { tokens: &tokens, at: 0, allowed };
     let value = parser.or()?;
     if parser.at != tokens.len() {
-        return Err(format!("can't read the licence expression \"{expression}\"").into());
+        return Err(format!("can't read the license expression \"{expression}\"").into());
     }
     Ok(value)
 }
@@ -100,20 +100,20 @@ impl Parser<'_> {
             self.at += 1;
             let value = self.or()?;
             if !self.peek_is(")") {
-                return Err("a licence expression with an unclosed parenthesis".into());
+                return Err("a license expression with an unclosed parenthesis".into());
             }
             self.at += 1;
             return Ok(value);
         }
-        let id = *self.tokens.get(self.at).ok_or("a licence expression that ends too soon")?;
+        let id = *self.tokens.get(self.at).ok_or("a license expression that ends too soon")?;
         if ["AND", "OR", "WITH", ")"].iter().any(|op| id.eq_ignore_ascii_case(op)) {
-            return Err(format!("a licence expression with \"{id}\" where a licence belongs").into());
+            return Err(format!("a license expression with \"{id}\" where a license belongs").into());
         }
         self.at += 1;
         let id = id.trim_end_matches('+');
         let mut value = self.names(id);
         if self.peek_is("WITH") {
-            let exception = *self.tokens.get(self.at + 1).ok_or("a licence expression that ends after WITH")?;
+            let exception = *self.tokens.get(self.at + 1).ok_or("a license expression that ends after WITH")?;
             self.at += 2;
             value |= self.names(&format!("{id} WITH {exception}"));
         }
@@ -125,7 +125,7 @@ impl Parser<'_> {
     }
 }
 
-/// What is wrong with the packages' licences: third-party crates (the workspace's own are
+/// What is wrong with the packages' licenses: third-party crates (the workspace's own are
 /// Pley's, unpublished, like `[licenses.private]` in deny.toml) whose expression the allow
 /// list doesn't satisfy, or that declare none.
 pub fn problems(packages: &[&Package], allowed: &[String]) -> Vec<String> {
@@ -133,7 +133,7 @@ pub fn problems(packages: &[&Package], allowed: &[String]) -> Vec<String> {
     for p in packages.iter().filter(|p| p.source.is_some()) {
         match &p.license {
             None => wrong.push(format!(
-                "{} {} declares no licence expression{}",
+                "{} {} declares no license expression{}",
                 p.name,
                 p.version,
                 p.license_file.as_deref().map(|f| format!(" (only a file, {f})")).unwrap_or_default()
@@ -150,21 +150,21 @@ pub fn problems(packages: &[&Package], allowed: &[String]) -> Vec<String> {
     wrong
 }
 
-/// What the app ships besides crates: (name, what it is, licence, the text's file under `apps/webos`).
+/// What the app ships besides crates: (name, what it is, license, the text's file under `apps/webos`).
 pub const ASSETS: &[(&str, &str, &str, &str)] = &[
     ("Roboto", "the typeface", "OFL-1.1", "assets/fonts/OFL.txt"),
     ("Lucide", "the icons", "ISC", "assets/licenses/lucide.txt"),
 ];
 
-/// NOTICES.txt: the bundled assets' licences, then each third-party crate compiled into the
-/// binary with its licence expression and the licence texts its package carries. A text that
+/// NOTICES.txt: the bundled assets' licenses, then each third-party crate compiled into the
+/// binary with its license expression and the license texts its package carries. A text that
 /// another crate already gave word for word is named, not repeated: most of them are the same
-/// Apache-2.0 text. Returns the text and the crates that carry no licence text.
+/// Apache-2.0 text. Returns the text and the crates that carry no license text.
 pub fn notices(packages: &[&Package], workspace_root: &Path) -> Result<(String, Vec<String>)> {
     let rule = "=".repeat(78);
     let mut out = String::from(
-        "Pley for LG TV includes the following third-party software, each under its own licence.\n\
-         Pley itself is under the licence in LICENSE.txt (see LICENSING.md).\n",
+        "Pley for LG TV includes the following third-party software, each under its own license.\n\
+         Pley itself is under the license in LICENSE.txt (see LICENSING.md).\n",
     );
     for (name, what, license, file) in ASSETS {
         let text = fs::read_to_string(workspace_root.join(file)).map_err(|e| format!("{file}: {e}"))?;
@@ -181,7 +181,7 @@ pub fn notices(packages: &[&Package], workspace_root: &Path) -> Result<(String, 
     let mut given: HashMap<String, String> = HashMap::new();
     let mut without_text = Vec::new();
     for p in packages.iter().filter(|p| p.source.is_some()) {
-        let license = p.license.as_deref().unwrap_or("see its licence file");
+        let license = p.license.as_deref().unwrap_or("see its license file");
         write!(out, "\n{rule}\n{} {}, {license}\n", p.name, p.version)?;
         if let Some(repository) = &p.repository {
             writeln!(out, "{repository}")?;
@@ -192,7 +192,7 @@ pub fn notices(packages: &[&Package], workspace_root: &Path) -> Result<(String, 
         if texts.is_empty() {
             without_text.push(format!("{} {}", p.name, p.version));
             let authors = if p.authors.is_empty() { "its authors".to_owned() } else { p.authors.join(", ") };
-            write!(out, "\nCopyright {authors}. Licensed under {license}; the package carries no licence text.\n")?;
+            write!(out, "\nCopyright {authors}. Licensed under {license}; the package carries no license text.\n")?;
         }
         for (file, text) in texts {
             let text = normalise(&text);
@@ -208,7 +208,7 @@ pub fn notices(packages: &[&Package], workspace_root: &Path) -> Result<(String, 
     Ok((out, without_text))
 }
 
-/// The licence texts in a crate's folder (LICENSE*, LICENCE*, COPYING*, NOTICE*, UNLICENSE*,
+/// The license texts in a crate's folder (LICENSE*, LICENCE*, COPYING*, NOTICE*, UNLICENSE*,
 /// COPYRIGHT*, and the files of a LICENSES folder), sorted by name.
 fn license_texts(dir: &Path) -> Result<Vec<(String, String)>> {
     let is_license = |name: &str| {
@@ -326,7 +326,7 @@ mod tests {
         let wrong = problems(&[&own, &good, &bad, &none], &allowed);
         assert_eq!(wrong.len(), 2, "{wrong:?}");
         assert!(wrong[0].starts_with("bad 1.0.0 is GPL-3.0-only"));
-        assert!(wrong[1].starts_with("none 1.0.0 declares no licence"));
+        assert!(wrong[1].starts_with("none 1.0.0 declares no license"));
     }
 
     #[test]
@@ -341,7 +341,7 @@ mod tests {
         fs::create_dir_all(&same).unwrap();
         fs::write(with.join("LICENSE-MIT"), "MIT text  \r\nsecond line\r\n\r\n").unwrap();
         fs::write(with.join("LICENSES").join("Apache-2.0.txt"), "Apache text\n").unwrap();
-        fs::write(with.join("README.md"), "not a licence").unwrap();
+        fs::write(with.join("README.md"), "not a license").unwrap();
         fs::write(same.join("LICENSE-APACHE"), "Apache text").unwrap();
         let a = package("alpha", Some("MIT OR Apache-2.0"), with, Some("registry"));
         let b = package("beta", Some("MIT"), without, Some("registry"));
@@ -358,8 +358,8 @@ mod tests {
         assert!(text.contains("alpha 1.0.0, MIT OR Apache-2.0\nhttps://example.com/alpha\n"));
         assert!(text.contains("--- LICENSE-MIT ---\n\nMIT text\nsecond line\n"));
         assert!(text.contains("--- LICENSES/Apache-2.0.txt ---\n\nApache text\n"));
-        assert!(!text.contains("not a licence"));
-        assert!(text.contains("Copyright Someone. Licensed under MIT; the package carries no licence text."));
+        assert!(!text.contains("not a license"));
+        assert!(text.contains("Copyright Someone. Licensed under MIT; the package carries no license text."));
         assert!(!text.contains("pley-lg"), "Pley's own crates aren't third-party");
         assert!(!text.contains('\r'));
         assert_eq!(missing, ["beta 1.0.0"]);

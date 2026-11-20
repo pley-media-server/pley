@@ -115,7 +115,7 @@ internal fun BreathingDot(modifier: Modifier = Modifier, color: Color = PleyColo
 /**
  * A QR code of [text], black on white with its 4-module quiet zone, in a
  * box [size] wide: each module is a whole number of pixels, the code
- * centred in what is left (tv-addendum §4.2).
+ * centered in what is left (tv-addendum §4.2).
  */
 @Composable
 internal fun QrCodeImage(text: String, size: Dp, modifier: Modifier = Modifier) {
@@ -152,7 +152,7 @@ private const val QUIET = 4
 
 /**
  * A dialog (design spec §2.10): a [surface2][PleyColors.Surface2] card,
- * radius 16, at most 560 wide, centred over a [scrim][PleyColors.Scrim];
+ * radius 16, at most 560 wide, centered over a [scrim][PleyColors.Scrim];
  * [title] in tvTitle, [body] in tvBody muted, and its buttons
  * right-aligned. Back calls [onDismiss]. The buttons say where focus
  * starts (the safe choice). Focus stays on the buttons while it is open,

@@ -4,7 +4,7 @@
 //! the page shows again, and every 10 s while its download moves. A failure says nothing: the
 //! line and the button just don't show.
 //!
-//! The hero shows the request's stage as a small pill (a dot and its words in the stage's colour)
+//! The hero shows the request's stage as a small pill (a dot and its words in the stage's color)
 //! with the download's bar beside it.
 
 use pley_base::{Point, Rect};

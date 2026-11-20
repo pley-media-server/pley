@@ -100,7 +100,7 @@ import kotlinx.coroutines.launch
  * Back from the rows gives focus to the rail's Home and puts the page back
  * at its hero, where focus lands when the rail closes. Coming back from an
  * item, focus lands on the tile it was opened from; when that tile's
- * actions took it out of its row, on its neighbour.
+ * actions took it out of its row, on its neighbor.
  *
  * The hero is there only with the banner turned on in Settings
  * ([HomeState.Ready.banner]); it is off by default. Without it, Home opens
@@ -293,7 +293,7 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
     val dashesGone = heroes.size < 2 && Snapshot.withoutReadObservation { onDashes.value }
     LaunchedEffect(dashesGone) { if (dashesGone) runCatching { resume.requestFocus() } }
 
-    // A tile its actions took away (Remove from Continue Watching): focus comes back to its neighbour.
+    // A tile its actions took away (Remove from Continue Watching): focus comes back to its neighbor.
     memory.settle(model::hasTile)
 
     // Back from the rows: the page goes back to its hero (focus on Resume), then to the rail.
@@ -363,7 +363,7 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
                             inRows = true
                             row.itemOf(tile)?.let {
                                 focused.value = FocusedTile(it, row)
-                                // Its backdrop and its neighbours' load now: focus may rest on any of them next.
+                                // Its backdrop and its neighbors' load now: focus may rest on any of them next.
                                 backdrops.prefetch(
                                     TvHomeModel.backdropOf(it, origin, tier),
                                     row.beside(it).map { item -> TvHomeModel.backdropOf(item, origin, tier) },

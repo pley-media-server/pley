@@ -45,12 +45,12 @@ object GradientBitmaps {
     }
 
     /**
-     * A square of [side] opaque grey pixels, black at the top left and white
-     * at the bottom right, along its diagonal: drawn through a colour matrix
-     * that takes black to one colour and white to another
+     * A square of [side] opaque gray pixels, black at the top left and white
+     * at the bottom right, along its diagonal: drawn through a color matrix
+     * that takes black to one color and white to another
      * ([Placeholder.look]), it is the gradient between them (CSS's
      * `linear-gradient(135deg, …)` on a square, blended in sRGB as CSS
-     * blends the web's `hsl()` colours), so one picture, one texture on the
+     * blends the web's `hsl()` colors), so one picture, one texture on the
      * GPU, serves every gradient of that shape, in one draw. A linear
      * gradient stays one when stretched (the filter blends between pixels
      * linearly), so a small square serves any box.

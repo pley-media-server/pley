@@ -536,7 +536,7 @@ async fn preview_indexes_and_chapter_thumbs() {
     assert_eq!(bif.status, StatusCode::OK);
     let frame = app.plex(&format!("/library/parts/{file_id}/indexes/sd/45000?X-Plex-Token={token}"), &[]).await;
     assert_eq!(frame.status, StatusCode::OK);
-    // 45 s in, at a frame every 10 s: the fifth of ten, and tile 4's colour.
+    // 45 s in, at a frame every 10 s: the fifth of ten, and tile 4's color.
     let word = |at: usize| u32::from_le_bytes(bif.bytes[at..at + 4].try_into().unwrap()) as usize;
     assert_eq!(word(12), 10);
     assert_eq!(frame.bytes, &bif.bytes[word(64 + 4 * 8 + 4)..word(64 + 5 * 8 + 4)]);

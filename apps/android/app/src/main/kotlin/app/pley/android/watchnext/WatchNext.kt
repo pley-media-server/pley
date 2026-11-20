@@ -62,7 +62,7 @@ class WatchNext(
         }
         .distinctUntilChanged()
 
-    /** Keeps the row to the profile's Continue Watching until cancelled. */
+    /** Keeps the row to the profile's Continue Watching until canceled. */
     suspend fun follow() {
         val graph = withContext(io) { data() }
         wanted(graph).conflate().collectLatest { entries ->

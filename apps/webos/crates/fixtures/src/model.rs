@@ -1,4 +1,4 @@
-//! The catalogue's JSON as apps get it (docs/API.md, "Types"): the field
+//! The catalog's JSON as apps get it (docs/API.md, "Types"): the field
 //! names, which fields are always there (`null` when empty) and which are left
 //! out when empty, as the server's `skip_serializing_if` has them.
 
@@ -205,7 +205,7 @@ pub(crate) struct MediaFile {
     pub chapters: Vec<Chapter>,
 }
 
-/// A stream of a file, as the transcoder's `MediaStream` serialises.
+/// A stream of a file, as the transcoder's `MediaStream` serializes.
 #[derive(Clone, Debug, Default, Serialize)]
 pub(crate) struct MediaStream {
     pub index: i64,

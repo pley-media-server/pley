@@ -145,7 +145,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 /**
  * Discover, where this account may ask for titles, and its requests where
  * it has any (everyone's, for managers), with how many wait to be looked
- * at: in the danger colour while some failed.
+ * at: in the danger color while some failed.
  */
 function RequestsNav() {
   const { t } = useTranslation("components");

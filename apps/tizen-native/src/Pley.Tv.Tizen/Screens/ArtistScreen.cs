@@ -184,7 +184,7 @@ sealed class ArtistScreen : ShellPage
     }
 
     /// <summary>
-    /// The round picture, and beside it, centred on it, "Artist" in Caption Muted, the name in
+    /// The round picture, and beside it, centered on it, "Artist" in Caption Muted, the name in
     /// PageTitle (2 lines at most), the counts and genres in Label Muted and the summary in Body (2
     /// lines); then, 18 dp under the taller of the two, the buttons, and the albums under them.
     /// </summary>

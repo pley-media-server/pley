@@ -408,7 +408,7 @@ struct RemoteDeviceControls: View {
 /// A playing device's controls, top to bottom: the poster (or the
 /// channel's logo) with what plays, and Skip Intro or Skip Credits at the
 /// row's end while it is in one; how far it is (a seek slider when its
-/// player seeks; on Live TV, how far along the programme on is by the
+/// player seeks; on Live TV, how far along the program on is by the
 /// clock, its times and what's next); Previous, Back 30 seconds, Play or
 /// Pause, Forward 30 seconds and Next, each where its player obeys it (Next
 /// shows, dimmed, for whatever has one), or a channel's rocker; then
@@ -608,7 +608,7 @@ private struct RemotePlayingControls: View {
         localized("\(Words.clock(ms: position)) of \(Words.clock(ms: duration))")
     }
 
-    /// On Live TV, no seek: how far along the programme on is, by this
+    /// On Live TV, no seek: how far along the program on is, by this
     /// device's clock between its start and end ("20:00 – 21:00" in the
     /// system's time format), then what's next, where the guide says.
     @ViewBuilder private var programme: some View {
@@ -798,7 +798,7 @@ private struct RemotePlayingControls: View {
         }
     }
 
-    /// The audio tracks, labelled as the player's own menu labels them, the one playing ticked.
+    /// The audio tracks, labeled as the player's own menu labels them, the one playing ticked.
     private var audioMenu: some View {
         picker(Words.remoteAudioTitle, symbol: "speaker.wave.2", label: Words.remoteAudio(device), id: "audio",
                selection: Binding(get: { session.audioIndex ?? Int.min }, set: { index in

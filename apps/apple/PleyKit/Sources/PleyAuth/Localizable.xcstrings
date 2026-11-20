@@ -239,7 +239,7 @@
         }
       }
     },
-    "the sign-in was cancelled" : {
+    "the sign-in was canceled" : {
       "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
       "localizations" : {
         "es" : {

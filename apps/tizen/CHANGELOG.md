@@ -38,6 +38,7 @@ describes how they are made.
 
 ### Changed
 
+- English words are spelled the American way: color, favorite, program.
 - Recommended no longer ends with a row of every collection: it shows
   the rows administrators chose.
 - The TV starts straight into Home as the profile it was left on when it
@@ -93,7 +94,7 @@ describes how they are made.
   stopped from another device, or by the server's administrator, stops
   on the TV and says who, with their message.
 - Live TV, where the server has IPTV channels for the profile, by
-  category: Favourites, Recently watched, All
+  category: Favorites, Recently watched, All
   channels, the regions in alphabetical order, each opening to its
   groups, and the other groups; one search, with the TV's keyboard, of
   every channel by name, number or what's on and of the groups; a guide that
@@ -173,9 +174,9 @@ describes how they are made.
 - Search's rows hold every result, up to 200 titles, 200 people and 200
   Live TV channels, where they stopped at 60 titles and 12 people and
   channels.
-- A programme's details in Live TV have Watch and the favourite side by
-  side, the favourite a star as in the live player, filled for a
-  favourite, where Watch and Add to or Remove from favourites were rows of
+- A program's details in Live TV have Watch and the favorite side by
+  side, the favorite a star as in the live player, filled for a
+  favorite, where Watch and Add to or Remove from favorites were rows of
   the panel. In the live player, the star no longer shows its words under
   it, which ran under Channels.
 
@@ -224,7 +225,7 @@ describes how they are made.
   the last 2 minutes, or, where it measured nothing, the second such wait
   within 5 minutes.
 - Live TV's guide says Today, Tomorrow and Yesterday on the days daylight
-  saving starts or ends too: a programme just after midnight tomorrow
+  saving starts or ends too: a program just after midnight tomorrow
   showed its date, or the day after tomorrow showed as Tomorrow.
 - The search field no longer shows a small cross at its end while you
   type, one the remote's arrows can't reach.

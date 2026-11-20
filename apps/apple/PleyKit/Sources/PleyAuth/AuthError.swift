@@ -57,7 +57,7 @@ public enum AuthError: Error, Sendable, Equatable {
         case .noCodes: localized("this server can't sign in with a code yet: update it, or sign in with your browser")
         case .unreadable: localized("the server's answer can't be read: try again")
         case .unencrypted: PleyError.unencryptedMessage
-        case .cancelled: localized("the sign-in was cancelled")
+        case .cancelled: localized("the sign-in was canceled")
         case .noBrowser: localized("the sign-in page couldn't be opened")
         case .stateMismatch: localized("the answer wasn't for this sign-in: try again")
         case .otherServer: localized("the answer came from another server than the one you signed in to: try again")

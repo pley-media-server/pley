@@ -63,7 +63,7 @@ export function LiveTvPage() {
     setSearch("");
     setPicking(false);
   };
-  // Details follow the channel as it changes (a favourite set, say).
+  // Details follow the channel as it changes (a favorite set, say).
   const detailChannel = useQuery({
     ...liveQueries.channel(details?.channel.id ?? 0),
     enabled: details != null,

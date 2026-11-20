@@ -1,5 +1,5 @@
 //! Watch history against the fake server: the plays and their count, opening one, removing one
-//! from its cross or with a long OK (focus going to its neighbour), Show more, and the empty page.
+//! from its cross or with a long OK (focus going to its neighbor), Show more, and the empty page.
 
 mod common;
 

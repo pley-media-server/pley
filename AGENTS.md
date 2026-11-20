@@ -20,7 +20,7 @@ Read the doc for the part you touch; they say how things work and why.
 | Android, Kodi, Roku, Samsung and LG apps | [docs/ANDROID.md](docs/ANDROID.md), [docs/KODI.md](docs/KODI.md), [docs/ROKU.md](docs/ROKU.md), [docs/TV_PLATFORMS.md](docs/TV_PLATFORMS.md) (Samsung), [docs/LG.md](docs/LG.md) |
 | Apple apps (iPhone, iPad, Mac, Apple TV) | [docs/APPLE.md](docs/APPLE.md) |
 | Docker, Unraid, Windows, services | [deploy/README.md](deploy/README.md) |
-| Licences and dependencies | [LICENSING.md](LICENSING.md) |
+| Licenses and dependencies | [LICENSING.md](LICENSING.md) |
 | Versions, changelogs, CI | [docs/RELEASING.md](docs/RELEASING.md) |
 
 ## Check your work
@@ -33,6 +33,7 @@ too, each app's workflow when that app changes.
 | Rust (server, transcoder, protocol) | `cargo clippy --workspace --all-targets`, `cargo fmt --all`, `cargo test -p <crate>` (the whole workspace before a large change) |
 | A Rust dependency | `scripts/check-licenses.ps1` and `cargo deny check licenses` |
 | Web or desktop app | `bun run check` (type check, ESLint, Vitest) |
+| Docs, or an app's English words | `bun scripts/check-spelling.mjs` |
 | Samsung app, `packages/tv` | `bun run tv:check` |
 | Native Samsung app (`apps/tizen-native`), `packages/tv/test/fixtures` | `dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests`, `dotnet build apps/tizen-native/src/Pley.Tv.Tizen` (and `bun run tv:check` for a fixture) |
 | A NuGet package | `bun scripts/check-nuget-licenses.mjs` after a build (`--write` when the packages the app ships change) |
@@ -81,9 +82,9 @@ claimed as checked.
 **Licensing** ([LICENSING.md](LICENSING.md)). Pley is under the GNU
 AGPL, version 3 only (`AGPL-3.0-only`, the root [LICENSE](LICENSE)); only
 the Kodi add-on is GPL-2.0-or-later. Contributions come under the same
-licences ([CONTRIBUTING.md](CONTRIBUTING.md)).
+licenses ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
-- Add no dependency that is only available under a copyleft licence (GPL,
+- Add no dependency that is only available under a copyleft license (GPL,
   LGPL, AGPL and the like) to the server, the transcoder or any app other
   than the Kodi add-on. `scripts/check-licenses.ps1` and `deny.toml` enforce
   this for Rust, `scripts/check-nuget-licenses.mjs` for the native Samsung
@@ -101,8 +102,8 @@ licences ([CONTRIBUTING.md](CONTRIBUTING.md)).
   TV's C library: SDL2, EGL and GLES, luna-service2, GLib and LG's media
   libraries are the TV's own, opened at run time with `dlopen`, never
   linked or shipped. `cargo xtask check` enforces the libraries and the
-  crates' licences.
-- Don't add licence texts or headers of your own; new transcoder files
+  crates' licenses.
+- Don't add license texts or headers of your own; new transcoder files
   start with `// SPDX-License-Identifier: AGPL-3.0-only`, as the
   others do.
 
@@ -150,6 +151,11 @@ anywhere else people can see.
 
 ## Writing
 
+- **English** is American in everything people read: color, favorite,
+  center, license, canceled, program, -ize. Names in code, the API and
+  file formats keep the spelling of what they name (XMLTV's
+  `<programme>`). `bun scripts/check-spelling.mjs` checks the docs and
+  the apps' English words.
 - **Code** reads like the code around it: its naming, structure, error
   handling and comment density. Comments explain why, in plain sentences.
 - **Docs** are plain and in the present tense: what Pley does, for whom,
@@ -222,7 +228,7 @@ anywhere else people can see.
 
 Every pull request and issue gets labels when it's opened (`gh pr create
 --label`, `gh issue create --label`), and one that came without them is
-labelled when it's picked up. `gh label list` has them all.
+labeled when it's picked up. `gh label list` has them all.
 
 - One kind: `bug`, `enhancement`, `documentation` for a change to docs
   alone, or `release` for a release's pull request.

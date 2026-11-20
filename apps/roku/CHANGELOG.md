@@ -8,6 +8,10 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- English words are spelled the American way: color, favorite, program.
+
 ## [0.1.10] - 2026-11-18
 
 ### Added

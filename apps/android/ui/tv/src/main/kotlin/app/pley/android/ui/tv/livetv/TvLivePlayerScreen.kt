@@ -114,7 +114,7 @@ private enum class Overlay { None, Controls, Channels }
  * - Up and Down, Channel up and down, and Previous and Next change
  *   channel (Up the next number), digits tune a number;
  * - OK opens the channel list, as Menu and Guide do; held, it shows the
- *   controls (the channel list, the favourite) over what's on; Back hides
+ *   controls (the channel list, the favorite) over what's on; Back hides
  *   what shows, then leaves.
  *
  * Live TV is watched as it airs, as the web's: no pause, no going back,
@@ -721,7 +721,7 @@ private fun CategoryChannels(
             ChannelRow(
                 channel = channel,
                 label = listOfNotNull(channel.number, LiveTv.channelName(channel, category)).joinToString("  "),
-                // What's on, not the time: the clock's tick draws a row again only when its programme changes.
+                // What's on, not the time: the clock's tick draws a row again only when its program changes.
                 on = channel.onAt(now)?.title,
                 origin = origin,
                 playing = channel.id == current,
@@ -732,7 +732,7 @@ private fun CategoryChannels(
     }
 }
 
-/** A channel in the list: its logo, number and name, what's on, a star for a favourite; the one [playing] marked. */
+/** A channel in the list: its logo, number and name, what's on, a star for a favorite; the one [playing] marked. */
 @Composable
 private fun ChannelRow(channel: LiveChannel, label: String, on: String?, origin: String, playing: Boolean, onClick: () -> Unit, modifier: Modifier) {
     Surface(

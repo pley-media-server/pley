@@ -20,7 +20,7 @@ static class Ui
     public static int DpInt(float dp) => (int)System.Math.Round(dp * Scale);
 }
 
-/// <summary>Pley's colours (the Android app's PleyColors, design spec §1.1).</summary>
+/// <summary>Pley's colors (the Android app's PleyColors, design spec §1.1).</summary>
 static class PleyColors
 {
     public static readonly Color Bg = Hex(0x0B0D10);
@@ -155,7 +155,7 @@ static class PleyTv
 static class PleyShape
 {
     public const float BadgeRadius = 2, TileRadius = 4, FieldRadius = 4, ControlRadius = 6, CardRadius = 6, DialogRadius = 8;
-    /// <summary>The focus ring: a 3 dp AccentBright stroke centred 4.5 dp outside the tile.</summary>
+    /// <summary>The focus ring: a 3 dp AccentBright stroke centered 4.5 dp outside the tile.</summary>
     public const float RingStroke = 3, RingOffset = 4.5f;
     /// <summary>A focused scrubber thumb's ring: a 2 dp stroke 2 dp clear of it.</summary>
     public const float ThumbRingStroke = 2, ThumbRingOffset = 2;
@@ -302,7 +302,7 @@ static class Text
     /// <summary>
     /// A line of <paramref name="style"/> in pixels: the design's line height, or the font's own on
     /// the TV when that is taller. Text in a box too short for its font shows as "…" alone. Text is
-    /// centred in its box, so a pixel or two more doesn't move it.
+    /// centered in its box, so a pixel or two more doesn't move it.
     /// </summary>
     public static float LineHeight(TextStyle style)
     {

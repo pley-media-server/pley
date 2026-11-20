@@ -51,7 +51,7 @@ struct SegmentTypesTests {
         set += pgsSegment(0x80, [])
         let b = try #require(PGSDecoder(samples: [set]).decode(0)?.bitmaps.first)
         #expect([b.width, b.height] as [Int] == [2, 2])
-        // The top line's right half is colour 0 (transparent), the bottom line's colour 2.
+        // The top line's right half is color 0 (transparent), the bottom line's color 2.
         #expect(b.rgba[3] == 0)
         #expect(Array(b.rgba[8..<12]) == [0, 0, 0, 128])
     }
@@ -100,7 +100,7 @@ struct SegmentTypesTests {
 
     @Test func vobSubCutShortIsNotDecoded() {
         #expect(VobSubDecoder.parseSpu([0, 8]) == nil)
-        // A colour command whose bytes are missing.
+        // A color command whose bytes are missing.
         let ctrl: [UInt8] = u16(0) + u16(4) + [0x03]
         #expect(VobSubDecoder.parseSpu(u16(4 + ctrl.count) + u16(4) + ctrl) == nil)
     }

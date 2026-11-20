@@ -1,5 +1,5 @@
 //! XMLTV guides, read as they stream (they run to hundreds of megabytes):
-//! the channels, then only the programmes of the channels wanted, within a
+//! the channels, then only the programs of the channels wanted, within a
 //! window of time.
 //!
 //! ```xml
@@ -50,7 +50,7 @@ pub struct Guide {
 }
 
 /// The guide in `input`. Once its channels are read (they come first),
-/// `wanted` says which of them to keep programmes of; programmes ending
+/// `wanted` says which of them to keep programs of; programs ending
 /// before `from` or starting after `to` (unix seconds) are left out.
 pub fn read<R: BufRead>(
     input: R,
@@ -91,7 +91,7 @@ pub fn read<R: BufRead>(
                     (Some(start), Some(stop)) if keep.contains(&id) && stop > from && start < to && stop > start => {
                         Some(Program { channel: id, start, stop, ..Default::default() })
                     }
-                    // A programme without its end lasts until the next one: an hour said.
+                    // A program without its end lasts until the next one: an hour said.
                     (Some(start), None) if keep.contains(&id) && start + 3600 > from && start < to => {
                         Some(Program { channel: id, start, stop: start + 3600, ..Default::default() })
                     }

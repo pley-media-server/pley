@@ -51,7 +51,7 @@ $allowedNative = @(
 
 $failed = $false
 
-# ---------------------------------------------------------------- licences
+# ---------------------------------------------------------------- licenses
 
 $windows = $env:OS -eq "Windows_NT"
 $gradlew = if ($windows) { Join-Path $android "gradlew.bat" } else { Join-Path $android "gradlew" }

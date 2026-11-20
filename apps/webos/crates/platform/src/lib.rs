@@ -106,7 +106,7 @@ pub fn canvas_scale(width: u32, height: u32) -> f32 {
 
 /// Reads the bound framebuffer's `width` × `height` pixels as a picture, top
 /// row first and with straight alpha (the framebuffer holds premultiplied
-/// colour).
+/// color).
 pub fn read_pixels(gl: &glow::Context, width: u32, height: u32) -> RgbaImage {
     use glow::HasContext;
 

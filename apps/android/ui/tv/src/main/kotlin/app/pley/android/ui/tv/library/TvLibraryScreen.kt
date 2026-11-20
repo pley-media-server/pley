@@ -583,7 +583,7 @@ private fun gridTileId(key: String): Long? = key.removePrefix("grid/").takeIf { 
 /**
  * Up out of this group goes to [target] (the tabs, or the chips above),
  * not to whatever is geometrically nearest. Focus is sent there in place
- * of the move, not after cancelling it: a cancelled move goes on to the
+ * of the move, not after canceling it: a canceled move goes on to the
  * next thing above, and where the nearest is a group (the chips), on past
  * it to the tabs.
  */

@@ -1,4 +1,4 @@
-//! The catalogue as a profile sees it: its own positions, watched marks,
+//! The catalog as a profile sees it: its own positions, watched marks,
 //! ratings and track choices in every item, playlist and collection.
 
 use crate::catalog::{BASE_TIME, CATEGORIES, Catalog, Collection, DAY};

@@ -19,6 +19,7 @@ use axum::http::{HeaderMap, Method, Request, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use parking_lot::Mutex;
+use pley_transcoder_api::MediaInfo;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -33,6 +34,10 @@ const TVDB_EPISODES: &str = include_str!("fixtures/providers/tvdb_episodes.json"
 const MB_GROUP_SEARCH: &str = include_str!("fixtures/providers/musicbrainz_release_group_search.json");
 const MB_ARTIST: &str = include_str!("fixtures/providers/musicbrainz_artist.json");
 const MB_GENRES: &str = include_str!("fixtures/providers/musicbrainz_genres.txt");
+
+const AUDNEXUS_BOOK: &str = include_str!("fixtures/providers/audnexus_book.json");
+const OL_SEARCH: &str = include_str!("fixtures/providers/openlibrary_search.json");
+const OL_WORK: &str = include_str!("fixtures/providers/openlibrary_work.json");
 
 const DISCOVERY: &str = "48117b90-a16e-34ca-a514-19c702df1158";
 const DAFT_PUNK: &str = "056e4f3e-d505-4dad-8ec1-d04f521cbb56";
@@ -136,6 +141,40 @@ async fn start_mock() -> (Mock, String) {
                 if id == DAFT_PUNK { json_reply(MB_ARTIST) } else { StatusCode::NOT_FOUND.into_response() }
             }),
         )
+        // Audnexus and Open Library, with invented books. The Lantern Sea's
+        // ASIN isn't sold in the United Kingdom's region; B0BROKEN01 is
+        // asked while Audnexus fails.
+        .route(
+            "/audnexus/books/{asin}",
+            get(|Path(asin): Path<String>, Query(q): Query<Vec<(String, String)>>, headers: HeaderMap| async move {
+                let us = q.iter().any(|(k, v)| k == "region" && v == "us");
+                if asin == "B0BROKEN01" {
+                    StatusCode::BAD_GATEWAY.into_response()
+                } else if asin == "B0LANTERN1" && us {
+                    // The cover's address is the stand-in's own.
+                    let host = headers.get(header::HOST).and_then(|h| h.to_str().ok()).unwrap_or_default();
+                    json_reply(&AUDNEXUS_BOOK.replace("BASE", &format!("http://{host}")))
+                } else {
+                    StatusCode::NOT_FOUND.into_response()
+                }
+            }),
+        )
+        .route(
+            "/ol/search.json",
+            get(|Query(q): Query<Vec<(String, String)>>| async move {
+                if q.iter().any(|(k, v)| k == "title" && v == "Small Hours") {
+                    json_reply(OL_SEARCH)
+                } else {
+                    json_reply(r#"{"numFound": 0, "docs": []}"#)
+                }
+            }),
+        )
+        .route(
+            "/ol/works/{id}",
+            get(|Path(id): Path<String>| async move {
+                if id == "OL3W.json" { json_reply(OL_WORK) } else { StatusCode::NOT_FOUND.into_response() }
+            }),
+        )
         .layer(axum::middleware::from_fn_with_state(mock.clone(), record))
         .with_state(mock.clone());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -164,6 +203,9 @@ impl TestApp {
             tmdb: format!("{base}/tmdb"),
             tmdb_images: format!("{base}/tmdb-images"),
             opensubtitles: format!("{base}/opensubtitles"),
+            audnexus: format!("{base}/audnexus"),
+            openlibrary: format!("{base}/ol"),
+            openlibrary_covers: format!("{base}/olcovers"),
         })
         .await
     }
@@ -466,6 +508,136 @@ async fn music_from_musicbrainz() {
     assert_eq!(mock.requests.lock().len(), before);
 }
 
+/// Books from Open Library by their title and writer, from Audnexus once
+/// their files carry an ASIN, and from neither when no one has them.
+#[tokio::test]
+async fn audiobooks_from_open_library_and_audnexus() {
+    let (mock, base) = start_mock().await;
+    let app = TestApp::new(&base).await;
+    app.seed_picture(&format!("{base}/audnexus-images/lantern.jpg")).await;
+    app.seed_picture(&format!("{base}/olcovers/b/id/7-L.jpg")).await;
+    let token = app.setup_admin().await;
+    let (status, body) = app.call(Method::PUT, "/api/settings", Some(&token), Some(json!({"country": "GB"}))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    app.media_file("books/Ada Quill/The Lantern Sea (Unabridged)/01.mp3");
+    app.media_file("books/Imogen Vale/Small Hours/01.mp3");
+    let lib = app.library(&token, "audiobooks", "books").await;
+
+    let list = app.get(&format!("/api/libraries/{lib}/items"), &token).await;
+    let books = list["items"].as_array().unwrap();
+    let id_of = |title: &str| {
+        books.iter().find(|b| b["title"] == title).unwrap_or_else(|| panic!("no {title}: {list}"))["id"]
+            .as_i64()
+            .unwrap()
+    };
+    let (lantern, hours) = (id_of("The Lantern Sea (Unabridged)"), id_of("Small Hours"));
+    let metadata_at = |id: i64| {
+        let db = app.state.db.read.clone();
+        async move {
+            sqlx::query_scalar::<_, Option<i64>>("SELECT metadata_at FROM items WHERE id = ?")
+                .bind(id)
+                .fetch_one(&db)
+                .await
+                .unwrap()
+        }
+    };
+
+    // Open Library: the work by the book's writer, with its description.
+    let found = app.get(&format!("/api/items/{hours}"), &token).await;
+    assert_eq!(found["year"].as_i64(), Some(1987), "{found}");
+    assert_eq!(found["summary"], "A night porter's quiet year.");
+    assert!(found["poster_url"].is_string(), "{found}");
+
+    // No ASIN, and not on Open Library: asked once, then left alone.
+    assert!(metadata_at(lantern).await.is_some_and(|t| t < 0));
+    assert_eq!(mock.requested("GET /audnexus/"), 0, "nothing asks Audnexus without an ASIN");
+
+    // Its files carry an ASIN: a refresh asks Audnexus, in the United
+    // Kingdom's region, then the United States'.
+    let info = MediaInfo {
+        tags: [("asin".to_owned(), "B0LANTERN1".to_owned())].into(),
+        duration_ms: Some(60_000),
+        ..Default::default()
+    };
+    sqlx::query("UPDATE media_files SET media_info = ? WHERE item_id IN (SELECT id FROM items WHERE parent_id = ?)")
+        .bind(serde_json::to_string(&info).unwrap())
+        .bind(lantern)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    let (status, body) = app.call(Method::POST, &format!("/api/items/{lantern}/refresh"), Some(&token), None).await;
+    assert!(status.is_success(), "{body}");
+    // The refresh runs in the background.
+    for _ in 0..200 {
+        if metadata_at(lantern).await.is_some_and(|t| t > 0) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    let book = app.get(&format!("/api/items/{lantern}"), &token).await;
+    assert_eq!(book["authors"], json!(["Ada Quill"]), "{book}");
+    assert_eq!(book["book"]["narrators"], json!(["June Ashby"]), "{book}");
+    assert_eq!(
+        (book["book"]["series"].as_str(), book["book"]["series_index"].as_f64()),
+        (Some("Tidewardens"), Some(2.0))
+    );
+    assert_eq!((book["year"].as_i64(), book["release_date"].as_str()), (Some(2019), Some("2019-03-05")));
+    assert_eq!(book["summary"], "A lighthouse keeper charts a sea that glows.");
+    assert_eq!(book["genres"], json!(["Science Fiction & Fantasy", "Fantasy"]));
+    assert!(book["poster_url"].is_string(), "{book}");
+    assert_eq!(mock.requested("GET /audnexus/books/B0LANTERN1?region=uk"), 1);
+    assert_eq!(mock.requested("GET /audnexus/books/B0LANTERN1?region=us"), 1);
+
+    // A part added: the scan writes what the files say over what was
+    // fetched, and the book is looked up again after it.
+    let searches = mock.requested("GET /ol/search.json");
+    app.media_file("books/Imogen Vale/Small Hours/02.mp3");
+    let scan = json!({"force": false});
+    let (status, body) = app.call(Method::POST, &format!("/api/libraries/{lib}/scan"), Some(&token), Some(scan)).await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+    app.wait_for_scans().await;
+    let found = app.get(&format!("/api/items/{hours}"), &token).await;
+    assert_eq!(
+        (found["year"].as_i64(), found["summary"].as_str()),
+        (Some(1987), Some("A night porter's quiet year.")),
+        "{found}"
+    );
+    assert!(mock.requested("GET /ol/search.json") > searches);
+
+    // Audnexus failing, in the server's region and the United States': Open
+    // Library's details are written, and the book is left to be fetched so
+    // that Audnexus is asked again.
+    let info = MediaInfo { tags: [("asin".to_owned(), "B0BROKEN01".to_owned())].into(), ..Default::default() };
+    sqlx::query("UPDATE media_files SET media_info = ? WHERE item_id IN (SELECT id FROM items WHERE parent_id = ?)")
+        .bind(serde_json::to_string(&info).unwrap())
+        .bind(hours)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    let (status, body) = app.call(Method::POST, &format!("/api/items/{hours}/refresh"), Some(&token), None).await;
+    assert!(status.is_success(), "{body}");
+    for _ in 0..200 {
+        if mock.requested("GET /audnexus/books/B0BROKEN01?region=us") > 0 && metadata_at(hours).await.is_none() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(metadata_at(hours).await, None);
+    assert_eq!(mock.requested("GET /audnexus/books/B0BROKEN01?region=uk"), 1);
+    assert_eq!(mock.requested("GET /audnexus/books/B0BROKEN01?region=us"), 1);
+    let found = app.get(&format!("/api/items/{hours}"), &token).await;
+    assert_eq!(found["summary"], "A night porter's quiet year.", "{found}");
+
+    // Turned off: nothing is asked for.
+    let (status, _) = app.call(Method::PUT, "/api/settings", Some(&token), Some(json!({"book_metadata": false}))).await;
+    assert_eq!(status, StatusCode::OK);
+    let before = mock.requests.lock().len();
+    let (status, body) = app.call(Method::POST, &format!("/api/items/{hours}/refresh"), Some(&token), None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert!(body["message"].as_str().unwrap().contains("Open Library"));
+    assert_eq!(mock.requests.lock().len(), before);
+}
+
 // ------------------------------------------------------------------ the real services
 //
 // `cargo test -p pley-server --test providers -- --ignored` checks the
@@ -530,4 +702,38 @@ async fn live_thetvdb() {
     let seasons = app.children(&token, &show["id"]).await;
     let first = app.children(&token, &titled(&seasons, "Season 1")["id"]).await;
     titled(&first, "Pilot");
+}
+
+#[tokio::test]
+#[ignore = "talks to Audnexus and Open Library"]
+async fn live_audnexus_and_open_library() {
+    let app = TestApp::with_endpoints(Endpoints::default()).await;
+    let token = app.setup_admin().await;
+    app.media_file("books/Andy Weir/Project Hail Mary/01.mp3");
+    app.media_file("books/Mary Wollstonecraft Shelley/Frankenstein, or, The Modern Prometheus/01.mp3");
+    let lib = app.library(&token, "audiobooks", "books").await;
+    let list = app.get(&format!("/api/libraries/{lib}/items"), &token).await;
+    // Open Library by title and writer.
+    for item in list["items"].as_array().unwrap() {
+        let book = app.get(&format!("/api/items/{}", item["id"]), &token).await;
+        // Not every work has a description.
+        assert!(book["year"].is_i64() && book["poster_url"].is_string(), "{book}");
+    }
+    // Audnexus by the ASIN in the files.
+    let hail_mary = list["items"].as_array().unwrap().iter().find(|b| b["title"] == "Project Hail Mary").unwrap();
+    let info = MediaInfo { tags: [("asin".to_owned(), "B08G9PRS1K".to_owned())].into(), ..Default::default() };
+    sqlx::query("UPDATE media_files SET media_info = ? WHERE item_id IN (SELECT id FROM items WHERE parent_id = ?)")
+        .bind(serde_json::to_string(&info).unwrap())
+        .bind(hail_mary["id"].as_i64())
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE items SET narrators = NULL WHERE id = ?")
+        .bind(hail_mary["id"].as_i64())
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    app.state.metadata.refresh_item(hail_mary["id"].as_i64().unwrap()).await.unwrap();
+    let book = app.get(&format!("/api/items/{}", hail_mary["id"]), &token).await;
+    assert!(book["book"]["narrators"].as_array().is_some_and(|n| n.iter().any(|n| n == "Ray Porter")), "{book}");
 }

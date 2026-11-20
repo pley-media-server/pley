@@ -21,7 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * The globe of the screens before signing in: labelled with the language
+ * The globe of the screens before signing in: labeled with the language
  * shown; "Automatic" (the system's language where Pley has it, else
  * English), then each language by its own name, the pick checked. A pick
  * is this device's; Automatic forgets it.

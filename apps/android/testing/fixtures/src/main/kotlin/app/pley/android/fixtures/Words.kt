@@ -3,7 +3,7 @@ package app.pley.android.fixtures
 /**
  * The words the generated titles, names and summaries are made of. Made up,
  * so no generated title is a real film's, and fixed, so every run of the
- * FixtureServer has the same catalogue.
+ * FixtureServer has the same catalog.
  */
 internal object Words {
     val adjectives = listOf(

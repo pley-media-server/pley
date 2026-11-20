@@ -163,7 +163,7 @@ internal fun FastScroller(
             Box(
                 Modifier
                     .align(Alignment.TopEnd)
-                    // Centred on the touch strip, then moved left of the handle, clear of the finger.
+                    // Centered on the touch strip, then moved left of the handle, clear of the finger.
                     .offset { IntOffset(-BUBBLE_SHIFT.roundToPx(), place() + (handle - BUBBLE.roundToPx()) / 2) }
                     .requiredSize(BUBBLE)
                     .background(PleyColors.Surface3, PleyShape.Circle),

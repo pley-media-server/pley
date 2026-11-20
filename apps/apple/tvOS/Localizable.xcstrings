@@ -418,7 +418,7 @@
         }
       }
     },
-    "Add to favourites" : {
+    "Add to favorites" : {
       "comment" : "Live TV: stars a channel.",
       "localizations" : {
         "es" : {
@@ -1217,7 +1217,7 @@
         }
       }
     },
-    "Favourites" : {
+    "Favorites" : {
       "comment" : "Live TV's categories: the starred channels.",
       "localizations" : {
         "es" : {
@@ -1592,7 +1592,7 @@
       }
     },
     "It has ended." : {
-      "comment" : "Live TV: a programme's page once it is over.",
+      "comment" : "Live TV: a program's page once it is over.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2122,7 +2122,7 @@
       }
     },
     "New" : {
-      "comment" : "Live TV: the badge on a programme shown for the first time.",
+      "comment" : "Live TV: the badge on a program shown for the first time.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2190,7 +2190,7 @@
       }
     },
     "Next %@ · %@" : {
-      "comment" : "Live player's banner: the next programme, its time and title (\"Next 21:00 · The News\").",
+      "comment" : "Live player's banner: the next program, its time and title (\"Next 21:00 · The News\").",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2292,7 +2292,7 @@
       }
     },
     "No information for this time" : {
-      "comment" : "Live TV's guide: a programme without a title.",
+      "comment" : "Live TV's guide: a program without a title.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3226,7 +3226,7 @@
         }
       }
     },
-    "Remove from favourites" : {
+    "Remove from favorites" : {
       "comment" : "Live TV: unstars a channel.",
       "localizations" : {
         "es" : {
@@ -3924,7 +3924,7 @@
       }
     },
     "The guide says nothing more of it." : {
-      "comment" : "Live TV: a programme without a description.",
+      "comment" : "Live TV: a program without a description.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -4315,7 +4315,7 @@
       }
     },
     "Watch now" : {
-      "comment" : "Live TV: a programme's page while it is on: watches its channel.",
+      "comment" : "Live TV: a program's page while it is on: watches its channel.",
       "localizations" : {
         "es" : {
           "stringUnit" : {

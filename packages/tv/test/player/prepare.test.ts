@@ -38,7 +38,7 @@ describe("warming a stream", () => {
     expect(asked).toEqual(["GET http://nas:7539/api/media/k/index.m3u8", "HEAD http://nas:7539/api/media/k/1.ts"]);
   });
 
-  it("is done at once when cancelled, whatever still runs", async () => {
+  it("is done at once when canceled, whatever still runs", async () => {
     const cancel = new Cancel();
     const fetch: StreamFetch = { text: () => new Promise(() => undefined), head: () => new Promise(() => undefined) };
     const done = warmStream(fetch, BASE, 0, cancel);

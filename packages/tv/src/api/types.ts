@@ -577,7 +577,7 @@ export interface LiveChannel {
   /** The logo's address on this server, when the channel has one. */
   logo: string | null;
   favorite: boolean;
-  /** The guide has programmes for it. */
+  /** The guide has programs for it. */
   has_guide: boolean;
   now: LiveProgram | null;
   next: LiveProgram | null;
@@ -609,7 +609,7 @@ export interface LiveChannelPage {
   channels: LiveChannel[];
 }
 
-/** `GET /api/live/guide`: programmes by channel id, between `from` and `to`. */
+/** `GET /api/live/guide`: programs by channel id, between `from` and `to`. */
 export interface LiveGuide {
   from: Timestamp;
   to: Timestamp;

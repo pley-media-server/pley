@@ -17,9 +17,9 @@ import app.pley.android.designsystem.PleyType
 
 /**
  * Material 3 in pley's tokens (design spec §1.1, §1.2, §1.4): dark only,
- * as the web, with no dynamic colour. Phones and tablets only; the TV
+ * as the web, with no dynamic color. Phones and tablets only; the TV
  * builds tv-material's theme from the same tokens. Nothing here defines a
- * colour, size or duration of its own.
+ * color, size or duration of its own.
  *
  * It also provides [LocalReducedMotion] (the system's "Remove animations")
  * and the page's [PhoneMetrics] for the window's width.

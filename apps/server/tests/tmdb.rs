@@ -199,6 +199,9 @@ async fn world_with_transcoder(transcoder: Option<String>) -> (TestApp, Tmdb, St
             tmdb: format!("{base}/tmdb"),
             tmdb_images: format!("{base}/tmdb-images"),
             opensubtitles: format!("{base}/opensubtitles"),
+            audnexus: format!("{base}/audnexus"),
+            openlibrary: format!("{base}/ol"),
+            openlibrary_covers: format!("{base}/olcovers"),
         });
         if let Some(url) = transcoder {
             c.transcoder_url = Some(url);

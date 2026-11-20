@@ -90,6 +90,7 @@ its console window, or signing out.
 | Movies | [TMDB](https://www.themoviedb.org) | Free API key |
 | TV shows | TMDB, [TheTVDB](https://thetvdb.com) or [TVmaze](https://www.tvmaze.com) | TMDB's key; TheTVDB's key (and subscriber PIN for user-supported keys); none for TVmaze |
 | Music | [MusicBrainz](https://musicbrainz.org) and the [Cover Art Archive](https://coverartarchive.org) | None |
+| Audiobooks | [Open Library](https://openlibrary.org), and [Audnexus](https://audnex.us) for books with an Audible ASIN | None |
 
 - *Automatic* uses TMDB for TV when it has a key, then TheTVDB, else TVmaze.
   Changing the source fetches every show again.
@@ -100,13 +101,25 @@ its console window, or signing out.
   in air date order.
 - MusicBrainz only fills in what the tags lack and allows one request a
   second, so the first look-up of a big music library takes a while.
+- Audiobooks are looked up on Open Library by their title and writer, for
+  a summary, year and cover. Books whose files carry an Audible ASIN tag
+  (`asin`, as Libation and OpenAudible write it) are looked up by it on
+  Audnexus instead, which adds narrators, the series and the book's place
+  in it, and genres; it is asked in the Audible region of the server's
+  country, then the United States'. While Audnexus doesn't answer, such a
+  book gets Open Library's details and Audnexus is asked again after the
+  next scan. Audnexus can't search, so a book without an ASIN goes to Open
+  Library alone, and Pley never asks Audible itself. Both fill in only what
+  the files' tags and folders lack, and covers in or beside the files win.
+  A book whose files change is looked up again after the scan.
 
 This product uses the TMDB API but is not endorsed or certified by TMDB. TV
 data from TVmaze is licensed
 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). TV metadata
 from TheTVDB; please consider adding missing information or subscribing.
 Music data from MusicBrainz is public domain (CC0); covers from the Cover Art
-Archive belong to their owners.
+Archive belong to their owners. Open Library's data is public domain (CC0);
+audiobook data and covers from Audnexus belong to their owners.
 
 ## NFO files
 

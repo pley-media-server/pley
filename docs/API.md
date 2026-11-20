@@ -511,7 +511,7 @@ interface PlaybackInfo {
                                     // "Dolby Vision P8.1 (HDR10+ left out)",
                                     // "HDR10 (this screen doesn't show HDR10+)", "HDR10 (HDR10+ left out)",
                                     // "HDR10 (converted from HLG)", "SDR (tone-mapped)", and
-                                    // "Dolby Vision P5 not decoded (wrong colours)" for a direct play the
+                                    // "Dolby Vision P5 not decoded (wrong colors)" for a direct play the
                                     // player insisted on. Version 1 players don't say which HDR formats
                                     // their screen shows, so their HDR10+ is named as it is
   adaptive: boolean;                // the transcode comes in several sizes the player moves between
@@ -2544,7 +2544,7 @@ Transcoder), the server copies video or doesn't play it:
 
 - Direct plays and remuxes are as ever, and so is converted sound: a file
   whose video the player plays gets its audio converted in a remux. Music
-  is converted as ever, a track never analysed too.
+  is converted as ever, a track never analyzed too.
 - A quality asked for (`max_bitrate`, `max_height`) plays the original as
   it plays best: the limits are left out, and `mode: "transcode"` asked
   with them is answered as `"auto"` is, so a device that kept a quality
@@ -3976,7 +3976,7 @@ profile of the remote that sent it something.
   device's own level, whatever sets it; a change sends `sessions_changed`.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
   `device_name` and `device_kind` too. Its session is listed with
-  `kind: "live"`, its `channel` (with the programme on, when it started
+  `kind: "live"`, its `channel` (with the program on, when it started
   and ends, and the next) and `item: null`, while its player is there
   (see Leaving, under [Live TV](#live-tv)); it is always `playing`, at
   `position_ms` 0 with `duration_ms` `null`. Commands go to it the same way.
@@ -4577,7 +4577,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | GET | `/api/live/browse` | `library` | `?category=all\|favorites\|recent\|group&group=&q=&offset=&limit=&around=` → `{ total, offset, channels: LiveChannel[] }`: a page (100 by default, 500 at most) of a category's channels matching `q` as search finds them (by name, slips too, a number's beginning, or the title of what's on), the closest first as in search (`recent` keeps the order they were watched); `around` gives the page with that channel in it |
 | GET | `/api/live/channels/{id}` | `library` | `LiveChannel` |
 | GET | `/api/live/channels/{id}/logo` | `library` | the logo, kept a week at a time (no larger than 1 MB and 400 px; one drawn dark on a see-through background is made light, for dark screens); `?w=` resizes it, a see-through one staying see-through |
-| GET | `/api/live/channels/{id}/programs/{start}/image` | `library` | a programme's picture; `?w=` resizes it |
+| GET | `/api/live/channels/{id}/programs/{start}/image` | `library` | a program's picture; `?w=` resizes it |
 | GET | `/api/live/guide` | `library` | `?from=&to=&ids=` (unix seconds; default half an hour ago to six hours on, two days at most; `ids`: the channels wanted, with commas between, else every one) → `{ from, to, programs: { [channel_id]: LiveProgram[] } }` |
 | PUT | `/api/live/channels/{id}/favorite` | `play` | `204` |
 | DELETE | `/api/live/channels/{id}/favorite` | `play` | `204` |
@@ -4736,10 +4736,10 @@ interface LiveTuner {                  // a connection in use
 - **Hidden channels** are nobody's to watch, administrators' included,
   until shown again. Names, numbers and guide channels set in the lineup
   stay when the source is read again.
-- **Guide channels set by hand.** A guide read keeps the programmes of the
+- **Guide channels set by hand.** A guide read keeps the programs of the
   guide channels the source's channels take as it reads, by guide channel
   or, when the guide lacks theirs, by name. A channel given a guide channel
-  with no programmes in the lineup, or renamed while its name decides its
+  with no programs in the lineup, or renamed while its name decides its
   guide channel, has the source's guide read again in the background; a
   read under way is followed by one more when it had already listed the
   channels.
@@ -4851,7 +4851,8 @@ on another administrator's account, but for the `GET`s
   `"auto"` and turns `hardware_decoding` on; a combination saved before
   stays.
 - **`settings/test`** makes one request to `service` (`"tmdb"`, `"tvdb"`,
-  `"tvmaze"`, `"musicbrainz"`, `"transcoder"` or `"opensubtitles"`) with the
+  `"tvmaze"`, `"musicbrainz"`, `"audiobooks"` (Open Library and Audnexus),
+  `"transcoder"` or `"opensubtitles"`) with the
   key and PIN given (not saved), else the saved ones. OpenSubtitles: its
   key, or with a `username`, a sign-in of that account (`password` left
   out: the saved one, for the saved username). `message` says what
@@ -4934,6 +4935,7 @@ interface Settings {
   tvdb_api_key: string;             // TheTVDB v4 key; "" = not set
   tvdb_pin: string;                 // TheTVDB subscriber PIN, for user-supported keys
   music_metadata: boolean;          // MusicBrainz + Cover Art Archive for music libraries (default true)
+  book_metadata: boolean;           // Open Library and Audnexus for audiobook libraries (default true)
   read_nfo: boolean;                // read NFO files next to movies, shows, seasons and episodes (default
                                     // true; see CONFIGURATION.md). A change scans every library
   strm_files: boolean;              // movie and TV libraries list and play .strm files (default false; see

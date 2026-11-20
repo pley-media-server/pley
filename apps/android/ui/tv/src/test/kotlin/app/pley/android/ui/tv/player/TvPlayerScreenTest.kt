@@ -51,7 +51,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * The TV player with the remote's keys: Centre, Left and Right with the
+ * The TV player with the remote's keys: Center, Left and Right with the
  * controls hidden, held keys scrubbing and seeking once, Up and Down
  * showing the controls, Back walking out, Skip and Up Next taking focus,
  * the media keys, the panels, the refresh-rate switch and errors.
@@ -189,7 +189,7 @@ class TvPlayerScreenTest {
         compose.waitForIdle()
         press(Key.DirectionCenter)
         assertEquals(listOf("seekTo", "seekTo"), controller.calls.map { it.name })
-        // Long after the seek, Centre pauses again.
+        // Long after the seek, Center pauses again.
         press(Key.MediaFastForward)
         compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + TvSeeker.CONFIRM_MS + 100)
         compose.waitForIdle()
@@ -806,14 +806,14 @@ class TvPlayerScreenTest {
         }
         show(controller)
         focusedOn(TAG_SKIP)
-        // Left and Right still seek; Centre is Skip's.
+        // Left and Right still seek; Center is Skip's.
         press(Key.DirectionCenter)
         assertEquals(listOf("skip"), controller.calls.map { it.name })
         controller.update { it.copy(skipLabel = null, positionMs = 61_000) }
         compose.mainClock.advanceTimeBy(500)
         compose.waitForIdle()
         compose.onNodeWithTag(TAG_SKIP).assertDoesNotExist()
-        // Skip gone, Centre is the video's again: it shows the controls.
+        // Skip gone, Center is the video's again: it shows the controls.
         press(Key.DirectionCenter)
         assertEquals(listOf("skip"), controller.calls.map { it.name })
         focusedOn(TAG_SCRUBBER)

@@ -1,6 +1,6 @@
 //! Every page of the app, with what it is opened on: the Android app's `PleyKey`s and the TV
 //! app's `PageKey`s (`packages/tv/src/ui/shell/navigator.ts`), plus the pages the TV app shows
-//! inside others (the address pad, the PIN pad, a settings category, the licences).
+//! inside others (the address pad, the PIN pad, a settings category, the licenses).
 
 use std::path::PathBuf;
 
@@ -264,7 +264,7 @@ pub enum Route {
     History,
     /// What this TV decodes and shows, and why.
     Diagnostics,
-    /// The open-source licences of what Pley for LG TV is built from, with their texts.
+    /// The open-source licenses of what Pley for LG TV is built from, with their texts.
     Licences,
 }
 

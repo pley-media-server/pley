@@ -37,7 +37,7 @@ public final class ServersModel: ObservableObject {
         merge()
     }
 
-    /// Searches the network until the task running it is cancelled (the
+    /// Searches the network until the task running it is canceled (the
     /// screen goes away).
     public func browse() async {
         searching = true

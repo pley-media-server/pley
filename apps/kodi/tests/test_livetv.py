@@ -14,7 +14,7 @@ from pley import kodi, livetv, plugin, window
 from pley import layout as L
 
 BASE = "http://127.0.0.1:5000/s"
-# A quarter past an hour, the programmes on from the hour to the next.
+# A quarter past an hour, the programs on from the hour to the next.
 NOW = (int(time.time()) // 3600) * 3600 + 900
 HOUR = 3600
 
@@ -502,7 +502,7 @@ class RoutesTest(unittest.TestCase):
     def test_live_tv_lists_its_categories(self):
         items = self.run_route("route=live")
         labels = [c[2].label.split("  [COLOR")[0] for c in items]
-        self.assertEqual(labels, ["Favourites", "Recently watched", "All channels", "Search channels", "DE", "UK", "News", "Sport", "Radio", "US · Films"])
+        self.assertEqual(labels, ["Favorites", "Recently watched", "All channels", "Search channels", "DE", "UK", "News", "Sport", "Radio", "US · Films"])
         self.assertIn("(7)", items[2][2].label)
         self.assertIn("category=favorites", items[0][1])
         self.assertIn("route=live_region&region=UK", items[5][1])
@@ -516,7 +516,7 @@ class RoutesTest(unittest.TestCase):
         self.assertEqual([c[2].label for c in items], ["201 SKY SPORTS 1", "202 SKY SPORTS 2"])
         url, li, folder = items[0][1:]
         self.assertEqual((url, folder), ("plugin://plugin.video.pley/?route=live_play&id=7&group=UK%7C+Sport", False))
-        self.assertEqual([name for name, _ in li.menu], ["Add to favourites", "Schedule"])
+        self.assertEqual([name for name, _ in li.menu], ["Add to favorites", "Schedule"])
         self.assertIn(("content", "videos"), xbmcplugin.calls)
         asked = [r.path for r in self.server.requests]
         self.assertEqual(asked, ["/s3cret/api/live/browse?category=group&offset=0&limit=300&group=UK%7C+Sport"])
@@ -679,7 +679,7 @@ class LiveScreenTest(unittest.TestCase):
     def test_categories_and_the_channels_with_whats_on(self):
         self.screen.show(False)
         self.assertEqual(self.categories(), [
-            ("Search channels", "", ""), ("Favourites", "1", ""), ("Recently watched", "2", ""), ("All channels", "7", "1"),
+            ("Search channels", "", ""), ("Favorites", "1", ""), ("Recently watched", "2", ""), ("All channels", "7", "1"),
             ("DE", "0", ""), ("UK", "3", ""), ("News", "2", ""), ("Sport", "1", ""), ("Radio", "1", ""), ("US · Films", "0", ""),
         ])
         rows = self.rows()
@@ -763,23 +763,23 @@ class LiveScreenTest(unittest.TestCase):
         self.win.made[L.LIVE_LIST].selected = 0
         with test_window.Dialogs(picks=[1]) as asked:
             self.screen.menu(L.LIVE_LIST)
-        self.assertEqual(asked.shown[0][0], ["Watch", "Add to favourites", "Schedule"])
+        self.assertEqual(asked.shown[0][0], ["Watch", "Add to favorites", "Schedule"])
         self.assertEqual(self.favourites, [("PUT", "/api/live/channels/1/favorite")])
         self.assertEqual(self.rows()[0].properties["favorite"], "1")
-        self.assertEqual(self.categories()[1][:2], ("Favourites", "2"))
-        # The last favourite removed on Favourites: All channels again, and no Favourites.
+        self.assertEqual(self.categories()[1][:2], ("Favorites", "2"))
+        # The last favorite removed on Favorites: All channels again, and no Favorites.
         self.screen.choose(("favorites", None))
         for _ in range(2):
             self.win.made[L.LIVE_LIST].selected = 0
             with test_window.Dialogs(picks=[1]):
                 self.screen.menu(L.LIVE_LIST)
         self.assertEqual(self.screen.category, ("all", None))
-        self.assertNotIn("Favourites", [c[0] for c in self.categories()])
+        self.assertNotIn("Favorites", [c[0] for c in self.categories()])
         self.assertEqual(self.win.focused, L.LIVE_LIST)
 
     def test_a_channels_schedule(self):
         self.screen.show(False)
-        # Info: the schedule; a programme still to come says what it is,
+        # Info: the schedule; a program still to come says what it is,
         # and back from it the schedule is as it was, not asked for again.
         with test_window.Dialogs(picks=[1, -1]) as asked:
             self.screen.info(L.LIVE_LIST)
@@ -804,7 +804,7 @@ class LiveScreenTest(unittest.TestCase):
         self.screen.typed_timer.cancel()
         self.assertEqual(self.win.toasts[-1], "104")
         self.screen.go_to_typed()
-        # Not among the favourites: in All channels.
+        # Not among the favorites: in All channels.
         self.assertEqual(self.screen.category, ("all", None))
         self.assertEqual(self.win.made[L.LIVE_LIST].selected, 2)
         self.screen.number(9)

@@ -15,7 +15,7 @@ export interface ModalProps {
   /** Prevent closing via backdrop / Escape (e.g. while saving). */
   locked?: boolean;
   /**
-   * Where it sits on wider screens: centred, or near the top, for a dialog
+   * Where it sits on wider screens: centered, or near the top, for a dialog
    * whose height changes (tabs), so that its top and tabs stay put.
    */
   align?: "center" | "top";

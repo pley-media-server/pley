@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
  * What can be done with an item from its action sheet, its TV panel or a
  * long press on its tile (ItemActions.tsx without the administrator's
  * part): playing, watched marks, leaving Continue Watching, My List,
- * playlists, and going to its show or season. Editing, refreshing and analysing are the web's, for
+ * playlists, and going to its show or season. Editing, refreshing and analyzing are the web's, for
  * administrators: never offered here, whatever the server says of the
  * profile.
  */

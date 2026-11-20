@@ -88,7 +88,7 @@ export interface Box {
   height: number;
 }
 
-/** A `width`×`height` picture fitted inside `view`, centred (`object-fit: contain`). */
+/** A `width`×`height` picture fitted inside `view`, centered (`object-fit: contain`). */
 export function contain(view: { width: number; height: number }, width: number, height: number): Box {
   if (!(view.width > 0 && view.height > 0 && width > 0 && height > 0)) return { x: 0, y: 0, width: view.width, height: view.height };
   const scale = Math.min(view.width / width, view.height / height);

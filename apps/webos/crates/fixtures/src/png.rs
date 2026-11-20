@@ -28,7 +28,7 @@ pub(crate) fn encode(width: u32, height: u32, channels: usize, pixels: &[u8]) ->
     let mut header = Vec::with_capacity(13);
     header.extend_from_slice(&width.to_be_bytes());
     header.extend_from_slice(&height.to_be_bytes());
-    // 8 bits a channel, colour type 2 (RGB) or 6 (RGBA), deflate, no filter method, no interlace.
+    // 8 bits a channel, color type 2 (RGB) or 6 (RGBA), deflate, no filter method, no interlace.
     header.extend_from_slice(&[8, if channels == 4 { 6 } else { 2 }, 0, 0, 0]);
 
     let mut out = Vec::with_capacity(compressed.len() + 64);

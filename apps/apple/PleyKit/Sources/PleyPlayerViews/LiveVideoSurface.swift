@@ -132,7 +132,7 @@ public final class LiveLayerView: UIView {
 /// AirPlay's button (AVRoutePickerView): a live channel can play on an
 /// Apple TV or a speaker, as a video can, and music on a speaker. Over
 /// the picture it is white and lists TVs first; in Now Playing it takes
-/// the text's colour and lists speakers first.
+/// the text's color and lists speakers first.
 public struct RoutePicker: View {
     let video: Bool
     let id: String

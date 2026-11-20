@@ -554,7 +554,7 @@ impl LiveSession {
         let job = self.tasks.spawn(move || {
             // The last session goes first: this TV holds one connection.
             reporter.flush(Duration::from_millis(LEAVE_WAIT_MS));
-            // Not cancelled with the player: a session the server made is always let go.
+            // Not canceled with the player: a session the server made is always let go.
             let watching = Cancel::new().scope(|| server.watch_channel(channel.id, &req));
             let session = answered.clone();
             let watching = match watching {

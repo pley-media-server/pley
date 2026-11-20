@@ -275,7 +275,7 @@ function ServerForm({
 /**
  * One setting: what Pley will use (and a `note` for what isn't plain from
  * it), with Change (or `action`) beside it, or once opened its field,
- * labelled for `id`, with its hint.
+ * labeled for `id`, with its hint.
  */
 function Row({
   id,

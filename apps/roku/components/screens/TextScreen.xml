@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A page of text from Settings, which Up and Down scroll: Diagnostics
      (this Roku, and what it tells the server it plays) or the open-source
-     licences. -->
+     licenses. -->
 <component name="TextScreen" extends="Group">
     <interface>
         <field id="route" type="string" />

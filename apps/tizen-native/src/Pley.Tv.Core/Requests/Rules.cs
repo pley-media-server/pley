@@ -17,7 +17,7 @@ public enum TitleBadge
     Declined,
 }
 
-/// <summary>A pill's colour: pending amber, on its way blue, ready green, refused red, gone gray.</summary>
+/// <summary>A pill's color: pending amber, on its way blue, ready green, refused red, gone gray.</summary>
 public enum PillTone
 {
     Amber,

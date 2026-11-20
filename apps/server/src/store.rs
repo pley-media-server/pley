@@ -70,7 +70,16 @@ const IMAGE_HOSTS: &[&str] = &[
     "assets.fanart.tv",
     "theposterdb.com",
     "raw.githubusercontent.com",
+    // Audnexus's covers, Audible's.
+    "m.media-amazon.com",
+    // Open Library's, which redirect to the Internet Archive.
+    "covers.openlibrary.org",
+    "archive.org",
 ];
+
+/// The Internet Archive serves Open Library's covers from numbered servers
+/// (`ia801609.us.archive.org`).
+const IMAGE_HOST_SUFFIXES: &[&str] = &[".us.archive.org"];
 
 /// Whether a stored reference is a blob (as opposed to a local file path).
 pub fn is_blob(reference: &str) -> bool {
@@ -101,6 +110,10 @@ pub fn allowed_image_url(url: &str) -> bool {
     let Some(rest) = url.strip_prefix("https://") else { return false };
     let host = rest.split(['/', '?', '#']).next().unwrap_or_default();
     IMAGE_HOSTS.contains(&host)
+        || IMAGE_HOST_SUFFIXES.iter().any(|suffix| {
+            host.strip_suffix(suffix)
+                .is_some_and(|name| !name.is_empty() && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
+        })
 }
 
 /// The OpenSubtitles hash of a file: its size plus the sum of the 64-bit
@@ -1112,10 +1125,22 @@ mod tests {
             "https://127.0.0.1/x.jpg",
             "file:///etc/passwd",
             "https://evil.example/x.jpg",
+            "https://us.archive.org/x.jpg",
+            "https://a.b.us.archive.org/x.jpg",
+            "https://evil.example/.us.archive.org/x.jpg",
+            "https://ia801609.us.archive.org:8080@127.0.0.1/x.jpg",
         ] {
             let err = store.remote(url).await.unwrap_err();
             assert!(err.to_string().contains("not downloaded"), "{url}: {err}");
         }
+    }
+
+    #[test]
+    fn audiobook_covers_hosts() {
+        assert!(allowed_image_url("https://m.media-amazon.com/images/I/91qW00x+vWL._SL1024_.jpg"));
+        assert!(allowed_image_url("https://covers.openlibrary.org/b/id/7-L.jpg"));
+        assert!(allowed_image_url("https://ia801609.us.archive.org/view_archive.php?archive=x&file=7-L.jpg"));
+        assert!(!allowed_image_url("http://ia801609.us.archive.org/x.jpg"));
     }
 
     #[test]

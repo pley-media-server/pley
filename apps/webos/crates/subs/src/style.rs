@@ -194,7 +194,7 @@ pub struct SubtitleSettings {
 pub struct Outline {
     pub color: Color,
     /// How far it reaches outside the glyphs, in dp: Media3 strokes 2 dp
-    /// centred on the glyphs' edges.
+    /// centered on the glyphs' edges.
     pub width: f32,
 }
 

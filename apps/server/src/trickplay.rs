@@ -104,7 +104,7 @@ pub struct TrickplayService {
     cutting: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     /// Chapter images cut as previews are made ([`CUTS_AT_ONCE`]).
     cuts: tokio::sync::Semaphore,
-    /// Cancelled when the server shuts down: the worker stops.
+    /// Canceled when the server shuts down: the worker stops.
     stopping: CancellationToken,
 }
 

@@ -6,7 +6,7 @@ import java.util.Locale
 
 /*
  * A stream's technical details in words, for media info and the player's
- * readout: codec levels, frame rates, colour, Dolby Vision. ffprobe's names
+ * readout: codec levels, frame rates, color, Dolby Vision. ffprobe's names
  * come in; what people read in MediaInfo goes out. The standards' names
  * (BT.2020, PQ, 4:2:0) are the same in every language; the labels with
  * words take them last, English when given none.
@@ -77,13 +77,13 @@ private val MATRICES = mapOf(
     "smpte240m" to "SMPTE 240M", "fcc" to "FCC",
 )
 
-/** ffprobe's colour primaries as people know them: "bt2020" → "BT.2020"; others as they are; `null` when unknown. */
+/** ffprobe's color primaries as people know them: "bt2020" → "BT.2020"; others as they are; `null` when unknown. */
 fun colorPrimariesLabel(name: String?): String? = colorName(name, PRIMARIES)
 
 /** ffprobe's transfer: "smpte2084" → "PQ (SMPTE ST 2084)", "arib-std-b67" → "HLG (ARIB STD-B67)". */
 fun colorTransferLabel(name: String?): String? = colorName(name, TRANSFERS)
 
-/** ffprobe's colour space (the matrix): "bt2020nc" → "BT.2020 non-constant". */
+/** ffprobe's color space (the matrix): "bt2020nc" → "BT.2020 non-constant". */
 fun colorMatrixLabel(name: String?): String? = colorName(name, MATRICES)
 
 private fun colorName(name: String?, names: Map<String, String>): String? {

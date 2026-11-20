@@ -1,0 +1,8 @@
+{
+  "numFound": 3,
+  "docs": [
+    {"key": "/works/OL1W", "title": "Small Hours", "author_name": ["Someone Else"], "first_publish_year": 2004, "cover_i": 9},
+    {"key": "/works/OL3W", "title": "Small Hours", "author_name": ["Imogen Vale"], "first_publish_year": 1987, "cover_i": 7},
+    {"key": "/works/OL2W", "title": "Small Hours", "author_name": ["Imogen Vale"]}
+  ]
+}

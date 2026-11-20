@@ -169,7 +169,7 @@ internal fun TvTitleActions(
             }
             more?.let { pill -> TvPillButton(pill.label, onClick = pill.onClick, icon = pill.icon, enabled = pill.enabled) }
             stage?.let { request ->
-                // Beside a 40 dp button, centred on it.
+                // Beside a 40 dp button, centered on it.
                 Box(Modifier.height(PleyTv.ButtonHeight), contentAlignment = Alignment.CenterStart) {
                     TvStageBlock(request, manage, texts, Modifier.widthIn(max = StageWidth))
                 }

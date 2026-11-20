@@ -17,7 +17,7 @@ data class FrameReading(val frames: Int, val fps: Int, val longestMs: Double, va
     val label: String
         get() = "$fps fps  ${String.format(Locale.ROOT, "%.1f", longestMs)} ms  $missed late"
 
-    /** None late, a few (less than a frame in four), or many: the box's colour. */
+    /** None late, a few (less than a frame in four), or many: the box's color. */
     val grade: Grade
         get() = when {
             missed == 0 -> Grade.Smooth

@@ -1250,7 +1250,9 @@ struct StoredTags {
 }
 
 /// Writes what a book's first part says of it where that changed: its
-/// folder, and unless its details are locked, the rest.
+/// folder, and unless its details are locked, the rest. That takes away
+/// what an online source filled in, so the book is looked up again after
+/// the scan.
 async fn save_book(conn: &mut SqliteConnection, id: i64, name: &AudiobookName, now: i64) -> anyhow::Result<()> {
     let path = name.book_dir.as_deref().map(path_str);
     sqlx::query("UPDATE items SET path = ?1, updated_at = ?2 WHERE id = ?3 AND path IS NOT ?1")
@@ -1264,7 +1266,7 @@ async fn save_book(conn: &mut SqliteConnection, id: i64, name: &AudiobookName, n
     let narrators = (!name.narrators.is_empty()).then(|| serde_json::to_string(&name.narrators)).transpose()?;
     sqlx::query(
         "UPDATE items SET title = ?1, sort_title = ?2, year = ?3, genres = ?4, authors = ?5, narrators = ?6,
-                          series = ?7, series_index = ?8, summary = ?9, updated_at = ?10
+                          series = ?7, series_index = ?8, summary = ?9, updated_at = ?10, metadata_at = NULL
          WHERE id = ?11 AND metadata_locked = 0
            AND (title IS NOT ?1 OR sort_title IS NOT ?2 OR year IS NOT ?3 OR genres IS NOT ?4 OR authors IS NOT ?5
                 OR narrators IS NOT ?6 OR series IS NOT ?7 OR series_index IS NOT ?8 OR summary IS NOT ?9)",

@@ -9,7 +9,7 @@ use super::{row, t, tile};
 use crate::testing::{Harness, Step};
 use crate::{FocusOpts, Group, Id, Ui};
 
-/// The centre of tile `slot` of a row at `y`.
+/// The center of tile `slot` of a row at `y`.
 fn over(slot: usize, y: f32) -> Point {
     tile(slot, y).center()
 }

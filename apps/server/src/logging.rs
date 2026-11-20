@@ -47,7 +47,7 @@ impl<'a> MakeWriter<'a> for Console {
     }
 }
 
-/// Initialise tracing and log panics (see [`install_panic_hook`]). `filter`
+/// Initialize tracing and log panics (see [`install_panic_hook`]). `filter`
 /// uses `EnvFilter` syntax; a bare level such as `info` keeps noisy
 /// dependencies at `warn`. With `file`, logs also go to that file (the
 /// server's, so they survive without a console window), rotated by size.

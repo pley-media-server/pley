@@ -105,7 +105,7 @@ internal fun AudioDelayControl(delayMs: Long, onChange: (Long) -> Unit) {
 
 /**
  * The sleep timer's notice, 30 s before it pauses: "Pausing in 28 s" and
- * Keep watching (or Keep listening), at the top centre. The count steps
+ * Keep watching (or Keep listening), at the top center. The count steps
  * once a second, as wide as "Pausing in 30 s" all the way down, so the
  * notice keeps its size and Keep watching stays under the finger as the
  * count goes under 10 (the native Samsung app's notice does the same).

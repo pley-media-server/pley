@@ -101,7 +101,7 @@ public sealed class StreamRelay : IDisposable
         // Opened early and never asked for: let go once it's there.
         _ = early?.ContinueWith(t => t.Result.Dispose(), TaskContinuationOptions.OnlyOnRanToCompletion);
         early = null;
-        // Off the caller's thread (the UI's): cancelling closes the connections and the requests to
+        // Off the caller's thread (the UI's): canceling closes the connections and the requests to
         // the server, and a request still waiting on a provider that sends nothing held the UI for
         // half a second. Not disposed: a player connecting just now may still listen to it.
         var ending = serving;

@@ -3,7 +3,7 @@ use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
-/// Error type returned by every HTTP handler. Serialises to
+/// Error type returned by every HTTP handler. Serializes to
 /// `{ "code": "...", "message": "..." }`.
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {

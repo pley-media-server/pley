@@ -545,7 +545,7 @@ function DiscoverHero(p: { title: DiscoverTitle; detail: DiscoverDetail | null; 
   );
 }
 
-/** A row's place while its first page comes: its title and grey wells; nothing takes focus. */
+/** A row's place while its first page comes: its title and gray wells; nothing takes focus. */
 export function RowSkeleton(p: { title: string }) {
   const spec = TILES.poster;
   return (
@@ -560,7 +560,7 @@ export function RowSkeleton(p: { title: string }) {
   );
 }
 
-/** Discover while its first list comes (after 300 ms): grey blocks where the hero and the first row go. */
+/** Discover while its first list comes (after 300 ms): gray blocks where the hero and the first row go. */
 function DiscoverSkeleton() {
   const [slow, setSlow] = useState(false);
   useEffect(() => {
@@ -630,7 +630,7 @@ function gridProblem(e: unknown, title: string): { title: string; body: string |
 
 /**
  * Titles as a grid of posters, read a page at a time as focus comes near
- * the end, with a row of grey wells while more come; at the end, Show
+ * the end, with a row of gray wells while more come; at the end, Show
  * more when 5 pages brought too few, which reads 5 more, or Retry when a
  * page failed.
  */

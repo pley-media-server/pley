@@ -1,4 +1,4 @@
-//! The icons the app draws: Lucide's (ISC licence), on a 24-unit grid, as the
+//! The icons the app draws: Lucide's (ISC license), on a 24-unit grid, as the
 //! Android TV app and the web TV app draw them. `pley-gfx` holds their paths
 //! and rasterises them at device pixels.
 

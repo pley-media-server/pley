@@ -82,7 +82,7 @@ import kotlinx.coroutines.launch
  * they are text, when [onSubtitleStyle] saves them), Find subtitles' results, Audio (with the
  * audio delay), Quality, Sleep timer, Speed and Info. 360 dp (Info 440 dp) from the right edge, full height, surface2
  * with 16 dp left corners. It slides in on its own layer over 200 ms (in
- * place with reduced motion) and the scrim behind it fades by its colour
+ * place with reduced motion) and the scrim behind it fades by its color
  * while drawing, so no layer covers the video. Focus starts on the current
  * choice and stays inside; choosing closes the panel, and Back does too.
  */

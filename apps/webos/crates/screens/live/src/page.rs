@@ -1,7 +1,7 @@
 //! Live TV's page (`TvLiveTvScreen.kt`): "Live TV" with the
 //! Guide and Channels tabs, the categories down the left under the search, and beside them the
-//! category's channels in the guide or as cards. A programme's details open in the side panel, with
-//! the favourite. The page opens as it was left: the view, the category and the channel watched
+//! category's channels in the guide or as cards. A program's details open in the side panel, with
+//! the favorite. The page opens as it was left: the view, the category and the channel watched
 //! last.
 
 use std::collections::HashSet;
@@ -38,12 +38,12 @@ pub const CONTENT_TOP: f32 = HEADER_TOP + HEADER_H + 16.0;
 pub const CATEGORIES_X: f32 = theme::GUTTER - categories::INSET;
 /// The channels' left edge, 16 past the categories.
 pub const CHANNELS_X: f32 = CATEGORIES_X + categories::WIDTH + 16.0;
-/// How long a favourite that wasn't saved says so.
+/// How long a favorite that wasn't saved says so.
 const NOTICE_S: f64 = 4.0;
 /// What's on is drawn anew this often (progress, the now line).
 const TICK_S: i64 = 15;
-/// The guide keeps the programmes of this many channels at most; past them it starts over with the rows
-/// in view, so scrolling through a lineup of thousands doesn't pile up their programmes (Android keeps
+/// The guide keeps the programs of this many channels at most; past them it starts over with the rows
+/// in view, so scrolling through a lineup of thousands doesn't pile up their programs (Android keeps
 /// its guide chunks in a 50-entry cache).
 const GUIDE_CHANNELS_KEPT: usize = 500;
 
@@ -56,7 +56,7 @@ struct Saved {
     written: bool,
 }
 
-/// A favourite being marked on the server.
+/// A favorite being marked on the server.
 struct Marking {
     id: i64,
     on: bool,
@@ -86,7 +86,7 @@ pub struct LiveTvScreen {
     pages: Option<ChannelPages>,
     saved: Option<Saved>,
     programs: Option<GuideStore>,
-    /// The channels whose programmes the guide asked for since it last started over.
+    /// The channels whose programs the guide asked for since it last started over.
     guide_channels: HashSet<i64>,
     guide: Guide,
     cards: Cards,
@@ -185,7 +185,7 @@ impl LiveTvScreen {
         &self.guide
     }
 
-    /// The programme's details showing, if any.
+    /// The program's details showing, if any.
     pub fn details(&self) -> Option<&(LiveChannel, Option<LiveProgram>)> {
         self.details.as_ref()
     }
@@ -258,7 +258,7 @@ impl LiveTvScreen {
         self.cards = Cards::default();
     }
 
-    /// Takes what came back: pages, programmes, the saved first page, favourites.
+    /// Takes what came back: pages, programs, the saved first page, favorites.
     fn collect(&mut self, cx: &mut AppCx, now: i64) {
         let ms = now_ms();
         if let Some(pages) = self.pages.as_mut() {
@@ -335,7 +335,7 @@ impl LiveTvScreen {
         }
     }
 
-    /// Marks `channel` a favourite or not: every page, the details and the count at once, undone
+    /// Marks `channel` a favorite or not: every page, the details and the count at once, undone
     /// if the server refuses.
     fn toggle_favourite(&mut self, cx: &AppCx, channel: &LiveChannel) {
         let (id, on) = (channel.id, !channel.favorite);
@@ -410,7 +410,7 @@ impl LiveTvScreen {
         }
     }
 
-    /// Asks for the programmes of the guide's rows `ids`, the store started over once it holds too
+    /// Asks for the programs of the guide's rows `ids`, the store started over once it holds too
     /// many channels'.
     fn want_programs(&mut self, cx: &AppCx, ids: &[i64], from: i64, to: i64) {
         self.guide_channels.extend(ids.iter().copied());
@@ -426,7 +426,7 @@ impl LiveTvScreen {
         }
     }
 
-    /// Back from the player: Recently watched has the channel watched first, favourites marked there
+    /// Back from the player: Recently watched has the channel watched first, favorites marked there
     /// show (the pages and the counts are asked for again), and the guide opens on the channel watched.
     fn back_from_player(&mut self, cx: &AppCx) {
         self.groups.invalidate();
@@ -661,7 +661,7 @@ impl Screen for LiveTvScreen {
             ui.request_repaint();
         }
 
-        // A programme's details.
+        // A program's details.
         let panel_id = ui.id("details");
         if let Some(d) = &self.details {
             self.details_shown = Some(d.clone());
@@ -709,7 +709,7 @@ impl Screen for LiveTvScreen {
             }
         }
 
-        // A favourite that wasn't saved, at the foot for 4 s.
+        // A favorite that wasn't saved, at the foot for 4 s.
         if let Some((text, at)) = &self.notice {
             let age = cx.now - at;
             if age >= NOTICE_S {
@@ -809,7 +809,7 @@ fn empty_words(listed: &Category) -> (&'static str, String) {
     }
 }
 
-/// The notice at the foot's centre: Surface3, 6 dp corners, 20 × 12 of padding, `Tv.Body`.
+/// The notice at the foot's center: Surface3, 6 dp corners, 20 × 12 of padding, `Tv.Body`.
 fn notice(ui: &mut Ui, text: &str) {
     let layout = ui.layout(text, &theme::BODY, &TextOpts::wrap(600.0, 2));
     let (w, h) = (layout.size.w + 40.0, layout.size.h + 24.0);
@@ -824,13 +824,13 @@ mod tests {
 
     #[test]
     fn empty_categories_say_why_in_their_own_words() {
-        assert_eq!(empty_words(&Category::Favorites).0, "No favourites yet");
+        assert_eq!(empty_words(&Category::Favorites).0, "No favorites yet");
         assert_eq!(empty_words(&Category::Recent).0, "Nothing watched yet");
         assert_eq!(empty_words(&Category::Group("Kids".into())), ("No channels in this group.", String::new()));
         assert_eq!(empty_words(&Category::All).0, "No channels yet");
         let (title, body) = empty_words(&Category::Search(" zzz ".into()));
         assert_eq!(title, "No channels match");
-        assert_eq!(body, "No channel's name, number or programme on now has “zzz” in it.");
+        assert_eq!(body, "No channel's name, number or program on now has “zzz” in it.");
     }
 
     #[test]

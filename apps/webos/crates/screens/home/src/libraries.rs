@@ -678,7 +678,7 @@ struct Face<'a> {
 }
 
 /// A library's card (`LibraryCard`): Surface2 with 6 dp corners; focused, the Accent fill with
-/// OnAccent content at 1.05. Inside, 18 in: a 40 dp well (the content colour at 12 %) with the
+/// OnAccent content at 1.05. Inside, 18 in: a 40 dp well (the content color at 12 %) with the
 /// icon, 14, then the name (`Tv.Title`) over "412 movies" (`Tv.Caption`, 75 %), or the name alone
 /// in the middle; while sorting a grip at its end. Lifted it turns Surface3 with a 3 dp
 /// AccentBright ring inside its edge and keeps its size; it then takes the arrows. Audio Guidance
@@ -735,7 +735,7 @@ fn draw_card(
     r
 }
 
-/// What the remote does while sorting, at the bottom centre (`SortHint`): `Tv.Label` on Surface3,
+/// What the remote does while sorting, at the bottom center (`SortHint`): `Tv.Label` on Surface3,
 /// 20 × 12 of padding.
 fn draw_hint(ui: &mut Ui, text: &str) {
     let layout = ui.layout(text, &theme::LABEL, &TextOpts::line(theme::CANVAS_W - 2.0 * theme::GUTTER));

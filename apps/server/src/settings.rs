@@ -64,6 +64,9 @@ pub struct Settings {
     pub tvdb_pin: String,
     /// Look artists and albums up on MusicBrainz (covers from the Cover Art Archive).
     pub music_metadata: bool,
+    /// Look audiobooks up on Open Library, and Audnexus for those with an ASIN
+    /// ([`crate::providers::books`]).
+    pub book_metadata: bool,
     /// Read the NFO files Kodi, Jellyfin and the like keep next to titles:
     /// their ids decide the match and their fields win over the online
     /// source's (see [`crate::library::nfo`]).
@@ -228,6 +231,7 @@ impl Default for Settings {
             tvdb_api_key: String::new(),
             tvdb_pin: String::new(),
             music_metadata: true,
+            book_metadata: true,
             read_nfo: true,
             strm_files: false,
             hwaccel: HwAccel::Auto,
@@ -489,7 +493,7 @@ fn picked_encoder(caps: &Capabilities, codec: VideoCodec, hwaccel: HwAccel, main
 }
 
 /// What choosing a hardware acceleration does here, by what the transcoder
-/// found: Settings → Transcoder greys out what can't be used with it.
+/// found: Settings → Transcoder grays out what can't be used with it.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct AccelUse {
     /// Some video is decoded on a GPU with it: `hardware_decoding` changes
@@ -606,6 +610,7 @@ pub struct SettingsPatch {
     pub tvdb_api_key: Option<String>,
     pub tvdb_pin: Option<String>,
     pub music_metadata: Option<bool>,
+    pub book_metadata: Option<bool>,
     pub read_nfo: Option<bool>,
     pub strm_files: Option<bool>,
     pub hwaccel: Option<HwAccel>,
@@ -730,6 +735,9 @@ impl SettingsStore {
         }
         if let Some(v) = patch.music_metadata {
             next.music_metadata = v;
+        }
+        if let Some(v) = patch.book_metadata {
+            next.book_metadata = v;
         }
         if let Some(v) = patch.read_nfo {
             next.read_nfo = v;

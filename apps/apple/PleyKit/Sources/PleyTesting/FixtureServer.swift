@@ -265,7 +265,7 @@ public final class FixtureServer: Sendable {
     }
 
     /// NWListener is Sendable from iOS 17 only; it is safe to share, and only
-    /// started and cancelled through this.
+    /// started and canceled through this.
     final class Listener: @unchecked Sendable {
         let listener: NWListener
         init(_ listener: NWListener) { self.listener = listener }
@@ -1316,7 +1316,7 @@ public final class FixtureServer: Sendable {
         return Answer(status: status, headers: headers, body: body)
     }
 
-    /// A picture of one colour, made here: no file to keep.
+    /// A picture of one color, made here: no file to keep.
     static func image(width: Int, height: Int, type: String, contentType: String) -> Answer {
         let data = FixtureImages.make(width: width, height: height, type: type)
         return Answer(status: 200, headers: ["Content-Type": contentType], body: data)

@@ -65,7 +65,7 @@ describe("what goes with the hardware acceleration chosen", () => {
     expect(decodingReason("none", undefined)).toBeNull();
   });
 
-  it("greys out the tone mappers whose frames don't reach VAAPI's encoder", () => {
+  it("grays out the tone mappers whose frames don't reach VAAPI's encoder", () => {
     expect(tonemapAccelReason("opencl", "vaapi", intel)).toBe("not with VAAPI");
     expect(tonemapAccelReason("libplacebo", "vaapi", intel)).toBeNull();
     expect(tonemapAccelReason("opencl", "none", intel)).toBeNull();

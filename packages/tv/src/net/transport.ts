@@ -29,7 +29,7 @@ export interface HttpResponse {
 
 export type Transport = (req: HttpRequest) => Promise<HttpResponse>;
 
-/** No answer: the network, a timeout, or a request cancelled. */
+/** No answer: the network, a timeout, or a request canceled. */
 export class NetworkError extends Error {
   readonly cancelled: boolean;
   constructor(message: string, cancelled = false) {
@@ -52,7 +52,7 @@ export class Cancel {
     for (const l of listeners) l();
   }
 
-  /** Runs `fn` when cancelled (at once when it is already); returns a function that forgets it. */
+  /** Runs `fn` when canceled (at once when it is already); returns a function that forgets it. */
   onCancel(fn: () => void): () => void {
     if (this.cancelled) {
       fn();

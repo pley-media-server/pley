@@ -135,7 +135,7 @@ import kotlinx.coroutines.withContext
  * between Home, Libraries, Search, Playlists and Me, each with its own
  * saved back stack. Getting in is full screen.
  *
- * The window's background (the app's theme) is the page's colour, so
+ * The window's background (the app's theme) is the page's color, so
  * nothing here paints the whole screen again: each such layer is another
  * full screen of pixels on every frame. Test tags are resource ids as well,
  * which the benchmarks' journeys find things by ([TestTags]).

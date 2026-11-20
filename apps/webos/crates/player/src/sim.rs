@@ -1,6 +1,6 @@
 //! `SimEngine`: the player engine of the simulator and the tests. It shows
 //! no picture (the screen draws a dark frame); its clock runs
-//! while it plays, and it honours seeks, the rate, buffering and ends, so
+//! while it plays, and it honors seeks, the rate, buffering and ends, so
 //! everything above the engine behaves as on the TV. A [`SimHandle`] lets a
 //! test (or the simulator's key script) make it wait, fail, end, drop frames
 //! or report its buffer. In the simulator (on the app's clock) it reads a

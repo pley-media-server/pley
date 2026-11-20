@@ -6,7 +6,7 @@ import SwiftUI
 /// Live TV: the categories (a sheet on iPhone, a column on iPad and the
 /// Mac), and the category's channels as the guide (channels by time, the
 /// channel column pinned while the times scroll) or as cards. A channel
-/// opens the live player, and its menu has Watch on…; a programme opens
+/// opens the live player, and its menu has Watch on…; a program opens
 /// its sheet. The list opens on the channel watched last.
 struct LiveTvView: View {
     @ObservedObject var app: AppModel
@@ -50,7 +50,7 @@ struct LiveTvView: View {
                     }
                 }
             }
-            .searchable(text: $query, prompt: "Channels and programmes")
+            .searchable(text: $query, prompt: "Channels and programs")
             .onValueChange(of: query) { model.search($0) }
             .sheet(isPresented: $categoriesShown) {
                 NavigationStack {
@@ -142,7 +142,7 @@ struct LiveTvView: View {
     }
 }
 
-/// A programme chosen in the guide.
+/// A program chosen in the guide.
 private struct ProgramChoice: Identifiable {
     let channel: LiveChannel
     let program: LiveProgram
@@ -151,7 +151,7 @@ private struct ProgramChoice: Identifiable {
 
 // MARK: Categories
 
-/// Favourites, Recently watched and All channels, then the groups: a
+/// Favorites, Recently watched and All channels, then the groups: a
 /// region's under it, the others after. A search lists the groups it names first.
 struct LiveCategoriesList: View {
     @ObservedObject var model: LiveTvModel
@@ -165,7 +165,7 @@ struct LiveCategoriesList: View {
                 }
             }
             Section {
-                row(.favorites, localized("Favourites"), model.groups.favorites, symbol: "star")
+                row(.favorites, localized("Favorites"), model.groups.favorites, symbol: "star")
                 row(.recent, localized("Recently watched"), model.groups.recent, symbol: "clock")
                 row(.all, localized("All channels"), model.groups.total, symbol: "tv")
             }
@@ -227,7 +227,7 @@ private struct GuideOffsetKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
-/// Channels by time: a row per channel, its programmes placed by their
+/// Channels by time: a row per channel, its programs placed by their
 /// times, the channel column pinned at the left as the times scroll, the
 /// times pinned at the top, and a line at the time now.
 private struct GuideView: View {
@@ -373,7 +373,7 @@ private struct GuideView: View {
                 Spacer(minLength: 0)
                 if channel.favorite {
                     Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow)
-                        .accessibilityLabel("Favourite")
+                        .accessibilityLabel("Favorite")
                 }
             }
             .padding(.horizontal, 8)
@@ -508,7 +508,7 @@ private struct ChannelCards: View {
     }
 }
 
-/// The star: Add to favourites, or Remove from favourites.
+/// The star: Add to favorites, or Remove from favorites.
 struct FavoriteButton: View {
     let favorite: Bool
     let toggle: () -> Void
@@ -521,7 +521,7 @@ struct FavoriteButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(favorite ? Text("Remove from favourites") : Text("Add to favourites"))
+        .accessibilityLabel(favorite ? Text("Remove from favorites") : Text("Add to favorites"))
         .accessibilityAddTraits(favorite ? .isSelected : [])
     }
 }
@@ -547,9 +547,9 @@ struct ChannelLogo: View {
     }
 }
 
-// MARK: A programme
+// MARK: A program
 
-/// A programme of the guide: its picture, its time, Live and New, what
+/// A program of the guide: its picture, its time, Live and New, what
 /// it is about, and Watch now while it is on, with Watch on… beside it.
 private struct ProgramSheet: View {
     let app: AppModel

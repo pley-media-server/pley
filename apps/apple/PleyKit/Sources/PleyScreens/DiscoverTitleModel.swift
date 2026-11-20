@@ -172,7 +172,7 @@ public final class DiscoverTitleModel: ObservableObject {
     }
 
     /// Reads the page, then again every 10 s while one of its requests
-    /// moves, in the foreground, until the view goes (its `.task` is cancelled).
+    /// moves, in the foreground, until the view goes (its `.task` is canceled).
     public func run() async {
         await load()
         while !Task.isCancelled {

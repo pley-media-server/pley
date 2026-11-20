@@ -90,7 +90,7 @@ final class ScreensTests: XCTestCase {
 
     /// Live TV against live-source.sh's channels (one connection at a
     /// time): the categories, the guide and the cards, a channel played,
-    /// channel up, a favourite, Recently watched, Watch here instead when
+    /// channel up, a favorite, Recently watched, Watch here instead when
     /// another device holds the connection, leaving, and Search's channels.
     func testLiveTv() async throws {
         guard let one = await Admin.channelId("Test One"), let two = await Admin.channelId("Test Two") else {
@@ -108,7 +108,7 @@ final class ScreensTests: XCTestCase {
         walk.openLiveTv()
         walk.chooseCategory("all")
         let programme = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Test One at'")).firstMatch
-        walk.wait(programme, "Test One's programme in the guide", timeout: 30)
+        walk.wait(programme, "Test One's program in the guide", timeout: 30)
         walk.shot("70-live-guide")
         walk.wait(app.buttons["Channels"], "the Channels view").tap()
         walk.wait(walk.element("live.channel.\(one)"), "Test One's card").tap()
@@ -121,13 +121,13 @@ final class ScreensTests: XCTestCase {
         await walk.livePlayer(says: "playing")
         walk.tapInPlayer("live.favorite", "the star")
         let starred = await walk.holds { await Admin.favoriteChannels().contains(two) }
-        XCTAssertTrue(starred, "Test Two is a favourite at the server")
+        XCTAssertTrue(starred, "Test Two is a favorite at the server")
         walk.tapInPlayer("live.close", "Close")
         let left = await walk.holds(within: 4) { await Admin.liveViewers() == 0 }
         XCTAssertTrue(left, "leaving ends the session at the server")
 
         walk.chooseCategory("favorites")
-        walk.wait(walk.element("live.channel.\(two)"), "Test Two in Favourites")
+        walk.wait(walk.element("live.channel.\(two)"), "Test Two in Favorites")
         walk.chooseCategory("recent")
         walk.wait(walk.element("live.channel.\(two)"), "Test Two in Recently watched")
         walk.wait(walk.element("live.channel.\(one)"), "Test One in Recently watched")

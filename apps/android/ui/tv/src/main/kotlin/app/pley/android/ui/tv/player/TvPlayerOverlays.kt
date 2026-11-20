@@ -351,7 +351,7 @@ private fun CountdownRing(secondsLeft: Int, color: Color) {
 
 /**
  * The seek badge with the controls hidden (design spec §2.7): a 64 dp `bg`
- * 60 % circle with "−10 s" or "+30 s", centred in the left or right third.
+ * 60 % circle with "−10 s" or "+30 s", centered in the left or right third.
  */
 @Composable
 internal fun BoxScope.TvSeekBadge(deltaMs: Long?) {
@@ -376,7 +376,7 @@ private val BiasCentreRightThird = androidx.compose.ui.BiasAlignment(2f / 3f, 0f
 
 /**
  * Buffering (design spec §2.7): after 500 ms of waiting, a 40 dp ring, a
- * 2 dp fg stroke with a turning accent arc, centred. The one thing that
+ * 2 dp fg stroke with a turning accent arc, centered. The one thing that
  * moves with the controls hidden besides the countdowns, and only while
  * playback waits; 2.5 s while the last picture stands in for a stream made
  * ready beside it ([handoff]). While the server is out of reach ([reconnecting]),
@@ -429,7 +429,7 @@ internal fun BoxScope.TvBufferingRing(waiting: Boolean, reconnecting: Boolean, h
 
 private val RING_SIZE = 40.dp
 
-/** Lays the label [gap] under the ring, centred on the screen as the ring is: the ring stays where it is. */
+/** Lays the label [gap] under the ring, centered on the screen as the ring is: the ring stays where it is. */
 private fun Modifier.underRing(gap: Dp): Modifier = layout { measurable, constraints ->
     val label = measurable.measure(constraints)
     layout(label.width, label.height) { label.place(0, (RING_SIZE / 2 + gap).roundToPx() + label.height / 2) }
@@ -452,7 +452,7 @@ internal fun BoxScope.TvSwitchingCover() {
 
 /**
  * A playback that stopped (design spec §8): "Can't play this item", the
- * reason, "Try again" (focused) when it may help, and Back, centred on
+ * reason, "Try again" (focused) when it may help, and Back, centered on
  * black.
  */
 @Composable
@@ -522,7 +522,7 @@ internal fun BoxScope.TvPlayerToast(toast: PlayerToast?, controlsShown: Boolean,
     }
 }
 
-/** The video's own focus holder while the controls are hidden: Left, Right, Centre and the rest arrive through it. */
+/** The video's own focus holder while the controls are hidden: Left, Right, Center and the rest arrive through it. */
 internal fun Modifier.videoFocus(ui: TvPlayerUi, enabled: Boolean, label: String): Modifier = this
     .focusRequester(ui.requester(PlayerFocus.Video))
     .onFocusChanged { if (it.isFocused) ui.focused = PlayerFocus.Video else if (ui.focused == PlayerFocus.Video) ui.focused = null }

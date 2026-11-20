@@ -523,7 +523,7 @@ public final class ItemModel: ObservableObject {
 
     /// Reads the request block again every 10 s while its download moves
     /// and the app is in the foreground, until the view goes (its `.task`
-    /// is cancelled, as when another page covers it).
+    /// is canceled, as when another page covers it).
     public func followRequest() async {
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(movingEvery))

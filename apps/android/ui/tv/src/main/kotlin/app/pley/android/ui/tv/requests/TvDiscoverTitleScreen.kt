@@ -559,7 +559,7 @@ private fun SeasonPickerPanel(
     }
 }
 
-/** A tick box at a picker row's end, in the row's colours: filled with a check when ticked, an edge when not. */
+/** A tick box at a picker row's end, in the row's colors: filled with a check when ticked, an edge when not. */
 @Composable
 private fun Tick(on: Boolean, focused: Boolean) {
     val fill = when {

@@ -74,13 +74,17 @@ the Plex- and Jellyfin-compatible APIs don't get them.
   runs through the chapter playing, named under the book. The player goes back 15 seconds and on 30, plays from
   0.75× to 3× (kept for every book), and has a sleep timer: 15 to 60
   minutes, or the end of the chapter or part.
-- Books have no metadata from an online source, no pages of their writers
-  or narrators, no series as collections and no downloads.
+- Summaries, genres, narrators, series and covers that a book's files and
+  folders don't give come from Open Library, and from Audnexus for books
+  whose files carry an Audible ASIN (see
+  [Metadata sources](CONFIGURATION.md#metadata-sources)).
+- Books have no pages of their writers or narrators, no series as collections and no downloads.
 
 ## Metadata
 
 - Movies from TMDB (free API key); TV shows from TMDB, TheTVDB or TVmaze (no
-  key); music from MusicBrainz and the Cover Art Archive (no key). See
+  key); music from MusicBrainz and the Cover Art Archive (no key);
+  audiobooks from Open Library and Audnexus (no key). See
   [Metadata sources](CONFIGURATION.md#metadata-sources).
 - NFO files from Kodi, Jellyfin, Radarr, Sonarr and the like, for movies,
   shows, seasons and episodes: their ids decide the match and their fields
@@ -116,7 +120,7 @@ the Plex- and Jellyfin-compatible APIs don't get them.
   changes the audio track, the subtitles and the quality, and stops what
   plays there, once asked to. In an intro or the credits there, it offers
   Skip Intro or Skip Credits, as the player there would. On Live TV it
-  shows the programme's progress and what's next. Each player obeys the
+  shows the program's progress and what's next. Each player obeys the
   commands it can, without bringing up its controls there: a brief notice
   says what changed. Any can be stopped ([API.md](API.md#remote-control)).
 - Play on… in the web and desktop apps, beside Play on a movie, an episode,

@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 /**
  * Live TV (docs/API.md, "Live TV"): whether to show it, its groups, the
  * channels of a category a page at a time, the guide of the channels in
- * view, favourites, and watching a channel. A provider lists tens of
+ * view, favorites, and watching a channel. A provider lists tens of
  * thousands of channels: nothing here asks for them all.
  */
 interface LiveTvRepository {
@@ -48,10 +48,10 @@ interface LiveTvRepository {
     /** The channel numbered [number] exactly, of every channel; `null` when none is. */
     suspend fun numbered(number: String): LiveChannel?
 
-    /** Asks again for what's on and the groups' counts: a programme ended, or the page came back. */
+    /** Asks again for what's on and the groups' counts: a program ended, or the page came back. */
     fun refresh()
 
-    /** A favourite channel or not: at once on screen, put back if the server refuses. */
+    /** A favorite channel or not: at once on screen, put back if the server refuses. */
     suspend fun setFavorite(channelId: Long, favorite: Boolean)
 
     /**
@@ -136,7 +136,7 @@ interface LiveTvRepository {
  * Live TV through the cache. The summary, the groups and each category's
  * first page are kept as snapshots, so Live TV opens at once; other pages,
  * channels and the guide are held in memory with item pages (the least
- * recently used going first). A favourite changes every page, channel and
+ * recently used going first). A favorite changes every page, channel and
  * count that shows it.
  */
 internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository {
@@ -196,7 +196,7 @@ internal class CachedLiveTv(private val cache: ResourceCache) : LiveTvRepository
             }
         }
         undoing(patched) { cache.api(cache.profile()).setFavoriteChannel(channelId, favorite) }
-        // Favourites' own pages and counts come from the server.
+        // Favorites' own pages and counts come from the server.
         cache.revalidate { key, _ -> key == SnapshotKeys.LIVE_GROUPS || key.startsWith("live:page:favorites:") || key.startsWith("live:around:favorites:") }
     }
 

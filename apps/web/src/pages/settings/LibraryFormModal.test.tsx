@@ -48,7 +48,7 @@ describe("LibraryFormModal", () => {
     await waitFor(() => expect(sent(requests, "PATCH")).toEqual({ name: "Films", paths: ["/media/films"], tmdb_collections: false }));
   });
 
-  it("sends nothing when turning them off is cancelled, and goes back to the form", async () => {
+  it("sends nothing when turning them off is canceled, and goes back to the form", async () => {
     const user = userEvent.setup();
     const requests = serve();
     opened(films);

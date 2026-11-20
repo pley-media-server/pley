@@ -130,7 +130,7 @@ pub fn secure_random(n: usize) -> Option<Vec<u8>> {
 /// when the server (or a proxy before it) fails for now, and
 /// [`NetError::AnotherDevice`] when what answers can't prove it.
 ///
-/// Never cancelled with the task that asks: other requests may wait on the
+/// Never canceled with the task that asks: other requests may wait on the
 /// same proof. No redirect is followed: a proof counts only from the address
 /// itself.
 pub fn prove(

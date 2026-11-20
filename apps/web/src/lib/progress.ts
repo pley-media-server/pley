@@ -150,7 +150,7 @@ export function endSession(
 
 /**
  * Not abortable on purpose: the server may already have created the session
- * (and its transcode) when the request is cancelled. Callers that no longer
+ * (and its transcode) when the request is canceled. Callers that no longer
  * need the result must `stopSession` it.
  */
 export function startPlayback(req: Omit<PlaybackRequest, "client_id">): Promise<PlaybackInfo> {

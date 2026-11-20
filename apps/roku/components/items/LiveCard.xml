@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A Live TV channel in a grid of cards (Live.brs's liveCard): its logo
-     (or its name) with its number and a star for a favourite, the name,
+     (or its name) with its number and a star for a favorite, the name,
      what's on with how far along it is, and what's next. -->
 <component name="LiveCard" extends="Group">
     <interface>

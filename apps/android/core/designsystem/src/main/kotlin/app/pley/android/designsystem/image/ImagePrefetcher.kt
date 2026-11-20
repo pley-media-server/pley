@@ -107,7 +107,7 @@ class ImagePrefetcher(
  * Prefetches [images] (one per item, by index; null for none) for a
  * [LazyListState]'s row or column whose tiles draw [widthPx] by [heightPx].
  * The prefetcher it returns can also be asked directly, for a TV row's
- * neighbours when focus moves.
+ * neighbors when focus moves.
  */
 @Composable
 fun rememberImagePrefetcher(state: LazyListState, images: List<ArtworkImage?>, widthPx: Int, heightPx: Int, tier: Tier): ImagePrefetcher {

@@ -239,7 +239,7 @@ class TrickplayThumbnails(
         const val TILES = 40
         const val TILES_LOW = 16
 
-        /** Sheets kept open: the one being scrubbed and its neighbour. */
+        /** Sheets kept open: the one being scrubbed and its neighbor. */
         const val SHEETS_OPEN = 2
     }
 }

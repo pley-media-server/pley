@@ -29,7 +29,7 @@ import app.pley.android.designsystem.PleyType
  * §1.1, §1.2, §1.4), plus the device's [tier] and whether to move less.
  *
  * The TV never uses Compose Material 3: the two libraries each have a
- * MaterialTheme, and mixing them mixes colours, type and shapes
+ * MaterialTheme, and mixing them mixes colors, type and shapes
  * (https://developer.android.com/training/tv/playback/compose). tv-material
  * starts from its light scheme and the phone's type scale, so every value
  * is set here, none left to its defaults.
@@ -89,7 +89,7 @@ val LocalTvTier = staticCompositionLocalOf { Tier.T2 }
 
 /**
  * The scheme of design spec §1.1, the phone's roles with `border` as the
- * focus ring's colour and no tint on surfaces.
+ * focus ring's color and no tint on surfaces.
  */
 internal val TvColors: ColorScheme = darkColorScheme(
     primary = PleyColors.Accent,

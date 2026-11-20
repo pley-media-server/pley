@@ -69,7 +69,7 @@ struct StateView: View {
         }
     }
 
-    /// Grey rows of grey tiles where the content will be.
+    /// Gray rows of gray tiles where the content will be.
     private var skeleton: some View {
         VStack(alignment: .leading, spacing: Metrics.rowSpacing) {
             ForEach(0..<3, id: \.self) { _ in

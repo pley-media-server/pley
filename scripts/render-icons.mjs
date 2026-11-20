@@ -37,11 +37,11 @@
 //                                           project packages it in the other's place)
 //   apps/webos/assets/icon.png, largeIcon.png
 //                                           LG's 80 and 130 px, full bleed on the
-//                                           tile's colour, which appinfo.json's
+//                                           tile's color, which appinfo.json's
 //                                           iconColor gives the TV's own tile
 //   apps/webos/assets/splash.png            LG's launch picture, 1920×1080
 //   apps/kodi/plugin.video.pley/resources/icon.png
-//                                           512 square, the tile's colour out to the
+//                                           512 square, the tile's color out to the
 //                                           corners: Kodi's add-on checker refuses
 //                                           transparency
 //   apps/kodi/plugin.video.pley/resources/fanart.jpg
@@ -84,30 +84,30 @@ const defs = logo.match(/<defs>[\s\S]*<\/defs>/)[0];
 // pictures here place and scale them themselves.
 const glyph = `<g>${logo.match(/<g[^>]*>([\s\S]*?)<\/g>/)[1]}</g>`;
 const TILE = "#0a1622";
-// The mark in the Android app's icon's colours (ic_launcher_foreground.xml), the TV apps' and Apple's:
+// The mark in the Android app's icon's colors (ic_launcher_foreground.xml), the TV apps' and Apple's:
 // the back poster darker than the favicon's, which a browser tab may show on white.
 const tvGlyph = glyph.replace('fill="#0369a1"', 'fill="#0c4a6e"');
 if (tvGlyph === glyph) throw new Error("the favicon's back poster isn't #0369a1 any more");
 
-/** The mark alone on the tile's colour to the edges, scaled [s] about the 64-unit logo's centre. */
+/** The mark alone on the tile's color to the edges, scaled [s] about the 64-unit logo's center. */
 function maskable(size, s, mark = glyph) {
   const t = size / 2 - 32 * s;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">${defs}<rect width="${size}" height="${size}" fill="${TILE}"/><g transform="translate(${t} ${t}) scale(${s})">${mark}</g></svg>`;
 }
 
-/** The mark on the tile's colour to the edges of a width × height picture, the 64-unit logo at [s] with its top left at (x, y). */
+/** The mark on the tile's color to the edges of a width × height picture, the 64-unit logo at [s] with its top left at (x, y). */
 function onTile(width, height, s, x, y) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}<rect width="${width}" height="${height}" fill="${TILE}"/><g transform="translate(${x} ${y}) scale(${s})">${glyph}</g></svg>`;
 }
 
 /**
- * The mark on the tile's colour above a band saying [label] in [ink] on [fill], a width × height picture:
+ * The mark on the tile's color above a band saying [label] in [ink] on [fill], a width × height picture:
  * which of Pley's Samsung apps it is, told apart on a TV that has more than one.
  */
 function labelled(width, height, label, fill, ink) {
   const band = Math.round(height * 0.22);
   const s = 330 / 64;
-  // The mark (40 × 33 of the logo's 64, about its centre) centred in what the band leaves.
+  // The mark (40 × 33 of the logo's 64, about its center) centered in what the band leaves.
   const x = width / 2 - 32 * s;
   const y = (height - band) / 2 - 32 * s;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}<rect width="${width}" height="${height}" fill="${TILE}"/>
@@ -118,7 +118,7 @@ function labelled(width, height, label, fill, ink) {
 
 /**
  * A large TV tile that is square or nearly, a width × height picture: the mark above the wordmark, in the
- * Android app's icon's colours, flat to the edges, as the other apps' tiles there show their names
+ * Android app's icon's colors, flat to the edges, as the other apps' tiles there show their names
  * (Samsung's apps bar, Roku's home screen). The stack is drawn in a square as tall as the picture, in its
  * middle.
  */
@@ -151,15 +151,15 @@ function ribbon(label, fill, ink) {
 
 /**
  * A wide TV tile, as the Android TV app's banner (320 × 180) and the Amazon Appstore's Fire TV icon: the
- * mark in its colours beside the wordmark, centred and about four fifths of the width, as the other apps'
- * tiles fill theirs, on the tile's colour with the brand's deep blue glowing from the lower right corner.
- * Other sizes get the same picture scaled to fit, the colours out to the edges.
+ * mark in its colors beside the wordmark, centered and about four fifths of the width, as the other apps'
+ * tiles fill theirs, on the tile's color with the brand's deep blue glowing from the lower right corner.
+ * Other sizes get the same picture scaled to fit, the colors out to the edges.
  */
 function banner(width, height) {
   const s = Math.min(width / 320, height / 180);
   const g = 1.75; // the mark (40 × 33 of the logo's 64, from (12, 15.5)) 70 wide, from (70, 56)
-  // The lockup, the wordmark from 152: it spans 70 to about 274 across, centred at 172; down, the mark and
-  // the wordmark's capitals span 56 to 114, centred at 85 (the y's tail hangs below). Scaled [k] to 250 of
+  // The lockup, the wordmark from 152: it spans 70 to about 274 across, centered at 172; down, the mark and
+  // the wordmark's capitals span 56 to 114, centered at 85 (the y's tail hangs below). Scaled [k] to 250 of
   // the 320, its middle in the middle.
   const k = 250 / 204;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}
@@ -178,7 +178,7 @@ function banner(width, height) {
 /**
  * The Amazon Appstore's Fire TV background, 1920 × 1080: the store's words and buttons cover its left
  * and bottom, so the mark stands alone in the top right (the 882 × 448 Amazon keeps clear), on the banner's
- * colours.
+ * colors.
  */
 function fireTvBackground() {
   const s = 300 / 40; // the mark 300 wide, its middle (32, 32) at (1480, 260)
@@ -190,7 +190,7 @@ function fireTvBackground() {
   <g transform="translate(${1480 - 32 * s} ${260 - 32 * s}) scale(${s})">${glyph}</g></svg>`;
 }
 
-/** Apple TV's icon's back layer, width × height: the banner's colours, without the mark. */
+/** Apple TV's icon's back layer, width × height: the banner's colors, without the mark. */
 function tvBack(width, height) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">
   <radialGradient id="corner" cx="${width}" cy="${height}" r="${width * 0.52}" gradientUnits="userSpaceOnUse">
@@ -201,7 +201,7 @@ function tvBack(width, height) {
 
 /**
  * Apple TV's icon's front layer, width × height: the mark alone (33 of the logo's 64 high, about its
- * centre) half the height, transparent around it, well inside what the focus effect crops.
+ * center) half the height, transparent around it, well inside what the focus effect crops.
  */
 function tvFront(width, height) {
   const s = (height * 0.5) / 33;
@@ -210,14 +210,14 @@ function tvFront(width, height) {
 
 /**
  * Apple TV's Top Shelf, width × height: the iPhone app's icon ([icon], its PNG) with the corners iOS gives it,
- * half the height, and the wordmark beside it, the two centred on the banner's colours.
+ * half the height, and the wordmark beside it, the two centered on the banner's colors.
  */
 function topShelf(width, height, icon) {
   const side = height * 0.64;
   const font = height * 0.31;
-  // The icon's tile is the background's colour, so the mark (192 to 832 of the icon's 1024 across) is what
+  // The icon's tile is the background's color, so the mark (192 to 832 of the icon's 1024 across) is what
   // shows: the mark and the wordmark (about 1.86 em wide in the system's bold sans), close together, are
-  // centred together.
+  // centered together.
   const mark = side * 0.625;
   const gap = side * 0.09;
   const left = (width - (mark + gap + font * 1.86)) / 2;
@@ -246,7 +246,7 @@ function splash(width, height, bg) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><rect width="${width}" height="${height}" fill="${bg}"/>${placed}</svg>`;
 }
 
-/** The mark alone in black, [s] of the 64-unit logo about its centre, transparent around it: macOS tints it for the menu bar. */
+/** The mark alone in black, [s] of the 64-unit logo about its center, transparent around it: macOS tints it for the menu bar. */
 function template(size, s) {
   const t = size / 2 - 32 * s;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}"><g transform="translate(${t} ${t}) scale(${s})">${glyph.replace(/fill="[^"]*"/g, 'fill="#000"')}</g></svg>`;
@@ -335,7 +335,7 @@ function rgb72(png) {
   if (channels === 4) {
     for (let i = 3; i < pixels.length; i += 4) if (pixels[i] !== 255) throw new Error("a picture meant to be opaque has see-through pixels");
   }
-  // RGB rows, each as differences from the pixel on its left (filter 1), which suits flat colour.
+  // RGB rows, each as differences from the pixel on its left (filter 1), which suits flat color.
   const rowBytes = width * 3 + 1;
   const rows = Buffer.alloc(rowBytes * height);
   for (let y = 0; y < height; y++) {
@@ -361,7 +361,7 @@ function rgb72(png) {
   ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8;
   ihdr[9] = 2;
-  // 72 dpi: 2835 pixels a metre.
+  // 72 dpi: 2835 pixels a meter.
   const phys = Buffer.alloc(9);
   phys.writeUInt32BE(2835, 0);
   phys.writeUInt32BE(2835, 4);
@@ -454,7 +454,7 @@ try {
   writeFileSync(join(native, "shared/res/icon.png"), rgb72(await r.png(named(512), 512, 512)));
   writeFileSync(join(native, "icon-debug.png"), rgb72(await r.png(named(512, 512, ribbon("DEBUG", "#facc15", "#0a1622")), 512, 512)));
 
-  // LG's: the logo at full size without its rounded corners, on the colour appinfo.json's iconColor
+  // LG's: the logo at full size without its rounded corners, on the color appinfo.json's iconColor
   // gives the TV's tile; and the launch picture with the mark's middle (32, 32 of the logo's 64)
   // in the middle, 200 px wide.
   const webos = join(root, "apps/webos/assets");
@@ -462,7 +462,7 @@ try {
   writeFileSync(join(webos, "largeIcon.png"), rgb72(await r.png(maskable(130, 130 / 64), 130)));
   writeFileSync(join(webos, "splash.png"), rgb72(await r.png(onTile(1920, 1080, 5, 960 - 32 * 5, 540 - 32 * 5), 1920, 1080)));
 
-  // Kodi's: the favicon's mark where it is, in the Android icon's colours, without the rounded corners; the fanart a JPEG (Kodi's
+  // Kodi's: the favicon's mark where it is, in the Android icon's colors, without the rounded corners; the fanart a JPEG (Kodi's
   // checker takes up to 1000 KB).
   const kodi = join(root, "apps/kodi/plugin.video.pley/resources");
   writeFileSync(join(kodi, "icon.png"), rgb72(await r.png(maskable(512, 8, tvGlyph), 512)));

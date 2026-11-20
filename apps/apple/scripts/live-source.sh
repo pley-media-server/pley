@@ -8,7 +8,7 @@
 # <dir>/list.m3u lists "Test One" (101, H.264 and AAC, "UK| News"), "Test
 # Two" (102, MPEG-2 and MP2, "UK| Sport"), "Test Three" (103, H.264 720p50,
 # "FR| Info") and "Test Radio" (201, AAC only, "Radio"), each with a logo;
-# <dir>/guide.xml has half-hour programmes from an hour ago to six hours
+# <dir>/guide.xml has half-hour programs from an hour ago to six hours
 # on ("Test One at 18:00"…). Each channel is a live HLS playlist of
 # 2-second segments, six kept. It runs until stopped (TERM or INT), and
 # stops its FFmpegs and its web server with it. macOS or Linux, with
@@ -51,7 +51,7 @@ channels=(
   done
 } >"$dir/list.m3u"
 
-# The guide: half-hour programmes, from an hour ago to six hours on.
+# The guide: half-hour programs, from an hour ago to six hours on.
 python3 -I - "$dir/guide.xml" <<'PY'
 import sys, time
 from datetime import datetime, timezone
@@ -71,7 +71,7 @@ for cid, name in names.items():
         hm = datetime.fromtimestamp(a, timezone.utc).strftime("%H:%M")
         lines.append(f'  <programme start="{stamp(a)}" stop="{stamp(b)}" channel="{cid}.test">')
         lines.append(f'    <title>{name} at {hm}</title>')
-        lines.append(f'    <desc>A made-up programme of {name}.</desc>')
+        lines.append(f'    <desc>A made-up program of {name}.</desc>')
         lines.append('  </programme>')
 lines.append('</tv>')
 open(out, "w").write("\n".join(lines) + "\n")

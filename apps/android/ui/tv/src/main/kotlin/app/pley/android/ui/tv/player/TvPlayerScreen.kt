@@ -57,17 +57,17 @@ import kotlinx.coroutines.launch
  *
  * - **Controls hidden.** Only the video and subtitles show; the title for
  *   a few seconds as each item begins ([TvTitleBanner]), Skip, Up Next and
- *   the sleep timer's notice are all that appear unasked. Centre shows the
+ *   the sleep timer's notice are all that appear unasked. Center shows the
  *   controls on the scrubber, as Up does (a showing Skip button or Keep
  *   watching takes it), Down on Play/Pause. Left and Right show them on the
- *   scrubber too, with the preview, and seek from there. Centre on the
+ *   scrubber too, with the preview, and seek from there. Center on the
  *   scrubber plays or pauses.
  * - **Seeking** ([TvSeeker]), as YouTube's TV app does: Left and Right
  *   move where it goes, 10 s a press (held: scrub), and it goes there on
  *   OK, or by itself 5 s after the last key; fast forward and rewind go
- *   400 ms after the last press. Centre on the scrubber
+ *   400 ms after the last press. Center on the scrubber
  *   during or just after a seek confirms it and plays on
- *   ([TvSeeker.confirm]), as Centre with the controls hidden does while
+ *   ([TvSeeker.confirm]), as Center with the controls hidden does while
  *   one is on its way. Play/Pause, the button or the media key, only
  *   plays or pauses: a seek waiting still goes. Another seek (Previous,
  *   Next, Skip) takes the place of one waiting.
@@ -304,7 +304,7 @@ internal fun TvPlayerScreen(
         }
     }
 
-    /** Left, Right, Centre and the keys that show the controls, as [TvPlayerKeys] sorted them. */
+    /** Left, Right, Center and the keys that show the controls, as [TvPlayerKeys] sorted them. */
     fun handle(key: PlayerKey, native: AndroidKeyEvent, busy: Boolean): Boolean {
         val down = native.action == AndroidKeyEvent.ACTION_DOWN
         val first = down && native.repeatCount == 0

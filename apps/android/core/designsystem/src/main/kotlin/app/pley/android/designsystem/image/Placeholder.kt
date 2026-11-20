@@ -61,7 +61,7 @@ object Placeholder {
     /**
      * The gradient's shape, the same for every title ([GradientBitmaps.diagonalRamp]):
      * [drawGradient] stretches it over the box, its black and white taken to
-     * the title's two colours: one draw, painting each pixel once. A
+     * the title's two colors: one draw, painting each pixel once. A
      * gradient shader over a tile or a backdrop costs far more on a TV's
      * GPU, and a picture per title was a texture to make for each tile a
      * held key brought in (on a Google TV Streamer, up to 10 ms of the frame
@@ -69,7 +69,7 @@ object Placeholder {
      */
     private val ramp by lazy { GradientBitmaps.diagonalRamp() }
 
-    /** [seed]'s gradient: the colour matrix the ramp is drawn through. */
+    /** [seed]'s gradient: the color matrix the ramp is drawn through. */
     class Look internal constructor(internal val filter: ColorFilter)
 
     /** Looks made, by hue (all a look depends on): each tile a held key brings in asks for one. */
@@ -77,8 +77,8 @@ object Placeholder {
 
     /**
      * What [drawGradient] draws for [seed], to keep with the box: a matrix
-     * taking the ramp's grey g (0 to 255) to from + (to - from) × g / 255
-     * in each channel, the sRGB blend between the title's two colours.
+     * taking the ramp's gray g (0 to 255) to from + (to - from) × g / 255
+     * in each channel, the sRGB blend between the title's two colors.
      */
     fun look(seed: String): Look {
         val hue = hue(seed)

@@ -9,7 +9,7 @@ import PleyPlayer
 /// its page's More (Android's `ItemAction`, ItemActions.tsx without the
 /// administrator's part): playing, watched marks, leaving Continue
 /// Watching, My List, playlists, and going to its show or season. Editing,
-/// refreshing and analysing are the web's, for administrators: never
+/// refreshing and analyzing are the web's, for administrators: never
 /// offered here, whatever the server says of the profile.
 public enum ItemAction: String, Hashable, Sendable, CaseIterable {
     case play, resume, fromStart, markWatched, markUnwatched

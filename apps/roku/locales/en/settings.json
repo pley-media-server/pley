@@ -35,7 +35,7 @@
   "changeOnWeb": "Change these on the web, at {{address}}.",
   "readOnly": "This server doesn't let the app change these: change them on the web, at {{address}}.",
   "diagnostics": "Diagnostics",
-  "licences": "Open-source licences",
+  "licences": "Open-source licenses",
   "diagnosticsPage": {
     "app": "Pley for Roku {{version}}",
     "plays": "What it plays"

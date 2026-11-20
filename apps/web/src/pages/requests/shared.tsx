@@ -330,7 +330,7 @@ const BAR_TONES: Record<RequestDownloadState, string> = {
 type RequestDownloadState = NonNullable<MediaRequest["download"]>["state"];
 
 /**
- * Where a request is on its way to a library, in its colour: a download's
+ * Where a request is on its way to a library, in its color: a download's
  * progress as a bar with its value, and what more there is to say under it
  * (why a failed one failed, when it's tried again). `compact`: on one
  * line, cut short where it doesn't fit (under a poster).

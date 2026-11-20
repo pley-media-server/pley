@@ -435,7 +435,7 @@ pub fn normalize_key(value: &str) -> String {
             pending_space = false;
             out.extend(ch.to_lowercase());
         } else if ch == '\'' || ch == '\u{2019}' {
-            // "Grey's" and "Greys" should match
+            // "Gray's" and "Greys" should match
         } else {
             pending_space = true;
         }

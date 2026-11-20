@@ -478,7 +478,7 @@ private fun RailEntry(
 ) {
     val selected = rail.current == item.id
     val interactions = remember { MutableInteractionSource() }
-    // Read whether or not a number shows, so one that comes on a focused entry has its focused colours.
+    // Read whether or not a number shows, so one that comes on a focused entry has its focused colors.
     val focused by interactions.collectIsFocusedAsState()
     RailPill(
         selected = selected,
@@ -528,11 +528,11 @@ private fun rememberRailOpening(open: Boolean): Animatable<Float, AnimationVecto
 /**
  * One of the rail's entries: a pill drawn as wide as the rail is open
  * ([opening]: 40 dp closed, [openWidth] open), [height] tall, and laid out at
- * either end ([open]). [leadingContent] (an icon, the avatar) is centred
+ * either end ([open]). [leadingContent] (an icon, the avatar) is centered
  * on the closed pill; [content] (the label), with [supportingContent]
  * under it and [trailingContent] at the end, fades in as the pill widens,
  * sliding in as the rail opens, cut at its edge. Each is given the
- * colour to draw in.
+ * color to draw in.
  *
  * Entries are in [muted][PleyColors.Muted], the current one ([selected])
  * in fg, on the [surface3][PleyColors.Surface3] pill while [open]. Focused,
@@ -695,8 +695,8 @@ private fun label(item: RailItem): String = when (item.slot) {
 /**
  * The number on the way into requests ([RequestsEntry.badge]), as the
  * Samsung and LG apps draw it: astride the icon's upper right, ringed in
- * the page's colour, "99+" past 99; in the accent (its ink while the entry
- * has focus), or the danger colour while failed requests wait for a
+ * the page's color, "99+" past 99; in the accent (its ink while the entry
+ * has focus), or the danger color while failed requests wait for a
  * manager. Screen readers hear it in words.
  */
 @Composable
@@ -731,7 +731,7 @@ private fun BoxScope.RailCount(entry: RequestsEntry, focused: Boolean) {
     }
 }
 
-/** The profile's 32 dp circle: its picture, or its initial on its colour; marked while [offline]. */
+/** The profile's 32 dp circle: its picture, or its initial on its color; marked while [offline]. */
 @Composable
 private fun Avatar(profile: RailProfile?, offline: Boolean) {
     val color = profile?.color ?: PleyColors.Surface3
@@ -811,7 +811,7 @@ private val PillPivot = ClosedPillWidth / 2
 /** How far the labels slide in from as the rail opens: a little, so they don't cross the icons. */
 private val LabelSlide = 24.dp
 
-/** The box an entry's icon is centred in. */
+/** The box an entry's icon is centered in. */
 private val LeadingSize = 24.dp
 
 /** The open rail's soft right edge. */

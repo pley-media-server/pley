@@ -172,7 +172,7 @@ class PhonePlaylistsUiTest {
     fun addToPlaylistOffersANewOneAndTheOnesThatTakeIt() {
         val created = mutableListOf<String>()
         val added = mutableListOf<Long>()
-        val card = PlaylistCard(4, "Favourites", listOf(UiText.raw("12 items · 19h 6m")), video = true, smart = false, artwork = emptyList(), origin = "http://pley")
+        val card = PlaylistCard(4, "Favorites", listOf(UiText.raw("12 items · 19h 6m")), video = true, smart = false, artwork = emptyList(), origin = "http://pley")
         compose.setContent {
             PhoneTheme {
                 AddToPlaylistContent(
@@ -186,7 +186,7 @@ class PhonePlaylistsUiTest {
         compose.onNodeWithText("Create").assertIsNotEnabled()
         compose.onNodeWithTag(ADD_NEW_FIELD).performTextInput("Weekend")
         compose.onNodeWithText("Create").assertIsEnabled().performClick()
-        compose.onNodeWithText("Favourites").performClick()
+        compose.onNodeWithText("Favorites").performClick()
         assertEquals(listOf("Weekend"), created)
         assertEquals(listOf(4L), added)
     }

@@ -247,7 +247,7 @@ describe("the main action", () => {
 });
 
 describe("stage pills", () => {
-  it("says where a request is, in its colour", () => {
+  it("says where a request is, in its color", () => {
     expect(stageWords(makeRequest({ stage: "pending" }), false)).toMatchObject({ label: "Waiting for approval", tone: "warning" });
     expect(stageWords(makeRequest({ status: "approved", stage: "approved" }), false)).toMatchObject({ label: "Approved", tone: "info" });
     expect(stageWords(makeRequest({ status: "approved", stage: "searching" }), false)).toMatchObject({ label: "Searching", tone: "info" });

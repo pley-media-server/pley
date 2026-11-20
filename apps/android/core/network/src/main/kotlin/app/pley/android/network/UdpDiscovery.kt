@@ -28,7 +28,7 @@ internal interface DatagramPort : Closeable {
     /** Sends [payload] to [to]; throws when the network or the system refuses. */
     fun send(payload: ByteArray, to: InetSocketAddress)
 
-    /** The next datagram, or `null` when none came for a moment; ends when the coroutine is cancelled. */
+    /** The next datagram, or `null` when none came for a moment; ends when the coroutine is canceled. */
     suspend fun receive(): Datagram?
 }
 
@@ -50,7 +50,7 @@ internal class SocketPort(lan: Lan?, private val io: CoroutineDispatcher = Dispa
     }
 
     override suspend fun receive(): Datagram? = withContext(io) {
-        // Short waits, so the search ends on time: a blocked receive can't be cancelled.
+        // Short waits, so the search ends on time: a blocked receive can't be canceled.
         socket.soTimeout = POLL_MS
         val packet = DatagramPacket(buffer, buffer.size)
         try {

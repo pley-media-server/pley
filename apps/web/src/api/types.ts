@@ -767,7 +767,7 @@ export interface PlayingSession {
   /** What plays (kind "item"). */
   item: ItemSummary | null;
   /**
-   * The channel watched (kind "live"): `now`, the programme on, from
+   * The channel watched (kind "live"): `now`, the program on, from
    * `now_start` to `now_stop` (unix seconds), and `next`, the one after it.
    * The times and `next` are absent from servers before them.
    */
@@ -1055,6 +1055,8 @@ export interface Settings {
   tvdb_pin: string;
   /** Artists and albums from MusicBrainz, covers from the Cover Art Archive. */
   music_metadata: boolean;
+  /** Audiobooks from Open Library, and Audnexus for those with an ASIN. Absent from servers before it. */
+  book_metadata?: boolean;
   /**
    * Ids and details from the NFO files next to movies, shows, seasons and
    * episodes, over the online source's. Absent from servers before it.
@@ -1167,7 +1169,7 @@ export interface Settings {
 export type MinimumAvailability = "announced" | "in_cinemas" | "released";
 
 /** A service the settings can test (`POST /api/settings/test`). */
-export type TestedService = "tmdb" | "tvdb" | "tvmaze" | "musicbrainz" | "transcoder" | "opensubtitles";
+export type TestedService = "tmdb" | "tvdb" | "tvmaze" | "musicbrainz" | "audiobooks" | "transcoder" | "opensubtitles";
 
 export interface ServiceTest {
   service: TestedService;

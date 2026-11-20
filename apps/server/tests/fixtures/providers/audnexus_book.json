@@ -1,0 +1,20 @@
+{
+  "asin": "B0LANTERN1",
+  "title": "The Lantern Sea",
+  "subtitle": "Tidewardens, Book 2",
+  "authors": [{"asin": "B0QUILL", "name": "Ada Quill"}, {"name": "Rosa Marín - traductor"}],
+  "narrators": [{"name": "June Ashby"}],
+  "seriesPrimary": {"asin": "B0TIDE", "name": "Tidewardens", "position": "2"},
+  "genres": [
+    {"asin": "1", "name": "Science Fiction & Fantasy", "type": "genre"},
+    {"asin": "2", "name": "Fantasy", "type": "genre"},
+    {"asin": "3", "name": "Sea Adventures", "type": "tag"}
+  ],
+  "language": "english",
+  "formatType": "unabridged",
+  "releaseDate": "2019-03-05T00:00:00.000Z",
+  "runtimeLengthMin": 612,
+  "summary": "<p>A lighthouse keeper charts a sea that <b>glows</b>.</p>",
+  "image": "BASE/audnexus-images/lantern.jpg",
+  "region": "us"
+}

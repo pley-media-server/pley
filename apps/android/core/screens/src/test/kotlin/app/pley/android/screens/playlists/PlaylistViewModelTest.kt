@@ -59,7 +59,7 @@ class PlaylistViewModelTest {
     /**
      * Where the view models' changes and the test's collectors run: work
      * the test's clock drives (backgroundScope's only runs alongside other
-     * work), cancelled after each test.
+     * work), canceled after each test.
      */
     private val work = CoroutineScope(SupervisorJob() + dispatcher)
 

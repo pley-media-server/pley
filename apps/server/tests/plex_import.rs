@@ -375,7 +375,7 @@ async fn fake_plex() -> String {
             get(|headers: HeaderMap| async move {
                 let list = match token(&headers) {
                     OWNER_SERVER => json!([
-                        {"ratingKey": "6000", "type": "playlist", "title": "Favourites", "playlistType": "video", "smart": false},
+                        {"ratingKey": "6000", "type": "playlist", "title": "Favorites", "playlistType": "video", "smart": false},
                         {"ratingKey": "6001", "type": "playlist", "title": "Recent", "playlistType": "video", "smart": true},
                         {"ratingKey": "6002", "type": "playlist", "title": "Holidays", "playlistType": "photo", "smart": false}
                     ]),
@@ -567,7 +567,7 @@ async fn brings_libraries_people_and_what_they_watched() {
         .post("/api/import/plex/folder", &someone, json!({"library": "1", "plex": "/plexdata/movies", "pley": "/"}))
         .await;
     assert_eq!(r.status, StatusCode::FORBIDDEN);
-    // Pictures: Alex's own, Plex's colour alone for Kid One (an initial on
+    // Pictures: Alex's own, Plex's color alone for Kid One (an initial on
     // it, which Pley draws itself), nothing for the others.
     let pictures: Vec<(&Value, &Value)> =
         plan.body["users"].as_array().unwrap().iter().map(|u| (&u["picture"], &u["color"])).collect();
@@ -800,7 +800,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(pending_in_report().await, [json!(false), json!(false)]);
 
     // Pictures: the account's own, squared to Pley's size; Plex's default,
-    // an initial on a colour, brings only its colour.
+    // an initial on a color, brings only its color.
     let avatar_of = |id: i64| {
         let db = app.state.db.read.clone();
         async move {
@@ -938,7 +938,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(report["profiles"][0]["playlists"], 1);
     let favourites: Vec<String> = sqlx::query_scalar(
         "SELECT i.title FROM playlist_items e JOIN playlists p ON p.id = e.playlist_id JOIN items i ON i.id = e.item_id
-         WHERE p.title = 'Favourites' AND p.user_id = ? ORDER BY e.position",
+         WHERE p.title = 'Favorites' AND p.user_id = ? ORDER BY e.position",
     )
     .bind(admin_id)
     .fetch_all(&app.state.db.read)
@@ -1002,7 +1002,7 @@ async fn brings_libraries_people_and_what_they_watched() {
         .execute(&app.state.db.write)
         .await
         .unwrap();
-    // And picks a colour of their own.
+    // And picks a color of their own.
     sqlx::query("UPDATE users SET avatar_color = '#38bdf8' WHERE id = ?")
         .bind(kid_id)
         .execute(&app.state.db.write)
@@ -1050,7 +1050,7 @@ async fn brings_libraries_people_and_what_they_watched() {
             .await
             .unwrap();
     assert_eq!((watched, position), (true, 99_000), "Pley's newer resume point stays, as a rewatch");
-    // Pley's names, pictures and colours stay.
+    // Pley's names, pictures and colors stay.
     assert_eq!(name_of(admin_id).await.as_deref(), Some("Al"));
     assert_eq!(avatar_of(admin_id).await, (Some(alex), None));
     assert_eq!(avatar_of(kid_id).await, (None, Some("#38bdf8".into())));
@@ -1453,6 +1453,9 @@ async fn plex_data_comes_before_metadata_and_titles_found_by_id_after_it() {
             tmdb: format!("{base}/tmdb"),
             tmdb_images: format!("{base}/tmdb-images"),
             opensubtitles: format!("{base}/opensubtitles"),
+            audnexus: format!("{base}/audnexus"),
+            openlibrary: format!("{base}/ol"),
+            openlibrary_covers: format!("{base}/olcovers"),
         });
     })
     .await;

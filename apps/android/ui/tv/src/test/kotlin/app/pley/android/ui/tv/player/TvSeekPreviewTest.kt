@@ -49,7 +49,7 @@ class TvSeekPreviewTest {
         }
         compose.waitForIdle()
         val box = compose.onNodeWithTag(TAG_PREVIEW_PICTURE).captureToImage().toPixelMap()
-        // 240 × 135 dp is 480 × 270 here; the picture fills its width, 201 px tall, centred.
+        // 240 × 135 dp is 480 × 270 here; the picture fills its width, 201 px tall, centered.
         val middle = box.width / 2
         assertTrue("the picture in the middle", near(Color.Red, box[middle, box.height / 2]))
         assertTrue("black above it", near(Color.Black, box[middle, 15]))

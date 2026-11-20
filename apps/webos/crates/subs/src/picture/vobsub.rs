@@ -1,7 +1,7 @@
 //! DVD subtitles (VobSub, `S_VOBSUB`): each sample is one subpicture unit
 //! (SPU): two interlaced fields of 2-bit run-length pixels, then control
 //! sequences that say when it shows and stops, which 4 of the 16 palette
-//! colours its pixels take, their alpha, and where it goes. The palette and
+//! colors its pixels take, their alpha, and where it goes. The palette and
 //! the plane's size come from the track's private data, the `.idx` header
 //! (`size: 720x480`, `palette: 000000, ffffff, …`).
 
@@ -14,7 +14,7 @@ use super::{FrameCache, PictureDecoder, PictureFrame, PictureSample, fits, place
 pub struct VobSubHeader {
     pub width: u32,
     pub height: u32,
-    /// At least 16 RGB colours.
+    /// At least 16 RGB colors.
     pub palette: Vec<[u8; 3]>,
 }
 
@@ -297,10 +297,10 @@ mod tests {
     const IDX: &str = "size: 720x480\npalette: 000000, ffffff, 808080, ff0000, 00ff00, 0000ff, 000000, 000000, \
                        000000, 000000, 000000, 000000, 000000, 000000, 000000, 000000\n";
 
-    /// An SPU of a 4×2 picture at (10, 400): the top line colour 1, the
-    /// bottom colour 2, shown for 175 ticks of 1024/90 ms.
+    /// An SPU of a 4×2 picture at (10, 400): the top line color 1, the
+    /// bottom color 2, shown for 175 ticks of 1024/90 ms.
     fn spu() -> Vec<u8> {
-        // 8-bit codes 0001 00cc: a count of 4 in colour cc, then a byte to align.
+        // 8-bit codes 0001 00cc: a count of 4 in color cc, then a byte to align.
         let pixels = [0x11, 0x00, 0x12, 0x00];
         let ctrl_at = 4 + pixels.len() as u32;
         let stop_seq_at = ctrl_at + 24;
@@ -338,7 +338,7 @@ mod tests {
         let none = parse_idx(None);
         assert_eq!((none.width, none.height, none.palette.len()), (720, 576, 16));
         assert_eq!((none.palette[0], none.palette[1]), ([0, 0, 0], [255, 255, 255]));
-        // The first size that reads as one; colours as JavaScript's parseInt reads them; the rest alternating.
+        // The first size that reads as one; colors as JavaScript's parseInt reads them; the rest alternating.
         let odd = parse_idx(Some(
             b"# VobSub\nsize: big\nSIZE: 1920 X 1080\npalette: 0000ff, 00ff00 , ff0000\ncustom colors: OFF",
         ));

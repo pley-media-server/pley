@@ -1,6 +1,6 @@
 {
   "network": {
-    "cancelled": "cancelled",
+    "cancelled": "canceled",
     "timedOut": "no answer in time",
     "refused": "nothing answers there",
     "unknownHost": "that address isn't known on this network",

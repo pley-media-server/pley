@@ -185,7 +185,7 @@ public class PlaybackWatchTests
 
     /// <summary>
     /// A trimmed playlist begins at 1 288 871 ms: the player counts from it (it says 0) or from the
-    /// film (it says the film's time), learnt from its first read while it plays; a seek goes to the
+    /// film (it says the film's time), learned from its first read while it plays; a seek goes to the
     /// player's own time, and one before the window is told apart.
     /// </summary>
     [Theory]

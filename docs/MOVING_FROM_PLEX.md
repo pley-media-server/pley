@@ -19,7 +19,7 @@ never changes anything on Plex.
   closed to a new profile, and the report says so: you can open it in
   Settings › Users. Plex's picture for each comes too, where the profile has none in
   Pley: one chosen on Plex or a Gravatar. A Plex picture that's only an
-  initial brings its colour instead, for Pley's own initial. Pley can't
+  initial brings its color instead, for Pley's own initial. Pley can't
   read a Plex PIN, so a protected user's profile gets the PIN you type
   for them (step 4), which Plex checks, unless it already has one in
   Pley. Without one typed, their profile has no PIN, and the report says
@@ -166,7 +166,7 @@ with Fix Match in Pley, locked, or matched by its NFO file. A collection or play
 gets the titles it lacks, and nothing is reordered or removed. Profiles
 made by an earlier import are found again;
 they keep the age limit set in Pley (or get Plex's, when they have none),
-which a rule Pley can't keep doesn't make stricter, and their picture and colour, and get Plex's new labels added to their
+which a rule Pley can't keep doesn't make stricter, and their picture and color, and get Plex's new labels added to their
 rules. A library the import makes opens for those who could open it on
 Plex; one already in Pley stays as you set it.
 

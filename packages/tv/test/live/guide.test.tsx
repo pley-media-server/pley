@@ -9,7 +9,7 @@ import { ChannelPages } from "../../src/live/pages";
 import { LiveGuide } from "../../src/ui/screens/live-guide";
 import type { Entry } from "../../src/ui/shell/navigator";
 
-/** A half hour, so the guide's columns line up with the programmes. */
+/** A half hour, so the guide's columns line up with the programs. */
 const BASE = 1_800_000_000;
 
 function program(channel: number, start: number, stop: number, title: string): LiveProgram {
@@ -110,7 +110,7 @@ describe("the guide", () => {
     expect(at()).toMatch(/^guide\/3\//);
   });
 
-  it("moves programme by programme, and keeps the time focus is at between channels", async () => {
+  it("moves program by program, and keeps the time focus is at between channels", async () => {
     const { focus, el, press, at } = await setup();
     act(() => void focus.focus(el(`guide/1/${BASE}`)));
     press("right");
@@ -128,7 +128,7 @@ describe("the guide", () => {
     expect(at()).toBe("guide/2");
   });
 
-  it("watches what's on with OK, and shows a later programme's details", async () => {
+  it("watches what's on with OK, and shows a later program's details", async () => {
     const { focus, el, press, watched, details } = await setup();
     act(() => void focus.focus(el(`guide/1/${BASE}`)));
     press("ok");

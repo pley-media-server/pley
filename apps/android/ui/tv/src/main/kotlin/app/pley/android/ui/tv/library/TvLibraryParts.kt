@@ -146,7 +146,7 @@ internal fun TvRecommendedTab(
         )
         else -> {
             val seeAll = stringResource(R.string.tv_library_see_all)
-            // A tile its actions took away (Remove from Continue Watching): focus comes back to its neighbour.
+            // A tile its actions took away (Remove from Continue Watching): focus comes back to its neighbor.
             memory.settle { key -> hasTile(rows, key) }
             TvRowColumn(
                 modifier = modifier.fillMaxSize(),

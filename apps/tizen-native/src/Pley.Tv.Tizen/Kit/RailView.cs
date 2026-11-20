@@ -8,7 +8,7 @@ using Tizen.NUI.BaseComponents;
 
 namespace Pley.Tv.Tizen.Kit;
 
-/// <summary>Who the rail's avatar shows: a name, and the profile's colour or picture.</summary>
+/// <summary>Who the rail's avatar shows: a name, and the profile's color or picture.</summary>
 sealed record RailProfile(string Name, Color? Color = null)
 {
     public string Initial => Name.Length > 0 ? char.ToUpperInvariant(Name[0]).ToString() : "";
@@ -337,7 +337,7 @@ sealed class RailView : View
         readonly TextLabel label;
         TextLabel? second;
         readonly View mark;
-        /// <summary>The number on the way into requests, ringed in the page's colour, astride the icon's upper right.</summary>
+        /// <summary>The number on the way into requests, ringed in the page's color, astride the icon's upper right.</summary>
         View? countRing;
         CountBadge? count;
         readonly float height;
@@ -387,7 +387,7 @@ sealed class RailView : View
 
         /// <summary>
         /// The number waiting in requests (the Android app's RailCount): 18 dp, ringed 2 dp in the page's
-        /// colour, astride the icon's upper right; red while failed requests wait for a manager.
+        /// color, astride the icon's upper right; red while failed requests wait for a manager.
         /// </summary>
         public void SetCount(RequestsEntry entry)
         {

@@ -49,7 +49,7 @@ pub struct TextStyle {
     pub family: Family,
     /// Font size in dp.
     pub size: f32,
-    /// Height of each line in dp; glyphs are centred in it vertically, as
+    /// Height of each line in dp; glyphs are centered in it vertically, as
     /// Android's `LineHeightStyle(Center, Trim.None)` does.
     pub line_height: f32,
     pub weight: Weight,
@@ -184,7 +184,7 @@ pub struct TextLine {
 pub struct TextLayout {
     /// The string laid out, as given (tests and the screen reader read it).
     pub text: Arc<str>,
-    /// Width: `max_width` when lines are centred or end-aligned within it,
+    /// Width: `max_width` when lines are centered or end-aligned within it,
     /// otherwise the widest line. Height: the lines' boxes.
     pub size: Size,
     pub lines: Vec<TextLine>,

@@ -49,7 +49,7 @@ internal class GallerySceneFetcher(private val uri: Uri) : Fetcher {
     }
 }
 
-/** A scene's colours and its title as printed on the poster. */
+/** A scene's colors and its title as printed on the poster. */
 internal data class Scene(
     val skyTop: Int,
     val skyBottom: Int,

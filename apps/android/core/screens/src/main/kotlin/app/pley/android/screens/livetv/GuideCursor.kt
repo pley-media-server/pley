@@ -8,22 +8,22 @@ enum class GuideOk {
     /** Nothing has focus (a row still loading). */
     None,
 
-    /** A programme on now, or a channel without guide: the live player. */
+    /** A program on now, or a channel without guide: the live player. */
     Watch,
 
-    /** Another programme: its details in the side panel. */
+    /** Another program: its details in the side panel. */
     Details,
 }
 
 /**
- * Focus in the TV's programme guide (Samsung's GuideCursor), moved by the
+ * Focus in the TV's program guide (Samsung's GuideCursor), moved by the
  * guide itself rather than by geometry: a [row] (the channel), a [cursor]
- * time (the programme on then has focus) and the grid's [left] edge, which
+ * time (the program on then has focus) and the grid's [left] edge, which
  * shows [VIEW_S] from there. The guide starts at [start] and goes on for
  * [LiveTv.GUIDE_SPAN_S]. Each move gives the cursor after it.
  *
- * - Left and Right go to the programme before and after, the grid
- *   following by half hours. Left on a programme that began with the guide
+ * - Left and Right go to the program before and after, the grid
+ *   following by half hours. Left on a program that began with the guide
  *   or before it, the grid scrolled on, goes back through it a screen at a
  *   time; where nothing is in view (a channel without a guide), Left and
  *   Right move the grid and the cursor a half hour. Left leaves for the
@@ -31,7 +31,7 @@ enum class GuideOk {
  * - Up and Down keep the time and change channel; Up from the first row
  *   leaves for the tabs. Channel up and down move [PAGE] rows.
  * - Rewind and fast forward move the grid and the cursor [JUMP_S] ([jump]).
- * - OK on a programme on now (or a channel without guide) watches the
+ * - OK on a program on now (or a channel without guide) watches the
  *   channel, on another opens its details, as does holding OK or Menu.
  * - Back away from now comes back to now first ([awayFromNow], [backToNow]).
  */
@@ -42,7 +42,7 @@ data class GuideCursor(val start: Long, val row: Int, val cursor: Long, val left
     /** Where the guide ends: two days on. */
     val end: Long get() = start + LiveTv.GUIDE_SPAN_S
 
-    /** The programme with focus, of the focused row's [programs]. */
+    /** The program with focus, of the focused row's [programs]. */
     fun current(programs: List<LiveProgram>?): LiveProgram? = on(programs, cursor)
 
     /** The list opens at [row] (the landing) within [total] rows. */
@@ -51,7 +51,7 @@ data class GuideCursor(val start: Long, val row: Int, val cursor: Long, val left
     /** The row kept within [total] rows, as the list's length changes. */
     fun fit(total: Int): GuideCursor = if (row in 0 until total || row == 0) this else place(row, total)
 
-    /** The cursor at [time] (a programme's start, or a half hour), the grid following it. */
+    /** The cursor at [time] (a program's start, or a half hour), the grid following it. */
     fun moveTo(time: Long): GuideCursor {
         val at = time.coerceAtMost(end - 1).coerceAtLeast(start)
         val edge = when {
@@ -66,14 +66,14 @@ data class GuideCursor(val start: Long, val row: Int, val cursor: Long, val left
     fun moveLeft(programs: List<LiveProgram>?): GuideCursor? {
         val current = current(programs)
         if (current != null && current.start <= start && left > start) {
-            // The programme began with the guide or before it, and the grid is scrolled on: the grid
-            // goes back through it first, a screen at a time. Gone by the programme alone, Left took
+            // The program began with the guide or before it, and the grid is scrolled on: the grid
+            // goes back through it first, a screen at a time. Gone by the program alone, Left took
             // focus to the categories with the grid still scrolled on, the time before it unseen.
             val edge = maxOf(start, slot(current.start), left - (VIEW_S - LiveTv.SLOT_S))
             return copy(left = edge, cursor = maxOf(current.start, start, edge))
         }
         val target = current?.start?.minus(1) ?: (cursor - LiveTv.SLOT_S)
-        // Only from the guide's first half hour. Where a channel has no programmes it goes back a half
+        // Only from the guide's first half hour. Where a channel has no programs it goes back a half
         // hour at a time, as Right goes on: refused there, Left took focus to the categories from
         // wherever Right had gone, with no way back through the time.
         if (target < start) return null
@@ -85,7 +85,7 @@ data class GuideCursor(val start: Long, val row: Int, val cursor: Long, val left
         return moveTo(if (before != null) maxOf(before.start, slot(target)) else slot(target))
     }
 
-    /** Right on the focused row's [programs]: the next programme, or the next half hour; never past the guide. */
+    /** Right on the focused row's [programs]: the next program, or the next half hour; never past the guide. */
     fun moveRight(programs: List<LiveProgram>?): GuideCursor {
         val current = current(programs)
         val target = current?.stop ?: (slot(cursor) + LiveTv.SLOT_S)
@@ -134,7 +134,7 @@ data class GuideCursor(val start: Long, val row: Int, val cursor: Long, val left
      */
     fun awayFromNow(programs: List<LiveProgram>?, now: Long): Boolean =
         left != leftFor(now, start) ||
-            // Where there is no programme (a channel without a guide), now's half hour: taken as away
+            // Where there is no program (a channel without a guide), now's half hour: taken as away
             // there always, Back went on coming back to now and never left the guide.
             (current(programs)?.let { !it.airingAt(now) } ?: (slot(cursor) != slot(now)))
 
@@ -163,7 +163,7 @@ data class GuideCursor(val start: Long, val row: Int, val cursor: Long, val left
         /** Where the grid starts for [now]: the half hour before the one it is in, never before the guide. */
         fun leftFor(now: Long, start: Long): Long = maxOf(slot(now) - LiveTv.SLOT_S, start)
 
-        /** The programme on at [time] of [programs]. */
+        /** The program on at [time] of [programs]. */
         fun on(programs: List<LiveProgram>?, time: Long): LiveProgram? = programs?.firstOrNull { it.start <= time && it.stop > time }
     }
 }

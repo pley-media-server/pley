@@ -7,7 +7,7 @@ using Pley.Tv.Core.Player;
 
 namespace Pley.Tv.Core.Ui;
 
-/// <summary>A labelled fact of Diagnostics: "Model", "QE55S95D".</summary>
+/// <summary>A labeled fact of Diagnostics: "Model", "QE55S95D".</summary>
 public sealed record Fact(string Label, string Value);
 
 /// <summary>Diagnostics' state.</summary>

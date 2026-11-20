@@ -27,6 +27,7 @@ const KEYS = [
   "tvdb_api_key",
   "tvdb_pin",
   "music_metadata",
+  "book_metadata",
   "read_nfo",
   "scan_interval_minutes",
   "watch_libraries",
@@ -161,6 +162,21 @@ ${form.tvdb_pin}`}
                 <Toggle checked={form.music_metadata} onChange={(v) => set("music_metadata", v)} label={t("server.metadata.musicToggle")} />
                 <TestButton label={t("server.metadata.testMusicBrainz")} test={{ service: "musicbrainz" }} />
               </Row>
+              {form.book_metadata !== undefined ? (
+                <Row
+                  label={t("server.metadata.books")}
+                  hint={
+                    <Trans
+                      t={t}
+                      i18nKey="server.metadata.booksHint"
+                      components={{ openlibrary: <Link href="https://openlibrary.org" />, audnexus: <Link href="https://audnex.us" /> }}
+                    />
+                  }
+                >
+                  <Toggle checked={form.book_metadata} onChange={(v) => set("book_metadata", v)} label={t("server.metadata.booksToggle")} />
+                  <TestButton label={t("server.metadata.testBooks")} test={{ service: "audiobooks" }} />
+                </Row>
+              ) : null}
               {form.read_nfo !== undefined ? (
                 <Row label={t("server.metadata.nfo")} hint={t("server.metadata.nfoHint")}>
                   <Toggle checked={form.read_nfo} onChange={(v) => set("read_nfo", v)} label={t("server.metadata.nfoToggle")} />

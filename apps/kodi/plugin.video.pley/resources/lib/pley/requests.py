@@ -23,7 +23,7 @@ LIVE = "pley.requests.live"
 # read again.
 ASKING = "pley.asking"
 
-# The stage pills' colours (pending amber; on its way blue; ready green;
+# The stage pills' colors (pending amber; on its way blue; ready green;
 # refused red; gone gray), in pley's palette.
 AMBER = "FFF59E0B"
 BLUE = L.ACCENT
@@ -116,7 +116,7 @@ def manages(s) -> bool:
 
 def count(s) -> tuple:
     """The number the requests entry carries, and whether it is in the
-    danger colour: for managers what waits for them and the news, red
+    danger color: for managers what waits for them and the news, red
     while a request couldn't be sent; for others their news."""
     if not s:
         return 0, False
@@ -161,7 +161,7 @@ def showing(path: str, routes) -> bool:
 
 
 def badge(title: dict, text) -> tuple:
-    """A TMDB title's badge (DiscoverTitle.status) and its colour; ("",
+    """A TMDB title's badge (DiscoverTitle.status) and its color; ("",
     None) for none (it may be asked for, or can't be)."""
     status = title.get("status")
     if status == "library":
@@ -281,7 +281,7 @@ def season_name(season: dict) -> str:
 
 
 def season_state(season: dict, detail: dict, text, manage: bool, now: float) -> tuple:
-    """What a season of a TMDB show says of itself, and its colour: in a
+    """What a season of a TMDB show says of itself, and its color: in a
     library, its request's stage, declined, partly there, when it airs,
     or how many episodes it has."""
     state = season.get("state")
@@ -323,7 +323,7 @@ def downloading(download, text, now: float) -> str:
 
 
 def stage(request: dict, text, manage: bool, now: float) -> tuple:
-    """A request's stage pill, and its colour."""
+    """A request's stage pill, and its color."""
     kind = request.get("stage") or request.get("status")
     color = STAGE_COLORS.get(kind, BLUE)
     if kind == "pending":

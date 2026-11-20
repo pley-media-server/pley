@@ -571,7 +571,7 @@ function Hero(p: {
   );
 }
 
-/** Home while it loads (after 300 ms): grey blocks where the hero and the first row go; nothing takes focus. */
+/** Home while it loads (after 300 ms): gray blocks where the hero and the first row go; nothing takes focus. */
 function HomeSkeleton() {
   const ui = useUi();
   useEffect(() => {

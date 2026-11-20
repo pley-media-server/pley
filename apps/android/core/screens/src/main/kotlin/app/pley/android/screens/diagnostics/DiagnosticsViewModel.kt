@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
-/** A labelled fact of Diagnostics, in words the screen puts in the language shown: "Memory tier", "T1". */
+/** A labeled fact of Diagnostics, in words the screen puts in the language shown: "Memory tier", "T1". */
 data class DeviceFact(val label: UiText, val value: UiText)
 
 /** Diagnostics' state. */

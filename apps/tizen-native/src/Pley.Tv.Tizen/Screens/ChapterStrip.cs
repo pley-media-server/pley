@@ -228,7 +228,7 @@ sealed class ChapterStrip : View
             Size = new Size(Ui.Dp(CardWidth), Ui.Dp(CardHeight));
             // Not clipped: each clip is a pass of its own for the TV's GPU, and a row of clipped cards
             // slid at 20 fps. A letterboxed picture doesn't reach the well's corners (its bars do, in
-            // the well's own colour); one that fills it rounds its own.
+            // the well's own color); one that fills it rounds its own.
             well = new View
             {
                 Size = new Size(Ui.Dp(CardWidth), Ui.Dp(PictureHeight)),

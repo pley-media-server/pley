@@ -12,7 +12,7 @@ export interface Cue {
   /** A line number (`snapToLines`) or a percentage from the top; `null`: the last line. */
   line: number | null;
   snapToLines: boolean;
-  /** Percentage of the width the cue's box is placed at; `null`: centred. */
+  /** Percentage of the width the cue's box is placed at; `null`: centered. */
   position: number | null;
   align: "start" | "center" | "end" | "left" | "right";
   /** Percentage of the width the cue's box takes; `null`: 100. */

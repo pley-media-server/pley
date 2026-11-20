@@ -8,7 +8,7 @@
 //! No token administers accounts: no scope lets one make, change or delete
 //! a user, or change who may open what.
 //!
-//! Tokens carry a prefix (`pley_ct_`), so that leaked ones are recognisable
+//! Tokens carry a prefix (`pley_ct_`), so that leaked ones are recognizable
 //! and never pass for a session's, and are stored as SHA-256, like session
 //! tokens. One ends when it is revoked, 90 days after it was last used, and
 //! with the account's other sign-ins; it doesn't work while the account is

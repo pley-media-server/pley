@@ -71,7 +71,7 @@ import org.robolectric.RuntimeEnvironment
  * it opens with "Your devices", the bar above the tabs only while this
  * phone controls what a device plays, a device's controls (those its
  * player declares, Next where what plays has one, its audio, subtitles and
- * quality, a channel's programme), Stop that asks first, devices ready to
+ * quality, a channel's program), Stop that asks first, devices ready to
  * play that are only listed, commands that show at once, and what it says
  * when a player doesn't answer or the server refuses.
  */
@@ -400,7 +400,7 @@ class RemoteUiTest {
         remote.devices.value = listOf(channel(nowStart = start, nowStop = start + 3_600, next = "The Late Show"))
         show()
         open()
-        // The channel over Live TV, its programme under it with its times as the device writes them.
+        // The channel over Live TV, its program under it with its times as the device writes them.
         compose.onNodeWithText("101 Pley News HD").assertExists()
         compose.onNodeWithText("Live TV").assertExists()
         compose.onNodeWithText("The Evening News").assertExists()

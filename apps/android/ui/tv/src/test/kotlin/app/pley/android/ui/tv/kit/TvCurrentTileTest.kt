@@ -28,7 +28,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * The tile a page is about (an episode's page, in its season's row) is
- * marked while focus is elsewhere: a ring in the text's colour at the
+ * marked while focus is elsewhere: a ring in the text's color at the
  * well's edge, which no other tile has, and screen readers hear it as
  * selected. Drawn, so the ring is looked for in the picture.
  */
@@ -39,7 +39,7 @@ class TvCurrentTileTest {
     @get:Rule
     val compose = createComposeRule()
 
-    /** The colour 1 dp outside the left edge of the tile named [title], halfway down it. */
+    /** The color 1 dp outside the left edge of the tile named [title], halfway down it. */
     private fun besideTile(title: String): Color {
         val tile = compose.onNode(hasContentDescription(title)).getBoundsInRoot()
         val image = compose.onRoot().captureToImage().toPixelMap()

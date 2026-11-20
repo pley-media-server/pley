@@ -43,7 +43,7 @@ extension Words {
     /// What Stop asks first: "Stop playing on Living room TV?".
     public static func remoteStopQuestion(_ device: String) -> String { localized("Stop playing on \(device)?") }
 
-    /// Under a channel's progress: the programme after the one on.
+    /// Under a channel's progress: the program after the one on.
     public static func remoteNextProgramme(_ title: String) -> String { localized("Next: \(title)") }
 
     /// What the remote calls each device, by id. Two of the same name (two

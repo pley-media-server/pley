@@ -48,7 +48,7 @@ private final class Sheet: NSObject, ASWebAuthenticationPresentationContextProvi
 
     func start(url: URL, callbackScheme: String, ephemeral: Bool,
                continuation: CheckedContinuation<URL, any Error>) {
-        // The iOS 16 initialiser: the `Callback` one needs iOS 17.4. The
+        // The iOS 16 initializer: the `Callback` one needs iOS 17.4. The
         // handler is `@Sendable`, not the main actor's: macOS calls it on a
         // queue of its own, where a main-actor closure stops the app.
         let session = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackScheme) { @Sendable callback, error in

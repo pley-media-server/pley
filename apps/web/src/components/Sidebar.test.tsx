@@ -62,7 +62,7 @@ describe("Sidebar requests", () => {
     expect(within(requests).getByText("4")).toHaveClass("bg-accent");
   });
 
-  it("says so in the danger colour while some failed", async () => {
+  it("says so in the danger color while some failed", async () => {
     serve(makeSummary({ access: "auto", manage: true, pending: 1, failed: 1 }));
     renderWithProviders(<Sidebar open={false} onClose={() => {}} />);
     expect(within(await screen.findByRole("link", { name: "Requests 2 waiting" })).getByText("2")).toHaveClass("bg-danger");
