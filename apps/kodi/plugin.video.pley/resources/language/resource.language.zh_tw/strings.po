@@ -786,7 +786,7 @@ msgid "Live TV"
 msgstr "直播電視"
 
 msgctxt "#30249"
-msgid "Favourites"
+msgid "Favorites"
 msgstr "收藏"
 
 msgctxt "#30250"
@@ -794,11 +794,11 @@ msgid "Recently watched"
 msgstr "最近觀看"
 
 msgctxt "#30253"
-msgid "Add to favourites"
+msgid "Add to favorites"
 msgstr "新增到收藏"
 
 msgctxt "#30254"
-msgid "Remove from favourites"
+msgid "Remove from favorites"
 msgstr "從收藏中移除"
 
 msgctxt "#30255"
