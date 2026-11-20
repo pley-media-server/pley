@@ -269,6 +269,32 @@ impl Lessons {
     }
 }
 
+/// Since when the jobs tone mapping on the GPU have needed what they need
+/// now. A job's speed is measured over its last seconds: after others
+/// started or ended, it tells of the load there was, not of the one there
+/// is. Six 4K films where five end leave the sixth with 20 s at 0.6× real
+/// time behind it, which would teach that the GPU falls behind with one.
+#[derive(Debug, Default)]
+pub struct Settled {
+    load: f64,
+    since: Option<Instant>,
+}
+
+impl Settled {
+    /// Whether the jobs have needed `load` for `window`, the time their
+    /// speeds are measured over: what they made, they made beside each
+    /// other.
+    pub fn for_at_least(&mut self, load: f64, window: Duration, now: Instant) -> bool {
+        let changed = (self.load - load).abs() > 1e-6 * load.abs().max(1.0);
+        let since = *self.since.get_or_insert(now);
+        if changed {
+            (self.load, self.since) = (load, Some(now));
+            return false;
+        }
+        now.saturating_duration_since(since) >= window
+    }
+}
+
 /// The lessons that hold for a decision (see [`Lessons::holding`]).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Held {
@@ -470,6 +496,27 @@ mod tests {
         lessons.learn(Verdict::GpuBound, Share { quality: TonemapQuality::High, ..balanced }, 100.0, now);
         assert_eq!(lessons.holding(100.0, now).cap(TonemapQuality::High), TonemapQuality::Balanced);
         assert_eq!(lessons.holding(100.0, now).cap(TonemapQuality::Fast), TonemapQuality::Fast);
+    }
+
+    #[test]
+    fn nothing_is_learned_until_the_jobs_have_been_the_same_for_a_while() {
+        let now = Instant::now();
+        let window = Duration::from_secs(20);
+        let after = |secs| now + Duration::from_secs(secs);
+        let mut settled = Settled::default();
+        // Six 4K films: their speeds tell of six once they ran together 20 s.
+        assert!(!settled.for_at_least(720.0, window, now));
+        assert!(!settled.for_at_least(720.0, window, after(15)));
+        assert!(settled.for_at_least(720.0, window, after(20)));
+        assert!(settled.for_at_least(720.0, window, after(90)));
+        // Five end. What the sixth made over its last 20 s, it made beside
+        // them: nothing of the GPU with one film.
+        assert!(!settled.for_at_least(120.0, window, after(95)));
+        assert!(!settled.for_at_least(120.0, window, after(110)));
+        assert!(settled.for_at_least(120.0, window, after(115)));
+        // Another starts: the same.
+        assert!(!settled.for_at_least(240.0, window, after(120)));
+        assert!(settled.for_at_least(240.0, window, after(140)));
     }
 
     #[test]

@@ -184,6 +184,10 @@ pub struct JobManager {
     memory_available: AtomicU64,
     /// What jobs falling behind their players taught (see [`crate::share`]).
     lessons: Mutex<Lessons>,
+    /// Since when the jobs tone mapping on the GPU have been the same:
+    /// until their speeds are measured beside each other, nothing is
+    /// learned from them.
+    tonemapping_settled: Mutex<share::Settled>,
     /// The videos ([`pley_transcoder_api::decode_key`]) FFmpeg's own
     /// hardware decoder failed on, of jobs Quick Sync could decode in its
     /// place ([`Plan::quick_sync_would_decode`]): the next ones start there.
@@ -675,6 +679,7 @@ impl JobManager {
             cpu: Arc::default(),
             memory_available: AtomicU64::new(u64::MAX),
             lessons: Mutex::default(),
+            tonemapping_settled: Mutex::default(),
             decode_failed: Mutex::default(),
             opencl_failed: Mutex::default(),
             hdr10_metadata: Mutex::default(),
@@ -1388,6 +1393,11 @@ impl JobManager {
     /// what the others get done (see [`share::verdict`]).
     fn judge(&self) {
         let (load, cpu_busy, now) = (self.tonemapping_load(), self.cpu.busy(), Instant::now());
+        // Speeds measured while other jobs started or ended tell of the
+        // load there was.
+        if !self.tonemapping_settled.lock().for_at_least(load, Pace::STEADY, now) {
+            return;
+        }
         // What each process making on the GPU gets done (its speed, and the
         // work that is), and those that have run long enough to be judged.
         let mut going = Vec::new();
