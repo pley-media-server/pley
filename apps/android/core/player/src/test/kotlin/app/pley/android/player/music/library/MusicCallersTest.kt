@@ -74,8 +74,17 @@ class MusicCallersTest {
     }
 
     @Test
+    fun aSystemAppAskingFromTheFirstUserIsTheSystemsWherePleyRunsInAnother() {
+        // Pley in a work profile (user 10) sees System UI under user 10's uid; its media controls ask from user 0.
+        install(SYSTEM_UI, 10 * 100_000 + SYSTEM_UI_UID, Signature(byteArrayOf(7)), ApplicationInfo.FLAG_SYSTEM)
+        assertTrue(MusicCallers.isSystem(packages, SYSTEM_UI, SYSTEM_UI_UID))
+        assertTrue(MusicCallers.isSystem(packages, "android", 10 * 100_000 + 1000))
+    }
+
+    @Test
     fun anAppGivingASystemAppsNameIsNotTheSystems() {
         assertFalse(MusicCallers.isSystem(packages, SYSTEM_UI, NOTIFICATIONS_UID))
+        assertFalse(MusicCallers.isSystem(packages, SYSTEM_UI, 10 * 100_000 + NOTIFICATIONS_UID))
     }
 
     @Test

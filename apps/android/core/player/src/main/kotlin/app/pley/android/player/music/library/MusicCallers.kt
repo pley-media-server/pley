@@ -58,7 +58,7 @@ object MusicCallers {
     internal fun isCar(packageManager: PackageManager, own: String, name: String, uid: Int, keys: Map<String, List<String>>): Boolean {
         if (name == own) return false
         val owner = runCatching { packageManager.getPackageUid(name, 0) }.getOrNull() ?: return false
-        return owner == uid && allowed(packageManager, name, keys)
+        return appId(owner) == appId(uid) && allowed(packageManager, name, keys)
     }
 
     /**
@@ -67,9 +67,9 @@ object MusicCallers {
      * notifications (a watch's companion, an automation app), which may not drive the music.
      */
     fun isSystem(packageManager: PackageManager, name: String, uid: Int): Boolean {
-        if (uid in 0 until Process.FIRST_APPLICATION_UID) return true
+        if (uid >= 0 && appId(uid) < Process.FIRST_APPLICATION_UID) return true
         val info = runCatching { packageManager.getApplicationInfo(name, 0) }.getOrNull() ?: return false
-        return info.uid == uid && systemFlags(info)
+        return appId(info.uid) == appId(uid) && systemFlags(info)
     }
 
     /** Whether [name] is installed as part of the system: no other app can take a system app's name. */
@@ -77,6 +77,16 @@ object MusicCallers {
         val info = runCatching { packageManager.getApplicationInfo(name, 0) }.getOrNull() ?: return false
         return systemFlags(info)
     }
+
+    /**
+     * The app a [uid] is, whichever user it runs as: the system's media controls ask from the device's first user
+     * while Pley may run in another (a work profile, a private space), where the same app has another uid. An app id
+     * is one app's in every user, so no other app shares it.
+     */
+    private fun appId(uid: Int): Int = uid % PER_USER_RANGE
+
+    /** The uids each user has (UserHandle.PER_USER_RANGE, which isn't public). */
+    private const val PER_USER_RANGE = 100_000
 
     private fun systemFlags(info: ApplicationInfo): Boolean =
         info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
