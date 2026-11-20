@@ -764,7 +764,12 @@
       "restarts_other": "{{count}} redémarrages",
       "burnIn": "sous-titres incrustés",
       "copied": "{{codec}} (copie)",
-      "preset": "préréglage {{preset}}"
+      "preset": "préréglage {{preset}}",
+      "tonemapQuality": {
+        "high": "qualité élevée",
+        "balanced": "qualité équilibrée",
+        "fast": "qualité rapide"
+      }
     },
     "live": {
       "runningJobs": "Tâches en cours",

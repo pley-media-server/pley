@@ -410,7 +410,14 @@ function JobsTable({ jobs }: { jobs: TranscoderJob[] }) {
                   {i.preset ? <div className="text-subtle">{t("dashboard.jobs.preset", { preset: i.preset })}</div> : null}
                   <div className="text-subtle">{i.decoder ?? ""}</div>
                 </td>
-                <td className="px-3 py-2 font-mono text-fg/80">{i.tonemap ?? "—"}</td>
+                <td className="px-3 py-2 font-mono text-fg/80">
+                  {i.tonemap ?? "—"}
+                  {i.tonemap_quality ? (
+                    <div className="whitespace-nowrap text-subtle">
+                      {t(`dashboard.jobs.tonemapQuality.${i.tonemap_quality}`)}
+                    </div>
+                  ) : null}
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums">{i.speed != null ? `${i.speed.toFixed(1)}×` : "—"}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{i.fps != null ? Math.round(i.fps) : "—"}</td>
                 <td className="px-3 py-2">

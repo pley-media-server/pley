@@ -36,7 +36,9 @@ use crate::hls;
 use crate::keyframes::KeyframeStore;
 use crate::memory::{self, Lease, MemoryStore};
 use crate::metrics::Metrics;
-use crate::plan::{ArgsContext, Burn, MAX_DURATION_MS, PROCESS_WINDOW, Pipeline, Plan, READRATE, READRATE_BURST_MS};
+use crate::plan::{
+    ArgsContext, Burn, MAX_DURATION_MS, PROCESS_WINDOW, Pipeline, Plan, READRATE, READRATE_BURST_MS, READRATE_CATCHUP,
+};
 use crate::probe::Prober;
 use crate::share::{self, Lessons, Share};
 use crate::tsedit::{self, Edited, Edits};
@@ -184,6 +186,10 @@ pub struct JobManager {
     memory_available: AtomicU64,
     /// What jobs falling behind their players taught (see [`crate::share`]).
     lessons: Mutex<Lessons>,
+    /// Since when the jobs tone mapping on the GPU have been the same:
+    /// until their speeds are measured beside each other, nothing is
+    /// learned from them.
+    tonemapping_settled: Mutex<share::Settled>,
     /// The videos ([`pley_transcoder_api::decode_key`]) FFmpeg's own
     /// hardware decoder failed on, of jobs Quick Sync could decode in its
     /// place ([`Plan::quick_sync_would_decode`]): the next ones start there.
@@ -204,7 +210,27 @@ pub struct JobManager {
     /// Whether the CPU may decode for a GPU that falls behind (see
     /// [`crate::share`]).
     cpu_decode: AtomicBool,
+    /// What the software encoder's presets were measured to make, for each
+    /// kind of job ([`Plan::encode_kind`]): what the automatic preset goes
+    /// by (see [`crate::adaptive`]).
+    preset_speeds: Mutex<HashMap<String, adaptive::Speeds>>,
+    /// The software encodes running, as the reaper last saw them: whether a
+    /// process's speed is its preset's alone, and whether jobs may move for
+    /// how many there are.
+    crowd: Mutex<adaptive::Crowd>,
 }
+
+/// The kinds of job whose presets' speeds are kept ([`JobManager::preset_speeds`]):
+/// past that many, those that tell nothing any more go.
+const PRESET_KINDS: usize = 64;
+
+/// How often the reaper looks at the jobs.
+const REAP_EVERY: Duration = Duration::from_secs(5);
+
+/// How near the read rate's limit (ms of video) a process counts as held by
+/// it: FFmpeg limits what it reads, which is a few seconds ahead of what it
+/// has written, and it starts a moment after the process does.
+const HELD_WITHIN_MS: i64 = 10_000;
 
 pub struct Job {
     pub id: String,
@@ -544,6 +570,9 @@ struct Proc {
 struct Pace {
     /// When the process was where (ms of media), oldest first.
     samples: VecDeque<(Instant, i64)>,
+    /// It was paused and went on: FFmpeg's own average counts the time it
+    /// stood still from then on, and tells nothing.
+    resumed: bool,
 }
 
 impl Pace {
@@ -570,6 +599,15 @@ impl Pace {
     /// The same over the last 20 s, once there are 15.
     fn steady_speed(&self) -> Option<f64> {
         self.speed_over(Self::STEADY, Self::STEADY * 3 / 4)
+    }
+
+    /// Its speed as last measured, over the last 4 s and over all it has of
+    /// the last 20 s, with when that was and where the process was then (ms
+    /// of media): a paused process keeps what it last made.
+    fn latest(&self) -> Option<(f64, f64, Instant, i64)> {
+        let &(at, out_ms) = self.samples.back()?;
+        let lately = self.speed()?;
+        Some((lately, self.speed_over(Self::STEADY, Self::MIN_SPAN).unwrap_or(lately), at, out_ms))
     }
 
     /// The speed from the latest sample `window` old (or the oldest) to the
@@ -612,7 +650,9 @@ impl Proc {
     fn set_paused(&self, on: bool) -> bool {
         let changed = self.pause.send_if_modified(|paused| std::mem::replace(paused, on) != on);
         if changed && !on {
-            self.pace.lock().samples.clear();
+            let mut pace = self.pace.lock();
+            pace.samples.clear();
+            pace.resumed = true;
         }
         changed
     }
@@ -653,10 +693,13 @@ impl JobManager {
             cpu: Arc::default(),
             memory_available: AtomicU64::new(u64::MAX),
             lessons: Mutex::default(),
+            tonemapping_settled: Mutex::default(),
             decode_failed: Mutex::default(),
             opencl_failed: Mutex::default(),
             hdr10_metadata: Mutex::default(),
             cpu_decode: AtomicBool::new(true),
+            preset_speeds: Mutex::default(),
+            crowd: Mutex::default(),
         })
     }
 
@@ -1099,11 +1142,6 @@ impl JobManager {
         }
     }
 
-    /// Software encodes running now.
-    fn software_encodes(&self) -> u32 {
-        self.renditions().iter().filter(|job| job.encodes_in_software()).count() as u32
-    }
-
     /// What the automatic preset depends on for `job` now, counting it.
     fn load_for(&self, job: &Job) -> adaptive::Load {
         let (pixels, hevc) = job
@@ -1112,50 +1150,122 @@ impl JobManager {
             .as_ref()
             .map_or((0, false), |v| (v.width.max(0) as u64 * v.height.max(0) as u64, v.codec == VideoCodec::Hevc));
         let others = self.renditions().iter().filter(|j| j.id != job.id && j.encodes_in_software()).count() as u32;
-        adaptive::Load { software_jobs: others + 1, cores: crate::util::processors(), pixels, hevc }
+        let fps = job.plan.source_rate(&job.media).map_or(24.0, |(_, fps)| fps);
+        adaptive::Load {
+            software_jobs: others + 1,
+            cores: crate::util::processors(),
+            pixels,
+            fps,
+            hevc,
+            segment_secs: job.plan.segment_seconds,
+        }
     }
 
-    /// Moves jobs on the automatic preset a step faster or slower when their
-    /// lead over the player and their speed call for it (see
-    /// [`crate::adaptive`]), restarting ffmpeg where it was.
+    /// The preset the next process of `job` starts with at segment `start`,
+    /// on the automatic preset: by what jobs alike were measured to make,
+    /// or the load's before any was (see [`adaptive::start`]).
+    fn start_preset(&self, job: &Job, start: u32) -> usize {
+        let now = Instant::now();
+        let kind = job.plan.encode_kind(&job.media);
+        let speeds = kind.and_then(|kind| self.preset_speeds.lock().get(&kind).cloned()).unwrap_or_default();
+        let current = job.runtime.lock().preset.map(|(preset, _)| preset);
+        adaptive::start(&speeds, self.load_for(job), job.lead_secs(start), current, now)
+    }
+
+    /// Learns what the presets of jobs on the automatic one make from how
+    /// their processes go, and moves a job whose lead over the player and
+    /// speed call for another preset (see [`crate::adaptive`]), restarting
+    /// ffmpeg where it was.
     async fn adapt(self: &Arc<Self>) {
-        if self.software_encodes() == 0 {
+        let now = Instant::now();
+        let jobs = self.renditions();
+        // The software encodes running, and those of them encoding now
+        // rather than paused far ahead: one whose process is being started
+        // or stopped counts as encoding.
+        let (mut software, mut encoding) = (0, 0);
+        for job in jobs.iter().filter(|job| job.encodes_in_software()) {
+            software += 1;
+            let process = job.process.try_lock();
+            if process.map_or(true, |p| p.as_ref().is_some_and(|p| p.running() && !p.paused())) {
+                encoding += 1;
+            }
+        }
+        let crowd = {
+            let mut crowd = self.crowd.lock();
+            crowd.tick(software, encoding, now);
+            *crowd
+        };
+        if software == 0 {
             return;
         }
-        for job in self.renditions() {
-            // An fMP4 job's preset is that of its init (see [`InitEncoder`]).
-            if job.init_encoder.lock().is_some() {
-                continue;
-            }
+        for job in &jobs {
             let Some((current, moved_at)) = job.runtime.lock().preset else { continue };
+            let Some(kind) = job.plan.encode_kind(&job.media) else { continue };
             let Ok(mut guard) = job.process.try_lock() else { continue };
-            // A paused process is far ahead already: it moves once it goes on.
-            let Some(proc) = guard.as_ref().filter(|p| p.running() && !p.paused()) else { continue };
+            let Some(proc) = guard.as_ref().filter(|p| p.running()) else { continue };
             let next = proc.next.load(Relaxed);
             if next >= proc.end {
                 continue;
             }
-            // How fast it goes lately (FFmpeg's own speed averages in its
-            // burst, and the time it was paused).
-            let speed = proc.pace.lock().speed().or_else(|| job.runtime.lock().process.as_ref().and_then(|p| p.speed));
+            let sharing = self.load_for(job).software_jobs;
+            let measured = job.measured(proc);
+            // A paused process makes nothing now: what it made before tells
+            // of its preset, not of how it goes.
+            let going = measured.filter(|_| !proc.paused());
+            let speed = going.map(|(speed, ..)| speed);
+            let made = going.and_then(|(_, of_its_preset, _)| match of_its_preset {
+                adaptive::Measured::Exactly(made) => Some(made),
+                adaptive::Measured::AtLeast(_) => None,
+            });
             let lead = job.lead_secs(next);
-            let target = adaptive::target(self.load_for(&job));
-            let to = match adaptive::decide(current, target, lead, speed, moved_at.elapsed()) {
-                adaptive::Move::Faster => current - 1,
-                adaptive::Move::Slower => current + 1,
-                adaptive::Move::Stay => continue,
+            let (to, expected) = {
+                let mut kinds = self.preset_speeds.lock();
+                if kinds.len() >= PRESET_KINDS && !kinds.contains_key(&kind) {
+                    kinds.retain(|_, speeds| speeds.any(now));
+                }
+                let speeds = kinds.entry(kind).or_default();
+                // As fast as it goes, a process tells what its preset makes
+                // only if no other encode ran beside it meanwhile.
+                if let Some((_, of_its_preset, at)) = measured
+                    && (crowd.alone(at, Pace::STEADY + REAP_EVERY)
+                        || matches!(of_its_preset, adaptive::Measured::AtLeast(_)))
+                {
+                    speeds.learn(current, of_its_preset, at);
+                }
+                // An fMP4 job's preset is that of its init (see
+                // [`InitEncoder`]). And nothing waits for a process its player
+                // went past, into segments made before (a seek): it is left
+                // to end where they begin.
+                let pinned = job.init_encoder.lock().is_some();
+                let passed = lead < -f64::from(proc.lookahead) * job.plan.segment_seconds;
+                if pinned || passed {
+                    continue;
+                }
+                let going = adaptive::Going {
+                    preset: current,
+                    speed,
+                    made,
+                    lead_secs: lead,
+                    since_move: moved_at.elapsed(),
+                    jobs: sharing,
+                    settled: crowd.settled(now),
+                };
+                let Some(to) = adaptive::decide(speeds, going, now) else { continue };
+                (to, speeds.expect(to, now).map(|(alone, _)| alone / f64::from(sharing.max(1))))
             };
+            let times = |speed: Option<f64>| speed.map_or("?".into(), |s| format!("{s:.1}"));
             tracing::info!(
                 job = %job.id,
-                "preset {} → {} ({lead:.0} s ahead of the player at {}× real time)",
+                "preset {} → {} ({lead:.0} s ahead of the player, making {}× real time, {}× expected)",
                 adaptive::LADDER[current],
                 adaptive::LADDER[to],
-                speed.map_or("?".into(), |s| format!("{s:.1}"))
+                times(measured.map(|(_, of_its_preset, _)| of_its_preset.speed())),
+                times(expected)
             );
             if let Some(old) = guard.take() {
                 old.stop().await;
             }
-            match self.spawn(&job, next, Some(to)) {
+            match self.spawn(job, next, Some(to)) {
                 Ok(process) => *guard = Some(process),
                 Err(err) => tracing::warn!(job = %job.id, "could not restart at a new preset: {err:?}"),
             }
@@ -1324,6 +1434,11 @@ impl JobManager {
     /// what the others get done (see [`share::verdict`]).
     fn judge(&self) {
         let (load, cpu_busy, now) = (self.tonemapping_load(), self.cpu.busy(), Instant::now());
+        // Speeds measured before other jobs ended tell of the load there
+        // was, more than there is.
+        if !self.tonemapping_settled.lock().for_at_least(load, Pace::STEADY, now) {
+            return;
+        }
         // What each process making on the GPU gets done (its speed, and the
         // work that is), and those that have run long enough to be judged.
         let mut going = Vec::new();
@@ -1500,12 +1615,11 @@ impl JobManager {
         }
 
         // The software encoder's preset: the planned one, or the automatic
-        // one, which starts a step faster when nothing is ready ahead.
+        // one, which starts fast enough for the player to wait little when
+        // nothing is ready ahead.
         let software = planned.is_some() && (!want_hw || fallback.is_some());
         let auto = job.plan.video.as_ref().is_some_and(|v| v.preset == adaptive::AUTO);
-        let chosen = (software && auto).then(|| {
-            preset.unwrap_or_else(|| adaptive::start(adaptive::target(self.load_for(job)), job.lead_secs(start)))
-        });
+        let chosen = (software && auto).then(|| preset.unwrap_or_else(|| self.start_preset(job, start)));
         let preset_name = match chosen {
             Some(i) => Some(adaptive::LADDER[i].to_owned()),
             None if software => job.plan.video.as_ref().map(|v| v.preset.clone()),
@@ -1705,7 +1819,7 @@ impl JobManager {
     pub fn spawn_reaper(self: &Arc<Self>) {
         let weak = Arc::downgrade(self);
         tokio::spawn(async move {
-            let mut tick = tokio::time::interval(Duration::from_secs(5));
+            let mut tick = tokio::time::interval(REAP_EVERY);
             loop {
                 tick.tick().await;
                 let Some(mgr) = weak.upgrade() else { break };
@@ -2074,6 +2188,41 @@ impl Job {
         }
     }
 
+    /// What process `p` was last measured to make at its preset (see
+    /// [`adaptive::Measured`]): over its last 4 s, over its last 20 s (4 s
+    /// of film take a third more or less than the next), and when. It goes
+    /// as fast as the computer makes it unless FFmpeg's read rate holds it,
+    /// which works like this (`readrate_sleep` in FFmpeg's
+    /// `ffmpeg_demux.c`): the first 120 s of video are read freely. Past
+    /// them, a process may have read as much video as time has gone by
+    /// since it started, and those 120 s: at that limit it is held to real
+    /// time. Behind the limit (it is slower than that, or was paused), it
+    /// is held to twice real time until it reaches it, counted from when it
+    /// last fell further behind than it had been: paused again before it
+    /// caught up, it reads freely for a while. An FFmpeg without
+    /// `-readrate_catchup` reads freely there. A speed under what holds it
+    /// is the computer's, and one over it is at least what the preset
+    /// makes.
+    fn measured(&self, p: &Proc) -> Option<(adaptive::Measured, adaptive::Measured, Instant)> {
+        use adaptive::Measured::{AtLeast, Exactly};
+        let (speed, steady, at, out_ms) = p.pace.lock().latest()?;
+        let made_ms = out_ms - self.plan.boundaries.get(p.start as usize).copied()?;
+        let held_to = if !self.plan.throttle || made_ms <= READRATE_BURST_MS - HELD_WITHIN_MS {
+            f64::INFINITY
+        } else {
+            let running_ms = at.saturating_duration_since(p.started).as_secs_f64() * 1000.0;
+            let limit_ms = READRATE_BURST_MS as f64 + running_ms * READRATE;
+            match (made_ms as f64) < limit_ms - HELD_WITHIN_MS as f64 {
+                true if self.plan.catchup => READRATE_CATCHUP,
+                true => f64::INFINITY,
+                false => READRATE,
+            }
+        };
+        // FFmpeg keeps to the read rate within a hundredth.
+        let told = |speed: f64| if speed < held_to * 0.97 { Exactly(speed) } else { AtLeast(speed) };
+        Some((told(speed), told(steady), at))
+    }
+
     /// Whether a process at segment `next` is far enough ahead of the
     /// player to pause (see [`PAUSE_AHEAD`]), and no request waits for a
     /// segment it has yet to make.
@@ -2426,8 +2575,16 @@ impl Job {
     }
 
     fn own_status(&self) -> JobStatus {
+        // A process paused far ahead of its player makes nothing: no speed,
+        // rather than its last one.
+        let paused =
+            self.process.try_lock().is_ok_and(|guard| guard.as_ref().is_some_and(|p| p.running() && p.paused()));
         let rt = self.runtime.lock();
         let mut video = self.plan.video_plan(&self.media, rt.encoder_override.as_ref());
+        // The bitrate its player asked for since (see `JobManager::set_bitrate`).
+        if let (Some(v), Some(kbps)) = (video.as_mut().filter(|v| v.mode != VideoMode::Copy), *self.bitrate.lock()) {
+            v.bitrate_kbps = Some(kbps);
+        }
         // Quick Sync's own decoder failed: FFmpeg's paired with the encoder
         // took over (see `Plan::without_quick_sync_decoding`).
         if rt.qsv_decode_failed
@@ -2486,7 +2643,12 @@ impl Job {
             segments_ready: self.ready_count.load(Relaxed),
             video,
             audio: self.plan.audio_plan(&self.media),
-            process: rt.process.clone(),
+            process: rt.process.clone().map(|mut process| {
+                if paused {
+                    (process.speed, process.fps) = (None, None);
+                }
+                process
+            }),
             restarts: rt.restarts,
             served_segments: self.served_segments.load(Relaxed),
             served_bytes: self.served_bytes.load(Relaxed),
@@ -2499,17 +2661,27 @@ impl Job {
         }
     }
 
-    /// A process's progress, with its speed over the last seconds (`recent`)
-    /// rather than FFmpeg's own, an average since it started.
-    fn update_progress(&self, progress: &HashMap<String, String>, start_ms: i64, recent: Option<f64>) {
+    /// A process's progress, with its speed and frame rate over the last
+    /// seconds (`recent`) rather than FFmpeg's own, averages since it
+    /// started: those stand in until the first seconds are measured, while
+    /// they tell (`averages`: not once it was paused, which they count as
+    /// time it was slow in).
+    fn update_progress(&self, progress: &HashMap<String, String>, start_ms: i64, recent: Option<f64>, averages: bool) {
         let mut rt = self.runtime.lock();
         let Some(p) = rt.process.as_mut() else { return };
         let num = |k: &str| progress.get(k).and_then(|v| v.trim().parse::<f64>().ok());
         p.frame = num("frame").map(|v| v as u64);
-        p.fps = num("fps").filter(|v| *v > 0.0);
+        let average_fps = num("fps").filter(|v| *v > 0.0);
         let average =
             progress.get("speed").and_then(|v| v.trim().trim_end_matches('x').parse().ok()).filter(|v: &f64| *v > 0.0);
-        p.speed = recent.filter(|v| *v > 0.0).or(average);
+        let recent = recent.filter(|v| *v > 0.0);
+        p.speed = recent.or(average.filter(|_| averages));
+        let rate = self.plan.video.as_ref().filter(|v| !v.copy).and_then(|v| self.media.stream(v.stream_index));
+        let rate = rate.and_then(|s| s.frame_rate).filter(|rate| rate.is_finite() && *rate > 0.0);
+        p.fps = match frames_a_second(recent, rate, average_fps.zip(average)) {
+            Some(fps) => Some(fps),
+            None => average_fps.filter(|_| averages),
+        };
         p.bitrate_kbps = progress.get("bitrate").and_then(|v| v.trim().trim_end_matches("kbits/s").parse().ok());
         p.total_size = num("total_size").map(|v| v as u64);
         p.dup_frames = num("dup_frames").map(|v| v as u64);
@@ -2518,6 +2690,17 @@ impl Job {
             p.out_time_ms = start_ms + (us / 1000.0) as i64;
         }
     }
+}
+
+/// The frames a second a process makes at `speed` × real time: that many
+/// times the video's frame `rate`, which a transcode keeps. Without a rate
+/// known, FFmpeg's average frames a second over its average speed
+/// (`averages`), both over the same time, are the frames in a second of
+/// video, though they read up to a third low for a process's first few
+/// seconds.
+fn frames_a_second(speed: Option<f64>, rate: Option<f64>, averages: Option<(f64, f64)>) -> Option<f64> {
+    let speed = speed?;
+    rate.or(averages.map(|(fps, average)| fps / average)).map(|rate| speed * rate)
 }
 
 /// The segments a process has made so far, and what each one made does:
@@ -2836,10 +3019,14 @@ async fn read_progress(
                 if key == "progress" {
                     let out_us = block.get("out_time_us").and_then(|v| v.trim().parse::<f64>().ok());
                     let mut recent = None;
+                    // FFmpeg's own speed and frame rate are averages since
+                    // it started: right until it is first paused.
+                    let mut averages = true;
                     if let Some(us) = out_us.filter(|us| *us >= 0.0) {
                         let out_ms = start_ms + (us / 1000.0) as i64;
                         let mut pace = pace.lock();
                         pace.record(Instant::now(), out_ms);
+                        averages = !pace.resumed;
                         recent = pace.speed().map(|speed| {
                             // Held to the read rate past its burst: real time, as meant
                             // (players take less than 1× for a transcoder falling behind).
@@ -2849,7 +3036,7 @@ async fn read_progress(
                             if paced { READRATE } else { speed }
                         });
                     }
-                    job.update_progress(&block, start_ms, recent);
+                    job.update_progress(&block, start_ms, recent, averages);
                     block.clear();
                 } else {
                     block.insert(key.to_owned(), value.to_owned());
@@ -3107,6 +3294,110 @@ mod tests {
         assert!(!job.far_ahead(60));
         job.pace_lead(&p);
         assert!(!p.paused());
+    }
+
+    /// A process of `job` from segment 0, with the speed of its last 4 s at
+    /// `out_ms` of video.
+    fn going(out_ms: i64, speed: f64) -> (Proc, watch::Sender<bool>) {
+        let (exit_tx, exited) = watch::channel(false);
+        let pace = Arc::new(Mutex::new(Pace::default()));
+        let now = Instant::now();
+        pace.lock().record(now.checked_sub(Duration::from_secs(4)).unwrap(), out_ms - (4_000.0 * speed).round() as i64);
+        pace.lock().record(now, out_ms);
+        let p = Proc {
+            start: 0,
+            end: 500,
+            place: Place::Disk,
+            started: now,
+            next: Arc::new(AtomicU32::new(10)),
+            lookahead: 6,
+            pace,
+            exited,
+            kill: None,
+            pause: Arc::new(watch::channel(false).0),
+        };
+        (p, exit_tx)
+    }
+
+    #[test]
+    fn a_process_tells_what_its_preset_makes_while_nothing_else_holds_it_back() {
+        use adaptive::Measured::{AtLeast, Exactly};
+        let dir = crate::testing::tempdir();
+        let mut job = job(dir.path(), (0..=500).map(|i| i * 2_000).collect());
+        job.plan.segment_seconds = 2.0;
+        let measured = |job: &Job, out_ms: i64, speed: f64| {
+            let (p, _exit) = going(out_ms, speed);
+            job.measured(&p).map(|(now, ..)| now)
+        };
+        // Without throttling, every speed is the computer's.
+        assert_eq!(measured(&job, 300_000, 1.0), Some(Exactly(1.0)));
+        // Throttled, so is the speed of its first two minutes of video.
+        (job.plan.throttle, job.plan.catchup) = (true, true);
+        assert_eq!(measured(&job, 60_000, 4.5), Some(Exactly(4.5)));
+        assert_eq!(measured(&job, 60_000, 1.0), Some(Exactly(1.0)), "a slow computer's real time");
+        // Past them, at the read rate's limit (as much video as time went
+        // by, and those two minutes), it is held to real time, or to
+        // something more as it gets there (a process that made 12 × real
+        // time read 4, then 1.4, on its way to 1): it could make more.
+        assert_eq!(measured(&job, 200_000, 1.0), Some(AtLeast(1.0)));
+        assert_eq!(measured(&job, 200_000, 2.0), Some(AtLeast(2.0)));
+        assert_eq!(measured(&job, 200_000, 1.4), Some(AtLeast(1.4)));
+        // Under real time, the computer holds it back.
+        assert_eq!(measured(&job, 200_000, 0.7), Some(Exactly(0.7)));
+        // Behind the limit (200 s of video after 300 s: a slow computer, or
+        // a process that was paused), it is held to twice real time, and
+        // anything under that is the computer's.
+        let behind = |job: &Job, speed: f64| {
+            let (mut p, _exit) = going(200_000, speed);
+            p.started = p.started.checked_sub(Duration::from_secs(300)).unwrap();
+            job.measured(&p).map(|(now, ..)| now)
+        };
+        assert_eq!(behind(&job, 1.4), Some(Exactly(1.4)));
+        assert_eq!(behind(&job, 1.0), Some(Exactly(1.0)));
+        assert_eq!(behind(&job, 2.0), Some(AtLeast(2.0)));
+        // An FFmpeg that can't catch up at a rate of its own reads freely
+        // there.
+        job.plan.catchup = false;
+        assert_eq!(behind(&job, 2.0), Some(Exactly(2.0)));
+        job.plan.catchup = true;
+        // The last seconds before the two minutes end count as past them:
+        // FFmpeg has read further than it has written.
+        assert_eq!(measured(&job, 115_000, 8.0), Some(AtLeast(8.0)));
+        // Of its preset, a burst tells by all of its last 20 s: 4.5 × real
+        // time over the last 4, after 10 s at 3.
+        let (p, _exit) = going(60_000, 4.5);
+        let first = p.pace.lock().samples[0];
+        p.pace.lock().samples.push_front((first.0.checked_sub(Duration::from_secs(10)).unwrap(), first.1 - 30_000));
+        let (now, of_its_preset, _) = job.measured(&p).unwrap();
+        assert_eq!(now, Exactly(4.5));
+        assert!(matches!(of_its_preset, Exactly(speed) if (speed - 48.0 / 14.0).abs() < 1e-9), "{of_its_preset:?}");
+        // Too young to tell.
+        let (p, _exit) = going(60_000, 4.5);
+        p.pace.lock().samples.pop_front();
+        assert_eq!(job.measured(&p), None);
+    }
+
+    #[test]
+    fn a_paused_process_reports_no_speed() {
+        let dir = crate::testing::tempdir();
+        let mut job = job(dir.path(), (0..=500).map(|i| i * 2_000).collect());
+        (job.plan.segment_seconds, job.plan.throttle) = (2.0, true);
+        job.runtime.lock().process = Some(ProcessStatus { speed: Some(3.8), fps: Some(91.0), ..Default::default() });
+        let (p, _exit) = going(60_000, 3.8);
+        // Paused by the reader of its segments, the moment it is far ahead:
+        // nothing comes from FFmpeg while it stands still, and its status
+        // doesn't go on saying 3.8×.
+        p.pause.send_replace(true);
+        *job.process.try_lock().unwrap() = Some(p);
+        let process = job.status().process.unwrap();
+        assert_eq!((process.speed, process.fps), (None, None));
+        // What it made before still tells what its preset makes.
+        let guard = job.process.try_lock().unwrap();
+        let measured = job.measured(guard.as_ref().unwrap()).map(|(_, of_its_preset, _)| of_its_preset);
+        assert_eq!(measured, Some(adaptive::Measured::Exactly(3.8)));
+        guard.as_ref().unwrap().pause.send_replace(false);
+        drop(guard);
+        assert_eq!(job.status().process.unwrap().speed, Some(3.8));
     }
 
     #[test]
@@ -3578,7 +3869,10 @@ mod tests {
         };
         // The player has asked for segment 1: from segment 3 on, the stream goes on at 1.5 Mbps.
         job.last_requested.store(1, Relaxed);
+        let own = job.plan.video.as_ref().unwrap().bitrate_kbps;
+        assert_eq!(job.status().video.unwrap().bitrate_kbps, Some(own));
         assert_eq!(jobs.set_bitrate(&job, 1_500).await.unwrap(), 1_500);
+        assert_eq!(job.status().video.unwrap().bitrate_kbps, Some(1_500), "its status says what it makes now");
         // (A process still running restarts at once: segment 3 may be made again already.)
         assert!(job.is_ready(1) && job.is_ready(2), "what the player may be fetching stays");
         assert_eq!(size(&job.segment_path(2)), before[2].0, "and is the same");
@@ -3590,7 +3884,6 @@ mod tests {
         }
         // Asked again, nothing changes; never above the job's own, nor below 1 Mbps.
         assert_eq!(jobs.set_bitrate(&job, 1_500).await.unwrap(), 1_500);
-        let own = job.plan.video.as_ref().unwrap().bitrate_kbps;
         assert_eq!(jobs.set_bitrate(&job, 50_000).await.unwrap(), own);
         assert_eq!(jobs.set_bitrate(&job, 10).await.unwrap(), MIN_BITRATE_KBPS);
         jobs.remove(&created.id).await;
@@ -3838,7 +4131,7 @@ mod tests {
         let block = |pairs: &[(&str, &str)]| -> HashMap<String, String> {
             pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect()
         };
-        job.update_progress(&block(&[("fps", "50")]), 0, None);
+        job.update_progress(&block(&[("fps", "50")]), 0, None, true);
         assert!(job.status().process.is_none(), "no process, nothing to update");
 
         job.runtime.lock().process = Some(ProcessStatus::default());
@@ -3853,19 +4146,41 @@ mod tests {
             ]),
             12_000,
             None,
+            true,
         );
         let p = job.status().process.unwrap();
         assert_eq!((p.frame, p.fps, p.speed, p.bitrate_kbps), (Some(120), Some(48.5), Some(2.1), Some(3000.5)));
         // How fast it went lately wins over FFmpeg's average since it started.
-        job.update_progress(&block(&[("speed", "6.2x")]), 12_000, Some(1.0));
+        job.update_progress(&block(&[("speed", "6.2x")]), 12_000, Some(1.0), true);
         assert_eq!(job.status().process.unwrap().speed, Some(1.0));
         assert_eq!((p.out_time_ms, p.drop_frames), (17_000, Some(2)), "absolute media time");
+        // The frames a second with it: FFmpeg's 150 at 6.2× are 24.2 for
+        // each second of video, whatever it makes now.
+        job.update_progress(&block(&[("speed", "6.2x"), ("fps", "150")]), 12_000, Some(2.0), true);
+        let p = job.status().process.unwrap();
+        assert_eq!((p.speed, p.fps.map(|fps| (fps * 10.0).round())), (Some(2.0), Some(484.0)));
+        // Where the video's frame rate is known, by that: a process's first
+        // averages gave 19 frames to a second of a 24 fps film.
+        assert_eq!(frames_a_second(Some(4.3), Some(24.0), Some((110.0, 5.74))), Some(4.3 * 24.0));
+        assert_eq!(frames_a_second(None, Some(24.0), Some((110.0, 5.74))), None, "no speed yet");
+
+        // Once it was paused, FFmpeg's averages count the time it stood
+        // still: 0.5× and 12 frames a second of a process that keeps ahead.
+        // Nothing is said until its speed is measured again.
+        let after_a_pause = block(&[("speed", "0.5x"), ("fps", "12")]);
+        job.update_progress(&after_a_pause, 12_000, None, false);
+        let p = job.status().process.unwrap();
+        assert_eq!((p.speed, p.fps), (None, None));
+        job.update_progress(&after_a_pause, 12_000, Some(2.0), false);
+        let p = job.status().process.unwrap();
+        assert_eq!((p.speed, p.fps), (Some(2.0), Some(48.0)));
 
         // Values ffmpeg doesn't know yet.
         job.update_progress(
             &block(&[("fps", "0.00"), ("speed", "N/A"), ("bitrate", "N/A"), ("out_time_us", "-9223372036854775807")]),
             12_000,
             None,
+            true,
         );
         let p = job.status().process.unwrap();
         assert_eq!((p.fps, p.speed, p.bitrate_kbps), (None, None, None));
@@ -4784,7 +5099,7 @@ mod tests {
     fn fmp4_restarts_keep_the_encoder_their_init_was_made_with() {
         let gpu = InitEncoder { hardware: true, stand_in: None, preset: None };
         let x264 = InitEncoder { hardware: false, stand_in: Some("libx264".into()), preset: Some(2) };
-        let software = InitEncoder { hardware: false, stand_in: None, preset: Some(4) };
+        let software = InitEncoder { hardware: false, stand_in: None, preset: Some(3) };
         // (pinned, planned on the GPU, a stand-in, the hardware failed, preset asked, a hardware session).
         let choose = |pinned: Option<&InitEncoder>, failed: bool, preset: Option<usize>, hw_slot: bool| {
             restart_encoder(pinned, true, true, failed, preset, hw_slot)
@@ -4809,7 +5124,7 @@ mod tests {
 
         // Made by the stand-in: it stays, with a hardware session free,
         // at its preset whatever is asked.
-        assert_eq!(choose(Some(&x264), false, Some(5), true).unwrap(), (EncoderChoice::Kept, Some(2)));
+        assert_eq!(choose(Some(&x264), false, Some(3), true).unwrap(), (EncoderChoice::Kept, Some(2)));
         assert_eq!(choose(Some(&x264), true, None, false).unwrap(), (EncoderChoice::Kept, Some(2)));
         let err = restart_encoder(Some(&x264), true, false, false, None, true).unwrap_err();
         assert!(matches!(err, ApiError::Failed(_)), "{err:?}");
@@ -4817,7 +5132,7 @@ mod tests {
         // A software encode planned: the planned encoder, at the init's preset.
         assert_eq!(
             restart_encoder(Some(&software), false, false, false, Some(0), false).unwrap(),
-            (EncoderChoice::Planned, Some(4))
+            (EncoderChoice::Planned, Some(3))
         );
         assert_eq!(
             restart_encoder(None, false, false, false, Some(0), false).unwrap(),
@@ -4855,8 +5170,13 @@ mod tests {
         }
         let pinned = job.init_encoder.lock().as_ref().and_then(|e| e.preset);
         assert_eq!(pinned.is_some(), format == SegmentFormat::Fmp4, "an fMP4 job's preset is its init's");
-        // Its exit sender gone: stopping it doesn't wait.
+        // Its exit sender gone: stopping it doesn't wait. In its burst, at
+        // half real time over the last 3 s.
         let (_, exited) = watch::channel(false);
+        let pace = Arc::new(Mutex::new(Pace::default()));
+        let (now, from) = (Instant::now(), job.plan.boundaries[5]);
+        pace.lock().record(now.checked_sub(Duration::from_secs(3)).unwrap(), from);
+        pace.lock().record(now, from + 1_500);
         *job.process.lock().await = Some(Proc {
             start: 5,
             end: 15,
@@ -4864,7 +5184,7 @@ mod tests {
             started: Instant::now(),
             next: Arc::new(AtomicU32::new(5)),
             lookahead: 6,
-            pace: Arc::default(),
+            pace,
             exited,
             kill: None,
             pause: Arc::new(watch::channel(false).0),
@@ -4898,7 +5218,7 @@ mod tests {
         if ts.is_none() {
             return;
         }
-        assert_eq!(ts, Some(2), "behind its player and slow: a step faster");
+        assert_eq!(ts, Some(0), "behind its player at half real time: the fastest, at once");
         assert_eq!(fmp4, Some(3), "pinned: where it was");
     }
 
