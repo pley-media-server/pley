@@ -24,7 +24,7 @@
 > [!WARNING]
 > Pley is still in testing: expect rough edges, and keep backups of your data.
 
-![Pley web app](docs/images/web-tour.webp)
+![Pley TV and phone apps](docs/images/apps.webp)
 
 ## Features
 
