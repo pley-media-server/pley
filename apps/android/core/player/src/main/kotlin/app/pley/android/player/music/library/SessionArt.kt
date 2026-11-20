@@ -32,7 +32,9 @@ import kotlinx.coroutines.withContext
  *
  * It reads the library's pictures ([MusicArt]'s addresses) straight from
  * the server, as the app is allowed to; anything else (a placeholder the
- * provider draws) goes to [other], kept the same way. Main thread only.
+ * provider draws) goes to [other], kept the same way. A picture that can't
+ * be had is its placeholder, when its address names one ([standIn]), as
+ * the provider gives a car's lists. Main thread only.
  */
 @OptIn(markerClass = [UnstableApi::class])
 internal class SessionArt(
@@ -45,6 +47,8 @@ internal class SessionArt(
     private val decode: (ByteArray) -> Bitmap? = ::decodeCover,
     /** Whether an address is a cover the app draws itself ([MusicArt.placeholderUri]): read ahead as the library's. */
     private val drawn: (Uri) -> Boolean = { false },
+    /** The placeholder shown in place of a picture that can't be had ([MusicArt.standIn]); `null` for none. */
+    private val standIn: (Uri) -> Uri? = { null },
 ) : BitmapLoader {
     private val kept = LruCache<Uri, Bitmap>(KEPT)
     private val reading = HashMap<Uri, ListenableFuture<Bitmap>>()
@@ -81,7 +85,8 @@ internal class SessionArt(
                 future.set(bitmap)
             } else {
                 // Not kept: asked again the next time it is shown.
-                future.setException(IOException("No cover"))
+                val instead = standIn(uri)
+                if (instead != null) future.setFuture(loadBitmap(instead)) else future.setException(IOException("No cover"))
             }
         }
         return future

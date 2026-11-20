@@ -135,6 +135,7 @@ class MusicService : MediaLibraryService() {
                 library::picture,
                 CacheBitmapLoader(DataSourceBitmapLoader(this)),
                 drawn = { MusicArt.hueOf(this, it) != null },
+                standIn = { MusicArt.standIn(this, it) },
             )
         }
         val made = MediaLibrarySession.Builder(this, queue, Callback(playback, graph?.musicLibrary))

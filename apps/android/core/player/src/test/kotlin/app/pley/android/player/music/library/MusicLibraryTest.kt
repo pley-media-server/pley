@@ -31,7 +31,7 @@ import org.robolectric.annotation.GraphicsMode
 @RunWith(RobolectricTestRunner::class)
 class MusicLibraryTest {
     private val source = FakeSource()
-    private val library = MusicLibrary(source, { Look }, { path -> Uri.parse("content://art$path") })
+    private val library = MusicLibrary(source, { Look }, { path, _ -> Uri.parse("content://art$path") })
 
     @Test
     fun idsReadBackWhatTheyWrite() {
@@ -231,7 +231,7 @@ class MusicLibraryTest {
 
     @Test
     fun whatHasNoPictureHasItsTitlesPlaceholderAndWhatHasOneKeepsIt() = runTest {
-        val covered = MusicLibrary(source, { Look }, { path -> Uri.parse("content://art$path") }) { seed -> Uri.parse("content://placeholder/$seed") }
+        val covered = MusicLibrary(source, { Look }, { path, _ -> Uri.parse("content://art$path") }) { seed -> Uri.parse("content://placeholder/$seed") }
         val playlists = covered.children(MusicId.Playlists, 0, 50)
         assertEquals("content://placeholder/Night drive", playlists.single().mediaMetadata.artworkUri.toString())
         val albums = covered.children(MusicId.Artist(40), 0, 50).filter { it.mediaId.startsWith("album:") }
@@ -239,6 +239,25 @@ class MusicLibraryTest {
         // The tabs keep their icons, and the library without placeholders shows none for what has no picture.
         assertTrue(covered.children(MusicId.Root, 0, 50).none { it.mediaMetadata.artworkUri.toString().startsWith("content://placeholder") })
         assertNull(library.children(MusicId.Playlists, 0, 50).single().mediaMetadata.artworkUri)
+    }
+
+    @Test
+    fun aPictureCarriesItsPlaceholderForWhenItCantBeHad() = runTest {
+        val seeds = mutableListOf<Pair<String, String?>>()
+        val covered = MusicLibrary(source, { Look }, { path, seed -> seeds += path to seed; Uri.parse("content://art$path") })
+        covered.queueItem(track(51, 50))
+        // A track without a cover of its own is given its album's, which may have none either: its album's placeholder.
+        assertEquals("/api/items/50/images/poster" to "Deep Water", seeds.last())
+
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val uri = MusicArt.uri(context, "/api/items/50/images/poster", "First Light")!!
+        assertEquals("/api/items/50/images/poster", MusicArt.pathOf(context, uri))
+        assertFalse(uri.toString().contains("First"))
+        val standIn = MusicArt.standIn(context, uri)!!
+        assertEquals(PlaceholderCover.hue("First Light"), MusicArt.hueOf(context, standIn))
+        assertNull(MusicArt.hueOf(context, uri))
+        assertNull(MusicArt.standIn(context, MusicArt.uri(context, "/api/items/50/images/poster")!!))
+        assertNull(MusicArt.standIn(context, standIn))
     }
 
     @Test

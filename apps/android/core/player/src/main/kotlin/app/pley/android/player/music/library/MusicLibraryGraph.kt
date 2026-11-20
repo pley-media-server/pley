@@ -32,7 +32,7 @@ class MusicLibraryGraph(
     /** Live TV's tab and channels, when the radio can play them. */
     val live: LiveLibrary? = livePlayback?.let { LiveLibrary(RepositoryLiveSource(data), { liveLook() }, { path -> MusicArt.uri(app, path) }) }
 
-    val library = MusicLibrary(source, { look() }, { path -> MusicArt.uri(app, path) }, live) { seed -> MusicArt.placeholderUri(app, seed) }
+    val library = MusicLibrary(source, { look() }, { path, seed -> MusicArt.uri(app, path, seed) }, live) { seed -> MusicArt.placeholderUri(app, seed) }
 
     /** The car's radio of Live TV's channels; `null` without Live TV here. */
     fun radio(): LiveRadio? {

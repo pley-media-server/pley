@@ -28,24 +28,40 @@ import kotlinx.coroutines.withTimeoutOrNull
 object MusicArt {
     fun authority(context: Context): String = "${context.packageName}.music.art"
 
-    /** The address of the server's picture at [path] ("/api/items/12/images/poster?v=…"); `null` for one it doesn't serve. */
-    fun uri(context: Context, path: String): Uri? {
+    /**
+     * The address of the server's picture at [path] ("/api/items/12/images/poster?v=…"); `null` for one it doesn't
+     * serve. With [seed], the placeholder's hue goes with it ([standIn]): a track without a cover of its own is given
+     * its album's, which the album may not have either.
+     */
+    fun uri(context: Context, path: String, seed: String? = null): Uri? {
         if (!servable(path)) return null
-        return Uri.Builder().scheme("content").authority(authority(context)).appendPath(PICTURE).appendQueryParameter(PATH, path).build()
+        return Uri.Builder().scheme("content").authority(authority(context)).appendPath(PICTURE).appendQueryParameter(PATH, path)
+            .apply { seed?.let { appendQueryParameter(HUE, PlaceholderCover.hue(it).toString()) } }
+            .build()
     }
 
     /**
      * A cover for what has none, [seed] its title ([PlaceholderCover]): drawn
      * by the provider from the title's hue alone, the title not in the address.
      */
-    fun placeholderUri(context: Context, seed: String): Uri = Uri.Builder().scheme("content").authority(authority(context))
-        .appendPath(PLACEHOLDER).appendQueryParameter(HUE, PlaceholderCover.hue(seed).toString()).build()
+    fun placeholderUri(context: Context, seed: String): Uri = placeholderOf(context, PlaceholderCover.hue(seed))
 
     /** The hue a [placeholderUri] names; `null` for any other address. */
     internal fun hueOf(context: Context, uri: Uri): Int? {
         if (uri.scheme != "content" || uri.authority != authority(context) || uri.pathSegments != listOf(PLACEHOLDER)) return null
-        return uri.getQueryParameter(HUE)?.toIntOrNull()?.takeIf { it in 0 until 360 }
+        return hueIn(uri)
     }
+
+    /** The placeholder shown in place of the picture [uri] names when it can't be had; `null` when it has no hue. */
+    internal fun standIn(context: Context, uri: Uri): Uri? {
+        if (pathOf(context, uri) == null) return null
+        return hueIn(uri)?.let { placeholderOf(context, it) }
+    }
+
+    private fun placeholderOf(context: Context, hue: Int): Uri = Uri.Builder().scheme("content").authority(authority(context))
+        .appendPath(PLACEHOLDER).appendQueryParameter(HUE, hue.toString()).build()
+
+    private fun hueIn(uri: Uri): Int? = uri.getQueryParameter(HUE)?.toIntOrNull()?.takeIf { it in 0 until 360 }
 
     /** The server path [uri] names, when it is one of these addresses. */
     internal fun pathOf(context: Context, uri: Uri): String? {
@@ -79,8 +95,13 @@ class MusicArtProvider : ContentProvider() {
         MusicArt.hueOf(context, uri)?.let { hue -> return pipe { PlaceholderCover.png(context, hue) } }
         val path = MusicArt.pathOf(context, uri) ?: throw FileNotFoundException()
         val owner = context.applicationContext as? PlayerGraphOwner ?: throw FileNotFoundException()
-        // One that can't be had in FETCH_MS ends the pipe empty: the car shows no cover.
-        return pipe { runBlocking { withTimeoutOrNull(FETCH_MS) { owner.playerGraph.musicLibrary?.picture(path) } } }
+        val standIn = MusicArt.standIn(context, uri)?.let { MusicArt.hueOf(context, it) }
+        // One that can't be had in FETCH_MS is its placeholder, as the app shows it; without one, the pipe ends empty and
+        // the car shows no cover.
+        return pipe {
+            runBlocking { withTimeoutOrNull(FETCH_MS) { owner.playerGraph.musicLibrary?.picture(path) } }
+                ?: standIn?.let { PlaceholderCover.png(context, it) }
+        }
     }
 
     /**

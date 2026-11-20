@@ -54,6 +54,7 @@ class SessionArtTest {
         },
         other = other,
         decode = { bitmap().also { decoded.incrementAndGet() } },
+        standIn = { uri -> uri.getQueryParameter("h")?.let { Uri.parse("content://pley.art/placeholder?h=$it") } },
     )
 
     /** The decodings done so far, on another thread. */
@@ -120,6 +121,21 @@ class SessionArtTest {
         gates.clear()
         val again = art.loadBitmap(cover(50))
         assertFalse(again.isDone)
+        assertEquals(2, asked.size)
+    }
+
+    @Test
+    fun aCoverThatCantBeHadIsItsPlaceholderWhenItHasOne() {
+        val withHue = Uri.parse("content://pley.art/picture?p=/api/items/50/images/poster&h=120")
+        val first = art.loadBitmap(withHue)
+        arrives(50, bytes = null)
+        assertTrue(first.isDone)
+        assertTrue(runCatching { first.get() }.isSuccess)
+        assertEquals(listOf(Uri.parse("content://pley.art/placeholder?h=120")), elsewhere)
+
+        // The picture is asked for again the next time: the server may have it then.
+        gates.clear()
+        assertFalse(art.loadBitmap(withHue).isDone)
         assertEquals(2, asked.size)
     }
 

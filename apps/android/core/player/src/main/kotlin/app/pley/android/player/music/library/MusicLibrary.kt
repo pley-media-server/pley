@@ -68,7 +68,8 @@ data class MusicSelection(val tracks: List<ItemSummary>, val startIndex: Int = 0
 class MusicLibrary(
     private val source: MusicSource,
     private val look: () -> MusicLibraryLook,
-    private val art: (path: String) -> Uri?,
+    /** A picture's address, with the title of what it shows ([placeholder]'s seed, drawn when it can't be had). */
+    private val art: (path: String, seed: String?) -> Uri?,
     /** Live TV's tab and channels ([LiveLibrary]); `null` without them. */
     val live: LiveLibrary? = null,
     /** The cover for what has none, from its title ([MusicArt.placeholderUri]). */
@@ -318,8 +319,8 @@ class MusicLibrary(
             .setTrackNumber(item.index)
             .setDiscNumber(item.parentIndex)
             .setDurationMs(item.durationMs?.takeIf { it > 0 })
-            // Without a cover of its own, its album's placeholder, as the app shows it.
-            .setArtworkUri(if (inAlbum) null else MusicPlayback.artPath(item)?.let(art) ?: placeholder(item.parentTitle ?: item.title))
+            // Its own cover, else its album's; without one (or one that can't be had), its album's placeholder, as the app shows it.
+            .setArtworkUri(if (inAlbum) null else cover(MusicPlayback.artPath(item), item.parentTitle ?: item.title))
             .setIsBrowsable(false)
             .setIsPlayable(true)
             .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
@@ -350,7 +351,7 @@ class MusicLibrary(
             .setDisplayTitle(title)
             .setSubtitle(subtitle)
             .setArtist(artist)
-            .setArtworkUri(icon ?: artPath?.let(art) ?: seed?.let(placeholder))
+            .setArtworkUri(icon ?: if (seed != null) cover(artPath, seed) else artPath?.let { art(it, null) })
             .setIsBrowsable(browsable)
             .setIsPlayable(playable)
             .setMediaType(mediaType)
@@ -358,6 +359,9 @@ class MusicLibrary(
             .build()
         return MediaItem.Builder().setMediaId(id.text).setMediaMetadata(metadata).build()
     }
+
+    /** The picture at [path], else [seed]'s placeholder: also when the picture named can't be had. */
+    private fun cover(path: String?, seed: String): Uri? = path?.let { art(it, seed) } ?: placeholder(seed)
 
     /** The item under [group]'s heading in its list (none: under the one before). */
     private fun MediaItem.grouped(group: String?): MediaItem {

@@ -1129,7 +1129,9 @@ Google app and the phone's own media controls reading them and nothing
 else. Music without
 a picture has the one the app shows: its title's gradient with Pley's
 mark, drawn on the phone from the title's hue alone, so no title goes
-into the address the car is given. Only Android Auto and the Google app,
+into the address the car is given. So does a picture the server can't
+give: a track without a cover of its own is given its album's, which
+the album may not have either. Only Android Auto and the Google app,
 each checked by the certificate Google signs it with and as the app that
 asks, besides the system's own media controls, may browse Pley's music or
 pick what plays; a media button (a headset's, the steering wheel's, or

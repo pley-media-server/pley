@@ -109,7 +109,7 @@ class LiveLibraryTest {
 
     @Test
     fun theMusicLibraryHasLiveTvAsItsFourthTabAndSearchesItsChannels() = runTest {
-        val library = MusicLibrary(EmptyMusic, { MusicLook }, { null }, live)
+        val library = MusicLibrary(EmptyMusic, { MusicLook }, { _, _ -> null }, live)
         assertEquals(listOf("recent", "artists", "playlists", "live"), library.children(MusicId.Root, 0, 50).map { it.mediaId })
         assertEquals(listOf("channel:3"), library.search("sport").map { it.mediaId })
         assertEquals("live", library.item(MusicId.LiveTv)?.mediaId)
