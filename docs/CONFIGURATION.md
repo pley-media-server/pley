@@ -59,6 +59,7 @@ example, `--plex-bind` is also `PLEY_PLEX_BIND` and `plex_bind`.
 | `--no-tray` | | Never show the tray icon |
 | `--no-discovery` | | Don't answer apps looking for servers on the local network, nor announce Pley there by Bonjour |
 | `--no-bonjour` | | Keep Bonjour off, whatever Settings → Network says: Apple's apps need the server's address typed in |
+| `--tailscale-socket` | Tailscale's own: `/var/run/tailscale/tailscaled.sock`, `/var/run/tailscaled.socket` on macOS, its named pipe on Windows | Where Tailscale's service answers, for [signing in with Tailscale](../SECURITY.md#signing-in-with-tailscale): a NAS's own (Synology: `/var/packages/Tailscale/var/tailscaled.sock`), or a container's |
 
 Everything else is set in the web app:
 

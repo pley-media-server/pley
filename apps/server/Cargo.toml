@@ -33,7 +33,7 @@ getrandom = "0.4"
 hex = "0.4"
 # The HTTP listeners (src/http.rs), as axum runs them but with a timeout for
 # request headers (both already come with axum).
-hyper = { version = "1", features = ["server", "http1"] }
+hyper = { version = "1", features = ["client", "server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 # The network adapters' IPv4 addresses and masks, for Bonjour's links
 # (src/bonjour.rs).

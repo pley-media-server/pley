@@ -21,6 +21,7 @@ mod playlists;
 pub(crate) mod remote;
 mod requests;
 mod subtitles;
+mod tailscale;
 mod two_step;
 mod watchlist;
 
@@ -53,9 +54,11 @@ pub fn router(state: AppState) -> Router {
         .route("/auth/password", put(auth::change_password))
         .route("/auth/profiles", get(auth::profiles))
         .route("/auth/switch", post(auth::switch))
+        .route("/auth/tailscale", get(tailscale::here).post(tailscale::sign_in))
         .route("/me/two-step", get(two_step::status).post(two_step::enable).delete(two_step::disable))
         .route("/me/two-step/setup", post(two_step::setup))
         .route("/me/two-step/recovery-codes", post(two_step::recovery_codes))
+        .route("/me/tailscale", get(tailscale::mine).put(tailscale::link).delete(tailscale::unlink))
         .route("/me", patch(accounts::update_me))
         .route("/me/pin", put(accounts::set_my_pin))
         .route("/me/track-defaults", put(accounts::set_track_defaults))
@@ -358,12 +361,17 @@ pub(crate) fn tv_app_origin(origin: &[u8]) -> bool {
 }
 
 /// What CORS opens to the TV apps: the API and the server's metadata, but
-/// never the consent page's own endpoints (they take pley's page only).
+/// never the consent page's own endpoints (they take pley's page only), nor
+/// who Tailscale says the caller is (a page sandboxed elsewhere has the TV
+/// apps' `null` origin).
 fn cors_path(path: &str) -> bool {
     if path == "/.well-known/oauth-authorization-server" {
         return true;
     }
-    path.starts_with("/api/") && !path.starts_with("/api/oauth/requests") && path != "/api/oauth/device/verify"
+    path.starts_with("/api/")
+        && !path.starts_with("/api/oauth/requests")
+        && path != "/api/oauth/device/verify"
+        && path != "/api/auth/tailscale"
 }
 
 /// Keyed media addresses (docs/API.md, "Keyed URLs"): the key in the path is

@@ -9,8 +9,8 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 
-use crate::auth::AuthUser;
 use crate::auth::compatibility::{self, TokenRow};
+use crate::auth::{AuthUser, SignedInWithTailscale};
 use crate::error::{ApiResult, AppError};
 use crate::state::AppState;
 
@@ -82,8 +82,16 @@ pub async fn list(State(state): State<AppState>, user: AuthUser) -> ApiResult<Js
 pub async fn create(
     State(state): State<AppState>,
     user: AuthUser,
+    SignedInWithTailscale(tailscale): SignedInWithTailscale,
     Json(body): Json<NewToken>,
 ) -> ApiResult<(StatusCode, Json<Created>)> {
+    // A session signed in with Tailscale works only from its person's
+    // devices; a token for other apps would work wherever it is taken.
+    if tailscale.is_some() {
+        return Err(AppError::forbidden(
+            "tokens for other apps are made from a session signed in with the password, not with Tailscale",
+        ));
+    }
     let asked = compatibility::asked(&body.name, body.scope.as_deref(), &body.allowed_from)?;
     compatibility::may_have(asked.scopes, user.is_admin)?;
     let (token, row) = state.auth.create_compatibility_token(user.id, &asked).await?;

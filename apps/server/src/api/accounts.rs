@@ -393,6 +393,7 @@ pub async fn update_user(
     if body.is_admin == Some(false) || body.disabled == Some(true) {
         not_the_last_administrator(&mut tx, id).await?;
     }
+    let password_changed = password_hash.is_some();
     if let Some(hash) = password_hash {
         sqlx::query("UPDATE users SET password_hash = ?, managed = 0 WHERE id = ?")
             .bind(hash)
@@ -407,6 +408,8 @@ pub async fn update_user(
         if id != admin.id {
             sqlx::query("DELETE FROM sessions WHERE user_id = ?").bind(id).execute(&mut *tx).await?;
         }
+        // A Tailscale user linked with the old password goes with it.
+        crate::tailscale::remove_link_within(&mut tx, id, None).await?;
         state.oauth.forget_user(id);
         crate::auth::grants::delete_for_within(&mut tx, id).await?;
         crate::auth::compatibility::delete_for_within(&mut tx, id).await?;
@@ -478,6 +481,10 @@ pub async fn update_user(
     // Its sessions, and every app and compatibility token acting as it or
     // allowed by it: what a new password ended, and what a new role changes.
     state.auth.forget_user(id);
+    if password_changed {
+        // Profiles switched to with its Tailscale link, signed out with it.
+        state.auth.forget_sessions();
+    }
     if sees_otherwise {
         state.events.send(ServerEvent::OwnLibrariesChanged { user_id: id });
     }

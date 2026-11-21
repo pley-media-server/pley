@@ -123,6 +123,11 @@ pub struct Settings {
     /// and is signed out everywhere until then. Off by default; only an
     /// administrator who uses it may turn it on.
     pub require_two_step: bool,
+    /// People sign in with Tailscale (see [`crate::tailscale`]): a device on
+    /// the tailnet signs in as the account its person linked. Off by
+    /// default, and Pley doesn't ask Tailscale anything then; turning it off
+    /// signs out whoever signed in with it.
+    pub tailscale_sign_in: bool,
     /// Pley looks for Google Cast and AirPlay devices on its network, lists
     /// them in the household's Play on…, and plays casts on them (see
     /// [`crate::nearby`]). Off by default: with it off, no device is
@@ -255,6 +260,7 @@ impl Default for Settings {
             library_work_max_cpu: 50,
             third_party_apps: false,
             require_two_step: false,
+            tailscale_sign_in: false,
             cast_devices: false,
             proxy_addresses: Vec::new(),
             opensubtitles_api_key: String::new(),
@@ -633,6 +639,7 @@ pub struct SettingsPatch {
     pub library_work_max_cpu: Option<u8>,
     pub third_party_apps: Option<bool>,
     pub require_two_step: Option<bool>,
+    pub tailscale_sign_in: Option<bool>,
     pub cast_devices: Option<bool>,
     pub proxy_addresses: Option<Vec<String>>,
     pub opensubtitles_api_key: Option<String>,
@@ -831,6 +838,9 @@ impl SettingsStore {
         }
         if let Some(v) = patch.require_two_step {
             next.require_two_step = v;
+        }
+        if let Some(v) = patch.tailscale_sign_in {
+            next.tailscale_sign_in = v;
         }
         if let Some(v) = patch.cast_devices {
             next.cast_devices = v;
@@ -1190,6 +1200,20 @@ mod tests {
         assert!(SettingsStore::load(&db).await.unwrap().get().require_two_step, "kept");
         let s = store.update(&db, patch(serde_json::json!({"server_name": "Den"}))).await.unwrap();
         assert!(s.require_two_step, "other changes leave it alone");
+    }
+
+    #[tokio::test]
+    async fn tailscale_sign_in_is_off_until_turned_on() {
+        let (_dir, db, store) = store().await;
+        assert!(!store.get().tailscale_sign_in, "off on a new server");
+        sqlx::query("INSERT INTO settings (key, value) VALUES ('server', '{\"server_name\":\"Attic\"}')")
+            .execute(&db.write)
+            .await
+            .unwrap();
+        assert!(!SettingsStore::load(&db).await.unwrap().get().tailscale_sign_in, "off after an upgrade");
+        let s = store.update(&db, patch(serde_json::json!({"tailscale_sign_in": true}))).await.unwrap();
+        assert!(s.tailscale_sign_in);
+        assert!(SettingsStore::load(&db).await.unwrap().get().tailscale_sign_in, "kept");
     }
 
     fn encoder(name: &str, accel: HwAccel) -> pley_transcoder_api::EncoderInfo {

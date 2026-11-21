@@ -8,9 +8,9 @@ use super::remote;
 use crate::accounts::{self, UserDto};
 use crate::auth::grants::APP_TOKEN_PREFIX;
 use crate::auth::{
-    AuthUser, ClientIp, CurrentToken, PeerIp, SourceIp, clear_cookie, compatibility, dummy_password_hash,
-    forwarded_https, hash_password, hash_token, session_cookie, token_from_parts, validate_password, validate_username,
-    verify_password,
+    AuthUser, ClientIp, CurrentToken, PeerIp, SignedInWithTailscale, SourceIp, clear_cookie, compatibility,
+    dummy_password_hash, forwarded_https, hash_password, hash_token, session_cookie, token_from_parts,
+    validate_password, validate_username, verify_password,
 };
 use crate::error::{ApiResult, AppError};
 use crate::state::AppState;
@@ -151,8 +151,22 @@ pub(crate) async fn login_response(
     ip: Option<&str>,
     recovery_codes: Option<Vec<String>>,
 ) -> ApiResult<Response> {
+    login_response_as(state, user_id, headers, ip, recovery_codes, None).await
+}
+
+/// [`login_response`] for a session signed in with Tailscale as
+/// `tailscale_user`, or switched to from one
+/// ([`crate::auth::AuthService::create_session_as`]).
+pub(crate) async fn login_response_as(
+    state: &AppState,
+    user_id: i64,
+    headers: &HeaderMap,
+    ip: Option<&str>,
+    recovery_codes: Option<Vec<String>>,
+    tailscale_user: Option<&str>,
+) -> ApiResult<Response> {
     let agent = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok());
-    let token = state.auth.create_session(user_id, agent, ip).await?;
+    let token = state.auth.create_session_as(user_id, agent, ip, tailscale_user).await?;
     let user = accounts::user(&state.db, user_id).await?.ok_or(AppError::Unauthorized)?;
     let cookie = session_cookie(&token, forwarded_https(headers));
     // Browsers (whose requests carry an Origin, which page scripts can't
@@ -441,7 +455,10 @@ pub async fn change_password(
         .bind(&keep)
         .execute(&mut *tx)
         .await?;
+    // A Tailscale user linked with the old password goes with it.
+    crate::tailscale::remove_link_within(&mut tx, user.id, Some(&keep)).await?;
     tx.commit().await?;
+    state.auth.forget_sessions();
     // The apps acting as this account or allowed by it end too, with the
     // ones it was signing in: codes not exchanged yet, even this session's,
     // and TVs allowed that haven't asked for their answer yet.
@@ -839,6 +856,7 @@ pub async fn switch(
     headers: HeaderMap,
     ClientIp(ip): ClientIp,
     CurrentToken(token): CurrentToken,
+    SignedInWithTailscale(tailscale_user): SignedInWithTailscale,
     Json(body): Json<Switch>,
 ) -> ApiResult<Response> {
     let recovery_codes = match body.ticket.as_deref() {
@@ -863,5 +881,7 @@ pub async fn switch(
     if let Some(token) = token {
         state.auth.revoke(&token).await;
     }
-    login_response(&state, body.user_id, &headers, ip.as_deref(), recovery_codes).await
+    // A session signed in with Tailscale switches to one that is too: the
+    // profile works only over the tailnet from the same person.
+    login_response_as(&state, body.user_id, &headers, ip.as_deref(), recovery_codes, tailscale_user.as_deref()).await
 }

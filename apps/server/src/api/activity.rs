@@ -18,7 +18,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use super::remote::{self, SessionKind};
 use crate::access;
 use crate::auth::scopes::Scope;
-use crate::auth::{AuthUser, CurrentToken, SourceIp};
+use crate::auth::{AuthUser, CurrentToken, PeerAddr, SourceIp};
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
 use crate::i18n;
@@ -202,6 +202,7 @@ pub async fn events(
     user: AuthUser,
     CurrentToken(token): CurrentToken,
     SourceIp(address): SourceIp,
+    PeerAddr(peer): PeerAddr,
     headers: HeaderMap,
     query: Result<Query<EventsQuery>, QueryRejection>,
 ) -> ApiResult<Sse<impl Stream<Item = Result<Event, Infallible>>>> {
@@ -265,7 +266,7 @@ pub async fn events(
                     () = ended.cancelled() => break,
                 }
                 let Some(user) = (match token.as_deref() {
-                    Some(token) => state.auth.validate_any(token).await,
+                    Some(token) => state.auth.validate_any(token, peer).await,
                     None => None,
                 }) else {
                     ended.cancel();
