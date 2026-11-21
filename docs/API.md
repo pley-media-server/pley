@@ -2825,7 +2825,11 @@ reports still send the version 1 fields: `containers` always counts;
   [Dolby Vision remuxes](#dolby-vision-remuxes).
 - **Audio** plays as it is when its codec is in `audio_decode` or
   `audio_passthrough`. With `audio_track_switching`, a track other than the
-  file's default needs no HLS: the player switches to it itself.
+  file's default needs no HLS: the player switches to it itself. A stream
+  copies AAC, MP3, AC-3 and E-AC-3 the player lists, whatever the `mode`
+  (`transcode` re-encodes only the video). So a player whose decoder fails
+  on a track asks again with that codec left out of both lists: the server
+  then picks another track that plays, or converts this one.
 - **Picture subtitles** (PGS, VobSub, DVB) in `subtitle_codecs` are shown
   by the player when the file plays as it is. When it doesn't, or a
   stream is asked for (`remux`, `transcode`), they are burned in as for

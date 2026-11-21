@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A video whose audio the device can't decode (Dolby Atmos in E-AC-3 on
+  some phones) plays with the audio converted by the server, or another
+  track, instead of failing after a transcode.
+
 ## [0.1.16] - 2026-11-20
 
 ### Added

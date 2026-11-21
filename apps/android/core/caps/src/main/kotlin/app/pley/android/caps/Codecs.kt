@@ -49,6 +49,9 @@ object Codecs {
         "audio/raw" to listOf("pcm_s16le", "pcm_s24le"),
     )
 
+    /** The server's codec name for encoded audio of [mime] ("audio/eac3-joc" is "eac3"); `null` for PCM and types not listed. */
+    fun audioCodecOf(mime: String?): String? = mime?.takeIf { it != "audio/raw" }?.let { AUDIO[it]?.firstOrNull() }
+
     /** Every type the probe lists decoders for. */
     val PROBED_MIMES: Set<String> = VIDEO.keys + DOLBY_VISION + AUDIO.keys
 

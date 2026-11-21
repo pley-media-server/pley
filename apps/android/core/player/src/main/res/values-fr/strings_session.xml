@@ -31,6 +31,7 @@
     <string name="session_method_transcode">Transcodage</string>
     <string name="session_method_remux_audio">Flux direct · Audio transcodé</string>
     <string name="session_fallback_unplayable">Cet appareil n’a pas pu lire le fichier original.</string>
+    <string name="session_fallback_audio_unplayable">Cet appareil n’a pas pu lire l’audio original.</string>
     <string name="session_fallback_not_smooth">L’original n’était pas fluide sur cet appareil.</string>
     <string name="session_slow_server">Le serveur n’arrive pas à suivre cette vidéo. Essayez une qualité inférieure.</string>
 
