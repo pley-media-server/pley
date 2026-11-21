@@ -165,3 +165,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Version picker shows; Version names the edition, with the picture, codec
   and size in its menu; and Audio and Subtitles show their choice on one
   line.
+
+### Fixed
+
+- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
+

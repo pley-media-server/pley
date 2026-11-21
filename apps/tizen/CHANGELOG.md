@@ -239,6 +239,9 @@ describes how they are made.
   its page as from Home and Continue Watching: the one this TV plays
   best, unless you pick another. The page's badges and tracks are that
   version's.
+- A video's Dolby Vision profile is named in Traditional Chinese, not
+  English.
+- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
 
 ## [0.0.1] - 2026-10-29
 

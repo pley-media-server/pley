@@ -25,8 +25,8 @@
     "all": "全部",
     "unwatched": "未觀看",
     "watched": "已觀看",
-    "genre": "型別",
-    "allGenres": "所有型別",
+    "genre": "類型",
+    "allGenres": "所有類型",
     "year": "年份",
     "allYears": "所有年份",
     "resolution": "解析度",
@@ -36,7 +36,7 @@
     "clearFilters": "清除篩選",
     "saveAs": "另存為…",
     "unchosen": {
-      "genre": "所有型別",
+      "genre": "所有類型",
       "year": "所有年份",
       "resolution": "所有解析度",
       "dynamicRange": "所有動態範圍"
@@ -93,7 +93,7 @@
     "noneBody": "請讓伺服器所有者新增一個媒體庫。"
   },
   "smartFilter": {
-    "genre": "型別：{{value}}",
+    "genre": "類型：{{value}}",
     "label": "標籤：{{value}}",
     "studio": "製作公司：{{value}}",
     "rated": "分級 {{value}}",

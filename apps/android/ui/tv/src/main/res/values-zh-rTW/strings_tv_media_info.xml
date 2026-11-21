@@ -16,7 +16,7 @@
     <string name="tv_readout_subtitles">字幕</string>
     <string name="tv_readout_codec">編解碼器</string>
     <string name="tv_readout_codec_string">編解碼器字串</string>
-    <string name="tv_readout_profile">Profile</string>
+    <string name="tv_readout_profile">設定檔</string>
     <string name="tv_readout_resolution">解析度</string>
     <string name="tv_readout_frame_rate">幀率</string>
     <string name="tv_readout_interlaced">%1$s，隔行掃描</string>

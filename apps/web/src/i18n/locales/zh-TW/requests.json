@@ -64,7 +64,7 @@
       "mine": "我的"
     },
     "statusGroup": "狀態",
-    "kindGroup": "型別",
+    "kindGroup": "類型",
     "all": "全部",
     "statuses": {
       "pending": "待處理",

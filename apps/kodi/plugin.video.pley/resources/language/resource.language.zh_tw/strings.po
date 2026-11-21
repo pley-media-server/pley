@@ -255,7 +255,7 @@ msgstr "未觀看"
 
 msgctxt "#30110"
 msgid "Genre"
-msgstr "型別"
+msgstr "類型"
 
 msgctxt "#30111"
 msgid "Year"
@@ -419,7 +419,7 @@ msgstr "最近播放"
 
 msgctxt "#30151"
 msgid "All genres"
-msgstr "所有型別"
+msgstr "所有類型"
 
 msgctxt "#30152"
 msgid "All years"

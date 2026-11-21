@@ -12,6 +12,9 @@ describes how they are made.
 
 - A video whose audio the TV can't play plays with the audio converted by
   the server, or another track, instead of failing after a transcode.
+- A video's Dolby Vision profile is named in Traditional Chinese, not
+  English.
+- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
 
 ## [0.1.12] - 2026-11-20
 

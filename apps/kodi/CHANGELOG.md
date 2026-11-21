@@ -8,6 +8,10 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
+
 ## [0.1.10] - 2026-11-20
 
 ### Added
