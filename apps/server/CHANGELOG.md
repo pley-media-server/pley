@@ -16,6 +16,11 @@ describes how they are made.
   a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre and 項目
   for an item, and quotes with 「」.
 - Simplified Chinese calls an artist 艺人 everywhere.
+- Jellyfin apps that retry after a playback error, as jellyfin-web does,
+  get the video converted and then the sound too, rather than the same
+  stream again: their requests not to copy the video or the audio
+  (`AllowVideoStreamCopy`, `AllowAudioStreamCopy`) are kept, and the sound
+  is never made again in the codec that failed.
 
 ## [0.1.14] - 2026-11-20
 
