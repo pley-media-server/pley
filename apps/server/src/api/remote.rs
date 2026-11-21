@@ -1419,6 +1419,7 @@ mod tests {
                 })
             }),
             compatibility: token.then_some(CompatibilityAccess { token_id: 3, scopes: compatibility::Scopes::play() }),
+            shows_audiobooks: false,
         }
     }
 

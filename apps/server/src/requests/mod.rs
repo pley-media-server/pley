@@ -3590,6 +3590,7 @@ mod tests {
             max_age,
             app: None,
             compatibility: None,
+            shows_audiobooks: false,
         };
         assert!(!restricted(&user(None), None));
         assert!(restricted(&user(Some(13)), None), "unrated");

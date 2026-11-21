@@ -483,6 +483,7 @@ pub async fn holder(db: &Db, token: &str, client_id: &str, two_step_required: bo
             by_cast,
         })),
         compatibility: None,
+        shows_audiobooks: false,
     };
     Ok(Holder { grant_id, client_id: owner, scopes, approved_by, user })
 }
