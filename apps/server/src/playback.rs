@@ -384,6 +384,12 @@ pub struct PlaybackRequest {
     /// the player.
     #[serde(skip)]
     pub copy_video_only: bool,
+    /// The audio is converted, never copied nor played as it is: a Jellyfin
+    /// app asked so (`AllowAudioStreamCopy=false`), as its player does once
+    /// it has failed on the track. Set by the server, never read from the
+    /// player.
+    #[serde(skip)]
+    pub convert_audio: bool,
     /// Which device the session plays on, when the server starts it for a
     /// device that has no sign-in of its own (a Cast device,
     /// [`crate::cast`]). Set by the server, never read from the player.
@@ -1551,6 +1557,10 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
     };
     let audio_ok = match audio {
         None => true,
+        Some(_) if req.convert_audio => {
+            reasons.push("Audio conversion requested.".into());
+            false
+        }
         Some(a) if caps.plays_audio(&a.codec) => true,
         Some(a) => {
             reasons.push(format!("{} audio not supported.", codec_label(&a.codec)));
@@ -1686,7 +1696,7 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
     });
     let audio_req = audio.map(|a| {
         // As the choice of the track counted on (streams::fit).
-        let copy = crate::streams::AudioOut::stream_copies(caps, &a.codec);
+        let copy = !req.convert_audio && crate::streams::AudioOut::stream_copies(caps, &a.codec);
         let (codec, channels) = converted_audio(caps, a);
         AudioRequest {
             stream_index: Some(a.index),
@@ -3070,6 +3080,7 @@ mod tests {
             fmp4_segments: false,
             download: false,
             copy_video_only: false,
+            convert_audio: false,
             stream_only: false,
             api: Api::Pley,
             device_id: None,

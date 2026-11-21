@@ -774,7 +774,14 @@ without a base layer.
 - The sound is copied when its codec is listed (AAC, MP3, AC-3, E-AC-3),
   else converted: to E-AC-3 or AC-3 5.1 where the app lists them and takes
   six channels, else to AAC on as many channels as it takes, up to 5.1
-  (stereo when it doesn't say).
+  (stereo when it doesn't say). `AllowAudioStreamCopy=false` converts it
+  whatever it is, in the same way.
+- `AllowVideoStreamCopy=false` and `AllowAudioStreamCopy=false` sent to
+  `PlaybackInfo` apply too, as Jellyfin's apps send them when they retry
+  after a playback error: the file isn't played as it is, and the
+  `TranscodingUrl` carries them, where jellyfin-web looks for them to know
+  how far its retries have gone (the video converted first, then the
+  sound too).
 - The answer is the stream's own multivariant playlist, which names what
   it carries (`CODECS`, `SUPPLEMENTAL-CODECS` for Dolby Vision,
   `VIDEO-RANGE`), in one size; `TranscodingContainer` says `mp4` for fMP4.

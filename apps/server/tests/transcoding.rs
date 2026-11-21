@@ -216,6 +216,9 @@ fn probe_result(path: &str) -> Option<MediaInfo> {
     } else if path.contains("Turned") {
         // A phone's video, held upright: landscape frames, shown turned.
         vec![MediaStream { rotation: Some(90), ..video("h264") }, audio(1, "ac3", "eng", true)]
+    } else if path.contains("Surround") {
+        // H.264 with E-AC-3 5.1 alone.
+        vec![video("h264"), audio(1, "eac3", "eng", true)]
     } else if mkv {
         vec![
             video("h264"),
@@ -2599,6 +2602,111 @@ async fn jellyfin_apps_stream_hevc_hdr_and_surround_as_their_profiles_allow() {
     assert_eq!((job.segment_format, job.video.unwrap().mode), (SegmentFormat::Ts, VideoMode::Copy));
     app.jf(Method::GET, &format!("{ts}&AllowVideoStreamCopy=false"), admin, None).await;
     assert_eq!(w.fake.last_request().video.unwrap().mode, VideoMode::Transcode);
+}
+
+/// "Surround" (H.264 with E-AC-3 5.1), in a library of its own: its
+/// Jellyfin id.
+async fn surround(w: &World) -> String {
+    let (app, admin) = (&w.app, w.admin.as_str());
+    app.media_file("surround/Surround (2023)/Surround (2023).mkv", 6144);
+    let library = app.library(admin, "Surround", "movies", "surround").await;
+    app.jf_item(app.ids(library, admin).await["Surround"])
+}
+
+/// A Jellyfin app's profile for a stereo device that plays E-AC-3: files in
+/// `direct` containers played as they are, and HLS in MPEG-TS with H.264,
+/// and AAC, AC-3 or E-AC-3 on two channels.
+fn stereo_profile(direct: &str) -> Value {
+    json!({
+        "DirectPlayProfiles": [{"Container": direct, "VideoCodec": "h264", "AudioCodec": "aac,ac3,eac3", "Type": "Video"}],
+        "TranscodingProfiles": [{"Type": "Video", "Container": "ts", "Protocol": "hls",
+            "VideoCodec": "h264", "AudioCodec": "aac,ac3,eac3", "MaxAudioChannels": "2"}],
+    })
+}
+
+#[tokio::test]
+async fn jellyfin_streams_copy_the_sound_the_device_takes() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let film = surround(&w).await;
+    let asked = json!({"DeviceProfile": stereo_profile("mp4")});
+    let info = app.jf(Method::POST, &format!("/Items/{film}/PlaybackInfo"), admin, Some(asked)).await;
+    assert_eq!(info.status, StatusCode::OK, "{}", info.text());
+    let url = info.body["MediaSources"][0]["TranscodingUrl"].as_str().unwrap().to_owned();
+    assert!(!url.to_lowercase().contains("streamcopy"), "{url}");
+
+    // Only the container changes: the H.264 and the E-AC-3 are copied.
+    let master = app.jf(Method::GET, &url, admin, None).await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    let job = w.fake.last_request();
+    let (video, audio) = (job.video.unwrap(), job.audio.unwrap());
+    assert_eq!((video.mode, audio.mode, audio.stream_index), (VideoMode::Copy, AudioMode::Copy, Some(1)));
+}
+
+/// jellyfin-web retries a stream that failed with the video converted
+/// (`AllowVideoStreamCopy=false`), then the sound too
+/// (`AllowAudioStreamCopy=false`), and tells how far it has gone from the
+/// stream's address.
+#[tokio::test]
+async fn jellyfin_apps_that_turn_audio_copies_off_get_the_sound_converted() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let film = surround(&w).await;
+    let playback_info = async |asked: Value| {
+        let info = app.jf(Method::POST, &format!("/Items/{film}/PlaybackInfo"), admin, Some(asked)).await;
+        assert_eq!(info.status, StatusCode::OK, "{}", info.text());
+        info.body["MediaSources"][0].clone()
+    };
+    let last_job = || {
+        let job = w.fake.last_request();
+        (job.video.unwrap().mode, job.audio.unwrap())
+    };
+
+    // A device that plays the file as it is gets a stream instead, whose
+    // sound is converted as for Pley's own players (stereo AAC here) and
+    // whose video is still copied.
+    let plays_it = playback_info(json!({"DeviceProfile": stereo_profile("mkv")})).await;
+    assert_eq!(plays_it["SupportsDirectPlay"], json!(true));
+    let source = playback_info(json!({"DeviceProfile": stereo_profile("mkv"), "AllowAudioStreamCopy": false})).await;
+    assert_eq!((&source["SupportsDirectPlay"], &source["SupportsDirectStream"]), (&json!(false), &json!(false)));
+    let url = source["TranscodingUrl"].as_str().unwrap().to_owned();
+    assert!(url.contains("AllowAudioStreamCopy=false") && !url.contains("AllowVideoStreamCopy"), "{url}");
+    let master = app.jf(Method::GET, &url, admin, None).await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    let (video, audio) = last_job();
+    assert_eq!(video, VideoMode::Copy);
+    assert_eq!((audio.mode, audio.codec, audio.channels), (AudioMode::Transcode, AudioCodec::Aac, Some(2)));
+
+    // jellyfin-web's retries, which it tells apart by the address,
+    // lowercased: the video converted first, the sound still copied…
+    let mut retry = json!({
+        "DeviceProfile": stereo_profile("mp4"),
+        "EnableDirectPlay": false,
+        "EnableDirectStream": false,
+        "AllowVideoStreamCopy": false,
+    });
+    let first = playback_info(retry.clone()).await["TranscodingUrl"].as_str().unwrap().to_owned();
+    let lower = first.to_lowercase();
+    assert!(lower.contains("allowvideostreamcopy=false") && !lower.contains("allowaudiostreamcopy"), "{first}");
+    app.jf(Method::GET, &first, admin, None).await;
+    let (video, audio) = last_job();
+    assert_eq!((video, audio.mode), (VideoMode::Transcode, AudioMode::Copy));
+    // …then both, its last try.
+    retry["AllowAudioStreamCopy"] = json!(false);
+    let second = playback_info(retry).await["TranscodingUrl"].as_str().unwrap().to_owned();
+    let lower = second.to_lowercase();
+    assert!(lower.contains("allowvideostreamcopy=false") && lower.contains("allowaudiostreamcopy=false"), "{second}");
+    app.jf(Method::GET, &second, admin, None).await;
+    let (video, audio) = last_job();
+    assert_eq!((video, audio.mode, audio.codec), (VideoMode::Transcode, AudioMode::Transcode, AudioCodec::Aac));
+
+    // Apps that send it in PlaybackInfo's query rather than its body.
+    let asked = json!({"DeviceProfile": stereo_profile("mp4")});
+    let info = app
+        .jf(Method::POST, &format!("/Items/{film}/PlaybackInfo?AllowAudioStreamCopy=false"), admin, Some(asked))
+        .await;
+    let url = info.body["MediaSources"][0]["TranscodingUrl"].as_str().unwrap().to_owned();
+    assert!(url.contains("AllowAudioStreamCopy=false"), "{url}");
 }
 
 #[tokio::test]
