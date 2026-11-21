@@ -95,6 +95,12 @@ pub fn playing_audio(file: Option<&MediaFile>, info: &PlaybackInfo) -> Option<Me
         .map(|s| (*s).clone())
 }
 
+/// The audio track a file starts with, before the player switches: its default, else its first.
+pub fn starting_audio(file: Option<&MediaFile>) -> Option<MediaStream> {
+    let audio = audio_streams(file);
+    audio.iter().find(|s| s.default).or(audio.first()).map(|s| (*s).clone())
+}
+
 /// The subtitles to start with: as asked (-1: none, as the title's page or a cast asks), else the
 /// profile's choice; none is off, whatever the file flags.
 pub fn initial_subtitle(file: Option<&MediaFile>, requested: Option<i64>) -> Option<MediaStream> {

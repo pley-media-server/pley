@@ -727,6 +727,45 @@ fn a_track_picked_whose_codec_failed_here_goes_to_the_server() {
     assert!(!requests[2].caps.audio_codecs.iter().any(|c| c == "eac3"));
 }
 
+#[test]
+fn an_audio_failure_before_the_switch_is_the_track_the_file_starts_with() {
+    // The file starts with E-AC-3; once that is refused, the server picks the AC-3 beside it.
+    let mut f = file();
+    f.streams = vec![
+        f.streams[0].clone(),
+        stream(1, "audio", "eac3", Some("eng"), true, |s| s.channels = Some(6)),
+        stream(2, "audio", "ac3", Some("eng"), false, |s| s.channels = Some(6)),
+    ];
+    let fake = Fake::new(item(f), |req| {
+        info(|i| {
+            let eac3 = req.caps.audio_codecs.iter().any(|c| c == "eac3");
+            i.audio_index = req.audio_index.or(Some(if eac3 { 1 } else { 2 }));
+            if req.mode == PlaybackMode::Remux {
+                i.session_id = "s3".into();
+                i.method = PlaybackMethod::Remux;
+                i.hls = true;
+                i.url = "/api/media/pley_mk_KEY3/master.m3u8".into();
+            } else if !eac3 {
+                i.session_id = "s2".into();
+            }
+        })
+    });
+    let mut w = World::new(fake, |_| ());
+    w.start();
+    w.open();
+    w.sim.fail(3, "audio decoder");
+    w.advance(100);
+    // The AC-3 is switched to once the pipeline lists its tracks; before that, the E-AC-3 the
+    // file starts with fails again. The AC-3 isn't refused: a remux carries it alone.
+    assert_eq!(w.sim.loads().len(), 2);
+    w.sim.fail(3, "audio decoder");
+    w.advance(100);
+    assert_eq!(w.fake.modes(), [PlaybackMode::Auto, PlaybackMode::Auto, PlaybackMode::Remux]);
+    let caps = &w.fake.requests()[2].caps;
+    assert!(caps.audio_decode.iter().any(|c| c == "ac3"));
+    assert!(!caps.audio_codecs.iter().any(|c| c == "eac3"));
+}
+
 // ---- the server out of reach
 
 /// A playback that has shown its picture, standing still.

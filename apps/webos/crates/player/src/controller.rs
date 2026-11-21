@@ -60,7 +60,8 @@ use crate::nextup::{
 use crate::plan::{
     self, Choices, PlayRequest, audio_plays_here, audio_streams, choose_file, dv_container_mode, dv_retry_mode,
     initial_audio, initial_subtitle, is_keyed, is_picture, mime_type_of, needs_indexes, picture_path, playback_request,
-    playing_audio, subtitle_streams, text_path, video_stream_of, will_stream, with_width, without_audio,
+    playing_audio, starting_audio, subtitle_streams, text_path, video_stream_of, will_stream, with_width,
+    without_audio,
 };
 use crate::prepare::{PREPARE_LEAD_MS, PREPARE_MAX_MS, warm_stream};
 use crate::quality::{
@@ -1831,11 +1832,15 @@ impl PlaybackController {
             return None;
         }
         let file = self.file.as_ref();
-        let played = self
-            .tracks_now
-            .audio
-            .and_then(|index| audio_streams(file).into_iter().find(|s| s.index == index).cloned())
-            .or_else(|| playing_audio(file, info))?;
+        // Until the pipeline lists its tracks, the one chosen isn't switched to: the file plays the one it starts with.
+        let played = if self.audio_pending.is_some() {
+            starting_audio(file)
+        } else {
+            self.tracks_now
+                .audio
+                .and_then(|index| audio_streams(file).into_iter().find(|s| s.index == index).cloned())
+                .or_else(|| playing_audio(file, info))
+        }?;
         self.sent_caps()?.plays_audio(&played.codec).then_some(played.codec)
     }
 
