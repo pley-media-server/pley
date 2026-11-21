@@ -43,8 +43,9 @@ function Status({ mine, onLink }: { mine: MyTailscale; onLink: () => void }) {
   const toast = useToast();
   // Administrators sign in with Tailscale only with two-step sign-in on.
   const needsTwoStep = user.is_admin && !user.two_step;
-  // Someone else's Tailscale user here, or one not linked yet.
-  const canLink = mine.on && mine.here && mine.here.username !== user.username;
+  // A Tailscale user here that isn't linked yet, or was linked to this
+  // account before another; not one linked to another account.
+  const canLink = mine.on && mine.here && mine.here.username !== user.username && !mine.here.elsewhere;
   const linkedHere = mine.linked && mine.here?.username === user.username;
 
   return (
@@ -61,7 +62,9 @@ function Status({ mine, onLink }: { mine: MyTailscale; onLink: () => void }) {
           {mine.here
             ? linkedHere
               ? t("tailscale.thisDevice")
-              : t("tailscale.here", { login: mine.here.login })
+              : mine.here.elsewhere
+                ? t("tailscale.hereElsewhere", { login: mine.here.login })
+                : t("tailscale.here", { login: mine.here.login })
             : mine.server_name
               ? t("tailscale.notHereNamed", { name: mine.server_name })
               : t("tailscale.notHere")}
@@ -70,7 +73,7 @@ function Status({ mine, onLink }: { mine: MyTailscale; onLink: () => void }) {
       {mine.problem ? <p className="mt-2 text-sm text-danger">{t("tailscale.problem", { problem: mine.problem })}</p> : null}
       {canLink && needsTwoStep ? <p className="mt-2 text-sm text-danger">{t("tailscale.adminNeedsTwoStep")}</p> : null}
       {unlink.error ? <p className="mt-2 text-sm text-danger">{errorMessage(unlink.error)}</p> : null}
-      <div className="mt-4 flex flex-wrap justify-end gap-2">
+      <div className="mt-4 flex flex-wrap justify-end gap-2 empty:hidden">
         {mine.linked ? (
           <Button
             variant="ghost"

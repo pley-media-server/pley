@@ -75,6 +75,18 @@ describe("TailscaleCard", () => {
     expect(screen.queryByRole("button", { name: /^Link/ })).not.toBeInTheDocument();
   });
 
+  it("offers no link for a Tailscale user linked to another account", async () => {
+    serve({ on: true, linked: null, here: { ...HERE, elsewhere: true } });
+    renderWithProviders(<TailscaleCard />, { user: { ...testUser, is_admin: false } });
+
+    expect(
+      await screen.findByText(
+        "This device is signed in to Tailscale as alice@example.com, which is linked to another Pley account.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Link/ })).not.toBeInTheDocument();
+  });
+
   it("stays hidden while the server has it off and nothing is linked", async () => {
     const requests = serve({ on: false, linked: null, here: null });
     renderWithProviders(<TailscaleCard />);

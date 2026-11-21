@@ -195,6 +195,7 @@
     "linkedTo": "Lié à {{login}} depuis le {{date}} : les appareils connectés à Tailscale en tant que {{login}} se connectent à Pley sans votre mot de passe.",
     "thisDevice": "Cet appareil en fait partie.",
     "here": "Cet appareil est connecté à Tailscale en tant que {{login}}.",
+    "hereElsewhere": "Cet appareil est connecté à Tailscale en tant que {{login}}, qui est lié à un autre compte Pley.",
     "notHere": "Pour le lier, ouvrez Pley à son nom ou son adresse Tailscale sur un appareil connecté à Tailscale.",
     "notHereNamed": "Pour le lier, ouvrez Pley à l’adresse {{name}} sur un appareil connecté à Tailscale.",
     "problem": "Pley ne peut pas interroger Tailscale : {{problem}}",

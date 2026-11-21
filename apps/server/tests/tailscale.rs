@@ -277,6 +277,7 @@ async fn a_linked_person_signs_in_from_their_device_alone() {
     let bob = app.login("bob", "test-pass-1").await;
     let r = call(&app, Method::GET, "/api/me/tailscale", ALICE, SERVER, Some(&bob), None, &[]).await;
     assert_eq!(r.body["here"]["username"], Value::Null, "{}", r.body);
+    assert_eq!(r.body["here"]["elsewhere"], json!(true), "so Bob isn't offered to link it");
     let r = link(&app, ALICE, &bob, json!({"password": "test-pass-1"})).await;
     assert_eq!(r.status, StatusCode::CONFLICT, "{}", r.body);
 

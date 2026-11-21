@@ -701,9 +701,9 @@ Tailscale service on its computer who the other end of each connection is
 interface MyTailscale {
   on: boolean;                      // tailscale_sign_in
   linked: { login: string; linked_at: number } | null;
-  here: { login: string; name: string; username: string | null } | null;
+  here: { login: string; name: string; username: string | null; elsewhere?: true } | null;
                                     // who Tailscale says this device is; `username` only when it is
-                                    // this account's
+                                    // this account's, `elsewhere` when they linked another one
   server_name?: string;             // administrators: this server's Tailscale name
   problem?: string;                 // administrators: why Pley can't ask Tailscale
 }

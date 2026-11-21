@@ -181,6 +181,8 @@ export interface TailscalePerson {
   name: string;
   /** The account they linked, which they sign in as; on the account page, only when it is the one signed in. */
   username: string | null;
+  /** On the account page: they linked another account (a profile switched to on their device). */
+  elsewhere?: boolean;
 }
 
 /** The account's Tailscale link (`GET /api/me/tailscale`). */

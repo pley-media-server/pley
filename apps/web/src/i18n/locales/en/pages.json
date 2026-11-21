@@ -193,6 +193,7 @@
     "linkedTo": "Linked to {{login}} since {{date}}: devices signed in to Tailscale as {{login}} sign in to Pley without your password.",
     "thisDevice": "This device is one of them.",
     "here": "This device is signed in to Tailscale as {{login}}.",
+    "hereElsewhere": "This device is signed in to Tailscale as {{login}}, which is linked to another Pley account.",
     "notHere": "To link it, open Pley at its Tailscale name or address on a device signed in to Tailscale.",
     "notHereNamed": "To link it, open Pley at {{name}} on a device signed in to Tailscale.",
     "problem": "Pley can't ask Tailscale: {{problem}}",

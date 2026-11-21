@@ -93,6 +93,10 @@ struct HerePerson {
     name: String,
     /// The account they linked, which they sign in as.
     username: Option<String>,
+    /// On the account page: they linked another account, not this one (a
+    /// profile switched to on their device), which can't link them too.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    elsewhere: bool,
 }
 
 /// The account linked to `person`, by its name.
@@ -122,7 +126,7 @@ pub async fn here(
         None => None,
         Some(person) => {
             let username = linked_username(&state, &person, true).await?;
-            Some(HerePerson { login: person.login, name: person.name, username })
+            Some(HerePerson { login: person.login, name: person.name, username, elsewhere: false })
         }
     };
     Ok(([(header::CACHE_CONTROL, "no-store")], Json(Here { tailscale })).into_response())
@@ -237,8 +241,10 @@ async fn mine_of(state: &AppState, user: &AuthUser, peer: Option<SocketAddr>, he
         None => None,
         Some(person) => {
             // Another account's name is that account's to know.
-            let username = linked_username(state, &person, false).await?.filter(|name| *name == user.username);
-            Some(HerePerson { login: person.login, name: person.name, username })
+            let linked = linked_username(state, &person, false).await?;
+            let elsewhere = linked.as_ref().is_some_and(|name| *name != user.username);
+            let username = linked.filter(|name| *name == user.username);
+            Some(HerePerson { login: person.login, name: person.name, username, elsewhere })
         }
     };
     if !user.account_admin {

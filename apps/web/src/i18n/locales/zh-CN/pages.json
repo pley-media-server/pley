@@ -191,6 +191,7 @@
     "linkedTo": "自 {{date}} 起已关联 {{login}}：以 {{login}} 登录 Tailscale 的设备无需你的密码即可登录 Pley。",
     "thisDevice": "此设备就是其中之一。",
     "here": "此设备已以 {{login}} 登录 Tailscale。",
+    "hereElsewhere": "此设备已以 {{login}} 登录 Tailscale，该 Tailscale 账户已关联另一个 Pley 账户。",
     "notHere": "要关联，请在已登录 Tailscale 的设备上，通过 Pley 的 Tailscale 名称或地址打开它。",
     "notHereNamed": "要关联，请在已登录 Tailscale 的设备上打开 {{name}} 上的 Pley。",
     "problem": "Pley 无法询问 Tailscale：{{problem}}",
