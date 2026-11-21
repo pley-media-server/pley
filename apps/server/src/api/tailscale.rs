@@ -12,7 +12,7 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
 use super::auth::{confirm_password, login_response_as};
-use crate::auth::{AuthUser, ClientIp, CurrentToken, PeerAddr, hash_token};
+use crate::auth::{AuthUser, ClientIp, CurrentToken, TailnetPeer, hash_token};
 use crate::error::{ApiResult, AppError};
 use crate::state::AppState;
 use crate::tailscale::Person;
@@ -109,7 +109,11 @@ async fn linked_username(state: &AppState, person: &Person, enabled_only: bool) 
 
 /// `GET /api/auth/tailscale`: who Tailscale says this is, for the sign-in
 /// page.
-pub async fn here(State(state): State<AppState>, PeerAddr(peer): PeerAddr, headers: HeaderMap) -> ApiResult<Response> {
+pub async fn here(
+    State(state): State<AppState>,
+    TailnetPeer(peer): TailnetPeer,
+    headers: HeaderMap,
+) -> ApiResult<Response> {
     let person = person_here(&state, peer, &headers).await.unwrap_or_else(|err| {
         tracing::debug!("signing in with Tailscale: {err}");
         None
@@ -139,7 +143,7 @@ pub struct SignIn {
 pub async fn sign_in(
     State(state): State<AppState>,
     _page: FromPleysPage,
-    PeerAddr(peer): PeerAddr,
+    TailnetPeer(peer): TailnetPeer,
     ClientIp(ip): ClientIp,
     headers: HeaderMap,
     Json(body): Json<SignIn>,
@@ -248,7 +252,7 @@ async fn mine_of(state: &AppState, user: &AuthUser, peer: Option<SocketAddr>, he
 pub async fn mine(
     State(state): State<AppState>,
     user: AuthUser,
-    PeerAddr(peer): PeerAddr,
+    TailnetPeer(peer): TailnetPeer,
     headers: HeaderMap,
 ) -> ApiResult<Json<Mine>> {
     Ok(Json(mine_of(&state, &user, peer, &headers).await?))
@@ -271,7 +275,7 @@ pub async fn link(
     State(state): State<AppState>,
     user: AuthUser,
     CurrentToken(token): CurrentToken,
-    PeerAddr(peer): PeerAddr,
+    TailnetPeer(peer): TailnetPeer,
     headers: HeaderMap,
     Json(body): Json<Link>,
 ) -> ApiResult<Json<Mine>> {

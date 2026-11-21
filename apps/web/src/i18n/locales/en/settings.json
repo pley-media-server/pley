@@ -132,7 +132,7 @@
       "signsOut_other": "Saving signs out {{count, number}} people who haven't set it up, on every device and app, until they set it up.",
       "noSecretKey": "The server can't use its secret.key, so authenticator apps can't be set up or checked. Until it can, people who haven't set up two-step sign-in can't sign in, and people who have sign in with a recovery code. Its log says why.",
       "tailscale": "Sign in with Tailscale",
-      "tailscaleHint": "People link their Tailscale account on their Account page, then sign in without a password on devices signed in to Tailscale, at this server's Tailscale name. Pley asks Tailscale on this computer who each connection comes from. Two-step sign-in still asks for its code.",
+      "tailscaleHint": "People link their Tailscale account on their Account page, then sign in without a password on devices signed in to Tailscale, at this server's Tailscale name. Two-step sign-in still asks for its code. Tag in Tailscale any device that passes other people's connections on to Pley, such as a reverse proxy, or they sign in as its owner.",
       "tailscaleServer": "Tailscale answers: this server is {{name}}.",
       "tailscaleProblem": "Pley can't ask Tailscale: {{problem}}",
       "tailscaleSignsOut": "Saving signs out everyone who signed in with Tailscale."

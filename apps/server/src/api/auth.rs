@@ -455,8 +455,10 @@ pub async fn change_password(
         .bind(&keep)
         .execute(&mut *tx)
         .await?;
-    // A Tailscale user linked with the old password goes with it.
+    // A Tailscale user linked with the old password goes with it. This
+    // session, which gave the password, goes on as one signed in with it.
     crate::tailscale::remove_link_within(&mut tx, user.id, Some(&keep)).await?;
+    sqlx::query("UPDATE sessions SET tailscale_user = NULL WHERE token_hash = ?").bind(&keep).execute(&mut *tx).await?;
     tx.commit().await?;
     state.auth.forget_sessions();
     // The apps acting as this account or allowed by it end too, with the

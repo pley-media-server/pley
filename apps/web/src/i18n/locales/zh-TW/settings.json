@@ -131,7 +131,7 @@
       "signsOut_other": "儲存後，尚未設定的 {{count, number}} 人將在所有裝置和應用上登出，直到完成設定。",
       "noSecretKey": "伺服器無法使用其 secret.key，因此無法設定或驗證驗證器應用。在此之前，尚未設定兩步驗證的使用者無法登入，已設定的使用者可使用復原碼登入。日誌中說明了原因。",
       "tailscale": "透過 Tailscale 登入",
-      "tailscaleHint": "使用者在「帳戶」頁面連結自己的 Tailscale 帳戶後，在已登入 Tailscale 的裝置上透過此伺服器的 Tailscale 名稱無需密碼即可登入。Pley 會詢問此電腦上的 Tailscale 每個連線來自誰。兩步驗證仍會要求輸入驗證碼。",
+      "tailscaleHint": "使用者在「帳戶」頁面連結自己的 Tailscale 帳戶後，在已登入 Tailscale 的裝置上透過此伺服器的 Tailscale 名稱無需密碼即可登入。兩步驗證仍會要求輸入驗證碼。請在 Tailscale 中為任何將他人的連線轉送給 Pley 的裝置（例如反向代理）加上標籤，否則他們會以該裝置擁有者的身分登入。",
       "tailscaleServer": "Tailscale 回應：此伺服器是 {{name}}。",
       "tailscaleProblem": "Pley 無法詢問 Tailscale：{{problem}}",
       "tailscaleSignsOut": "儲存後，所有透過 Tailscale 登入的人都將登出。"

@@ -18,7 +18,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use super::remote::{self, SessionKind};
 use crate::access;
 use crate::auth::scopes::Scope;
-use crate::auth::{AuthUser, CurrentToken, PeerAddr, SourceIp};
+use crate::auth::{AuthUser, CurrentToken, SourceIp, TailnetPeer};
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
 use crate::i18n;
@@ -202,7 +202,7 @@ pub async fn events(
     user: AuthUser,
     CurrentToken(token): CurrentToken,
     SourceIp(address): SourceIp,
-    PeerAddr(peer): PeerAddr,
+    TailnetPeer(peer): TailnetPeer,
     headers: HeaderMap,
     query: Result<Query<EventsQuery>, QueryRejection>,
 ) -> ApiResult<Sse<impl Stream<Item = Result<Event, Infallible>>>> {

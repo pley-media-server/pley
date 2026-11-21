@@ -27,6 +27,10 @@ const SERVER_IP: &str = "100.100.1.1";
 const ALICE: &str = "100.64.0.9:50000";
 const BOB: &str = "100.64.0.10:50000";
 const TV: &str = "100.64.0.11:50000";
+/// Dana's phone: an account that isn't a member of this home, whose
+/// Tailscale user is another tailnet's, one the server's device is shared
+/// with.
+const DANA: &str = "100.64.0.13:50000";
 
 /// Tailscale's service, as far as Pley asks it: what `whois` says of each
 /// address (by IP, or by IP and port for this computer's), whether it has a
@@ -300,6 +304,27 @@ async fn a_linked_person_signs_in_from_their_device_alone() {
     let r = sign_in(&app, BOB, SERVER, json!({})).await;
     assert_eq!(r.status, StatusCode::FORBIDDEN, "Bob linked nothing: {}", r.body);
 
+    // A device passing on other people's requests vouches for none of them,
+    // when the request says so: a proxy's header, or nginx's HTTP/1.0.
+    let forwarded = [("x-forwarded-for", "203.0.113.9"), ("via", "1.1 proxy"), ("forwarded", "for=203.0.113.9")];
+    for header in forwarded {
+        let r = call(&app, Method::GET, "/api/auth/tailscale", ALICE, SERVER, None, None, &[header]).await;
+        assert_eq!(r.body["tailscale"], Value::Null, "{header:?}");
+        let r = call(&app, Method::POST, "/api/auth/tailscale", ALICE, SERVER, None, Some(json!({})), &[header]).await;
+        assert_eq!(r.status, StatusCode::FORBIDDEN, "{header:?}: {}", r.body);
+    }
+    let old = Request::builder()
+        .method(Method::GET)
+        .uri("/api/auth/tailscale")
+        .version(axum::http::Version::HTTP_10)
+        .header(header::HOST, SERVER)
+        .extension(axum::extract::ConnectInfo(ALICE.parse::<SocketAddr>().unwrap()))
+        .body(Body::empty())
+        .unwrap();
+    let r = app.api.clone().oneshot(old).await.unwrap();
+    let body = axum::body::to_bytes(r.into_body(), 1 << 20).await.unwrap();
+    assert_eq!(serde_json::from_slice::<Value>(&body).unwrap()["tailscale"], Value::Null, "HTTP/1.0");
+
     // Another site's page can't sign its visitor in.
     let r = call(
         &app,
@@ -327,6 +352,10 @@ async fn a_linked_person_signs_in_from_their_device_alone() {
     }
     let r = app.get("/api/auth/me", &session).await;
     assert_eq!(r.status, StatusCode::UNAUTHORIZED, "from nowhere known");
+    let r =
+        call(&app, Method::GET, "/api/auth/me", ALICE, SERVER, Some(&session), None, &[("x-real-ip", "203.0.113.9")])
+            .await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED, "passed on by a proxy");
     // Her password's session goes on working anywhere.
     assert_eq!(me(&app, "192.168.1.30:50000", &alice).await, StatusCode::OK);
 }
@@ -357,6 +386,115 @@ async fn tailscale_running_without_an_adapter_hands_connections_over_on_this_com
     fake.device("127.0.0.1:40001", "nPHONE", &[], 42, "bob@example.com");
     assert_eq!(me(&app, "127.0.0.1:40001", &session).await, StatusCode::UNAUTHORIZED);
     assert_eq!(here(&app, "127.0.0.1:40001", SERVER).await["login"], json!("bob@example.com"));
+}
+
+#[tokio::test]
+async fn each_person_signs_in_as_their_own_account_member_of_this_home_or_not() {
+    let (app, fake, admin, _dir) = start().await;
+    turn_on(&app, &admin, true).await;
+    let (dana, dana_id) = app.user(&admin, "dana", json!({"home": false})).await;
+    fake.device(DANA, "nFRIEND", &[], 77, "dana@elsewhere.example");
+    let alice = app.login("alice", "test-pass-1").await;
+    let bob = app.login("bob", "test-pass-1").await;
+    for (peer, token) in [(ALICE, &alice), (BOB, &bob), (DANA, &dana)] {
+        let r = link(&app, peer, token, json!({"password": "test-pass-1"})).await;
+        assert_eq!(r.status, StatusCode::OK, "{peer}: {}", r.body);
+    }
+
+    let people = [(ALICE, "alice"), (BOB, "bob"), (DANA, "dana")];
+    let mut sessions = Vec::new();
+    for (peer, name) in people {
+        assert_eq!(here(&app, peer, SERVER).await["username"], json!(name));
+        let r = sign_in(&app, peer, SERVER, json!({})).await;
+        assert_eq!(r.status, StatusCode::OK, "{name}: {}", r.body);
+        assert_eq!(r.body["user"]["username"], json!(name));
+        sessions.push(r.body["token"].as_str().unwrap().to_owned());
+    }
+    let [alice_ts, bob_ts, dana_ts] = &sessions[..] else { unreachable!() };
+    // Each works from its own person's devices alone.
+    for ((owner, _), session) in people.iter().zip(&sessions) {
+        for (peer, _) in people {
+            let works = if peer == *owner { StatusCode::OK } else { StatusCode::UNAUTHORIZED };
+            assert_eq!(me(&app, peer, session).await, works, "{owner}'s session from {peer}");
+        }
+    }
+
+    // Who's watching? lists the household to Alice, as after her password,
+    // and no one to Dana, who can't switch into it either.
+    let r = call(&app, Method::GET, "/api/auth/profiles", ALICE, SERVER, Some(alice_ts), None, &[]).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.body);
+    let household: HashMap<String, i64> = r
+        .body
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|u| (u["username"].as_str().unwrap().to_owned(), u["id"].as_i64().unwrap()))
+        .collect();
+    assert!(household.contains_key("bob") && !household.contains_key("dana"), "{household:?}");
+    let r = call(&app, Method::GET, "/api/auth/profiles", DANA, SERVER, Some(dana_ts), None, &[]).await;
+    assert_eq!(r.body, json!([]));
+    let switch = json!({"user_id": household["alice"]});
+    let r = call(&app, Method::POST, "/api/auth/switch", DANA, SERVER, Some(dana_ts), Some(switch), &[]).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN, "{}", r.body);
+
+    // A child's profile Alice switches to (in place of her session) stays on
+    // her devices, and links nothing: it has no password.
+    let r = app.post("/api/users", &admin, json!({"username": "kid", "managed": true})).await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let switch = json!({"user_id": r.body["id"]});
+    let r = call(&app, Method::POST, "/api/auth/switch", ALICE, SERVER, Some(alice_ts), Some(switch), &[]).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.body);
+    let kid = r.body["token"].as_str().unwrap().to_owned();
+    assert_eq!(me(&app, ALICE, &kid).await, StatusCode::OK);
+    assert_eq!(me(&app, BOB, &kid).await, StatusCode::UNAUTHORIZED);
+    let r = link(&app, ALICE, &kid, json!({"password": "test-pass-1"})).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN, "{}", r.body);
+
+    // One person leaving goes no further: Dana's account disabled, then Bob
+    // unlinking.
+    let r = app.patch(&format!("/api/users/{dana_id}"), &admin, json!({"disabled": true})).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert_eq!(here(&app, DANA, SERVER).await["username"], Value::Null);
+    assert_eq!(sign_in(&app, DANA, SERVER, json!({})).await.status, StatusCode::FORBIDDEN);
+    assert_eq!(me(&app, DANA, dana_ts).await, StatusCode::UNAUTHORIZED);
+    let r = call(&app, Method::DELETE, "/api/me/tailscale", BOB, SERVER, Some(&bob), None, &[]).await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT);
+    assert_eq!(me(&app, BOB, bob_ts).await, StatusCode::UNAUTHORIZED);
+    assert_eq!(me(&app, ALICE, &kid).await, StatusCode::OK);
+
+    // Alice's account deleted, the profile switched to with its link goes.
+    let r = app.delete(&format!("/api/users/{}", household["alice"]), &admin).await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT, "{}", r.text());
+    assert_eq!(me(&app, ALICE, &kid).await, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn an_administrators_tailscale_session_needs_two_step_sign_in() {
+    let (app, _fake, admin, _dir) = start().await;
+    turn_on(&app, &admin, true).await;
+    let alice = app.login("alice", "test-pass-1").await;
+    assert_eq!(link(&app, ALICE, &alice, json!({"password": "test-pass-1"})).await.status, StatusCode::OK);
+    let session = sign_in(&app, ALICE, SERVER, json!({})).await.body["token"].as_str().unwrap().to_owned();
+    assert_eq!(me(&app, ALICE, &session).await, StatusCode::OK);
+
+    // Made an administrator's, Alice's account signs in with Tailscale only
+    // with two-step sign-in on, and the session it had stops.
+    let r = app.patch("/api/users/2", &admin, json!({"is_admin": true})).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert_eq!(me(&app, ALICE, &session).await, StatusCode::UNAUTHORIZED);
+    assert_eq!(sign_in(&app, ALICE, SERVER, json!({})).await.status, StatusCode::FORBIDDEN);
+    assert_eq!(me(&app, "192.168.1.30:50000", &alice).await, StatusCode::OK, "the password's session stays");
+
+    // With it on, the account signs in; turning it off ends that session too.
+    let (_, codes) = app.turn_on_two_step(&alice, "test-pass-1").await;
+    let r = sign_in(&app, ALICE, SERVER, json!({"code": codes[0]})).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.body);
+    let session = r.body["token"].as_str().unwrap().to_owned();
+    assert_eq!(me(&app, ALICE, &session).await, StatusCode::OK);
+    let off = json!({"password": "test-pass-1", "code": codes[1]});
+    let r = app.call(Method::DELETE, "/api/me/two-step", Some(&alice), Some(off), &[]).await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT, "{}", r.text());
+    assert_eq!(me(&app, ALICE, &session).await, StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -532,14 +670,18 @@ async fn leaving_the_tailnet_unlinking_or_turning_it_off_signs_out() {
     turn_on(&app, &admin, true).await;
     assert_eq!(me(&app, "100.64.0.9:50008", &session).await, StatusCode::UNAUTHORIZED);
 
-    // A new password removes the link, made with the old one.
-    let r = app
-        .put("/api/auth/password", &alice, json!({"current_password": "test-pass-1", "new_password": "test-pass-2"}))
-        .await;
-    assert_eq!(r.status, StatusCode::NO_CONTENT, "{}", r.text());
+    // A new password removes the link, made with the old one. The session
+    // that gave it goes on, as one signed in with the password.
+    let session = signed_in().await;
+    let new = json!({"current_password": "test-pass-1", "new_password": "test-pass-2"});
+    let r =
+        call(&app, Method::PUT, "/api/auth/password", "100.64.0.9:50009", SERVER, Some(&session), Some(new), &[]).await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT, "{}", r.body);
     assert_eq!(here(&app, ALICE, SERVER).await["username"], Value::Null);
     let r = sign_in(&app, ALICE, SERVER, json!({})).await;
     assert_eq!(r.status, StatusCode::FORBIDDEN, "{}", r.body);
+    assert_eq!(me(&app, "192.168.1.30:50000", &session).await, StatusCode::OK);
+    assert_eq!(me(&app, "192.168.1.30:50000", &alice).await, StatusCode::UNAUTHORIZED, "the old password's");
 }
 
 #[tokio::test]

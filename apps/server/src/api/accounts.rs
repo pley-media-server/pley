@@ -525,6 +525,9 @@ pub async fn delete_user(
         let _ = tokio::fs::remove_file(accounts::avatars_dir(&state.config.data_dir).join(file)).await;
     }
     state.auth.forget_user(id);
+    // Profiles switched to with its Tailscale link, gone with it, are
+    // forgotten too.
+    state.auth.forget_sessions();
     // An app it was signing in gets nothing.
     state.oauth.forget_user(id);
     Ok(StatusCode::NO_CONTENT)

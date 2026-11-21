@@ -743,13 +743,20 @@ impl AuthService {
         // Read before the database: a sign-out or a forget that lands while
         // the query runs keeps what it read out of the cache.
         let epoch = self.epoch.load(Ordering::SeqCst);
+        // A session signed in with Tailscale holds while the Tailscale user
+        // is still linked (one that signed in as an unlink landed doesn't),
+        // and, signed in as the linked account itself, while that account,
+        // if an administrator's, uses two-step sign-in.
         #[allow(clippy::type_complexity)]
-        let row: Option<(i64, String, bool, bool, Option<i64>, bool, bool, i64, i64, Option<String>)> =
+        let row: Option<(i64, String, bool, bool, Option<i64>, bool, bool, i64, i64, Option<String>, bool)> =
             sqlx::query_as(sqlx::AssertSqlSafe(format!(
-                "SELECT u.id, u.username, u.is_admin, u.all_libraries, u.max_age, u.disabled, {}, s.expires_at,
-                        s.last_seen_at, s.tailscale_user
+                "SELECT u.id, u.username, u.is_admin, u.all_libraries, u.max_age, u.disabled, {no_two_step},
+                        s.expires_at, s.last_seen_at, s.tailscale_user,
+                        s.tailscale_user IS NOT NULL AND NOT EXISTS (
+                            SELECT 1 FROM tailscale_links l WHERE l.tailscale_user = s.tailscale_user
+                              AND (l.user_id != s.user_id OR NOT u.is_admin OR NOT {no_two_step}))
                  FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?",
-                without_two_step("u")
+                no_two_step = without_two_step("u")
             )))
             .bind(&key)
             .fetch_optional(&self.db.read)
@@ -774,12 +781,13 @@ impl AuthService {
             expires_at,
             last_seen_at,
             tailscale,
+            tailscale_lapsed,
         )) = row
         else {
             self.cache.remove(&key);
             return None;
         };
-        if expires_at <= now || disabled || (no_two_step && self.two_step_required()) {
+        if expires_at <= now || disabled || (no_two_step && self.two_step_required()) || tailscale_lapsed {
             self.cache.remove(&key);
             return None;
         }
@@ -1425,21 +1433,41 @@ pub fn source_ip_of(extensions: &axum::http::Extensions, headers: &axum::http::H
     Some(forwarded_for(peer, headers))
 }
 
-/// The other end of a request's connection, with its port: the client
-/// itself, or the proxy in front of it. Unknown only without a connection
-/// (tests).
-pub fn peer_addr(parts: &Parts) -> Option<SocketAddr> {
+/// Headers a proxy adds to say whose request it passes on.
+const FORWARDED_BY: [&str; 9] = [
+    "forwarded",
+    "via",
+    "x-forwarded-for",
+    "x-forwarded-host",
+    "x-forwarded-proto",
+    "x-real-ip",
+    "cf-connecting-ip",
+    "true-client-ip",
+    "tailscale-user-login",
+];
+
+/// The other end of a request's connection, with its port, to ask Tailscale
+/// about: none for a request that shows a proxy passed it on, by a proxy's
+/// header or by HTTP/1.0 (nginx's default; browsers don't speak it).
+/// Tailscale would vouch for the proxy's device, not for whoever is behind
+/// it. None too without a connection (tests).
+pub fn tailnet_peer(parts: &Parts) -> Option<SocketAddr> {
+    let forwarded = parts.version < axum::http::Version::HTTP_11
+        || FORWARDED_BY.iter().any(|name| parts.headers.contains_key(*name));
+    if forwarded {
+        return None;
+    }
     parts.extensions.get::<axum::extract::ConnectInfo<SocketAddr>>().map(|info| info.0)
 }
 
-/// [`peer_addr`], for a handler.
-pub struct PeerAddr(pub Option<SocketAddr>);
+/// [`tailnet_peer`], for a handler.
+pub struct TailnetPeer(pub Option<SocketAddr>);
 
-impl<S: Send + Sync> FromRequestParts<S> for PeerAddr {
+impl<S: Send + Sync> FromRequestParts<S> for TailnetPeer {
     type Rejection = std::convert::Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        Ok(PeerAddr(peer_addr(parts)))
+        Ok(TailnetPeer(tailnet_peer(parts)))
     }
 }
 
@@ -1586,7 +1614,7 @@ async fn authenticate(parts: &Parts, state: &AppState) -> Result<(AuthUser, Opti
             return Err(AppError::forbidden("this request didn't come from Pley's page"));
         }
     }
-    state.auth.validate_session_from(&token, peer_addr(parts)).await.ok_or(AppError::Unauthorized)
+    state.auth.validate_session_from(&token, tailnet_peer(parts)).await.ok_or(AppError::Unauthorized)
 }
 
 /// Whether the browser's cookie signs this request in (no token in a

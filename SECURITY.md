@@ -151,10 +151,17 @@ linked, without the password.
   subnet router or an exit node, which everyone behind it comes from), the
   server's own device (any program on its computer can connect from its
   address), or a connection Tailscale didn't carry (the local network, a
-  proxy on this computer, Tailscale Serve). Accounts are linked to
-  Tailscale's id for the user in the tailnet: a login name can change
-  hands, and ids are a tailnet's own (a Headscale server's start at 1), so
-  a link made in one tailnet signs no one in from another.
+  proxy on this computer, Tailscale Serve). Nor is a request that says a
+  proxy passed it on (`Forwarded`, `X-Forwarded-For`, `Via` and the like,
+  or HTTP/1.0, which nginx speaks to the servers behind it by default and
+  browsers never do). A device that passes on other people's connections
+  without saying so (a reverse proxy set up that way, a port forward) is
+  taken for its owner, with everyone behind it: tag it in Tailscale.
+- Accounts are linked to Tailscale's id for the user in the tailnet: a
+  login name can change hands, and ids are a tailnet's own (a Headscale
+  server's start at 1), so a link made in one tailnet signs no one in from
+  another. Someone on another tailnet the server's device is shared with
+  is who Tailscale says, like the tailnet's own people.
 - It answers only at the server's own Tailscale name (its MagicDNS name) or
   addresses. A website whose name a browser on the tailnet is led to
   resolve to the server (DNS rebinding) gets nothing: its page would
@@ -170,18 +177,21 @@ linked, without the password.
   device's person, not for who is at it: a computer several people use
   under one Tailscale account signs them all in as that account.
 - A session signed in with Tailscale, and a profile switched to from it,
-  works only from a device Tailscale says belongs to the same person: a
-  copy of it works nowhere else, and one whose device or person left the
-  tailnet stops working within 30 seconds. While Tailscale can't be asked,
-  such a session doesn't work. It makes no token for other apps, which
-  would work from anywhere. Apps allowed from it on the consent page get
-  their own sign-in, as from any session, and keep it until they are
-  signed out (**Account → Apps**).
+  works only from a device Tailscale says belongs to the same person, and
+  while that person's link stands: a copy of it works nowhere else, and
+  one whose device or person left the tailnet stops working within 30
+  seconds. While Tailscale can't be asked, such a session doesn't work.
+  Nor does one signed in as an account that has since become an
+  administrator's, or an administrator's that turned two-step sign-in off.
+  It makes no token for other apps, which would work from anywhere. Apps
+  allowed from it on the consent page get their own sign-in, as from any
+  session, and keep it until they are signed out (**Account → Apps**).
 - Unlinking, and turning it off, sign out the sessions signed in with it
   and the profiles switched to from them. A new password (one's own, an
   administrator's, `pley reset-password`) removes the link, which whoever
-  knew the old one may have made, and signs them out too; a link made
-  with the password after it changed isn't made.
+  knew the old one may have made, and signs them out too, but for the
+  session that changed it, which goes on as one signed in with the
+  password; a link made with the password after it changed isn't made.
 - Nothing asks Tailscale while it is off. On Windows, a program that
   connects to Tailscale's service as another account than the one
   Tailscale runs for can make it switch to that account's profile, so

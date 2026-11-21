@@ -166,7 +166,8 @@ reach Pley itself, not through Docker's published port:
    row shows the name Tailscale gave Pley.
 3. Each person opens Pley at that name (`http://pley.<tailnet>.ts.net:7539`)
    on a device signed in to Tailscale, and links their Tailscale account on
-   their **Account** page.
+   their **Account** page. Friends on another tailnet you share Pley's
+   device with (Tailscale's **Share**) do too, at the same name.
 
 The add-on doesn't go with `compose.proxy.yaml`, `compose.plex.yaml` or
 `compose.jellyfin.yaml`, which publish Pley's ports their own way.

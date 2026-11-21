@@ -87,6 +87,8 @@ pub async fn disable(
     }
     state.two_step.check(&state.auth.throttle, user.id, body.code.as_deref()).await?;
     state.two_step.turn_off(user.id).await?;
+    // An administrator's sessions signed in with Tailscale end with it.
+    state.auth.forget_user(user.id);
     tracing::info!("'{}' turned off two-step sign-in", user.username);
     Ok(StatusCode::NO_CONTENT)
 }
@@ -127,7 +129,9 @@ pub async fn reset_user(
         crate::auth::sign_out_within(&mut tx, id, None).await?;
     }
     tx.commit().await?;
-    if signs_out {
+    // Signed out, or an administrator's sessions signed in with Tailscale
+    // ending with it.
+    if turned_off {
         state.auth.forget_user(id);
     }
     if !turned_off {
