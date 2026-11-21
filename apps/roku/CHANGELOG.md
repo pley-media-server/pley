@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A video's Dolby Vision profile is named in Traditional Chinese, not
+  English, and dates in Chinese read 3月5日 and 2026年3月5日.
+
 ## [0.1.11] - 2026-11-20
 
 ### Added

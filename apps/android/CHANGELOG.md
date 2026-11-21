@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A video's Dolby Vision profile is named in Traditional Chinese, not
+  English.
+- The recommended folder layouts in Chinese are written so the server
+  reads them: the year in (年份), and the season folder as Season 01.
+
 ## [0.1.16] - 2026-11-20
 
 ### Added

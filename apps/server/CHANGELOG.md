@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- The recommended folder layouts in Settings → Libraries are in Chinese,
+  not English.
+
 ## [0.1.14] - 2026-11-20
 
 ### Added

@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A video's Dolby Vision profile is named in Traditional Chinese, not
+  English.
+
 ## [0.1.12] - 2026-11-20
 
 ### Added
