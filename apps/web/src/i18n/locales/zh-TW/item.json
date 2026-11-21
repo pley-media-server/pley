@@ -1,5 +1,5 @@
 {
-  "loadError": "無法載入此專案",
+  "loadError": "無法載入此項目",
   "playTitle": "播放 {{title}}",
   "playTitleOn": "在裝置上播放 {{title}}…",
   "pauseTitle": "暫停 {{title}}",
@@ -89,7 +89,7 @@
     "findingMarkers": {
       "season": "正在此季中查詢片頭片尾…",
       "show": "正在每一季中查詢片頭片尾…",
-      "item": "正在此專案中查詢片頭片尾…"
+      "item": "正在此項目中查詢片頭片尾…"
     }
   },
   "edit": {
@@ -120,7 +120,7 @@
         "content_rating": "分級",
         "studio": "製作公司",
         "tagline": "宣傳語",
-        "genres": "型別",
+        "genres": "類型",
         "summary": "簡介",
         "labels": "標籤"
       },
@@ -148,7 +148,7 @@
       "upload": "上傳圖片…",
       "uploading": "正在上傳…",
       "loadError": "{{error}} 你仍然可以上傳圖片。",
-      "none": "TMDB 沒有此專案的其他封面。"
+      "none": "TMDB 沒有此項目的其他封面。"
     }
   },
   "request": {
@@ -159,7 +159,7 @@
     "title": "媒體資訊",
     "versions_other": "（{{count}} 個版本）",
     "columns": {
-      "type": "型別",
+      "type": "類型",
       "codec": "編解碼器",
       "language": "語言",
       "details": "詳情"
@@ -229,7 +229,7 @@
     "deleteMovies": "“{{title}}”將被刪除。其中的電影仍保留在媒體庫中。",
     "deleteShows": "“{{title}}”將被刪除。其中的劇集仍保留在媒體庫中。",
     "deleted": "合集已刪除",
-    "customOrderNote": "移動專案會將此合集切換為自訂順序。",
+    "customOrderNote": "移動項目會將此合集切換為自訂順序。",
     "remove": "從合集中移除",
     "removed": "已移除 {{title}}"
   },
@@ -322,9 +322,9 @@
     "moviesHintAdmin": "當同一 TMDB 合集中有兩部電影在此媒體庫中時，就會在此分組。你也可以自行建立合集。",
     "showsHintAdmin": "將劇集分組到你自己的合集中。",
     "noneHere": "此媒體庫中還沒有合集。",
-    "type": "型別",
+    "type": "類型",
     "types": {
-      "all": "所有型別",
+      "all": "所有類型",
       "manual": "手動建立",
       "smart": "智慧",
       "tmdb": "來自 TMDB"
@@ -353,7 +353,7 @@
     "new": "新播放清單",
     "title": "標題",
     "for": "用於",
-    "kind": "播放清單型別",
+    "kind": "播放清單類型",
     "video": "電影和劇集",
     "audio": "音樂"
   },

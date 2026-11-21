@@ -9,7 +9,7 @@
     "smart": "智慧"
   },
   "count": {
-    "items_other": "{{count, number}} 個專案"
+    "items_other": "{{count, number}} 個項目"
   },
   "page": {
     "video": "影片播放清單",
@@ -52,7 +52,7 @@
     "smartBodyFilters": "{{filters}}。它會隨媒體庫自動更新。",
     "titleField": "標題",
     "hint": "在標題上按 OK 即可輸入。",
-    "for": "型別",
+    "for": "類型",
     "video": "電影和劇集",
     "music": "音樂",
     "create": "建立",
@@ -69,7 +69,7 @@
     "noneMusic": "還沒有音樂播放清單：先在上方命名一個。",
     "nothing": "沒有可新增的內容",
     "addedTo": "已新增到 {{playlist}}",
-    "addedItems_other": "已將 {{count, number}} 個專案新增到 {{playlist}}",
+    "addedItems_other": "已將 {{count, number}} 個項目新增到 {{playlist}}",
     "done": "完成"
   }
 }

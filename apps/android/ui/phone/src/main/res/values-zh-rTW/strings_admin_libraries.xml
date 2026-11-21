@@ -28,7 +28,7 @@
     <string name="admin_libraries_add">新增媒體庫</string>
     <string name="admin_libraries_couldnt_load">無法載入媒體庫</string>
     <string name="admin_libraries_empty_title">新增第一個媒體庫</string>
-    <string name="admin_libraries_empty_description">選擇型別以及存放媒體的資料夾。Pley 會掃描並保持更新。</string>
+    <string name="admin_libraries_empty_description">選擇類型以及存放媒體的資料夾。Pley 會掃描並保持更新。</string>
     <string name="admin_libraries_delete_title">刪除媒體庫？</string>
     <string name="admin_libraries_delete_message">%1$s 及其觀看歷史將從 Pley 中移除。你的媒體檔案不會受影響。</string>
     <string name="admin_libraries_deleted">已刪除“%1$s”</string>
@@ -47,7 +47,7 @@
     <string name="admin_libraries_at_least_one_folder">至少新增一個資料夾。</string>
     <string name="admin_libraries_updated">媒體庫已更新</string>
     <string name="admin_libraries_added">已新增“%1$s” — 正在掃描</string>
-    <string name="admin_libraries_type">型別</string>
+    <string name="admin_libraries_type">類型</string>
     <string name="admin_libraries_name">名稱</string>
     <string name="admin_libraries_folders">資料夾</string>
     <string name="admin_libraries_browse">瀏覽…</string>

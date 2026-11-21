@@ -14,6 +14,7 @@ describes how they are made.
   English.
 - The recommended folder layouts in Chinese are written so the server
   reads them: the year in (年份), and the season folder as Season 01.
+- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
 
 ## [0.1.16] - 2026-11-20
 
