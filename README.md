@@ -2,7 +2,7 @@
 
 <h1 align="center">Pley</h1>
 
-<p align="center">A self-hosted media server for movies, shows, music and live TV.</p>
+<p align="center">A self-hosted media server for movies, shows, music, audiobooks and live TV.</p>
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-F0B27A" alt="License: AGPL-3.0"></a>
@@ -24,7 +24,7 @@
 > [!WARNING]
 > Pley is still in testing: expect rough edges, and keep backups of your data.
 
-![Pley's Home in the web app](docs/images/web-home.jpg)
+![Pley TV and phone apps](docs/images/apps.webp)
 
 ## Features
 

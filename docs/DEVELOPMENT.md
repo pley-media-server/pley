@@ -131,10 +131,11 @@ streams, at the device's address on port 8008 (forwarded above), or at
 `PLEY_CAST_SETUP`. Release builds ignore all three. `tests/cast_devices.rs` plays against
 a fake device instead.
 
-The README's screenshot (`docs/images/web-home.jpg`) shows a demo library of
-made-up titles ([scripts/store-library](../scripts/store-library/README.md)):
-`bun scripts/store-library/web.mjs <dir> <address>` takes it from a server
-holding it.
+The README's picture (`docs/images/apps.webp`) shows the TV and phone apps
+with a demo library of made-up titles
+([scripts/store-library](../scripts/store-library/README.md)):
+`bun scripts/store-library/devices.mjs <tv screenshot> <phone screenshot>`
+draws it from a screenshot of each, with `ffmpeg` on `PATH`.
 
 ## Versions and releases
 
