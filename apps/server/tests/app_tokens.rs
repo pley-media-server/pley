@@ -26,6 +26,10 @@ const PUBLIC: &[(&str, &str)] = &[
     ("POST", "/api/setup"),
     ("POST", "/api/auth/login"),
     ("POST", "/api/auth/logout"),
+    // Signing in with Tailscale: Tailscale says who the caller is
+    // (tests/tailscale.rs).
+    ("GET", "/api/auth/tailscale"),
+    ("POST", "/api/auth/tailscale"),
     ("GET", "/api/invites/{code}"),
     ("POST", "/api/invites/{code}/accept"),
     // Apps exchange codes and refresh tokens, and sign out, with forms.
@@ -56,6 +60,9 @@ const FIRST_PARTY: &[(&str, &str)] = &[
     ("DELETE", "/api/me/two-step"),
     ("POST", "/api/me/two-step/setup"),
     ("POST", "/api/me/two-step/recovery-codes"),
+    ("GET", "/api/me/tailscale"),
+    ("PUT", "/api/me/tailscale"),
+    ("DELETE", "/api/me/tailscale"),
     ("PATCH", "/api/me"),
     ("PUT", "/api/me/pin"),
     ("PUT", "/api/me/avatar"),
@@ -1443,7 +1450,7 @@ async fn the_apps_tables_come_with_an_upgrade() {
     let db = pley::db::Db::open(&path).await.unwrap();
     let sessions: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sessions").fetch_one(&db.read).await.unwrap();
     assert_eq!(sessions, 1, "kept");
-    let auth = pley::auth::AuthService::new(db.clone());
+    let auth = pley::auth::AuthService::new(db.clone(), pley::tailscale::Tailscale::new(Err("tests".into())));
     let issued = auth
         .issue(pley::auth::grants::NewGrant {
             user_id: 1,

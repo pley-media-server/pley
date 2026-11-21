@@ -58,6 +58,8 @@ All in `.env`; [.env.example](.env.example) explains each one.
 | `PLEY_PROXY_NETWORK` | `proxy` | `compose.proxy.yaml`: the proxy's Docker network |
 | `PLEY_PLEX_LISTEN` | `127.0.0.1:32400` | `compose.plex.yaml`: where the Plex-compatible API is published |
 | `PLEY_JELLYFIN_LISTEN` | `127.0.0.1:8096` | `compose.jellyfin.yaml`: where the Jellyfin-compatible API is published |
+| `TS_AUTHKEY` | | `compose.tailscale.yaml`: a Tailscale auth key; without one, `docker compose logs tailscale` shows a login link |
+| `PLEY_TAILSCALE_NAME` | `pley` | `compose.tailscale.yaml`: Pley's device name on the tailnet |
 | `PLEY_IMAGE` | `pley:local` | The image; a release is `ghcr.io/pley-media-server/pley:<version>` |
 | `PLEY_PULL_POLICY` | `build` | `build` from this checkout, or `missing` for a release |
 | `PLEY_SHM_SIZE` | `2gb` | `/dev/shm`, for transcoding in memory |
@@ -74,6 +76,7 @@ All in `.env`; [.env.example](.env.example) explains each one.
 | `compose.proxy.yaml` | A reverse proxy in Docker: no published port |
 | `compose.plex.yaml` | The [Plex-compatible API](../../docs/COMPATIBILITY.md) on port 32400 (without it, it answers on Pley's port) |
 | `compose.jellyfin.yaml` | The [Jellyfin-compatible API](../../docs/COMPATIBILITY.md) on port 8096 (without it, it answers on Pley's port) |
+| `compose.tailscale.yaml` | Pley on your tailnet, for [signing in with Tailscale](#signing-in-with-tailscale) |
 
 Your own changes go in `compose.override.yaml` next to `compose.yaml` (git
 ignores it). Compose reads it by itself unless `COMPOSE_FILE` is set; then
@@ -146,6 +149,27 @@ makes it reachable from the internet.
   Docker's port rules go around ufw and firewalld, so filter in the
   `DOCKER-USER` chain:
   `iptables -I DOCKER-USER -p tcp --dport 7539 ! -s <proxy address> -j DROP`.
+
+## Signing in with Tailscale
+
+People on your tailnet can sign in without a password
+([SECURITY.md](../../SECURITY.md#signing-in-with-tailscale)). Pley asks
+Tailscale who each connection comes from, so the tailnet's connections must
+reach Pley itself, not through Docker's published port:
+
+1. Add `compose.tailscale.yaml` to `COMPOSE_FILE`, and set `TS_AUTHKEY` (a
+   key from Tailscale's admin console) or open the login link that
+   `docker compose logs tailscale` shows. A Tailscale container joins the
+   tailnet as the device `PLEY_TAILSCALE_NAME` (`pley`), and Pley shares
+   its network; the web port stays published at `PLEY_LISTEN`.
+2. Turn on **Settings → Server → Sign-in → Sign in with Tailscale**. The
+   row shows the name Tailscale gave Pley.
+3. Each person opens Pley at that name (`http://pley.<tailnet>.ts.net:7539`)
+   on a device signed in to Tailscale, and links their Tailscale account on
+   their **Account** page.
+
+The add-on doesn't go with `compose.proxy.yaml`, `compose.plex.yaml` or
+`compose.jellyfin.yaml`, which publish Pley's ports their own way.
 
 ## Everyday use
 

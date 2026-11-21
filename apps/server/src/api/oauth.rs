@@ -160,7 +160,8 @@ impl FromRequestParts<AppState> for WebUser {
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
         let token = cookie_token(parts).ok_or(AppError::Unauthorized)?;
         // Never an app's token: validate takes sessions only.
-        let user = state.auth.validate(&token).await.ok_or(AppError::Unauthorized)?;
+        let user =
+            state.auth.validate_from(&token, crate::auth::peer_addr(parts)).await.ok_or(AppError::Unauthorized)?;
         if !from_this_site(parts) {
             return Err(AppError::forbidden(NOT_FROM_PLEY));
         }

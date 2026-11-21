@@ -69,3 +69,8 @@
 # such as the output of `openssl rand -hex 32`.
 # transcoder_url = "http://gpu-box:7540"
 # transcoder_token = "<the token>"
+
+# Where Tailscale's service answers, for signing in with Tailscale (Settings ->
+# Server -> Sign-in). Default: where Tailscale keeps it on this system. A NAS's
+# own Tailscale package keeps it elsewhere, Synology's at:
+# tailscale_socket = "/var/packages/Tailscale/var/tailscaled.sock"

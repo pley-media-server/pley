@@ -9,6 +9,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Sign in with Tailscale: on devices signed in to your tailnet, people sign
+  in without their password once they link their Tailscale account on
+  their Account page, on every app that signs in on Pley's page. Two-step
+  sign-in still asks for its code. An administrator turns it on in
+  Settings → Server → Sign-in; in Docker, `compose.tailscale.yaml` puts
+  Pley on the tailnet.
+
 ## [0.1.14] - 2026-11-20
 
 ### Added

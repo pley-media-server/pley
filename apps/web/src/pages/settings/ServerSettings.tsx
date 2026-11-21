@@ -1,7 +1,7 @@
 import { Link as RouterLink } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { appKeys } from "@/api/apps";
-import { keys, useSettings, useSystemInfo, useUsers, useWatchingHours } from "@/api/hooks";
+import { keys, useMyTailscale, useSettings, useSystemInfo, useUsers, useWatchingHours } from "@/api/hooks";
 import type { LibraryWork, Settings, TvMetadata } from "@/api/types";
 import { useAuth } from "@/auth";
 import { CountrySelect } from "@/components/CountrySelect";
@@ -41,6 +41,7 @@ const KEYS = [
   "library_work_max_cpu",
   "third_party_apps",
   "require_two_step",
+  "tailscale_sign_in",
   "opensubtitles_api_key",
   "opensubtitles_username",
   "opensubtitles_password",
@@ -82,6 +83,10 @@ export function ServerSettings() {
     if (changes.require_two_step !== undefined) {
       void qc.invalidateQueries({ queryKey: keys.server });
       void qc.invalidateQueries({ queryKey: ["users"] });
+    }
+    if (changes.tailscale_sign_in !== undefined) {
+      void qc.invalidateQueries({ queryKey: keys.myTailscale });
+      void qc.invalidateQueries({ queryKey: keys.tailscaleHere });
     }
     // The hours library work may begin in follow its settings.
     if (Object.keys(changes).some((k) => k.startsWith("library_work"))) {
@@ -309,6 +314,11 @@ ${form.opensubtitles_password ?? ""}`}
                 onChange={(v) => set("require_two_step", v)}
                 known={form.require_two_step !== undefined}
               />
+              <TailscaleRow
+                checked={form.tailscale_sign_in ?? false}
+                onChange={(v) => set("tailscale_sign_in", v)}
+                known={form.tailscale_sign_in !== undefined}
+              />
             </Group>
 
             <Group title={t("server.apps.title")}>
@@ -358,6 +368,31 @@ function RequireTwoStepRow({ checked, onChange, known }: { checked: boolean; onC
         <Note notice>{without === 0 ? t("server.signIn.everyoneHasIt") : t("server.signIn.signsOut", { count: without })}</Note>
       ) : checked && saved && noKey ? (
         <Note notice>{t("server.signIn.noSecretKey")}</Note>
+      ) : null}
+    </Row>
+  );
+}
+
+/**
+ * Signing in with Tailscale. Once saved on, the row says what Tailscale on
+ * the server's computer answers (its name on the tailnet), or why Pley can't
+ * ask it; Pley doesn't ask it while the setting is off.
+ */
+function TailscaleRow({ checked, onChange, known }: { checked: boolean; onChange: (v: boolean) => void; known: boolean }) {
+  const { t } = useTranslation("settings");
+  const saved = useSettings().data?.tailscale_sign_in ?? false;
+  const status = useMyTailscale(saved).data;
+
+  return (
+    <Row label={t("server.signIn.tailscale")} hint={t("server.signIn.tailscaleHint")}>
+      {/* Off until a server that knows the setting sends it. */}
+      <Toggle checked={checked} onChange={onChange} label={t("server.signIn.tailscale")} disabled={!known} />
+      {checked && saved && status?.problem ? (
+        <Note notice>{t("server.signIn.tailscaleProblem", { problem: status.problem })}</Note>
+      ) : checked && saved && status?.server_name ? (
+        <Note>{t("server.signIn.tailscaleServer", { name: status.server_name })}</Note>
+      ) : !checked && saved ? (
+        <Note notice>{t("server.signIn.tailscaleSignsOut")}</Note>
       ) : null}
     </Row>
   );

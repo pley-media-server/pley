@@ -1,0 +1,43 @@
+# Add-on: Pley on your tailnet, for signing in with Tailscale (Settings →
+# Server → Sign-in). A Tailscale container joins the tailnet as a device of
+# its own, named PLEY_TAILSCALE_NAME, and Pley shares its network: the
+# tailnet reaches Pley at http://<that name>.<your tailnet>.ts.net:7539, and
+# Pley asks the container's Tailscale, through its socket, who each
+# connection comes from. The web port stays published at PLEY_LISTEN.
+# Give TS_AUTHKEY a key from Tailscale's admin console (Settings → Keys), or
+# open the login link that `docker compose logs tailscale` shows.
+# Not with compose.proxy.yaml, compose.plex.yaml or compose.jellyfin.yaml,
+# which publish Pley's ports their own way. Needs Docker Compose 2.24 or
+# newer (`!reset`).
+services:
+  tailscale:
+    image: ${PLEY_TAILSCALE_IMAGE:-tailscale/tailscale:stable}
+    container_name: pley-tailscale
+    restart: unless-stopped
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_HOSTNAME: ${PLEY_TAILSCALE_NAME:-pley}
+      TS_STATE_DIR: /var/lib/tailscale
+      # A folder of its own, which Pley mounts too: Pley's user can reach the
+      # socket there (Tailscale lets anyone ask it who a connection is).
+      TS_SOCKET: /run/pley-tailscale/tailscaled.sock
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - tailscale-socket:/run/pley-tailscale
+    ports:
+      # Pley's web port, which this container's network now carries.
+      - "${PLEY_LISTEN:-127.0.0.1:7539}:7539"
+
+  pley:
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    ports: !reset []
+    environment:
+      PLEY_TAILSCALE_SOCKET: /run/pley-tailscale/tailscaled.sock
+    volumes:
+      - tailscale-socket:/run/pley-tailscale
+
+volumes:
+  tailscale-state:
+  tailscale-socket:

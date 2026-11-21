@@ -3,8 +3,8 @@ import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { errorMessage, isApiError } from "@/api/client";
-import { fetchProfiles, useLogin, useMe, useServer } from "@/api/hooks";
-import type { TwoStepSetup, User } from "@/api/types";
+import { fetchProfiles, useLogin, useMe, useServer, useTailscaleHere, useTailscaleLogin } from "@/api/hooks";
+import type { LoginResponse, TwoStepSetup, User } from "@/api/types";
 import { Splash } from "@/auth";
 import { Button, Field, TextInput } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
@@ -26,6 +26,9 @@ type Step =
   | { kind: "setup"; setup: TwoStepSetup }
   | { kind: "codes"; codes: string[]; user: User };
 
+/** Signing in with the password, or as the account linked to this device's Tailscale user. */
+type Via = "password" | "tailscale";
+
 export function LoginPage() {
   const { t } = useTranslation(["pages", "common"]);
   useDocumentTitle(t("login.signIn"));
@@ -40,6 +43,11 @@ export function LoginPage() {
   const server = useServer();
   const me = useMe(!server.data?.setup_required);
   const login = useLogin();
+  const tailscale = useTailscaleHere(server.isSuccess && !server.data.setup_required);
+  const tailscaleLogin = useTailscaleLogin();
+  const [via, setVia] = useState<Via>("password");
+  /** The sign-in in progress, or last tried. */
+  const attempt = via === "tailscale" ? tailscaleLogin : login;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [signingIn, setSigningIn] = useState(false);
@@ -64,34 +72,42 @@ export function LoginPage() {
       );
   };
 
-  const signIn = (withCode?: string, setupId?: string) => {
+  const signIn = (withCode?: string, setupId?: string, how: Via = via) => {
     setSigningIn(true);
-    login.mutate(
-      { username: username.trim(), password, ...(withCode ? { code: withCode } : {}), ...(setupId ? { setup_id: setupId } : {}) },
-      {
-        onSuccess: (res) => {
-          // Set up on the way in: its recovery codes are shown once, first.
-          if (res.recovery_codes?.length) setStep({ kind: "codes", codes: res.recovery_codes, user: res.user });
-          else goOn(res.user);
-        },
-        onError: (err) => {
-          setSigningIn(false);
-          const setup = twoStepSetupOf(err);
-          if (setup) setStep({ kind: "setup", setup });
-          else if (!withCode && isTwoStepError(err)) setStep({ kind: "code" });
-        },
+    const handlers = {
+      onSuccess: (res: LoginResponse) => {
+        // Set up on the way in: its recovery codes are shown once, first.
+        if (res.recovery_codes?.length) setStep({ kind: "codes", codes: res.recovery_codes, user: res.user });
+        else goOn(res.user);
       },
-    );
+      onError: (err: unknown) => {
+        setSigningIn(false);
+        const setup = twoStepSetupOf(err);
+        if (setup) setStep({ kind: "setup", setup });
+        else if (!withCode && isTwoStepError(err)) setStep({ kind: "code" });
+      },
+    };
+    const code = withCode ? { code: withCode } : {};
+    if (how === "tailscale") tailscaleLogin.mutate(code, handlers);
+    else login.mutate({ username: username.trim(), password, ...code, ...(setupId ? { setup_id: setupId } : {}) }, handlers);
+  };
+
+  const withTailscale = () => {
+    setVia("tailscale");
+    login.reset();
+    signIn(undefined, undefined, "tailscale");
   };
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    signIn();
+    setVia("password");
+    tailscaleLogin.reset();
+    signIn(undefined, undefined, "password");
   };
 
   const onSubmitCode = (e: FormEvent) => {
     e.preventDefault();
-    if (codeKind(code) && !login.isPending) signIn(code.trim());
+    if (codeKind(code) && !attempt.isPending) signIn(code.trim());
   };
 
   const typeCode = (value: string) => {
@@ -99,32 +115,38 @@ export function LoginPage() {
     const digits = value.replace(/\D/g, "").slice(0, 6);
     setCode(digits);
     // A whole code from the app goes right away.
-    if (digits.length === 6 && !login.isPending) signIn(digits);
+    if (digits.length === 6 && !attempt.isPending) signIn(digits);
   };
 
   const chooseRecovery = (on: boolean) => {
     setRecovery(on);
     setCode("");
     login.reset();
+    tailscaleLogin.reset();
   };
 
   const back = () => {
     setStep({ kind: "password" });
     setPassword("");
+    setVia("password");
     chooseRecovery(false);
   };
 
   // 403: disabled account, 429: too many attempts; the server explains both,
   // and a wrong code. Asking for the code, or to set it up, isn't an error.
-  const error = !login.error
+  // Tailscale's sign-in has no password to be wrong: the server says why.
+  const error = !attempt.error
     ? null
-    : isTwoStepError(login.error) || twoStepSetupOf(login.error)
-      ? login.variables?.code
-        ? errorMessage(login.error)
+    : isTwoStepError(attempt.error) || twoStepSetupOf(attempt.error)
+      ? attempt.variables?.code
+        ? errorMessage(attempt.error)
         : null
-      : isApiError(login.error, 401)
+      : via === "password" && isApiError(attempt.error, 401)
         ? t("login.wrongPassword")
-        : errorMessage(login.error);
+        : errorMessage(attempt.error);
+  const busy = attempt.isPending || (signingIn && !attempt.isError);
+  /** The account this device's Tailscale user linked, which signs in without a password. */
+  const linked = tailscale.data?.tailscale?.username ? tailscale.data.tailscale : null;
 
   if (step.kind === "codes") {
     return (
@@ -151,7 +173,7 @@ export function LoginPage() {
           stacked
           appsHint
           setup={step.setup}
-          busy={login.isPending || (signingIn && !login.isError)}
+          busy={busy}
           error={error}
           submitLabel={t("twoStepSetup.turnOnAndSignIn")}
           onCode={(value) => signIn(value, step.setup.id)}
@@ -196,7 +218,7 @@ export function LoginPage() {
             variant="primary"
             size="lg"
             className="w-full"
-            loading={login.isPending || (signingIn && !login.isError)}
+            loading={busy}
             disabled={!codeKind(code)}
           >
             {t("login.signIn")}
@@ -223,12 +245,33 @@ export function LoginPage() {
           : undefined
       }
     >
+      {linked ? (
+        <div className="mb-6 space-y-2">
+          <Button
+            type="button"
+            variant="primary"
+            size="lg"
+            className="w-full"
+            loading={via === "tailscale" && busy}
+            disabled={via === "password" && busy}
+            onClick={withTailscale}
+          >
+            {t("login.tailscaleAs", { username: linked.username })}
+          </Button>
+          <p className="text-center text-xs text-subtle">{t("login.tailscaleHint", { login: linked.login })}</p>
+          <div className="flex items-center gap-3 pt-2 text-xs text-subtle" aria-hidden>
+            <span className="h-px flex-1 bg-border" />
+            {t("login.orPassword")}
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        </div>
+      ) : null}
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label={t("fields.username")} htmlFor="username">
           <TextInput
             id="username"
             autoComplete="username"
-            autoFocus
+            autoFocus={!linked}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
@@ -249,7 +292,14 @@ export function LoginPage() {
             {error}
           </p>
         ) : null}
-        <Button type="submit" variant="primary" size="lg" className="w-full" loading={login.isPending || (signingIn && !login.isError)}>
+        <Button
+          type="submit"
+          variant={linked ? "outline" : "primary"}
+          size="lg"
+          className="w-full"
+          loading={via === "password" && busy}
+          disabled={via === "tailscale" && busy}
+        >
           {t("login.signIn")}
         </Button>
         {appShell() ? (

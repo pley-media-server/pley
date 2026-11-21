@@ -29,6 +29,8 @@ import type {
   LibraryKind,
   ListenChoice,
   LoginResponse,
+  MyTailscale,
+  TailscalePerson,
   NetworkSettings,
   PersonDetail,
   PlayingSession,
@@ -89,6 +91,8 @@ export const keys = {
   network: ["network"] as const,
   airplayPairings: ["network", "airplay"] as const,
   twoStep: ["me", "two-step"] as const,
+  tailscaleHere: ["tailscale", "here"] as const,
+  myTailscale: ["me", "tailscale"] as const,
   system: ["system"] as const,
   storage: ["system", "storage"] as const,
   resources: ["system", "resources"] as const,
@@ -138,6 +142,52 @@ export function useLogin() {
     onSuccess: (res) => {
       qc.setQueryData(keys.me, res.user);
     },
+  });
+}
+
+/** Who Tailscale says this device is, and the account they linked, for the sign-in page. */
+export function useTailscaleHere(enabled = true) {
+  return useQuery({
+    queryKey: keys.tailscaleHere,
+    queryFn: () => api.get<{ tailscale: TailscalePerson | null }>("/api/auth/tailscale", { noAuthRedirect: true }),
+    enabled,
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+/** Signs in as the account linked to the Tailscale user of this device; `code` for two-step sign-in. */
+export function useTailscaleLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { code?: string }) => api.post<LoginResponse>("/api/auth/tailscale", body, { noAuthRedirect: true }),
+    onSuccess: (res) => {
+      qc.setQueryData(keys.me, res.user);
+    },
+  });
+}
+
+/** The account's Tailscale link, and who this device is on Tailscale. */
+export function useMyTailscale(enabled = true) {
+  return useQuery({ queryKey: keys.myTailscale, queryFn: () => api.get<MyTailscale>("/api/me/tailscale"), enabled });
+}
+
+/** Links the Tailscale user of this device to the account: the password, and a code with two-step sign-in. */
+export function useLinkTailscale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { password: string; code?: string }) =>
+      api.put<MyTailscale>("/api/me/tailscale", body, { noAuthRedirect: true }),
+    onSuccess: (res) => qc.setQueryData(keys.myTailscale, res),
+  });
+}
+
+/** Unlinks it, signing out the devices that signed in with it (this one too, when it did). */
+export function useUnlinkTailscale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.del<void>("/api/me/tailscale"),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.myTailscale }),
   });
 }
 

@@ -105,6 +105,11 @@ pub struct Cli {
     /// address typed in)
     #[arg(long, env = "PLEY_NO_BONJOUR", global = true)]
     pub no_bonjour: bool,
+
+    /// Tailscale's socket (its named pipe on Windows), for signing in with Tailscale (default:
+    /// where Tailscale keeps it on this system)
+    #[arg(long, env = "PLEY_TAILSCALE_SOCKET", global = true)]
+    pub tailscale_socket: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -160,6 +165,7 @@ struct FileConfig {
     bonjour: Option<bool>,
     bonjour_adapters: Option<Vec<String>>,
     bonjour_host_name: Option<String>,
+    tailscale_socket: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -244,6 +250,10 @@ pub struct Config {
     /// Where pley listens, as far as the command line or the environment
     /// sets it: the web app can't change that.
     pub network_fixed: crate::network::Fixed,
+    /// Where Tailscale's service answers, for signing in with Tailscale (see
+    /// [`crate::tailscale`]), or why pley never asks it (its Windows
+    /// service, tests).
+    pub tailscale_socket: Result<PathBuf, String>,
 }
 
 impl Config {
@@ -321,6 +331,11 @@ impl Config {
             trickplay_disks: crate::disks::Source::System,
             cast_fixed: crate::cast::device::Fixed::from_env(),
             cast_within: crate::nearby::casts::CAST_WITHIN,
+            tailscale_socket: Ok(cli
+                .tailscale_socket
+                .clone()
+                .or(file.tailscale_socket)
+                .unwrap_or_else(|| PathBuf::from(crate::tailscale::DEFAULT_SOCKET))),
             network_fixed: crate::network::Fixed {
                 web: cli.bind.is_some(),
                 plex: cli.plex_bind.is_some(),
@@ -376,6 +391,7 @@ impl Config {
             cast_within: crate::nearby::casts::CAST_WITHIN,
             config_file: data_dir.join("pley.toml"),
             network_fixed: crate::network::Fixed::default(),
+            tailscale_socket: Err("tests ask no Tailscale unless they give one".into()),
         }
     }
 
@@ -897,6 +913,7 @@ mod tests {
             no_tray: false,
             no_discovery: false,
             no_bonjour: false,
+            tailscale_socket: None,
         }
     }
 
