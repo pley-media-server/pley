@@ -101,14 +101,13 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
 
     // Asked of the server itself, not through the app's search: that keeps only its latest query, so a car's search
     // overtaken by its next one (a letter typed, its results read) was never answered, and the car went on waiting.
-    // Books are found too: the car shows them, the app's pages don't (bookApi).
-    override suspend fun search(query: String): List<ItemSummary> = signedInBookApi().search(query.trim(), SEARCH_LIMIT).items
+    override suspend fun search(query: String): List<ItemSummary> = signedInApi().search(query.trim(), SEARCH_LIMIT).items
 
-    // Books are read through the car's own API (bookApi): the app's pages, and so its repositories, never get them.
-    override suspend fun bookLibraries(): List<Library> = signedInBookApi().libraries().filter { it.kind == LibraryKind.Audiobooks }
+    // Books are read from the server itself: what the car shows of them (how far the profile is) is to be the latest.
+    override suspend fun bookLibraries(): List<Library> = signedInApi().libraries().filter { it.kind == LibraryKind.Audiobooks }
 
     override suspend fun bookShelves(libraryId: Long): BookShelves {
-        val hubs = signedInBookApi().libraryHubs(libraryId).hubs
+        val hubs = signedInApi().libraryHubs(libraryId).hubs
         return BookShelves(
             listening = hubs.firstOrNull { it.key.startsWith(CONTINUE_LISTENING) }?.items.orEmpty(),
             added = hubs.firstOrNull { it.key.startsWith(RECENTLY_ADDED) }?.items.orEmpty(),
@@ -116,11 +115,11 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
     }
 
     override suspend fun books(libraryId: Long, limit: Int): List<ItemSummary> =
-        signedInBookApi().libraryItems(libraryId, sort = LibrarySort.Title, offset = 0, limit = limit).items
+        signedInApi().libraryItems(libraryId, sort = LibrarySort.Title, offset = 0, limit = limit).items
 
-    override suspend fun parts(bookId: Long): List<ItemSummary> = signedInBookApi().children(bookId).items
+    override suspend fun parts(bookId: Long): List<ItemSummary> = signedInApi().children(bookId).items
 
-    override suspend fun onDeck(bookId: Long): ItemSummary? = signedInBookApi().onDeck(bookId).item
+    override suspend fun onDeck(bookId: Long): ItemSummary? = signedInApi().onDeck(bookId).item
 
     override fun pictureUrl(path: String, width: Int): String = api().url(path, width)
 
@@ -133,13 +132,6 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
     private fun api(): PleyApi {
         val session = data.session.session.value ?: throw SignedOutException()
         return network.api(session.issuer, session.me?.id)
-    }
-
-    /** [signedInApi] with audiobooks ([NetworkGraph.bookApi]). */
-    private suspend fun signedInBookApi(): PleyApi {
-        data.signInRead()
-        val session = data.session.session.value ?: throw SignedOutException()
-        return network.bookApi(session.issuer, session.me?.id)
     }
 
     private suspend fun <T> Flow<Loadable<T>>.settled(): T = settledIn(data)

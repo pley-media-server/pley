@@ -45,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -65,6 +66,7 @@ import app.pley.android.player.MusicControl
 import app.pley.android.player.MusicPosition
 import app.pley.android.player.NowPlaying
 import app.pley.android.screens.PleyGraphOwner
+import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.music.AlbumRow
 import app.pley.android.ui.phone.R
 import kotlinx.coroutines.delay
@@ -177,7 +179,20 @@ private const val COVER_FADE_MS = 300
 /** The words that change with the track: [key] says which track of the queue they are, [index] where it is. */
 internal data class TrackWords(val key: Any, val index: Int, val title: String, val byline: String)
 
-internal fun trackWords(now: NowPlaying): TrackWords = TrackWords(now.itemId to now.index, now.index, now.title, now.byline)
+/**
+ * What plays, in words: the track and "Artist · Album"; a book's part with
+ * chapters is named for the chapter playing (its own name, else "Chapter
+ * 3"), the book under it, and its words change as the next chapter starts.
+ */
+@Composable
+internal fun trackWords(now: NowPlaying): TrackWords {
+    val chapter = now.currentChapter ?: return TrackWords(now.itemId to now.index, now.index, now.title, now.byline)
+    val name = chapter.title?.trim()?.takeIf { it.isNotEmpty() } ?: stringResource(ScreensR.string.book_chapter, now.chapter + 1)
+    return TrackWords(Triple(now.itemId, now.index, now.chapter), now.index * CHAPTERS_PER_PART + now.chapter, name, now.album ?: now.title)
+}
+
+/** More than a file has (the server sends 1,000 at most): a chapter's place in the queue orders as a part's does. */
+private const val CHAPTERS_PER_PART = 10_000
 
 /**
  * [words] drawn by [content], changing with the track: the next track's

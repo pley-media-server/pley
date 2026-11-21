@@ -19,6 +19,7 @@ import app.pley.android.model.TrackDefaults
 import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -309,12 +310,40 @@ internal class CachedPlayItem(private val cache: ResourceCache, private val item
             val tracks = if (parent != null) children(parent).ifEmpty { listOf(item) } else listOf(item)
             music(tracks, tracks.indexOfFirst { it.id == item.id }.coerceAtLeast(0))
         }
-        // Books play in the car's library alone (MusicLibrary), which reads them itself.
-        ItemKind.Audiobook, ItemKind.Part, ItemKind.Unknown -> PlayTarget.NothingToPlay
+        ItemKind.Audiobook -> book(item.id, fromStart)
+        // A part chosen plays the book on from it, where the profile is in it.
+        ItemKind.Part -> {
+            val parts = item.parentId?.let { children(it) }.orEmpty().filter { it.kind == ItemKind.Part }.ifEmpty { listOf(item) }
+            val at = parts.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
+            val part = parts[at]
+            music(parts, at, if (fromStart || part.userState.watched) 0 else part.userState.positionMs)
+        }
+        ItemKind.Unknown -> PlayTarget.NothingToPlay
     }
 
-    private fun music(tracks: List<ItemSummary>, start: Int): PlayTarget =
-        if (tracks.isEmpty()) PlayTarget.NothingToPlay else PlayTarget.Music(tracks.map { it.id }, start, tracks)
+    /**
+     * A book's parts from where the profile is in it (the server's on-deck
+     * part: the one listened to last part way, else the first not heard to
+     * the end), from its start with [fromStart] or once heard to its end.
+     */
+    private suspend fun book(bookId: Long, fromStart: Boolean): PlayTarget {
+        val parts = children(bookId).filter { it.kind == ItemKind.Part }
+        if (parts.isEmpty() || fromStart) return music(parts, 0)
+        val next = try {
+            freshOr(items.onDeckOf(bookId))?.item
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Out of reach with nothing held: from the first part not heard to its end.
+            parts.firstOrNull { !it.userState.watched }
+        }
+        val at = next?.let { n -> parts.indexOfFirst { it.id == n.id } }?.takeIf { it >= 0 } ?: 0
+        val part = parts[at]
+        return music(parts, at, if (part.userState.watched) 0 else part.userState.positionMs)
+    }
+
+    private fun music(tracks: List<ItemSummary>, start: Int, startMs: Long = 0): PlayTarget =
+        if (tracks.isEmpty()) PlayTarget.NothingToPlay else PlayTarget.Music(tracks.map { it.id }, start, tracks, startMs.coerceAtLeast(0))
 
     private suspend fun children(itemId: Long): List<ItemSummary> = freshOr(items.childrenOf(itemId))?.items.orEmpty()
 

@@ -61,6 +61,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -82,6 +83,9 @@ import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.model.format.formatClockMs
+import app.pley.android.player.BOOK_BACK_MS
+import app.pley.android.player.BOOK_FORWARD_MS
+import app.pley.android.player.BOOK_SPEEDS
 import app.pley.android.player.MusicError
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
@@ -95,9 +99,11 @@ import app.pley.android.ui.phone.player.LocalCarScreen
 import app.pley.android.ui.phone.player.SleepNotice
 import app.pley.android.ui.phone.player.onCarScreen
 import androidx.compose.foundation.layout.BoxScope
+import java.text.NumberFormat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
+import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.music.NowPlayingState
 import app.pley.android.screens.music.NowPlayingViewModel
 import app.pley.android.screens.music.QueueRow
@@ -167,8 +173,8 @@ private fun NowPlayingPage() {
                 if (car) {
                     Spacer(Modifier.weight(1f))
                 } else {
-                    // As much room on the label's left as the two buttons take on its right: it stays centred.
-                    if (now != null) Spacer(Modifier.width(48.dp))
+                    // As much room on the label's left as the buttons take on its right: it stays centred.
+                    if (now != null) Spacer(Modifier.width(if (now.book) 96.dp else 48.dp))
                     Text(
                         stringResource(R.string.music_now_playing),
                         style = MaterialTheme.typography.labelLarge,
@@ -177,6 +183,7 @@ private fun NowPlayingPage() {
                         modifier = Modifier.weight(1f).semantics { heading() },
                     )
                 }
+                if (now?.book == true) SpeedButton(model)
                 if (now != null) {
                     PleyIconButton(PleyIcons.ListMusic, stringResource(R.string.music_queue), onClick = { queue = true }, tint = PleyColors.Muted)
                     if (car) Spacer(Modifier.width(CarGap))
@@ -465,12 +472,17 @@ private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel, inline: Boolea
 private fun Controls(now: NowPlaying, model: NowPlayingViewModel) = BoxWithConstraints(Modifier.fillMaxWidth()) {
     val playSize = if (LocalCarScreen.current && maxWidth < CAR_CONTROLS_WIDTH) 48.dp else 72.dp
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        ModeButton(
+        // A book steps back 15 seconds and forward 30 in place of Shuffle and Repeat, as audiobook apps do.
+        if (now.book) {
+            StepButton(PleyIcons.RotateCcw, BOOK_BACK_MS, stringResource(ScreensR.string.book_back), onClick = model::back)
+        } else {
+            ModeButton(
             PleyIcons.Shuffle,
             stringResource(if (now.shuffle) R.string.music_shuffle_off else R.string.music_shuffle_on),
             on = now.shuffle,
             onClick = { model.setShuffle(!now.shuffle) },
         )
+        }
         SkipButton(PleyIcons.SkipBack, stringResource(R.string.music_previous), onClick = model::previous)
         // What it will do, a track still starting too; paused, it stays Play through a seek's loading.
         val playing = now.wantsPlay
@@ -487,6 +499,10 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) = BoxWithConst
             PlayPauseGlyph(playing, size = playSize * 4 / 9, tint = PleyColors.OnAccent)
         }
         SkipButton(PleyIcons.SkipForward, stringResource(R.string.music_next), onClick = model::next, enabled = now.hasNext)
+        if (now.book) {
+            StepButton(PleyIcons.RotateCw, BOOK_FORWARD_MS, stringResource(ScreensR.string.book_forward), onClick = model::forward)
+            return@Row
+        }
         ModeButton(
             if (now.repeat == MusicRepeat.One) PleyIcons.Repeat1 else PleyIcons.Repeat,
             stringResource(
@@ -500,6 +516,71 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) = BoxWithConst
             onClick = { model.setRepeat(now.repeat.next) },
         )
     }
+}
+
+/** A book's back or forward [stepMs]: the arrow round, the seconds inside it. */
+@Composable
+private fun StepButton(icon: PleyIcon, stepMs: Long, label: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(48.dp)
+            .clip(PleyShape.Circle)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, size = if (LocalCarScreen.current) 34.dp else 30.dp, tint = PleyColors.Fg)
+        Text((stepMs / 1000).toString(), style = MaterialTheme.typography.labelSmall, color = PleyColors.Fg, modifier = Modifier.padding(top = 2.dp))
+    }
+}
+
+/**
+ * The speed a book plays at ("1.2×"), in the top bar: a press lists the
+ * speeds, slowest first, the one it plays at checked.
+ */
+@Composable
+private fun SpeedButton(model: NowPlayingViewModel) {
+    val speed by model.bookSpeed.collectAsStateWithLifecycle()
+    var open by rememberSaveable { mutableStateOf(false) }
+    val label = stringResource(ScreensR.string.book_speed)
+    val shown = speedText(speed)
+    Box(
+        Modifier
+            .size(48.dp)
+            .clip(PleyShape.Circle)
+            .clickable(role = Role.Button, onClickLabel = label, onClick = { open = true })
+            .semantics { contentDescription = "$label, $shown" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(shown, style = MaterialTheme.typography.labelLarge, color = if (speed != 1f) PleyColors.AccentBright else PleyColors.Muted)
+    }
+    if (open) {
+        PleySheet(onDismiss = { open = false }, title = label) {
+            BOOK_SPEEDS.sorted().forEach { choice ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .clickable(role = Role.RadioButton) {
+                            model.setBookSpeed(choice)
+                            open = false
+                        }
+                        .padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(speedText(choice), style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg, modifier = Modifier.weight(1f))
+                    if (choice == speed) Icon(PleyIcons.Check, contentDescription = null, size = 20.dp, tint = PleyColors.Accent)
+                }
+            }
+        }
+    }
+}
+
+/** "1.5×", "1×", in the language shown. */
+@Composable
+internal fun speedText(speed: Float): String {
+    val locale = LocalConfiguration.current.locales[0]
+    return remember(speed, locale) { NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 1 }.format(speed) + "×" }
 }
 
 /** Shuffle or Repeat: in accent while [on], named for what a press does. */

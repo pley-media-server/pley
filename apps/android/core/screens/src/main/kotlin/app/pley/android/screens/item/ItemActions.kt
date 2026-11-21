@@ -55,7 +55,7 @@ enum class ItemAction {
     GoToShow,
     GoToSeason,
 
-    /** Artists, albums and tracks: their music page, which plays them. */
+    /** Artists, albums and tracks: their music page, which plays them; books and their parts: the book's page. */
     Open,
 }
 
@@ -68,7 +68,8 @@ enum class ItemAction {
 fun itemActions(item: ItemSummary, inWatchlist: Boolean? = null, continueWatching: Boolean = false): List<ItemAction> = buildList {
     val kind = item.kind
     val music = kind == ItemKind.Artist || kind == ItemKind.Album || kind == ItemKind.Track
-    if (music) {
+    val book = kind == ItemKind.Audiobook || kind == ItemKind.Part
+    if (music || book) {
         add(ItemAction.Open)
     } else if (kind != ItemKind.Unknown) {
         if (isInProgress(item)) {
@@ -83,7 +84,8 @@ fun itemActions(item: ItemSummary, inWatchlist: Boolean? = null, continueWatchin
     }
     if (continueWatching) add(ItemAction.RemoveFromContinueWatching)
     if (inWatchlist != null && kind.listable) add(if (inWatchlist) ItemAction.RemoveFromMyList else ItemAction.AddToMyList)
-    if (kind != ItemKind.Extra && kind != ItemKind.Unknown) add(ItemAction.AddToPlaylist)
+    // No playlist holds a book's parts (the server refuses them).
+    if (kind != ItemKind.Extra && kind != ItemKind.Unknown && !book) add(ItemAction.AddToPlaylist)
     if (kind == ItemKind.Episode && item.grandparentId != null) add(ItemAction.GoToShow)
     if (kind == ItemKind.Episode && item.parentId != null) add(ItemAction.GoToSeason)
     if (kind == ItemKind.Season && item.parentId != null) add(ItemAction.GoToShow)
@@ -106,6 +108,8 @@ fun destination(action: ItemAction, item: ItemSummary): PleyKey? = when (action)
     ItemAction.Open -> when (item.kind) {
         ItemKind.Artist -> PleyKey.Artist(item.id)
         ItemKind.Album -> PleyKey.Album(item.id)
+        ItemKind.Audiobook -> PleyKey.Book(item.id)
+        ItemKind.Part -> item.parentId?.let { PleyKey.Book(it) }
         else -> item.parentId?.let { PleyKey.Album(it) }
     }
     else -> null

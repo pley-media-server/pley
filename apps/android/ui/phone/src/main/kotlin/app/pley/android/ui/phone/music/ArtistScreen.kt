@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -211,6 +212,7 @@ private fun ArtistContent(
  * side) Play is in view without scrolling. Where the window is short as
  * well ([shortWindow]), the art is smaller and what it is isn't said, so
  * Play and Shuffle stay side by side and above the bar of what plays.
+ * [buttons] take the place of Play and Shuffle (a book's).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -226,6 +228,7 @@ internal fun MusicHeader(
     playEnabled: Boolean = true,
     playOn: CastTarget? = null,
     extra: @Composable () -> Unit = {},
+    buttons: (@Composable FlowRowScope.() -> Unit)? = null,
 ) {
     val wide = LocalPhoneMetrics.current.widthClass != WidthClass.Compact
     val short = wide && shortWindow()
@@ -266,6 +269,10 @@ internal fun MusicHeader(
             verticalArrangement = Arrangement.spacedBy(gap),
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
+            if (buttons != null) {
+                buttons()
+                return@FlowRow
+            }
             PrimaryButton(
                 stringResource(R.string.music_play),
                 onClick = onPlay,

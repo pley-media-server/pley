@@ -9,10 +9,13 @@ enum class LibraryKind(override val wire: String) : WireEnum {
     Shows("shows"),
     Music("music"),
 
-    /** Books, which only the car's library gets (X-Pley-Features). */
+    /** Books, which the app asks for (X-Pley-Features): an older server gives it none. */
     Audiobooks("audiobooks"),
     Unknown("unknown"),
     ;
+
+    /** Music and audiobooks: square covers, no collections and no filters, as on the web. */
+    val audio: Boolean get() = this == Music || this == Audiobooks
 
     object Serializer : LenientEnumSerializer<LibraryKind>("LibraryKind", LibraryKind.entries, LibraryKind.Unknown)
 }

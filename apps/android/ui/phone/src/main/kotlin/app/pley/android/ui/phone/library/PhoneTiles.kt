@@ -101,14 +101,16 @@ internal fun List<UiText>.joined(resources: Resources, separator: String = " · 
 internal fun itemsOfPlural(kind: LibraryKind?): Int = when (kind) {
     LibraryKind.Shows -> R.plurals.library_count_of_shows
     LibraryKind.Music -> R.plurals.library_count_of_artists
+    LibraryKind.Audiobooks -> R.plurals.library_count_of_books
     else -> R.plurals.library_count_of_movies
 }
 
-/** The listing's noun for a library of [kind]: "movies", "shows", "artists". */
+/** The listing's noun for a library of [kind]: "movies", "shows", "artists", "books". */
 @PluralsRes
 internal fun itemsPlural(kind: LibraryKind?): Int = when (kind) {
     LibraryKind.Shows -> R.plurals.library_count_shows
     LibraryKind.Music -> R.plurals.library_count_artists
+    LibraryKind.Audiobooks -> R.plurals.library_count_books
     else -> R.plurals.library_count_movies
 }
 

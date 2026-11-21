@@ -249,7 +249,7 @@ private fun TvLibraryTab(
     val actions = tileActions()
     val resources = LocalResources.current
     val params = state.params
-    val music = state.kind == LibraryKind.Music
+    val music = state.kind?.audio == true
     val cells = state.grid.cells.valueOrNull
     val grid = rememberTvGridState()
     val jump = remember { FocusRequester() }

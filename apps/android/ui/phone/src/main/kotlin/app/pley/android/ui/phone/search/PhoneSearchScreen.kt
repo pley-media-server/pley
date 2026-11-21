@@ -570,6 +570,7 @@ private fun groupName(kind: SearchGroupKind): String = stringResource(
         SearchGroupKind.Artists -> R.string.search_group_artists
         SearchGroupKind.Albums -> R.string.search_group_albums
         SearchGroupKind.Tracks -> R.string.search_group_tracks
+        SearchGroupKind.Books -> app.pley.android.screens.R.string.book_group
     },
 )
 

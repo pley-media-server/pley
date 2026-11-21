@@ -17,6 +17,8 @@ import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.network.ApiException
+import app.pley.android.player.BOOK_BACK_MS
+import app.pley.android.player.BOOK_FORWARD_MS
 import app.pley.android.player.MusicControl
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
@@ -333,6 +335,16 @@ class NowPlayingViewModel(
     fun setShuffle(shuffle: Boolean) = music.setShuffle(shuffle)
 
     fun setRepeat(repeat: MusicRepeat) = music.setRepeat(repeat)
+
+    /** A book's back 15 seconds and forward 30. */
+    fun back() = music.seekBy(-BOOK_BACK_MS)
+
+    fun forward() = music.seekBy(BOOK_FORWARD_MS)
+
+    /** The speed books play at, kept on the device. */
+    val bookSpeed: StateFlow<Float> get() = music.bookSpeed
+
+    fun setBookSpeed(speed: Float) = music.setBookSpeed(speed)
 
     /** The music's sleep timer. */
     val sleep: StateFlow<SleepState> get() = music.sleep

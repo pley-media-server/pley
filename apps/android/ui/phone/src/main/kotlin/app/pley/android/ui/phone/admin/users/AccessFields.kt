@@ -655,7 +655,8 @@ private fun kindIcon(kind: LibraryKind): PleyIcon = when (kind) {
     LibraryKind.Movies -> PleyIcons.Clapperboard
     LibraryKind.Shows -> PleyIcons.Tv
     LibraryKind.Music -> PleyIcons.Music
-    LibraryKind.Audiobooks, LibraryKind.Unknown -> PleyIcons.LibraryBig
+    LibraryKind.Audiobooks -> PleyIcons.BookHeadphones
+    LibraryKind.Unknown -> PleyIcons.LibraryBig
 }
 
 /** "All libraries", "Movies", "2 libraries", "No libraries". */

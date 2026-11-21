@@ -90,6 +90,7 @@ internal fun tvDigits(resources: Resources, n: Int): String = digits(resources).
 internal fun tvItemsOfPlural(kind: LibraryKind?): Int = when (kind) {
     LibraryKind.Shows -> R.plurals.tv_library_count_of_shows
     LibraryKind.Music -> R.plurals.tv_library_count_of_artists
+    LibraryKind.Audiobooks -> R.plurals.tv_library_count_of_books
     else -> R.plurals.tv_library_count_of_movies
 }
 
@@ -97,6 +98,7 @@ internal fun tvItemsOfPlural(kind: LibraryKind?): Int = when (kind) {
 internal fun tvItemsPlural(kind: LibraryKind?): Int = when (kind) {
     LibraryKind.Shows -> R.plurals.tv_library_count_shows
     LibraryKind.Music -> R.plurals.tv_library_count_artists
+    LibraryKind.Audiobooks -> R.plurals.tv_library_count_books
     else -> R.plurals.tv_library_count_movies
 }
 

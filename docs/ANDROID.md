@@ -699,9 +699,37 @@ A Pley from before categories has none to give
 collection in one grid, as it did, and Recommended the server's own
 rows, with no row of collections after them.
 
-Audiobook libraries are in the web and desktop apps: the server gives this
-app none, nor their books on Home, in search or in history
-([API.md](API.md#libraries)).
+Audiobook libraries are listed with the others, with a book icon; the
+app asks the server for them (`X-Pley-Features: audiobooks`, with every
+request), and an older server gives it none
+([API.md](API.md#libraries)). As on the web, a book library has
+Recommended (Continue Listening, Recently Added) and Library tabs, its
+books as square covers by title, year or date added, with no filters
+and no collections. Home has Continue Listening, the books being heard,
+as square covers; search finds books in a group of their own; history
+lists the parts heard under their book.
+
+A book's page (BookView.tsx) has its cover, its series and place in it,
+who wrote and reads it, its year, length and parts, and how far the
+profile is in it (a bar, the share heard, the time left, and the part it
+goes on from). **Play** goes on where the profile is in the book on any
+device (the server's on-deck part, from where it stopped; **Resume**
+once started, **Listen again** once finished), or plays and pauses the
+book while it is in the player; **From the start** and **Mark as
+finished** are beside it. Under it are the parts, each with its length,
+a bar of how far it is heard and a check once heard to its end, or, for a
+book in one file, its chapters, each from where it starts; the one
+playing is marked, and picking one plays the book from it. A TV opens Now
+Playing as the book plays.
+
+Books play in the app's music, as tracks do, at the books' own speed. Now
+Playing (phone, TV and the notification) has back 15 seconds and forward
+30 seconds in place of Shuffle and Repeat, and Speed (1 to 2 times, and
+0.8): a list on the phone, each Select the next speed on a TV, as the
+car's button does; the speed is kept on the device for every book, the
+car included. Previous and Next go from chapter to chapter in a file with
+chapters, then from part to part, and Now Playing and the bar of what
+plays are named for the chapter playing, the book under it.
 
 ### Search
 
@@ -1092,10 +1120,7 @@ kept on the phone for the next drive. Where the profile is in each part
 goes to the server as for a track, so the web app's Continue Listening
 and its book pages follow, and the other way round.
 
-The app asks the server for books only for the car's library (the
-`X-Pley-Features: audiobooks` header, in an HTTP cache of its own): the
-phone's and TV's pages don't show books, and a server that doesn't
-give them (an older one) leaves the Books tab out.
+A server that doesn't give books (an older one) leaves the Books tab out.
 
 Search finds artists, albums, tracks and books, then channels. Each
 search the car sends is asked of the server by itself, so one overtaken

@@ -13,14 +13,15 @@ import app.pley.android.ui.phone.shell.Placeholder
 import app.pley.android.ui.phone.shell.RISES
 
 /**
- * The phone's artist and album pages and Now Playing (Artist, Album,
- * NowPlaying), added to the app's back stacks. Now Playing opens over the
+ * The phone's artist, album and book pages and Now Playing (Artist,
+ * Album, Book, NowPlaying), added to the app's back stacks. Now Playing opens over the
  * tab it was opened from, coming up from the mini player, which hides
  * while it shows.
  */
 fun EntryProviderScope<NavKey>.musicEntries() {
     entry<PleyKey.Artist> { key -> WithGraph(key) { ArtistScreen(key.itemId) } }
     entry<PleyKey.Album> { key -> WithGraph(key) { AlbumScreen(key.itemId, key.trackId) } }
+    entry<PleyKey.Book> { key -> WithGraph(key) { BookScreen(key.itemId) } }
     entry<PleyKey.NowPlaying>(metadata = mapOf(RISES to true)) { key ->
         TellsItHasDrawn()
         WithGraph(key) { NowPlayingScreen() }

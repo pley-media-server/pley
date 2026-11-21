@@ -71,14 +71,13 @@ data class LibraryParams(
 
     /**
      * What a library of [kind] can show: a sort it offers (else Title),
-     * and no filters for music, which has none on the web, nor a
-     * Collections tab.
+     * and no filters for music and audiobooks, nor a Collections tab.
      */
     fun validFor(kind: LibraryKind): LibraryParams {
         val sorts = sortsFor(kind)
         val sort = if (sort in sorts) sort else LibrarySort.Title
         val base = copy(sort = sort, order = if (sort != this.sort) null else order)
-        return if (kind == LibraryKind.Music) {
+        return if (kind.audio) {
             base.copy(tab = if (tab == LibraryTab.Collections) LibraryTab.Library else tab).cleared()
         } else {
             base
@@ -104,6 +103,7 @@ data class LibraryParams(
         /** Sorts the web offers each kind of library, in its order. */
         fun sortsFor(kind: LibraryKind): List<LibrarySort> = when (kind) {
             LibraryKind.Music -> listOf(LibrarySort.Title, LibrarySort.Added, LibrarySort.UserRating, LibrarySort.LastPlayed)
+            LibraryKind.Audiobooks -> listOf(LibrarySort.Title, LibrarySort.Year, LibrarySort.Added)
             LibraryKind.Shows -> listOf(
                 LibrarySort.Title, LibrarySort.Year, LibrarySort.Added, LibrarySort.Rating, LibrarySort.UserRating,
                 LibrarySort.Release, LibrarySort.LastPlayed, LibrarySort.Bitrate,
@@ -114,9 +114,9 @@ data class LibraryParams(
             )
         }
 
-        /** The tabs of a library of [kind]: music has no collections. */
+        /** The tabs of a library of [kind]: music and audiobooks have no collections. */
         fun tabsFor(kind: LibraryKind?): List<LibraryTab> =
-            if (kind == LibraryKind.Music) listOf(LibraryTab.Recommended, LibraryTab.Library) else LibraryTab.entries
+            if (kind?.audio == true) listOf(LibraryTab.Recommended, LibraryTab.Library) else LibraryTab.entries
 
         /** Titles A to Z; everything else newest, biggest or best first, as on the web. */
         fun defaultOrder(sort: LibrarySort): SortOrder = if (sort == LibrarySort.Title) SortOrder.Ascending else SortOrder.Descending

@@ -102,4 +102,14 @@
     <string name="tv_collection_failed">Impossible de charger cette collection</string>
     <string name="tv_collection_nothing_to_play">Rien à lire : cette série n’a pas encore d’épisode</string>
     <string name="tv_collection_from">Dans</string>
+    <plurals name="tv_library_count_books">
+        <item quantity="one">%s livre</item>
+        <item quantity="many">%s de livres</item>
+        <item quantity="other">%s livres</item>
+    </plurals>
+    <plurals name="tv_library_count_of_books">
+        <item quantity="one">%1$s sur %2$s livre</item>
+        <item quantity="many">%1$s sur %2$s de livres</item>
+        <item quantity="other">%1$s sur %2$s livres</item>
+    </plurals>
 </resources>

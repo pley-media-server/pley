@@ -1722,10 +1722,11 @@ open only some libraries see those, in that order.
 **Audiobooks** are for Pley's own sign-in (the web app and the desktop
 app's window, which show them) and for an app's request that says it
 shows them with `X-Pley-Features: audiobooks` (comma-separated features,
-`audiobooks` the only one yet; the Android app's car library sends it).
-Such a request gets them as Pley's own sign-in does, from the libraries
-the account may open; an app keeps the answers apart from its other
-requests' (an HTTP cache of their own), as they differ. Any other
+`audiobooks` the only one yet; the Android app sends it with every
+request and on its event stream). Such a request gets them as Pley's own
+sign-in does, from the libraries the account may open; an app that sends
+it with some requests only keeps their answers apart from the others' (an
+HTTP cache of their own), as they differ. Any other
 request with an app's token, an administrator's included, gets no
 audiobook library: none in
 `/api/libraries` or among Home's rows, `404` from a library's own routes,

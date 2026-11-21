@@ -25,7 +25,11 @@ class FakeItems : ItemRepository {
 
     override fun detail(itemId: Long): Flow<Loadable<ItemDetail>> = detailOf(itemId)
     override fun children(itemId: Long): Flow<Loadable<List<ItemSummary>>> = kidsOf(itemId)
-    override fun onDeck(itemId: Long): Flow<Loadable<ItemSummary?>> = error("not music")
+    val decks = HashMap<Long, MutableStateFlow<Loadable<ItemSummary?>>>()
+
+    fun deckOf(id: Long): MutableStateFlow<Loadable<ItemSummary?>> = decks.getOrPut(id) { MutableStateFlow(Loadable.Ready(null, fresh = true)) }
+
+    override fun onDeck(itemId: Long): Flow<Loadable<ItemSummary?>> = deckOf(itemId)
     override fun related(itemId: Long): Flow<Loadable<List<ItemSummary>>> = error("not music")
     override fun collectionsOf(itemId: Long): Flow<Loadable<List<CollectionSummary>>> = error("not music")
     override suspend fun next(itemId: Long): ItemSummary? = null
@@ -36,6 +40,8 @@ class FakeItems : ItemRepository {
 class FakeMusic : MusicControl {
     val now = MutableStateFlow<NowPlaying?>(null)
     val played = mutableListOf<Triple<List<Long>, Int, Boolean>>()
+    val startedAt = mutableListOf<Long>()
+    val seeks = mutableListOf<Long>()
     var toggles = 0
     var stops = 0
 
@@ -44,6 +50,15 @@ class FakeMusic : MusicControl {
 
     override fun play(tracks: List<ItemSummary>, startIndex: Int, shuffle: Boolean) {
         played += Triple(tracks.map { it.id }, startIndex, shuffle)
+    }
+
+    override fun playFrom(tracks: List<ItemSummary>, startIndex: Int, startMs: Long) {
+        played += Triple(tracks.map { it.id }, startIndex, false)
+        startedAt += startMs
+    }
+
+    override fun seekTo(positionMs: Long) {
+        seeks += positionMs
     }
 
     override fun toggle() {
@@ -60,7 +75,10 @@ class FakeMusic : MusicControl {
 /** Ratings that are recorded. */
 class FakeWatchState : WatchStateRepository {
     val ratings = mutableListOf<Pair<Long, Double?>>()
-    override suspend fun setWatched(itemId: Long, watched: Boolean) = Unit
+    val watched = mutableListOf<Pair<Long, Boolean>>()
+    override suspend fun setWatched(itemId: Long, watched: Boolean) {
+        this.watched += itemId to watched
+    }
     override suspend fun rate(itemId: Long, rating: Double?) {
         ratings += itemId to rating
     }

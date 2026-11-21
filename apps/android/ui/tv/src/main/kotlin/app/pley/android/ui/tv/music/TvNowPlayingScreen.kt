@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,6 +56,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -83,11 +85,13 @@ import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.model.format.formatClockMs
+import app.pley.android.player.BOOK_SPEEDS
 import app.pley.android.player.MusicError
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepTexts
+import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.music.NowPlayingState
 import app.pley.android.screens.music.NowPlayingViewModel
 import app.pley.android.ui.tv.R
@@ -97,6 +101,7 @@ import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.player.MoonIcon
 import app.pley.android.ui.tv.shell.LocalTvNavigator
+import java.text.NumberFormat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
@@ -163,9 +168,13 @@ internal fun TvNowPlayingScreen() {
             }
             Spacer(Modifier.width(32.dp))
             Column(Modifier.fillMaxSize().focusGroup()) {
-                BasicText(now.title, style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                // A book's part with chapters is named for the chapter playing, the book under it.
+                val chapter = now.currentChapter
+                val title = chapter?.let { it.title?.trim()?.takeIf { name -> name.isNotEmpty() } ?: stringResource(ScreensR.string.book_chapter, now.chapter + 1) } ?: now.title
+                val byline = if (chapter != null) now.album ?: now.title else now.byline
+                BasicText(title, style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
-                BasicText(now.byline, style = PleyType.Tv.BodyLarge.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                BasicText(byline, style = PleyType.Tv.BodyLarge.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Status(now, model)
                 Spacer(Modifier.height(14.dp))
                 Scrubber(now, model)
@@ -272,6 +281,10 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) {
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
+        if (now.book) {
+            BookControls(now, model)
+            return@Row
+        }
         Box(Modifier.padding(top = BESIDE_PLAY)) {
             TvRoundButton(
                 stringResource(if (now.shuffle) R.string.tv_music_shuffle_off else R.string.tv_music_shuffle),
@@ -300,6 +313,33 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) {
         }
         Box(Modifier.padding(top = BESIDE_PLAY)) { SleepButton(model) }
     }
+}
+
+/**
+ * A book's controls, as audiobook apps have them: back 15 seconds,
+ * Previous and Next (from chapter to chapter, and part to part), forward
+ * 30, then Speed, each Select taking it to the next speed, as the car's
+ * button does, and the sleep timer.
+ */
+@Composable
+private fun RowScope.BookControls(now: NowPlaying, model: NowPlayingViewModel) {
+    Box(Modifier.padding(top = BESIDE_PLAY)) { TvRoundButton(stringResource(ScreensR.string.book_back), PleyIcons.RotateCcw, onClick = model::back, onArt = true) }
+    Box(Modifier.padding(top = BESIDE_PLAY)) { TvRoundButton(stringResource(R.string.tv_music_previous), PleyIcons.SkipBack, onClick = model::previous, onArt = true) }
+    PlayPause(now, onClick = model::toggle)
+    Box(Modifier.padding(top = BESIDE_PLAY)) { TvRoundButton(stringResource(R.string.tv_music_next), PleyIcons.SkipForward, onClick = model::next, onArt = true, enabled = now.hasNext) }
+    Box(Modifier.padding(top = BESIDE_PLAY)) { TvRoundButton(stringResource(ScreensR.string.book_forward), PleyIcons.RotateCw, onClick = model::forward, onArt = true) }
+    val speed by model.bookSpeed.collectAsStateWithLifecycle()
+    val locale = LocalConfiguration.current.locales[0]
+    val shown = remember(speed, locale) { NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 1 }.format(speed) + "×" }
+    Box(Modifier.padding(top = BESIDE_PLAY)) {
+        TvRoundButton(
+            stringResource(ScreensR.string.book_speed) + " " + shown,
+            PleyIcons.Gauge,
+            onClick = { model.setBookSpeed(BOOK_SPEEDS[(BOOK_SPEEDS.indexOf(speed) + 1) % BOOK_SPEEDS.size]) },
+            onArt = true,
+        )
+    }
+    Box(Modifier.padding(top = BESIDE_PLAY)) { SleepButton(model) }
 }
 
 /**

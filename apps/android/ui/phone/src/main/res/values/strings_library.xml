@@ -104,4 +104,12 @@
     <string name="collection_failed">Couldn\'t load this collection</string>
     <string name="collection_nothing_to_play">Nothing to play: this show has no episodes yet</string>
     <string name="collections_title">Collections</string>
+    <plurals name="library_count_books">
+        <item quantity="one">%s book</item>
+        <item quantity="other">%s books</item>
+    </plurals>
+    <plurals name="library_count_of_books">
+        <item quantity="one">%1$s of %2$s book</item>
+        <item quantity="other">%1$s of %2$s books</item>
+    </plurals>
 </resources>

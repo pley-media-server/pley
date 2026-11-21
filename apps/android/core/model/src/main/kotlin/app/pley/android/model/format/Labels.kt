@@ -53,6 +53,9 @@ fun cardSubtitle(item: ItemSummary, words: FormatWords, locale: Locale = words.l
         item.grandparentTitle?.takeIf { it.isNotEmpty() },
         item.parentTitle?.takeIf { it.isNotEmpty() },
     ).joinToString(" · ")
+    // A book is known by its writers, as on the web; its part by its book.
+    ItemKind.Audiobook -> item.authors.joinToString(", ")
+    ItemKind.Part -> item.parentTitle.orEmpty()
     else -> ""
 }
 

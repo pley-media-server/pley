@@ -35,6 +35,7 @@ data class RailItem(
                 LibraryKind.Movies -> PleyIcons.Clapperboard
                 LibraryKind.Shows -> PleyIcons.Tv
                 LibraryKind.Music -> PleyIcons.Music
+                LibraryKind.Audiobooks -> PleyIcons.BookHeadphones
                 else -> PleyIcons.Film
             }
             RailSlot.Libraries -> PleyIcons.Layers
@@ -87,7 +88,7 @@ private fun mainItems(libraries: List<Library>): List<RailItem> = buildList {
     add(RailItem("playlists", RailSlot.Playlists, PleyKey.Playlists))
     if (libraries.size <= MAX_LIBRARIES) {
         // A library's collections; the first video library's, as the web's Collections link.
-        val first = libraries.firstOrNull { it.kind != LibraryKind.Music } ?: libraries.firstOrNull()
+        val first = libraries.firstOrNull { !it.kind.audio } ?: libraries.firstOrNull()
         if (first != null) add(RailItem("collections", RailSlot.Collections, PleyKey.Collections(first.id)))
     }
 }

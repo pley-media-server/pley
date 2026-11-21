@@ -10,6 +10,12 @@ describes how they are made.
 
 ### Added
 
+- Audiobooks on phones and TVs: book libraries, Continue Listening on
+  Home, books in search and history, and a page for each book with who
+  wrote and reads it, how far you are, Play where you left off on any
+  device, and its parts or chapters. Now Playing has back 15 seconds,
+  forward 30 seconds and Speed for a book, and Previous and Next go
+  through the chapters of a book in one file.
 - Music repeats: Repeat in Now Playing, on phones and TVs, and in the
   phone's media controls repeats the queue, then the track playing, then
   nothing.

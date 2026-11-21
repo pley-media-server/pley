@@ -94,4 +94,10 @@
     <string name="tv_collection_failed">无法加载此合集</string>
     <string name="tv_collection_nothing_to_play">无法播放：这部剧还没有集数</string>
     <string name="tv_collection_from">来自</string>
+    <plurals name="tv_library_count_books">
+        <item quantity="other">%s 本书</item>
+    </plurals>
+    <plurals name="tv_library_count_of_books">
+        <item quantity="other">%2$s 本书中的 %1$s 本</item>
+    </plurals>
 </resources>

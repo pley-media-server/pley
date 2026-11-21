@@ -242,6 +242,7 @@ data class LibraryEntry(
 }
 
 internal const val CONTINUE_PREFIX = "continue"
+private const val CONTINUE_LISTENING_PREFIX = "continue_listening"
 private const val RECENTLY_ADDED_PREFIX = "recently_added"
 
 /**
@@ -260,13 +261,14 @@ fun homeRows(hubs: List<Hub>, libraries: List<Library>?): List<HomeRow> = hubs.m
     )
 }
 
-/** The shape of [hub]'s tiles: the web's hubAspect, with a music library's rows square. */
+/** The shape of [hub]'s tiles: the web's hubAspect, with a music or audiobook library's rows square (Continue Listening too). */
 fun rowShape(hub: Hub, libraryKind: LibraryKind? = null): RowShape = when {
+    hub.key.startsWith(CONTINUE_LISTENING_PREFIX) -> RowShape.Square
     hub.key.startsWith(CONTINUE_PREFIX) -> RowShape.Landscape
-    libraryKind == LibraryKind.Music -> RowShape.Square
+    libraryKind?.audio == true -> RowShape.Square
     else -> when (hub.items.firstOrNull()?.kind) {
         ItemKind.Episode -> RowShape.Landscape
-        ItemKind.Artist, ItemKind.Album, ItemKind.Track -> RowShape.Square
+        ItemKind.Artist, ItemKind.Album, ItemKind.Track, ItemKind.Audiobook -> RowShape.Square
         else -> RowShape.Poster
     }
 }
@@ -301,11 +303,12 @@ private val SEE_ALL_VIEWS = mapOf(
 )
 
 /**
- * The item the TV's hero shows: the first of Continue Watching, else the
- * newest video in the rows, else the newest item of any kind.
+ * The item the TV's hero shows: the first of Continue Watching (not
+ * Listening: a book has no backdrop), else the newest video in the rows,
+ * else the newest item of any kind.
  */
 fun heroOf(rows: List<HomeRow>): ItemSummary? {
-    rows.firstOrNull { it.continueWatching }?.items?.firstOrNull()?.let { return it }
+    rows.firstOrNull { it.continueWatching && !it.key.startsWith(CONTINUE_LISTENING_PREFIX) }?.items?.firstOrNull()?.let { return it }
     val all = rows.flatMap { it.items }
     return all.filter { it.kind in VIDEO_KINDS }.maxByOrNull { it.addedAt } ?: all.maxByOrNull { it.addedAt }
 }
@@ -328,7 +331,7 @@ fun homeInfo(
     val show = item.grandparentTitle?.takeIf { episode && it.isNotEmpty() }
     val inProgress = isInProgress(item)
     val runtime = when (item.kind) {
-        ItemKind.Show, ItemKind.Season, ItemKind.Artist, ItemKind.Album -> cardSubtitle(item, words, locale)
+        ItemKind.Show, ItemKind.Season, ItemKind.Artist, ItemKind.Album, ItemKind.Audiobook -> cardSubtitle(item, words, locale)
         else -> formatRuntime(item.durationMs ?: details?.durationMs, words)
     }
     return HomeInfo(
@@ -366,15 +369,18 @@ fun libraryCountText(library: Library): UiText = UiText.plural(
         LibraryKind.Movies -> R.plurals.library_entry_movies
         LibraryKind.Shows -> R.plurals.library_entry_shows
         LibraryKind.Music -> R.plurals.library_entry_artists
-        LibraryKind.Audiobooks, LibraryKind.Unknown -> R.plurals.library_entry_items
+        LibraryKind.Audiobooks -> R.plurals.library_entry_books
+        LibraryKind.Unknown -> R.plurals.library_entry_items
     },
     library.itemCount,
 )
 
-/** The page an item opens: music has its own pages (P5), the rest the item page. */
+/** The page an item opens: music and books have their own pages, the rest the item page. */
 fun pageOf(item: ItemSummary): PleyKey = when (item.kind) {
     ItemKind.Artist -> PleyKey.Artist(item.id)
     ItemKind.Album -> PleyKey.Album(item.id)
     ItemKind.Track -> item.parentId?.let { PleyKey.Album(it) } ?: PleyKey.Item(item.id)
+    ItemKind.Audiobook -> PleyKey.Book(item.id)
+    ItemKind.Part -> item.parentId?.let { PleyKey.Book(it) } ?: PleyKey.Item(item.id)
     else -> PleyKey.Item(item.id)
 }
