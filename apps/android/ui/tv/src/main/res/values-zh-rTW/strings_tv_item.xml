@@ -30,14 +30,14 @@
     <!-- Under a person's picture in Cast & Crew. -->
     <string name="tv_item_creator">創作者</string>
     <string name="tv_item_more_like_this">相似推薦</string>
-    <string name="tv_item_episodes">劇集</string>
+    <string name="tv_item_episodes">影集</string>
     <string name="tv_item_details">詳情</string>
     <string name="tv_item_versions">版本</string>
     <string name="tv_item_media_info">媒體資訊</string>
     <string name="tv_item_media_info_hint">每個檔案的影片、音訊和字幕流</string>
     <string name="tv_item_media_info_open">開啟</string>
-    <string name="tv_item_media_info_closed">收起</string>
-    <string name="tv_item_no_episodes">未找到劇集。</string>
+    <string name="tv_item_media_info_closed">收合</string>
+    <string name="tv_item_no_episodes">未找到影集。</string>
     <string name="tv_item_close">關閉</string>
     <string name="tv_item_back">返回</string>
     <string name="tv_item_retry">重試</string>
@@ -74,7 +74,7 @@
     <string name="tv_item_action_play">播放</string>
     <string name="tv_item_action_resume">繼續播放</string>
     <string name="tv_item_action_from_start">從頭播放</string>
-    <string name="tv_item_action_go_to_show">前往劇集</string>
+    <string name="tv_item_action_go_to_show">前往影集</string>
     <string name="tv_item_action_go_to_season">前往季</string>
     <string name="tv_item_action_open">開啟</string>
 

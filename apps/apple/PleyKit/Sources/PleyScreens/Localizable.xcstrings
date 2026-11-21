@@ -1270,7 +1270,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld 部劇集"
+                  "value" : "%lld 部影集"
                 }
               }
             }
@@ -3406,7 +3406,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在電影或劇集的詳情頁下載，即可離線觀看。"
+            "value" : "在電影或影集的詳情頁下載，即可離線觀看。"
           }
         }
       }
@@ -3551,7 +3551,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "正在下載。可在“我”中的“下載”裡檢視。"
+            "value" : "正在下載。可在「我」中的「下載」裡檢視。"
           }
         }
       }
@@ -3725,7 +3725,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "劇集"
+            "value" : "影集"
           }
         }
       }
@@ -4044,7 +4044,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "前往劇集"
+            "value" : "前往影集"
           }
         }
       }
@@ -4885,7 +4885,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "沒有頻道的名稱、號碼或當前節目包含“%@”。"
+            "value" : "沒有頻道的名稱、號碼或當前節目包含「%@」。"
           }
         }
       }
@@ -5175,7 +5175,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”沒有結果"
+            "value" : "「%@」沒有結果"
           }
         }
       }
@@ -5987,7 +5987,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "播放“%@”"
+            "value" : "播放「%@」"
           }
         }
       }
@@ -6538,7 +6538,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從“繼續觀看”中移除"
+            "value" : "從「繼續觀看」中移除"
           }
         }
       }
@@ -6799,7 +6799,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在網頁端 Pley 的“設定 → 伺服器”中設定。"
+            "value" : "在網頁端 Pley 的「設定 → 伺服器」中設定。"
           }
         }
       }
@@ -6886,7 +6886,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "劇集"
+            "value" : "影集"
           }
         }
       }
@@ -7263,7 +7263,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "系統使用你在“設定 → 輔助功能 → 字幕與隱藏式字幕”中的字幕樣式。"
+            "value" : "系統使用你在「設定 → 輔助使用 → 字幕與隱藏式字幕」中的字幕樣式。"
           }
         }
       }
@@ -7292,7 +7292,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "文本"
+            "value" : "文字"
           }
         }
       }
@@ -7321,7 +7321,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@（列表）"
+            "value" : "%@（清單）"
           }
         }
       }
@@ -8814,7 +8814,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”"
+            "value" : "「%@」"
           }
         }
       }

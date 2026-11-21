@@ -24,7 +24,7 @@
     <string name="remote_on_profile">在 %1$s 的設定檔中</string>
     <!-- What TalkBack says a device's row, and the bar, do, and the way back from its controls. -->
     <string name="remote_open_device">顯示控制選項</string>
-    <string name="remote_back_to_devices">返回裝置列表</string>
+    <string name="remote_back_to_devices">返回裝置清單</string>
 
     <!-- What TalkBack says of each control: "Pause on Living room TV". -->
     <string name="remote_play">在 %1$s 上播放</string>
@@ -36,8 +36,8 @@
     <string name="remote_previous_channel">在 %1$s 上切換到上一個頻道</string>
     <string name="remote_next_channel">在 %1$s 上切換到下一個頻道</string>
     <string name="remote_back">在 %1$s 上後退 30 秒</string>
-    <string name="remote_forward">在 %1$s 上快進 30 秒</string>
-    <string name="remote_seek">在 %1$s 上拖動進度</string>
+    <string name="remote_forward">在 %1$s 上快轉 30 秒</string>
+    <string name="remote_seek">在 %1$s 上拖曳進度</string>
     <string name="remote_progress">在 %1$s 上的播放進度</string>
     <string name="remote_stop">停止</string>
     <string name="remote_stop_on">在 %1$s 上停止</string>
@@ -82,7 +82,7 @@
     <!-- To a device on another profile, when this one has a PIN: the PIN pad, what it is for, and its way back. -->
     <string name="play_on_pin_title">輸入你的 PIN</string>
     <string name="play_on_pin_body">%1$s 會從 %2$s 的設定檔切換到你的設定檔。</string>
-    <string name="play_on_back">返回裝置列表</string>
+    <string name="play_on_back">返回裝置清單</string>
     <string name="play_on_wrong_pin">PIN 錯誤，請重試。</string>
     <string name="play_on_pin_locked">多次輸入錯誤後，你的 PIN 已被鎖定。你或管理員可以重設它。</string>
 
@@ -102,5 +102,5 @@
     <string name="play_on_pairing_wait">%1$s 暫時無法接受重試，請稍等。</string>
     <string name="play_on_pairing_failed">%1$s 配對失敗。</string>
     <!-- A toast: the chooser closed before an AirPlay device asked for its code. -->
-    <string name="play_on_pair_first">%1$s 需要先配對：請在“在…上播放”中重新選擇它。</string>
+    <string name="play_on_pair_first">%1$s 需要先配對：請在「在…上播放」中重新選擇它。</string>
 </resources>

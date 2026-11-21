@@ -19,7 +19,7 @@
     <string name="item_your_rating">你的評分</string>
     <string name="item_part_of">屬於 %1$s</string>
     <string name="item_read_more">更多</string>
-    <string name="item_read_less">收起</string>
+    <string name="item_read_less">收合</string>
     <string name="item_version">版本</string>
     <string name="item_audio">音訊</string>
     <!-- No track picked: each device plays its best track of the language. -->
@@ -33,8 +33,8 @@
     <string name="item_more_like_this">更多類似內容</string>
     <string name="item_details">詳情</string>
     <string name="item_episodes">集</string>
-    <string name="item_more_episodes">%1$s 中的更多劇集</string>
-    <string name="item_no_episodes">未找到劇集。</string>
+    <string name="item_more_episodes">%1$s 中的更多影集</string>
+    <string name="item_no_episodes">未找到影集。</string>
     <string name="item_choose_season">選擇季</string>
     <string name="item_media_info">媒體資訊</string>
     <plurals name="item_media_versions">
@@ -84,13 +84,13 @@
     <string name="item_action_mark_watched">標記為已觀看</string>
     <string name="item_action_mark_unwatched">標記為未觀看</string>
     <string name="item_action_add_to_playlist">新增到播放清單…</string>
-    <string name="item_action_go_to_show">前往劇集</string>
+    <string name="item_action_go_to_show">前往影集</string>
     <string name="item_action_go_to_season">前往季</string>
     <string name="item_action_open">開啟</string>
 
     <!-- Person pages (PersonPage.tsx). -->
     <string name="person_movies">電影</string>
-    <string name="person_shows">劇集</string>
+    <string name="person_shows">影集</string>
     <string name="person_in_libraries">你的媒體庫中有 %1$s</string>
     <string name="person_not_found">未找到此人</string>
     <string name="person_not_found_body">該連結對應的人物在你的媒體庫中沒有任何內容。</string>

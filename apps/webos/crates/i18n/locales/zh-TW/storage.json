@@ -1,12 +1,12 @@
 {
-  "title": "U 盤",
+  "title": "USB 隨身碟",
   "noDrive": {
-    "title": "沒有 U 盤",
-    "body": "將 U 盤插入電視，即可在此播放其中的影片。"
+    "title": "沒有 USB 隨身碟",
+    "body": "將 USB 隨身碟插入電視，即可在此播放其中的影片。"
   },
   "unreadable": {
     "title": "無法讀取此資料夾",
-    "body": "U 盤可能已被拔出。"
+    "body": "USB 隨身碟可能已被拔出。"
   },
   "empty": {
     "title": "這裡沒有可播放的內容",

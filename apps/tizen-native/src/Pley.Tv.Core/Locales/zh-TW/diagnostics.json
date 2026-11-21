@@ -26,8 +26,8 @@
     "none": "無",
     "video": "影片：{{decoders}}",
     "audioDecoded": "解碼音訊：{{formats}}",
-    "sent": "傳送給接收端：{{formats}}",
-    "sentWithOutput": "傳送給接收端：{{formats}}（聲音輸出 {{output}}）",
+    "sent": "傳送給擴大機：{{formats}}",
+    "sentWithOutput": "傳送給擴大機：{{formats}}（聲音輸出 {{output}}）",
     "nothing": "無",
     "streams": "流：HLS {{segments}}"
   }

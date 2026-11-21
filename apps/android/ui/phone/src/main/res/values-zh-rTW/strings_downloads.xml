@@ -3,7 +3,7 @@
     <!-- The Downloads page. -->
     <string name="downloads_title">下載</string>
     <string name="downloads_empty">暫無下載</string>
-    <string name="downloads_empty_body">在電影或劇集頁面下載後即可離線觀看。</string>
+    <string name="downloads_empty_body">在電影或影集頁面下載後即可離線觀看。</string>
     <!-- "4.2 GB on this phone · 51 GB free". -->
     <string name="downloads_storage">此裝置佔用 %1$s · 可用 %2$s</string>
     <!-- A show's group: "3 episodes · 4.2 GB". -->
@@ -49,7 +49,7 @@
     <!-- For screen readers while it waits: "Saltwind, Waiting for Wi-Fi". -->
     <string name="downloads_status_item">%1$s，%2$s</string>
     <string name="downloads_failed_toast">無法下載：%1$s</string>
-    <string name="downloads_started">開始下載。可在“我”中的“下載”裡找到。</string>
+    <string name="downloads_started">開始下載。可在「我」中的「下載」裡找到。</string>
     <string name="downloads_started_action">下載</string>
 
     <!-- The offline banner's way to them. -->
@@ -63,7 +63,7 @@
     </plurals>
     <string name="downloads_settings">下載</string>
     <string name="downloads_quality">畫質</string>
-    <string name="downloads_quality_hint">當此手機能直接播放時，“原始”會原樣下載檔案。較低畫質佔用空間更少；伺服器會先進行轉換。</string>
+    <string name="downloads_quality_hint">當此手機能直接播放時，「原始」會原樣下載檔案。較低畫質佔用空間更少；伺服器會先進行轉換。</string>
     <string name="downloads_mobile_data">使用行動數據下載</string>
     <string name="downloads_mobile_data_value">否則下載會等待 Wi-Fi</string>
     <string name="downloads_delete_all">刪除所有下載</string>

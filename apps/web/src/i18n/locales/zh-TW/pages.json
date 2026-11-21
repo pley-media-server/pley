@@ -25,9 +25,9 @@
     "toServerForTv": "以允許你的電視使用 {{server}}",
     "wrongPassword": "使用者名稱或密碼錯誤。",
     "codesSubtitle": "已開啟兩步驗證。",
-    "setupSubtitle": "{{server}} 要求所有人在密碼之後輸入驗證器應用生成的驗證碼。只需一分鐘。",
+    "setupSubtitle": "{{server}} 要求所有人在密碼之後輸入驗證器應用產生的驗證碼。只需一分鐘。",
     "codeTitle": "兩步驗證",
-    "codeHint": "輸入驗證器應用生成的 6 位驗證碼。",
+    "codeHint": "輸入驗證器應用產生的 6 位驗證碼。",
     "recoveryHint": "輸入開啟時儲存的復原代碼之一。每個只能使用一次。",
     "recoveryCode": "復原代碼",
     "useApp": "使用驗證器應用",
@@ -40,13 +40,13 @@
     "subtitle": "為這臺伺服器建立管理員帳戶。",
     "passwordHint": "至少 {{min}} 個字元。幾個不相關的詞組合起來容易記、難猜。",
     "setupCode": "設定代碼",
-    "setupCodeHint": "從托盤圖示開啟 Pley，會自動為你填入。沒有托盤圖示的伺服器上，代碼在 Pley 的日誌中（使用 Docker 時執行 docker logs pley）。",
+    "setupCodeHint": "從系統匣圖示開啟 Pley，會自動為你填入。沒有系統匣圖示的伺服器上，代碼在 Pley 的記錄檔中（使用 Docker 時執行 docker logs pley）。",
     "createAccount": "建立帳戶",
     "progress": "設定進度"
   },
   "setupServer": {
     "title": "你的伺服器",
-    "subtitle": "Pley 會使用這些設定。有不對的可以修改；之後都可以在“設定”中找到。",
+    "subtitle": "Pley 會使用這些設定。有不對的可以修改；之後都可以在「設定」中找到。",
     "change": "更改",
     "changeWhat": "更改：{{what}}",
     "name": "伺服器名稱",
@@ -58,7 +58,7 @@
     "addKey": "新增金鑰",
     "keyNeeded": "取得電影海報和簡介需要此金鑰。",
     "getKey": "取得免費的 API 金鑰",
-    "tmdbHint": "有了金鑰，劇集資訊也來自 TMDB，標題和簡介會使用相應語言。<a>取得免費的 API 金鑰</a>",
+    "tmdbHint": "有了金鑰，影集資訊也來自 TMDB，標題和簡介會使用相應語言。<a>取得免費的 API 金鑰</a>",
     "keyRefused": "TMDB 不接受此金鑰。請檢查，或不使用金鑰繼續。",
     "withoutKey": "不使用金鑰繼續",
     "keyUnchecked": "Pley 無法連線 TMDB 來驗證此金鑰。可以保持不勾選，或重試。",
@@ -78,20 +78,20 @@
   },
   "setupLibrary": {
     "title": "你的媒體庫",
-    "subtitle": "告訴 Pley 你的電影、劇集和音樂放在哪裡。沒有的可以跳過。",
+    "subtitle": "告訴 Pley 你的電影、影集和音樂放在哪裡。沒有的可以跳過。",
     "added": "已新增",
     "toAdd": "要新增的媒體庫",
     "nameOf": "此 {{type}} 媒體庫的名稱",
     "namePlaceholder": {
       "movies": "名稱，例如兒童電影",
-      "shows": "名稱，例如兒童劇集",
+      "shows": "名稱，例如兒童影集",
       "music": "名稱，例如兒童音樂",
       "audiobooks": "名稱，例如兒童有聲書"
     },
     "folderOf": "{{name}} 的資料夾",
     "where": {
       "movies": "你的電影在哪裡？",
-      "shows": "你的劇集在哪裡？",
+      "shows": "你的影集在哪裡？",
       "music": "你的音樂在哪裡？",
       "audiobooks": "你的有聲書在哪裡？"
     },
@@ -105,13 +105,13 @@
       "noName": "為此媒體庫命名。",
       "nameTaken": "另一個媒體庫已使用此名稱。"
     },
-    "pickOne": "至少為一個媒體庫選擇資料夾，或點選“稍後”。",
+    "pickOne": "至少為一個媒體庫選擇資料夾，或點選「稍後」。",
     "later": "稍後"
   },
   "invite": {
     "documentTitle": "邀請",
     "codesSubtitle": "你的帳戶已就緒，兩步驗證已開啟。",
-    "setupSubtitle": "你的帳戶已建立。{{server}} 要求所有人在密碼之後輸入驗證器應用生成的驗證碼。",
+    "setupSubtitle": "你的帳戶已建立。{{server}} 要求所有人在密碼之後輸入驗證器應用產生的驗證碼。",
     "cantBeUsed": "此邀請無法使用",
     "cantBeUsedHint": "連結有誤、已過期或已被使用。請向傳送者索取新的邀請。",
     "goToSignIn": "前往登入",
@@ -155,25 +155,25 @@
   },
   "twoStep": {
     "title": "兩步驗證",
-    "intro": "輸入密碼後，Pley 會要求你輸入手機驗證器應用生成的驗證碼，因此僅憑密碼無法登入你的帳戶。",
+    "intro": "輸入密碼後，Pley 會要求你輸入手機驗證器應用產生的驗證碼，因此僅憑密碼無法登入你的帳戶。",
     "setUp": "設定",
-    "onSince": "自 {{date}} 起開啟：登入需要密碼和驗證器應用生成的驗證碼。",
+    "onSince": "自 {{date}} 起開啟：登入需要密碼和驗證器應用產生的驗證碼。",
     "required": "此伺服器要求開啟，因此無法關閉。",
-    "noCodesLeft": "復原代碼已用完：請生成新的，以免手機丟失後無法登入。",
-    "fewCodesLeft_other": "僅剩 {{count}} 個復原代碼：請在使用完前生成新的。",
+    "noCodesLeft": "復原代碼已用完：請產生新的，以免手機丟失後無法登入。",
+    "fewCodesLeft_other": "僅剩 {{count}} 個復原代碼：請在使用完前產生新的。",
     "codesLeft_other": "還剩 {{count}} 個復原代碼，供手機不在手邊時使用。",
     "turnOff": "關閉",
     "useAnotherApp": "使用其他應用",
     "useAnotherAppHint": "用於新手機或其他驗證器應用",
     "newCodes": "新的復原代碼",
-    "noteOn": "已登入的裝置會保持登入。請在“裝置”中結束你不認識的裝置。",
+    "noteOn": "已登入的裝置會保持登入。請在「裝置」中結束你不認識的裝置。",
     "noteMoved": "舊驗證器應用的驗證碼和舊的復原代碼均已失效。",
     "needApp": "你需要在手機上安裝驗證器應用，例如 Google Authenticator、Microsoft Authenticator、1Password 或 Bitwarden。",
     "moveHint": "用於新手機或其他驗證器應用。在輸入新應用的驗證碼之前，當前應用仍然有效。",
     "newCodesHint": "新的復原代碼會替換現有代碼，現有的將失效。",
     "currentCode": "當前應用中的驗證碼",
     "currentCodeHint": "或復原代碼。",
-    "makeNewCodes": "生成新代碼",
+    "makeNewCodes": "產生新代碼",
     "movedToast": "兩步驗證已改用你的新應用",
     "onToast": "兩步驗證已開啟",
     "useThisApp": "使用此應用",
@@ -279,7 +279,7 @@
       "signInOnTv": "在電視上登入",
       "none": "沒有應用使用你的帳戶。應用在獲得存取權限前會在 Pley 頁面上請求授權。",
       "firstParty": "Pley 自家的應用",
-      "callsItself": "自稱“{{name}}”",
+      "callsItself": "自稱「{{name}}」",
       "using": "正在使用 {{name}}",
       "allowedBy": "由 {{name}} 授權",
       "lastActive": "上次活躍於 {{when}}",
@@ -293,11 +293,11 @@
     }
   },
   "tokens": {
-    "title": "其他應用的令牌",
+    "title": "其他應用的權杖",
     "subtitle": "相容 Plex 或 Jellyfin",
-    "new": "新建令牌",
-    "none": "暫無令牌。",
-    "needName": "為令牌命名。",
+    "new": "新建權杖",
+    "none": "暫無權杖。",
+    "needName": "為權杖命名。",
     "tooMany": "最多 {{max}} 個位址。",
     "name": "名稱",
     "nameHint": "使用它的應用或工具。",
@@ -305,13 +305,13 @@
     "onlyFrom": "僅限來自",
     "onlyFromHint": "位址或網段，例如 192.168.1.20 或 10.0.0.0/24。留空表示不限制。",
     "local": "此電腦和家庭網路",
-    "make": "生成令牌",
-    "copyNow": "現在複製 <bold>{{name}}</bold> 的令牌。它不會再次顯示。",
-    "copied": "令牌已複製",
-    "notCopied": "無法複製令牌",
+    "make": "產生權杖",
+    "copyNow": "現在複製 <bold>{{name}}</bold> 的權杖。它不會再次顯示。",
+    "copied": "權杖已複製",
+    "notCopied": "無法複製權杖",
     "lastUsed": "上次使用於 {{when}}",
     "notUsed": "尚未使用",
-    "made": "創建於 {{when}}",
+    "made": "建立於 {{when}}",
     "revoke": "撤銷",
     "revokeNamed": "撤銷 {{name}}",
     "revoked": "已撤銷 {{name}}"
@@ -320,7 +320,7 @@
     "title": "{{app}} 想要使用你的 Pley 帳戶",
     "onServer": "在 {{server}} 上",
     "firstParty": "Pley 自家的應用",
-    "callsItself": "它自稱“{{name}}”（Pley 無法核實該名稱）",
+    "callsItself": "它自稱「{{name}}」（Pley 無法核實該名稱）",
     "notOwn": "此應用並非 Pley 自家應用",
     "otherProfile": "使用其他設定檔",
     "notYou": "不是你？登出",
@@ -330,7 +330,7 @@
       "play": "播放內容，並儲存 {{profile}} 的播放進度、評分和軌道選擇。",
       "playlists": "建立、修改和刪除 {{profile}} 的播放清單。",
       "profiles": "切換到家中其他設定檔（仍需 PIN 碼）。",
-      "requests": "請求電影和劇集，並檢視 {{profile}} 的請求。",
+      "requests": "請求電影和影集，並檢視 {{profile}} 的請求。",
       "approvals": "批准或拒絕他人的請求。",
       "activity": "檢視並停止 {{profile}} 的播放流。",
       "activityEveryone": "檢視並停止伺服器上正在播放的內容。"
@@ -340,7 +340,7 @@
     "optional": {
       "server": {
         "label": "管理伺服器",
-        "hint": "儀表盤、媒體庫、使用者和邀請。設定、金鑰、直播電視和其他管理員仍在網頁應用中管理。"
+        "hint": "儀表板、媒體庫、使用者和邀請。設定、金鑰、直播電視和其他管理員仍在網頁應用中管理。"
       }
     },
     "cantChange": "它無法更改你的密碼、登入設定或裝置。",
@@ -352,7 +352,7 @@
     "website": "網站 {{address}}",
     "appOnComputer": "此電腦上的應用",
     "appOnDevice": "此裝置上的應用",
-    "goesTo": "將跳轉至：",
+    "goesTo": "將前往：",
     "deviceShowing": "顯示 <code>{{code}}</code> 的電視或裝置",
     "saysItIs": "它自稱是 {{device}}。",
     "saysItIsAt": "它自稱是 {{device}}，位址為 {{address}}。",
@@ -367,7 +367,7 @@
     "cantLoad": "載入請求失敗",
     "cantAllow": "無法批准此請求",
     "fromApp": "來自 {{app}}",
-    "backGoesTo": "返回應用將跳轉至：",
+    "backGoesTo": "返回應用將前往：",
     "back": "返回應用",
     "overDocumentTitle": "請求已結束",
     "over": "此請求已結束",
@@ -388,7 +388,7 @@
   "home": {
     "title": "首頁",
     "noLibraries": "暫無媒體庫",
-    "noLibrariesAdmin": "告訴 Pley 你的電影、劇集和音樂所在的資料夾。它會掃描並建立媒體庫。",
+    "noLibrariesAdmin": "告訴 Pley 你的電影、影集和音樂所在的資料夾。它會掃描並建立媒體庫。",
     "noLibrariesUser": "請伺服器所有者新增媒體庫。",
     "addLibrary": "新增媒體庫",
     "cantLoad": "載入首頁失敗",
@@ -399,10 +399,10 @@
     "manage": "管理媒體庫",
     "noRows": "首頁暫無內容",
     "noRowsHint": "你正在觀看的內容和我片單中的內容會顯示在這裡。你的媒體庫在選單中。",
-    "noRowsHintAdmin": "在合集的編輯視窗中將它們放到首頁，例如各媒體庫的“最近新增”。",
+    "noRowsHintAdmin": "在合集的編輯視窗中將它們放到首頁，例如各媒體庫的「最近新增」。",
     "firstScan": {
       "queued": "{{library}}：等待開始",
-      "walking": "正在掃描 {{library}}：查詢檔案",
+      "walking": "正在掃描 {{library}}：尋找檔案",
       "probing": "正在掃描 {{library}}：讀取檔案",
       "metadata": "{{library}}：取得詳情"
     },
@@ -412,7 +412,7 @@
       "show": "顯示媒體庫",
       "hide": "隱藏媒體庫",
       "phases": {
-        "walking": "查詢檔案",
+        "walking": "尋找檔案",
         "probing": "讀取檔案",
         "metadata": "取得海報和詳情"
       }
@@ -446,24 +446,24 @@
     },
     "count": {
       "movies_other": "{{count, number}} 部電影",
-      "shows_other": "{{count, number}} 部劇集",
-      "music_other": "{{count, number}} 位藝術家",
+      "shows_other": "{{count, number}} 部影集",
+      "music_other": "{{count, number}} 位藝人",
       "audiobooks_other": "{{count, number}} 本書"
     },
     "countOf": {
       "movies_other": "{{count, number}} 部電影中的 {{shown, number}} 部",
-      "shows_other": "{{count, number}} 部劇集中的 {{shown, number}} 部",
-      "music_other": "{{count, number}} 位藝術家中的 {{shown, number}} 位",
+      "shows_other": "{{count, number}} 部影集中的 {{shown, number}} 部",
+      "music_other": "{{count, number}} 位藝人中的 {{shown, number}} 位",
       "audiobooks_other": "{{count, number}} 本書中的 {{shown, number}} 本"
     },
     "all": {
       "movies": "所有電影",
-      "shows": "所有劇集",
+      "shows": "所有影集",
       "audiobooks": "所有圖書"
     },
     "sortBy": "排序方式",
-    "ascending": "升序",
-    "descending": "降序",
+    "ascending": "遞增",
+    "descending": "遞減",
     "watchedFilter": "觀看狀態篩選",
     "unwatched": "未觀看",
     "watched": "已觀看",
@@ -479,7 +479,7 @@
     "saveAs": "另存為…",
     "cardSize": "卡片大小",
     "cantLoad": "載入媒體庫失敗",
-    "noMatches": "無匹配結果",
+    "noMatches": "沒有相符的結果",
     "noMatchesHint": "此媒體庫中沒有符合當前篩選條件的內容。",
     "empty": "此媒體庫為空",
     "emptyHint": "Pley 尚未找到任何媒體。請檢查媒體庫資料夾，然後重新掃描。",
@@ -488,7 +488,7 @@
     "cantLoadRecommendations": "載入推薦失敗",
     "nothingToRecommend": "暫無可推薦內容",
     "nothingToRecommendHint": "媒體庫中有內容後才會顯示推薦。",
-    "arrangeRows": "整理欄目"
+    "arrangeRows": "整理列"
   },
   "person": {
     "documentTitle": "演職員",
@@ -506,7 +506,7 @@
     "notFound": "未找到人物",
     "inLibraries": "你的媒體庫中有 {{counts}}",
     "movies": "電影",
-    "shows": "劇集"
+    "shows": "影集"
   },
   "profiles": {
     "title": "誰在觀看？",
@@ -525,11 +525,11 @@
     "codeFromApp": "驗證器應用中的驗證碼",
     "saveCodes": "儲存復原代碼",
     "setUpFor": "為 {{name}} 設定兩步驗證",
-    "setUpHint": "從現在起，{{name}} 在密碼之後還需輸入驗證器應用生成的驗證碼。",
+    "setUpHint": "從現在起，{{name}} 在密碼之後還需輸入驗證器應用產生的驗證碼。",
     "turnOnAndSwitch": "開啟並切換",
     "cantLoad": "載入設定檔失敗",
     "locked": "{{name}} 可檢視的內容比你更多：管理員可為其設定 PIN 碼以限制切換。",
-    "continueAs": "以 {{name}} 身份繼續"
+    "continueAs": "以 {{name}} 身分繼續"
   },
   "saveFilters": {
     "title": "儲存這些篩選條件",
@@ -552,10 +552,10 @@
     "documentTitleQuery": "搜尋：{{q}}",
     "groups": {
       "movie": "電影",
-      "show": "劇集",
+      "show": "影集",
       "season": "季",
       "episode": "集",
-      "artist": "藝術家",
+      "artist": "藝人",
       "album": "專輯",
       "track": "曲目",
       "audiobook": "有聲書"
@@ -568,11 +568,11 @@
     "cantSearchTmdb": "搜尋 TMDB 失敗：{{error}}",
     "nothingThere": "其中也沒有結果。試試其他拼寫或更短的關鍵詞。",
     "emptyTitle": "搜尋你的媒體庫",
-    "emptyHint": "查詢電影、劇集、單集、人物、藝術家、專輯、曲目、有聲書和直播電影片道。在任意處按 / 可跳到搜尋框。",
+    "emptyHint": "搜尋電影、影集、單集、人物、藝人、專輯、曲目、有聲書和直播頻道。在任意處按 / 可跳到搜尋框。",
     "cantSearch": "搜尋媒體庫失敗",
-    "resultsFor": "“{{q}}”的搜尋結果",
-    "nothingInLibraries": "你的媒體庫中沒有匹配項。",
-    "noResults": "“{{q}}”沒有結果",
+    "resultsFor": "「{{q}}」的搜尋結果",
+    "nothingInLibraries": "你的媒體庫中沒有相符的項目。",
+    "noResults": "「{{q}}」沒有結果",
     "differentSpelling": "試試其他拼寫或更短的關鍵詞。"
   }
 }

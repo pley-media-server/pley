@@ -5,7 +5,7 @@
     "refused": "該位址無回應",
     "unknownHost": "此網路中找不到該位址",
     "secureConnection": "安全連線失敗",
-    "tooBig": "伺服器返回的資料過大",
+    "tooBig": "伺服器回傳的資料過大",
     "connectionFailed": "連線伺服器失敗",
     "anotherDevice": "該位址由另一臺裝置回應",
     "serverFailed": "伺服器無法回應"
@@ -29,11 +29,11 @@
     "busy": "當前登入的電視過多：請稍後再試",
     "codeSpent": "此代碼已失效：請取得新代碼",
     "unreadable": "無法讀取伺服器的回應：請重試",
-    "approveElsewhere": "此伺服器會跳轉到其他位址審批電視：Pley 不會",
-    "signInElsewhere": "此伺服器會跳轉到其他位址登入：Pley 不會",
+    "approveElsewhere": "此伺服器會重新導向到其他位址核准電視：Pley 不會",
+    "signInElsewhere": "此伺服器會重新導向到其他位址登入：Pley 不會",
     "callsItself": "此伺服器自報位址為 {{address}}：請用該位址開啟，或檢查其前的代理是否傳遞 Host 頭",
     "unreachable": "無法存取伺服器：請檢查其位址及是否開啟",
-    "otherServer": "這些令牌屬於另一臺伺服器"
+    "otherServer": "這些權杖屬於另一臺伺服器"
   },
   "oauth": {
     "invalidClient": "伺服器不認識此應用",

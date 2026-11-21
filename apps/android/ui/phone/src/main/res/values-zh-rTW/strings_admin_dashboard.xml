@@ -90,7 +90,7 @@
     <string name="admin_dashboard_hw_sessions">硬體工作階段</string>
     <string name="admin_dashboard_segments_served">已提供分段</string>
     <plurals name="admin_dashboard_produced">
-        <item quantity="other">已生成 %1$s</item>
+        <item quantity="other">已產生 %1$s</item>
     </plurals>
     <string name="admin_dashboard_data_served">已傳輸資料</string>
     <string name="admin_dashboard_on_disk">磁碟佔用 %1$s</string>
@@ -104,7 +104,7 @@
     <string name="admin_dashboard_remove">從歷史記錄中移除 %1$s</string>
     <string name="admin_dashboard_library_scans">媒體庫掃描</string>
     <string name="admin_dashboard_scan_queued">排隊中</string>
-    <string name="admin_dashboard_scan_walking">查詢檔案</string>
+    <string name="admin_dashboard_scan_walking">尋找檔案</string>
     <string name="admin_dashboard_scan_probing">分析媒體</string>
     <string name="admin_dashboard_scan_metadata">取得中介資料</string>
     <string name="admin_dashboard_scan_done">已完成</string>
@@ -113,7 +113,7 @@
     <plurals name="admin_dashboard_seasons_left">
         <item quantity="other">還剩 %1$s 季</item>
     </plurals>
-    <string name="admin_dashboard_making_previews">生成拖動預覽圖</string>
+    <string name="admin_dashboard_making_previews">產生拖曳預覽圖</string>
     <plurals name="admin_dashboard_files_left">
         <item quantity="other">還剩 %1$s 個檔案</item>
     </plurals>
@@ -124,11 +124,11 @@
     <string name="admin_dashboard_uptime">執行時間</string>
     <string name="admin_dashboard_data_directory">資料目錄</string>
     <string name="admin_dashboard_movies">電影</string>
-    <string name="admin_dashboard_shows">劇集</string>
+    <string name="admin_dashboard_shows">影集</string>
     <plurals name="admin_dashboard_episodes">
         <item quantity="other">%1$s 集</item>
     </plurals>
-    <string name="admin_dashboard_artists">音樂人</string>
+    <string name="admin_dashboard_artists">藝人</string>
     <plurals name="admin_dashboard_albums">
         <item quantity="other">%1$s 張專輯</item>
     </plurals>
@@ -156,7 +156,7 @@
     <string name="admin_dashboard_storage">儲存</string>
     <string name="admin_dashboard_clean_up">清理</string>
     <string name="admin_dashboard_clean_up_title">清理儲存空間？</string>
-    <string name="admin_dashboard_clean_up_body">刪除不再使用的圖片和拖動預覽圖，以及舊的快取檔案。</string>
+    <string name="admin_dashboard_clean_up_body">刪除不再使用的圖片和拖曳預覽圖，以及舊的快取檔案。</string>
     <plurals name="admin_dashboard_removed">
         <item quantity="other">已刪除 %1$s 個未使用檔案（%2$s）</item>
     </plurals>
@@ -167,7 +167,7 @@
     <plurals name="admin_dashboard_stored_once">
         <item quantity="other">每份僅存一次，共 %1$s</item>
     </plurals>
-    <string name="admin_dashboard_generated">已生成</string>
+    <string name="admin_dashboard_generated">已產生</string>
     <plurals name="admin_dashboard_previews_of">
         <item quantity="other">%1$s 個檔案的預覽圖</item>
     </plurals>

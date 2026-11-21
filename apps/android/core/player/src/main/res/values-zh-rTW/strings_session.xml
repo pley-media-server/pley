@@ -88,7 +88,7 @@
     <string name="session_engine_audio">音訊：%1$s %2$d 聲道</string>
     <string name="session_engine_audio_decoder">音訊解碼器：%1$s</string>
     <!-- "Dropped frames: 3 of 5000". -->
-    <string name="session_engine_dropped">丟幀：%1$d / %2$d</string>
+    <string name="session_engine_dropped">掉格：%1$d / %2$d</string>
 
     <!-- Playback speed, when a download's sound keeps it at 1×, or a stream's the server couldn't convert. -->
     <string name="session_speed_undecodable">不適用於此下載：其音訊原樣輸出到你的音響，此處沒有裝置可以解碼</string>

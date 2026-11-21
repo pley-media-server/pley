@@ -39,14 +39,14 @@
     "groups": "頻道組",
     "groupCount_other": "{{count}} 個頻道組",
     "region": "{{region}}，{{groups}}",
-    "resultsFor": "“{{search}}”的搜尋結果"
+    "resultsFor": "「{{search}}」的搜尋結果"
   },
   "page": {
     "notOpen": "此設定檔未開放直播電視",
     "notOpenHint": "管理員可在網頁版 Pley 中開放：設定 → 直播電視。",
     "didntLoad": "無法載入直播電視",
     "setUpTitle": "在網頁上設定直播電視",
-    "setUpHint": "在網頁版 Pley 的“設定 → 直播電視”中新增 IPTV 提供商的播放清單或 Xtream Codes 帳戶。頻道和節目指南會顯示在這裡。",
+    "setUpHint": "在網頁版 Pley 的「設定 → 直播電視」中新增 IPTV 提供商的播放清單或 Xtream Codes 帳戶。頻道和節目指南會顯示在這裡。",
     "noChannelsTitle": "還沒有頻道",
     "noChannelsHint": "管理員新增 IPTV 提供商後，頻道就會顯示在這裡。",
     "channelCount_other": "{{count, number}} 個頻道",
@@ -54,8 +54,8 @@
     "noFavouritesHint": "用頻道選單鍵或在播放器中標記頻道，即可在這裡找到它。",
     "nothingWatched": "還沒有觀看記錄",
     "nothingWatchedHint": "你看過的頻道會顯示在這裡。",
-    "noMatch": "沒有匹配的頻道",
-    "noMatchHint": "沒有頻道名稱、號碼或當前節目包含“{{search}}”。",
+    "noMatch": "沒有相符的頻道",
+    "noMatchHint": "沒有頻道名稱、號碼或當前節目包含「{{search}}」。",
     "empty": "這裡沒有頻道",
     "emptyHint": "此頻道組沒有可顯示的頻道。",
     "searchAgain": "重新搜尋"

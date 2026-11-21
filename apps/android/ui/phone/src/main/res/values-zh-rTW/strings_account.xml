@@ -47,7 +47,7 @@
 
     <!-- Watch history (apps/web/src/components/HistoryList.tsx). -->
     <string name="account_history_empty_title">暫無歷史記錄</string>
-    <string name="account_history_empty">看完的電影、劇集和歌曲會顯示在這裡。</string>
+    <string name="account_history_empty">看完的電影、影集和歌曲會顯示在這裡。</string>
     <string name="account_history_failed">無法載入觀看歷史</string>
     <string name="account_history_more">顯示更多</string>
     <string name="account_history_loading">載入更多…</string>
@@ -63,9 +63,9 @@
     <string name="settings_quality_automatic_hint">根據網路情況動態調整。</string>
     <!-- "8 Mbps 1080p", "30 Mbps 4K": the lines, then the bitrate. -->
     <string name="settings_quality_preset">%2$d Mbps %1$s</string>
-    <string name="settings_refresh_rate">匹配更新率</string>
+    <string name="settings_refresh_rate">配合更新率</string>
     <string name="settings_refresh_seamless">無縫時</string>
-    <string name="settings_refresh_seamless_hint">在不中斷播放的情況下，讓螢幕跟隨影片幀率。</string>
+    <string name="settings_refresh_seamless_hint">在不中斷播放的情況下，讓螢幕跟隨影片影格速率。</string>
     <string name="settings_refresh_auto">自動</string>
     <string name="settings_refresh_always">總是</string>
     <string name="settings_refresh_off">關閉</string>
@@ -76,7 +76,7 @@
     <string name="settings_playback_details_hint">在畫面上顯示影片的播放方式（直接播放、重封裝或轉碼）</string>
     <string name="settings_subtitle_style">字幕樣式</string>
     <string name="settings_subtitle_style_hint">在 Android 無障礙設定中開啟的字幕會保持其自身樣式，直到你在此更改。</string>
-    <string name="settings_subtitle_size">字號</string>
+    <string name="settings_subtitle_size">字型大小</string>
     <string name="settings_size_small">小</string>
     <string name="settings_size_medium">正常</string>
     <string name="settings_size_large">大</string>
@@ -102,7 +102,7 @@
     <string name="settings_density_medium">中等</string>
     <string name="settings_density_large">更少、更大的卡片</string>
     <string name="settings_privacy">隱私</string>
-    <string name="settings_private_tab">在無痕標籤頁中登入</string>
+    <string name="settings_private_tab">在無痕分頁中登入</string>
     <string name="settings_private_tab_hint">瀏覽器不會保持登入狀態，因此每次都要輸入密碼</string>
     <string name="settings_advanced">高階</string>
     <string name="settings_software_video">軟體影片解碼</string>
@@ -121,8 +121,8 @@
     <string name="diagnostics_probe_failed">此裝置檢測失敗。</string>
     <string name="diagnostics_probe_again">重新檢測</string>
     <string name="diagnostics_report">Pley 向伺服器報告的資訊</string>
-    <string name="diagnostics_show_frame_rate">顯示幀率</string>
-    <string name="diagnostics_show_frame_rate_hint">播放時在頂部顯示：每秒幀數、最長幀和延遲幀</string>
+    <string name="diagnostics_show_frame_rate">顯示影格速率</string>
+    <string name="diagnostics_show_frame_rate_hint">播放時在頂部顯示：每秒影格數、最長影格和延遲影格</string>
     <string name="diagnostics_copy">複製</string>
     <string name="diagnostics_copied">已複製</string>
 </resources>

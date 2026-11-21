@@ -2193,7 +2193,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "伺服器返回 %@"
+            "value" : "伺服器回傳 %@"
           }
         }
       }

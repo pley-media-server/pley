@@ -9,7 +9,7 @@
     "forgetHint": "在已儲存的伺服器上長按 OK 即可忘記它。",
     "checkingRange": "正在檢查 {{range}}…",
     "checkingNetwork": "正在檢查此網路…",
-    "looking": "正在你的網路中查詢 Pley…",
+    "looking": "正在你的網路中尋找 Pley…",
     "noneFound": "未找到伺服器。請確保這臺電視和伺服器在同一網路中。",
     "forgetTitle": "忘記 {{name}}？",
     "forgetBody": "Pley 會將這臺電視從此伺服器登出，並刪除儲存的內容。",
@@ -31,7 +31,7 @@
     "badAddress": "請輸入位址，例如 nas、192.168.1.20 或 pley.example.com。",
     "notPley": "{{address}} 上有回應，但不是 Pley。",
     "unreachable": "無法連線 {{address}}：{{reason}}",
-    "unencrypted": "{{address}} 未加密：你觀看的內容可能在傳輸途中被讀取。若它有 https 位址，請改用該位址；或再次按“連線”繼續。"
+    "unencrypted": "{{address}} 未加密：你觀看的內容可能在傳輸途中被讀取。若它有 https 位址，請改用該位址；或再次按「連線」繼續。"
   },
   "link": {
     "title": "登入 Pley",
@@ -44,11 +44,11 @@
     "newCode": "取得新代碼",
     "scanCamera": "用手機相機掃描",
     "gettingCode": "正在取得代碼…",
-    "waiting": "等待審批…",
+    "waiting": "等待核准…",
     "retrying": "無法連線伺服器。{{seconds}} 秒後重試",
     "declined": "請求已拒絕",
     "expired": "代碼已過期：按 OK 取得新代碼",
-    "signedInAs": "已以 {{name}} 身份登入",
+    "signedInAs": "已以 {{name}} 身分登入",
     "signedIn": "已登入",
     "twoStepRequired": "此伺服器要求兩步驗證：如果你還沒設定，手機會引導你完成。"
   },
@@ -64,9 +64,9 @@
     "unreachable": "無法連線伺服器：請檢查其位址並確認它已開啟",
     "tooOld": "此伺服器版本太舊，不支援此應用",
     "noCodes": "此伺服器暫不支援代碼登入：請更新它，或用密碼登入",
-    "moved": "此伺服器在另一個位址回應：請通過該位址開啟",
+    "moved": "此伺服器在另一個位址回應：請透過該位址開啟",
     "failed": "伺服器無法回應（HTTP {{status}}）",
-    "callsItself": "此伺服器自稱 {{name}}：請通過該位址開啟，或檢查其前面的代理是否傳遞 Host",
+    "callsItself": "此伺服器自稱 {{name}}：請透過該位址開啟，或檢查其前面的代理是否傳遞 Host",
     "signInElsewhere": "此伺服器讓應用去另一個位址登入：Pley 不會",
     "approveElsewhere": "此伺服器讓使用者去另一個位址批准電視：Pley 不會",
     "unreadable": "無法讀取伺服器的回應：請重試",
@@ -74,6 +74,6 @@
     "signedOut": "你已登出：請重新登入",
     "widerScope": "伺服器授予的權限超出了此應用的請求：已登出",
     "unkept": "無法在此裝置上保留登入狀態：請重新登入",
-    "unencrypted": "此伺服器的位址不在你的網路中，且連線未加密：請通過其 https 位址開啟以登入"
+    "unencrypted": "此伺服器的位址不在你的網路中，且連線未加密：請透過其 https 位址開啟以登入"
   }
 }

@@ -48,7 +48,7 @@
     "yourRating": "你的評分：{{stars}}",
     "noRating": "暫無評分",
     "stars_other": "{{count}} 星",
-    "goToShow": "前往劇集",
+    "goToShow": "前往影集",
     "goToSeason": "前往季",
     "mediaInfo": "媒體資訊",
     "details": "詳情",
@@ -129,7 +129,7 @@
       }
     },
     "sortBy": "排序依據",
-    "sortHint": "在勾選的選項上按“確定”可反轉順序。",
+    "sortHint": "在勾選的選項上按「確定」可反轉順序。",
     "filter": "篩選",
     "show": "顯示",
     "genre": "類型",
@@ -211,7 +211,7 @@
     "clear": "清除",
     "groups": {
       "movie": "電影",
-      "show": "劇集",
+      "show": "影集",
       "season": "季",
       "episode": "集",
       "artist": "藝人",
@@ -220,17 +220,17 @@
       "channel": "直播電視",
       "person": "人物"
     },
-    "noneInLibraries": "你的媒體庫中沒有匹配項。",
-    "noResults": "沒有找到“{{query}}”。",
-    "resultsFor": "“{{query}}”的搜尋結果"
+    "noneInLibraries": "你的媒體庫中沒有相符的項目。",
+    "noResults": "沒有找到「{{query}}」。",
+    "resultsFor": "「{{query}}」的搜尋結果"
   },
   "playlists": {
     "new": "新建播放清單",
-    "none": "還沒有播放清單。用“新建播放清單”，或在標題上按“選項”鍵選擇“新增到播放清單”來建立。",
+    "none": "還沒有播放清單。用「新建播放清單」，或在標題上按「選項」鍵選擇「新增到播放清單」來建立。",
     "whatFor": "用於什麼？",
     "moviesTv": "電影和電視",
     "music": "音樂",
-    "nameHint": "先起個名字，然後在標題上按“選項”鍵選擇“新增到播放清單”。",
+    "nameHint": "先起個名字，然後在標題上按「選項」鍵選擇「新增到播放清單」。",
     "create": "建立",
     "notMade": "播放清單建立失敗"
   },
@@ -243,7 +243,7 @@
     "title": "媒體庫排序",
     "serverOrder": "使用伺服器的順序",
     "moving": "{{name}}（移動中）",
-    "movingHint": "用上下鍵移動，按“確定”放在這裡，按“返回”放回原處。",
+    "movingHint": "用上下鍵移動，按「確定」放在這裡，按「返回」放回原處。",
     "hint": "選擇一個媒體庫即可移動。你的順序會應用到所有裝置。",
     "needsNewer": "媒體庫排序需要伺服器上更新版本的 Pley。"
   },

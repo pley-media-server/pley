@@ -10,9 +10,10 @@ describes how they are made.
 
 ### Fixed
 
-- A video's Dolby Vision profile is named in Traditional Chinese, not
-  English.
-- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
+- Traditional Chinese calls a video's Dolby Vision profile 設定檔.
+- Traditional Chinese uses the words people use in Taiwan, such as 影集 for
+  a show, 藝人 for an artist, 類型 for a genre and 項目 for an item, and
+  quotes with 「」.
 
 ## [0.1.12] - 2026-11-20
 

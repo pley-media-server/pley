@@ -5,7 +5,7 @@
     "myList": "我的片單",
     "recentlyAddedIn": "最近新增到 {{library}}",
     "recentlyAdded": "最近新增",
-    "recentlyAddedShows": "最近新增的劇集",
+    "recentlyAddedShows": "最近新增的影集",
     "recentlyAddedAlbums": "最近新增的專輯",
     "recentlyAddedBooks": "最近新增的書籍",
     "recentlyReleased": "最近上映",
@@ -20,12 +20,12 @@
   "tray": {
     "open": "&開啟 Pley",
     "scan": "&掃描所有媒體庫",
-    "logs": "顯示&日誌",
+    "logs": "顯示&記錄檔",
     "autostart": "登入時&啟動 Pley",
     "quit": "&結束 Pley",
     "mac": {
       "scan": "掃描所有媒體庫",
-      "logs": "顯示日誌",
+      "logs": "顯示記錄檔",
       "autostart": "登入時啟動 Pley"
     },
     "status": {
@@ -46,13 +46,13 @@
       "unauthorized": "{{service}} 拒絕了 API 金鑰",
       "unreachable": "無法連線到 {{service}}：{{why}}",
       "refused": "{{service}} 拒絕了：{{why}}",
-      "unexpected": "{{service}} 返回了意外內容：{{why}}",
-      "redirected": "它返回了重新導向：請用其設定中顯示的基址填寫位址",
+      "unexpected": "{{service}} 回傳了非預期的內容：{{why}}",
+      "redirected": "它回傳了重新導向：請用其設定中顯示的基址填寫位址",
       "tooLarge": "它的回應超過 {{size}} MB",
-      "noMovie": "未找到匹配的電影",
+      "noMovie": "未找到相符的電影",
       "noId": "回應中沒有 id",
-      "noShow": "未找到 TheTVDB ID 為 {{tvdb}} 的劇集",
-      "noTvdbId": "TMDB 不知道這部劇的 TheTVDB ID，而 Sonarr 需要它：請手動新增到 Sonarr",
+      "noShow": "未找到 TheTVDB ID 為 {{tvdb}} 的影集",
+      "noTvdbId": "TMDB 不知道這部影集的 TheTVDB ID，而 Sonarr 需要它：請手動新增到 Sonarr",
       "qualityProfile": "在 設定 → 請求 中選擇 {{service}} 的品質設定",
       "rootFolder": "在 設定 → 請求 中選擇 {{service}} 的根資料夾"
     }

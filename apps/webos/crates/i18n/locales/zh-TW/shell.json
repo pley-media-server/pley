@@ -8,7 +8,7 @@
     "playlists": "播放清單",
     "collections": "合集",
     "nowPlaying": "正在播放",
-    "storage": "U 盤",
+    "storage": "USB 隨身碟",
     "settings": "設定",
     "profiles": "設定檔",
     "switchProfile": "切換設定檔"
@@ -53,6 +53,6 @@
     "settingsSection": "設定：{{section}}",
     "history": "觀看記錄",
     "diagnostics": "診斷",
-    "licences": "開源許可證"
+    "licences": "開源授權條款"
   }
 }

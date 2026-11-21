@@ -447,7 +447,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dolby Vision Profile檔案：%@"
+            "value" : "Dolby Vision 設定檔：%@"
           }
         }
       }
@@ -621,7 +621,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "螢幕：%@，%@ Hz，匹配內容已開啟"
+            "value" : "螢幕：%@，%@ Hz，配合內容已開啟"
           }
         }
       }

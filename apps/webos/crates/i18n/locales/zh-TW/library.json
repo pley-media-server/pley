@@ -24,8 +24,8 @@
   "panel": {
     "sortBy": "排序方式",
     "order": "順序",
-    "ascending": "升序",
-    "descending": "降序",
+    "ascending": "遞增",
+    "descending": "遞減",
     "filter": "篩選",
     "show": "顯示",
     "all": "全部",
@@ -52,16 +52,16 @@
   "bitrateUnknown": "位元速率未知",
   "count": {
     "movies_other": "{{count, number}} 部電影",
-    "shows_other": "{{count, number}} 部劇集",
-    "artists_other": "{{count, number}} 位藝術家",
+    "shows_other": "{{count, number}} 部影集",
+    "artists_other": "{{count, number}} 位藝人",
     "items_other": "{{count, number}} 個項目",
     "collections_other": "{{count, number}} 個合集",
     "titles_other": "{{count, number}} 個標題"
   },
   "countOf": {
     "movies_other": "{{shown, number}} / {{count, number}} 部電影",
-    "shows_other": "{{shown, number}} / {{count, number}} 部劇集",
-    "artists_other": "{{shown, number}} / {{count, number}} 位藝術家"
+    "shows_other": "{{shown, number}} / {{count, number}} 部影集",
+    "artists_other": "{{shown, number}} / {{count, number}} 位藝人"
   },
   "messages": {
     "offline": "無法存取你的伺服器",
@@ -70,7 +70,7 @@
     "missingBody": "它可能已被移除，或此設定檔無法檢視。",
     "emptyTitle": "此媒體庫為空",
     "emptyBody": "這裡還是空的。伺服器新增內容後會顯示在這裡。",
-    "noMatchesTitle": "無匹配結果",
+    "noMatchesTitle": "沒有相符的結果",
     "noMatchesBody": "此媒體庫中沒有符合當前篩選條件的內容。",
     "recommendedFailed": "無法載入推薦內容",
     "recommendedEmptyTitle": "暫無可推薦內容",
@@ -112,7 +112,7 @@
     "play": "播放",
     "shuffle": "隨機播放",
     "empty": "此合集暫時為空。",
-    "noEpisodes": "暫無可播放內容：此劇集還沒有分集",
+    "noEpisodes": "暫無可播放內容：此影集還沒有單集",
     "byRelease": "按發行日期",
     "byTitle": "按標題",
     "customOrder": "自訂順序",

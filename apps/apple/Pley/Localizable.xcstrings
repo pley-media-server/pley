@@ -112,7 +112,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@，升序"
+            "value" : "%@，遞增"
           }
         }
       }
@@ -141,7 +141,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@，降序"
+            "value" : "%@，遞減"
           }
         }
       }
@@ -1072,7 +1072,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "升序"
+            "value" : "遞增"
           }
         }
       }
@@ -1936,13 +1936,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无法加载此艺术家"
+            "value" : "无法加载此艺人"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法載入此藝術家"
+            "value" : "無法載入此藝人"
           }
         }
       }
@@ -2174,7 +2174,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "降序"
+            "value" : "遞減"
           }
         }
       }
@@ -2435,7 +2435,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "集數"
+            "value" : "單集"
           }
         }
       }
@@ -2609,7 +2609,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查詢字幕"
+            "value" : "搜尋字幕"
           }
         }
       }
@@ -2638,7 +2638,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查詢字幕…"
+            "value" : "搜尋字幕…"
           }
         }
       }
@@ -2725,7 +2725,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "快進 10 秒"
+            "value" : "快轉 10 秒"
           }
         }
       }
@@ -3313,7 +3313,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "跳轉到字母"
+            "value" : "跳至字母"
           }
         }
       }
@@ -4038,7 +4038,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "電影與劇集"
+            "value" : "電影與影集"
           }
         }
       }
@@ -4067,7 +4067,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "電影、劇集、人物和音樂"
+            "value" : "電影、影集、人物和音樂"
           }
         }
       }
@@ -4386,7 +4386,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "暫無集數。"
+            "value" : "尚無單集。"
           }
         }
       }
@@ -4531,7 +4531,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在此網路上未找到伺服器。請在伺服器的「設定 → 網路」中開啟 Bonjour，或通過位址新增。"
+            "value" : "在此網路上未找到伺服器。請在伺服器的「設定 → 網路」中開啟 Bonjour，或透過位址新增。"
           }
         }
       }
@@ -5047,13 +5047,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "打开艺术家页面"
+            "value" : "打开艺人页面"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "開啟藝術家頁面"
+            "value" : "開啟藝人頁面"
           }
         }
       }
@@ -5169,7 +5169,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "開啟劇集"
+            "value" : "開啟影集"
           }
         }
       }
@@ -5952,7 +5952,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pley 無法存取本地網路"
+            "value" : "Pley 無法存取區域網路"
           }
         }
       }
@@ -6010,7 +6010,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "位置隻影響文字字幕。"
+            "value" : "位置只影響文字字幕。"
           }
         }
       }
@@ -6735,7 +6735,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "搜尋電影、劇集、人物和音樂。"
+            "value" : "搜尋電影、影集、人物和音樂。"
           }
         }
       }
@@ -8185,7 +8185,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "要在家中找到伺服器，請在「設定 → 隱私與安全性 → 本地網路」中允許 Pley。仍可通過位址新增伺服器。"
+            "value" : "要在家中找到伺服器，請在「設定 → 隱私權與安全性 → 區域網路」中允許 Pley。仍可透過位址新增伺服器。"
           }
         }
       }

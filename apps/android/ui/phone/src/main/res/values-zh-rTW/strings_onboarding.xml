@@ -32,7 +32,7 @@
     <!-- What went wrong. -->
     <string name="onboarding_problem_unreachable">無法連線 %1$s：%2$s</string>
     <string name="onboarding_problem_not_pley">%1$s 有回應，但那不是 Pley。</string>
-    <string name="onboarding_problem_unencrypted">%1$s 未加密：你的密碼和觀看內容可能在傳輸中被讀取。如果有 https 位址，請使用它；或者再次點“連線”以繼續。</string>
+    <string name="onboarding_problem_unencrypted">%1$s 未加密：你的密碼和觀看內容可能在傳輸中被讀取。如果有 https 位址，請使用它；或者再次點「連線」以繼續。</string>
     <string name="onboarding_problem_address">請輸入位址，例如 nas、192.168.1.20 或 https://pley.example.com。</string>
 
     <!-- The browser sign-in's states. -->
@@ -54,7 +54,7 @@
     <string name="onboarding_link_expired">驗證碼已過期：請取得新的驗證碼</string>
     <string name="onboarding_link_new_code">取得新驗證碼</string>
     <string name="onboarding_link_retrying">無法連線伺服器。%1$d 秒後重試</string>
-    <string name="onboarding_link_signed_in">已以 %1$s 身份登入</string>
+    <string name="onboarding_link_signed_in">已以 %1$s 身分登入</string>
     <string name="onboarding_link_signed_in_plain">已登入</string>
     <string name="onboarding_link_code_label">驗證碼：%1$s</string>
     <string name="onboarding_change_server">更換伺服器</string>
@@ -72,7 +72,7 @@
     <string name="onboarding_ok">確定</string>
     <string name="onboarding_use_another">使用其他設定檔</string>
     <string name="onboarding_another_profile">以其他設定檔登入</string>
-    <string name="onboarding_password_title">以 %1$s 身份登入？</string>
+    <string name="onboarding_password_title">以 %1$s 身分登入？</string>
     <string name="onboarding_password_body">%1$s 的設定檔需要密碼。請在瀏覽器中的 pley 頁面上輸入。</string>
     <string name="onboarding_another_body">在瀏覽器中的 pley 頁面上，以你要使用的設定檔登入。</string>
     <string name="onboarding_profiles_failed">無法載入設定檔</string>
