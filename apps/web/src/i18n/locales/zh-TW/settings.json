@@ -405,22 +405,22 @@
     "kinds": {
       "movies": {
         "label": "電影",
-        "layout": "Movie Name (Year)/Movie Name (Year).mkv",
+        "layout": "電影名稱 (年份)/電影名稱 (年份).mkv",
         "defaultName": "電影"
       },
       "shows": {
         "label": "劇集",
-        "layout": "Show Name/Season 01/Show Name - S01E01.mkv",
+        "layout": "劇集名稱/Season 01/劇集名稱 - S01E01.mkv",
         "defaultName": "劇集"
       },
       "music": {
         "label": "音樂",
-        "layout": "Artist/Album/01 - Track.flac",
+        "layout": "藝人/專輯/01 - 曲目.flac",
         "defaultName": "音樂"
       },
       "audiobooks": {
         "label": "有聲書",
-        "layout": "Author/Book Title/01 - Chapter.mp3",
+        "layout": "作者/書名/01 - 章節.mp3",
         "defaultName": "有聲書"
       }
     },
