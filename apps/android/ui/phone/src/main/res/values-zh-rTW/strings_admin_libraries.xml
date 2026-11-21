@@ -35,8 +35,8 @@
     <string name="admin_libraries_kind_movies">電影</string>
     <string name="admin_libraries_kind_shows">劇集</string>
     <string name="admin_libraries_kind_music">音樂</string>
-    <string name="admin_libraries_layout_movies">電影名稱（年份）/電影名稱（年份）.mkv</string>
-    <string name="admin_libraries_layout_shows">劇集名稱/第 01 季/劇集名稱 - S01E01.mkv</string>
+    <string name="admin_libraries_layout_movies">電影名稱 (年份)/電影名稱 (年份).mkv</string>
+    <string name="admin_libraries_layout_shows">劇集名稱/Season 01/劇集名稱 - S01E01.mkv</string>
     <string name="admin_libraries_layout_music">音樂人/專輯/01 - 曲目.flac</string>
     <string name="admin_libraries_default_movies">電影</string>
     <string name="admin_libraries_default_shows">劇集</string>
