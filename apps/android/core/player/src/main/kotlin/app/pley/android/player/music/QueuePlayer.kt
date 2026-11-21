@@ -9,9 +9,13 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
+import app.pley.android.model.Chapter
 import app.pley.android.model.ItemSummary
+import app.pley.android.player.BOOK_BACK_MS
+import app.pley.android.player.BOOK_FORWARD_MS
 import app.pley.android.player.MusicError
 import app.pley.android.player.MusicRepeat
+import app.pley.android.player.NowPlaying
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlin.math.abs
@@ -47,6 +51,8 @@ internal class QueuePlayer(
     private val playback: MusicPlayback,
     private val describe: (track: ItemSummary) -> MediaItem = { plainItem(it) },
     private val words: (MusicError, nextIn: Int?) -> String = { error, _ -> error.name },
+    /** A chapter's name: its own, else its number ("Chapter 3"), from 0. */
+    private val chapterName: (Chapter, index: Int) -> String = { chapter, i -> chapter.title?.trim()?.takeIf { it.isNotEmpty() } ?: "${i + 1}" },
 ) : ForwardingSimpleBasePlayer(player) {
     /** Shows [playback]'s queue as it is now. */
     fun queueChanged() = invalidateState()
@@ -76,7 +82,7 @@ internal class QueuePlayer(
             window.mediaItem.mediaMetadata.extras?.getLong(EngineMusicOutput.TRACK_ID, -1) == current.id
         val listed = entriesOf(queue.tracks)
         val playlist = if (loaded && window != null && queue.index in listed.indices) {
-            listed.toMutableList().also { it[queue.index] = playing(it[queue.index], base, window) }
+            listed.toMutableList().also { it[queue.index] = playing(it[queue.index], base, window, playback.nowPlaying.value) }
         } else {
             listed
         }
@@ -133,10 +139,13 @@ internal class QueuePlayer(
      * The track the output plays: [listed], the entry it had while it
      * loaded, with the output's tracks, and its length only where the
      * library's is none or wrong (never none: a car would take its
-     * progress bar away).
+     * progress bar away). A book's part with chapters is named for the
+     * chapter playing, the book under it, as the web's audio bar has it.
      */
-    private fun playing(listed: MediaItemData, base: State, window: Timeline.Window): MediaItemData {
-        val metadata = withArt(listed.mediaItem.mediaMetadata, base.currentMetadata)
+    private fun playing(listed: MediaItemData, base: State, window: Timeline.Window, now: NowPlaying?): MediaItemData {
+        val art = withArt(listed.mediaItem.mediaMetadata, base.currentMetadata)
+        val chapter = now?.currentChapter
+        val metadata = if (now != null && chapter != null) art.buildUpon().setTitle(chapterName(chapter, now.chapter)).build() else art
         return listed.buildUpon()
             .setMediaItem(listed.mediaItem.buildUpon().setMediaMetadata(metadata).build())
             // Said outright: left out, the file's own tags (a cover inside it too) would be mixed in as they are read.
@@ -257,8 +266,8 @@ internal class QueuePlayer(
         private const val LENGTH_SLACK_US = 2_000_000L
 
         /** How far back and forward a seek by a step goes, as audiobook apps step. */
-        const val SEEK_BACK_MS = 15_000L
-        const val SEEK_FORWARD_MS = 30_000L
+        const val SEEK_BACK_MS = BOOK_BACK_MS
+        const val SEEK_FORWARD_MS = BOOK_FORWARD_MS
 
         /** The queue plays at its speed. */
         private val NOT_OURS = intArrayOf(Player.COMMAND_SET_SPEED_AND_PITCH)

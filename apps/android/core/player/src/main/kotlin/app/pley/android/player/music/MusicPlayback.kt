@@ -2,6 +2,7 @@ package app.pley.android.player.music
 
 import android.os.SystemClock
 import app.pley.android.auth.AuthException
+import app.pley.android.model.Chapter
 import app.pley.android.model.Control
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
@@ -20,6 +21,7 @@ import app.pley.android.player.MusicPosition
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
+import app.pley.android.player.chapterIndexAt
 import app.pley.android.player.session.ServerPlaybackSession
 import app.pley.android.player.session.SessionReporter
 import app.pley.android.player.sleep.SleepChoice
@@ -195,11 +197,15 @@ class MusicPlayback(
             Control.Pause -> if (o.playWhenReady) pause() else s.progress(lastPosition(), ProgressState.Paused)
             Control.Seek -> command.positionMs?.let { seekNow(s, o, it) }
             Control.Skip -> command.offsetMs?.let { seekNow(s, o, lastPosition() + it) }
-            Control.Next -> next()
+            Control.Next -> {
+                next()
+                // To the next chapter of the same part: the same session, moved.
+                if (session === s) s.progress(lastPosition(), if (o.playWhenReady) ProgressState.Playing else ProgressState.Paused)
+            }
             Control.Previous -> {
                 previous()
-                // Back to the start of the same track: the same session, moved.
-                if (session === s) s.progress(0, if (o.playWhenReady) ProgressState.Playing else ProgressState.Paused)
+                // Back to the start of the same track, or of a chapter: the same session, moved.
+                if (session === s) s.progress(lastPosition(), if (o.playWhenReady) ProgressState.Playing else ProgressState.Paused)
             }
             // Music has no tracks to pick, and doesn't say it takes these.
             Control.Audio, Control.Subtitles, Control.Quality, Control.Volume, Control.Unknown -> Unit
@@ -355,11 +361,31 @@ class MusicPlayback(
 
     fun next() {
         failedInARow = 0
+        // A book's part with chapters: the next chapter, until its last.
+        val chapter = chapterNow()
+        if (chapter != null) {
+            chapters.getOrNull(chapter + 1)?.let {
+                seekTo(it.startMs)
+                return
+            }
+        }
         if (queue.next()) startTrack(0)
     }
 
     fun previous() {
         failedInARow = 0
+        // A book's part with chapters: back to the start of the chapter, or the one before within its first seconds,
+        // as Previous does with tracks; from the first chapter's start, the part before.
+        val chapter = chapterNow()
+        if (chapter != null) {
+            val at = lastPosition()
+            val start = chapters[chapter].startMs
+            val to = if (at - start > MusicQueue.RESTART_AFTER_MS) start else chapters.getOrNull(chapter - 1)?.startMs
+            if (to != null) {
+                seekTo(to)
+                return
+            }
+        }
         val o = out
         // Pressed again while the track before is still asked for, it goes one more back: that one hasn't played.
         when (queue.previous(lastPosition())) {
@@ -379,16 +405,91 @@ class MusicPlayback(
         }
     }
 
-    /** The speed a book's parts play at (the car's Speed button); music always plays as recorded. */
-    var bookSpeed: Float = 1f
-        private set
+    private val speed = MutableStateFlow(1f)
 
-    fun setBookSpeed(speed: Float) {
-        bookSpeed = speed
+    /** The speed a book's parts play at (Speed, in the car and on the app's pages); music always plays as recorded. */
+    val bookSpeed: StateFlow<Float> = speed.asStateFlow()
+
+    fun setBookSpeed(value: Float) {
+        speed.value = value
         out?.setSpeed(speedOf(queue.current))
+        // The next chapter comes sooner or later.
+        watchChapters()
     }
 
-    private fun speedOf(track: ItemSummary?): Float = if (track?.kind == ItemKind.Part) bookSpeed else 1f
+    private fun speedOf(track: ItemSummary?): Float = if (track?.kind == ItemKind.Part) speed.value else 1f
+
+    /** Moves [offsetMs] from where the track is, within it. */
+    fun seekBy(offsetMs: Long) {
+        val duration = position().durationMs.takeIf { it > 0 }
+        val to = (lastPosition() + offsetMs).coerceAtLeast(0)
+        seekTo(if (duration != null) to.coerceAtMost(duration) else to)
+    }
+
+    /** The chapters of the part playing ([NowPlaying.chapters]); empty for music. */
+    private var chapters: List<Chapter> = emptyList()
+
+    /** The part [chapters] are of, once read (or being read). */
+    private var chaptersOf: Long? = null
+    private var chaptersJob: Job? = null
+
+    /** Wakes as the next chapter starts, so what plays says it ([NowPlaying.chapter]). */
+    private var chapterTicker: Job? = null
+
+    /**
+     * The chapters of [track], a book's part, read from its file once per
+     * part: none for music, a part of one chapter, or one the server can't
+     * say (it plays as a whole meanwhile).
+     */
+    private fun readChapters(track: ItemSummary?) {
+        if (track?.kind != ItemKind.Part) {
+            chaptersJob?.cancel()
+            chaptersOf = null
+            chapters = emptyList()
+            return
+        }
+        if (chaptersOf == track.id) return
+        chaptersJob?.cancel()
+        chaptersOf = track.id
+        chapters = emptyList()
+        chaptersJob = scope.launch {
+            val read = try {
+                env.api().item(track.id).files.firstOrNull()?.chapters.orEmpty()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Read again the next time the part plays.
+                chaptersOf = null
+                return@launch
+            }
+            if (chaptersOf != track.id) return@launch
+            chapters = read.filter { it.endMs > it.startMs }.sortedBy { it.startMs }.takeIf { it.size >= 2 }.orEmpty()
+            publish()
+            watchChapters()
+        }
+    }
+
+    /** Which of [chapters] the position is in; `null` when the part has none, or isn't where it plays yet. */
+    private fun chapterNow(): Int? {
+        if (chapters.isEmpty() || ended || (!held && waitingAt == null)) return null
+        return chapterIndexAt(chapters, lastPosition())
+    }
+
+    /** While a part with chapters plays, wakes as the next one starts (at the speed it plays) and says so. */
+    private fun watchChapters() {
+        chapterTicker?.cancel()
+        chapterTicker = null
+        if (chapters.isEmpty() || !playing) return
+        chapterTicker = scope.launch {
+            while (isActive) {
+                val at = chapterNow() ?: return@launch
+                val nextStart = chapters.getOrNull(at + 1)?.startMs ?: return@launch
+                val waitMs = ((nextStart - lastPosition()) / speedOf(queue.current).coerceAtLeast(0.1f)).toLong()
+                delay(waitMs.coerceIn(CHAPTER_SLACK_MS, CHAPTER_CHECK_MS) + CHAPTER_SLACK_MS)
+                publish()
+            }
+        }
+    }
 
     fun seekTo(positionMs: Long) {
         // A queue that waits starts where it was sought to.
@@ -406,6 +507,7 @@ class MusicPlayback(
     private fun sought() {
         seeks++
         publish()
+        watchChapters()
     }
 
     fun jumpTo(index: Int) {
@@ -452,7 +554,10 @@ class MusicPlayback(
         endSession()
         out?.release()
         out = null
+        chapterTicker?.cancel()
+        chapterTicker = null
         queue.clear()
+        readChapters(null)
         queue.repeat = MusicRepeat.Off
         held = false
         fallback = null
@@ -638,6 +743,7 @@ class MusicPlayback(
                 failedInARow = 0
             }
             publish()
+            watchChapters()
         }
 
         override fun onBuffering(buffering: Boolean) {
@@ -743,6 +849,7 @@ class MusicPlayback(
         watchRest(underWay)
         env.playing(this, underWay && !rested)
         val track = queue.current
+        readChapters(track)
         order.value = queue.state
         now.value = track?.let {
             NowPlaying(
@@ -765,6 +872,9 @@ class MusicPlayback(
                 wantsPlay = wantsPlay,
                 seeks = seeks,
                 nextIn = nextIn,
+                book = it.kind == ItemKind.Part,
+                chapters = chapters,
+                chapter = chapterNow() ?: -1,
             )
         }
     }
@@ -824,6 +934,12 @@ class MusicPlayback(
 
         /** The longest a new track waits for the last one's reports to go out. */
         const val FLUSH_WAIT_MS = 3_000L
+
+        /** How long past a chapter's start it is said ([watchChapters]): the output's position runs a little behind. */
+        private const val CHAPTER_SLACK_MS = 250L
+
+        /** The longest between looks at which chapter plays, should the output's clock and this one's drift. */
+        private const val CHAPTER_CHECK_MS = 60_000L
 
         /** What music obeys from the remote: everything (the web's). */
         val CONTROLS = listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip, Control.Next, Control.Previous)

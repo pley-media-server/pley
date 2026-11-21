@@ -36,6 +36,7 @@
     <string name="music_library_back">倒退 15 秒</string>
     <string name="music_library_forward">快轉 30 秒</string>
     <string name="music_library_speed">速度 %1$s</string>
+    <string name="music_library_chapter">第 %1$d 章</string>
     <string name="music_library_signed_out">請在安全時開啟手機上的 Pley 並登入</string>
     <string name="music_library_open_pley">開啟 Pley</string>
     <string name="music_library_offline">無法連線你的 Pley 伺服器</string>

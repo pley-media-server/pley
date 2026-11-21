@@ -47,6 +47,8 @@
     <string name="music_library_back">Back 15 seconds</string>
     <string name="music_library_forward">Forward 30 seconds</string>
     <string name="music_library_speed">Speed %1$s</string>
+    <!-- A chapter of a book without a name of its own, in the car's Now Playing. -->
+    <string name="music_library_chapter">Chapter %1$d</string>
     <string name="music_library_signed_out">When it\'s safe, open Pley on your phone and sign in</string>
     <string name="music_library_open_pley">Open Pley</string>
     <string name="music_library_offline">Can\'t reach your Pley server</string>

@@ -35,7 +35,8 @@ With Android Auto:
   book) with how far you are in each, the books being heard first in
   Recent, search and "Hey Google, play … on Pley". A book goes on where
   you left it on any device, with back 15 seconds, forward 30 seconds
-  and a Speed button.
+  and a Speed button. Previous and Next go through the chapters of a
+  book in one file, and the car shows the chapter playing.
 - Tabs with nothing in them aren't shown; with five, Playlists goes into
   the artists' tab, named Music.
 - Live TV's channels play as radio: a Live TV tab with favorites,

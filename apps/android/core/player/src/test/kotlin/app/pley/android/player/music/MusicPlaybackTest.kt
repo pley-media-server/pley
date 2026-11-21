@@ -2,9 +2,12 @@
 
 package app.pley.android.player.music
 
+import app.pley.android.model.Chapter
 import app.pley.android.model.Control
+import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.MediaFile
 import app.pley.android.model.PlaybackInfo
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
@@ -125,7 +128,65 @@ class MusicPlaybackTest {
         assertEquals(1f, output.playsAt)
         music.setBookSpeed(1.2f)
         assertEquals(1f, output.playsAt)
-        assertEquals(1.2f, music.bookSpeed)
+        assertEquals(1.2f, music.bookSpeed.value)
+    }
+
+    @Test
+    fun previousAndNextGoThroughTheChaptersOfABookInOneFile() = runTest {
+        val music = music()
+        val chapters = listOf(Chapter(0, 60_000, "Opening"), Chapter(60_000, 120_000, null), Chapter(120_000, 180_000, "End"))
+        api.answer("item", ItemDetail(id = 1, libraryId = 1, kind = ItemKind.Part, title = "Book", files = listOf(MediaFile(id = 601, path = "book.m4b", chapters = chapters))))
+        val parts = listOf(track(1).copy(kind = ItemKind.Part), track(2).copy(kind = ItemKind.Part))
+        music.play(parts, startMs = 70_000)
+        runCurrent()
+        output.position = 70_000
+        output.startPlaying()
+        val now = music.nowPlaying.value!!
+        assertTrue(now.book)
+        assertEquals(chapters, now.chapters)
+        assertEquals(1, now.chapter)
+
+        // Next: the next chapter of the same file, not the next part.
+        music.next()
+        assertEquals(120_000L, output.seeks.last())
+        assertEquals(2, music.nowPlaying.value!!.chapter)
+        assertEquals(1, starts().size)
+        // Previous more than 3 seconds in: the chapter's start; within them, the chapter before.
+        output.position = 130_000
+        music.previous()
+        assertEquals(120_000L, output.seeks.last())
+        music.previous()
+        assertEquals(60_000L, output.seeks.last())
+        assertEquals(1, music.nowPlaying.value!!.chapter)
+
+        // The chapter playing is said as the next one starts, at the book's speed.
+        music.setBookSpeed(2f)
+        advanceTimeBy(5_000)
+        output.position = 120_500
+        advanceTimeBy(30_000)
+        runCurrent()
+        assertEquals(2, music.nowPlaying.value!!.chapter)
+
+        // Next from the last chapter: the next part, which has none of its own here.
+        api.answer("item", ItemDetail(id = 2, libraryId = 1, kind = ItemKind.Part, title = "Book"))
+        music.next()
+        runCurrent()
+        assertEquals(2L, starts().last().itemId)
+        assertEquals(emptyList<Chapter>(), music.nowPlaying.value!!.chapters)
+    }
+
+    @Test
+    fun seekingByStepsStaysWithinTheTrack() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 10_000
+        music.seekBy(-15_000)
+        assertEquals(0L, output.seeks.last())
+        output.position = 170_000
+        music.seekBy(30_000)
+        assertEquals(180_000L, output.seeks.last())
     }
 
     @Test

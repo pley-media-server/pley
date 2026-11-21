@@ -42,6 +42,7 @@
     <string name="music_library_back">Retroceder 15 segundos</string>
     <string name="music_library_forward">Avanzar 30 segundos</string>
     <string name="music_library_speed">Velocidad %1$s</string>
+    <string name="music_library_chapter">Capítulo %1$d</string>
     <string name="music_library_signed_out">Cuando sea seguro, abre Pley en tu teléfono e inicia sesión</string>
     <string name="music_library_open_pley">Abrir Pley</string>
     <string name="music_library_offline">No se puede conectar con tu servidor Pley</string>

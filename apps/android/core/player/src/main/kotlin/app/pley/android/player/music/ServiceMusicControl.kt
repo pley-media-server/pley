@@ -12,6 +12,7 @@ import app.pley.android.data.DataGraph
 import app.pley.android.data.SessionState
 import app.pley.android.model.ItemSummary
 import app.pley.android.network.NetworkGraph
+import app.pley.android.player.BOOK_SPEEDS
 import app.pley.android.player.MusicControl
 import app.pley.android.player.MusicPosition
 import app.pley.android.player.MusicQueueState
@@ -59,6 +60,19 @@ class ServiceMusicControl(
             connect()
         }
     }
+
+    override fun playFrom(tracks: List<ItemSummary>, startIndex: Int, startMs: Long) {
+        onMain {
+            playback.play(tracks, startIndex, startMs = startMs)
+            connect()
+        }
+    }
+
+    override fun seekBy(offsetMs: Long) = onMain { playback.seekBy(offsetMs) }
+
+    override val bookSpeed: StateFlow<Float> get() = playback.bookSpeed
+
+    override fun setBookSpeed(speed: Float) = onMain { playback.setBookSpeed(speed) }
 
     override fun toggle() = onMain {
         playback.toggle()
@@ -167,6 +181,7 @@ class ServiceMusicControl(
                 here = data.remote::here,
             )
             val playback = MusicPlayback(env, main)
+            keepingSpeed(app, playback, main)
             MusicHub.playback = playback
             MusicHub.resume = remembering(playback, data, main)
             return ServiceMusicControl(app, playback)
@@ -216,6 +231,17 @@ class ServiceMusicControl(
             }
             return resume
         }
+
+        /** The speed books played at last on this device, and each new one kept as it is chosen, wherever. */
+        private fun keepingSpeed(context: Context, playback: MusicPlayback, main: CoroutineScope) {
+            val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+            preferences.getFloat(BOOK_SPEED, 1f).takeIf { it in BOOK_SPEEDS }?.let(playback::setBookSpeed)
+            main.launch { playback.bookSpeed.drop(1).collect { preferences.edit().putFloat(BOOK_SPEED, it).apply() } }
+        }
+
+        /** Where the books' speed is kept on the device. */
+        private const val PREFERENCES = "music_session"
+        private const val BOOK_SPEED = "book_speed"
 
         /** How often the place in a playing track is kept: what Play brings back is at most this far behind. */
         private const val PLACE_EVERY_MS = 15_000L

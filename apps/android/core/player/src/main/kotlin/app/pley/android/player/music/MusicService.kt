@@ -33,6 +33,7 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.LiveChannel
 import app.pley.android.network.OfflineException
+import app.pley.android.player.BOOK_SPEEDS
 import app.pley.android.player.MusicError
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
@@ -57,6 +58,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
@@ -129,8 +131,6 @@ class MusicService : MediaLibraryService() {
         graph?.music
         val playback = MusicHub.playback ?: return null
         val queue = queuePlayer(playback, graph?.musicLibrary?.library) ?: return null
-        // The speed books played at last, on this device.
-        SPEEDS.firstOrNull { it.first == getSharedPreferences(PREFERENCES, MODE_PRIVATE).getFloat(BOOK_SPEED, 1f) }?.let { playback.setBookSpeed(it.first) }
         val covers = graph?.musicLibrary?.let { library ->
             SessionArt(
                 scope,
@@ -169,12 +169,14 @@ class MusicService : MediaLibraryService() {
             }
             // A track starting, failing or loaded changes what the session says plays.
             launch { playback.nowPlaying.collect { player?.queueChanged() } }
-            // Shuffle's and Repeat's buttons show what they are set to, as the queue changes from anywhere; a book has its own.
+            // Shuffle's and Repeat's buttons show what they are set to, as the queue changes from anywhere; a book has its own,
+            // Speed showing the speed chosen here or on the app's pages.
             launch {
-                playback.queueState.map { Triple(it.shuffle, it.repeat, it.isBook) }.distinctUntilChanged().drop(1).collect {
-                    // The radio has neither: the music's come back with the music (showMusic).
-                    if (radio?.active != true) made.setMediaButtonPreferences(buttons(playback.queueState.value))
-                }
+                combine(playback.queueState, playback.bookSpeed) { queue, speed -> listOf(queue.shuffle, queue.repeat, queue.isBook, speed) }
+                    .distinctUntilChanged().drop(1).collect {
+                        // The radio has neither: the music's come back with the music (showMusic).
+                        if (radio?.active != true) made.setMediaButtonPreferences(buttons(playback.queueState.value))
+                    }
             }
             // Signed out or another profile: the radio (the last profile's Live TV) stops, and cars read the library again.
             graph?.musicLibrary?.let { library ->
@@ -280,7 +282,9 @@ class MusicService : MediaLibraryService() {
         val describe: (ItemSummary) -> MediaItem = if (library != null) { track -> library.queueItem(track) } else QueuePlayer::plainItem
         // The player outlives the service: its words come through the app, not this service.
         val app = applicationContext
-        val player = QueuePlayer(output.player, playback, describe) { error, nextIn -> wordsOf(app, error, nextIn) }
+        val player = QueuePlayer(output.player, playback, describe, { error, nextIn -> wordsOf(app, error, nextIn) }) { chapter, i ->
+            chapter.title?.trim()?.takeIf { it.isNotEmpty() } ?: AppLanguage.resources(app).getString(R.string.music_library_chapter, i + 1)
+        }
         made = output to player
         return player
     }
@@ -444,8 +448,9 @@ class MusicService : MediaLibraryService() {
     /**
      * A book's buttons in place of Shuffle and Repeat, as audiobook apps
      * have them: back 15 seconds and forward 30 beside Previous and Next
-     * (which go from part to part), then Speed, showing the speed it plays
-     * at, which a press takes to the next ([SPEEDS]).
+     * (which go from chapter to chapter, and part to part), then Speed,
+     * showing the speed it plays at, which a press takes to the next
+     * ([BOOK_SPEEDS]).
      */
     private fun bookButtons(res: android.content.res.Resources): List<CommandButton> {
         val back = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_15)
@@ -458,7 +463,7 @@ class MusicService : MediaLibraryService() {
             .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
             .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
             .build()
-        val now = MusicHub.playback?.bookSpeed ?: 1f
+        val now = MusicHub.playback?.bookSpeed?.value ?: 1f
         val icon = SPEEDS.firstOrNull { it.first == now }?.second ?: CommandButton.ICON_PLAYBACK_SPEED
         val speed = CommandButton.Builder(icon)
             .setDisplayName(res.getString(R.string.music_library_speed, speedText(now)))
@@ -472,12 +477,10 @@ class MusicService : MediaLibraryService() {
     private fun speedText(speed: Float): String =
         java.text.NumberFormat.getNumberInstance(AppLanguage.resources(this).configuration.locales[0]).apply { maximumFractionDigits = 1 }.format(speed) + "×"
 
-    /** Books play at the next of [SPEEDS], kept for the next drive. */
+    /** Books play at the next of [BOOK_SPEEDS] (kept on the device by the app's music). */
     private fun nextBookSpeed(playback: MusicPlayback) {
-        val at = SPEEDS.indexOfFirst { it.first == playback.bookSpeed }
-        val next = SPEEDS[(at + 1) % SPEEDS.size].first
-        playback.setBookSpeed(next)
-        getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit().putFloat(BOOK_SPEED, next).apply()
+        val at = BOOK_SPEEDS.indexOf(playback.bookSpeed.value)
+        playback.setBookSpeed(BOOK_SPEEDS[(at + 1) % BOOK_SPEEDS.size])
     }
 
     /** The covers' addresses of the track playing and those Next and Previous go to. */
@@ -872,10 +875,10 @@ class MusicService : MediaLibraryService() {
         /** Repeat's button: the queue repeats, then the track, then nothing again. */
         val REPEAT = SessionCommand("app.pley.music.REPEAT", Bundle.EMPTY)
 
-        /** A book's Speed button: the next of [SPEEDS]. */
+        /** A book's Speed button: the next of [BOOK_SPEEDS]. */
         val SPEED = SessionCommand("app.pley.music.SPEED", Bundle.EMPTY)
 
-        /** A book's speeds, in the order Speed goes through them, each with Media3's icon that says it. */
+        /** Each of [BOOK_SPEEDS] with Media3's icon that says it. */
         val SPEEDS = listOf(
             1.0f to CommandButton.ICON_PLAYBACK_SPEED_1_0,
             1.2f to CommandButton.ICON_PLAYBACK_SPEED_1_2,
@@ -884,10 +887,6 @@ class MusicService : MediaLibraryService() {
             2.0f to CommandButton.ICON_PLAYBACK_SPEED_2_0,
             0.8f to CommandButton.ICON_PLAYBACK_SPEED_0_8,
         )
-
-        /** Where the books' speed is kept on the device, for the next drive. */
-        const val PREFERENCES = "music_session"
-        const val BOOK_SPEED = "book_speed"
 
         /** The session's player and the output it shows, kept for the process's life (queuePlayer). */
         var made: Pair<EngineMusicOutput, QueuePlayer>? = null

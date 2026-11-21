@@ -1081,7 +1081,10 @@ A book plays as it is picked, where the profile is in it on any device:
 the part it listened to last part way, from where it stopped, else the
 first part it hasn't heard to its end (a book heard to its end starts
 over). Its parts are Now Playing's queue, under the book's title, and
-Previous and Next go from part to part. In place of Shuffle and Repeat,
+Previous and Next go from part to part; in a part with chapters (an
+`.m4b`'s, read from its file), from chapter to chapter, Previous going
+back to the start of the chapter after its first 3 seconds, and Now
+Playing is named for the chapter playing. In place of Shuffle and Repeat,
 a book has back 15 seconds, forward 30 seconds, and Speed, which goes
 through 1, 1.2, 1.5, 1.8, 2 and 0.8 times and shows the speed it plays at;
 the speed is the books' alone (music always plays as recorded) and is

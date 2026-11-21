@@ -1,5 +1,6 @@
 package app.pley.android.player
 
+import app.pley.android.model.Chapter
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.player.sleep.SleepChoice
@@ -56,9 +57,22 @@ data class NowPlaying(
      * before the next one plays by itself; `null` when none will.
      */
     val nextIn: Int? = null,
+    /** An audiobook's part, not music: back and forward, and Speed, in place of Shuffle and Repeat. */
+    val book: Boolean = false,
+    /**
+     * The chapters of the part playing (an .m4b's, from its file), by start;
+     * empty for music and for a part with fewer than two. Previous and Next
+     * go from chapter to chapter in them.
+     */
+    val chapters: List<Chapter> = emptyList(),
+    /** Which of [chapters] plays, -1 for none; it changes as a chapter starts, not with the position. */
+    val chapter: Int = -1,
 ) {
     /** Whether Next has a track to go to: the one after, or with the queue repeating the first again. */
-    val hasNext: Boolean get() = index + 1 < count || repeat == MusicRepeat.All
+    val hasNext: Boolean get() = index + 1 < count || repeat == MusicRepeat.All || chapter + 1 in 1..chapters.lastIndex
+
+    /** The chapter playing, `null` without. */
+    val currentChapter: Chapter? get() = chapters.getOrNull(chapter)
 
     /** "Artist · Album", as the mini player says it. */
     val byline: String get() = listOfNotNull(artist, album).filter { it.isNotBlank() }.joinToString(" · ")
@@ -104,7 +118,7 @@ data class MusicQueueState(
 ) {
     val current: ItemSummary? get() = tracks.getOrNull(index)
 
-    /** An audiobook's parts (the car's library plays them), not music. */
+    /** An audiobook's parts, not music. */
     val isBook: Boolean get() = tracks.firstOrNull()?.kind == ItemKind.Part
 }
 
@@ -139,6 +153,9 @@ interface MusicControl {
      */
     fun play(tracks: List<ItemSummary>, startIndex: Int = 0, shuffle: Boolean = false) {}
 
+    /** Plays [tracks] from the one at [startIndex], [startMs] into it: a book where the profile left it. */
+    fun playFrom(tracks: List<ItemSummary>, startIndex: Int, startMs: Long) = play(tracks, startIndex)
+
     /** Plays or pauses; after the queue's end, plays its last track again. */
     fun toggle() {}
 
@@ -153,6 +170,15 @@ interface MusicControl {
     fun previous() {}
 
     fun seekTo(positionMs: Long) {}
+
+    /** Moves [offsetMs] from where the track is (a book's back 15 seconds and forward 30), within the track. */
+    fun seekBy(offsetMs: Long) {}
+
+    /** The speed a book's parts play at; music always plays as recorded. Kept on the device. */
+    val bookSpeed: StateFlow<Float> get() = NO_SPEED
+
+    /** Books play at [speed] (one of [BOOK_SPEEDS]) from now on. */
+    fun setBookSpeed(speed: Float) {}
 
     /** Plays the queue's track at [index]. */
     fun jumpTo(index: Int) {}
@@ -188,5 +214,27 @@ interface MusicControl {
     fun keepListening() {}
 }
 
+/**
+ * The speeds a book plays at, in the order the car's Speed button goes
+ * through them (each has Media3's icon that says it); the app's pages list
+ * them slowest first.
+ */
+val BOOK_SPEEDS: List<Float> = listOf(1.0f, 1.2f, 1.5f, 1.8f, 2.0f, 0.8f)
+
+/**
+ * Which of [chapters] (by start) [positionMs] is in, -1 before the first:
+ * a quarter of a second early, so a seek to a chapter's start is in it,
+ * as the web's audio bar has it (apps/web/src/audio/AudioPlayerBar.tsx).
+ */
+fun chapterIndexAt(chapters: List<Chapter>, positionMs: Long): Int =
+    chapters.indexOfLast { it.startMs <= positionMs + CHAPTER_EARLY_MS }
+
+private const val CHAPTER_EARLY_MS = 250L
+
+/** How far a book's back and forward buttons go, as audiobook apps step. */
+const val BOOK_BACK_MS = 15_000L
+const val BOOK_FORWARD_MS = 30_000L
+
 private val NO_QUEUE: StateFlow<MusicQueueState> = MutableStateFlow(MusicQueueState()).asStateFlow()
+private val NO_SPEED: StateFlow<Float> = MutableStateFlow(1f).asStateFlow()
 private val NO_SLEEP: StateFlow<SleepState> = MutableStateFlow(SleepState()).asStateFlow()
