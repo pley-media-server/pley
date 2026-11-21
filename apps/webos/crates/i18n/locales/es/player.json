@@ -140,6 +140,7 @@
     "playerGaveUp": "El reproductor de la TV no pudo seguir.",
     "playerGaveUpWith": "El reproductor de la TV no pudo seguir ({{detail}}).",
     "originalFailed": "Este dispositivo no pudo reproducir el archivo original.",
+    "originalAudioFailed": "Este dispositivo no pudo reproducir el audio original.",
     "originalNotSmooth": "El original no se reproducía con fluidez en este dispositivo.",
     "stoppedByAdmin": "El administrador del servidor detuvo la reproducción.",
     "stoppedElsewhere": "La reproducción se detuvo desde otro dispositivo."

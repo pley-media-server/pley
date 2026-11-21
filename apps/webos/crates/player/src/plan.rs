@@ -154,6 +154,17 @@ pub fn audio_plays_here(stream: Option<&MediaStream>, caps: Option<&ClientCaps>)
     }
 }
 
+/// `caps` without the audio `codecs` (the server's names), decoded or sent
+/// on: the TV failed to play them, so the server picks another track or
+/// converts them.
+pub fn without_audio(caps: Option<&ClientCaps>, codecs: &[String]) -> Option<ClientCaps> {
+    let mut caps = caps?.clone();
+    for list in [&mut caps.audio_codecs, &mut caps.audio_decode, &mut caps.audio_passthrough] {
+        list.retain(|c| !codecs.iter().any(|r| r.eq_ignore_ascii_case(c)));
+    }
+    Some(caps)
+}
+
 /// Whether this TV opens `file`'s container as it is.
 pub fn container_plays_here(file: Option<&MediaFile>, caps: Option<&ClientCaps>) -> bool {
     let container = file.and_then(|f| f.container.as_deref()).unwrap_or("").to_ascii_lowercase();
@@ -321,6 +332,24 @@ mod tests {
             picture_url_at("/api/media/k/subtitles-3.mks?x=1", 90_000),
             "/api/media/k/subtitles-3.mks?x=1&at=90000"
         );
+    }
+
+    #[test]
+    fn audio_refused_after_it_failed_leaves_the_caps_decoded_or_passed_through() {
+        let words = |w: &[&str]| w.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let caps = ClientCaps {
+            audio_codecs: words(&["aac", "ac3", "eac3"]),
+            audio_decode: words(&["aac", "AC3", "eac3"]),
+            audio_passthrough: words(&["ac3", "eac3", "truehd"]),
+            ..ClientCaps::default()
+        };
+        let refused = without_audio(Some(&caps), &words(&["ac3", "truehd"])).unwrap();
+        assert_eq!(refused.audio_codecs, ["aac", "eac3"]);
+        assert_eq!(refused.audio_decode, ["aac", "eac3"]);
+        assert_eq!(refused.audio_passthrough, ["eac3"]);
+        assert!(!refused.plays_audio("ac3"));
+        assert_eq!(without_audio(Some(&caps), &[]), Some(caps));
+        assert_eq!(without_audio(None, &words(&["ac3"])), None);
     }
 
     #[test]
