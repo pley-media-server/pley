@@ -144,7 +144,7 @@
     <!-- A stream's technical details: "Main 10 · Level 5.1", "23.976 fps", Dolby Vision in full. -->
     <string name="format_level">等級 %1$s</string>
     <string name="format_frame_rate">%1$s fps</string>
-    <string name="format_dv_profile">Profile %1$s</string>
+    <string name="format_dv_profile">設定檔 %1$s</string>
     <string name="format_dv_base_layer">相容 %1$s 的基礎層</string>
     <string name="format_dv_no_base_layer">沒有相容的基礎層</string>
     <string name="format_dv_full_layer">完整增強層</string>

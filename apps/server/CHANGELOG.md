@@ -11,6 +11,9 @@ describes how they are made.
 
 ### Fixed
 
+- The recommended folder layouts in Settings → Libraries are in Chinese,
+  not English.
+- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
 - Jellyfin apps that retry after a playback error, as jellyfin-web does,
   get the video converted and then the sound too, rather than the same
   stream again: their requests not to copy the video or the audio

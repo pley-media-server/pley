@@ -19,7 +19,7 @@
     "panel": "面板：{{panel}}",
     "hdr": "HDR：{{formats}}",
     "none": "無",
-    "dolbyVision": "杜比視界：Profile {{profiles}}，來自 {{containers}}",
+    "dolbyVision": "杜比視界：設定檔 {{profiles}}，來自 {{containers}}",
     "video": "影片：{{decoders}}",
     "audioDecoded": "音訊解碼：{{formats}}",
     "sent": "傳送給接收端：{{formats}}",

@@ -18,7 +18,7 @@
   "chips": {
     "filter": "篩選",
     "unwatched": "未看",
-    "genre": "型別",
+    "genre": "類型",
     "year": "年份"
   },
   "panel": {
@@ -31,8 +31,8 @@
     "all": "全部",
     "unwatched": "未看",
     "watched": "已看",
-    "genre": "型別",
-    "allGenres": "所有型別",
+    "genre": "類型",
+    "allGenres": "所有類型",
     "year": "年份",
     "allYears": "所有年份",
     "resolution": "解析度",
@@ -42,7 +42,7 @@
     "clearFilters": "清除篩選",
     "saveAs": "另存為…",
     "unchosen": {
-      "genre": "所有型別",
+      "genre": "所有類型",
       "year": "所有年份",
       "resolution": "所有解析度",
       "dynamicRange": "所有動態範圍"
@@ -54,7 +54,7 @@
     "movies_other": "{{count, number}} 部電影",
     "shows_other": "{{count, number}} 部劇集",
     "artists_other": "{{count, number}} 位藝術家",
-    "items_other": "{{count, number}} 個專案",
+    "items_other": "{{count, number}} 個項目",
     "collections_other": "{{count, number}} 個合集",
     "titles_other": "{{count, number}} 個標題"
   },
@@ -121,7 +121,7 @@
     "allCategories": "所有分類"
   },
   "smartFilter": {
-    "genre": "型別：{{value}}",
+    "genre": "類型：{{value}}",
     "label": "標籤：{{value}}",
     "studio": "製作公司：{{value}}",
     "rated": "分級 {{value}}",

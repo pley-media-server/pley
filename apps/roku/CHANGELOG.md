@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A video's Dolby Vision profile is named in Traditional Chinese, not
+  English, and dates in Chinese read 3月5日 and 2026年3月5日.
+- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
+
 ## [0.1.11] - 2026-11-20
 
 ### Added

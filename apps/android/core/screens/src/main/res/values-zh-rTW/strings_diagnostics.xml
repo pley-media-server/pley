@@ -2,7 +2,7 @@
 <!-- What Diagnostics says of the device (DiagnosticsViewModel.factsOf), on phones and TVs. -->
 <resources>
     <string name="diagnostics_fact_model">型號</string>
-    <string name="diagnostics_fact_kind">型別</string>
+    <string name="diagnostics_fact_kind">類型</string>
     <string name="diagnostics_fact_memory">記憶體</string>
     <string name="diagnostics_fact_tier">記憶體檔位</string>
     <string name="diagnostics_fact_buffer">播放器緩衝區</string>
