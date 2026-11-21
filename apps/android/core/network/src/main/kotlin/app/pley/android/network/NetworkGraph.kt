@@ -29,6 +29,13 @@ interface NetworkGraph {
     /** The API of [issuer] (a server's origin), as profile [userId] signed in there. */
     fun api(issuer: String, userId: Long?): PleyApi
 
+    /**
+     * [api] as the car's library asks it: with audiobook libraries, which
+     * its requests say it shows (X-Pley-Features) and the app's own pages
+     * don't, and so in an HTTP cache of its own.
+     */
+    fun bookApi(issuer: String, userId: Long?): PleyApi
+
     /** For pictures: its own limits per host, the server speaking HTTP/1.1. */
     val images: OkHttpClient
 
@@ -111,6 +118,7 @@ internal class HttpNetworkGraph(
 
     private val auths = ConcurrentHashMap<String, IssuerAuth>()
     private val apis = ConcurrentHashMap<Pair<String, Long?>, HttpPleyApi>()
+    private val bookApis = ConcurrentHashMap<Pair<String, Long?>, HttpPleyApi>()
     private val mediaClients = ConcurrentHashMap<String, OkHttpClient>()
     private val subtitleClients = ConcurrentHashMap<String, OkHttpClient>()
     private val eventClients = ConcurrentHashMap<String, OkHttpClient>()
@@ -122,23 +130,38 @@ internal class HttpNetworkGraph(
         return apis.getOrPut(origin to userId) { HttpPleyApi(origin, { apiClient(origin, userId) }, deviceName = { device }, deviceKind = deviceKind) }
     }
 
+    override fun bookApi(issuer: String, userId: Long?): PleyApi {
+        val origin = originOf(issuer)
+        return bookApis.getOrPut(origin to userId) {
+            HttpPleyApi(origin, { apiClient(origin, userId, books = true) }, deviceName = { device }, deviceKind = deviceKind)
+        }
+    }
+
     /**
      * The API client of [origin] as [userId]: with an HTTP cache of its own
      * (library listings come back as 304 Not Modified when unchanged), none
-     * before the profile is known.
+     * before the profile is known. With [books], its requests say the app
+     * shows audiobooks, and the server's answers to them, which differ, are
+     * kept in a cache apart.
      */
-    internal fun apiClient(origin: String, userId: Long?): OkHttpClient = base.newBuilder()
-        .apply { if (userId != null) cache(Cache(cacheDirOf(origin, userId), API_CACHE_BYTES)) }
+    internal fun apiClient(origin: String, userId: Long?, books: Boolean = false): OkHttpClient = base.newBuilder()
+        .apply { if (userId != null) cache(Cache(cacheDirOf(origin, userId, books), if (books) BOOK_CACHE_BYTES else API_CACHE_BYTES)) }
+        .apply { if (books) addInterceptor { it.proceed(it.request().newBuilder().header(FEATURES, AUDIOBOOKS).build()) } }
         .signedIn(auth(origin))
         .build()
 
-    /** Where the HTTP cache of [origin] as [userId] is: `http/<sha1 of the origin>/<user id>`. */
-    internal fun cacheDirOf(origin: String, userId: Long): File = File(cacheDir, "http/${sha1Hex(originOf(origin))}/$userId")
+    /**
+     * Where the HTTP cache of [origin] as [userId] is: `http/<sha1 of the origin>/<user id>`, and
+     * `<user id>-books` beside it for [books] (deleted with it, signing out).
+     */
+    internal fun cacheDirOf(origin: String, userId: Long, books: Boolean = false): File =
+        File(cacheDir, "http/${sha1Hex(originOf(origin))}/$userId${if (books) "-books" else ""}")
 
     // Their caches aren't closed: a request under way may still use one, and a closed cache throws.
     override fun forget(issuer: String) {
         val origin = originOf(issuer)
         apis.keys.removeAll { it.first == origin }
+        bookApis.keys.removeAll { it.first == origin }
     }
 
     override val images: OkHttpClient by lazy {
@@ -230,6 +253,13 @@ internal class HttpNetworkGraph(
     companion object {
         /** The API's HTTP cache per server and profile. */
         const val API_CACHE_BYTES = 50L * 1024 * 1024
+
+        /** The car's library's ([bookApi]): its lists of books, artists and search. */
+        const val BOOK_CACHE_BYTES = 10L * 1024 * 1024
+
+        /** The header saying what the app shows beyond movies, shows and music (apps/server/src/auth.rs). */
+        const val FEATURES = "X-Pley-Features"
+        const val AUDIOBOOKS = "audiobooks"
 
         /** Pictures at once per server, above OkHttp's 5: the server speaks HTTP/1.1. */
         const val IMAGES_PER_HOST = 10

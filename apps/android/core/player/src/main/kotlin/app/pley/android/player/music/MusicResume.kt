@@ -206,7 +206,8 @@ class MusicResume(
 
     private suspend fun saved(now: ProfileScope): SavedMusic? {
         val tracks = read(now, QUEUE)?.let { PleyJson.decodeFromString(TRACKS, it.decodeToString()) }
-        if (tracks.isNullOrEmpty() || tracks.size > MAX_TRACKS || tracks.any { it.kind != ItemKind.Track }) return null
+        // Music's tracks, or a book's parts (the car's), never what else plays.
+        if (tracks.isNullOrEmpty() || tracks.size > MAX_TRACKS || tracks.any { it.kind != ItemKind.Track && it.kind != ItemKind.Part }) return null
         val place = read(now, PLACE)?.decodeToString()?.split(' ').orEmpty()
         val index = place.getOrNull(0)?.toIntOrNull()?.takeIf { it in tracks.indices } ?: 0
         val length = tracks[index].durationMs?.takeIf { it > 0 }

@@ -37,6 +37,16 @@
         <item quantity="one">%1$,d channel</item>
         <item quantity="other">%1$,d channels</item>
     </plurals>
+    <!-- Audiobooks in the car: their tab, the tab's headings (with Recently added), search's group. -->
+    <string name="music_library_books">Books</string>
+    <string name="music_library_continue_listening">Continue listening</string>
+    <string name="music_library_all_books">All books</string>
+    <!-- The tab of artists, with Playlists first in it, when there are too many tabs for a car (books and Live TV too). -->
+    <string name="music_library_music">Music</string>
+    <!-- A book's buttons on Now Playing, each named for what a press does; the speed it plays at now ("1.5×"). -->
+    <string name="music_library_back">Back 15 seconds</string>
+    <string name="music_library_forward">Forward 30 seconds</string>
+    <string name="music_library_speed">Speed %1$s</string>
     <string name="music_library_signed_out">When it\'s safe, open Pley on your phone and sign in</string>
     <string name="music_library_open_pley">Open Pley</string>
     <string name="music_library_offline">Can\'t reach your Pley server</string>

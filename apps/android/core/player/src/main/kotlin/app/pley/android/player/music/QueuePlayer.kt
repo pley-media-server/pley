@@ -61,6 +61,9 @@ internal class QueuePlayer(
         val commands = base.availableCommands.buildUpon().addAll(*QUEUE_COMMANDS).removeAll(*NOT_OURS).build()
         val state = base.buildUpon()
             .setAvailableCommands(commands)
+            // A book's back and forward buttons (MusicService), and any controller's own.
+            .setSeekBackIncrementMs(SEEK_BACK_MS)
+            .setSeekForwardIncrementMs(SEEK_FORWARD_MS)
             .setShuffleModeEnabled(queue.shuffle)
             .setRepeatMode(repeatModeOf(queue.repeat))
         if (queue.tracks.isEmpty()) return state.build()
@@ -252,6 +255,10 @@ internal class QueuePlayer(
 
         /** How far the output's length may be from the library's and the library's still stand ([lengthOf]). */
         private const val LENGTH_SLACK_US = 2_000_000L
+
+        /** How far back and forward a seek by a step goes, as audiobook apps step. */
+        const val SEEK_BACK_MS = 15_000L
+        const val SEEK_FORWARD_MS = 30_000L
 
         /** The queue plays at its speed. */
         private val NOT_OURS = intArrayOf(Player.COMMAND_SET_SPEED_AND_PITCH)

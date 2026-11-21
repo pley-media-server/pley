@@ -309,7 +309,8 @@ internal class CachedPlayItem(private val cache: ResourceCache, private val item
             val tracks = if (parent != null) children(parent).ifEmpty { listOf(item) } else listOf(item)
             music(tracks, tracks.indexOfFirst { it.id == item.id }.coerceAtLeast(0))
         }
-        ItemKind.Unknown -> PlayTarget.NothingToPlay
+        // Books play in the car's library alone (MusicLibrary), which reads them itself.
+        ItemKind.Audiobook, ItemKind.Part, ItemKind.Unknown -> PlayTarget.NothingToPlay
     }
 
     private fun music(tracks: List<ItemSummary>, start: Int): PlayTarget =

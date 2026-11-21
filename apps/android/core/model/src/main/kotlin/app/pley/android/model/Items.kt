@@ -15,6 +15,12 @@ enum class ItemKind(override val wire: String) : WireEnum {
 
     /** Bonus material of a movie or a show (trailers first): [ItemSummary.extraType] says which. */
     Extra("extra"),
+
+    /** A book of an audiobook library, its files its [Part]s; only the car's library gets them (X-Pley-Features). */
+    Audiobook("audiobook"),
+
+    /** A file of an [Audiobook], in the order it plays. */
+    Part("part"),
     Unknown("unknown"),
     ;
 
@@ -137,12 +143,14 @@ data class ItemSummary(
     /** Episode stills and video frame grabs (16:9). */
     val thumbUrl: String? = null,
     val userState: UserState = UserState(),
-    /** Shows and seasons: episodes; artists and albums: tracks. */
+    /** Shows and seasons: episodes; artists and albums: tracks; audiobooks: parts. */
     val leafCount: Int? = null,
-    /** Shows and seasons: watched episodes. */
+    /** Shows and seasons: watched episodes; audiobooks: parts heard to the end. */
     val viewedLeafCount: Int? = null,
     /** Shows: seasons; artists: albums. */
     val childCount: Int? = null,
+    /** An audiobook's authors. */
+    val authors: List<String> = emptyList(),
     /** In listings only for episodes; always in [ItemDetail]. */
     val summary: String? = null,
     /** "YYYY-MM-DD". */

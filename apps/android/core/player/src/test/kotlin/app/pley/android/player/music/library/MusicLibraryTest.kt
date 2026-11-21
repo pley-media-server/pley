@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.session.MediaConstants
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.model.ItemKind
@@ -14,6 +15,7 @@ import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.PlaylistEntry
 import app.pley.android.model.PlaylistKind
 import app.pley.android.model.PlaylistSummary
+import app.pley.android.model.UserState
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -66,6 +68,78 @@ class MusicLibraryTest {
         assertEquals(listOf("Recent", "Artists", "Playlists"), tabs.map { it.mediaMetadata.title.toString() })
         assertTrue(tabs.all { it.mediaMetadata.isBrowsable == true && it.mediaMetadata.isPlayable == false && it.mediaMetadata.artworkUri != null })
         assertEquals(GRID, tabs[0].browsableStyle)
+    }
+
+    @Test
+    fun tabsWithNothingInThemAreLeftOut() = runTest {
+        // No music in the library, no music playlist, no books: no tab at all.
+        source.libraries[0] = Library(3, "Music", LibraryKind.Music, itemCount = 0)
+        source.audioPlaylists = emptyList()
+        assertEquals(emptyList<String>(), library.children(MusicId.Root, 0, 10).map { it.mediaId })
+
+        // Books alone: their tab, and Recent with the one being heard; with none being heard, no Recent.
+        source.bookLibraries = listOf(BOOKS, Library(6, "Empty", LibraryKind.Audiobooks, itemCount = 0))
+        assertEquals(listOf("recent", "books"), library.children(MusicId.Root, 0, 10).map { it.mediaId })
+        source.shelves = BookShelves(added = listOf(SHORT_BOOK))
+        assertEquals(listOf("books"), library.children(MusicId.Root, 0, 10).map { it.mediaId })
+
+        // What can't be read now is shown, as the server out of reach would be: not books, which it may not give.
+        val failing = MusicLibrary(object : MusicSource by source {
+            override suspend fun libraries(): List<Library> = error("Out of reach")
+            override suspend fun playlists(): List<PlaylistSummary> = error("Out of reach")
+            override suspend fun bookLibraries(): List<Library> = error("Out of reach")
+        }, { Look }, { _, _ -> null })
+        assertEquals(listOf("recent", "artists", "playlists"), failing.children(MusicId.Root, 0, 10).map { it.mediaId })
+    }
+
+    @Test
+    fun booksHaveTheirTabAndGoOnWhereTheProfileIsInThem() = runTest {
+        source.bookLibraries = listOf(BOOKS)
+        assertEquals(listOf("recent", "artists", "playlists", "books"), library.children(MusicId.Root, 0, 10).map { it.mediaId })
+
+        // Being heard, added last, then every one by title.
+        val books = library.children(MusicId.Books, 0, 50)
+        assertEquals(listOf("book:70", "book:80", "book:70", "book:70", "book:80"), books.map { it.mediaId })
+        assertEquals(listOf("Continue listening", "Recently added", "Recently added", "All books", "All books"), books.map { it.group })
+        // A book plays as it is picked, never opens, and says how far the profile is: an hour and a half of two.
+        val heard = books[0].mediaMetadata
+        assertTrue(heard.isPlayable == true && heard.isBrowsable == false)
+        assertEquals(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK, heard.mediaType)
+        assertEquals("A Writer · 30 min left", heard.subtitle.toString())
+        assertEquals(MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED, heard.extras!!.getInt(MediaConstants.EXTRAS_KEY_COMPLETION_STATUS))
+        assertEquals(0.75, heard.extras!!.getDouble(MediaConstants.EXTRAS_KEY_COMPLETION_PERCENTAGE), 0.001)
+        val fresh = books[1].mediaMetadata
+        assertEquals("A Writer, Another", fresh.subtitle.toString())
+        assertEquals(MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED, fresh.extras!!.getInt(MediaConstants.EXTRAS_KEY_COMPLETION_STATUS))
+        assertEquals(listOf("book:70", "album:50"), library.children(MusicId.Recent, 0, 50).map { it.mediaId })
+
+        // Played: from the part it was in, where it was.
+        val selection = library.selection(MusicId.Book(70))!!
+        assertEquals(listOf(71L, 72L), selection.tracks.map { it.id })
+        assertEquals(1, selection.startIndex)
+        assertEquals(1_800_000L, selection.startMs)
+        assertFalse(selection.shuffle)
+        // A part in the queue is under its book's title.
+        val queued = library.queueItem(selection.tracks[1]).mediaMetadata
+        assertEquals("Long Book", queued.artist.toString())
+        assertEquals(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER, queued.mediaType)
+        assertEquals("track:72", library.item(MusicId.Track(72))?.mediaId)
+
+        // Found by search, and said: it goes on where it was.
+        source.found = listOf(LONG_BOOK)
+        val found = library.search("long")
+        assertEquals(listOf("book:70"), found.map { it.mediaId })
+        assertEquals("Books", found[0].group)
+        assertEquals(1_800_000L, library.selectionFor("long book")!!.startMs)
+    }
+
+    @Test
+    fun howFarABookIsHeardComesFromItsParts() {
+        val parts = listOf(part(71, 70, positionMs = 0, watched = true), part(72, 70, positionMs = 900_000), part(73, 70, positionMs = 0))
+        assertEquals(Heard(4_500_000, 10_800_000), heardIn(parts))
+        // A place past a part's end counts as its end; parts without lengths say nothing.
+        assertEquals(Heard(3_600_000, 3_600_000), heardIn(listOf(part(72, 70, positionMs = 9_000_000))))
+        assertNull(heardIn(listOf(part(74, 70, positionMs = 0).copy(durationMs = null))))
     }
 
     @Test
@@ -342,14 +416,40 @@ class MusicLibraryTest {
 
         override fun albums(count: Int) = "$count albums"
 
+        override val books = "Books"
+        override val continueListening = "Continue listening"
+        override val allBooks = "All books"
+        override val music = "Music"
+
+        override fun timeLeft(heardMs: Long, totalMs: Long) = "${(totalMs - heardMs) / 60_000} min left"
+
         override val recentIcon: Uri = Uri.parse("android.resource://pley/drawable/recent")
         override val artistsIcon: Uri = Uri.parse("android.resource://pley/drawable/artists")
         override val playlistsIcon: Uri = Uri.parse("android.resource://pley/drawable/playlists")
+        override val booksIcon: Uri = Uri.parse("android.resource://pley/drawable/books")
         override val shuffleIcon: Uri = Uri.parse("android.resource://pley/drawable/shuffle")
     }
 
     private class FakeSource : MusicSource {
-        val libraries = mutableListOf(Library(3, "Music", LibraryKind.Music), Library(9, "Films", LibraryKind.Movies))
+        val libraries = mutableListOf(Library(3, "Music", LibraryKind.Music, itemCount = 1), Library(9, "Films", LibraryKind.Movies))
+
+        // A book heard to the middle of its second part (Continue listening), and one not started.
+        var bookLibraries = emptyList<Library>()
+        var shelves = BookShelves(listening = listOf(LONG_BOOK), added = listOf(SHORT_BOOK, LONG_BOOK))
+        private val parts = mapOf(
+            70L to listOf(part(71, 70, positionMs = 0, watched = true), part(72, 70, positionMs = 1_800_000)),
+            80L to listOf(part(81, 80, positionMs = 0)),
+        )
+
+        override suspend fun bookLibraries() = bookLibraries
+
+        override suspend fun bookShelves(libraryId: Long) = shelves
+
+        override suspend fun books(libraryId: Long, limit: Int) = listOf(SHORT_BOOK, LONG_BOOK)
+
+        override suspend fun parts(bookId: Long) = parts[bookId].orEmpty()
+
+        override suspend fun onDeck(bookId: Long): ItemSummary? = parts[bookId]?.firstOrNull { !it.userState.watched }
         val recent = mutableMapOf(3L to listOf(album(50, "Deep Water"), track(51, 50)))
         val artistPages = mutableListOf<Triple<Long, Int, Int>>()
         val played = mutableMapOf<Long, List<ItemSummary>>()
@@ -374,7 +474,8 @@ class MusicLibraryTest {
             else -> tracks[itemId].orEmpty()
         }
 
-        override suspend fun item(itemId: Long): ItemSummary? = (listOf(artist) + albums + tracks.values.flatten()).firstOrNull { it.id == itemId }
+        override suspend fun item(itemId: Long): ItemSummary? =
+            (listOf(artist, LONG_BOOK, SHORT_BOOK) + albums + tracks.values.flatten() + parts.values.flatten()).firstOrNull { it.id == itemId }
 
         var audioPlaylists = listOf(PlaylistSummary(7, "Night drive", PlaylistKind.Audio, itemCount = 2))
 
@@ -410,6 +511,23 @@ class MusicLibraryTest {
             parentId = 40,
             parentTitle = "Harbour Lights",
             posterUrl = "/api/items/$id/images/poster?v=1",
+        )
+
+        val BOOKS = Library(5, "Books", LibraryKind.Audiobooks, itemCount = 2)
+        val LONG_BOOK = ItemSummary(70, 5, ItemKind.Audiobook, "Long Book", posterUrl = "/api/items/70/images/poster", leafCount = 2, authors = listOf("A Writer"))
+        val SHORT_BOOK = ItemSummary(80, 5, ItemKind.Audiobook, "Short Book", posterUrl = "/api/items/80/images/poster", leafCount = 1, authors = listOf("A Writer", "Another"))
+
+        /** An hour-long part of [book]. */
+        fun part(id: Long, book: Long, positionMs: Long, watched: Boolean = false) = ItemSummary(
+            id,
+            5,
+            ItemKind.Part,
+            "Part $id",
+            parentId = book,
+            parentTitle = if (book == 70L) "Long Book" else "Short Book",
+            durationMs = 3_600_000,
+            posterUrl = "/api/items/$book/images/poster",
+            userState = UserState(positionMs = positionMs, watched = watched),
         )
 
         fun track(id: Long, album: Long) = ItemSummary(

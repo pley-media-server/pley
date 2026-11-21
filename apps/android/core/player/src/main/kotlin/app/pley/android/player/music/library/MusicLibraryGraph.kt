@@ -5,7 +5,9 @@ import android.content.Context
 import android.net.Uri
 import androidx.annotation.DrawableRes
 import app.pley.android.common.AppLanguage
+import app.pley.android.common.formatWords
 import app.pley.android.common.resolve
+import app.pley.android.model.format.formatTimeLeft
 import app.pley.android.data.DataGraph
 import app.pley.android.network.NetworkGraph
 import app.pley.android.player.R
@@ -86,9 +88,17 @@ class MusicLibraryGraph(
 
             override fun albums(count: Int): String = res.getQuantityString(R.plurals.music_library_albums_count, count, count)
 
+            override val books = res.getString(R.string.music_library_books)
+            override val continueListening = res.getString(R.string.music_library_continue_listening)
+            override val allBooks = res.getString(R.string.music_library_all_books)
+            override val music = res.getString(R.string.music_library_music)
+
+            override fun timeLeft(heardMs: Long, totalMs: Long): String = formatTimeLeft(heardMs, totalMs, formatWords(res))
+
             override val recentIcon = icon(R.drawable.music_library_recent)
             override val artistsIcon = icon(R.drawable.music_library_artists)
             override val playlistsIcon = icon(R.drawable.music_library_playlists)
+            override val booksIcon = icon(R.drawable.music_library_books)
             override val shuffleIcon = icon(R.drawable.music_library_shuffle)
         }
     }

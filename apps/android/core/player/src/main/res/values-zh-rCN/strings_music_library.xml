@@ -29,6 +29,13 @@
     <plurals name="music_library_live_channel_count">
         <item quantity="other">%1$,d 个频道</item>
     </plurals>
+    <string name="music_library_books">有声书</string>
+    <string name="music_library_continue_listening">继续收听</string>
+    <string name="music_library_all_books">全部有声书</string>
+    <string name="music_library_music">音乐</string>
+    <string name="music_library_back">后退 15 秒</string>
+    <string name="music_library_forward">快进 30 秒</string>
+    <string name="music_library_speed">速度 %1$s</string>
     <string name="music_library_signed_out">请在安全时打开手机上的 Pley 并登录</string>
     <string name="music_library_open_pley">打开 Pley</string>
     <string name="music_library_offline">无法连接你的 Pley 服务器</string>

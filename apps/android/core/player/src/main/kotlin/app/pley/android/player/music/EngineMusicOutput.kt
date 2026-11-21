@@ -112,6 +112,10 @@ class EngineMusicOutput(
 
     override fun seekTo(positionMs: Long) = engine.player.seekTo(positionMs)
 
+    override fun setSpeed(speed: Float) {
+        if (engine.player.playbackParameters.speed != speed) engine.player.setPlaybackSpeed(speed)
+    }
+
     override fun stop() {
         artJob?.cancel()
         engine.player.stop()

@@ -1049,27 +1049,54 @@ On a phone connected to a car with Android Auto, Pley is a music app on
 the car's screen, plays Live TV's channels there as radio, and plays
 videos there while the car is parked.
 
-**Music**, while driving or parked. The car's screen has three tabs, and
-a fourth for Live TV (below); cars show four at most, each with a white
-icon the car tints:
+**Music and audiobooks**, while driving or parked. The car's screen has
+up to five tabs, each with a white icon the car tints, and shows only
+those with something in them: no Artists without music in the libraries,
+no Playlists without a music playlist, no Books without a book, no Recent
+with nothing played, added or being heard, no Live TV (below) without
+channels. A tab whose contents the server can't say now (out of reach) is
+shown all the same. Cars show four tabs at most: with all five,
+Playlists goes first in the artists' tab, which is then named Music.
 
-- **Recent**: as grids of covers, the albums played last (Recently
-  played, twelve at most), then those added last to each music library
-  (Recently added, or Recently added in each library's name when there
-  are several).
+- **Recent**: as grids of covers, the books being heard (Continue
+  listening), then the albums played last (Recently played, twelve at
+  most), then those added last to each music library (Recently added, or
+  Recently added in each library's name when there are several).
 - **Artists**: by name, with how many albums each has (with several music
   libraries, the libraries first). An artist lists Shuffle, then their
   albums, newest first; an album lists its tracks with their lengths.
 - **Playlists**: the profile's music playlists.
+- **Books**: as a grid of covers, the books being heard (Continue
+  listening, the one heard last first), those added last to each
+  audiobook library, then every book by title. Each says its authors,
+  how long is left of one being heard, and a bar under its cover of how
+  far the profile is in it (a book heard to its end shows as such).
 
 An album or playlist opens to its tracks, wherever it is listed: a car
 plays what can be played rather than open it, so only one of a single
 track plays as it is picked (one whose tracks the server hasn't counted,
 as Recently played's, opens).
 
-Search finds artists, albums and tracks, then channels. Each search the
-car sends is asked of the server by itself, so one overtaken by the next
-letter typed still gets its answer. A list or search the server hasn't
+A book plays as it is picked, where the profile is in it on any device:
+the part it listened to last part way, from where it stopped, else the
+first part it hasn't heard to its end (a book heard to its end starts
+over). Its parts are Now Playing's queue, under the book's title, and
+Previous and Next go from part to part. In place of Shuffle and Repeat,
+a book has back 15 seconds, forward 30 seconds, and Speed, which goes
+through 1, 1.2, 1.5, 1.8, 2 and 0.8 times and shows the speed it plays at;
+the speed is the books' alone (music always plays as recorded) and is
+kept on the phone for the next drive. Where the profile is in each part
+goes to the server as for a track, so the web app's Continue Listening
+and its book pages follow, and the other way round.
+
+The app asks the server for books only for the car's library (the
+`X-Pley-Features: audiobooks` header, in an HTTP cache of its own): the
+phone's and TV's pages don't show books, and a server that doesn't
+give them (an older one) leaves the Books tab out.
+
+Search finds artists, albums, tracks and books, then channels. Each
+search the car sends is asked of the server by itself, so one overtaken
+by the next letter typed still gets its answer. A list or search the server hasn't
 sent within 8 seconds shows as the server out of reach, as cars are to
 show what they ask for within 10 seconds. Picking a track plays on through
 its album or playlist; a track found by search plays on through its
@@ -1103,7 +1130,8 @@ failed in a row.
 "Hey Google, play … on Pley" plays the music playlist named so (by the
 name the Assistant heard, or said with a word for a playlist, as in "my
 Night Drive playlist", in English, French and Spanish), else the closest
-artist (shuffled), album or track; "play music on Pley" plays on what
+artist (shuffled), album, track or book (where the profile is in it);
+"play music on Pley" plays on what
 was playing, else the album added last. A request that finds nothing
 says so on the car's screen for a moment ("Pley found no music for …"),
 and what was playing plays on. The Assistant asks for what it heard to be

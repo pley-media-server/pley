@@ -107,6 +107,28 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun aBookPlaysAtItsSpeedAndMusicAsRecorded() = runTest {
+        val music = music()
+        music.setBookSpeed(1.5f)
+        val parts = listOf(track(1).copy(kind = ItemKind.Part), track(2).copy(kind = ItemKind.Part))
+        music.play(parts, startIndex = 1, startMs = 600_000)
+        runCurrent()
+        assertEquals(1.5f, output.playsAt)
+        assertEquals(600_000L, output.startPositions.single())
+
+        music.setBookSpeed(2f)
+        assertEquals(2f, output.playsAt)
+
+        // An album after it: as recorded, the book's speed kept for the next book.
+        music.play(album)
+        runCurrent()
+        assertEquals(1f, output.playsAt)
+        music.setBookSpeed(1.2f)
+        assertEquals(1f, output.playsAt)
+        assertEquals(1.2f, music.bookSpeed)
+    }
+
+    @Test
     fun pauseAndPlayWhileATrackIsAskedForDecideWhetherItPlaysOnceLoaded() = runTest {
         val music = music()
         api.hold()
@@ -1015,6 +1037,12 @@ class MusicPlaybackTest {
         override fun seekTo(positionMs: Long) {
             seeks += positionMs
             position = positionMs
+        }
+
+        var playsAt = 1f
+
+        override fun setSpeed(speed: Float) {
+            playsAt = speed
         }
 
         /** Whether [stop] tells the music it no longer plays, there and then, as ExoPlayer's listeners are. */

@@ -3,11 +3,17 @@ package app.pley.android.player.music.library
 import android.net.Uri
 import androidx.media3.common.MediaMetadata
 import androidx.media3.session.MediaConstants
+import app.pley.android.model.ItemKind
+import app.pley.android.model.ItemSummary
+import app.pley.android.model.Library
+import app.pley.android.model.LibraryKind
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveGroup
 import app.pley.android.model.LiveGroups
 import app.pley.android.model.LiveProgram
+import app.pley.android.model.PlaylistKind
+import app.pley.android.model.PlaylistSummary
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -108,13 +114,28 @@ class LiveLibraryTest {
     }
 
     @Test
-    fun theMusicLibraryHasLiveTvAsItsFourthTabAndSearchesItsChannels() = runTest {
-        val library = MusicLibrary(EmptyMusic, { MusicLook }, { _, _ -> null }, live)
-        assertEquals(listOf("recent", "artists", "playlists", "live"), library.children(MusicId.Root, 0, 50).map { it.mediaId })
+    fun theMusicLibraryHasLiveTvAmongItsTabsAndSearchesItsChannels() = runTest {
+        val music = SomeMusic()
+        val library = MusicLibrary(music, { MusicLook }, { _, _ -> null }, live)
+        // Nothing else in the library: Live TV's tab alone.
+        assertEquals(listOf("live"), library.children(MusicId.Root, 0, 50).map { it.mediaId })
         assertEquals(listOf("channel:3"), library.search("sport").map { it.mediaId })
         assertEquals("live", library.item(MusicId.LiveTv)?.mediaId)
+
+        // Music, playlists and books too: five tabs, more than a car shows. Playlists goes first in the artists' tab,
+        // named Music.
+        music.full = true
+        val tabs = library.children(MusicId.Root, 0, 50)
+        assertEquals(listOf("recent", "artists", "books", "live"), tabs.map { it.mediaId })
+        assertEquals("Music", tabs[1].mediaMetadata.title.toString())
+        assertEquals(listOf("playlists", "artist:40"), library.children(MusicId.Artists, 0, 50).map { it.mediaId })
+        assertEquals("playlists", library.item(MusicId.Playlists)?.mediaId)
+
         source.shown = false
-        assertEquals(listOf("recent", "artists", "playlists"), library.children(MusicId.Root, 0, 50).map { it.mediaId })
+        val four = library.children(MusicId.Root, 0, 50)
+        assertEquals(listOf("recent", "artists", "playlists", "books"), four.map { it.mediaId })
+        assertEquals("Artists", four[1].mediaMetadata.title.toString())
+        assertEquals(listOf("artist:40"), library.children(MusicId.Artists, 0, 50).map { it.mediaId })
     }
 
     private val androidx.media3.common.MediaItem.group: String?
@@ -179,26 +200,46 @@ class LiveLibraryTest {
         override fun tracks(count: Int) = "$count tracks"
 
         override fun albums(count: Int) = "$count albums"
+        override val books = "Books"
+        override val continueListening = "Continue listening"
+        override val allBooks = "All books"
+        override val music = "Music"
+
+        override fun timeLeft(heardMs: Long, totalMs: Long) = ""
         override val recentIcon: Uri? = null
         override val artistsIcon: Uri? = null
         override val playlistsIcon: Uri? = null
+        override val booksIcon: Uri? = null
         override val shuffleIcon: Uri? = null
     }
 
-    private object EmptyMusic : MusicSource {
-        override suspend fun libraries() = emptyList<app.pley.android.model.Library>()
+    /** A library with nothing in it, or when [full] an artist, a music playlist and a library of books. */
+    private class SomeMusic : MusicSource {
+        var full = false
+
+        override suspend fun libraries() = if (full) listOf(Library(3, "Music", LibraryKind.Music, itemCount = 1)) else emptyList()
+
+        override suspend fun artists(libraryId: Long, offset: Int, limit: Int) = listOf(ItemSummary(40, 3, ItemKind.Artist, "Harbour Lights"))
+
+        override suspend fun playlists() = if (full) listOf(PlaylistSummary(7, "Night drive", PlaylistKind.Audio, itemCount = 2)) else emptyList()
+
+        override suspend fun bookLibraries() = if (full) listOf(Library(5, "Books", LibraryKind.Audiobooks, itemCount = 1)) else emptyList()
+
+        override suspend fun bookShelves(libraryId: Long) = BookShelves()
+
+        override suspend fun books(libraryId: Long, limit: Int) = emptyList<ItemSummary>()
+
+        override suspend fun parts(bookId: Long) = emptyList<ItemSummary>()
+
+        override suspend fun onDeck(bookId: Long): ItemSummary? = null
 
         override suspend fun recentlyAdded(libraryId: Long) = emptyList<app.pley.android.model.ItemSummary>()
 
         override suspend fun recentlyPlayed(libraryId: Long) = emptyList<app.pley.android.model.ItemSummary>()
 
-        override suspend fun artists(libraryId: Long, offset: Int, limit: Int) = emptyList<app.pley.android.model.ItemSummary>()
-
         override suspend fun children(itemId: Long) = emptyList<app.pley.android.model.ItemSummary>()
 
         override suspend fun item(itemId: Long): app.pley.android.model.ItemSummary? = null
-
-        override suspend fun playlists() = emptyList<app.pley.android.model.PlaylistSummary>()
 
         override suspend fun playlist(playlistId: Long): app.pley.android.model.PlaylistDetail = error("none")
 

@@ -35,6 +35,13 @@
         <item quantity="many">%1$,d de canales</item>
         <item quantity="other">%1$,d canales</item>
     </plurals>
+    <string name="music_library_books">Libros</string>
+    <string name="music_library_continue_listening">Seguir escuchando</string>
+    <string name="music_library_all_books">Todos los libros</string>
+    <string name="music_library_music">Música</string>
+    <string name="music_library_back">Retroceder 15 segundos</string>
+    <string name="music_library_forward">Avanzar 30 segundos</string>
+    <string name="music_library_speed">Velocidad %1$s</string>
     <string name="music_library_signed_out">Cuando sea seguro, abre Pley en tu teléfono e inicia sesión</string>
     <string name="music_library_open_pley">Abrir Pley</string>
     <string name="music_library_offline">No se puede conectar con tu servidor Pley</string>

@@ -44,12 +44,30 @@ interface MusicSource {
 
     suspend fun playlist(playlistId: Long): PlaylistDetail
 
-    /** Artists, albums and tracks matching [query], closest first. */
+    /** Artists, albums, tracks and audiobooks matching [query], closest first. */
     suspend fun search(query: String): List<ItemSummary>
+
+    /** The audiobook libraries, in the profile's order: none from a server that doesn't give them to the car. */
+    suspend fun bookLibraries(): List<Library>
+
+    /** [libraryId]'s books being heard (the one heard last first), and those added last. */
+    suspend fun bookShelves(libraryId: Long): BookShelves
+
+    /** [limit] books of [libraryId], by title. */
+    suspend fun books(libraryId: Long, limit: Int): List<ItemSummary>
+
+    /** A book's parts in the order they play, each with where the profile is in it: asked of the server each time. */
+    suspend fun parts(bookId: Long): List<ItemSummary>
+
+    /** The part of [bookId] to go on with ([parts]'s): the one heard last part way, else the next to hear. */
+    suspend fun onDeck(bookId: Long): ItemSummary?
 
     /** The server address of a picture's path ([PleyApi.url]), [width] pixels wide. */
     fun pictureUrl(path: String, width: Int): String
 }
+
+/** An audiobook library's rows: the books being heard, the one heard last first, and those added last. */
+data class BookShelves(val listening: List<ItemSummary> = emptyList(), val added: List<ItemSummary> = emptyList())
 
 /**
  * [MusicSource] over the app's repositories, which keep what they last
@@ -83,7 +101,26 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
 
     // Asked of the server itself, not through the app's search: that keeps only its latest query, so a car's search
     // overtaken by its next one (a letter typed, its results read) was never answered, and the car went on waiting.
-    override suspend fun search(query: String): List<ItemSummary> = signedInApi().search(query.trim(), SEARCH_LIMIT).items
+    // Books are found too: the car shows them, the app's pages don't (bookApi).
+    override suspend fun search(query: String): List<ItemSummary> = signedInBookApi().search(query.trim(), SEARCH_LIMIT).items
+
+    // Books are read through the car's own API (bookApi): the app's pages, and so its repositories, never get them.
+    override suspend fun bookLibraries(): List<Library> = signedInBookApi().libraries().filter { it.kind == LibraryKind.Audiobooks }
+
+    override suspend fun bookShelves(libraryId: Long): BookShelves {
+        val hubs = signedInBookApi().libraryHubs(libraryId).hubs
+        return BookShelves(
+            listening = hubs.firstOrNull { it.key.startsWith(CONTINUE_LISTENING) }?.items.orEmpty(),
+            added = hubs.firstOrNull { it.key.startsWith(RECENTLY_ADDED) }?.items.orEmpty(),
+        )
+    }
+
+    override suspend fun books(libraryId: Long, limit: Int): List<ItemSummary> =
+        signedInBookApi().libraryItems(libraryId, sort = LibrarySort.Title, offset = 0, limit = limit).items
+
+    override suspend fun parts(bookId: Long): List<ItemSummary> = signedInBookApi().children(bookId).items
+
+    override suspend fun onDeck(bookId: Long): ItemSummary? = signedInBookApi().onDeck(bookId).item
 
     override fun pictureUrl(path: String, width: Int): String = api().url(path, width)
 
@@ -98,11 +135,21 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
         return network.api(session.issuer, session.me?.id)
     }
 
+    /** [signedInApi] with audiobooks ([NetworkGraph.bookApi]). */
+    private suspend fun signedInBookApi(): PleyApi {
+        data.signInRead()
+        val session = data.session.session.value ?: throw SignedOutException()
+        return network.bookApi(session.issuer, session.me?.id)
+    }
+
     private suspend fun <T> Flow<Loadable<T>>.settled(): T = settledIn(data)
 
     private companion object {
         /** A library's recently added row ("recently_added:<library id>"). */
         const val RECENTLY_ADDED = "recently_added"
+
+        /** An audiobook library's books being heard ("continue_listening:<library id>"). */
+        const val CONTINUE_LISTENING = "continue_listening"
 
         /** The plays read for Recently played: enough for a row of albums. */
         const val HISTORY_LIMIT = 100

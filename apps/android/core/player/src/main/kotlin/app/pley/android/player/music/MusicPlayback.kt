@@ -3,6 +3,7 @@ package app.pley.android.player.music
 import android.os.SystemClock
 import app.pley.android.auth.AuthException
 import app.pley.android.model.Control
+import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
@@ -378,6 +379,17 @@ class MusicPlayback(
         }
     }
 
+    /** The speed a book's parts play at (the car's Speed button); music always plays as recorded. */
+    var bookSpeed: Float = 1f
+        private set
+
+    fun setBookSpeed(speed: Float) {
+        bookSpeed = speed
+        out?.setSpeed(speedOf(queue.current))
+    }
+
+    private fun speedOf(track: ItemSummary?): Float = if (track?.kind == ItemKind.Part) bookSpeed else 1f
+
     fun seekTo(positionMs: Long) {
         // A queue that waits starts where it was sought to.
         if (waitingAt != null) {
@@ -518,6 +530,7 @@ class MusicPlayback(
             val server = api ?: return@launch
             val info = started.info
             val source = EngineSource(url = server.url(info.url), hls = info.hls, durationMs = info.durationMs.takeIf { it > 0 })
+            o.setSpeed(speedOf(track))
             o.load(source, atMs, startPlays, trackInfo(track, server))
             held = true
             // From now on, also while it waits paused (the sleep timer's next track).

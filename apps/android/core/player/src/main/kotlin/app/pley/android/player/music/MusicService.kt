@@ -29,6 +29,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import app.pley.android.common.AppLanguage
+import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.LiveChannel
 import app.pley.android.network.OfflineException
@@ -128,6 +129,8 @@ class MusicService : MediaLibraryService() {
         graph?.music
         val playback = MusicHub.playback ?: return null
         val queue = queuePlayer(playback, graph?.musicLibrary?.library) ?: return null
+        // The speed books played at last, on this device.
+        SPEEDS.firstOrNull { it.first == getSharedPreferences(PREFERENCES, MODE_PRIVATE).getFloat(BOOK_SPEED, 1f) }?.let { playback.setBookSpeed(it.first) }
         val covers = graph?.musicLibrary?.let { library ->
             SessionArt(
                 scope,
@@ -166,9 +169,9 @@ class MusicService : MediaLibraryService() {
             }
             // A track starting, failing or loaded changes what the session says plays.
             launch { playback.nowPlaying.collect { player?.queueChanged() } }
-            // Shuffle's and Repeat's buttons show what they are set to, as the queue changes from anywhere.
+            // Shuffle's and Repeat's buttons show what they are set to, as the queue changes from anywhere; a book has its own.
             launch {
-                playback.queueState.map { it.shuffle to it.repeat }.distinctUntilChanged().drop(1).collect {
+                playback.queueState.map { Triple(it.shuffle, it.repeat, it.isBook) }.distinctUntilChanged().drop(1).collect {
                     // The radio has neither: the music's come back with the music (showMusic).
                     if (radio?.active != true) made.setMediaButtonPreferences(buttons(playback.queueState.value))
                 }
@@ -235,21 +238,30 @@ class MusicService : MediaLibraryService() {
             if (lineup != null && channel != null && graph != null && runCatching { playRadio(made, playback, graph, lineup, channel) }.isSuccess) return@launch
             if (playback.active) return@launch
             val saved = resume.saved()
+            // A book kept goes on where the profile is in it now: it may have been heard elsewhere since (the web app).
+            val book = saved?.tracks?.firstOrNull()?.takeIf { it.kind == ItemKind.Part }?.parentId
+            val heard = if (book != null) whereIn(graph, book) else null
             // Nothing kept: a car is still shown something to play, never Android Auto's "open the app" with nothing in it.
             val suggested = if (saved == null && car) suggestion(graph) else null
             if (busy() || playback.active) return@launch
             when {
+                heard != null -> playback.cue(heard.tracks, heard.startIndex, startMs = heard.startMs)
                 saved != null -> playback.cue(saved)
-                suggested != null -> playback.cue(suggested.tracks, suggested.startIndex, suggested.shuffle)
+                suggested != null -> playback.cue(suggested.tracks, suggested.startIndex, suggested.shuffle, suggested.startMs)
             }
         }
     }
 
     /** What the library suggests ([MusicLibrary.suggestion]), within [SUGGESTION_MS]; `null` when it can't say. */
-    private suspend fun suggestion(graph: MusicLibraryGraph?): MusicSelection? {
+    private suspend fun suggestion(graph: MusicLibraryGraph?): MusicSelection? = asked(graph) { it.suggestion() }
+
+    /** Book [bookId] from where the profile is in it now, within [SUGGESTION_MS]; `null` when the server can't say. */
+    private suspend fun whereIn(graph: MusicLibraryGraph?, bookId: Long): MusicSelection? = asked(graph) { it.selection(MusicId.Book(bookId)) }
+
+    private suspend fun asked(graph: MusicLibraryGraph?, ask: suspend (MusicLibrary) -> MusicSelection?): MusicSelection? {
         val library = graph?.library ?: return null
         return try {
-            withTimeoutOrNull(SUGGESTION_MS) { library.suggestion() }
+            withTimeoutOrNull(SUGGESTION_MS) { ask(library) }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
@@ -408,6 +420,7 @@ class MusicService : MediaLibraryService() {
      */
     private fun buttons(queue: MusicQueueState): List<CommandButton> {
         val res = AppLanguage.resources(this)
+        if (queue.isBook) return bookButtons(res)
         val shuffle = CommandButton.Builder(if (queue.shuffle) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF)
             .setCustomIconResId(if (queue.shuffle) R.drawable.music_session_shuffle_on else R.drawable.music_session_shuffle)
             .setDisplayName(res.getString(if (queue.shuffle) R.string.music_library_shuffle_off else R.string.music_library_shuffle))
@@ -426,6 +439,45 @@ class MusicService : MediaLibraryService() {
             .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
             .build()
         return listOf(shuffle, repeat)
+    }
+
+    /**
+     * A book's buttons in place of Shuffle and Repeat, as audiobook apps
+     * have them: back 15 seconds and forward 30 beside Previous and Next
+     * (which go from part to part), then Speed, showing the speed it plays
+     * at, which a press takes to the next ([SPEEDS]).
+     */
+    private fun bookButtons(res: android.content.res.Resources): List<CommandButton> {
+        val back = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_15)
+            .setDisplayName(res.getString(R.string.music_library_back))
+            .setPlayerCommand(Player.COMMAND_SEEK_BACK)
+            .setSlots(CommandButton.SLOT_BACK_SECONDARY, CommandButton.SLOT_OVERFLOW)
+            .build()
+        val forward = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
+            .setDisplayName(res.getString(R.string.music_library_forward))
+            .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
+            .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
+            .build()
+        val now = MusicHub.playback?.bookSpeed ?: 1f
+        val icon = SPEEDS.firstOrNull { it.first == now }?.second ?: CommandButton.ICON_PLAYBACK_SPEED
+        val speed = CommandButton.Builder(icon)
+            .setDisplayName(res.getString(R.string.music_library_speed, speedText(now)))
+            .setSessionCommand(SPEED)
+            .setSlots(CommandButton.SLOT_OVERFLOW)
+            .build()
+        return listOf(back, forward, speed)
+    }
+
+    /** "1.5×", "1×". */
+    private fun speedText(speed: Float): String =
+        java.text.NumberFormat.getNumberInstance(AppLanguage.resources(this).configuration.locales[0]).apply { maximumFractionDigits = 1 }.format(speed) + "×"
+
+    /** Books play at the next of [SPEEDS], kept for the next drive. */
+    private fun nextBookSpeed(playback: MusicPlayback) {
+        val at = SPEEDS.indexOfFirst { it.first == playback.bookSpeed }
+        val next = SPEEDS[(at + 1) % SPEEDS.size].first
+        playback.setBookSpeed(next)
+        getSharedPreferences(PREFERENCES, MODE_PRIVATE).edit().putFloat(BOOK_SPEED, next).apply()
     }
 
     /** The covers' addresses of the track playing and those Next and Previous go to. */
@@ -495,7 +547,7 @@ class MusicService : MediaLibraryService() {
             // Media3's defaults for this controller (super.onConnect only marks "use the defaults"), with Shuffle and Repeat.
             val accepted = MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller).build()
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
-                .setAvailableSessionCommands(accepted.availableSessionCommands.buildUpon().add(SHUFFLE).add(REPEAT).build())
+                .setAvailableSessionCommands(accepted.availableSessionCommands.buildUpon().add(SHUFFLE).add(REPEAT).add(SPEED).build())
                 .setAvailablePlayerCommands(accepted.availablePlayerCommands)
                 .setMediaButtonPreferences(if (radio?.active == true) emptyList() else buttons(playback.queueState.value))
                 .build()
@@ -510,9 +562,16 @@ class MusicService : MediaLibraryService() {
             if (!answers(controller)) return Futures.immediateFuture(SessionResult(SessionError.ERROR_PERMISSION_DENIED))
             val shuffle = customCommand.customAction == SHUFFLE.customAction
             val repeat = customCommand.customAction == REPEAT.customAction
-            if (!shuffle && !repeat) return super.onCustomCommand(session, controller, customCommand, args)
+            val speed = customCommand.customAction == SPEED.customAction
+            if (!shuffle && !repeat && !speed) return super.onCustomCommand(session, controller, customCommand, args)
             if (radio?.active == true) return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
             val queue = playback.queueState.value
+            if (speed) {
+                if (!queue.isBook) return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+                nextBookSpeed(playback)
+                (session as MediaLibrarySession).setMediaButtonPreferences(buttons(queue))
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             if (shuffle) playback.setShuffle(!queue.shuffle) else playback.setRepeat(queue.repeat.next)
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
@@ -693,7 +752,7 @@ class MusicService : MediaLibraryService() {
                     // Ready, not playing: the session's Play, which follows a request to play, starts it once. Started
                     // here, a request only to have it ready (the Assistant's, sent before it speaks) played under its
                     // voice, and the request to play that came after started the track a second time.
-                    playback.cue(selection.tracks, selection.startIndex, selection.shuffle)
+                    playback.cue(selection.tracks, selection.startIndex, selection.shuffle, selection.startMs)
                     val queue = playback.queueState.value
                     val items = queue.tracks.map { library().queueItem(it) }
                     future.set(MediaSession.MediaItemsWithStartPosition(items, queue.index, C.TIME_UNSET))
@@ -812,6 +871,23 @@ class MusicService : MediaLibraryService() {
 
         /** Repeat's button: the queue repeats, then the track, then nothing again. */
         val REPEAT = SessionCommand("app.pley.music.REPEAT", Bundle.EMPTY)
+
+        /** A book's Speed button: the next of [SPEEDS]. */
+        val SPEED = SessionCommand("app.pley.music.SPEED", Bundle.EMPTY)
+
+        /** A book's speeds, in the order Speed goes through them, each with Media3's icon that says it. */
+        val SPEEDS = listOf(
+            1.0f to CommandButton.ICON_PLAYBACK_SPEED_1_0,
+            1.2f to CommandButton.ICON_PLAYBACK_SPEED_1_2,
+            1.5f to CommandButton.ICON_PLAYBACK_SPEED_1_5,
+            1.8f to CommandButton.ICON_PLAYBACK_SPEED_1_8,
+            2.0f to CommandButton.ICON_PLAYBACK_SPEED_2_0,
+            0.8f to CommandButton.ICON_PLAYBACK_SPEED_0_8,
+        )
+
+        /** Where the books' speed is kept on the device, for the next drive. */
+        const val PREFERENCES = "music_session"
+        const val BOOK_SPEED = "book_speed"
 
         /** The session's player and the output it shows, kept for the process's life (queuePlayer). */
         var made: Pair<EngineMusicOutput, QueuePlayer>? = null

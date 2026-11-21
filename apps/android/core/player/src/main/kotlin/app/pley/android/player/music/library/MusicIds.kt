@@ -54,9 +54,22 @@ sealed interface MusicId {
         override val text get() = "playlist:$id"
     }
 
-    /** A track, picked from its [from] (an album or a playlist), or alone (a search: its album plays on). */
+    /**
+     * A track, picked from its [from] (an album or a playlist), or alone (a search: its album plays on). A book's
+     * part is one too, in the queue: its book plays on from it.
+     */
     data class Track(val id: Long, val from: MusicId? = null) : MusicId {
         override val text get() = if (from == null) "track:$id" else "track:$id@${from.text}"
+    }
+
+    /** The audiobooks' tab: those being heard, those added last, then every one by title. */
+    data object Books : MusicId {
+        override val text = "books"
+    }
+
+    /** An audiobook: played, it goes on where the profile is in it, its parts the queue. */
+    data class Book(val id: Long) : MusicId {
+        override val text get() = "book:$id"
     }
 
     /** Live TV's tab: favourites, the channels watched lately, and the groups. */
@@ -83,6 +96,7 @@ sealed interface MusicId {
                 Recent.text -> return Recent
                 Artists.text -> return Artists
                 Playlists.text -> return Playlists
+                Books.text -> return Books
                 LiveTv.text -> return LiveTv
             }
             val list = text.removePrefix("live:")
@@ -111,6 +125,7 @@ sealed interface MusicId {
                 "shuffle" -> ShuffleArtist(id)
                 "album" -> Album(id)
                 "playlist" -> Playlist(id)
+                "book" -> Book(id)
                 else -> null
             }
         }

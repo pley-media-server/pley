@@ -1,5 +1,6 @@
 package app.pley.android.player
 
+import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
@@ -102,6 +103,9 @@ data class MusicQueueState(
     val given: List<Int> = emptyList(),
 ) {
     val current: ItemSummary? get() = tracks.getOrNull(index)
+
+    /** An audiobook's parts (the car's library plays them), not music. */
+    val isBook: Boolean get() = tracks.firstOrNull()?.kind == ItemKind.Part
 }
 
 /** Where the track is, read when drawn (the progress line, the scrubber). */

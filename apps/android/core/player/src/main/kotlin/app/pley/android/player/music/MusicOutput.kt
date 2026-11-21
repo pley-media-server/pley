@@ -28,6 +28,9 @@ interface MusicOutput {
 
     fun seekTo(positionMs: Long)
 
+    /** Plays at [speed] (1 is as recorded), this track and the next, until told otherwise. */
+    fun setSpeed(speed: Float) {}
+
     /** Stops and lets go of the track, keeping the player for the next. */
     fun stop()
 

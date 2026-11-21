@@ -29,9 +29,15 @@ With Android Auto:
   (Pley's mark on those without one; an album or playlist opens to its
   tracks, and plays at once only with a single one), search, the whole
   queue, Shuffle and Repeat on Now Playing, and "Hey Google, play … on
-  Pley", which
-  finds music playlists by name ("my … playlist" too) and says so when
-  it finds nothing. Signed out, the car says to open Pley on the phone.
+  Pley", which finds music playlists by name ("my … playlist" too) and
+  says so when it finds nothing. Signed out, the car says to open Pley on the phone.
+- Audiobooks play in the car: a Books tab (being heard, added last, every
+  book) with how far you are in each, the books being heard first in
+  Recent, search and "Hey Google, play … on Pley". A book goes on where
+  you left it on any device, with back 15 seconds, forward 30 seconds
+  and a Speed button.
+- Tabs with nothing in them aren't shown; with five, Playlists goes into
+  the artists' tab, named Music.
 - Live TV's channels play as radio: a Live TV tab with favorites,
   channels watched lately and groups, channel search, and "Hey Google,
   play … on Pley" by channel name.
