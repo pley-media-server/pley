@@ -2613,14 +2613,14 @@ async fn surround(w: &World) -> String {
     app.jf_item(app.ids(library, admin).await["Surround"])
 }
 
-/// A Jellyfin app's profile for a stereo device that plays E-AC-3: files in
+/// A Jellyfin app's profile for a device that plays E-AC-3: files in
 /// `direct` containers played as they are, and HLS in MPEG-TS with H.264,
-/// and AAC, AC-3 or E-AC-3 on two channels.
-fn stereo_profile(direct: &str) -> Value {
+/// and AAC, AC-3 or E-AC-3 on `channels` channels.
+fn eac3_profile(direct: &str, channels: u32) -> Value {
     json!({
         "DirectPlayProfiles": [{"Container": direct, "VideoCodec": "h264", "AudioCodec": "aac,ac3,eac3", "Type": "Video"}],
         "TranscodingProfiles": [{"Type": "Video", "Container": "ts", "Protocol": "hls",
-            "VideoCodec": "h264", "AudioCodec": "aac,ac3,eac3", "MaxAudioChannels": "2"}],
+            "VideoCodec": "h264", "AudioCodec": "aac,ac3,eac3", "MaxAudioChannels": channels.to_string()}],
     })
 }
 
@@ -2629,7 +2629,7 @@ async fn jellyfin_streams_copy_the_sound_the_device_takes() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());
     let film = surround(&w).await;
-    let asked = json!({"DeviceProfile": stereo_profile("mp4")});
+    let asked = json!({"DeviceProfile": eac3_profile("mp4", 2)});
     let info = app.jf(Method::POST, &format!("/Items/{film}/PlaybackInfo"), admin, Some(asked)).await;
     assert_eq!(info.status, StatusCode::OK, "{}", info.text());
     let url = info.body["MediaSources"][0]["TranscodingUrl"].as_str().unwrap().to_owned();
@@ -2662,13 +2662,9 @@ async fn jellyfin_apps_that_turn_audio_copies_off_get_the_sound_converted() {
         (job.video.unwrap().mode, job.audio.unwrap())
     };
 
-    // A device that plays the file as it is gets a stream instead, whose
-    // sound is converted as for Pley's own players (stereo AAC here) and
-    // whose video is still copied.
-    let plays_it = playback_info(json!({"DeviceProfile": stereo_profile("mkv")})).await;
-    assert_eq!(plays_it["SupportsDirectPlay"], json!(true));
-    let source = playback_info(json!({"DeviceProfile": stereo_profile("mkv"), "AllowAudioStreamCopy": false})).await;
-    assert_eq!((&source["SupportsDirectPlay"], &source["SupportsDirectStream"]), (&json!(false), &json!(false)));
+    // The sound converted as for Pley's own players (stereo AAC here), the
+    // video still copied.
+    let source = playback_info(json!({"DeviceProfile": eac3_profile("mp4", 2), "AllowAudioStreamCopy": false})).await;
     let url = source["TranscodingUrl"].as_str().unwrap().to_owned();
     assert!(url.contains("AllowAudioStreamCopy=false") && !url.contains("AllowVideoStreamCopy"), "{url}");
     let master = app.jf(Method::GET, &url, admin, None).await;
@@ -2676,11 +2672,25 @@ async fn jellyfin_apps_that_turn_audio_copies_off_get_the_sound_converted() {
     let (video, audio) = last_job();
     assert_eq!(video, VideoMode::Copy);
     assert_eq!((audio.mode, audio.codec, audio.channels), (AudioMode::Transcode, AudioCodec::Aac, Some(2)));
+    // Never made again in the codec the device failed on: 5.1 as AC-3.
+    let source = playback_info(json!({"DeviceProfile": eac3_profile("mp4", 6), "AllowAudioStreamCopy": false})).await;
+    app.jf(Method::GET, source["TranscodingUrl"].as_str().unwrap(), admin, None).await;
+    let (_, audio) = last_job();
+    assert_eq!((audio.mode, audio.codec, audio.channels), (AudioMode::Transcode, AudioCodec::Ac3, Some(6)));
+
+    // As in Jellyfin, they leave playing the file as it is to
+    // `EnableDirectPlay`; no video copy turns off `SupportsDirectStream`.
+    let asked = json!({"DeviceProfile": eac3_profile("mkv", 2), "AllowAudioStreamCopy": false});
+    let source = playback_info(asked).await;
+    assert_eq!((&source["SupportsDirectPlay"], &source["SupportsDirectStream"]), (&json!(true), &json!(true)));
+    let asked = json!({"DeviceProfile": eac3_profile("mkv", 2), "AllowVideoStreamCopy": false});
+    let source = playback_info(asked).await;
+    assert_eq!((&source["SupportsDirectPlay"], &source["SupportsDirectStream"]), (&json!(true), &json!(false)));
 
     // jellyfin-web's retries, which it tells apart by the address,
     // lowercased: the video converted first, the sound still copied…
     let mut retry = json!({
-        "DeviceProfile": stereo_profile("mp4"),
+        "DeviceProfile": eac3_profile("mp4", 2),
         "EnableDirectPlay": false,
         "EnableDirectStream": false,
         "AllowVideoStreamCopy": false,
@@ -2701,7 +2711,7 @@ async fn jellyfin_apps_that_turn_audio_copies_off_get_the_sound_converted() {
     assert_eq!((video, audio.mode, audio.codec), (VideoMode::Transcode, AudioMode::Transcode, AudioCodec::Aac));
 
     // Apps that send it in PlaybackInfo's query rather than its body.
-    let asked = json!({"DeviceProfile": stereo_profile("mp4")});
+    let asked = json!({"DeviceProfile": eac3_profile("mp4", 2)});
     let info = app
         .jf(Method::POST, &format!("/Items/{film}/PlaybackInfo?AllowAudioStreamCopy=false"), admin, Some(asked))
         .await;

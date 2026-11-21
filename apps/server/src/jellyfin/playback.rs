@@ -85,9 +85,12 @@ fn pick<'a>(jellyfin: &Jellyfin, files: &'a [FileRow], source: Option<&str>) -> 
 /// Pley's transcoder (`TranscodingUrl`), copied or converted as Pley's
 /// own players' would be. Settings come from the body or the query.
 /// `AllowVideoStreamCopy=false` and `AllowAudioStreamCopy=false`, which
-/// players send when they retry after failing, have the video or the audio
-/// converted, and stay in the stream's address: jellyfin-web looks for them
-/// there to know which step of its retries it has reached.
+/// players send when they retry after failing, go into the stream's
+/// address, as Jellyfin's server writes them, for [`master`] to convert the
+/// video or the audio: jellyfin-web looks for them there to know which step
+/// of its retries it has reached. As in Jellyfin, they leave playing the
+/// file as it is to `EnableDirectPlay`, and the first turns off
+/// `SupportsDirectStream`.
 async fn playback_info(
     State(state): State<AppState>,
     Extension(jellyfin): Extension<Arc<Jellyfin>>,
@@ -159,7 +162,7 @@ async fn playback_info(
             max_height: None,
             start_ms,
             caps: caps.clone(),
-            mode: if video_copy { PlaybackMode::Auto } else { PlaybackMode::Transcode },
+            mode: PlaybackMode::Auto,
             client_id: client.device_id.clone(),
             keep_previous: false,
             keyed_urls: false,
@@ -170,7 +173,7 @@ async fn playback_info(
             fmp4_segments: false,
             download: false,
             copy_video_only: !state.settings.get().transcode_video,
-            convert_audio: !audio_copy,
+            convert_audio: false,
             stream_only: false,
             device_id: None,
             api: Api::Jellyfin,
@@ -184,14 +187,19 @@ async fn playback_info(
         out.supports_direct_play = direct;
         // `/Videos/{id}/stream` sends the file as it is: what needs its
         // sound or container changed goes through the HLS address.
-        out.supports_direct_stream = direct;
+        out.supports_direct_stream = direct && video_copy;
         if !direct {
             let settings = stream_settings(profile, info.as_ref().and_then(|i| i.video()));
             // fMP4 where it is asked for and the transcoder makes it.
             let fmp4 = settings.iter().any(|(k, v)| k == "SegmentContainer" && v == "mp4")
                 && state.transcoder.info().is_some_and(|t| t.capabilities.fmp4_segments);
-            let url =
+            let mut url =
                 transcoding_url(&jellyfin, &row, &out.id, &play_session, &client, &req, &settings, picture_subtitle);
+            for (name, copy) in [("AllowVideoStreamCopy", video_copy), ("AllowAudioStreamCopy", audio_copy)] {
+                if !copy {
+                    url.push_str(&format!("&{name}=false"));
+                }
+            }
             out.transcoding_url = Some(url);
             out.transcoding_sub_protocol = "hls";
             out.transcoding_container = Some(if fmp4 { "mp4" } else { "ts" });
@@ -239,12 +247,6 @@ fn transcoding_url(
     }
     if let Some(ms) = req.start_ms.filter(|ms| *ms > 0) {
         query.push(format!("StartTimeTicks={}", ms * TICKS_PER_MS));
-    }
-    if req.mode == PlaybackMode::Transcode {
-        query.push("AllowVideoStreamCopy=false".into());
-    }
-    if req.convert_audio {
-        query.push("AllowAudioStreamCopy=false".into());
     }
     let base = if row.kind == "track" { "audio" } else { "videos" };
     format!("/{base}/{}/master.m3u8?{}", jellyfin.ids.of(Kind::Item, row.id), query.join("&"))

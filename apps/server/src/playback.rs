@@ -384,10 +384,10 @@ pub struct PlaybackRequest {
     /// the player.
     #[serde(skip)]
     pub copy_video_only: bool,
-    /// The audio is converted, never copied nor played as it is: a Jellyfin
-    /// app asked so (`AllowAudioStreamCopy=false`), as its player does once
-    /// it has failed on the track. Set by the server, never read from the
-    /// player.
+    /// The audio is converted, never copied nor played as it is, nor made
+    /// again in its own codec ([`converted_audio`]): a Jellyfin app asked so
+    /// (`AllowAudioStreamCopy=false`), as its player does once it has failed
+    /// on the track. Set by the server, never read from the player.
     #[serde(skip)]
     pub convert_audio: bool,
     /// Which device the session plays on, when the server starts it for a
@@ -1368,13 +1368,17 @@ fn bit_depth(v: &MediaStream) -> i64 {
 /// multichannel output that takes E-AC-3 (decoded or passed through), else
 /// AC-3 5.1, else AAC with as many channels as the output takes (up to
 /// 5.1). Stereo sources, stereo outputs and players that don't say how many
-/// channels they have (the web) get stereo AAC.
-fn converted_audio(caps: &Caps, source: &MediaStream) -> (AudioCodec, u32) {
+/// channels they have (the web) get stereo AAC. A track the player asked to
+/// have converted (`asked`, [`PlaybackRequest::convert_audio`]), as it does
+/// once it has failed on it, isn't made again in its own codec: E-AC-3
+/// becomes AC-3 5.1 or AAC.
+fn converted_audio(caps: &Caps, source: &MediaStream, asked: bool) -> (AudioCodec, u32) {
     let output = caps.audio_channels.unwrap_or(2).max(1);
     let surround = output >= 6 && source.channels.unwrap_or(2) > 2;
-    if surround && caps.plays_audio("eac3") {
+    let takes = |codec: &str| caps.plays_audio(codec) && !(asked && source.codec == codec);
+    if surround && takes("eac3") {
         (AudioCodec::Eac3, 6)
-    } else if surround && caps.plays_audio("ac3") {
+    } else if surround && takes("ac3") {
         (AudioCodec::Ac3, 6)
     } else {
         // The transcoder never makes more channels than the source has.
@@ -1697,7 +1701,7 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
     let audio_req = audio.map(|a| {
         // As the choice of the track counted on (streams::fit).
         let copy = !req.convert_audio && crate::streams::AudioOut::stream_copies(caps, &a.codec);
-        let (codec, channels) = converted_audio(caps, a);
+        let (codec, channels) = converted_audio(caps, a, req.convert_audio);
         AudioRequest {
             stream_index: Some(a.index),
             mode: if copy { AudioMode::Copy } else { AudioMode::Transcode },

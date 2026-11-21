@@ -14,7 +14,8 @@ describes how they are made.
 - Jellyfin apps that retry after a playback error, as jellyfin-web does,
   get the video converted and then the sound too, rather than the same
   stream again: their requests not to copy the video or the audio
-  (`AllowVideoStreamCopy`, `AllowAudioStreamCopy`) are kept.
+  (`AllowVideoStreamCopy`, `AllowAudioStreamCopy`) are kept, and the sound
+  is never made again in the codec that failed.
 
 ## [0.1.14] - 2026-11-20
 
