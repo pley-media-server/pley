@@ -129,7 +129,12 @@
       "ownFirst": "请先在 <a>账户</a> 中为自己的账户开启两步验证。",
       "everyoneHasIt": "所有设置了密码的用户都已启用。",
       "signsOut_other": "保存后，尚未设置的 {{count, number}} 人将在所有设备和应用上退出登录，直到完成设置。",
-      "noSecretKey": "服务器无法使用其 secret.key，因此无法设置或验证验证器应用。在此之前，尚未设置两步验证的用户无法登录，已设置的用户可使用恢复码登录。日志中说明了原因。"
+      "noSecretKey": "服务器无法使用其 secret.key，因此无法设置或验证验证器应用。在此之前，尚未设置两步验证的用户无法登录，已设置的用户可使用恢复码登录。日志中说明了原因。",
+      "tailscale": "通过 Tailscale 登录",
+      "tailscaleHint": "用户在“账户”页面关联自己的 Tailscale 账户后，在已登录 Tailscale 的设备上通过此服务器的 Tailscale 名称无需密码即可登录。Pley 会询问此电脑上的 Tailscale 每个连接来自谁。两步验证仍会要求输入验证码。",
+      "tailscaleServer": "Tailscale 回应：此服务器是 {{name}}。",
+      "tailscaleProblem": "Pley 无法询问 Tailscale：{{problem}}",
+      "tailscaleSignsOut": "保存后，所有通过 Tailscale 登录的人都将退出登录。"
     },
     "apps": {
       "title": "应用",

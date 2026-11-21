@@ -1,5 +1,5 @@
 import { Route, Routes } from "react-router";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { User } from "@/api/types";
@@ -306,5 +306,59 @@ describe("LoginPage", () => {
 
     await signIn("open-sesame");
     expect((await screen.findByTestId("location")).textContent).toBe("/");
+  });
+});
+
+describe("LoginPage with Tailscale", () => {
+  /** A device on the tailnet whose Tailscale user linked `username` (none: not linked). */
+  function serveTailscale(username: string | null, twoStep = false) {
+    return mockApi({
+      "GET /api/server": () => ({ name: "Living Room", version: "1.0.0", setup_required: false }),
+      "GET /api/auth/me": () => apiError(401, "unauthorized", "not signed in"),
+      "GET /api/auth/tailscale": () => ({ tailscale: { login: "alice@example.com", name: "Alice", username } }),
+      "POST /api/auth/tailscale": (req) => {
+        const { code } = req.body as { code?: string };
+        if (twoStep && !code) return apiError(401, "two_step", "enter the 6-digit code from your authenticator app");
+        if (twoStep && code !== "123456") return apiError(401, "two_step", "that code didn't work");
+        return { user: testUser };
+      },
+      "GET /api/auth/profiles": () => [testUser],
+    });
+  }
+
+  it("continues as the account linked to this device's Tailscale user", async () => {
+    const requests = serveTailscale("admin");
+    renderLogin();
+
+    const button = await screen.findByRole("button", { name: "Continue as admin" });
+    expect(screen.getByText("With Tailscale, signed in as alice@example.com")).toBeInTheDocument();
+    await userEvent.setup().click(button);
+
+    expect(await screen.findByTestId("location")).toHaveTextContent("/library/2");
+    expect(requests.find((r) => r.method === "POST")).toMatchObject({ path: "/api/auth/tailscale", body: {} });
+  });
+
+  it("asks for the two-step code, and sends it to Tailscale's sign-in", async () => {
+    const requests = serveTailscale("admin", true);
+    renderLogin();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Continue as admin" }));
+    await user.type(await screen.findByLabelText("Code"), "123456");
+
+    expect(await screen.findByTestId("location")).toHaveTextContent("/library/2");
+    const posts = requests.filter((r) => r.method === "POST");
+    expect(posts.map((r) => r.path)).toEqual(["/api/auth/tailscale", "/api/auth/tailscale"]);
+    expect(posts[1]?.body).toEqual({ code: "123456" });
+  });
+
+  it("offers nothing to a Tailscale user who linked no account", async () => {
+    const requests = serveTailscale(null);
+    renderLogin();
+
+    expect(await screen.findByLabelText("Username")).toBeInTheDocument();
+    await waitFor(() => expect(requests.some((r) => r.path === "/api/auth/tailscale")).toBe(true));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByRole("button", { name: /Continue as/ })).not.toBeInTheDocument();
   });
 });

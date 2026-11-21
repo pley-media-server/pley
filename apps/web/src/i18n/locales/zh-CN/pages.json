@@ -32,7 +32,10 @@
     "recoveryCode": "恢复代码",
     "useApp": "使用验证器应用",
     "useRecoveryCode": "使用恢复代码",
-    "otherServer": "使用其他服务器"
+    "otherServer": "使用其他服务器",
+    "tailscaleAs": "以 {{username}} 身份继续",
+    "tailscaleHint": "通过 Tailscale，已登录为 {{login}}",
+    "orPassword": "或使用密码"
   },
   "setup": {
     "documentTitle": "欢迎",
@@ -180,6 +183,25 @@
     "turnOn": "开启",
     "turnOffHint": "关闭时需要你的密码和应用验证码，或恢复代码。",
     "offToast": "两步验证已关闭"
+  },
+  "tailscale": {
+    "title": "Tailscale",
+    "intro": "关联你的 Tailscale 账户后，在已登录 Tailscale 的设备上无需密码即可登录 Pley。两步验证仍会要求输入验证码。",
+    "off": "此服务器已关闭通过 Tailscale 登录。",
+    "linkedTo": "自 {{date}} 起已关联 {{login}}：以 {{login}} 登录 Tailscale 的设备无需你的密码即可登录 Pley。",
+    "thisDevice": "此设备就是其中之一。",
+    "here": "此设备已以 {{login}} 登录 Tailscale。",
+    "notHere": "要关联，请在已登录 Tailscale 的设备上，通过 Pley 的 Tailscale 名称或地址打开它。",
+    "notHereNamed": "要关联，请在已登录 Tailscale 的设备上打开 {{name}} 上的 Pley。",
+    "problem": "Pley 无法询问 Tailscale：{{problem}}",
+    "adminNeedsTwoStep": "管理员只有开启两步验证后才能通过 Tailscale 登录：请先在上方开启。",
+    "unlink": "取消关联",
+    "unlinkHint": "通过 Tailscale 登录的设备将退出登录，如果此设备也是这样登录的，也会退出",
+    "unlinkedToast": "已取消关联 Tailscale",
+    "link": "关联 {{login}}",
+    "linkHint": "以 {{login}} 登录 Tailscale 的设备将无需你的密码即可以你的身份登录 Pley。请输入密码确认。",
+    "linkButton": "关联",
+    "linkedToast": "已关联 {{login}}"
   },
   "account": {
     "title": "账户",
