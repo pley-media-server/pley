@@ -176,6 +176,35 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun beforeTheFirstChapterAndAfterAVideoChaptersStillGoWherePressed() = runTest {
+        val music = music()
+        // The first mark comes after an intro.
+        val chapters = listOf(Chapter(30_000, 90_000, "One"), Chapter(90_000, 180_000, "Two"))
+        api.answer("item", ItemDetail(id = 1, libraryId = 1, kind = ItemKind.Part, title = "Book", files = listOf(MediaFile(id = 601, path = "book.m4b", chapters = chapters))))
+        music.play(listOf(track(1).copy(kind = ItemKind.Part), track(2).copy(kind = ItemKind.Part)))
+        runCurrent()
+        output.startPlaying()
+        output.position = 5_000
+        assertEquals(-1, music.nowPlaying.value!!.chapter)
+        assertTrue(music.nowPlaying.value!!.hasNextChapter)
+        // Previous in the intro: the part's own rule (its start), no chapter to step back to.
+        music.previous()
+        assertEquals(0L, output.seeks.last())
+        // Next: the first chapter.
+        music.next()
+        assertEquals(30_000L, output.seeks.last())
+
+        // A video took the session: Next moves the place, and Play starts the part there.
+        music.pauseForVideo()
+        music.next()
+        assertEquals(90_000L, music.position().positionMs)
+        music.play()
+        runCurrent()
+        assertEquals(90_000L, starts().last().startMs)
+        assertEquals(1L, starts().last().itemId)
+    }
+
+    @Test
     fun seekingByStepsStaysWithinTheTrack() = runTest {
         val music = music()
         music.play(album)

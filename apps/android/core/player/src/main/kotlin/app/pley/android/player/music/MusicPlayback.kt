@@ -9,6 +9,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
 import app.pley.android.model.PlaybackRequest
+import app.pley.android.model.playableChapters
 import app.pley.android.model.ProgressState
 import app.pley.android.model.ServerEvent
 import app.pley.android.model.caps.ClientCaps
@@ -365,7 +366,7 @@ class MusicPlayback(
         val chapter = chapterNow()
         if (chapter != null) {
             chapters.getOrNull(chapter + 1)?.let {
-                seekTo(it.startMs)
+                toChapter(it.startMs)
                 return
             }
         }
@@ -376,13 +377,14 @@ class MusicPlayback(
         failedInARow = 0
         // A book's part with chapters: back to the start of the chapter, or the one before within its first seconds,
         // as Previous does with tracks; from the first chapter's start, the part before.
-        val chapter = chapterNow()
+        // Before the first chapter (an intro without a mark), the part's own rule.
+        val chapter = chapterNow()?.takeIf { it >= 0 }
         if (chapter != null) {
             val at = lastPosition()
             val start = chapters[chapter].startMs
             val to = if (at - start > MusicQueue.RESTART_AFTER_MS) start else chapters.getOrNull(chapter - 1)?.startMs
             if (to != null) {
-                seekTo(to)
+                toChapter(to)
                 return
             }
         }
@@ -458,15 +460,22 @@ class MusicPlayback(
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                // Read again the next time the part plays.
-                chaptersOf = null
+                // Read again the next time the part starts (startTrack): it plays as a whole meanwhile.
                 return@launch
             }
             if (chaptersOf != track.id) return@launch
-            chapters = read.filter { it.endMs > it.startMs }.sortedBy { it.startMs }.takeIf { it.size >= 2 }.orEmpty()
+            chapters = playableChapters(read)
             publish()
             watchChapters()
         }
+    }
+
+    /**
+     * To the chapter starting at [startMs]: a seek, or the track asked for
+     * again from there while it is still being asked for.
+     */
+    private fun toChapter(startMs: Long) {
+        if (starting) startTrack(startMs, sameTrack = true) else seekTo(startMs)
     }
 
     /** Which of [chapters] the position is in; `null` when the part has none, or isn't where it plays yet. */
@@ -492,6 +501,12 @@ class MusicPlayback(
     }
 
     fun seekTo(positionMs: Long) {
+        // After a video or a failure the session is gone: the place moves, and Play starts the track there, as for a
+        // queue that waits.
+        if (held && session == null && !ended && (yielded || error != null)) {
+            held = false
+            waitingAt = positionMs
+        }
         // A queue that waits starts where it was sought to.
         if (waitingAt != null) {
             waitingAt = positionMs.coerceIn(0, (queue.current?.durationMs?.takeIf { it > 0 } ?: Long.MAX_VALUE))
@@ -591,6 +606,8 @@ class MusicPlayback(
             fallback = null
             recreates = 0
         }
+        // Chapters that couldn't be read are asked for again.
+        if (chapters.isEmpty()) chaptersOf = null
         val wantPlay = play ?: (!sameTrack || error != null || (out?.playWhenReady ?: true))
         waitingAt = null
         cancelSkip()

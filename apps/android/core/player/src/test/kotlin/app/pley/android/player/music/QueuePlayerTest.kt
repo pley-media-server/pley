@@ -9,8 +9,11 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
+import app.pley.android.model.Chapter
+import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.MediaFile
 import app.pley.android.model.PlaybackRequest
 import app.pley.android.model.caps.ClientCaps
 import app.pley.android.network.OfflineException
@@ -339,6 +342,24 @@ class QueuePlayerTest {
         assertEquals("http://server/stream", engine.currentMediaItem?.localConfiguration?.uri.toString())
     }
 
+    @Test
+    fun nextGoesToABooksNextChapterInItsOneFileWhereMedia3WouldGoNowhere() {
+        val chapters = listOf(Chapter(0, 60_000, "Opening"), Chapter(60_000, 180_000, "End"))
+        api.answer("item", ItemDetail(id = 1, libraryId = 5, kind = ItemKind.Part, title = "Book", files = listOf(MediaFile(id = 601, path = "book.m4b", chapters = chapters))))
+        playback.play(listOf(track(1).copy(kind = ItemKind.Part)))
+        engineHolds(1)
+        idle()
+        assertEquals(1, player.mediaItemCount)
+        assertTrue(playback.nowPlaying.value!!.hasNextChapter)
+
+        // A queue of one: Media3's Next alone would ignore it; the session's player goes to the next chapter.
+        assertTrue(player.forSession.hasNextMediaItem())
+        player.forSession.seekToNext()
+        idle()
+        assertEquals(60_000L, output.seeks.last())
+        assertEquals(1, api.calls("startPlayback").size)
+    }
+
     private fun track(id: Long) = ItemSummary(
         id = id,
         libraryId = 3,
@@ -360,7 +381,11 @@ class QueuePlayerTest {
 
         override fun pause() = Unit
 
-        override fun seekTo(positionMs: Long) = Unit
+        val seeks = mutableListOf<Long>()
+
+        override fun seekTo(positionMs: Long) {
+            seeks += positionMs
+        }
 
         override fun stop() = Unit
 

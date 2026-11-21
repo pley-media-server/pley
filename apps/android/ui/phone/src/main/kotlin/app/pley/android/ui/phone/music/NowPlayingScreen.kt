@@ -61,7 +61,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -173,7 +173,7 @@ private fun NowPlayingPage() {
                 if (car) {
                     Spacer(Modifier.weight(1f))
                 } else {
-                    // As much room on the label's left as the buttons take on its right: it stays centred.
+                    // As much room on the label's left as the buttons take on its right: it stays centered.
                     if (now != null) Spacer(Modifier.width(if (now.book) 96.dp else 48.dp))
                     Text(
                         stringResource(R.string.music_now_playing),
@@ -579,7 +579,7 @@ private fun SpeedButton(model: NowPlayingViewModel) {
 /** "1.5×", "1×", in the language shown. */
 @Composable
 internal fun speedText(speed: Float): String {
-    val locale = LocalConfiguration.current.locales[0]
+    val locale = LocalResources.current.configuration.locales[0]
     return remember(speed, locale) { NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 1 }.format(speed) + "×" }
 }
 

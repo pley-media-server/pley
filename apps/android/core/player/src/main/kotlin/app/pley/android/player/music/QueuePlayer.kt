@@ -2,6 +2,7 @@ package app.pley.android.player.music
 
 import androidx.annotation.OptIn
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.ForwardingSimpleBasePlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -56,6 +57,25 @@ internal class QueuePlayer(
 ) : ForwardingSimpleBasePlayer(player) {
     /** Shows [playback]'s queue as it is now. */
     fun queueChanged() = invalidateState()
+
+    /**
+     * This player as the media session is given it: Next on a book's part
+     * with a chapter after the one playing goes to that chapter. Media3's
+     * Next goes no further than the queue's last entry, and a book in one
+     * file is a queue of one, so it would never reach [playback] there
+     * (Previous always does).
+     */
+    val forSession: Player = object : ForwardingPlayer(this) {
+        override fun seekToNext() {
+            if (playback.nowPlaying.value?.hasNextChapter == true) playback.next() else super.seekToNext()
+        }
+
+        override fun seekToNextMediaItem() {
+            if (playback.nowPlaying.value?.hasNextChapter == true) playback.next() else super.seekToNextMediaItem()
+        }
+
+        override fun hasNextMediaItem(): Boolean = playback.nowPlaying.value?.hasNextChapter == true || super.hasNextMediaItem()
+    }
 
     /** The tracks [entries] list, as they were when last described. */
     private var listedTracks: List<ItemSummary> = emptyList()

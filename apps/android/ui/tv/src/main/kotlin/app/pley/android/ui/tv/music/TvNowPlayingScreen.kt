@@ -56,7 +56,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -329,7 +328,7 @@ private fun RowScope.BookControls(now: NowPlaying, model: NowPlayingViewModel) {
     Box(Modifier.padding(top = BESIDE_PLAY)) { TvRoundButton(stringResource(R.string.tv_music_next), PleyIcons.SkipForward, onClick = model::next, onArt = true, enabled = now.hasNext) }
     Box(Modifier.padding(top = BESIDE_PLAY)) { TvRoundButton(stringResource(ScreensR.string.book_forward), PleyIcons.RotateCw, onClick = model::forward, onArt = true) }
     val speed by model.bookSpeed.collectAsStateWithLifecycle()
-    val locale = LocalConfiguration.current.locales[0]
+    val locale = LocalResources.current.configuration.locales[0]
     val shown = remember(speed, locale) { NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 1 }.format(speed) + "×" }
     Box(Modifier.padding(top = BESIDE_PLAY)) {
         TvRoundButton(

@@ -227,7 +227,7 @@ class MusicLibrary(
         }
         val heard = book.await()
         if (heard != null && heard.second >= (last?.userState?.lastPlayedAt ?: 0)) {
-            bookSelection(heard.first)?.let { return@coroutineScope it }
+            known { bookSelection(heard.first) }?.let { return@coroutineScope it }
         }
         val album = last?.parentId?.let { tracksOf(it) }.orEmpty()
         val at = album.indexOfFirst { it.id == last?.id }

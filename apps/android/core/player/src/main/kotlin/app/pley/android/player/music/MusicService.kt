@@ -141,7 +141,7 @@ class MusicService : MediaLibraryService() {
                 standIn = { MusicArt.standIn(this, it) },
             )
         }
-        val made = MediaLibrarySession.Builder(this, queue, Callback(playback, graph?.musicLibrary))
+        val made = MediaLibrarySession.Builder(this, queue.forSession, Callback(playback, graph?.musicLibrary))
             .setId(SESSION_ID)
             // The session's state is sent as it changes, not also every few seconds as it plays: Android Auto's queue list
             // goes back to the track playing at each state it is sent, under a finger scrolling it. Controllers work out
@@ -301,7 +301,7 @@ class MusicService : MediaLibraryService() {
         val carStays = made.connectedControllers.any { it.packageName == MusicCallers.ANDROID_AUTO }
         val next = if (carStays) queuePlayer(playback, library) else null
         if (next != null) {
-            made.player = next
+            made.player = next.forSession
             player = next
             made.setMediaButtonPreferences(buttons(playback.queueState.value))
             return
@@ -345,7 +345,7 @@ class MusicService : MediaLibraryService() {
         if (session !== made || (!live.active && made.player !== live.player)) return
         live.close()
         val queue = queuePlayer(playback, library) ?: return
-        made.player = queue
+        made.player = queue.forSession
         player = queue
         made.setMediaButtonPreferences(buttons(playback.queueState.value))
     }

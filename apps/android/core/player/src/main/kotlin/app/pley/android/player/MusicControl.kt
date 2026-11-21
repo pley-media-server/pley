@@ -69,7 +69,10 @@ data class NowPlaying(
     val chapter: Int = -1,
 ) {
     /** Whether Next has a track to go to: the one after, or with the queue repeating the first again. */
-    val hasNext: Boolean get() = index + 1 < count || repeat == MusicRepeat.All || chapter + 1 in 1..chapters.lastIndex
+    val hasNext: Boolean get() = index + 1 < count || repeat == MusicRepeat.All || hasNextChapter
+
+    /** Whether a chapter comes after the one playing in this part (the first, before it). */
+    val hasNextChapter: Boolean get() = chapters.isNotEmpty() && chapter < chapters.lastIndex
 
     /** The chapter playing, `null` without. */
     val currentChapter: Chapter? get() = chapters.getOrNull(chapter)

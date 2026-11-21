@@ -16,6 +16,7 @@ import app.pley.android.data.valueOrNull
 import app.pley.android.model.Chapter
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.playableChapters
 import app.pley.android.network.ApiException
 import app.pley.android.player.MusicControl
 import app.pley.android.screens.R
@@ -69,7 +70,8 @@ class BookViewModel(
     /** The chapters of the book's one part, from its file; none for a book of several parts. */
     private fun chaptersOf(parts: List<ItemSummary>?): Flow<List<Chapter>> {
         val only = parts?.singleOrNull() ?: return flowOf(emptyList())
-        return items.detail(only.id).map { it.valueOrNull?.files?.firstOrNull()?.chapters.orEmpty() }.distinctUntilChanged()
+        // As the music goes through them, so the chapter playing is the row marked.
+        return items.detail(only.id).map { playableChapters(it.valueOrNull?.files?.firstOrNull()?.chapters.orEmpty()) }.distinctUntilChanged()
     }
 
     private val page: Flow<MusicPageState<BookPage>> = retries

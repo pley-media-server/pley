@@ -126,6 +126,13 @@ data class Chapter(
     val thumbUrl: String? = null,
 )
 
+/**
+ * The chapters a book's part is gone through by (Previous and Next, its
+ * page's list): those with a length, by start; none with fewer than two.
+ */
+fun playableChapters(chapters: List<Chapter>): List<Chapter> =
+    chapters.filter { it.endMs > it.startMs }.sortedBy { it.startMs }.takeIf { it.size >= 2 }.orEmpty()
+
 /** What a marker marks. */
 @Serializable(with = MarkerKind.Serializer::class)
 enum class MarkerKind(override val wire: String) : WireEnum {

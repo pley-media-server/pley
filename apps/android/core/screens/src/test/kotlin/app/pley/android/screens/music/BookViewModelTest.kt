@@ -118,7 +118,12 @@ class BookViewModelTest {
         vm.playPart(2)
         assertEquals(2, music.played.last().second)
         assertEquals(0L, music.startedAt.last())
-        // A part heard to its end starts from its start.
+        // A part heard to its end starts from its start; From the start, the first part's.
+        vm.playPart(0)
+        assertEquals(0, music.played.last().second)
+        assertEquals(0L, music.startedAt.last())
+        vm.playPart(1)
+        assertEquals(3, music.toggles)
         vm.fromStart()
         assertEquals(0, music.played.last().second)
 
