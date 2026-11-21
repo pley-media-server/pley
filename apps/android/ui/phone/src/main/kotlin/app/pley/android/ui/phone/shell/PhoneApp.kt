@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.ReportDrawn
 import androidx.activity.compose.ReportDrawnWhen
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
@@ -14,8 +15,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,7 +31,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ShortNavigationBarItemDefaults
-import androidx.compose.material3.WideNavigationRailDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
@@ -96,9 +99,12 @@ import app.pley.android.ui.phone.kit.LocalPhoneDeviceTier
 import app.pley.android.ui.phone.kit.OfflineAction
 import app.pley.android.ui.phone.kit.ToastHost
 import app.pley.android.ui.phone.library.libraryEntries
+import app.pley.android.ui.phone.livetv.liveTvEntries
 import app.pley.android.ui.phone.music.musicEntries
 import app.pley.android.ui.phone.onboarding.onboardingEntries
-import app.pley.android.ui.phone.livetv.liveTvEntries
+import app.pley.android.ui.phone.player.CarSized
+import app.pley.android.ui.phone.player.LocalCarScreen
+import app.pley.android.ui.phone.player.onCarScreen
 import app.pley.android.ui.phone.playlists.playlistsEntries
 import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.CastsSent
@@ -147,9 +153,13 @@ fun PhoneApp(
     graph: () -> ScreensGraph,
 ) {
     PhoneTheme {
-        Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.testTag(TestTags.PHONE_ROOT)) {
-            val known by produceState(start) { if (value == null) value = awaitStart() }
-            known?.let { PhoneShell(it, graph) }
+        // On a car's screen (Android Auto, parked), every page is car-sized, as Google's car criteria ask of a parked
+        // app: 64 dp buttons, no text under 24 sp.
+        CarSized(onCarScreen()) {
+            Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.testTag(TestTags.PHONE_ROOT)) {
+                val known by produceState(start) { if (value == null) value = awaitStart() }
+                known?.let { PhoneShell(it, graph) }
+            }
         }
     }
 }
@@ -345,6 +355,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
     }
     val metrics = LocalPhoneMetrics.current
     val rail = metrics.rail
+    val iconsAlone = rail || LocalCarScreen.current
     val tab = navigation.tab
     val itemColors = ShortNavigationBarItemDefaults.colors(
         selectedIconColor = PleyColors.AccentBright,
@@ -357,27 +368,33 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
     NavigationSuiteScaffold(
         navigationItems = {
             PhoneTab.entries.forEach { item ->
+                val name = stringResource(item.label)
                 NavigationSuiteItem(
                     selected = item == tab,
                     onClick = { navigation.select(item) },
                     icon = {
-                        val icon = @Composable { Icon(item.icon, contentDescription = null, tint = LocalContentColor.current) }
+                        // The rail beside the page (a phone on its side, a tablet, a car's screen) shows icons alone,
+                        // read out by name, in a column, as Android Auto's own rail has them; centred labels of
+                        // different lengths left its icons out of line. The bar under a phone's page keeps its labels;
+                        // under a car's narrow page it has icons alone too, as five labels of 24 sp ran into each other.
+                        val icon = @Composable { Icon(item.icon, contentDescription = if (iconsAlone) name else null, tint = LocalContentColor.current) }
                         if (item == PhoneTab.Me) RequestsTabIcon(shell.requests, icon) else icon()
                     },
-                    label = { FittedLabel(stringResource(item.label)) },
+                    label = if (iconsAlone) null else ({ FittedLabel(name) }),
                     colors = itemColors,
                     modifier = Modifier.testTag(TAB_TAG + item.name),
                 )
             }
         },
-        navigationSuiteType = if (rail) NavigationSuiteType.WideNavigationRailCollapsed else NavigationSuiteType.ShortNavigationBarCompact,
+        // The compact rail, its tabs centred on its height: on a car's short screen (800 × 480, a third larger) the wide
+        // rail's top padding and gaps put its last tab under the bottom edge.
+        navigationSuiteType = if (rail) NavigationSuiteType.NavigationRail else NavigationSuiteType.ShortNavigationBarCompact,
+        navigationItemVerticalArrangement = if (rail) Arrangement.Center else NavigationSuiteDefaults.verticalArrangement,
         navigationSuiteColors = NavigationSuiteDefaults.colors(
             shortNavigationBarContainerColor = PleyColors.Bg,
             shortNavigationBarContentColor = PleyColors.Muted,
-            wideNavigationRailColors = WideNavigationRailDefaults.colors(
-                containerColor = PleyColors.Bg,
-                contentColor = PleyColors.Muted,
-            ),
+            navigationRailContainerColor = PleyColors.Bg,
+            navigationRailContentColor = PleyColors.Muted,
         ),
         // The window's background shows through (PhoneApp).
         containerColor = Color.Transparent,
@@ -387,6 +404,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
         Column(
             Modifier
                 .fillMaxSize()
+                .testTag(TABS_PAGE)
                 .drawWithContent {
                     drawContent()
                     // The 1 dp hairline between the page and the bar (or the rail).
@@ -400,8 +418,15 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                 },
         ) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                key(tab) {
-                    Screens(entries = decorated.getValue(tab), onBack = navigation::back)
+                // One tab fades out, then the next in (Material's fade through): they used to swap in one frame.
+                val reduced = reducedMotion()
+                AnimatedContent(
+                    targetState = tab,
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = { fadeThrough(reduced) },
+                    label = "tab",
+                ) { shown ->
+                    Screens(entries = decorated.getValue(shown), onBack = navigation::back)
                 }
                 ToastHost(
                     shell.toasts,
@@ -444,8 +469,9 @@ private fun rememberDecorators() = listOf(
 /**
  * One back stack's screens: sheets over the screen under them, dialogs as
  * dialogs, and Material's shared-axis X between screens (design spec §5.1),
- * following the finger on a predictive back. With reduced motion screens
- * swap in place.
+ * following the finger on a predictive back. A screen marked [RISES] (Now
+ * Playing, opened from the bar at the bottom) comes up from there and goes
+ * back down. With reduced motion screens swap in place.
  */
 @Composable
 private fun Screens(entries: List<NavEntry<NavKey>>, onBack: () -> Unit) {
@@ -455,9 +481,9 @@ private fun Screens(entries: List<NavEntry<NavKey>>, onBack: () -> Unit) {
         entries = entries,
         modifier = Modifier.fillMaxSize(),
         sceneStrategies = strategies,
-        transitionSpec = { sharedAxis(forward = true, reduced) },
-        popTransitionSpec = { sharedAxis(forward = false, reduced) },
-        predictivePopTransitionSpec = { sharedAxis(forward = false, reduced) },
+        transitionSpec = { if (targetState.rises()) rise(up = true, reduced) else sharedAxis(forward = true, reduced) },
+        popTransitionSpec = { if (initialState.rises()) rise(up = false, reduced) else sharedAxis(forward = false, reduced) },
+        predictivePopTransitionSpec = { if (initialState.rises()) rise(up = false, reduced) else sharedAxis(forward = false, reduced) },
         onBack = onBack,
     )
 }
@@ -476,5 +502,37 @@ private fun AnimatedContentTransitionScope<Scene<NavKey>>.sharedAxis(forward: Bo
 /** 30 dp of a 412 dp phone, as a share of the width, so it needs no density here. */
 private const val SHIFT = 0.073f
 
+/** An entry's metadata saying its screen comes up from the bottom and goes back down ([rise]). */
+internal const val RISES = "pley.rises"
+
+private fun Scene<NavKey>.rises(): Boolean = entries.lastOrNull()?.metadata?.get(RISES) == true
+
+/**
+ * The shared axis on Y, for a screen opened from the bottom of the page: [up], it comes up a short way as it fades in
+ * over the page under it, which fades out where it is; down, it sinks as it fades out and the page fades back in.
+ */
+private fun rise(up: Boolean, reduced: Boolean): ContentTransform {
+    if (reduced) return EnterTransition.None togetherWith ExitTransition.None
+    val move = tween<androidx.compose.ui.unit.IntOffset>(PleyMotion.SCREEN_MS, easing = FastOutSlowInEasing)
+    val out = PleyMotion.SCREEN_MS / 3
+    val appear = fadeIn(tween(PleyMotion.SCREEN_MS - out, delayMillis = out, easing = LinearEasing))
+    val leave = fadeOut(tween(out, easing = LinearEasing))
+    val shift = { height: Int -> (height * RISE).toInt() }
+    return if (up) (slideInVertically(move, shift) + appear) togetherWith leave else appear togetherWith (slideOutVertically(move, shift) + leave)
+}
+
+/** How far a rising screen moves, as a share of the height. */
+private const val RISE = 0.06f
+
+/** Between tabs: the one left fades out over the first third of pley's 220 ms, the one chosen in after it. */
+private fun fadeThrough(reduced: Boolean): ContentTransform {
+    if (reduced) return EnterTransition.None togetherWith ExitTransition.None
+    val out = PleyMotion.SCREEN_MS / 3
+    return fadeIn(tween(PleyMotion.SCREEN_MS - out, delayMillis = out, easing = LinearEasing)) togetherWith fadeOut(tween(out, easing = LinearEasing))
+}
+
 /** The test tag of each tab's item in the bar or rail: this and the tab's name. */
 internal const val TAB_TAG = "pley.phone.tab."
+
+/** What shows beside the rail, or over the bar: the tab's pages, the remote's bar and the mini player. */
+internal const val TABS_PAGE = "pley.phone.tabs.page"

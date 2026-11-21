@@ -16,10 +16,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
+import app.pley.android.designsystem.text.LocalMinTextSize
 import app.pley.android.designsystem.text.WholeWordsText
+import app.pley.android.designsystem.text.atLeast
 
 /**
  * The two lines under a tile (design spec §2.3, §3.2): the title in [fg][PleyColors.Fg]
@@ -28,6 +31,9 @@ import app.pley.android.designsystem.text.WholeWordsText
  * ([emphasized]); the weight switches, it never animates. On phones a
  * large font scale lets the title take two lines. Captions always show,
  * so rows never jump. Screen readers hear the tile's description instead.
+ * Where text has a smallest size ([LocalMinTextSize], a car's screen),
+ * both lines are that size at least, and the title takes two lines there
+ * too, never smaller: at 24 sp one line holds a dozen letters of it.
  * On TV, where each line is one line, a single node draws both
  * ([tvCaption]): grids bring in a row of these at each step of a held key.
  */
@@ -43,15 +49,16 @@ fun TileCaption(
         Spacer(modifier.tvCaption(title, subtitle, emphasized))
         return
     }
-    val titleLines = if (style == TileStyle.Phone && LocalDensity.current.fontScale > 1.3f) 2 else 1
-    val titleStyle = remember(style, emphasized) {
-        style.captionTitle.copy(color = PleyColors.Fg, fontWeight = if (emphasized) PleyType.Bold else style.captionTitle.fontWeight)
+    val floor = LocalMinTextSize.current
+    val titleLines = if (style == TileStyle.Phone && (LocalDensity.current.fontScale > 1.3f || floor.isSpecified)) 2 else 1
+    val titleStyle = remember(style, emphasized, floor) {
+        style.captionTitle.atLeast(floor).copy(color = PleyColors.Fg, fontWeight = if (emphasized) PleyType.Bold else style.captionTitle.fontWeight)
     }
-    val subtitleStyle = remember(style) { style.captionSubtitle.copy(color = PleyColors.Muted) }
+    val subtitleStyle = remember(style, floor) { style.captionSubtitle.atLeast(floor).copy(color = PleyColors.Muted) }
     Column(modifier.clearAndSetSemantics {}) {
         if (titleLines > 1) {
-            // On two lines, a word too wide for the tile makes the title smaller rather than break in two.
-            WholeWordsText(title, titleStyle, maxLines = titleLines)
+            // On two lines, a word too wide for the tile makes the title smaller rather than break in two; not under a floor.
+            WholeWordsText(title, titleStyle, maxLines = titleLines, shrinks = !floor.isSpecified)
         } else {
             BasicText(title, style = titleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -66,6 +73,7 @@ fun TileCaption(
  * "R". On art it sits on [PleyColors.OnArt] with [fg][PleyColors.Fg] text;
  * on the page it is transparent with a 1 dp [outline][PleyColors.Outline]
  * border and [muted][PleyColors.Muted] text: decoration, never a control.
+ * Its text is [LocalMinTextSize] at least, the badge as tall as that takes.
  */
 @Composable
 fun QualityBadge(
@@ -74,7 +82,8 @@ fun QualityBadge(
     modifier: Modifier = Modifier,
     onArt: Boolean = false,
 ) {
-    val textStyle = remember(style, onArt) { style.badgeText.copy(color = if (onArt) PleyColors.Fg else PleyColors.Muted) }
+    val floor = LocalMinTextSize.current
+    val textStyle = remember(style, onArt, floor) { style.badgeText.atLeast(floor).copy(color = if (onArt) PleyColors.Fg else PleyColors.Muted) }
     val look = if (onArt) {
         Modifier.background(PleyColors.OnArt, PleyShape.Badge)
     } else {

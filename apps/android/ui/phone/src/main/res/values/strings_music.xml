@@ -27,6 +27,10 @@
     <string name="music_previous">Previous</string>
     <string name="music_shuffle_on">Shuffle</string>
     <string name="music_shuffle_off">Stop shuffling</string>
+    <!-- Repeat's button, named for what a press does: the queue repeats, then the track, then nothing. -->
+    <string name="music_repeat_on">Repeat</string>
+    <string name="music_repeat_one">Repeat this track</string>
+    <string name="music_repeat_off">Stop repeating</string>
     <string name="music_position">Position in the track</string>
     <string name="music_loading">Loading…</string>
     <string name="music_nothing_playing">Nothing is playing</string>
@@ -35,4 +39,9 @@
     <string name="music_error_signed_out">Sign in again to play.</string>
     <string name="music_error_stopped">Playback was stopped by the server.</string>
     <string name="music_error_unplayable">This track can\'t be played.</string>
+    <!-- A track that can't be played while the music plays on: the seconds before the next one plays by itself. -->
+    <plurals name="music_error_unplayable_next">
+        <item quantity="one">This track can\'t be played. The next one plays in %1$d second.</item>
+        <item quantity="other">This track can\'t be played. The next one plays in %1$d seconds.</item>
+    </plurals>
 </resources>

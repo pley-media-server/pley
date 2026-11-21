@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.isFinite
 import androidx.compose.ui.unit.sp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.Icon
@@ -84,6 +85,7 @@ import kotlinx.coroutines.launch
  * Swiped between; it turns to the next by itself every [TURN_MS], the dash
  * under it filling as the time runs, except while a finger is on it, the
  * page is scrolled away from it, or the system asks for less motion.
+ * It is no taller than [page], the height Home has between the bars.
  */
 @Composable
 internal fun HomeBanner(
@@ -94,13 +96,16 @@ internal fun HomeBanner(
     onInfo: (HomeInfo) -> Unit,
     onList: (HomeInfo) -> Unit,
     modifier: Modifier = Modifier,
+    page: Dp = Dp.Infinity,
 ) {
     val count = featured.size
     val pager = rememberPagerState { count }
     val dragged by pager.interactionSource.collectIsDraggedAsState()
     val calm = reducedMotion()
     val turn = remember { Animatable(0f) }
-    val height = bannerHeight()
+    val height = bannerHeight(page)
+    // Short (a car's screen, a phone on its side, the bar of what plays below): the plot gives way to Play.
+    val summary = height >= SummaryFrom
     val label = stringResource(R.string.home_banner_label)
     val scope = rememberCoroutineScope()
 
@@ -131,7 +136,7 @@ internal fun HomeBanner(
             beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize().testTag(BANNER_TAG),
         ) { page ->
-            Slide(featured[page], origin, onPlay, onInfo, onList)
+            Slide(featured[page], origin, summary, onPlay, onInfo, onList)
         }
         if (count > 1) {
             Turns(
@@ -151,6 +156,7 @@ internal fun HomeBanner(
 private fun Slide(
     featured: Featured,
     origin: String,
+    summary: Boolean,
     onPlay: (HomeInfo) -> Unit,
     onInfo: (HomeInfo) -> Unit,
     onList: (HomeInfo) -> Unit,
@@ -216,7 +222,7 @@ private fun Slide(
                     maxLines = 2,
                 )
             }
-            if (info.summary.isNotEmpty()) {
+            if (summary && info.summary.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     info.summary,
@@ -338,17 +344,23 @@ private fun titleStyle(title: String) = when {
     else -> MaterialTheme.typography.displaySmall
 }.copy(fontWeight = FontWeight.ExtraBold, lineHeight = 1.05.em, shadow = TitleShadow)
 
-/** The banner's height: about three quarters of a portrait phone, never under 440 dp. */
+/** The banner's height: about three quarters of a portrait phone, never under 440 dp, nor over the [page]. */
 @Composable
-private fun bannerHeight(): Dp {
+private fun bannerHeight(page: Dp): Dp {
     val window = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
-    return if (window > 0.dp) maxOf(window * 0.72f, MinHeight).coerceAtMost(MaxHeight) else MinHeight
+    // No taller than the page: on a short one (a car's screen, a phone on its side, either over the bar of what
+    // plays) its title and Play stay in view.
+    val fits = if (page.isFinite && page > 0.dp) minOf(window, page) else window
+    return if (fits > 0.dp) maxOf(window * 0.72f, MinHeight).coerceAtMost(MaxHeight).coerceAtMost(fits) else MinHeight
 }
 
 private val TitleShadow = Shadow(Color.Black.copy(alpha = 0.45f), Offset(0f, 2f), blurRadius = 24f)
 private val SoftShadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, 1f), blurRadius = 8f)
 
 private val MinHeight = 440.dp
+
+/** A banner as tall as this has room for the plot above its buttons. */
+private val SummaryFrom = 360.dp
 private val MaxHeight = 720.dp
 
 /** The words sit above the dashes, which sit above where the first row starts. */

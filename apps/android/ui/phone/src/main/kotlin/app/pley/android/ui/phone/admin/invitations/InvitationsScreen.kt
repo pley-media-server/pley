@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -80,6 +79,7 @@ import app.pley.android.ui.phone.admin.users.ageTag
 import app.pley.android.ui.phone.admin.users.librariesLabel
 import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.EmptyState
+import app.pley.android.ui.phone.kit.PleyAlertDialog
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.PrimaryButton
@@ -389,7 +389,7 @@ private fun ReadyDialog(invitation: Invitation, link: String, onDone: () -> Unit
     val share = stringResource(R.string.admin_invitations_share)
     val words = formatWords()
     val now = remember { System.currentTimeMillis() / 1000 }
-    AlertDialog(
+    PleyAlertDialog(
         onDismissRequest = onDone,
         title = { Text(stringResource(R.string.admin_invitations_ready_title), style = MaterialTheme.typography.headlineSmall) },
         text = {

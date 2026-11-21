@@ -8,6 +8,9 @@ enum class LibraryKind(override val wire: String) : WireEnum {
     Movies("movies"),
     Shows("shows"),
     Music("music"),
+
+    /** Books, which only the car's library gets (X-Pley-Features). */
+    Audiobooks("audiobooks"),
     Unknown("unknown"),
     ;
 

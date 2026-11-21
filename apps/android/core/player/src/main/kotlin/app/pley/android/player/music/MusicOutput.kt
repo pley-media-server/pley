@@ -9,6 +9,8 @@ data class TrackInfo(
     val album: String?,
     /** The album art's full address, sized for the notification; `null` without one. */
     val artUrl: String?,
+    /** The track's id, on the player's item ([EngineMusicOutput.TRACK_ID]): the media session tells which queue entry it is. */
+    val id: Long? = null,
 )
 
 /**
@@ -25,6 +27,9 @@ interface MusicOutput {
     fun pause()
 
     fun seekTo(positionMs: Long)
+
+    /** Plays at [speed] (1 is as recorded), this track and the next, until told otherwise. */
+    fun setSpeed(speed: Float) {}
 
     /** Stops and lets go of the track, keeping the player for the next. */
     fun stop()

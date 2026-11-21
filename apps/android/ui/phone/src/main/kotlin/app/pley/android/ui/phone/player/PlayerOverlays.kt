@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -49,6 +48,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -252,7 +253,9 @@ private fun UpNextContent(card: UpNextUi, state: PlayerScreenState) {
                 modifier = Modifier.semantics { heading() },
             )
         }
-        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Side by side while both fit; a longer label (French, Spanish, a car's 24 sp) puts Cancel under it.
+        val stacked = remember(card.itemId) { BooleanArray(1) }
+        PlayAndCancel(stacked, Modifier.padding(top = 10.dp)) {
             val left = card.secondsLeft
             val label = when {
                 left == null -> stringResource(R.string.player_play_now)
@@ -261,7 +264,7 @@ private fun UpNextContent(card: UpNextUi, state: PlayerScreenState) {
             }
             val total = UP_NEXT_SECONDS.toFloat()
             val done = if (left == null) 0f else ((total - left) / total).coerceIn(0f, 1f)
-            Box(Modifier.weight(1f)) {
+            Box {
                 PrimaryButton(
                     label,
                     onClick = {
@@ -286,11 +289,43 @@ private fun UpNextContent(card: UpNextUi, state: PlayerScreenState) {
                         },
                 )
             }
-            Spacer(Modifier.width(4.dp))
             PleyTextButton(stringResource(R.string.player_cancel), onClick = {
                 state.touched()
                 state.controller.cancelUpNext()
             })
+        }
+    }
+}
+
+/**
+ * Play now and Cancel, [content]'s two children: side by side when both fit
+ * at their full width, Play now taking what Cancel leaves; else Play now
+ * across the card and Cancel under it at the end. Once a card's are stacked
+ * ([stacked]) they stay so, as the countdown's label grows shorter.
+ */
+@Composable
+private fun PlayAndCancel(stacked: BooleanArray, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val (play, cancel) = measurables
+        val gap = 4.dp.roundToPx()
+        val width = constraints.maxWidth
+        val fits = play.maxIntrinsicWidth(Constraints.Infinity) + gap + cancel.maxIntrinsicWidth(Constraints.Infinity) <= width
+        if (!fits) stacked[0] = true
+        if (!stacked[0]) {
+            val second = cancel.measure(Constraints(maxWidth = width))
+            val first = play.measure(Constraints.fixedWidth((width - gap - second.width).coerceAtLeast(0)))
+            val height = maxOf(first.height, second.height)
+            layout(width, height) {
+                first.placeRelative(0, (height - first.height) / 2)
+                second.placeRelative(width - second.width, (height - second.height) / 2)
+            }
+        } else {
+            val first = play.measure(Constraints.fixedWidth(width))
+            val second = cancel.measure(Constraints(maxWidth = width))
+            layout(width, first.height + gap + second.height) {
+                first.placeRelative(0, 0)
+                second.placeRelative(width - second.width, first.height + gap)
+            }
         }
     }
 }

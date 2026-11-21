@@ -17,13 +17,16 @@ import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
 import app.pley.android.player.EngineSource
 import app.pley.android.player.MusicError
+import app.pley.android.player.MusicRepeat
 import app.pley.android.player.session.SessionReporter
 import app.pley.android.testing.network.FakePleyApi
 import java.io.IOException
 import kotlin.random.Random
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -101,6 +104,60 @@ class MusicPlaybackTest {
         assertEquals(1, now.index)
         assertEquals(3, now.count)
         assertEquals("Harbour Lights · Deep Water", now.byline)
+    }
+
+    @Test
+    fun aBookPlaysAtItsSpeedAndMusicAsRecorded() = runTest {
+        val music = music()
+        music.setBookSpeed(1.5f)
+        val parts = listOf(track(1).copy(kind = ItemKind.Part), track(2).copy(kind = ItemKind.Part))
+        music.play(parts, startIndex = 1, startMs = 600_000)
+        runCurrent()
+        assertEquals(1.5f, output.playsAt)
+        assertEquals(600_000L, output.startPositions.single())
+
+        music.setBookSpeed(2f)
+        assertEquals(2f, output.playsAt)
+
+        // An album after it: as recorded, the book's speed kept for the next book.
+        music.play(album)
+        runCurrent()
+        assertEquals(1f, output.playsAt)
+        music.setBookSpeed(1.2f)
+        assertEquals(1f, output.playsAt)
+        assertEquals(1.2f, music.bookSpeed)
+    }
+
+    @Test
+    fun pauseAndPlayWhileATrackIsAskedForDecideWhetherItPlaysOnceLoaded() = runTest {
+        val music = music()
+        api.hold()
+        music.play(album)
+        runCurrent()
+        // A car's Pause comes while the server is still asked: the old track isn't played, the new one waits.
+        music.pause()
+        api.release()
+        settle()
+        assertEquals(1, output.loaded.size)
+        assertFalse(output.wants)
+
+        api.hold()
+        music.next()
+        runCurrent()
+        music.pause()
+        music.play()
+        api.release()
+        settle()
+        assertEquals(2, output.loaded.size)
+        assertTrue(output.wants)
+
+        api.hold()
+        music.next()
+        runCurrent()
+        music.toggle()
+        api.release()
+        settle()
+        assertFalse(output.wants)
     }
 
     @Test
@@ -243,6 +300,79 @@ class MusicPlaybackTest {
         output.fail(OutputError.Decode)
         settle()
         assertEquals(MusicError.Unplayable, music.nowPlaying.value?.error)
+    }
+
+    @Test
+    fun aTrackThatCantBePlayedSaysSoThenTheNextOnePlaysByItself() = runTest {
+        val music = music()
+        api.fail("startPlayback", RuntimeException("the server can't open the file"))
+        music.play(album)
+        runCurrent()
+        assertEquals(MusicError.Unplayable, music.nowPlaying.value?.error)
+        assertEquals(MusicPlayback.SKIP_AFTER_S, music.nowPlaying.value?.nextIn)
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertEquals(MusicPlayback.SKIP_AFTER_S - 2, music.nowPlaying.value?.nextIn)
+        assertEquals(listOf(1L), starts().map { it.itemId })
+
+        // The server can open the next one (reset forgets the calls before with the failure).
+        api.reset()
+        advanceTimeBy(3_000)
+        runCurrent()
+        val now = music.nowPlaying.value!!
+        assertEquals(2L, now.itemId)
+        assertNull(now.error)
+        assertNull(now.nextIn)
+        assertEquals(listOf(2L), starts().map { it.itemId })
+    }
+
+    @Test
+    fun pausedTheTrackThatCantBePlayedWaitsAndPlayTriesItAgain() = runTest {
+        val music = music()
+        api.fail("startPlayback", RuntimeException("the server can't open the file"))
+        music.play(album)
+        runCurrent()
+        music.pause()
+        assertNull(music.nowPlaying.value?.nextIn)
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertEquals(1L, music.nowPlaying.value?.itemId)
+        assertEquals(MusicError.Unplayable, music.nowPlaying.value?.error)
+
+        assertEquals(listOf(1L), starts().map { it.itemId })
+
+        api.reset()
+        music.play()
+        settle()
+        assertEquals(listOf(1L), starts().map { it.itemId })
+        assertNull(music.nowPlaying.value?.error)
+    }
+
+    @Test
+    fun noTrackPlaysByItselfOutOfTheServersReachAtTheQueuesEndOrRoundAQueueNoneOfPlays() = runTest {
+        val music = music()
+        // Out of reach, the next track would fail the same way.
+        api.fail("startPlayback", OfflineException(IOException("refused")))
+        music.play(album)
+        runCurrent()
+        assertEquals(MusicError.Offline, music.nowPlaying.value?.error)
+        assertNull(music.nowPlaying.value?.nextIn)
+
+        // The queue's last track: nothing comes after it.
+        api.fail("startPlayback", RuntimeException("the server can't open the file"))
+        music.play(album, startIndex = 2)
+        runCurrent()
+        assertEquals(MusicError.Unplayable, music.nowPlaying.value?.error)
+        assertNull(music.nowPlaying.value?.nextIn)
+
+        // A queue that repeats, none of whose tracks plays: each is tried once, then it stops there.
+        music.setRepeat(MusicRepeat.All)
+        music.play(album)
+        advanceTimeBy(60_000)
+        runCurrent()
+        assertEquals(listOf(1L, 2L, 3L), starts().takeLast(3).map { it.itemId })
+        assertEquals(3L, music.nowPlaying.value?.itemId)
+        assertNull(music.nowPlaying.value?.nextIn)
     }
 
     @Test
@@ -528,6 +658,303 @@ class MusicPlaybackTest {
         assertEquals(1, starts().size)
     }
 
+    @Test
+    fun repeatingTheQueuePlaysItAgainFromItsStartAndNextAndPreviousGoRoundItsEnds() = runTest {
+        val music = music()
+        music.play(album, startIndex = 2)
+        runCurrent()
+        music.setRepeat(MusicRepeat.All)
+        assertEquals(MusicRepeat.All, music.queueState.value.repeat)
+        // The last track has a next one now: the first.
+        assertTrue(music.nowPlaying.value!!.hasNext)
+        output.startPlaying()
+        output.end()
+        settle()
+        assertEquals(listOf(3L, 1L), starts().map { it.itemId })
+        assertFalse(music.nowPlaying.value!!.ended)
+        assertEquals(0, music.nowPlaying.value?.index)
+
+        // Previous on the first track, just started, is the last; Next there, the first again.
+        music.previous()
+        settle()
+        music.next()
+        settle()
+        assertEquals(listOf(3L, 1L, 3L, 1L), starts().map { it.itemId })
+    }
+
+    @Test
+    fun repeatingTheTrackPlaysItAgainWithASessionOfItsOwnAndNextStillMovesOn() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        music.setRepeat(MusicRepeat.One)
+        output.startPlaying()
+        output.position = 180_000
+        output.end()
+        settle()
+        // The same track, from its start, in a new session: the one before ended, as any track's does.
+        assertEquals(listOf(1L, 1L), starts().map { it.itemId })
+        assertEquals(1, api.calls("stopPlayback").size)
+        assertEquals(0L, output.startPositions.last())
+        assertEquals(0, music.nowPlaying.value?.index)
+
+        music.next()
+        settle()
+        assertEquals(listOf(1L, 1L, 2L), starts().map { it.itemId })
+    }
+
+    @Test
+    fun repeatIsForgottenWithTheQueueAndKeptAsAnotherAlbumPlays() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        music.setRepeat(MusicRepeat.All)
+        music.play(album, startIndex = 1)
+        runCurrent()
+        assertEquals(MusicRepeat.All, music.nowPlaying.value?.repeat)
+
+        music.stop()
+        settle()
+        music.play(album)
+        runCurrent()
+        assertEquals(MusicRepeat.Off, music.nowPlaying.value?.repeat)
+    }
+
+    @Test
+    fun betweenTracksThePositionIsTheNextTracksStartNotWhereTheLastOneWas() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 120_000
+        // The server is still asked for the next track: the output holds the last one, two minutes in.
+        api.hold()
+        music.next()
+        runCurrent()
+        assertEquals(0L, music.position().positionMs)
+        assertEquals(0L, music.position().bufferedMs)
+        assertEquals(180_000L, music.position().durationMs)
+
+        // Previous pressed now goes back to the track left: the one coming hasn't played a second.
+        music.previous()
+        api.release()
+        settle()
+        assertEquals(0, music.nowPlaying.value?.index)
+        assertEquals(1L, starts().last().itemId)
+        assertEquals(0L, output.startPositions.last())
+    }
+
+    @Test
+    fun aTrackThatFailedToStartPlaysFromItsStartNotFromWhereTheLastOneWas() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 120_000
+        api.fail("startPlayback", OfflineException(IOException("refused")))
+        music.next()
+        settle()
+        assertEquals(MusicError.Offline, music.nowPlaying.value?.error)
+
+        api.reset()
+        music.play()
+        settle()
+        val again = starts().single()
+        assertEquals(2L, again.itemId)
+        assertNull(again.startMs)
+        assertEquals(0L, output.startPositions.last())
+    }
+
+    @Test
+    fun whatWasPlayingIsBroughtBackWhereItWas() = runTest {
+        val music = music()
+        music.setRepeat(MusicRepeat.One)
+        music.play(album, startIndex = 2, startMs = 61_000)
+        runCurrent()
+        val request = starts().single()
+        assertEquals(3L, request.itemId)
+        assertEquals(61_000L, request.startMs)
+        assertEquals(61_000L, output.startPositions.single())
+        assertTrue(output.wants)
+        assertEquals(MusicRepeat.One, music.nowPlaying.value?.repeat)
+    }
+
+    @Test
+    fun aQueueMadeReadyWaitsWhereItWasAndPlayStartsItThere() = runTest {
+        val music = music()
+        music.cue(album, startIndex = 2, startMs = 61_000)
+        settle()
+        // Nothing is asked of the server and nothing sounds: it waits, paused, where it will start.
+        assertEquals(emptyList<PlaybackRequest>(), starts())
+        assertEquals(0, output.loaded.size)
+        val waiting = music.nowPlaying.value!!
+        assertEquals(3L, waiting.itemId)
+        assertFalse(waiting.wantsPlay)
+        assertFalse(waiting.loading)
+        assertEquals(61_000L, music.position().positionMs)
+        assertTrue(music.active)
+        assertFalse(held.lastOrNull() ?: false)
+
+        // Made ready again as it waits (the Assistant asks to prepare, then to play): it stays as it is.
+        music.cue(album, startIndex = 2, startMs = 0)
+        assertEquals(61_000L, music.position().positionMs)
+
+        music.play()
+        runCurrent()
+        val request = starts().single()
+        assertEquals(3L, request.itemId)
+        assertEquals(61_000L, request.startMs)
+        assertEquals(61_000L, output.startPositions.single())
+        assertTrue(output.wants)
+    }
+
+    @Test
+    fun anotherQueueIsNeverShownWithTheTrackBeforesPlace() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 150_000
+        output.stopTells = true
+        // Read as the queue changes, there and then (what keeps it for Play does so on the main thread at once).
+        val seen = mutableListOf<Pair<Long, Long>>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            music.queueState.collect { queue -> seen += queue.current!!.id to music.position().positionMs }
+        }
+        music.play(album.reversed())
+        runCurrent()
+        // The new queue's first track, at its start, never where the last track was as the output stopped it.
+        assertEquals(listOf(3L to 0L), seen.drop(1).distinct())
+    }
+
+    @Test
+    fun whatWasPlayingShuffledWaitsShuffledAsItWas() = runTest {
+        val music = music()
+        // As it played: 3, 1, 2, the album being 1, 2, 3.
+        val saved = SavedMusic(listOf(album[2], album[0], album[1]), index = 1, positionMs = 30_000, repeat = MusicRepeat.All, given = listOf(2, 0, 1))
+        music.cue(saved)
+        settle()
+        val queue = music.queueState.value
+        assertTrue(queue.shuffle)
+        assertEquals(listOf(3L, 1L, 2L), queue.tracks.map { it.id })
+        assertEquals(1L, queue.current?.id)
+        assertEquals(MusicRepeat.All, queue.repeat)
+        assertEquals(30_000L, music.position().positionMs)
+        assertEquals(emptyList<PlaybackRequest>(), starts())
+
+        // Brought back again as it waits: it stays as it is.
+        music.cue(saved.copy(positionMs = 0))
+        assertEquals(30_000L, music.position().positionMs)
+
+        music.setShuffle(false)
+        assertEquals(listOf(1L, 2L, 3L), music.queueState.value.tracks.map { it.id })
+        assertEquals(1L, music.queueState.value.current?.id)
+    }
+
+    @Test
+    fun aQueueThatWaitsStartsWhereItIsSoughtToAndNextPlaysTheNextTrack() = runTest {
+        val music = music()
+        music.cue(album, startIndex = 0, startMs = 5_000)
+        music.seekTo(90_000)
+        assertEquals(90_000L, music.position().positionMs)
+        assertEquals(1, music.nowPlaying.value?.seeks)
+        music.play()
+        runCurrent()
+        assertEquals(90_000L, starts().single().startMs)
+
+        // Another queue made ready while this one plays takes its place, and plays nothing itself.
+        output.startPlaying()
+        music.cue(album.reversed(), startIndex = 1)
+        settle()
+        assertEquals(1, starts().size)
+        assertEquals(2L, music.nowPlaying.value?.itemId)
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
+        assertEquals(0L, music.position().positionMs)
+        music.next()
+        runCurrent()
+        assertEquals(listOf(1L, 1L), starts().map { it.itemId })
+        assertEquals(null, starts().last().startMs)
+        assertTrue(output.wants)
+    }
+
+    @Test
+    fun previousOnAQueueThatWaitsGoesToTheTracksStartAndWaitsOn() = runTest {
+        val music = music()
+        music.play(album, startIndex = 0)
+        runCurrent()
+        output.startPlaying()
+        // Made ready over music that played: the queue waits all the same, nothing asked of the server.
+        music.cue(album, startIndex = 1, startMs = 90_000)
+        settle()
+        music.previous()
+        runCurrent()
+        assertEquals(1, starts().size)
+        assertEquals(0L, music.position().positionMs)
+        assertEquals(2L, music.nowPlaying.value?.itemId)
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
+        music.play()
+        runCurrent()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        assertEquals(null, starts().last().startMs)
+    }
+
+    @Test
+    fun aSeekFromAnywhereIsToldSoWhateverShowsThePositionReadsItAgainPausedToo() = runTest {
+        val music = music()
+        music.play(album, startIndex = 1)
+        runCurrent()
+        output.startPlaying()
+        music.pause()
+        val before = music.nowPlaying.value!!.seeks
+
+        // A car's scrubber, the notification's or the remote's: paused, no reading of the position is due.
+        music.seekTo(4_000)
+        assertEquals(before + 1, music.nowPlaying.value!!.seeks)
+        assertEquals(4_000L, music.position().positionMs)
+
+        // Previous back to the track's start is a seek too.
+        music.previous()
+        assertEquals(before + 2, music.nowPlaying.value!!.seeks)
+        assertEquals(0L, music.position().positionMs)
+    }
+
+    @Test
+    fun playPauseShowsWhatItWillDoWhileATrackStartsAndThroughAPausedSeek() = runTest {
+        val music = music()
+        api.hold()
+        music.play(album)
+        runCurrent()
+        // Starting: it will play, so the button is Pause; pressed, the track will wait.
+        assertTrue(music.nowPlaying.value!!.wantsPlay)
+        music.pause()
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
+        music.play()
+        assertTrue(music.nowPlaying.value!!.wantsPlay)
+        api.release()
+        settle()
+        output.startPlaying()
+        assertTrue(music.nowPlaying.value!!.wantsPlay)
+
+        music.pause()
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
+        // Sought while paused, the output loads there: still Play, not Pause, while it does and after.
+        music.seekTo(60_000)
+        output.buffer(true)
+        assertTrue(music.nowPlaying.value!!.loading)
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
+        output.buffer(false)
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
+        // After the queue's end too: Play starts the last track again.
+        music.play()
+        output.startPlaying()
+        music.jumpTo(2)
+        settle()
+        output.startPlaying()
+        output.end()
+        settle()
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
+    }
+
     private fun transcodeInfo() = PlaybackInfo(sessionId = "t1", method = PlaybackMethod.Transcode, url = "/api/playback/t1/index.m3u8", hls = true, fileId = 601, durationMs = 180_000)
 
     private fun track(id: Long) = ItemSummary(
@@ -557,7 +984,10 @@ class MusicPlaybackTest {
         var released = false
         var position = 0L
         private var listener: MusicOutput.Listener? = null
-        private var wants = false
+
+        /** Whether it plays once ready (playWhenReady). */
+        var wants = false
+            private set
         private var playing = false
 
         override fun load(source: EngineSource, startMs: Long, play: Boolean, info: TrackInfo) {
@@ -585,6 +1015,11 @@ class MusicPlaybackTest {
             listener?.onError(error)
         }
 
+        /** Waits for data, or has it again, as after a seek. */
+        fun buffer(waiting: Boolean) {
+            listener?.onBuffering(waiting)
+        }
+
         override fun play() {
             wants = true
             listener?.onPlayWhenReadyChanged(true)
@@ -604,8 +1039,19 @@ class MusicPlaybackTest {
             position = positionMs
         }
 
+        var playsAt = 1f
+
+        override fun setSpeed(speed: Float) {
+            playsAt = speed
+        }
+
+        /** Whether [stop] tells the music it no longer plays, there and then, as ExoPlayer's listeners are. */
+        var stopTells = false
+
         override fun stop() {
+            val was = playing
             playing = false
+            if (was && stopTells) listener?.onPlayingChanged(false)
         }
 
         override fun release() {

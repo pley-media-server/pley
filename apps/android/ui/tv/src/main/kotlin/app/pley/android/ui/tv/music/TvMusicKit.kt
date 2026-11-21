@@ -128,7 +128,12 @@ internal fun FaintArt(art: ArtworkImage?, title: String, alpha: Float = 0.2f) {
     )
 }
 
-/** Where the track is, refreshed every [everyMs] while [playing], once otherwise. */
+/**
+ * Where the track is, refreshed every [everyMs] while [playing]. Paused,
+ * it is read until it has stood still for a moment (what is buffered goes
+ * on growing after a seek), then no more until [key] changes: the track,
+ * or a seek made from anywhere ([NowPlaying.seeks]).
+ */
 @Composable
 internal fun rememberPosition(position: () -> MusicPosition, playing: Boolean, key: Any?, everyMs: Long = 500): State<MusicPosition> {
     val state = remember { mutableStateOf(position()) }
@@ -138,9 +143,19 @@ internal fun rememberPosition(position: () -> MusicPosition, playing: Boolean, k
             delay(everyMs)
             state.value = position()
         }
+        var still = 0
+        while (still < SETTLED_READS) {
+            delay(everyMs)
+            val before = state.value
+            state.value = position()
+            still = if (state.value == before) still + 1 else 0
+        }
     }
     return state
 }
+
+/** A paused track's position has settled once this many readings in a row are the same. */
+private const val SETTLED_READS = 3
 
 /** A small art well for lists. */
 @Composable

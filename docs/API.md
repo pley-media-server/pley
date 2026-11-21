@@ -1719,9 +1719,15 @@ open only some libraries see those, in that order.
   when `ids` aren't the libraries the user may open. It and `DELETE` send
   `libraries_changed` to the user's event streams.
 
-**Audiobooks** are for Pley's own sign-in: the web app and the desktop
-app's window, which show them. A request with an app's token, an
-administrator's included, gets no audiobook library: none in
+**Audiobooks** are for Pley's own sign-in (the web app and the desktop
+app's window, which show them) and for an app's request that says it
+shows them with `X-Pley-Features: audiobooks` (comma-separated features,
+`audiobooks` the only one yet; the Android app's car library sends it).
+Such a request gets them as Pley's own sign-in does, from the libraries
+the account may open; an app keeps the answers apart from its other
+requests' (an HTTP cache of their own), as they differ. Any other
+request with an app's token, an administrator's included, gets no
+audiobook library: none in
 `/api/libraries` or among Home's rows, `404` from a library's own routes,
 no `continue_listening` on Home, no book or part in search or history,
 and no scan or change of an audiobook library in `/api/events`, one
@@ -1953,8 +1959,9 @@ WebVTT file named `.srt` is taken as WebVTT). Its language is kept as ISO
 | GET | `/api/search?q=&limit=` | `library` | `{ items: ItemSummary[], people: PersonSummary[], channels: LiveChannel[] }`: `items`, `people` and `channels` each up to `limit` (default 40, 1 to 200): titles, people, and Live TV channels by name, number or what's on, for those Live TV is open to. The apps ask for 200 |
 
 - **Home** hubs, empty ones left out: `continue_watching` (in progress and
-  next up), then `continue_listening` (audiobooks part way through; never
-  for an app's token, see [Audiobooks](#libraries)), then
+  next up), then `continue_listening` (audiobooks part way through; for
+  an app's token only with `X-Pley-Features: audiobooks`, see
+  [Audiobooks](#libraries)), then
   `my_list` ("My List", its 20 newest), then the rows administrators put
   on Home ([Rows](#rows)): collections, and each music and audiobook
   library's `recently_added:<library_id>`.

@@ -18,6 +18,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.network.ApiException
 import app.pley.android.player.MusicControl
+import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
@@ -330,6 +331,8 @@ class NowPlayingViewModel(
     fun jumpTo(position: Int) = music.jumpTo(position)
 
     fun setShuffle(shuffle: Boolean) = music.setShuffle(shuffle)
+
+    fun setRepeat(repeat: MusicRepeat) = music.setRepeat(repeat)
 
     /** The music's sleep timer. */
     val sleep: StateFlow<SleepState> get() = music.sleep

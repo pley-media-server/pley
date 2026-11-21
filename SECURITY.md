@@ -739,6 +739,15 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
 - Besides its two launchers, the app exports only the sign-in's return
   address, the music service and, on TVs, the Watch Next row's pictures
   (read only, by names nobody can guess).
+- The music service lets in only the app, the system's own media controls,
+  Android Auto and the Google app: those two by the certificate Google signs
+  them with, and only as the app that asks (its name must be the asking
+  uid's). They browse the music and pick what plays; a media button, from a
+  headset or another app, only plays, pauses and skips. Their covers come
+  through a content provider that isn't exported: each of them is granted
+  reading it alone, and it fetches only the server's item and collection
+  pictures and Live TV's channel logos. What music played last is kept on
+  the device for the profile that played it, and goes when it signs out.
 - The TV launcher plays a title from the Watch Next row only when the link
   carries the signature this installation gave it, so no other app can make
   it play.

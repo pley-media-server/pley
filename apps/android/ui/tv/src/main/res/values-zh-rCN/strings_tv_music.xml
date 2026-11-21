@@ -7,6 +7,9 @@
     <string name="tv_music_pause">暂停</string>
     <string name="tv_music_shuffle">随机播放</string>
     <string name="tv_music_shuffle_off">关闭随机播放</string>
+    <string name="tv_music_repeat">重复播放</string>
+    <string name="tv_music_repeat_one">单曲重复</string>
+    <string name="tv_music_repeat_off">关闭重复播放</string>
     <string name="tv_music_now_playing">正在播放</string>
     <string name="tv_music_disc">第 %1$d 张光盘</string>
     <string name="tv_music_no_albums">未找到专辑。</string>
@@ -34,4 +37,7 @@
     <string name="tv_music_error_signed_out">请重新登录后再播放。</string>
     <string name="tv_music_error_stopped">播放已被服务器停止。</string>
     <string name="tv_music_error_unplayable">此曲目无法播放。</string>
+    <plurals name="tv_music_error_unplayable_next">
+        <item quantity="other">此曲目无法播放。%1$d 秒后播放下一首。</item>
+    </plurals>
 </resources>

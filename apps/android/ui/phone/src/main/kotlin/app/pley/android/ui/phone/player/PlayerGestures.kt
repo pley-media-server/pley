@@ -24,6 +24,9 @@ interface LevelControls {
     fun brightness(): Float
 
     fun setBrightness(level: Float)
+
+    /** Whether dragging changes them: not on a car's screen, whose volume is the car's and whose brightness isn't the window's. */
+    val levelsDraggable: Boolean get() = true
 }
 
 /**
@@ -32,7 +35,7 @@ interface LevelControls {
  *   for a second tap, and two taps there seek 10 s back or forward (more
  *   taps in a row add 10 s each);
  * - a vertical drag on the right half sets the volume, on the left half the
- *   brightness;
+ *   brightness ([LevelControls.levelsDraggable]);
  * - two fingers pinch the picture between Fit and Fill, and freely beyond;
  * - while [PlayerScreenState.locked], a tap only shows the unlock button.
  *
@@ -109,7 +112,7 @@ internal fun Modifier.playerGestures(
             if (mode == Gesture.Undecided) {
                 val moved = change.position - start
                 val nearEdge = start.y < edge || start.y > size.height - edge
-                if (abs(moved.y) > slop && abs(moved.y) > abs(moved.x) && !state.locked && !nearEdge && state.sheet == null) {
+                if (abs(moved.y) > slop && abs(moved.y) > abs(moved.x) && !state.locked && !nearEdge && state.sheet == null && levels.levelsDraggable) {
                     val volume = start.x > size.width / 2f
                     mode = if (volume) Gesture.Volume else Gesture.Brightness
                     level = if (volume) levels.volume() else levels.brightness()

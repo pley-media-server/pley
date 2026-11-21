@@ -1264,6 +1264,7 @@ mod tests {
             max_age: None,
             app: None,
             compatibility: None,
+            shows_audiobooks: false,
         };
         let tv = Found {
             id: "a1b2c3d4e5f6".into(),

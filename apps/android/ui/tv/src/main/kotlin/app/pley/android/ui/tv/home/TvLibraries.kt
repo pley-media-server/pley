@@ -458,7 +458,7 @@ internal fun kindIcon(kind: LibraryKind): PleyIcon = when (kind) {
     LibraryKind.Movies -> PleyIcons.Clapperboard
     LibraryKind.Shows -> PleyIcons.Tv
     LibraryKind.Music -> PleyIcons.Music
-    LibraryKind.Unknown -> PleyIcons.Film
+    LibraryKind.Audiobooks, LibraryKind.Unknown -> PleyIcons.Film
 }
 
 /** Sort, and a library's card (+ its id). */

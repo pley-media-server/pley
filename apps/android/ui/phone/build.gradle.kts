@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.media3.ui.compose)
+    implementation(libs.androidx.car.app)
 
     testImplementation(project(":core:testing"))
     testImplementation(libs.robolectric)

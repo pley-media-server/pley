@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -30,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -66,12 +71,15 @@ import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.kit.fullWidth
 import app.pley.android.ui.phone.library.joined
+import app.pley.android.ui.phone.player.CarGap
+import app.pley.android.ui.phone.player.LocalCarScreen
 import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.ReportLoad
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
+import app.pley.android.ui.phone.theme.WidthClass
 
 /**
  * An artist's page (MusicViews.tsx ArtistView; design spec §4.10): the
@@ -198,8 +206,13 @@ private fun ArtistContent(
  * the art (round for artists), what it is, the title, its [lines], and
  * Play and Shuffle, with Play on… sending [playOn] beside them while
  * another device takes it; [extra] goes under the lines (the artist's
- * link, the rating).
+ * link, the rating). From 600 dp wide the art stands beside the rest, as
+ * an item's poster does: on a short, wide screen (a car's, a phone on its
+ * side) Play is in view without scrolling. Where the window is short as
+ * well ([shortWindow]), the art is smaller and what it is isn't said, so
+ * Play and Shuffle stay side by side and above the bar of what plays.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun MusicHeader(
     art: ArtworkImage?,
@@ -214,35 +227,73 @@ internal fun MusicHeader(
     playOn: CastTarget? = null,
     extra: @Composable () -> Unit = {},
 ) {
-    Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    val wide = LocalPhoneMetrics.current.widthClass != WidthClass.Compact
+    val short = wide && shortWindow()
+    val cover = @Composable {
         Box(
             Modifier
-                .size(ART_SIZE)
+                .size(if (short) ART_SIZE_SHORT else ART_SIZE)
                 .clip(if (round) PleyShape.Circle else PleyShape.Card)
                 .background(PleyColors.Surface2),
         ) {
             Artwork(art, title, Modifier.matchParentSize())
         }
-        Spacer(Modifier.height(20.dp))
-        Text(kind, style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)
-        Spacer(Modifier.height(4.dp))
+    }
+    val words = @Composable { centred: Boolean ->
+        val align = if (centred) TextAlign.Center else TextAlign.Start
+        if (!short) {
+            Text(kind, style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)
+            Spacer(Modifier.height(4.dp))
+        }
         Text(
             title,
             style = MaterialTheme.typography.headlineMedium,
             color = PleyColors.Fg,
-            textAlign = TextAlign.Center,
+            textAlign = align,
             modifier = Modifier.semantics { heading() },
         )
         extra()
         lines.forEach { line ->
             Spacer(Modifier.height(4.dp))
-            Text(line, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, textAlign = TextAlign.Center)
+            Text(line, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, textAlign = align)
         }
-        Spacer(Modifier.height(20.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            PrimaryButton(stringResource(R.string.music_play), onClick = onPlay, icon = PleyIcons.Play, enabled = playEnabled && !busy)
-            TonalButton(stringResource(R.string.music_shuffle), onClick = onShuffle, icon = PleyIcons.Shuffle, enabled = playEnabled && !busy)
+        Spacer(Modifier.height(if (short) 12.dp else 20.dp))
+        // Shuffle goes under Play when they don't fit side by side (beside the art, a car's larger text, longer
+        // words in French or Spanish); side by side, they are as tall as each other. A car's buttons keep 24 dp apart.
+        val gap = if (LocalCarScreen.current) CarGap else 12.dp
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(gap, if (centred) Alignment.CenterHorizontally else Alignment.Start),
+            verticalArrangement = Arrangement.spacedBy(gap),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            PrimaryButton(
+                stringResource(R.string.music_play),
+                onClick = onPlay,
+                icon = PleyIcons.Play,
+                enabled = playEnabled && !busy,
+                modifier = Modifier.fillMaxRowHeight(),
+            )
+            TonalButton(
+                stringResource(R.string.music_shuffle),
+                onClick = onShuffle,
+                icon = PleyIcons.Shuffle,
+                enabled = playEnabled && !busy,
+                modifier = Modifier.fillMaxRowHeight(),
+            )
             if (playOn != null && playEnabled) PlayOnButton(playOn)
+        }
+    }
+    if (wide) {
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            cover()
+            Spacer(Modifier.width(24.dp))
+            Column(Modifier.weight(1f)) { words(false) }
+        }
+    } else {
+        Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            cover()
+            Spacer(Modifier.height(20.dp))
+            words(true)
         }
     }
 }
@@ -265,20 +316,47 @@ internal fun Summary(text: String) {
     }
 }
 
-/** The header while the page loads. */
+/** The header while the page loads, laid out as [MusicHeader] will be. */
 @Composable
 internal fun MusicHeaderSkeleton(round: Boolean) {
     val skeleton = rememberSkeleton(animated = true)
-    Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(ART_SIZE).skeleton(skeleton, if (round) PleyShape.Circle else PleyShape.Card))
-        Spacer(Modifier.height(24.dp))
-        Box(Modifier.size(200.dp, 28.dp).skeleton(skeleton, PleyShape.Badge))
-        Spacer(Modifier.height(12.dp))
-        Box(Modifier.size(140.dp, 16.dp).skeleton(skeleton, PleyShape.Badge))
+    val wide = LocalPhoneMetrics.current.widthClass != WidthClass.Compact
+    val cover = Modifier.size(if (wide && shortWindow()) ART_SIZE_SHORT else ART_SIZE).skeleton(skeleton, if (round) PleyShape.Circle else PleyShape.Card)
+    if (wide) {
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(cover)
+            Spacer(Modifier.width(24.dp))
+            Column {
+                Box(Modifier.size(200.dp, 28.dp).skeleton(skeleton, PleyShape.Badge))
+                Spacer(Modifier.height(12.dp))
+                Box(Modifier.size(140.dp, 16.dp).skeleton(skeleton, PleyShape.Badge))
+            }
+        }
+    } else {
+        Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(cover)
+            Spacer(Modifier.height(24.dp))
+            Box(Modifier.size(200.dp, 28.dp).skeleton(skeleton, PleyShape.Badge))
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.size(140.dp, 16.dp).skeleton(skeleton, PleyShape.Badge))
+        }
     }
 }
 
 private val ART_SIZE = 200.dp
+
+/** The art beside the title in a short window. */
+private val ART_SIZE_SHORT = 144.dp
+
+/** Windows less tall than this are short: a phone on its side, a car's low or split screen. */
+private val SHORT_BELOW = 480.dp
+
+/** Whether the window is short ([SHORT_BELOW]), in the dp the page is drawn in (a car's are a third larger). */
+@Composable
+internal fun shortWindow(): Boolean {
+    val height = LocalWindowInfo.current.containerSize.height
+    return with(LocalDensity.current) { height.toDp() } < SHORT_BELOW
+}
 
 /** Summaries longer than this get More. */
 private const val SUMMARY_FOLD = 220

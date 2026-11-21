@@ -26,7 +26,6 @@ import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -77,9 +76,11 @@ import app.pley.android.screens.requests.declineReasonEnd
 import app.pley.android.screens.requests.readyElsewhere
 import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.DelayedSpinner
+import app.pley.android.ui.phone.kit.PleyAlertDialog
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
+import app.pley.android.ui.phone.player.CarSizedWindow
 
 /**
  * One request: its poster ([poster]), title, year and
@@ -194,15 +195,17 @@ private fun CardActions(actions: List<CardAction>, busy: Boolean, texts: Request
                 var open by remember { mutableStateOf(false) }
                 PleyIconButton(PleyIcons.EllipsisVertical, stringResource(R.string.requests_more_actions), onClick = { open = true }, enabled = !busy, tint = PleyColors.Muted)
                 DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = PleyColors.Surface3) {
-                    menu.forEach { action ->
-                        DropdownMenuItem(
-                            text = { Text(texts.action(action), color = if (action == CardAction.Delete) PleyColors.DangerText else PleyColors.Fg) },
-                            leadingIcon = { Icon(iconOf(action), contentDescription = null, size = 20.dp, tint = if (action == CardAction.Delete) PleyColors.DangerText else PleyColors.Fg) },
-                            onClick = {
-                                open = false
-                                onAction(action)
-                            },
-                        )
+                    CarSizedWindow {
+                        menu.forEach { action ->
+                            DropdownMenuItem(
+                                text = { Text(texts.action(action), color = if (action == CardAction.Delete) PleyColors.DangerText else PleyColors.Fg) },
+                                leadingIcon = { Icon(iconOf(action), contentDescription = null, size = 20.dp, tint = if (action == CardAction.Delete) PleyColors.DangerText else PleyColors.Fg) },
+                                onClick = {
+                                    open = false
+                                    onAction(action)
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -275,7 +278,7 @@ internal fun rememberRequestActions(texts: RequestTexts, act: (MediaRequest, Car
 internal fun DeclineDialog(title: String, onDecline: (String?) -> Unit, onDismiss: () -> Unit) {
     // Kept as the screen turns; a reason pasted past the server's limit keeps its first characters.
     val reason = rememberTextFieldState()
-    AlertDialog(
+    PleyAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(
@@ -332,7 +335,7 @@ internal fun ApproveDialogView(dialog: ApproveDialog, texts: RequestTexts, onApp
     var folder by remember(dialog.request.id, options) { mutableStateOf(dialog.folder) }
     var seasons by remember(dialog.request.id) { mutableStateOf(dialog.seasons.toSet()) }
     val ready = !dialog.loading && (dialog.seasons.isEmpty() || seasons.isNotEmpty())
-    AlertDialog(
+    PleyAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(

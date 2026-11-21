@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Build
@@ -43,8 +42,12 @@ import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LiveSessionPlayer
 import app.pley.android.screens.livetv.LivePlayerViewModel
 import app.pley.android.screens.PleyGraphOwner
+import app.pley.android.ui.phone.player.CarSized
+import app.pley.android.ui.phone.player.OtherScreen
 import app.pley.android.ui.phone.player.PictureInPicture
 import app.pley.android.ui.phone.player.PipActions
+import app.pley.android.ui.phone.player.onCarScreen
+import app.pley.android.ui.phone.player.turnForScreen
 import app.pley.android.ui.phone.remote.CastNotice
 import app.pley.android.ui.phone.remote.CastsSent
 import app.pley.android.ui.phone.remote.PlayOnWindow
@@ -103,9 +106,7 @@ class LivePlayerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         PlayerWindows.opened(this)
         immersive()
-        if (resources.configuration.smallestScreenWidthDp < TABLET_DP) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        }
+        turnForScreen()
         ContextCompat.registerReceiver(
             this,
             pipReceiver,
@@ -120,18 +121,21 @@ class LivePlayerActivity : ComponentActivity() {
         val remote = (application as PleyGraphOwner).screensGraph.data.remote
         setContent {
             PhoneTheme {
-                // Watch on…: the channel goes to the device, and the app's shell says so as this closes.
-                PlayOnWindow(
-                    remote,
-                    onCast = { deviceId, name ->
-                        CastsSent.tell(deviceId, name)
-                        finish()
-                    },
-                ) {
-                    Box(Modifier.fillMaxSize()) {
-                        val small = inPip.value
-                        LivePlayerScreen(vm = vm, onBack = ::finish, inPip = small, onPip = if (pipSupported) ::enterPip else null)
-                        if (!small) CastNotice(cast, Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 64.dp))
+                // Asked as it is drawn: the window moves to the phone's screen, and is phone-sized again, as the car goes.
+                CarSized(onCarScreen()) {
+                    // Watch on…: the channel goes to the device, and the app's shell says so as this closes.
+                    PlayOnWindow(
+                        remote,
+                        onCast = { deviceId, name ->
+                            CastsSent.tell(deviceId, name)
+                            finish()
+                        },
+                    ) {
+                        Box(Modifier.fillMaxSize()) {
+                            val small = inPip.value
+                            LivePlayerScreen(vm = vm, onBack = ::finish, inPip = small, onPip = if (pipSupported) ::enterPip else null)
+                            if (!small) CastNotice(cast, Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 64.dp))
+                        }
                     }
                 }
             }
@@ -173,9 +177,34 @@ class LivePlayerActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        vm.resume()
+        // Still covered by the car (the driver back from another of its apps): the channel waits to be parked again.
+        if (!stoppedCovered) vm.resume()
         immersive()
     }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Moved to the phone's screen as the car went (the window isn't made anew): turned as a phone's player is.
+        turnForScreen()
+    }
+
+    /** On a car's screen, covered as the car moves off: the channel goes at once, as it does out of sight. */
+    override fun onPause() {
+        super.onPause()
+        if (!onCar || isFinishing) return
+        vm.stop()
+        stoppedCovered = true
+    }
+
+    /** Parked again: the channel plays again, as it does back in front. */
+    override fun onResume() {
+        super.onResume()
+        if (stoppedCovered) vm.resume()
+        stoppedCovered = false
+    }
+
+    /** Stopped by [onPause] on a car's screen, not yet back in front ([onResume]). */
+    private var stoppedCovered = false
 
     override fun onStop() {
         super.onStop()
@@ -193,7 +222,15 @@ class LivePlayerActivity : ComponentActivity() {
 
     // ---------------------------------------------------------------- picture in picture
 
-    private val pipSupported: Boolean by lazy { PictureInPicture.allowed(this) }
+    /** On a car's screen, or another display: asked each time, as the window can move to the phone's when the car goes. */
+    private val onOtherScreen: Boolean get() = OtherScreen.shows(this)
+
+    /** On a car's screen (Android Auto): car-sized, and paused as the car moves off and covers it. */
+    private val onCar: Boolean get() = OtherScreen.isCar(this)
+
+    private val pipSupported: Boolean get() = !onOtherScreen && pipAllowed
+
+    private val pipAllowed: Boolean by lazy { PictureInPicture.allowed(this) }
 
     private fun enterPip() {
         if (!pipSupported) return
@@ -307,8 +344,6 @@ class LivePlayerActivity : ComponentActivity() {
         /** Picture in picture's channel buttons ([PipActions.channel]). */
         internal const val ACTION_CHANNEL_UP = "app.pley.android.livetv.CHANNEL_UP"
         internal const val ACTION_CHANNEL_DOWN = "app.pley.android.livetv.CHANNEL_DOWN"
-
-        private const val TABLET_DP = 600
 
         fun intent(context: Context, channelId: Long, category: String, castFrom: CastFrom? = null): Intent =
             Intent(context, LivePlayerActivity::class.java)

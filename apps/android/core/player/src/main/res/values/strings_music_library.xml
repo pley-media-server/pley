@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Music in the car (Android Auto) and for the Assistant: the library's tabs, and what it says when it can't show them. -->
+<resources>
+    <string name="music_library_recent">Recent</string>
+    <!-- Recent's groups: "Recently added in Music" with several music libraries. -->
+    <string name="music_library_recently_played">Recently played</string>
+    <string name="music_library_recently_added">Recently added</string>
+    <string name="music_library_recently_added_in">Recently added in %1$s</string>
+    <string name="music_library_artists">Artists</string>
+    <string name="music_library_playlists">Playlists</string>
+    <!-- Search's groups, after the artists. -->
+    <string name="music_library_albums">Albums</string>
+    <string name="music_library_songs">Tracks</string>
+    <string name="music_library_shuffle">Shuffle</string>
+    <!-- Shuffle's button while the queue is shuffled. -->
+    <string name="music_library_shuffle_off">Stop shuffling</string>
+    <!-- Repeat's button, named for what a press does: the queue repeats, then the track, then nothing. -->
+    <string name="music_library_repeat">Repeat</string>
+    <string name="music_library_repeat_one">Repeat this track</string>
+    <string name="music_library_repeat_off">Stop repeating</string>
+    <plurals name="music_library_tracks">
+        <item quantity="one">%1$,d track</item>
+        <item quantity="other">%1$,d tracks</item>
+    </plurals>
+    <plurals name="music_library_albums_count">
+        <item quantity="one">%1$,d album</item>
+        <item quantity="other">%1$,d albums</item>
+    </plurals>
+    <!-- Live TV in the car: its tab, the tab's headings, a group's channel count ("120 channels"), search's group. -->
+    <string name="music_library_live_tv">Live TV</string>
+    <string name="music_library_live_favorites">Favorites</string>
+    <string name="music_library_live_watched_lately">Recently watched</string>
+    <string name="music_library_live_groups">Groups</string>
+    <string name="music_library_live_all_channels">All channels</string>
+    <string name="music_library_live_channels">Channels</string>
+    <plurals name="music_library_live_channel_count">
+        <item quantity="one">%1$,d channel</item>
+        <item quantity="other">%1$,d channels</item>
+    </plurals>
+    <!-- Audiobooks in the car: their tab, the tab's headings (with Recently added), search's group. -->
+    <string name="music_library_books">Books</string>
+    <string name="music_library_continue_listening">Continue listening</string>
+    <string name="music_library_all_books">All books</string>
+    <!-- The tab of artists, with Playlists first in it, when there are too many tabs for a car (books and Live TV too). -->
+    <string name="music_library_music">Music</string>
+    <!-- A book's buttons on Now Playing, each named for what a press does; the speed it plays at now ("1.5×"). -->
+    <string name="music_library_back">Back 15 seconds</string>
+    <string name="music_library_forward">Forward 30 seconds</string>
+    <string name="music_library_speed">Speed %1$s</string>
+    <string name="music_library_signed_out">When it\'s safe, open Pley on your phone and sign in</string>
+    <string name="music_library_open_pley">Open Pley</string>
+    <string name="music_library_offline">Can\'t reach your Pley server</string>
+    <!-- A spoken request ("play … on Pley") that found nothing, shown a moment on the car's screen. -->
+    <string name="music_library_no_match">Pley found no music for “%1$s”</string>
+    <string name="music_library_failed">Something went wrong. Try again.</string>
+    <!-- Why the track doesn't play, on the car's Now Playing. -->
+    <string name="music_library_unplayable">This track can\'t be played</string>
+    <!-- A track that can't be played while the music plays on: the seconds before the next one plays by itself. -->
+    <plurals name="music_library_unplayable_next">
+        <item quantity="one">This track can\'t be played. The next one plays in %1$d second</item>
+        <item quantity="other">This track can\'t be played. The next one plays in %1$d seconds</item>
+    </plurals>
+    <string name="music_library_stopped">The server stopped playback</string>
+</resources>

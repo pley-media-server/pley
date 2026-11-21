@@ -3,6 +3,7 @@ package app.pley.android.player.music
 import android.os.SystemClock
 import app.pley.android.auth.AuthException
 import app.pley.android.model.Control
+import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
@@ -17,6 +18,7 @@ import app.pley.android.player.EngineSource
 import app.pley.android.player.MusicError
 import app.pley.android.player.MusicPosition
 import app.pley.android.player.MusicQueueState
+import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
 import app.pley.android.player.session.ServerPlaybackSession
 import app.pley.android.player.session.SessionReporter
@@ -75,10 +77,14 @@ class MusicEnvironment(
  *   times in a row; a failure the player can't name asks the server
  *   whether the session goes on first;
  * - Previous restarts a track that has played more than 3 s;
+ * - Repeat plays the queue again from its start once it ends, or the
+ *   track again once it does, each time with a session of its own;
  * - a sleep timer pauses after the minutes chosen, or at the end of the
  *   track (the next one waits, paused);
  * - a video or a channel ends the music's session ([pauseForVideo]): the
  *   queue and the place stay, and Play starts a new session there;
+ * - a queue can wait without playing ([cue]): what was playing when the app
+ *   was last in memory, or what a car asked to have ready; Play starts it;
  * - the remote, on another of the profile's devices, plays and pauses,
  *   seeks, skips, and goes to the next or previous track ([obey]); the
  *   event stream stays open while music is under way, the screen off too,
@@ -117,11 +123,37 @@ class MusicPlayback(
     private var recreates = 0
     private var playing = false
     private var loading = false
+
+    /** Whether the track being asked for plays once it loads: Play and Pause meanwhile change it. */
+    private var startPlays = true
+
+    /**
+     * Whether the output holds the queue's track. Not from a change of
+     * track until the new one is loaded: the output still has the last
+     * one, its position and its length, which aren't this track's. That
+     * is so for a track asked for again too (it repeats, or is picked once
+     * more), where the output's track has the same id.
+     */
+    internal var held = false
+        private set
+
+    /** Seeks made so far ([NowPlaying.seeks]). */
+    private var seeks = 0
     private var ended = false
 
     /** A video or a channel took over ([pauseForVideo]): the session went, the place stays. */
     private var yielded = false
+
+    /** Where a queue that waits for Play starts ([cue]); `null` once its track has been asked for. */
+    private var waitingAt: Long? = null
     private var error: MusicError? = null
+
+    /** Counting down to the next track after one that can't be played ([NowPlaying.nextIn]). */
+    private var skipJob: Job? = null
+    private var nextIn: Int? = null
+
+    /** Tracks that couldn't be played one after another, skipped by themselves: a queue none of plays stops. */
+    private var failedInARow = 0
 
     /** Paused for [PAUSED_HOLD_MS]: the event stream is let go in the background until it plays again. */
     private var rested = false
@@ -219,16 +251,58 @@ class MusicPlayback(
     val active: Boolean get() = !queue.isEmpty
 
     fun position(): MusicPosition {
+        // A queue that waits, where it starts: no output is made for it until it plays.
+        waitingAt?.let { return MusicPosition(it, queue.current?.durationMs ?: 0, 0) }
         val o = out ?: return MusicPosition()
+        // Between tracks: the start of the one coming, not where the last one was.
+        if (!held) return MusicPosition(0, queue.current?.durationMs ?: 0, 0)
         val duration = o.durationMs.takeIf { it > 0 } ?: queue.current?.durationMs ?: 0
         val position = if (ended) duration else o.positionMs
         return MusicPosition(position.coerceAtLeast(0), duration, o.bufferedMs.coerceAtLeast(0))
     }
 
-    fun play(tracks: List<ItemSummary>, startIndex: Int = 0, shuffle: Boolean = false) {
+    /** Plays [tracks] from the one at [startIndex], [startMs] into it (what was playing, brought back where it was). */
+    fun play(tracks: List<ItemSummary>, startIndex: Int = 0, shuffle: Boolean = false, startMs: Long = 0) {
         if (tracks.isEmpty()) return
+        failedInARow = 0
         queue.start(tracks, startIndex, shuffle)
-        startTrack(0)
+        startTrack(startMs.coerceAtLeast(0))
+    }
+
+    /**
+     * Makes [tracks] the queue without playing it: the track at
+     * [startIndex] waits, [startMs] into it, and Play starts it there. It
+     * is what was playing when the app was last in memory, shown again for
+     * Play to bring back, or what a car or the Assistant asked to have
+     * ready before it asks to play. Nothing is asked of the server
+     * meanwhile. The same queue cued again, still waiting, stays as it is.
+     * What was playing shuffled comes with [given]: where each of [tracks],
+     * as they played, was in the order the queue was given, so it waits
+     * shuffled as it was ([MusicQueue.restore]).
+     */
+    fun cue(tracks: List<ItemSummary>, startIndex: Int = 0, shuffle: Boolean = false, startMs: Long = 0, given: List<Int>? = null) {
+        if (tracks.isEmpty()) return
+        val at = startIndex.coerceIn(tracks.indices)
+        val waiting = queue.state
+        if (waitingAt != null && !shuffle && waiting.index == at && waiting.given == given.orEmpty() && waiting.tracks.map { it.id } == tracks.map { it.id }) return
+        failedInARow = 0
+        cancelSkip()
+        loadJob?.cancel()
+        stopTicker()
+        endSession()
+        out?.stop()
+        if (given == null || !queue.restore(tracks, given, at)) queue.start(tracks, at, shuffle)
+        held = false
+        fallback = null
+        recreates = 0
+        playing = false
+        loading = false
+        ended = false
+        error = null
+        // As after a video: no session, the place kept, and Play starts the track there.
+        yielded = true
+        waitingAt = startMs.coerceAtLeast(0)
+        publish()
     }
 
     /** Plays, or after the queue's end, a failure or a video, starts the current track again. */
@@ -237,46 +311,116 @@ class MusicPlayback(
         when {
             ended -> startTrack(0)
             error != null || yielded -> startTrack(lastPosition(), sameTrack = true, play = true)
+            starting -> {
+                startPlays = true
+                publish()
+            }
             else -> output().play()
         }
     }
 
     fun pause() {
+        // Paused on a track that can't be played: the next one waits too.
+        if (skipJob != null) {
+            cancelSkip()
+            publish()
+        }
+        if (starting) startPlays = false
         out?.pause()
+        // The output may have been paused already (the track before): Play/Pause shows the track coming waits.
+        if (starting) publish()
     }
 
+    /** A track is being asked for (not the server asked about a failure): the output still holds the last one. */
+    private val starting: Boolean get() = startJob.let { it != null && it === loadJob && it.isActive }
+
+    /**
+     * Whether it plays, or will as soon as it can ([NowPlaying.wantsPlay]):
+     * what Play/Pause shows, and what [toggle] turns round. Not after the
+     * queue's end, a failure or a video: Play starts the track again there.
+     */
+    private val wantsPlay: Boolean
+        get() = when {
+            queue.isEmpty || ended || error != null || yielded -> false
+            starting -> startPlays
+            else -> out?.playWhenReady == true
+        }
+
+    /** The job asking for the current track's session ([startTrack]). */
+    private var startJob: Job? = null
+
     fun toggle() {
-        val o = out
-        if (o != null && o.playWhenReady && !ended && error == null && !yielded) pause() else play()
+        if (wantsPlay) pause() else play()
     }
 
     fun next() {
+        failedInARow = 0
         if (queue.next()) startTrack(0)
     }
 
     fun previous() {
+        failedInARow = 0
         val o = out
-        when (queue.previous(o?.positionMs ?: 0)) {
+        // Pressed again while the track before is still asked for, it goes one more back: that one hasn't played.
+        when (queue.previous(lastPosition())) {
             MusicQueue.Previous.Moved -> startTrack(0)
-            MusicQueue.Previous.Restart -> if (o == null || session == null || ended || error != null) {
-                startTrack(0, sameTrack = !ended)
-            } else {
-                o.seekTo(0)
+            // A queue that waits waits on, at the track's start, as a paused one does.
+            MusicQueue.Previous.Restart -> when {
+                waitingAt != null -> {
+                    waitingAt = 0
+                    sought()
+                }
+                o == null || session == null || ended || error != null -> startTrack(0, sameTrack = !ended)
+                else -> {
+                    o.seekTo(0)
+                    sought()
+                }
             }
         }
     }
 
+    /** The speed a book's parts play at (the car's Speed button); music always plays as recorded. */
+    var bookSpeed: Float = 1f
+        private set
+
+    fun setBookSpeed(speed: Float) {
+        bookSpeed = speed
+        out?.setSpeed(speedOf(queue.current))
+    }
+
+    private fun speedOf(track: ItemSummary?): Float = if (track?.kind == ItemKind.Part) bookSpeed else 1f
+
     fun seekTo(positionMs: Long) {
+        // A queue that waits starts where it was sought to.
+        if (waitingAt != null) {
+            waitingAt = positionMs.coerceIn(0, (queue.current?.durationMs?.takeIf { it > 0 } ?: Long.MAX_VALUE))
+            sought()
+            return
+        }
         if (ended || session == null) return
         out?.seekTo(positionMs.coerceAtLeast(0))
+        sought()
+    }
+
+    /** The position moved: whatever shows it reads it again, paused too, when nothing else would tell it. */
+    private fun sought() {
+        seeks++
+        publish()
     }
 
     fun jumpTo(index: Int) {
+        failedInARow = 0
         if (queue.jumpTo(index)) startTrack(0)
     }
 
     fun setShuffle(shuffle: Boolean) {
         queue.setShuffle(shuffle)
+        publish()
+    }
+
+    /** Repeats the queue, the track, or nothing, from the track playing on; the queue's end, passed already, stays. */
+    fun setRepeat(repeat: MusicRepeat) {
+        queue.repeat = repeat
         publish()
     }
 
@@ -288,6 +432,7 @@ class MusicPlayback(
      */
     fun pauseForVideo() {
         if (queue.isEmpty) return
+        cancelSkip()
         loadJob?.cancel()
         yielded = true
         stopTicker()
@@ -300,6 +445,7 @@ class MusicPlayback(
 
     /** Ends the session, stops the output and forgets the queue. */
     fun stop() {
+        cancelSkip()
         loadJob?.cancel()
         stopTicker()
         timer.cancel()
@@ -307,12 +453,15 @@ class MusicPlayback(
         out?.release()
         out = null
         queue.clear()
+        queue.repeat = MusicRepeat.Off
+        held = false
         fallback = null
         recreates = 0
         playing = false
         loading = false
         ended = false
         yielded = false
+        waitingAt = null
         error = null
         now.value = null
         order.value = MusicQueueState()
@@ -338,17 +487,23 @@ class MusicPlayback(
             recreates = 0
         }
         val wantPlay = play ?: (!sameTrack || error != null || (out?.playWhenReady ?: true))
+        waitingAt = null
+        cancelSkip()
         loadJob?.cancel()
         stopTicker()
         endSession()
         val o = output()
-        if (!sameTrack) o.stop()
+        if (!sameTrack) {
+            // Before the output stops: it tells its listeners there and then, and the queue they are shown is this one.
+            held = false
+            o.stop()
+        }
         ended = false
         yielded = false
         error = null
         loading = true
         playing = false
-        publish()
+        startPlays = wantPlay
         loadJob = scope.launch {
             // The session before goes first (stopped, then DELETE): the server's transcode limit.
             withTimeoutOrNull(FLUSH_WAIT_MS) { env.reporter.flush() }
@@ -367,18 +522,24 @@ class MusicPlayback(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                fail(errorOf(e))
+                // Whether it was to play, as Play/Pause said while it was asked for.
+                fail(errorOf(e), wanted = startPlays)
                 return@launch
             }
             session = started
             val server = api ?: return@launch
             val info = started.info
             val source = EngineSource(url = server.url(info.url), hls = info.hls, durationMs = info.durationMs.takeIf { it > 0 })
-            o.load(source, atMs, wantPlay, trackInfo(track, server))
+            o.setSpeed(speedOf(track))
+            o.load(source, atMs, startPlays, trackInfo(track, server))
+            held = true
             // From now on, also while it waits paused (the sleep timer's next track).
             startTicker()
             publish()
         }
+        startJob = loadJob
+        // Said once the track counts as starting: Play/Pause shows whether it will play, not what the last one did.
+        publish()
     }
 
     private suspend fun capsOrNone(): ClientCaps = try {
@@ -389,7 +550,8 @@ class MusicPlayback(
         ClientCaps()
     }
 
-    private fun lastPosition(): Long = out?.positionMs?.coerceAtLeast(0) ?: 0
+    /** Where the queue's track is; its start while the output still holds the track before it, or where it waits ([cue]). */
+    private fun lastPosition(): Long = if (held) out?.positionMs?.coerceAtLeast(0) ?: 0 else waitingAt ?: 0
 
     /** How long the track has left, for the sleep timer; `null` while it isn't playing. */
     private fun trackLeftMs(): Long? {
@@ -405,12 +567,39 @@ class MusicPlayback(
         s.end(lastPosition())
     }
 
-    private fun fail(why: MusicError) {
+    /** The track fails for good, [wanted] or not playing, as Play/Pause said until now. */
+    private fun fail(why: MusicError, wanted: Boolean = wantsPlay) {
         loading = false
         playing = false
         error = why
         stopTicker()
+        // A track the server can't play, while the music plays: the next one plays by itself after a moment to read why,
+        // as a driver can't look for Next. Not when the server is out of reach (the next track would fail the same way),
+        // not at the queue's end, and not round a queue none of whose tracks plays.
+        if (why == MusicError.Unplayable && wanted && queue.hasNext && failedInARow + 1 < queue.size) skipSoon()
         publish()
+    }
+
+    /** Counts [SKIP_AFTER_S] seconds down, then plays the next track; Play, Pause, Next or any other track stops it. */
+    private fun skipSoon() {
+        cancelSkip()
+        skipJob = scope.launch {
+            for (left in SKIP_AFTER_S downTo 1) {
+                nextIn = left
+                publish()
+                delay(1_000)
+            }
+            skipJob = null
+            nextIn = null
+            failedInARow++
+            if (queue.next()) startTrack(0) else publish()
+        }
+    }
+
+    private fun cancelSkip() {
+        skipJob?.cancel()
+        skipJob = null
+        nextIn = null
     }
 
     /**
@@ -446,12 +635,15 @@ class MusicPlayback(
             if (playing) {
                 loading = false
                 recreates = 0
+                failedInARow = 0
             }
             publish()
         }
 
         override fun onBuffering(buffering: Boolean) {
             if (loading == buffering) return
+            // The output stopped as the next track is asked for: still loading, not paused.
+            if (!buffering && starting) return
             loading = buffering
             publish()
         }
@@ -469,7 +661,8 @@ class MusicPlayback(
             s?.end(s.info.durationMs.takeIf { it > 0 } ?: out?.durationMs ?: lastPosition())
             // The sleep timer ends with this track: the next one waits, paused.
             val sleeping = timer.itemEnded(queue.current?.id)
-            if (queue.next()) {
+            // The next one, the first again when the queue repeats, or this one again when the track does.
+            if (queue.advance()) {
                 startTrack(0, play = !sleeping)
             } else {
                 ended = true
@@ -568,6 +761,10 @@ class MusicPlayback(
                 loading = loading && error == null,
                 ended = ended,
                 error = error,
+                repeat = queue.repeat,
+                wantsPlay = wantsPlay,
+                seeks = seeks,
+                nextIn = nextIn,
             )
         }
     }
@@ -602,6 +799,7 @@ class MusicPlayback(
     }
 
     private fun trackInfo(track: ItemSummary, server: PleyApi) = TrackInfo(
+        id = track.id,
         title = track.title,
         artist = track.grandparentTitle,
         album = track.parentTitle,
@@ -617,6 +815,9 @@ class MusicPlayback(
 
         /** Paused this long, the event stream is let go in the background: the server's window for a session unheard. */
         const val PAUSED_HOLD_MS = 90_000L
+
+        /** How long a track that can't be played says so before the next one plays. */
+        const val SKIP_AFTER_S = 5
 
         /** New sessions asked in a row for one track before it counts as failed. */
         const val MAX_RECREATES = 3

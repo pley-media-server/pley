@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Music in the car (Android Auto) and for the Assistant: the library's tabs, and what it says when it can't show them. -->
+<resources>
+    <string name="music_library_recent">最近</string>
+    <string name="music_library_recently_played">最近播放</string>
+    <string name="music_library_recently_added">最近新增</string>
+    <string name="music_library_recently_added_in">%1$s 中最近新增</string>
+    <string name="music_library_artists">藝人</string>
+    <string name="music_library_playlists">播放清單</string>
+    <string name="music_library_albums">專輯</string>
+    <string name="music_library_songs">曲目</string>
+    <string name="music_library_shuffle">隨機播放</string>
+    <string name="music_library_shuffle_off">關閉隨機播放</string>
+    <string name="music_library_repeat">重複播放</string>
+    <string name="music_library_repeat_one">單曲重複</string>
+    <string name="music_library_repeat_off">關閉重複播放</string>
+    <plurals name="music_library_tracks">
+        <item quantity="other">%1$,d 首曲目</item>
+    </plurals>
+    <plurals name="music_library_albums_count">
+        <item quantity="other">%1$,d 張專輯</item>
+    </plurals>
+    <string name="music_library_live_tv">直播電視</string>
+    <string name="music_library_live_favorites">收藏</string>
+    <string name="music_library_live_watched_lately">最近觀看</string>
+    <string name="music_library_live_groups">分組</string>
+    <string name="music_library_live_all_channels">所有頻道</string>
+    <string name="music_library_live_channels">頻道</string>
+    <plurals name="music_library_live_channel_count">
+        <item quantity="other">%1$,d 個頻道</item>
+    </plurals>
+    <string name="music_library_books">有聲書</string>
+    <string name="music_library_continue_listening">繼續收聽</string>
+    <string name="music_library_all_books">全部有聲書</string>
+    <string name="music_library_music">音樂</string>
+    <string name="music_library_back">倒退 15 秒</string>
+    <string name="music_library_forward">快轉 30 秒</string>
+    <string name="music_library_speed">速度 %1$s</string>
+    <string name="music_library_signed_out">請在安全時開啟手機上的 Pley 並登入</string>
+    <string name="music_library_open_pley">開啟 Pley</string>
+    <string name="music_library_offline">無法連線你的 Pley 伺服器</string>
+    <string name="music_library_no_match">Pley 找不到“%1$s”的音樂</string>
+    <string name="music_library_failed">發生錯誤，請重試。</string>
+    <string name="music_library_unplayable">此曲目無法播放</string>
+    <plurals name="music_library_unplayable_next">
+        <item quantity="other">此曲目無法播放。%1$d 秒後播放下一首</item>
+    </plurals>
+    <string name="music_library_stopped">伺服器已停止播放</string>
+</resources>

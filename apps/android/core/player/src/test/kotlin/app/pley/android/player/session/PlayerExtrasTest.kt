@@ -35,6 +35,15 @@ class PlayerExtrasTest {
     }
 
     @Test
+    fun `paused before the stream is ready, it opens paused`() {
+        // A car's screen covered as the player opens: the pause holds once the stream comes.
+        val c = h.starting(PlayRequest(FixtureIds.SHOW_S1E1, startMs = 0))
+        c.pause()
+        h.settle()
+        assertFalse(h.engine.prepared.last().playWhenReady)
+    }
+
+    @Test
     fun `the speed is this title's, kept by a new session and gone with the next title`() {
         val c = playing()
         c.setSpeed(1.5f)

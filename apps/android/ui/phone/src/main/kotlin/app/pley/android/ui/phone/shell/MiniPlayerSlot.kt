@@ -1,5 +1,12 @@
 package app.pley.android.ui.phone.shell
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -27,40 +34,79 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
-import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.reducedMotion
 import app.pley.android.player.MusicPosition
 import app.pley.android.player.NowPlaying
 import app.pley.android.screens.PleyKey
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleyIconButton
+import app.pley.android.ui.phone.music.TrackArt
+import app.pley.android.ui.phone.music.TrackChange
 import app.pley.android.ui.phone.music.rememberMusicControl
 import app.pley.android.ui.phone.music.rememberMusicPosition
+import app.pley.android.ui.phone.music.trackKey
+import app.pley.android.ui.phone.music.trackWords
+import app.pley.android.ui.phone.player.CarGap
+import app.pley.android.ui.phone.player.CarSized
+import app.pley.android.ui.phone.player.LocalCarScreen
+import app.pley.android.ui.phone.player.onCarScreen
 
 /**
  * The mini player (design spec §3.6): a 72 dp bar above the navigation
  * bar while music plays: the 56 dp art, the title and "Artist · Album",
  * Play/Pause and Next, and a 2 dp [accent][PleyColors.Accent] line along
  * its top for how far the track has played (drawn, never recomposed).
- * Tapping it opens Now Playing; it hides while Now Playing shows.
+ * Tapping it opens Now Playing; it hides while Now Playing shows. As the
+ * track changes, the art and the words give way to the next one's as Now
+ * Playing's do. It rises from the bottom edge as music starts and sinks
+ * back as it stops (in place with reduced motion).
  */
 @Composable
-internal fun MiniPlayerSlot(nowPlaying: NowPlaying?, modifier: Modifier = Modifier) {
-    if (nowPlaying == null) return
+internal fun MiniPlayerSlot(nowPlaying: NowPlaying?, modifier: Modifier = Modifier, car: Boolean = onCarScreen()) {
     val navigator = LocalPhoneNavigator.current
-    val onNowPlaying = (navigator as? PhoneNavigation)?.stack()?.lastOrNull() == PleyKey.NowPlaying
-    if (onNowPlaying) return
+    val navigation = navigator as? PhoneNavigation
+    // Once Now Playing has drawn, not as soon as it is asked for; and back at once as it is closed.
+    val onNowPlaying = navigation != null && navigation.nowPlayingDrawn && navigation.stack()?.lastOrNull() == PleyKey.NowPlaying
+    // What played last, drawn while the bar leaves.
+    val last = remember { arrayOfNulls<NowPlaying>(1) }
+    if (nowPlaying != null) last[0] = nowPlaying
+    // Composed with nothing playing too: music starting is then a change the bar can rise in on.
+    val shown = nowPlaying ?: last[0]
+    val reduced = reducedMotion()
+    // Music starting or stopping: the bar rises from the bottom edge as the page makes room, and sinks back, where it
+    // used to push the page up in one frame. Now Playing opening or closing swaps it at once (as Now Playing first
+    // draws, still unseen under its fade): a bar still shrinking would move the page coming in.
+    AnimatedVisibility(
+        visible = nowPlaying != null,
+        modifier = modifier,
+        enter = if (reduced) EnterTransition.None else expandVertically(PleyMotion.overlay(), expandFrom = Alignment.Top) + fadeIn(PleyMotion.overlay()),
+        exit = if (reduced) ExitTransition.None else shrinkVertically(PleyMotion.overlay(), shrinkTowards = Alignment.Top) + fadeOut(PleyMotion.overlay()),
+        label = "mini player",
+    ) {
+        // On a car's screen, car-sized: 64 dp buttons, no text under 24 sp.
+        if (shown != null && !onNowPlaying) CarSized(car) { MiniPlayer(shown) }
+    }
+}
+
+@Composable
+private fun MiniPlayer(nowPlaying: NowPlaying, modifier: Modifier = Modifier) {
+    val navigator = LocalPhoneNavigator.current
     val music = rememberMusicControl()
-    val position by rememberMusicPosition({ music?.position() ?: MusicPosition() }, nowPlaying.playing, key = nowPlaying.itemId)
+    val position by rememberMusicPosition({ music?.position() ?: MusicPosition() }, nowPlaying.playing, key = trackKey(nowPlaying))
     val art = remember(nowPlaying.artUrl) { nowPlaying.artUrl?.let { ArtworkImage(listOf(it)) } }
-    val playing = nowPlaying.playing || (nowPlaying.loading && nowPlaying.error == null)
+    // What Play/Pause will do, a track still starting too.
+    val playing = nowPlaying.wantsPlay
+    // On a car's screen: 112 dp there, clear of its edges, its buttons apart and its title the larger line.
+    val car = LocalCarScreen.current
     Row(
         modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .height(if (car) 84.dp else 72.dp)
             .background(PleyColors.Surface2)
             .drawBehind {
                 // How far along: 2 dp of accent over the surface's top edge.
@@ -71,23 +117,24 @@ internal fun MiniPlayerSlot(nowPlaying: NowPlaying?, modifier: Modifier = Modifi
                 if (f > 0f) drawLine(PleyColors.Accent, Offset(0f, h / 2f), Offset(size.width * f, h / 2f), h)
             }
             .clickable(role = Role.Button, onClickLabel = stringResource(R.string.shell_now_playing)) { navigator.open(PleyKey.NowPlaying) }
-            .padding(start = 8.dp, end = 4.dp)
+            .padding(start = if (car) CarGap else 8.dp, end = if (car) CarGap else 4.dp)
             .testTag(MINI_PLAYER),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(56.dp).clip(PleyShape.TilePhone).background(PleyColors.Surface3), contentAlignment = Alignment.Center) {
             if (art != null) {
-                Artwork(art, nowPlaying.album ?: nowPlaying.title, Modifier.matchParentSize())
+                TrackArt(art, nowPlaying.album ?: nowPlaying.title, Modifier.matchParentSize())
             } else {
                 Icon(PleyIcons.Music, contentDescription = null, tint = PleyColors.Muted)
             }
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(nowPlaying.title, style = MaterialTheme.typography.titleSmall, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val byline = nowPlaying.byline
-            if (byline.isNotEmpty()) {
-                Text(byline, style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        TrackChange(trackWords(nowPlaying), Modifier.weight(1f), Alignment.CenterStart) { words ->
+            Column(Modifier.fillMaxWidth()) {
+                Text(words.title, style = if (car) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleSmall, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (words.byline.isNotEmpty()) {
+                    Text(words.byline, style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
         PleyIconButton(
@@ -95,6 +142,7 @@ internal fun MiniPlayerSlot(nowPlaying: NowPlaying?, modifier: Modifier = Modifi
             stringResource(if (playing) R.string.music_pause else R.string.music_play),
             onClick = { music?.toggle() },
         )
+        if (car) Spacer(Modifier.width(CarGap))
         PleyIconButton(
             PleyIcons.SkipForward,
             stringResource(R.string.music_next),

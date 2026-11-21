@@ -8,6 +8,84 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Music repeats: Repeat in Now Playing, on phones and TVs, and in the
+  phone's media controls repeats the queue, then the track playing, then
+  nothing.
+- Music's notification and the phone's media controls have Shuffle and
+  Repeat buttons, with a dot under the one that is on.
+- Now Playing moves from one track to the next: the cover stays until the
+  next one fades in, the title slides to the next track's, and the
+  scrubber glides.
+- Music picks up where it was, shuffled as it was, when Android has ended
+  the app meanwhile: Play on a headset, on a car's steering wheel over
+  Bluetooth or in the phone's media controls plays the queue again.
+
+With Android Auto:
+
+- Pley plays music on the car's screen: Recent (what you played last,
+  then what was added), Artists and Playlists tabs with album covers
+  (Pley's mark on those without one; an album or playlist opens to its
+  tracks, and plays at once only with a single one), search, the whole
+  queue, Shuffle and Repeat on Now Playing, and "Hey Google, play … on
+  Pley", which finds music playlists by name ("my … playlist" too) and
+  says so when it finds nothing. Signed out, the car says to open Pley on the phone.
+- Audiobooks play in the car: a Books tab (being heard, added last, every
+  book) with how far you are in each, the books being heard first in
+  Recent, search and "Hey Google, play … on Pley". A book goes on where
+  you left it on any device, with back 15 seconds, forward 30 seconds
+  and a Speed button.
+- Tabs with nothing in them aren't shown; with five, Playlists goes into
+  the artists' tab, named Music.
+- Live TV's channels play as radio: a Live TV tab with favorites,
+  channels watched lately and groups, channel search, and "Hey Google,
+  play … on Pley" by channel name.
+- As the car connects, what played last waits in its Now Playing, paused
+  where it was, and the car's Play plays it; with nothing kept on the
+  phone, the album you played last waits, or the one added last. "Hey
+  Google, stop" pauses and keeps the queue for the next drive.
+- Parked, the sideloaded app plays videos and Live TV on the car's screen
+  (Android 15 and later, in cars that allow video apps), every page and
+  control sized for the car, with 10-second skip buttons, and pauses as
+  soon as the car moves off.
+
+### Changed
+
+- An artist's, album's or playlist's page puts the cover beside the
+  title on a phone on its side and on tablets, with Play in view, and
+  keeps Play and Shuffle side by side above the bar of what plays.
+- The rail beside the page on a phone on its side or a tablet shows its
+  tabs' icons alone, in a column centered on its height.
+- A track that can't be played says so for 5 seconds, then the next one
+  plays by itself; Play tries it again.
+- Music, movies and shows without a picture show Pley's mark on their
+  placeholder instead of their title, which the caption under it shows.
+- Changing tabs fades from one to the next, Now Playing comes up from
+  the bar of what plays, and that bar rises in as music starts.
+
+### Fixed
+
+- Pause pressed while a track is starting now keeps it paused once it
+  loads, instead of playing it.
+- The scrubber no longer shows the last track's position while the next
+  one loads, nor jumps back for a moment after a seek, and it moves when
+  seeking while paused, also from the notification or the remote.
+- Previous pressed again while a track is still loading goes one more
+  track back, instead of starting the loading track again.
+- A track that failed to start no longer starts where the track before
+  it was when Play is pressed.
+- Play/Pause no longer shows Pause for a track that will wait paused, or
+  while a paused track loads after a seek.
+- "Loading…" no longer blinks under the title at every change of track.
+- The home page's banner fits a phone turned on its side, its title and
+  Play in view, also above the bar of what plays.
+- The next episode's Play now button shows its countdown whole in French
+  and Spanish, with Cancel under it when they don't fit side by side.
+- Play and Shuffle on an artist's or album's page are the same height.
+- Now Playing fits a phone turned on its side, with the cover beside
+  the title, instead of the cover hiding the controls.
+
 ## [0.1.16] - 2026-11-20
 
 ### Added

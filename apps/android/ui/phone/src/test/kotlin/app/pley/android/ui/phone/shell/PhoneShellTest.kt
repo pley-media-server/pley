@@ -5,9 +5,11 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.IntentFilter
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -17,6 +19,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.auth.SignOutReason
@@ -32,14 +35,18 @@ import app.pley.android.model.PlayingKind
 import app.pley.android.model.PlayingSession
 import app.pley.android.model.RemoteDevice
 import app.pley.android.network.ApiException
+import app.pley.android.player.NowPlaying
 import app.pley.android.screens.PleyKey
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
 import app.pley.android.ui.phone.item.ITEM_SKELETON
 import app.pley.android.ui.phone.onboarding.LocalOnboardingSource
+import app.pley.android.ui.phone.player.CarScreenChecks
+import app.pley.android.ui.phone.player.CarSized
 import app.pley.android.ui.phone.remote.REMOTE_BAR
 import app.pley.android.ui.phone.remote.REMOTE_BUTTON
 import app.pley.android.ui.phone.theme.PhoneTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -84,16 +91,24 @@ class PhoneShellTest {
 
     private fun tab(tab: PhoneTab) = compose.onNodeWithTag(TAB_TAG + tab.name)
 
-    private fun show(start: PhoneStart, graph: TestGraph = TestGraph(start.server), source: FakeOnboardingSource = FakeOnboardingSource()): Shell {
+    private fun show(
+        start: PhoneStart,
+        graph: TestGraph = TestGraph(start.server),
+        source: FakeOnboardingSource = FakeOnboardingSource(),
+        car: Boolean = false,
+    ): Shell {
         TestApplication.graph = graph
         val shell = Shell(graph)
         compose.setContent {
             PhoneTheme {
                 // Getting in reads a fake server: nobody on the network.
                 CompositionLocalProvider(LocalOnboardingSource provides source) {
-                    PhoneShell(start, { graph }) { state, navigation ->
-                        shell.state = state
-                        shell.navigation = navigation
+                    // On a car's screen the whole app is car-sized, as PhoneApp has it.
+                    CarSized(car) {
+                        PhoneShell(start, { graph }) { state, navigation ->
+                            shell.state = state
+                            shell.navigation = navigation
+                        }
                     }
                 }
             }
@@ -141,6 +156,148 @@ class PhoneShellTest {
         showsHome()
         tab(PhoneTab.Home).assertIsSelected()
         tab(PhoneTab.Me).assertExists()
+    }
+
+    /** Every tab of the rail on screen, clear of its edges, each a car's 64 dp at least and none over another. */
+    private fun railFitsTheCar(screen: String) {
+        show(PhoneStart(server = TestGraph.SERVER, signedIn = true), car = true)
+        showsHome()
+        val density = compose.density.density
+        val window = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        val tabs = PhoneTab.entries.map { it to tab(it).fetchSemanticsNode().boundsInRoot }
+        for ((tab, bounds) in tabs) {
+            val inside = bounds.top >= CAR_EDGE * density && bounds.bottom <= window.bottom - CAR_EDGE * density && bounds.left >= 0f
+            assertTrue("$screen: $tab at $bounds, in $window", inside)
+            assertTrue("$screen: $tab is ${bounds.width / density} × ${bounds.height / density} dp", minOf(bounds.width, bounds.height) / density >= 63.5f)
+        }
+        for ((above, below) in tabs.zipWithNext()) {
+            assertTrue("$screen: ${above.first} over ${below.first}", above.second.bottom <= below.second.top + 0.5f)
+        }
+        // Each in the middle of the rail, not at its start: the rail is as wide as the page beside it starts.
+        val middle = compose.onNodeWithTag(TABS_PAGE).fetchSemanticsNode().boundsInRoot.left / 2f
+        for ((tab, bounds) in tabs) {
+            assertEquals("$screen: $tab at $bounds, the rail's middle at $middle", middle, bounds.center.x, 2f)
+        }
+        // And about the middle of its height (Material's rail keeps a little more room above its tabs than below).
+        val between = (tabs.first().second.top + tabs.last().second.bottom) / 2f
+        assertEquals("$screen: the tabs from ${tabs.first().second.top} to ${tabs.last().second.bottom}", window.height / 2f, between, 12f * density)
+        // A tab low on the rail is there to be pressed.
+        tab(PhoneTab.Playlists).performClick()
+        tab(PhoneTab.Playlists).assertIsSelected()
+    }
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.SMALL)
+    fun onTheSmallestCarScreenEveryTabOfTheRailIsOnScreen() = railFitsTheCar("small")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.WIDE)
+    fun onAWideCarScreenEveryTabOfTheRailIsOnScreen() = railFitsTheCar("wide")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.DENSE)
+    fun onADenseCarScreenEveryTabOfTheRailIsOnScreen() = railFitsTheCar("dense")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL)
+    fun onATallCarScreenEveryTabOfTheRailIsOnScreen() = railFitsTheCar("tall")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL_SPLIT)
+    fun onATallCarScreenSplitInTwoEveryTabOfTheRailIsOnScreen() = railFitsTheCar("tall-split")
+
+    /** Every tab of the bar under a narrow car page on screen, its icon alone and named, each a car's 64 dp at least and none over another. */
+    private fun barFitsTheCar(screen: String) {
+        show(PhoneStart(server = TestGraph.SERVER, signedIn = true), car = true)
+        showsHome()
+        val density = compose.density.density
+        val window = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        val tabs = PhoneTab.entries.map { it to tab(it).fetchSemanticsNode().boundsInRoot }
+        for ((tab, bounds) in tabs) {
+            // No name drawn (five of 24 sp ran into each other): the icon says it to whoever listens.
+            tab(tab).assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Text))
+            assertTrue("$screen: $tab at $bounds, in $window", bounds.left >= 0f && bounds.right <= window.right + 0.5f && bounds.bottom <= window.bottom + 0.5f)
+            assertTrue("$screen: $tab is ${bounds.width / density} × ${bounds.height / density} dp", minOf(bounds.width, bounds.height) / density >= 63.5f)
+        }
+        for ((before, after) in tabs.zipWithNext()) {
+            assertTrue("$screen: ${before.first} over ${after.first}", before.second.right <= after.second.left + 0.5f)
+        }
+        compose.onAllNodesWithContentDescription("Libraries").fetchSemanticsNodes().let { assertTrue("$screen: Libraries isn't named", it.isNotEmpty()) }
+        tab(PhoneTab.Playlists).performClick()
+        tab(PhoneTab.Playlists).assertIsSelected()
+    }
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.PORTRAIT)
+    fun onAPortraitCarScreenEveryTabOfTheRailIsOnScreen() = railFitsTheCar("portrait")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.ULTRAWIDE)
+    fun onAWideLowCarScreenEveryTabOfTheRailIsOnScreen() = railFitsTheCar("ultrawide")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.FULL_HD)
+    fun onAFullHdCarScreenEveryTabOfTheRailIsOnScreen() = railFitsTheCar("full-hd")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL_PORTRAIT)
+    fun underATallPortraitCarPageTheBarShowsItsTabsIconsAloneEachNamedAndACarsSize() = barFitsTheCar("tall-portrait")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.NARROW)
+    fun underANarrowCarPageTheBarShowsItsTabsIconsAloneEachNamedAndACarsSize() = barFitsTheCar("narrow")
+
+    @Test
+    fun theMiniPlayerLeavesAsNowPlayingDrawsAndIsBackAsItCloses() {
+        val graph = TestGraph(TestGraph.SERVER)
+        val shell = show(PhoneStart(server = TestGraph.SERVER, signedIn = true), graph)
+        showsHome()
+        compose.onAllNodesWithTag(MINI_PLAYER).assertCountEquals(0)
+        graph.music.value = NowPlaying(503, "Song 3", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 2, durationMs = 180_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag(MINI_PLAYER).assertExists()
+
+        // Asked for, Now Playing isn't there yet and the bar still is: it goes once the page has drawn.
+        compose.mainClock.autoAdvance = false
+        compose.runOnUiThread { shell.navigation.open(PleyKey.NowPlaying) }
+        assertFalse(shell.navigation.nowPlayingDrawn)
+        compose.onNodeWithTag(MINI_PLAYER).assertExists()
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertTrue(shell.navigation.nowPlayingDrawn)
+        compose.onAllNodesWithTag(MINI_PLAYER).assertCountEquals(0)
+
+        compose.runOnUiThread { shell.navigation.back() }
+        compose.waitForIdle()
+        compose.onNodeWithTag(MINI_PLAYER).assertExists()
+        assertFalse(shell.navigation.nowPlayingDrawn)
+
+        // The music stopping takes the bar away.
+        graph.music.value = null
+        compose.waitForIdle()
+        compose.onAllNodesWithTag(MINI_PLAYER).assertCountEquals(0)
+    }
+
+    @Test
+    fun backToATabWithNowPlayingFromAnotherWithItsOwnTheMiniPlayerStaysAway() {
+        val graph = TestGraph(TestGraph.SERVER)
+        val shell = show(PhoneStart(server = TestGraph.SERVER, signedIn = true), graph)
+        showsHome()
+        graph.music.value = NowPlaying(503, "Song 3", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 2, durationMs = 180_000)
+        compose.waitForIdle()
+
+        compose.runOnUiThread { shell.navigation.open(PleyKey.NowPlaying) }
+        compose.waitForIdle()
+        compose.runOnUiThread { shell.navigation.select(PhoneTab.Search) }
+        compose.waitForIdle()
+        compose.runOnUiThread { shell.navigation.open(PleyKey.NowPlaying) }
+        compose.waitForIdle()
+
+        // Home's Now Playing comes as Search's fades out: the one leaving doesn't bring the bar back over it.
+        compose.runOnUiThread { shell.navigation.select(PhoneTab.Home) }
+        compose.waitForIdle()
+        assertTrue(shell.navigation.nowPlayingDrawn)
+        compose.onAllNodesWithTag(MINI_PLAYER).assertCountEquals(0)
     }
 
     @Test
@@ -322,5 +479,8 @@ class PhoneShellTest {
 
     private companion object {
         const val SHOWN_WITHIN_MS = 5_000L
+
+        /** The least a tab of the car's rail keeps from the screen's top and bottom, in the screen's dp. */
+        const val CAR_EDGE = 8f
     }
 }

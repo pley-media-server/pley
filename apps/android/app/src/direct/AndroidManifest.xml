@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The sideloaded build only: Android Auto lists Pley among the apps the
+  car's screen opens while parked (Android 15 and later), where its videos
+  play. Google Play takes video apps for Android Auto from its early access
+  partners only, so the store build leaves it out (docs/ANDROID.md, Android
+  Auto).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.CAR_LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

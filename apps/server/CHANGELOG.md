@@ -9,6 +9,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Audiobooks in apps that show them: an app's request with
+  `X-Pley-Features: audiobooks` gets audiobook libraries as the web app
+  does. Pley for Android's car library asks for them.
+
 ## [0.1.14] - 2026-11-20
 
 ### Added

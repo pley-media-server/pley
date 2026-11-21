@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="music_library_recent">Recientes</string>
+    <string name="music_library_recently_played">Escuchado recientemente</string>
+    <string name="music_library_recently_added">Añadido recientemente</string>
+    <string name="music_library_recently_added_in">Añadido recientemente en %1$s</string>
+    <string name="music_library_artists">Artistas</string>
+    <string name="music_library_playlists">Listas</string>
+    <string name="music_library_albums">Álbumes</string>
+    <string name="music_library_songs">Pistas</string>
+    <string name="music_library_shuffle">Aleatorio</string>
+    <string name="music_library_shuffle_off">Desactivar aleatorio</string>
+    <!-- Repeat's button, named for what a press does: the queue repeats, then the track, then nothing. -->
+    <string name="music_library_repeat">Repetir</string>
+    <string name="music_library_repeat_one">Repetir esta pista</string>
+    <string name="music_library_repeat_off">Dejar de repetir</string>
+    <plurals name="music_library_tracks">
+        <item quantity="one">%1$,d pista</item>
+        <item quantity="many">%1$,d pistas</item>
+        <item quantity="other">%1$,d pistas</item>
+    </plurals>
+    <plurals name="music_library_albums_count">
+        <item quantity="one">%1$,d álbum</item>
+        <item quantity="many">%1$,d álbumes</item>
+        <item quantity="other">%1$,d álbumes</item>
+    </plurals>
+    <string name="music_library_live_tv">TV en vivo</string>
+    <string name="music_library_live_favorites">Favoritos</string>
+    <string name="music_library_live_watched_lately">Vistos recientemente</string>
+    <string name="music_library_live_groups">Grupos</string>
+    <string name="music_library_live_all_channels">Todos los canales</string>
+    <string name="music_library_live_channels">Canales</string>
+    <plurals name="music_library_live_channel_count">
+        <item quantity="one">%1$,d canal</item>
+        <item quantity="many">%1$,d de canales</item>
+        <item quantity="other">%1$,d canales</item>
+    </plurals>
+    <string name="music_library_books">Libros</string>
+    <string name="music_library_continue_listening">Seguir escuchando</string>
+    <string name="music_library_all_books">Todos los libros</string>
+    <string name="music_library_music">Música</string>
+    <string name="music_library_back">Retroceder 15 segundos</string>
+    <string name="music_library_forward">Avanzar 30 segundos</string>
+    <string name="music_library_speed">Velocidad %1$s</string>
+    <string name="music_library_signed_out">Cuando sea seguro, abre Pley en tu teléfono e inicia sesión</string>
+    <string name="music_library_open_pley">Abrir Pley</string>
+    <string name="music_library_offline">No se puede conectar con tu servidor Pley</string>
+    <string name="music_library_no_match">Pley no encontró música para «%1$s»</string>
+    <string name="music_library_failed">Algo salió mal. Inténtalo de nuevo.</string>
+    <!-- Why the track doesn't play, on the car's Now Playing. -->
+    <string name="music_library_unplayable">Esta pista no se puede reproducir</string>
+    <plurals name="music_library_unplayable_next">
+        <item quantity="one">Esta pista no se puede reproducir. La siguiente empieza en %1$d segundo</item>
+        <item quantity="many">Esta pista no se puede reproducir. La siguiente empieza en %1$d segundos</item>
+        <item quantity="other">Esta pista no se puede reproducir. La siguiente empieza en %1$d segundos</item>
+    </plurals>
+    <string name="music_library_stopped">El servidor detuvo la reproducción</string>
+</resources>

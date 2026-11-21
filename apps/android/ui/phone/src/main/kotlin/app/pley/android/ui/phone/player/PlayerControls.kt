@@ -40,7 +40,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -108,15 +110,20 @@ internal fun Scrims(visible: Boolean) {
 /** How much the picture dims behind the controls between the scrim's darker ends. */
 private const val MID_DIM = 0.4f
 
-/** Back (large, as the hybrid player's), the title and the episode, how it plays, then picture in picture and Settings. */
+/**
+ * Back (large, as the hybrid player's), the title and the episode, how it
+ * plays, then picture in picture and Settings. On a car's screen, kept
+ * clear of its edges and without the badge (Settings has Playback details).
+ */
 @Composable
 internal fun TopBar(state: PlayerScreenState, host: PlayerHost, modifier: Modifier = Modifier) {
     PlayerProbe.composed?.invoke("top")
+    val car = LocalCarScreen.current
     Row(
         modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.player)
-            .padding(start = 8.dp, end = 12.dp, top = 8.dp),
+            .padding(start = if (car) CarGap else 8.dp, end = if (car) CarGap else 12.dp, top = if (car) CarGap else 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BackButton(onClick = host::back)
@@ -139,7 +146,7 @@ internal fun TopBar(state: PlayerScreenState, host: PlayerHost, modifier: Modifi
                 Text(it, style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        state.method?.let {
+        if (!car) state.method?.let {
             MethodBadge(it, state.playbackMethod) { state.open(SheetPage.Details) }
             Spacer(Modifier.size(4.dp))
         }
@@ -166,24 +173,54 @@ private fun BackButton(onClick: () -> Unit) {
 
 /**
  * Play/Pause, as streaming apps' players draw it: a glyph alone on the
- * dimmed picture. It steps aside for the spinner.
+ * dimmed picture. It steps aside for the spinner. On a car's screen,
+ * between 10 s back and 10 s forward: a seek bar is no place for a
+ * finger reaching across to a dashboard, and double taps are hard to time
+ * there.
  */
 @Composable
-internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifier: Modifier = Modifier) {
+internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifier: Modifier = Modifier, compact: Boolean = false) {
     PlayerProbe.composed?.invoke("centre")
     // The seek preview takes the middle while the seek bar is dragged.
     val scrubbing = state.scrubbing
     val playing = state.playing
-    Box(modifier.size(PlayTarget).graphicsLayer { alpha = if (scrubbing || spinning) 0f else 1f }) {
-        GlyphButton(stringResource(if (playing) R.string.player_pause else R.string.player_play), PlayTarget, onClick = state::togglePlay) {
-            Icon(if (playing) PleyIcons.Pause else PleyIcons.Play, contentDescription = null, size = PlayGlyph)
+    val car = LocalCarScreen.current
+    Row(
+        modifier.graphicsLayer { alpha = if (scrubbing || spinning) 0f else 1f },
+        horizontalArrangement = Arrangement.spacedBy(CarGap * 2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val step = (PlayerScreenState.SEEK_STEP_MS / 1000).toInt()
+        val (stepTarget, stepGlyph) = if (compact) CompactStepTarget to CompactStepGlyph else StepTarget to StepGlyph
+        if (car) {
+            GlyphButton(stringResource(R.string.player_skip_back, step), stepTarget, onClick = { state.seekBy(-PlayerScreenState.SEEK_STEP_MS) }) {
+                Icon(PleyIcons.RotateCcw, contentDescription = null, size = stepGlyph)
+            }
+        }
+        GlyphButton(stringResource(if (playing) R.string.player_pause else R.string.player_play), if (compact) CompactPlayTarget else PlayTarget, onClick = state::togglePlay) {
+            Icon(if (playing) PleyIcons.Pause else PleyIcons.Play, contentDescription = null, size = if (compact) CompactPlayGlyph else PlayGlyph)
+        }
+        if (car) {
+            GlyphButton(stringResource(R.string.player_skip_forward, step), stepTarget, onClick = { state.seekBy(PlayerScreenState.SEEK_STEP_MS) }) {
+                Icon(PleyIcons.RotateCw, contentDescription = null, size = stepGlyph)
+            }
         }
     }
 }
 
 /** The center's touch target and glyph: 80 dp around 52. */
-private val PlayTarget = 80.dp
+internal val PlayTarget = 80.dp
 private val PlayGlyph = 52.dp
+
+/** The car's 10 s buttons: 56 dp around 36, 75 and 48 once scaled. */
+private val StepTarget = 56.dp
+private val StepGlyph = 36.dp
+
+/** On a car's screen too short for those (one split in two): Play 64 dp around 40, the 10 s buttons 48 around 30; 64 and more once scaled. */
+private val CompactPlayTarget = 64.dp
+private val CompactPlayGlyph = 40.dp
+private val CompactStepTarget = 48.dp
+private val CompactStepGlyph = 30.dp
 
 /** A [size] round touch target, read out as [label], around its [glyph]. */
 @Composable
@@ -203,16 +240,23 @@ private fun GlyphButton(label: String, size: Dp, onClick: () -> Unit, glyph: @Co
 /**
  * The seek bar with its times, then Subtitles · Audio · Quality · Fit ·
  * Chapters · Lock · Next episode, spread across the width as far as they
- * fit and scrolling when they don't.
+ * fit and scrolling when they don't. On a car's screen, Subtitles · Audio
+ * · Fit · Next episode, kept clear of its edges: Quality is in Settings,
+ * the chapters show on the seek bar, and nothing there needs a lock. A
+ * car's row doesn't scroll: where its names don't fit (a narrow screen,
+ * longer words), it shows the icons alone.
  */
 @Composable
 internal fun BottomBar(state: PlayerScreenState, picture: PictureState, screenAspect: () -> Float, modifier: Modifier = Modifier) {
     PlayerProbe.composed?.invoke("bottom")
+    val car = LocalCarScreen.current
     Column(
         modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.player)
-            .padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
+            .padding(start = if (car) CarGap else 16.dp, end = if (car) CarGap else 16.dp, bottom = if (car) CarGap else 4.dp),
+        // A car's touch targets keep 24 dp apart: the seek bar's and the buttons' under it too.
+        verticalArrangement = if (car) Arrangement.spacedBy(CarGap) else Arrangement.Top,
     ) {
         TimesAndSeekBar(state)
         BottomButtons(state, picture, screenAspect)
@@ -228,36 +272,55 @@ internal fun BottomBar(state: PlayerScreenState, picture: PictureState, screenAs
  */
 @Composable
 private fun BottomButtons(state: PlayerScreenState, picture: PictureState, screenAspect: () -> Float) {
+    val car = LocalCarScreen.current
     Box(Modifier.fillMaxWidth().heightIn(min = BarItemHeight)) {
         AnimatedVisibility(state.answered, enter = fadeIn(PleyMotion.reveal()), exit = fadeOut(PleyMotion.reveal())) {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier
-                        .horizontalScroll(rememberScrollState())
-                        .widthIn(min = maxWidth),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                val width = maxWidth
+                val buttons: @Composable (named: Boolean) -> Unit = { named ->
                     if (state.subtitles.isNotEmpty()) {
-                        BarItem(PleyIcons.Captions, stringResource(R.string.player_subtitles)) { state.open(SheetPage.Subtitles) }
+                        BarItem(PleyIcons.Captions, stringResource(R.string.player_subtitles), named = named) { state.open(SheetPage.Subtitles) }
                     }
                     if (state.audio.size > 1) {
-                        BarItem(PleyIcons.AudioLines, stringResource(R.string.player_audio)) { state.open(SheetPage.Audio) }
+                        BarItem(PleyIcons.AudioLines, stringResource(R.string.player_audio), named = named) { state.open(SheetPage.Audio) }
                     }
-                    if (state.qualities.isNotEmpty()) {
+                    if (!car && state.qualities.isNotEmpty()) {
                         BarItem(PleyIcons.Gauge, stringResource(R.string.player_quality)) { state.open(SheetPage.Quality) }
                     }
-                    FitItem(state, picture, screenAspect)
-                    if (state.chapters.size > 1) {
+                    FitItem(state, picture, screenAspect, named)
+                    if (!car && state.chapters.size > 1) {
                         BarItem(PleyIcons.ListOrdered, stringResource(R.string.player_chapters)) { state.open(SheetPage.Chapters) }
                     }
-                    BarItem(PleyIcons.Lock, stringResource(R.string.player_lock), onClick = state::lock)
+                    if (!car) BarItem(PleyIcons.Lock, stringResource(R.string.player_lock), onClick = state::lock)
                     if (state.episode) {
-                        BarItem(PleyIcons.SkipForward, stringResource(R.string.player_next_episode)) {
+                        BarItem(PleyIcons.SkipForward, stringResource(R.string.player_next_episode), named = named) {
                             state.touched()
                             state.controller.playNext()
                         }
                     }
+                }
+                if (car) {
+                    // Measured with their names first, drawn with them only if they fit 24 dp apart, the space spread evenly as
+                    // drawn (between them and at the row's ends): nothing here scrolls.
+                    SubcomposeLayout(Modifier.fillMaxWidth()) { constraints ->
+                        val measure = subcompose(false) {
+                            Row(Modifier.clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(CarGap)) { buttons(true) }
+                        }
+                        val needed = (measure.maxOfOrNull { it.maxIntrinsicWidth(constraints.maxHeight) } ?: 0) + 2 * CarGap.roundToPx()
+                        val named = needed <= constraints.maxWidth
+                        val row = subcompose(true) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) { buttons(named) }
+                        }.map { it.measure(constraints) }
+                        layout(constraints.maxWidth, row.maxOfOrNull { it.height } ?: 0) { row.forEach { it.place(0, 0) } }
+                    }
+                } else {
+                    Row(
+                        Modifier
+                            .horizontalScroll(rememberScrollState())
+                            .widthIn(min = width),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) { buttons(true) }
                 }
             }
         }
@@ -266,7 +329,7 @@ private fun BottomButtons(state: PlayerScreenState, picture: PictureState, scree
 
 /** Fit, Fill or Zoom: the button names what it does next, as the hybrid player's did. */
 @Composable
-private fun FitItem(state: PlayerScreenState, picture: PictureState, screenAspect: () -> Float) {
+private fun FitItem(state: PlayerScreenState, picture: PictureState, screenAspect: () -> Float, named: Boolean = true) {
     // Read again when the mode or the video's shape changes.
     val next by remember(picture) { derivedStateOf { picture.nextMode(screenAspect()) } }
     val (label, hint) = when (next) {
@@ -274,18 +337,20 @@ private fun FitItem(state: PlayerScreenState, picture: PictureState, screenAspec
         FitMode.Zoom -> R.string.player_zoom to R.string.player_zoom_hint
         else -> R.string.player_fit to R.string.player_fit_hint
     }
-    BarItem(if (next == FitMode.Fit) PleyIcons.Minimize else PleyIcons.Maximize, stringResource(label), description = stringResource(hint)) {
+    BarItem(if (next == FitMode.Fit) PleyIcons.Minimize else PleyIcons.Maximize, stringResource(label), description = stringResource(hint), named = named) {
         state.touched()
         state.modeShown = picture.step(screenAspect())
     }
 }
 
-/** An icon and a labelMedium label, 48 dp tall. */
+/** An icon and a labelMedium label, 48 dp tall; not [named], the icon alone, as wide as it is tall and said by its label. */
 @Composable
-internal fun BarItem(icon: PleyIcon, label: String, description: String? = null, onClick: () -> Unit) {
+internal fun BarItem(icon: PleyIcon, label: String, description: String? = null, named: Boolean = true, onClick: () -> Unit) {
+    val said = description ?: label.takeIf { !named }
     Row(
         Modifier
             .heightIn(min = BarItemHeight)
+            .then(if (named) Modifier else Modifier.widthIn(min = BarItemHeight))
             .clip(PleyShape.Pill)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -293,13 +358,13 @@ internal fun BarItem(icon: PleyIcon, label: String, description: String? = null,
                 role = Role.Button,
                 onClick = onClick,
             )
-            .then(if (description != null) Modifier.semantics { contentDescription = description } else Modifier)
-            .padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .then(if (said != null) Modifier.semantics { contentDescription = said } else Modifier)
+            .padding(horizontal = if (named) 12.dp else 0.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, size = 20.dp)
-        Text(label, style = MaterialTheme.typography.labelMedium, color = PleyColors.Fg, maxLines = 1)
+        Icon(icon, contentDescription = null, size = if (named) 20.dp else 24.dp)
+        if (named) Text(label, style = MaterialTheme.typography.labelMedium, color = PleyColors.Fg, maxLines = 1)
     }
 }
 

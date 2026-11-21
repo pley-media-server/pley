@@ -29,7 +29,6 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.maxLength
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -96,6 +95,7 @@ import app.pley.android.ui.phone.admin.adminWidth
 import app.pley.android.ui.phone.kit.Avatar
 import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.DelayedSpinner
+import app.pley.android.ui.phone.kit.PleyAlertDialog
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.TonalButton
@@ -498,7 +498,7 @@ private fun sizeWords(): (Int, Int) -> String {
 internal fun StopDialog(session: DashboardSession, onStop: (String) -> Unit, onDismiss: () -> Unit) {
     val words = formatWords()
     val state = rememberTextFieldState()
-    AlertDialog(
+    PleyAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(

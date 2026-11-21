@@ -46,6 +46,7 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.text.asString
 import app.pley.android.ui.phone.R
+import app.pley.android.ui.phone.player.CarSizedWindow
 
 /**
  * A download's state as one glyph, [size] square: the arrow when there is
@@ -182,40 +183,42 @@ internal fun DownloadMenu(
     if (entry == null) return
     val coming = entry.state != DownloadState.Done && entry.state != DownloadState.Failed
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss, containerColor = PleyColors.Surface3) {
-        // Why it failed, or what it waits for, above what can be done about it.
-        val note = when (entry.state) {
-            DownloadState.Failed -> entry.error?.asString()
-            DownloadState.Waiting -> stringResource(if (entry.serverAway) R.string.downloads_waiting_server else R.string.downloads_waiting)
-            else -> null
-        }
-        if (note != null) {
-            Text(
-                note,
-                style = MaterialTheme.typography.bodySmall,
-                color = PleyColors.Muted,
-                modifier = Modifier.widthIn(max = 280.dp).padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
-        when (entry.state) {
-            DownloadState.Done -> MenuAction(R.string.downloads_play, PleyIcons.Play) {
-                onDismiss()
-                onPlay(entry)
+        CarSizedWindow {
+            // Why it failed, or what it waits for, above what can be done about it.
+            val note = when (entry.state) {
+                DownloadState.Failed -> entry.error?.asString()
+                DownloadState.Waiting -> stringResource(if (entry.serverAway) R.string.downloads_waiting_server else R.string.downloads_waiting)
+                else -> null
             }
-            DownloadState.Failed -> MenuAction(R.string.downloads_retry, PleyIcons.RotateCw) {
-                onDismiss()
-                onRetry(entry)
+            if (note != null) {
+                Text(
+                    note,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = PleyColors.Muted,
+                    modifier = Modifier.widthIn(max = 280.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+                )
             }
-            else -> Unit
-        }
-        if (onOpen != null) {
-            MenuAction(R.string.downloads_open, PleyIcons.Info) {
-                onDismiss()
-                onOpen(entry)
+            when (entry.state) {
+                DownloadState.Done -> MenuAction(R.string.downloads_play, PleyIcons.Play) {
+                    onDismiss()
+                    onPlay(entry)
+                }
+                DownloadState.Failed -> MenuAction(R.string.downloads_retry, PleyIcons.RotateCw) {
+                    onDismiss()
+                    onRetry(entry)
+                }
+                else -> Unit
             }
-        }
-        MenuAction(if (coming) R.string.downloads_cancel else R.string.downloads_delete, if (coming) PleyIcons.X else PleyIcons.Trash2) {
-            onDismiss()
-            onRemove(entry)
+            if (onOpen != null) {
+                MenuAction(R.string.downloads_open, PleyIcons.Info) {
+                    onDismiss()
+                    onOpen(entry)
+                }
+            }
+            MenuAction(if (coming) R.string.downloads_cancel else R.string.downloads_delete, if (coming) PleyIcons.X else PleyIcons.Trash2) {
+                onDismiss()
+                onRemove(entry)
+            }
         }
     }
 }

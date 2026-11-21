@@ -67,6 +67,7 @@ import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.StarRating
 import app.pley.android.ui.phone.kit.TonalButton
+import app.pley.android.ui.phone.player.LocalCarScreen
 import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.PlayOnButton
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
@@ -391,17 +392,21 @@ private class ActionFit(val columns: Int, val labelStyle: TextStyle)
  * labelMedium, and growing with the system's font size). When even that
  * doesn't fit (the largest fonts, a small phone), fewer columns: the
  * actions go on evened-out rows rather than shrink their labels away or
- * break "Playlist" in two.
+ * break "Playlist" in two. On a car's screen the labels don't shrink at
+ * all (no text there is under 24 sp, which labelMedium is raised to):
+ * the row takes fewer columns as soon as a word doesn't fit its slot.
  */
 @Composable
 private fun rememberActionFit(labels: List<String>, width: Int, count: Int): ActionFit {
     val measurer = rememberTextMeasurer()
     val base = MaterialTheme.typography.labelMedium
-    return remember(labels, width, count, base, measurer) {
+    val car = LocalCarScreen.current
+    return remember(labels, width, count, base, measurer, car) {
+        fun fitIn(slot: Int) = if (car) sharedFit(measurer, labels, base, slot, minSize = base.fontSize) else sharedFit(measurer, labels, base, slot)
         val widest = maxOf(count, ACTION_SLOTS)
         val fit = (widest downTo 1)
             .filter { it == widest || it <= count }
-            .firstNotNullOfOrNull { columns -> sharedFit(measurer, labels, base, width / columns)?.let { ActionFit(columns, it) } }
+            .firstNotNullOfOrNull { columns -> fitIn(width / columns)?.let { ActionFit(columns, it) } }
             ?: ActionFit(1, base)
         if (fit.columns >= count) {
             fit
@@ -409,7 +414,7 @@ private fun rememberActionFit(labels: List<String>, width: Int, count: Int): Act
             // As many rows as it takes, evened out (three and three, not five and one): wider slots fit too.
             val rows = (count + fit.columns - 1) / fit.columns
             val columns = (count + rows - 1) / rows
-            ActionFit(columns, sharedFit(measurer, labels, base, width / columns) ?: fit.labelStyle)
+            ActionFit(columns, fitIn(width / columns) ?: fit.labelStyle)
         }
     }
 }

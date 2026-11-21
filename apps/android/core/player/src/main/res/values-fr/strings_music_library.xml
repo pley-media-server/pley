@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="music_library_recent">Récents</string>
+    <string name="music_library_recently_played">Écoutés récemment</string>
+    <string name="music_library_recently_added">Ajoutés récemment</string>
+    <string name="music_library_recently_added_in">Ajoutés récemment dans %1$s</string>
+    <string name="music_library_artists">Artistes</string>
+    <string name="music_library_playlists">Playlists</string>
+    <string name="music_library_albums">Albums</string>
+    <string name="music_library_songs">Titres</string>
+    <string name="music_library_shuffle">Aléatoire</string>
+    <string name="music_library_shuffle_off">Arrêter la lecture aléatoire</string>
+    <!-- Repeat's button, named for what a press does: the queue repeats, then the track, then nothing. -->
+    <string name="music_library_repeat">Répéter</string>
+    <string name="music_library_repeat_one">Répéter ce titre</string>
+    <string name="music_library_repeat_off">Ne plus répéter</string>
+    <plurals name="music_library_tracks">
+        <item quantity="one">%1$,d titre</item>
+        <item quantity="many">%1$,d de titres</item>
+        <item quantity="other">%1$,d titres</item>
+    </plurals>
+    <plurals name="music_library_albums_count">
+        <item quantity="one">%1$,d album</item>
+        <item quantity="many">%1$,d d’albums</item>
+        <item quantity="other">%1$,d albums</item>
+    </plurals>
+    <string name="music_library_live_tv">TV en direct</string>
+    <string name="music_library_live_favorites">Favoris</string>
+    <string name="music_library_live_watched_lately">Regardées récemment</string>
+    <string name="music_library_live_groups">Groupes</string>
+    <string name="music_library_live_all_channels">Toutes les chaînes</string>
+    <string name="music_library_live_channels">Chaînes</string>
+    <plurals name="music_library_live_channel_count">
+        <item quantity="one">%1$,d chaîne</item>
+        <item quantity="many">%1$,d de chaînes</item>
+        <item quantity="other">%1$,d chaînes</item>
+    </plurals>
+    <string name="music_library_books">Livres</string>
+    <string name="music_library_continue_listening">Reprendre l’écoute</string>
+    <string name="music_library_all_books">Tous les livres</string>
+    <string name="music_library_music">Musique</string>
+    <string name="music_library_back">Reculer de 15 secondes</string>
+    <string name="music_library_forward">Avancer de 30 secondes</string>
+    <string name="music_library_speed">Vitesse %1$s</string>
+    <string name="music_library_signed_out">Une fois à l’arrêt, ouvrez Pley sur votre téléphone et connectez-vous</string>
+    <string name="music_library_open_pley">Ouvrir Pley</string>
+    <string name="music_library_offline">Impossible de joindre votre serveur Pley</string>
+    <string name="music_library_no_match">Pley n’a trouvé aucune musique pour « %1$s »</string>
+    <string name="music_library_failed">Une erreur s’est produite. Réessayez.</string>
+    <!-- Why the track doesn't play, on the car's Now Playing. -->
+    <string name="music_library_unplayable">Impossible de lire ce titre</string>
+    <plurals name="music_library_unplayable_next">
+        <item quantity="one">Impossible de lire ce titre. Le suivant démarre dans %1$d seconde</item>
+        <item quantity="many">Impossible de lire ce titre. Le suivant démarre dans %1$d secondes</item>
+        <item quantity="other">Impossible de lire ce titre. Le suivant démarre dans %1$d secondes</item>
+    </plurals>
+    <string name="music_library_stopped">Le serveur a arrêté la lecture</string>
+</resources>

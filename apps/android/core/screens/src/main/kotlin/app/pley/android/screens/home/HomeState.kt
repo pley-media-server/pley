@@ -366,7 +366,7 @@ fun libraryCountText(library: Library): UiText = UiText.plural(
         LibraryKind.Movies -> R.plurals.library_entry_movies
         LibraryKind.Shows -> R.plurals.library_entry_shows
         LibraryKind.Music -> R.plurals.library_entry_artists
-        LibraryKind.Unknown -> R.plurals.library_entry_items
+        LibraryKind.Audiobooks, LibraryKind.Unknown -> R.plurals.library_entry_items
     },
     library.itemCount,
 )

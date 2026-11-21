@@ -57,6 +57,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -83,6 +84,7 @@ import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.player.MusicError
+import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepTexts
@@ -101,7 +103,7 @@ import kotlinx.coroutines.flow.collectLatest
 /**
  * Now Playing on TV (design spec §4.10): the album art at 300 dp at
  * (96, 58), the title, the artist and album and the scrubber beside it,
- * Shuffle, Previous, Play/Pause and Next as round buttons, and the queue
+ * Shuffle, Previous, Play/Pause, Next and Repeat as round buttons, and the queue
  * under them, over a faint copy of the art. Focus starts on Play/Pause.
  * The scrubber takes focus: Left and Right seek 10 s. The music plays on
  * when the screen is left; after two minutes without a key it dims to
@@ -179,10 +181,12 @@ internal fun TvNowPlayingScreen() {
 private fun Status(now: NowPlaying, model: NowPlayingViewModel) {
     val sleep by model.sleep.collectAsStateWithLifecycle()
     val pausingIn = sleep.secondsLeft
+    val nextIn = now.nextIn
     val text = when {
         now.error == MusicError.Offline -> stringResource(R.string.tv_music_error_offline)
         now.error == MusicError.SignedOut -> stringResource(R.string.tv_music_error_signed_out)
         now.error == MusicError.Stopped -> stringResource(R.string.tv_music_error_stopped)
+        now.error != null && nextIn != null -> pluralStringResource(R.plurals.tv_music_error_unplayable_next, nextIn, nextIn)
         now.error != null -> stringResource(R.string.tv_music_error_unplayable)
         now.loading -> stringResource(R.string.tv_music_loading)
         pausingIn != null -> SleepTexts.notice(LocalResources.current, pausingIn)
@@ -206,7 +210,8 @@ private fun Status(now: NowPlaying, model: NowPlayingViewModel) {
 private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel) {
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
-    val position by rememberPosition(model::position, now.playing, key = now.itemId to now.index)
+    // Read again for another track, and for a seek: paused, nothing else would move the scrubber.
+    val position by rememberPosition(model::position, now.playing, key = Triple(now.itemId, now.index, now.seeks))
     val duration = position.durationMs.takeIf { it > 0 } ?: now.durationMs
     val label = stringResource(R.string.tv_music_position)
     Column(Modifier.fillMaxWidth()) {
@@ -278,6 +283,21 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) {
         Box(Modifier.padding(top = BESIDE_PLAY)) { TvRoundButton(stringResource(R.string.tv_music_previous), PleyIcons.SkipBack, onClick = model::previous, onArt = true) }
         PlayPause(now, onClick = model::toggle)
         Box(Modifier.padding(top = BESIDE_PLAY)) { TvRoundButton(stringResource(R.string.tv_music_next), PleyIcons.SkipForward, onClick = model::next, onArt = true, enabled = now.hasNext) }
+        Box(Modifier.padding(top = BESIDE_PLAY)) {
+            // Named for what Select does: the queue repeats, then the track, then nothing.
+            TvRoundButton(
+                stringResource(
+                    when (now.repeat) {
+                        MusicRepeat.Off -> R.string.tv_music_repeat
+                        MusicRepeat.All -> R.string.tv_music_repeat_one
+                        MusicRepeat.One -> R.string.tv_music_repeat_off
+                    },
+                ),
+                if (now.repeat == MusicRepeat.One) PleyIcons.Repeat1 else PleyIcons.Repeat,
+                onClick = { model.setRepeat(now.repeat.next) },
+                onArt = true,
+            )
+        }
         Box(Modifier.padding(top = BESIDE_PLAY)) { SleepButton(model) }
     }
 }
@@ -316,7 +336,8 @@ private fun SleepButton(model: NowPlayingViewModel) {
 /** Play/Pause: a 56 dp circle with a 28 dp glyph (design spec §2.7), the page's initial focus. */
 @Composable
 private fun PlayPause(now: NowPlaying, onClick: () -> Unit) {
-    val playing = now.playing || (now.loading && now.error == null)
+    // What Select will do, a track still starting too; paused, it stays Play through a seek's loading.
+    val playing = now.wantsPlay
     val label = stringResource(if (playing) R.string.tv_music_pause else R.string.tv_music_play)
     IconButton(
         onClick = onClick,

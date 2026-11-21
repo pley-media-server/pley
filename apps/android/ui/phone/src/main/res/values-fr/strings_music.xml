@@ -25,6 +25,10 @@
     <string name="music_previous">Précédent</string>
     <string name="music_shuffle_on">Lecture aléatoire</string>
     <string name="music_shuffle_off">Arrêter la lecture aléatoire</string>
+    <!-- Repeat's button, named for what a press does: the queue repeats, then the track, then nothing. -->
+    <string name="music_repeat_on">Répéter</string>
+    <string name="music_repeat_one">Répéter ce titre</string>
+    <string name="music_repeat_off">Ne plus répéter</string>
     <string name="music_position">Position dans le titre</string>
     <string name="music_loading">Chargement…</string>
     <string name="music_nothing_playing">Aucune lecture en cours</string>
@@ -33,4 +37,9 @@
     <string name="music_error_signed_out">Reconnectez-vous pour lire.</string>
     <string name="music_error_stopped">Le serveur a arrêté la lecture.</string>
     <string name="music_error_unplayable">Impossible de lire ce titre.</string>
+    <plurals name="music_error_unplayable_next">
+        <item quantity="one">Impossible de lire ce titre. Le suivant démarre dans %1$d seconde.</item>
+        <item quantity="many">Impossible de lire ce titre. Le suivant démarre dans %1$d secondes.</item>
+        <item quantity="other">Impossible de lire ce titre. Le suivant démarre dans %1$d secondes.</item>
+    </plurals>
 </resources>

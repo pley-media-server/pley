@@ -48,6 +48,16 @@ class PhoneNavigation internal constructor(
     /** The tabs' stacks while they are shown; set by the tabs' host. */
     internal var stacks: Map<PhoneTab, NavBackStack<NavKey>>? by mutableStateOf(null)
 
+    /**
+     * How many Now Playing pages are drawn: two for a moment, as one tab fades into another that has its own. The mini
+     * player waits for one before it leaves: gone as soon as Now Playing was asked for, it left the page under it bare
+     * for as long as Now Playing took to come.
+     */
+    internal var nowPlayingsDrawn: Int by mutableIntStateOf(0)
+
+    /** Whether a Now Playing page has drawn ([nowPlayingsDrawn]). */
+    internal val nowPlayingDrawn: Boolean get() = nowPlayingsDrawn > 0
+
     /** A screen to open above Home once the tabs' stacks exist (a restart onto it). */
     private var pending: PleyKey? = null
 

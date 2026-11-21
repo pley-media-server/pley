@@ -27,6 +27,9 @@
     <string name="music_previous">上一個</string>
     <string name="music_shuffle_on">隨機播放</string>
     <string name="music_shuffle_off">關閉隨機播放</string>
+    <string name="music_repeat_on">重複播放</string>
+    <string name="music_repeat_one">單曲重複</string>
+    <string name="music_repeat_off">關閉重複播放</string>
     <string name="music_position">曲目進度</string>
     <string name="music_loading">載入中…</string>
     <string name="music_nothing_playing">當前沒有播放</string>
@@ -35,4 +38,7 @@
     <string name="music_error_signed_out">請重新登入後再播放。</string>
     <string name="music_error_stopped">伺服器已停止播放。</string>
     <string name="music_error_unplayable">此曲目無法播放。</string>
+    <plurals name="music_error_unplayable_next">
+        <item quantity="other">此曲目無法播放。%1$d 秒後播放下一首。</item>
+    </plurals>
 </resources>

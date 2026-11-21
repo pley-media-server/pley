@@ -1,5 +1,6 @@
 package app.pley.android.player
 
+import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
@@ -10,8 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * The track playing in the background, for the mini player and Now
  * Playing. It changes when the track, the queue or playing changes, never
- * with the position: that is read with [MusicControl.position] while
- * drawing.
+ * with the position as it plays: that is read with [MusicControl.position]
+ * while drawing, and again when [seeks] says it was moved.
  */
 data class NowPlaying(
     val itemId: Long,
@@ -37,8 +38,27 @@ data class NowPlaying(
     val ended: Boolean = false,
     /** Why it doesn't play; `null` while it does. */
     val error: MusicError? = null,
+    val repeat: MusicRepeat = MusicRepeat.Off,
+    /**
+     * Whether it plays, or will as soon as it can (a track starting, or
+     * waiting for data): what Play/Pause shows. Paused, it stays `false`
+     * through a seek's loading; [playing] is sound coming out.
+     */
+    val wantsPlay: Boolean = playing,
+    /**
+     * How many times the position was moved other than by playing: a seek
+     * from here, a car, the notification or the profile's remote. Whatever
+     * shows the position reads it again when this changes, paused too.
+     */
+    val seeks: Int = 0,
+    /**
+     * A track that can't be played, while the music plays on: the seconds
+     * before the next one plays by itself; `null` when none will.
+     */
+    val nextIn: Int? = null,
 ) {
-    val hasNext: Boolean get() = index + 1 < count
+    /** Whether Next has a track to go to: the one after, or with the queue repeating the first again. */
+    val hasNext: Boolean get() = index + 1 < count || repeat == MusicRepeat.All
 
     /** "Artist · Album", as the mini player says it. */
     val byline: String get() = listOfNotNull(artist, album).filter { it.isNotBlank() }.joinToString(" · ")
@@ -59,13 +79,33 @@ enum class MusicError {
     Stopped,
 }
 
+/**
+ * What plays once the queue ends, or a track does: nothing more ([Off]),
+ * the queue from its start again ([All]), or the same track ([One]).
+ */
+enum class MusicRepeat {
+    Off,
+    All,
+    One,
+    ;
+
+    /** The one a press of Repeat goes to: off, the queue, the track, off again. */
+    val next: MusicRepeat get() = entries[(ordinal + 1) % entries.size]
+}
+
 /** The queue in the order it plays, the current track at [index]. */
 data class MusicQueueState(
     val tracks: List<ItemSummary> = emptyList(),
     val index: Int = 0,
     val shuffle: Boolean = false,
+    val repeat: MusicRepeat = MusicRepeat.Off,
+    /** Shuffled, where each of [tracks] is in the order the queue was given, which Shuffle off plays; empty otherwise. */
+    val given: List<Int> = emptyList(),
 ) {
     val current: ItemSummary? get() = tracks.getOrNull(index)
+
+    /** An audiobook's parts (the car's library plays them), not music. */
+    val isBook: Boolean get() = tracks.firstOrNull()?.kind == ItemKind.Part
 }
 
 /** Where the track is, read when drawn (the progress line, the scrubber). */
@@ -102,10 +142,14 @@ interface MusicControl {
     /** Plays or pauses; after the queue's end, plays its last track again. */
     fun toggle() {}
 
-    /** The next track, if there is one. */
+    /** The next track, if there is one; after the last, with repeat on, the first. */
     fun next() {}
 
-    /** Back to the start of the track, or the track before when it has played under 3 seconds. */
+    /**
+     * Back to the start of the track, or the track before when it has
+     * played under 3 seconds (before the first, with the queue repeating,
+     * the last).
+     */
     fun previous() {}
 
     fun seekTo(positionMs: Long) {}
@@ -115,6 +159,9 @@ interface MusicControl {
 
     /** Shuffles what is left of the queue around the current track, or puts it back in order. */
     fun setShuffle(shuffle: Boolean) {}
+
+    /** Repeats the queue, the track playing, or nothing; kept until the music stops. */
+    fun setRepeat(repeat: MusicRepeat) {}
 
     /** Stops and forgets the queue (signing out). */
     fun stop() {}

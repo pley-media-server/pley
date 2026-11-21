@@ -108,7 +108,7 @@ class AppGraph(private val app: Application) : ScreensGraph {
      * rail, off the main thread).
      */
     override val drives: Drives by lazy { if (device.isTv) StorageDrives(app, DriveResume.preferences(app)) else Drives.None }
-    override val playerLauncher: PlayerLauncher by lazy { PlayerLauncherImpl(app, { player }, device) }
+    override val playerLauncher: PlayerLauncher by lazy { PlayerLauncherImpl(app, { player }, device, (app as? PleyApplication)?.shownScreen) }
 
     /**
      * What the profile's remotes cast here, played on the main thread for the whole life of the app; what plays

@@ -18,7 +18,9 @@ import app.pley.android.network.NetworkGraph
 import app.pley.android.player.engine.EngineSettings
 import app.pley.android.player.engine.Media3EngineFactory
 import app.pley.android.player.engine.RefreshRateMatching
+import app.pley.android.player.live.LivePlayback
 import app.pley.android.player.music.ServiceMusicControl
+import app.pley.android.player.music.library.MusicLibraryGraph
 import app.pley.android.player.session.SessionPlaybackServices
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -28,11 +30,22 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
+/**
+ * Implemented by the app's Application: what Android starts by itself (the
+ * music service, the pictures it hands cars) reaches the player through it.
+ */
+interface PlayerGraphOwner {
+    val playerGraph: PlayerGraph
+}
+
 /** Playback for the rest of the app: engines, sessions and music. */
 interface PlayerGraph {
     val engines: PlayerEngine.Factory
     val services: PlaybackServices
     val music: MusicControl
+
+    /** Music as cars and voice assistants browse it (MusicService); none unless the graph has it. */
+    val musicLibrary: MusicLibraryGraph? get() = null
 
     /**
      * Ends what plays here, video, music and Live TV, and waits (up to
@@ -66,7 +79,27 @@ interface PlayerGraph {
             val settings = FollowedSettings(data, caps, profile)
             val engines = Media3EngineFactory.of(caps, network) { settings.engine }
             val services = SessionPlaybackServices.create(context, data, network, caps, profile, engines, local, drives)
-            return AppPlayer(engines, services, { data.liveTv }) { ServiceMusicControl.create(context, data, network, caps, profile, engines) }
+            return AppPlayer(
+                engines,
+                services,
+                { data.liveTv },
+                library = {
+                    // The car's Live TV plays as radio, watched as the phone's Live TV player watches.
+                    MusicLibraryGraph(context, data, network) { scope ->
+                        LivePlayback.create(
+                            context,
+                            data.liveTv,
+                            engines,
+                            profile,
+                            scope,
+                            data.liveUpdates.events,
+                            data.liveUpdates::playing,
+                            data.remote::here,
+                            radio = true,
+                        ) { caps.capabilities.snapshot.value }
+                    }
+                },
+            ) { ServiceMusicControl.create(context, data, network, caps, profile, engines) }
         }
     }
 }
@@ -79,9 +112,12 @@ internal class AppPlayer(
     private val closeWindows: () -> Unit = PlayerWindows::closeAll,
     /** Waits until they have gone ([PlayerWindows.gone]). */
     private val windowsGone: suspend () -> Unit = PlayerWindows::gone,
+    library: () -> MusicLibraryGraph? = { null },
     music: () -> MusicControl,
 ) : PlayerGraph {
     private val musicMade = lazy(music)
+
+    override val musicLibrary: MusicLibraryGraph? by lazy(library)
 
     override val music: MusicControl by musicMade
 

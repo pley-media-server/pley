@@ -128,7 +128,8 @@ internal fun SeekBar(state: PlayerScreenState, modifier: Modifier = Modifier) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(40.dp)
+                    // 64 dp on a car's screen, once scaled: a finger there can't be precise.
+                    .height(if (LocalCarScreen.current) 48.dp else 40.dp)
                     .semantics {
                         contentDescription = name
                         stateDescription = spoken

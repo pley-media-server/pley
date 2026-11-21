@@ -1,7 +1,10 @@
 package app.pley.android.player.music
 
+import android.os.Bundle
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.ParserException
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -56,6 +59,8 @@ class EngineMusicOutput(
                 override fun onPlayerError(error: PlaybackException) {
                     // The engine prepares again after a failed audio output itself.
                     if (error.errorCode in ENGINE_RESTARTS) return
+                    // Release builds log no stack traces: why a track didn't play, without its address.
+                    Log.w(TAG, "track failed: ${describeFailure(error)}")
                     listener?.onError(kindOf(error))
                 }
             },
@@ -92,6 +97,7 @@ class EngineMusicOutput(
             .setIsPlayable(true)
             .setIsBrowsable(false)
             .apply { if (art != null) setArtworkData(art, MediaMetadata.PICTURE_TYPE_FRONT_COVER) }
+            .apply { info.id?.let { setExtras(Bundle().apply { putLong(TRACK_ID, it) }) } }
             .build()
         p.replaceMediaItem(p.currentMediaItemIndex, item.buildUpon().setMediaMetadata(metadata).build())
     }
@@ -105,6 +111,10 @@ class EngineMusicOutput(
     override fun pause() = engine.player.pause()
 
     override fun seekTo(positionMs: Long) = engine.player.seekTo(positionMs)
+
+    override fun setSpeed(speed: Float) {
+        if (engine.player.playbackParameters.speed != speed) engine.player.setPlaybackSpeed(speed)
+    }
 
     override fun stop() {
         artJob?.cancel()
@@ -130,11 +140,36 @@ class EngineMusicOutput(
     }
 
     companion object {
+        private const val TAG = "pley.music"
+
+        /** The most causes, and characters of a parser's message, a failure's log line holds. */
+        private const val MAX_CAUSES = 6
+        private const val MAX_MESSAGE = 120
+
+        /** An address in a parser's message (`https://…`, a relative one's scheme-less part stays): left out of the log. */
+        private val ADDRESS = Regex("""[A-Za-z][A-Za-z0-9+.-]*://\S+""")
+
+        /** The extra of the player's item's metadata that holds the track's id. */
+        const val TRACK_ID = "pley.track"
+
         /** Errors the engine recovers from by preparing again (AudioRestarts). */
         private val ENGINE_RESTARTS = setOf(
             PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
             PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED,
         )
+
+        /** [error]'s code and causes, for the log: their kinds, an HTTP status, a parser's words; never an address. */
+        internal fun describeFailure(error: PlaybackException): String {
+            val causes = generateSequence(error.cause) { it.cause }.take(MAX_CAUSES).map { cause ->
+                when (cause) {
+                    is HttpDataSource.InvalidResponseCodeException -> "HTTP ${cause.responseCode}"
+                    // A parser quotes the line it couldn't read, which can be a playlist's address.
+                    is ParserException -> "${cause.javaClass.simpleName}: ${cause.message?.replace(ADDRESS, "<address>")?.take(MAX_MESSAGE)}"
+                    else -> cause.javaClass.simpleName
+                }
+            }
+            return (sequenceOf(error.errorCodeName) + causes).joinToString(" < ")
+        }
 
         /** What [error] means for the queue. */
         fun kindOf(error: PlaybackException): OutputError {

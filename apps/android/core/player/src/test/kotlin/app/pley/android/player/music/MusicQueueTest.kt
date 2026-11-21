@@ -2,6 +2,7 @@ package app.pley.android.player.music
 
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
+import app.pley.android.player.MusicRepeat
 import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -51,6 +52,77 @@ class MusicQueueTest {
         assertEquals(album, queue.tracks)
         assertEquals(playing, queue.current)
         assertEquals(album.indexOf(playing), queue.index)
+    }
+
+    @Test
+    fun aShuffledQueueBroughtBackPlaysAsItDidAndShuffleOffGoesBackToTheOrderGiven() {
+        val queue = MusicQueue(Random(7))
+        queue.start(album, startIndex = 4, shuffle = true)
+        queue.next()
+        val state = queue.state
+        assertEquals(album.size, state.given.size)
+
+        val back = MusicQueue()
+        assertTrue(back.restore(state.tracks, state.given, state.index))
+        assertEquals(state.tracks, back.tracks)
+        assertEquals(state.index, back.index)
+        assertTrue(back.shuffle)
+        val playing = back.current
+        back.setShuffle(false)
+        assertEquals(album, back.tracks)
+        assertEquals(playing, back.current)
+        assertTrue(back.state.given.isEmpty())
+
+        // An order that doesn't place each track once is refused, and changes nothing.
+        assertFalse(back.restore(album.take(3), listOf(0, 0, 1), 0))
+        assertEquals(album, back.tracks)
+        assertFalse(back.shuffle)
+    }
+
+    @Test
+    fun aRepeatingQueueGoesRoundItsEndsAndARepeatingTrackComesAgainByItself() {
+        val queue = MusicQueue()
+        queue.start(album, startIndex = 11)
+        assertFalse(queue.hasNext)
+        assertFalse(queue.advance())
+
+        queue.repeat = MusicRepeat.All
+        assertTrue(queue.hasNext)
+        assertTrue(queue.advance())
+        assertEquals(1L, queue.current?.id)
+        // Previous on the first track goes to the last, unless the track has played a while.
+        assertEquals(MusicQueue.Previous.Restart, queue.previous(positionMs = 10_000))
+        assertEquals(MusicQueue.Previous.Moved, queue.previous(positionMs = 0))
+        assertEquals(12L, queue.current?.id)
+
+        // The track repeats by itself; Next and Previous still move, and stop at the queue's ends as without Repeat.
+        queue.repeat = MusicRepeat.One
+        assertTrue(queue.advance())
+        assertEquals(12L, queue.current?.id)
+        assertFalse(queue.hasNext)
+        assertFalse(queue.next())
+        assertEquals(MusicQueue.Previous.Moved, queue.previous(positionMs = 0))
+        assertEquals(11L, queue.current?.id)
+        assertTrue(queue.next())
+        assertEquals(12L, queue.current?.id)
+        queue.jumpTo(0)
+        assertEquals(MusicQueue.Previous.Restart, queue.previous(positionMs = 0))
+
+        // A shuffled queue repeats the shuffle it has.
+        queue.repeat = MusicRepeat.All
+        queue.setShuffle(true)
+        val order = queue.tracks
+        repeat(order.size) { queue.next() }
+        assertEquals(order, queue.tracks)
+        assertEquals(order.first(), queue.current)
+
+        // One track alone: nothing to go round to.
+        val single = MusicQueue()
+        single.start(album.take(1))
+        single.repeat = MusicRepeat.All
+        assertEquals(MusicQueue.Previous.Restart, single.previous(positionMs = 0))
+        assertTrue(single.advance())
+        assertEquals(0, single.index)
     }
 
     @Test

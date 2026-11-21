@@ -1545,7 +1545,9 @@ class SessionPlaybackController(
 
     override fun pause() {
         if (closed) return
-        link?.pause()
+        val engineLink = link
+        // Paused before the stream is ready (a car's screen covered as it opens): it opens paused.
+        if (engineLink == null) wantPlay.value = false else engineLink.pause()
     }
 
     override fun setAway(away: Boolean) {

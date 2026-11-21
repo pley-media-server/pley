@@ -101,6 +101,8 @@ import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
+import app.pley.android.ui.phone.player.CarGap
+import app.pley.android.ui.phone.player.LocalCarScreen
 import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.PlayOnButton
 import kotlin.math.abs
@@ -306,13 +308,17 @@ private fun Controls(
 ) {
     val clock = rememberClock()
     val on = channel?.onAt(now)
+    // On a car's screen, the buttons keep clear of its edges and of each other.
+    val car = LocalCarScreen.current
+    val apart = if (car) Arrangement.spacedBy(CarGap) else Arrangement.Start
     Box(Modifier.fillMaxSize()) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)))
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(start = 4.dp, end = 8.dp, top = 4.dp, bottom = 32.dp),
+                .padding(start = if (car) CarGap else 4.dp, end = if (car) CarGap else 8.dp, top = if (car) CarGap else 4.dp, bottom = 32.dp),
+            horizontalArrangement = apart,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PleyIconButton(PleyIcons.ArrowLeft, stringResource(R.string.live_player_back), onClick = onBack)
@@ -351,9 +357,9 @@ private fun Controls(
                 .fillMaxWidth()
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))))
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(start = 16.dp, end = 8.dp, top = 40.dp, bottom = 8.dp),
+                .padding(start = if (car) CarGap else 16.dp, end = if (car) CarGap else 8.dp, top = 40.dp, bottom = if (car) CarGap else 8.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = apart, verticalAlignment = Alignment.CenterVertically) {
                 if (state.phase == LivePhase.Playing) {
                     LiveBadge()
                     Spacer(Modifier.width(12.dp))
