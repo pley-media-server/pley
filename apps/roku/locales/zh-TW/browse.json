@@ -36,7 +36,7 @@
     "playFromStart": "從頭播放",
     "episodes": "單集",
     "cantPlayKind": "Pley Roku 版暫不支援播放此類內容。",
-    "noFile": "此專案沒有可播放的檔案。",
+    "noFile": "此項目沒有可播放的檔案。",
     "markWatched": "標記為已觀看",
     "markUnwatched": "標記為未觀看",
     "tracks": "音軌和字幕",
@@ -132,7 +132,7 @@
     "sortHint": "在勾選的選項上按“確定”可反轉順序。",
     "filter": "篩選",
     "show": "顯示",
-    "genre": "型別",
+    "genre": "類型",
     "year": "年份",
     "resolution": "解析度",
     "dynamicRange": "動態範圍",
@@ -145,7 +145,7 @@
     "allDynamicRanges": "所有動態範圍",
     "rows": {
       "show": "顯示：{{value}}",
-      "genre": "型別：{{value}}",
+      "genre": "類型：{{value}}",
       "year": "年份：{{value}}",
       "resolution": "解析度：{{value}}",
       "dynamicRange": "動態範圍：{{value}}",
@@ -157,7 +157,7 @@
       "saveAs": "另存為…"
     },
     "smartFilter": {
-      "genre": "型別：{{value}}",
+      "genre": "類型：{{value}}",
       "year": "{{value}} 年起",
       "sort": {
         "titleSort": {

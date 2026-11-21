@@ -56,8 +56,8 @@
     "all": "全部",
     "unwatched": "未觀看",
     "watched": "已觀看",
-    "genre": "型別",
-    "allGenres": "所有型別",
+    "genre": "類型",
+    "allGenres": "所有類型",
     "year": "年份",
     "allYears": "所有年份",
     "resolution": "解析度",
@@ -108,7 +108,7 @@
     "sortHint": "在媒體庫上按“確定”即可移動。你的順序會應用到所有裝置。"
   },
   "smartFilter": {
-    "genre": "型別：{{value}}",
+    "genre": "類型：{{value}}",
     "label": "標籤：{{value}}",
     "studio": "製作公司：{{value}}",
     "rated": "分級 {{value}}",
@@ -252,7 +252,7 @@
     "unavailable": "不可用",
     "playEpisode": "播放 {{episode}}",
     "resumeEpisode": "繼續播放 {{episode}}",
-    "noFiles": "沒有可播放的內容：此專案沒有媒體檔案。",
+    "noFiles": "沒有可播放的內容：此項目沒有媒體檔案。",
     "episodes": "單集",
     "noEpisodes": "未找到單集。",
     "extrasTitle": "附加內容",

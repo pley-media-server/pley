@@ -35,7 +35,7 @@
 
     <!-- New playlist and Save these filters (PlaylistFormModal, SaveFiltersModal). -->
     <string name="playlist_form_title">標題</string>
-    <string name="playlist_form_for">型別</string>
+    <string name="playlist_form_for">類型</string>
     <string name="playlist_form_video">電影與劇集</string>
     <string name="playlist_form_music">音樂</string>
     <string name="playlist_form_create">建立</string>
@@ -54,7 +54,7 @@
     <string name="add_added">已新增到 %1$s</string>
     <!-- %1$d: how many entries were added (more than one); %2$s: the playlist. -->
     <plurals name="add_added_many">
-        <item quantity="other">已將 %1$d 個專案新增到 %2$s</item>
+        <item quantity="other">已將 %1$d 個項目新增到 %2$s</item>
     </plurals>
     <string name="add_nothing">沒有可新增的內容</string>
 </resources>

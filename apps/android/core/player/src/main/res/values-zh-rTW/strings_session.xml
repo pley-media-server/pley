@@ -118,7 +118,7 @@
     <string name="session_error_unreachable">%1$s 請檢查伺服器是否已開啟，且本裝置是否與其在同一網路中。</string>
     <!-- "Playback failed (ERROR_CODE_DECODING_FAILED)." -->
     <string name="session_error_engine">播放失敗（%1$s）。</string>
-    <string name="session_error_no_file">此專案沒有可播放的檔案。</string>
+    <string name="session_error_no_file">此項目沒有可播放的檔案。</string>
     <!-- Play pressed with no server signed in to. -->
     <string name="session_sign_in_to_play">登入後播放</string>
 </resources>

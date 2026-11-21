@@ -2841,7 +2841,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "型別"
+            "value" : "類型"
           }
         }
       }
@@ -2870,7 +2870,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "型別：%@"
+            "value" : "類型：%@"
           }
         }
       }

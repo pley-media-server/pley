@@ -55,9 +55,9 @@
   },
   "page": {
     "goBack": "返回",
-    "cantPlay": "無法播放此專案",
+    "cantPlay": "無法播放此項目",
     "nothingToPlay": "沒有可播放的內容",
-    "noFiles": "此專案沒有媒體檔案。"
+    "noFiles": "此項目沒有媒體檔案。"
   },
   "quality": {
     "original": "原始",

@@ -94,7 +94,7 @@
     "onlyLibrary": "僅 {{library}}"
   },
   "smartFilter": {
-    "genre": "型別：{{value}}",
+    "genre": "類型：{{value}}",
     "label": "標籤：{{value}}",
     "studio": "製作公司：{{value}}",
     "rated": "分級 {{value}}",

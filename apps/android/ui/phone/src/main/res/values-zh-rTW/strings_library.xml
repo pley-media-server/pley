@@ -30,8 +30,8 @@
     <!-- Filters. -->
     <string name="library_unwatched">未觀看</string>
     <string name="library_watched">已觀看</string>
-    <string name="library_genre">型別</string>
-    <string name="library_all_genres">所有型別</string>
+    <string name="library_genre">類型</string>
+    <string name="library_all_genres">所有類型</string>
     <string name="library_year">年份</string>
     <string name="library_all_years">所有年份</string>
     <string name="library_resolution">解析度</string>
