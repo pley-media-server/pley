@@ -140,6 +140,10 @@ class MusicService : MediaLibraryService() {
         }
         val made = MediaLibrarySession.Builder(this, queue, Callback(playback, graph?.musicLibrary))
             .setId(SESSION_ID)
+            // The session's state is sent as it changes, not also every few seconds as it plays: Android Auto's queue list
+            // goes back to the track playing at each state it is sent, under a finger scrolling it. Controllers work out
+            // where the track is from the state's position, time and speed.
+            .setPeriodicPositionUpdateEnabled(false)
             .apply { openApp()?.let(::setSessionActivity) }
             .apply { covers?.let(::setBitmapLoader) }
             .build()
