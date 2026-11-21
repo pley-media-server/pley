@@ -447,7 +447,7 @@ msgstr "完整簡介"
 
 msgctxt "#30158"
 msgid "No playlists yet. Use “Add to playlist” on a movie, show or episode, or press Menu on a poster."
-msgstr "還沒有播放清單。在電影、影集或集上使用「新增到播放清單」，或在海報上按選單鍵。"
+msgstr "還沒有播放清單。在電影、影集或單集上使用「新增到播放清單」，或在海報上按選單鍵。"
 
 msgctxt "#30159"
 msgid "No collections yet."
@@ -823,11 +823,11 @@ msgstr "還沒有頻道"
 
 msgctxt "#30260"
 msgid "Channels appear here once an administrator adds an IPTV provider."
-msgstr "管理員新增 IPTV 提供商後，頻道會顯示在這裡。"
+msgstr "管理員新增 IPTV 供應商後，頻道會顯示在這裡。"
 
 msgctxt "#30261"
 msgid "Add your IPTV provider's playlist or Xtream Codes account on the web, in Settings → Live TV."
-msgstr "在網頁的「設定 → 直播電視」中新增 IPTV 提供商的播放清單或 Xtream Codes 帳戶。"
+msgstr "在網頁的「設定 → 直播電視」中新增 IPTV 供應商的播放清單或 Xtream Codes 帳戶。"
 
 msgctxt "#30262"
 msgid "Today"
@@ -843,7 +843,7 @@ msgstr "昨天"
 
 msgctxt "#30265"
 msgid "Nothing in the guide now"
-msgstr "節目指南當前沒有內容"
+msgstr "節目指南目前沒有內容"
 
 msgctxt "#30266"
 msgid "No guide"

@@ -29,7 +29,7 @@
     "albums": "無法載入專輯：{{error}}",
     "tracks": "無法載入曲目：{{error}}",
     "seasons": "無法載入季：{{error}}",
-    "episodes": "無法載入影集：{{error}}",
+    "episodes": "無法載入單集：{{error}}",
     "parts": "無法載入分段：{{error}}"
   },
   "summary": {
@@ -134,7 +134,7 @@
       "undone": "已撤銷修正比對",
       "matched": "已比對到「{{title}}」",
       "noMatches": "沒有相符的結果。試試其他標題或不填年份。",
-      "current": "當前"
+      "current": "目前"
     },
     "artwork": {
       "titles": {
@@ -202,7 +202,7 @@
     "breadcrumb": "麵包屑導航",
     "show": "影集",
     "episodes": "單集",
-    "noEpisodes": "未找到影集。"
+    "noEpisodes": "未找到單集。"
   },
   "show": {
     "seasons": "季",

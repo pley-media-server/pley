@@ -61,7 +61,7 @@
 
     <!-- Profiles and the PIN pad (design spec §4.7). -->
     <string name="onboarding_profiles_title">切換設定檔</string>
-    <string name="onboarding_profile_current">%1$s，當前使用的設定檔</string>
+    <string name="onboarding_profile_current">%1$s，目前使用的設定檔</string>
     <string name="onboarding_profile_pin">%1$s，受 PIN 保護</string>
     <string name="onboarding_enter_pin">輸入 %1$s 的 PIN</string>
     <plurals name="onboarding_pin_entered">

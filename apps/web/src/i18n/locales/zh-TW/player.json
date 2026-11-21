@@ -126,7 +126,7 @@
     },
     "defaultAudio": "預設",
     "subtitlesOff": "關閉",
-    "automaticNow": "當前 {{quality}}",
+    "automaticNow": "目前 {{quality}}",
     "automaticHint": "根據情況動態調整",
     "fileTooBig": "字幕檔案最大為 2 MB。",
     "added": "已新增",

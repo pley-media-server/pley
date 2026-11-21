@@ -7,7 +7,7 @@
   "watchOn": "在…上觀看",
   "live": "直播",
   "new": "新",
-  "nothingNow": "當前節目指南中沒有內容",
+  "nothingNow": "目前節目指南中沒有內容",
   "noGuide": "無節目指南",
   "notOpen": "此帳戶未開通直播電視",
   "didntLoad": "直播電視載入失敗",
@@ -60,7 +60,7 @@
     "noMatch": "沒有相符的頻道",
     "noMatchHint": "沒有頻道的名稱、號碼或正在播出的節目包含「{{search}}」。",
     "empty": "這裡沒有頻道",
-    "emptyHint": "此分組當前沒有內容。"
+    "emptyHint": "此分組目前沒有內容。"
   },
   "program": {
     "watchNow": "立即觀看",

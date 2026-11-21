@@ -3,7 +3,7 @@
     <!-- The Downloads page. -->
     <string name="downloads_title">下載</string>
     <string name="downloads_empty">暫無下載</string>
-    <string name="downloads_empty_body">在電影或影集頁面下載後即可離線觀看。</string>
+    <string name="downloads_empty_body">在電影或單集頁面下載後即可離線觀看。</string>
     <!-- "4.2 GB on this phone · 51 GB free". -->
     <string name="downloads_storage">此裝置佔用 %1$s · 可用 %2$s</string>
     <!-- A show's group: "3 episodes · 4.2 GB". -->

@@ -71,7 +71,7 @@
     "emptyTitle": "此媒體庫為空",
     "emptyBody": "這裡還是空的。伺服器新增內容後會顯示在這裡。",
     "noMatchesTitle": "沒有相符的結果",
-    "noMatchesBody": "此媒體庫中沒有符合當前篩選條件的內容。",
+    "noMatchesBody": "此媒體庫中沒有符合目前篩選條件的內容。",
     "recommendedFailed": "無法載入推薦內容",
     "recommendedEmptyTitle": "暫無可推薦內容",
     "recommendedEmptyBody": "媒體庫中有內容後才會顯示推薦。",

@@ -47,7 +47,7 @@
       "unreachable": "無法連線到 {{service}}：{{why}}",
       "refused": "{{service}} 拒絕了：{{why}}",
       "unexpected": "{{service}} 回傳了非預期的內容：{{why}}",
-      "redirected": "它回傳了重新導向：請用其設定中顯示的基址填寫位址",
+      "redirected": "它回傳了重新導向：請用其設定中顯示的基底位址填寫位址",
       "tooLarge": "它的回應超過 {{size}} MB",
       "noMovie": "未找到相符的電影",
       "noId": "回應中沒有 id",

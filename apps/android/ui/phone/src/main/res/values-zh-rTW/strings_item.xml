@@ -33,8 +33,8 @@
     <string name="item_more_like_this">更多類似內容</string>
     <string name="item_details">詳情</string>
     <string name="item_episodes">集</string>
-    <string name="item_more_episodes">%1$s 中的更多影集</string>
-    <string name="item_no_episodes">未找到影集。</string>
+    <string name="item_more_episodes">%1$s 的更多單集</string>
+    <string name="item_no_episodes">未找到單集。</string>
     <string name="item_choose_season">選擇季</string>
     <string name="item_media_info">媒體資訊</string>
     <plurals name="item_media_versions">

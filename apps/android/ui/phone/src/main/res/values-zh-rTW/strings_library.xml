@@ -71,7 +71,7 @@
     <string name="library_empty_title">此媒體庫為空</string>
     <string name="library_empty_body">這裡還沒有內容。伺服器新增內容後會顯示出來。</string>
     <string name="library_no_matches_title">沒有相符的項目</string>
-    <string name="library_no_matches_body">此媒體庫中沒有符合當前篩選條件的內容。</string>
+    <string name="library_no_matches_body">此媒體庫中沒有符合目前篩選條件的內容。</string>
     <string name="library_recommended_failed">無法載入推薦內容</string>
     <string name="library_recommended_empty_title">暫無推薦內容</string>
     <string name="library_recommended_empty_body">媒體庫中有內容後才會顯示推薦。</string>

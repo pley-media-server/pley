@@ -47,7 +47,7 @@
 
     <!-- Watch history (apps/web/src/components/HistoryList.tsx). -->
     <string name="account_history_empty_title">暫無歷史記錄</string>
-    <string name="account_history_empty">看完的電影、影集和歌曲會顯示在這裡。</string>
+    <string name="account_history_empty">看完的電影、單集和歌曲會顯示在這裡。</string>
     <string name="account_history_failed">無法載入觀看歷史</string>
     <string name="account_history_more">顯示更多</string>
     <string name="account_history_loading">載入更多…</string>
@@ -118,8 +118,8 @@
     <string name="diagnostics_app_value" translatable="false">Pley %1$s</string>
     <string name="diagnostics_plays">播放能力</string>
     <string name="diagnostics_probing">正在檢查此裝置的播放能力…</string>
-    <string name="diagnostics_probe_failed">此裝置檢測失敗。</string>
-    <string name="diagnostics_probe_again">重新檢測</string>
+    <string name="diagnostics_probe_failed">此裝置偵測失敗。</string>
+    <string name="diagnostics_probe_again">重新偵測</string>
     <string name="diagnostics_report">Pley 向伺服器報告的資訊</string>
     <string name="diagnostics_show_frame_rate">顯示影格速率</string>
     <string name="diagnostics_show_frame_rate_hint">播放時在頂部顯示：每秒影格數、最長影格和延遲影格</string>

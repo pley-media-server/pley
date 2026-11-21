@@ -22,7 +22,7 @@
     <!-- Automatic's hint in the quality menu. -->
     <string name="session_quality_automatic_hint">根據情況動態調整</string>
     <!-- Automatic's hint while it plays lower: "Now 8 Mbps 1080p". -->
-    <string name="session_quality_automatic_now">當前 %1$s</string>
+    <string name="session_quality_automatic_now">目前 %1$s</string>
     <!-- Automatic went down, said once, briefly: "Quality lowered to 8 Mbps 1080p". -->
     <string name="session_quality_lowered_notice">畫質已降至 %1$s</string>
     <!-- Why Automatic plays lower, in the details. -->

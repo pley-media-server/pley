@@ -412,13 +412,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "后台"
+            "value" : "背景"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "後臺"
+            "value" : "背景"
           }
         }
       }

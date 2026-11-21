@@ -27,7 +27,7 @@
     <string name="tv_readout_transfer">傳輸特性</string>
     <string name="tv_readout_matrix">矩陣</string>
     <string name="tv_readout_bitrate">位元速率</string>
-    <string name="tv_readout_current_bitrate">當前位元速率</string>
+    <string name="tv_readout_current_bitrate">目前位元速率</string>
     <string name="tv_readout_as_file">與檔案一致</string>
     <string name="tv_readout_channels">聲道</string>
     <string name="tv_readout_sample_rate">取樣率</string>

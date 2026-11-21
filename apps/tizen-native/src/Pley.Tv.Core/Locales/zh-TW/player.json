@@ -70,7 +70,7 @@
   },
   "audio": {
     "delay": "音訊延遲",
-    "notOffered": "這臺電視的播放器不提供 {{chosen}}：當前播放 {{playing}}"
+    "notOffered": "這臺電視的播放器不提供 {{chosen}}：目前播放 {{playing}}"
   },
   "quality": {
     "original": "原始",
@@ -78,7 +78,7 @@
     "preset": "{{mbps}} Mbps {{lines}}",
     "automaticHint": "根據網路狀況動態調整",
     "automaticPlaying": "自動 · {{quality}}",
-    "automaticNow": "當前 {{quality}}",
+    "automaticNow": "目前 {{quality}}",
     "lowered": "畫質已降至 {{quality}}",
     "loweredNetwork": "因你的網路狀況降低",
     "loweredDevice": "因這臺裝置降低",
@@ -132,7 +132,7 @@
     "playback": "播放",
     "why": "原因",
     "quality": "畫質",
-    "currentBitrate": "當前位元速率",
+    "currentBitrate": "目前位元速率",
     "asInFile": "與檔案中一致",
     "output": "輸出",
     "track": "軌道",

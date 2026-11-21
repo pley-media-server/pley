@@ -85,7 +85,7 @@
   "collection": {
     "label": "合集",
     "empty": "此合集中還沒有內容。",
-    "noEpisodes": "這部影集集還沒有任何一集。",
+    "noEpisodes": "這部影集還沒有任何一集。",
     "order": {
       "release": "按發行日期",
       "title": "按標題",

@@ -3406,7 +3406,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在電影或影集的詳情頁下載，即可離線觀看。"
+            "value" : "在電影或單集的詳情頁下載，即可離線觀看。"
           }
         }
       }
@@ -3725,7 +3725,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "影集"
+            "value" : "單集"
           }
         }
       }

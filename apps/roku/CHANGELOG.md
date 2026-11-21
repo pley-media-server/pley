@@ -11,10 +11,9 @@ describes how they are made.
 ### Fixed
 
 - Dates in Chinese read 3月5日 and 2026年3月5日.
-- Traditional Chinese calls a video's Dolby Vision profile 設定檔.
 - Traditional Chinese uses the words people use in Taiwan, such as 影集 for
-  a show, 藝人 for an artist, 類型 for a genre and 項目 for an item, and
-  quotes with 「」.
+  a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
+  for an item and 設定檔 for a Dolby Vision profile, and quotes with 「」.
 
 ## [0.1.11] - 2026-11-20
 

@@ -2,7 +2,7 @@
   "title": "觀看記錄",
   "plays_other": "{{count, number}} 次播放",
   "emptyTitle": "暫無觀看記錄",
-  "empty": "你看完的電影、影集和歌曲會顯示在這裡。",
+  "empty": "你看完的電影、單集和歌曲會顯示在這裡。",
   "failed": "無法載入觀看記錄",
   "unreachable": "無法存取你的伺服器",
   "retry": "重試",

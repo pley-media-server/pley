@@ -8,7 +8,7 @@
 
     <!-- Discover and its grids. -->
     <string name="tv_requests_loading">正在載入發現</string>
-    <string name="tv_requests_nothing_title">當前暫無內容</string>
+    <string name="tv_requests_nothing_title">目前暫無內容</string>
     <string name="tv_requests_nothing_body">TMDB 的清單中沒有此設定檔可請求的內容。請改為搜尋標題。</string>
     <string name="tv_requests_list_nothing_body">TMDB 的清單中沒有此設定檔可請求的內容。</string>
     <string name="tv_requests_list_failed">無法載入</string>

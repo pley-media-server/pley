@@ -2,7 +2,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Managing the server: the dashboard (apps/web/src/pages/settings/DashboardSettings.tsx, ResourcesSection.tsx, StorageSection.tsx). -->
     <string name="admin_dashboard_now_playing">正在播放</string>
-    <string name="admin_dashboard_nobody_watching">當前沒有人在觀看。</string>
+    <string name="admin_dashboard_nobody_watching">目前沒有人在觀看。</string>
     <string name="admin_dashboard_stale_title">未更新：這些資料來自 %1$s</string>
     <string name="admin_dashboard_stale_text">伺服器恢復回應後會重新更新。</string>
     <string name="admin_dashboard_method_direct">直接播放</string>
@@ -58,7 +58,7 @@
     <string name="admin_dashboard_url">URL</string>
     <string name="admin_dashboard_ffmpeg">ffmpeg</string>
     <string name="admin_dashboard_encoders">編碼器</string>
-    <string name="admin_dashboard_active_encoder">當前編碼器</string>
+    <string name="admin_dashboard_active_encoder">目前編碼器</string>
     <string name="admin_dashboard_hw_accel">硬體加速</string>
     <string name="admin_dashboard_tone_mapping">色調對映</string>
     <string name="admin_dashboard_not_available">不可用</string>
@@ -69,7 +69,7 @@
     <string name="admin_dashboard_job_count" tools:ignore="PluralsCandidate">%1$d 个运行中 / 最多 %2$d 个</string>
     <string name="admin_dashboard_transcoder_unavailable">無法取得轉碼器狀態：%1$s</string>
     <string name="admin_dashboard_none">無</string>
-    <string name="admin_dashboard_no_jobs">當前沒有轉碼任務。</string>
+    <string name="admin_dashboard_no_jobs">目前沒有轉碼任務。</string>
     <string name="admin_dashboard_job_video">影片</string>
     <string name="admin_dashboard_job_audio">音訊</string>
     <string name="admin_dashboard_job_codecs">編碼器 / 解碼器</string>

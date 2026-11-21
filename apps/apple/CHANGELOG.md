@@ -168,8 +168,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Traditional Chinese calls a video's Dolby Vision profile 設定檔.
 - Traditional Chinese uses the words people use in Taiwan, such as 影集 for
-  a show, 藝人 for an artist, 類型 for a genre and 項目 for an item, and
-  quotes with 「」.
+  a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
+  for an item and 設定檔 for a Dolby Vision profile, and quotes with 「」.
 - Simplified Chinese calls an artist 艺人 everywhere.

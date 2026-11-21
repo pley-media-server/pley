@@ -634,7 +634,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "「%@」 中 %@ 部已可觀看。"
+            "value" : "「%@」中 %@ 部已可觀看。"
           }
         }
       }
@@ -663,7 +663,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "「%@」 中 %@ 部已可觀看。"
+            "value" : "「%@」中 %@ 部已可觀看。"
           }
         }
       }
@@ -8179,7 +8179,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在 %@ 上快轉"
+            "value" : "在 %@ 上調整播放位置"
           }
         }
       }

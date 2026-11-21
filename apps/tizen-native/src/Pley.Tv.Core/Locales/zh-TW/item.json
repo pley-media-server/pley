@@ -24,8 +24,8 @@
   "rows": {
     "extras": "附加內容",
     "moreLikeThis": "相似內容",
-    "episodes": "影集",
-    "noEpisodes": "未找到影集。",
+    "episodes": "單集",
+    "noEpisodes": "未找到單集。",
     "aired": "{{date}} 播出",
     "cast": "演員",
     "guestStars": "客串演員",

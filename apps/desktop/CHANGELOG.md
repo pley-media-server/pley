@@ -10,9 +10,8 @@ describes how they are made.
 
 ### Fixed
 
-- Traditional Chinese uses the words people use in Taiwan, such as 影集 for
-  a show, 藝人 for an artist, 類型 for a genre and 項目 for an item, and
-  quotes with 「」.
+- Traditional Chinese uses the words people use in Taiwan, and quotes with
+  「」.
 
 ## [0.1.6] - 2026-11-20
 

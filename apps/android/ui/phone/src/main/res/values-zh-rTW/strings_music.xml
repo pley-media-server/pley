@@ -29,7 +29,7 @@
     <string name="music_shuffle_off">關閉隨機播放</string>
     <string name="music_position">曲目進度</string>
     <string name="music_loading">載入中…</string>
-    <string name="music_nothing_playing">當前沒有播放</string>
+    <string name="music_nothing_playing">目前沒有播放</string>
     <string name="music_nothing_playing_body">播放專輯或藝人後，會顯示在這裡。</string>
     <string name="music_error_offline">無法連線伺服器。</string>
     <string name="music_error_signed_out">請重新登入後再播放。</string>

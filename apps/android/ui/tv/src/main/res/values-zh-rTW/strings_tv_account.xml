@@ -56,7 +56,7 @@
         <item quantity="other">%1$d 次播放</item>
     </plurals>
     <string name="tv_account_history_empty_title">暫無記錄</string>
-    <string name="tv_account_history_empty">看完的電影、影集和歌曲會顯示在這裡。</string>
+    <string name="tv_account_history_empty">看完的電影、單集和歌曲會顯示在這裡。</string>
     <string name="tv_account_history_failed">無法載入觀看記錄</string>
     <string name="tv_account_history_more">顯示更多</string>
     <string name="tv_account_history_loading">載入中…</string>

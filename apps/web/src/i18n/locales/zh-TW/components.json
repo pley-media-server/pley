@@ -171,7 +171,7 @@
     "label": "在其他裝置上播放…",
     "playingOn": "正在 {{device}} 上播放",
     "starting": "正在 {{device}} 上啟動…",
-    "otherProfile": "{{device}} 當前使用 {{profile}} 的設定檔：會先切換到你的設定檔。",
+    "otherProfile": "{{device}} 目前使用 {{profile}} 的設定檔：會先切換到你的設定檔。",
     "enterPin": "輸入你的 PIN",
     "pairWith": "與 {{device}} 配對",
     "pairWhy": "輸入 {{device}} 顯示的代碼。之後家裡的每個人都可以用它播放。",

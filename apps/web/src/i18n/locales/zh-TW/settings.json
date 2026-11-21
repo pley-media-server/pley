@@ -53,11 +53,11 @@
       "tvdbPinHint": "使用者資助的金鑰還需要你的訂閱者 PIN。其他金鑰請留空。",
       "testTvdb": "測試 TheTVDB 金鑰",
       "music": "音樂中介資料",
-      "musicHint": "來自 <a>MusicBrainz</a> 的類型和發行日期，以及來自 Cover Art Archive 的封面（僅限沒有封面的專輯）。檔案中的標籤優先。無需金鑰；首次搜尋每專輯約需一秒。",
+      "musicHint": "來自 <a>MusicBrainz</a> 的類型和發行日期，以及來自 Cover Art Archive 的封面（僅限沒有封面的專輯）。檔案中的標籤優先。無需金鑰；首次查詢每張專輯約需一秒。",
       "musicToggle": "來自 MusicBrainz 的音樂中介資料",
       "testMusicBrainz": "測試 MusicBrainz",
       "books": "有聲書中介資料",
-      "booksHint": "簡介、年份和封面來自 <openlibrary>Open Library</openlibrary>，按書名和作者搜尋。檔案帶有 Audible ASIN（Libation 和 OpenAudible 會寫入）的書，還會從 <audnexus>Audnexus</audnexus> 取得朗讀者、系列和類型。檔案中的標籤優先。無需金鑰。",
+      "booksHint": "簡介、年份和封面來自 <openlibrary>Open Library</openlibrary>，按書名和作者查詢。檔案帶有 Audible ASIN（Libation 和 OpenAudible 會寫入）的書，還會從 <audnexus>Audnexus</audnexus> 取得朗讀者、系列和類型。檔案中的標籤優先。無需金鑰。",
       "booksToggle": "來自 Open Library 和 Audnexus 的有聲書中介資料",
       "testBooks": "測試 Open Library 和 Audnexus",
       "nfo": "NFO 檔案",
@@ -69,7 +69,7 @@
     },
     "subtitles": {
       "title": "字幕",
-      "description": "在播放器的字幕選單中，從 OpenSubtitles 搜尋電影或影集的字幕。",
+      "description": "在播放器的字幕選單中，從 OpenSubtitles 搜尋電影或單集的字幕。",
       "key": "OpenSubtitles API 金鑰",
       "keyHint": "每臺伺服器都需要自己的金鑰：在 <a>opensubtitles.com/consumers</a> 建立消費者。沒有金鑰時，字幕搜尋關閉。",
       "account": "OpenSubtitles 帳戶",
@@ -89,11 +89,11 @@
       "strm": ".strm 檔案",
       "strmHint": "使用 .strm 檔案播放來自網路位址的影片。",
       "strmToggle": "讀取 .strm 檔案",
-      "markers": "檢測片頭和片尾",
-      "markersHint": "在後臺比較各集的音訊，以提供「跳過片頭」和「跳過片尾」。名為 Intro 或 Credits 的章節始終使用。",
+      "markers": "偵測片頭和片尾",
+      "markersHint": "在背景比較各集的音訊，以提供「跳過片頭」和「跳過片尾」。名為 Intro 或 Credits 的章節始終使用。",
       "noChromaprint": "此 FFmpeg 缺少 Chromaprint，因此只有章節可以標記片頭和片尾。",
       "seekPreviews": "拖曳預覽",
-      "seekPreviewsHint": "首次開啟電影或影集時，在後臺產生進度條上方顯示的縮圖。",
+      "seekPreviewsHint": "首次開啟電影或單集時，在背景產生進度條上方顯示的縮圖。",
       "wholeLibraries": "為整個媒體庫產生預覽",
       "wholeLibrariesHint": "每次掃描後，補齊缺失的拖曳預覽和章節圖片。",
       "needsSeekPreviews": "需要啟用「拖曳預覽」。",
@@ -103,11 +103,11 @@
     },
     "libraryWork": {
       "label": "媒體庫任務執行時間",
-      "hint": "檢測片頭片尾，以及為整個媒體庫產生預覽。它們始終在播放時等待；無論何時，有人開啟或正在觀看的內容優先。",
+      "hint": "偵測片頭片尾，以及為整個媒體庫產生預覽。它們始終在播放時等待；無論何時，有人開啟或正在觀看的內容優先。",
       "auto": "自動",
       "hours": "在設定時段內",
       "idle": "空閒時",
-      "needs": "需要啟用「檢測片頭和片尾」或「為整個媒體庫產生預覽」。",
+      "needs": "需要啟用「偵測片頭和片尾」或「為整個媒體庫產生預覽」。",
       "autoNote": "無論何時，正在觀看的影集、使用者片單中的內容和新內容優先。其餘內容等待伺服器學習到的、人們很少觀看的時段。",
       "from": "從",
       "to": "到",
@@ -151,7 +151,7 @@
     "documentTitle": "轉碼器設定",
     "title": "轉碼器",
     "description": "轉換播放器無法直接播放的影片。更改適用於新的轉碼。",
-    "running": "pley-transcoder {{version}} · ffmpeg {{ffmpeg}} · 當前編碼器：{{encoder}}",
+    "running": "pley-transcoder {{version}} · ffmpeg {{ffmpeg}} · 目前編碼器：{{encoder}}",
     "noEncoder": "無",
     "unavailable": "轉碼器不可用",
     "unavailableBecause": "轉碼器不可用：{{error}}",
@@ -173,7 +173,7 @@
       "title": "影片",
       "description": "影片的編碼、解碼和色調對映方式。",
       "accel": "硬體加速",
-      "detected": "檢測到的編碼器：{{encoders}}",
+      "detected": "偵測到的編碼器：{{encoders}}",
       "accelHint": "用於影片轉碼的編碼器。",
       "softwareInstead": "{{reason}}：改用軟體編碼轉碼。",
       "decoding": "硬體解碼",
@@ -313,7 +313,7 @@
     "adapters": {
       "label": "網路",
       "notConnected": "未連線",
-      "elsewhere": "當前不在此電腦上：出現後 Pley 將在此監聽。",
+      "elsewhere": "目前不在此電腦上：出現後 Pley 將在此監聽。",
       "none": "未找到網路介面卡。"
     },
     "listenOn": "監聽",
@@ -338,17 +338,17 @@
       "announcedOnHint": "使用 VPN、虛擬機器或容器的網路，或訪客 Wi-Fi 時，請選擇其裝置應能發現 Pley 的網路。每個網路只會收到 Pley 在該網路上的位址。",
       "every": "Pley 監聽的所有網路",
       "everyHint": "包括之後新增的網路。100.64.x.x 網段（Tailscale）僅在選取時包括。",
-      "elsewhere": "當前不是 Pley 監聽的網路：開始監聽後將在此通告。"
+      "elsewhere": "目前不是 Pley 監聽的網路：開始監聽後將在此通告。"
     },
     "listening": {
-      "title": "當前監聽",
+      "title": "目前監聽",
       "retries": "Pley 每 30 秒重試一次尚無法監聽的位址。",
       "onPleyPort": "{{name}}，位於 Pley 的埠",
       "cantListen": "無法監聽：{{error}}"
     },
     "unusual": "Pley 正在監聽 {{addresses}}，本頁儘可能近似顯示：儲存後將替換這些位址。",
     "savedWaiting": "已儲存：Pley 在可以時將監聽其餘位址",
-    "listensNow": "Pley 當前在此監聽",
+    "listensNow": "Pley 目前在此監聽",
     "wouldStop": "Pley 將停止在此頁面所在的位址監聽：此頁面將無法繼續工作。",
     "pageMoves": "此頁面將移至新的埠。"
   },
@@ -507,10 +507,10 @@
       "displayNameHint": "顯示在設定檔切換器和選單中。",
       "password": "密碼",
       "newPassword": "新密碼",
-      "ownPassword": "你自己的密碼、PIN 和兩步驗證在「帳戶」中修改，需驗證當前密碼。",
+      "ownPassword": "你自己的密碼、PIN 和兩步驗證在「帳戶」中修改，需驗證目前密碼。",
       "managedPasswordHint": "設定密碼會將此設定檔變為普通帳戶。",
       "noPasswordHint": "此帳戶沒有密碼：請設定密碼以便登入。",
-      "keepPasswordHint": "留空則保持當前密碼。",
+      "keepPasswordHint": "留空則保持目前密碼。",
       "adminHint": "可以管理媒體庫、使用者和伺服器設定。",
       "managedNotAdmin": "受管理的設定檔不能成為管理員。",
       "home": "此家庭的成員",
@@ -720,7 +720,7 @@
       "status": "狀態",
       "version": "版本",
       "encoders": "編碼器",
-      "activeEncoder": "當前編碼器",
+      "activeEncoder": "目前編碼器",
       "hwAccel": "硬體加速",
       "toneMapping": "色調對映",
       "notAvailable": "不可用",
@@ -731,7 +731,7 @@
       "statusUnavailable": "無法取得轉碼器狀態：{{error}}"
     },
     "jobs": {
-      "none": "當前沒有轉碼任務。",
+      "none": "目前沒有轉碼任務。",
       "job": "任務",
       "state": "狀態",
       "video": "影片",
@@ -760,11 +760,11 @@
       "thumbsAndSubs": "{{thumbs}} 張縮圖 · {{subs}} 條字幕"
     },
     "nowPlaying": "正在播放",
-    "nobodyWatching": "當前沒有人在觀看任何內容。",
+    "nobodyWatching": "目前沒有人在觀看任何內容。",
     "recentlyPlayed": "最近播放",
     "nothingPlayed": "尚無完整播放過的內容。",
     "libraryScans": "媒體庫掃描",
-    "findingMarkers": "正在檢測片頭和片尾",
+    "findingMarkers": "正在偵測片頭和片尾",
     "fingerprints": "{{done}} / {{total}} 個音訊指紋",
     "seasonsLeft_other": "剩餘 {{count, number}} 季",
     "makingPreviews": "正在產生拖曳預覽",
@@ -795,7 +795,7 @@
     "system": "系統",
     "summary": "{{title}}：{{values}}",
     "noReadings": "{{title}}：尚無讀數",
-    "now": "當前 {{title}}",
+    "now": "目前 {{title}}",
     "fiveMinutesAgo": "5 分鐘前",
     "rightNow": "現在",
     "couldntRead": "無法讀取處理器和記憶體：{{error}}",
@@ -937,7 +937,7 @@
         "collections": "正在遷移合集",
         "playlists": "正在遷移播放清單",
         "fetching": "正在取得海報和詳細資訊",
-        "matching_again": "正在搜尋 Plex 的其餘內容"
+        "matching_again": "正在尋找 Plex 的其餘內容"
       },
       "stop": "停止匯入",
       "stopTitle": "停止匯入？",
@@ -952,7 +952,7 @@
       "library": {
         "walking": "正在尋找檔案",
         "probing": "正在讀取檔案",
-        "matching": "正在搜尋 Plex 的內容"
+        "matching": "正在尋找 Plex 的內容"
       }
     },
     "report": {
