@@ -178,6 +178,28 @@ class MusicLibrary(
         }
     }
 
+    /**
+     * What waits for a car's Play when nothing was kept on the phone (the
+     * music was stopped, or none has played on it): the album of the track
+     * the profile played last, on any device, from that track; else the
+     * album added last. Plays that can't be read leave the album added last.
+     */
+    suspend fun suggestion(): MusicSelection? {
+        val last = source.libraries().firstNotNullOfOrNull { library ->
+            val played = try {
+                source.recentlyPlayed(library.id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+            played.firstOrNull { it.kind == ItemKind.Track }
+        }
+        val album = last?.parentId?.let { tracksOf(it) }.orEmpty()
+        val at = album.indexOfFirst { it.id == last?.id }
+        return if (at >= 0) MusicSelection(album, at) else selectionFor("")
+    }
+
     /** A queue's [track] as the session lists it: its art, album and artist. */
     fun queueItem(track: ItemSummary, mediaId: String = MusicId.Track(track.id).text): MediaItem = track(track, from = null).buildUpon().setMediaId(mediaId).build()
 

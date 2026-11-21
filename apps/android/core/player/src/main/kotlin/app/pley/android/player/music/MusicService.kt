@@ -201,8 +201,10 @@ class MusicService : MediaLibraryService() {
      * Android ended the app, or the radio's channel when that was what a
      * car played last. A car connecting is then shown it, with Play ready
      * (a session with nothing in it shows a car nothing to play), and the
-     * car's own Play, pressed or sent as it starts, plays it. Nothing is
-     * played here: only a car or a person starts the sound.
+     * car's own Play, pressed or sent as it starts, plays it. With nothing
+     * kept, a car is shown what the library suggests (the album played
+     * last, else the one added last). Nothing is played here: only a car
+     * or a person starts the sound.
      *
      * The radio is the car's: with no car connecting (the session made for
      * a headset's Play, the phone's media controls, or Android starting the
@@ -228,9 +230,26 @@ class MusicService : MediaLibraryService() {
             if (busy()) return@launch
             if (lineup != null && channel != null && graph != null && runCatching { playRadio(made, playback, graph, lineup, channel) }.isSuccess) return@launch
             if (playback.active) return@launch
-            val saved = resume.saved() ?: return@launch
+            val saved = resume.saved()
+            // Nothing kept: a car is still shown something to play, never Android Auto's "open the app" with nothing in it.
+            val suggested = if (saved == null && car) suggestion(graph) else null
             if (busy() || playback.active) return@launch
-            playback.cue(saved)
+            when {
+                saved != null -> playback.cue(saved)
+                suggested != null -> playback.cue(suggested.tracks, suggested.startIndex, suggested.shuffle)
+            }
+        }
+    }
+
+    /** What the library suggests ([MusicLibrary.suggestion]), within [SUGGESTION_MS]; `null` when it can't say. */
+    private suspend fun suggestion(graph: MusicLibraryGraph?): MusicSelection? {
+        val library = graph?.library ?: return null
+        return try {
+            withTimeoutOrNull(SUGGESTION_MS) { library.suggestion() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -801,6 +820,9 @@ class MusicService : MediaLibraryService() {
 
         /** How long the radio's channel is waited for as what played last is read back ([bringBack]), and Play for that. */
         const val BRING_BACK_WAIT_MS = 3_000L
+
+        /** How long a car waits for the library's suggestion when nothing was kept ([bringBack]): until then, it has nothing to show. */
+        const val SUGGESTION_MS = 10_000L
 
         /** How long a car's request for the library or a search waits for the server before it is told it is out of reach. */
         const val ANSWER_MS = 8_000L

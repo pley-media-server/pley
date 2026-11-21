@@ -34,8 +34,9 @@ With Android Auto:
   channels watched lately and groups, channel search, and "Hey Google,
   play … on Pley" by channel name.
 - As the car connects, what played last waits in its Now Playing, paused
-  where it was, and the car's Play plays it; "Hey Google, stop" pauses
-  and keeps the queue for the next drive.
+  where it was, and the car's Play plays it; with nothing kept on the
+  phone, the album you played last waits, or the one added last. "Hey
+  Google, stop" pauses and keeps the queue for the next drive.
 - Parked, the sideloaded app plays videos and Live TV on the car's screen
   (Android 15 and later, in cars that allow video apps), every page and
   control sized for the car, with 10-second skip buttons, and pauses as

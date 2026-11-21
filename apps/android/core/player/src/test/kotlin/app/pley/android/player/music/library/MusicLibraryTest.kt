@@ -206,6 +206,27 @@ class MusicLibraryTest {
     }
 
     @Test
+    fun aCarIsSuggestedTheAlbumPlayedLastFromItsTrackElseTheOneAddedLast() = runTest {
+        // Nothing played: the album added last, from its start.
+        val added = library.suggestion()!!
+        assertEquals(listOf(51L, 52L), added.tracks.map { it.id })
+        assertEquals(0, added.startIndex)
+
+        // Newest first: a film, then the second track of Deep Water.
+        source.played[3] = listOf(ItemSummary(9, 3, ItemKind.Movie, "A film"), track(52, 50), track(56, 55))
+        val played = library.suggestion()!!
+        assertEquals(listOf(51L, 52L), played.tracks.map { it.id })
+        assertEquals(1, played.startIndex)
+        assertFalse(played.shuffle)
+
+        // Plays that can't be read: the album added last.
+        val failing = MusicLibrary(object : MusicSource by source {
+            override suspend fun recentlyPlayed(libraryId: Long): List<ItemSummary> = error("Out of reach")
+        }, { Look }, { _, _ -> null })
+        assertEquals(0, failing.suggestion()!!.startIndex)
+    }
+
+    @Test
     fun aPlaylistSaidIsItsNameAlone() {
         assertEquals("Night Drive", playlistNamed("my Night Drive playlist"))
         assertEquals("Night Drive", playlistNamed("Playlist Night Drive"))
