@@ -127,6 +127,78 @@ protect your server.
   until they sign in again, as its proofs change, and the desktop app until
   the server is forgotten and connected again).
 
+### Signing in with Tailscale
+
+Off until an administrator turns it on (**Settings → Server → Sign-in**).
+Then a device on the tailnet signs in as the account its Tailscale user
+linked, without the password.
+
+- Pley asks the Tailscale service on its computer (its LocalAPI) who the
+  other end of a connection is. Tailscale's traffic is WireGuard's, so a
+  connection from a device's Tailscale address comes from that device: a
+  device on the local network can't open one from such an address, as the
+  server's answers go to the tailnet. Pley asks about the connection
+  itself, never about an address a header names, which clients choose.
+- That holds where Tailscale has a network adapter of its own. Without one
+  (its userspace mode, the Docker image's), it hands the tailnet's
+  connections over from the computer's own address, each told apart by its
+  port, and nothing keeps the local network from sending from a Tailscale
+  address. Pley then asks about connections from its own computer only,
+  and with an adapter, about connections from Tailscale's addresses only.
+  What Tailscale says of a port holds for that connection alone, so it is
+  asked each time; what it says of a Tailscale address is kept 30 seconds.
+- Nobody is a tagged device, a device that routes others' traffic (a
+  subnet router or an exit node, which everyone behind it comes from), the
+  server's own device (any program on its computer can connect from its
+  address), or a connection Tailscale didn't carry (the local network, a
+  proxy on this computer, Tailscale Serve). Nor is a request that says a
+  proxy passed it on (`Forwarded`, `X-Forwarded-For`, `Via` and the like,
+  or HTTP/1.0, which nginx speaks to the servers behind it by default and
+  browsers never do). A device that passes on other people's connections
+  without saying so (a reverse proxy set up that way, a port forward) is
+  taken for its owner, with everyone behind it: tag it in Tailscale.
+- Accounts are linked to Tailscale's id for the user in the tailnet: a
+  login name can change hands, and ids are a tailnet's own (a Headscale
+  server's start at 1), so a link made in one tailnet signs no one in from
+  another. Someone on another tailnet the server's device is shared with
+  is who Tailscale says, like the tailnet's own people.
+- It answers only at the server's own Tailscale name (its MagicDNS name) or
+  addresses. A website whose name a browser on the tailnet is led to
+  resolve to the server (DNS rebinding) gets nothing: its page would
+  otherwise be signed in as whoever opened it. Nor can another site's page
+  sign its visitor in (`Origin`), nor read who its visitor is: who
+  Tailscale says the caller is never answers CORS, not even to the `null`
+  origin the TV apps have.
+- Linking takes the password, and the code with two-step sign-in. Signing
+  in replaces the password, never the second step: an account with
+  two-step sign-in gives its code, one without it is refused while the
+  server requires it, and an administrator's account links and signs in
+  with Tailscale only with two-step sign-in on. Tailscale vouches for the
+  device's person, not for who is at it: a computer several people use
+  under one Tailscale account signs them all in as that account.
+- A session signed in with Tailscale, and a profile switched to from it,
+  works only from a device Tailscale says belongs to the same person, and
+  while that person's link stands: a copy of it works nowhere else, and
+  one whose device or person left the tailnet stops working within 30
+  seconds. While Tailscale can't be asked, such a session doesn't work.
+  Nor does one signed in as an account that has since become an
+  administrator's, or an administrator's that turned two-step sign-in off.
+  It makes no token for other apps, which would work from anywhere. Apps
+  allowed from it on the consent page get their own sign-in, as from any
+  session, and keep it until they are signed out (**Account → Apps**).
+- Unlinking, and turning it off, sign out the sessions signed in with it
+  and the profiles switched to from them. A new password (one's own, an
+  administrator's, `pley reset-password`) removes the link, which whoever
+  knew the old one may have made, and signs them out too, but for the
+  session that changed it, which goes on as one signed in with the
+  password; a link made with the password after it changed isn't made.
+- Nothing asks Tailscale while it is off. On Windows, a program that
+  connects to Tailscale's service as another account than the one
+  Tailscale runs for can make it switch to that account's profile, so
+  Pley's Windows service never asks it: run Pley from the tray, as the
+  person Tailscale runs for. On a Mac, Pley asks the open-source
+  `tailscaled`: Tailscale's Mac apps answer only with a token of their own.
+
 ### Sessions
 
 - Session tokens are random 256-bit values, stored hashed.

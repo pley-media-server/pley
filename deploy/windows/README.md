@@ -55,6 +55,10 @@ Good to know:
   adds HTTPS (Caddy, nginx, IIS). Pick networks to let other devices in.
 - A network adapter that isn't up when Pley starts (Wi-Fi, Tailscale) is
   retried every 30 seconds.
+- [Signing in with Tailscale](../../SECURITY.md#signing-in-with-tailscale)
+  works when Pley runs from the tray, as the person Tailscale runs for. The
+  service can't ask Tailscale who a connection comes from: Tailscale could
+  switch to the service's profile.
 - You can change where Pley listens later in **Settings → Network**. The
   firewall rule follows, for the kinds of network you chose here. It lets
   Pley's TCP and UDP through on any port: the web port, the apps' broadcast

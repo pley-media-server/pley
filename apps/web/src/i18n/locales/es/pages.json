@@ -32,7 +32,10 @@
     "recoveryCode": "Código de recuperación",
     "useApp": "Usar tu aplicación de autenticación",
     "useRecoveryCode": "Usar un código de recuperación",
-    "otherServer": "Usar otro servidor"
+    "otherServer": "Usar otro servidor",
+    "tailscaleAs": "Continuar como {{username}}",
+    "tailscaleHint": "Con Tailscale, con la sesión de {{login}}",
+    "orPassword": "o con una contraseña"
   },
   "setup": {
     "documentTitle": "Bienvenida",
@@ -184,6 +187,26 @@
     "turnOn": "Activar",
     "turnOffHint": "Para desactivarlo hacen falta tu contraseña y un código de la aplicación, o un código de recuperación.",
     "offToast": "Inicio de sesión en dos pasos desactivado"
+  },
+  "tailscale": {
+    "title": "Tailscale",
+    "intro": "Vincula tu cuenta de Tailscale para iniciar sesión en Pley sin tu contraseña en los dispositivos con la sesión iniciada en Tailscale. El inicio de sesión en dos pasos sigue pidiendo su código.",
+    "off": "El inicio de sesión con Tailscale está desactivado en este servidor.",
+    "linkedTo": "Vinculada a {{login}} desde el {{date}}: los dispositivos con la sesión de {{login}} en Tailscale inician sesión en Pley sin tu contraseña.",
+    "thisDevice": "Este dispositivo es uno de ellos.",
+    "here": "Este dispositivo tiene la sesión de {{login}} en Tailscale.",
+    "hereElsewhere": "Este dispositivo tiene la sesión de {{login}} en Tailscale, que está vinculada a otra cuenta de Pley.",
+    "notHere": "Para vincularla, abre Pley en su nombre o dirección de Tailscale en un dispositivo con la sesión iniciada en Tailscale.",
+    "notHereNamed": "Para vincularla, abre Pley en {{name}} en un dispositivo con la sesión iniciada en Tailscale.",
+    "problem": "Pley no puede consultar a Tailscale: {{problem}}",
+    "adminNeedsTwoStep": "Los administradores solo inician sesión con Tailscale con el inicio de sesión en dos pasos activado: actívalo primero arriba.",
+    "unlink": "Desvincular",
+    "unlinkHint": "Cierra la sesión de los dispositivos que la iniciaron con Tailscale, también este si lo hizo",
+    "unlinkedToast": "Tailscale desvinculado",
+    "link": "Vincular {{login}}",
+    "linkHint": "Los dispositivos con la sesión de {{login}} en Tailscale iniciarán sesión en Pley como tú, sin tu contraseña. Confirma con tu contraseña.",
+    "linkButton": "Vincular",
+    "linkedToast": "Vinculada a {{login}}"
   },
   "account": {
     "title": "Cuenta",

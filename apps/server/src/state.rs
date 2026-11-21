@@ -190,7 +190,8 @@ impl AppState {
         );
         let live =
             crate::livetv::LiveTv::new(db.clone(), events.clone(), transcoder.clone(), config.cache_dir()).await?;
-        let auth = AuthService::new(db.clone());
+        let auth = AuthService::new(db.clone(), crate::tailscale::Tailscale::new(config.tailscale_socket.clone()));
+        auth.set_tailscale_sign_in(settings.get().tailscale_sign_in);
         let oauth = crate::oauth::AuthorizationServer::new(&config);
         let two_step = crate::two_step::TwoStep::new(db.clone(), &config.data_dir);
         two_step.check_key().await;

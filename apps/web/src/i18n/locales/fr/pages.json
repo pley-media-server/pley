@@ -32,7 +32,10 @@
     "recoveryCode": "Code de secours",
     "useApp": "Utiliser votre application d’authentification",
     "useRecoveryCode": "Utiliser un code de secours",
-    "otherServer": "Utiliser un autre serveur"
+    "otherServer": "Utiliser un autre serveur",
+    "tailscaleAs": "Continuer en tant que {{username}}",
+    "tailscaleHint": "Avec Tailscale, connecté en tant que {{login}}",
+    "orPassword": "ou avec un mot de passe"
   },
   "setup": {
     "documentTitle": "Bienvenue",
@@ -184,6 +187,26 @@
     "turnOn": "Activer",
     "turnOffHint": "Pour la désactiver, il faut votre mot de passe et un code de l’application, ou un code de secours.",
     "offToast": "Connexion en deux étapes désactivée"
+  },
+  "tailscale": {
+    "title": "Tailscale",
+    "intro": "Liez votre compte Tailscale pour vous connecter à Pley sans votre mot de passe sur les appareils connectés à Tailscale. La connexion en deux étapes demande toujours son code.",
+    "off": "La connexion avec Tailscale est désactivée sur ce serveur.",
+    "linkedTo": "Lié à {{login}} depuis le {{date}} : les appareils connectés à Tailscale en tant que {{login}} se connectent à Pley sans votre mot de passe.",
+    "thisDevice": "Cet appareil en fait partie.",
+    "here": "Cet appareil est connecté à Tailscale en tant que {{login}}.",
+    "hereElsewhere": "Cet appareil est connecté à Tailscale en tant que {{login}}, qui est lié à un autre compte Pley.",
+    "notHere": "Pour le lier, ouvrez Pley à son nom ou son adresse Tailscale sur un appareil connecté à Tailscale.",
+    "notHereNamed": "Pour le lier, ouvrez Pley à l’adresse {{name}} sur un appareil connecté à Tailscale.",
+    "problem": "Pley ne peut pas interroger Tailscale : {{problem}}",
+    "adminNeedsTwoStep": "Les administrateurs ne se connectent avec Tailscale qu’avec la connexion en deux étapes : activez-la d’abord ci-dessus.",
+    "unlink": "Délier",
+    "unlinkHint": "Déconnecte les appareils qui se sont connectés avec Tailscale, y compris celui-ci",
+    "unlinkedToast": "Tailscale délié",
+    "link": "Lier {{login}}",
+    "linkHint": "Les appareils connectés à Tailscale en tant que {{login}} se connecteront à Pley en votre nom, sans votre mot de passe. Confirmez avec votre mot de passe.",
+    "linkButton": "Lier",
+    "linkedToast": "Lié à {{login}}"
   },
   "account": {
     "title": "Compte",

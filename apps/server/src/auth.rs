@@ -501,6 +501,8 @@ const COMMON_PASSWORDS: &[&str] = &[
 
 struct CachedSession {
     user: AuthUser,
+    /// The Tailscale user it signed in as (see [`AuthService::validate_from`]).
+    tailscale: Option<String>,
     expires_at: i64,
     cached_at: Instant,
     touched_at: i64,
@@ -537,6 +539,11 @@ pub struct AuthService {
     pub throttle: crate::accounts::Throttle,
     /// The code that sets up a server without accounts from elsewhere.
     pub setup: crate::setup::SetupCode,
+    /// Tailscale's service on this computer, which says who a connection
+    /// over the tailnet comes from.
+    pub tailscale: crate::tailscale::Tailscale,
+    /// People sign in with Tailscale (the `tailscale_sign_in` setting).
+    tailscale_sign_in: AtomicBool,
     /// Where tests hold the service, to land a forget at the worst moment.
     #[cfg(test)]
     pauses: Pauses,
@@ -568,9 +575,11 @@ struct Gate {
 }
 
 impl AuthService {
-    pub fn new(db: Db) -> Self {
+    pub fn new(db: Db, tailscale: crate::tailscale::Tailscale) -> Self {
         Self {
             db,
+            tailscale,
+            tailscale_sign_in: AtomicBool::new(false),
             cache: DashMap::new(),
             apps: DashMap::new(),
             compatibility: DashMap::new(),
@@ -604,6 +613,16 @@ impl AuthService {
         self.compatibility.clear();
     }
 
+    /// Whether people sign in with Tailscale: the `tailscale_sign_in`
+    /// setting. Off, the sessions they signed in to with it don't work.
+    pub fn tailscale_sign_in(&self) -> bool {
+        self.tailscale_sign_in.load(Ordering::SeqCst)
+    }
+
+    pub fn set_tailscale_sign_in(&self, on: bool) {
+        self.tailscale_sign_in.store(on, Ordering::SeqCst);
+    }
+
     /// Whether `user_id` is kept out because the server requires two-step
     /// sign-in and they don't use it, for what doesn't come through
     /// [`AuthService::validate`]: the keyed addresses and the compatibility
@@ -628,22 +647,37 @@ impl AuthService {
         user_agent: Option<&str>,
         ip: Option<&str>,
     ) -> Result<String, AppError> {
-        self.create_session_drawing(new_token, user_id, user_agent, ip).await
+        self.create_session_drawing(new_token, user_id, user_agent, ip, None).await
     }
 
-    /// [`AuthService::create_session`], with tokens from `draw`.
+    /// A session signed in with Tailscale as `tailscale_user`, or switched
+    /// to from one: it works only over the tailnet from them
+    /// ([`AuthService::validate_from`]).
+    pub async fn create_session_as(
+        &self,
+        user_id: i64,
+        user_agent: Option<&str>,
+        ip: Option<&str>,
+        tailscale_user: Option<&str>,
+    ) -> Result<String, AppError> {
+        self.create_session_drawing(new_token, user_id, user_agent, ip, tailscale_user).await
+    }
+
+    /// [`AuthService::create_session_as`], with tokens from `draw`.
     async fn create_session_drawing(
         &self,
         draw: impl FnMut() -> String,
         user_id: i64,
         user_agent: Option<&str>,
         ip: Option<&str>,
+        tailscale_user: Option<&str>,
     ) -> Result<String, AppError> {
         let token = session_token(draw);
         let now = now();
         sqlx::query(
-            "INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, expires_at, user_agent, last_ip)
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO sessions
+               (token_hash, user_id, created_at, last_seen_at, expires_at, user_agent, last_ip, tailscale_user)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(hash_token(&token))
         .bind(user_id)
@@ -652,14 +686,49 @@ impl AuthService {
         .bind(now + SESSION_TTL_SECS)
         .bind(user_agent.map(|ua| ua.chars().take(200).collect::<String>()))
         .bind(ip)
+        .bind(tailscale_user)
         .execute(&self.db.write)
         .await?;
         Ok(token)
     }
 
-    /// The user of a session token. Never of an app's token: those go
-    /// through [`AuthService::validate_app`].
+    /// The user of a session token, used from nowhere known: never one
+    /// signed in with Tailscale ([`AuthService::validate_from`]). Never of an
+    /// app's token: those go through [`AuthService::validate_app`].
     pub async fn validate(&self, token: &str) -> Option<AuthUser> {
+        self.validate_from(token, None).await
+    }
+
+    /// The user of a session token used from `from`, the other end of the
+    /// request's connection. A session signed in with Tailscale works only
+    /// while signing in with it is on, and from a device Tailscale says the
+    /// same person is signed in to: one stolen works nowhere else, and one
+    /// whose device or person left the tailnet stops. When Tailscale can't
+    /// be asked, it doesn't work either.
+    pub async fn validate_from(&self, token: &str, from: Option<SocketAddr>) -> Option<AuthUser> {
+        self.validate_session_from(token, from).await.map(|(user, _)| user)
+    }
+
+    /// [`AuthService::validate_from`], with the Tailscale user the session
+    /// signed in as, if it did.
+    pub async fn validate_session_from(
+        &self,
+        token: &str,
+        from: Option<SocketAddr>,
+    ) -> Option<(AuthUser, Option<String>)> {
+        let (user, tailscale_user) = self.session(token).await?;
+        let Some(tailscale_user) = tailscale_user else { return Some((user, None)) };
+        if !self.tailscale_sign_in() {
+            return None;
+        }
+        match self.tailscale.person(from?).await {
+            Ok(Some(person)) if person.id == tailscale_user => Some((user, Some(tailscale_user))),
+            _ => None,
+        }
+    }
+
+    /// The user of a session token, and the Tailscale user it signed in as.
+    async fn session(&self, token: &str) -> Option<(AuthUser, Option<String>)> {
         if token.starts_with(APP_TOKEN_PREFIX) {
             return None;
         }
@@ -669,18 +738,25 @@ impl AuthService {
             && entry.cached_at.elapsed() < CACHE_TTL
             && entry.expires_at > now
         {
-            return Some(entry.user.clone());
+            return Some((entry.user.clone(), entry.tailscale.clone()));
         }
         // Read before the database: a sign-out or a forget that lands while
         // the query runs keeps what it read out of the cache.
         let epoch = self.epoch.load(Ordering::SeqCst);
+        // A session signed in with Tailscale holds while the Tailscale user
+        // is still linked (one that signed in as an unlink landed doesn't),
+        // and, signed in as the linked account itself, while that account,
+        // if an administrator's, uses two-step sign-in.
         #[allow(clippy::type_complexity)]
-        let row: Option<(i64, String, bool, bool, Option<i64>, bool, bool, i64, i64)> =
+        let row: Option<(i64, String, bool, bool, Option<i64>, bool, bool, i64, i64, Option<String>, bool)> =
             sqlx::query_as(sqlx::AssertSqlSafe(format!(
-                "SELECT u.id, u.username, u.is_admin, u.all_libraries, u.max_age, u.disabled, {}, s.expires_at,
-                        s.last_seen_at
+                "SELECT u.id, u.username, u.is_admin, u.all_libraries, u.max_age, u.disabled, {no_two_step},
+                        s.expires_at, s.last_seen_at, s.tailscale_user,
+                        s.tailscale_user IS NOT NULL AND NOT EXISTS (
+                            SELECT 1 FROM tailscale_links l WHERE l.tailscale_user = s.tailscale_user
+                              AND (l.user_id != s.user_id OR NOT u.is_admin OR NOT {no_two_step}))
                  FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?",
-                without_two_step("u")
+                no_two_step = without_two_step("u")
             )))
             .bind(&key)
             .fetch_optional(&self.db.read)
@@ -694,13 +770,24 @@ impl AuthService {
                 gate.release.notified().await;
             }
         }
-        let Some((id, username, is_admin, all_libraries, max_age, disabled, no_two_step, expires_at, last_seen_at)) =
-            row
+        let Some((
+            id,
+            username,
+            is_admin,
+            all_libraries,
+            max_age,
+            disabled,
+            no_two_step,
+            expires_at,
+            last_seen_at,
+            tailscale,
+            tailscale_lapsed,
+        )) = row
         else {
             self.cache.remove(&key);
             return None;
         };
-        if expires_at <= now || disabled || (no_two_step && self.two_step_required()) {
+        if expires_at <= now || disabled || (no_two_step && self.two_step_required()) || tailscale_lapsed {
             self.cache.remove(&key);
             return None;
         }
@@ -727,10 +814,16 @@ impl AuthService {
         }
         self.remember_session(
             key,
-            CachedSession { user: user.clone(), expires_at, cached_at: Instant::now(), touched_at },
+            CachedSession {
+                user: user.clone(),
+                tailscale: tailscale.clone(),
+                expires_at,
+                cached_at: Instant::now(),
+                touched_at,
+            },
             epoch,
         );
-        Some(user)
+        Some((user, tailscale))
     }
 
     /// Caches a session read while the epoch was `epoch`, unless something
@@ -744,6 +837,21 @@ impl AuthService {
         if self.epoch.load(Ordering::SeqCst) != epoch {
             self.cache.remove(&key);
         }
+    }
+
+    /// Signs out every session signed in with Tailscale, and the profiles
+    /// switched to from them.
+    pub async fn end_tailscale_sessions(&self) -> Result<(), AppError> {
+        sqlx::query("DELETE FROM sessions WHERE tailscale_user IS NOT NULL").execute(&self.db.write).await?;
+        self.forget_sessions();
+        Ok(())
+    }
+
+    /// Forgets every cached session, for sessions signed out in a
+    /// transaction that just committed.
+    pub fn forget_sessions(&self) {
+        self.epoch.fetch_add(1, Ordering::SeqCst);
+        self.cache.clear();
     }
 
     /// Signs a session out. The row goes first, then the epoch moves and
@@ -1075,9 +1183,14 @@ impl AuthService {
         self.compatibility.retain(|_, c| c.user.compatibility.is_none_or(|token| !ids.contains(&token.token_id)));
     }
 
-    /// The user of a session token or of an app's access token.
-    pub async fn validate_any(&self, token: &str) -> Option<AuthUser> {
-        if token.starts_with(ACCESS_PREFIX) { self.validate_app(token).await } else { self.validate(token).await }
+    /// The user of a session token or of an app's access token, used from
+    /// `from` ([`AuthService::validate_from`]).
+    pub async fn validate_any(&self, token: &str, from: Option<SocketAddr>) -> Option<AuthUser> {
+        if token.starts_with(ACCESS_PREFIX) {
+            self.validate_app(token).await
+        } else {
+            self.validate_from(token, from).await
+        }
     }
 
     /// Records what a person allowed an app; its first tokens (see
@@ -1320,6 +1433,44 @@ pub fn source_ip_of(extensions: &axum::http::Extensions, headers: &axum::http::H
     Some(forwarded_for(peer, headers))
 }
 
+/// Headers a proxy adds to say whose request it passes on.
+const FORWARDED_BY: [&str; 9] = [
+    "forwarded",
+    "via",
+    "x-forwarded-for",
+    "x-forwarded-host",
+    "x-forwarded-proto",
+    "x-real-ip",
+    "cf-connecting-ip",
+    "true-client-ip",
+    "tailscale-user-login",
+];
+
+/// The other end of a request's connection, with its port, to ask Tailscale
+/// about: none for a request that shows a proxy passed it on, by a proxy's
+/// header or by HTTP/1.0 (nginx's default; browsers don't speak it).
+/// Tailscale would vouch for the proxy's device, not for whoever is behind
+/// it. None too without a connection (tests).
+pub fn tailnet_peer(parts: &Parts) -> Option<SocketAddr> {
+    let forwarded = parts.version < axum::http::Version::HTTP_11
+        || FORWARDED_BY.iter().any(|name| parts.headers.contains_key(*name));
+    if forwarded {
+        return None;
+    }
+    parts.extensions.get::<axum::extract::ConnectInfo<SocketAddr>>().map(|info| info.0)
+}
+
+/// [`tailnet_peer`], for a handler.
+pub struct TailnetPeer(pub Option<SocketAddr>);
+
+impl<S: Send + Sync> FromRequestParts<S> for TailnetPeer {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        Ok(TailnetPeer(tailnet_peer(parts)))
+    }
+}
+
 /// The other end of a request's connection: the client itself, or the
 /// proxy in front of it. Unknown only without a connection (tests).
 pub struct PeerIp(pub Option<IpAddr>);
@@ -1369,10 +1520,28 @@ pub fn forwarded_for(peer: IpAddr, headers: &axum::http::HeaderMap) -> IpAddr {
     client
 }
 
-/// The user a request was authenticated as, kept for its other extractors.
-/// Private, so nothing else can put a user there.
+/// The user a request was authenticated as, and the Tailscale user its
+/// session signed in as, kept for its other extractors. Private, so nothing
+/// else can put a user there.
 #[derive(Clone)]
-struct Authenticated(AuthUser);
+struct Authenticated(AuthUser, Option<String>);
+
+/// The Tailscale user the request's session signed in as, when it did
+/// ([`AuthService::validate_from`]), as it was found when the request was
+/// authenticated.
+pub struct SignedInWithTailscale(pub Option<String>);
+
+impl FromRequestParts<AppState> for SignedInWithTailscale {
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+        AuthUser::from_request_parts(parts, state).await?;
+        let Some(Authenticated(_, tailscale)) = parts.extensions.get::<Authenticated>() else {
+            return Err(AppError::Unauthorized);
+        };
+        Ok(Self(tailscale.clone()))
+    }
+}
 
 /// Every pley API handler that needs a user goes through here: sessions as
 /// always, and app tokens only from `Authorization: Bearer`, and only on the
@@ -1384,10 +1553,10 @@ impl FromRequestParts<AppState> for AuthUser {
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
         let user = match parts.extensions.get::<Authenticated>() {
-            Some(Authenticated(user)) => user.clone(),
+            Some(Authenticated(user, _)) => user.clone(),
             None => {
-                let user = authenticate(parts, state).await?;
-                parts.extensions.insert(Authenticated(user.clone()));
+                let (user, tailscale) = authenticate(parts, state).await?;
+                parts.extensions.insert(Authenticated(user.clone(), tailscale));
                 user
             }
         };
@@ -1398,10 +1567,13 @@ impl FromRequestParts<AppState> for AuthUser {
     }
 }
 
-async fn authenticate(parts: &Parts, state: &AppState) -> Result<AuthUser, AppError> {
+/// The user a request comes from, and the Tailscale user its session signed
+/// in as.
+async fn authenticate(parts: &Parts, state: &AppState) -> Result<(AuthUser, Option<String>), AppError> {
     if let Some(token) = bearer_token(parts) {
         if token.starts_with(ACCESS_PREFIX) {
-            return state.auth.validate_app(&token).await.ok_or(AppError::InvalidToken);
+            let user = state.auth.validate_app(&token).await.ok_or(AppError::InvalidToken)?;
+            return Ok((user, None));
         }
         if token.starts_with(compatibility::PREFIX) {
             return Err(AppError::CompatibilityToken);
@@ -1442,7 +1614,7 @@ async fn authenticate(parts: &Parts, state: &AppState) -> Result<AuthUser, AppEr
             return Err(AppError::forbidden("this request didn't come from Pley's page"));
         }
     }
-    state.auth.validate(&token).await.ok_or(AppError::Unauthorized)
+    state.auth.validate_session_from(&token, tailnet_peer(parts)).await.ok_or(AppError::Unauthorized)
 }
 
 /// Whether the browser's cookie signs this request in (no token in a
@@ -1463,7 +1635,7 @@ fn from_another_sites_page(parts: &Parts) -> bool {
 /// `Sec-Fetch-Site`, or, without it (older browsers, and plain HTTP to an
 /// address other than localhost), by an `Origin` other than the server it
 /// went to. A request saying neither isn't a page's.
-fn from_another_site(parts: &Parts) -> bool {
+pub(crate) fn from_another_site(parts: &Parts) -> bool {
     if let Some(site) = parts.headers.get("sec-fetch-site") {
         return site.as_bytes() != b"same-origin";
     }
@@ -1722,7 +1894,7 @@ mod tests {
         .execute(&db.write)
         .await
         .unwrap();
-        let service = AuthService::new(db.clone());
+        let service = AuthService::new(db.clone(), crate::tailscale::Tailscale::new(Err("tests".into())));
         (db, service)
     }
 
@@ -1853,7 +2025,7 @@ mod tests {
         let kid = app_of(&auth, 1, 1).await;
         let kid = auth.validate_app(&kid.access_token).await.unwrap();
         assert_eq!((kid.id, kid.is_admin, kid.all_libraries, kid.max_age), (1, false, false, Some(12)));
-        assert!(auth.validate_any(&admin.access_token).await.is_some_and(|u| u.app.is_some()));
+        assert!(auth.validate_any(&admin.access_token, None).await.is_some_and(|u| u.app.is_some()));
         assert!(auth.validate_app(admin.refresh_token.as_ref().unwrap()).await.is_none(), "no refresh token");
         assert!(auth.validate_app("pley_at_unknown").await.is_none());
 
@@ -2032,7 +2204,7 @@ mod tests {
         assert!(auth.validate(issued.refresh_token.as_ref().unwrap()).await.is_none());
         let session = auth.create_session(1, None, None).await.unwrap();
         assert!(auth.validate_app(&session).await.is_none(), "and the other way round");
-        assert!(auth.validate_any(&session).await.is_some_and(|u| u.app.is_none()));
+        assert!(auth.validate_any(&session, None).await.is_some_and(|u| u.app.is_none()));
     }
 
     #[test]
@@ -2047,7 +2219,7 @@ mod tests {
         let dir = crate::testing::tempdir();
         let (_db, auth) = service_with_user(dir.path()).await;
         let mut draws = ["pley_at_x", "pley_rt_y", "pleyfine"].into_iter().map(str::to_owned);
-        let token = auth.create_session_drawing(|| draws.next().unwrap(), 1, None, None).await.unwrap();
+        let token = auth.create_session_drawing(|| draws.next().unwrap(), 1, None, None, None).await.unwrap();
         assert_eq!(token, "pleyfine");
         assert!(auth.validate(&token).await.is_some());
     }
@@ -2102,7 +2274,7 @@ mod tests {
         let token = compatibility_token(&auth, 2).await;
         assert!(auth.validate(&token).await.is_none(), "and the other way round");
         assert!(auth.validate_app(&token).await.is_none());
-        assert!(auth.validate_any(&token).await.is_none());
+        assert!(auth.validate_any(&token, None).await.is_none());
     }
 
     #[tokio::test]

@@ -68,6 +68,7 @@ pub mod store;
 pub mod streams;
 pub mod strm;
 pub mod subtitles;
+pub mod tailscale;
 #[cfg(test)]
 mod testing;
 pub mod transcoder;
@@ -400,6 +401,9 @@ pub async fn reset_password(config: Config, username: &str, password: &str, admi
                 .execute(&db.write)
                 .await?;
             sqlx::query("DELETE FROM sessions WHERE user_id = ?").bind(id).execute(&db.write).await?;
+            // So does a Tailscale user linked with the old password, with the
+            // profiles switched to with it.
+            crate::tailscale::remove_link_within(&mut *db.write.acquire().await?, id, None).await?;
             // Whoever runs this owns the server: an authenticator lost with
             // the password doesn't keep them out.
             let two_step = sqlx::query("DELETE FROM two_step WHERE user_id = ?")

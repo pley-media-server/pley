@@ -32,7 +32,10 @@
     "recoveryCode": "Recovery code",
     "useApp": "Use your authenticator app",
     "useRecoveryCode": "Use a recovery code",
-    "otherServer": "Use another server"
+    "otherServer": "Use another server",
+    "tailscaleAs": "Continue as {{username}}",
+    "tailscaleHint": "With Tailscale, signed in as {{login}}",
+    "orPassword": "or with a password"
   },
   "setup": {
     "documentTitle": "Welcome",
@@ -182,6 +185,26 @@
     "turnOn": "Turn on",
     "turnOffHint": "Turning it off takes your password and a code from the app, or a recovery code.",
     "offToast": "Two-step sign-in is off"
+  },
+  "tailscale": {
+    "title": "Tailscale",
+    "intro": "Link your Tailscale account to sign in to Pley without your password on devices signed in to Tailscale. Two-step sign-in still asks for its code.",
+    "off": "Signing in with Tailscale is off on this server.",
+    "linkedTo": "Linked to {{login}} since {{date}}: devices signed in to Tailscale as {{login}} sign in to Pley without your password.",
+    "thisDevice": "This device is one of them.",
+    "here": "This device is signed in to Tailscale as {{login}}.",
+    "hereElsewhere": "This device is signed in to Tailscale as {{login}}, which is linked to another Pley account.",
+    "notHere": "To link it, open Pley at its Tailscale name or address on a device signed in to Tailscale.",
+    "notHereNamed": "To link it, open Pley at {{name}} on a device signed in to Tailscale.",
+    "problem": "Pley can't ask Tailscale: {{problem}}",
+    "adminNeedsTwoStep": "Administrators sign in with Tailscale only with two-step sign-in on: turn it on above first.",
+    "unlink": "Unlink",
+    "unlinkHint": "Signs out the devices that signed in with Tailscale, this one too if it did",
+    "unlinkedToast": "Tailscale unlinked",
+    "link": "Link {{login}}",
+    "linkHint": "Devices signed in to Tailscale as {{login}} will sign in to Pley as you, without your password. Confirm with your password.",
+    "linkButton": "Link",
+    "linkedToast": "Linked to {{login}}"
   },
   "account": {
     "title": "Account",

@@ -131,7 +131,12 @@
       "signsOut_one": "Al guardar se cierra la sesión de {{count, number}} persona que no lo ha configurado, en todos los dispositivos y aplicaciones, hasta que lo configure.",
       "signsOut_many": "Al guardar se cierra la sesión de {{count, number}} de personas que no lo han configurado, en todos los dispositivos y aplicaciones, hasta que lo configuren.",
       "signsOut_other": "Al guardar se cierra la sesión de {{count, number}} personas que no lo han configurado, en todos los dispositivos y aplicaciones, hasta que lo configuren.",
-      "noSecretKey": "El servidor no puede usar su secret.key, así que las apps de autenticación no se pueden configurar ni comprobar. Mientras tanto, quienes no hayan configurado el inicio de sesión en dos pasos no pueden iniciar sesión, y quienes sí lo hayan hecho inician sesión con un código de recuperación. Su registro indica el motivo."
+      "noSecretKey": "El servidor no puede usar su secret.key, así que las apps de autenticación no se pueden configurar ni comprobar. Mientras tanto, quienes no hayan configurado el inicio de sesión en dos pasos no pueden iniciar sesión, y quienes sí lo hayan hecho inician sesión con un código de recuperación. Su registro indica el motivo.",
+      "tailscale": "Iniciar sesión con Tailscale",
+      "tailscaleHint": "Cada persona vincula su cuenta de Tailscale en su página Cuenta y luego inicia sesión sin contraseña en los dispositivos con la sesión iniciada en Tailscale, en el nombre de Tailscale de este servidor. El inicio de sesión en dos pasos sigue pidiendo su código. Pon una etiqueta en Tailscale a todo dispositivo que pase a Pley las conexiones de otras personas, como un proxy inverso: si no, inician sesión como su propietario.",
+      "tailscaleServer": "Tailscale responde: este servidor es {{name}}.",
+      "tailscaleProblem": "Pley no puede consultar a Tailscale: {{problem}}",
+      "tailscaleSignsOut": "Al guardar se cierra la sesión de todos los que la iniciaron con Tailscale."
     },
     "apps": {
       "title": "Aplicaciones",

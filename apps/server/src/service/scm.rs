@@ -385,7 +385,7 @@ const START_HINT: u32 = 10_000;
 pub fn dispatch(cli: &Cli) -> ExitCode {
     // Loaded first, so that whatever goes wrong is in the log (a service has
     // no console).
-    let config = match Config::load(cli) {
+    let mut config = match Config::load(cli) {
         Ok(config) => config,
         Err(err) => {
             crate::logging::init(&cli.log, Some(&Config::fallback_log_file(cli)));
@@ -394,6 +394,9 @@ pub fn dispatch(cli: &Cli) -> ExitCode {
         }
     };
     crate::logging::init(&cli.log, Some(&config.log_file()));
+    // Tailscale's service may switch to the profile of whichever account
+    // connects to it: never this service's (see crate::tailscale).
+    config.tailscale_socket = Err(crate::tailscale::NOT_AS_A_SERVICE.into());
     *CONFIG.lock() = Some(config);
     let mut name = wide(NAME);
     let table = [

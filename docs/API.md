@@ -23,7 +23,9 @@ details.
   [CORS for TV apps](#cors-for-tv-apps), [Errors](#errors)
 - [Types](#types)
 - [Public endpoints](#public-endpoints), [Auth](#auth),
-  [Two-step sign-in](#two-step-sign-in), [Your account](#your-account),
+  [Two-step sign-in](#two-step-sign-in),
+  [Signing in with Tailscale](#signing-in-with-tailscale),
+  [Your account](#your-account),
   [Language](#language), [Compatibility tokens](#compatibility-tokens)
 - [Apps (OAuth 2.1)](#apps-oauth-21): [Discovery](#discovery),
   [Telling servers apart](#telling-servers-apart),
@@ -157,8 +159,8 @@ For those origins only, the API and
 A wildcard origin never lets a page read an answer made with cookies, so
 these answers only carry what a token in `Authorization` opens. Keyed
 media addresses answer CORS to every origin ([Keyed URLs](#keyed-urls)). The consent
-page's endpoints (`/api/oauth/requests…`, `/api/oauth/device/verify`) never
-answer CORS. A server's proof (`/api/server` with a `challenge`,
+page's endpoints (`/api/oauth/requests…`, `/api/oauth/device/verify`) and
+`/api/auth/tailscale` never answer CORS. A server's proof (`/api/server` with a `challenge`,
 [Telling servers apart](#telling-servers-apart)) isn't made for any other
 `Origin`, nor for `Origin: null` unless the User-Agent says webOS, as LG's
 runtime does (`403`): a website's page in a sandboxed frame sends `null`
@@ -678,6 +680,65 @@ it of every account with a password (`require_two_step` in the
   Accounts that use it sign in with a recovery code, and an administrator
   signed in so can stop requiring it.
 
+### Signing in with Tailscale
+
+While `tailscale_sign_in` is on ([settings](#system-admin), Settings →
+Server → Sign-in), a device on the tailnet signs in as the account its
+Tailscale user linked, without the password
+([SECURITY.md](../SECURITY.md#signing-in-with-tailscale)). Pley asks the
+Tailscale service on its computer who the other end of each connection is
+(`--tailscale-socket`, [CONFIGURATION.md](CONFIGURATION.md#options)).
+
+| Method | Path | Who | What |
+|---|---|---|---|
+| GET | `/api/auth/tailscale` | `public` | `{ tailscale: { login, name, username } \| null }`: who Tailscale says this is, and the account they linked (`username`, `null` when none) |
+| POST | `/api/auth/tailscale` | `public` | `{ code? }` → `{ user, token? }`, as `/api/auth/login` |
+| GET | `/api/me/tailscale` | `user` | `MyTailscale` |
+| PUT | `/api/me/tailscale` | `user` | `{ password, code? }` → `MyTailscale`: links the Tailscale user of this device |
+| DELETE | `/api/me/tailscale` | `user` | `204`: unlinks it, and signs out the sessions signed in with it |
+
+```ts
+interface MyTailscale {
+  on: boolean;                      // tailscale_sign_in
+  linked: { login: string; linked_at: number } | null;
+  here: { login: string; name: string; username: string | null; elsewhere?: true } | null;
+                                    // who Tailscale says this device is; `username` only when it is
+                                    // this account's, `elsewhere` when they linked another one
+  server_name?: string;             // administrators: this server's Tailscale name
+  problem?: string;                 // administrators: why Pley can't ask Tailscale
+}
+```
+
+- Someone is here only when the setting is on, the request's `Host` is
+  the server's Tailscale name (its MagicDNS name, not the short one) or one
+  of its Tailscale addresses, and the connection came over the tailnet:
+  from a Tailscale address where Tailscale has a network adapter, from this
+  computer's own where it hasn't (its userspace mode, as in Docker). Not
+  from a tagged device, a subnet router or exit node, or the server's own
+  device. Otherwise `GET /api/auth/tailscale` answers `null`, `POST`
+  answers `403`, and `PUT /api/me/tailscale` answers `400`. A person is
+  Tailscale's id for them in the server's tailnet. `GET
+  /api/auth/tailscale` never answers CORS.
+- `POST /api/auth/tailscale` takes `code` for an account with two-step
+  sign-in (`401 two_step` without a right one, as signing in with the
+  password). An account without it is refused (`403`) while the server
+  requires it, and so is an administrator's. A request from another site's
+  page is refused (`403`). While Tailscale can't be asked, `503`. The
+  session works only over the tailnet from a device of the same Tailscale
+  user: from anywhere else, or once Tailscale says otherwise (within 30
+  seconds), it answers `401`; so does a profile switched to from it. It
+  makes no [compatibility token](#compatibility-tokens) (`403`).
+- `PUT /api/me/tailscale` takes the password, and `code` with two-step
+  sign-in; an administrator's account links only with two-step sign-in on
+  (`403`). `409` when another account linked that Tailscale user, `401`
+  when a new password signed the session out meanwhile. Linking another
+  Tailscale user signs out the sessions of the one before, and the
+  profiles switched to from them.
+- A new password (`PUT /api/auth/password`, an administrator's, or
+  `pley reset-password`) removes the link and signs out those sessions.
+  Turning `tailscale_sign_in` off signs out every session signed in with
+  Tailscale.
+
 ## Your account
 
 | Method | Path | Who | What |
@@ -761,7 +822,7 @@ Account page lists, makes and revokes them ("Tokens for other apps").
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/me/compatibility-tokens` | `user` | `CompatibilityToken[]`: your tokens, most recently used first |
-| POST | `/api/me/compatibility-tokens` | `user` | `{ name, scope?, allowed_from? }` → `201` `CompatibilityToken & { token }`: a new token, shown this once |
+| POST | `/api/me/compatibility-tokens` | `user` | `{ name, scope?, allowed_from? }` → `201` `CompatibilityToken & { token }`: a new token, shown this once. `403` from a session signed in with [Tailscale](#signing-in-with-tailscale), which works only from its person's devices |
 | DELETE | `/api/me/compatibility-tokens/{id}` | `user` | `204`, revokes it at once; `404` unless it is yours |
 
 ```ts
@@ -4976,6 +5037,8 @@ interface Settings {
                                     // turning it on signs out everyone without it, who sets it up at their
                                     // next sign-in. Only an administrator who uses it may turn it on (else
                                     // 400), and only while the server can use its secret.key (else 400)
+  tailscale_sign_in: boolean;       // people sign in with Tailscale (default false; see Signing in with
+                                    // Tailscale): turning it off signs out whoever signed in with it
   cast_devices: boolean;            // Google Cast and AirPlay devices are listed and cast to (default false):
                                     // off, the server doesn't look for them ([Casting](#casting))
   proxy_addresses: string[];        // addresses with a port Pley is reached at through a reverse proxy that

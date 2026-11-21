@@ -131,7 +131,12 @@
       "signsOut_one": "Enregistrer déconnecte {{count, number}} personne qui ne l’a pas configurée, sur tous les appareils et applications, jusqu’à ce qu’elle la configure.",
       "signsOut_many": "Enregistrer déconnecte {{count, number}} de personnes qui ne l’ont pas configurée, sur tous les appareils et applications, jusqu’à ce qu’elles la configurent.",
       "signsOut_other": "Enregistrer déconnecte {{count, number}} personnes qui ne l’ont pas configurée, sur tous les appareils et applications, jusqu’à ce qu’elles la configurent.",
-      "noSecretKey": "Le serveur ne peut pas utiliser son fichier secret.key : les applications d’authentification ne peuvent être ni configurées ni vérifiées. En attendant, les personnes qui n’ont pas configuré la connexion en deux étapes ne peuvent pas se connecter, et celles qui l’ont configurée se connectent avec un code de secours. Son journal en donne la raison."
+      "noSecretKey": "Le serveur ne peut pas utiliser son fichier secret.key : les applications d’authentification ne peuvent être ni configurées ni vérifiées. En attendant, les personnes qui n’ont pas configuré la connexion en deux étapes ne peuvent pas se connecter, et celles qui l’ont configurée se connectent avec un code de secours. Son journal en donne la raison.",
+      "tailscale": "Connexion avec Tailscale",
+      "tailscaleHint": "Chacun lie son compte Tailscale dans sa page Compte, puis se connecte sans mot de passe sur les appareils connectés à Tailscale, au nom Tailscale de ce serveur. La connexion en deux étapes demande toujours son code. Attribuez un tag dans Tailscale à tout appareil qui relaie vers Pley les connexions d’autres personnes, comme un proxy inverse : sinon, elles se connectent en tant que son propriétaire.",
+      "tailscaleServer": "Tailscale répond : ce serveur est {{name}}.",
+      "tailscaleProblem": "Pley ne peut pas interroger Tailscale : {{problem}}",
+      "tailscaleSignsOut": "Enregistrer déconnecte tous ceux qui se sont connectés avec Tailscale."
     },
     "apps": {
       "title": "Applications",

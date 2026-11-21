@@ -79,6 +79,15 @@ pub async fn put_settings(
     if before.require_two_step != after.require_two_step {
         require_two_step(&state, after.require_two_step).await?;
     }
+    if before.tailscale_sign_in != after.tailscale_sign_in {
+        state.auth.set_tailscale_sign_in(after.tailscale_sign_in);
+        if after.tailscale_sign_in {
+            tracing::info!("signing in with Tailscale was turned on");
+        } else {
+            state.auth.end_tailscale_sessions().await?;
+            tracing::info!("signing in with Tailscale was turned off: whoever signed in with it was signed out");
+        }
+    }
     // A new key or source: fetch metadata for everything that has none yet
     // (shows are fetched again from a new TV source).
     if crate::providers::settings_changed(&state.db, &before, &after).await? {

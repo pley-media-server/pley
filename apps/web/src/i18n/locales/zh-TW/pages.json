@@ -32,7 +32,10 @@
     "recoveryCode": "復原代碼",
     "useApp": "使用驗證器應用",
     "useRecoveryCode": "使用復原代碼",
-    "otherServer": "使用其他伺服器"
+    "otherServer": "使用其他伺服器",
+    "tailscaleAs": "以 {{username}} 身分繼續",
+    "tailscaleHint": "透過 Tailscale，已登入為 {{login}}",
+    "orPassword": "或使用密碼"
   },
   "setup": {
     "documentTitle": "歡迎",
@@ -180,6 +183,26 @@
     "turnOn": "開啟",
     "turnOffHint": "關閉時需要你的密碼和應用驗證碼，或復原代碼。",
     "offToast": "兩步驗證已關閉"
+  },
+  "tailscale": {
+    "title": "Tailscale",
+    "intro": "連結你的 Tailscale 帳戶後，在已登入 Tailscale 的裝置上無需密碼即可登入 Pley。兩步驗證仍會要求輸入驗證碼。",
+    "off": "此伺服器已關閉透過 Tailscale 登入。",
+    "linkedTo": "自 {{date}} 起已連結 {{login}}：以 {{login}} 登入 Tailscale 的裝置無需你的密碼即可登入 Pley。",
+    "thisDevice": "此裝置就是其中之一。",
+    "here": "此裝置已以 {{login}} 登入 Tailscale。",
+    "hereElsewhere": "此裝置已以 {{login}} 登入 Tailscale，該 Tailscale 帳戶已連結另一個 Pley 帳戶。",
+    "notHere": "要連結，請在已登入 Tailscale 的裝置上，透過 Pley 的 Tailscale 名稱或位址開啟它。",
+    "notHereNamed": "要連結，請在已登入 Tailscale 的裝置上開啟 {{name}} 上的 Pley。",
+    "problem": "Pley 無法詢問 Tailscale：{{problem}}",
+    "adminNeedsTwoStep": "管理員只有開啟兩步驗證後才能透過 Tailscale 登入：請先在上方開啟。",
+    "unlink": "取消連結",
+    "unlinkHint": "透過 Tailscale 登入的裝置將登出，如果此裝置也是這樣登入的，也會登出",
+    "unlinkedToast": "已取消連結 Tailscale",
+    "link": "連結 {{login}}",
+    "linkHint": "以 {{login}} 登入 Tailscale 的裝置將無需你的密碼即可以你的身分登入 Pley。請輸入密碼確認。",
+    "linkButton": "連結",
+    "linkedToast": "已連結 {{login}}"
   },
   "account": {
     "title": "帳戶",

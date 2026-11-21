@@ -174,6 +174,30 @@ export interface RecoveryCodes {
   recovery_codes: string[];
 }
 
+/** Someone Tailscale says a request comes from (`GET /api/auth/tailscale`). */
+export interface TailscalePerson {
+  /** Their Tailscale login name (`alice@example.com`, `alice@github`). */
+  login: string;
+  name: string;
+  /** The account they linked, which they sign in as; on the account page, only when it is the one signed in. */
+  username: string | null;
+  /** On the account page: they linked another account (a profile switched to on their device). */
+  elsewhere?: boolean;
+}
+
+/** The account's Tailscale link (`GET /api/me/tailscale`). */
+export interface MyTailscale {
+  /** Signing in with Tailscale is on. */
+  on: boolean;
+  linked: { login: string; linked_at: number } | null;
+  /** Who Tailscale says this device is, who can be linked. */
+  here: TailscalePerson | null;
+  /** For administrators: this server's Tailscale name, while Tailscale answers. */
+  server_name?: string;
+  /** For administrators: why Pley can't ask Tailscale. */
+  problem?: string;
+}
+
 export interface LoginResponse {
   user: User;
   /** Only for clients that aren't browsers: browsers keep the session in a cookie. */
@@ -1107,6 +1131,12 @@ export interface Settings {
    * who sets it up at their next sign-in. Absent from servers before it.
    */
   require_two_step?: boolean;
+  /**
+   * People sign in with Tailscale from devices on the tailnet, as the account
+   * they linked. Off by default; turning it off signs out whoever signed in
+   * with it. Absent from servers before it.
+   */
+  tailscale_sign_in?: boolean;
   /**
    * Pley lists the Google Cast and AirPlay devices on its network in the
    * household's Play on… and casts to them; off, it doesn't look for any.
