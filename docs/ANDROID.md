@@ -1062,6 +1062,11 @@ icon the car tints:
   albums, newest first; an album lists its tracks with their lengths.
 - **Playlists**: the profile's music playlists.
 
+An album or playlist opens to its tracks, wherever it is listed: a car
+plays what can be played rather than open it, so only one of a single
+track plays as it is picked (one whose tracks the server hasn't counted,
+as Recently played's, opens).
+
 Search finds artists, albums and tracks, then channels. Each search the
 car sends is asked of the server by itself, so one overtaken by the next
 letter typed still gets its answer. A list or search the server hasn't

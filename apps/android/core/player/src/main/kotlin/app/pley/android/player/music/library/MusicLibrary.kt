@@ -298,12 +298,16 @@ class MusicLibrary(
         mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
     )
 
+    /**
+     * An album opens to its tracks, as a car plays what can play rather than
+     * open it; one of a single track (as far as the server counts) just plays.
+     */
     private fun album(item: ItemSummary): MediaItem = node(
         MusicId.Album(item.id),
         item.title,
         subtitle = item.parentTitle ?: item.year?.toString(),
-        browsable = true,
-        playable = true,
+        browsable = item.leafCount != 1,
+        playable = item.leafCount == 1,
         artPath = item.posterUrl,
         seed = item.title,
         playableStyle = LIST,
@@ -311,12 +315,13 @@ class MusicLibrary(
         artist = item.parentTitle,
     )
 
+    /** A playlist opens to its tracks as an album does; one of a single track just plays. */
     private fun playlist(item: PlaylistSummary): MediaItem = node(
         MusicId.Playlist(item.id),
         item.title,
         subtitle = look().tracks(item.itemCount),
-        browsable = true,
-        playable = true,
+        browsable = item.itemCount != 1,
+        playable = item.itemCount == 1,
         artPath = item.artwork.firstOrNull(),
         seed = item.title,
         playableStyle = LIST,

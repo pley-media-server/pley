@@ -74,7 +74,7 @@ class MusicLibraryTest {
         assertEquals(listOf("album:50"), one.map { it.mediaId })
         assertEquals("content://art/api/items/50/images/poster?v=1", one[0].mediaMetadata.artworkUri.toString())
         assertEquals("Harbour Lights", one[0].mediaMetadata.subtitle.toString())
-        assertTrue(one[0].mediaMetadata.isPlayable == true && one[0].mediaMetadata.isBrowsable == true)
+        assertTrue(one[0].mediaMetadata.isPlayable == false && one[0].mediaMetadata.isBrowsable == true)
         assertEquals("Recently added", one[0].group)
 
         source.libraries += Library(4, "Live recordings", LibraryKind.Music)
@@ -134,6 +134,23 @@ class MusicLibraryTest {
         assertEquals(listOf(51L, 52L), selection.tracks.map { it.id })
         assertEquals(1, selection.startIndex)
         assertFalse(selection.shuffle)
+    }
+
+    @Test
+    fun albumsAndPlaylistsOpenToTheirTracksUnlessTheyHaveJustOne() = runTest {
+        // A car plays what can play rather than open it: an album or playlist of several tracks only opens.
+        val opens = library.children(MusicId.Artist(40), 0, 50).filter { it.mediaId.startsWith("album:") } +
+            library.children(MusicId.Playlists, 0, 50)
+        assertTrue(opens.all { it.mediaMetadata.isBrowsable == true && it.mediaMetadata.isPlayable == false })
+
+        // One of a single track plays as it is picked; one whose tracks aren't counted opens.
+        source.recent[3] = listOf(album(60, "One Song").copy(leafCount = 1), album(61, "Uncounted"))
+        val recent = library.children(MusicId.Recent, 0, 50)
+        assertTrue(recent[0].mediaMetadata.isPlayable == true && recent[0].mediaMetadata.isBrowsable == false)
+        assertTrue(recent[1].mediaMetadata.isPlayable == false && recent[1].mediaMetadata.isBrowsable == true)
+        source.audioPlaylists = listOf(PlaylistSummary(7, "Night drive", PlaylistKind.Audio, itemCount = 1))
+        val single = library.children(MusicId.Playlists, 0, 50).single()
+        assertTrue(single.mediaMetadata.isPlayable == true && single.mediaMetadata.isBrowsable == false)
     }
 
     @Test
@@ -359,10 +376,9 @@ class MusicLibraryTest {
 
         override suspend fun item(itemId: Long): ItemSummary? = (listOf(artist) + albums + tracks.values.flatten()).firstOrNull { it.id == itemId }
 
-        override suspend fun playlists() = listOf(
-            PlaylistSummary(7, "Night drive", PlaylistKind.Audio, itemCount = 2),
-            PlaylistSummary(8, "Trailers", PlaylistKind.Video, itemCount = 3),
-        )
+        var audioPlaylists = listOf(PlaylistSummary(7, "Night drive", PlaylistKind.Audio, itemCount = 2))
+
+        override suspend fun playlists() = audioPlaylists + PlaylistSummary(8, "Trailers", PlaylistKind.Video, itemCount = 3)
 
         override suspend fun playlist(playlistId: Long) = PlaylistDetail(
             id = playlistId,

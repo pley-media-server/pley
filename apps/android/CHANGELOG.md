@@ -26,8 +26,10 @@ With Android Auto:
 
 - Pley plays music on the car's screen: Recent (what you played last,
   then what was added), Artists and Playlists tabs with album covers
-  (Pley's mark on those without one), search, the whole queue, Shuffle
-  and Repeat on Now Playing, and "Hey Google, play … on Pley", which
+  (Pley's mark on those without one; an album or playlist opens to its
+  tracks, and plays at once only with a single one), search, the whole
+  queue, Shuffle and Repeat on Now Playing, and "Hey Google, play … on
+  Pley", which
   finds music playlists by name ("my … playlist" too) and says so when
   it finds nothing. Signed out, the car says to open Pley on the phone.
 - Live TV's channels play as radio: a Live TV tab with favorites,
