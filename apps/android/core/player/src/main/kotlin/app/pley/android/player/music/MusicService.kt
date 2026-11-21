@@ -209,8 +209,8 @@ class MusicService : MediaLibraryService() {
      * car played last. A car connecting is then shown it, with Play ready
      * (a session with nothing in it shows a car nothing to play), and the
      * car's own Play, pressed or sent as it starts, plays it. With nothing
-     * kept, a car is shown what the library suggests (the album played
-     * last, else the one added last). Nothing is played here: only a car
+     * kept, a car is shown what the library suggests (the book or the album
+     * heard last, else the album added last). Nothing is played here: only a car
      * or a person starts the sound.
      *
      * The radio is the car's: with no car connecting (the session made for

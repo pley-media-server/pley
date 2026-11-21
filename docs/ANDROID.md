@@ -1150,9 +1150,10 @@ played last waits in its Now Playing, paused where it was (the music, or
 the radio's channel when that played last), so the car has something to
 play, and its Play plays it, pressed or sent by a car set to start media
 by itself; Pley never starts the sound itself. With nothing kept (the
-music was stopped, or none has played on this phone), the album the
-profile played last on any device waits instead, from the track played,
-else the album added last, rather than Android Auto's prompt to open
+music was stopped, or none has played on this phone), whichever the
+profile heard last on any device waits instead: the book it is part way
+through, where it is in it, or the album it played last, from the track
+played; else the album added last, rather than Android Auto's prompt to open
 the app. Play on a headset, on the car's steering wheel over Bluetooth
 or in the phone's media controls brings the music back the same way
 once the app has left memory; the radio is the car's, so its channel

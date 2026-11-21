@@ -318,6 +318,23 @@ class MusicLibraryTest {
     }
 
     @Test
+    fun aCarIsSuggestedTheBookHeardLastWhenItWasHeardAfterTheMusic() = runTest {
+        source.bookLibraries = listOf(Library(5, "Books", LibraryKind.Audiobooks, itemCount = 2))
+        // The book's part heard last was heard after the track: the book, where the profile is in it.
+        source.played[3] = listOf(track(52, 50).copy(userState = UserState(lastPlayedAt = 1_500)))
+        val book = library.suggestion()!!
+        assertEquals(listOf(71L, 72L), book.tracks.map { it.id })
+        assertEquals(1, book.startIndex)
+        assertEquals(1_800_000L, book.startMs)
+
+        // Music played since: its album, from the track.
+        source.played[3] = listOf(track(52, 50).copy(userState = UserState(lastPlayedAt = 3_000)))
+        val album = library.suggestion()!!
+        assertEquals(listOf(51L, 52L), album.tracks.map { it.id })
+        assertEquals(1, album.startIndex)
+    }
+
+    @Test
     fun aPlaylistSaidIsItsNameAlone() {
         assertEquals("Night Drive", playlistNamed("my Night Drive playlist"))
         assertEquals("Night Drive", playlistNamed("Playlist Night Drive"))
@@ -437,7 +454,7 @@ class MusicLibraryTest {
         var bookLibraries = emptyList<Library>()
         var shelves = BookShelves(listening = listOf(LONG_BOOK), added = listOf(SHORT_BOOK, LONG_BOOK))
         private val parts = mapOf(
-            70L to listOf(part(71, 70, positionMs = 0, watched = true), part(72, 70, positionMs = 1_800_000)),
+            70L to listOf(part(71, 70, positionMs = 0, watched = true, playedAt = 1_000), part(72, 70, positionMs = 1_800_000, playedAt = 2_000)),
             80L to listOf(part(81, 80, positionMs = 0)),
         )
 
@@ -518,7 +535,7 @@ class MusicLibraryTest {
         val SHORT_BOOK = ItemSummary(80, 5, ItemKind.Audiobook, "Short Book", posterUrl = "/api/items/80/images/poster", leafCount = 1, authors = listOf("A Writer", "Another"))
 
         /** An hour-long part of [book]. */
-        fun part(id: Long, book: Long, positionMs: Long, watched: Boolean = false) = ItemSummary(
+        fun part(id: Long, book: Long, positionMs: Long, watched: Boolean = false, playedAt: Long? = null) = ItemSummary(
             id,
             5,
             ItemKind.Part,
@@ -527,7 +544,7 @@ class MusicLibraryTest {
             parentTitle = if (book == 70L) "Long Book" else "Short Book",
             durationMs = 3_600_000,
             posterUrl = "/api/items/$book/images/poster",
-            userState = UserState(positionMs = positionMs, watched = watched),
+            userState = UserState(positionMs = positionMs, watched = watched, lastPlayedAt = playedAt),
         )
 
         fun track(id: Long, album: Long) = ItemSummary(

@@ -206,11 +206,15 @@ class MusicLibrary(
 
     /**
      * What waits for a car's Play when nothing was kept on the phone (the
-     * music was stopped, or none has played on it): the album of the track
-     * the profile played last, on any device, from that track; else the
-     * album added last. Plays that can't be read leave the album added last.
+     * music was stopped, or none has played on it): whichever the profile
+     * heard last, on any device, of the book it is part way through
+     * (where it is in it) and the album of the track it played last (from
+     * that track); else the album added last. Plays that can't be read
+     * leave the album added last; books that can't be read within
+     * [KNOWN_MS], the album.
      */
-    suspend fun suggestion(): MusicSelection? {
+    suspend fun suggestion(): MusicSelection? = coroutineScope {
+        val book = async { known { lastBook() } }
         val last = source.libraries().firstNotNullOfOrNull { library ->
             val played = try {
                 source.recentlyPlayed(library.id)
@@ -221,9 +225,24 @@ class MusicLibrary(
             }
             played.firstOrNull { it.kind == ItemKind.Track }
         }
+        val heard = book.await()
+        if (heard != null && heard.second >= (last?.userState?.lastPlayedAt ?: 0)) {
+            bookSelection(heard.first)?.let { return@coroutineScope it }
+        }
         val album = last?.parentId?.let { tracksOf(it) }.orEmpty()
         val at = album.indexOfFirst { it.id == last?.id }
-        return if (at >= 0) MusicSelection(album, at) else selectionFor("")
+        if (at >= 0) MusicSelection(album, at) else selectionFor("")
+    }
+
+    /**
+     * The book the profile heard last of those it is part way through, and
+     * when (its part heard last's time, unix seconds); `null` with none.
+     */
+    private suspend fun lastBook(): Pair<Long, Long>? = coroutineScope {
+        val listening = shelves(source.bookLibraries()).mapNotNull { it.second.listening.firstOrNull() }
+        listening.map { book ->
+            async { known { source.parts(book.id) }?.mapNotNull { it.userState.lastPlayedAt }?.maxOrNull()?.let { book.id to it } }
+        }.awaitAll().filterNotNull().maxByOrNull { it.second }
     }
 
     /** A queue's [track] as the session lists it: its art, album and artist. */
