@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A video whose audio the TV can't play plays with the audio converted by
+  the server, or another track, instead of failing after a transcode.
+
 ## [0.1.12] - 2026-11-20
 
 ### Added

@@ -8,6 +8,8 @@ public enum FallbackReason
 {
     /// <summary>The device couldn't play the original file.</summary>
     Unplayable,
+    /// <summary>The device couldn't play the original audio: another track, or the same converted.</summary>
+    AudioUnplayable,
     /// <summary>The original didn't play smoothly here.</summary>
     NotSmooth,
 }
@@ -47,6 +49,11 @@ public abstract record RecoveryAction
 /// <summary>
 /// The recovery ladder (the Android app's Recovery, the web's VideoPlayer.tsx):
 /// <list type="bullet">
+/// <item>Audio the device fails to play, in any session: a new session in the same mode whose
+/// capabilities leave that codec out (<see cref="RefusedAudio"/>), so the server plays another track
+/// as it is or converts this one, the video untouched; once per codec. A remux or a transcode would
+/// only copy the same audio again: the server copies what the capabilities say plays. Tizen's player
+/// names an audio failure only as its decoder's, never its output's, so the first one counts.</item>
 /// <item>Direct play that the device can't decode or open: a remux when the video is H.264 or
 /// HEVC and only the container or the audio failed, else a transcode; each once.</item>
 /// <item>404 or 410 ("playback session expired") or an unreadable playlist: a new session at the
@@ -71,6 +78,10 @@ public sealed class Recovery
     /// <summary>Videos a remux copies, which the device's decoders take in another container.</summary>
     static readonly HashSet<string> CopyableVideo = new HashSet<string> { "h264", "hevc" };
 
+    /// <summary>The server's last resort when it converts audio: refusing it leaves nothing to play.</summary>
+    const string Aac = "aac";
+
+    readonly HashSet<string> refusedAudio = new HashSet<string>();
     bool remuxTried;
     bool transcodeTried;
     long? playedFrom;
@@ -80,6 +91,12 @@ public sealed class Recovery
 
     /// <summary>Why <see cref="FallbackMode"/> is set.</summary>
     public FallbackReason? FallbackReason { get; private set; }
+
+    /// <summary>
+    /// Audio codecs (the server's names) this device failed to play in this item: left out of the
+    /// capabilities sent from then on.
+    /// </summary>
+    public IReadOnlyCollection<string> RefusedAudio => refusedAudio;
 
     /// <summary>The automatic switch for dropped frames happened (once per item).</summary>
     public bool StruggleSwitched { get; private set; }
@@ -113,10 +130,14 @@ public sealed class Recovery
     /// <summary>A seek or a new session: progress counts from where it lands.</summary>
     public void OnJump() => playedFrom = null;
 
-    /// <summary>What to do about <paramref name="error"/> in a session played as <paramref name="method"/>, whose video is <paramref name="videoCodec"/>.</summary>
-    public RecoveryAction Decide(EngineError error, string method, string? videoCodec) => error switch
+    /// <summary>
+    /// What to do about <paramref name="error"/> in a session played as <paramref name="method"/>, whose video is
+    /// <paramref name="videoCodec"/> and whose audio, as it reached the player, is <paramref name="audioCodec"/> (the
+    /// server's name, one the capabilities sent list; null when not known).
+    /// </summary>
+    public RecoveryAction Decide(EngineError error, string method, string? videoCodec, string? audioCodec = null) => error switch
     {
-        EngineError.Unsupported u => Fallback(method, videoCodec, u.Audio || u.Container, u.Detail),
+        EngineError.Unsupported u => RefuseAudio(u, audioCodec?.ToLowerInvariant()) ?? Fallback(method, videoCodec, u.Audio || u.Container, u.Detail),
         EngineError.Http h => h.Status is 404 or 410 ? Expired(h.Detail) : NetworkError(h.Detail),
         EngineError.Playlist p => Expired(p.Detail),
         EngineError.Network n => NetworkError(n.Detail),
@@ -124,6 +145,18 @@ public sealed class Recovery
         EngineError.Stopped s => new RecoveryAction.Fail(Failure.Stopped, s.Detail),
         _ => new RecoveryAction.Fail(Failure.Engine, error.Detail),
     };
+
+    /// <summary>
+    /// The audio <paramref name="codec"/> failed: refused, and a new session in the mode asked for now; null when
+    /// the ladder's next step is what helps instead.
+    /// </summary>
+    RecoveryAction? RefuseAudio(EngineError.Unsupported error, string? codec)
+    {
+        if (!error.Audio || codec == null || codec == Aac || refusedAudio.Contains(codec)) return null;
+        refusedAudio.Add(codec);
+        FallbackReason = Player.FallbackReason.AudioUnplayable;
+        return new RecoveryAction.NewSession(FallbackMode, Player.FallbackReason.AudioUnplayable);
+    }
 
     RecoveryAction Fallback(string method, string? videoCodec, bool partial, string detail)
     {
@@ -251,6 +284,7 @@ public sealed class Recovery
         FallbackMode = null;
         FallbackReason = null;
         StruggleSwitched = false;
+        refusedAudio.Clear();
         remuxTried = false;
         transcodeTried = false;
     }

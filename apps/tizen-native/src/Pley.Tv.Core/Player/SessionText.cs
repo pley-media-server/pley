@@ -31,6 +31,7 @@ public static class SessionText
     public static string MethodTranscode => Strings.T("player.method.transcode");
     public static string MethodRemuxAudio => Strings.T("player.method.remuxAudio");
     public static string FallbackUnplayable => Strings.T("player.fallback.unplayable");
+    public static string FallbackAudioUnplayable => Strings.T("player.fallback.audioUnplayable");
     public static string FallbackNotSmooth => Strings.T("player.fallback.notSmooth");
     public static string SlowServer => Strings.T("player.quality.slowServer");
     public static string RowVideo => Strings.T("player.details.video");
@@ -102,7 +103,12 @@ public static class SessionText
         _ => MethodDirect,
     };
 
-    public static string Fallback(FallbackReason reason) => reason == FallbackReason.Unplayable ? FallbackUnplayable : FallbackNotSmooth;
+    public static string Fallback(FallbackReason reason) => reason switch
+    {
+        FallbackReason.Unplayable => FallbackUnplayable,
+        FallbackReason.AudioUnplayable => FallbackAudioUnplayable,
+        _ => FallbackNotSmooth,
+    };
 
     /// <summary>Why playback gave up, for people. An engine's failure names its first words: "Playback failed (ERROR_CODE_DECODING_FAILED).".</summary>
     public static string Failure(Failure failure, string? detail) => failure switch
