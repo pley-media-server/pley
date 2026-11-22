@@ -866,14 +866,14 @@ impl Tuners {
         self.ended_keys.lock().iter().find(|(k, _)| crate::playback::same_key(k, key)).map(|(_, why)| why.clone())
     }
 
-    /// The session a keyed address's `key` opens, who watches in it, and
-    /// the app sign-in it was started with.
-    pub fn by_media_key(&self, key: &str) -> Option<(String, i64, Option<i64>)> {
+    /// The session a keyed address's `key` opens, who watches in it, the
+    /// app sign-in it was started with and its device.
+    pub fn by_media_key(&self, key: &str) -> Option<(String, i64, Option<i64>, Option<String>)> {
         self.viewers
             .lock()
             .values()
             .find(|v| v.media_key.as_deref().is_some_and(|k| crate::playback::same_key(k, key)))
-            .map(|v| (v.id.clone(), v.user_id, v.app_grant))
+            .map(|v| (v.id.clone(), v.user_id, v.app_grant, v.device.clone()))
     }
 
     /// Tunes the first of `tunes` whose source has a connection free (or one

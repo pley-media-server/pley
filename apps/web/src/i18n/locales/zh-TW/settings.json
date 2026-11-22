@@ -803,7 +803,16 @@
     "cpu": "CPU",
     "processors_other": "{{count}} 個處理器",
     "memory": "記憶體",
-    "inAll": "共 {{size}}"
+    "inAll": "共 {{size}}",
+    "network": "網路",
+    "fastest": "峰值 {{speed}}",
+    "pleyNetworkHint": "Pley 傳送給應用程式和瀏覽器的資料",
+    "upload": "上傳",
+    "download": "下載",
+    "clients": "用戶端",
+    "clientCount_other": "目前 {{count}} 個",
+    "noClients": "Pley 目前沒有傳送任何資料。",
+    "others": "其他"
   },
   "storage": {
     "title": "儲存",

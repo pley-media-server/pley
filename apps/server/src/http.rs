@@ -93,7 +93,15 @@ async fn serve_with<S>(
             let _held = (permit, peer_slot);
             let service = hyper::service::service_fn(move |mut request: hyper::Request<Incoming>| {
                 request.extensions_mut().insert(ConnectInfo(peer));
-                service.clone().oneshot(request.map(|body| Body::new(TimeoutBody::new(body_timeout, body))))
+                // Who the response goes to, for the dashboard's list (src/traffic.rs).
+                let slot = Arc::new(crate::traffic::Slot::default());
+                request.extensions_mut().insert(slot.clone());
+                let client = crate::auth::forwarded_for(peer.ip(), request.headers());
+                let call = service.clone().oneshot(request.map(|body| Body::new(TimeoutBody::new(body_timeout, body))));
+                async move {
+                    let response = call.await?;
+                    Ok::<_, Infallible>(crate::traffic::traffic().count(response, &slot, Some(client)))
+                }
             });
             let connection = hyper::server::conn::http1::Builder::new()
                 .timer(TokioTimer::new())
@@ -195,7 +203,14 @@ mod tests {
                 "/who",
                 axum::routing::get(|ConnectInfo(peer): ConnectInfo<SocketAddr>| async move { peer.ip().to_string() }),
             )
-            .route("/echo", axum::routing::post(|body: axum::body::Bytes| async move { body }));
+            .route("/echo", axum::routing::post(|body: axum::body::Bytes| async move { body }))
+            .route(
+                "/named",
+                axum::routing::get(|axum::Extension(slot): axum::Extension<Arc<crate::traffic::Slot>>| async move {
+                    slot.name("ana", || "Firefox on Linux".into());
+                    "hello world"
+                }),
+            );
         let stop = CancellationToken::new();
         let task = tokio::spawn(serve_with(listener, app, stop.clone().cancelled_owned(), TIMEOUT, TIMEOUT));
         (addr, stop, task)
@@ -211,6 +226,25 @@ mod tests {
         assert!(answer.starts_with("HTTP/1.1 200") && answer.ends_with("127.0.0.1"), "{answer}");
         stop.cancel();
         tokio::time::timeout(Duration::from_secs(5), task).await.expect("stopped").unwrap();
+    }
+
+    #[tokio::test]
+    async fn what_is_sent_counts_for_who_asked() {
+        let (addr, _stop, _task) = server().await;
+        let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+        // From a proxy on this computer, for a client on the internet.
+        let request = "GET /named HTTP/1.1\r\nhost: x\r\nx-forwarded-for: 192.0.2.77\r\nconnection: close\r\n\r\n";
+        stream.write_all(request.as_bytes()).await.unwrap();
+        let mut answer = String::new();
+        stream.read_to_string(&mut answer).await.unwrap();
+        assert!(answer.contains("content-length: 11") && answer.ends_with("hello world"), "{answer}");
+        let ana = crate::traffic::Client {
+            user: Some("ana".into()),
+            device: Some("Firefox on Linux".into()),
+            address: Some("192.0.2.77".parse().unwrap()),
+        };
+        let clients = crate::traffic::traffic().clients(&std::collections::HashMap::new());
+        assert!(clients.contains(&(ana, 11)), "{clients:?}");
     }
 
     #[tokio::test]

@@ -1388,6 +1388,10 @@ impl FromRequestParts<AppState> for AuthUser {
             None => {
                 let user = authenticate(parts, state).await?;
                 parts.extensions.insert(Authenticated(user.clone()));
+                if let Some(slot) = parts.extensions.get::<Arc<crate::traffic::Slot>>() {
+                    let agent = crate::api::remote::user_agent(&parts.headers);
+                    slot.name(&user.username, || crate::accounts::device_name(agent));
+                }
                 user
             }
         };

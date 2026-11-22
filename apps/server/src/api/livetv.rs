@@ -343,13 +343,17 @@ pub async fn session_file(
 pub async fn keyed_file(
     State(state): State<AppState>,
     Path((key, file)): Path<(String, String)>,
+    slot: Option<axum::Extension<std::sync::Arc<crate::traffic::Slot>>>,
 ) -> ApiResult<Response> {
     let gone = || AppError::SessionStopped(Some("this channel isn't being watched any more".into()));
-    let Some((session, user_id, grant)) = state.live.tuners.by_media_key(&key) else {
+    let Some((session, user_id, grant, device)) = state.live.tuners.by_media_key(&key) else {
         // Taken over or stopped: why, as the session's own address says.
         return Err(state.live.tuners.ended_by_key(&key).map_or_else(gone, AppError::SessionStopped));
     };
     let mut user = AuthUser::load(&state.db, user_id).await?.ok_or_else(gone)?;
+    if let Some(axum::Extension(slot)) = slot {
+        slot.name(&user.username, || device.unwrap_or_default());
+    }
     if let Some(grant) = grant {
         // Signed out since: the key goes with the token.
         let access = crate::auth::grants::access_of(&state.db, grant).await?.ok_or_else(gone)?;

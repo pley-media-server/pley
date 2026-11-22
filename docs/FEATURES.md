@@ -119,8 +119,9 @@ In the web and desktop apps only, for now.
 ## Administration
 
 - Edit metadata, lock fields, fix matches and choose artwork.
-- A live dashboard, a Test button for every service, and daily database
-  backups ([STORAGE.md](STORAGE.md)).
+- A live dashboard (the processors, memory and network over the last five
+  minutes, and who Pley is sending to how fast), a Test button for every
+  service, and daily database backups ([STORAGE.md](STORAGE.md)).
 - Manage libraries, users and invites from an Android phone
   ([ANDROID.md](ANDROID.md)).
 

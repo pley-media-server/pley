@@ -576,3 +576,22 @@ async fn extras_as_clips() {
     assert_eq!(clips[1]["subtype"], "deletedScene");
     assert!(clips[0]["Media"][0]["Part"][0]["key"].as_str().is_some(), "playable");
 }
+
+#[tokio::test]
+async fn the_dashboard_lists_an_app_by_its_account_and_device() {
+    let app = TestApp::new().await;
+    let (_session, token) = app.setup().await;
+    // What the response is counted for on the dashboard's list of clients
+    // (src/traffic.rs): the token's account and the device the app names.
+    let slot = std::sync::Arc::new(pley::traffic::Slot::default());
+    let mut req = Request::builder()
+        .uri("/library/sections")
+        .header("x-plex-token", &token)
+        .header("x-plex-product", "Plexamp")
+        .header("x-plex-device-name", "Pixel 8")
+        .body(Body::empty())
+        .unwrap();
+    req.extensions_mut().insert(slot.clone());
+    assert_eq!(app.plex.clone().oneshot(req).await.unwrap().status(), StatusCode::OK);
+    assert_eq!(slot.named(), Some(("admin".to_owned(), "Pixel 8".to_owned())));
+}
