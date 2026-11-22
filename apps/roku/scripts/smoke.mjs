@@ -309,15 +309,15 @@ async function waitFor(pattern, since, what, { ms = 30000, settles = true } = {}
   throw new Error(`no request for ${what}`);
 }
 
-// brs-node drops a key now and then: menu entries are reached from the
-// top of the menu (twelve entries at most, Settings the last, which 11
-// reaches whatever the menu holds) and checked by the request they lead
-// to.
+// brs-node drops a key now and then: the rail's entries are reached from
+// its top (the profile, then twelve entries at most, Settings the last,
+// which 11 reaches whatever the rail holds) and checked by the request
+// they lead to.
 async function openFromMenu(index, pattern, what, then = async () => {}) {
   for (let attempt = 0; attempt < 3; attempt++) {
     await press("left", 3);
-    await press("up", 11);
-    await press("down", index);
+    await press("up", 12);
+    await press("down", index + 1);
     const since = mark();
     await press("select");
     await then();
@@ -437,7 +437,7 @@ async function walk() {
   // More…, after Resume, Play from start, the watched mark and Audio and
   // subtitles: Go to season, its episodes; Back to the episode's page, up
   // to Resume.
-  await press("down", 4);
+  await press("right", 4);
   await press("select"); // Rate, Go to show, Go to season, Media info, Add to playlist
   await sleep(500);
   shoot("episode-more");
@@ -449,7 +449,7 @@ async function walk() {
   since = mark();
   await press("back");
   await waitFor(/^GET \/api\/items\/103$/, since, "the episode's page again");
-  await press("up", 4);
+  await press("left", 4);
   // Back while the player starts: the session that comes after is closed.
   since = mark();
   fixture.playbackDelayMs = 2500;
@@ -847,7 +847,7 @@ async function walk() {
   // More…, its last button: 4 stars from the rating's choices, saved at
   // once; Back from More to the buttons.
   since = mark();
-  await press("down", 3); // from Episodes, past the watched mark and My List
+  await press("right", 3); // from Episodes, past the watched mark and My List
   await press("select");
   await sleep(500);
   shoot("show-more");
@@ -1175,7 +1175,7 @@ async function walk() {
   // the French picked here; then the Director's Cut, which Play plays.
   await settle();
   let pickedSince = mark();
-  await press("down", 2);
+  await press("right", 2);
   await press("select"); // Version, Audio: Automatic (English), Subtitles: English (SRT)
   await sleep(500);
   shoot("movie-tracks");
@@ -1198,7 +1198,7 @@ async function walk() {
   await press("select"); // the Director's Cut, then the menu: its subtitles
   await sleep(500);
   await press("back"); // the buttons, on Audio and subtitles
-  await press("up", 2);
+  await press("left", 2);
   pickedSince = mark();
   await press("select"); // Play
   await waitFor(/^POST \/api\/playback$/, pickedSince, "the version chosen played");
@@ -1211,14 +1211,14 @@ async function walk() {
   await settle();
   shoot("movie-details");
   pickedSince = mark();
-  await press("down", 4);
+  await press("right", 4);
   await press("select"); // Trailer
   await waitFor(/^POST \/api\/playback$/, pickedSince, "the trailer played");
   pickedSince = mark();
   await press("back");
   await waitFor(/^DELETE \/api\/playback\//, pickedSince, "the trailer's session closed");
   await settle();
-  await press("down");
+  await press("right");
   await press("select"); // Rate, Media info, Add to playlist
   await sleep(500);
   await press("down");

@@ -134,10 +134,10 @@ end sub
 ' The rows under the hero, or at the top of the page without one.
 sub placeRows(withHero as boolean)
     if withHero
-        m.rows.translation = [96, 700]
+        m.rows.translation = [72, 700]
         m.slide = 560
     else
-        m.rows.translation = [96, 196]
+        m.rows.translation = [72, 196]
         m.slide = 56
     end if
     if m.rows.isInFocusChain() then m.page.translation = [0, -m.slide]

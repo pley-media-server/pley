@@ -39,7 +39,9 @@ end function
 ' rows, or the ItemDetail once asked for (complete), which alone brings a
 ' movie's summary, the content rating and the quality badges. { itemId,
 ' kind, title (a show's name for an episode), context ("S2 E5 · The Long
-' Night"), meta ("2019 · 2h 2m · PG-13 · ★ 7.4 · 4K · HDR"), summary,
+' Night"), meta ("2019 · 2h 2m · PG-13 · ★ 7.4 · 4K · HDR") and its parts
+' as MetaRow draws them ([{ text, boxed, star }]: the content rating and the
+' quality boxed, the score after a star, as Android TV's), summary,
 ' progress (0 to 1), timeLeft ("26 min left" while in progress), video
 ' (it plays itself), watched, positionMs, durationMs, backdrop, complete }.
 function homeInfo(item as object, server as string, complete as boolean) as object
@@ -58,27 +60,35 @@ function homeInfo(item as object, server as string, complete as boolean) as obje
         context = parts.Join(" · ")
     end if
     meta = []
+    parts = []
     year = httpNumber(item.year, 0)
-    if year > 0 then meta.Push(urlValue(year))
+    if year > 0 then parts.Push({ text: urlValue(year) })
     if kind = "show"
         seasons = Int(httpNumber(item.child_count, 0))
-        if seasons > 0 then meta.Push(t("browse.counts.seasons", { count: seasons }))
+        if seasons > 0 then parts.Push({ text: t("browse.counts.seasons", { count: seasons }) })
     else if kind = "season"
         episodes = Int(httpNumber(item.leaf_count, 0))
-        if episodes > 0 then meta.Push(t("browse.counts.episodes", { count: episodes }))
+        if episodes > 0 then parts.Push({ text: t("browse.counts.episodes", { count: episodes }) })
     else
         duration = fmtDuration(item.duration_ms)
-        if duration <> "" then meta.Push(duration)
+        if duration <> "" then parts.Push({ text: duration })
     end if
     rating = httpSentence(item.content_rating)
-    if rating <> "" then meta.Push(rating)
+    if rating <> "" then parts.Push({ text: rating, boxed: true })
     score = httpNumber(item.rating, 0)
-    if score > 0 then meta.Push("★ " + fmtOneDecimal(score))
+    if score > 0 then parts.Push({ text: fmtOneDecimal(score), star: true })
     if complete
         for each badge in homeBadges(item)
-            meta.Push(badge)
+            parts.Push({ text: badge, boxed: true })
         end for
     end if
+    for each part in parts
+        if part.star = true
+            meta.Push("★ " + part.text)
+        else
+            meta.Push(part.text)
+        end if
+    end for
     state = httpObject(item.user_state)
     position = 0
     watched = false
@@ -100,6 +110,7 @@ function homeInfo(item as object, server as string, complete as boolean) as obje
         title: title,
         context: context,
         meta: meta.Join(" · "),
+        metaParts: parts,
         summary: httpClean(item.summary, 600, true),
         progress: progress,
         timeLeft: timeLeft,
@@ -115,17 +126,7 @@ end function
 ' The quality badges of a title's details: its media summary's where the
 ' server sends one, else its first file's ("4K", "DV").
 function homeBadges(item as object) as object
-    media = httpObject(item.media)
-    if media <> invalid then return contentQualityBadges(media)
-    files = httpArray(item.files)
-    if files.Count() = 0 then return []
-    file = httpObject(files[0])
-    if file = invalid then return []
-    range = invalid
-    for each stream in httpArray(file.streams)
-        if GetInterface(stream, "ifAssociativeArray") <> invalid and httpString(stream.kind) = "video" and range = invalid then range = stream.dynamic_range
-    end for
-    return contentQualityBadges({ width: file.width, height: file.height, dynamic_range: range })
+    return contentItemBadges(item)
 end function
 
 ' The backdrop behind a title: its own, else its show's or its season's.
@@ -213,4 +214,61 @@ function homeMenu(libraries as object, live as boolean, requests as object, musi
     if music then entries.Push({ title: t("browse.menu.nowPlaying"), action: "nowPlaying" })
     entries.Push({ title: t("browse.menu.settings"), action: "settings" })
     return entries
+end function
+
+' The rail's icon of a menu entry (homeMenu), as the Android TV app's
+' (RailItems.kt): a library's by its kind.
+function homeMenuIcon(entry as object) as string
+    icons = {
+        search: "search", home: "house", discover: "compass", requests: "list-video", live: "tv-minimal",
+        playlists: "list-music", collections: "layers", nowPlaying: "audio-lines", settings: "settings"
+    }
+    if entry.action = "library"
+        kind = ""
+        if entry.library <> invalid then kind = httpString(entry.library.kind)
+        if kind = "movies" then return "clapperboard"
+        if kind = "shows" then return "tv"
+        if kind = "music" then return "music"
+        return "film"
+    end if
+    icon = icons[entry.action]
+    if icon = invalid then return "film"
+    return icon
+end function
+
+' The hero's buttons as chips (ChipRow), as Android TV's: the first a pill
+' with its icon and words, the rest round icons, named under them while
+' focused.
+function homeHeroChips(buttons as object) as object
+    icons = { resume: "play", start: "rotate-ccw", info: "info", watched: "circle-check", unwatched: "eye-off" }
+    chips = []
+    for i = 0 to buttons.actions.Count() - 1
+        action = buttons.actions[i]
+        icon = icons[action]
+        if icon = invalid then icon = "info"
+        if i = 0
+            ' Play from the start when nothing is to resume; Open for what
+            ' doesn't play here.
+            if action = "start" then icon = "play"
+            if action = "info" then icon = "arrow-right"
+            chips.Push({ label: buttons.labels[i], icon: icon, width: 0 })
+        else
+            chips.Push({ label: "", icon: icon, name: buttons.labels[i], width: 0 })
+        end if
+    end for
+    return chips
+end function
+
+' What info's MetaRow shows: its parts, after its context ("S2 E5 · The
+' Long Night") when withContext; what the tile knew (meta), until its
+' details come with their parts.
+function homeMetaParts(info as object, withContext as boolean) as object
+    parts = []
+    if withContext and info.context <> invalid and info.context <> "" then parts.Push({ text: info.context })
+    if GetInterface(info.metaParts, "ifArray") <> invalid
+        parts.Append(info.metaParts)
+    else if info.meta <> invalid and info.meta <> ""
+        parts.Push({ text: info.meta })
+    end if
+    return parts
 end function

@@ -104,7 +104,7 @@ sub test_content_home_rows_of_every_kind()
     tkTrue(rows[2].tiles[0].square)
     tkTrue(rows[2].tiles[1].square, "See all in the row's shape")
     tkEqual(rows[2].tiles[0].image, "http://nas:7539/api/items/5/images/poster?w=260", "an album's cover, asked for square")
-    tkEqual(contentRowSize(false, true), { size: [260, 340], height: 400 })
+    tkEqual(contentRowSize(false, true), { size: [288, 390], height: 454 })
     tkEqual(contentLibraries(libraries), [{ id: 1, name: "Movies", kind: "movies", itemCount: 245 }, { id: 2, name: "TV Shows", kind: "shows", itemCount: 31 }, { id: 3, name: "Music", kind: "music", itemCount: 120 }])
 end sub
 
@@ -444,4 +444,15 @@ sub test_content_details_offers_details_in_more()
         actions.Push(entry.action)
     end for
     tkEqual(actions, ["rate", "info", "about", "playlist"])
+end sub
+
+sub test_content_detail_parts_and_chips()
+    movie = { kind: "movie", year: 2021, duration_ms: 9300000, content_rating: "PG-13", rating: 7.9, files: [{ width: 3840, height: 2160, streams: [{ kind: "video", dynamic_range: "hdr10" }] }] }
+    tkEqual(contentDetailParts(movie), [{ text: "2021" }, { text: "2 h 35 min" }, { text: "PG-13", boxed: true }, { text: "7.9", star: true }, { text: "4K", boxed: true }, { text: "HDR", boxed: true }])
+    episode = { kind: "episode", grandparent_title: "Show", title: "Pilot", parent_index: 1, index: 2, duration_ms: 2700000 }
+    tkEqual(contentDetailParts(episode), [{ text: "S1 E2" }, { text: "Pilot" }, { text: "45 min" }])
+    chips = contentDetailChips(["Resume from 1:02", "Play from start", "More…"], ["resume", "start", "more"])
+    tkEqual(chips[0], { label: "Resume from 1:02", icon: "play", width: 0 })
+    tkEqual(chips[1], { label: "", icon: "rotate-ccw", name: "Play from start", width: 0 })
+    tkEqual(chips[2].icon, "ellipsis")
 end sub

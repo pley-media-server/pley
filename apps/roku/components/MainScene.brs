@@ -1089,6 +1089,8 @@ end sub
 ' A screen of the stack, in the language shown (madeIn).
 function makeScreen(name as string, route as string, params as object) as object
     screen = CreateObject("roSGNode", name)
+    ' Pley's type wherever the screen still has the Roku's (Type.brs).
+    uiRestyle(screen)
     screen.route = route
     screen.params = params
     screen.addFields({ madeIn: m.global.language })

@@ -23,6 +23,7 @@ const out = join(root, "apps/roku/images/ui");
 const FG = "#ebebeb";
 const ACCENT = "#38bdf8";
 const ACCENT_BRIGHT = "#7dd3fc";
+const BG = "#16191e";
 
 /** Lucide's icons as the Android app has them: name → { filled, paths }. */
 function lucide() {
@@ -75,6 +76,7 @@ const ICONS_40 = [
   "search", "house", "clapperboard", "tv", "music", "list-music", "layers", "settings", "compass", "radio",
   "star", "chevron-right", "chevron-left", "arrow-up-narrow-wide", "arrow-down-wide-narrow", "sliders-horizontal",
   "skip-forward", "skip-back", "x", "clock", "calendar-days", "user-round", "users", "image", "library-big",
+  "tv-minimal", "arrow-right", "arrow-up-down",
 ];
 for (const name of ICONS_40) add(`icon-${name}-40.png`, 40, 40, icon(name, 40, "#ffffff"));
 for (const name of ["skip-back", "skip-forward"]) add(`icon-${name}-48.png`, 48, 48, icon(name, 48, "#ffffff"));
@@ -131,6 +133,52 @@ add(
   256,
   `<defs><linearGradient id="g" x2="0" y2="1">${stops([[0, 0.65], [1, 0]])}</linearGradient></defs><rect width="4" height="256" fill="url(#g)"/>`,
 );
+
+// The focus ring around a tile (Android TV's, the Kodi skin's): a 6 px
+// accent-bright stroke whose middle runs 9 px outside the tile, drawn 12 px
+// out from it all round; nine-patch, its corners left whole.
+ninePatch("ring.9.png", 64, 64, 22, `<rect x="3" y="3" width="58" height="58" rx="17" fill="none" stroke="${ACCENT_BRIGHT}" stroke-width="6"/>`);
+
+// The line along a tile's inner edge (white at 6 %), corners 8.
+ninePatch("hairline.9.png", 32, 32, 10, `<rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2"/>`);
+
+// The watched tick: bg at 80 %, corners 4, an accent check.
+add(
+  "tick.png",
+  40,
+  40,
+  box(40, 40, 4, "rgba(22,25,30,0.8)") + `<path d="M28 14 17 25l-5-5" fill="none" stroke="${ACCENT}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`,
+);
+
+// The backdrop's scrims, in the app's background: from the left (100 % at
+// 0, 92 % at 600 px, 85 % at 1120, nothing at 1600 of the screen), and from
+// clear to solid downwards, stretched as each page needs.
+add(
+  "scrim-left.png",
+  800,
+  4,
+  `<defs><linearGradient id="g">${stops([[0, 1], [0.375, 0.92], [0.7, 0.85], [1, 0]], BG)}</linearGradient></defs><rect width="800" height="4" fill="url(#g)"/>`,
+);
+add(
+  "fade-down.png",
+  4,
+  256,
+  `<defs><linearGradient id="g" x2="0" y2="1">${stops([[0, 0], [1, 1]], BG)}</linearGradient></defs><rect width="4" height="256" fill="url(#g)"/>`,
+);
+
+// A pill's edge (TvPillButton, TvRoundButton at rest): 2 px, corners 12,
+// white for the control color.
+ninePatch("edge.9.png", 48, 48, 12, `<rect x="1" y="1" width="46" height="46" rx="11" fill="none" stroke="#ffffff" stroke-width="2"/>`);
+
+// A badge's edge on a page (the content rating, the quality): 2 px,
+// corners 4, white for the outline's color.
+ninePatch("edge4.9.png", 16, 16, 4, `<rect x="1" y="1" width="14" height="14" rx="3" fill="none" stroke="#ffffff" stroke-width="2"/>`);
+
+// A circle to tint: the rail's avatar.
+add("circle.png", 80, 80, `<circle cx="40" cy="40" r="40" fill="#ffffff"/>`);
+
+// The open rail's shadow on the page: black at 45 % to nothing.
+add("shadow.png", 48, 4, `<defs><linearGradient id="g">${stops([[0, 0.45], [1, 0]])}</linearGradient></defs><rect width="48" height="4" fill="url(#g)"/>`);
 
 mkdirSync(out, { recursive: true });
 // Pictures this script made before and no longer makes go.

@@ -24,6 +24,13 @@ sub init()
     m.choices = m.top.findNode("choices")
     m.info = m.top.findNode("info")
     m.message.text = t("common.states.loading")
+    ' Pley's type, as Android TV's title page.
+    fonts = { heading: "heroTitle", genres: "label", credits: "label", tagline: "title", summary: "bodyLarge", note: "label", message: "bodyLarge", panelTitle: "section" }
+    for each id in fonts
+        m.top.findNode(id).font = uiType(fonts[id])
+    end for
+    m.rows.rowLabelFont = uiType("section")
+    m.chipsShown = ""
     m.column.visible = false
     ' What the panel shows: "" (closed), a menu ("more", "tracks"), the
     ' choices of one of its entries ("rating", "version", "audio",
@@ -57,7 +64,7 @@ sub init()
     ' shown, in order.
     m.rowNodes = {}
     m.rowKeys = []
-    m.buttons.observeField("buttonSelected", "onButton")
+    m.buttons.observeField("chosen", "onButton")
     m.menu.observeField("itemSelected", "onMenu")
     m.choices.observeField("itemSelected", "onChoice")
     m.rows.observeField("rowItemSelected", "onTile")
@@ -133,16 +140,15 @@ sub showDetail()
     m.detail = contentDetail(m.item, m.global.session.server, m.onDeck)
     m.message.visible = false
     m.heading.text = m.detail.heading
-    m.line.text = m.detail.line
+    m.line.parts = contentDetailParts(m.item)
     m.genres.text = m.detail.genres
     m.credits.text = m.detail.credits
     m.tagline.text = m.detail.tagline
-    ' Seven buttons take a line from the summary (three, as on Android TV),
-    ' and so does the credits line: under a heading of two lines they would
-    ' reach the rows' title. More's Details has the whole of it.
-    m.summary.maxLines = 4
-    if m.detail.buttons.Count() > 6 then m.summary.maxLines = 3
-    if m.detail.credits <> "" then m.summary.maxLines = m.summary.maxLines - 1
+    ' Three lines of summary, as on Android TV; two under a credits line, so
+    ' a heading of two lines keeps clear of the rows' title. More's Details
+    ' has the whole of it.
+    m.summary.maxLines = 3
+    if m.detail.credits <> "" then m.summary.maxLines = 2
     m.summary.text = m.detail.summary
     m.note.text = m.detail.note
     layoutText()
@@ -151,17 +157,22 @@ sub showDetail()
         m.backdrop.setHttpAgent(agent)
         m.backdrop.uri = m.detail.backdrop
     end if
-    if m.poster.uri <> m.detail.poster
+    ' The poster at the right only for a title without a backdrop.
+    m.poster.visible = m.detail.backdrop = ""
+    if m.poster.visible and m.poster.uri <> m.detail.poster
         m.poster.setHttpAgent(agent)
         m.poster.uri = m.detail.poster
     end if
     ' A show's buttons wait for its next episode, which comes first.
     hasButtons = m.detail.buttons.Count() > 0 and (m.detail.kind <> "show" or m.onDeckKnown)
+    ' The row keeps the focus and the button it is on as its chips change.
     if hasButtons
-        focused = m.buttons.buttonFocused
-        hadFocus = m.buttons.isInFocusChain()
-        if FormatJson(m.buttons.buttons) <> FormatJson(m.detail.buttons) then m.buttons.buttons = m.detail.buttons
-        uiKeepButton(m.buttons, focused, hadFocus)
+        chips = contentDetailChips(m.detail.buttons, m.detail.actions)
+        shown = FormatJson(chips)
+        if shown <> m.chipsShown
+            m.chipsShown = shown
+            m.buttons.chips = chips
+        end if
     end if
     m.buttons.visible = hasButtons
     m.column.visible = true
@@ -186,8 +197,14 @@ end sub
 sub layoutText()
     shown = [m.heading]
     spacings = []
-    for each part in [{ label: m.line, gap: 20 }, { label: m.genres, gap: 8 }, { label: m.credits, gap: 8 }, { label: m.tagline, gap: 28 }, { label: m.summary, gap: 20 }, { label: m.note, gap: 28 }]
-        if part.label.text <> ""
+    for each part in [{ label: m.line, gap: 20 }, { label: m.genres, gap: 12 }, { label: m.credits, gap: 8 }, { label: m.tagline, gap: 28 }, { label: m.summary, gap: 20 }, { label: m.note, gap: 28 }]
+        shows = false
+        if part.label.hasField("parts")
+            shows = part.label.parts <> invalid and part.label.parts.Count() > 0
+        else
+            shows = part.label.text <> ""
+        end if
+        if shows
             spacings.Push(part.gap)
             shown.Push(part.label)
         end if
@@ -251,12 +268,9 @@ sub showRows()
     for each key in keys
         row = m.rowNodes[key]
         content.appendChild(row.node)
-        if row.wide
-            sizes.Push([400, 300])
-        else
-            sizes.Push([220, 410])
-        end if
-        heights.Push(sizes.Peek()[1] + 60)
+        shape = contentRowSize(row.wide, false)
+        sizes.Push(shape.size)
+        heights.Push(shape.height)
     end for
     m.rowKeys = keys
     m.rows.rowItemSize = sizes
@@ -273,11 +287,11 @@ end sub
 sub focusRows(onRows as boolean)
     if onRows
         m.page.translation = [0, -820]
-        m.shade.width = 1920
+        m.shade.visible = true
         m.rows.setFocus(true)
     else
         m.page.translation = [0, 0]
-        m.shade.width = 1260
+        m.shade.visible = false
         if m.buttons.visible
             m.buttons.setFocus(true)
         else

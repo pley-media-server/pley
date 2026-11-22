@@ -19,6 +19,12 @@ describes how they are made.
   Subtitles.
 - The app draws its player in Roboto, with Lucide's icons, as the Android
   app does.
+- Home, the title pages and every tile look as on Android TV: an icon rail
+  that opens with the focus (the profile at its top), backdrops over the
+  whole screen with no hard edges, a line of facts with the rating and
+  quality in boxes, Play as a pill beside round icon buttons, and tiles
+  with round corners that grow with the accent's ring when focused. Every
+  screen's text is in Roboto.
 
 ### Fixed
 

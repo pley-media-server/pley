@@ -1,36 +1,66 @@
 sub init()
-    m.frame = m.top.findNode("frame")
+    m.art = m.top.findNode("art")
+    m.wellWidth = m.top.findNode("wellWidth")
+    m.wellHeight = m.top.findNode("wellHeight")
+    m.wellPlace = m.top.findNode("wellPlace")
+    m.posterWidth = m.top.findNode("posterWidth")
+    m.posterHeight = m.top.findNode("posterHeight")
+    m.posterPlace = m.top.findNode("posterPlace")
+    m.imageWidth = 0
+    m.imageHeight = 0
+    m.well = m.top.findNode("well")
     m.fallback = m.top.findNode("fallback")
     m.poster = m.top.findNode("poster")
+    m.hairline = m.top.findNode("hairline")
     m.track = m.top.findNode("track")
     m.fill = m.top.findNode("fill")
     m.watched = m.top.findNode("watched")
+    m.ring = m.top.findNode("ring")
     m.title = m.top.findNode("title")
     m.subtitle = m.top.findNode("subtitle")
     m.badgeBack = m.top.findNode("badgeBack")
     m.badge = m.top.findNode("badge")
     m.qualityBacks = [m.top.findNode("qualityBack0"), m.top.findNode("qualityBack1")]
     m.qualities = [m.top.findNode("quality0"), m.top.findNode("quality1")]
+    m.title.font = uiType("caption")
+    m.subtitle.font = uiType("caption")
+    m.fallback.font = uiType("label")
+    m.badge.font = uiType("badge")
+    for each label in m.qualities
+        label.font = uiType("badge")
+    end for
+    ' Round corners where the Roku draws them (OS 16's Effect, on the GPU),
+    ' as Android TV's tiles have: one Effect for the well and the artwork.
+    ' The artwork takes it only if told before its picture loads.
+    ' Named through a variable: the compiler doesn't know OS 16's nodes yet.
+    effect = "Effect"
+    m.round = CreateObject("roSGNode", effect)
+    if m.round <> invalid and m.round.supported
+        m.round.borderRadius = [8]
+        m.well.effect = m.round
+        m.poster.shaderCompatible = true
+        m.poster.effect = m.round
+    end if
     m.wide = false
     m.square = false
     m.progress = 0.0
+    m.content = invalid
 end sub
 
-' The title under the poster shows until a picture covers it, or when
-' there is none: no observer per tile.
+' Bound again as the list scrolls: only a new title changes the tile.
 sub onContent()
     item = m.top.itemContent
     if item = invalid then return
-    m.wide = false
-    if item.hasField("wide") then m.wide = item.wide
-    m.square = false
-    if item.hasField("square") then m.square = item.square
+    if m.content <> invalid and m.content.isSameNode(item) then return
+    m.content = item
+    m.wide = item.hasField("wide") and item.wide = true
+    m.square = item.hasField("square") and item.square = true
     m.progress = 0.0
     if item.hasField("progress") then m.progress = item.progress
     m.watched.visible = item.hasField("watched") and item.watched = true
     m.title.text = item.title
     ' See all, a row's Try again or note, a grid's Look further and Request
-    ' more seasons: their words in the frame only.
+    ' more seasons: their words in the well only.
     if item.hasField("kind") and (item.kind = "more" or item.kind = "retry" or item.kind = "note" or item.kind = "further" or item.kind = "askMore") then m.title.text = ""
     m.subtitle.text = item.subtitle
     m.subtitle.color = "0xA1A9B6FF"
@@ -41,7 +71,7 @@ sub onContent()
     m.badge.text = badge
     m.badge.visible = badge <> ""
     m.badgeBack.visible = badge <> ""
-    if badge <> "" and item.hasField("badgeColor") then m.badgeBack.color = item.badgeColor
+    if badge <> "" and item.hasField("badgeColor") then m.badgeBack.blendColor = item.badgeColor
     qualities = []
     if item.hasField("qualityBadges") and item.qualityBadges <> invalid then qualities = item.qualityBadges
     for i = 0 to m.qualities.Count() - 1
@@ -58,36 +88,52 @@ sub onContent()
     onFocus()
 end sub
 
+' The tile's item is 24 px wider than its artwork and 30 px taller: room
+' at the left and top for the focused one's growth and ring, which a list
+' cuts at its edges (the lists move 24 px left to match).
 sub onLayout()
-    w = m.top.width
+    w = m.top.width - 24
     if w <= 0 then return
     imageHeight = Int(w * 1.5)
     if m.wide then imageHeight = Int(w * 9 / 16)
     if m.square then imageHeight = Int(w)
-    m.frame.width = w
-    m.frame.height = imageHeight
-    m.poster.translation = [4, 4]
-    m.poster.width = w - 8
-    m.poster.height = imageHeight - 8
+    m.imageWidth = w
+    m.imageHeight = imageHeight
+    m.art.scaleRotateCenter = [w / 2, imageHeight / 2]
+    ' The well and the artwork grow by their size, from the middle.
+    grownWidth = w * 1.08
+    grownHeight = imageHeight * 1.08
+    grownPlace = [-(grownWidth - w) / 2, -(grownHeight - imageHeight) / 2]
+    for each pair in [[m.wellWidth, m.posterWidth, [w, grownWidth]], [m.wellHeight, m.posterHeight, [imageHeight, grownHeight]]]
+        pair[0].keyValue = pair[2]
+        pair[1].keyValue = pair[2]
+    end for
+    m.wellPlace.keyValue = [[0, 0], grownPlace]
+    m.posterPlace.keyValue = [[0, 0], grownPlace]
+    growTo(m.art.scale[0] > 1)
     ' Decoded at the size it's drawn: small textures for small devices.
-    m.poster.loadWidth = w - 8
-    m.poster.loadHeight = imageHeight - 8
+    m.poster.loadWidth = w
+    m.poster.loadHeight = imageHeight
+    m.hairline.width = w
+    m.hairline.height = imageHeight
+    m.ring.translation = [-12, -12]
+    m.ring.width = w + 24
+    m.ring.height = imageHeight + 24
     m.fallback.translation = [16, 16]
     m.fallback.width = w - 32
     m.fallback.height = imageHeight - 32
-    barWidth = w - 8
-    m.track.translation = [4, imageHeight - 14]
-    m.track.width = barWidth
-    m.track.height = 10
-    m.fill.translation = [4, imageHeight - 14]
-    m.fill.width = Int(barWidth * m.progress)
-    m.fill.height = 10
+    ' How far along: an 8 px bar along the artwork's foot.
+    m.track.translation = [0, imageHeight - 8]
+    m.track.width = w
+    m.track.height = 8
+    m.fill.translation = [0, imageHeight - 8]
+    m.fill.width = Int(w * m.progress)
+    m.fill.height = 8
     m.track.visible = m.progress > 0
     m.fill.visible = m.progress > 0
     m.watched.translation = [w - 52, 12]
-    ' The badge at the poster's top left, as wide as its words; cut short
-    ' only when they don't fit (a label as wide as it measures can lose
-    ' its last letters to rounding).
+    ' The badge at the artwork's top left, as wide as its words; cut short
+    ' only when they don't fit.
     if m.badge.visible
         m.badge.width = 0
         textWidth = m.badge.boundingRect().width
@@ -99,10 +145,10 @@ sub onLayout()
         m.badgeBack.translation = [12, 12]
         m.badgeBack.width = textWidth + 24
     end if
-    ' The quality badges side by side at the poster's foot, above how far
-    ' along it is; one that doesn't fit whole isn't drawn.
+    ' The quality badges side by side at the artwork's foot, 12 px in, above
+    ' how far along it is; one that doesn't fit whole isn't drawn.
     x = 12
-    y = imageHeight - 46
+    y = imageHeight - 48
     if m.progress > 0 then y = imageHeight - 56
     for i = 0 to m.qualities.Count() - 1
         label = m.qualities[i]
@@ -116,29 +162,39 @@ sub onLayout()
             label.translation = [x + 12, y]
             back.translation = [x, y]
             back.width = chipWidth
-            x = x + chipWidth + 8
+            x = x + chipWidth + 12
         end if
     end for
-    m.title.translation = [0, imageHeight + 12]
+    m.title.translation = [0, imageHeight + 28]
     m.title.width = w
-    m.subtitle.translation = [0, imageHeight + 44]
+    m.subtitle.translation = [0, imageHeight + 62]
     m.subtitle.width = w
 end sub
 
+' The list's focusPercent grows the tile and fades its ring in as focus
+' comes and goes; a list without the focus shows none on its current tile,
+' and the focused title is bold.
 sub onFocus()
     ' A RowList's rows say whether they have the focus; some Rokus also set
     ' gridHasFocus false on its tiles, which only a MarkupGrid's mean.
     gridHasFocus = m.top.gridHasFocus or inRowList()
-    focused = m.top.itemHasFocus and m.top.rowHasFocus and m.top.rowListHasFocus and gridHasFocus
-    ' Words in the frame (See all, a title without a picture) stay legible
-    ' on the accent.
+    listFocused = m.top.rowHasFocus and m.top.rowListHasFocus and gridHasFocus
+    focused = m.top.itemHasFocus and listFocused
+    ' The list leaves focusPercent alone for a tile focused as it loaded: its
+    ' look follows the focus here too, the next frames of focusPercent
+    ' taking over while focus glides.
+    m.ring.visible = listFocused
+    growTo(focused)
     if focused
-        m.frame.color = "0x38BDF8FF"
-        m.title.color = "0x7DD3FCFF"
-        m.fallback.color = "0x16191EFF"
+        m.ring.opacity = 1
     else
-        m.frame.color = "0x262B35FF"
-        m.title.color = "0xEBEBEBFF"
+        m.ring.opacity = 0
+    end if
+    if focused
+        m.title.font = uiType("captionBold")
+        m.fallback.color = "0xEBEBEBFF"
+    else
+        m.title.font = uiType("caption")
         m.fallback.color = "0xA1A9B6FF"
     end if
 end sub
@@ -161,3 +217,24 @@ function inRowList() as boolean
     end for
     return m.inRowList
 end function
+
+' The tile at rest or grown, as focusPercent leaves it at either end.
+sub growTo(grown as boolean)
+    if m.imageWidth <= 0 then return
+    w = m.imageWidth
+    h = m.imageHeight
+    if grown
+        m.art.scale = [1.08, 1.08]
+        w = w * 1.08
+        h = h * 1.08
+    else
+        m.art.scale = [1, 1]
+    end if
+    place = [-(w - m.imageWidth) / 2, -(h - m.imageHeight) / 2]
+    m.well.width = w
+    m.well.height = h
+    m.well.translation = place
+    m.poster.width = w
+    m.poster.height = h
+    m.poster.translation = place
+end sub

@@ -47,20 +47,27 @@ password is signed in to with a code, choosing it in the browser.
 
 ### Home
 
-Home's menu, at the left, is in the order of the other TVs' rail: Search,
-Home, Discover and the requests (where the server has them), Live TV, the
-libraries, Playlists, Collections (every library's collections, a row
-each), Now Playing while music plays, and Settings.
+Home's rail, at the left, is the Android TV app's: the profile's initial
+(OK switches profiles), then Search, Home, Discover and the requests
+(where the server has them), Live TV, the libraries, Playlists,
+Collections (every library's collections, a row each), Now Playing while
+music plays, and Settings, each with its icon (a library's by its kind).
+Collapsed, it shows the icons alone, Home's with an accent mark; with the
+focus it opens over the page, their names beside them.
 
 Beside it, as on Android TV and the native Samsung app, a hero shows the
 first of Continue Watching, else the newest title in the rows: its
 backdrop, its title (a show's name over an episode's "S2 E5 · Title"),
 year, length, content rating, stars and quality ("4K", "DV"), the time
-left, its summary, then Resume (or Play), From start, Info and Mark as
-watched. Resume has the focus as Home first shows. Down goes to the
+left, its summary, then Resume (or Play), a pill, and From start, Info and
+Mark as watched as round icons, named while focused. Resume has the focus
+as Home first shows. The backdrop covers the screen, fading to the
+background at the left and the bottom, as on Android TV. Down goes to the
 server's rows: there an info block about the title focus rests on (0.4 s)
 takes the hero's place, and the backdrop follows it. Up from the first row
-goes back to the hero; Left or Back, to the menu, the hero shown again.
+goes back to the hero; Left or Back, to the rail, the hero shown again.
+Tiles are the Android TV app's: their pictures' corners round (Roku OS
+16), focused they grow and take the accent's ring.
 The hero's summary, content rating and quality come with its details
 (`GET /api/items/{id}`, which the API task reduces to what Home says), as
 do the info block's. With nothing to show, Home says why: No libraries
@@ -85,10 +92,13 @@ yet, Scanning your libraries…, or Nothing here yet.
 
 ### A title's page
 
-A movie's, an episode's or a show's page has its buttons in a column at
-the left, Play (or Resume and Play from start) first, then Mark as
-watched, Audio and subtitles, My List, Trailer (where its extras have
-one: it plays from its start) and More…. Audio and subtitles and More
+A movie's, an episode's or a show's page is laid out as Android TV's: the
+backdrop over the screen, the title, a line of facts with the content
+rating and the quality in boxes, then its buttons in a row, Play (or
+Resume) a pill, then round icons named while focused: Play from start,
+Mark as watched, Audio and subtitles, My List, Trailer (where its extras
+have one: it plays from its start) and More…. A title without a backdrop
+shows its poster at the right. Audio and subtitles and More
 open a panel at the right; Back closes it, and Down from the buttons goes
 to the rows under them. Over the summary, as on Android TV, a line says
 who made it and who is in it ("Directed by Grace Hopper · Starring Ada
@@ -958,7 +968,14 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   splash screens come from `bun scripts/render-icons.mjs` there too.
 - **Type:** Roboto, the Android app's static files (`fonts/`), in the
   Android TV app's sizes doubled (`components/shared/Type.brs`); Chinese
-  in the Roku's own font, which has its characters.
+  in the Roku's own font, which has its characters. The scene gives every
+  screen it makes Roboto wherever the screen's markup still names a
+  system font (`uiRestyle`, by size: the Roku doesn't say which are bold).
+- **Tiles** (`components/items/Tile`) grow by their size, not a scale:
+  scaled, Roku OS 16's Effect draws square corners again. Their items are
+  24 px wider and 30 px taller than the picture, room the lists would
+  otherwise cut the focused tile's ring at; the lists sit 24 px further
+  left to match.
 
 ## Releases
 

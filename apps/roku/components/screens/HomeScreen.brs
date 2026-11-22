@@ -18,6 +18,16 @@ sub init()
     m.infoMeta = m.top.findNode("infoMeta")
     m.infoSummary = m.top.findNode("infoSummary")
     m.rest = m.top.findNode("rest")
+    m.railPanel = m.top.findNode("railPanel")
+    m.railOpen = m.top.findNode("railOpen")
+    m.railClose = m.top.findNode("railClose")
+    m.railShown = false
+    ' Pley's type, as Android TV's Home: the hero's title the largest.
+    fonts = { heroTitle: "heroTitle", heroContext: "title", heroLeft: "label", heroSummary: "bodyLarge", infoTitle: "heroTitle", infoSummary: "bodyLarge", messageTitle: "pageTitle", messageText: "bodyLarge" }
+    for each id in fonts
+        m.top.findNode(id).font = uiType(fonts[id])
+    end for
+    m.rows.rowLabelFont = uiType("section")
     m.started = false
     m.libraries = []
     ' GET /api/libraries' answer, for why Home is empty; invalid until it
@@ -60,6 +70,8 @@ sub init()
     ' watching?" at the next start.
     m.householdAsked = false
     m.menu.observeField("itemSelected", "onMenu")
+    ' The rail opens while it has the focus, as Android TV's.
+    m.menu.observeField("focusedChild", "onRailFocus")
     m.rows.observeField("rowItemSelected", "onTile")
     m.rows.observeField("rowItemFocused", "onTileFocused")
     m.heroButtons.observeField("chosen", "onHeroButton")
@@ -215,6 +227,15 @@ sub buildMenu()
     m.requestEntries = requestEntries()
     m.musicShown = m.global.music.state <> "stopped"
     entries = homeMenu(m.libraries, m.live, m.requestEntries, m.musicShown)
+    ' The profile at the top, its initial in a circle: OK switches profiles.
+    name = m.global.session.profileName
+    if name <> invalid and name <> ""
+        entries.Unshift({ title: name, action: "profiles", initial: UCase(Left(name, 1)) })
+    end if
+    for each entry in entries
+        entry.icon = homeMenuIcon(entry)
+        entry.current = entry.action = "home"
+    end for
     items = []
     m.menuActions = []
     ' The library of each entry (invalid for the others).
@@ -412,18 +433,14 @@ sub drawHero()
     if info = invalid then return
     m.heroTitle.text = info.title
     m.heroContext.text = info.context
-    m.heroMeta.text = info.meta
+    m.heroMeta.parts = homeMetaParts(info, false)
     m.heroLeft.text = info.timeLeft
     m.heroSummary.text = info.summary
     buttons = homeHeroButtons(info)
     m.heroActions = buttons.actions
     if FormatJson(buttons.labels) <> FormatJson(m.heroLabels)
         m.heroLabels = buttons.labels
-        chips = []
-        for each label in buttons.labels
-            chips.Push({ label: label, width: 0 })
-        end for
-        m.heroButtons.chips = chips
+        m.heroButtons.chips = homeHeroChips(buttons)
     end if
     layOut(m.hero, [{ label: m.heroTitle, gap: 0 }, { label: m.heroContext, gap: 8 }, { label: m.heroMeta, gap: 12 }, { label: m.heroLeft, gap: 8 }, { label: m.heroSummary, gap: 16 }], m.heroButtons, 32)
     if not m.inRows then setBackdrop(info.backdrop)
@@ -435,7 +452,7 @@ sub layOut(column as object, parts as object, last as dynamic, lastGap as intege
     shown = []
     spacings = []
     for each part in parts
-        if part.label.text <> ""
+        if layOutShows(part.label)
             if shown.Count() > 0 then spacings.Push(part.gap)
             shown.Push(part.label)
         end if
@@ -468,10 +485,12 @@ sub placeRows()
     ' hold it for a while, and gives it back.
     inRows = m.inRows or m.heroInfo = invalid
     m.hero.visible = m.heroInfo <> invalid and not inRows
+    ' In the rows, the focused row's header at y 344 under the info block;
+    ' at rest, the first row's at 664 under the hero (Android TV's).
     if inRows
-        m.rows.translation = [440, 330]
+        m.rows.translation = [168, 344]
     else
-        m.rows.translation = [440, 620]
+        m.rows.translation = [168, 664]
         m.info.visible = false
         m.infoShown = 0
         if m.heroInfo <> invalid then setBackdrop(m.heroInfo.backdrop)
@@ -524,13 +543,8 @@ end sub
 
 sub drawInfo(info as object)
     m.infoTitle.text = info.title
-    meta = info.meta
-    if info.context <> "" and meta <> ""
-        meta = info.context + " · " + meta
-    else if info.context <> ""
-        meta = info.context
-    end if
-    m.infoMeta.text = meta
+    ' The info block has no line of its own for an episode's "S2 E5 · Title".
+    m.infoMeta.parts = homeMetaParts(info, true)
     m.infoSummary.text = info.summary
     layOut(m.info, [{ label: m.infoTitle, gap: 0 }, { label: m.infoMeta, gap: 8 }, { label: m.infoSummary, gap: 12 }], invalid, 0)
     m.info.visible = true
@@ -591,6 +605,8 @@ sub onMenu(event as object)
     if action = "home"
         load()
         focusPage()
+    else if action = "profiles"
+        uiNavigate({ to: "profiles" })
     else if action = "live"
         uiNavigate({ to: "live" })
     else if action = "library"
@@ -684,4 +700,27 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     return false
+end function
+
+' The rail opens while it has the focus: its panel fades in behind the
+' entries, which show their names (RailRow); it closes as the page takes
+' the focus.
+sub onRailFocus()
+    open = m.menu.isInFocusChain()
+    if open = m.railShown then return
+    m.railShown = open
+    if open
+        m.railClose.control = "stop"
+        m.railOpen.control = "start"
+    else
+        m.railOpen.control = "stop"
+        m.railClose.control = "start"
+    end if
+end sub
+
+' Whether a part of a column has something to show: a label its words, a
+' MetaRow its parts.
+function layOutShows(node as object) as boolean
+    if node.hasField("parts") then return node.parts <> invalid and node.parts.Count() > 0
+    return node.text <> ""
 end function
