@@ -46,6 +46,19 @@ class RecoveryTest {
     }
 
     @Test
+    fun `a late error naming audio refused already gets the session again as it was, once`() {
+        val decoder = EngineError.Unsupported(audio = true, container = false, detail = "decoder", audioCodec = "eac3")
+        val r = Recovery()
+        assertEquals(Action.NewSession(null, FallbackReason.AudioUnplayable), r.decide(decoder, PlaybackMethod.Direct, "h264", "eac3"))
+        // The renderer's error for the same track, once the session that converts it is loaded.
+        assertEquals(Action.NewSession(null, null), r.decide(decoder, PlaybackMethod.Remux, "h264"))
+        assertEquals(FallbackReason.AudioUnplayable, r.fallbackReason)
+        assertNull(r.fallbackMode)
+        // Once per codec: then the ladder.
+        assertEquals(Action.NewSession(PlaybackMode.Transcode, FallbackReason.Unplayable), r.decide(decoder, PlaybackMethod.Remux, "h264"))
+    }
+
+    @Test
     fun `a refusal keeps a fallback's mode`() {
         val r = Recovery()
         r.decide(unsupportedContainer, PlaybackMethod.Direct, "h264")

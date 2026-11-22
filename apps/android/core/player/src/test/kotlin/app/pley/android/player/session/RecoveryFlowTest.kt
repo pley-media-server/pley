@@ -71,6 +71,54 @@ class RecoveryFlowTest {
         assertEquals(3, starts())
     }
 
+    /**
+     * Media3 tells of an audio track no decoder takes twice: as a track that
+     * doesn't play, then as its renderer's error, which can come once the
+     * session that converts the audio is loaded, and stops the player.
+     */
+    @Test
+    fun `audio refused for its track stays converted when the renderer's error comes after`() {
+        h.close()
+        h = SessionHarness(caps = TestCaps.hdrTv())
+        val c = h.play(PlayRequest(FixtureIds.SAMPLE_HDR10))
+        h.engine.tracks(unplayableAc3)
+        h.settle()
+        assertEquals(listOf(PlaybackMode.Auto, PlaybackMode.Auto), h.playbackRequests().map { it.mode })
+        assertFalse("ac3" in h.playbackRequests()[1].caps.audioCodecs)
+        assertTrue(h.engine.source!!.hls)
+        val prepared = h.engine.prepared.size
+
+        h.engine.fail(EngineError.Unsupported(audio = true, container = false, detail = "ERROR_CODE_DECODER_INIT_FAILED", audioCodec = "ac3"))
+        h.settle()
+        // The converted session again, as it was: not a remux or a transcode for the session before's error.
+        assertEquals(listOf(PlaybackMode.Auto, PlaybackMode.Auto, PlaybackMode.Auto), h.playbackRequests().map { it.mode })
+        assertEquals(h.playbackRequests()[1].caps, h.playbackRequests()[2].caps)
+        assertEquals("loaded again", prepared + 1, h.engine.prepared.size)
+        assertTrue(h.engine.source!!.hls)
+        assertFalse(c.state.value.phase is PlayerPhase.Error)
+        assertEquals("This device couldn't play the original audio.", c.state.value.note)
+    }
+
+    @Test
+    fun `audio refused for its track stays converted when the renderer's error comes before the next session`() {
+        h.close()
+        h = SessionHarness(caps = TestCaps.hdrTv())
+        h.play(PlayRequest(FixtureIds.SAMPLE_HDR10))
+        h.engine.tracks(unplayableAc3)
+        h.engine.fail(EngineError.Unsupported(audio = true, container = false, detail = "ERROR_CODE_DECODER_INIT_FAILED", audioCodec = "ac3"))
+        h.settle()
+        val requests = h.playbackRequests()
+        assertTrue(requests.map { it.mode }.toString(), requests.all { it.mode == PlaybackMode.Auto })
+        assertTrue(requests.drop(1).none { "ac3" in it.caps.audioCodecs })
+        assertTrue(h.engine.source!!.hls)
+    }
+
+    /** SAMPLE_HDR10's tracks, its AC-3 taken by no decoder. */
+    private val unplayableAc3 = EngineTracks(
+        video = listOf(EngineTrack("und", "video/hevc", null, supported = true)),
+        audio = listOf(EngineTrack("en", "audio/ac3", 6, supported = false)),
+    )
+
     @Test
     fun `a track picked whose codec failed here goes to the server, not to the engine`() {
         h.close()
