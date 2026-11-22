@@ -9,7 +9,9 @@ sub onContent()
     item = m.top.itemContent
     if item = invalid then return
     kind = "Tile"
-    if item.hasField("channelId") then kind = "LiveCard"
+    ' A channel's by its liveId: every ContentNode has a channelId on Roku
+    ' OS 16, so every result was drawn as a channel.
+    if item.hasField("liveId") then kind = "LiveCard"
     if kind <> m.shownKind
         if m.shown <> invalid then m.top.removeChild(m.shown)
         m.shown = m.top.createChild(kind)

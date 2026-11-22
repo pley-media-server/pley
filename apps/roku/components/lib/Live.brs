@@ -590,8 +590,10 @@ function liveCard(channel as object, now as integer, twelve as boolean) as objec
     end if
     nextLine = ""
     if coming <> invalid then nextLine = liveClock(coming.start, twelve) + " · " + coming.title
+    ' liveId, not channelId: Roku OS 16's ContentNode has a channelId field
+    ' of its own, a string, which refused the number and kept "".
     return {
-        channelId: channel.id,
+        liveId: channel.id,
         title: channel.name,
         number: channel.number,
         image: channel.logo,
@@ -615,7 +617,7 @@ function liveListItem(channel as object, now as integer, twelve as boolean) as o
         coming = liveComingUp(channel, now)
         if coming <> invalid then line = liveClock(coming.start, twelve) + " · " + coming.title
     end if
-    return { channelId: channel.id, number: channel.number, title: channel.name, image: channel.logo, line: line, progress: progress, favorite: channel.favorite, current: false }
+    return { liveId: channel.id, number: channel.number, title: channel.name, image: channel.logo, line: line, progress: progress, favorite: channel.favorite, current: false }
 end function
 
 ' --- The guide ---

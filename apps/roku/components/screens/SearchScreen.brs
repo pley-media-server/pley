@@ -379,8 +379,8 @@ sub onRowTile(event as object)
         askTmdb()
         return
     end if
-    if tile.hasField("channelId")
-        watch(tile.channelId)
+    if tile.hasField("liveId")
+        watch(tile.liveId)
         return
     end if
     remember()
