@@ -30,7 +30,7 @@
         <!-- Search, pinned above the categories: it never scrolls away. -->
         <MarkupList id="searchRow" translation="[168, 212]" itemComponentName="LiveRailItem" itemSize="[420, 56]" numRows="1" drawFocusFeedback="false" />
         <Rectangle translation="[192, 274]" width="372" height="2" color="0x2E3440FF" />
-        <MarkupList id="rail" translation="[168, 284]" itemComponentName="LiveRailItem" itemSize="[420, 56]" itemSpacing="[0, 4]" numRows="13" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <MarkupList id="rail" translation="[168, 284]" itemComponentName="LiveRailItem" itemSize="[420, 56]" itemSpacing="[0, 4]" numRows="12" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <!-- The category's channels. -->
         <Label id="category" translation="[624, 54]" width="1200" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
         <Label id="count" translation="[624, 112]" width="1200" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
@@ -44,13 +44,17 @@
             <Label id="infoText" translation="[0, 120]" width="1200" wrap="true" maxLines="1" lineSpacing="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         </Group>
         <!-- Rewind, fast forward and Replay are the screen's (Replay opens
-             Search): it pages the guide through time itself. -->
+             Search): it pages the guide through time itself. Cut at the
+             right margin (x 1824), as the pages' content is: a TimeGrid
+             runs to the screen's edge. -->
+        <Group clippingRect="[0, 0, 1824, 1080]">
         <TimeGrid id="guide" translation="[624, 376]" numRows="7" duration="7200" maxDays="2" channelInfoWidth="260" infoGridGap="8" ignoreTrickPlayKeys="true"
             focusBitmapUri="pkg:/images/ui/square-accent.9.png" programBackgroundBitmapUri="pkg:/images/guide-cell.9.png"
             channelInfoBackgroundBitmapUri="pkg:/images/guide-cell.9.png" channelInfoTextColor="0xEBEBEBFF" channelInfoFont="font:SmallestBoldSystemFont"
             programTitleColor="0xEBEBEBFF" programTitleFocusedColor="0x16191EFF" programTitleFont="font:SmallestSystemFont"
             timeLabelColor="0xA1A9B6FF" timeLabelFont="font:SmallestSystemFont" timeBarHeight="48"
             nowBarBlendColor="0x38BDF8FF" pastTimeScreenBitmapUri="pkg:/images/guide-past.9.png" visible="false" />
+        </Group>
         <MarkupGrid id="cards" translation="[624, 168]" itemComponentName="LiveCard" numColumns="4" numRows="3" itemSize="[282, 270]" itemSpacing="[24, 32]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
         <Label id="message" translation="[624, 480]" width="1200" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- Under what failed with nothing to show. -->

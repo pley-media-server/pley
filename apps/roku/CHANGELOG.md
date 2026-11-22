@@ -93,6 +93,8 @@ describes how they are made.
   cover, and beside it the title over the artist and album, the scrubber,
   the buttons, and Up next in rows of two lines, the track playing marked
   with a waveform.
+- Live TV's guide ends at the right margin, and its list of categories
+  above the title-safe area's foot.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 
