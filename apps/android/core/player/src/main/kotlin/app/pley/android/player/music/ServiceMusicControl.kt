@@ -84,6 +84,13 @@ class ServiceMusicControl(
 
     override fun pauseForVideo() = onMain { playback.pauseForVideo() }
 
+    override fun pauseForLeave(playOnReturn: Boolean) = onMain { playback.pauseForLeave(playOnReturn) }
+
+    override fun returnAfterLeave(playOn: Boolean) = onMain {
+        playback.returnAfterLeave(playOn)
+        connect()
+    }
+
     override val sleep: StateFlow<SleepState> get() = playback.sleep
 
     override fun setSleep(choice: SleepChoice) = onMain { playback.setSleep(choice) }

@@ -658,9 +658,9 @@ Next (the next episode, or the next in a playlist or collection, at
 credits that run to the end of the file, else at its end, as
 [Up Next](#up-next) describes),
 recovering by itself from stalls and a server out of reach, and Try again
-when it can't play. Back on its first screen asks "Exit Pley?". Unlike
-Android's, its music pauses while the app is hidden, since a hidden app
-gives up the TV's player, and plays on from there when the app is back.
+when it can't play. Back on its first screen asks "Exit Pley?". As on
+Android TV, its music pauses while the app is hidden (a hidden app gives
+up the TV's player), and plays on from there when the app is back.
 The other pages come next.
 
 Tizen's player prepares an HLS stream from its first segment and ignores

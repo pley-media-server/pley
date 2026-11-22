@@ -18,6 +18,7 @@ import app.pley.android.network.OfflineException
 import app.pley.android.player.EngineSource
 import app.pley.android.player.MusicError
 import app.pley.android.player.session.SessionReporter
+import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.testing.network.FakePleyApi
 import java.io.IOException
 import kotlin.random.Random
@@ -161,6 +162,197 @@ class MusicPlaybackTest {
         assertEquals(30_000L, starts().last().startMs)
         assertEquals(30_000L, output.startPositions.last())
         assertTrue(output.playWhenReady)
+    }
+
+    @Test
+    fun leavingTheTvAppPausesMusicThatPlaysAndItPlaysOnWhereItWas() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 30_000
+        music.pauseForLeave(playOnReturn = true)
+        settle()
+        assertEquals(1, api.calls("stopPlayback").size)
+        assertFalse(music.nowPlaying.value!!.playing)
+
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(listOf(1L, 1L), starts().map { it.itemId })
+        assertEquals(30_000L, starts().last().startMs)
+        assertTrue(output.playWhenReady)
+    }
+
+    @Test
+    fun aTrackStillAskedForWhenTheTvAppIsLeftPlaysOnWhenItIsBack() = runTest {
+        val music = music()
+        music.play(album)
+        // Left before the server answered: nothing was asked for yet.
+        music.pauseForLeave(playOnReturn = true)
+        settle()
+        assertEquals(emptyList<PlaybackRequest>(), starts())
+
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(listOf(1L), starts().map { it.itemId })
+        assertTrue(output.playWhenReady)
+    }
+
+    @Test
+    fun musicPausedWhileItBuffersStaysPausedAfterTheTvAppIsLeft() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        music.pause()
+        output.buffer()
+        assertTrue(music.nowPlaying.value!!.loading)
+
+        music.pauseForLeave(playOnReturn = true)
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(0, api.calls("stopPlayback").size)
+        assertEquals(1, starts().size)
+        assertFalse(output.playWhenReady)
+    }
+
+    @Test
+    fun theSleepTimersNextTrackWaitingPausedStaysPausedAfterTheTvAppIsLeft() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        music.setSleep(SleepChoice.EndOfItem)
+        output.end()
+        // The next track is being asked for, to wait paused.
+        music.pauseForLeave(playOnReturn = true)
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        assertFalse(output.playWhenReady)
+    }
+
+    @Test
+    fun musicPlayedAndPausedAgainWhileAwayStaysPaused() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        music.pauseForLeave(playOnReturn = true)
+        settle()
+        // A media key on the TV's home screen plays it, then pauses it.
+        music.play()
+        settle()
+        output.startPlaying()
+        music.pause()
+
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(2, starts().size)
+        assertFalse(output.playWhenReady)
+    }
+
+    @Test
+    fun leavingWhileTheNextTrackIsAskedForPlaysItFromItsStart() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 83_000
+        music.next()
+        // Left before the server answered for track 2: the output is still at track 1's place.
+        music.pauseForLeave(playOnReturn = true)
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        assertNull(starts().last().startMs)
+        assertEquals(0L, output.startPositions.last())
+        assertTrue(output.playWhenReady)
+    }
+
+    @Test
+    fun anotherTrackChosenWhileAwayIsLeftAsItIs() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        music.pauseForLeave(playOnReturn = true)
+        settle()
+        // The remote's Next, through the media session, on the TV's home screen: it plays.
+        music.next()
+        settle()
+        output.startPlaying()
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        assertTrue(output.playWhenReady)
+    }
+
+    @Test
+    fun theOutputFailingWhileAwayStartsNoSessionAndTheMusicStillPlaysOn() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 30_000
+        music.pauseForLeave(playOnReturn = true)
+        settle()
+        // Its last fetch, from the session that just ended.
+        output.fail(OutputError.Network)
+        settle()
+        assertEquals(1, starts().size)
+        assertNull(music.nowPlaying.value!!.error)
+
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(listOf(1L, 1L), starts().map { it.itemId })
+        assertEquals(30_000L, starts().last().startMs)
+        assertTrue(output.playWhenReady)
+    }
+
+    @Test
+    fun pausePressedWhileAwayKeepsTheMusicPaused() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        music.pauseForLeave(playOnReturn = true)
+        // The remote's Pause, through the media session, on the TV's home screen.
+        music.pause()
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(1, starts().size)
+    }
+
+    @Test
+    fun theLastBackAVideoOrAWatchNextProgramLeaveTheMusicPaused() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        music.pauseForLeave(playOnReturn = false)
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(1, starts().size)
+
+        music.play()
+        settle()
+        output.startPlaying()
+        music.pauseForLeave(playOnReturn = true)
+        music.pauseForVideo()
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(2, starts().size)
+
+        music.play()
+        settle()
+        output.startPlaying()
+        music.pauseForLeave(playOnReturn = true)
+        music.returnAfterLeave(playOn = false)
+        // Forgotten: coming back again later doesn't play it either.
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(3, starts().size)
+        assertFalse(output.playWhenReady)
     }
 
     @Test
@@ -571,6 +763,10 @@ class MusicPlaybackTest {
         fun startPlaying() {
             playing = true
             listener?.onPlayingChanged(true)
+        }
+
+        fun buffer() {
+            listener?.onBuffering(true)
         }
 
         fun end() {
