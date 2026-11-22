@@ -30,12 +30,11 @@
     <children>
         <!-- The backdrop over the whole screen, as a title's page has it:
              under the scrim from the left (the text's side) and a fade to
-             the rows; the shade dims it further while they have the
-             focus. -->
+             the rows; the backdrop alone, faint, while they have the
+             focus (uiDimBackdrop). -->
         <Poster id="backdrop" width="1920" height="1080" loadWidth="960" loadHeight="540" loadDisplayMode="scaleToZoom" />
-        <Poster width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
-        <Poster translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" />
-        <Rectangle id="shade" width="1920" height="1080" color="0x16191EB3" visible="false" />
+        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
+        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" />
         <Group id="page">
             <Poster id="poster" translation="[1404, 120]" width="420" height="630" loadWidth="420" loadHeight="630" loadDisplayMode="scaleToZoom" />
             <Label id="credit" translation="[1404, 770]" width="420" wrap="true" color="0x8B95A5FF" font="font:SmallestSystemFont" visible="false" />

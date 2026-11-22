@@ -12,7 +12,6 @@
 
 sub init()
     m.backdrop = m.top.findNode("backdrop")
-    m.shade = m.top.findNode("shade")
     m.page = m.top.findNode("page")
     m.poster = m.top.findNode("poster")
     m.credit = m.top.findNode("credit")
@@ -289,11 +288,11 @@ end function
 sub focusRows(onRows as boolean)
     if onRows
         m.page.translation = [0, -820]
-        m.shade.visible = true
+        uiDimBackdrop(m.top, true)
         m.rows.setFocus(true)
     else
         m.page.translation = [0, 0]
-        m.shade.visible = false
+        uiDimBackdrop(m.top, false)
         if m.buttons.visible
             m.buttons.setFocus(true)
         else

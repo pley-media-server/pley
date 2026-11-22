@@ -69,6 +69,17 @@ function uiHttpAgent(withToken = true as boolean) as object
     return agent
 end function
 
+' A title page's backdrop under its rows while they have the focus: the
+' backdrop alone and faint, in place of the scrim and fade with a shade over
+' them all, three layers over the whole screen fewer to draw a frame (they
+' held a page of rows near 40 fps). screen has "backdrop", "scrim" and "fade".
+sub uiDimBackdrop(screen as object, faint as boolean)
+    backdrop = screen.findNode("backdrop")
+    if faint then backdrop.opacity = 0.18 else backdrop.opacity = 1
+    screen.findNode("scrim").visible = not faint
+    screen.findNode("fade").visible = not faint
+end sub
+
 ' Puts a ButtonGroup's highlight back on index once its buttons changed.
 ' On a Roku, focusButton gives the group the focus too: set where the group
 ' had none (hadFocus, read before the buttons changed), it would take the

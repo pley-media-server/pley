@@ -1,6 +1,5 @@
 sub init()
     m.backdrop = m.top.findNode("backdrop")
-    m.shade = m.top.findNode("shade")
     m.page = m.top.findNode("page")
     m.poster = m.top.findNode("poster")
     m.column = m.top.findNode("column")
@@ -24,6 +23,8 @@ sub init()
     m.choices = m.top.findNode("choices")
     m.info = m.top.findNode("info")
     m.facts = m.top.findNode("facts")
+    m.under = m.top.findNode("under")
+    m.panel.observeField("visible", "onPanel")
     m.message.text = t("common.states.loading")
     ' Pley's type, as Android TV's title page.
     fonts = { heading: "heroTitle", genres: "label", credits: "label", tagline: "title", summary: "bodyLarge", note: "label", message: "bodyLarge", panelTitle: "section" }
@@ -396,11 +397,11 @@ sub focusRows(onRows as boolean)
     if onRows
         placeRows()
         m.page.translation = [0, -(m.rows.translation[1] - 120)]
-        m.shade.visible = true
+        uiDimBackdrop(m.top, true)
         m.rows.setFocus(true)
     else
         m.page.translation = [0, 0]
-        m.shade.visible = false
+        uiDimBackdrop(m.top, false)
         if m.buttons.visible
             m.buttons.setFocus(true)
         else
@@ -630,6 +631,17 @@ sub showAbout()
     m.info.visible = true
     m.panel.visible = true
     m.info.setFocus(true)
+end sub
+
+' The page under the panel is drawn only where the panel leaves it, at
+' its left: the panel is opaque, and drawing the whole page beneath it
+' too held its scrolling near 40 fps.
+sub onPanel()
+    if m.panel.visible
+        m.under.clippingRect = [0, 0, 720, 1080]
+    else
+        m.under.clippingRect = [0, 0, 0, 0]
+    end if
 end sub
 
 sub closePanel()

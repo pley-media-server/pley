@@ -45,11 +45,13 @@
         <!-- The backdrop over the whole screen, as on Android TV, under the
              scrim from the left (the text's side) and a fade to the
              background at the bottom: no edge cuts it. In the rows, the
-             shade dims it further. -->
+             backdrop alone, faint (uiDimBackdrop). -->
+        <!-- All but the panel: cut to the panel's left while it shows, so
+             what it covers isn't drawn (onPanel). -->
+        <Group id="under">
         <Poster id="backdrop" width="1920" height="1080" loadWidth="960" loadHeight="540" loadDisplayMode="scaleToZoom" />
-        <Poster width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
-        <Poster translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" />
-        <Rectangle id="shade" width="1920" height="1080" color="0x16191EB3" visible="false" />
+        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
+        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" />
         <Group id="page">
             <!-- Only for a title without a backdrop. -->
             <Poster id="poster" translation="[1404, 120]" width="420" height="630" loadWidth="420" loadHeight="630" loadDisplayMode="scaleToZoom" visible="false" />
@@ -77,11 +79,12 @@
             <RowList id="rows" translation="[168, 940]" itemComponentName="Tile" itemSize="[1752, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
         <Label id="message" translation="[192, 480]" width="1100" wrap="true" color="0xA1A9B6FF" />
+        </Group>
         <!-- A menu (Audio and subtitles, More), or the choices of one of its
              entries. It leaves the buttons in view, and is wider than
              Settings' for a version's long line. -->
         <Group id="panel" visible="false">
-            <Rectangle width="1920" height="1080" color="0x16191E80" />
+            <Rectangle width="720" height="1080" color="0x16191E80" />
             <Poster translation="[720, 0]" width="1200" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFF" />
             <Label id="panelTitle" translation="[776, 72]" width="1088" color="0xEBEBEBFF" />
             <MarkupList id="menu" translation="[776, 150]" itemComponentName="PanelRow" itemSize="[1088, 64]" itemSpacing="[0, 4]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />

@@ -81,6 +81,9 @@ describes how they are made.
 - A collection's posters start under its buttons, their names in view,
   instead of at the screen's foot.
 - Playlists' New playlist is a pill with a plus, as a page's buttons are.
+- A title's page scrolls at 60 fps, its rows and its Media info alike (40
+  before): what a panel covers isn't drawn, and under the rows the
+  backdrop alone is dimmed.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

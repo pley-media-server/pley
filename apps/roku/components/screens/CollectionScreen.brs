@@ -10,7 +10,6 @@
 
 sub init()
     m.backdrop = m.top.findNode("backdrop")
-    m.shade = m.top.findNode("shade")
     m.page = m.top.findNode("page")
     m.column = m.top.findNode("column")
     m.text = m.top.findNode("text")
@@ -294,11 +293,11 @@ sub focusGrid(onGrid as boolean)
     if onGrid
         placeGrid()
         m.page.translation = [0, -(m.grid.translation[1] - 96)]
-        m.shade.visible = true
+        uiDimBackdrop(m.top, true)
         m.grid.setFocus(true)
     else
         m.page.translation = [0, 0]
-        m.shade.visible = false
+        uiDimBackdrop(m.top, false)
         if m.buttons.visible
             m.buttons.setFocus(true)
         else
