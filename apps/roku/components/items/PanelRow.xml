@@ -2,7 +2,7 @@
 <!-- A row of the player's side panels, as the Android TV player's
      PanelRow: its words, what they mean under them (a quality's hint, a
      track's details), and a check at the right on the choice made. The
-     list draws the focus (the accent, its corners round); focused, the
+     list draws the focus (the accent, square); focused, the
      words and the check are dark on it. 608 × 88. -->
 <component name="PanelRow" extends="Group">
     <interface>

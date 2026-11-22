@@ -88,9 +88,10 @@ ninePatch("r8.9.png", 32, 32, 8, box(32, 32, 8, "#ffffff"));
 ninePatch("r12.9.png", 48, 48, 12, box(48, 48, 12, "#ffffff"));
 ninePatch("bar.9.png", 16, 8, 4, box(16, 8, 4, "#ffffff"));
 
-// The player's side panel: 32 px corners on the left, square on the right,
-// where it meets the screen's edge.
-ninePatch("panel.9.png", 80, 80, 32, `<path d="M32 0H80V80H32A32 32 0 0 1 0 48V32A32 32 0 0 1 32 0Z" fill="#ffffff"/>`);
+// The side panels and the focus in their lists: square, as menus are;
+// buttons and the player's own controls keep their round corners.
+ninePatch("panel.9.png", 80, 80, 32, `<rect width="80" height="80" fill="#ffffff"/>`);
+ninePatch("square.9.png", 16, 16, 4, `<rect width="16" height="16" fill="#ffffff"/>`);
 
 // The edge of the seek preview: 2 px, corners 8, white for fg at 20 %.
 ninePatch("frame.9.png", 32, 32, 8, `<rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="#ffffff" stroke-width="2"/>`);
