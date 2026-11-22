@@ -151,6 +151,13 @@ describe("AVPlay", () => {
     expect(avplayError("PLAYER_ERROR_GENEREIC", null, null)).toMatchObject({ kind: "other" });
   });
 
+  it("takes a format that doesn't play for the audio when its message says so", () => {
+    expect(avplayError("PLAYER_ERROR_NOT_SUPPORTED_FORMAT", null, null)).toMatchObject({ audio: false });
+    expect(avplayError("PLAYER_ERROR_NOT_SUPPORTED_FORMAT", null, null, "Unsupported audio codec")).toMatchObject({ kind: "unsupported", audio: true });
+    expect(avplayError("PLAYER_ERROR_NOT_SUPPORTED_FORMAT", null, null, "Unsupported video codec")).toMatchObject({ audio: false });
+    expect(avplayError("PLAYER_ERROR_NOT_SUPPORTED_FILE", null, null, "audio")).toMatchObject({ audio: false, container: true });
+  });
+
   it("finds the HTTP status in its error messages", () => {
     expect(statusOf('{"http_response_header":"HTTP/1.1 410 Gone\\r\\n"}')).toBe(410);
     expect(statusOf('{"connect_error":{"curl":-23}}')).toBeNull();

@@ -191,6 +191,8 @@ describes how they are made.
 
 - A video whose audio the TV can't decode plays with the audio converted
   by the server, or another track, instead of failing after a transcode.
+- A video played as it is switches to the audio track chosen once the TV's
+  player has opened it; before, it could stay on the file's first track.
 - A collection's page shows its titles under Play and Shuffle, where they
   were drawn below the screen.
 - Live TV's channel up or down, still finding the next channel when another

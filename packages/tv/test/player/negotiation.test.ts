@@ -247,6 +247,14 @@ class FakeEngine implements PlayerEngine {
   prepare(source: EngineSource) {
     this.prepared.push(source);
     this.state = "buffering";
+    this.listing = !this.late;
+  }
+  /** It lists a source's tracks only once prepared (`listTracks`), as AVPlay; until then it switches none. */
+  late = false;
+  private listing = true;
+  listTracks() {
+    this.listing = true;
+    this.listener?.tracks();
   }
   /** Times it was asked to keep its picture through the next prepare. */
   held = 0;
@@ -292,6 +300,7 @@ class FakeEngine implements PlayerEngine {
   /** The audio tracks switched to, by their place among the file's. */
   switched: number[] = [];
   selectAudio(position: number) {
+    if (!this.listing) return false;
     this.switched.push(position);
     return true;
   }
@@ -601,6 +610,78 @@ describe("a playback session", () => {
     expect(w.requests[2]!.caps.audio_codecs).toEqual(["aac", "ac3"]);
     c.close();
   });
+
+  it("switches to the audio chosen once the TV's player lists its tracks", async () => {
+    // The server's pick, the TrueHD, is the file's second audio track.
+    const w = world(item(file()), () => info({ audio_index: 2 }));
+    w.engine.late = true;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    expect(w.engine.switched).toEqual([]);
+    w.engine.listTracks();
+    expect(w.engine.switched).toEqual([1]);
+    // Listed again (a seek's restart, say): switched already, nothing to do.
+    w.engine.listTracks();
+    expect(w.engine.switched).toEqual([1]);
+    c.close();
+  });
+
+  it("takes an audio failure before the TV's player lists its tracks for the track the file starts with", async () => {
+    const f = file();
+    f.streams[2] = stream({ index: 2, kind: "audio", codec: "ac3", language: "eng", channels: 6, default: false });
+    // With E-AC-3 listed the server plays it; without, the AC-3 beside it as it is, or in a remux.
+    const w = world(item(f), (req) =>
+      req.caps.audio_codecs.indexOf("eac3") >= 0
+        ? info()
+        : req.mode === "remux"
+          ? info({ session_id: "s3", method: "remux", hls: true, url: "/api/media/pley_mk_KEY3/master.m3u8", audio_index: 2 })
+          : info({ session_id: "s2", audio_index: 2 }),
+    );
+    w.engine.late = true;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    w.engine.listTracks();
+    w.engine.listener?.error({ kind: "unsupported", audio: true, container: false, detail: "audio" });
+    await new Promise((r) => setTimeout(r, 2_200));
+    // The AC-3 is switched to once the tracks are listed; before that, the E-AC-3 the file starts
+    // with fails again. The AC-3 isn't refused: a remux carries it alone.
+    w.engine.listener?.error({ kind: "unsupported", audio: true, container: false, detail: "audio" });
+    await new Promise((r) => setTimeout(r, 2_200));
+    expect(w.requests.map((r) => r.mode)).toEqual(["auto", "auto", "remux"]);
+    expect(w.requests[2]!.caps.audio_codecs).toEqual(["aac", "ac3"]);
+    c.close();
+  });
+
+  it("takes a format that doesn't play in a transcode for the audio, which AVPlay doesn't say", async () => {
+    const w = world(item(file()), (req) =>
+      req.mode === "auto"
+        ? info()
+        : req.caps.audio_codecs.indexOf("eac3") >= 0
+          ? info({ session_id: "s2", method: "transcode", hls: true, url: "/api/media/pley_mk_KEY2/master.m3u8" })
+          : info({ session_id: "s3", method: "transcode", hls: true, url: "/api/media/pley_mk_KEY3/master.m3u8", audio_converted: true }),
+    );
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    const unnamed = { kind: "unsupported", audio: false, container: false, detail: "PLAYER_ERROR_NOT_SUPPORTED_FORMAT" } as const;
+    // Direct play fails without saying what: the ladder's transcode, which copies the E-AC-3.
+    w.engine.listener?.error(unnamed);
+    await new Promise((r) => setTimeout(r, 2_200));
+    // The transcode fails the same way. Its video was made for this TV: the E-AC-3 is refused.
+    w.engine.listener?.error(unnamed);
+    await new Promise((r) => setTimeout(r, 2_200));
+    expect(w.requests.map((r) => r.mode)).toEqual(["auto", "transcode", "transcode"]);
+    expect(w.requests[2]!.caps.audio_codecs).toEqual(["aac", "ac3"]);
+    expect(c.state.value.note).toBe("This device couldn't play the original audio.");
+    // With the audio converted there is nothing left to leave out.
+    w.engine.listener?.error(unnamed);
+    await new Promise((r) => setTimeout(r, 2_200));
+    expect(w.requests).toHaveLength(3);
+    expect(c.state.value.phase).toMatchObject({ kind: "error", canRetry: false });
+    c.close();
+  }, 10_000);
 
   it("goes down the ladder for audio the server converted, and for a codec the capabilities didn't list", async () => {
     // A remux whose audio the server converted: the file's E-AC-3 never reached the TV.

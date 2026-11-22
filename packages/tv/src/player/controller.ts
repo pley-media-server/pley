@@ -45,6 +45,7 @@ import {
   picturePath,
   playbackRequest,
   playingAudio,
+  startingAudio,
   startMs as startOfPlay,
   subtitleStreams,
   willStream,
@@ -347,6 +348,8 @@ export class PlaybackController {
   private info: PlaybackInfo | null = null;
   /** The session whose failure is being dealt with: the TV's player can say one failure twice. */
   private failed: PlaybackInfo | null = null;
+  /** The audio chosen for a file played as it is waits for the engine to list its tracks (AVPlay does once prepared). */
+  private audioPending = false;
   private sessionEnded = true;
   /** Bumped by every new start: what an older one finds when it resumes is no longer its own. */
   private generation = 0;
@@ -467,7 +470,7 @@ export class PlaybackController {
           status: (s) => this.onStatus(s),
           firstFrame: () => this.onFirstFrame(),
           error: (e) => this.onError(e),
-          tracks: () => undefined,
+          tracks: () => this.onTracks(),
         });
       }
       this.update({ speeds: this.engineRef.setSpeed ? SPEEDS : [] });
@@ -799,10 +802,8 @@ export class PlaybackController {
     const info = this.info;
     const engine = this.engineRef;
     if (!info || !engine) return;
-    if (!info.hls && this.audio) {
-      // Another track than the one the file starts with: the switch may drop frames.
-      if (engine.selectAudio(audioStreams(this.file).indexOf(this.audio), this.audio.language) && !this.audio.default) this.quietFrames();
-    }
+    this.audioPending = false;
+    if (!info.hls) this.switchAudio();
     const sub = this.subtitle;
     if (!sub) {
       this.presenter.hide();
@@ -816,6 +817,23 @@ export class PlaybackController {
     } else {
       this.presenter.hide();
     }
+  }
+
+  /** Switches to the audio chosen; when the engine can't yet, it waits for the engine's tracks (`onTracks`). */
+  private switchAudio(): void {
+    const engine = this.engineRef;
+    const audio = this.audio;
+    if (!engine || !audio) return;
+    const switched = engine.selectAudio(audioStreams(this.file).indexOf(audio), audio.language);
+    this.audioPending = !switched;
+    // Another track than the one the file starts with: the switch may drop frames.
+    if (switched && !audio.default) this.quietFrames();
+  }
+
+  /** The engine lists its tracks: the audio chosen that was waiting for them is switched to now. */
+  private onTracks(): void {
+    if (this.closed || !this.audioPending || !this.info || this.info.hls) return;
+    this.switchAudio();
   }
 
   /** An audio track switched in place: the frames it drops aren't counted, and counting starts afresh after. */
@@ -917,7 +935,11 @@ export class PlaybackController {
 
   private recover(error: EngineError, info: PlaybackInfo): void {
     if (this.info !== info || this.closed || this.stopped) return;
-    this.act(this.recovery.decide(error, info.method, videoStreamOf(this.file)?.codec ?? null, this.failedAudioCodec(error, info)), false);
+    // AVPlay's error for a format that doesn't play rarely says whether the audio or the video
+    // failed. A transcode's video is the server's, made for this TV: what fails there is the audio
+    // that came as it is.
+    const said = error.kind === "unsupported" && !error.container && info.method === "transcode" && !info.audio_converted ? { ...error, audio: true } : error;
+    this.act(this.recovery.decide(said, info.method, videoStreamOf(this.file)?.codec ?? null, this.failedAudioCodec(said, info)), false);
   }
 
   /**
@@ -928,7 +950,11 @@ export class PlaybackController {
    */
   private failedAudioCodec(error: EngineError, info: PlaybackInfo): string | null {
     if (error.kind !== "unsupported" || !error.audio) return null;
-    const track = audioStreams(this.file).filter((s) => s.index === this.playingTracks.audio)[0] ?? playingAudio(this.file, info);
+    // Until the engine lists its tracks, the one chosen isn't switched to: the file plays the one it starts with.
+    const track =
+      !info.hls && this.audioPending
+        ? startingAudio(this.file)
+        : (audioStreams(this.file).filter((s) => s.index === this.playingTracks.audio)[0] ?? playingAudio(this.file, info));
     const codec = error.audioCodec ?? (info.audio_converted ? null : track?.codec ?? null);
     const sent = this.sentCaps;
     return codec && sent && audioListed(codec, sent) ? codec : null;
@@ -1426,6 +1452,7 @@ export class PlaybackController {
     const engine = this.engineRef;
     if (!info.hls && engine && audioPlaysHere(chosen, this.sentCaps) && engine.selectAudio(audioStreams(this.file).indexOf(chosen), chosen.language)) {
       this.quietFrames();
+      this.audioPending = false;
       this.playingTracks = { ...this.playingTracks, audio: chosen.index };
       return;
     }

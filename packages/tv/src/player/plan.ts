@@ -67,6 +67,12 @@ export function playingAudio(file: MediaFile | null, info: PlaybackInfo): MediaS
   return audio.filter((s) => s.index === info.audio_index)[0] ?? audio.filter((s) => s.default)[0] ?? audio[0] ?? null;
 }
 
+/** The audio track a file starts with, before the player switches: its default, else its first. */
+export function startingAudio(file: MediaFile | null): MediaStream | null {
+  const audio = audioStreams(file);
+  return audio.filter((s) => s.default)[0] ?? audio[0] ?? null;
+}
+
 /**
  * The subtitles to start with: as asked (`-1`: none, as a cast asks), else
  * the profile's choice; `null` is off, whatever the file flags.
