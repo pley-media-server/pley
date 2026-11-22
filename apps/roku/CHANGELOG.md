@@ -62,6 +62,8 @@ describes how they are made.
   icons the title pages have.
 - A title's rows start under its words and buttons rather than near the
   screen's foot, and a person without a photo shows their initials.
+- An album's, a playlist's and a show's episodes page keep their line
+  and buttons right under the title, whether it takes one line or two.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 
