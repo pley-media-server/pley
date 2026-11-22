@@ -102,7 +102,7 @@ describes how they are made.
 
 ### Fixed
 
-- Channel and programme names with letters Roboto lacks ("ᴿᴬᵂ", "ʜᴅ") show
+- Channel and program names with letters Roboto lacks ("ᴿᴬᵂ", "ʜᴅ") show
   them as plain letters instead of empty boxes.
 - An artist's and a person's picture is round with no square corners
   behind it: a mask cuts pictures, not the ground under them.
