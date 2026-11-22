@@ -1093,8 +1093,10 @@ sub show(nav as object)
     screen = makeScreen(name, route, params)
     m.stack.Push(screen)
     m.screens.appendChild(screen)
-    screen.active = true
+    ' The rail knows its entry before the page takes the focus and closes
+    ' it, so it closes on that entry and not the one before.
     placeRail()
+    screen.active = true
     launchDialogDone()
     showNotice()
 end sub

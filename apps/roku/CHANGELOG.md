@@ -110,6 +110,9 @@ describes how they are made.
   behind it: a mask cuts pictures, not the ground under them.
 - After the language changed, the rail marked Settings over Home, scrolled
   to its foot.
+- A page chosen in the rail closes it on its own entry: Settings, under a
+  long list of libraries, left the rail showing its top with no entry
+  marked.
 - People's pictures in circles, and stills of another shape than their
   tile, are cropped, not squeezed: Roku OS 16 drew them stretched.
 - Search's groups line up under their titles, a channel's cards as the
