@@ -193,14 +193,12 @@ function pageTextDrawn() {
   return false;
 }
 
-// Whether Now Playing's sleep timer button, focused (in the accent), says
-// more than "Sleep timer": it is the last of the buttons, which start at
-// 96, 560 (NowPlayingScreen.brs: the five before it take 1100), and only
-// a longer label reaches past 1500.
+// Whether Now Playing's sleep timer button, focused, is a pill saying what
+// is left: the accent past where its round button ends (x 626).
 function sleepButtonLong() {
   if (!frame) return false;
-  for (let y = 566; y < 610; y += 4) {
-    for (let x = 1500; x < 1580; x += 4) {
+  for (let y = 540; y < 590; y += 4) {
+    for (let x = 660; x < 740; x += 4) {
       const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
       if (frame.data[at] < 120 && frame.data[at + 1] > 150 && frame.data[at + 2] > 200) return true;
     }
@@ -974,7 +972,7 @@ async function walk() {
   // focus passes over; OK on the second disc's track plays that one, and
   // stopped, the album shows again.
   await settle();
-  await press("right"); // the tracks, on the first under "Disc 1"
+  await press("right", 3); // past Shuffle and Go to artist to the tracks, on the first under "Disc 1"
   await press("down", 2); // the second, then past "Disc 2" to its track
   shoot("album-discs");
   music.disc = await playedBy("a track of the album's second disc");

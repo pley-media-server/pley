@@ -43,14 +43,6 @@ sub init()
         nextTrack: t("player.nowPlaying.next"),
         stopAll: t("player.nowPlaying.stop")
     }
-    m.widths = [
-        chipWidth([m.words.shuffle, m.words.unshuffle], 300),
-        chipWidth([m.words.previousTrack], 220),
-        chipWidth([m.words.pause, m.words.play], 180),
-        chipWidth([m.words.nextTrack], 160),
-        chipWidth([m.words.stopAll], 160),
-        0
-    ]
     ' Up next: the queue it lists (its queueId) and its tracks, read once,
     ' the part of it listed ({ first, last }, invalid before any), its
     ' rows, and the track marked as playing (-1 for none).
@@ -179,9 +171,10 @@ sub onMusicState()
     showButtons()
 end sub
 
-' Shuffle (or Stop shuffling), Previous, Pause (or Play, paused), Next and
-' Stop side by side, each wide enough for either of its words, then the
-' sleep timer's button, as wide as what it says.
+' Shuffle (or Stop shuffling), Previous, Pause (or Play, paused), Next,
+' Stop and the sleep timer, as Android TV's Now Playing: round icons, each
+' named under it while focused; a sleep timer running is a pill saying
+' what is left.
 sub showButtons()
     music = m.global.music
     words = m.words
@@ -194,29 +187,16 @@ sub showButtons()
     labels = [shuffle, words.previousTrack, toggle, words.nextTrack, words.stopAll, sleep]
     if FormatJson(labels) = FormatJson(m.labels) then return
     m.labels = labels
+    playIcon = "pause"
+    if music.state = "paused" then playIcon = "play"
+    icons = ["shuffle", "skip-back", playIcon, "skip-forward", "square", "moon"]
     chips = []
     for i = 0 to labels.Count() - 1
-        chips.Push({ label: labels[i], width: m.widths[i] })
+        chips.Push({ label: "", icon: icons[i], name: labels[i], width: 0 })
     end for
+    if music.sleep <> invalid then chips[5] = { label: sleep, icon: "moon", width: 0 }
     m.buttons.chips = chips
 end sub
-
-' A chip as wide as the longest of words needs (as ChipRow draws them, with
-' 20 pixels either side), least at least.
-function chipWidth(words as object, least as integer) as integer
-    if m.measure = invalid
-        m.measure = m.top.createChild("Label")
-        m.measure.font = "font:SmallSystemFont"
-        m.measure.opacity = 0
-    end if
-    width = least
-    for each text in words
-        m.measure.text = text
-        need = Int(m.measure.boundingRect().width) + 40
-        if need > width then width = need
-    end for
-    return width
-end function
 
 sub onPosition()
     music = m.global.music
