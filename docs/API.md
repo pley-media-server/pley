@@ -3149,8 +3149,9 @@ Markers come from three sources, best first:
 
 1. **Chapters** (`source: "chapter"`) titled like an intro or credits
    (*Intro*, *Opening*, *OP*, *Opening Credits*, *Ending*, *ED*, *Credits*,
-   *End Credits*, …), for movies and episodes; not numbered ones (*28.
-   Ending*), since a film's numbered chapters are named for their scenes.
+   *End Credits*, …), for movies and episodes; not with a number before the
+   name (*28. Ending*), since a film's numbered chapters are named for their
+   scenes.
    *Credits* chapters shorter than 15 s (a logo at the very end) are
    ignored. Chapters named only for more credits right after the credits
    (*Fan Club Credits*, *Dubbing Credits*) are part of them.

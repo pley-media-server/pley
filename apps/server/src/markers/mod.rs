@@ -1066,26 +1066,37 @@ fn finalize(range: Option<(i64, i64)>, kind: MarkerKind, duration_ms: i64) -> Op
 /// - Otherwise they stop where the pictures change (credits over pictures,
 ///   then an after-credits scene).
 fn settle_credits(shared: Found, frames: &[FrameStats], duration_ms: i64) -> Found {
-    let after: Vec<&FrameStats> = frames.iter().filter(|f| f.ms > shared.end_ms).collect();
-    let pages = after.iter().take_while(|f| is_black_page(f)).count();
+    let first = frames.partition_point(|f| f.ms <= shared.end_ms);
+    let pages = frames[first..].iter().take_while(|f| is_black_page(f)).count();
     let settled = match pages {
         0 => shared,
-        // To the first key frame that isn't a page, or the last page when the
-        // key frames stop before the end of the file.
-        _ => {
-            let end = after.get(pages).map_or(after[pages - 1].ms, |f| f.ms);
-            Found { end_ms: if duration_ms - end <= CREDITS_TAIL_MS { duration_ms } else { end }, ..shared }
-        }
+        _ => Found { end_ms: credits_end(frames, first + pages - 1, duration_ms), ..shared },
     };
     if settled.end_ms == duration_ms {
         return settled;
     }
-    // Credits found later open on true black too, not on a dark scene.
-    let opens_on_black = |at: i64| frames.iter().any(|f| f.ms == at && is_black_page(f));
-    match credits_from_frames(frames, duration_ms) {
-        Some(later) if later.start_ms > settled.end_ms && opens_on_black(later.start_ms) => later,
+    // Text on black among the key frames after them, opening on true black
+    // rather than a dark scene.
+    let rest = &frames[first + pages..];
+    match credits_from_frames(rest, duration_ms) {
+        Some(later) if rest.iter().any(|f| f.ms == later.start_ms && is_black_page(f)) => later,
         _ => settled,
     }
+}
+
+/// Where credits whose last page is `frames[last]` end: at the next key
+/// frame (an after-credits scene), else at the end of the file, unless the
+/// key frames stop farther from it than they are apart (the video stops
+/// before the file does). Credits ending [`CREDITS_TAIL_MS`] or less before
+/// the end run to it.
+fn credits_end(frames: &[FrameStats], last: usize, duration_ms: i64) -> i64 {
+    let spacing = last.checked_sub(1).map_or(0, |before| frames[last].ms - frames[before].ms);
+    let end = match frames.get(last + 1) {
+        Some(next) => next.ms,
+        None if duration_ms - frames[last].ms <= spacing.max(CREDITS_TAIL_MS) => duration_ms,
+        None => frames[last].ms,
+    };
+    if duration_ms - end <= CREDITS_TAIL_MS { duration_ms } else { end }
 }
 
 /// A key frame that may be a page of credits: mostly near black, or a
@@ -1135,10 +1146,7 @@ fn credits_from_frames(frames: &[FrameStats], duration_ms: i64) -> Option<Found>
     if duration_ms - frames[last].ms > CREDITS_NEAR_END_MS {
         return None;
     }
-    // Up to the next key frame (an after-credits scene), or the last page
-    // when the key frames stop before the end of the file.
-    let end = frames.get(last + 1).map_or(frames[last].ms, |f| f.ms);
-    let end = if duration_ms - end <= CREDITS_TAIL_MS { duration_ms } else { end };
+    let end = credits_end(frames, last, duration_ms);
     Some(Found { kind: MarkerKind::Credits, start_ms: frames[first].ms, end_ms: end, source: "frames" })
 }
 
@@ -1463,10 +1471,36 @@ mod tests {
             }
         });
         assert_eq!((found.start_ms, found.source), (1_758_000, "frames"));
+        // A fade to black, a short scene, then the roll to the end: the roll.
+        let found = settle(&|s| match s {
+            1_742 => "black",
+            1_746..1_758 => "scene",
+            1_758.. => "page",
+            _ => "scene",
+        });
+        assert_eq!((found.start_ms, found.end_ms, found.source), (1_758_000, 1_800_000, "frames"));
         // Key frames that stop before the end don't reach it.
-        let frames: Vec<FrameStats> =
-            key_frames(1_170, 1_750, |s| if s >= 1_680 { "page" } else { "scene" }).into_iter().collect();
+        let frames = key_frames(1_170, 1_750, |s| if s >= 1_680 { "page" } else { "scene" });
         assert_eq!(settle_credits(shared.clone(), &frames, 1_800_000).end_ms, 1_746_000);
+        // Key frames far apart over still credits do, when the last one is
+        // no farther from the end than they are from each other.
+        let frames: Vec<FrameStats> = (0..30)
+            .map(|i| {
+                let ms = 1_202_000 + i * 20_000;
+                let page = ms > 1_740_000;
+                FrameStats {
+                    ms,
+                    black: if page { 95.0 } else { 10.0 },
+                    ylow: if page { 16.0 } else { 30.0 },
+                    yhigh: if page { 16.0 } else { 150.0 },
+                    ymax: if page { 200.0 } else { 235.0 },
+                    sat: if page { 0.1 } else { 20.0 },
+                }
+            })
+            .filter(|f| f.ms < 1_800_000)
+            .collect();
+        assert_eq!(frames.last().map(|f| f.ms), Some(1_782_000));
+        assert_eq!(settle_credits(shared.clone(), &frames, 1_800_000).end_ms, 1_800_000);
     }
 
     #[test]
