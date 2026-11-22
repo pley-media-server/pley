@@ -41,18 +41,21 @@
                 <LayoutGroup id="text" layoutDirection="vert">
                     <!-- "Collection", then its badges beside it (showBadges). -->
                     <Group id="eyebrow">
-                        <Label id="kindLabel" height="40" vertAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+                        <!-- Android TV's layers before the word, and the badges
+                             outlined as a title's rating is. -->
+                        <Poster translation="[0, 2]" width="36" height="36" uri="pkg:/images/ui/icon-layers-40.png" blendColor="0xA1A9B6FF" />
+                        <Label id="kindLabel" translation="[48, 0]" height="40" vertAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
                         <Group id="tmdb" visible="false">
-                            <Rectangle id="tmdbBack" height="40" color="0x2E3440FF" />
+                            <Poster id="tmdbBack" height="40" uri="pkg:/images/ui/edge4.9.png" blendColor="0x8B95A5FF" />
                             <Label id="tmdbText" translation="[14, 0]" height="40" vertAlign="center" text="TMDB" color="0xEBEBEBFF" font="font:SmallestBoldSystemFont" />
                         </Group>
                         <Group id="smart" visible="false">
-                            <Rectangle id="smartBack" height="40" color="0x2E3440FF" />
+                            <Poster id="smartBack" height="40" uri="pkg:/images/ui/edge4.9.png" blendColor="0x8B95A5FF" />
                             <Label id="smartText" translation="[14, 0]" height="40" vertAlign="center" color="0xEBEBEBFF" font="font:SmallestBoldSystemFont" />
                         </Group>
                         <!-- Its category, cut short past 560 pixels. -->
                         <Group id="category" visible="false">
-                            <Rectangle id="categoryBack" height="40" color="0x2E3440FF" />
+                            <Poster id="categoryBack" height="40" uri="pkg:/images/ui/edge4.9.png" blendColor="0x8B95A5FF" />
                             <Label id="categoryText" translation="[14, 0]" height="40" vertAlign="center" color="0xEBEBEBFF" font="font:SmallestBoldSystemFont" />
                         </Group>
                     </Group>

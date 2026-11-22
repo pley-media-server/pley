@@ -95,6 +95,8 @@ describes how they are made.
   with a waveform.
 - Live TV's guide ends at the right margin, and its list of categories
   above the title-safe area's foot.
+- A collection's "Collection" has Android TV's layers before it, and its
+  badges are outlined as a title's rating is.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

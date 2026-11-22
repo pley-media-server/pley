@@ -135,7 +135,7 @@ sub showBadges()
     category.width = 0
     category.text = m.collection.category
     if category.boundingRect().width > 532 then category.width = 532
-    x = m.kindLabel.boundingRect().width + 16
+    x = 48 + m.kindLabel.boundingRect().width + 16
     for each name in ["tmdb", "smart", "category"]
         badge = m.top.findNode(name)
         badge.visible = (name = "tmdb" and m.collection.automatic) or (name = "smart" and m.collection.smart) or (name = "category" and m.collection.category <> "")
