@@ -253,7 +253,6 @@ sub placeRow(buttons as object, x as integer, gap as integer)
         if size < 88 then y = 882 + 8
         group = m.row.createChild("Group")
         group.translation = [x, y]
-        group.scaleRotateCenter = [size / 2, size / 2]
         fill = group.createChild("Poster")
         fill.uri = "pkg:/images/ui/r12.9.png"
         fill.width = size
@@ -274,7 +273,10 @@ sub placeRow(buttons as object, x as integer, gap as integer)
         textWidth = Int(label.boundingRect().width)
         label.translation = [(size - textWidth) / 2, size + 16]
         label.visible = false
-        m.buttonNodes[button.id] = { group: group, fill: fill, icon: icon, label: label, iconSize: iconSize, base: button.icon }
+        ' Previous, Play/Pause and Next say what they are by their icons
+        ' alone; the others' icons name them less plainly.
+        named = button.id <> "previous" and button.id <> "playPause" and button.id <> "next"
+        m.buttonNodes[button.id] = { group: group, fill: fill, icon: icon, label: label, iconSize: iconSize, base: button.icon, named: named }
         x = x + size + gap
     end for
 end sub
@@ -295,8 +297,9 @@ sub onPlaying()
     node.label.translation = [(88 - textWidth) / 2, 88 + 16]
 end sub
 
-' The focused button fills with the accent, its icon in on-accent, 1.08
-' larger, its name under it; the scrubber's thumb grows a ring.
+' The focused button fills with the accent, its icon in on-accent, its
+' name under it (but Previous', Play/Pause's and Next's); it keeps its size,
+' as a page's buttons do. The scrubber's thumb grows a ring.
 sub onFocusKey()
     key = m.top.focusKey
     m.thumbFocus.visible = key = "scrubber"
@@ -311,13 +314,11 @@ end sub
 
 sub paintButton(node as object, focused as boolean)
     node.fill.visible = focused
-    node.label.visible = focused
+    node.label.visible = focused and node.named
     if focused
         node.icon.blendColor = "0x16191EFF"
-        node.group.scale = [1.08, 1.08]
     else
         node.icon.blendColor = "0xEBEBEBFF"
-        node.group.scale = [1, 1]
     end if
 end sub
 

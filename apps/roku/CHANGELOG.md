@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Changed
 
+- The player's buttons keep their size when focused, and Previous,
+  Play/Pause and Next show no name under them, their icons saying it.
 - A focused button or tab keeps its size: Resume and the other buttons
   on a page no longer grow.
 - The player has its own controls, drawn as Android TV's: the title, how
