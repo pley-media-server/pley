@@ -22,6 +22,9 @@ describes how they are made.
 
 ### Fixed
 
+- The first video played after the app starts plays as it should: its
+  stream failed at once, so a file that plays as it is was converted, and
+  a conversion flashed "Can't play this item" before it played.
 - Dates in Chinese read 3月5日 and 2026年3月5日.
 - Traditional Chinese uses the words people use in Taiwan, such as 影集 for
   a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目

@@ -97,6 +97,10 @@ sub init()
     m.playAudio = -1
     ' Whether this opening's video has played yet (errors before are the file's).
     m.played = false
+    ' Whether this opening's stream was given again after failing at once
+    ' (broken()), and whether that try is still to play or fail.
+    m.givenAgain = false
+    m.againPending = false
     m.next = invalid
     m.upNextAt = -1
     m.upNextShown = false
@@ -461,6 +465,8 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     m.sessionId = ""
     m.paused = false
     m.played = false
+    m.givenAgain = false
+    m.againPending = false
     m.next = invalid
     m.upNextShown = false
     m.upNextCancelled = false
@@ -1084,6 +1090,7 @@ sub onState(event as object)
     m.controls.paused = state = "paused"
     if state = "buffering" then setLoading(true)
     if state = "playing"
+        m.againPending = false
         m.played = true
         m.everPlayed = true
         ' Played again, by anyone: the remote's pause is over.
@@ -1121,6 +1128,8 @@ sub onState(event as object)
             showControls(focus)
         end if
     else if state = "finished"
+        ' The failed stream's end, as it is given again (broken()).
+        if m.againPending then return
         ' Media that falls short of the title (resumed past the end of what
         ' the file or stream holds) isn't its end.
         if playerEndedShort(m.positionMs, m.startMs, m.durationMs)
@@ -1373,6 +1382,22 @@ sub stopped(data as dynamic)
 end sub
 
 sub broken()
+    ' The first stream after the app starts can fail at once with a reader
+    ' error, and play when given again as it is (a Roku Ultra on OS 16):
+    ' before anything played, a stream that fails is given once more before
+    ' it counts as broken. One that fails again goes on as below.
+    m.againPending = false
+    if not m.played and not m.givenAgain and m.video.content <> invalid
+        m.givenAgain = true
+        m.againPending = true
+        content = m.video.content
+        subtitle = httpString(m.video.subtitleTrack)
+        m.video.content = invalid
+        m.video.content = content
+        if subtitle <> "" then m.video.subtitleTrack = subtitle
+        m.video.control = "play"
+        return
+    end if
     if playerErrorKind(m.video.errorCode, m.video.errorInfo, m.played) = "media"
         ' The original doesn't play on this Roku after all: converted, once.
         if m.info <> invalid and httpString(m.info.method) <> "transcode" and m.mode <> "transcode"

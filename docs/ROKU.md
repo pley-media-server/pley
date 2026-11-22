@@ -286,6 +286,11 @@ the episode's "S1 E2 · Pilot", as on Android TV.
   and below real time says "The server can't keep up with this video"
   (Automatic goes lower by itself); otherwise the stream opens again where
   it was.
+- **A stream that fails before anything played** is given to the Video
+  node once more, as it is, before it counts as broken: the first stream
+  after the app starts can fail at once with a reader error and play when
+  given again (seen on a Roku Ultra, Roku OS 16). One that fails again is
+  converted, or the player says it can't play it, as below.
 - **Media that ends short** (moments after it started, a minute or more
   before the title's end, as a file resumed past what it holds) isn't the
   end: a file played as it is is converted, and a stream opened again;
