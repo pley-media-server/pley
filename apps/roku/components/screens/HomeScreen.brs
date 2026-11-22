@@ -550,7 +550,9 @@ function onKeyEvent(key as string, press as boolean) as boolean
     ' page takes it again, as it was laid out.
     if m.top.hasFocus() and key <> "left" and key <> "back"
         if m.inRows and m.rows.visible
+            ' The key isn't lost: the rows take the focus and the move.
             m.rows.setFocus(true)
+            moveRows(key)
             return true
         else if m.hero.visible
             m.heroButtons.setFocus(true)
@@ -591,6 +593,33 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     return false
 end function
+
+' A move the rows didn't have the focus for, made once they have it: Down
+' and Up a row (Up from the first, the hero), Left and Right a tile.
+sub moveRows(key as string)
+    position = m.rows.rowItemFocused
+    content = m.rows.content
+    if position = invalid or position.Count() <> 2 or content = invalid then return
+    row = position[0]
+    column = position[1]
+    if key = "down" and row < content.getChildCount() - 1 then row = row + 1
+    if key = "up"
+        if row = 0
+            if m.hero.visible or m.heroInfo <> invalid
+                m.heroButtons.setFocus(true)
+                m.inRows = false
+                placeRows()
+            end if
+            return
+        end if
+        row = row - 1
+    end if
+    if key = "right" then column = column + 1
+    count = content.getChild(row).getChildCount()
+    if column > count - 1 then column = count - 1
+    if column < 0 then column = 0
+    if row <> position[0] or column <> position[1] then m.rows.jumpToRowItem = [row, column]
+end sub
 
 ' Whether a part of a column has something to show: a label its words, a
 ' MetaRow its parts.
