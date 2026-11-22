@@ -72,7 +72,7 @@ fn up_next() {
                     Some(("fingerprint", start, end)) => {
                         let shared = finalize(Some((start, end)), MarkerKind::Credits, duration);
                         match (shared, &frames) {
-                            (Some(s), Some(f)) if s.end_ms < duration => Some(settle_credits(s, f, duration)),
+                            (Some(s), Some(f)) if s.end_ms < duration => settle_credits(s, f, duration),
                             (Some(s), None) if s.end_ms < duration => {
                                 measured = false;
                                 Some(s)

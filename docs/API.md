@@ -3183,8 +3183,14 @@ credits follows them:
   frame that isn't one. When something else follows and text on black comes
   after that, the shared audio was a scene's music (a game show's thinking
   music, a song two episodes share) and the text on black are the credits.
-  Otherwise the credits stop where the pictures change (credits over
-  pictures, then an after-credits scene).
+  Otherwise they are credits only if text on black, or true black, shows
+  while the shared audio plays, and stop where the pictures change (an
+  after-credits scene); shared audio over pictures alone, short of the end,
+  is no proof of credits and gives none.
+- Credits found from key frames begin at the first key frame of true black
+  from which pages run on unbroken for at least 15 s (or to their end): a
+  dark scene with flashes of black before the roll is the episode's.
+  Credits in color on black keep their first page.
 
 A background worker analyzes one season at a time after library scans (and
 30 s after start-up) and waits while anything plays. A newer detection

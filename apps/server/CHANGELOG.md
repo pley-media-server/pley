@@ -40,10 +40,12 @@ describes how they are made.
 - Credits that something follows no longer bring up Up Next: a game
   show's thinking music shared by every episode, music two episodes share
   in a scene, or credits with an after-credits scene. Those credits only
-  offer Skip Credits, and Up Next comes at the end. The pictures after
-  shared music decide where the credits end, chapters of more credits
-  after the credits (Fan Club Credits) count with them, and Plex apps get
-  the same last credits. Libraries are analyzed again in the background.
+  offer Skip Credits, and Up Next comes at the end. The pictures decide
+  where credits end, shared music in a scene no longer gets Skip Credits,
+  credits found from the pictures no longer begin in a dark scene before
+  them, chapters of more credits after the credits (Fan Club Credits)
+  count with them, and Plex apps get the same last credits. Libraries are
+  analyzed again in the background.
 
 ## [0.1.14] - 2026-11-20
 
