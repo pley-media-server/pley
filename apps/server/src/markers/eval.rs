@@ -80,10 +80,14 @@ fn up_next() {
                             (s, _) => s,
                         }
                     }
-                    Some(("frames", start, end)) => {
-                        let end = if duration - end <= CREDITS_TAIL_MS { duration } else { end };
-                        Some(Found { kind: MarkerKind::Credits, start_ms: start, end_ms: end, source: "frames" })
-                    }
+                    // Found again from the key frames when they are at hand.
+                    Some(("frames", start, end)) => match &frames {
+                        Some(f) => credits_from_frames(f, duration),
+                        None => {
+                            measured = false;
+                            Some(Found { kind: MarkerKind::Credits, start_ms: start, end_ms: end, source: "frames" })
+                        }
+                    },
                     _ => None,
                 },
             };

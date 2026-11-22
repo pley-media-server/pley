@@ -64,14 +64,16 @@ export function useSkipMarkers({
   const handled = useRef(new Set<string>());
   const key = marker ? `${marker.file_id}:${marker.kind}:${marker.start_ms}` : null;
   const reached = useEffectEvent((m: Marker) => onCredits(m));
+  const final = marker !== null && reachesEnd(marker, durationMs);
 
   useEffect(() => {
-    if (!marker || !key || !reachesEnd(marker, durationMs) || handled.current.has(key)) return;
+    if (!marker || !key || !final || handled.current.has(key)) return;
     handled.current.add(key);
     reached(marker);
-    // Runs when the playhead enters a different segment.
+    // Runs when the playhead enters a different segment, or the file's
+    // length becomes known inside the credits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, final]);
 
   return marker;
 }

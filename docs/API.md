@@ -3149,10 +3149,11 @@ Markers come from three sources, best first:
 
 1. **Chapters** (`source: "chapter"`) titled like an intro or credits
    (*Intro*, *Opening*, *OP*, *Opening Credits*, *Ending*, *ED*, *Credits*,
-   *End Credits*, …, numbered or not: *94. End Credits*, *Chapter 4 -
-   Credits*), for movies and episodes. *Credits* chapters shorter than 15 s
-   (a logo at the very end) are ignored. Chapters of more credits right
-   after the credits (*Fan Club Credits*) are part of them.
+   *End Credits*, …), for movies and episodes; not numbered ones (*28.
+   Ending*), since a film's numbered chapters are named for their scenes.
+   *Credits* chapters shorter than 15 s (a logo at the very end) are
+   ignored. Chapters named only for more credits right after the credits
+   (*Fan Club Credits*, *Dubbing Credits*) are part of them.
 2. **Audio fingerprints** of episodes (`source: "fingerprint"`), from
    Chromaprint fingerprints of the first half (at most 10 minutes) and the
    last 35 % (at most 8 minutes) of each episode. An intro is audio of 12 s
@@ -3172,15 +3173,17 @@ show's last minutes) only bring Skip Credits, and Up Next waits for the end
 of the file. So credits end at the end of the file only when nothing but
 credits follows them:
 
-- Credits ending less than 15 s before the end run to it: what follows is a
-  studio's logo, a channel's promo or black, never a scene of its own.
-- Shared audio that stops earlier is settled by the key frames after it.
-  Pages of text on black, or black, from where it stops are more of the
-  credits, up to the first key frame that isn't one. When something else
-  follows it and text on black comes later, the shared audio was a scene's
-  music (a game show's thinking music, a song two episodes share) and the
-  text on black are the credits. Otherwise the credits stop where the
-  shared audio does (credits over pictures, then an after-credits scene).
+- Credits ending 15 s or less before the end run to it: what follows them
+  that briefly is in practice a studio's logo, a channel's promo or black.
+- Shared audio that stops earlier is settled by the key frames after it,
+  which the transcoder reads for those files only (as it does for credits
+  no episode shares). Key frames of true black, or text on it (no color, no
+  grey), from where it stops are more of the credits, up to the first key
+  frame that isn't one. When something else follows and text on black comes
+  after that, the shared audio was a scene's music (a game show's thinking
+  music, a song two episodes share) and the text on black are the credits.
+  Otherwise the credits stop where the pictures change (credits over
+  pictures, then an after-credits scene).
 
 A background worker analyzes one season at a time after library scans (and
 30 s after start-up) and waits while anything plays. A newer detection

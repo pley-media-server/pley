@@ -114,6 +114,15 @@ describe("useSkipMarkers", () => {
     expect(onCredits).not.toHaveBeenCalled();
   });
 
+  it("announces the credits once the file's length becomes known inside them", () => {
+    const { rerender, onCredits } = setup({ seconds: 1_201, durationMs: 0 });
+    expect(onCredits).not.toHaveBeenCalled();
+    rerender({ seconds: 1_203, durationMs: credits.end_ms });
+    expect(onCredits).toHaveBeenCalledTimes(1);
+    rerender({ seconds: 1_205, durationMs: credits.end_ms });
+    expect(onCredits).toHaveBeenCalledTimes(1);
+  });
+
   it("does nothing while disabled", () => {
     const { result, onCredits } = setup({ seconds: 1_201, enabled: false });
     expect(result.current).toBeNull();

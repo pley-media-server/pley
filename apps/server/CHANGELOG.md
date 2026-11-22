@@ -38,10 +38,9 @@ describes how they are made.
   show's thinking music shared by every episode, music two episodes share
   in a scene, or credits with an after-credits scene. Those credits only
   offer Skip Credits, and Up Next comes at the end. The pictures after
-  shared music decide where the credits end, credits chapters followed by
-  more credits (Fan Club Credits) and numbered ones (94. End Credits)
-  count, and Plex apps get the same last credits. Libraries are analyzed
-  again in the background.
+  shared music decide where the credits end, chapters of more credits
+  after the credits (Fan Club Credits) count with them, and Plex apps get
+  the same last credits. Libraries are analyzed again in the background.
 
 ## [0.1.14] - 2026-11-20
 
