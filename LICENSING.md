@@ -35,11 +35,11 @@ permission, and the AGPL alone is what a copy without it is under.
 
 ## Other licenses
 
-Pley's maintainer, Houssam Haidar, may also offer Pley under other terms,
-such as a commercial license: their own code as its copyright holder, and
-contributions through the [Contributor License Agreement](CLA.md) every
-contributor signs ([CONTRIBUTING.md](CONTRIBUTING.md)). That right is the
-maintainer's alone. Everyone else has Pley under the AGPL with the app
+Pley's maintainer, as [CLA.md](CLA.md) defines it, may also offer Pley
+under other terms, such as a commercial license: the maintainer's own code
+as its copyright holder, and contributions through the Contributor License
+Agreement every contributor signs ([CONTRIBUTING.md](CONTRIBUTING.md)).
+That right is the maintainer's alone. Everyone else has Pley under the AGPL with the app
 store permission, and a release, once out under it, stays under it.
 
 The right doesn't reach the Kodi add-on, which Kodi's license binds,

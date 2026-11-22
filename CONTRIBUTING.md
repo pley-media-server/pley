@@ -12,16 +12,17 @@ an additional permission for app stores ([LICENSE](LICENSE),
 too. The Kodi add-on (`apps/kodi`) is the exception: contributions to it
 come under its own license, the GPL version 2 or later.
 
-You also sign Pley's [Contributor License Agreement](CLA.md). You keep the
-copyright in what you wrote, and everyone still gets it under Pley's
-license; the agreement also lets Pley's maintainer, Houssam Haidar, offer
-it under other terms, such as a commercial license, or add a permission
-like the one for app stores. That right is the maintainer's alone.
+Contributions are also made under the Pley
+[Contributor License Agreement](CLA.md). Contributors keep the copyright
+in their work, which is released under Pley's license; the agreement also
+grants Pley's maintainer the right to license contributions under other
+terms, such as a commercial license, or with added permissions such as the
+one for app stores. That right is the maintainer's alone.
 
-The CLA bot asks you to sign on your first pull request: reply with the
-sentence it gives, and it remembers you for the next ones. Signing covers
-what you contributed before, too. Those who contributed before the
-agreement existed have agreed to the same terms.
+The CLA bot asks for a signature on a contributor's first pull request, by
+a comment with the sentence it gives. One signature covers that
+contributor's later pull requests and earlier contributions. Contributors
+from before the agreement have agreed to the same terms.
 
 Opening a pull request confirms that you wrote what it contains, or have
 the right to contribute it under these terms.

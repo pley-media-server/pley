@@ -1,55 +1,81 @@
 # Pley Contributor License Agreement
 
-Version 1, 22 November 2026.
+Version 1.0, effective 22 November 2026.
 
-This agreement is between you, the person who contributes to Pley, and
-Houssam Haidar, who maintains Pley, with their successors and assigns
-("the maintainer"). You accept it by signing it as
-[CONTRIBUTING.md](CONTRIBUTING.md) describes.
+This Contributor License Agreement (the "Agreement") sets out the terms on
+which Contributions are submitted to the Project. A Contributor accepts it
+as described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-1. **Your contributions.** A contribution is code, documentation,
-   pictures or other material you submit to Pley's repository, by pull
-   request, patch or otherwise, including what you submitted before you
-   signed this agreement.
+## 1. Definitions
 
-2. **Everyone's license.** Your contributions are released to everyone
-   under Pley's license: the GNU Affero General Public License, version 3
-   only, with the additional permission for app stores at the top of
-   [LICENSE](LICENSE). Contributions to the Kodi add-on (`apps/kodi`) are
-   released under its license, the GNU General Public License, version 2
-   or later.
+- **"Project"** means Pley, the software maintained at
+  <https://github.com/pley-media-server/pley>.
+- **"Maintainer"** means the founder of the Project, who holds the
+  copyright in its original code, together with the founder's successors
+  and assigns.
+- **"Contributor"** means the person or legal entity that submits a
+  Contribution and accepts this Agreement.
+- **"Contribution"** means any work of authorship, including code,
+  documentation and images, that the Contributor submits to the Project,
+  by pull request, patch or otherwise, whether before or after accepting
+  this Agreement.
+- **"Project License"** means the GNU Affero General Public License,
+  version 3 only, with the additional permission set out in the Project's
+  [LICENSE](LICENSE) file; for Contributions to the Kodi add-on
+  (`apps/kodi`), the GNU General Public License, version 2 or any later
+  version.
 
-3. **The maintainer's license.** You also grant the maintainer a
-   perpetual, worldwide, non-exclusive, royalty-free, irrevocable license
-   to reproduce, change, publicly display, publicly perform, sublicense
-   and distribute your contributions and works based on them, under any
-   license terms, including terms other than those in point 2, such as a
-   commercial license or a permission added to Pley's license. This
-   license is the maintainer's alone. It passes only to the maintainer's
-   successors and assigns, or to a company the maintainer controls; anyone
-   else gets your contributions through the licenses in point 2, or through
-   a license the maintainer grants.
+## 2. Public License
 
-4. **Patents.** You grant the maintainer, and everyone who receives Pley
-   from the maintainer, a perpetual, worldwide, non-exclusive,
-   royalty-free, irrevocable license under the patent claims you can
-   license that your contributions, alone or combined with Pley, would
-   infringe, to make, use, sell, offer for sale, import and otherwise
-   transfer them as part of Pley.
+Each Contribution is made available to all recipients under the Project
+License.
 
-5. **What you keep.** You keep the copyright in your contributions, and
-   may use them in any way you like.
+## 3. Copyright License to the Maintainer
 
-6. **What you confirm.** Each contribution is your own work, or you have
-   the right to submit it under this agreement. If your employer or anyone
-   else has rights in what you create, they have allowed you to submit it
-   under this agreement. You tell the maintainer if any of this stops being
-   true.
+The Contributor grants the Maintainer a perpetual, worldwide,
+non-exclusive, royalty-free, irrevocable license to reproduce, prepare
+derivative works of, publicly display, publicly perform, sublicense and
+distribute the Contributions and such derivative works, under any license
+terms, including terms other than the Project License, such as commercial
+licenses or additional permissions.
 
-7. **Moral rights.** As far as the law allows, you won't assert moral
-   rights in your contributions in a way that would stop the maintainer
-   from using the licenses you grant here.
+This license is granted solely to the Maintainer. It may be transferred
+only to the Maintainer's successors and assigns, or to a legal entity the
+Maintainer controls. All other persons receive the Contributions under the
+Project License, or under a license granted by the Maintainer.
 
-8. **No obligations.** The maintainer doesn't have to use your
-   contributions. You give them as they are, without warranty, and you
-   don't have to support them.
+## 4. Patent License
+
+The Contributor grants the Maintainer, and every recipient of the Project
+as distributed by the Maintainer, a perpetual, worldwide, non-exclusive,
+royalty-free, irrevocable license to make, have made, use, sell, offer for
+sale, import and otherwise transfer the Contributions as part of the
+Project. This license applies only to patent claims licensable by the
+Contributor that are necessarily infringed by a Contribution alone or by
+its combination with the Project.
+
+## 5. Retained Rights
+
+The Contributor retains all right, title and interest in the Contributions.
+Nothing in this Agreement restricts the Contributor's own use of them.
+
+## 6. Representations
+
+The Contributor represents that each Contribution is the Contributor's
+original work, or that the Contributor otherwise has the right to submit it
+under this Agreement, and that any employer or other party holding rights
+in a Contribution has authorized its submission under this Agreement. The
+Contributor will notify the Maintainer of any facts that make these
+representations inaccurate.
+
+## 7. Moral Rights
+
+To the extent permitted by applicable law, the Contributor waives, and
+agrees not to assert, any moral rights in the Contributions that would
+prevent the exercise of the licenses granted in this Agreement.
+
+## 8. No Obligation; Disclaimer
+
+The Maintainer is under no obligation to use any Contribution.
+Contributions are provided "as is", without warranties or conditions of
+any kind, and the Contributor is not required to provide support for them.
