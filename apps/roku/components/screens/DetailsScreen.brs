@@ -567,20 +567,14 @@ end sub
 ' goes to the menu named back ("" closes the panel).
 sub showChoices(kind as string, title as string, labels as object, values as object, current as integer, back as string)
     items = []
-    for each label in labels
-        items.Push({ title: label })
+    for i = 0 to labels.Count() - 1
+        items.Push({ title: labels[i], checked: i = current })
     end for
     m.panelKind = kind
     m.panelBack = back
     m.panelValues = values
     m.panelTitle.text = title
-    ' A version's line is long: smaller letters keep it whole.
-    size = "Medium"
-    if kind = "version" then size = "Small"
-    m.choices.font = "font:" + size + "SystemFont"
-    m.choices.focusedFont = "font:" + size + "BoldSystemFont"
     m.choices.content = nodesContent(items)
-    m.choices.checkedItem = current
     if current > 0 then m.choices.jumpToItem = current
     m.menu.visible = false
     m.info.visible = false

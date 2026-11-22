@@ -63,7 +63,7 @@
             <Rectangle width="1920" height="1080" color="0x16191E80" />
             <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFA" />
             <Label id="panelTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xEBEBEBFF" />
-            <MarkupList id="choices" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="true" focusBitmapUri="pkg:/images/ui/square.9.png" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" />
+            <MarkupList id="choices" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <Label id="panelHint" translation="[1256, 912]" width="608" wrap="true" maxLines="3" color="0xA1A9B6FF" />
         </Group>
     </children>

@@ -539,11 +539,10 @@ sub showChoices(kind as string, title as string, labels as object, values as obj
     m.choiceLabels = labels
     m.panelTitle.text = title
     items = []
-    for each label in labels
-        items.Push({ title: label })
+    for i = 0 to labels.Count() - 1
+        items.Push({ title: labels[i], checked: i = current })
     end for
     m.choices.content = nodesContent(items)
-    m.choices.checkedItem = current
     m.choices.jumpToItem = current
     m.menu.visible = false
     m.choices.visible = true

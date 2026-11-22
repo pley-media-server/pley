@@ -41,6 +41,9 @@ describes how they are made.
 - A show's Episodes screen has the rail, and Play as a pill.
 - An album's, an artist's and a playlist's buttons are Android TV's: Play
   a pill, Shuffle and the rest round icons, named while focused.
+- The focus in menus and side panels moves at once, the words clear of
+  its edges: it slid behind the remote, and Roku's lists put their words
+  against its left edge.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

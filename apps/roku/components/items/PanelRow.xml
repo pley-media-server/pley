@@ -1,19 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A row of the player's side panels, as the Android TV player's
      PanelRow: its words, what they mean under them (a quality's hint, a
-     track's details), and a check at the right on the choice made. The
-     list draws the focus (the accent, square); focused, the
-     words and the check are dark on it. 608 × 88. -->
+     track's details), and a check at the right on the choice made.
+     Focused, it fills with the accent itself (square), the words and the
+     check dark on it: at once, where a list's sliding focus lagged, and
+     with room either side of the words. As wide and tall as the list's
+     items (608 × 88 in the player's panels). -->
 <component name="PanelRow" extends="Group">
     <interface>
         <field id="itemContent" type="node" onChange="onContent" />
         <field id="itemHasFocus" type="boolean" onChange="onFocus" />
         <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
+        <field id="width" type="float" onChange="onLayout" />
+        <field id="height" type="float" onChange="onLayout" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/PanelRow.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <children>
+        <Poster id="fill" uri="pkg:/images/ui/square.9.png" blendColor="0x38BDF8FF" width="608" height="88" visible="false" />
         <Label id="name" translation="[32, 0]" width="488" height="88" vertAlign="center" maxLines="1" color="0xEBEBEBFF" />
         <Label id="note" translation="[32, 48]" width="488" maxLines="1" color="0xA1A9B6FF" visible="false" />
         <Poster id="check" translation="[536, 24]" width="40" height="40" uri="pkg:/images/ui/icon-check-40.png" blendColor="0x38BDF8FF" visible="false" />

@@ -45,9 +45,9 @@
         <Group id="panel" visible="false">
             <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />
             <Label id="panelTitle" translation="[1056, 56]" width="808" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <RadioButtonList id="choices" focusBitmapUri="pkg:/images/ui/square.9.png" translation="[1056, 150]" itemSize="[808, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
+            <MarkupList id="choices" translation="[1056, 150]" itemComponentName="PanelRow" itemSize="[808, 64]" itemSpacing="[0, 4]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <!-- The filters: each opens its choices. -->
-            <LabelList id="menu" focusBitmapUri="pkg:/images/ui/square.9.png" translation="[1056, 150]" itemSize="[808, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" visible="false" />
+            <MarkupList id="menu" translation="[1056, 150]" itemComponentName="PanelRow" itemSize="[808, 64]" itemSpacing="[0, 4]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
             <Label id="panelHint" translation="[1056, 900]" width="808" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         </Group>
     </children>

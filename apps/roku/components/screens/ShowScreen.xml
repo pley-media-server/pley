@@ -27,7 +27,7 @@
         <Label id="meta" translation="[192, 196]" width="460" color="0xA1A9B6FF" />
         <!-- Play (or Resume) the next episode: Android TV's pill. -->
         <ChipRow id="play" translation="[192, 250]" look="buttons" pad="64" visible="false" />
-        <LabelList id="seasons" focusBitmapUri="pkg:/images/ui/square.9.png" translation="[168, 380]" itemSize="[484, 64]" numRows="9" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:SmallSystemFont" focusedFont="font:SmallBoldSystemFont" />
+        <MarkupList id="seasons" translation="[168, 380]" itemComponentName="PanelRow" itemSize="[484, 64]" itemSpacing="[0, 4]" numRows="9" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <MarkupList id="episodes" translation="[700, 64]" itemComponentName="EpisodeRow" itemSize="[1124, 196]" itemSpacing="[0, 16]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <Timer id="seasonTimer" duration="0.35" />
