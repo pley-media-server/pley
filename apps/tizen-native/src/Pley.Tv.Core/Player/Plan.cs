@@ -102,6 +102,19 @@ public static class PlaybackPlan
     }
 
     /// <summary>
+    /// The audio the TV's player starts <paramref name="file"/> with, before the app switches: the
+    /// default, else the first, of the tracks it lists. It leaves out <see cref="TizenCaps.PlayerLeavesOut"/>,
+    /// so a remux whose first track is TrueHD starts on the one after it.
+    /// </summary>
+    public static MediaStream? StartingAudio(MediaFile? file)
+    {
+        var audio = AudioStreams(file);
+        var listed = audio.Where(s => !TizenCaps.PlayerLeavesOut.Contains(s.Codec.ToLowerInvariant())).ToList();
+        if (listed.Count == 0) listed = audio.ToList();
+        return listed.FirstOrDefault(s => s.Default) ?? listed.FirstOrDefault();
+    }
+
+    /// <summary>
     /// The audio the item's details give: the profile's choice (<c>selected_audio</c>, which its
     /// defaults fill in), else the file's default, else the first.
     /// </summary>

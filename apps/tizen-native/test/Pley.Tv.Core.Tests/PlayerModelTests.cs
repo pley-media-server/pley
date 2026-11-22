@@ -559,6 +559,21 @@ public class PlayerModelTests
     }
 
     [Fact]
+    public void A_remux_whose_first_track_is_TrueHD_starts_on_the_track_after_it()
+    {
+        // The TV's player leaves the TrueHD out of its tracks and starts on the E-AC-3, which the server picked.
+        var trueHd = new MediaStream { Index = 1, Kind = "audio", Codec = "truehd", Language = "eng", Default = true, Channels = 8 };
+        var eac3 = new MediaStream { Index = 2, Kind = "audio", Codec = "eac3", Language = "eng", Channels = 6 };
+        h.Add(PlayerHarness.Movie() with { Files = new[] { PlayerHarness.FileOf(10) with { Streams = new[] { PlayerHarness.Video, trueHd, eac3 } } } });
+        h.Source.Answer = _ => FakePlayerSource.Direct(10) with { AudioIndex = 2 };
+        h.Start(new PlayRequest(1, 0, true), show: false);
+        // It fails before the player is ready: the E-AC-3 is refused, not the TrueHD that never played.
+        h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.Equal("auto", h.LastBody["mode"]);
+        Assert.DoesNotContain("eac3", AudioIn(h.LastBody, "audio_codecs"));
+    }
+
+    [Fact]
     public void Audio_is_refused_only_as_it_reached_the_TV_and_as_the_report_listed_it()
     {
         // The server converted it already: leaving out the file's codec would change nothing.
