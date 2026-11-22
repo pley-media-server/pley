@@ -13,6 +13,7 @@
     <script type="text/brightscript" uri="pkg:/components/screens/NowPlayingScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
@@ -53,7 +54,7 @@
                  under the scrubber they go with. -->
             <ChipRow id="buttons" translation="[560, 424]" look="buttons" />
             <!-- Up next: the queue, the track playing marked, OK playing one. -->
-            <Label id="upNextTitle" translation="[96, 580]" color="0xA1A9B6FF" font="font:SmallerBoldSystemFont" visible="false" />
+            <Label id="upNextTitle" translation="[96, 572]" color="0xEBEBEBFF" visible="false" />
             <MarkupList id="upNext" translation="[96, 628]" itemComponentName="QueueRow" itemSize="[1728, 56]" itemSpacing="[0, 8]" numRows="5" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
         </Group>
     </children>

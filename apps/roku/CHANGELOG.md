@@ -75,6 +75,7 @@ describes how they are made.
 - Media info and the player's Playback details lay out as Android TV's:
   a bold heading over each block, each label in grey beside its value,
   and Media info scrolls smoothly with a bar showing where.
+- Now Playing's "Up next" is a section's heading, as on the title pages.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

@@ -31,6 +31,8 @@ sub init()
     m.heading = m.top.findNode("heading")
     m.heading.text = t("player.nowPlaying.title")
     m.upNextTitle.text = t("player.upNext.title")
+    ' A section's heading, as a title page's rows have.
+    m.upNextTitle.font = uiType("section")
     m.watching = false
     m.labels = []
     ' The buttons' words, and how wide each is: wide enough for either of
