@@ -89,6 +89,8 @@ describes how they are made.
 
 ### Fixed
 
+- An artist's and a person's picture is round with no square corners
+  behind it: a mask cuts pictures, not the ground under them.
 - After the language changed, the rail marked Settings over Home, scrolled
   to its foot.
 - People's pictures in circles, and stills of another shape than their

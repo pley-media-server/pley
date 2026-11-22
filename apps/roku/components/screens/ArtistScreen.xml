@@ -29,7 +29,9 @@
         <LayoutGroup id="column" translation="[192, 64]" layoutDirection="vert" itemSpacings="[28, 36]">
             <!-- Their initials until the picture comes, or without one. -->
             <MaskGroup maskUri="pkg:/images/round.png" maskSize="[320, 320]">
-                <Rectangle width="320" height="320" color="0x262B35FF" />
+                <!-- The ground under the initials, a circle itself: the mask
+                     cuts pictures, not a Rectangle. -->
+                <Poster width="320" height="320" uri="pkg:/images/round.png" blendColor="0x262B35FF" />
                 <Label id="initials" width="320" height="320" horizAlign="center" vertAlign="center" color="0xEBEBEBCC" font="font:ExtraLargeBoldSystemFont" />
                 <Poster id="picture" width="320" height="320" loadWidth="320" loadHeight="320" loadDisplayMode="scaleToZoom" />
             </MaskGroup>

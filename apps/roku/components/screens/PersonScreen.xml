@@ -24,7 +24,9 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <children>
         <MaskGroup translation="[192, 56]" maskUri="pkg:/images/round.png" maskSize="[160, 160]">
-            <Rectangle width="160" height="160" color="0x262B35FF" />
+            <!-- The ground under the initials, a circle itself: the mask
+                 cuts pictures, not a Rectangle. -->
+            <Poster width="160" height="160" uri="pkg:/images/round.png" blendColor="0x262B35FF" />
             <Label id="initials" width="160" height="160" horizAlign="center" vertAlign="center" color="0xEBEBEBCC" font="font:LargeBoldSystemFont" />
             <Poster id="photo" width="160" height="160" loadWidth="160" loadHeight="160" loadDisplayMode="scaleToZoom" />
         </MaskGroup>
