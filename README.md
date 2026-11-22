@@ -12,7 +12,7 @@
 <br>
 <!-- latest releases: written by scripts/release.mjs when an app is released -->
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22"><img src="https://img.shields.io/badge/Media%20Server-0.1.15-0284C7" alt="Media Server 0.1.15"></a>
-<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20"><img src="https://img.shields.io/badge/Desktop-0.1.6-0284C7" alt="Desktop 0.1.6"></a>
+<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22"><img src="https://img.shields.io/badge/Desktop-0.1.7-0284C7" alt="Desktop 0.1.7"></a>
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20"><img src="https://img.shields.io/badge/Android-0.1.16-0284C7" alt="Android 0.1.16"></a>
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20"><img src="https://img.shields.io/badge/Samsung-0.1.12-0284C7" alt="Samsung 0.1.12"></a>
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20"><img src="https://img.shields.io/badge/LG-0.1.12-0284C7" alt="LG 0.1.12"></a>

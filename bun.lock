@@ -7,7 +7,7 @@
     },
     "apps/desktop": {
       "name": "pley-desktop",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@tauri-apps/api": "^2.12.4",
         "i18next": "^26.7.2",
