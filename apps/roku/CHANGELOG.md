@@ -57,7 +57,7 @@ describes how they are made.
   both lines under them, Watch history's rows are as wide as the page, and
   a request page's and a collection's words stay clear of their picture.
 - Round buttons are circles, as on Android TV, and Live TV's guide shows
-  its focus in the accent, its programme's words on one line.
+  its focus in the accent, its program's words on one line.
 - A collection's and a request page's buttons are the pill and round
   icons the title pages have.
 - A title's rows start under its words and buttons rather than near the
@@ -73,7 +73,7 @@ describes how they are made.
 - "Who's watching?" shows round profiles with the accent's ring, as the
   rail's.
 - Media info and the player's Playback details lay out as Android TV's:
-  a bold heading over each block, each label in grey beside its value,
+  a bold heading over each block, each label in gray beside its value,
   and Media info scrolls smoothly with a bar showing where.
 - Now Playing's "Up next" is a section's heading, as on the title pages.
 - A collection's page and a request's title page have the backdrop over

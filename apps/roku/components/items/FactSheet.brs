@@ -11,8 +11,8 @@ sub init()
 end sub
 
 ' The lines laid out once, top to bottom: a version's name in the accent,
-' a block's heading in bold, a fact's label in grey and its value in the
-' text color (on up to three lines) labelWidth along, a note in grey
+' a block's heading in bold, a fact's label in gray and its value in the
+' text color (on up to three lines) labelWidth along, a note in gray
 ' across the width.
 sub onLines()
     m.scroll.control = "stop"
