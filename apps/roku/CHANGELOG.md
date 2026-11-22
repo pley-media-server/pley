@@ -35,6 +35,9 @@ describes how they are made.
   facts in a line with the star, Request or Open as a pill and Details as
   a round button. Rows of posters leave room under their titles, which are
   in the bold of Android TV's sections.
+- A show's page has its episodes under its seasons, as on Android TV: the
+  season focus rests on shows its episodes, and OK on a season goes down
+  to the episode to watch.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

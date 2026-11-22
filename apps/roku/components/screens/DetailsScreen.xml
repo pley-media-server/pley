@@ -91,5 +91,7 @@
         </Group>
         <!-- The title's request asked again while it downloads. -->
         <Timer id="requestPoll" duration="10" />
+        <!-- Focus resting on a season: its episodes come under the row. -->
+        <Timer id="seasonRest" duration="0.3" />
     </children>
 </component>

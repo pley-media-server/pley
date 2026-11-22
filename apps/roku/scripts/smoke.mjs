@@ -208,13 +208,13 @@ function sleepButtonLong() {
   return false;
 }
 
-// The A to Z's mark on a letter (LibraryScreen.xml's column from 1812, 212,
+// The A to Z's mark on a letter (LibraryScreen.xml's column from 1764, 212,
 // 30 pixels a letter), left of the letter: the accent while the letters have
 // the focus, else the lighter ground behind the letter of the title the
 // grid's focus is on.
 function letterMarked(index, focused) {
   if (!frame) return false;
-  const x = Math.round(1815 * (frame.width / 1920));
+  const x = Math.round(1767 * (frame.width / 1920));
   const y = Math.round((212 + index * 30 + 15) * (frame.height / 1080));
   const at = (y * frame.width + x) * 4;
   const [r, g, b] = [frame.data[at], frame.data[at + 1], frame.data[at + 2]];
@@ -860,10 +860,10 @@ async function walk() {
   await press("select"); // 4 stars, then More again
   await waitFor(/^PUT \/api\/items\/99\/rating$/, since, "the show rated");
   await press("back");
-  // Down from More… to its rows, the seasons then cast and crew, whose
-  // first opens a person's page.
+  // Down from More… to its rows, the seasons, a season's episodes, then
+  // cast and crew, whose first opens a person's page.
   since = mark();
-  await press("down", 2);
+  await press("down", 3);
   shoot("show-rows");
   await press("select");
   await waitFor(/^GET \/api\/people\/7$/, since, "a person's page");
@@ -1028,6 +1028,7 @@ async function walk() {
   await settle();
   const asked = seen(/^GET \/api\/hubs\/home$/, since);
   home.kept = age < 55000 ? !asked : age > 65000 ? asked : true;
+  if (!home.kept) console.log(`Home's rows were ${Math.round(age / 1000)} s old, and Home ${asked ? "asked" : "didn't ask"} for them again`);
   // Search again: before anything is typed, the recent searches, "mo"
   // first since one of its results was opened; OK on it searches it again
   // at once. Back to Home.

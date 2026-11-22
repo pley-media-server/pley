@@ -379,6 +379,20 @@ function contentEpisodes(children as dynamic, server as string) as object
     return episodes
 end function
 
+' Where a season's episodes ([{ progress, watched }], contentEpisodes')
+' start, as on Android TV: the first one begun and not finished, else the
+' first not watched, else the first.
+function contentEpisodeToWatch(episodes as object) as integer
+    for i = 0 to episodes.Count() - 1
+        episode = episodes[i]
+        if episode.progress > 0 and episode.watched <> true then return i
+    end for
+    for i = 0 to episodes.Count() - 1
+        if episodes[i].watched <> true then return i
+    end for
+    return 0
+end function
+
 ' A title's details screen (a movie, an episode, a show or an extra): what
 ' it shows and which buttons it has. actions match buttons: "resume",
 ' "start", "playNext" (a show's next episode, onDeck), "episodes",

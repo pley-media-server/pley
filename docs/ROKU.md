@@ -110,7 +110,11 @@ shows its poster at the right. Audio and subtitles and More
 open a panel at the right; Back closes it, and Down from the buttons goes
 to the rows under them. Over the summary, as on Android TV, a line says
 who made it and who is in it ("Directed by Grace Hopper · Starring Ada
-Lovelace, Alan Turing"; a show's "Created by"). In the rows under it, Cast
+Lovelace, Alan Turing"; a show's "Created by"). A show's seasons are
+followed by the episodes of one, as on Android TV: the next episode's
+season as the page opens, then the season focus rests on (0.3 s), in
+16:9 tiles captioned "5. Glasshouse" and the time left; OK on a season
+goes down into its episodes, on the one to watch. In the rows under it, Cast
 & crew are circles with their names and roles under them, as on Android
 TV, and so are the people Search finds.
 

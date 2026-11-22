@@ -68,6 +68,15 @@ sub init()
     m.menu.observeField("itemSelected", "onMenu")
     m.choices.observeField("itemSelected", "onChoice")
     m.rows.observeField("rowItemSelected", "onTile")
+    m.rows.observeField("rowItemFocused", "onRowFocused")
+    ' A show's episodes under its seasons, as Android TV's page: the
+    ' season shown, the one asked for, the season focus rests on, and
+    ' whether the focus goes into them once they come.
+    m.episodesSeason = invalid
+    m.episodesAsked = invalid
+    m.restSeason = invalid
+    m.seasonRest = m.top.findNode("seasonRest")
+    m.seasonRest.observeField("fire", "onSeasonRest")
     m.requestPoll.observeField("fire", "askItemRequest")
     m.top.observeField("active", "onActive")
     m.top.observeField("requestSummary", "onSummary")
@@ -244,8 +253,91 @@ sub onRow(event as object)
     row.title = request.spec.title
     row.appendChildren(request.content.getChildren(-1, 0))
     keepRow(request.spec.row, row, false)
-    if request.spec.row = "seasons" then placeAskTile()
+    if request.spec.row = "seasons"
+        placeAskTile()
+        showRows()
+        firstSeason(row)
+        return
+    end if
     showRows()
+end sub
+
+' --- A show's episodes ---
+
+' The season the page opens on: the next episode's, else the first.
+sub firstSeason(row as object)
+    if m.episodesAsked <> invalid then return
+    wanted = 0
+    if m.onDeck <> invalid then wanted = httpNumber(m.onDeck.parent_id, 0)
+    first = invalid
+    for each tile in row.getChildren(-1, 0)
+        if tile.kind = "season"
+            if first = invalid then first = tile
+            if wanted > 0 and tile.itemId = wanted then first = tile
+        end if
+    end for
+    if first <> invalid then askEpisodes(first, false)
+end sub
+
+' Focus resting on a season shows its episodes.
+sub onRowFocused()
+    position = m.rows.rowItemFocused
+    if position = invalid or position.Count() <> 2 or position[0] < 0 or position[0] >= m.rowKeys.Count() then return
+    if m.rowKeys[position[0]] <> "seasons" then return
+    tile = m.rows.content.getChild(position[0]).getChild(position[1])
+    m.seasonRest.control = "stop"
+    if tile = invalid or tile.kind <> "season" or tile.itemId = m.episodesAsked then return
+    m.restSeason = tile
+    m.seasonRest.control = "start"
+end sub
+
+sub onSeasonRest()
+    if m.restSeason <> invalid then askEpisodes(m.restSeason, false)
+end sub
+
+' A season's episodes, the row named by it; with focus, the focus goes
+' down into them once they come.
+sub askEpisodes(season as object, focus as boolean)
+    m.episodesAsked = season.itemId
+    uiRequest({ method: "GET", path: "/api/items/" + urlValue(season.itemId) + "/children", build: "episodes", seasonId: season.itemId, title: season.title, focus: focus }, "onSeasonEpisodes")
+end sub
+
+sub onSeasonEpisodes(event as object)
+    request = event.getRoSGNode()
+    spec = request.spec
+    if spec.seasonId <> m.episodesAsked then return
+    answer = event.getData()
+    if not answer.ok or request.content = invalid or request.content.getChildCount() = 0 then return
+    row = CreateObject("roSGNode", "ContentNode")
+    row.title = spec.title
+    row.appendChildren(request.content.getChildren(-1, 0))
+    m.episodesSeason = spec.seasonId
+    at = -1
+    for i = 0 to m.rowKeys.Count() - 1
+        if m.rowKeys[i] = "episodes" then at = i
+    end for
+    keepRow("episodes", row, true)
+    if at >= 0
+        ' Only the row changes: the focus stays where it is.
+        m.rows.content.replaceChild(row, at)
+    else
+        showRows()
+    end if
+    if spec.focus = true then focusEpisodes()
+end sub
+
+' The focus on the episodes, at the one to watch.
+sub focusEpisodes()
+    for i = 0 to m.rowKeys.Count() - 1
+        if m.rowKeys[i] = "episodes"
+            episodes = []
+            for each tile in m.rowNodes.episodes.node.getChildren(-1, 0)
+                episodes.Push({ progress: tile.progress, watched: tile.watched })
+            end for
+            if not m.rows.isInFocusChain() then focusRows(true)
+            m.rows.jumpToRowItem = [i, contentEpisodeToWatch(episodes)]
+        end if
+    end for
 end sub
 
 sub keepRow(key as string, row as object, wide as boolean)
@@ -255,7 +347,7 @@ end sub
 ' The rows there are, in their order; the focus stays on its row.
 sub showRows()
     keys = []
-    for each key in ["seasons", "credits", "extras", "related", "collections"]
+    for each key in ["seasons", "episodes", "credits", "extras", "related", "collections"]
         if m.rowNodes.DoesExist(key) then keys.Push(key)
     end for
     if keys.Count() = 0 or FormatJson(keys) = FormatJson(m.rowKeys) then return
@@ -301,10 +393,23 @@ sub focusRows(onRows as boolean)
     end if
 end sub
 
+' A season chosen goes down into its episodes, as on Android TV: the page
+' has them, or asks for them; any other tile opens.
 sub onTile(event as object)
     position = event.getData()
     row = m.rows.content.getChild(position[0])
-    if row <> invalid then uiOpenTile(row.getChild(position[1]))
+    if row = invalid then return
+    tile = row.getChild(position[1])
+    if tile <> invalid and tile.kind = "season" and m.rowKeys[position[0]] = "seasons"
+        m.seasonRest.control = "stop"
+        if tile.itemId = m.episodesSeason
+            focusEpisodes()
+        else
+            askEpisodes(tile, true)
+        end if
+        return
+    end if
+    uiOpenTile(tile)
 end sub
 
 ' --- Requests ---

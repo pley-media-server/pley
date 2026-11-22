@@ -457,3 +457,10 @@ sub test_content_detail_parts_and_chips()
     tkEqual(chips[1], { label: "", icon: "rotate-ccw", name: "Play from start", width: 0 })
     tkEqual(chips[2].icon, "ellipsis")
 end sub
+
+sub test_content_episode_to_watch()
+    tkEqual(contentEpisodeToWatch([{ progress: 0, watched: true }, { progress: 0.4, watched: false }, { progress: 0, watched: false }]), 1, "the one begun")
+    tkEqual(contentEpisodeToWatch([{ progress: 0, watched: true }, { progress: 0, watched: false }]), 1, "else the first not watched")
+    tkEqual(contentEpisodeToWatch([{ progress: 0.5, watched: true }, { progress: 0, watched: true }]), 0, "all watched: the first")
+    tkEqual(contentEpisodeToWatch([]), 0)
+end sub
