@@ -22,8 +22,10 @@ sub init()
     m.badge = m.top.findNode("badge")
     m.qualityBacks = [m.top.findNode("qualityBack0"), m.top.findNode("qualityBack1")]
     m.qualities = [m.top.findNode("quality0"), m.top.findNode("quality1")]
-    m.title.font = uiType("caption")
-    m.subtitle.font = uiType("caption")
+    m.captionFont = uiType("caption")
+    m.boldFont = uiType("captionBold")
+    m.title.font = m.captionFont
+    m.subtitle.font = m.captionFont
     m.fallback.font = uiType("label")
     m.badge.font = uiType("badge")
     for each label in m.qualities
@@ -46,6 +48,11 @@ sub init()
     m.person = false
     m.progress = 0.0
     m.content = invalid
+    ' The focus as the tile shows it (onFocus sets only what changes), once
+    ' it has shown any.
+    m.shown = false
+    m.shownList = false
+    m.shownFocused = false
 end sub
 
 ' Bound again as the list scrolls: only a new title changes the tile.
@@ -54,6 +61,7 @@ sub onContent()
     if item = invalid then return
     if m.content <> invalid and m.content.isSameNode(item) then return
     m.content = item
+    m.shown = false
     m.wide = item.hasField("wide") and item.wide = true
     m.square = item.hasField("square") and item.square = true
     m.person = item.hasField("kind") and item.kind = "person"
@@ -201,21 +209,25 @@ sub onFocus()
     gridHasFocus = m.top.gridHasFocus or inRowList()
     listFocused = m.top.rowHasFocus and m.top.rowListHasFocus and gridHasFocus
     focused = m.top.itemHasFocus and listFocused
+    ' Only what changed is set: a row taking or losing the focus tells every
+    ' tile in it, and most stay as they were, on the render thread.
+    fresh = not m.shown
+    if fresh or listFocused <> m.shownList then m.ring.visible = listFocused
+    m.shownList = listFocused
+    if not fresh and focused = m.shownFocused then return
+    m.shown = true
+    m.shownFocused = focused
     ' The list leaves focusPercent alone for a tile focused as it loaded: its
     ' look follows the focus here too, the next frames of focusPercent
     ' taking over while focus glides.
-    m.ring.visible = listFocused
     growTo(focused)
     if focused
         m.ring.opacity = 1
-    else
-        m.ring.opacity = 0
-    end if
-    if focused
-        m.title.font = uiType("captionBold")
+        m.title.font = m.boldFont
         m.fallback.color = "0xEBEBEBFF"
     else
-        m.title.font = uiType("caption")
+        m.ring.opacity = 0
+        m.title.font = m.captionFont
         m.fallback.color = "0xA1A9B6FF"
     end if
 end sub
