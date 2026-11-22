@@ -35,7 +35,14 @@ export function methodText(info: PlaybackInfo): string {
 }
 
 export function fallbackText(reason: FallbackReason): string {
-  return reason === "unplayable" ? t("player.errors.originalFailed") : t("player.errors.originalNotSmooth");
+  switch (reason) {
+    case "unplayable":
+      return t("player.errors.originalFailed");
+    case "audio_unplayable":
+      return t("player.errors.originalAudioFailed");
+    case "not_smooth":
+      return t("player.errors.originalNotSmooth");
+  }
 }
 
 /** The server stopped the playback: who did, and their message when given. */

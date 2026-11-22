@@ -260,7 +260,7 @@ fn transcoding_url(
 async fn media_caller(
     state: &AppState,
     jellyfin: &Jellyfin,
-    (headers, query, from): (&HeaderMap, Option<&str>, Option<std::net::IpAddr>),
+    (headers, query, from, extensions): (&HeaderMap, Option<&str>, Option<std::net::IpAddr>, &axum::http::Extensions),
     path_id: &str,
     source: Option<&str>,
 ) -> JfResult<(AuthUser, FileRow)> {
@@ -285,13 +285,17 @@ async fn media_caller(
     if !libraries(state, &user).await?.iter().any(|l| l.id == row.library_id) {
         return Err(JfError::NotFound);
     }
+    // A player fetching the stream itself names no device: the account's
+    // other requests from its address do (src/resources.rs).
+    crate::traffic::name(extensions, &user.username, || Client::of(headers).shown_device().unwrap_or_default());
     Ok((user, file))
 }
 
-/// What [`media_caller`] reads of `request`: its headers, its query and
-/// where it came from.
-fn asking(request: &Request) -> (&HeaderMap, Option<&str>, Option<std::net::IpAddr>) {
-    (request.headers(), request.uri().query(), crate::auth::source_ip_of(request.extensions(), request.headers()))
+/// What [`media_caller`] reads of `request`: its headers, its query, where
+/// it came from and its extensions.
+fn asking(request: &Request) -> (&HeaderMap, Option<&str>, Option<std::net::IpAddr>, &axum::http::Extensions) {
+    let from = crate::auth::source_ip_of(request.extensions(), request.headers());
+    (request.headers(), request.uri().query(), from, request.extensions())
 }
 
 /// The media file, with ranges, sent from the file that was checked.
@@ -528,6 +532,7 @@ async fn session_file(
     State(state): State<AppState>,
     SourceIp(from): SourceIp,
     Path((_id, session_id, file)): Path<(String, String, String)>,
+    slot: Option<Extension<Arc<crate::traffic::Slot>>>,
 ) -> JfResult<Response> {
     let session = state.sessions.get(&session_id).ok_or(JfError::NotFound)?;
     let token = session.compatibility_token.ok_or(JfError::NotFound)?;
@@ -538,6 +543,9 @@ async fn session_file(
         .filter(|user| user.id == session.user_id)
         .map(super::this_apis)
         .ok_or(JfError::NotFound)?;
+    if let Some(Extension(slot)) = slot {
+        slot.name(&user.username, || session.device.clone().unwrap_or_default());
+    }
     Ok(crate::api::playback::hls_file(State(state), user, Path((session_id, file))).await?)
 }
 

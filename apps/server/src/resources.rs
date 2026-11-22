@@ -1,8 +1,11 @@
 //! How busy the machine is and how much of it pley takes: the processors'
-//! time and the memory, sampled every [`INTERVAL`] for the dashboard's
-//! charts (Plex's "CPU" and "RAM"). pley here is this process and every
-//! process it started, so a managed transcoder and its FFmpegs count too;
-//! an external transcoder, perhaps on another machine, doesn't.
+//! time, the memory and the network, sampled every [`INTERVAL`] for the
+//! dashboard's charts (Plex's "CPU" and "RAM"). pley here is this process
+//! and every process it started, so a managed transcoder and its FFmpegs
+//! count too; an external transcoder, perhaps on another machine, doesn't.
+//! On the network, pley is what it sends its clients ([`crate::traffic`]),
+//! and the machine is what its hardware network adapters carry (in a
+//! container, which sees none, its own).
 //!
 //! A sample costs a few system calls and, for the processes, one listing of
 //! them (Windows) or one read of each `/proc/<pid>/stat` (Linux): well under
@@ -16,13 +19,21 @@ use parking_lot::Mutex;
 use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 
+use crate::traffic::Client;
+
 /// How often the machine is sampled.
 pub const INTERVAL: Duration = Duration::from_secs(2);
 /// The samples kept: five minutes of them.
 const KEEP: usize = 150;
+/// The samples a client's speed is averaged over, the newest among them:
+/// players fetch a few seconds of media at a time, and a list of who sent
+/// in the last two seconds alone would blink.
+const CLIENT_SAMPLES: usize = 5;
+/// The clients listed at most, the busiest first.
+const MAX_CLIENTS: usize = 50;
 
 /// The machine and pley at one moment.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
 pub struct Sample {
     /// When, in Unix milliseconds.
     pub at: i64,
@@ -36,6 +47,22 @@ pub struct Sample {
     pub memory: u64,
     /// Memory pley holds: its processes' resident sets, in bytes.
     pub pley_memory: u64,
+    /// What the machine's network adapters received since the sample
+    /// before, in bytes a second.
+    pub net_in: u64,
+    /// What they sent.
+    pub net_out: u64,
+    /// What pley sent its clients, in bytes a second.
+    pub pley_out: u64,
+}
+
+/// A client pley is sending to, and how fast.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ClientRate {
+    #[serde(flatten)]
+    pub client: Client,
+    /// Bytes a second, over the last few samples.
+    pub sent: u64,
 }
 
 /// What `GET /api/system/resources` answers.
@@ -50,11 +77,14 @@ pub struct Resources {
     pub memory_total: u64,
     /// Oldest first.
     pub samples: Vec<Sample>,
+    /// Who pley is sending to now, the busiest first.
+    pub clients: Vec<ClientRate>,
 }
 
 /// The samples of the last few minutes, taken in the background.
 pub struct Monitor {
     samples: Mutex<VecDeque<Sample>>,
+    clients: Mutex<Vec<ClientRate>>,
     cpus: u32,
     memory_total: u64,
 }
@@ -63,6 +93,7 @@ impl Monitor {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             samples: Mutex::new(VecDeque::with_capacity(KEEP)),
+            clients: Mutex::default(),
             cpus: os::cpus().max(1),
             memory_total: os::memory().map(|m| m.total).unwrap_or(0),
         })
@@ -86,6 +117,7 @@ impl Monitor {
                 if let Some(sample) = sampler.sample() {
                     monitor.push(sample);
                 }
+                *monitor.clients.lock() = sampler.clients();
             }
         });
     }
@@ -119,6 +151,7 @@ impl Monitor {
             cpus: self.cpus,
             memory_total: self.memory_total,
             samples,
+            clients: self.clients.lock().clone(),
         }
     }
 }
@@ -136,6 +169,13 @@ struct Memory {
     used: u64,
 }
 
+/// Bytes the network adapters have carried so far.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct Network {
+    received: u64,
+    sent: u64,
+}
+
 /// One of pley's processes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Process {
@@ -151,14 +191,25 @@ struct Process {
 /// Turns the system's running totals into the shares between two samples.
 struct Sampler {
     cpus: u32,
-    last: Option<(Instant, CpuTimes)>,
+    last: Option<Reading>,
     /// Each process's processor time at the sample before.
     processes: HashMap<(u32, u64), u64>,
+    /// What each client had been sent at the last few samples, newest last.
+    clients: VecDeque<(Instant, HashMap<Client, u64>)>,
+}
+
+/// The running totals at one sample.
+#[derive(Clone, Copy)]
+struct Reading {
+    at: Instant,
+    cpu: CpuTimes,
+    network: Option<Network>,
+    pley_sent: u64,
 }
 
 impl Sampler {
     fn new(cpus: u32) -> Self {
-        Self { cpus, last: None, processes: HashMap::new() }
+        Self { cpus, last: None, processes: HashMap::new(), clients: VecDeque::new() }
     }
 
     /// `None` the first time (a share needs two readings) or when the system
@@ -167,12 +218,23 @@ impl Sampler {
         let now = Instant::now();
         let times = os::cpu_times()?;
         let memory = os::memory()?;
+        let network = os::network();
+        let pley_sent = crate::traffic::traffic().sent();
         let tree = os::processes(std::process::id());
         let pley_memory = tree.iter().map(|p| p.memory).sum();
         let previous = std::mem::replace(&mut self.processes, tree.iter().map(|p| (p.key, p.cpu_ns)).collect());
-        let last = self.last.replace((now, times));
-        let (then, before) = last?;
+        let last = self.last.replace(Reading { at: now, cpu: times, network, pley_sent });
+        let Reading { at: then, cpu: before, network: network_before, pley_sent: pley_sent_before } = last?;
+        let seconds = now.duration_since(then).as_secs_f64();
         let elapsed = now.duration_since(then).as_nanos() as f64 * f64::from(self.cpus);
+        // Counters only go up; one that went down (an adapter gone, a
+        // 32-bit count past its end) reads as nothing for this sample.
+        let (net_in, net_out) = match (network, network_before) {
+            (Some(n), Some(b)) => {
+                (rate(n.received.saturating_sub(b.received), seconds), rate(n.sent.saturating_sub(b.sent), seconds))
+            }
+            _ => (0, 0),
+        };
         // A process seen for the first time started since the sample before
         // (or this is the second sample, and every process is new).
         let used: u64 = tree.iter().map(|p| p.cpu_ns.saturating_sub(previous.get(&p.key).copied().unwrap_or(0))).sum();
@@ -182,8 +244,80 @@ impl Sampler {
             pley_cpu: share(used as f64, elapsed),
             memory: memory.used,
             pley_memory,
+            net_in,
+            net_out,
+            pley_out: rate(pley_sent.saturating_sub(pley_sent_before), seconds),
         })
     }
+
+    /// Who pley is sending to, and how fast over the last few samples.
+    fn clients(&mut self) -> Vec<ClientRate> {
+        // A client is forgotten once it has been sent nothing for as long as
+        // the speeds are averaged over: one between two requests, or whose
+        // player paused for a moment, stays listed.
+        let before = self.clients.front().map(|(_, totals)| totals.clone()).unwrap_or_default();
+        let now: HashMap<Client, u64> = crate::traffic::traffic().clients(&before).into_iter().collect();
+        self.clients.push_back((Instant::now(), now));
+        if self.clients.len() > CLIENT_SAMPLES + 1 {
+            self.clients.pop_front();
+        }
+        client_rates(&self.clients)
+    }
+}
+
+/// Each client's speed between the oldest and newest of `totals`, the
+/// busiest first. An account's requests from one address are one client,
+/// named after its busiest device: one device can go by two names, the
+/// app's own on its API requests ("Pley for Roku") and the one it gave its
+/// playback on its player's, or by none, a player fetching a stream itself.
+/// A request whose sign-in nobody read (the web app's files) counts for
+/// the busiest signed-in client at its address, if there is one.
+fn client_rates(totals: &VecDeque<(Instant, HashMap<Client, u64>)>) -> Vec<ClientRate> {
+    let (Some((first, oldest)), Some((last, newest))) = (totals.front(), totals.back()) else { return Vec::new() };
+    let seconds = last.duration_since(*first).as_secs_f64();
+    // A client missing from the oldest totals was first sent to since, and
+    // one whose total went down was forgotten and counted again from 0.
+    let mut sent: Vec<(&Client, u64)> = newest
+        .iter()
+        .map(|(client, &total)| {
+            let before = oldest.get(client).copied().unwrap_or(0);
+            (client, if total >= before { total - before } else { total })
+        })
+        .filter(|&(_, bytes)| bytes > 0)
+        .collect();
+    // The busiest first, so that each joins the busiest it can.
+    sent.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+    let mut listed: Vec<(&Client, u64)> = Vec::new();
+    for signed_in in [true, false] {
+        for &(client, bytes) in sent.iter().filter(|(c, _)| c.user.is_some() == signed_in) {
+            let joins = client.address.and_then(|address| {
+                listed.iter().position(|(c, _)| {
+                    c.user.is_some() && c.address == Some(address) && (!signed_in || c.user == client.user)
+                })
+            });
+            match joins {
+                Some(i) => {
+                    listed[i].1 += bytes;
+                    if signed_in && listed[i].0.device.is_none() {
+                        listed[i].0 = client;
+                    }
+                }
+                None => listed.push((client, bytes)),
+            }
+        }
+    }
+    let mut rates: Vec<ClientRate> = listed
+        .into_iter()
+        .map(|(client, bytes)| ClientRate { client: client.clone(), sent: rate(bytes, seconds) })
+        .collect();
+    rates.sort_by(|a, b| b.sent.cmp(&a.sent).then_with(|| a.client.cmp(&b.client)));
+    rates.truncate(MAX_CLIENTS);
+    rates
+}
+
+/// `bytes` over `seconds`, a second.
+fn rate(bytes: u64, seconds: f64) -> u64 {
+    if seconds <= 0.0 { 0 } else { (bytes as f64 / seconds).round() as u64 }
 }
 
 /// `part` of `whole` as a percentage, 0 to 100, to a tenth.
@@ -200,6 +334,9 @@ mod os {
     use std::mem::{size_of, zeroed};
 
     use windows_sys::Win32::Foundation::{CloseHandle, FILETIME, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::NetworkManagement::IpHelper::{
+        FreeMibTable, GetIfTable2, IF_TYPE_SOFTWARE_LOOPBACK, MIB_IF_ROW2, MIB_IF_TABLE2,
+    };
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
         CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
     };
@@ -210,7 +347,7 @@ mod os {
         PROCESS_QUERY_LIMITED_INFORMATION,
     };
 
-    use super::{CpuTimes, Memory, Process};
+    use super::{CpuTimes, Memory, Network, Process};
 
     pub const SUPPORTED: bool = true;
 
@@ -239,6 +376,32 @@ mod os {
             return None;
         }
         Some(Memory { total: status.ullTotalPhys, used: status.ullTotalPhys.saturating_sub(status.ullAvailPhys) })
+    }
+
+    /// The adapters' counts. Windows lists each adapter again for every
+    /// filter on it (and its virtual ones): only hardware is counted, so a
+    /// byte is counted once.
+    pub fn network() -> Option<Network> {
+        let mut table: *mut MIB_IF_TABLE2 = std::ptr::null_mut();
+        if unsafe { GetIfTable2(&mut table) } != 0 || table.is_null() {
+            return None;
+        }
+        let mut network = Network::default();
+        unsafe {
+            // The rows run on past the one the struct declares: no reference
+            // to that one-row array, which would cover the first alone.
+            let first = (&raw const (*table).Table).cast::<MIB_IF_ROW2>();
+            let rows = std::slice::from_raw_parts(first, (*table).NumEntries as usize);
+            for row in rows {
+                let hardware = row.InterfaceAndOperStatusFlags._bitfield & 1 != 0;
+                if hardware && row.Type != IF_TYPE_SOFTWARE_LOOPBACK {
+                    network.received += row.InOctets;
+                    network.sent += row.OutOctets;
+                }
+            }
+            FreeMibTable(table.cast());
+        }
+        Some(network)
     }
 
     /// `root` and the processes it started, theirs and so on.
@@ -303,7 +466,7 @@ mod os {
 mod os {
     use std::collections::HashMap;
 
-    use super::{CpuTimes, Memory, Process};
+    use super::{CpuTimes, Memory, Network, Process};
 
     pub const SUPPORTED: bool = true;
 
@@ -336,6 +499,44 @@ mod os {
 
     pub fn memory() -> Option<Memory> {
         parse_meminfo(&std::fs::read_to_string("/proc/meminfo").ok()?)
+    }
+
+    pub fn network() -> Option<Network> {
+        let text = std::fs::read_to_string("/proc/net/dev").ok()?;
+        // A hardware adapter has a device behind it; bridges, bonds, VLANs,
+        // tunnels and containers' links (/sys/devices/virtual) don't.
+        Some(parse_net_dev(&text, |name| std::path::Path::new("/sys/class/net").join(name).join("device").exists()))
+    }
+
+    /// `/proc/net/dev`: two lines of headings, then "  eth0: received-bytes
+    /// packets … (8 fields) sent-bytes …" for each adapter. Only `hardware`
+    /// adapters count, as a byte through a bridge (Docker's, Unraid's br0), a
+    /// container's link or a VPN goes through a hardware one too; where
+    /// there is none, as in a container, which sees only its own link,
+    /// every adapter but loopback counts.
+    pub(super) fn parse_net_dev(text: &str, hardware: impl Fn(&str) -> bool) -> Network {
+        let adapters: Vec<(&str, u64, u64)> = text
+            .lines()
+            .skip(2)
+            .filter_map(|line| {
+                let (name, counts) = line.split_once(':')?;
+                let name = name.trim();
+                if name == "lo" {
+                    return None;
+                }
+                let counts: Vec<u64> = counts.split_ascii_whitespace().map(|c| c.parse().unwrap_or(0)).collect();
+                Some((name, counts.first().copied().unwrap_or(0), counts.get(8).copied().unwrap_or(0)))
+            })
+            .collect();
+        let any_hardware = adapters.iter().any(|&(name, ..)| hardware(name));
+        let mut network = Network::default();
+        for (name, received, sent) in adapters {
+            if !any_hardware || hardware(name) {
+                network.received += received;
+                network.sent += sent;
+            }
+        }
+        network
     }
 
     pub(super) fn parse_meminfo(text: &str) -> Option<Memory> {
@@ -399,7 +600,7 @@ mod os {
     use std::mem::{size_of, zeroed};
     use std::sync::OnceLock;
 
-    use super::{CpuTimes, Memory, Process};
+    use super::{CpuTimes, Memory, Network, Process};
 
     pub const SUPPORTED: bool = true;
 
@@ -457,6 +658,36 @@ mod os {
         Some(Memory { total, used: (pages * page).min(total) })
     }
 
+    /// Ethernet and Wi-Fi adapters' type (`IFT_ETHER`, net/if_types.h).
+    const IFT_ETHER: u8 = 0x6;
+
+    /// The Ethernet and Wi-Fi adapters' counts: a bridge, a VLAN or a VPN's
+    /// `utun` carries bytes one of them carries too. They are 32-bit here,
+    /// so one passing 4 GiB reads as nothing for that sample.
+    pub fn network() -> Option<Network> {
+        let mut list: *mut libc::ifaddrs = std::ptr::null_mut();
+        if unsafe { libc::getifaddrs(&mut list) } != 0 {
+            return None;
+        }
+        let mut network = Network::default();
+        let mut entry = list;
+        while !entry.is_null() {
+            let ifa = unsafe { &*entry };
+            let link = !ifa.ifa_addr.is_null() && i32::from(unsafe { (*ifa.ifa_addr).sa_family }) == libc::AF_LINK;
+            let loopback = ifa.ifa_flags & libc::IFF_LOOPBACK as u32 != 0;
+            if link && !loopback && !ifa.ifa_data.is_null() {
+                let data = unsafe { &*ifa.ifa_data.cast::<libc::if_data>() };
+                if data.ifi_type == IFT_ETHER {
+                    network.received += u64::from(data.ifi_ibytes);
+                    network.sent += u64::from(data.ifi_obytes);
+                }
+            }
+            entry = ifa.ifa_next;
+        }
+        unsafe { libc::freeifaddrs(list) };
+        Some(network)
+    }
+
     /// Mach time units per nanosecond, as numerator and denominator.
     fn timebase() -> (u64, u64) {
         static TIMEBASE: OnceLock<(u64, u64)> = OnceLock::new();
@@ -501,7 +732,7 @@ mod os {
 
 #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 mod os {
-    use super::{CpuTimes, Memory, Process};
+    use super::{CpuTimes, Memory, Network, Process};
 
     pub const SUPPORTED: bool = false;
 
@@ -514,6 +745,10 @@ mod os {
     }
 
     pub fn memory() -> Option<Memory> {
+        None
+    }
+
+    pub fn network() -> Option<Network> {
         None
     }
 
@@ -577,12 +812,12 @@ mod tests {
     fn only_samples_after_since_are_answered() {
         let monitor = Monitor::new();
         for at in [1_000, 3_000, 5_000] {
-            monitor.push(Sample { at, cpu: 1.0, pley_cpu: 0.5, memory: 10, pley_memory: 5 });
+            monitor.push(Sample { at, cpu: 1.0, pley_cpu: 0.5, memory: 10, pley_memory: 5, ..Sample::default() });
         }
         assert_eq!(monitor.resources(None).samples.len(), 3);
         assert_eq!(monitor.resources(Some(3_000)).samples.iter().map(|s| s.at).collect::<Vec<_>>(), [5_000]);
         for at in 0..KEEP as i64 + 10 {
-            monitor.push(Sample { at: 10_000 + at, cpu: 0.0, pley_cpu: 0.0, memory: 0, pley_memory: 0 });
+            monitor.push(Sample { at: 10_000 + at, ..Sample::default() });
         }
         assert_eq!(monitor.resources(None).samples.len(), KEEP);
     }
@@ -608,6 +843,82 @@ mod tests {
         assert!(sample.pley_memory > 0 && sample.pley_memory < memory.total);
         assert!(sample.pley_cpu > 0.0 && sample.pley_cpu <= 100.0, "{sample:?}");
         assert!(sample.cpu >= 0.0 && sample.cpu <= 100.0);
+        assert!(os::network().is_some(), "the adapters are read");
+    }
+
+    #[test]
+    fn clients_are_averaged_and_a_bare_address_joins_its_sign_in() {
+        let client = |user: Option<&str>, device: Option<&str>, ip: &str| Client {
+            user: user.map(Into::into),
+            device: device.map(Into::into),
+            address: Some(ip.parse().unwrap()),
+        };
+        let ana_tv = client(Some("ana"), Some("Pley for Roku"), "203.0.113.5");
+        let ana_player = client(None, None, "203.0.113.5");
+        let stranger = client(None, None, "198.51.100.9");
+        let quiet = client(Some("bo"), None, "10.0.0.2");
+        let start = Instant::now();
+        let totals: VecDeque<(Instant, HashMap<Client, u64>)> = [
+            (start, [(ana_tv.clone(), 1_000), (quiet.clone(), 500)].into()),
+            (start + Duration::from_secs(1), [(ana_tv.clone(), 1_500)].into()),
+            (
+                start + Duration::from_secs(10),
+                [(ana_tv.clone(), 3_000), (ana_player, 8_000_000), (stranger.clone(), 50_000), (quiet, 500)].into(),
+            ),
+        ]
+        .into();
+        assert_eq!(
+            client_rates(&totals),
+            [
+                ClientRate { client: ana_tv.clone(), sent: 800_200 },
+                ClientRate { client: stranger.clone(), sent: 5_000 }
+            ],
+            "the player's segments are ana's, and bo, who got nothing since, isn't listed",
+        );
+        assert!(client_rates(&VecDeque::new()).is_empty());
+
+        // Ana's TV names its playback "Living Room": one client, named after
+        // it. Bo, another account behind the same address, is another.
+        let ana_living_room = client(Some("ana"), Some("Living Room"), "203.0.113.5");
+        let bo_phone = client(Some("bo"), Some("Pley for Android"), "203.0.113.5");
+        let two_names: VecDeque<(Instant, HashMap<Client, u64>)> = [
+            (start, [(ana_tv.clone(), 1_000)].into()),
+            (
+                start + Duration::from_secs(10),
+                [
+                    (ana_tv.clone(), 3_000),
+                    (ana_living_room.clone(), 4_000_000),
+                    (client(None, None, "203.0.113.5"), 8_000_000),
+                    (bo_phone.clone(), 1_000_000),
+                ]
+                .into(),
+            ),
+        ]
+        .into();
+        assert_eq!(
+            client_rates(&two_names),
+            [ClientRate { client: ana_living_room, sent: 1_200_200 }, ClientRate { client: bo_phone, sent: 100_000 }],
+        );
+
+        // A Jellyfin app's player fetches the stream without naming a
+        // device: the line takes its API requests' name.
+        let cy_stream = client(Some("cy"), None, "198.51.100.20");
+        let cy_app = client(Some("cy"), Some("Pixel 8"), "198.51.100.20");
+        let unnamed: VecDeque<(Instant, HashMap<Client, u64>)> = [
+            (start, HashMap::new()),
+            (start + Duration::from_secs(10), [(cy_stream, 6_000_000), (cy_app.clone(), 20_000)].into()),
+        ]
+        .into();
+        assert_eq!(client_rates(&unnamed), [ClientRate { client: cy_app, sent: 602_000 }]);
+
+        // One forgotten and counted again from 0 since the oldest totals
+        // still shows what it was sent since.
+        let again: VecDeque<(Instant, HashMap<Client, u64>)> = [
+            (start, [(stranger.clone(), 9_000_000)].into()),
+            (start + Duration::from_secs(10), [(stranger.clone(), 40_000)].into()),
+        ]
+        .into();
+        assert_eq!(client_rates(&again), [ClientRate { client: stranger, sent: 4_000 }]);
     }
 
     #[test]
@@ -632,6 +943,18 @@ mod tests {
         assert_eq!(os::parse_cpu_times("cpu  100 10 50 800 40 0 5 0 0 0"), Some(CpuTimes { busy: 165, total: 1005 }));
         let meminfo = "MemTotal:       16000000 kB\nMemFree:         1000000 kB\nMemAvailable:    6000000 kB\n";
         assert_eq!(os::parse_meminfo(meminfo), Some(Memory { total: 16_000_000 * 1024, used: 10_000_000 * 1024 }));
+        let net_dev = "Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 9999999    100    0    0    0     0          0         0  9999999     100    0    0    0     0       0          0
+  eth0: 1000    10    0    0    0     0          0         0     2000      20    0    0    0     0       0          0
+ wlan0:500 5 0 0 0 0 0 0 700 7 0 0 0 0 0 0
+docker0: 300 3 0 0 0 0 0 0 400 4 0 0 0 0 0 0
+vethab12: 300 3 0 0 0 0 0 0 400 4 0 0 0 0 0 0
+";
+        let hardware = |name: &str| name == "eth0" || name == "wlan0";
+        assert_eq!(os::parse_net_dev(net_dev, hardware), Network { received: 1500, sent: 2700 });
+        // A container sees only its own link, which isn't hardware.
+        assert_eq!(os::parse_net_dev(net_dev, |_| false), Network { received: 2100, sent: 3500 });
         let stat = "42 (a (weird) name) S 7 42 42 0 -1 4194560 100 0 0 0 30 20 0 0 20 0 4 0 12345 1000000 250 18446744073709551615";
         let (parent, process) = os::parse_stat(42, stat, 10_000_000, 4096).unwrap();
         assert_eq!(parent, 7);

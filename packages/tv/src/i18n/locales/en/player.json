@@ -120,6 +120,7 @@
     "playerGaveUp": "The TV's player gave up.",
     "playerGaveUpWith": "The TV's player gave up ({{detail}}).",
     "originalFailed": "This device couldn't play the original file.",
+    "originalAudioFailed": "This device couldn't play the original audio.",
     "originalNotSmooth": "The original didn't play smoothly on this device.",
     "stoppedByAdmin": "Playback was stopped by the server's administrator.",
     "stoppedElsewhere": "Playback was stopped from another device.",

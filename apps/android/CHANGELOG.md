@@ -10,12 +10,20 @@ describes how they are made.
 
 ### Fixed
 
+- A video whose audio the device can't decode (Dolby Atmos in E-AC-3 on
+  some phones) plays with the audio converted by the server, or another
+  track, instead of failing after a transcode.
 - The recommended folder layouts in Chinese put the year in (年份) and
   call the season folder Season 01.
 - Traditional Chinese uses the words people use in Taiwan, such as 影集 for
   a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
   for an item and 設定檔 for a Dolby Vision profile, and quotes with 「」.
 - Simplified Chinese calls an artist 艺人 everywhere.
+
+On Android TV:
+
+- Music pauses when you go Home, open another app or leave with Back, and
+  plays on when you come back from Home or another app.
 
 ## [0.1.16] - 2026-11-20
 

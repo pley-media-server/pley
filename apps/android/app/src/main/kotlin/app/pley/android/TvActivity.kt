@@ -1,11 +1,17 @@
 package app.pley.android
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -15,7 +21,9 @@ import app.pley.android.common.perf.FrameRate
 import app.pley.android.data.SessionState
 import app.pley.android.designsystem.image.LocalArtworkImageLoader
 import app.pley.android.player.PlayRequest
+import app.pley.android.player.music.MusicHub
 import app.pley.android.screens.onboarding.Household
+import app.pley.android.ui.tv.music.MusicOnLeave
 import app.pley.android.ui.tv.shell.TvApp
 import app.pley.android.ui.tv.shell.TvShellDemo
 import app.pley.android.ui.tv.shell.TvShellSource
@@ -50,6 +58,9 @@ import kotlinx.coroutines.withContext
  * in, the item's page opens and it plays from where it was; otherwise the
  * app just opens. While it is in the foreground, Android TV and Google TV
  * get the profile's Continue Watching in that row (WatchNext).
+ *
+ * Home, another app or the last Back pauses the music, which plays on
+ * when the app is back after Home or another app ([MusicOnLeave]).
  */
 class TvActivity : ComponentActivity() {
     /** The Watch Next program that opened the app, until it is played: not checked yet ([WatchNextLink.verified]). */
@@ -57,6 +68,28 @@ class TvActivity : ComponentActivity() {
 
     /** The item of [link], once its profile is the one signed in. */
     private val opened = MutableStateFlow<Long?>(null)
+
+    /** A Watch Next program brought the app back, until it resumes: its video plays, not the music. */
+    private var linkArrived = false
+
+    private val main = Handler(Looper.getMainLooper())
+
+    // The app's music once it is made (MusicHub): leaving before then makes no player.
+    private val musicOnLeave = MusicOnLeave(
+        now = SystemClock::uptimeMillis,
+        later = { delayMs, block ->
+            main.postDelayed(block, delayMs)
+            ({ main.removeCallbacks(block) })
+        },
+        music = { MusicHub.playback?.let { (application as PleyApplication).graph.player.music } },
+    )
+
+    /** The screensaver starting and stopping, for [musicOnLeave]: the system's own broadcasts. */
+    private val dreams = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            musicOnLeave.dreaming(intent.action == Intent.ACTION_DREAMING_STARTED)
+        }
+    }
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(AppLanguage.wrap(newBase))
@@ -67,8 +100,13 @@ class TvActivity : ComponentActivity() {
         val app = application as PleyApplication
         val device = app.graph.device
         // Not again when the activity is made anew (a rotation, a process brought back).
-        if (savedInstanceState == null) link.value = WatchNextLink.read(intent)
+        if (savedInstanceState == null) {
+            link.value = WatchNextLink.read(intent)
+            linkArrived = link.value != null
+        }
         followWatchNext(app)
+        val dreamFilter = IntentFilter(Intent.ACTION_DREAMING_STARTED).apply { addAction(Intent.ACTION_DREAMING_STOPPED) }
+        ContextCompat.registerReceiver(this, dreams, dreamFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
         val tier = debugTier() ?: device.tier
         val demo = BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_DEMO, false)
         // Made before the content, so what the first screen is chosen by is read
@@ -98,10 +136,34 @@ class TvActivity : ComponentActivity() {
         }
     }
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        musicOnLeave.leaving()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        musicOnLeave.resumed(videoNext = linkArrived)
+        linkArrived = false
+    }
+
+    override fun onStop() {
+        musicOnLeave.stopped(finishing = isFinishing)
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        unregisterReceiver(dreams)
+        super.onDestroy()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         FrameRate.read(intent)
-        WatchNextLink.read(intent)?.let { link.value = it }
+        WatchNextLink.read(intent)?.let {
+            link.value = it
+            linkArrived = true
+        }
     }
 
     /**

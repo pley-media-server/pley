@@ -1031,12 +1031,13 @@ async fn administration_endpoints() {
         assert_eq!(reply.status, StatusCode::FORBIDDEN, "{method} {uri}");
     }
 
-    // The processors and memory: the machine's at once, samples as they come.
+    // The processors, memory and network: the machine's at once, samples as they come.
     let resources = app.get("/api/system/resources?since=0", &admin).await;
     assert_eq!(resources.status, StatusCode::OK);
     assert_eq!(resources.body["interval_ms"], json!(2000));
     assert!(resources.body["cpus"].as_u64().unwrap() >= 1, "{}", resources.body);
     assert!(resources.body["samples"].is_array());
+    assert!(resources.body["clients"].is_array(), "who is being sent to, from real connections only");
     if resources.body["available"] == json!(true) {
         assert!(resources.body["memory_total"].as_u64().unwrap() > 0);
     }

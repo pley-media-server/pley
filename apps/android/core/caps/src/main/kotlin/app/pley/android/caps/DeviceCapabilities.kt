@@ -44,6 +44,23 @@ data class CapsSnapshot(
         if (report.audioPassthrough.isNullOrEmpty()) return this
         return copy(report = report.copy(audioCodecs = report.audioDecode ?: report.audioCodecs, audioPassthrough = emptyList()))
     }
+
+    /**
+     * This snapshot without the audio [codecs] (the server's names), decoded
+     * or sent on: the device failed to play them, so the server picks
+     * another track or converts them.
+     */
+    fun withoutAudio(codecs: Set<String>): CapsSnapshot {
+        if (codecs.isEmpty()) return this
+        fun List<String>.kept() = filter { it.lowercase() !in codecs }
+        return copy(
+            report = report.copy(
+                audioCodecs = report.audioCodecs.kept(),
+                audioDecode = report.audioDecode?.kept(),
+                audioPassthrough = report.audioPassthrough?.kept(),
+            ),
+        )
+    }
 }
 
 /** The parts of a probe the player and Diagnostics read, besides the report. */

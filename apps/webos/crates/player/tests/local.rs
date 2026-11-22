@@ -145,6 +145,22 @@ fn an_engine_error_asks_no_server_and_says_nothing_converts_it() {
 }
 
 #[test]
+fn a_drives_audio_the_tv_cant_decode_says_nothing_converts_it() {
+    let mut w = on_drive(file(), &[]);
+    w.start();
+    w.open();
+    // No server converts it: the ladder as before, the codec still in the caps, and the TV says so.
+    w.sim.fail(3, "audio decoder");
+    w.advance(100);
+    assert_eq!(w.fake.modes(), [PlaybackMode::Auto, PlaybackMode::Remux]);
+    assert!(w.fake.requests()[1].caps.audio_codecs.iter().any(|c| c == "eac3"));
+    assert_eq!(
+        w.c.state().phase,
+        Phase::Error { message: "Nothing converts it.".into(), can_retry: true, title: None }
+    );
+}
+
+#[test]
 fn a_drive_pulled_out_mid_play_says_so_not_that_a_server_is_away() {
     let mut w = on_drive(file(), &[]);
     w.start();

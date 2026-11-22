@@ -8,6 +8,9 @@ enum class FallbackReason {
     /** The device couldn't play the original file. */
     Unplayable,
 
+    /** The device couldn't play the original audio: another track, or the same converted. */
+    AudioUnplayable,
+
     /** The original didn't play smoothly here. */
     NotSmooth,
 }
@@ -39,6 +42,18 @@ enum class Failure {
  * decoder error, and a decoder that drops frames switches to a transcode
  * once per item.
  *
+ * - Audio the device fails to play, in any session: a new session in the
+ *   same mode whose capabilities leave that codec out ([refusedAudio]),
+ *   so the server plays another track as it is or converts this one, the
+ *   video untouched; once per codec. A remux or a transcode would only copy
+ *   the same audio again: the server copies what the capabilities say plays.
+ *   A decoder's failure counts at once. An output's (an AudioTrack, a
+ *   receiver that went away) gets a new session as it was the first time,
+ *   and counts the second. Media3 tells of a track no decoder takes twice:
+ *   the track, then its renderer's error, which can come once the session
+ *   without that codec is loaded, and stops the player there. An error that
+ *   names audio refused already gets that session again as it was, once per
+ *   codec.
  * - Direct play that the device can't decode or open: a remux when the
  *   video is H.264 or HEVC and only the container or the audio failed,
  *   else a transcode; each once.
@@ -81,6 +96,22 @@ class Recovery {
     var struggleSwitched: Boolean = false
         private set
 
+    /**
+     * Audio codecs (the server's names) this device failed to play in this
+     * item: left out of the capabilities sent from then on.
+     */
+    var refusedAudio: Set<String> = emptySet()
+        private set
+
+    /** The original as it is didn't play here: a fallback's mode, or audio refused. */
+    val leftOriginal: Boolean get() = fallbackMode != null || refusedAudio.isNotEmpty()
+
+    /** Codecs the audio output failed on once: the second failure refuses them. */
+    private val outputFailed = mutableSetOf<String>()
+
+    /** Refused codecs whose late error got a new session as it was: the next one takes the ladder. */
+    private val lateErrors = mutableSetOf<String>()
+
     private var remuxTried = false
     private var transcodeTried = false
 
@@ -121,15 +152,49 @@ class Recovery {
         playedFrom = null
     }
 
-    /** What to do about [error] in a session played as [method], whose video is [videoCodec]. */
-    fun decide(error: EngineError, method: PlaybackMethod, videoCodec: String?): Action = when (error) {
-        is EngineError.Unsupported -> fallback(method, videoCodec, partial = error.audio || error.container, detail = error.detail)
+    /**
+     * What to do about [error] in a session played as [method], whose video
+     * is [videoCodec] and whose audio, as it reached the player, is
+     * [audioCodec] (the server's name, one the capabilities sent list;
+     * `null` when not known).
+     */
+    fun decide(error: EngineError, method: PlaybackMethod, videoCodec: String?, audioCodec: String? = null): Action = when (error) {
+        is EngineError.Unsupported -> refusedBefore(error) ?: refuseAudio(error, audioCodec?.lowercase())
+            ?: fallback(method, videoCodec, partial = error.audio || error.container, detail = error.detail)
         is EngineError.Http -> if (error.status == 404 || error.status == 410) expired(error.detail) else networkError(error.detail)
         is EngineError.Playlist -> expired(error.detail)
         is EngineError.Network -> networkError(error.detail)
         is EngineError.Other -> Action.Fail(Failure.Engine, error.detail)
         // The session handles a stop before asking: this is only a fallback.
         is EngineError.Stopped -> Action.Fail(Failure.Stopped, error.detail)
+    }
+
+    /**
+     * The engine names audio refused already: its error came late, from the
+     * media before (the session without it doesn't carry it), and stopped
+     * the player. That session again as it was, once per codec; `null`
+     * otherwise.
+     */
+    private fun refusedBefore(error: EngineError.Unsupported): Action? {
+        val codec = error.audioCodec?.lowercase() ?: return null
+        if (!error.audio || codec !in refusedAudio || !lateErrors.add(codec)) return null
+        return Action.NewSession(fallbackMode, null)
+    }
+
+    /**
+     * The audio [codec] failed: refused, and a new session in the mode asked
+     * for now; `null` when the ladder's next step is what helps instead. AAC
+     * is the server's last resort when it converts: refusing it leaves nothing
+     * to play.
+     * An output's first failure of a codec gets a new session as it was.
+     */
+    private fun refuseAudio(error: EngineError.Unsupported, codec: String?): Action? {
+        if (!error.audio || codec == null || codec == AAC || codec in refusedAudio) return null
+        // An output fails for reasons of its own (a receiver going away): the first time, a new session as it was gets a new one.
+        if (error.output && outputFailed.add(codec)) return Action.NewSession(fallbackMode, null)
+        refusedAudio = refusedAudio + codec
+        fallbackReason = FallbackReason.AudioUnplayable
+        return Action.NewSession(fallbackMode, FallbackReason.AudioUnplayable)
     }
 
     private fun fallback(method: PlaybackMethod, videoCodec: String?, partial: Boolean, detail: String): Action {
@@ -254,6 +319,9 @@ class Recovery {
         fallbackMode = null
         fallbackReason = null
         struggleSwitched = false
+        refusedAudio = emptySet()
+        outputFailed.clear()
+        lateErrors.clear()
         remuxTried = false
         transcodeTried = false
     }
@@ -267,5 +335,7 @@ class Recovery {
 
         /** Videos a remux copies, which the device's decoders take in another container. */
         private val COPYABLE_VIDEO = setOf("h264", "hevc")
+
+        private const val AAC = "aac"
     }
 }

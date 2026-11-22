@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, ChevronDown, LayoutGrid, RefreshCw, Search, Settings2, Tv2, X } from "lucide-react";
+import { CalendarDays, ChevronDown, LayoutGrid, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, Settings2, Tv2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
 import {
@@ -52,6 +52,9 @@ export function LiveTvPage() {
   const now = useNow();
   const [view, setView] = useLocalStorage<View>("pley.live.view", "guide");
   const [stored, setStored] = useLocalStorage("pley.live.category", "all");
+  // The categories down the side, put away for a wider guide on large
+  // screens; the category is then picked as on small ones.
+  const [railHidden, setRailHidden] = useLocalStorage("pley.live.railHidden", false);
   const [search, setSearch] = useState("");
   const [picking, setPicking] = useState(false);
   const [details, setDetails] = useState<{ channel: Channel; program: Program } | null>(null);
@@ -133,6 +136,17 @@ export function LiveTvPage() {
     <Page
       actions={
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setRailHidden((hidden) => !hidden)}
+            aria-expanded={!railHidden}
+            aria-controls="live-categories"
+            aria-label={railHidden ? t("page.showCategories") : t("page.hideCategories")}
+            title={railHidden ? t("page.showCategories") : t("page.hideCategories")}
+            className={buttonClass("ghost", "sm", "hidden size-9 px-0 lg:inline-flex")}
+          >
+            {railHidden ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+          </button>
           <div role="tablist" aria-label={t("page.view")} className="flex rounded-lg border border-border bg-surface p-0.5">
             {(
               [
@@ -165,7 +179,13 @@ export function LiveTvPage() {
       }
     >
       <div className="flex gap-4 lg:gap-5">
-        <aside className="hidden h-[calc(100dvh-9.75rem)] min-h-[22rem] w-64 shrink-0 overflow-hidden rounded-lg border border-border bg-surface lg:block xl:w-72">
+        <aside
+          id="live-categories"
+          className={cn(
+            "hidden h-[calc(100dvh-9.75rem)] min-h-[22rem] w-64 shrink-0 overflow-hidden rounded-lg border border-border bg-surface xl:w-72",
+            !railHidden && "lg:block",
+          )}
+        >
           {rail}
         </aside>
 
@@ -175,13 +195,16 @@ export function LiveTvPage() {
             <button
               type="button"
               onClick={() => setPicking(true)}
-              className="flex h-9 min-w-0 items-center gap-2 rounded-md border border-border bg-surface px-3 text-left text-sm font-medium transition-colors hover:border-border-strong lg:hidden"
+              className={cn(
+                "flex h-9 min-w-0 items-center gap-2 rounded-md border border-border bg-surface px-3 text-left text-sm font-medium transition-colors hover:border-border-strong",
+                !railHidden && "lg:hidden",
+              )}
             >
               <span className="truncate">{searching ? t("page.resultsFor", { search: search.trim() }) : name}</span>
               {total !== undefined && !searching ? <span className="text-xs tabular-nums text-subtle">{total.toLocaleString(currentLocale())}</span> : null}
               <ChevronDown className="ml-auto size-4 shrink-0 text-subtle" />
             </button>
-            <h2 className="hidden min-w-0 flex-1 items-baseline gap-2 lg:flex">
+            <h2 className={cn("hidden min-w-0 flex-1 items-baseline gap-2", !railHidden && "lg:flex")}>
               {searching ? (
                 <span className="truncate text-lg font-semibold tracking-tight">{t("page.resultsFor", { search: search.trim() })}</span>
               ) : (

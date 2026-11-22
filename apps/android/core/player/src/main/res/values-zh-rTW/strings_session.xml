@@ -57,6 +57,7 @@
     <string name="session_method_transcode">轉碼中</string>
     <string name="session_method_remux_audio">直接流式傳輸 · 音訊轉碼</string>
     <string name="session_fallback_unplayable">此裝置無法播放原始檔案。</string>
+    <string name="session_fallback_audio_unplayable">此裝置無法播放原始音訊。</string>
     <string name="session_fallback_not_smooth">原始畫質在此裝置上播放不流暢。</string>
     <string name="session_slow_server">伺服器處理此影片吃力。請嘗試更低的畫質。</string>
 

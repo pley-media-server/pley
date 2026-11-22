@@ -199,6 +199,12 @@ impl Client {
         };
         name.chars().take(compatibility::MAX_NAME_CHARS).collect()
     }
+
+    /// Its device as Now playing shows it: the device's name, or else the
+    /// app's.
+    pub fn shown_device(&self) -> Option<String> {
+        self.device.as_deref().or(self.client.as_deref()).and_then(crate::oauth::clients::clean_name)
+    }
 }
 
 /// `a="1", b="x, y"`: the parameters, commas inside quotes kept.
@@ -287,6 +293,7 @@ impl FromRequestParts<AppState> for JfUser {
         let user_agent = parts.headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).map(str::to_owned);
         let used = UsedFrom { ip, user_agent };
         let user = state.auth.validate_compatibility(&token, Some(&used)).await.ok_or(JfError::Unauthorized)?;
+        crate::traffic::name(&parts.extensions, &user.username, || client.shown_device().unwrap_or_default());
         Ok(JfUser { user: this_apis(user), client })
     }
 }

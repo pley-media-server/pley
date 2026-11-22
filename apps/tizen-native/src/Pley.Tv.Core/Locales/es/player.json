@@ -90,6 +90,7 @@
   },
   "fallback": {
     "unplayable": "Este dispositivo no pudo reproducir el archivo original.",
+    "audioUnplayable": "Este dispositivo no pudo reproducir el audio original.",
     "notSmooth": "El original no se reproducía con fluidez en este dispositivo."
   },
   "speed": {

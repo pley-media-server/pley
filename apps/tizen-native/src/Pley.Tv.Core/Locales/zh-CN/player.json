@@ -90,6 +90,7 @@
   },
   "fallback": {
     "unplayable": "此设备无法播放原始文件。",
+    "audioUnplayable": "此设备无法播放原始音频。",
     "notSmooth": "原始文件在此设备上播放不流畅。"
   },
   "speed": {

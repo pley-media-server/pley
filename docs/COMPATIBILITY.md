@@ -340,7 +340,9 @@ them.
   Pley playback session. It is listed in `/status/sessions` (with `User`,
   `Player` and `Session`, plus `TranscodeSession` for HLS) and in Pley's
   dashboard. The user's Pley apps list it among their sessions, and can
-  only stop it: Plex clients get no other remote commands from Pley.
+  only stop it: Plex clients get no other remote commands from Pley. The
+  dashboard's Clients list names a client by its token's account and its
+  `X-Plex-Device-Name` (or `X-Plex-Product`).
 - **Notifications.** `/:/websockets/notifications` (token as `X-Plex-Token`
   query parameter or header) streams JSON `NotificationContainer`s:
   - `playing`: a session starts, pauses, resumes or stops, and every 10 s
@@ -803,7 +805,9 @@ WebVTT or SubRip at their `DeliveryUrl`.
 
 A player's reports (`/Sessions/Playing`, `/Progress`, `/Stopped`) keep the
 resume point and the watched state by Pley's rules, and show as playback on
-Pley's Dashboard, by the device's `DeviceId`. Playback stopped from Pley
+Pley's Dashboard, by the device's `DeviceId`; the dashboard's Clients list
+names the app by its token's account and its `Device` (or `Client`), and its
+player's streams with it. Playback stopped from Pley
 tells the device's socket (`Playstate` `Stop`), and its reports don't start
 it again until it stops. `/MediaSegments/{id}` gives the intro and credits
 Pley found as `Intro` and `Outro`, for Skip buttons.

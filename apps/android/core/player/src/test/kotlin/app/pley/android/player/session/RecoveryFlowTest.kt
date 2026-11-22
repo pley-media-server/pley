@@ -40,7 +40,123 @@ class RecoveryFlowTest {
     }
 
     @Test
-    fun `direct play whose audio fails becomes a remux, then a transcode, then an error`() {
+    fun `direct play whose audio a decoder fails on is asked again without that codec, and the server converts it`() {
+        h.close()
+        h = SessionHarness(caps = TestCaps.hdrTv())
+        val c = h.play(PlayRequest(FixtureIds.SAMPLE_HDR10))
+        assertFalse(h.engine.source!!.hls)
+        assertTrue("ac3" in h.playbackRequests()[0].caps.audioCodecs)
+        h.engine.ready()
+        h.advance(2_000)
+        // The engine doesn't say which codec: the file's track that plays (AC-3) is the one.
+        h.engine.fail(EngineError.Unsupported(audio = true, container = false, detail = "ERROR_CODE_DECODER_INIT_FAILED"))
+        h.settle()
+        val again = h.playbackRequests()[1]
+        // The same mode, not a remux that would copy the same AC-3 again.
+        assertEquals(PlaybackMode.Auto, again.mode)
+        assertEquals(2_000L, again.startMs)
+        assertFalse("ac3" in again.caps.audioCodecs)
+        assertFalse("ac3" in again.caps.audioDecode.orEmpty() + again.caps.audioPassthrough.orEmpty())
+        assertTrue(h.engine.prepared.last().source.hls)
+        assertEquals("This device couldn't play the original audio.", c.state.value.note)
+        assertEquals("Direct stream · Audio transcoding", c.state.value.method)
+
+        // Its video fails next: the ladder goes on, still without AC-3.
+        h.engine.ready()
+        h.engine.fail(EngineError.Unsupported(audio = false, container = false, detail = "ERROR_CODE_DECODING_FAILED"))
+        h.settle()
+        val transcode = h.playbackRequests()[2]
+        assertEquals(PlaybackMode.Transcode, transcode.mode)
+        assertFalse("ac3" in transcode.caps.audioCodecs)
+        assertEquals(3, starts())
+    }
+
+    /**
+     * Media3 tells of an audio track no decoder takes twice: as a track that
+     * doesn't play, then as its renderer's error, which can come once the
+     * session that converts the audio is loaded, and stops the player.
+     */
+    @Test
+    fun `audio refused for its track stays converted when the renderer's error comes after`() {
+        h.close()
+        h = SessionHarness(caps = TestCaps.hdrTv())
+        val c = h.play(PlayRequest(FixtureIds.SAMPLE_HDR10))
+        h.engine.tracks(unplayableAc3)
+        h.settle()
+        assertEquals(listOf(PlaybackMode.Auto, PlaybackMode.Auto), h.playbackRequests().map { it.mode })
+        assertFalse("ac3" in h.playbackRequests()[1].caps.audioCodecs)
+        assertTrue(h.engine.source!!.hls)
+        val prepared = h.engine.prepared.size
+
+        h.engine.fail(EngineError.Unsupported(audio = true, container = false, detail = "ERROR_CODE_DECODER_INIT_FAILED", audioCodec = "ac3"))
+        h.settle()
+        // The converted session again, as it was: not a remux or a transcode for the session before's error.
+        assertEquals(listOf(PlaybackMode.Auto, PlaybackMode.Auto, PlaybackMode.Auto), h.playbackRequests().map { it.mode })
+        assertEquals(h.playbackRequests()[1].caps, h.playbackRequests()[2].caps)
+        assertEquals("loaded again", prepared + 1, h.engine.prepared.size)
+        assertTrue(h.engine.source!!.hls)
+        assertFalse(c.state.value.phase is PlayerPhase.Error)
+        assertEquals("This device couldn't play the original audio.", c.state.value.note)
+    }
+
+    @Test
+    fun `audio refused for its track stays converted when the renderer's error comes before the next session`() {
+        h.close()
+        h = SessionHarness(caps = TestCaps.hdrTv())
+        h.play(PlayRequest(FixtureIds.SAMPLE_HDR10))
+        h.engine.tracks(unplayableAc3)
+        h.engine.fail(EngineError.Unsupported(audio = true, container = false, detail = "ERROR_CODE_DECODER_INIT_FAILED", audioCodec = "ac3"))
+        h.settle()
+        val requests = h.playbackRequests()
+        assertTrue(requests.map { it.mode }.toString(), requests.all { it.mode == PlaybackMode.Auto })
+        assertTrue(requests.drop(1).none { "ac3" in it.caps.audioCodecs })
+        assertTrue(h.engine.source!!.hls)
+    }
+
+    /** SAMPLE_HDR10's tracks, its AC-3 taken by no decoder. */
+    private val unplayableAc3 = EngineTracks(
+        video = listOf(EngineTrack("und", "video/hevc", null, supported = true)),
+        audio = listOf(EngineTrack("en", "audio/ac3", 6, supported = false)),
+    )
+
+    @Test
+    fun `a track picked whose codec failed here goes to the server, not to the engine`() {
+        h.close()
+        h = SessionHarness(caps = TestCaps.hdrTv())
+        val movie = Catalogue.movieWithTracks(h.api)
+        val audio = movie.files.first().streams.filter { it.kind == StreamKind.Audio }
+        val ac3 = audio.first { it.codec == "ac3" }
+        val eac3 = audio.first { it.codec == "eac3" }
+        val c = h.play(PlayRequest(movie.id))
+        h.engine.ready()
+        h.advance(2_000)
+        assertFalse(h.engine.source!!.hls)
+        val before = h.engine.audioChoices.size
+        c.selectAudio(eac3.index.toLong())
+        h.settle()
+        assertEquals("switched in place", before + 1, h.engine.audioChoices.size)
+        h.engine.fail(EngineError.Unsupported(audio = true, container = false, detail = "ERROR_CODE_DECODER_INIT_FAILED", audioCodec = "eac3"))
+        h.settle()
+        assertEquals(eac3.index, h.playbackRequests().last().audioIndex)
+        assertFalse("eac3" in h.playbackRequests().last().caps.audioCodecs)
+
+        // Back to the AC-3, which plays as it is; then the E-AC-3 again: the server converts it.
+        c.selectAudio(ac3.index.toLong())
+        h.engine.ready()
+        h.settle()
+        assertFalse(h.engine.source!!.hls)
+        val asked = h.playbackRequests().size
+        val switched = h.engine.audioChoices.size
+        c.selectAudio(eac3.index.toLong())
+        h.settle()
+        assertEquals(asked + 1, h.playbackRequests().size)
+        assertEquals(eac3.index, h.playbackRequests().last().audioIndex)
+        assertEquals("not switched in place", switched, h.engine.audioChoices.size)
+    }
+
+    /** AAC is the server's last resort when it converts: there is nothing to leave out, so the ladder goes on. */
+    @Test
+    fun `direct play whose AAC fails becomes a remux, then a transcode, then an error`() {
         val c = h.play(PlayRequest(FixtureIds.SAMPLE_1080P))
         h.engine.ready()
         h.advance(2_000)
@@ -49,6 +165,7 @@ class RecoveryFlowTest {
         val remux = h.playbackRequests()[1]
         assertEquals(PlaybackMode.Remux, remux.mode)
         assertEquals(2_000L, remux.startMs)
+        assertEquals(h.playbackRequests()[0].caps, remux.caps)
         assertTrue(h.engine.prepared.last().source.hls)
         assertEquals("This device couldn't play the original file.", c.state.value.note)
         assertEquals("Direct stream", c.state.value.method)
@@ -86,6 +203,25 @@ class RecoveryFlowTest {
         val phase = c.state.value.phase as PlayerPhase.Error
         assertEquals("This download can't play on this device offline. Connect to your server to play it.", phase.message)
         assertTrue(phase.canRetry)
+    }
+
+    @Test
+    fun `a download whose audio fails streams from the server without that codec`() {
+        h.close()
+        h = SessionHarness(caps = TestCaps.hdrTv())
+        val movie = runBlocking { h.api.item(FixtureIds.SAMPLE_HDR10) }
+        h.local = object : LocalMedia {
+            override fun file(fileId: Long) = LocalFile("file:///downloads/movie.mkv").takeIf { fileId == movie.files.first().id }
+        }
+        h.play(PlayRequest(FixtureIds.SAMPLE_HDR10))
+        assertEquals("file:///downloads/movie.mkv", h.engine.source?.url)
+        h.engine.ready()
+        h.engine.fail(EngineError.Unsupported(audio = true, container = false, detail = "ERROR_CODE_DECODING_FAILED", audioCodec = "ac3"))
+        h.settle()
+        val streamed = h.playbackRequests().single()
+        assertEquals(PlaybackMode.Auto, streamed.mode)
+        assertFalse("ac3" in streamed.caps.audioCodecs)
+        assertFalse(h.engine.source!!.url.startsWith("file:"))
     }
 
     @Test

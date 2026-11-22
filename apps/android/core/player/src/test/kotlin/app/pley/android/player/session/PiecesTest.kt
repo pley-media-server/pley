@@ -47,12 +47,25 @@ class PiecesTest {
         assertEquals(EngineError.Playlist::class, Media3EngineLink.errorOf(error(PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED))::class)
         val container = Media3EngineLink.errorOf(error(PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED)) as EngineError.Unsupported
         assertEquals(true, container.container)
-        assertEquals(EngineError.Unsupported(audio = true, container = false, detail = "ERROR_CODE_AUDIO_TRACK_INIT_FAILED: boom"), Media3EngineLink.errorOf(error(PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED)))
+        assertEquals(
+            EngineError.Unsupported(audio = true, container = false, detail = "ERROR_CODE_AUDIO_TRACK_INIT_FAILED: boom", output = true),
+            Media3EngineLink.errorOf(error(PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED)),
+        )
         val audioDecoder = ExoPlaybackException.createForRenderer(
             RuntimeException("no decoder"), "audio", 1, Format.Builder().setSampleMimeType(MimeTypes.AUDIO_E_AC3).build(),
             0, null, false, PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
         )
-        assertEquals(true, (Media3EngineLink.errorOf(audioDecoder) as EngineError.Unsupported).audio)
+        val audioFailed = Media3EngineLink.errorOf(audioDecoder) as EngineError.Unsupported
+        assertEquals(true, audioFailed.audio)
+        assertEquals("eac3", audioFailed.audioCodec)
+        assertEquals(false, audioFailed.output)
+        // Atmos in E-AC-3 is E-AC-3 to the server; the output that failed on it names it too.
+        val atmosOutput = ExoPlaybackException.createForRenderer(
+            RuntimeException("no track"), "audio", 1, Format.Builder().setSampleMimeType(MimeTypes.AUDIO_E_AC3_JOC).build(),
+            0, null, false, PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
+        )
+        val atmosFailed = Media3EngineLink.errorOf(atmosOutput) as EngineError.Unsupported
+        assertEquals(Triple(true, "eac3", true), Triple(atmosFailed.audio, atmosFailed.audioCodec, atmosFailed.output))
         val videoDecoder = ExoPlaybackException.createForRenderer(
             RuntimeException("no decoder"), "video", 0, Format.Builder().setSampleMimeType(MimeTypes.VIDEO_DOLBY_VISION).build(),
             0, null, false, PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
