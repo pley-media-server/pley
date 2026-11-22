@@ -1163,7 +1163,7 @@ end function
 ' app's browsing pages do; the others (the players, Now Playing, signing
 ' in, a page of text) have the screen to themselves.
 function railRoutes() as object
-    return { home: true, library: true, grid: true, collections: true, collection: true, search: true, discover: true, discoverList: true, requests: true, settings: true, live: true, details: true, person: true, playlist: true, history: true, album: true, artist: true, requestTitle: true }
+    return { home: true, library: true, grid: true, collections: true, collection: true, search: true, discover: true, discoverList: true, requests: true, settings: true, live: true, details: true, show: true, person: true, playlist: true, history: true, album: true, artist: true, requestTitle: true }
 end function
 
 ' The rail's entries, as Home's menu was (Home.brs's homeMenu): the
