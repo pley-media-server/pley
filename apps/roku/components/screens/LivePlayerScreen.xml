@@ -53,21 +53,21 @@
         <!-- What's on, when asked for (OK or Right, or the Options key as
              it changes the favorite, whose star shows here). -->
         <Group id="banner" visible="false">
-            <Rectangle translation="[0, 720]" width="1920" height="360" color="0x16191EE6" />
-            <Rectangle translation="[96, 792]" width="240" height="120" color="0x2E3440FF" />
-            <Label id="bannerInitials" translation="[96, 792]" width="240" height="120" horizAlign="center" vertAlign="center" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestBoldSystemFont" />
-            <Poster id="bannerLogo" translation="[112, 802]" width="208" height="100" loadWidth="208" loadHeight="100" loadDisplayMode="scaleToFit" />
-            <Label id="bannerChannel" translation="[384, 784]" width="1100" color="0xA1A9B6FF" font="font:SmallBoldSystemFont" />
-            <Label id="bannerTitle" translation="[384, 822]" width="1100" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <Label id="bannerMeta" translation="[384, 884]" width="1100" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-            <Rectangle id="bannerTrack" translation="[384, 926]" width="1100" height="6" color="0x2E3440FF" />
-            <Rectangle id="bannerFill" translation="[384, 926]" width="0" height="6" color="0x38BDF8FF" />
-            <Label id="bannerNext" translation="[384, 948]" width="1100" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <Rectangle translation="[0, 680]" width="1920" height="400" color="0x16191EE6" />
+            <Rectangle translation="[96, 752]" width="240" height="120" color="0x2E3440FF" />
+            <Label id="bannerInitials" translation="[96, 752]" width="240" height="120" horizAlign="center" vertAlign="center" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestBoldSystemFont" />
+            <Poster id="bannerLogo" translation="[112, 762]" width="208" height="100" loadWidth="208" loadHeight="100" loadDisplayMode="scaleToFit" />
+            <Label id="bannerChannel" translation="[384, 744]" width="1100" color="0xA1A9B6FF" font="font:SmallBoldSystemFont" />
+            <Label id="bannerTitle" translation="[384, 782]" width="1100" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="bannerMeta" translation="[384, 844]" width="1100" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+            <Rectangle id="bannerTrack" translation="[384, 886]" width="1100" height="6" color="0x2E3440FF" />
+            <Rectangle id="bannerFill" translation="[384, 886]" width="0" height="6" color="0x38BDF8FF" />
+            <Label id="bannerNext" translation="[384, 908]" width="1100" color="0x8B95A5FF" font="font:SmallestSystemFont" />
             <!-- The Live chip: live is all there is. -->
-            <Rectangle translation="[1648, 790]" width="176" height="52" color="0xEB6B70FF" />
-            <Label id="liveMark" translation="[1648, 790]" width="176" height="52" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:SmallBoldSystemFont" />
-            <Label id="star" translation="[1648, 856]" width="176" horizAlign="center" color="0x38BDF8FF" font="font:SmallestBoldSystemFont" />
-            <Label id="bannerHint" translation="[96, 1012]" width="1728" color="0x8B95A5FF" font="font:TinySystemFont" />
+            <Rectangle translation="[1648, 750]" width="176" height="52" color="0xEB6B70FF" />
+            <Label id="liveMark" translation="[1648, 750]" width="176" height="52" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:SmallBoldSystemFont" />
+            <Label id="star" translation="[1648, 816]" width="176" horizAlign="center" color="0x38BDF8FF" font="font:SmallestBoldSystemFont" />
+            <Label id="bannerHint" translation="[96, 968]" width="1728" color="0x8B95A5FF" font="font:TinySystemFont" />
         </Group>
         <!-- What went wrong, and what can be done. -->
         <Group id="notice" visible="false">
@@ -79,13 +79,13 @@
         <!-- The category's channels, at the left over the video. -->
         <Group id="list" visible="false">
             <Rectangle width="800" height="1080" color="0x16191EF2" />
-            <Label id="listTitle" translation="[64, 56]" width="672" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <Label id="listRange" translation="[64, 120]" width="672" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-            <MarkupList id="channelList" translation="[40, 176]" itemComponentName="LiveChannelRow" itemSize="[720, 100]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+            <Label id="listTitle" translation="[96, 56]" width="664" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="listRange" translation="[96, 120]" width="664" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <MarkupList id="channelList" translation="[72, 176]" itemComponentName="LiveChannelRow" itemSize="[704, 100]" itemSpacing="[0, 4]" numRows="7" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <!-- Left in the list: another category to list. -->
-            <MarkupList id="categoryList" translation="[40, 176]" itemComponentName="LiveRailItem" itemSize="[720, 56]" itemSpacing="[0, 4]" numRows="14" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+            <MarkupList id="categoryList" translation="[72, 176]" itemComponentName="LiveRailItem" itemSize="[704, 56]" itemSpacing="[0, 4]" numRows="12" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
             <!-- Two lines: what the channels do, then the categories and search. -->
-            <Label id="listHint" translation="[64, 1010]" width="672" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:TinySystemFont" />
+            <Label id="listHint" translation="[96, 936]" width="664" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:TinySystemFont" />
         </Group>
         <Group id="toast" visible="false">
             <Rectangle translation="[460, 72]" width="1000" height="96" color="0x16191EE6" />

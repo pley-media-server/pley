@@ -66,6 +66,8 @@ describes how they are made.
   and buttons right under the title, whether it takes one line or two.
 - Requests' rows leave room for the hint under them, and the mark of news
   sits before a title instead of pushing it along.
+- The live player's banner and channel list, and the server list's hint,
+  end inside Roku's title-safe area.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 
