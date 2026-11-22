@@ -38,7 +38,7 @@ permission, and the AGPL alone is what a copy without it is under.
 Pley's maintainer, as [CLA.md](CLA.md) defines it, may also offer Pley
 under other terms, such as a commercial license: the maintainer's own code
 as its copyright holder, and contributions through the Contributor License
-Agreement every contributor signs ([CONTRIBUTING.md](CONTRIBUTING.md)).
+Agreement every contributor accepts ([CONTRIBUTING.md](CONTRIBUTING.md)).
 That right is the maintainer's alone. Everyone else has Pley under the AGPL with the app
 store permission, and a release, once out under it, stays under it.
 

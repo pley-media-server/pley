@@ -19,10 +19,7 @@ grants Pley's maintainer the right to license contributions under other
 terms, such as a commercial license, or with added permissions such as the
 one for app stores. That right is the maintainer's alone.
 
-The CLA bot asks for a signature on a contributor's first pull request, by
-a comment with the sentence it gives. One signature covers that
-contributor's later pull requests and earlier contributions. Contributors
-from before the agreement have agreed to the same terms.
+Contributors from before the agreement have agreed to the same terms.
 
-Opening a pull request confirms that you wrote what it contains, or have
-the right to contribute it under these terms.
+Opening a pull request accepts the agreement, and confirms that you wrote
+what it contains, or have the right to contribute it under these terms.
