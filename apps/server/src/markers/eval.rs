@@ -13,11 +13,119 @@
 //! many episodes get markers and how much their lengths agree. With
 //! `PLEY_MARKER_EVAL_OUT=<file>` every result is written out, to compare two
 //! versions season by season.
+//!
+//! `up_next` compares where players offer the next episode before and after
+//! a change to how credits are settled, on a library's stored markers:
+//!
+//! ```text
+//! PLEY_UP_NEXT_EVAL=<dir> cargo test -p pley-server --lib markers::eval::up_next -- --ignored --nocapture
+//! ```
+//!
+//! `<dir>` holds `files.tsv` (file id, `episode` or `movie`, duration in ms,
+//! the stored credits marker's source or `-`, its start and end in ms, the
+//! file's chapters as JSON or `-`) and `frames/<file id>.json`, the key frames
+//! ([`FrameStats`]) of the end of the files whose shared credits stop early.
+//! Every file's result goes to `<dir>/up_next.tsv`.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use super::*;
+
+/// Where Up Next comes in a file: when credits reaching the end begin, else
+/// at the end of the file. Before this rule, any credits brought it.
+fn up_next_at(credits: Option<(i64, i64)>, duration_ms: i64, any_credits: bool) -> i64 {
+    match credits {
+        Some((start, end)) if any_credits || duration_ms - end <= CREDITS_TAIL_MS => start,
+        _ => duration_ms,
+    }
+}
+
+#[test]
+#[ignore = "needs a library's markers: PLEY_UP_NEXT_EVAL=<dir>"]
+fn up_next() {
+    let Ok(dir) = std::env::var("PLEY_UP_NEXT_EVAL") else { return };
+    let dir = Path::new(&dir);
+    let text = std::fs::read_to_string(dir.join("files.tsv")).expect("files.tsv");
+    // (kind, what changed) -> (files, seconds Up Next moved)
+    let mut tally: BTreeMap<(String, String), (usize, Vec<i64>)> = BTreeMap::new();
+    let mut out = String::new();
+    for line in text.lines() {
+        let c: Vec<&str> = line.split('\t').collect();
+        let num = |i: usize| c.get(i).and_then(|v| v.parse::<i64>().ok());
+        let (Some(file_id), Some(duration)) = (num(0), num(2)) else { continue };
+        let kind = c[1].to_owned();
+        let old = Some((c[3], num(4).unwrap_or(-1), num(5).unwrap_or(-1))).filter(|(s, ..)| *s != "-");
+        let chapters: Vec<Chapter> =
+            c.get(6).filter(|j| **j != "-").and_then(|j| serde_json::from_str(j).ok()).unwrap_or_default();
+        let frames: Option<Vec<FrameStats>> = std::fs::read(dir.join("frames").join(format!("{file_id}.json")))
+            .ok()
+            .and_then(|b| serde_json::from_slice(&b).ok());
+
+        // The credits as the server now settles them: chapters first, then
+        // the stored fingerprint or key-frame match with today's rules.
+        let mut measured = true;
+        let new: Option<Found> =
+            match chapter_markers(&chapters, duration).into_iter().find(|m| m.kind == MarkerKind::Credits) {
+                Some(chapter) => Some(chapter),
+                None => match old {
+                    Some(("fingerprint", start, end)) => {
+                        let shared = finalize(Some((start, end)), MarkerKind::Credits, duration);
+                        match (shared, &frames) {
+                            (Some(s), Some(f)) if s.end_ms < duration => Some(settle_credits(s, f, duration)),
+                            (Some(s), None) if s.end_ms < duration => {
+                                measured = false;
+                                Some(s)
+                            }
+                            (s, _) => s,
+                        }
+                    }
+                    Some(("frames", start, end)) => {
+                        let end = if duration - end <= CREDITS_TAIL_MS { duration } else { end };
+                        Some(Found { kind: MarkerKind::Credits, start_ms: start, end_ms: end, source: "frames" })
+                    }
+                    _ => None,
+                },
+            };
+        let before = up_next_at(old.map(|(_, s, e)| (s, e)), duration, true);
+        let after = up_next_at(new.as_ref().map(|m| (m.start_ms, m.end_ms)), duration, false);
+        let skip_before = old.map(|(_, s, e)| (s, e));
+        let skip_after = new.as_ref().map(|m| (m.start_ms, m.end_ms));
+        let what = if !measured {
+            "credits stopping early, key frames not measured".to_owned()
+        } else if after == before {
+            if skip_after == skip_before { "unchanged" } else { "Up Next unchanged, Skip Credits moved" }.to_owned()
+        } else if after == duration {
+            match &new {
+                Some(m) if m.source == "frames" && old.is_some_and(|(s, ..)| s == "fingerprint") => {
+                    "Up Next at the end: credits later on, a scene after them".to_owned()
+                }
+                Some(_) => "Up Next at the end: credits stop short of the end".to_owned(),
+                None => "Up Next at the end: no credits".to_owned(),
+            }
+        } else if after > before {
+            "Up Next later: at credits found later on".to_owned()
+        } else {
+            "Up Next earlier".to_owned()
+        };
+        let entry = tally.entry((kind.clone(), what.clone())).or_default();
+        entry.0 += 1;
+        entry.1.push((after - before) / 1000);
+        let (ns, ne, nsrc) = new.as_ref().map_or((-1, -1, "-"), |m| (m.start_ms, m.end_ms, m.source));
+        let (os, oe) = skip_before.unwrap_or((-1, -1));
+        out.push_str(&format!(
+            "{file_id}\t{kind}\t{duration}\t{}\t{os}\t{oe}\t{nsrc}\t{ns}\t{ne}\t{before}\t{after}\t{what}\n",
+            old.map_or("-", |(s, ..)| s)
+        ));
+    }
+    for ((kind, what), (n, moved)) in &tally {
+        let mut moved = moved.clone();
+        moved.sort_unstable();
+        let median = moved.get(moved.len() / 2).copied().unwrap_or(0);
+        println!("{kind}: {what}: {n} (Up Next moves by {median} s, median)");
+    }
+    std::fs::write(dir.join("up_next.tsv"), out).expect("up_next.tsv");
+}
 
 struct Episode {
     file_id: i64,

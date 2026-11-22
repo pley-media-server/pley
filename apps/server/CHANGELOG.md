@@ -34,6 +34,13 @@ describes how they are made.
   stream again: their requests not to copy the video or the audio
   (`AllowVideoStreamCopy`, `AllowAudioStreamCopy`) are kept, and the sound
   is never made again in the codec that failed.
+- Credits that something follows no longer bring up Up Next: a game
+  show's thinking music shared by every episode, music two episodes share
+  in a scene, or credits with an after-credits scene. The pictures after
+  shared music decide where the credits end, credits chapters followed by
+  more credits (Fan Club Credits) and numbered ones (94. End Credits)
+  count, and Plex apps get the same last credits. Libraries are analyzed
+  again in the background.
 
 ## [0.1.14] - 2026-11-20
 

@@ -376,7 +376,8 @@ them.
   first version's `Chapter`s, with a `thumb` once the file has previews.
 - **Markers.** With `includeMarkers=1`, details list the intro and credits
   Pley found in the first version as `Marker`s (`type`, `startTimeOffset`,
-  `endTimeOffset` in ms; credits are `final`), for Skip Intro and Skip
+  `endTimeOffset` in ms; credits running to the end of the file are
+  `final`, where Plex apps offer the next episode), for Skip Intro and Skip
   Credits in clients.
 - **Cast and crew.** Details carry `Role` (with the part as `role`),
   `Director`, `Writer` and `Producer` tags. Their `id` is the Pley person id
