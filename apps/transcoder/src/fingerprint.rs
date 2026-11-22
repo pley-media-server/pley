@@ -100,8 +100,10 @@ impl Fingerprinter {
         let _permit = self.limiter.acquire().await.map_err(|e| ApiError::Internal(e.into()))?;
         let (out, log, read_picture) = match self.background.run(command(picture.is_some()), TIMEOUT).await {
             Ok((out, log)) => (out, log, picture.is_some()),
-            // The subtitles in the way: the key frames alone.
-            Err(_) if picture.is_some() => {
+            // The subtitles in the way: the key frames alone. A pass that ran
+            // out of time isn't run again.
+            Err(err) if picture.is_some() && !matches!(err, ApiError::Timeout(_)) => {
+                tracing::debug!("key frames of {} without their subtitles: {err:?}", req.path);
                 let (out, log) = self.background.run(command(false), TIMEOUT).await?;
                 (out, log, false)
             }
@@ -109,48 +111,66 @@ impl Fingerprinter {
         };
         let frames = parse_frame_stats(&log, start_ms);
         // Subtitles that can't be read leave the cues unknown, not empty.
-        let cues = match &req.subtitles {
-            Some(_) if picture.is_some() => {
+        let cues = match (&req.subtitles, picture) {
+            (Some(_), Some(_)) => {
                 read_picture.then(|| picture_cues(&parse_framecrc(&String::from_utf8_lossy(&out), start_ms)))
             }
-            Some(source) => self.cues(path, source, start_ms, duration_ms).await.ok(),
-            None => None,
+            (Some(source), None) => match self.text_cues(path, source, start_ms, duration_ms).await {
+                Ok(cues) => Some(cues),
+                Err(err) => {
+                    tracing::debug!("no subtitle cues for {}: {err:?}", req.path);
+                    None
+                }
+            },
+            (None, _) => None,
         };
-        Ok(Frames { frames, cues })
+        Ok(Frames { frames, cues: cues.map(bounded) })
     }
 
-    /// The lines of text subtitles over part of a file: an embedded track or
-    /// a file beside the video.
-    async fn cues(&self, video: &Path, source: &CuesSource, start_ms: i64, duration_ms: i64) -> ApiResult<Vec<Cue>> {
+    /// The lines of an embedded text track over part of a file. `-copyts`
+    /// keeps their times as they are in the file: seeking otherwise shifts
+    /// them by the lines between the key frame before the start and the
+    /// start. Without a length FFmpeg reads only the subtitle packets to the
+    /// end of the file, many times faster than with one.
+    async fn text_cues(
+        &self,
+        video: &Path,
+        source: &CuesSource,
+        start_ms: i64,
+        duration_ms: i64,
+    ) -> ApiResult<Vec<Cue>> {
+        let Some(stream) = source.stream.filter(|_| source.text) else {
+            return Err(ApiError::BadRequest("no text subtitles to read".into()));
+        };
         let end_ms = start_ms + duration_ms;
-        let in_window = |c: &Cue| c.end_ms > start_ms && c.start_ms < end_ms;
-        match (source.stream, &source.path) {
-            // A file beside the video: read whole (it is small), the times as
-            // they are.
-            (None, Some(file)) => {
-                let mut cmd = self.ff.command();
-                cmd.args(["-loglevel", "error"]).arg("-i").arg(input_arg(Path::new(file))).args(["-f", "srt", "-"]);
-                background_priority(&mut cmd);
-                let (out, _) = self.background.run(cmd, TIMEOUT).await?;
-                Ok(parse_srt(&String::from_utf8_lossy(&out), 0).into_iter().filter(in_window).collect())
-            }
-            // Text: seeking before the input, the cues' times start at its
-            // start. Without a length FFmpeg reads only the subtitle packets
-            // to the end, many times faster than with one.
-            (Some(stream), _) if source.text => {
-                let mut cmd = self.ff.command();
-                cmd.args(["-loglevel", "error", "-ss", &secs(start_ms)])
-                    .args(MEDIA_INPUT_OPTIONS)
-                    .arg("-i")
-                    .arg(input_arg(video))
-                    .args(["-map", &format!("0:{stream}"), "-f", "srt", "-"]);
-                background_priority(&mut cmd);
-                let (out, _) = self.background.run(cmd, TIMEOUT).await?;
-                Ok(parse_srt(&String::from_utf8_lossy(&out), start_ms).into_iter().filter(in_window).collect())
-            }
-            _ => Err(ApiError::BadRequest("no text subtitles to read".into())),
+        let mut cmd = self.ff.command();
+        cmd.args(["-loglevel", "error", "-copyts", "-ss", &secs(start_ms)])
+            .args(MEDIA_INPUT_OPTIONS)
+            .arg("-i")
+            .arg(input_arg(video))
+            .args(["-map", &format!("0:{stream}"), "-f", "srt", "-"]);
+        background_priority(&mut cmd);
+        let (out, _) = self.background.run(cmd, CUES_TIMEOUT).await?;
+        let cues = parse_srt(&String::from_utf8_lossy(&out), 0);
+        Ok(cues.into_iter().filter(|c| c.end_ms > start_ms && c.start_ms < end_ms).collect())
+    }
+}
+
+/// Cues kept, and the length of their text: a track can't make the reply or
+/// the server's cache grow without end.
+const MAX_CUES: usize = 4_000;
+const MAX_CUE_TEXT: usize = 200;
+/// Reading a text track's lines takes seconds; a stuck read is given up.
+const CUES_TIMEOUT: Duration = Duration::from_secs(2 * 60);
+
+fn bounded(mut cues: Vec<Cue>) -> Vec<Cue> {
+    cues.truncate(MAX_CUES);
+    for cue in &mut cues {
+        if let Some((cut, _)) = cue.text.char_indices().nth(MAX_CUE_TEXT) {
+            cue.text.truncate(cut);
         }
     }
+    cues
 }
 
 /// The cues of SRT text, `offset_ms` added to their times. Each block is a
@@ -198,19 +218,27 @@ fn parse_framecrc(listing: &str, offset_ms: i64) -> Vec<(i64, usize)> {
     packets
 }
 
-/// When picture subtitles show, from their packets: a packet with a picture
-/// (more than [`PICTURE_PACKET`] bytes) shows until the next packet, which
-/// is often the small one that clears it.
+/// When picture subtitles show, from their packets: a picture (more than
+/// [`PICTURE_PACKET`] bytes, the largest packet at its time: a picture can
+/// come in several segments) shows until the next time a packet comes, often
+/// the small one that clears it.
 fn picture_cues(packets: &[(i64, usize)]) -> Vec<Cue> {
-    let mut packets = packets.to_vec();
-    packets.sort_unstable();
-    packets
+    let mut times: Vec<(i64, usize)> = packets.to_vec();
+    times.sort_unstable();
+    times.dedup_by(|later, earlier| {
+        let same = later.0 == earlier.0;
+        if same {
+            earlier.1 = earlier.1.max(later.1);
+        }
+        same
+    });
+    times
         .iter()
         .enumerate()
         .filter(|(_, (_, size))| *size > PICTURE_PACKET)
         .map(|(i, &(t, _))| Cue {
             start_ms: t,
-            end_ms: packets.get(i + 1).map_or(t + 3_000, |p| p.0),
+            end_ms: times.get(i + 1).map_or(t + 3_000, |p| p.0),
             text: String::new(),
         })
         .collect()

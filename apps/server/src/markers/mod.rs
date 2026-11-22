@@ -54,7 +54,6 @@ use tokio_util::sync::CancellationToken;
 
 use crate::db::Db;
 use crate::events::{EventBus, ServerEvent};
-use crate::library::sidecar::ExternalSub;
 use crate::library::{LibraryKind, get_library};
 use crate::playback::{QUIET_BEFORE_BACKGROUND_SECS, Sessions};
 use crate::schedule::{self, Class, Scheduler};
@@ -91,9 +90,6 @@ pub const CREDITS_TAIL_MS: i64 = 15_000;
 /// A key frame is a page of credits when this share (%) of its pixels is
 /// near black…
 const PAGE_BLACK: f32 = 85.0;
-/// …or a smaller share is, around text on true black (studio-range luma 16,
-/// no color, dark overall): longer lines take more room.
-const PAGE_BLACK_WITH_TEXT: f32 = 65.0;
 /// Luma range of a page with text on it.
 const PAGE_TEXT: f32 = 60.0;
 /// Pages this close together belong to the same credits.
@@ -234,7 +230,6 @@ struct EpisodeFileRow {
     mtime: i64,
     duration_ms: Option<i64>,
     media_info: Option<String>,
-    external_subs: Option<String>,
     version: Option<i64>,
     analyzed_size: Option<i64>,
     analyzed_mtime: Option<i64>,
@@ -253,9 +248,7 @@ impl EpisodeFileRow {
             && self.analyzed_size == Some(self.size)
             && self.analyzed_mtime == Some(self.mtime)
             && (self.fingerprinted == Some(true) || !chromaprint);
-        let external: Vec<ExternalSub> =
-            self.external_subs.as_deref().and_then(|j| serde_json::from_str(j).ok()).unwrap_or_default();
-        let subtitles = dialogue_subtitles(info.as_ref().map_or(&[][..], |i| &i.streams), &external);
+        let subtitles = dialogue_subtitles(info.as_ref().map_or(&[][..], |i| &i.streams));
         Some(EpisodeFile {
             file_id: self.file_id,
             path: self.path,
@@ -270,28 +263,29 @@ impl EpisodeFileRow {
     }
 }
 
-/// The subtitles to tell when people speak from: a full track (not forced,
-/// not only signs, songs or commentary), embedded text first, then a text
-/// file beside the video, then embedded pictures.
-fn dialogue_subtitles(streams: &[MediaStream], external: &[ExternalSub]) -> Option<CuesSource> {
-    let full = |title: Option<&str>, forced: bool| {
-        let title = title.unwrap_or_default().to_lowercase();
-        !forced && !["forced", "sign", "song", "commentary"].iter().any(|w| title.contains(w))
+/// The subtitles to tell when people speak from: a full embedded track (not
+/// forced, nor only signs, songs, foreign parts or commentary), text first,
+/// then pictures.
+fn dialogue_subtitles(streams: &[MediaStream]) -> Option<CuesSource> {
+    let full = |s: &&MediaStream| {
+        let title = s.title.as_deref().unwrap_or_default().to_lowercase();
+        s.kind == StreamKind::Subtitle
+            && !s.forced
+            && !["forced", "sign", "song", "foreign", "commentary"].iter().any(|w| title.contains(w))
     };
-    let subtitles = || streams.iter().filter(|s| s.kind == StreamKind::Subtitle && full(s.title.as_deref(), s.forced));
-    if let Some(s) = subtitles().find(|s| is_text_subtitle_codec(&s.codec)) {
-        return Some(CuesSource { stream: Some(s.index), path: None, text: true });
-    }
-    if let Some(e) = external.iter().find(|e| is_text_subtitle_codec(&e.codec) && full(e.title.as_deref(), e.forced)) {
-        return Some(CuesSource { stream: None, path: Some(e.path.clone()), text: true });
-    }
-    subtitles()
-        .find(|s| ["hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle"].contains(&s.codec.as_str()))
-        .map(|s| CuesSource { stream: Some(s.index), path: None, text: false })
+    let text = streams.iter().filter(full).find(|s| is_text_subtitle_codec(&s.codec)).map(|s| (s.index, true));
+    let picture = || {
+        streams
+            .iter()
+            .filter(full)
+            .find(|s| ["hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle"].contains(&s.codec.as_str()))
+            .map(|s| (s.index, false))
+    };
+    text.or_else(picture).map(|(index, text)| CuesSource { stream: Some(index), text })
 }
 
 const EPISODE_FILES: &str = "SELECT f.id AS file_id, f.path, f.size, f.mtime, f.duration_ms,
-        f.media_info, f.external_subs, a.version, a.size AS analyzed_size, a.mtime AS analyzed_mtime, a.fingerprinted
+        f.media_info, a.version, a.size AS analyzed_size, a.mtime AS analyzed_mtime, a.fingerprinted
      FROM items e JOIN media_files f ON f.item_id = e.id
      LEFT JOIN items s ON s.id = e.parent_id
      LEFT JOIN marker_analysis a ON a.file_id = f.id";
@@ -616,7 +610,7 @@ impl MarkerService {
     /// Movies: chapter markers only (there is nothing to compare with).
     async fn movie(&self, item_id: i64) -> anyhow::Result<()> {
         let rows: Vec<EpisodeFileRow> = sqlx::query_as(
-            "SELECT f.id AS file_id, f.path, f.size, f.mtime, f.duration_ms, f.media_info, f.external_subs,
+            "SELECT f.id AS file_id, f.path, f.size, f.mtime, f.duration_ms, f.media_info,
                     a.version, a.size AS analyzed_size, a.mtime AS analyzed_mtime, a.fingerprinted
              FROM media_files f LEFT JOIN marker_analysis a ON a.file_id = f.id WHERE f.item_id = ?",
         )
@@ -910,9 +904,15 @@ impl MarkerService {
     /// without video or a transcoder that can't.
     async fn frames(&self, file: &EpisodeFile, watched: bool) -> Result<Option<Frames>, FpError> {
         let (start_ms, duration_ms) = window(MarkerKind::Credits, file.duration_ms);
-        let cache = self
-            .cache_dir
-            .join(format!("{}_{}_{}_{}_{}.frames2", file.file_id, file.size, file.mtime, start_ms, duration_ms));
+        // Named for the subtitles read with them too.
+        let subtitles = match &file.subtitles {
+            Some(CuesSource { stream: Some(index), text }) => format!("{}{index}", if *text { "t" } else { "p" }),
+            _ => "n".to_owned(),
+        };
+        let cache = self.cache_dir.join(format!(
+            "{}_{}_{}_{}_{}_{subtitles}.frames2",
+            file.file_id, file.size, file.mtime, start_ms, duration_ms
+        ));
         if let Some(frames) = std::fs::read(&cache).ok().and_then(|b| serde_json::from_slice(&b).ok()) {
             return Ok(Some(frames));
         }
@@ -1136,55 +1136,62 @@ fn settle_credits(shared: Found, frames: &[FrameStats], duration_ms: i64) -> Opt
 /// Credits short of the end that no one speaks after run to the end: what
 /// follows them is then a channel's promos, a logo or a preview, not a
 /// scene. That takes subtitles with people speaking in the minutes before
-/// the credits (a full track, near the end), and none from the credits on.
-/// They then begin at their first page of text on pure black, never earlier,
-/// since their music can begin over a silent last shot.
+/// the credits (a full track, near the end), and nothing from the credits
+/// on but music and the subtitles' own credits. The credits must also show
+/// as text on pure black within [`PAGES_GAP_MS`] of their start: their music
+/// can begin over a silent last shot. They then begin there.
 fn quiet_to_the_end(credits: Found, frames: &[FrameStats], cues: Option<&[Cue]>, duration_ms: i64) -> Found {
     let Some(cues) = cues else { return credits };
     if credits.end_ms >= duration_ms {
         return credits;
     }
-    let speech = speech(cues);
-    let before =
-        speech.iter().filter(|&&at| (credits.start_ms - SPEECH_BEFORE_MS..credits.start_ms).contains(&at)).count();
-    if before < SPEECH_LINES || speech.iter().any(|&at| at >= credits.start_ms) {
+    let before = cues
+        .iter()
+        .filter(|c| (credits.start_ms - SPEECH_BEFORE_MS..credits.start_ms).contains(&c.start_ms) && is_speech(c))
+        .count();
+    if before < SPEECH_LINES || cues.iter().any(|c| c.start_ms >= credits.start_ms && !is_music_or_credit(c)) {
         return credits;
     }
-    let pure = |f: &&FrameStats| {
-        (credits.start_ms..=credits.end_ms).contains(&f.ms) && is_black_page(f) && f.yhigh <= PURE_BLACK_HIGH
+    let page = |f: &&FrameStats| {
+        (credits.start_ms..=credits.start_ms + PAGES_GAP_MS).contains(&f.ms)
+            && is_black_page(f)
+            && f.yhigh <= PURE_BLACK_HIGH
+            && f.ymax - f.ylow >= PAGE_TEXT
     };
-    match frames.iter().find(pure) {
+    match frames.iter().find(page) {
         Some(page) => Found { start_ms: page.ms, end_ms: duration_ms, ..credits },
         None => credits,
     }
 }
 
-/// When people speak, from subtitle cues: the start of each line, leaving
-/// out sound descriptions ("[door closes]"), song lyrics (♪), speaker labels
-/// alone and the subtitles' own credits ("Synced by …", "Captioned by …").
-/// Picture subtitles, which have no text, all count.
-fn speech(cues: &[Cue]) -> Vec<i64> {
-    static TAGS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<[^>]*>|\{[^}]*\}").unwrap());
-    static SOUNDS: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"[\[(（【][^\])）】]*[\])）】]|^\s*[\p{Lu} ]+:|-").unwrap());
-    static CREDITS: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?i)subtitle|synced|sync by|resync|corrected|caption|transcri|translated by|opensubtitles|addic7ed|www\.|\.(com|org|net)\b")
-            .unwrap()
-    });
-    cues.iter()
-        .filter(|c| {
-            if c.text.is_empty() {
-                return true;
-            }
-            let text = TAGS.replace_all(&c.text, "");
-            let said = SOUNDS.replace_all(&text, "");
-            !said.trim().is_empty()
-                && !text.contains(['♪', '♫'])
-                && !text.trim_start().starts_with('#')
-                && !CREDITS.is_match(&text)
-        })
-        .map(|c| c.start_ms)
-        .collect()
+static TAGS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<[^>]*>|\{[^}]*\}").unwrap());
+/// Lyrics (♪), a music description ("[theme music]"), and the subtitles' own
+/// credits ("Synced by …", "Captioned by …").
+static MUSIC_OR_CREDIT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)[♪♫]|^\s*#|[\[(][^\])]*(music|song|singing|sings|theme|instrumental)[^\])]*[\])]|subtitles? by|subtitled by|synced|sync by|resync|corrected by|captioned by|captioning|transcribed by|translated by|opensubtitles|addic7ed|www\.|\.(com|org|net)\b",
+    )
+    .unwrap()
+});
+
+/// A cue that isn't music or the subtitles' own credits: after the credits,
+/// any of them is a scene (sounds, "[gunshot]", count). Picture subtitles,
+/// with no text, all are.
+fn is_music_or_credit(cue: &Cue) -> bool {
+    MUSIC_OR_CREDIT.is_match(&TAGS.replace_all(&cue.text, ""))
+}
+
+/// A line someone says: not music, the subtitles' credits, a sound
+/// description ("[door closes]") or a speaker's name alone. Picture
+/// subtitles, with no text, count.
+fn is_speech(cue: &Cue) -> bool {
+    static NOT_SAID: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?m)[\[(（【][^\])）】]*[\])）】]|^\s*[\p{Lu} ]+:|-").unwrap());
+    if cue.text.is_empty() {
+        return true;
+    }
+    let text = TAGS.replace_all(&cue.text, "");
+    !NOT_SAID.replace_all(&text, "").trim().is_empty() && !MUSIC_OR_CREDIT.is_match(&text)
 }
 
 /// Where credits whose last page is `frames[last]` end: at the next key
@@ -1209,9 +1216,10 @@ fn is_page(f: &FrameStats) -> bool {
 }
 
 /// A key frame of true black, or text on it: studio-range luma 16 at its
-/// darkest tenth, no color, dark overall (longer lines take more room).
+/// darkest tenth, no color, and its brightest tenth at most luma 32, so nine
+/// tenths of it near black (a dark scene has gray in it).
 fn is_black_page(f: &FrameStats) -> bool {
-    f.black >= PAGE_BLACK_WITH_TEXT && f.ylow <= 16.5 && f.sat <= 4.0 && f.yhigh <= 32.0
+    f.ylow <= 16.5 && f.sat <= 4.0 && f.yhigh <= 32.0
 }
 
 /// Credits as text on black in key frames (sorted by time) of the end of a
@@ -1620,20 +1628,25 @@ mod tests {
     }
 
     #[test]
-    fn speech_leaves_out_sounds_lyrics_and_the_subtitles_credits() {
-        let cue = |start_ms, text: &str| Cue { start_ms, end_ms: start_ms + 2_000, text: text.into() };
-        let cues = [
-            cue(1, "Where were you?"),
-            cue(2, "[door closes]"),
-            cue(3, "<i>(sighs)</i>"),
-            cue(4, "♪ Switch me on ♪"),
-            cue(5, "Synced and corrected by somebody"),
-            cue(6, "Captioned by Media Access Group"),
-            cue(7, "JOHN:"),
-            cue(8, "- Out.\n- Late."),
-            cue(9, ""),
-        ];
-        assert_eq!(speech(&cues), [1, 8, 9], "picture subtitles, with no text, count");
+    fn speech_and_what_counts_after_the_credits() {
+        let cue = |text: &str| Cue { start_ms: 0, end_ms: 2_000, text: text.into() };
+        // Lines people say.
+        for t in ["Where were you?", "- Out.\n- Late.", "JOHN: Here.", "I stand corrected.", ""] {
+            assert!(is_speech(&cue(t)), "{t:?}");
+        }
+        for t in ["[door closes]", "<i>(sighs)</i>", "JOHN:", "♪ Switch me on ♪", "Synced and corrected by somebody"]
+        {
+            assert!(!is_speech(&cue(t)), "{t:?}");
+        }
+        // After the credits only music and the subtitles' credits don't
+        // count: a sound is a scene.
+        for t in ["♪ Switch me on ♪", "[theme music playing]", "Captioned by Media Access Group", "www.example.org"]
+        {
+            assert!(is_music_or_credit(&cue(t)), "{t:?}");
+        }
+        for t in ["[gunshot]", "(gasps)", "Where were you?", ""] {
+            assert!(!is_music_or_credit(&cue(t)), "{t:?}");
+        }
     }
 
     #[test]
@@ -1646,30 +1659,17 @@ mod tests {
             forced,
             ..Default::default()
         };
-        let text = |s: Option<CuesSource>| s.map(|s| (s.stream, s.path, s.text));
+        let source = |s: Option<CuesSource>| s.map(|s| (s.stream, s.text));
         let streams = [
             sub(2, "hdmv_pgs_subtitle", None, false),
             sub(3, "subrip", Some("Signs & Songs"), false),
             sub(4, "subrip", None, true),
-            sub(5, "ass", None, false),
+            sub(5, "subrip", Some("Foreign parts"), false),
+            sub(6, "ass", None, false),
         ];
-        assert_eq!(text(dialogue_subtitles(&streams, &[])), Some((Some(5), None, true)));
-        let side = ExternalSub {
-            index: 1000,
-            path: "/tv/Show - S01E01.en.srt".into(),
-            codec: "subrip".into(),
-            language: None,
-            title: None,
-            forced: false,
-            default: false,
-            sdh: false,
-        };
-        assert_eq!(
-            text(dialogue_subtitles(&streams[..1], std::slice::from_ref(&side))),
-            Some((None, Some(side.path.clone()), true))
-        );
-        assert_eq!(text(dialogue_subtitles(&streams[..1], &[])), Some((Some(2), None, false)));
-        assert_eq!(text(dialogue_subtitles(&streams[1..3], &[])), None, "only signs, and forced");
+        assert_eq!(source(dialogue_subtitles(&streams)), Some((Some(6), true)));
+        assert_eq!(source(dialogue_subtitles(&streams[..1])), Some((Some(2), false)), "pictures");
+        assert_eq!(source(dialogue_subtitles(&streams[1..4])), None, "only signs, forced and foreign parts");
     }
 
     #[test]
@@ -1677,25 +1677,35 @@ mod tests {
         // Credits found 28:00–29:00 of a 30 min episode, a scene after them.
         let credits =
             Found { kind: MarkerKind::Credits, start_ms: 1_680_000, end_ms: 1_740_000, source: "fingerprint" };
-        let frames = key_frames(1_170, 1_800, |s| match s {
-            1_680..1_700 => "dim",
-            1_700..1_740 => "page",
-            _ => "scene",
-        });
-        let line = |s: i64| Cue { start_ms: s * 1000, end_ms: s * 1000 + 2_000, text: "Words.".into() };
-        let before: Vec<Cue> = [1_560, 1_600, 1_640, 1_670].map(line).to_vec();
-        let quiet = |cues: Option<&[Cue]>| quiet_to_the_end(credits.clone(), &frames, cues, 1_800_000);
+        let ends = |page_from: i64| {
+            key_frames(1_170, 1_800, move |s| match s {
+                1_686 => "black",
+                1_680..1_740 if s < page_from => "dim",
+                1_680..1_740 => "page",
+                _ => "scene",
+            })
+        };
+        let frames = ends(1_694);
+        let line = |s: i64, text: &str| Cue { start_ms: s * 1000, end_ms: s * 1000 + 2_000, text: text.into() };
+        let before: Vec<Cue> = [1_560, 1_600, 1_640, 1_670].map(|s| line(s, "Words.")).to_vec();
+        let with = |after: &[Cue]| [before.clone(), after.to_vec()].concat();
+        let quiet =
+            |frames: &[FrameStats], cues: Option<&[Cue]>| quiet_to_the_end(credits.clone(), frames, cues, 1_800_000);
         // No one speaks after them: to the end, from the first page of text
-        // on pure black (their music began over a dim last shot).
-        let found = quiet(Some(&before));
-        assert_eq!((found.start_ms, found.end_ms, found.source), (1_702_000, 1_800_000, "fingerprint"));
-        // Someone speaks after them: an after-credits scene.
-        let mut after = before.clone();
-        after.push(line(1_760));
-        assert_eq!(quiet(Some(&after)), credits);
+        // on pure black (their music began over a dim last shot, a fade to
+        // black without text before it).
+        let found = quiet(&frames, Some(&before));
+        assert_eq!((found.start_ms, found.end_ms, found.source), (1_694_000, 1_800_000, "fingerprint"));
+        // Lyrics after them are no scene.
+        assert_eq!(quiet(&frames, Some(&with(&[line(1_760, "♪ la la ♪")]))).end_ms, 1_800_000);
+        // Someone speaks after them, or a sound: an after-credits scene.
+        assert_eq!(quiet(&frames, Some(&with(&[line(1_760, "Hello?")]))), credits);
+        assert_eq!(quiet(&frames, Some(&with(&[line(1_760, "[gunshot]")]))), credits);
+        // Text on pure black only well into them: their start is unsure.
+        assert_eq!(quiet(&ends(1_710), Some(&before)), credits);
         // A track that is quiet before them tells nothing, nor no subtitles.
-        assert_eq!(quiet(Some(&before[2..])), credits);
-        assert_eq!(quiet(None), credits);
+        assert_eq!(quiet(&frames, Some(&before[2..])), credits);
+        assert_eq!(quiet(&frames, None), credits);
     }
 
     #[test]

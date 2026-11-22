@@ -1725,16 +1725,11 @@ pub struct FramesRequest {
     pub subtitles: Option<CuesSource>,
 }
 
-/// Subtitles to read the cues of: an embedded stream, or a file beside the
-/// video.
+/// Embedded subtitles to read the cues of.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CuesSource {
-    /// FFmpeg stream index of an embedded subtitle stream.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// FFmpeg stream index of the subtitle stream.
     pub stream: Option<i64>,
-    /// A subtitle file beside the video (`.srt`, `.ass`, `.vtt`), instead.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub path: Option<String>,
     /// Text subtitles give their lines; picture ones (PGS, DVD) only when
     /// each shows.
     pub text: bool,

@@ -3193,14 +3193,15 @@ credits follows them:
   Credits in color on black keep their first page.
 - Credits that still stop short of the end run to it when no one speaks
   from them to the end of the file: what follows is then a channel's
-  promos, a logo or a preview, not a scene. That takes a full subtitle
-  track (not forced, not only signs or songs: embedded text first, then a
-  text file beside the video, then embedded pictures) with three or more
-  lines in the 3 minutes before the credits; sound descriptions, lyrics
-  (♪) and the subtitles' own credits don't count as speech. They then
-  begin at their first page of text on pure black, since their music can
-  begin over a silent last shot. The transcoder reads the subtitles' cues
-  with the key frames.
+  promos, a logo or a preview, not a scene. That takes a full embedded
+  subtitle track (not forced, nor only signs, songs, foreign parts or
+  commentary; text first, then pictures) with three or more lines spoken
+  in the 3 minutes before the credits, and nothing after them but music
+  (♪, "[theme music]") and the subtitles' own credits: a sound
+  ("[gunshot]") is a scene. The credits must also show as text on pure
+  black within 20 s of their start, since their music can begin over a
+  silent last shot; they then begin there. The transcoder reads the
+  subtitles' cues with the key frames.
 
 A background worker analyzes one season at a time after library scans (and
 30 s after start-up) and waits while anything plays. A newer detection

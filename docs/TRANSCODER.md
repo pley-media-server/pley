@@ -1582,13 +1582,14 @@ after them.
 - `black` is the percentage of pixels at most 32; `ylow` and `yhigh` the luma
   of the darkest and brightest tenth; `ymax` the brightest; `sat` the average
   saturation. Luma is 8-bit studio range (black is 16).
-- `subtitles` `{stream?, path?, text}` names subtitles to read over the same
-  part of the file: an embedded stream, or a file beside the video. `cues`
-  are `[{start_ms, end_ms, text}]`: a text track's lines, read after seeking
-  (its subtitle packets only), a file beside the video read whole, and a
-  picture track's display times from ffprobe's packets (more than 200 bytes
-  holds a picture, a smaller one clears it), with no text. Subtitles that
-  can't be read leave `cues` out, as an older transcoder does.
+- `subtitles` `{stream, text}` names an embedded subtitle stream to read over
+  the same part of the file. `cues` are `[{start_ms, end_ms, text}]`: a text
+  track's lines, read after seeking with the file's own times (`-copyts`),
+  or a picture track's display times, from its packets copied in the same
+  pass as the key frames (`framecrc`): the largest packet at a time over
+  200 bytes holds a picture, a smaller one clears it; no text. At most 4,000
+  cues of at most 200 characters. Subtitles that can't be read leave `cues`
+  out, as an older transcoder does.
 - Shares the fingerprints' limit and priority.
 
 ## Reading ahead

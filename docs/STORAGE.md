@@ -92,7 +92,7 @@ space used.
 | `cache/images` | resized pictures | 30 days |
 | `cache/covers` | albums known to have no embedded cover | 30 days |
 | `cache/subtitles` | subtitles converted to WebVTT, picture subtitles copied into Matroska (`.mks`) | 90 days |
-| `cache/fingerprints` | audio fingerprints, and key frames with subtitle timings of the ends of files (intro and credits detection) | 90 days |
+| `cache/fingerprints` | audio fingerprints, and key frames with subtitle cues of the ends of files (intro and credits detection) | 90 days |
 | `cache/bif` | seek previews as Roku's player and Plex apps take them (BIF), cut from the previews when asked for | 30 days |
 | `cache/live/pictures` | Live TV channel logos and program pictures | fetched again after 7 days; removed after 30 days unused, or oldest first past 256 MB |
 | `cache/live/downloads` | guide files being read | emptied at every start |
