@@ -24,7 +24,8 @@
 //! `<dir>` holds `files.tsv` (file id, `episode` or `movie`, duration in ms,
 //! the stored credits marker's source or `-`, its start and end in ms, the
 //! file's chapters as JSON or `-`) and `frames/<file id>.json`, the key frames
-//! ([`FrameStats`]) of the end of the files whose shared credits stop early.
+//! ([`FrameStats`]) of the end of the files whose shared credits stop early,
+//! and `cues/<file id>.json`, the cues ([`Cue`]) of their subtitles there.
 //! Every file's result goes to `<dir>/up_next.tsv`.
 
 use std::collections::{BTreeMap, HashMap};
@@ -61,6 +62,10 @@ fn up_next() {
         let frames: Option<Vec<FrameStats>> = std::fs::read(dir.join("frames").join(format!("{file_id}.json")))
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok());
+        let cues: Option<Vec<Cue>> = std::fs::read(dir.join("cues").join(format!("{file_id}.json")))
+            .ok()
+            .and_then(|b| serde_json::from_slice(&b).ok());
+        let quiet = |m: Option<Found>, f: &[FrameStats]| m.map(|m| quiet_to_the_end(m, f, cues.as_deref(), duration));
 
         // The credits as the server now settles them: chapters first, then
         // the stored fingerprint or key-frame match with today's rules.
@@ -72,7 +77,7 @@ fn up_next() {
                     Some(("fingerprint", start, end)) => {
                         let shared = finalize(Some((start, end)), MarkerKind::Credits, duration);
                         match (shared, &frames) {
-                            (Some(s), Some(f)) if s.end_ms < duration => settle_credits(s, f, duration),
+                            (Some(s), Some(f)) if s.end_ms < duration => quiet(settle_credits(s, f, duration), f),
                             (Some(s), None) if s.end_ms < duration => {
                                 measured = false;
                                 Some(s)
@@ -82,7 +87,7 @@ fn up_next() {
                     }
                     // Found again from the key frames when they are at hand.
                     Some(("frames", start, end)) => match &frames {
-                        Some(f) => credits_from_frames(f, duration),
+                        Some(f) => quiet(credits_from_frames(f, duration), f),
                         None => {
                             measured = false;
                             Some(Found { kind: MarkerKind::Credits, start_ms: start, end_ms: end, source: "frames" })

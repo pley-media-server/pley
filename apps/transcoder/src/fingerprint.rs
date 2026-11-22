@@ -11,7 +11,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use pley_transcoder_api::{Fingerprint, FingerprintRequest, FrameStats, Frames, FramesRequest};
+use pley_transcoder_api::{Cue, CuesSource, Fingerprint, FingerprintRequest, FrameStats, Frames, FramesRequest};
 use tokio::sync::Semaphore;
 
 use crate::background::Background;
@@ -78,21 +78,147 @@ impl Fingerprinter {
         }
         let start_ms = req.start_ms.max(0);
         let duration_ms = req.duration_ms.clamp(1_000, MAX_DURATION_MS);
-        let mut cmd = self.ff.command();
-        // The measurements come through the log.
-        cmd.args(["-nostats", "-loglevel", "info", "-skip_frame", "nokey"]);
-        if start_ms > 0 {
-            cmd.args(["-ss", &secs(start_ms)]);
-        }
-        cmd.args(["-t", &secs(duration_ms)]).args(MEDIA_INPUT_OPTIONS).arg("-i").arg(input_arg(path));
-        cmd.args(["-map", "0:V:0", "-an", "-sn", "-dn", "-vf", FRAME_STATS, "-f", "null", "-"]);
-        background_priority(&mut cmd);
+        // An embedded picture track is read with the key frames, in the same
+        // pass over the file: its packets' times and sizes, as `framecrc`.
+        let picture = req.subtitles.as_ref().filter(|s| !s.text).and_then(|s| s.stream);
+        let command = |with_picture: bool| {
+            let mut cmd = self.ff.command();
+            // The measurements come through the log.
+            cmd.args(["-nostats", "-loglevel", "info", "-skip_frame", "nokey"]);
+            if start_ms > 0 {
+                cmd.args(["-ss", &secs(start_ms)]);
+            }
+            cmd.args(["-t", &secs(duration_ms)]).args(MEDIA_INPUT_OPTIONS).arg("-i").arg(input_arg(path));
+            cmd.args(["-map", "0:V:0", "-an", "-sn", "-dn", "-vf", FRAME_STATS, "-f", "null", "-"]);
+            if let (true, Some(stream)) = (with_picture, picture) {
+                cmd.args(["-map", &format!("0:{stream}"), "-c", "copy", "-f", "framecrc", "pipe:1"]);
+            }
+            background_priority(&mut cmd);
+            cmd
+        };
 
         let _permit = self.limiter.acquire().await.map_err(|e| ApiError::Internal(e.into()))?;
-        let (_, log) = self.background.run(cmd, TIMEOUT).await?;
-        Ok(Frames { frames: parse_frame_stats(&log, start_ms) })
+        let (out, log, read_picture) = match self.background.run(command(picture.is_some()), TIMEOUT).await {
+            Ok((out, log)) => (out, log, picture.is_some()),
+            // The subtitles in the way: the key frames alone.
+            Err(_) if picture.is_some() => {
+                let (out, log) = self.background.run(command(false), TIMEOUT).await?;
+                (out, log, false)
+            }
+            Err(err) => return Err(err),
+        };
+        let frames = parse_frame_stats(&log, start_ms);
+        // Subtitles that can't be read leave the cues unknown, not empty.
+        let cues = match &req.subtitles {
+            Some(_) if picture.is_some() => {
+                read_picture.then(|| picture_cues(&parse_framecrc(&String::from_utf8_lossy(&out), start_ms)))
+            }
+            Some(source) => self.cues(path, source, start_ms, duration_ms).await.ok(),
+            None => None,
+        };
+        Ok(Frames { frames, cues })
+    }
+
+    /// The lines of text subtitles over part of a file: an embedded track or
+    /// a file beside the video.
+    async fn cues(&self, video: &Path, source: &CuesSource, start_ms: i64, duration_ms: i64) -> ApiResult<Vec<Cue>> {
+        let end_ms = start_ms + duration_ms;
+        let in_window = |c: &Cue| c.end_ms > start_ms && c.start_ms < end_ms;
+        match (source.stream, &source.path) {
+            // A file beside the video: read whole (it is small), the times as
+            // they are.
+            (None, Some(file)) => {
+                let mut cmd = self.ff.command();
+                cmd.args(["-loglevel", "error"]).arg("-i").arg(input_arg(Path::new(file))).args(["-f", "srt", "-"]);
+                background_priority(&mut cmd);
+                let (out, _) = self.background.run(cmd, TIMEOUT).await?;
+                Ok(parse_srt(&String::from_utf8_lossy(&out), 0).into_iter().filter(in_window).collect())
+            }
+            // Text: seeking before the input, the cues' times start at its
+            // start. Without a length FFmpeg reads only the subtitle packets
+            // to the end, many times faster than with one.
+            (Some(stream), _) if source.text => {
+                let mut cmd = self.ff.command();
+                cmd.args(["-loglevel", "error", "-ss", &secs(start_ms)])
+                    .args(MEDIA_INPUT_OPTIONS)
+                    .arg("-i")
+                    .arg(input_arg(video))
+                    .args(["-map", &format!("0:{stream}"), "-f", "srt", "-"]);
+                background_priority(&mut cmd);
+                let (out, _) = self.background.run(cmd, TIMEOUT).await?;
+                Ok(parse_srt(&String::from_utf8_lossy(&out), start_ms).into_iter().filter(in_window).collect())
+            }
+            _ => Err(ApiError::BadRequest("no text subtitles to read".into())),
+        }
     }
 }
+
+/// The cues of SRT text, `offset_ms` added to their times. Each block is a
+/// number, a `00:00:01,000 --> 00:00:02,500` line and the text.
+fn parse_srt(srt: &str, offset_ms: i64) -> Vec<Cue> {
+    let time = |s: &str| -> Option<i64> {
+        let (hms, ms) = s.trim().split_once([',', '.'])?;
+        let mut parts = hms.split(':').map(|p| p.trim().parse::<i64>());
+        let (h, m, s) = (parts.next()?.ok()?, parts.next()?.ok()?, parts.next()?.ok()?);
+        Some(((h * 60 + m) * 60 + s) * 1000 + ms.trim().get(..3.min(ms.trim().len()))?.parse::<i64>().ok()?)
+    };
+    let mut cues = Vec::new();
+    for block in srt.replace('\r', "").split("\n\n") {
+        let mut lines = block.lines().skip_while(|l| !l.contains("-->"));
+        let Some((from, to)) = lines.next().and_then(|l| l.split_once("-->")) else { continue };
+        let (Some(start), Some(end)) = (time(from), time(to.split_whitespace().next().unwrap_or(""))) else { continue };
+        let text = lines.collect::<Vec<_>>().join("\n");
+        cues.push(Cue { start_ms: start + offset_ms, end_ms: end + offset_ms, text });
+    }
+    cues
+}
+
+/// `(ms, size)` of each packet of a `framecrc` listing of one stream, its
+/// `#tb` time base turned into ms and `offset_ms` added.
+fn parse_framecrc(listing: &str, offset_ms: i64) -> Vec<(i64, usize)> {
+    let mut base = (1_i64, 1_000_i64);
+    let mut packets = Vec::new();
+    for line in listing.lines().map(str::trim) {
+        if let Some(tb) = line.strip_prefix("#tb 0:") {
+            if let Some((num, den)) = tb.trim().split_once('/')
+                && let (Ok(num), Ok(den)) = (num.parse::<i64>(), den.parse::<i64>())
+                && den > 0
+            {
+                base = (num, den);
+            }
+            continue;
+        }
+        let fields: Vec<&str> = line.split(',').map(str::trim).collect();
+        if let [_, _, pts, _, size, ..] = fields[..]
+            && let (Ok(pts), Ok(size)) = (pts.parse::<i64>(), size.parse::<usize>())
+        {
+            packets.push((offset_ms + pts * base.0 * 1_000 / base.1, size));
+        }
+    }
+    packets
+}
+
+/// When picture subtitles show, from their packets: a packet with a picture
+/// (more than [`PICTURE_PACKET`] bytes) shows until the next packet, which
+/// is often the small one that clears it.
+fn picture_cues(packets: &[(i64, usize)]) -> Vec<Cue> {
+    let mut packets = packets.to_vec();
+    packets.sort_unstable();
+    packets
+        .iter()
+        .enumerate()
+        .filter(|(_, (_, size))| *size > PICTURE_PACKET)
+        .map(|(i, &(t, _))| Cue {
+            start_ms: t,
+            end_ms: packets.get(i + 1).map_or(t + 3_000, |p| p.0),
+            text: String::new(),
+        })
+        .collect()
+}
+
+/// Picture subtitle packets larger than this hold a picture; smaller ones
+/// clear the screen.
+const PICTURE_PACKET: usize = 200;
 
 /// Small 8-bit frames (HDR ones too), then the share of near-black pixels and
 /// the luma and saturation statistics of each.
@@ -134,6 +260,52 @@ fn parse_raw(bytes: &[u8]) -> Vec<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_srt_cues() {
+        let srt = "1\r\n00:00:02,562 --> 00:00:04,062\r\nWhere were you?\r\n\r\n\
+            2\n00:00:04,097 --> 00:00:06,630 X1:0\n<i>Out.</i>\nLate.\n\n3\nbroken\n\n";
+        let cues = parse_srt(srt, 2_529_000);
+        assert_eq!(
+            cues,
+            [
+                Cue { start_ms: 2_531_562, end_ms: 2_533_062, text: "Where were you?".into() },
+                Cue { start_ms: 2_533_097, end_ms: 2_535_630, text: "<i>Out.</i>\nLate.".into() },
+            ]
+        );
+        assert!(parse_srt("", 0).is_empty());
+    }
+
+    #[test]
+    fn picture_cues_show_until_the_next_packet() {
+        // A picture, the small packet clearing it, a picture at the end.
+        let listing = "#tb 0: 1/1000
+#media_type 0: subtitle
+#codec_id 0: hdmv_pgs_subtitle
+            0,          0,          0,        0,     4810, 0x5e3a20c1
+            0,       2550,       2550,        0,       30, 0x0aa30c2b
+            0,       4754,       4754,        0,     5120, 0x1c0f4e22
+";
+        let packets = parse_framecrc(listing, 2_526_808);
+        assert_eq!(packets, [(2_526_808, 4810), (2_529_358, 30), (2_531_562, 5120)]);
+        assert_eq!(
+            picture_cues(&packets),
+            [
+                Cue { start_ms: 2_526_808, end_ms: 2_529_358, text: String::new() },
+                Cue { start_ms: 2_531_562, end_ms: 2_534_562, text: String::new() },
+            ]
+        );
+        // A 90 kHz time base.
+        assert_eq!(
+            parse_framecrc(
+                "#tb 0: 1/90000
+0, 900000, 900000, 0, 500, 0x0
+",
+                0
+            ),
+            [(10_000, 500)]
+        );
+    }
 
     #[test]
     fn parses_frame_stats_from_the_log() {
