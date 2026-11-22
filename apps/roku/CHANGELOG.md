@@ -49,6 +49,8 @@ describes how they are made.
 
 ### Fixed
 
+- Search's groups line up under their titles, a channel's cards as the
+  titles' tiles, the same room under each title.
 - On Roku OS 16, Search showed Discover's titles as Live TV channels, and
   a channel chosen in Search, or the channel playing in the live player's
   list, wasn't found: Roku's own ContentNode now has a channelId field,

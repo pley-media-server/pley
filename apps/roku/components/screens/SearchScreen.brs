@@ -350,10 +350,10 @@ sub showRows()
         m.message.translation = [876, 170]
         m.message.text = line
         m.message.visible = true
-        m.rows.translation = [876, 240]
+        m.rows.translation = [852, 240]
     else
         m.message.visible = false
-        m.rows.translation = [876, 170]
+        m.rows.translation = [852, 170]
     end if
     m.rows.visible = true
     for i = 0 to m.rowKeys.Count() - 1

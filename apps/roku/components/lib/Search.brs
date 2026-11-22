@@ -54,8 +54,11 @@ end function
 
 ' The size of a row's tiles, and the row's height, beside the keyboard: a
 ' channel's card, a 16:9 picture, a square or a poster, with their lines.
+' Each takes 24 px at its left and 30 over it, as a Tile does (ResultTile
+' gives a channel's card the same), so every row's items start under its
+' title at the same height.
 function searchRowSize(key as string) as object
-    if key = "channel" then return { size: [220, 240], height: 300 }
+    if key = "channel" then return { size: [244, 270], height: 330 }
     if key = "episode" then return { size: [300, 250], height: 310 }
     if key = "person" then return { size: [196, 300], height: 360 }
     if contentMusic(key) then return { size: [196, 280], height: 340 }
