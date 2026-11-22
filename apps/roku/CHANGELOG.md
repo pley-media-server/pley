@@ -10,6 +10,9 @@ describes how they are made.
 
 ### Fixed
 
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end instead.
+  Without credits, it comes at the end too, rather than 30 s before it.
 - Dates in Chinese read 3月5日 and 2026年3月5日.
 - Traditional Chinese uses the words people use in Taiwan, such as 影集 for
   a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
