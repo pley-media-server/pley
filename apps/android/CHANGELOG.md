@@ -17,6 +17,11 @@ describes how they are made.
   for an item and 設定檔 for a Dolby Vision profile, and quotes with 「」.
 - Simplified Chinese calls an artist 艺人 everywhere.
 
+On Android TV:
+
+- Music pauses when you go Home, open another app or leave with Back, and
+  plays on when you come back from Home or another app.
+
 ## [0.1.16] - 2026-11-20
 
 ### Added

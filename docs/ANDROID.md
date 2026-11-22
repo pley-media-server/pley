@@ -306,6 +306,14 @@ rates as the decoder gives them, the same in every language.
   the middle of a gray tile, whatever its shape or banner.
 - **Watch Next** (Android TV and Google TV): the home screen's row shows
   the profile's Continue Watching, ten at most.
+- **Music** plays on behind the app's pages and under the screensaver,
+  and pauses when Home or another app takes the screen, or the last Back
+  leaves the app: Android TV's guidelines let audio go on in the
+  background only with media controls on the home screen, and Google
+  TV's has none. Back from Home or another app, it plays on from where
+  it was, as on Samsung TVs, unless it was played or paused from
+  elsewhere meanwhile or a Watch Next program brought the app back.
+  Music that was paused stays paused.
 - **Dolby Vision and HDR** go by the display mode each video plays in: the
   one in use, or the one of its size the TV switches to for the frame rate
   (the device's match-content setting, or Settings → Playback; not for

@@ -123,6 +123,12 @@ class MusicPlayback(
     private var yielded = false
     private var error: MusicError? = null
 
+    /** Paused as the person left the TV app ([pauseForLeave]): plays on when they're back, if nothing changed it since. */
+    private var playOnReturn = false
+
+    /** The track [startTrack] asks the server for plays once it comes, rather than waiting paused. */
+    private var startingToPlay = false
+
     /** Paused for [PAUSED_HOLD_MS]: the event stream is let go in the background until it plays again. */
     private var rested = false
     private var resting: Job? = null
@@ -233,6 +239,7 @@ class MusicPlayback(
 
     /** Plays, or after the queue's end, a failure or a video, starts the current track again. */
     fun play() {
+        playOnReturn = false
         if (queue.isEmpty) return
         when {
             ended -> startTrack(0)
@@ -242,6 +249,7 @@ class MusicPlayback(
     }
 
     fun pause() {
+        playOnReturn = false
         out?.pause()
     }
 
@@ -287,6 +295,7 @@ class MusicPlayback(
      * session there. A track still being asked for isn't loaded.
      */
     fun pauseForVideo() {
+        playOnReturn = false
         if (queue.isEmpty) return
         loadJob?.cancel()
         yielded = true
@@ -298,8 +307,40 @@ class MusicPlayback(
         publish()
     }
 
+    /**
+     * The person leaves the TV app: music meant to play (playing, waiting
+     * for data, or a track being asked for that will play) pauses as for a
+     * video ([pauseForVideo]). With [playOnReturn], [returnAfterLeave] plays
+     * it on. Music paused, at its end, failed or waiting paused (the sleep
+     * timer's next track) stays as it is.
+     */
+    fun pauseForLeave(playOnReturn: Boolean) {
+        if (!meantToPlay()) return
+        pauseForVideo()
+        this.playOnReturn = playOnReturn
+    }
+
+    /**
+     * The person is back in the TV app: music [pauseForLeave] paused plays
+     * on, with [playOn], unless it was played, paused or changed meanwhile
+     * (the phone's remote, a media key, a video). Either way it is
+     * forgotten.
+     */
+    fun returnAfterLeave(playOn: Boolean) {
+        val again = playOn && playOnReturn && yielded
+        playOnReturn = false
+        if (again) play()
+    }
+
+    private fun meantToPlay(): Boolean = when {
+        queue.isEmpty || ended || yielded || error != null -> false
+        loadJob?.isActive == true -> startingToPlay
+        else -> out?.playWhenReady == true
+    }
+
     /** Ends the session, stops the output and forgets the queue. */
     fun stop() {
+        playOnReturn = false
         loadJob?.cancel()
         stopTicker()
         timer.cancel()
@@ -338,6 +379,8 @@ class MusicPlayback(
             recreates = 0
         }
         val wantPlay = play ?: (!sameTrack || error != null || (out?.playWhenReady ?: true))
+        startingToPlay = wantPlay
+        playOnReturn = false
         loadJob?.cancel()
         stopTicker()
         endSession()
