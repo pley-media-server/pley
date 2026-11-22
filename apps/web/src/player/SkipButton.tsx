@@ -8,6 +8,8 @@ import { cn } from "@/lib/cn";
 const TAIL_MS = 1_000;
 /** Skip Intro lands this long before the intro ends, so it plays out. */
 const INTRO_LEAD_MS = 750;
+/** Credits ending this close to the end of their file run to it (the server's `CREDITS_TAIL_MS`). */
+const CREDITS_TAIL_MS = 15_000;
 
 /** Markers of the file being played (the item's first file when unknown). */
 export function fileMarkers(item: ItemDetail, fileId: number | null | undefined): Marker[] {
@@ -30,18 +32,31 @@ export function skipTarget(marker: Marker): number {
 }
 
 /**
+ * Credits that run to the end of their file, `durationMs` long (0 when
+ * unknown, and then they don't). Only these bring Up Next: its countdown
+ * would skip what follows other credits (an after-credits scene, a show's
+ * last minutes), so they only offer Skip Credits.
+ */
+export function reachesEnd(marker: Marker, durationMs: number): boolean {
+  return marker.kind === "credits" && durationMs > 0 && durationMs - marker.end_ms <= CREDITS_TAIL_MS;
+}
+
+/**
  * Skip Intro / Skip Credits behavior. Returns the marker the playhead is in.
- * Entering credits calls `onCredits` (Up Next for episodes), once per
- * segment, so seeking back into them later lets them play.
+ * Entering credits that run to the end of the file (`durationMs` long, 0
+ * when unknown) calls `onCredits` (Up Next for episodes), once per segment,
+ * so seeking back into them later lets them play.
  */
 export function useSkipMarkers({
   markers,
   seconds,
+  durationMs,
   enabled,
   onCredits,
 }: {
   markers: Marker[];
   seconds: number;
+  durationMs: number;
   enabled: boolean;
   onCredits: (marker: Marker) => void;
 }): Marker | null {
@@ -51,7 +66,7 @@ export function useSkipMarkers({
   const reached = useEffectEvent((m: Marker) => onCredits(m));
 
   useEffect(() => {
-    if (!marker || !key || marker.kind !== "credits" || handled.current.has(key)) return;
+    if (!marker || !key || !reachesEnd(marker, durationMs) || handled.current.has(key)) return;
     handled.current.add(key);
     reached(marker);
     // Runs when the playhead enters a different segment.
