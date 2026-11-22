@@ -14,7 +14,21 @@ import org.junit.Test
 class MusicOnLeaveTest {
     private val music = Music()
     private var clock = 1_000L
-    private val leave = MusicOnLeave({ clock }) { music }
+
+    /** The blocks waiting for their delay, as [MusicOnLeave] left them. */
+    private val waiting = mutableListOf<() -> Unit>()
+    private val later: (Long, () -> Unit) -> () -> Unit = { _, block ->
+        waiting += block
+        ({ waiting.remove(block) })
+    }
+    private val leave = MusicOnLeave({ clock }, later) { music }
+
+    /** Their delay passes. */
+    private fun waitOut() {
+        val due = waiting.toList()
+        waiting.clear()
+        due.forEach { it() }
+    }
 
     @Test
     fun homePausesTheMusicAndItPlaysOnWhenTheAppIsBack() {
@@ -55,7 +69,54 @@ class MusicOnLeaveTest {
         leave.leaving()
         clock += 5 * 60_000
         leave.stopped(finishing = false)
+        leave.dreaming(on = true)
+        waitOut()
         assertEquals(emptyList<String>(), music.calls)
+    }
+
+    @Test
+    fun theScreensaverAlreadyOnWhenTheAppStopsLeavesItPlaying() {
+        leave.leaving()
+        clock += 5 * 60_000
+        leave.dreaming(on = true)
+        leave.stopped(finishing = false)
+        waitOut()
+        assertEquals(emptyList<String>(), music.calls)
+    }
+
+    @Test
+    fun homeFromAWindowLeftOpenPausesItOnceNoScreensaverStarted() {
+        // The settings panel gave the hint as it opened; Home from it gives the app none.
+        leave.leaving()
+        clock += 5 * 60_000
+        leave.stopped(finishing = false)
+        assertEquals(emptyList<String>(), music.calls)
+        waitOut()
+        assertEquals(listOf("pause, play on return"), music.calls)
+    }
+
+    @Test
+    fun comingBackBeforeTheWaitIsOverLeavesItPlaying() {
+        leave.leaving()
+        clock += 5 * 60_000
+        leave.stopped(finishing = false)
+        leave.resumed(videoNext = false)
+        waitOut()
+        assertEquals(listOf("return, play on"), music.calls)
+    }
+
+    @Test
+    fun aStopUpToFifteenSecondsAfterTheHintPausesAtOnce() {
+        leave.leaving()
+        clock += MusicOnLeave.HINT_MS
+        leave.stopped(finishing = false)
+        assertEquals(listOf("pause, play on return"), music.calls)
+        assertEquals(0, waiting.size)
+
+        leave.leaving()
+        clock += MusicOnLeave.HINT_MS + 1
+        leave.stopped(finishing = false)
+        assertEquals(1, waiting.size)
     }
 
     @Test
@@ -71,14 +132,14 @@ class MusicOnLeaveTest {
         leave.leaving()
         leave.stopped(finishing = false)
         // A language or display mode change made the activity anew: the music remembers.
-        val again = MusicOnLeave({ clock }) { music }
+        val again = MusicOnLeave({ clock }, later) { music }
         again.resumed(videoNext = false)
         assertEquals(listOf("pause, play on return", "return, play on"), music.calls)
     }
 
     @Test
     fun nothingHappensBeforeTheMusicIsMade() {
-        val none = MusicOnLeave({ clock }) { null }
+        val none = MusicOnLeave({ clock }, later) { null }
         none.leaving()
         none.stopped(finishing = false)
         none.resumed(videoNext = false)

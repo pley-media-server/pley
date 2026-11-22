@@ -15,17 +15,32 @@ import app.pley.android.player.MusicControl
  * on.
  *
  * Only a person's choice to go counts (onUserLeaveHint, which the
- * screensaver doesn't give, then onStop within [HINT_MS]): music plays on
- * under the screensaver, also one that starts while a window is left open
- * over the app (the hint came then, with no onStop after it).
+ * screensaver doesn't give, then onStop): music plays on under the
+ * screensaver. A window over the app (the TV's settings panel) gives the
+ * hint when it opens, without stopping the app; the app stops later when
+ * Home is pressed from it, with no hint of its own, or when the
+ * screensaver starts under it. So a hint older than [HINT_MS] waits
+ * [DREAM_WAIT_MS] for the screensaver's broadcast ([dreaming]) before the
+ * music pauses.
  *
- * The activity calls [leaving], [stopped] and [resumed]; [now] is the
- * uptime clock; [music] is `null` until the app's music is made. Main
+ * The activity calls [leaving], [stopped], [resumed] and [dreaming]; [now]
+ * is the uptime clock; [later] runs a block after a delay and returns what
+ * cancels it; [music] is `null` until the app's music is made. Main
  * thread.
  */
-class MusicOnLeave(private val now: () -> Long, private val music: () -> MusicControl?) {
+class MusicOnLeave(
+    private val now: () -> Long,
+    private val later: (delayMs: Long, block: () -> Unit) -> () -> Unit,
+    private val music: () -> MusicControl?,
+) {
     /** When the person chose to go, until the activity stops or comes back. */
     private var leftAt: Long? = null
+
+    /** The screensaver is on. */
+    private var dreams = false
+
+    /** Cancels the pause waiting to see whether the screensaver started. */
+    private var waiting: (() -> Unit)? = null
 
     /** onUserLeaveHint: Home, or another app, chosen by the person. */
     fun leaving() {
@@ -34,9 +49,18 @@ class MusicOnLeave(private val now: () -> Long, private val music: () -> MusicCo
 
     /** onStop: [finishing] is the last Back. */
     fun stopped(finishing: Boolean) {
-        val chose = leftAt?.let { now() - it <= HINT_MS } == true
+        val hint = leftAt
         leftAt = null
-        if (chose || finishing) music()?.pauseForLeave(playOnReturn = !finishing)
+        when {
+            finishing -> music()?.pauseForLeave(playOnReturn = false)
+            hint == null || dreams -> Unit
+            now() - hint <= HINT_MS -> music()?.pauseForLeave(playOnReturn = true)
+            // The screensaver starting meanwhile cancels it (dreaming).
+            else -> waiting = later(DREAM_WAIT_MS) {
+                waiting = null
+                music()?.pauseForLeave(playOnReturn = true)
+            }
+        }
     }
 
     /**
@@ -45,16 +69,30 @@ class MusicOnLeave(private val now: () -> Long, private val music: () -> MusicCo
      */
     fun resumed(videoNext: Boolean) {
         leftAt = null
+        cancelWaiting()
         music()?.returnAfterLeave(playOn = !videoNext)
+    }
+
+    /** The screensaver started ([on]) or stopped. */
+    fun dreaming(on: Boolean) {
+        dreams = on
+        if (on) cancelWaiting()
+    }
+
+    private fun cancelWaiting() {
+        waiting?.invoke()
+        waiting = null
     }
 
     companion object {
         /**
          * How soon onStop follows the hint when the person goes: Android
          * stops the app once the screen that took over settles, which can
-         * take its 10 s idle timeout on a slow launcher. The screensaver
-         * comes minutes later.
+         * take its 10 s idle timeout on a slow launcher.
          */
         const val HINT_MS = 15_000L
+
+        /** How long a stop after an old hint waits for the screensaver's broadcast, which comes as it starts. */
+        const val DREAM_WAIT_MS = 3_000L
     }
 }

@@ -252,6 +252,64 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun leavingWhileTheNextTrackIsAskedForPlaysItFromItsStart() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 83_000
+        music.next()
+        // Left before the server answered for track 2: the output is still at track 1's place.
+        music.pauseForLeave(playOnReturn = true)
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        assertNull(starts().last().startMs)
+        assertEquals(0L, output.startPositions.last())
+        assertTrue(output.playWhenReady)
+    }
+
+    @Test
+    fun anotherTrackChosenWhileAwayIsLeftAsItIs() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        music.pauseForLeave(playOnReturn = true)
+        settle()
+        // The remote's Next, through the media session, on the TV's home screen: it plays.
+        music.next()
+        settle()
+        output.startPlaying()
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        assertTrue(output.playWhenReady)
+    }
+
+    @Test
+    fun theOutputFailingWhileAwayStartsNoSessionAndTheMusicStillPlaysOn() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 30_000
+        music.pauseForLeave(playOnReturn = true)
+        settle()
+        // Its last fetch, from the session that just ended.
+        output.fail(OutputError.Network)
+        settle()
+        assertEquals(1, starts().size)
+        assertNull(music.nowPlaying.value!!.error)
+
+        music.returnAfterLeave(playOn = true)
+        settle()
+        assertEquals(listOf(1L, 1L), starts().map { it.itemId })
+        assertEquals(30_000L, starts().last().startMs)
+        assertTrue(output.playWhenReady)
+    }
+
+    @Test
     fun pausePressedWhileAwayKeepsTheMusicPaused() = runTest {
         val music = music()
         music.play(album)

@@ -1,12 +1,17 @@
 package app.pley.android
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -67,9 +72,23 @@ class TvActivity : ComponentActivity() {
     /** A Watch Next program brought the app back, until it resumes: its video plays, not the music. */
     private var linkArrived = false
 
+    private val main = Handler(Looper.getMainLooper())
+
     // The app's music once it is made (MusicHub): leaving before then makes no player.
-    private val musicOnLeave = MusicOnLeave(SystemClock::uptimeMillis) {
-        MusicHub.playback?.let { (application as PleyApplication).graph.player.music }
+    private val musicOnLeave = MusicOnLeave(
+        now = SystemClock::uptimeMillis,
+        later = { delayMs, block ->
+            main.postDelayed(block, delayMs)
+            ({ main.removeCallbacks(block) })
+        },
+        music = { MusicHub.playback?.let { (application as PleyApplication).graph.player.music } },
+    )
+
+    /** The screensaver starting and stopping, for [musicOnLeave]: the system's own broadcasts. */
+    private val dreams = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            musicOnLeave.dreaming(intent.action == Intent.ACTION_DREAMING_STARTED)
+        }
     }
 
     override fun attachBaseContext(newBase: Context) {
@@ -86,6 +105,8 @@ class TvActivity : ComponentActivity() {
             linkArrived = link.value != null
         }
         followWatchNext(app)
+        val dreamFilter = IntentFilter(Intent.ACTION_DREAMING_STARTED).apply { addAction(Intent.ACTION_DREAMING_STOPPED) }
+        ContextCompat.registerReceiver(this, dreams, dreamFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
         val tier = debugTier() ?: device.tier
         val demo = BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_DEMO, false)
         // Made before the content, so what the first screen is chosen by is read
@@ -129,6 +150,11 @@ class TvActivity : ComponentActivity() {
     override fun onStop() {
         musicOnLeave.stopped(finishing = isFinishing)
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        unregisterReceiver(dreams)
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
