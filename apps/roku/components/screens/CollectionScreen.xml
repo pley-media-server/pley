@@ -28,8 +28,14 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <children>
-        <Poster id="backdrop" width="1920" height="1080" loadWidth="640" loadHeight="360" loadDisplayMode="scaleToZoom" opacity="0.4" />
-        <Rectangle id="shade" width="1260" height="1080" color="0x16191ED9" />
+        <!-- The backdrop over the whole screen, as a title's page has it:
+             under the scrim from the left (the text's side) and a fade to
+             the rows; the shade dims it further while they have the
+             focus. -->
+        <Poster id="backdrop" width="1920" height="1080" loadWidth="960" loadHeight="540" loadDisplayMode="scaleToZoom" />
+        <Poster width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
+        <Poster translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" />
+        <Rectangle id="shade" width="1920" height="1080" color="0x16191EB3" visible="false" />
         <Group id="page">
             <LayoutGroup id="column" translation="[192, 80]" layoutDirection="vert" itemSpacings="[40]" visible="false">
                 <!-- Only the labels with text stay in it (layoutText). -->

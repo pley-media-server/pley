@@ -76,6 +76,8 @@ describes how they are made.
   a bold heading over each block, each label in grey beside its value,
   and Media info scrolls smoothly with a bar showing where.
 - Now Playing's "Up next" is a section's heading, as on the title pages.
+- A collection's page and a request's title page have the backdrop over
+  the whole screen with no hard edge, as the title pages.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

@@ -289,11 +289,11 @@ end function
 sub focusRows(onRows as boolean)
     if onRows
         m.page.translation = [0, -820]
-        m.shade.width = 1920
+        m.shade.visible = true
         m.rows.setFocus(true)
     else
         m.page.translation = [0, 0]
-        m.shade.width = 1260
+        m.shade.visible = false
         if m.buttons.visible
             m.buttons.setFocus(true)
         else
