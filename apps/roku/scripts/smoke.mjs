@@ -577,9 +577,13 @@ async function walk() {
   shoot("home-options");
   await press("select");
   await waitFor(/^POST \/api\/items\/103\/watched$/, since, "a title marked watched");
+  // Home asks for its rows again and lays them out anew: keys pressed
+  // meanwhile can be lost, so the walk waits for them.
+  await waitFor(/^GET \/api\/hubs\/home$/, since, "Home's rows after the watched mark");
+  await settle();
+  await sleep(1500);
   // See all at the end of Recently Added in Music: the library's Library
   // tab, newest added first, for this visit only; Back to Home.
-  await settle();
   since = mark();
   await press("down", 4); // past Continue Watching, My List, Movies and TV Shows
   await press("right"); // See all, after the album
