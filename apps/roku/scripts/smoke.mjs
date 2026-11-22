@@ -584,7 +584,13 @@ async function walk() {
   // See all at the end of Recently Added in Music: the library's Library
   // tab, newest added first, for this visit only; Back to Home.
   since = mark();
-  await press("down", 4); // past Continue Watching, My List, Movies and TV Shows
+  // Past Continue Watching, My List, Movies and TV Shows, a row at a time:
+  // brs-node's RowList drops a press that comes while it still scrolls,
+  // and each row's backdrop is asked for as the focus comes to it.
+  for (let row = 0; row < 4; row++) {
+    await press("down");
+    await settle();
+  }
   await press("right"); // See all, after the album
   await press("select");
   await waitFor(/^GET \/api\/libraries\/3\/items\?.*sort=added/, since, "Recently Added's See all");
@@ -873,6 +879,7 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/items\/1000$/, since, "a title of a person's Directing row");
   person.opened = true;
+  await settle();
   await press("back");
   await settle();
   // Back on the show's page, its last row: the collections it is part of,
