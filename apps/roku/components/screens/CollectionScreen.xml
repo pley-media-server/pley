@@ -51,10 +51,10 @@
                             <Label id="categoryText" translation="[14, 0]" height="40" vertAlign="center" color="0xEBEBEBFF" font="font:SmallestBoldSystemFont" />
                         </Group>
                     </Group>
-                    <Label id="heading" width="1100" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-                    <Label id="facts" width="1100" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-                    <Label id="summary" width="1080" wrap="true" maxLines="3" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
-                    <Label id="note" width="1100" wrap="true" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+                    <Label id="heading" width="1020" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+                    <Label id="facts" width="1020" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+                    <Label id="summary" width="1000" wrap="true" maxLines="3" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
+                    <Label id="note" width="1020" wrap="true" color="0xA1A9B6FF" font="font:SmallSystemFont" />
                 </LayoutGroup>
                 <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="560" visible="false" />
             </LayoutGroup>

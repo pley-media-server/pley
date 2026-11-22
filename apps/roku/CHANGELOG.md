@@ -53,6 +53,9 @@ describes how they are made.
   Roboto too: they kept Roku's own font.
 - Side panels hide the page behind them: a library's and the requests'
   are the player's 720 px panel now, and none lets the page show through.
+- Search's rows run to the screen's edge, a music library's tiles show
+  both lines under them, Watch history's rows are as wide as the page, and
+  a request page's and a collection's words stay clear of their picture.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

@@ -118,7 +118,7 @@ sub onActive()
         m.tabList = libTabs(m.library.kind)
         ' A music library's artists are square.
         if m.library.kind = "music"
-            m.grid.itemSize = [220, 300]
+            m.grid.itemSize = [220, 320]
             m.grid.numRows = 3
         end if
         chips = []
