@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Changed
 
+- A focused button or tab keeps its size: Resume and the other buttons
+  on a page no longer grow.
 - The player has its own controls, drawn as Android TV's: the title, how
   it plays and the clock at the top, a scrubber with the time played and
   left, and a row of buttons (Chapters, Sleep timer, Previous, Play/Pause,

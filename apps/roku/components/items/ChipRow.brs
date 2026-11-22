@@ -60,7 +60,6 @@ sub onChips()
             edge.uri = "pkg:/images/ui/edge-round.png"
         end if
         group.translation = [x, 0]
-        group.scaleRotateCenter = [width / 2, height / 2]
         back.width = width
         back.height = height
         edge.width = width
@@ -144,8 +143,9 @@ function makeNumber(group as object, chip as object) as object
     return { back: back, text: text, width: width, gap: gap, tone: tone }
 end function
 
-' Focused, the accent fills the chip, its edge goes and it grows to 1.05;
-' its icon and words go dark on it.
+' Focused, the accent fills the chip and its edge goes; its icon and words
+' go dark on it. It keeps its size: a button growing as focus came made
+' the row jump.
 sub onLook()
     focused = m.top.hasFocus()
     look = m.top.look
@@ -172,11 +172,6 @@ sub onLook()
         chip.edge.visible = look = "buttons" and not lit
         chip.label.color = words
         if chip.icon <> invalid then chip.icon.blendColor = words
-        if lit
-            chip.group.scale = [1.05, 1.05]
-        else
-            chip.group.scale = [1, 1]
-        end if
         if chip.number <> invalid then lookNumber(chip.number, lit, words)
         if chip.caption <> invalid then chip.caption.visible = lit
     end for
