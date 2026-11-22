@@ -20,16 +20,7 @@ sub onContent()
     m.subtitle.text = request.subtitle
     m.who.text = request.who
     m.line.text = request.line
-    ' The mark of news pushes the title along.
-    news = request.unseen = true
-    m.unseen.visible = news
-    if news
-        m.title.translation = [184, 14]
-        m.title.width = 896
-    else
-        m.title.translation = [160, 14]
-        m.title.width = 920
-    end if
+    m.unseen.visible = request.unseen = true
     m.stage.color = request.stageColor
     m.stage.progress = request.progress
     m.stage.text = request.stageText
@@ -57,6 +48,6 @@ sub onWidth()
     if w <= 0 then return
     m.top.findNode("background").width = w
     who = m.top.findNode("who")
-    who.translation = [w - 28 - who.width, 20]
+    who.translation = [w - 28 - who.width, 16]
     m.top.findNode("line").width = w - 188
 end sub

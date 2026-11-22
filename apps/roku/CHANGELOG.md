@@ -64,6 +64,8 @@ describes how they are made.
   screen's foot, and a person without a photo shows their initials.
 - An album's, a playlist's and a show's episodes page keep their line
   and buttons right under the title, whether it takes one line or two.
+- Requests' rows leave room for the hint under them, and the mark of news
+  sits before a title instead of pushing it along.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 
