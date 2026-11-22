@@ -1,9 +1,14 @@
 {
   "title": "设置",
-  "server": "服务器",
-  "signedInAs": "登录身份",
+  "categories": {
+    "profile": "配置文件",
+    "playback": "播放",
+    "server": "服务器",
+    "diagnostics": "诊断",
+    "about": "关于"
+  },
+  "serverValue": "这台 Roku 设备使用的服务器",
   "thisRoku": "这台 Roku 设备",
-  "app": "Pley Roku 版",
   "tmdb": "本产品使用 TMDB API，但未获得 TMDB 的认可或认证。",
   "web": "在网页上管理你的账户",
   "webHint": "在同一网络的手机或电脑上管理名称、头像、密码、PIN、两步验证、设备和应用。",
@@ -32,7 +37,10 @@
   "changeOnWeb": "在 {{address}} 的网页上更改这些设置。",
   "readOnly": "此服务器不允许应用更改这些设置：请在 {{address}} 的网页上更改。",
   "diagnostics": "诊断",
+  "openDiagnostics": "打开诊断",
+  "openDiagnosticsValue": "这台 Roku 设备可播放的内容",
   "licences": "开源许可证",
+  "version": "版本",
   "diagnosticsPage": {
     "app": "Pley Roku 版 {{version}}",
     "plays": "可播放的内容"

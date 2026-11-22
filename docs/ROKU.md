@@ -734,20 +734,34 @@ decline, and the requests' settings (the web).
 
 ### Settings
 
-Settings has Language ([Language](#language)), the audio and subtitle
-defaults, Quality, Play the next episode by itself (a switch; Up Next
-counts down only while it is on), Watch history, Switch profile, Always
-start as, Sort libraries, Diagnostics, Open-source licenses, Switch server
-and Sign out, in rows as the Android TV app's: an icon, the label and the
-current value under it, a chevron on a row that opens something, the
-accent filling the focused one, square as menus are. A row's choices open in a side panel at
-the right, the current one checked. Diagnostics shows this Roku and what
-it tells the server it plays (`capsLines` in
-`components/lib/Caps.brs`), and Open-source licenses shows Pley's license
-and the notices of what the package bundles. At the right are the server,
-the profile, this Roku and the app's version, where the account is
-managed on the web (the server's address and `/account`), and TMDB's
-notice.
+Settings is in two panes, as the Android TV app's and the Roku's own: the
+categories at the left, the focused one's rows at the right. Right or OK
+on a category goes into its rows, Left or Back comes out again.
+
+- **Profile:** the profile's picture or initial, its name and the
+  server's address on top; then Switch profile, the audio and subtitle
+  defaults, Language ([Language](#language)), Watch history, Sort
+  libraries, Always start as, and Manage your account on the web, whose
+  address (the server's, and `/account`) OK shows with what is managed
+  there.
+- **Playback:** Quality, and Play the next episode by itself (a switch;
+  Up Next counts down only while it is on).
+- **Server:** the server's name and address, and Switch server.
+- **Diagnostics:** the page that shows this Roku and what it tells the
+  server it plays (`capsLines` in `components/lib/Caps.brs`), with the
+  Roku's name under it.
+- **About:** the app's version, Open-source licenses (Pley's license and
+  the notices of what the package bundles), and TMDB's notice.
+- **Sign out:** OK asks first.
+
+Android TV's Audio and Subtitles & display are the Roku's own settings,
+so the Roku has no such categories. Rows are as the Android TV app's: an
+icon, the label and the current value under it, a chevron on a row that
+opens something, the accent filling the focused one, square as menus
+are; the category whose rows have the focus keeps a muted fill. A row's
+choices open in a side panel at the right, the current one checked. Each
+category's rows are a list of their own, filled when what they show
+changes, so moving between categories only shows another list.
 
 Always start as, for a household of several profiles, names the profile
 the app starts as, or Profile used last. As on the other TVs, the app

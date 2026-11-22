@@ -11,6 +11,8 @@ sub init()
     m.value.font = uiType("caption")
     m.danger = false
     m.checked = false
+    m.category = false
+    m.heard = invalid
 end sub
 
 sub onContent()
@@ -21,6 +23,15 @@ sub onContent()
     m.icon.uri = "pkg:/images/ui/icon-" + row.icon + "-40.png"
     m.danger = row.hasField("danger") and row.danger = true
     m.checked = row.hasField("checked") and row.checked = true
+    m.category = row.hasField("category") and row.category = true
+    ' A list's item hears no change to its content's fields: held, which
+    ' the screen sets as the focus comes and goes, is listened to.
+    if m.heard <> invalid then m.heard.unobserveFieldScoped("held")
+    m.heard = invalid
+    if m.category
+        row.observeFieldScoped("held", "onFocus")
+        m.heard = row
+    end if
     trailing = ""
     if row.hasField("trailing") then trailing = row.trailing
     m.chevron.visible = trailing = "chevron"
@@ -39,7 +50,7 @@ sub onLayout()
     m.pill.height = h - 8
     m.icon.translation = [28, (h - 40) / 2]
     textWidth = w - 92 - 28
-    if m.chevron.visible then textWidth = textWidth - 52
+    if m.chevron.visible or m.category then textWidth = textWidth - 52
     if m.switch.visible then textWidth = textWidth - 92
     m.label.width = textWidth
     m.value.width = textWidth
@@ -62,7 +73,15 @@ end sub
 
 sub onFocus()
     focused = m.top.itemHasFocus and m.top.listHasFocus
-    m.pill.visible = focused
+    row = m.top.itemContent
+    held = m.category and not focused and row <> invalid and row.held = true
+    m.pill.visible = focused or held
+    if m.category then m.chevron.visible = focused or held
+    if held
+        m.pill.blendColor = "0x262B35FF"
+    else
+        m.pill.blendColor = "0x38BDF8FF"
+    end if
     if focused
         m.label.color = "0x16191EFF"
         m.value.color = "0x16191ECC"

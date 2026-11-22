@@ -1,9 +1,14 @@
 {
   "title": "Settings",
-  "server": "Server",
-  "signedInAs": "Signed in as",
+  "categories": {
+    "profile": "Profile",
+    "playback": "Playback",
+    "server": "Server",
+    "diagnostics": "Diagnostics",
+    "about": "About"
+  },
+  "serverValue": "The server this Roku uses",
   "thisRoku": "This Roku",
-  "app": "Pley for Roku",
   "tmdb": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
   "web": "Manage your account on the web",
   "webHint": "Name, picture, password, PIN, two-step, devices and apps, from a phone or computer on the same network.",
@@ -32,7 +37,10 @@
   "changeOnWeb": "Change these on the web, at {{address}}.",
   "readOnly": "This server doesn't let the app change these: change them on the web, at {{address}}.",
   "diagnostics": "Diagnostics",
+  "openDiagnostics": "Open diagnostics",
+  "openDiagnosticsValue": "What this Roku plays",
   "licences": "Open-source licenses",
+  "version": "Version",
   "diagnosticsPage": {
     "app": "Pley for Roku {{version}}",
     "plays": "What it plays"

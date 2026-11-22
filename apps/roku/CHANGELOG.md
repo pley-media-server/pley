@@ -28,9 +28,12 @@ describes how they are made.
 - The rail is at the left of every page, not only Home, as on Android TV:
   Left opens it from a page's edge, and an entry chosen there switches
   pages. Libraries show seven posters a row.
-- Settings looks as on Android TV: rows with an icon and the current value
-  under the label, a switch for the next episode, and choices in a side
-  panel. Diagnostics and the licenses are rows of the list.
+- Settings looks as on Android TV: categories at the left (Profile,
+  Playback, Server, Diagnostics, About, Sign out) and the focused one's
+  rows at the right, with an icon and the current value under the label,
+  a switch for the next episode, and choices in a side panel. Profile has
+  your picture and name on top, and Manage your account on the web shows
+  where and what.
 - Discover's hero looks as Home's: its backdrop over the whole screen, its
   facts in a line with the star, Request or Open as a pill and Details as
   a round button. Rows of posters leave room under their titles, which are
@@ -84,8 +87,7 @@ describes how they are made.
 - A title's page scrolls at 60 fps, its rows and its Media info alike (40
   before): what a panel covers isn't drawn, and under the rows the
   backdrop alone is dimmed.
-- Settings' TMDB credit and the player panel's hint end inside the
-  title-safe area on two lines.
+- The player panel's hint ends inside the title-safe area on two lines.
 - A movie or episode started and not finished says what is left on its
   tile ("1 h 14 min left", "S1 E3 · 18 min left") instead of its year, as
   on Android TV.

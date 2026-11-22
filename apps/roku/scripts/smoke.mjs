@@ -331,7 +331,7 @@ async function openFromMenu(index, pattern, what, then = async () => {}) {
 }
 
 // From Settings: Sign out, and Sign out again in the dialog. Sign out is
-// the last row.
+// the last category, and OK on it asks.
 async function signOut() {
   for (let attempt = 0; attempt < 3; attempt++) {
     const since = mark();
@@ -1243,40 +1243,49 @@ async function walk() {
   await settle();
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   shoot("settings");
-  // Diagnostics and the licenses, before Switch server and Sign out, the
-  // last rows; then up to Language, the first.
-  await press("down", 20);
-  await press("up", 3);
-  await press("select"); // Diagnostics
+  // The categories at the left (Profile, Playback, Server, Diagnostics,
+  // About, Sign out), OK going into one's rows at the right. Diagnostics'
+  // first row opens its page; About's second, the licenses.
+  await press("down", 3);
+  await press("select"); // Diagnostics' rows
+  await press("select"); // Open diagnostics
   pages.diagnostics = await drawnWithin(3000, pageTextDrawn);
   shoot("diagnostics");
   await press("back");
   await settle();
+  await press("left"); // the categories
+  await press("down");
+  await press("select"); // About's rows
   await press("down");
   await press("select"); // Open-source licenses
   pages.licences = await drawnWithin(3000, pageTextDrawn);
   shoot("licences");
   await press("back");
   await settle();
-  await press("up", 20);
-  // Quality, after Language, Audio language and Subtitles: Automatic
-  // checked, then 8 Mbps 1080p chosen, kept on the Roku.
-  await press("down", 3);
-  await press("select");
+  // Playback's Quality: Automatic checked, then 8 Mbps 1080p chosen, kept
+  // on the Roku.
+  await press("left");
+  await press("up", 3);
+  await press("select"); // Playback's rows
+  await press("select"); // Quality
   await sleep(500);
   shoot("settings-quality");
   await press("down", 5);
   await press("select");
   await settle();
-  // Watch history, two rows down: its plays; Back to Settings.
+  // Profile's Watch history, after Switch profile, Audio language,
+  // Subtitles and Language: its plays; Back to Settings.
+  await press("left");
+  await press("up");
+  await press("select"); // Profile's rows
   since = mark();
-  await press("down", 2);
+  await press("down", 4);
   await press("select");
   await waitFor(/^GET \/api\/history\?/, since, "the watch history");
   shoot("history");
   await press("back");
   await settle();
-  // Always start as, after Switch profile (a household of two): Anna
+  // Always start as, after Sort libraries (a household of two): Anna
   // chosen, kept on the Roku.
   await press("down", 2);
   await press("select");
@@ -1285,11 +1294,11 @@ async function walk() {
   shoot("settings-start-as");
   await press("select");
   await settle();
-  // Sort libraries, next: Movies lifted and put after TV Shows, saved at
-  // once; then the server's order again, which the rest of the walk
+  // Sort libraries, before it: Movies lifted and put after TV Shows, saved
+  // at once; then the server's order again, which the rest of the walk
   // expects.
   since = mark();
-  await press("down");
+  await press("up");
   await press("select"); // Sort libraries
   await waitFor(/^GET \/api\/libraries$/, since, "the libraries to sort");
   await press("select"); // lifts Movies
@@ -1301,16 +1310,19 @@ async function walk() {
   await press("select"); // Use the server's order
   await waitFor(/^DELETE \/api\/me\/libraries\/order$/, since, "the server's order again");
   await press("back"); // Settings
+  await press("back"); // its categories
   since = mark();
   await press("back"); // Home, which asks for its libraries again
   await waitFor(/^GET \/api\/libraries$/, since, "Home's libraries after sorting");
   await press("right"); // the rows, where the next steps start
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
-  // Language, the first row: Español for the account, the screen in
-  // Spanish once the server has it, and Home asked for again in it, its
-  // rows' titles being the server's; then Automatic again, which the rest
-  // of the walk expects.
+  // Profile's Language, its fourth row: Español for the account, the
+  // screen in Spanish once the server has it, and Home asked for again in
+  // it, its rows' titles being the server's; then Automatic again, which
+  // the rest of the walk expects.
   await settle();
+  await press("select"); // Profile's rows
+  await press("down", 3);
   since = mark();
   await press("select"); // Language: its choices, Automatic checked
   await sleep(500);
@@ -1318,6 +1330,7 @@ async function walk() {
   await press("select");
   await waitFor(/^PUT \/api\/me\/language$/, since, "the account's language saved");
   shoot("settings-language");
+  await press("back"); // the categories
   since = mark();
   await press("back"); // Home, made again in Spanish
   await waitFor(/^GET \/api\/hubs\/home$/, since, "Home in Spanish");
@@ -1326,6 +1339,8 @@ async function walk() {
   await press("right");
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   await settle();
+  await press("select"); // Profile's rows
+  await press("down", 3);
   since = mark();
   await press("select"); // Language, Español checked
   await sleep(500);
@@ -1345,6 +1360,7 @@ async function walk() {
   await press("select");
   await waitFor(/^PUT \/api\/me\/language$/, since, "Français answered 404");
   await settle();
+  await press("back"); // the categories
   since = mark();
   await press("back"); // Home, made again in French
   await waitFor(/^GET \/api\/hubs\/home$/, since, "Home in French");
@@ -1352,17 +1368,20 @@ async function walk() {
   await press("right");
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   await settle();
+  await press("select"); // Profile's rows
+  await press("down", 3);
   await press("select"); // Language, Français checked
   await sleep(500);
   await press("up", 2); // Automatic
   await press("select");
   await settle();
   fixture.languageRoute = true;
-  // Subtitles: from "Only for foreign dialogue" to "Always", saved at once
-  // with the languages left as they were; Subtitle language shows then.
+  // Subtitles, above Language: from "Only for foreign dialogue" to
+  // "Always", saved at once with the languages left as they were; Subtitle
+  // language shows then.
   await settle();
   since = mark();
-  await press("down", 2);
+  await press("up");
   await press("select"); // Subtitles: its choices, Forced focused
   await sleep(500);
   await press("down", 2);
@@ -1372,10 +1391,10 @@ async function walk() {
   language.afterRefused = fixture.requests.slice(since).find((r) => r.path === "/api/me/track-defaults")?.language ?? "";
   await settle();
   shoot("settings-saved");
-  // Switch profile, five rows down: "Who's watching?", Ben chosen, and
-  // Home again as Ben, the old tokens stopped.
+  // Switch profile, Profile's first row: "Who's watching?", Ben chosen,
+  // and Home again as Ben, the old tokens stopped.
   since = mark();
-  await press("down", 5);
+  await press("up", 2);
   await press("select");
   await waitFor(/^GET \/api\/oauth\/profiles$/, since, "the household's profiles");
   shoot("profiles");

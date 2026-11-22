@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Settings: the server and the profile this TV uses; the language, the
-     profile's audio
-     and subtitle defaults and this Roku's quality, chosen in a panel at
-     the right, and whether the next episode plays by itself; the watch
-     history, switch profile, the profile to always start as, sort the
-     libraries, switch server or sign out. Under the app's version, TMDB's
-     notice, then where the account is managed on the web; at the right,
-     Diagnostics and the open-source licenses. -->
+<!-- Settings in two panes, as the Android TV app's and Roku's own: the
+     categories at the left (Profile, Playback, Server, Diagnostics, About,
+     Sign out), the focused one's rows at the right. Profile has who is
+     signed in on top, then switch profile, the profile's audio and subtitle
+     defaults, the language, the watch history, sort the libraries, the
+     profile to always start as and where the account is managed; Playback
+     this Roku's quality and next episode; Server the server and switch
+     server; Diagnostics the page and this Roku; About the version, the
+     open-source licenses and TMDB's notice. A row's choices open in a
+     panel at the right. -->
 <component name="SettingsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -33,28 +35,28 @@
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <children>
         <Label id="title" translation="[192, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-        <!-- The rows, as the Android TV app's: Language, the profile's
-             defaults, this Roku's quality and next episode, Watch history,
-             Switch profile, Always start as, Sort libraries, Diagnostics,
-             the licenses, Switch server and Sign out; nine in view. -->
-        <MarkupList id="rows" translation="[168, 150]" itemComponentName="SettingRow" itemSize="[792, 96]" numRows="9" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
-        <!-- At the right: the server, the profile, this Roku and the app,
-             where the account is managed (Roku has no QR code of its own,
-             so the address alone), what a choice said, and TMDB's credit
-             for Discover's titles and pictures. -->
-        <Label id="serverLabel" translation="[1056, 150]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="server" translation="[1056, 184]" width="768" color="0xEBEBEBFF" font="font:MediumSystemFont" />
-        <Label id="profileLabel" translation="[1056, 250]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="profile" translation="[1056, 284]" width="768" color="0xEBEBEBFF" text="…" font="font:MediumSystemFont" />
-        <Label id="deviceLabel" translation="[1056, 350]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="device" translation="[1056, 384]" width="768" color="0xEBEBEBFF" font="font:MediumSystemFont" />
-        <Label id="appLabel" translation="[1056, 450]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="version" translation="[1056, 484]" width="768" color="0xEBEBEBFF" font="font:MediumSystemFont" />
-        <Label id="webLabel" translation="[1056, 566]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="web" translation="[1056, 600]" width="768" color="0x7DD3FCFF" font="font:MediumSystemFont" />
-        <Label id="webHint" translation="[1056, 652]" width="768" wrap="true" maxLines="3" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="message" translation="[1056, 790]" width="768" wrap="true" maxLines="4" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <Label id="tmdb" translation="[1056, 936]" width="768" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <!-- What a choice said, at the top right, as the Android TV app's. -->
+        <Label id="message" translation="[1024, 56]" width="800" height="72" horizAlign="right" vertAlign="center" maxLines="1" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        <MarkupList id="categories" translation="[168, 150]" itemComponentName="SettingRow" itemSize="[536, 88]" itemSpacing="[0, 4]" numRows="6" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <!-- Profile's head: the profile's picture, or its initial on its
+             color, its name and the server's address. -->
+        <Group id="header" translation="[792, 150]" visible="false">
+            <Poster id="face" width="96" height="96" uri="pkg:/images/ui/face.png" blendColor="0x2E3440FF" />
+            <Label id="initial" width="96" height="96" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <MaskGroup maskUri="pkg:/images/ui/face.png" maskSize="[96, 96]">
+                <Poster id="picture" width="96" height="96" loadWidth="96" loadHeight="96" loadDisplayMode="scaleToZoom" />
+            </MaskGroup>
+            <Label id="name" translation="[128, 8]" width="904" maxLines="1" color="0xEBEBEBFF" font="font:MediumBoldSystemFont" />
+            <Label id="address" translation="[128, 52]" width="904" maxLines="1" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        </Group>
+        <!-- Sign out's words before its row. -->
+        <Label id="intro" translation="[792, 166]" width="1032" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallSystemFont" visible="false" />
+        <!-- Each category's rows in a list of its own, the focused
+             category's shown (SettingsScreen.brs makes them). -->
+        <Group id="panes" />
+        <!-- Under the rows: this Roku's name in Diagnostics, TMDB's credit
+             for Discover's titles and pictures in About. -->
+        <Label id="notes" translation="[792, 0]" width="1032" wrap="true" maxLines="3" color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <!-- The choices of one row in a side panel, as the Android TV app's
              (TvChoicePanel) and the player's: 720 wide from the right edge
              over the page dimmed, the current choice checked, the focused
