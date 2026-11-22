@@ -6,6 +6,9 @@ sub init()
     m.posterWidth = m.top.findNode("posterWidth")
     m.posterHeight = m.top.findNode("posterHeight")
     m.posterPlace = m.top.findNode("posterPlace")
+    m.mask = m.top.findNode("mask")
+    m.maskSizer = m.top.findNode("maskSizer")
+    m.maskPlace = m.top.findNode("maskPlace")
     m.imageWidth = 0
     m.imageHeight = 0
     m.well = m.top.findNode("well")
@@ -93,6 +96,10 @@ sub onContent()
     end for
     ' The scene's agent carries the token; it changes with each refresh.
     m.poster.setHttpAgent(m.top.getScene().getHttpAgent())
+    if m.loadWatched <> true
+        m.loadWatched = true
+        m.poster.observeField("loadStatus", "onLoaded")
+    end if
     onLayout()
     ' A tile of words alone (Request more seasons, See all), bound where a
     ' picture was, shows none: a Poster keeps its last bitmap when its uri
@@ -119,6 +126,18 @@ sub onLayout()
         radius = 8
         if m.person then radius = w / 2
         m.round.borderRadius = [radius]
+        ' A person's picture takes the mask instead (onLoaded keeps the
+        ' others' shapes right too).
+        if m.person
+            m.poster.effect = invalid
+        else
+            m.poster.effect = m.round
+        end if
+    end if
+    if m.person
+        m.mask.maskUri = "pkg:/images/ui/circle.png"
+    else
+        m.mask.maskUri = ""
     end if
     m.hairline.visible = not m.person
     if m.person
@@ -139,6 +158,8 @@ sub onLayout()
     end for
     m.wellPlace.keyValue = [[0, 0], grownPlace]
     m.posterPlace.keyValue = [[0, 0], grownPlace]
+    m.maskSizer.keyValue = [[w, imageHeight], [grownWidth, grownHeight]]
+    m.maskPlace.keyValue = [[0, 0], grownPlace]
     growTo(m.art.scale[0] > 1)
     ' Decoded at the size it's drawn: small textures for small devices.
     m.poster.loadWidth = w
@@ -270,4 +291,18 @@ sub growTo(grown as boolean)
     m.poster.width = w
     m.poster.height = h
     m.poster.translation = place
+    m.mask.maskSize = [w, h]
+    m.mask.maskOffset = place
+end sub
+
+' A picture of another shape than its tile (a scope still in a 16:9 tile)
+' leaves OS 16's Effect, which drew it stretched: its corners go square,
+' the picture zoomed and cropped as it should be.
+sub onLoaded()
+    if m.poster.loadStatus <> "ready" or m.person or m.round = invalid or not m.round.supported then return
+    bw = m.poster.bitmapWidth
+    bh = m.poster.bitmapHeight
+    if bw <= 0 or bh <= 0 or m.imageHeight <= 0 then return
+    shape = (bw / bh) / (m.imageWidth / m.imageHeight)
+    if shape > 1.03 or shape < 0.97 then m.poster.effect = invalid
 end sub

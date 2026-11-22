@@ -21,7 +21,7 @@
         <field id="rowHasFocus" type="boolean" value="true" onChange="onFocus" />
         <field id="rowListHasFocus" type="boolean" value="true" onChange="onFocus" />
         <field id="gridHasFocus" type="boolean" value="true" onChange="onFocus" />
-        <field id="focusPercent" type="float" alias="growth.fraction,wellWidth.fraction,wellHeight.fraction,wellPlace.fraction,posterWidth.fraction,posterHeight.fraction,posterPlace.fraction,ringFade.fraction" />
+        <field id="focusPercent" type="float" alias="growth.fraction,wellWidth.fraction,wellHeight.fraction,wellPlace.fraction,posterWidth.fraction,posterHeight.fraction,posterPlace.fraction,maskSizer.fraction,maskPlace.fraction,ringFade.fraction" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/Tile.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
@@ -30,7 +30,12 @@
         <Group translation="[24, 30]">
             <Rectangle id="well" color="0x262B35FF" />
             <Label id="fallback" color="0xA1A9B6FF" horizAlign="center" vertAlign="center" wrap="true" maxLines="4" />
-            <Poster id="poster" loadDisplayMode="scaleToZoom" />
+            <!-- A person's picture is cut round by a mask: OS 16's Effect draws
+                 a picture stretched to its Poster, where a mask leaves the
+                 picture zoomed and cropped. The mask is off for the others. -->
+            <MaskGroup id="mask">
+                <Poster id="poster" loadDisplayMode="scaleToZoom" />
+            </MaskGroup>
             <!-- What is on the artwork grows with it, as a group. -->
             <Group id="art">
                 <Poster id="hairline" uri="pkg:/images/ui/hairline.9.png" />
@@ -61,6 +66,8 @@
         <FloatFieldInterpolator id="posterWidth" key="[0, 1]" keyValue="[0, 0]" fieldToInterp="poster.width" />
         <FloatFieldInterpolator id="posterHeight" key="[0, 1]" keyValue="[0, 0]" fieldToInterp="poster.height" />
         <Vector2DFieldInterpolator id="posterPlace" key="[0, 1]" keyValue="[[0, 0], [0, 0]]" fieldToInterp="poster.translation" />
+        <Vector2DFieldInterpolator id="maskSizer" key="[0, 1]" keyValue="[[0, 0], [0, 0]]" fieldToInterp="mask.maskSize" />
+        <Vector2DFieldInterpolator id="maskPlace" key="[0, 1]" keyValue="[[0, 0], [0, 0]]" fieldToInterp="mask.maskOffset" />
         <FloatFieldInterpolator id="ringFade" key="[0, 1]" keyValue="[0, 1]" fieldToInterp="ring.opacity" />
     </children>
 </component>

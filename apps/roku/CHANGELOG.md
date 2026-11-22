@@ -49,6 +49,8 @@ describes how they are made.
 
 ### Fixed
 
+- People's pictures in circles, and stills of another shape than their
+  tile, are cropped, not squeezed: Roku OS 16 drew them stretched.
 - Search's groups line up under their titles, a channel's cards as the
   titles' tiles, the same room under each title.
 - On Roku OS 16, Search showed Discover's titles as Live TV channels, and
