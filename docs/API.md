@@ -4855,13 +4855,15 @@ on another administrator's account, but for the `GET`s
   - `clients`: who Pley is sending to now, the busiest first (50 at most),
     `sent` in bytes a second over the last 10 seconds. `user` and `device`
     are the account and device a request signed in as ("Chrome on
-    Windows"), `null` for what came with no sign-in Pley read (an app of
-    the compatibility APIs, say), which then counts for the signed-in
-    client at the same `address` if there is one. An account's requests
-    from one address count as one client, named after its busiest device
-    (a TV's app and its player). `address` is the client's, through
-    proxies on this computer or network. Every field is `null` for the
-    count past 512 clients, which they share;
+    Windows"; an app of the compatibility APIs by its token's account and
+    the device it names, as Now playing shows it), `null` for what came
+    with no sign-in Pley read (the web app's files), which then counts for
+    the signed-in client at the same `address` if there is one. An
+    account's requests from one address count as one client, named after
+    its busiest device that has a name (a TV's app and its player).
+    `address` is the client's, through proxies on this computer or
+    network. Every field is `null` for the count past 512 clients, which
+    they share;
   - "Pley" is the server and every process it started (a managed
     transcoder and its FFmpegs);
   - `available` is false where the system can't be sampled (Windows, Linux

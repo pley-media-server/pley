@@ -269,9 +269,9 @@ impl Sampler {
 /// busiest first. An account's requests from one address are one client,
 /// named after its busiest device: one device can go by two names, the
 /// app's own on its API requests ("Pley for Roku") and the one it gave its
-/// playback on its player's. A request whose sign-in nobody read (an app of
-/// the compatibility APIs, the web app's files) counts for the busiest
-/// signed-in client at its address, if there is one.
+/// playback on its player's, or by none, a player fetching a stream itself.
+/// A request whose sign-in nobody read (the web app's files) counts for
+/// the busiest signed-in client at its address, if there is one.
 fn client_rates(totals: &VecDeque<(Instant, HashMap<Client, u64>)>) -> Vec<ClientRate> {
     let (Some((first, oldest)), Some((last, newest))) = (totals.front(), totals.back()) else { return Vec::new() };
     let seconds = last.duration_since(*first).as_secs_f64();
@@ -296,7 +296,12 @@ fn client_rates(totals: &VecDeque<(Instant, HashMap<Client, u64>)>) -> Vec<Clien
                 })
             });
             match joins {
-                Some(i) => listed[i].1 += bytes,
+                Some(i) => {
+                    listed[i].1 += bytes;
+                    if signed_in && listed[i].0.device.is_none() {
+                        listed[i].0 = client;
+                    }
+                }
                 None => listed.push((client, bytes)),
             }
         }
@@ -894,6 +899,17 @@ mod tests {
             client_rates(&two_names),
             [ClientRate { client: ana_living_room, sent: 1_200_200 }, ClientRate { client: bo_phone, sent: 100_000 }],
         );
+
+        // A Jellyfin app's player fetches the stream without naming a
+        // device: the line takes its API requests' name.
+        let cy_stream = client(Some("cy"), None, "198.51.100.20");
+        let cy_app = client(Some("cy"), Some("Pixel 8"), "198.51.100.20");
+        let unnamed: VecDeque<(Instant, HashMap<Client, u64>)> = [
+            (start, HashMap::new()),
+            (start + Duration::from_secs(10), [(cy_stream, 6_000_000), (cy_app.clone(), 20_000)].into()),
+        ]
+        .into();
+        assert_eq!(client_rates(&unnamed), [ClientRate { client: cy_app, sent: 602_000 }]);
 
         // One forgotten and counted again from 0 since the oldest totals
         // still shows what it was sent since.

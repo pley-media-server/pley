@@ -1,9 +1,9 @@
 //! What pley sends its clients, for the dashboard's network chart and its
 //! list of who is using the connection: each response's body, counted as it
 //! goes out, by who asked for it. That is the account and device a request
-//! signed in as ([`Slot`], which the sign-in fills), or else only the
-//! address it came from (a TV's player on a keyed address, an app of the
-//! compatibility APIs).
+//! signed in as ([`Slot`], which the sign-in fills: Pley's own, a keyed
+//! address's session, a compatibility API's token), or else only the
+//! address it came from (the web app's files).
 //!
 //! Every listener goes through [`crate::http::serve`], which counts; the
 //! headers and what TCP adds aren't counted, which is a few hundred bytes a
@@ -49,6 +49,19 @@ impl Slot {
         if named.is_none() {
             *named = Some((user.to_owned(), device()));
         }
+    }
+
+    /// The account and device it names so far.
+    pub fn named(&self) -> Option<(String, String)> {
+        self.0.lock().clone()
+    }
+}
+
+/// Names the slot of a request with these `extensions`, when it has one
+/// (every request [`crate::http::serve`] takes).
+pub fn name(extensions: &axum::http::Extensions, user: &str, device: impl FnOnce() -> String) {
+    if let Some(slot) = extensions.get::<Arc<Slot>>() {
+        slot.name(user, device);
     }
 }
 

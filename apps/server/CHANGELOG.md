@@ -22,7 +22,8 @@ describes how they are made.
 - A Live TV source can list its groups A to Z instead of in its provider's
   order, on every app: Sort groups A to Z, in the source's settings.
 - The dashboard charts the network next to the CPU and memory, and lists who
-  Pley is sending to and how fast.
+  Pley is sending to and how fast, apps of the Plex and Jellyfin APIs by
+  their account and device.
 
 ### Fixed
 

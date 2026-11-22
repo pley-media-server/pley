@@ -6,10 +6,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 
-use axum::Json;
 use axum::extract::{Path, Request, State};
 use axum::http::{HeaderMap, HeaderValue, header};
 use axum::response::{IntoResponse, Response};
+use axum::{Extension, Json};
 use parking_lot::Mutex;
 use pley_transcoder_api::{JobStatus, VideoMode};
 
@@ -697,6 +697,7 @@ pub async fn universal_file(
     State(state): State<AppState>,
     SourceIp(from): SourceIp,
     Path((session_id, file)): Path<(String, String)>,
+    slot: Option<Extension<Arc<crate::traffic::Slot>>>,
 ) -> PlexResult<Response> {
     let session = state.sessions.get(&session_id).ok_or(PlexError::NotFound)?;
     // Players fetch these without a token: the session's id (128 random
@@ -710,6 +711,9 @@ pub async fn universal_file(
         .await
         .filter(|user| user.id == session.user_id)
         .ok_or(PlexError::NotFound)?;
+    if let Some(Extension(slot)) = slot {
+        slot.name(&user.username, || session.device.clone().unwrap_or_default());
+    }
     crate::api::playback::hls_file(State(state), user, Path((session_id, file))).await.map_err(PlexError::from)
 }
 
@@ -717,8 +721,9 @@ pub async fn universal_file_flat(
     state: State<AppState>,
     from: SourceIp,
     path: Path<(String, String)>,
+    slot: Option<Extension<Arc<crate::traffic::Slot>>>,
 ) -> PlexResult<Response> {
-    universal_file(state, from, path).await
+    universal_file(state, from, path, slot).await
 }
 
 /// `decision`: what `start.m3u8` would do — always an HLS stream here.
