@@ -84,6 +84,8 @@ describes how they are made.
 - A title's page scrolls at 60 fps, its rows and its Media info alike (40
   before): what a panel covers isn't drawn, and under the rows the
   backdrop alone is dimmed.
+- Settings' TMDB credit and the player panel's hint end inside the
+  title-safe area on two lines.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

@@ -54,7 +54,7 @@
         <Label id="web" translation="[1056, 600]" width="768" color="0x7DD3FCFF" font="font:MediumSystemFont" />
         <Label id="webHint" translation="[1056, 652]" width="768" wrap="true" maxLines="3" color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <Label id="message" translation="[1056, 790]" width="768" wrap="true" maxLines="4" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <Label id="tmdb" translation="[1056, 960]" width="768" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="tmdb" translation="[1056, 936]" width="768" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <!-- The choices of one row in a side panel, as the Android TV app's
              (TvChoicePanel) and the player's: 720 wide from the right edge
              over the page dimmed, the current choice checked, the focused
