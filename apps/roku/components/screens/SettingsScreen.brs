@@ -111,7 +111,7 @@ sub showCategories()
     for each key in m.categoryKeys
         label = t("settings.rows.signOut")
         if key <> "signOut" then label = t("settings.categories." + key)
-        items.Push({ title: label, description: "", icon: icons[key], trailing: "", checked: false, danger: key = "signOut", category: true, held: false })
+        items.Push({ title: label, description: "", icon: icons[key], trailing: "", checked: false, danger: key = "signOut", isCategory: true, held: false })
     end for
     at = m.categories.itemFocused
     m.categories.content = nodesContent(items)
@@ -327,7 +327,7 @@ end sub
 ' A row: what it does, its label, its value ("" for none) and its icon; it
 ' opens something (a chevron) unless said otherwise.
 function settingRow(action as string, label as string, value as string, icon as string) as object
-    return { action: action, title: label, description: value, icon: icon, trailing: "chevron", checked: false, danger: false, category: false }
+    return { action: action, title: label, description: value, icon: icon, trailing: "chevron", checked: false, danger: false, isCategory: false }
 end function
 
 sub onRow(event as object)

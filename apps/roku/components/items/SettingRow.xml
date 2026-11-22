@@ -3,13 +3,13 @@
      its label and under it the current value, muted; at the right a
      chevron for a row that opens something, or a switch. Focused, it fills
      with the accent and what is on it turns dark. Sign out reads red. A
-     category of Settings (category) has its chevron while it is the one
+     category of Settings (isCategory) has its chevron while it is the one
      shown, and a muted fill while the focus is on its rows (held). -->
 <component name="SettingRow" extends="Group">
     <interface>
         <!-- title, description (the value), icon, trailing ("chevron",
-             "switch" or ""), checked (the switch's), danger, category,
-             held. -->
+             "switch" or ""), checked (the switch's), danger, isCategory
+             (not category, a ContentNode field of its own), held. -->
         <field id="itemContent" type="node" onChange="onContent" />
         <field id="itemHasFocus" type="boolean" onChange="onFocus" />
         <field id="listHasFocus" type="boolean" onChange="onFocus" />

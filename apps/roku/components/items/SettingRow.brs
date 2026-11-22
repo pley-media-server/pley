@@ -23,7 +23,7 @@ sub onContent()
     m.icon.uri = "pkg:/images/ui/icon-" + row.icon + "-40.png"
     m.danger = row.hasField("danger") and row.danger = true
     m.checked = row.hasField("checked") and row.checked = true
-    m.category = row.hasField("category") and row.category = true
+    m.category = row.hasField("isCategory") and row.isCategory = true
     ' A list's item hears no change to its content's fields: held, which
     ' the screen sets as the focus comes and goes, is listened to.
     if m.heard <> invalid then m.heard.unobserveFieldScoped("held")
