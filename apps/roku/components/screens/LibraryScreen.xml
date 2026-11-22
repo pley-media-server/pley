@@ -43,12 +43,13 @@
         <Label id="message" translation="[192, 480]" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- The sort's or the filters' choices, over the right half. -->
         <Group id="panel" visible="false">
-            <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />
-            <Label id="panelTitle" translation="[1056, 56]" width="808" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <MarkupList id="choices" translation="[1056, 150]" itemComponentName="PanelRow" itemSize="[808, 64]" itemSpacing="[0, 4]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+            <Rectangle width="1920" height="1080" color="0x16191E80" />
+            <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFF" />
+            <Label id="panelTitle" translation="[1256, 72]" width="608" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <MarkupList id="choices" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <!-- The filters: each opens its choices. -->
-            <MarkupList id="menu" translation="[1056, 150]" itemComponentName="PanelRow" itemSize="[808, 64]" itemSpacing="[0, 4]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
-            <Label id="panelHint" translation="[1056, 900]" width="808" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+            <MarkupList id="menu" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+            <Label id="panelHint" translation="[1256, 912]" width="608" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         </Group>
     </children>
 </component>
