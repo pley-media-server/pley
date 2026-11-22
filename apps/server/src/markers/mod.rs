@@ -1059,7 +1059,7 @@ fn finalize(range: Option<(i64, i64)>, kind: MarkerKind, duration_ms: i64) -> Op
 /// - Key frames of true black (black, or text on black) right after the
 ///   shared audio are more of the credits: they run on to the first key
 ///   frame that isn't one. A dark scene isn't true black: it has color or
-///   grey in it.
+///   gray in it.
 /// - When something else follows them and text on black comes after that,
 ///   the shared audio was a scene's music (a game show's thinking music, a
 ///   song two episodes share): the text on black are the credits.

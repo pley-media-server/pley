@@ -3179,7 +3179,7 @@ credits follows them:
 - Shared audio that stops earlier is settled by the key frames after it,
   which the transcoder reads for those files only (as it does for credits
   no episode shares). Key frames of true black, or text on it (no color, no
-  grey), from where it stops are more of the credits, up to the first key
+  gray), from where it stops are more of the credits, up to the first key
   frame that isn't one. When something else follows and text on black comes
   after that, the shared audio was a scene's music (a game show's thinking
   music, a song two episodes share) and the text on black are the credits.
