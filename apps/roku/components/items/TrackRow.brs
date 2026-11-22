@@ -11,6 +11,9 @@ sub init()
     ' Up next's track playing (current; an album's tracks have none): in
     ' bold, in the accent.
     m.isCurrent = false
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 sub onContent()
@@ -23,8 +26,8 @@ sub onContent()
         if m.isHeading then m.heading.text = track.title
     end if
     m.isCurrent = track.hasField("current") and track.current = true
-    m.title.font = "font:SmallSystemFont"
-    if m.isCurrent then m.title.font = "font:SmallBoldSystemFont"
+    m.title.font = uiSystemFont(33)
+    if m.isCurrent then m.title.font = uiFont("bold", 30)
     m.background.visible = not m.isHeading
     m.title.visible = not m.isHeading
     m.title.text = track.title

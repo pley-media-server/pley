@@ -5,6 +5,9 @@ sub init()
     m.tag = m.top.findNode("tag")
     m.warning = false
     m.found = false
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 sub onContent()

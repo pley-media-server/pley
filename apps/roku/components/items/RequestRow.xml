@@ -9,8 +9,10 @@
         <field id="itemContent" type="node" onChange="onContent" />
         <field id="itemHasFocus" type="boolean" onChange="onFocus" />
         <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
+        <field id="width" type="float" onChange="onWidth" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/RequestRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="background" width="1728" height="184" color="0x1E222AFF" />

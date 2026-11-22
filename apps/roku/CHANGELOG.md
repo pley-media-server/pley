@@ -49,6 +49,8 @@ describes how they are made.
 - The remote's Play key plays the movie or episode in focus on Home, a
   library, a collection or a title's rows, from where it was left, as on
   Roku's own screens.
+- Lists' rows (episodes, tracks, requests, channels, profiles) are in
+  Roboto too: they kept Roku's own font.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

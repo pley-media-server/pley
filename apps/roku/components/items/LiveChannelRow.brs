@@ -14,6 +14,9 @@ sub init()
     m.current = false
     ' Logos are often see-through: the initials only where none shows.
     m.logo.observeField("loadStatus", "onLogo")
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 sub onLogo()

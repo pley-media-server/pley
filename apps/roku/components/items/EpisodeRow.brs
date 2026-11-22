@@ -7,6 +7,9 @@ sub init()
     m.title = m.top.findNode("title")
     m.subtitle = m.top.findNode("subtitle")
     m.summary = m.top.findNode("summary")
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 sub onContent()
@@ -35,4 +38,14 @@ sub onFocus()
         m.background.color = "0x1E222AFF"
         m.title.color = "0xEBEBEBFF"
     end if
+end sub
+
+' As wide as the list's items: the words take what the still leaves.
+sub onWidth()
+    w = m.top.width
+    if w <= 0 then return
+    m.top.findNode("background").width = w
+    for each id in ["title", "subtitle", "summary"]
+        m.top.findNode(id).width = w - 364
+    end for
 end sub
