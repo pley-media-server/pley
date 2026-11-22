@@ -67,7 +67,7 @@ sub onContent()
     m.shown = false
     m.wide = item.hasField("wide") and item.wide = true
     m.square = item.hasField("square") and item.square = true
-    m.person = item.hasField("kind") and item.kind = "person"
+    m.person = item.hasField("kind") and (item.kind = "person" or item.kind = "cast")
     m.progress = 0.0
     if item.hasField("progress") then m.progress = item.progress
     m.watched.visible = item.hasField("watched") and item.watched = true

@@ -247,8 +247,11 @@ sub showRows(content as dynamic)
     sizes = []
     heights = []
     for i = 0 to content.getChildCount() - 1
-        sizes.Push([220, 410])
-        heights.Push(470)
+        shape = contentRowSize(false, false)
+        first = content.getChild(i).getChild(0)
+        if first <> invalid and first.kind = "cast" then shape = contentPersonRowSize()
+        sizes.Push(shape.size)
+        heights.Push(shape.height)
     end for
     m.rows.rowItemSize = sizes
     m.rows.rowHeights = heights
