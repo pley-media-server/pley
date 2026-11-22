@@ -70,6 +70,8 @@ describes how they are made.
   end inside Roku's title-safe area.
 - Now Playing's buttons are under its scrubber, beside the cover, with Up
   next below them; a button's name no longer runs past the screen's edge.
+- "Who's watching?" shows round profiles with the accent's ring, as the
+  rail's.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

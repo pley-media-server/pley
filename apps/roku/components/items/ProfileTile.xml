@@ -11,11 +11,16 @@
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
-        <Rectangle id="ring" translation="[-8, -8]" width="236" height="236" color="0xEBEBEBFF" visible="false" />
-        <Rectangle id="face" width="220" height="220" color="0x2E3440FF" />
-        <Label id="initial" width="220" height="220" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-        <Poster id="picture" width="220" height="220" loadWidth="220" loadHeight="220" loadDisplayMode="scaleToZoom" />
-        <Label id="name" translation="[-20, 240]" width="260" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
-        <Label id="needs" translation="[-20, 290]" width="260" horizAlign="center" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <!-- A circle, as the rail's profile: focused, the accent's ring
+             around it, inside the tile (a grid cuts off what its items
+             draw outside them). -->
+        <Poster id="ring" width="244" height="244" uri="pkg:/images/ui/ring-face.png" visible="false" />
+        <Poster id="face" translation="[12, 12]" width="220" height="220" uri="pkg:/images/ui/face.png" blendColor="0x2E3440FF" />
+        <Label id="initial" translation="[12, 12]" width="220" height="220" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <MaskGroup translation="[12, 12]" maskUri="pkg:/images/ui/face.png" maskSize="[220, 220]">
+            <Poster id="picture" width="220" height="220" loadWidth="220" loadHeight="220" loadDisplayMode="scaleToZoom" />
+        </MaskGroup>
+        <Label id="name" translation="[-8, 252]" width="260" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
+        <Label id="needs" translation="[-8, 302]" width="260" horizAlign="center" color="0x8B95A5FF" font="font:SmallestSystemFont" />
     </children>
 </component>

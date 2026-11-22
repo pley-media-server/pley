@@ -13,7 +13,7 @@ end sub
 sub onContent()
     profile = m.top.itemContent
     if profile = invalid then return
-    m.face.color = profile.color
+    m.face.blendColor = profile.color
     m.initial.text = profile.initial
     m.name.text = profile.title
     m.needs.text = profile.subtitle

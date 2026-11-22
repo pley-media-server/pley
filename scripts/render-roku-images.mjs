@@ -143,6 +143,10 @@ ninePatch("ring.9.png", 64, 64, 22, `<rect x="3" y="3" width="58" height="58" rx
 // The same ring around a person's circle, as wide as a row's (192 px and
 // 12 px each side).
 add("ring-round.png", 216, 216, `<circle cx="108" cy="108" r="105" fill="none" stroke="${ACCENT_BRIGHT}" stroke-width="6"/>`);
+// A profile's face in "Who's watching?" (220 px, to tint), and its focus
+// ring, the same stroke 12 px out all round.
+add("face.png", 220, 220, `<circle cx="110" cy="110" r="110" fill="#ffffff"/>`);
+add("ring-face.png", 244, 244, `<circle cx="122" cy="122" r="119" fill="none" stroke="${ACCENT_BRIGHT}" stroke-width="6"/>`);
 
 // The line along a tile's inner edge (white at 6 %), corners 8.
 ninePatch("hairline.9.png", 32, 32, 10, `<rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2"/>`);
