@@ -74,7 +74,6 @@ export interface EngineListener {
   /** The first picture of a source shows. */
   firstFrame(): void;
   error(error: EngineError): void;
-  /** Its tracks are listed: an audio track it couldn't switch to before can be switched to now. */
   tracks(): void;
 }
 

@@ -1,16 +1,13 @@
 import type { EngineListener, EngineSource, EngineStats, EngineStatus, EngineTrack, PlayerEngine } from "pley-tv/player/engine";
 import type { EngineError } from "pley-tv/player/recovery";
 
-/**
- * AVPlay's error names as the session's recovery reads them. Its name for a format that doesn't
- * play says nothing of the audio: the message it gives with it (`message`) may.
- */
-export function avplayError(error: string, source: EngineSource | null, httpStatus: number | null, message = ""): EngineError {
+/** AVPlay's error names as the session's recovery reads them. */
+export function avplayError(error: string, source: EngineSource | null, httpStatus: number | null): EngineError {
   const e = String(error);
   if (httpStatus === 410) return { kind: "stopped", message: null };
   if (httpStatus && httpStatus >= 400) return { kind: "http", status: httpStatus, detail: e };
   if (/NOT_SUPPORTED_FILE/.test(e)) return { kind: "unsupported", audio: false, container: true, detail: e };
-  if (/NOT_SUPPORTED_FORMAT|NOT_SUPPORTED/.test(e)) return { kind: "unsupported", audio: /audio/i.test(e) || /audio/i.test(message), container: false, detail: e };
+  if (/NOT_SUPPORTED_FORMAT|NOT_SUPPORTED/.test(e)) return { kind: "unsupported", audio: /audio/i.test(e), container: false, detail: e };
   if (/CONNECTION_FAILED|NETWORK|TIMEOUT/.test(e)) return { kind: "network", detail: e };
   if (/INVALID_URI|NO_SUCH_FILE/.test(e)) return { kind: "http", status: 404, detail: e };
   if (source?.hls && /INVALID|PLAYLIST|MANIFEST/.test(e)) return { kind: "playlist", detail: e };
@@ -51,8 +48,6 @@ export class AvplayEngine implements PlayerEngine {
   private lastTime = 0;
   private generation = 0;
   private httpStatus: number | null = null;
-  /** AVPlay's message with its last error (onerrormsg comes before onerror). */
-  private errorMessage = "";
   private readonly uhd: boolean;
 
   constructor(host: HTMLElement, uhd: boolean) {
@@ -102,7 +97,6 @@ export class AvplayEngine implements PlayerEngine {
     this.wantPlay = play;
     this.shown = false;
     this.httpStatus = null;
-    this.errorMessage = "";
     this.lastTime = source.startMs;
     this.set("buffering");
     const p = this.player;
@@ -129,10 +123,9 @@ export class AvplayEngine implements PlayerEngine {
             // Already stopped.
           }
         },
-        onerror: (e) => mine === this.generation && this.listener?.error(avplayError(e, this.source, this.httpStatus, this.errorMessage)),
+        onerror: (e) => mine === this.generation && this.listener?.error(avplayError(e, this.source, this.httpStatus)),
         onerrormsg: (_id, message) => {
           if (mine !== this.generation) return;
-          this.errorMessage = String(message);
           const status = statusOf(message);
           if (status) this.httpStatus = status;
         },
@@ -164,14 +157,13 @@ export class AvplayEngine implements PlayerEngine {
         }
         const start = () => {
           if (mine !== this.generation) return;
-          // Its tracks are listed from now: the audio chosen is switched to before it plays.
-          this.listener?.tracks();
           this.set("ready");
           if (this.wantPlay) this.run(() => p.play());
           else if (!this.shown) {
             this.shown = true;
             this.listener?.firstFrame();
           }
+          this.listener?.tracks();
         };
         // AVPlay can't seek to 0; the start of a file needs no seek.
         if (source.startMs >= 1000) {
@@ -189,7 +181,7 @@ export class AvplayEngine implements PlayerEngine {
           );
         } else start();
       },
-      (e) => mine === this.generation && this.listener?.error(avplayError(String((e as { name?: string })?.name ?? e), source, this.httpStatus, this.errorMessage)),
+      (e) => mine === this.generation && this.listener?.error(avplayError(String((e as { name?: string })?.name ?? e), source, this.httpStatus)),
     );
   }
 
