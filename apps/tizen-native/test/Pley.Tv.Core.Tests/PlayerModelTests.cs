@@ -543,6 +543,22 @@ public class PlayerModelTests
     }
 
     [Fact]
+    public void An_audio_failure_before_the_player_is_ready_is_the_track_the_file_starts_with()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true));
+        // The E-AC-3 fails and is refused; the server then plays the AC-3 beside it as it is.
+        h.Source.Answer = _ => FakePlayerSource.Direct(10) with { AudioIndex = 2 };
+        h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.DoesNotContain("eac3", AudioIn(h.LastBody, "audio_codecs"));
+        // The AC-3 is switched to once the player is ready; before that, the E-AC-3 the file starts
+        // with fails again. The AC-3 isn't refused: a remux carries it alone.
+        h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.Equal("remux", h.LastBody["mode"]);
+        Assert.Contains("ac3", AudioIn(h.LastBody, "audio_passthrough"));
+    }
+
+    [Fact]
     public void Audio_is_refused_only_as_it_reached_the_TV_and_as_the_report_listed_it()
     {
         // The server converted it already: leaving out the file's codec would change nothing.

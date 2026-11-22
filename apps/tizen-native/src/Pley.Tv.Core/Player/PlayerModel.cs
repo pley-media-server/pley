@@ -767,7 +767,10 @@ public sealed class PlayerModel : IDisposable
     string? FailedAudioCodec(EngineError error, PlaybackInfo s)
     {
         if (error is not EngineError.Unsupported { Audio: true } || s.AudioConverted || source.Local || sentCaps == null) return null;
-        var played = PlayingAudio() ?? PlaybackPlan.PlayedAudio(file, s.AudioIndex);
+        // Until the player is ready, the audio chosen isn't switched to (OnOpened): the file plays the track it starts with.
+        var played = !s.Hls && !engineReady
+            ? PlaybackPlan.PlayedAudio(file, null)
+            : PlayingAudio() ?? PlaybackPlan.PlayedAudio(file, s.AudioIndex);
         return played != null && PlaybackPlan.AudioPlaysHere(played, sentCaps) ? played.Codec : null;
     }
 
