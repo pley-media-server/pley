@@ -385,7 +385,7 @@ end function
 ' playing, a pencil for Rename or a reason, a cross for Delete or Decline,
 ' a plus to ask for a title, a check to approve one).
 function contentActionChips(labels as object, actions as object) as object
-    icons = { play: "play", shuffle: "shuffle", artist: "user-round", nowPlaying: "music", rename: "pencil", delete: "x", collection: "layers", open: "play", request: "plus", pick: "plus", follow: "bookmark-plus", unfollow: "bookmark-check", approve: "check", decline: "x", declineReason: "pencil", retry: "rotate-ccw", withdraw: "x", cancel: "x", signIn: "user-round" }
+    icons = { play: "play", shuffle: "shuffle", artist: "user-round", nowPlaying: "music", rename: "pencil", delete: "x", collection: "layers", open: "play", request: "plus", pick: "plus", follow: "bookmark-plus", unfollow: "bookmark-check", approve: "check", decline: "x", declineReason: "pencil", retry: "rotate-ccw", withdraw: "x", cancel: "x", signIn: "user-round", create: "plus" }
     chips = []
     for i = 0 to labels.Count() - 1
         icon = invalid

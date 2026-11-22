@@ -80,6 +80,7 @@ describes how they are made.
   the whole screen with no hard edge, as the title pages.
 - A collection's posters start under its buttons, their names in view,
   instead of at the screen's foot.
+- Playlists' New playlist is a pill with a plus, as a page's buttons are.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 
