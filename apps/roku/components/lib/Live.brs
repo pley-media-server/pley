@@ -4,6 +4,22 @@
 ' player says, and where it goes on up and down. Times are unix seconds,
 ' as the server sends them.
 
+' A provider's words with the letters Roboto lacks made plain: modifier
+' and small capital letters ("ᴿᴬᵂ", "ʜᴅ") and superscript digits, which a
+' Roku draws as empty boxes. Words of plain ASCII are left as they are.
+function liveText(value as dynamic) as string
+    text = httpSentence(value)
+    if m.liveOdd = invalid
+        m.liveOdd = CreateObject("roRegex", "[^\x01-\x7E]", "")
+        m.liveLetters = { "ᴬ": "A", "ᴮ": "B", "ᴰ": "D", "ᴱ": "E", "ᴳ": "G", "ᴴ": "H", "ᴵ": "I", "ᴶ": "J", "ᴷ": "K", "ᴸ": "L", "ᴹ": "M", "ᴺ": "N", "ᴼ": "O", "ᴾ": "P", "ᴿ": "R", "ᵀ": "T", "ᵁ": "U", "ⱽ": "V", "ᵂ": "W", "ᵃ": "a", "ᵇ": "b", "ᶜ": "c", "ᵈ": "d", "ᵉ": "e", "ᶠ": "f", "ᵍ": "g", "ʰ": "h", "ⁱ": "i", "ʲ": "j", "ᵏ": "k", "ˡ": "l", "ᵐ": "m", "ⁿ": "n", "ᵒ": "o", "ᵖ": "p", "ʳ": "r", "ˢ": "s", "ᵗ": "t", "ᵘ": "u", "ᵛ": "v", "ʷ": "w", "ˣ": "x", "ʸ": "y", "ᶻ": "z", "ᴀ": "A", "ʙ": "B", "ᴄ": "C", "ᴅ": "D", "ᴇ": "E", "ꜰ": "F", "ɢ": "G", "ʜ": "H", "ɪ": "I", "ᴊ": "J", "ᴋ": "K", "ʟ": "L", "ᴍ": "M", "ɴ": "N", "ᴏ": "O", "ᴘ": "P", "ʀ": "R", "ꜱ": "S", "ᴛ": "T", "ᴜ": "U", "ᴠ": "V", "ᴡ": "W", "ʏ": "Y", "ᴢ": "Z", "⁰": "0", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9" }
+    end if
+    if not m.liveOdd.IsMatch(text) then return text
+    for each letter in m.liveLetters
+        if Instr(1, text, letter) > 0 then text = text.Replace(letter, m.liveLetters[letter])
+    end for
+    return text
+end function
+
 ' Logos are asked at about the size they're drawn.
 function liveLogoWidth() as integer
     return 240
@@ -109,8 +125,8 @@ function liveGroups(answer as dynamic) as object
     for each raw in httpArray(data.groups)
         g = httpObject(raw)
         if g <> invalid
-            name = httpSentence(g.name)
-            label = httpSentence(g.label)
+            name = liveText(g.name)
+            label = liveText(g.label)
             if label = "" then label = name
             if name <> "" then out.Push({ name: name, region: httpSentence(g.region), label: label, count: Int(httpNumber(g.count, 0)) })
         end if
@@ -362,12 +378,12 @@ function liveProgram(raw as dynamic, words = invalid as dynamic) as dynamic
     ends = Int(httpNumber(p["stop"], 0))
     if ends <= start then return invalid
     if words = invalid then words = liveProgramWords()
-    title = httpSentence(p.title)
+    title = liveText(p.title)
     if title = "" then title = words.untitled
     line = []
     episode = fmtEpisode(p.season, p.episode)
     if episode <> "" then line.Push(episode)
-    subtitle = httpSentence(p.subtitle)
+    subtitle = liveText(p.subtitle)
     if subtitle <> "" and subtitle <> title then line.Push(subtitle)
     badges = []
     if httpTrue(p.is_live) then badges.Push(words.live)
@@ -396,9 +412,9 @@ function liveChannel(raw as dynamic, server as string, width = 240 as integer, c
     if c = invalid then return invalid
     id = Int(httpNumber(c.id, 0))
     if id <= 0 then return invalid
-    name = httpSentence(c.name)
+    name = liveText(c.name)
     if name = "" then name = t("livetv.unnamedChannel", { id: id })
-    group = httpSentence(c.group)
+    group = liveText(c.group)
     channel = {
         id: id,
         name: liveShortName(name, group, category),
@@ -835,7 +851,7 @@ function liveBusyConnections(data as dynamic) as object
         c = httpObject(raw)
         if c <> invalid
             id = Int(httpNumber(c.channel_id, 0))
-            if id > 0 then out.Push({ channelId: id, channelName: httpSentence(c.channel_name), holders: liveHolders(c), canTakeOver: httpTrue(c.can_take_over) })
+            if id > 0 then out.Push({ channelId: id, channelName: liveText(c.channel_name), holders: liveHolders(c), canTakeOver: httpTrue(c.can_take_over) })
         end if
     end for
     return out

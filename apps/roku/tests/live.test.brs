@@ -473,3 +473,11 @@ sub test_live_last_channel_kept()
     tkEqual(liveLoadView(section, key).channel, 101, "no channel keeps the one before")
     tkEqual(liveLoadView(section, liveViewKey("http://tv:7539", 3)).channel, 0, "another profile's own")
 end sub
+
+sub test_live_text_makes_letters_roboto_lacks_plain()
+    tkEqual(liveText("PRIME| ABC DETROIT NEWS (WXYZ) ᴿᴬᵂ"), "PRIME| ABC DETROIT NEWS (WXYZ) RAW", "modifier capitals")
+    tkEqual(liveText("Sport ʜᴅ ⁶⁰ᶠᵖˢ"), "Sport HD 60fps", "small capitals, digits and small letters")
+    tkEqual(liveText("Café Télé"), "Café Télé", "accents Roboto has stay")
+    tkEqual(liveText("News 24"), "News 24")
+    tkEqual(liveText(invalid), "")
+end sub
