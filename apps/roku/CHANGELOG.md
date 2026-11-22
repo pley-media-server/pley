@@ -44,6 +44,10 @@ describes how they are made.
 
 ### Fixed
 
+- On Roku OS 16, Search showed Discover's titles as Live TV channels, and
+  a channel chosen in Search, or the channel playing in the live player's
+  list, wasn't found: Roku's own ContentNode now has a channelId field,
+  which kept the app's channel numbers out.
 - Cast and crew, and the people Search finds, are circles with their names
   and roles in view, as on Android TV: their tall pictures left the names
   below the screen.
