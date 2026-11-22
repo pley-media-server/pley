@@ -9,6 +9,8 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-11-22
+
 ### Added
 
 - A Live TV channel its source's guide lacks can take a guide of its own:
@@ -1189,7 +1191,8 @@ On Intel graphics:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-20...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-16
