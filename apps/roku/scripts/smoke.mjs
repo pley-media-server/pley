@@ -964,6 +964,7 @@ async function walk() {
   music.sleepEnd = await drawnWithin(2000, sleepButtonLong);
   await press("select"); // Off
   music.sleepCycled = await drawnWithin(2000, () => !sleepButtonLong());
+  if (!(music.sleepOff && music.sleepSet && music.sleepEnd && music.sleepCycled)) console.log(`sleep timer's button: off ${music.sleepOff}, set ${music.sleepSet}, at the track's end ${music.sleepEnd}, off again ${music.sleepCycled}`);
   since = mark();
   await press("left"); // Stop
   await press("select");

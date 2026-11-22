@@ -194,7 +194,9 @@ sub showButtons()
     for i = 0 to labels.Count() - 1
         chips.Push({ label: "", icon: icons[i], name: labels[i], width: 0 })
     end for
-    if music.sleep <> invalid then chips[5] = { label: sleep, icon: "moon", width: 0 }
+    ' Running, the timer's button says more than its name (MusicPlayer's
+    ' sleep is told whether or not one runs).
+    if sleep <> t("player.sleep.title") then chips[5] = { label: sleep, icon: "moon", width: 0 }
     m.buttons.chips = chips
 end sub
 
