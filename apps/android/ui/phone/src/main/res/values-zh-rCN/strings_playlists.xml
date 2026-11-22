@@ -20,7 +20,7 @@
     <string name="playlist_not_found_body">它已被删除，或属于其他配置文件。</string>
     <string name="playlist_empty_smart">暂时没有符合此播放列表筛选条件的内容。</string>
     <string name="playlist_empty_video">此播放列表为空。可在电影、剧集或分集页面上点“添加到播放列表”，或长按海报。</string>
-    <string name="playlist_empty_music">此播放列表为空。可在音乐人或专辑页面上点“添加到播放列表”，或长按封面。</string>
+    <string name="playlist_empty_music">此播放列表为空。可在艺人或专辑页面上点“添加到播放列表”，或长按封面。</string>
     <string name="playlist_play_entry">播放 %1$s</string>
     <string name="playlist_move_up">上移</string>
     <string name="playlist_move_down">下移</string>

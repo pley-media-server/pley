@@ -655,6 +655,7 @@ pub async fn universal_start(
         fmp4_segments: false,
         download: false,
         copy_video_only: false,
+        convert_audio: false,
         stream_only: true,
         device_id: None,
         api: Api::Plex,

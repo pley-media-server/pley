@@ -56,11 +56,11 @@
     "detailsHint": "在畫面上顯示影片的播放方式（直接播放、直接串流或轉碼）"
   },
   "audio": {
-    "intro": "Dolby Digital、Dolby Digital Plus 和 Atmos 始終直接透傳。如果你的功放支援，請開啟以下選項；否則 Pley 會進行轉換。",
-    "trueHd": "透傳 Dolby TrueHD",
-    "trueHdHint": "僅當功放支援從電視接收 TrueHD 時",
-    "dts": "透傳 DTS",
-    "dtsHint": "僅當功放支援從電視接收 DTS 時"
+    "intro": "Dolby Digital、Dolby Digital Plus 和 Atmos 始終直通。如果你的擴大機支援，請開啟以下選項；否則 Pley 會進行轉換。",
+    "trueHd": "直通 Dolby TrueHD",
+    "trueHdHint": "僅當擴大機支援從電視接收 TrueHD 時",
+    "dts": "直通 DTS",
+    "dtsHint": "僅當擴大機支援從電視接收 DTS 時"
   },
   "display": {
     "subtitleSize": "字幕大小",
@@ -115,16 +115,16 @@
     "noServer": "無伺服器",
     "unreachable": "無法連線到伺服器",
     "connected": "已連線",
-    "log": "日誌",
-    "readingLog": "正在讀取日誌…",
-    "noLog": "此電視不儲存日誌。"
+    "log": "記錄檔",
+    "readingLog": "正在讀取記錄檔…",
+    "noLog": "此電視不儲存記錄檔。"
   },
   "about": {
     "version": "版本",
-    "licences": "開源許可證",
+    "licences": "開源授權條款",
     "credits": "致謝",
-    "noLicences": "無許可證文本",
-    "noNotices": "此 Pley 版本沒有 NOTICES.txt，其中列出了這些內容及其文本。"
+    "noLicences": "無授權條款文字",
+    "noNotices": "此 Pley 版本沒有 NOTICES.txt，其中列出了這些內容及其授權條款全文。"
   },
   "signOut": {
     "intro": "將此電視從 {{server}} 登出。再次登入需要新的關聯碼。",

@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Traditional Chinese uses the words people use in Taiwan, and quotes with
+  「」.
+
 ## [0.1.6] - 2026-11-20
 
 ### Added

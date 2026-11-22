@@ -43,7 +43,7 @@ msgstr "輸入位址"
 
 msgctxt "#30009"
 msgid "Looking for Pley servers on this network"
-msgstr "正在此網路上查詢 Pley 伺服器"
+msgstr "正在此網路上尋找 Pley 伺服器"
 
 msgctxt "#30010"
 msgid "Sign in"
@@ -51,7 +51,7 @@ msgstr "登入"
 
 msgctxt "#30012"
 msgid "Signed in as %s"
-msgstr "已以 %s 身份登入"
+msgstr "已以 %s 身分登入"
 
 msgctxt "#30013"
 msgid "Signed out of Pley"
@@ -99,7 +99,7 @@ msgstr "伺服器停止了此流。"
 
 msgctxt "#30026"
 msgid "The server answered: %s"
-msgstr "伺服器返回：%s"
+msgstr "伺服器回傳：%s"
 
 msgctxt "#30027"
 msgid "Settings"
@@ -143,7 +143,7 @@ msgstr "檢查伺服器是否已開啟，以及此裝置是否在其網路中。
 
 msgctxt "#30074"
 msgid "Waiting for approval. The code works for less than a minute more."
-msgstr "等待審批。驗證碼剩餘有效時間不足一分鐘。"
+msgstr "等待核准。驗證碼剩餘有效時間不足一分鐘。"
 
 msgctxt "#30076"
 msgid "Signed in"
@@ -287,7 +287,7 @@ msgstr "不可用"
 
 msgctxt "#30118"
 msgid "Search movies, shows, people…"
-msgstr "搜尋電影、劇集、人物…"
+msgstr "搜尋電影、影集、人物…"
 
 msgctxt "#30119"
 msgid "Search your libraries"
@@ -295,11 +295,11 @@ msgstr "搜尋你的媒體庫"
 
 msgctxt "#30120"
 msgid "Find movies, shows, episodes, people, artists, albums and tracks. Press OK on the field to type."
-msgstr "查詢電影、劇集、集、人物、藝人、專輯和曲目。在輸入框上按確認鍵即可輸入。"
+msgstr "搜尋電影、影集、單集、人物、藝人、專輯和曲目。在輸入框上按確認鍵即可輸入。"
 
 msgctxt "#30121"
 msgid "Nothing found for “%s”"
-msgstr "未找到與“%s”匹配的內容"
+msgstr "未找到與「%s」相符的內容"
 
 msgctxt "#30122"
 msgid "Movies"
@@ -307,7 +307,7 @@ msgstr "電影"
 
 msgctxt "#30123"
 msgid "Shows"
-msgstr "劇集"
+msgstr "影集"
 
 msgctxt "#30124"
 msgid "Episodes"
@@ -359,7 +359,7 @@ msgstr "還沒有媒體庫"
 
 msgctxt "#30136"
 msgid "Ask whoever runs this Pley server to share a library with you."
-msgstr "讓這臺 Pley 伺服器的管理員與你共享一個媒體庫。"
+msgstr "讓這臺 Pley 伺服器的管理員與你共用一個媒體庫。"
 
 msgctxt "#30137"
 msgid "Nothing here yet"
@@ -367,7 +367,7 @@ msgstr "這裡還沒有內容"
 
 msgctxt "#30138"
 msgid "Add movies, shows or music to a library on the server, and they show here."
-msgstr "在伺服器的媒體庫中新增電影、劇集或音樂，它們就會顯示在這裡。"
+msgstr "在伺服器的媒體庫中新增電影、影集或音樂，它們就會顯示在這裡。"
 
 msgctxt "#30139"
 msgid "Scanning your libraries…"
@@ -435,7 +435,7 @@ msgstr "從繼續觀看中移除"
 
 msgctxt "#30155"
 msgid "Go to show"
-msgstr "前往劇集"
+msgstr "前往影集"
 
 msgctxt "#30156"
 msgid "Go to season"
@@ -447,7 +447,7 @@ msgstr "完整簡介"
 
 msgctxt "#30158"
 msgid "No playlists yet. Use “Add to playlist” on a movie, show or episode, or press Menu on a poster."
-msgstr "還沒有播放清單。在電影、劇集或集上使用“新增到播放清單”，或在海報上按選單鍵。"
+msgstr "還沒有播放清單。在電影、影集或單集上使用「新增到播放清單」，或在海報上按選單鍵。"
 
 msgctxt "#30159"
 msgid "No collections yet."
@@ -467,7 +467,7 @@ msgstr "Pley 的介面，與電視應用一致"
 
 msgctxt "#30163"
 msgid "Kodi's lists, in this skin's views"
-msgstr "Kodi 的列表，使用此皮膚的檢視"
+msgstr "Kodi 的清單，使用此皮膚的檢視"
 
 msgctxt "#30166"
 msgid "This library is empty."
@@ -715,7 +715,7 @@ msgstr "PIN 為 4 到 8 位數字。"
 
 msgctxt "#30230"
 msgid "Watching as %s"
-msgstr "以 %s 身份觀看"
+msgstr "以 %s 身分觀看"
 
 msgctxt "#30231"
 msgid "There's no other profile to switch to."
@@ -743,7 +743,7 @@ msgstr "刪除播放清單？"
 
 msgctxt "#30237"
 msgid "“%s” will be deleted. What's in it stays in your libraries."
-msgstr "“%s”將被刪除。其中的內容仍保留在你的媒體庫中。"
+msgstr "「%s」將被刪除。其中的內容仍保留在你的媒體庫中。"
 
 msgctxt "#30238"
 msgid "Delete"
@@ -755,7 +755,7 @@ msgstr "播放清單已刪除"
 
 msgctxt "#30240"
 msgid "This playlist is empty. Use “Add to playlist” on a title, or press Menu on a poster."
-msgstr "此播放清單為空。在影片上使用“新增到播放清單”，或在海報上按選單鍵。"
+msgstr "此播放清單為空。在影片上使用「新增到播放清單」，或在海報上按選單鍵。"
 
 msgctxt "#30241"
 msgid "Nothing matches this playlist's filter yet."
@@ -771,11 +771,11 @@ msgstr "未評分"
 
 msgctxt "#30244"
 msgid "Subtitle search isn't set up on this server. An administrator sets it up on the web, in Settings → Server."
-msgstr "此伺服器未設定字幕搜尋。管理員可在網頁的“設定 → 伺服器”中設定。"
+msgstr "此伺服器未設定字幕搜尋。管理員可在網頁的「設定 → 伺服器」中設定。"
 
 msgctxt "#30245"
 msgid "Finding subtitles needs a newer Pley server."
-msgstr "查詢字幕需要更新版本的 Pley 伺服器。"
+msgstr "搜尋字幕需要更新版本的 Pley 伺服器。"
 
 msgctxt "#30246"
 msgid "%s isn't on your network and its connection isn't encrypted. Open it by its https address."
@@ -823,11 +823,11 @@ msgstr "還沒有頻道"
 
 msgctxt "#30260"
 msgid "Channels appear here once an administrator adds an IPTV provider."
-msgstr "管理員新增 IPTV 提供商後，頻道會顯示在這裡。"
+msgstr "管理員新增 IPTV 供應商後，頻道會顯示在這裡。"
 
 msgctxt "#30261"
 msgid "Add your IPTV provider's playlist or Xtream Codes account on the web, in Settings → Live TV."
-msgstr "在網頁的“設定 → 直播電視”中新增 IPTV 提供商的播放清單或 Xtream Codes 帳戶。"
+msgstr "在網頁的「設定 → 直播電視」中新增 IPTV 供應商的播放清單或 Xtream Codes 帳戶。"
 
 msgctxt "#30262"
 msgid "Today"
@@ -843,7 +843,7 @@ msgstr "昨天"
 
 msgctxt "#30265"
 msgid "Nothing in the guide now"
-msgstr "節目指南當前沒有內容"
+msgstr "節目指南目前沒有內容"
 
 msgctxt "#30266"
 msgid "No guide"
@@ -915,7 +915,7 @@ msgstr "熱門電影"
 
 msgctxt "#30452"
 msgid "Popular shows"
-msgstr "熱門劇集"
+msgstr "熱門影集"
 
 msgctxt "#30453"
 msgid "Coming to cinemas"
@@ -927,11 +927,11 @@ msgstr "熱門動漫"
 
 msgctxt "#30455"
 msgid "Find movies and shows to ask for"
-msgstr "查詢可請求的電影和劇集"
+msgstr "搜尋可請求的電影和影集"
 
 msgctxt "#30456"
 msgid "Nothing on TMDB for “%s”"
-msgstr "TMDB 上沒有與“%s”匹配的內容"
+msgstr "TMDB 上沒有與「%s」相符的內容"
 
 msgctxt "#30457"
 msgid "Details and pictures from TMDB."
@@ -979,7 +979,7 @@ msgstr "已經有人請求過了。"
 
 msgctxt "#30468"
 msgid "Declined: “%s”."
-msgstr "已拒絕：“%s”。"
+msgstr "已拒絕：「%s」。"
 
 msgctxt "#30469"
 msgid "You can ask again %s."
@@ -987,7 +987,7 @@ msgstr "你可以在 %s 再次請求。"
 
 msgctxt "#30470"
 msgid "Waiting for approval"
-msgstr "等待審批"
+msgstr "等待核准"
 
 msgctxt "#30471"
 msgid "Approved"
@@ -1091,19 +1091,19 @@ msgstr "稍後"
 
 msgctxt "#30496"
 msgid "Asked for “%s”: an administrator decides."
-msgstr "已請求“%s”：由管理員決定。"
+msgstr "已請求「%s」：由管理員決定。"
 
 msgctxt "#30497"
 msgid "“%s” is approved and on its way."
-msgstr "“%s”已批准，正在處理中。"
+msgstr "「%s」已批准，正在處理中。"
 
 msgctxt "#30498"
 msgid "Asked for “%s”, but it couldn't be sent to download yet."
-msgstr "已請求“%s”，但暫時無法傳送到下載。"
+msgstr "已請求「%s」，但暫時無法傳送到下載。"
 
 msgctxt "#30499"
 msgid "You'll hear when “%s” is ready."
-msgstr "“%s”就緒時會通知你。"
+msgstr "「%s」就緒時會通知你。"
 
 msgctxt "#30500"
 msgid "Which seasons?"
@@ -1119,7 +1119,7 @@ msgstr "撤回"
 
 msgctxt "#30503"
 msgid "Withdraw your request for “%s”?"
-msgstr "撤回對“%s”的請求？"
+msgstr "撤回對「%s」的請求？"
 
 msgctxt "#30504"
 msgid "Remove"
@@ -1127,7 +1127,7 @@ msgstr "移除"
 
 msgctxt "#30505"
 msgid "Remove “%s” from your requests?"
-msgstr "從你的請求中移除“%s”？"
+msgstr "從你的請求中移除「%s」？"
 
 msgctxt "#30506"
 msgid "Approve"
@@ -1155,15 +1155,15 @@ msgstr "再次請求"
 
 msgctxt "#30512"
 msgid "“%s” is ready to watch."
-msgstr "“%s”可以觀看了。"
+msgstr "「%s」可以觀看了。"
 
 msgctxt "#30513"
 msgid "%s of “%s” is ready to watch."
-msgstr "“%s”的 %s 可以觀看了。"
+msgstr "「%s」的 %s 可以觀看了。"
 
 msgctxt "#30514"
 msgid "%s of “%s” are ready to watch."
-msgstr "“%s”的 %s 可以觀看了。"
+msgstr "「%s」的 %s 可以觀看了。"
 
 msgctxt "#30516"
 msgid "Requests are off"
@@ -1171,7 +1171,7 @@ msgstr "請求功能已關閉"
 
 msgctxt "#30517"
 msgid "This server doesn't take requests for movies and shows."
-msgstr "此伺服器不接受電影和劇集的請求。"
+msgstr "此伺服器不接受電影和影集的請求。"
 
 msgctxt "#30518"
 msgid "Requests aren't open to this account"
@@ -1179,7 +1179,7 @@ msgstr "此帳戶無權使用請求功能"
 
 msgctxt "#30519"
 msgid "An administrator can let it ask for movies and shows."
-msgstr "管理員可以讓它請求電影和劇集。"
+msgstr "管理員可以讓它請求電影和影集。"
 
 msgctxt "#30520"
 msgid "TMDB isn't answering"
@@ -1191,7 +1191,7 @@ msgstr "TMDB 拒絕了此伺服器的金鑰"
 
 msgctxt "#30522"
 msgid "Check it on the web, in Settings → Server."
-msgstr "在網頁的“設定 → 伺服器”中檢查。"
+msgstr "在網頁的「設定 → 伺服器」中檢查。"
 
 msgctxt "#30523"
 msgid "An administrator needs to check it."
@@ -1207,7 +1207,7 @@ msgstr "每 7 天最多可請求 %s 個：少選一些。"
 
 msgctxt "#30526"
 msgid "Sign in again to ask for movies and shows"
-msgstr "重新登入以請求電影和劇集"
+msgstr "重新登入以請求電影和影集"
 
 msgctxt "#30528"
 msgid "Sign in"
@@ -1219,7 +1219,7 @@ msgstr "重新登入以在此批准和拒絕。"
 
 msgctxt "#30532"
 msgid "Nothing in your libraries matches"
-msgstr "你的媒體庫中沒有匹配的內容"
+msgstr "你的媒體庫中沒有相符的內容"
 
 msgctxt "#30533"
 msgid "Needs attention"
@@ -1239,7 +1239,7 @@ msgstr "失敗"
 
 msgctxt "#30537"
 msgid "Movies and shows"
-msgstr "電影和劇集"
+msgstr "電影和影集"
 
 msgctxt "#30538"
 msgid "Everyone"
@@ -1267,7 +1267,7 @@ msgstr "季"
 
 msgctxt "#30545"
 msgid "There's nothing more of “%s” to ask for."
-msgstr "“%s”沒有更多可請求的內容。"
+msgstr "「%s」沒有更多可請求的內容。"
 
 msgctxt "#30546"
 msgid "Movie"
@@ -1275,7 +1275,7 @@ msgstr "電影"
 
 msgctxt "#30547"
 msgid "Show"
-msgstr "劇集"
+msgstr "影集"
 
 msgctxt "#30548"
 msgid "Yours"
@@ -1283,7 +1283,7 @@ msgstr "你的"
 
 msgctxt "#30549"
 msgid "Results for “%s”"
-msgstr "“%s”的搜尋結果"
+msgstr "「%s」的搜尋結果"
 
 msgctxt "#30279"
 msgid "This server requires two-step sign-in: your phone sets it up if you haven't yet."
@@ -1371,7 +1371,7 @@ msgstr "−%d 秒"
 
 msgctxt "#30570"
 msgid "Jumped to %s"
-msgstr "已跳轉到 %s"
+msgstr "已跳至 %s"
 
 msgctxt "#30571"
 msgid "Audio: %s"
@@ -1686,7 +1686,7 @@ msgstr "%s：%s"
 #. Words quoted
 msgctxt "#30665"
 msgid "“%s”"
-msgstr "“%s”"
+msgstr "「%s」"
 
 #. A track's language
 msgctxt "#30670"
@@ -1903,17 +1903,17 @@ msgstr "%s 部電影"
 #. Counted, one: 1 in English and Spanish, 0 and 1 in French
 msgctxt "#30725"
 msgid "%s show"
-msgstr "%s 部劇集"
+msgstr "%s 部影集"
 
 #. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
 msgctxt "#30726"
 msgid "%s shows"
-msgstr "%s 部劇集"
+msgstr "%s 部影集"
 
 #. Counted, other
 msgctxt "#30727"
 msgid "%s shows"
-msgstr "%s 部劇集"
+msgstr "%s 部影集"
 
 #. Counted, one: 1 in English and Spanish, 0 and 1 in French
 msgctxt "#30728"
@@ -2023,17 +2023,17 @@ msgstr "%s 小時前"
 #. Counted, one: 1 in English and Spanish, 0 and 1 in French
 msgctxt "#30749"
 msgid "in %s day"
-msgstr "%s 天后"
+msgstr "%s 天後"
 
 #. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
 msgctxt "#30750"
 msgid "in %s days"
-msgstr "%s 天后"
+msgstr "%s 天後"
 
 #. Counted, other
 msgctxt "#30751"
 msgid "in %s days"
-msgstr "%s 天后"
+msgstr "%s 天後"
 
 #. Counted, one: 1 in English and Spanish, 0 and 1 in French
 msgctxt "#30752"
@@ -2098,17 +2098,17 @@ msgstr "%s / %s 部電影"
 #. Counted, one: 1 in English and Spanish, 0 and 1 in French
 msgctxt "#30764"
 msgid "%s of %s show"
-msgstr "%s / %s 部劇集"
+msgstr "%s / %s 部影集"
 
 #. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
 msgctxt "#30765"
 msgid "%s of %s shows"
-msgstr "%s / %s 部劇集"
+msgstr "%s / %s 部影集"
 
 #. Counted, other
 msgctxt "#30766"
 msgid "%s of %s shows"
-msgstr "%s / %s 部劇集"
+msgstr "%s / %s 部影集"
 
 #. Counted, one: 1 in English and Spanish, 0 and 1 in French
 msgctxt "#30767"
@@ -2143,17 +2143,17 @@ msgstr "%s / %s 項"
 #. Counted, one: 1 in English and Spanish, 0 and 1 in French
 msgctxt "#30773"
 msgid "Waiting for approval. The code works for %s more minute."
-msgstr "等待審批。驗證碼還剩 %s 分鐘有效。"
+msgstr "等待核准。驗證碼還剩 %s 分鐘有效。"
 
 #. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
 msgctxt "#30774"
 msgid "Waiting for approval. The code works for %s more minutes."
-msgstr "等待審批。驗證碼還剩 %s 分鐘有效。"
+msgstr "等待核准。驗證碼還剩 %s 分鐘有效。"
 
 #. Counted, other
 msgctxt "#30775"
 msgid "Waiting for approval. The code works for %s more minutes."
-msgstr "等待審批。驗證碼還剩 %s 分鐘有效。"
+msgstr "等待核准。驗證碼還剩 %s 分鐘有效。"
 
 #. Counted, one: 1 in English and Spanish, 0 and 1 in French
 msgctxt "#30776"

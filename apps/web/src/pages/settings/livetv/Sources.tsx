@@ -198,6 +198,8 @@ function SourceCard({ source: s, onEdit, onDelete }: { source: LiveSource; onEdi
                     user_agent: s.user_agent,
                     max_connections: s.max_connections,
                     enabled,
+                    sort_groups: s.sort_groups,
+                    failover: s.failover,
                   },
                 },
                 { onError: (e) => toast.error(errorMessage(e)) },

@@ -13,11 +13,12 @@ describes how they are made.
 - A video whose audio the device can't decode (Dolby Atmos in E-AC-3 on
   some phones) plays with the audio converted by the server, or another
   track, instead of failing after a transcode.
-- A video's Dolby Vision profile is named in Traditional Chinese, not
-  English.
-- The recommended folder layouts in Chinese are written so the server
-  reads them: the year in (年份), and the season folder as Season 01.
-- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
+- The recommended folder layouts in Chinese put the year in (年份) and
+  call the season folder Season 01.
+- Traditional Chinese uses the words people use in Taiwan, such as 影集 for
+  a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
+  for an item and 設定檔 for a Dolby Vision profile, and quotes with 「」.
+- Simplified Chinese calls an artist 艺人 everywhere.
 
 ## [0.1.16] - 2026-11-20
 

@@ -25,7 +25,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pley 未被允許存取你的本地網路：在設定 → 隱私與安全性 → 本地網路中允許"
+            "value" : "Pley 未被允許存取你的區域網路：在設定 → 隱私權與安全性 → 區域網路中允許"
           }
         }
       }

@@ -10,7 +10,7 @@
     <string name="caps_policy_phone">影片解碼器：硬體，或軟體最高 1080p 30 fps、8 位 SDR</string>
     <string name="caps_policy_any">影片解碼器：硬體和軟體，不限解析度（除錯設定）</string>
     <string name="caps_video">%1$s：%2$s，%3$s，最高 %4$s，%5$d 位，等級 %6$s</string>
-    <string name="caps_video_unlimited">%1$s：由特殊適配新增，限制未知</string>
+    <string name="caps_video_unlimited">%1$s：由裝置特例新增，限制未知</string>
     <string name="caps_hardware">硬體</string>
     <string name="caps_software">軟體</string>
     <string name="caps_size_rate">%1$d×%2$d，%3$s fps</string>
@@ -23,15 +23,15 @@
     <string name="caps_profile_level">%1$d（等級 %2$s）</string>
     <string name="caps_screen">螢幕：%1$d×%2$d，%3$s Hz，可切換的更新率：%4$s</string>
     <string name="caps_modes">螢幕模式：%1$s</string>
-    <string name="caps_match_content">匹配內容幀率：%1$s</string>
+    <string name="caps_match_content">配合內容影格速率：%1$s</string>
     <string name="caps_match_never">從不</string>
     <string name="caps_match_seamless">僅在無縫切換時</string>
     <string name="caps_match_always">始終</string>
     <string name="caps_match_unknown">未說明（Android 11 或更早）</string>
     <string name="caps_no_screen">螢幕：未知</string>
     <string name="caps_audio_decode">音訊解碼器：%1$s</string>
-    <string name="caps_passthrough">透傳：%1$s；聲道：%2$d；輸出：%3$s</string>
-    <string name="caps_quirks">特殊適配：%1$s</string>
+    <string name="caps_passthrough">直通：%1$s；聲道：%2$d；輸出：%3$s</string>
+    <string name="caps_quirks">裝置特例：%1$s</string>
     <string name="caps_player_flags">播放器：非同步排隊 %1$s，隧道模式 %2$s，Dolby Vision+HDR10+ %3$s</string>
     <string name="caps_on">開</string>
     <string name="caps_off">關</string>

@@ -9,11 +9,31 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A Live TV channel its source's guide lacks can take a guide of its own:
+  the address of an XMLTV guide, in its Guide channel in the lineup, with
+  `#` and the channel's id after it for a guide of many channels.
+- A Live TV channel whose source has all its connections in use can play
+  on another source that has the same channel and a connection free: When
+  it's full, play its channels on another source, in both sources' settings.
+- Live TV's categories can be hidden for a wider guide on large screens;
+  the category is then picked from the button above the guide.
+- A Live TV source can list its groups A to Z instead of in its provider's
+  order, on every app: Sort groups A to Z, in the source's settings.
+
 ### Fixed
 
-- The recommended folder layouts in Settings → Libraries are in Chinese,
-  not English.
-- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
+- The recommended folder layouts in Settings → Libraries are in Chinese.
+- Traditional Chinese uses the words people use in Taiwan, such as 影集 for
+  a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre and 項目
+  for an item, and quotes with 「」.
+- Simplified Chinese calls an artist 艺人 everywhere.
+- Jellyfin apps that retry after a playback error, as jellyfin-web does,
+  get the video converted and then the sound too, rather than the same
+  stream again: their requests not to copy the video or the audio
+  (`AllowVideoStreamCopy`, `AllowAudioStreamCopy`) are kept, and the sound
+  is never made again in the codec that failed.
 
 ## [0.1.14] - 2026-11-20
 

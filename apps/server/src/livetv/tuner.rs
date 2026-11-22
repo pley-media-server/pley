@@ -97,7 +97,11 @@ struct Viewer {
     user_id: i64,
     username: String,
     client_id: Option<String>,
+    /// The channel whose tuner it watches: the one asked for, or its copy
+    /// on another source that had a connection free.
     channel_id: i64,
+    /// The channel asked for, as its player and the user's remotes know it.
+    asked_id: i64,
     started_at: i64,
     last_seen: Instant,
     kind: ViewerKind,
@@ -177,7 +181,7 @@ impl From<&Viewer> for RemoteViewer {
         Self {
             session_id: v.id.clone(),
             user_id: v.user_id,
-            channel_id: v.channel_id,
+            channel_id: v.asked_id,
             device: v.device.clone(),
             device_id: v.device_id.clone(),
             device_kind: v.device_kind,
@@ -724,7 +728,7 @@ impl Tuners {
         let tuners: Vec<Arc<Tuner>> =
             self.tuners.lock().values().filter(|t| t.source_id == source_id).cloned().collect();
         for t in &tuners {
-            self.end_viewers_of(t.channel_id);
+            self.end_viewers(|v| v.channel_id == t.channel_id);
             self.remove_tuner(t);
         }
         if !tuners.is_empty() {
@@ -735,39 +739,68 @@ impl Tuners {
     pub async fn stop_channel(&self, channel_id: i64) {
         let tuner = self.tuners.lock().get(&channel_id).cloned();
         if let Some(t) = tuner {
-            self.end_viewers_of(channel_id);
+            self.end_viewers(|v| v.channel_id == channel_id);
             self.remove_tuner(&t);
             self.events.send(ServerEvent::LiveTunersChanged);
         }
     }
 
-    fn end_viewers_of(&self, channel_id: i64) {
+    /// Channel `channel_id` was hidden: who asked for it ends, on its copy
+    /// on another source too. Its tuner goes unless it plays for a channel
+    /// still shown (it's that one's copy).
+    pub fn hide_channel(&self, channel_id: i64) {
+        let ended = self.end_viewers(|v| v.asked_id == channel_id);
+        let tuner = self.tuners.lock().get(&channel_id).cloned();
+        let unwatched = tuner.filter(|_| !self.viewers.lock().values().any(|v| v.channel_id == channel_id));
+        if let Some(t) = &unwatched {
+            self.remove_tuner(t);
+        }
+        if ended || unwatched.is_some() {
+            self.events.send(ServerEvent::LiveTunersChanged);
+        }
+    }
+
+    /// Ends the viewers `which` picks: whether there were any.
+    fn end_viewers(&self, which: impl Fn(&Viewer) -> bool) -> bool {
         let mut viewers = self.viewers.lock();
         let mut users = Vec::new();
         viewers.retain(|_, v| {
-            let watches = v.channel_id == channel_id;
-            if watches {
+            let ends = which(v);
+            if ends {
                 users.push(v.user_id);
             }
-            !watches
+            !ends
         });
+        let ended = !users.is_empty();
         self.events.sessions_changed(users);
+        ended
     }
 
     /// Starts `user` watching `tune.channel`: through the tuner already
     /// pulling it, or a new one when its source has a connection free.
     /// `keyed`: the HLS playlist's address carries a key of its own instead
     /// of needing the token (docs/API.md, "Keyed URLs").
-    pub async fn watch(self: &Arc<Self>, user: &AuthUser, tune: Tune<'_>, how: WatchAs) -> Result<Watching, AppError> {
+    ///
+    /// `tunes`: the channel asked for, then the same channel on other
+    /// sources. A tuner already pulling any of them is joined; else the
+    /// first with a connection free is tuned; else the one asked for, as
+    /// though it had no copies (taking `take_over`'s connection, or `409`).
+    pub async fn watch(
+        self: &Arc<Self>,
+        user: &AuthUser,
+        tunes: &[Tune<'_>],
+        how: WatchAs,
+    ) -> Result<Watching, AppError> {
         let WatchAs { client_id, kind, keyed, admin, take_over, home, controls, device, device_id, device_kind } = how;
-        let channel_id = tune.channel.id;
+        let ids: Vec<i64> = tunes.iter().map(|t| t.channel.id).collect();
         // What this device watched before ends: its connection is free. Its
         // stream reader of another channel too, though that response may not
         // have closed yet (channels changed quickly would find them all in use).
+        // A copy of this channel isn't another channel.
         if let Some(client) = client_id.as_deref().filter(|c| !c.is_empty()) {
             self.viewers.lock().retain(|_, v| {
                 let Some(theirs) = v.client_id.as_deref() else { return true };
-                let same = theirs == client || (device_of(theirs) == device_of(client) && v.channel_id != channel_id);
+                let same = theirs == client || (device_of(theirs) == device_of(client) && !ids.contains(&v.channel_id));
                 !(v.user_id == user.id && same)
             });
         }
@@ -780,11 +813,16 @@ impl Tuners {
         let tuner = {
             let _one = self.starting.lock().await;
             // Not in the match: its guard would live through start_tuner's own lock.
-            let pulling = self.tuners.lock().get(&channel_id).filter(|t| t.is_live()).cloned();
+            let pulling = {
+                let tuners = self.tuners.lock();
+                ids.iter().find_map(|id| tuners.get(id).filter(|t| t.is_live()).cloned())
+            };
             let tuner = match pulling {
                 Some(t) => t,
-                None => self.start_tuner(user, admin, home.as_ref(), &tune, take_over)?,
+                None => self.start_any_tuner(user, admin, home.as_ref(), tunes, take_over)?,
             };
+            // The copy that plays it: its tuner is the viewer's.
+            let channel_id = tuner.channel_id;
             // Watching before the lock goes: a take-over, made under it too,
             // then counts this viewer and tells it, where one made between
             // finding the tuner and adding the viewer would miss it.
@@ -796,6 +834,7 @@ impl Tuners {
                     username: user.username.clone(),
                     client_id,
                     channel_id,
+                    asked_id: ids[0],
                     started_at: now(),
                     last_seen: Instant::now(),
                     kind,
@@ -835,6 +874,32 @@ impl Tuners {
             .values()
             .find(|v| v.media_key.as_deref().is_some_and(|k| crate::playback::same_key(k, key)))
             .map(|v| (v.id.clone(), v.user_id, v.app_grant))
+    }
+
+    /// Tunes the first of `tunes` whose source has a connection free (or one
+    /// nobody watches); when none has, the first as [`Self::start_tuner`]
+    /// would, taking `take_over`'s connection or saying who holds them.
+    fn start_any_tuner(
+        self: &Arc<Self>,
+        user: &AuthUser,
+        admin: bool,
+        home: Option<&InHome>,
+        tunes: &[Tune<'_>],
+        take_over: Option<i64>,
+    ) -> Result<Arc<Tuner>, AppError> {
+        let Some((asked, copies)) = tunes.split_first() else {
+            return Err(AppError::not_found("no channel to tune"));
+        };
+        if copies.is_empty() {
+            return self.start_tuner(user, admin, home, asked, take_over);
+        }
+        for tune in tunes {
+            match self.start_tuner(user, admin, home, tune, None) {
+                Err(AppError::ConflictWith(..)) => continue,
+                started => return started,
+            }
+        }
+        self.start_tuner(user, admin, home, asked, take_over)
     }
 
     fn start_tuner(
@@ -928,10 +993,11 @@ impl Tuners {
         // Told before the stream stops: a player whose stream breaks off
         // knows why instead of tuning again.
         for (v, message) in told {
+            // The channel its player asked for, which it knows the session by.
             self.events.send(ServerEvent::LiveTakenOver {
                 user_id: v.user_id,
                 session_id: v.id,
-                channel_id: v.channel_id,
+                channel_id: v.asked_id,
                 message,
             });
         }
@@ -1791,6 +1857,7 @@ mod tests {
             username: format!("user{user_id}"),
             client_id: None,
             channel_id: 1,
+            asked_id: 1,
             started_at: 0,
             last_seen: Instant::now(),
             kind: ViewerKind::Hls,

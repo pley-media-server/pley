@@ -30,7 +30,7 @@
     "save": "儲存",
     "saving": "儲存中…",
     "search": "搜尋",
-    "showLess": "收起",
+    "showLess": "收合",
     "showMore": "顯示更多",
     "signOut": "登出",
     "tryAgain": "重試",
@@ -55,8 +55,8 @@
       "zh-CN": "简体中文",
       "zh-TW": "繁體中文"
     },
-    "accountHint": "你登入每臺裝置時 Pley 使用的語言。“自動”跟隨每臺裝置的語言。",
-    "serverHint": "伺服器自身文案的語言，以及裝置語言尚未被 Pley 支援時所用的語言。每個人都可以在自己的“帳戶”頁面選擇語言。",
+    "accountHint": "你登入每臺裝置時 Pley 使用的語言。「自動」跟隨每臺裝置的語言。",
+    "serverHint": "伺服器自身文案的語言，以及裝置語言尚未被 Pley 支援時所用的語言。每個人都可以在自己的「帳戶」頁面選擇語言。",
     "automatic": "自動（{{language}}）",
     "serverLabel": "Pley 的語言",
     "choose": "選擇語言"
@@ -162,7 +162,7 @@
     "castFailed": "{{device}} 未能播放",
     "connectionsFull": "{{device}} 無法播放該頻道：直播電視的連線已全部佔用",
     "pairingFailed": "{{device}} 配對失敗",
-    "pairFirst": "{{device}} 需要先配對：請在“在…上播放”中再次選擇它",
+    "pairFirst": "{{device}} 需要先配對：請在「在…上播放」中再次選擇它",
     "wrongDevicePin": "這不是 {{device}} 顯示的代碼",
     "pairingWait": "{{device}} 暫不允許再試：請稍等片刻"
   },
@@ -178,7 +178,7 @@
       "playlists": "播放清單",
       "profiles": "設定檔",
       "requests": "請求影視",
-      "approvals": "審批請求",
+      "approvals": "核准請求",
       "activity": "正在播放",
       "server": "管理伺服器"
     }
@@ -257,14 +257,14 @@
   },
   "requests": {
     "movie": "電影",
-    "show": "劇集",
-    "quoted": "“{{title}}”",
+    "show": "影集",
+    "quoted": "「{{title}}」",
     "seasonList_other": "第 {{list}} 季",
     "andSpecials": "{{seasons}} 和特別篇",
     "soon": "即將",
     "inMinutes": "{{n}} 分鐘後",
     "inHours_other": "{{count, number}} 小時後",
-    "inDays_other": "{{count, number}} 天后",
+    "inDays_other": "{{count, number}} 天後",
     "todayAt": "今天 {{time}}",
     "tomorrowAt": "明天 {{time}}",
     "badge": {
@@ -311,7 +311,7 @@
       "progress": "正在下載 {{percent}}%"
     },
     "stage": {
-      "pending": "等待審批",
+      "pending": "等待核准",
       "approved": "已批准",
       "searching": "搜尋中",
       "importing": "正在新增到媒體庫",

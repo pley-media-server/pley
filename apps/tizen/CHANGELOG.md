@@ -239,9 +239,9 @@ describes how they are made.
   its page as from Home and Continue Watching: the one this TV plays
   best, unless you pick another. The page's badges and tracks are that
   version's.
-- A video's Dolby Vision profile is named in Traditional Chinese, not
-  English.
-- Traditional Chinese calls a genre 類型 and an item 項目, not 型別 and 專案.
+- Traditional Chinese uses the words people use in Taiwan, such as 影集 for
+  a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
+  for an item and 設定檔 for a Dolby Vision profile, and quotes with 「」.
 
 ## [0.0.1] - 2026-10-29
 

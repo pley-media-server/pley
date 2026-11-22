@@ -286,7 +286,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查詢字幕…"
+            "value" : "搜尋字幕…"
           }
         }
       }
@@ -924,7 +924,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已選中"
+            "value" : "已選取"
           }
         }
       }

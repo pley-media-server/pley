@@ -9,7 +9,7 @@
     <!-- Who stopped it, then their message on its own line. -->
     <string name="session_stopped_message" translatable="false">%1$s\n%2$s</string>
     <!-- A channel's stream refused with no sentence of the server's: its HTTP status, "The server answered 503." -->
-    <string name="live_server_answered">伺服器返回 %1$d。</string>
+    <string name="live_server_answered">伺服器回傳 %1$d。</string>
 
     <!-- Something another of the profile's devices sent here (Play on…), said a few seconds as it starts: the device. -->
     <string name="cast_playing_from">正在播放來自 %1$s 的內容</string>
@@ -24,7 +24,7 @@
     <string name="session_remote_skipped_forward">+%1$d 秒</string>
     <string name="session_remote_skipped_back">−%1$d 秒</string>
     <!-- A seek by the remote: where it went, "Jumped to 12:34". -->
-    <string name="session_remote_jumped">已跳轉到 %1$s</string>
+    <string name="session_remote_jumped">已跳至 %1$s</string>
     <!-- A track or quality the remote picked, as the player's menu names it. -->
     <string name="session_remote_audio">音訊：%1$s</string>
     <string name="session_remote_subtitles">字幕：%1$s</string>

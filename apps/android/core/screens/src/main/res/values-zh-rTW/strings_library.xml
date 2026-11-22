@@ -5,10 +5,10 @@
         <item quantity="other">%1$,d 部電影</item>
     </plurals>
     <plurals name="library_entry_shows">
-        <item quantity="other">%1$,d 部劇集</item>
+        <item quantity="other">%1$,d 部影集</item>
     </plurals>
     <plurals name="library_entry_artists">
-        <item quantity="other">%1$,d 位藝術家</item>
+        <item quantity="other">%1$,d 位藝人</item>
     </plurals>
     <plurals name="library_entry_items">
         <item quantity="other">%1$,d 個條目</item>

@@ -20,7 +20,7 @@
     "seasons_other": "{{count, number}} 季",
     "episodes_other": "{{count, number}} 集",
     "movies_other": "{{count, number}} 部電影",
-    "shows_other": "{{count, number}} 部劇集",
+    "shows_other": "{{count, number}} 部影集",
     "collections_other": "{{count, number}} 個合集",
     "items_other": "{{count, number}} 個條目",
     "parts_other": "{{count, number}} 個部分"
@@ -29,7 +29,7 @@
     "albums": "無法載入專輯：{{error}}",
     "tracks": "無法載入曲目：{{error}}",
     "seasons": "無法載入季：{{error}}",
-    "episodes": "無法載入劇集：{{error}}",
+    "episodes": "無法載入單集：{{error}}",
     "parts": "無法載入分段：{{error}}"
   },
   "summary": {
@@ -85,17 +85,17 @@
     "addToCollection": "新增到合集…",
     "refreshMetadata": "重新整理中介資料",
     "refreshing": "正在重新整理中介資料…",
-    "findMarkers": "查詢片頭片尾",
+    "findMarkers": "偵測片頭片尾",
     "findingMarkers": {
-      "season": "正在此季中查詢片頭片尾…",
-      "show": "正在每一季中查詢片頭片尾…",
-      "item": "正在此項目中查詢片頭片尾…"
+      "season": "正在此季中偵測片頭片尾…",
+      "show": "正在每一季中偵測片頭片尾…",
+      "item": "正在此項目中偵測片頭片尾…"
     }
   },
   "edit": {
     "menu": {
       "details": "編輯詳情…",
-      "match": "修正匹配…",
+      "match": "修正比對…",
       "thumb": "選擇縮圖…",
       "poster": "選擇海報…",
       "backdrop": "選擇背景圖…"
@@ -108,7 +108,7 @@
       "locked": "已鎖定：點選解鎖",
       "willUnlock": "將被解鎖",
       "ratingCountry": "國家：{{country}}",
-      "ratingRegion": "按伺服器所在國家的分級解讀，在“設定 › 伺服器”中設定",
+      "ratingRegion": "按伺服器所在國家的分級解讀，在「設定 › 伺服器」中設定",
       "ratingCommon": "按美國及其他常用分級解讀：伺服器所在國家在此沒有分級",
       "fromNfo": "來自 NFO 檔案",
       "fields": {
@@ -119,22 +119,22 @@
         "release_date": "發行日期",
         "content_rating": "分級",
         "studio": "製作公司",
-        "tagline": "宣傳語",
+        "tagline": "標語",
         "genres": "類型",
         "summary": "簡介",
         "labels": "標籤"
       },
-      "labelsHint": "只有管理員可見。“設定 → 使用者”中設定檔的例外依據它們。",
+      "labelsHint": "只有管理員可見。「設定 → 使用者」中設定檔的例外依據它們。",
       "removeLabel": "移除 {{label}}"
     },
     "match": {
-      "title": "修正匹配",
-      "byHand": "此處為手動匹配。旁邊的 NFO 檔案不會改變此匹配，除非你撤銷它。",
-      "undo": "撤銷修正匹配",
-      "undone": "已撤銷修正匹配",
-      "matched": "已匹配到“{{title}}”",
-      "noMatches": "沒有匹配結果。試試其他標題或不填年份。",
-      "current": "當前"
+      "title": "修正比對",
+      "byHand": "此處為手動比對。旁邊的 NFO 檔案不會改變此比對，除非你撤銷它。",
+      "undo": "撤銷修正比對",
+      "undone": "已撤銷修正比對",
+      "matched": "已比對到「{{title}}」",
+      "noMatches": "沒有相符的結果。試試其他標題或不填年份。",
+      "current": "目前"
     },
     "artwork": {
       "titles": {
@@ -182,13 +182,13 @@
     "bitDepth": "{{depth}} 位",
     "dvLevel": "DV 等級 {{level}}",
     "imageBased": "基於影像",
-    "text": "文本",
+    "text": "文字",
     "external": "外部",
     "forced": "強制",
     "default": "預設"
   },
   "music": {
-    "artist": "藝術家",
+    "artist": "藝人",
     "album": "專輯",
     "albums": "專輯",
     "noAlbums": "未找到專輯。",
@@ -200,9 +200,9 @@
   },
   "season": {
     "breadcrumb": "麵包屑導航",
-    "show": "劇集",
-    "episodes": "分集",
-    "noEpisodes": "未找到劇集。"
+    "show": "影集",
+    "episodes": "單集",
+    "noEpisodes": "未找到單集。"
   },
   "show": {
     "seasons": "季",
@@ -221,13 +221,13 @@
     "doneManaging": "完成排序",
     "delete": "刪除合集",
     "movies": "電影",
-    "shows": "劇集",
+    "shows": "影集",
     "emptyMovies": "此合集暫時為空。可以從電影頁面新增，或右鍵點選海報新增。",
-    "emptyShows": "此合集暫時為空。可以從劇集頁面新增，或右鍵點選海報新增。",
+    "emptyShows": "此合集暫時為空。可以從影集頁面新增，或右鍵點選海報新增。",
     "deleteTitle": "刪除合集？",
-    "deleteAutomatic": "“{{title}}”由 TMDB 生成：下次重新整理這些電影的中介資料時會重新出現。",
-    "deleteMovies": "“{{title}}”將被刪除。其中的電影仍保留在媒體庫中。",
-    "deleteShows": "“{{title}}”將被刪除。其中的劇集仍保留在媒體庫中。",
+    "deleteAutomatic": "「{{title}}」由 TMDB 產生：下次重新整理這些電影的中介資料時會重新出現。",
+    "deleteMovies": "「{{title}}」將被刪除。其中的電影仍保留在媒體庫中。",
+    "deleteShows": "「{{title}}」將被刪除。其中的影集仍保留在媒體庫中。",
     "deleted": "合集已刪除",
     "customOrderNote": "移動項目會將此合集切換為自訂順序。",
     "remove": "從合集中移除",
@@ -246,8 +246,8 @@
       "custom": "自訂"
     },
     "category": "分類",
-    "categoryHint": "合集在“合集”標籤頁中按分類分組。",
-    "onRecommended": "顯示在媒體庫的“推薦”標籤頁",
+    "categoryHint": "合集在「合集」分頁中按分類分組。",
+    "onRecommended": "顯示在媒體庫的「推薦」分頁",
     "onHome": "顯示在首頁"
   },
   "collectionPoster": {
@@ -320,7 +320,7 @@
     "empty": "還沒有合集",
     "moviesHint": "當同一 TMDB 合集中有兩部電影在此媒體庫中時，就會在此分組。",
     "moviesHintAdmin": "當同一 TMDB 合集中有兩部電影在此媒體庫中時，就會在此分組。你也可以自行建立合集。",
-    "showsHintAdmin": "將劇集分組到你自己的合集中。",
+    "showsHintAdmin": "將影集分組到你自己的合集中。",
     "noneHere": "此媒體庫中還沒有合集。",
     "type": "類型",
     "types": {
@@ -341,12 +341,12 @@
     "rename": "重新命名播放清單",
     "delete": "刪除播放清單",
     "noMatches": "目前沒有符合此播放清單篩選條件的內容。",
-    "emptyVideo": "此播放清單為空。可以在電影、劇集或單集上使用“新增到播放清單”，或右鍵點選海報。",
-    "emptyMusic": "此播放清單為空。可以在藝術家或專輯上使用“新增到播放清單”，或右鍵點選海報。",
+    "emptyVideo": "此播放清單為空。可以在電影、影集或單集上使用「新增到播放清單」，或右鍵點選海報。",
+    "emptyMusic": "此播放清單為空。可以在藝人或專輯上使用「新增到播放清單」，或右鍵點選海報。",
     "items": "播放清單條目",
     "remove": "從播放清單中移除",
     "deleteTitle": "刪除播放清單？",
-    "deleteMessage": "“{{title}}”將被刪除。其中的內容仍保留在你的媒體庫中。",
+    "deleteMessage": "「{{title}}」將被刪除。其中的內容仍保留在你的媒體庫中。",
     "deleted": "播放清單已刪除"
   },
   "playlistForm": {
@@ -354,14 +354,14 @@
     "title": "標題",
     "for": "用於",
     "kind": "播放清單類型",
-    "video": "電影和劇集",
+    "video": "電影和影集",
     "audio": "音樂"
   },
   "playlists": {
     "title": "播放清單",
     "loadError": "無法載入你的播放清單",
     "empty": "還沒有播放清單",
-    "emptyHint": "可以在此處建立，或在電影、劇集、專輯或單集上使用“新增到播放清單”（也可以右鍵點選海報）。"
+    "emptyHint": "可以在此處建立，或在電影、影集、專輯或單集上使用「新增到播放清單」（也可以右鍵點選海報）。"
   },
   "book": {
     "kind": "有聲書",
@@ -387,11 +387,11 @@
   "categories": {
     "manage": "分類",
     "title": "分類",
-    "hint": "合集在每個媒體庫中按這些分類及此順序分組。沒有分類的歸入“其他”。",
+    "hint": "合集在每個媒體庫中按這些分類及此順序分組。沒有分類的歸入「其他」。",
     "newName": "新分類",
     "deleteTitle": "刪除分類？",
-    "deleteMessage": "“{{title}}”將被刪除。其中的合集會保留在“其他”下。",
-    "drag": "拖動以排序",
+    "deleteMessage": "「{{title}}」將被刪除。其中的合集會保留在「其他」下。",
+    "drag": "拖曳以排序",
     "rename": "重新命名 {{title}}",
     "delete": "刪除 {{title}}",
     "moveUp": "將 {{title}} 上移",
@@ -402,20 +402,20 @@
     "taken": "已有其他分類使用此名稱。"
   },
   "rows": {
-    "drag": "拖動以排序",
+    "drag": "拖曳以排序",
     "moveUp": "將 {{title}} 上移",
     "moveDown": "將 {{title}} 下移",
     "remove": "移除 {{title}}",
     "moved": "{{title}} 已移到第 {{position}} 位，共 {{total}} 個",
-    "recommendedTitle": "推薦欄目",
-    "recommendedHint": "在此媒體庫的“推薦”標籤頁中顯示為欄目的合集，位於“繼續觀看”之後，對所有人可見。",
+    "recommendedTitle": "推薦列",
+    "recommendedHint": "在此媒體庫的「推薦」分頁中顯示為一列的合集，位於「繼續觀看」之後，對所有人可見。",
     "restore": "還原 Pley 的預設設定",
     "restored_other": "已還原 {{count, number}} 個合集",
     "nothingToRestore": "無需還原：Pley 的合集都已就位",
-    "noRows": "還沒有欄目。",
-    "add": "新增欄目",
+    "noRows": "還沒有任何列。",
+    "add": "新增列",
     "pick": "選擇合集",
-    "homeTitle": "首頁欄目",
-    "homeHint": "首頁上位於“繼續觀看”和“我的片單”之後的欄目，對所有人可見。多個媒體庫中同名的合集會合併為一個欄目。可以在合集的編輯視窗中將其新增到首頁。"
+    "homeTitle": "首頁列",
+    "homeHint": "首頁上位於「繼續觀看」和「我的片單」之後的列，對所有人可見。多個媒體庫中同名的合集會合併為一列。可以在合集的編輯視窗中將其新增到首頁。"
   }
 }

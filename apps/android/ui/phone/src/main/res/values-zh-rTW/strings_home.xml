@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Home (design spec §4.1, §8), in the web's words. -->
-    <string name="home_profile">%1$s：開啟“我”</string>
+    <string name="home_profile">%1$s：開啟「我」</string>
     <string name="home_no_libraries">暫無媒體庫</string>
     <string name="home_no_libraries_body">請伺服器所有者新增一個媒體庫。</string>
     <string name="home_empty">這裡還沒有內容</string>
@@ -19,7 +19,7 @@
     <string name="home_libraries_loading">正在載入媒體庫</string>
     <string name="home_libraries_sort">排序媒體庫</string>
     <string name="home_libraries_sort_done">完成</string>
-    <string name="home_libraries_sort_hint">按住媒體庫右側手柄拖動即可排序。你的排序會在所有裝置上生效。</string>
+    <string name="home_libraries_sort_hint">按住媒體庫右側手柄拖曳即可排序。你的排序會在所有裝置上生效。</string>
     <string name="home_libraries_server_order">使用伺服器排序</string>
     <string name="home_libraries_move_up">上移</string>
     <string name="home_libraries_move_down">下移</string>

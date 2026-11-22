@@ -35,7 +35,7 @@
     <string name="tv_account_history">觀看記錄</string>
     <string name="tv_account_sort_libraries">排序媒體庫</string>
     <string name="tv_account_sort_libraries_value">你的順序，適用於所有裝置</string>
-    <string name="tv_account_always_start_as">始終以此身份啟動</string>
+    <string name="tv_account_always_start_as">始終以此身分啟動</string>
     <!-- "Always start as" left unset: the TV starts as the profile it was left on, and asks only for a profile with a PIN. -->
     <string name="tv_account_ask_who">上次使用的設定檔</string>
     <string name="tv_account_manage_web">在網頁上管理你的帳戶</string>
@@ -56,7 +56,7 @@
         <item quantity="other">%1$d 次播放</item>
     </plurals>
     <string name="tv_account_history_empty_title">暫無記錄</string>
-    <string name="tv_account_history_empty">看完的電影、劇集和歌曲會顯示在這裡。</string>
+    <string name="tv_account_history_empty">看完的電影、單集和歌曲會顯示在這裡。</string>
     <string name="tv_account_history_failed">無法載入觀看記錄</string>
     <string name="tv_account_history_more">顯示更多</string>
     <string name="tv_account_history_loading">載入中…</string>
@@ -72,11 +72,11 @@
     <string name="tv_settings_quality_automatic_hint">根據網路情況自動調整。</string>
     <!-- "8 Mbps 1080p", "30 Mbps 4K": the lines, then the bitrate. -->
     <string name="tv_settings_quality_preset">%2$d Mbps %1$s</string>
-    <string name="tv_settings_refresh_rate">匹配更新率</string>
+    <string name="tv_settings_refresh_rate">配合更新率</string>
     <string name="tv_settings_refresh_auto">自動</string>
-    <string name="tv_settings_refresh_auto_hint">對 10 分鐘及以上的影片，跟隨電視的匹配內容設定</string>
+    <string name="tv_settings_refresh_auto_hint">對 10 分鐘及以上的影片，跟隨電視的配合內容設定</string>
     <string name="tv_settings_refresh_always">始終</string>
-    <string name="tv_settings_refresh_always_hint">無論電視自身設定如何，都切換到影片的幀率</string>
+    <string name="tv_settings_refresh_always_hint">無論電視自身設定如何，都切換到影片的影格速率</string>
     <string name="tv_settings_refresh_off">關</string>
     <string name="tv_settings_refresh_off_hint">電視保持自己的更新率</string>
     <string name="tv_settings_autoplay">自動播放下一集</string>
@@ -90,11 +90,11 @@
     <string name="tv_settings_advanced">高階</string>
     <string name="tv_settings_tunneling">直通播放</string>
     <string name="tv_settings_tunneling_hint">在某些電視上畫面更流暢；在另一些電視上可能導致播放失敗</string>
-    <string name="tv_settings_software_video">軟解影片</string>
+    <string name="tv_settings_software_video">軟體解碼影片</string>
     <string name="tv_settings_software_video_hint">除錯版本：讓模擬器在沒有硬體解碼器時也能播放影片</string>
 
     <!-- Audio: passthrough per format. -->
-    <string name="tv_settings_passthrough_intro">將環繞聲傳送到電視或功放，或在此處解碼。</string>
+    <string name="tv_settings_passthrough_intro">將環繞音效傳送到電視或擴大機，或在此處解碼。</string>
     <string name="tv_settings_format_ac3" translatable="false">Dolby Digital</string>
     <string name="tv_settings_format_eac3" translatable="false">Dolby Digital Plus</string>
     <string name="tv_settings_format_atmos" translatable="false">Dolby Atmos</string>
@@ -102,9 +102,9 @@
     <string name="tv_settings_format_dts" translatable="false">DTS</string>
     <string name="tv_settings_format_dts_hd">DTS-HD 和 DTS:X</string>
     <string name="tv_settings_passthrough_auto">自動</string>
-    <string name="tv_settings_passthrough_auto_hint">按電視或功放宣告支援的方式</string>
+    <string name="tv_settings_passthrough_auto_hint">按電視或擴大機宣告支援的方式</string>
     <string name="tv_settings_passthrough_on">開</string>
-    <string name="tv_settings_passthrough_on_hint">始終透傳</string>
+    <string name="tv_settings_passthrough_on_hint">始終直通</string>
     <string name="tv_settings_passthrough_off">關</string>
     <string name="tv_settings_passthrough_off_hint">從不：由 Pley 轉換</string>
 
@@ -136,8 +136,8 @@
     <string name="tv_settings_switch_server">切換伺服器</string>
     <string name="tv_settings_open_diagnostics">開啟診斷</string>
     <string name="tv_settings_open_diagnostics_value">這臺電視能解碼和顯示什麼，以及原因</string>
-    <string name="tv_settings_show_frame_rate">顯示幀率</string>
-    <string name="tv_settings_show_frame_rate_hint">畫面變化時顯示在頂部：每秒幀數、最長幀和延遲幀</string>
+    <string name="tv_settings_show_frame_rate">顯示影格速率</string>
+    <string name="tv_settings_show_frame_rate_hint">畫面變化時顯示在頂部：每秒影格數、最長影格和延遲影格</string>
     <string name="tv_settings_version">版本</string>
     <string name="tv_settings_licences">開源許可</string>
     <string name="tv_settings_credits">致謝</string>

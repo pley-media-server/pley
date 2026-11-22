@@ -18,8 +18,8 @@
     <string name="library_sort_bitrate">位元速率</string>
     <string name="library_sort_by">排序方式</string>
     <string name="library_order">順序</string>
-    <string name="library_ascending">升序</string>
-    <string name="library_descending">降序</string>
+    <string name="library_ascending">遞增</string>
+    <string name="library_descending">遞減</string>
     <string name="library_show">顯示</string>
     <string name="library_show_all">全部</string>
     <string name="library_card_size">卡片大小</string>
@@ -46,19 +46,19 @@
         <item quantity="other">%s 部電影</item>
     </plurals>
     <plurals name="library_count_shows">
-        <item quantity="other">%s 部劇集</item>
+        <item quantity="other">%s 部影集</item>
     </plurals>
     <plurals name="library_count_artists">
-        <item quantity="other">%s 位音樂人</item>
+        <item quantity="other">%s 位藝人</item>
     </plurals>
     <plurals name="library_count_of_movies">
         <item quantity="other">%1$s / %2$s 部電影</item>
     </plurals>
     <plurals name="library_count_of_shows">
-        <item quantity="other">%1$s / %2$s 部劇集</item>
+        <item quantity="other">%1$s / %2$s 部影集</item>
     </plurals>
     <plurals name="library_count_of_artists">
-        <item quantity="other">%1$s / %2$s 位音樂人</item>
+        <item quantity="other">%1$s / %2$s 位藝人</item>
     </plurals>
     <plurals name="library_count_collections">
         <item quantity="other">%s 個合集</item>
@@ -70,8 +70,8 @@
     <string name="library_missing_body">它可能已被移除，或此設定檔無權檢視。</string>
     <string name="library_empty_title">此媒體庫為空</string>
     <string name="library_empty_body">這裡還沒有內容。伺服器新增內容後會顯示出來。</string>
-    <string name="library_no_matches_title">沒有匹配項</string>
-    <string name="library_no_matches_body">此媒體庫中沒有符合當前篩選條件的內容。</string>
+    <string name="library_no_matches_title">沒有相符的項目</string>
+    <string name="library_no_matches_body">此媒體庫中沒有符合目前篩選條件的內容。</string>
     <string name="library_recommended_failed">無法載入推薦內容</string>
     <string name="library_recommended_empty_title">暫無推薦內容</string>
     <string name="library_recommended_empty_body">媒體庫中有內容後才會顯示推薦。</string>
@@ -90,11 +90,11 @@
     <string name="collection_play">播放</string>
     <string name="collection_shuffle">隨機播放</string>
     <string name="collection_more">更多</string>
-    <string name="collection_less">收起</string>
+    <string name="collection_less">收合</string>
     <string name="collection_movies">電影</string>
-    <string name="collection_shows">劇集</string>
+    <string name="collection_shows">影集</string>
     <string name="collection_empty_movies">此合集中暫無內容。</string>
     <string name="collection_failed">無法載入此合集</string>
-    <string name="collection_nothing_to_play">無法播放：此劇集暫無分集</string>
+    <string name="collection_nothing_to_play">無法播放：此影集暫無單集</string>
     <string name="collections_title">合集</string>
 </resources>

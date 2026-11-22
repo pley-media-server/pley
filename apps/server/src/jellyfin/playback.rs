@@ -84,6 +84,13 @@ fn pick<'a>(jellyfin: &Jellyfin, files: &'a [FileRow], source: Option<&str>) -> 
 /// is when the device's profile takes it, else with an HLS stream from
 /// Pley's transcoder (`TranscodingUrl`), copied or converted as Pley's
 /// own players' would be. Settings come from the body or the query.
+/// `AllowVideoStreamCopy=false` and `AllowAudioStreamCopy=false`, which
+/// players send when they retry after failing, go into the stream's
+/// address, as Jellyfin's server writes them, for [`master`] to convert the
+/// video or the audio: jellyfin-web looks for them there to know which step
+/// of its retries it has reached. As in Jellyfin, they leave playing the
+/// file as it is to `EnableDirectPlay`, and the first turns off
+/// `SupportsDirectStream`.
 async fn playback_info(
     State(state): State<AppState>,
     Extension(jellyfin): Extension<Arc<Jellyfin>>,
@@ -108,6 +115,8 @@ async fn playback_info(
     let audio = number("AudioStreamIndex").filter(|i| *i >= 0);
     let subtitle = number("SubtitleStreamIndex").filter(|i| *i >= 0);
     let direct_allowed = flag("EnableDirectPlay").unwrap_or(true);
+    let video_copy = flag("AllowVideoStreamCopy") != Some(false);
+    let audio_copy = flag("AllowAudioStreamCopy") != Some(false);
     let play_session = new_play_session_id();
     let token_id = user.compatibility.map(|c| c.token_id).unwrap_or(0);
 
@@ -164,6 +173,7 @@ async fn playback_info(
             fmp4_segments: false,
             download: false,
             copy_video_only: !state.settings.get().transcode_video,
+            convert_audio: false,
             stream_only: false,
             device_id: None,
             api: Api::Jellyfin,
@@ -177,14 +187,19 @@ async fn playback_info(
         out.supports_direct_play = direct;
         // `/Videos/{id}/stream` sends the file as it is: what needs its
         // sound or container changed goes through the HLS address.
-        out.supports_direct_stream = direct;
+        out.supports_direct_stream = direct && video_copy;
         if !direct {
             let settings = stream_settings(profile, info.as_ref().and_then(|i| i.video()));
             // fMP4 where it is asked for and the transcoder makes it.
             let fmp4 = settings.iter().any(|(k, v)| k == "SegmentContainer" && v == "mp4")
                 && state.transcoder.info().is_some_and(|t| t.capabilities.fmp4_segments);
-            let url =
+            let mut url =
                 transcoding_url(&jellyfin, &row, &out.id, &play_session, &client, &req, &settings, picture_subtitle);
+            for (name, copy) in [("AllowVideoStreamCopy", video_copy), ("AllowAudioStreamCopy", audio_copy)] {
+                if !copy {
+                    url.push_str(&format!("&{name}=false"));
+                }
+            }
             out.transcoding_url = Some(url);
             out.transcoding_sub_protocol = "hls";
             out.transcoding_container = Some(if fmp4 { "mp4" } else { "ts" });
@@ -377,9 +392,11 @@ const MAX_MASTER_PLAYLIST: usize = 64 * 1024;
 /// `StartTimeTicks`), decided as Pley's own players' streams are for what
 /// the address asks ([`stream_caps`]: `VideoCodec`, `AudioCodec`,
 /// `SegmentContainer`, the audio channels and each codec's limits and
-/// dynamic ranges), the video copied unless `AllowVideoStreamCopy=false`.
-/// It is answered with the session's own multivariant playlist, which
-/// names what the stream carries (HEVC, Dolby Vision, E-AC-3, its range).
+/// dynamic ranges), the video copied unless `AllowVideoStreamCopy=false`,
+/// and the audio copied where the device takes it unless
+/// `AllowAudioStreamCopy=false`. It is answered with the session's own
+/// multivariant playlist, which names what the stream carries (HEVC, Dolby
+/// Vision, E-AC-3, its range).
 async fn master(
     State(state): State<AppState>,
     Extension(jellyfin): Extension<Arc<Jellyfin>>,
@@ -429,6 +446,7 @@ async fn master(
                 fmp4_segments: false,
                 download: false,
                 copy_video_only: false,
+                convert_audio: q.flag("AllowAudioStreamCopy") == Some(false),
                 stream_only: true,
                 device_id: None,
                 api: Api::Jellyfin,

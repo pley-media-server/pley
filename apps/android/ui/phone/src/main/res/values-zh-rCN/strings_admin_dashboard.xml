@@ -128,7 +128,7 @@
     <plurals name="admin_dashboard_episodes">
         <item quantity="other">%1$s 集</item>
     </plurals>
-    <string name="admin_dashboard_artists">音乐人</string>
+    <string name="admin_dashboard_artists">艺人</string>
     <plurals name="admin_dashboard_albums">
         <item quantity="other">%1$s 张专辑</item>
     </plurals>

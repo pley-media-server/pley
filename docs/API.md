@@ -4580,7 +4580,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 |---|---|---|---|
 | GET | `/api/live` | `library` | `{ available, allowed, channels, sources, recent: Id[] }`: whether to show Live TV (`allowed`: open to this account; `available`: and it has channels), the channel count, the sources set up (administrators; else 0) and the 12 channels watched last, newest first |
 | GET | `/api/live/channels` | `library` | `LiveChannel[]`, the shown channels by number, each with what's on now and next |
-| GET | `/api/live/groups` | `library` | `{ total, favorites, recent, groups: LiveGroup[] }`: the groups in the lineup's order, and how many channels in all, marked and watched lately |
+| GET | `/api/live/groups` | `library` | `{ total, favorites, recent, groups: LiveGroup[] }`: the groups in the order they first come in the lineup (a source with `sort_groups` has its own A to Z, in the places they take), and how many channels in all, marked and watched lately |
 | GET | `/api/live/browse` | `library` | `?category=all\|favorites\|recent\|group&group=&q=&offset=&limit=&around=` → `{ total, offset, channels: LiveChannel[] }`: a page (100 by default, 500 at most) of a category's channels matching `q` as search finds them (by name, slips too, a number's beginning, or the title of what's on), the closest first as in search (`recent` keeps the order they were watched); `around` gives the page with that channel in it |
 | GET | `/api/live/channels/{id}` | `library` | `LiveChannel` |
 | GET | `/api/live/channels/{id}/logo` | `library` | the logo, kept a week at a time (no larger than 1 MB and 400 px; one drawn dark on a see-through background is made light, for dark screens); `?w=` resizes it, a see-through one staying see-through |
@@ -4603,7 +4603,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | DELETE | `/api/live/sources/{id}` | `admin` | `204`, with its channels |
 | POST | `/api/live/sources/{id}/refresh` | `admin` | `202`: reads its channels and guide again now, or after a read under way |
 | GET | `/api/live/lineup` | `admin` | `?source_id=` → `LiveLineupChannel[]`, hidden ones too |
-| PATCH | `/api/live/lineup` | `admin` | `{ ids?: Id[], groups?: string[], filter?: { source_id?, group?, state?, q? }, hidden?, name?, number?, guide_id? }` → `204`: those channels, every one of `groups` and every one `filter` keeps; `""` gives back the source's own value; 20,000 ids and 5,000 groups at most |
+| PATCH | `/api/live/lineup` | `admin` | `{ ids?: Id[], groups?: string[], filter?: { source_id?, group?, state?, q? }, hidden?, name?, number?, guide_id? }` → `204`: those channels, every one of `groups` and every one `filter` keeps; `""` gives back the source's own value; 20,000 ids and 5,000 groups at most. `guide_id` is a channel of the source's guide, or the `http(s)` address of an XMLTV guide of the channel's own (at most 2,048 characters), read with the source's, once however many channels name it, 500 a source at most: the channel named after `#` (`…/epg-us.xml.gz#DisneyChannel.us`, percent-encoded or not), else its only channel, else the one of the channel's id or name. Channels given the same address are one channel: when they would find different channels of the guide, none gets its programs, and the source's `guide_error` says to name each after `#`. A guide that can't be read, the source's own too, keeps the programs it had and is named in `guide_error`; the others are read all the same |
 | GET | `/api/live/lineup/page` | `admin` | `?source_id=&group=&state=all\|shown\|hidden\|no-guide\|offline&q=&offset=&limit=` → `{ total, hidden, offset, channels: LiveLineupChannel[] }`: a page of the lineup, filtered |
 | GET | `/api/live/lineup/groups` | `admin` | `(LiveGroup & { hidden, offline })[]`: every group, hidden and offline channels counted |
 | GET | `/api/live/tuners` | `admin` | `LiveTuner[]`: the channels being pulled and who watches them |
@@ -4635,6 +4635,8 @@ interface LiveSourceInput {
   username?: string; password?: string; // Xtream
   guide_url?: string;                  // XMLTV: a web address, or a file on this computer (/…, file://…), not a share; empty: the playlist's own (an http(s) address), or Xtream's
   user_agent?: string; max_connections?: number /* 1 */; enabled?: boolean /* true */;
+  sort_groups?: boolean /* false */;  // its groups listed A to Z, by every app, not in the provider's order
+  failover?: boolean /* false */;     // its channels play on another source with it too, when its connections are all in use (Watching, below)
 }
 interface LiveSource extends Omit<LiveSourceInput, "password"> {
   id: Id; uid: string;                 // uid: its short id, as in LiveChannel.source_uid
@@ -4703,6 +4705,19 @@ interface LiveTuner {                  // a connection in use
   them is) ends that channel's viewers and takes its connection. Taking
   over another's connection otherwise: `403`. A viewer only joins a
   channel someone already watches; nobody is ended for it.
+- **The same channel on other sources.** When the channel's source and
+  others have `failover`, the channels of those others with the same
+  guide channel (the one set by hand, else the one matched, else the
+  source's `tvg-id`), hidden ones too but not offline ones, are the same
+  channel: a tuner already pulling any of them is joined, else the first
+  with a connection free is tuned, the asked one first. Only when all are
+  full does the `409` above come, with the asked channel's source's
+  connections, and `take_over` takes one of those. A connection lists the
+  copy it pulls (its `channel_id` and name); the viewer is still the
+  asked channel's, in `/api/sessions` and `live_taken_over`, and ends
+  when that channel is hidden. Feeds a provider gives one `tvg-id`
+  (East and West, +1) count as one channel unless given guide channels
+  of their own.
 - **Taken over.** Each viewer ended by a take-over gets
   `live_taken_over` (`session_id`, `channel_id`, `message`) on their event
   streams at once, and its session answers `410` with the same `message`

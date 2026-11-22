@@ -35,7 +35,7 @@
     "sortLibraries": "媒體庫排序",
     "sortNeedsNewer": "需要伺服器上更新版本的 Pley",
     "yourOrder": "你的順序，適用於所有裝置",
-    "alwaysStartAs": "始終以此身份啟動",
+    "alwaysStartAs": "始終以此身分啟動",
     "usedLast": "上次使用的設定檔",
     "web": "在網頁上管理你的帳戶",
     "webHint": "名稱、頭像、密碼、PIN、兩步驗證、裝置和應用"
@@ -70,11 +70,11 @@
     "detailsHint": "在畫面上顯示影片的播放方式（直接播放、直接串流或轉碼）"
   },
   "audio": {
-    "intro": "Dolby Digital、Dolby Digital Plus 和 Atmos 始終直通。如果你的功放支援這些格式，請開啟以下選項；否則 Pley 會進行轉換。",
+    "intro": "Dolby Digital、Dolby Digital Plus 和 Atmos 始終直通。如果你的擴大機支援這些格式，請開啟以下選項；否則 Pley 會進行轉換。",
     "truehd": "直通 Dolby TrueHD",
-    "truehdHint": "僅適用於能從電視接收 TrueHD 的功放",
+    "truehdHint": "僅適用於能從電視接收 TrueHD 的擴大機",
     "dts": "直通 DTS",
-    "dtsHint": "僅適用於能從電視接收 DTS 的功放"
+    "dtsHint": "僅適用於能從電視接收 DTS 的擴大機"
   },
   "display": {
     "size": "字幕大小",
@@ -139,8 +139,8 @@
       "none": "無",
       "video": "影片：{{list}}",
       "audio": "音訊解碼：{{list}}",
-      "receiver": "傳送到功放：{{list}}",
-      "receiverOutput": "傳送到功放：{{list}}（聲音輸出 {{output}}）",
+      "receiver": "傳送到擴大機：{{list}}",
+      "receiverOutput": "傳送到擴大機：{{list}}（聲音輸出 {{output}}）",
       "nothing": "無",
       "streams": "流：HLS {{list}}"
     }
@@ -148,7 +148,7 @@
   "about": {
     "appName": "Pley 三星電視版",
     "version": "版本",
-    "licences": "開源許可證",
+    "licences": "開源授權條款",
     "credits": "致謝"
   },
   "signOut": {

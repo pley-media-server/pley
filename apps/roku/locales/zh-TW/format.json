@@ -12,7 +12,7 @@
   "resume": "從 {{time}} 繼續播放",
   "counts": {
     "movies_other": "{{count, number}} 部電影",
-    "shows_other": "{{count, number}} 部劇集",
+    "shows_other": "{{count, number}} 部影集",
     "artists_other": "{{count, number}} 位藝人",
     "titles_other": "{{count, number}} 個標題"
   },
@@ -40,7 +40,7 @@
     "inMinutes": "{{n}} 分鐘後",
     "inHours_other": "{{count}} 小時後",
     "tomorrow": "明天",
-    "inDays_other": "{{count}} 天后"
+    "inDays_other": "{{count}} 天後"
   },
   "date": {
     "monthDay": "{{month}}{{day}}日",
