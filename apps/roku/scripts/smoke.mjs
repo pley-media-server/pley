@@ -601,7 +601,7 @@ async function walk() {
   await settle();
   shoot("collection-merged");
   since = mark();
-  await press("down", 2); // Movies only
+  await press("right", 2); // Movies only, after Play and Shuffle
   await press("select");
   await waitFor(/^GET \/api\/collections\/4$/, since, "a library's own collection, from the merged page");
   await press("back");
@@ -884,10 +884,10 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/collections\/1$/, since, "a collection of movies");
   shoot("collection");
-  await press("down", 2); // past Shuffle
+  await press("down"); // the posters
   await sleep(500);
   shoot("collection-titles");
-  await press("up", 2); // Shuffle, then Play
+  await press("up"); // the buttons, on Play
   since = mark();
   await press("select"); // Play
   await waitFor(/^POST \/api\/playback$/, since, "the collection played");

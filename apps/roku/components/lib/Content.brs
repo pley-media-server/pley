@@ -382,9 +382,10 @@ end function
 ' A page's buttons as a ChipRow's, as Android TV's: the first a pill with
 ' its icon, the rest round icons named while focused. actions name the
 ' icons (Play's, Shuffle's, a person for Go to artist, a note for Now
-' playing, a pencil for Rename, a cross for Delete).
+' playing, a pencil for Rename or a reason, a cross for Delete or Decline,
+' a plus to ask for a title, a check to approve one).
 function contentActionChips(labels as object, actions as object) as object
-    icons = { play: "play", shuffle: "shuffle", artist: "user-round", nowPlaying: "music", rename: "pencil", delete: "x" }
+    icons = { play: "play", shuffle: "shuffle", artist: "user-round", nowPlaying: "music", rename: "pencil", delete: "x", collection: "layers", open: "play", request: "plus", pick: "plus", follow: "bookmark-plus", unfollow: "bookmark-check", approve: "check", decline: "x", declineReason: "pencil", retry: "rotate-ccw", withdraw: "x", cancel: "x", signIn: "user-round" }
     chips = []
     for i = 0 to labels.Count() - 1
         icon = invalid

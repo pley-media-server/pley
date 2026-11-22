@@ -185,6 +185,7 @@ sub showDetail()
     end if
     m.buttons.visible = hasButtons
     m.column.visible = true
+    if m.rows.visible then placeRows()
     ' A menu of the panel says its entries as they are now.
     if m.panelKind = "more"
         openMore()
@@ -373,13 +374,27 @@ sub showRows()
         if keys[i] = focusedKey then m.rows.jumpToRowItem = [i, position[1]]
     end for
     m.rows.visible = true
+    placeRows()
 end sub
 
 ' The page slides up to the rows as they take the focus, the backdrop
 ' shaded under them all, and back down.
+' The rows 96 px under the title's words and buttons, not at a fixed
+' place: a short summary left a third of the screen empty above them.
+' Between 600 and 940; the page slides by as much to bring them to 120.
+sub placeRows()
+    rect = m.column.boundingRect()
+    if rect.height <= 0 then return
+    y = Int(rect.y + rect.height + 96)
+    if y < 600 then y = 600
+    if y > 940 then y = 940
+    if m.rows.translation[1] <> y then m.rows.translation = [168, y]
+end sub
+
 sub focusRows(onRows as boolean)
     if onRows
-        m.page.translation = [0, -820]
+        placeRows()
+        m.page.translation = [0, -(m.rows.translation[1] - 120)]
         m.shade.visible = true
         m.rows.setFocus(true)
     else

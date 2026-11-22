@@ -79,6 +79,14 @@ sub onContent()
     m.subtitle.color = "0xA1A9B6FF"
     if item.hasField("subtitleColor") then m.subtitle.color = item.subtitleColor
     m.fallback.text = item.title
+    ' A person without a photo: their initials in the circle, their name
+    ' being under it already.
+    if m.person
+        m.fallback.text = tileInitials(item.title)
+        m.fallback.font = uiType("section")
+    else
+        m.fallback.font = uiType("label")
+    end if
     badge = ""
     if item.hasField("badge") then badge = item.badge
     m.badge.text = badge
@@ -306,3 +314,12 @@ sub onLoaded()
     shape = (bw / bh) / (m.imageWidth / m.imageHeight)
     if shape > 1.03 or shape < 0.97 then m.poster.effect = invalid
 end sub
+
+' "Ada Lovelace" as "AL", "Cher" as "C".
+function tileInitials(name as string) as string
+    out = ""
+    for each word in name.Split(" ")
+        if word <> "" and Len(out) < 2 then out = out + UCase(Left(word, 1))
+    end for
+    return out
+end function

@@ -40,7 +40,8 @@ sub init()
     m.opens = []
     ' A show's next episode is being asked for: the buttons wait.
     m.picking = false
-    m.buttons.observeField("buttonSelected", "onButton")
+    m.buttons.observeField("chosen", "onButton")
+    m.labelsShown = ""
     m.grid.observeField("itemSelected", "onTile")
     m.top.observeField("active", "onActive")
 end sub
@@ -207,7 +208,12 @@ sub showButtons()
             labels.Push(t("titles.collection.onlyLibrary", { library: library.name }))
         end for
     end if
-    if FormatJson(labels) <> FormatJson(m.buttons.buttons) then m.buttons.buttons = labels
+    if FormatJson(labels) <> m.labelsShown
+        m.labelsShown = FormatJson(labels)
+        hadFocus = m.buttons.isInFocusChain()
+        m.buttons.chips = contentActionChips(labels, actions)
+        contentKeepChip(m.buttons, m.buttons.focusIndex, hadFocus)
+    end if
     m.actions = actions
     m.opens = opens
     m.buttons.visible = labels.Count() > 0

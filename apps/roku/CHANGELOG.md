@@ -58,6 +58,10 @@ describes how they are made.
   a request page's and a collection's words stay clear of their picture.
 - Round buttons are circles, as on Android TV, and Live TV's guide shows
   its focus in the accent, its programme's words on one line.
+- A collection's and a request page's buttons are the pill and round
+  icons the title pages have.
+- A title's rows start under its words and buttons rather than near the
+  screen's foot, and a person without a photo shows their initials.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

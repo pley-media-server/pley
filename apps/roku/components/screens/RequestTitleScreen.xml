@@ -45,7 +45,7 @@
                     <Label id="stageLine" width="1020" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
                     <Label id="note" width="1020" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallSystemFont" />
                 </LayoutGroup>
-                <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="560" visible="false" />
+                <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
             </LayoutGroup>
             <!-- Its top shows under the buttons; the page slides up to it. -->
             <RowList id="rows" translation="[168, 940]" itemComponentName="Tile" itemSize="[1752, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />

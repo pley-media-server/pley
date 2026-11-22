@@ -49,7 +49,8 @@ sub init()
     ' the new badge.
     m.badge = ""
     m.problemShown = invalid
-    m.buttons.observeField("buttonSelected", "onButton")
+    m.buttons.observeField("chosen", "onButton")
+    m.labelsShown = ""
     m.rows.observeField("rowItemSelected", "onTile")
     m.problemButtons.observeField("buttonSelected", "onProblemButton")
     m.poll.observeField("fire", "load")
@@ -178,10 +179,13 @@ sub showDetail()
     end if
     hasButtons = m.shown.buttons.Count() > 0
     if hasButtons
-        focused = m.buttons.buttonFocused
-        hadFocus = m.buttons.isInFocusChain()
-        if FormatJson(m.buttons.buttons) <> FormatJson(m.shown.buttons) then m.buttons.buttons = m.shown.buttons
-        uiKeepButton(m.buttons, focused, hadFocus)
+        if FormatJson(m.shown.buttons) <> m.labelsShown
+            m.labelsShown = FormatJson(m.shown.buttons)
+            focused = m.buttons.focusIndex
+            hadFocus = m.buttons.isInFocusChain()
+            m.buttons.chips = contentActionChips(m.shown.buttons, m.shown.actions)
+            contentKeepChip(m.buttons, focused, hadFocus)
+        end if
     else if m.buttons.isInFocusChain()
         m.top.setFocus(true)
     end if

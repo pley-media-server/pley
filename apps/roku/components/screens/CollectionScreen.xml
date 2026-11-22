@@ -56,7 +56,7 @@
                     <Label id="summary" width="1000" wrap="true" maxLines="3" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
                     <Label id="note" width="1020" wrap="true" color="0xA1A9B6FF" font="font:SmallSystemFont" />
                 </LayoutGroup>
-                <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="560" visible="false" />
+                <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
             </LayoutGroup>
             <!-- Its top shows under the buttons; the page slides up to it. -->
             <MarkupGrid id="grid" translation="[168, 720]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[216, 414]" itemSpacing="[4, 16]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
