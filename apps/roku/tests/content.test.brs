@@ -27,7 +27,14 @@ end function
 sub test_content_movie_tiles_show_poster_year_and_progress()
     tile = contentTile(contentTestMovie(), contentTestServer(), false)
     tkEqual(tile.title, "Arrival")
-    tkEqual(tile.subtitle, "2016")
+    tkEqual(tile.subtitle, "1 h 46 min left", "started: what is left, as on Android TV")
+    tkEqual(tile.place, "2016", "the line without it, for lists that add their own")
+    fresh = contentTestMovie()
+    fresh.user_state.position_ms = 0
+    tkEqual(contentTile(fresh, contentTestServer(), false).subtitle, "2016", "not started: the year")
+    episode = contentTestEpisode()
+    episode.user_state = { position_ms: 300000, watched: false }
+    tkEqual(contentTile(episode, contentTestServer(), true).subtitle, "S1 E1 · 50 min left", "an episode keeps its number")
     tkEqual(tile.image, "http://nas:7539/api/items/12/images/poster?v=1729600000&w=220")
     tkEqual(tile.itemId, 12)
     tkEqual(tile.kind, "movie")
@@ -38,6 +45,8 @@ end sub
 
 sub test_content_library_posters_show_their_files_only_when_asked()
     movie = contentTestMovie()
+    ' Not started, so its line is the year.
+    movie.user_state.position_ms = 0
     movie.media = { bitrate: 42000000, size: 25125558681&, width: 3840, height: 1600, video_codec: "hevc", dynamic_range: "dolby_vision" }
     plain = contentTiles([movie, "not an item"], contentTestServer())
     tkEqual(plain.Count(), 1)

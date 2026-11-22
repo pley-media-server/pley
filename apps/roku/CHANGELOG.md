@@ -86,6 +86,9 @@ describes how they are made.
   backdrop alone is dimmed.
 - Settings' TMDB credit and the player panel's hint end inside the
   title-safe area on two lines.
+- A movie or episode started and not finished says what is left on its
+  tile ("1 h 14 min left", "S1 E3 · 18 min left") instead of its year, as
+  on Android TV.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

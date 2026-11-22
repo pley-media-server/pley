@@ -47,11 +47,16 @@ function contentDetailPosterWidth() as integer
 end function
 
 ' One tile of a row or a grid. wide: a 16:9 picture (Continue Watching,
-' episodes) instead of a poster.
+' episodes) instead of a poster. A video started and not finished says
+' what is left instead of its year, as on Android TV ("1 h 14 min left";
+' an episode "S1 E3 · 18 min left"); place is the line without it, for
+' lists that add their own.
 function contentTile(item as object, server as string, wide as boolean) as object
     kind = httpString(item.kind)
     title = httpSentence(item.title)
     subtitle = ""
+    code = ""
+    showTitle = ""
     if kind = "movie" or kind = "show"
         year = httpNumber(item.year, 0)
         if year > 0 then subtitle = Int(year).ToStr()
@@ -79,6 +84,7 @@ function contentTile(item as object, server as string, wide as boolean) as objec
             subtitle = code
         end if
     end if
+    placeLine = subtitle
     state = httpObject(item.user_state)
     position = 0
     watched = false
@@ -89,9 +95,17 @@ function contentTile(item as object, server as string, wide as boolean) as objec
     duration = httpNumber(item.duration_ms, 0)
     progress = 0.0
     if not watched then progress = fmtProgress(position, duration)
+    if progress > 0 and progress < 1 and (kind = "movie" or kind = "episode" or kind = "extra")
+        left = fmtLeft(position, duration)
+        if left <> ""
+            subtitle = left
+            if kind = "episode" and showTitle <> "" and code <> "" then subtitle = code + " · " + left
+        end if
+    end if
     return {
         title: title,
         subtitle: subtitle,
+        place: placeLine,
         image: contentTileImage(item, server, wide, 0),
         wide: wide,
         square: contentMusic(kind) and not wide,
@@ -831,7 +845,7 @@ end function
 function contentUpNext(item as object, server as string) as object
     tile = contentTile(item, server, true)
     ' A movie (a playlist's next): its year.
-    line = tile.subtitle
+    line = tile.place
     if tile.kind = "episode"
         line = fmtEpisode(item.parent_index, item.index)
         title = httpSentence(item.title)
