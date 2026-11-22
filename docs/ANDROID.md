@@ -703,6 +703,20 @@ one: a row per group (Movies, Shows, Seasons, Episodes, Artists, Albums,
 Tracks, Live TV, People) on phones and TVs, each scrolling sideways, with
 no See all. TMDB's Discover row comes after them ([Requests](#requests)).
 
+### Up Next
+
+Skip Intro and Skip Credits show while an intro or the credits play, until
+a second before they end; nothing is skipped by itself. Up Next, what
+plays next with a 10 s countdown (none with Play the next episode by
+itself off), comes as credits that run to the end of their file begin,
+and otherwise at the end of the file. Credits run to the end when they end
+at most 15 s before it, by the file's length as the server lists it, else
+as the player has it; with no length known, they don't. Credits that
+something follows, an after-credits scene or a show's last minutes, offer
+only Skip Credits, so the countdown never skips what comes after them. An
+episode goes on to the next one, and a title played from a playlist or a
+collection to the next title there, the same on phones and TVs.
+
 ### Audio and subtitles
 
 Unless you pick a track, the server picks the audio in the profile's

@@ -10,6 +10,9 @@ describes how they are made.
 
 ### Fixed
 
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end
+  instead, so its countdown no longer skips them.
 - A video whose audio the device can't decode (Dolby Atmos in E-AC-3 on
   some phones) plays with the audio converted by the server, or another
   track, instead of failing after a transcode.
