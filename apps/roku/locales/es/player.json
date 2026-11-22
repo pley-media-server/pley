@@ -177,7 +177,6 @@
     "streams": "Flujos: HLS, en varios tamaños"
   },
   "nowPlaying": {
-    "title": "Reproduciendo ahora",
     "position": "Pista {{at, number}} de {{total, number}}",
     "shuffle": "Aleatorio",
     "stopShuffling": "Quitar aleatorio",

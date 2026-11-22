@@ -4,13 +4,9 @@ sub init()
     m.title = m.top.findNode("title")
     m.subtitle = m.top.findNode("subtitle")
     m.duration = m.top.findNode("duration")
-    ' A disc's heading (kind "disc"; QueueRow has none): its words alone,
-    ' never drawn focused.
+    ' A disc's heading (kind "disc"): its words alone, never drawn focused.
     m.heading = m.top.findNode("heading")
     m.isHeading = false
-    ' Up next's track playing (current; an album's tracks have none): in
-    ' bold, in the accent.
-    m.isCurrent = false
     ' Pley's type where the markup names Roku's (a list's items are made
     ' after the scene restyled the screen).
     uiRestyle(m.top)
@@ -25,9 +21,7 @@ sub onContent()
         m.heading.text = ""
         if m.isHeading then m.heading.text = track.title
     end if
-    m.isCurrent = track.hasField("current") and track.current = true
     m.title.font = uiSystemFont(33)
-    if m.isCurrent then m.title.font = uiFont("bold", 30)
     m.background.visible = not m.isHeading
     m.title.visible = not m.isHeading
     m.title.text = track.title
@@ -45,6 +39,5 @@ sub onFocus()
     else
         m.background.color = "0x1E222AFF"
         m.title.color = "0xEBEBEBFF"
-        if m.isCurrent then m.title.color = "0x38BDF8FF"
     end if
 end sub

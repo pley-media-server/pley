@@ -171,7 +171,6 @@
     "streams": "流：HLS，多种尺寸"
   },
   "nowPlaying": {
-    "title": "正在播放",
     "position": "第 {{at, number}} 首，共 {{total, number}} 首",
     "shuffle": "随机播放",
     "stopShuffling": "停止随机播放",

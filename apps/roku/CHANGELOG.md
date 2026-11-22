@@ -89,6 +89,10 @@ describes how they are made.
 - A movie or episode started and not finished says what is left on its
   tile ("1 h 14 min left", "S1 E3 · 18 min left") instead of its year, as
   on Android TV.
+- Now Playing is laid out as on Android TV: the rail at its left, a large
+  cover, and beside it the title over the artist and album, the scrubber,
+  the buttons, and Up next in rows of two lines, the track playing marked
+  with a waveform.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

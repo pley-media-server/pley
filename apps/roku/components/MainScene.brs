@@ -1161,10 +1161,10 @@ end function
 ' --- The rail (Rail.xml) ---
 
 ' The routes whose pages have the rail at their left, as the Android TV
-' app's browsing pages do; the others (the players, Now Playing, signing
-' in, a page of text) have the screen to themselves.
+' app's browsing pages and Now Playing do; the others (the players,
+' signing in, a page of text) have the screen to themselves.
 function railRoutes() as object
-    return { home: true, library: true, grid: true, collections: true, collection: true, search: true, discover: true, discoverList: true, requests: true, settings: true, live: true, details: true, show: true, person: true, playlist: true, history: true, album: true, artist: true, requestTitle: true }
+    return { home: true, library: true, grid: true, collections: true, collection: true, search: true, discover: true, discoverList: true, requests: true, settings: true, live: true, details: true, show: true, person: true, playlist: true, history: true, album: true, artist: true, requestTitle: true, nowPlaying: true }
 end function
 
 ' The rail's entries, as Home's menu was (Home.brs's homeMenu): the
@@ -1205,6 +1205,7 @@ sub placeRail()
     if top.route = "library" and top.params <> invalid and top.params.library <> invalid then current = "library:" + urlValue(top.params.library.id)
     if top.route = "search" or top.route = "discover" or top.route = "requests" or top.route = "settings" or top.route = "live" or top.route = "collections" then current = top.route
     if top.route = "grid" and top.params <> invalid and top.params.kind = "playlists" then current = "playlists"
+    if top.route = "nowPlaying" then current = "nowPlaying"
     if current <> "" then m.rail.current = current
     m.rail.home = m.stack.Count() = 1
 end sub

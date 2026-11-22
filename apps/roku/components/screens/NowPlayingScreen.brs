@@ -14,8 +14,7 @@ sub init()
     m.backdrop = m.top.findNode("backdrop")
     m.cover = m.top.findNode("cover")
     m.title = m.top.findNode("title")
-    m.artist = m.top.findNode("artist")
-    m.album = m.top.findNode("album")
+    m.line = m.top.findNode("line")
     m.track = m.top.findNode("track")
     m.fill = m.top.findNode("fill")
     m.scrubber = m.top.findNode("scrubber")
@@ -28,11 +27,9 @@ sub init()
     m.upNextTitle = m.top.findNode("upNextTitle")
     m.upNext = m.top.findNode("upNext")
     m.lower = m.top.findNode("lower")
-    m.heading = m.top.findNode("heading")
-    m.heading.text = t("player.nowPlaying.title")
     m.upNextTitle.text = t("player.upNext.title")
-    ' A section's heading, as a title page's rows have.
-    m.upNextTitle.font = uiType("section")
+    ' A small grey heading, as Android TV's.
+    m.upNextTitle.font = uiType("label")
     m.watching = false
     m.labels = []
     ' The buttons' words, and how wide each is: wide enough for either of
@@ -97,8 +94,10 @@ sub onTrack()
     track = m.global.music.track
     if track = invalid then return
     m.title.text = track.title
-    m.artist.text = track.artist
-    m.album.text = track.album
+    parts = []
+    if track.artist <> "" then parts.Push(track.artist)
+    if track.album <> "" then parts.Push(track.album)
+    m.line.text = parts.Join(" · ")
     placeControls()
     if m.cover.uri <> track.image
         agent = m.top.getScene().getHttpAgent()
@@ -109,20 +108,20 @@ sub onTrack()
     end if
 end sub
 
-' The scrubber and the buttons 36 px under the track's lines (lower by a
+' The scrubber and the buttons 32 px under the track's lines (lower by a
 ' title's second line), and as many rows of Up next as end above the
 ' title-safe area's foot (1026).
 sub placeControls()
-    lines = 104 + 8 + 20 + 8 + 20 + 36
-    for each label in [m.heading, m.title, m.artist, m.album]
+    lines = 116 + 16 + 8 + 36
+    for each label in [m.title, m.line]
         lines += label.boundingRect().height
     end for
-    dy = Int(lines + 36 - 340)
+    dy = Int(lines + 32 - 330)
     if dy < 0 then dy = 0
     if m.lower.translation[1] <> dy then m.lower.translation = [0, dy]
-    rows = Int((1026 - 628 - dy + 8) / 64)
+    rows = Int((1026 - 620 - dy + 6) / 102)
     if rows < 2 then rows = 2
-    if rows > 5 then rows = 5
+    if rows > 4 then rows = 4
     if m.upNext.numRows <> rows then m.upNext.numRows = rows
 end sub
 
@@ -169,7 +168,7 @@ sub markRow(at as integer, current as boolean)
     row = m.rows.getChild(index)
     if row = invalid then return
     fresh = CreateObject("roSGNode", "ContentNode")
-    nodesFill(fresh, { title: row.title, subtitle: row.subtitle, duration: row.duration, current: current })
+    nodesFill(fresh, { number: row.number, title: row.title, subtitle: row.subtitle, duration: row.duration, current: current })
     m.rows.replaceChild(fresh, index)
 end sub
 

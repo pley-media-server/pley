@@ -177,7 +177,6 @@
     "streams": "Flux : HLS, en plusieurs tailles"
   },
   "nowPlaying": {
-    "title": "En cours de lecture",
     "position": "Titre {{at, number}} sur {{total, number}}",
     "shuffle": "Aléatoire",
     "stopShuffling": "Arrêter l’aléatoire",
