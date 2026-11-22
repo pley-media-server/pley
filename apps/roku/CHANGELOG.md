@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Changed
 
+- The focus moves at once in every list, grid and row of posters, a menu
+  and a side panel alike: Roku's lists glided to each item, so a press
+  felt slow and the highlight went dark until it arrived. Holding a key
+  still scrolls.
 - The player's buttons keep their size when focused, and Previous,
   Play/Pause and Next show no name under them, their icons saying it.
 - A focused button or tab keeps its size: Resume and the other buttons

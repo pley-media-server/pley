@@ -81,9 +81,9 @@
             <Rectangle width="800" height="1080" color="0x16191EF2" />
             <Label id="listTitle" translation="[96, 56]" width="664" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
             <Label id="listRange" translation="[96, 120]" width="664" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-            <MarkupList id="channelList" translation="[72, 176]" itemComponentName="LiveChannelRow" itemSize="[704, 100]" itemSpacing="[0, 4]" numRows="7" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+            <QuickList id="channelList" translation="[72, 176]" itemComponentName="LiveChannelRow" itemSize="[704, 100]" itemSpacing="[0, 4]" numRows="7" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <!-- Left in the list: another category to list. -->
-            <MarkupList id="categoryList" translation="[72, 176]" itemComponentName="LiveRailItem" itemSize="[704, 56]" itemSpacing="[0, 4]" numRows="12" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+            <QuickList id="categoryList" translation="[72, 176]" itemComponentName="LiveRailItem" itemSize="[704, 56]" itemSpacing="[0, 4]" numRows="12" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
             <!-- Two lines: what the channels do, then the categories and search. -->
             <Label id="listHint" translation="[96, 936]" width="664" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:TinySystemFont" />
         </Group>

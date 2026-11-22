@@ -27,7 +27,7 @@
     <children>
         <Label id="title" translation="[192, 56]" width="1300" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="credit" translation="[192, 128]" width="1600" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <MarkupGrid id="grid" translation="[168, 200]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[216, 414]" itemSpacing="[4, 16]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <QuickGrid id="grid" translation="[168, 200]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[216, 414]" itemSpacing="[4, 16]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[192, 480]" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" visible="false" />
         <!-- Why the titles can't be shown, and what to do about it. -->
         <LayoutGroup id="problem" translation="[192, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">

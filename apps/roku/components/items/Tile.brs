@@ -271,7 +271,7 @@ function inRowList() as boolean
     for i = 1 to 4
         if node = invalid then exit for
         kind = node.subtype()
-        if kind = "RowList" or kind = "RowListItem"
+        if kind = "RowList" or kind = "QuickRowList" or kind = "RowListItem"
             m.inRowList = true
             exit for
         end if

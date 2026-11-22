@@ -1011,6 +1011,14 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   24 px wider and 30 px taller than the picture, room the lists would
   otherwise cut the focused tile's ring at; the lists sit 24 px further
   left to match.
+- **Lists** are `QuickList`, `QuickGrid` and `QuickRowList`
+  (`components/shared/Quick*`), Roku's MarkupList, MarkupGrid and RowList
+  that move the focus themselves: Roku's own glide to each item, which an
+  app can't make shorter, made every press feel slow and left no highlight
+  until it ended. They jump the focus at once (`jumpToItem`,
+  `jumpToRowItem`), repeat a held key after 0.4 s and then every 0.09 s,
+  and leave a key that moves nothing, and a RowList's Up and Down, to the
+  list's own handling.
 
 ## Releases
 

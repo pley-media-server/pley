@@ -45,7 +45,7 @@
             <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
         </LayoutGroup>
         <Label id="albumsLabel" translation="[700, 64]" color="0xEBEBEBFF" font="font:MediumBoldSystemFont" visible="false" />
-        <MarkupGrid id="albums" translation="[676, 128]" itemComponentName="Tile" numColumns="4" numRows="2" itemSize="[284, 386]" itemSpacing="[4, 40]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <QuickGrid id="albums" translation="[676, 128]" itemComponentName="Tile" numColumns="4" numRows="2" itemSize="[284, 386]" itemSpacing="[4, 40]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
     </children>
 </component>

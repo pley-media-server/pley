@@ -34,7 +34,7 @@
             <Label id="line" width="460" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
             <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
         </LayoutGroup>
-        <MarkupList id="tracks" translation="[700, 64]" itemComponentName="TrackRow" itemSize="[1124, 80]" itemSpacing="[0, 8]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <QuickList id="tracks" translation="[700, 64]" itemComponentName="TrackRow" itemSize="[1124, 80]" itemSpacing="[0, 8]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
     </children>
 </component>

@@ -71,7 +71,7 @@ sub init()
     m.notesOf = {}
     panes = m.top.findNode("panes")
     for each key in m.categoryKeys
-        list = panes.createChild("MarkupList")
+        list = panes.createChild("QuickList")
         list.update({ itemComponentName: "SettingRow", itemSize: [1060, 96], drawFocusFeedback: false, vertFocusAnimationStyle: "floatingFocus", visible: false })
         list.observeField("itemSelected", "onRow")
         m.lists[key] = list

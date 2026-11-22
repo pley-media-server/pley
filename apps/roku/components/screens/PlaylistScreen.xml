@@ -31,7 +31,7 @@
             <Label id="line" width="460" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
             <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
         </LayoutGroup>
-        <MarkupList id="entries" translation="[700, 64]" itemComponentName="EpisodeRow" itemSize="[1124, 196]" itemSpacing="[0, 16]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <QuickList id="entries" translation="[700, 64]" itemComponentName="EpisodeRow" itemSize="[1124, 196]" itemSpacing="[0, 16]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <Label id="hint" translation="[192, 940]" width="460" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallestSystemFont" visible="false" />
     </children>

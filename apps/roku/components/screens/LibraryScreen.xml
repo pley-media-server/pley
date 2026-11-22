@@ -30,7 +30,7 @@
         <Label id="count" translation="[1424, 74]" width="400" horizAlign="right" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
         <ChipRow id="tabs" translation="[192, 132]" />
         <ChipRow id="view" translation="[1024, 132]" visible="false" />
-        <MarkupGrid id="grid" translation="[168, 212]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[216, 414]" itemSpacing="[4, 16]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+        <QuickGrid id="grid" translation="[168, 212]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[216, 414]" itemSpacing="[4, 16]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
         <!-- The A to Z, right of the grid's last column. -->
         <LetterColumn id="letters" translation="[1764, 212]" visible="false" />
         <!-- A jump to a page that just came goes once the grid has taken
@@ -39,19 +39,19 @@
         <!-- Recommended's rows and the categories' keep the focused row at
              the top, as Home's: the second row showed its focus below the
              screen's foot. Rows scrolled past are cut under the tabs. -->
-        <RowList id="rows" translation="[168, 212]" clippingRect="[-48, 0, 1800, 868]" itemComponentName="Tile" itemSize="[1752, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <QuickRowList id="rows" translation="[168, 212]" clippingRect="[-48, 0, 1800, 868]" itemComponentName="Tile" itemSize="[1752, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         <!-- The Collections tab by category, a row each, when there are
              several; one category's are in the grid. -->
-        <RowList id="groups" translation="[168, 212]" clippingRect="[-48, 0, 1800, 868]" itemComponentName="Tile" itemSize="[1752, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <QuickRowList id="groups" translation="[168, 212]" clippingRect="[-48, 0, 1800, 868]" itemComponentName="Tile" itemSize="[1752, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         <Label id="message" translation="[192, 480]" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- The sort's or the filters' choices, over the right half. -->
         <Group id="panel" visible="false">
             <Rectangle width="1920" height="1080" color="0x16191E80" />
             <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFF" />
             <Label id="panelTitle" translation="[1256, 72]" width="608" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <MarkupList id="choices" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+            <QuickList id="choices" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <!-- The filters: each opens its choices. -->
-            <MarkupList id="menu" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+            <QuickList id="menu" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
             <Label id="panelHint" translation="[1256, 912]" width="608" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         </Group>
     </children>

@@ -57,7 +57,7 @@
             <!-- Up next under them, in the column: the queue, the track
                  playing marked, OK playing one. -->
             <Label id="upNextTitle" translation="[880, 576]" color="0xA1A9B6FF" visible="false" />
-            <MarkupList id="upNext" translation="[856, 620]" itemComponentName="QueueRow" itemSize="[968, 96]" itemSpacing="[0, 6]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+            <QuickList id="upNext" translation="[856, 620]" itemComponentName="QueueRow" itemSize="[968, 96]" itemSpacing="[0, 6]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
         </Group>
     </children>
 </component>

@@ -67,7 +67,7 @@
                 <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
             </LayoutGroup>
             <!-- Under the buttons (placeGrid); the page slides up to it. -->
-            <MarkupGrid id="grid" translation="[168, 720]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[216, 414]" itemSpacing="[4, 16]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+            <QuickGrid id="grid" translation="[168, 720]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[216, 414]" itemSpacing="[4, 16]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
         </Group>
         <Label id="message" translation="[192, 480]" width="1100" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
     </children>

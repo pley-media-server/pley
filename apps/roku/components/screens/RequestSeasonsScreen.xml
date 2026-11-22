@@ -25,7 +25,7 @@
     <children>
         <Label id="heading" translation="[96, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="subtitle" translation="[96, 132]" width="1000" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <MarkupList id="seasons" translation="[96, 210]" itemComponentName="SeasonPickRow" itemSize="[1000, 88]" itemSpacing="[0, 10]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <QuickList id="seasons" translation="[96, 210]" itemComponentName="SeasonPickRow" itemSize="[1000, 88]" itemSpacing="[0, 10]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <LayoutGroup id="side" translation="[1200, 210]" layoutDirection="vert" itemSpacings="[24, 40, 24]">
             <Label id="words" width="624" wrap="true" color="0xEBEBEBFF" font="font:SmallSystemFont" />
             <Label id="allowance" width="624" wrap="true" color="0xA1A9B6FF" font="font:SmallestSystemFont" />

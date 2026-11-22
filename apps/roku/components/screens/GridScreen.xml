@@ -25,7 +25,7 @@
         <!-- New playlist: a pill with its plus, as a page's buttons are,
              ending at the right margin. -->
         <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
-        <MarkupGrid id="grid" translation="[168, 232]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[216, 414]" itemSpacing="[4, 16]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <QuickGrid id="grid" translation="[168, 232]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[216, 414]" itemSpacing="[4, 16]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[192, 480]" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
     </children>
 </component>
