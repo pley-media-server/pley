@@ -45,7 +45,7 @@
         </Group>
         <!-- Rewind, fast forward and Replay are the screen's (Replay opens
              Search): it pages the guide through time itself. -->
-        <TimeGrid id="guide" translation="[624, 376]" width="1200" height="648" numRows="7" duration="7200" maxDays="2" channelInfoWidth="260" infoGridGap="8" ignoreTrickPlayKeys="true"
+        <TimeGrid id="guide" translation="[624, 376]" numRows="7" duration="7200" maxDays="2" channelInfoWidth="260" infoGridGap="8" ignoreTrickPlayKeys="true"
             focusBitmapUri="pkg:/images/button-focus.9.png" programBackgroundBitmapUri="pkg:/images/guide-cell.9.png"
             channelInfoBackgroundBitmapUri="pkg:/images/guide-cell.9.png" channelInfoTextColor="0xEBEBEBFF" channelInfoFont="font:SmallestBoldSystemFont"
             programTitleColor="0xEBEBEBFF" programTitleFocusedColor="0x16191EFF" programTitleFont="font:SmallestSystemFont"
