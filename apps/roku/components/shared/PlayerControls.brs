@@ -72,9 +72,10 @@ sub onTop()
         m.methodText.text = method
         m.methodText.color = colors.text
         m.methodTint.blendColor = colors.tint
+        ' The label keeps no width of its own, as wide as its words: held to
+        ' the width it measured, Roku cut the last letters for an ellipsis.
         m.methodText.width = 0
-        width = Int(m.methodText.boundingRect().width) + 32
-        m.methodText.width = width - 32
+        width = Int(m.methodText.boundingRect().width + 0.999) + 32
         m.methodBack.width = width
         m.methodTint.width = width
     end if
