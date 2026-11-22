@@ -166,6 +166,7 @@ workflow's `on.paths` has the exact list.
 | Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, `README.md`, a unit's version (the first file in its "Version in") |
 | Release | A unit's version on master (the first file in its "Version in") |
 | CodeQL | Every push to master and pull request, and weekly: GitHub's code scanning of each language, Kotlin and Swift read as the Android and Apple apps compile |
+| CLA | Every pull request, and comments on one: asks its author to sign the [Contributor License Agreement](../CLA.md) once, by a comment, and keeps the signatures on the `cla-signatures` branch |
 
 Repository also fails a pull request whose merge would leave a unit's
 version below the one it had at the last release tag (`release.mjs check`).

@@ -165,6 +165,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Version picker shows; Version names the edition, with the picture, codec
   and size in its menu; and Audio and Subtitles show their choice on one
   line.
+- Pley's license gains a permission for app stores: Pley may be
+  distributed through stores whose terms add restrictions of their own,
+  as long as its source stays available.
 
 ### Fixed
 

@@ -48,6 +48,9 @@ describes how they are made.
   watching?" each time. A profile with a PIN still asks first, and Switch
   profile still shows every profile. Settings' Always start as
   calls this Profile used last, where it said Ask who's watching.
+- Pley's license gains a permission for app stores: Pley may be
+  distributed through stores whose terms add restrictions of their own,
+  as long as its source stays available.
 
 ### Security
 
