@@ -68,6 +68,8 @@ describes how they are made.
   sits before a title instead of pushing it along.
 - The live player's banner and channel list, and the server list's hint,
   end inside Roku's title-safe area.
+- Now Playing's buttons are under its scrubber, beside the cover, with Up
+  next below them; a button's name no longer runs past the screen's edge.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

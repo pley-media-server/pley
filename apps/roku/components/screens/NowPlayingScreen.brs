@@ -27,7 +27,9 @@ sub init()
     m.message = m.top.findNode("message")
     m.upNextTitle = m.top.findNode("upNextTitle")
     m.upNext = m.top.findNode("upNext")
-    m.top.findNode("heading").text = t("player.nowPlaying.title")
+    m.lower = m.top.findNode("lower")
+    m.heading = m.top.findNode("heading")
+    m.heading.text = t("player.nowPlaying.title")
     m.upNextTitle.text = t("player.upNext.title")
     m.watching = false
     m.labels = []
@@ -95,6 +97,7 @@ sub onTrack()
     m.title.text = track.title
     m.artist.text = track.artist
     m.album.text = track.album
+    placeControls()
     if m.cover.uri <> track.image
         agent = m.top.getScene().getHttpAgent()
         m.cover.setHttpAgent(agent)
@@ -102,6 +105,23 @@ sub onTrack()
         m.backdrop.setHttpAgent(agent)
         m.backdrop.uri = track.image
     end if
+end sub
+
+' The scrubber and the buttons 36 px under the track's lines (lower by a
+' title's second line), and as many rows of Up next as end above the
+' title-safe area's foot (1026).
+sub placeControls()
+    lines = 104 + 8 + 20 + 8 + 20 + 36
+    for each label in [m.heading, m.title, m.artist, m.album]
+        lines += label.boundingRect().height
+    end for
+    dy = Int(lines + 36 - 340)
+    if dy < 0 then dy = 0
+    if m.lower.translation[1] <> dy then m.lower.translation = [0, dy]
+    rows = Int((1026 - 628 - dy + 8) / 64)
+    if rows < 2 then rows = 2
+    if rows > 5 then rows = 5
+    if m.upNext.numRows <> rows then m.upNext.numRows = rows
 end sub
 
 ' Another track, or another queue: Up next marks the track playing. Moved

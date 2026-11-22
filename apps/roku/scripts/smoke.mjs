@@ -194,11 +194,12 @@ function pageTextDrawn() {
 }
 
 // Whether Now Playing's sleep timer button, focused, is a pill saying what
-// is left: the accent past where its round button ends (x 626).
+// is left: the accent past where its round button ends (x 1092, the buttons
+// from 560 under the scrubber).
 function sleepButtonLong() {
   if (!frame) return false;
-  for (let y = 540; y < 590; y += 4) {
-    for (let x = 660; x < 740; x += 4) {
+  for (let y = 500; y < 552; y += 4) {
+    for (let x = 1110; x < 1190; x += 4) {
       const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
       if (frame.data[at] < 120 && frame.data[at + 1] > 150 && frame.data[at + 2] > 200) return true;
     }

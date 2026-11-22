@@ -100,7 +100,9 @@ sub onChips()
             caption.color = "0xEBEBEBFF"
             caption.text = chip.name
             captionWidth = Int(caption.boundingRect().width) + 2
-            caption.translation = [x + Int((width - captionWidth) / 2), height + 16]
+            captionX = x + Int((width - captionWidth) / 2)
+            if captionX < 0 then captionX = 0
+            caption.translation = [captionX, height + 16]
             caption.visible = false
         end if
         m.chipNodes.Push({ group: group, back: back, edge: edge, icon: icon, label: label, number: number, caption: caption })
