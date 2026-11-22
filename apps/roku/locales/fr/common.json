@@ -18,8 +18,6 @@
   "states": {
     "loading": "Chargement…",
     "saved": "Enregistré.",
-    "on": "Activé",
-    "off": "Désactivé",
     "failed": "Ça n’a pas fonctionné"
   },
   "errors": {

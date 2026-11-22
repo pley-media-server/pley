@@ -730,13 +730,19 @@ decline, and the requests' settings (the web).
 ### Settings
 
 Settings has Language ([Language](#language)), the audio and subtitle
-defaults, Quality, Play the next episode by itself (Up Next counts down only while it is on), Watch
-history, Switch profile, Always start as, Sort libraries, Switch server
-and Sign out. It says where the account is managed on the web (the
-server's address and `/account`), and carries TMDB's notice. Right of the
-settings, Diagnostics shows this Roku and what it tells the server it
-plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licenses
-shows Pley's license and the notices of what the package bundles.
+defaults, Quality, Play the next episode by itself (a switch; Up Next
+counts down only while it is on), Watch history, Switch profile, Always
+start as, Sort libraries, Diagnostics, Open-source licenses, Switch server
+and Sign out, in rows as the Android TV app's: an icon, the label and the
+current value under it, a chevron on a row that opens something, the
+accent filling the focused one, square as menus are. A row's choices open in a side panel at
+the right, the current one checked. Diagnostics shows this Roku and what
+it tells the server it plays (`capsLines` in
+`components/lib/Caps.brs`), and Open-source licenses shows Pley's license
+and the notices of what the package bundles. At the right are the server,
+the profile, this Roku and the app's version, where the account is
+managed on the web (the server's address and `/account`), and TMDB's
+notice.
 
 Always start as, for a household of several profiles, names the profile
 the app starts as, or Profile used last. As on the other TVs, the app

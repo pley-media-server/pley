@@ -202,9 +202,6 @@
     "fileDefault": "El predeterminado del archivo",
     "sameAsAudio": "El mismo que el del audio",
     "rows": {
-      "audio": "Idioma del audio: {{language}}",
-      "mode": "Subtítulos: {{mode}}",
-      "subtitle": "Idioma de los subtítulos: {{language}}",
       "fileDefault": "El del archivo",
       "sameAsAudio": "El del audio",
       "readOnly": "{{row}} · cámbialo en la web"

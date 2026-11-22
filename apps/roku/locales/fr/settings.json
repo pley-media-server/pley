@@ -9,12 +9,8 @@
   "webHint": "Nom, photo, mot de passe, code PIN, connexion en deux étapes, appareils et applications, depuis un téléphone ou un ordinateur sur le même réseau.",
   "unreachable": "Le serveur est injoignable pour le moment.",
   "rows": {
-    "language": "Langue : {{value}}",
-    "quality": "Qualité : {{value}}",
-    "autoplay": "Épisode suivant automatique : {{value}}",
     "history": "Historique de visionnage",
     "switchProfile": "Changer de profil",
-    "alwaysStartAs": "Toujours démarrer avec : {{value}}",
     "sortLibraries": "Trier les bibliothèques",
     "switchServer": "Changer de serveur",
     "signOut": "Se déconnecter"
@@ -24,6 +20,7 @@
     "automatic": "Automatique ({{language}})"
   },
   "quality": "Qualité",
+  "autoplay": "Épisode suivant automatique",
   "alwaysStartAs": "Toujours démarrer avec",
   "usedLast": "Dernier profil utilisé",
   "signOut": {

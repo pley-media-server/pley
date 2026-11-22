@@ -76,7 +76,7 @@ const ICONS_40 = [
   "search", "house", "clapperboard", "tv", "music", "list-music", "layers", "settings", "compass", "radio",
   "star", "chevron-right", "chevron-left", "arrow-up-narrow-wide", "arrow-down-wide-narrow", "sliders-horizontal",
   "skip-forward", "skip-back", "x", "clock", "calendar-days", "user-round", "users", "image", "library-big",
-  "tv-minimal", "arrow-right", "arrow-up-down",
+  "tv-minimal", "arrow-right", "arrow-up-down", "globe", "history", "activity", "log-out", "server",
 ];
 for (const name of ICONS_40) add(`icon-${name}-40.png`, 40, 40, icon(name, 40, "#ffffff"));
 for (const name of ["skip-back", "skip-forward"]) add(`icon-${name}-48.png`, 48, 48, icon(name, 48, "#ffffff"));
@@ -179,6 +179,8 @@ ninePatch("edge4.9.png", 16, 16, 4, `<rect x="1" y="1" width="14" height="14" rx
 
 // A circle to tint: the rail's avatar.
 add("circle.png", 80, 80, `<circle cx="40" cy="40" r="40" fill="#ffffff"/>`);
+// A settings switch's track (TvSwitch), tinted by the row.
+add("switch.png", 80, 44, box(80, 44, 22, "#ffffff"));
 
 // The page's dark under the rail's collapsed icons, as Android TV's
 // (RailFadeSolidUntil, RailFadeClearFrom): the background at 90 % to

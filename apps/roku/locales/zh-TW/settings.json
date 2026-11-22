@@ -9,12 +9,8 @@
   "webHint": "在同一網路的手機或電腦上管理名稱、頭像、密碼、PIN、兩步驗證、裝置和應用。",
   "unreachable": "目前無法連線到伺服器。",
   "rows": {
-    "language": "語言：{{value}}",
-    "quality": "畫質：{{value}}",
-    "autoplay": "自動播放下一集：{{value}}",
     "history": "觀看歷史",
     "switchProfile": "切換設定檔",
-    "alwaysStartAs": "始終以此身分啟動：{{value}}",
     "sortLibraries": "媒體庫排序",
     "switchServer": "更換伺服器",
     "signOut": "登出"
@@ -24,6 +20,7 @@
     "automatic": "自動（{{language}}）"
   },
   "quality": "畫質",
+  "autoplay": "自動播放下一集",
   "alwaysStartAs": "始終以此身分啟動",
   "usedLast": "上次使用的設定檔",
   "signOut": {

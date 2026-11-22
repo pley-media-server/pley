@@ -199,9 +199,6 @@
     "fileDefault": "The file's default",
     "sameAsAudio": "Same as the audio language",
     "rows": {
-      "audio": "Audio language: {{language}}",
-      "mode": "Subtitles: {{mode}}",
-      "subtitle": "Subtitle language: {{language}}",
       "fileDefault": "The file's default",
       "sameAsAudio": "Same as the audio language",
       "readOnly": "{{row}} · change on the web"

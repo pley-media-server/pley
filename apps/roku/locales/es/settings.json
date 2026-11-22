@@ -9,12 +9,8 @@
   "webHint": "Nombre, foto, contraseña, PIN, inicio de sesión en dos pasos, dispositivos y aplicaciones, desde un teléfono o una computadora en la misma red.",
   "unreachable": "No se puede conectar con el servidor en este momento.",
   "rows": {
-    "language": "Idioma: {{value}}",
-    "quality": "Calidad: {{value}}",
-    "autoplay": "Siguiente episodio automático: {{value}}",
     "history": "Historial de reproducción",
     "switchProfile": "Cambiar de perfil",
-    "alwaysStartAs": "Empezar siempre como: {{value}}",
     "sortLibraries": "Ordenar bibliotecas",
     "switchServer": "Cambiar de servidor",
     "signOut": "Cerrar sesión"
@@ -24,6 +20,7 @@
     "automatic": "Automático ({{language}})"
   },
   "quality": "Calidad",
+  "autoplay": "Siguiente episodio automático",
   "alwaysStartAs": "Empezar siempre como",
   "usedLast": "Último perfil usado",
   "signOut": {

@@ -196,9 +196,6 @@
     "fileDefault": "文件的默认语言",
     "sameAsAudio": "与音频语言相同",
     "rows": {
-      "audio": "音频语言：{{language}}",
-      "mode": "字幕：{{mode}}",
-      "subtitle": "字幕语言：{{language}}",
       "fileDefault": "文件的默认语言",
       "sameAsAudio": "与音频语言相同",
       "readOnly": "{{row}} · 在网页上更改"

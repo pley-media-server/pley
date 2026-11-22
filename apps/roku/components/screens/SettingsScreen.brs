@@ -25,17 +25,15 @@ sub init()
     m.device = m.top.findNode("device")
     m.version = m.top.findNode("version")
     m.web = m.top.findNode("web")
-    m.buttons = m.top.findNode("buttons")
+    m.rows = m.top.findNode("rows")
     m.message = m.top.findNode("message")
     m.panel = m.top.findNode("panel")
     m.panelTitle = m.top.findNode("panelTitle")
     m.choices = m.top.findNode("choices")
     m.panelHint = m.top.findNode("panelHint")
-    ' Diagnostics and the licenses, at the right: Right and Left go between
-    ' them and the settings, and the focus comes back to the one it was on.
-    m.about = m.top.findNode("about")
-    m.about.observeField("buttonSelected", "onAbout")
-    m.lastFocus = m.buttons
+    m.panelTitle.font = uiType("section")
+    m.panelHint.font = uiType("caption")
+    m.lastFocus = m.rows
     m.dialog = invalid
     ' The profile's defaults as Settings knows them ({ audio, subtitle,
     ' mode }), invalid until GET /api/auth/me answered; refused once the
@@ -53,11 +51,13 @@ sub init()
     m.profileUnreachable = false
     ' The household's profiles ([{ id, name }]), for "Always start as".
     m.household = []
-    ' What each button does, in order, and the choices the panel shows.
+    ' What each row does, in order, what they show, and the choices the
+    ' panel shows.
     m.actions = []
+    m.rowsShown = ""
     m.choice = invalid
     m.choiceKind = ""
-    m.buttons.observeField("buttonSelected", "onButton")
+    m.rows.observeField("itemSelected", "onRow")
     m.choices.observeField("itemSelected", "onChoice")
     m.choices.observeField("itemFocused", "onChoiceFocused")
     m.top.observeField("active", "onActive")
@@ -77,10 +77,6 @@ sub relabel()
     m.webLabel.text = t("settings.web")
     m.webHint.text = t("settings.webHint")
     if m.profileUnreachable then m.profile.text = t("settings.unreachable")
-    focused = m.about.buttonFocused
-    hadFocus = m.about.isInFocusChain()
-    m.about.buttons = [t("settings.diagnostics"), t("settings.licences")]
-    uiKeepButton(m.about, focused, hadFocus)
     showWords()
     if m.panel.visible then closeChoices()
     showRows()
@@ -137,53 +133,66 @@ sub useProfile(me as dynamic)
     showRows()
 end sub
 
-' The buttons: Language, the defaults' rows, this Roku's quality and whether the
-' next episode plays by itself, then Watch history, Switch profile, "Always
-' start as" (a household of several), Sort libraries, Switch server and Sign
-' out; the focus stays on the row it was on.
+' The rows, as the Android TV app's: Language, the defaults' rows, this
+' Roku's quality and whether the next episode plays by itself (a switch),
+' then Watch history, Switch profile, "Always start as" (a household of
+' several), Sort libraries, Diagnostics, the licenses, Switch server and
+' Sign out; each its icon, its value under its label. The focus stays on
+' the row it was on.
 sub showRows()
-    labels = [t("settings.rows.language", { value: languageShown() })]
-    actions = ["language"]
+    rows = [settingRow("language", t("settings.language.title"), languageShown(), "globe")]
     for each row in tracksRows(m.defaults, m.refused)
-        labels.Push(row.text)
-        actions.Push(row.kind)
+        icon = "captions"
+        if row.kind = "audio" then icon = "audio-lines"
+        rows.Push(settingRow(row.kind, row.label, row.value, icon))
     end for
     ' This Roku's, kept on it: no server needed.
-    labels.Push(t("settings.rows.quality", { value: aqLabel(aqChoice(playbackSection())) }))
-    actions.Push("quality")
-    autoplay = t("common.states.off")
-    if playerAutoplay(playbackSection()) then autoplay = t("common.states.on")
-    labels.Push(t("settings.rows.autoplay", { value: autoplay }))
-    actions.Push("autoplay")
-    for each action in ["history", "switchProfile"]
-        labels.Push(t("settings.rows." + action))
-        actions.Push(action)
-    end for
+    rows.Push(settingRow("quality", t("settings.quality"), aqLabel(aqChoice(playbackSection())), "gauge"))
+    autoplay = settingRow("autoplay", t("settings.autoplay"), "", "skip-forward")
+    autoplay.trailing = "switch"
+    autoplay.checked = playerAutoplay(playbackSection())
+    rows.Push(autoplay)
+    rows.Push(settingRow("history", t("settings.rows.history"), "", "history"))
+    rows.Push(settingRow("switchProfile", t("settings.rows.switchProfile"), "", "users"))
     if m.household.Count() > 1
-        labels.Push(t("settings.rows.alwaysStartAs", { value: profStartAsLabel(m.household, profStartAs(startAsSection(), m.global.session.server)) }))
-        actions.Push("startAs")
+        rows.Push(settingRow("startAs", t("settings.alwaysStartAs"), profStartAsLabel(m.household, profStartAs(startAsSection(), m.global.session.server)), "user-round"))
     end if
-    for each action in ["sortLibraries", "switchServer", "signOut"]
-        labels.Push(t("settings.rows." + action))
-        actions.Push(action)
-    end for
+    rows.Push(settingRow("sortLibraries", t("settings.rows.sortLibraries"), "", "arrow-up-down"))
+    rows.Push(settingRow("diagnostics", t("settings.diagnostics"), "", "activity"))
+    rows.Push(settingRow("licences", t("settings.licences"), "", "info"))
+    rows.Push(settingRow("switchServer", t("settings.rows.switchServer"), "", "server"))
+    signOut = settingRow("signOut", t("settings.rows.signOut"), "", "log-out")
+    signOut.trailing = ""
+    signOut.danger = true
+    rows.Push(signOut)
+    shown = FormatJson(rows)
+    if shown = m.rowsShown then return
     focused = ""
-    if m.actions.Count() > 0
-        at = m.buttons.buttonFocused
-        if at >= 0 and at < m.actions.Count() then focused = m.actions[at]
-    end if
-    if FormatJson(labels) = FormatJson(m.buttons.buttons) then return
-    hadFocus = m.buttons.isInFocusChain()
-    m.actions = actions
-    m.buttons.buttons = labels
-    for i = 0 to actions.Count() - 1
-        if actions[i] = focused then uiKeepButton(m.buttons, i, hadFocus)
+    at = m.rows.itemFocused
+    if at >= 0 and at < m.actions.Count() then focused = m.actions[at]
+    hadFocus = m.rows.isInFocusChain()
+    m.rowsShown = shown
+    m.actions = []
+    for each row in rows
+        m.actions.Push(row.action)
     end for
-    if hadFocus then m.buttons.setFocus(true)
+    m.rows.content = nodesContent(rows)
+    for i = 0 to m.actions.Count() - 1
+        if m.actions[i] = focused and i > 0 then m.rows.jumpToItem = i
+    end for
+    if hadFocus then m.rows.setFocus(true)
 end sub
 
-sub onButton(event as object)
-    chosen = m.actions[event.getData()]
+' A row: what it does, its label, its value ("" for none) and its icon; it
+' opens something (a chevron) unless said otherwise.
+function settingRow(action as string, label as string, value as string, icon as string) as object
+    return { action: action, title: label, description: value, icon: icon, trailing: "chevron", checked: false, danger: false }
+end function
+
+sub onRow(event as object)
+    at = event.getData()
+    if at < 0 or at >= m.actions.Count() then return
+    chosen = m.actions[at]
     if chosen = "quality"
         openQuality()
         return
@@ -220,6 +229,10 @@ sub onButton(event as object)
     end if
     if chosen = "switchServer"
         uiNavigate({ to: "servers", reset: true })
+        return
+    end if
+    if chosen = "diagnostics" or chosen = "licences"
+        uiNavigate({ to: chosen })
         return
     end if
     dialog = CreateObject("roSGNode", "StandardMessageDialog")
@@ -280,12 +293,11 @@ sub showChoices(kind as string, choice as object)
     m.choiceKind = kind
     m.choice = choice
     items = []
-    for each label in m.choice.labels
-        items.Push({ title: label })
+    for i = 0 to m.choice.labels.Count() - 1
+        items.Push({ title: m.choice.labels[i], checked: i = m.choice.current })
     end for
     m.panelTitle.text = m.choice.title
     m.choices.content = nodesContent(items)
-    m.choices.checkedItem = m.choice.current
     at = m.choice.current
     if at < 0 then at = 0
     m.choices.jumpToItem = at
@@ -296,7 +308,7 @@ end sub
 
 sub closeChoices()
     m.panel.visible = false
-    m.buttons.setFocus(true)
+    m.rows.setFocus(true)
 end sub
 
 sub onChoiceFocused(event as object)
@@ -451,17 +463,7 @@ function webAddress() as string
     return urlDisplayAddress(m.global.session.server) + "/account"
 end function
 
-sub onAbout(event as object)
-    m.lastFocus = m.about
-    if event.getData() = 0
-        uiNavigate({ to: "diagnostics" })
-    else
-        uiNavigate({ to: "licences" })
-    end if
-end sub
-
-' Back closes the choices; left from them does too. Right and Left go
-' between the settings and Diagnostics.
+' Back closes the choices; left from them does too.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
     if m.panel.visible
@@ -469,16 +471,6 @@ function onKeyEvent(key as string, press as boolean) as boolean
             closeChoices()
             return true
         end if
-        return false
-    end if
-    if key = "right" and m.buttons.isInFocusChain()
-        m.about.setFocus(true)
-        return true
-    end if
-    if key = "left" and m.about.isInFocusChain()
-        m.lastFocus = m.buttons
-        m.buttons.setFocus(true)
-        return true
     end if
     return false
 end function

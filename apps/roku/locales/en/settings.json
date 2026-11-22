@@ -9,12 +9,8 @@
   "webHint": "Name, picture, password, PIN, two-step, devices and apps, from a phone or computer on the same network.",
   "unreachable": "The server can't be reached right now.",
   "rows": {
-    "language": "Language: {{value}}",
-    "quality": "Quality: {{value}}",
-    "autoplay": "Play the next episode by itself: {{value}}",
     "history": "Watch history",
     "switchProfile": "Switch profile",
-    "alwaysStartAs": "Always start as: {{value}}",
     "sortLibraries": "Sort libraries",
     "switchServer": "Switch server",
     "signOut": "Sign out"
@@ -24,6 +20,7 @@
     "automatic": "Automatic ({{language}})"
   },
   "quality": "Quality",
+  "autoplay": "Play the next episode by itself",
   "alwaysStartAs": "Always start as",
   "usedLast": "Profile used last",
   "signOut": {

@@ -332,12 +332,11 @@ async function openFromMenu(index, pattern, what, then = async () => {}) {
 }
 
 // From Settings: Sign out, and Sign out again in the dialog. Sign out is
-// the last of eleven buttons, Subtitle language showing once subtitles
-// come on always.
+// the last row.
 async function signOut() {
   for (let attempt = 0; attempt < 3; attempt++) {
     const since = mark();
-    await press("down", 10);
+    await press("down", 20);
     await press("select");
     await sleep(800);
     await press("select");
@@ -1232,8 +1231,10 @@ async function walk() {
   await settle();
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   shoot("settings");
-  // Diagnostics and the licenses, at the right; Left back to the settings.
-  await press("right");
+  // Diagnostics and the licenses, before Switch server and Sign out, the
+  // last rows; then up to Language, the first.
+  await press("down", 20);
+  await press("up", 3);
   await press("select"); // Diagnostics
   pages.diagnostics = await drawnWithin(3000, pageTextDrawn);
   shoot("diagnostics");
@@ -1245,7 +1246,7 @@ async function walk() {
   shoot("licences");
   await press("back");
   await settle();
-  await press("left");
+  await press("up", 20);
   // Quality, after Language, Audio language and Subtitles: Automatic
   // checked, then 8 Mbps 1080p chosen, kept on the Roku.
   await press("down", 3);
