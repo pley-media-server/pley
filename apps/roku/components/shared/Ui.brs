@@ -113,6 +113,13 @@ sub uiOpenTile(tile as dynamic)
     if nav <> invalid then uiNavigate(nav)
 end sub
 
+' The remote's Play key on a tile (navPlayTile).
+sub uiPlayTile(tile as dynamic)
+    if tile = invalid then return
+    nav = navPlayTile(tile)
+    if nav <> invalid then uiNavigate(nav)
+end sub
+
 ' The server doesn't answer: this screen gives way to one that says so,
 ' with Try again (this screen again, or retry) and Switch server. A covered
 ' screen leaves it be; it asks again when it shows.

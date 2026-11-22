@@ -817,6 +817,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
         focusRows(false)
         return true
     end if
+    ' Play on the buttons does what the first does (Resume, Play).
+    if key = "play" and m.buttons.isInFocusChain() and m.buttons.visible
+        m.buttons.chosen = 0
+        return true
+    end if
+    if key = "play" and m.rows.isInFocusChain()
+        position = m.rows.rowItemFocused
+        row = m.rows.content.getChild(position[0])
+        if row <> invalid then uiPlayTile(row.getChild(position[1]))
+        return true
+    end if
     if key = "options" and m.rows.isInFocusChain()
         position = m.rows.rowItemFocused
         row = m.rows.content.getChild(position[0])

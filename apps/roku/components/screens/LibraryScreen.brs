@@ -905,6 +905,19 @@ function onKeyEvent(key as string, press as boolean) as boolean
         m.tabs.setFocus(true)
         return true
     end if
+    ' Play plays the title in focus, as on Roku's own screens.
+    if key = "play" and m.grid.isInFocusChain() and m.grid.content <> invalid
+        uiPlayTile(m.grid.content.getChild(m.grid.itemFocused))
+        return true
+    end if
+    if key = "play" and (m.rows.isInFocusChain() or m.groups.isInFocusChain())
+        list = m.rows
+        if m.groups.isInFocusChain() then list = m.groups
+        position = list.rowItemFocused
+        row = list.content.getChild(position[0])
+        if row <> invalid then uiPlayTile(row.getChild(position[1]))
+        return true
+    end if
     if key = "options" and m.grid.isInFocusChain() and m.grid.content <> invalid
         uiTileOptions(m.grid.content.getChild(m.grid.itemFocused), false)
         return true

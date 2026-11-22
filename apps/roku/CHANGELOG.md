@@ -46,6 +46,9 @@ describes how they are made.
   against its left edge.
 - Now Playing's buttons are round icons, named while focused, and the
   sleep timer running says what is left.
+- The remote's Play key plays the movie or episode in focus on Home, a
+  library, a collection or a title's rows, from where it was left, as on
+  Roku's own screens.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

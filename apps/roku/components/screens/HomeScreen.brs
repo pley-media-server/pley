@@ -574,6 +574,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
             placeRows()
             return false
         end if
+        if key = "play"
+            position = m.rows.rowItemFocused
+            row = m.rows.content.getChild(position[0])
+            if row <> invalid then uiPlayTile(row.getChild(position[1]))
+            return true
+        end if
         if key = "options"
             position = m.rows.rowItemFocused
             row = m.rows.content.getChild(position[0])
@@ -583,6 +589,11 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return false
     end if
     if m.heroButtons.isInFocusChain()
+        ' Play does what Resume does.
+        if key = "play"
+            m.heroButtons.chosen = 0
+            return true
+        end if
         if key = "down" and m.rows.visible
             m.rows.setFocus(true)
             m.inRows = true

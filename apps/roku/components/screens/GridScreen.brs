@@ -142,6 +142,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
         m.grid.setFocus(true)
         return true
     end if
+    if key = "play" and m.grid.isInFocusChain() and m.grid.content <> invalid
+        uiPlayTile(m.grid.content.getChild(m.grid.itemFocused))
+        return true
+    end if
     if key = "options" and m.grid.isInFocusChain() and m.shown > 0
         uiTileOptions(m.grid.content.getChild(m.grid.itemFocused), false)
         return true
