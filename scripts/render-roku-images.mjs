@@ -177,6 +177,16 @@ ninePatch("edge4.9.png", 16, 16, 4, `<rect x="1" y="1" width="14" height="14" rx
 // A circle to tint: the rail's avatar.
 add("circle.png", 80, 80, `<circle cx="40" cy="40" r="40" fill="#ffffff"/>`);
 
+// The page's dark under the rail's collapsed icons, as Android TV's
+// (RailFadeSolidUntil, RailFadeClearFrom): the background at 90 % to
+// 88 px, thinning to nothing at 184, short of the pages' 192 px gutter.
+add(
+  "fade-left.png",
+  64,
+  4,
+  `<defs><linearGradient id="g">${stops([[0, 0.9], [0.48, 0.9], [1, 0]], BG)}</linearGradient></defs><rect width="64" height="4" fill="url(#g)"/>`,
+);
+
 // The open rail's shadow on the page: black at 45 % to nothing.
 add("shadow.png", 48, 4, `<defs><linearGradient id="g">${stops([[0, 0.45], [1, 0]])}</linearGradient></defs><rect width="48" height="4" fill="url(#g)"/>`);
 

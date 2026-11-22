@@ -23,14 +23,14 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <children>
-        <MaskGroup translation="[96, 56]" maskUri="pkg:/images/round.png" maskSize="[160, 160]">
+        <MaskGroup translation="[192, 56]" maskUri="pkg:/images/round.png" maskSize="[160, 160]">
             <Rectangle width="160" height="160" color="0x262B35FF" />
             <Label id="initials" width="160" height="160" horizAlign="center" vertAlign="center" color="0xEBEBEBCC" font="font:LargeBoldSystemFont" />
             <Poster id="photo" width="160" height="160" loadWidth="160" loadHeight="160" loadDisplayMode="scaleToZoom" />
         </MaskGroup>
-        <Label id="name" translation="[288, 78]" width="1536" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-        <Label id="line" translation="[288, 158]" width="1536" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <RowList id="rows" translation="[72, 264]" itemComponentName="Tile" itemSize="[1752, 470]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
-        <Label id="message" translation="[96, 480]" width="1728" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
+        <Label id="name" translation="[384, 78]" width="1440" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="line" translation="[384, 158]" width="1440" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        <RowList id="rows" translation="[168, 264]" itemComponentName="Tile" itemSize="[1752, 470]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <Label id="message" translation="[192, 480]" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
     </children>
 </component>

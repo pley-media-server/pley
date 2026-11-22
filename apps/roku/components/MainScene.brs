@@ -33,6 +33,18 @@ sub init()
     m.music = CreateObject("roSGNode", "MusicPlayer")
     m.top.appendChild(m.music)
     m.global.addFields({ music: m.music })
+    ' The rail (Rail.xml), made again as what it lists changes.
+    m.rail = m.top.findNode("rail")
+    m.railShown = ""
+    m.railReturn = invalid
+    m.rail.observeField("chosen", "onRailChosen")
+    m.rail.observeField("leave", "onRailLeave")
+    for each field in ["railLibraries", "railLive", "requestSummary"]
+        m.top.observeField(field, "buildRail")
+    end for
+    m.music.observeField("state", "buildRail")
+    m.global.session.observeField("profileName", "buildRail")
+    m.global.observeField("language", "buildRail")
     m.music.observeField("stoppedBy", "onMusicStoppedBy")
 
     ' What the person's other devices change, as it happens (an http://
@@ -1082,6 +1094,7 @@ sub show(nav as object)
     m.stack.Push(screen)
     m.screens.appendChild(screen)
     screen.active = true
+    placeRail()
     launchDialogDone()
     showNotice()
 end sub
@@ -1114,6 +1127,7 @@ sub pop()
     end if
     top.visible = true
     top.active = true
+    placeRail()
     launchDialogDone()
     ' Played video, or signing in, ended: a notice waiting shows, once the
     ' remote rests from coming back.
@@ -1127,6 +1141,14 @@ sub closeScreen(screen as object)
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
+    ' Left that the page left (it was at its edge), or Back on Home: the
+    ' rail, where the page has one.
+    if press and m.rail.visible and not m.rail.isInFocusChain()
+        if key = "left" or (key = "back" and m.stack.Count() = 1)
+            enterRail()
+            return true
+        end if
+    end if
     if press and key = "back" and m.stack.Count() > 1
         pop()
         return true
@@ -1134,3 +1156,117 @@ function onKeyEvent(key as string, press as boolean) as boolean
     ' Back on the first screen leaves the app.
     return false
 end function
+
+' --- The rail (Rail.xml) ---
+
+' The routes whose pages have the rail at their left, as the Android TV
+' app's browsing pages do; the others (the players, Now Playing, signing
+' in, a page of text) have the screen to themselves.
+function railRoutes() as object
+    return { home: true, library: true, grid: true, collections: true, collection: true, search: true, discover: true, discoverList: true, requests: true, settings: true, live: true, details: true, person: true, playlist: true, history: true, album: true, artist: true, requestTitle: true }
+end function
+
+' The rail's entries, as Home's menu was (Home.brs's homeMenu): the
+' profile first, its initial in a circle, then each entry with its icon.
+sub buildRail()
+    summary = reqSummaryOf(m.top.requestSummary)
+    requests = []
+    if reqShowsDiscover(summary) then requests.Push({ title: t("browse.menu.discover"), action: "discover" })
+    if reqShowsRequests(summary)
+        badge = reqBadge(summary)
+        requests.Push({ title: reqPageName(summary), action: "requests", count: badge.count, danger: badge.danger })
+    end if
+    libraries = httpArray(m.top.railLibraries)
+    entries = homeMenu(libraries, m.top.railLive, requests, m.global.music.state <> "stopped")
+    name = m.global.session.profileName
+    if name <> invalid and name <> "" then entries.Unshift({ title: name, action: "profiles", initial: UCase(Left(name, 1)) })
+    for each entry in entries
+        entry.icon = homeMenuIcon(entry)
+    end for
+    shown = FormatJson(entries)
+    if shown = m.railShown then return
+    m.railShown = shown
+    m.rail.entries = entries
+end sub
+
+' The rail shows over the pages that have it, the current page's entry
+' marked: a library's by its id, a page of the menu by its route; a page
+' opened from those (a title's) keeps the entry it came from.
+sub placeRail()
+    if m.stack.Count() = 0
+        m.rail.visible = false
+        return
+    end if
+    top = m.stack.Peek()
+    m.rail.visible = railRoutes().DoesExist(top.route)
+    current = ""
+    if top.route = "home" then current = "home"
+    if top.route = "library" and top.params <> invalid and top.params.library <> invalid then current = "library:" + urlValue(top.params.library.id)
+    if top.route = "search" or top.route = "discover" or top.route = "requests" or top.route = "settings" or top.route = "live" or top.route = "collections" then current = top.route
+    if top.route = "grid" and top.params <> invalid and top.params.kind = "playlists" then current = "playlists"
+    if current <> "" then m.rail.current = current
+    m.rail.home = m.stack.Count() = 1
+end sub
+
+' Left at a page's edge (the page left it), or Back on Home: the rail
+' takes the focus, and gives it back where it was.
+sub enterRail()
+    m.railReturn = focusedNode()
+    m.rail.setFocus(true)
+end sub
+
+sub onRailLeave()
+    if m.stack.Count() = 0 then return
+    top = m.stack.Peek()
+    node = m.railReturn
+    m.railReturn = invalid
+    if node <> invalid and railReaches(node, top)
+        node.setFocus(true)
+    else
+        top.setFocus(true)
+    end if
+end sub
+
+' Whether node is still on screen in top, the page on top.
+function railReaches(node as object, top as object) as boolean
+    for i = 1 to 40
+        if node = invalid then return false
+        if node.hasField("visible") and not node.visible then return false
+        if node.isSameNode(top) then return true
+        node = node.getParent()
+    end for
+    return false
+end function
+
+' An entry chosen: its page, from Home (the pages over Home close), as the
+' Android TV app's rail switches pages. Home itself: back to its page.
+sub onRailChosen()
+    entry = m.rail.chosen
+    if entry = invalid then return
+    action = entry.action
+    nav = invalid
+    if action = "search" then nav = { to: "search" }
+    if action = "discover" then nav = { to: "discover" }
+    if action = "requests" then nav = { to: "requests" }
+    if action = "live" then nav = { to: "live" }
+    if action = "settings" then nav = { to: "settings" }
+    if action = "profiles" then nav = { to: "profiles" }
+    if action = "nowPlaying" and m.global.music.state <> "stopped" then nav = { to: "nowPlaying" }
+    if action = "library" then nav = { to: "library", params: { library: entry.library } }
+    if action = "playlists" then nav = { to: "grid", params: { kind: "playlists", id: 0, title: t("browse.menu.playlists") } }
+    if action = "collections" then nav = { to: "collections", params: { libraries: httpArray(m.top.railLibraries) } }
+    ' Over Home, the pages before close: the rail switches pages.
+    while m.stack.Count() > 1
+        closeScreen(m.stack.Pop())
+    end while
+    home = m.stack.Peek()
+    m.railReturn = invalid
+    if nav = invalid
+        home.visible = true
+        home.active = true
+        placeRail()
+        home.setFocus(true)
+        return
+    end if
+    show(nav)
+end sub

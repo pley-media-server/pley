@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Home, as Android TV's: the rail at the left (the profile, Search,
-     Home, Discover and the requests where the server has them, Live TV,
-     the libraries, Playlists, Collections, Now Playing, Settings), icons
-     alone until it has the focus; then a hero for the first of Continue
+<!-- Home, as Android TV's, beside the scene's rail (Rail.xml, whose
+     libraries and Live TV Home tells the scene as it loads): a hero for the
+     first of Continue
      Watching (its backdrop, what it is, Resume or Play, From start, Info
      and the watched mark) over the server's home rows (GET
      /api/hubs/home). In the rows, an info block about the title focus
@@ -15,9 +14,8 @@
         <field id="active" type="boolean" alwaysNotify="true" />
         <!-- Set by the scene when other devices changed what Home shows. -->
         <field id="refresh" type="boolean" alwaysNotify="true" />
-        <!-- What requests let the profile do (the scene's): the menu's
-             Discover and requests, and their number. -->
-        <field id="requestSummary" type="assocarray" onChange="onRequestSummary" />
+        <!-- What requests let the profile do (the scene's). -->
+        <field id="requestSummary" type="assocarray" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/HomeScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
@@ -70,20 +68,6 @@
             <Label id="messageTitle" width="1632" wrap="true" horizAlign="center" color="0xEBEBEBFF" />
             <Label id="messageText" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" />
         </LayoutGroup>
-        <!-- The rail, as Android TV's: collapsed, icons in a 144 px column
-             over the page's dark; open (it has the focus), a panel of
-             surface at 96 % with their names, as wide as they need. -->
-        <Group id="railPanel" opacity="0">
-            <Rectangle id="railBack" width="520" height="1080" color="0x1E222AFF" />
-            <Poster translation="[520, 0]" width="48" height="1080" uri="pkg:/images/ui/shadow.png" />
-        </Group>
-        <MarkupList id="menu" translation="[0, 144]" itemComponentName="RailRow" itemSize="[520, 80]" itemSpacing="[0, 8]" numRows="10" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
-        <Animation id="railOpen" duration="0.15" easeFunction="outCubic">
-            <FloatFieldInterpolator key="[0, 1]" keyValue="[0, 1]" fieldToInterp="railPanel.opacity" />
-        </Animation>
-        <Animation id="railClose" duration="0.12" easeFunction="inCubic">
-            <FloatFieldInterpolator key="[0, 1]" keyValue="[1, 0]" fieldToInterp="railPanel.opacity" />
-        </Animation>
         <!-- Focus resting on a tile: the info block and the backdrop follow. -->
         <Timer id="rest" duration="0.4" />
     </children>

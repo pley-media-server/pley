@@ -25,6 +25,9 @@ describes how they are made.
   quality in boxes, Play as a pill beside round icon buttons, and tiles
   with round corners that grow with the accent's ring when focused. Every
   screen's text is in Roboto.
+- The rail is at the left of every page, not only Home, as on Android TV:
+  Left opens it from a page's edge, and an entry chosen there switches
+  pages. Libraries show seven posters a row.
 
 ### Fixed
 

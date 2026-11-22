@@ -835,7 +835,7 @@ async function walk() {
   await waitFor(/^GET \/api\/items\/99\/on-deck$/, since, "the show's next episode");
   shoot("show-details");
   since = mark();
-  await press("down"); // Episodes
+  await press("right"); // Episodes, after Play
   await press("select");
   await waitFor(/^GET \/api\/items\/100\/children$/, since, "a season's episodes");
   shoot("show");
@@ -1152,7 +1152,8 @@ async function walk() {
   shoot("requests-approved");
   for (let attempt = 0; attempt < 3 && !seen(/^GET \/api\/requests\?.*mine=1/, since); attempt++) {
     await press("up"); // the tabs
-    await press("left", 8);
+    await press("left", 8); // the first, then the rail
+    await press("right"); // the rail closed, on the first tab
     await press("right", 7); // Yours
     await press("select");
     await sleep(1500);
@@ -1374,7 +1375,7 @@ async function walk() {
   fixture.down = true;
   await press("left", 3);
   await press("up", 11);
-  await press("down", 5); // Movies, after Search, Home, Discover, Your requests and Live TV
+  await press("down", 6); // Movies, after the profile, Search, Home, Discover, Your requests and Live TV
   await press("select");
   await sleep(3000);
   shoot("unreachable");

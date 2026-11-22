@@ -24,11 +24,11 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/LibraryOrder.brs" />
     <children>
-        <Label id="title" translation="[96, 64]" width="540" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-        <Label id="line" translation="[96, 196]" width="540" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-        <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 250]" minWidth="520" maxWidth="540" visible="false" />
+        <Label id="title" translation="[192, 64]" width="460" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+        <Label id="line" translation="[192, 196]" width="460" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+        <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[192, 250]" minWidth="460" maxWidth="460" visible="false" />
         <MarkupList id="entries" translation="[700, 64]" itemComponentName="EpisodeRow" itemSize="[1124, 196]" itemSpacing="[0, 16]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <Label id="hint" translation="[96, 940]" width="540" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallestSystemFont" visible="false" />
+        <Label id="hint" translation="[192, 940]" width="460" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallestSystemFont" visible="false" />
     </children>
 </component>

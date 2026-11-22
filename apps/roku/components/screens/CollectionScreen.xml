@@ -31,7 +31,7 @@
         <Poster id="backdrop" width="1920" height="1080" loadWidth="640" loadHeight="360" loadDisplayMode="scaleToZoom" opacity="0.4" />
         <Rectangle id="shade" width="1260" height="1080" color="0x16191ED9" />
         <Group id="page">
-            <LayoutGroup id="column" translation="[96, 80]" layoutDirection="vert" itemSpacings="[40]" visible="false">
+            <LayoutGroup id="column" translation="[192, 80]" layoutDirection="vert" itemSpacings="[40]" visible="false">
                 <!-- Only the labels with text stay in it (layoutText). -->
                 <LayoutGroup id="text" layoutDirection="vert">
                     <!-- "Collection", then its badges beside it (showBadges). -->
@@ -59,8 +59,8 @@
                 <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="560" visible="false" />
             </LayoutGroup>
             <!-- Its top shows under the buttons; the page slides up to it. -->
-            <MarkupGrid id="grid" translation="[72, 720]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[244, 456]" itemSpacing="[4, 24]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+            <MarkupGrid id="grid" translation="[168, 720]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[216, 414]" itemSpacing="[4, 16]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
         </Group>
-        <Label id="message" translation="[96, 480]" width="1100" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
+        <Label id="message" translation="[192, 480]" width="1100" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
     </children>
 </component>

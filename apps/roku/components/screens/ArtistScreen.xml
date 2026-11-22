@@ -26,7 +26,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Music.brs" />
     <children>
         <Poster id="backdrop" width="1920" height="1080" loadWidth="640" loadHeight="360" loadDisplayMode="scaleToZoom" opacity="0.15" />
-        <LayoutGroup id="column" translation="[96, 64]" layoutDirection="vert" itemSpacings="[28, 36]">
+        <LayoutGroup id="column" translation="[192, 64]" layoutDirection="vert" itemSpacings="[28, 36]">
             <!-- Their initials until the picture comes, or without one. -->
             <MaskGroup maskUri="pkg:/images/round.png" maskSize="[320, 320]">
                 <Rectangle width="320" height="320" color="0x262B35FF" />
@@ -36,9 +36,9 @@
             <!-- Only the labels with text stay in it (layoutText). -->
             <LayoutGroup id="text" layoutDirection="vert">
                 <Label id="kindLabel" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-                <Label id="name" width="540" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-                <Label id="line" width="540" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-                <Label id="summary" width="540" wrap="true" maxLines="2" color="0xEBEBEBD9" font="font:SmallestSystemFont" />
+                <Label id="name" width="460" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+                <Label id="line" width="460" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+                <Label id="summary" width="460" wrap="true" maxLines="2" color="0xEBEBEBD9" font="font:SmallestSystemFont" />
             </LayoutGroup>
             <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="520" maxWidth="540" visible="false" />
         </LayoutGroup>

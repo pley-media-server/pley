@@ -38,10 +38,10 @@
         <Poster id="backdrop" width="1920" height="1080" loadWidth="640" loadHeight="360" loadDisplayMode="scaleToZoom" opacity="0.4" />
         <Rectangle id="shade" width="1260" height="1080" color="0x16191ED9" />
         <Group id="page">
-            <Label id="heading" translation="[96, 48]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+            <Label id="heading" translation="[192, 48]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
             <ChipRow id="chips" translation="[460, 62]" />
             <Label id="credit" translation="[1124, 78]" width="700" horizAlign="right" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-            <LayoutGroup id="hero" translation="[96, 196]" layoutDirection="vert" itemSpacings="[16, 20, 36, 20]" visible="false">
+            <LayoutGroup id="hero" translation="[192, 196]" layoutDirection="vert" itemSpacings="[16, 20, 36, 20]" visible="false">
                 <Label id="heroName" width="1100" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
                 <Label id="heroLine" width="1100" color="0xA1A9B6FF" font="font:SmallSystemFont" />
                 <Label id="heroOverview" width="1080" wrap="true" maxLines="2" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
@@ -50,10 +50,10 @@
                 <Label id="heroNote" width="1100" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallSystemFont" />
             </LayoutGroup>
             <!-- Its top shows under the hero; the page slides up to it. -->
-            <RowList id="rows" translation="[72, 700]" itemComponentName="Tile" itemSize="[1752, 470]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+            <RowList id="rows" translation="[168, 700]" itemComponentName="Tile" itemSize="[1752, 470]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
         <!-- Why Discover can't be used, and what to do about it. -->
-        <LayoutGroup id="problem" translation="[96, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">
+        <LayoutGroup id="problem" translation="[192, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">
             <Label id="problemTitle" width="1400" wrap="true" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
             <Label id="problemText" width="1400" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
             <ButtonGroup id="problemButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="420" />

@@ -47,13 +47,20 @@ password is signed in to with a code, choosing it in the browser.
 
 ### Home
 
-Home's rail, at the left, is the Android TV app's: the profile's initial
-(OK switches profiles), then Search, Home, Discover and the requests
-(where the server has them), Live TV, the libraries, Playlists,
-Collections (every library's collections, a row each), Now Playing while
-music plays, and Settings, each with its icon (a library's by its kind).
-Collapsed, it shows the icons alone, Home's with an accent mark; with the
-focus it opens over the page, their names beside them.
+The rail, at the left of Home and every page browsed from it, is the
+Android TV app's: the profile's initial (OK switches profiles), then
+Search, Home, Discover and the requests (where the server has them), Live
+TV, the libraries, Playlists, Collections (every library's collections, a
+row each), Now Playing while music plays, and Settings, each with its icon
+(a library's by its kind). Collapsed, it shows the icons alone, the
+current page's with an accent mark; Left at a page's edge, or Back on
+Home, opens it over the page, their names beside them, and Right or Back
+closes it, the focus back where it was. An entry chosen there switches
+pages, closing the pages opened over Home, as Android TV's rail does; Back
+on Home's rail leaves the app. The pages start at Android TV's gutter,
+right of the collapsed rail, and libraries show seven posters a row, as
+its grid does. The players, Now Playing, signing in and text pages have
+the screen to themselves.
 
 Beside it, as on Android TV and the native Samsung app, a hero shows the
 first of Continue Watching, else the newest title in the rows: its
@@ -65,7 +72,8 @@ as Home first shows. The backdrop covers the screen, fading to the
 background at the left and the bottom, as on Android TV. Down goes to the
 server's rows: there an info block about the title focus rests on (0.4 s)
 takes the hero's place, and the backdrop follows it. Up from the first row
-goes back to the hero; Left or Back, to the rail, the hero shown again.
+goes back to the hero; Back, to the hero, then to the rail; Left, to the
+rail.
 Tiles are the Android TV app's: their pictures' corners round (Roku OS
 16), focused they grow and take the accent's ring.
 The hero's summary, content rating and quality come with its details
@@ -242,7 +250,7 @@ forgets them.
 
 ### Music
 
-Music plays on while other screens show, and Home's menu has Now Playing
+Music plays on while other screens show, and the rail has Now Playing
 while it does. An album's page lists its tracks under "Disc 1", "Disc 2"
 when they are on several discs (the tracks' `parent_index`), each
 numbered on its disc; the focus passes over the headings. An album or a
@@ -590,7 +598,7 @@ Down do. Music shows nothing of a command: Now Playing is its controls.
 the commands), the Roku is one of the devices the profile's remotes play
 things on ([API.md](API.md#casting)): the stream names it a receiver by
 the `client_id` its players send, a TV with the name its players give,
-taking titles and playlists (`casts=item`) and channels while Home's menu
+taking titles and playlists (`casts=item`) and channels while the rail
 has Live TV (`live`), and switching to the profile of a remote of another
 profile that casts to it (`switch`), and opens again when Live TV comes or goes. What a
 remote sends plays as the Roku's own Play would, in place of what plays:
@@ -644,7 +652,7 @@ Where an administrator has turned requests on, people ask for movies and
 shows found on TMDB, administrators approve them, and Radarr and Sonarr
 fetch them ([API.md](API.md#requests)). An administrator's Roku manages
 them (a manager, below) once its sign-in allows `approvals`; one signed in
-before is offered Sign in again. The menu shows what the profile may do;
+before is offered Sign in again. The rail shows what the profile may do;
 its number counts what waits: a manager's pending and failed requests
 (red while some failed) and their own news, anyone else's news.
 
@@ -660,7 +668,7 @@ its number counts what waits: a manager's pending and failed requests
   it short of a screenful, as an age limit can, Look further asks for
   more, and after a page that failed, a tile says so, Select asking for
   it again); then Your requests, from the first one asked for. At the top,
-  the way to the requests, with the menu's number of what waits there.
+  the way to the requests, with the rail's number of what waits there.
   TMDB is searched from Search. A poster opens the title's page, or,
   when a library the account can open has the title whole, the
   library's title, where it plays (a show partly there opens its page,

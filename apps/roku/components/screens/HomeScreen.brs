@@ -1,5 +1,4 @@
 sub init()
-    m.menu = m.top.findNode("menu")
     m.rows = m.top.findNode("rows")
     m.message = m.top.findNode("message")
     m.messageTitle = m.top.findNode("messageTitle")
@@ -18,10 +17,6 @@ sub init()
     m.infoMeta = m.top.findNode("infoMeta")
     m.infoSummary = m.top.findNode("infoSummary")
     m.rest = m.top.findNode("rest")
-    m.railPanel = m.top.findNode("railPanel")
-    m.railOpen = m.top.findNode("railOpen")
-    m.railClose = m.top.findNode("railClose")
-    m.railShown = false
     ' Pley's type, as Android TV's Home: the hero's title the largest.
     fonts = { heroTitle: "heroTitle", heroContext: "title", heroLeft: "label", heroSummary: "bodyLarge", infoTitle: "heroTitle", infoSummary: "bodyLarge", messageTitle: "pageTitle", messageText: "bodyLarge" }
     for each id in fonts
@@ -35,7 +30,7 @@ sub init()
     m.librariesAnswer = invalid
     ' Whether the server has Live TV for this profile (GET /api/live).
     m.live = false
-    ' What the menu was built from, to build it again only when it changes.
+    ' What the rail was told, to tell it again only when it changes.
     m.librariesShown = ""
     ' The rows shown: their hub keys in order, and { key: signature } (the
     ' task builds again only rows whose signature changed).
@@ -65,13 +60,10 @@ sub init()
     m.loadedAgo = CreateObject("roTimespan")
     ' Orders saved at the last load: the menu and the rows follow a new one.
     m.movedSeen = 0
-    m.lastFocus = m.menu
+    m.lastFocus = invalid
     ' How many profiles the household has is asked once, for "Who's
     ' watching?" at the next start.
     m.householdAsked = false
-    m.menu.observeField("itemSelected", "onMenu")
-    ' The rail opens while it has the focus, as Android TV's.
-    m.menu.observeField("focusedChild", "onRailFocus")
     m.rows.observeField("rowItemSelected", "onTile")
     m.rows.observeField("rowItemFocused", "onTileFocused")
     m.heroButtons.observeField("chosen", "onHeroButton")
@@ -80,13 +72,12 @@ sub init()
     m.remoteSeen = 0
     m.top.observeField("active", "onActive")
     m.top.observeField("refresh", "onRefresh")
-    buildMenu()
 end sub
 
 sub onActive()
     if not m.top.active
         ' Covered by another screen: focus comes back to the same place.
-        m.lastFocus = m.menu
+        m.lastFocus = invalid
         if m.rows.isInFocusChain() then m.lastFocus = m.rows
         if m.heroButtons.isInFocusChain() then m.lastFocus = m.heroButtons
         return
@@ -94,18 +85,16 @@ sub onActive()
     if not m.started
         m.started = true
         uiChangesSince()
-        m.menu.setFocus(true)
+        m.top.setFocus(true)
         load()
         return
     end if
-    ' Music started or ended meanwhile: Now Playing in the menu or not.
-    if m.musicShown <> (m.global.music.state <> "stopped") then buildMenu()
-    if m.lastFocus.isSameNode(m.heroButtons) and not m.hero.visible then m.lastFocus = m.menu
-    if m.rows.visible
+    if m.lastFocus <> invalid and m.lastFocus.isSameNode(m.heroButtons) and not m.hero.visible then m.lastFocus = invalid
+    if m.lastFocus <> invalid and m.rows.visible
         m.lastFocus.setFocus(true)
         m.inRows = m.lastFocus.isSameNode(m.rows)
     else
-        m.menu.setFocus(true)
+        focusPage()
     end if
     ' Back from playing, Continue Watching and the watched marks moved on;
     ' a minute on, other devices may have moved them; sorted, the libraries
@@ -164,7 +153,7 @@ sub onLive(event as object)
     m.top.getScene().liveTv = live
     if live = m.live then return
     m.live = live
-    buildMenu()
+    m.top.getScene().railLive = live
 end sub
 
 sub onLibraries(event as object)
@@ -178,7 +167,7 @@ sub onLibraries(event as object)
     if shown = m.librariesShown then return
     m.librariesShown = shown
     m.libraries = libraries
-    buildMenu()
+    m.top.getScene().railLibraries = libraries
 end sub
 
 sub onRows(event as object)
@@ -220,74 +209,12 @@ sub showEmpty()
     m.emptyShown = true
 end sub
 
-' The menu, in the other TVs' order (homeMenu); Discover and the requests
-' (Your requests, a manager's Requests, with their number) where the
-' summary has them.
-sub buildMenu()
-    m.requestEntries = requestEntries()
-    m.musicShown = m.global.music.state <> "stopped"
-    entries = homeMenu(m.libraries, m.live, m.requestEntries, m.musicShown)
-    ' The profile at the top, its initial in a circle: OK switches profiles.
-    name = m.global.session.profileName
-    if name <> invalid and name <> ""
-        entries.Unshift({ title: name, action: "profiles", initial: UCase(Left(name, 1)) })
-    end if
-    for each entry in entries
-        entry.icon = homeMenuIcon(entry)
-        entry.current = entry.action = "home"
-    end for
-    items = []
-    m.menuActions = []
-    ' The library of each entry (invalid for the others).
-    m.menuLibraries = []
-    for each entry in entries
-        items.Push(entry)
-        m.menuActions.Push(entry.action)
-        m.menuLibraries.Push(entry.library)
-    end for
-    ' The focus stays on its entry as entries come or go above it (the
-    ' requests' once the summary comes, Live TV, libraries).
-    focusedKey = ""
-    focused = m.menu.itemFocused
-    if m.menuKeys <> invalid and focused >= 0 and focused < m.menuKeys.Count() then focusedKey = m.menuKeys[focused]
-    m.menuKeys = []
-    for i = 0 to m.menuActions.Count() - 1
-        key = m.menuActions[i]
-        if key = "library" then key = key + ":" + urlValue(m.menuLibraries[i].id)
-        m.menuKeys.Push(key)
-    end for
-    m.menu.content = nodesContent(items)
-    ' Home's entry, before anything was focused: the page shown.
-    if focusedKey = "" and focused <= 0 then focusedKey = "home"
-    at = navMenuFocus(m.menuKeys, focusedKey, focused)
-    if at > 0 then m.menu.jumpToItem = at
-end sub
-
-' The menu's entries for requests, from the summary: Discover, and the
-' requests with their number.
-function requestEntries() as object
-    summary = reqSummaryOf(m.top.requestSummary)
-    entries = []
-    if reqShowsDiscover(summary) then entries.Push({ title: t("browse.menu.discover"), action: "discover" })
-    if reqShowsRequests(summary)
-        badge = reqBadge(summary)
-        entries.Push({ title: reqPageName(summary), action: "requests", count: badge.count, danger: badge.danger })
-    end if
-    return entries
-end function
-
-' The summary changed: the menu follows when its entries do.
-sub onRequestSummary()
-    if m.requestEntries = invalid then return
-    if FormatJson(requestEntries()) <> FormatJson(m.requestEntries) then buildMenu()
-end sub
-
 ' loading: the message only says Home is on its way; any other means the
 ' screen can be used (Roku's launch beacon).
 sub showMessage(title as string, text as string, loading = false as boolean)
     m.emptyShown = false
     m.inRows = false
-    if m.rows.isInFocusChain() or m.heroButtons.isInFocusChain() then m.menu.setFocus(true)
+    if m.rows.isInFocusChain() or m.heroButtons.isInFocusChain() then m.top.setFocus(true)
     m.rows.visible = false
     m.hero.visible = false
     m.info.visible = false
@@ -599,39 +526,8 @@ sub onTile(event as object)
     uiOpenTile(tile)
 end sub
 
-sub onMenu(event as object)
-    index = event.getData()
-    action = m.menuActions[index]
-    if action = "home"
-        load()
-        focusPage()
-    else if action = "profiles"
-        uiNavigate({ to: "profiles" })
-    else if action = "live"
-        uiNavigate({ to: "live" })
-    else if action = "library"
-        uiNavigate({ to: "library", params: { library: m.menuLibraries[index] } })
-    else if action = "playlists"
-        uiNavigate({ to: "grid", params: { kind: "playlists", id: 0, title: t("browse.menu.playlists") } })
-    else if action = "collections"
-        uiNavigate({ to: "collections", params: { libraries: m.libraries } })
-    else if action = "search"
-        uiNavigate({ to: "search" })
-    else if action = "discover"
-        uiNavigate({ to: "discover" })
-    else if action = "requests"
-        uiNavigate({ to: "requests" })
-    else if action = "settings"
-        uiNavigate({ to: "settings" })
-    else if m.global.music.state = "stopped"
-        ' The music ended meanwhile.
-        buildMenu()
-    else
-        uiNavigate({ to: "nowPlaying" })
-    end if
-end sub
-
-' From the menu into the page: the hero's buttons, else the rows.
+' Into the page: the hero's buttons, else the rows; nothing to focus yet,
+' the screen itself.
 sub focusPage()
     if m.hero.visible
         m.heroButtons.setFocus(true)
@@ -639,25 +535,28 @@ sub focusPage()
     else if m.rows.visible
         m.rows.setFocus(true)
         m.inRows = true
+    else
+        m.top.setFocus(true)
     end if
 end sub
 
 ' Down from the hero goes to the rows, Up from their first row back to
-' it; Back from the rows puts the page back at its hero, and Left or Back
-' goes to the menu, as on the other TVs.
+' it. Left goes to the scene's rail (the page leaves the key); Back from the
+' rows puts the page back at its hero, then the rail takes the focus, as
+' on Android TV.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
     ' The focus given back to the screen itself (what had it went): the
     ' page takes it again, as it was laid out.
-    if m.top.hasFocus()
+    if m.top.hasFocus() and key <> "left" and key <> "back"
         if m.inRows and m.rows.visible
             m.rows.setFocus(true)
+            return true
         else if m.hero.visible
             m.heroButtons.setFocus(true)
-        else
-            m.menu.setFocus(true)
+            return true
         end if
-        return true
+        return false
     end if
     if m.rows.isInFocusChain()
         if key = "up" and m.heroInfo <> invalid
@@ -666,12 +565,12 @@ function onKeyEvent(key as string, press as boolean) as boolean
             placeRows()
             return true
         end if
-        if key = "left" or key = "back"
+        if key = "back"
             m.rest.control = "stop"
-            m.menu.setFocus(true)
             m.inRows = false
+            if m.hero.visible or m.heroInfo <> invalid then m.heroButtons.setFocus(true)
             placeRows()
-            return true
+            return false
         end if
         if key = "options"
             position = m.rows.rowItemFocused
@@ -689,34 +588,9 @@ function onKeyEvent(key as string, press as boolean) as boolean
             onTileFocused()
             return true
         end if
-        if key = "left" or key = "back"
-            m.menu.setFocus(true)
-            return true
-        end if
-        return false
-    end if
-    if key = "right" and m.menu.isInFocusChain()
-        focusPage()
-        return true
     end if
     return false
 end function
-
-' The rail opens while it has the focus: its panel fades in behind the
-' entries, which show their names (RailRow); it closes as the page takes
-' the focus.
-sub onRailFocus()
-    open = m.menu.isInFocusChain()
-    if open = m.railShown then return
-    m.railShown = open
-    if open
-        m.railClose.control = "stop"
-        m.railOpen.control = "start"
-    else
-        m.railOpen.control = "stop"
-        m.railClose.control = "start"
-    end if
-end sub
 
 ' Whether a part of a column has something to show: a label its words, a
 ' MetaRow its parts.

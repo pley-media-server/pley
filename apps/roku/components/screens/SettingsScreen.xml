@@ -31,11 +31,11 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Auth.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
     <children>
-        <Label id="title" translation="[96, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-        <Label id="serverLabel" translation="[96, 150]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="server" translation="[96, 186]" width="840" color="0xEBEBEBFF" font="font:MediumSystemFont" />
-        <Label id="profileLabel" translation="[96, 250]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="profile" translation="[96, 286]" width="840" color="0xEBEBEBFF" text="…" font="font:MediumSystemFont" />
+        <Label id="title" translation="[192, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="serverLabel" translation="[192, 150]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="server" translation="[192, 186]" width="760" color="0xEBEBEBFF" font="font:MediumSystemFont" />
+        <Label id="profileLabel" translation="[192, 250]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="profile" translation="[192, 286]" width="760" color="0xEBEBEBFF" text="…" font="font:MediumSystemFont" />
         <Label id="deviceLabel" translation="[1000, 150]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <Label id="device" translation="[1000, 186]" width="824" color="0xEBEBEBFF" font="font:MediumSystemFont" />
         <Label id="appLabel" translation="[1000, 250]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
@@ -45,7 +45,7 @@
         <!-- Twelve rows at most (Subtitle language and Always start as
              among them): high enough that the last stays clear of the
              screen's edge. -->
-        <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 340]" minWidth="840" maxWidth="840" />
+        <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[192, 340]" minWidth="840" maxWidth="840" />
         <!-- What the other TVs' "Manage your account on the web" says: Roku
              has no QR code of its own, so the address alone. -->
         <Label id="webLabel" translation="[1000, 460]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
