@@ -55,7 +55,7 @@ use crate::util::now;
 use matcher::{MatchParams, consensus, shared_run};
 
 /// Bump when detection improves so every file is analyzed again.
-pub const ALGORITHM_VERSION: i64 = 2;
+pub const ALGORITHM_VERSION: i64 = 3;
 /// Episodes each episode is compared with (the nearest ones in the season).
 const NEIGHBORS: usize = 8;
 /// Episodes of the show's other seasons compared with one its own season
@@ -74,8 +74,11 @@ const START_OFFSET_MS: i64 = 1_000;
 /// A match ending this close to the end of the other fingerprint was cut
 /// short by it rather than by the audio.
 const TRUNCATION_MS: f64 = 3_000.0;
-/// Credits ending this close to the end of the file run to the end.
-const CREDITS_TAIL_MS: i64 = 5_000;
+/// Credits ending this close to the end of the file run to the end: nothing
+/// that short after them is a scene of its own (credits are at least as
+/// long), only a studio's logo, a channel's promo or black. They end at the
+/// end of the file, and players offer the next episode when they begin.
+pub const CREDITS_TAIL_MS: i64 = 15_000;
 /// A key frame is a page of credits when this share (%) of its pixels is
 /// near black…
 const PAGE_BLACK: f32 = 85.0;
@@ -114,6 +117,16 @@ pub struct Marker {
     pub end_ms: i64,
     /// `chapter`, `fingerprint` or `frames`.
     pub source: String,
+}
+
+impl Marker {
+    /// Credits that run to the end of their file (`duration_ms`): players
+    /// offer the next episode when they begin, as Plex does at its `final`
+    /// credits. Credits that something else follows (an after-credits scene)
+    /// only bring Skip Credits.
+    pub fn reaches_end(&self, duration_ms: i64) -> bool {
+        self.kind == MarkerKind::Credits.as_str() && duration_ms > 0 && duration_ms - self.end_ms <= CREDITS_TAIL_MS
+    }
 }
 
 /// Markers of every file of an item.
@@ -720,8 +733,16 @@ impl MarkerService {
                     .collect();
                 marker = detect_one(own, &cached.iter().collect::<Vec<_>>(), kind, target.duration_ms);
             }
-            if marker.is_none() && kind == MarkerKind::Credits {
-                marker = self.frames(&target, watched).await?.and_then(|f| credits_from_frames(&f, target.duration_ms));
+            if kind == MarkerKind::Credits && marker.as_ref().is_none_or(|m| m.end_ms < target.duration_ms) {
+                // Shared audio that stops before the end of the file is
+                // settled by the pictures after it; without shared audio the
+                // pictures are all there is.
+                if let Some(frames) = self.frames(&target, watched).await? {
+                    marker = match marker {
+                        Some(shared) => Some(settle_credits(shared, &frames, target.duration_ms)),
+                        None => credits_from_frames(&frames, target.duration_ms),
+                    };
+                }
             }
             found[i].1.extend(marker);
         }
@@ -1028,19 +1049,50 @@ fn finalize(range: Option<(i64, i64)>, kind: MarkerKind, duration_ms: i64) -> Op
     (end - start >= 10_000).then_some(Found { kind, start_ms: start, end_ms: end, source: "fingerprint" })
 }
 
+/// Credits found from shared audio that stops before the end of the file,
+/// settled by the key frames of the end of it. Players offer the next
+/// episode when credits that run to the end begin, so credits only do when
+/// nothing but credits follows them: a scene after them would be skipped.
+///
+/// - Key frames that are all pages (text on black, or black) from the end of
+///   the shared audio on are more of the credits: they run on to the first
+///   key frame that isn't one, or to the end of the file.
+/// - Shared audio that something else follows, with text on black later on,
+///   was a scene's music, a song two episodes share or the like: the text on
+///   black are the credits.
+/// - Otherwise they stay as they are, short of the end (an after-credits
+///   scene, or credits over pictures).
+fn settle_credits(shared: Found, frames: &[FrameStats], duration_ms: i64) -> Found {
+    let after: Vec<&FrameStats> = frames.iter().filter(|f| f.ms > shared.end_ms).collect();
+    let pages = after.iter().take_while(|f| is_page(f)).count();
+    if pages > 0 {
+        let end = after.get(pages).map_or(duration_ms, |f| f.ms);
+        let end = if duration_ms - end <= CREDITS_TAIL_MS { duration_ms } else { end };
+        return Found { end_ms: end, ..shared };
+    }
+    match credits_from_frames(frames, duration_ms) {
+        Some(later) if later.start_ms > shared.end_ms + PAGES_GAP_MS => later,
+        _ => shared,
+    }
+}
+
+/// A key frame that may be a page of credits: mostly near black, or a
+/// smaller share around text on true black (studio-range luma 16, no color,
+/// dark overall).
+fn is_page(f: &FrameStats) -> bool {
+    f.black >= PAGE_BLACK || (f.black >= PAGE_BLACK_WITH_TEXT && f.ylow <= 16.5 && f.sat <= 4.0 && f.yhigh <= 45.0)
+}
+
 /// Credits as text on black in key frames (sorted by time) of the end of a
 /// file: the last stretch of pages less than [`PAGES_GAP_MS`] apart, at least
 /// [`CREDITS_MIN_SECONDS`] long, mostly pages and the pages mostly with text,
 /// ending near the end of the file. Black stretches without text (a fade
 /// between scenes) and dark scenes (no true black) don't count.
 fn credits_from_frames(frames: &[FrameStats], duration_ms: i64) -> Option<Found> {
-    let page = |f: &FrameStats| {
-        f.black >= PAGE_BLACK || (f.black >= PAGE_BLACK_WITH_TEXT && f.ylow <= 16.5 && f.sat <= 4.0 && f.yhigh <= 45.0)
-    };
     let mut best: Option<(usize, usize)> = None;
     let mut i = 0;
     while i < frames.len() {
-        if !page(&frames[i]) {
+        if !is_page(&frames[i]) {
             i += 1;
             continue;
         }
@@ -1049,11 +1101,11 @@ fn credits_from_frames(frames: &[FrameStats], duration_ms: i64) -> Option<Found>
             if f.ms - frames[last].ms > PAGES_GAP_MS {
                 break;
             }
-            if page(f) {
+            if is_page(f) {
                 last = j;
             }
         }
-        let pages: Vec<&FrameStats> = frames[first..=last].iter().filter(|f| page(f)).collect();
+        let pages: Vec<&FrameStats> = frames[first..=last].iter().filter(|f| is_page(f)).collect();
         let with_text = pages.iter().filter(|f| f.ymax - f.ylow >= PAGE_TEXT).count();
         let long = (frames[last].ms - frames[first].ms) as f64 >= CREDITS_MIN_SECONDS * 1000.0;
         // Mostly pages, and the pages mostly with text.
@@ -1076,9 +1128,25 @@ fn credits_from_frames(frames: &[FrameStats], duration_ms: i64) -> Option<Found>
 /// "End Credits", …).
 fn chapter_markers(chapters: &[Chapter], duration_ms: i64) -> Vec<Found> {
     let mut out: Vec<Found> = Vec::new();
-    for chapter in chapters {
+    let mut next = 0;
+    while let Some(chapter) = chapters.get(next) {
+        next += 1;
         let Some(kind) = chapter.title.as_deref().and_then(chapter_kind) else { continue };
-        let (start, end) = (chapter.start_ms.max(0), chapter.end_ms.min(duration_ms.max(chapter.end_ms)));
+        let (start, mut end) = (chapter.start_ms.max(0), chapter.end_ms);
+        if kind == MarkerKind::Credits {
+            // Chapters of more credits right after them ("Fan Club Credits")
+            // are the same credits.
+            while let Some(more) = chapters
+                .get(next)
+                .filter(|c| c.start_ms <= end + 1_000 && c.title.as_deref().is_some_and(names_credits))
+            {
+                end = more.end_ms;
+                next += 1;
+            }
+            if duration_ms - end <= CREDITS_TAIL_MS {
+                end = duration_ms;
+            }
+        }
         let plausible = match kind {
             MarkerKind::Intro => (5_000..=5 * 60_000).contains(&(end - start)),
             // Shorter "Credits" chapters mark the last seconds of a file (a
@@ -1092,15 +1160,36 @@ fn chapter_markers(chapters: &[Chapter], duration_ms: i64) -> Vec<Found> {
     out
 }
 
-fn chapter_kind(title: &str) -> Option<MarkerKind> {
+/// The words of a chapter title, lowercase, without the numbers that only
+/// count chapters: "Chapter 4 - Credits" and "94. End Credits" are credits,
+/// "OP 2" and "Ending 1" an intro and credits.
+fn title_words(title: &str) -> Vec<String> {
     let lower = title.to_lowercase();
-    let words: Vec<&str> = lower.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
-    // A trailing number ("OP 2", "Ending 1") does not change the meaning.
-    let words = match words.split_last() {
-        Some((last, rest)) if !rest.is_empty() && last.chars().all(|c| c.is_ascii_digit()) => rest,
-        _ => &words[..],
-    };
-    let joined = words.join(" ");
+    let mut words: Vec<&str> = lower.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
+    let number = |w: &str| w.chars().all(|c| c.is_ascii_digit());
+    if words.len() > 2 && words[0] == "chapter" && number(words[1]) {
+        words.drain(..2);
+    } else if words.len() > 1 && number(words[0]) {
+        words.remove(0);
+    }
+    if words.len() > 1 && words.last().is_some_and(|w| number(w)) {
+        words.pop();
+    }
+    words.into_iter().map(str::to_owned).collect()
+}
+
+/// A chapter of more credits after the credits ("Fan Club Credits",
+/// "Dubbing Credits"), not a scene beside them ("Post-Credits Scene", "After
+/// the Credits").
+fn names_credits(title: &str) -> bool {
+    let words = title_words(title);
+    chapter_kind(title) == Some(MarkerKind::Credits)
+        || (words.last().is_some_and(|w| w == "credits")
+            && !words.iter().any(|w| ["post", "after", "mid", "before", "opening", "scene"].contains(&w.as_str())))
+}
+
+fn chapter_kind(title: &str) -> Option<MarkerKind> {
+    let joined = title_words(title).join(" ");
     let intro = [
         "intro",
         "opening",
@@ -1214,6 +1303,97 @@ mod tests {
         for t in ["Chapter 1", "Opening Scene", "Prologue", "Part A", "Preview", "The End of the World", "Edit"] {
             assert_eq!(chapter_kind(t), None, "{t}");
         }
+        // Numbers that only count chapters.
+        for t in ["94. End Credits", "Chapter 4 - Credits", "29. end credits", "End Credits."] {
+            assert_eq!(chapter_kind(t), Some(MarkerKind::Credits), "{t}");
+        }
+        assert_eq!(chapter_kind("3. Opening"), Some(MarkerKind::Intro));
+        // A scene and the credits in one chapter is not credits.
+        for t in ["Epilogue/End Credits", "Post-Credits Scene", "Chapter 12"] {
+            assert_eq!(chapter_kind(t), None, "{t}");
+        }
+        for t in ["Fan Club Credits", "Official Fan Club Credits", "Dubbing Credits", "Credits"] {
+            assert!(names_credits(t), "{t}");
+        }
+        for t in ["Post-Credits Scene", "After the Credits", "Mid-Credits", "Opening Credits", "Epilogue"] {
+            assert!(!names_credits(t), "{t}");
+        }
+    }
+
+    #[test]
+    fn credits_chapters_run_on_through_more_credits_to_the_end() {
+        let ch = |start_ms, end_ms, title: &str| Chapter { start_ms, end_ms, title: Some(title.into()) };
+        // An extended edition: the credits, then the fan club's.
+        let chapters = [
+            ch(0, 12_000_000, "The Return"),
+            ch(12_000_000, 12_600_000, "End Credits"),
+            ch(12_600_000, 13_200_000, "Official Fan Club Credits"),
+        ];
+        let found = chapter_markers(&chapters, 13_200_400);
+        assert_eq!((found[0].start_ms, found[0].end_ms), (12_000_000, 13_200_400));
+        // A scene after the credits stays after them.
+        let chapters = [
+            ch(0, 1_200_000, "Story"),
+            ch(1_200_000, 1_260_000, "Credits"),
+            ch(1_260_000, 1_320_000, "Post-Credits Scene"),
+        ];
+        let found = chapter_markers(&chapters, 1_320_000);
+        assert_eq!((found[0].start_ms, found[0].end_ms), (1_200_000, 1_260_000));
+        // A logo chapter of a few seconds at the end is no scene.
+        let chapters =
+            [ch(0, 1_200_000, "Story"), ch(1_200_000, 1_310_000, "Credits"), ch(1_310_000, 1_320_000, "Logo")];
+        assert_eq!(chapter_markers(&chapters, 1_320_000)[0].end_ms, 1_320_000);
+    }
+
+    #[test]
+    fn credits_reach_the_end_when_nothing_else_follows() {
+        let credits = |m: Marker| m.reaches_end(1_300_000);
+        let marker = |kind: &str, end_ms| Marker {
+            file_id: 1,
+            kind: kind.into(),
+            start_ms: 1_200_000,
+            end_ms,
+            source: "fingerprint".into(),
+        };
+        assert!(credits(marker("credits", 1_300_000)));
+        assert!(credits(marker("credits", 1_286_000)), "a logo after them");
+        assert!(!credits(marker("credits", 1_260_000)), "a scene after them");
+        assert!(!credits(marker("intro", 1_300_000)));
+        assert!(!marker("credits", 1_300_000).reaches_end(0), "a file of unknown length");
+    }
+
+    #[test]
+    fn shared_credits_stopping_early_are_settled_by_the_pictures() {
+        // A 30 min episode; the shared audio is 28:00–29:00.
+        let shared = Found { kind: MarkerKind::Credits, start_ms: 1_680_000, end_ms: 1_740_000, source: "fingerprint" };
+        let settle = |kind: &dyn Fn(i64) -> &'static str| {
+            let frames = key_frames(1_170, 1_800, kind);
+            settle_credits(shared.clone(), &frames, 1_800_000)
+        };
+        // The roll goes on in silence, or on black: to the end.
+        for after in ["page", "black"] {
+            let found = settle(&|s| if s >= 1_680 { after } else { "scene" });
+            assert_eq!((found.start_ms, found.end_ms, found.source), (1_680_000, 1_800_000, "fingerprint"), "{after}");
+        }
+        // A studio's logo in the last seconds.
+        let found = settle(&|s| match s {
+            1_680..1_790 => "page",
+            1_790.. => "scene",
+            _ => "scene",
+        });
+        assert_eq!(found.end_ms, 1_800_000);
+        // An after-credits scene: the credits end at its first key frame.
+        let found = settle(&|s| match s {
+            1_680..1_760 => "page",
+            _ => "scene",
+        });
+        assert_eq!(found.end_ms, 1_762_000);
+        // A scene right after: credits over pictures, or a scene's music.
+        // Text on black later on is the credits.
+        let found = settle(&|s| if s >= 1_772 { "page" } else { "scene" });
+        assert_eq!((found.start_ms, found.end_ms, found.source), (1_774_000, 1_800_000, "frames"));
+        // Nothing on black: as it was.
+        assert_eq!(settle(&|_| "scene"), shared);
     }
 
     #[test]
