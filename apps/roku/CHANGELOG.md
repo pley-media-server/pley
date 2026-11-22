@@ -31,6 +31,8 @@ describes how they are made.
 - Settings looks as on Android TV: rows with an icon and the current value
   under the label, a switch for the next episode, and choices in a side
   panel. Diagnostics and the licenses are rows of the list.
+- Menus are square: the side panels, the focus in their lists and in the
+  rail. Buttons, the player's controls and pictures keep round corners.
 
 ### Fixed
 
