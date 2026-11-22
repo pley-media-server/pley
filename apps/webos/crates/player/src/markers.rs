@@ -29,17 +29,31 @@ pub fn skip_label(m: &Marker) -> &'static str {
     if m.kind == MarkerKind::Intro { t!("player.skip.intro") } else { t!("player.skip.credits") }
 }
 
-/// Credits start Up Next once each: seeking back into the same credits
-/// doesn't show the card again. Forgotten for a new item.
+/// Credits ending this close to the end of their file run to it: what follows
+/// is a studio's logo or black, not a scene (the server's `CREDITS_TAIL_MS`).
+pub const CREDITS_TAIL_MS: i64 = 15_000;
+
+/// Whether `m` is credits that run to the end of their file (`duration_ms`,
+/// 0 when not known). Only those bring Up Next: credits that something
+/// follows (an after-credits scene, a game show's last minutes) bring Skip
+/// Credits alone, or Up Next's countdown would skip what comes after them.
+/// Up Next then comes at the end of the file, as it does without credits.
+pub fn reaches_end(m: &Marker, duration_ms: i64) -> bool {
+    m.kind == MarkerKind::Credits && duration_ms > 0 && duration_ms - m.end_ms <= CREDITS_TAIL_MS
+}
+
+/// Credits that run to the end start Up Next once each: seeking back into
+/// the same credits doesn't show the card again. Forgotten for a new item.
 #[derive(Debug, Default)]
 pub struct CreditsGate {
     seen: HashSet<(i64, i64)>,
 }
 
 impl CreditsGate {
-    /// Whether entering `m` should start Up Next (the first time only).
-    pub fn enter(&mut self, m: &Marker) -> bool {
-        m.kind == MarkerKind::Credits && self.seen.insert((m.file_id, m.start_ms))
+    /// Whether entering `m`, in a file of `duration_ms`, should start Up Next
+    /// (the first time only).
+    pub fn enter(&mut self, m: &Marker, duration_ms: i64) -> bool {
+        reaches_end(m, duration_ms) && self.seen.insert((m.file_id, m.start_ms))
     }
 
     /// Forgets every credits seen.
@@ -80,10 +94,26 @@ mod tests {
     fn credits_open_up_next_once() {
         let mut gate = CreditsGate::default();
         let credits = marker(MarkerKind::Credits, 100_000, 120_000);
-        assert!(!gate.enter(&marker(MarkerKind::Intro, 0, 10)));
-        assert!(gate.enter(&credits));
-        assert!(!gate.enter(&credits));
+        assert!(!gate.enter(&marker(MarkerKind::Intro, 0, 10), 120_000));
+        assert!(gate.enter(&credits, 120_000));
+        assert!(!gate.enter(&credits, 120_000));
         gate.reset();
-        assert!(gate.enter(&credits));
+        assert!(gate.enter(&credits, 120_000));
+    }
+
+    #[test]
+    fn only_credits_that_run_to_the_end_open_up_next() {
+        let credits = marker(MarkerKind::Credits, 100_000, 120_000);
+        assert!(reaches_end(&credits, 120_000));
+        assert!(reaches_end(&credits, 135_000), "a logo after them");
+        assert!(!reaches_end(&credits, 135_001));
+        assert!(!reaches_end(&credits, 180_000), "a scene after them");
+        assert!(!reaches_end(&credits, 0), "a file of unknown length");
+        assert!(!reaches_end(&marker(MarkerKind::Intro, 100_000, 120_000), 120_000));
+        // Not opened while the file's length isn't known, then once it is.
+        let mut gate = CreditsGate::default();
+        assert!(!gate.enter(&credits, 180_000));
+        assert!(!gate.enter(&credits, 0));
+        assert!(gate.enter(&credits, 130_000));
     }
 }
