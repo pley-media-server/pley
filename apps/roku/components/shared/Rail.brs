@@ -19,9 +19,9 @@ function railKey(entry as object) as string
     return entry.action
 end function
 
-' The entries as nodes, the current one marked; the focus stays on its
-' entry as others come or go above it (the requests' once the summary
-' comes, Live TV, libraries).
+' The entries as nodes, the current one marked; while it is open, the
+' focus stays on its entry as others come or go above it (the requests'
+' once the summary comes, Live TV, libraries).
 sub onEntries()
     focusedKey = ""
     focused = m.list.itemFocused
@@ -39,27 +39,38 @@ sub onEntries()
         items.Push(item)
     end for
     m.list.content = nodesContent(items)
+    ' Closed, it shows the current entry as it would once closed.
+    if not m.open
+        showClosed()
+        return
+    end if
     if focusedKey = "" then focusedKey = m.top.current
     at = navMenuFocus(m.keys, focusedKey, focused)
     if at > 0 then m.list.jumpToItem = at
 end sub
 
-' Closed, the rail shows from its top, or as far down as the current
-' entry needs (Settings, under a long list of libraries).
 sub onCurrent()
     content = m.list.content
     if content = invalid then return
-    at = -1
     for i = 0 to m.keys.Count() - 1
         node = content.getChild(i)
-        current = m.keys[i] = m.top.current
-        if node <> invalid then node.current = current
-        if current then at = i
+        if node <> invalid then node.current = m.keys[i] = m.top.current
     end for
-    if not m.open and at >= 0 and m.list.itemFocused <> at
-        m.list.jumpToItem = 0
-        m.list.jumpToItem = at
-    end if
+    if not m.open then showClosed()
+end sub
+
+' Closed, the rail shows from its top, or as far down as the current
+' entry needs (Settings, under a long list of libraries), whatever was
+' looked at while it was open. One jump: of two in a row the Roku keeps the
+' last, scrolled as little as it needs.
+sub showClosed()
+    at = -1
+    for i = 0 to m.keys.Count() - 1
+        if m.keys[i] = m.top.current then at = i
+    end for
+    if at < 0 then return
+    if at < m.list.numRows then at = 0
+    if m.list.itemFocused <> at then m.list.jumpToItem = at
 end sub
 
 sub onSelected(event as object)
@@ -83,6 +94,7 @@ sub onFocus()
     else
         m.opening.control = "stop"
         m.closing.control = "start"
+        showClosed()
     end if
 end sub
 
