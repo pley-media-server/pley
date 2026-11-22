@@ -927,7 +927,7 @@ async function walk() {
   await press("right", 2); // Stop: back to the artist
   await press("select");
   await waitFor(/^DELETE \/api\/playback\//, since, "the artist's track's session closed");
-  await press("right"); // the albums, the newest first
+  await press("right", 2); // past Shuffle to the albums, the newest first
   await press("right"); // the older one
   since = mark();
   await press("select");
@@ -1053,7 +1053,7 @@ async function walk() {
   await waitFor(/^GET \/api\/playlists\/1$/, since, "a playlist");
   shoot("playlist");
   since = mark();
-  await press("right"); // the entries
+  await press("right", 4); // past Shuffle, Rename and Delete to the entries
   await press("options");
   await sleep(500);
   await press("select"); // Move

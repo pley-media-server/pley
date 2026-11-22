@@ -39,6 +39,8 @@ describes how they are made.
   season focus rests on shows its episodes, and OK on a season goes down
   to the episode to watch.
 - A show's Episodes screen has the rail, and Play as a pill.
+- An album's, an artist's and a playlist's buttons are Android TV's: Play
+  a pill, Shuffle and the rest round icons, named while focused.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

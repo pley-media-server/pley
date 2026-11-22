@@ -379,6 +379,36 @@ function contentEpisodes(children as dynamic, server as string) as object
     return episodes
 end function
 
+' A page's buttons as a ChipRow's, as Android TV's: the first a pill with
+' its icon, the rest round icons named while focused. actions name the
+' icons (Play's, Shuffle's, a person for Go to artist, a note for Now
+' playing, a pencil for Rename, a cross for Delete).
+function contentActionChips(labels as object, actions as object) as object
+    icons = { play: "play", shuffle: "shuffle", artist: "user-round", nowPlaying: "music", rename: "pencil", delete: "x" }
+    chips = []
+    for i = 0 to labels.Count() - 1
+        icon = invalid
+        if i < actions.Count() then icon = icons[actions[i]]
+        if icon = invalid then icon = "info"
+        if i = 0
+            chips.Push({ label: labels[i], icon: icon, width: 0 })
+        else
+            chips.Push({ label: "", icon: icon, name: labels[i], width: 0 })
+        end if
+    end for
+    return chips
+end function
+
+' Keeps the focus on the chip it was on, once a ChipRow's chips change.
+sub contentKeepChip(row as object, at as integer, hadFocus as boolean)
+    count = row.chips.Count()
+    if count = 0 then return
+    if at < 0 then at = 0
+    if at > count - 1 then at = count - 1
+    row.focusIndex = at
+    if hadFocus then row.setFocus(true)
+end sub
+
 ' Where a season's episodes ([{ progress, watched }], contentEpisodes')
 ' start, as on Android TV: the first one begun and not finished, else the
 ' first not watched, else the first.

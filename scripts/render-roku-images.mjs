@@ -76,7 +76,7 @@ const ICONS_40 = [
   "search", "house", "clapperboard", "tv", "music", "list-music", "layers", "settings", "compass", "radio",
   "star", "chevron-right", "chevron-left", "arrow-up-narrow-wide", "arrow-down-wide-narrow", "sliders-horizontal",
   "skip-forward", "skip-back", "x", "clock", "calendar-days", "user-round", "users", "image", "library-big",
-  "tv-minimal", "arrow-right", "arrow-up-down", "globe", "history", "activity", "log-out", "server", "plus",
+  "tv-minimal", "arrow-right", "arrow-up-down", "globe", "history", "activity", "log-out", "server", "plus", "pencil",
 ];
 for (const name of ICONS_40) add(`icon-${name}-40.png`, 40, 40, icon(name, 40, "#ffffff"));
 for (const name of ["skip-back", "skip-forward"]) add(`icon-${name}-48.png`, 48, 48, icon(name, 48, "#ffffff"));

@@ -464,3 +464,11 @@ sub test_content_episode_to_watch()
     tkEqual(contentEpisodeToWatch([{ progress: 0.5, watched: true }, { progress: 0, watched: true }]), 0, "all watched: the first")
     tkEqual(contentEpisodeToWatch([]), 0)
 end sub
+
+sub test_content_action_chips()
+    chips = contentActionChips(["Play", "Shuffle", "Go to artist"], ["play", "shuffle", "artist"])
+    tkEqual(chips[0], { label: "Play", icon: "play", width: 0 }, "the first a pill")
+    tkEqual(chips[1], { label: "", icon: "shuffle", name: "Shuffle", width: 0 }, "the rest round, named")
+    tkEqual(chips[2].icon, "user-round")
+    tkEqual(contentActionChips(["Rename"], ["unknown"])[0].icon, "info")
+end sub
