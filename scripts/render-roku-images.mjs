@@ -94,6 +94,8 @@ ninePatch("bar.9.png", 16, 8, 4, box(16, 8, 4, "#ffffff"));
 // buttons and the player's own controls keep their round corners.
 ninePatch("panel.9.png", 80, 80, 32, `<rect width="80" height="80" fill="#ffffff"/>`);
 ninePatch("square.9.png", 16, 16, 4, `<rect width="16" height="16" fill="#ffffff"/>`);
+// The guide's focus (TimeGrid takes a picture, not a colour): the accent.
+ninePatch("square-accent.9.png", 16, 16, 4, `<rect width="16" height="16" fill="${ACCENT}"/>`);
 
 // The edge of the seek preview: 2 px, corners 8, white for fg at 20 %.
 ninePatch("frame.9.png", 32, 32, 8, `<rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="#ffffff" stroke-width="2"/>`);
@@ -179,6 +181,8 @@ ninePatch("edge4.9.png", 16, 16, 4, `<rect x="1" y="1" width="14" height="14" rx
 
 // A circle to tint: the rail's avatar.
 add("circle.png", 80, 80, `<circle cx="40" cy="40" r="40" fill="#ffffff"/>`);
+// A round button's edge, as edge.9.png's but a circle (72 px across).
+add("edge-round.png", 72, 72, `<circle cx="36" cy="36" r="35" fill="none" stroke="#ffffff" stroke-width="2"/>`);
 // A settings switch's track (TvSwitch), tinted by the row.
 add("switch.png", 80, 44, box(80, 44, 22, "#ffffff"));
 

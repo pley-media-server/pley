@@ -56,6 +56,8 @@ describes how they are made.
 - Search's rows run to the screen's edge, a music library's tiles show
   both lines under them, Watch history's rows are as wide as the page, and
   a request page's and a collection's words stay clear of their picture.
+- Round buttons are circles, as on Android TV, and Live TV's guide shows
+  its focus in the accent, its programme's words on one line.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

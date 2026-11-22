@@ -52,8 +52,13 @@ sub onChips()
         width = chip.width
         round = icon <> invalid and chip.label = ""
         if width <= 0 then width = inner + m.top.pad
-        ' An icon alone: a square as tall as the row.
-        if round then width = height
+        ' An icon alone: a circle as tall as the row, as Android TV's round
+        ' buttons.
+        if round
+            width = height
+            back.uri = "pkg:/images/ui/circle.png"
+            edge.uri = "pkg:/images/ui/edge-round.png"
+        end if
         group.translation = [x, 0]
         group.scaleRotateCenter = [width / 2, height / 2]
         back.width = width
