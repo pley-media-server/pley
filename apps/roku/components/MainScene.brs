@@ -1192,7 +1192,9 @@ end sub
 
 ' The rail shows over the pages that have it, the current page's entry
 ' marked: a library's by its id, a page of the menu by its route; a page
-' opened from those (a title's) keeps the entry it came from.
+' opened from those (a title's) keeps the entry it came from, kept on the
+' page itself, so going back to it after another entry's page (Now
+' Playing) marks its own again.
 sub placeRail()
     if m.stack.Count() = 0
         m.rail.visible = false
@@ -1206,7 +1208,10 @@ sub placeRail()
     if top.route = "search" or top.route = "discover" or top.route = "requests" or top.route = "settings" or top.route = "live" or top.route = "collections" then current = top.route
     if top.route = "grid" and top.params <> invalid and top.params.kind = "playlists" then current = "playlists"
     if top.route = "nowPlaying" then current = "nowPlaying"
-    if current <> "" then m.rail.current = current
+    if current = "" and top.hasField("railEntry") then current = top.railEntry
+    if current = "" then current = m.rail.current
+    if not top.hasField("railEntry") then top.addFields({ railEntry: current })
+    m.rail.current = current
     m.rail.home = m.stack.Count() = 1
 end sub
 
