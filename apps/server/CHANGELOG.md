@@ -9,6 +9,21 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Credits that something follows no longer bring up Up Next: a game
+  show's thinking music shared by every episode, music two episodes share
+  in a scene, or credits with an after-credits scene. Those credits only
+  offer Skip Credits, and Up Next comes at the end. The pictures decide
+  where credits end, shared music in a scene no longer gets Skip Credits,
+  credits found from the pictures no longer begin in a dark scene before
+  them, credits no one speaks after (by the subtitles) still bring Up Next,
+  chapters of more credits after the credits (Fan Club Credits) count with
+  them, and Plex apps get the same last credits. Libraries are analyzed
+  again in the background.
+
+## [0.1.15] - 2026-11-22
+
 ### Added
 
 - A Live TV channel its source's guide lacks can take a guide of its own:
@@ -37,16 +52,6 @@ describes how they are made.
   stream again: their requests not to copy the video or the audio
   (`AllowVideoStreamCopy`, `AllowAudioStreamCopy`) are kept, and the sound
   is never made again in the codec that failed.
-- Credits that something follows no longer bring up Up Next: a game
-  show's thinking music shared by every episode, music two episodes share
-  in a scene, or credits with an after-credits scene. Those credits only
-  offer Skip Credits, and Up Next comes at the end. The pictures decide
-  where credits end, shared music in a scene no longer gets Skip Credits,
-  credits found from the pictures no longer begin in a dark scene before
-  them, credits no one speaks after (by the subtitles) still bring Up Next,
-  chapters of more credits after the credits (Fan Club Credits) count with
-  them, and Plex apps get the same last credits. Libraries are analyzed
-  again in the background.
 
 ## [0.1.14] - 2026-11-20
 
@@ -1199,7 +1204,8 @@ On Intel graphics:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-20...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-16

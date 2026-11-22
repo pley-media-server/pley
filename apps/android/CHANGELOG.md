@@ -13,6 +13,11 @@ describes how they are made.
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end
   instead, so its countdown no longer skips them.
+
+## [0.1.17] - 2026-11-22
+
+### Fixed
+
 - A video whose audio the device can't decode (Dolby Atmos in E-AC-3 on
   some phones) plays with the audio converted by the server, or another
   track, instead of failing after a transcode.
@@ -913,7 +918,8 @@ On Android TV:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-20...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[0.1.17]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-16

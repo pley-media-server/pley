@@ -13,6 +13,11 @@ describes how they are made.
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end instead.
   Without credits, it comes at the end too, rather than 30 s before it.
+
+## [0.1.12] - 2026-11-22
+
+### Fixed
+
 - Dates in Chinese read 3月5日 and 2026年3月5日.
 - Traditional Chinese uses the words people use in Taiwan, such as 影集 for
   a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
@@ -448,7 +453,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-20...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14
