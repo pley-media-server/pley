@@ -106,6 +106,9 @@ describes how they are made.
 
 ### Fixed
 
+- In a library's Recommended and Collections rows, and on Discover, the
+  focused row stays at the top: below it, its highlight was cut off at
+  the foot of the screen.
 - Channel and program names with letters Roboto lacks ("ᴿᴬᵂ", "ʜᴅ") show
   them as plain letters instead of empty boxes.
 - An artist's and a person's picture is round with no square corners
