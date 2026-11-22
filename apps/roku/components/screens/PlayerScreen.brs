@@ -2711,7 +2711,14 @@ end sub
 ' a time, the next a few seconds after the last answer while the track
 ' isn't whole.
 sub askPictures()
-    if m.pictureIndex < 0 or m.pictureWaiting or m.sessionId = "" then return
+    if m.pictureIndex < 0 then return
+    ' A request still out, or the session between two (a stream given
+    ' again): a look later, not none, or the track stopped at its first
+    ' answer.
+    if m.pictureWaiting or m.sessionId = ""
+        m.picturesTimer.control = "start"
+        return
+    end if
     m.picturesTimer.control = "stop"
     m.pictureWaiting = true
     path = picListPath(m.pictureFolder, m.pictureIndex, m.positionMs)
