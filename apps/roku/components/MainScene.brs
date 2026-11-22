@@ -1121,6 +1121,7 @@ sub pop()
     ' Made in a language shown before: made again, asking anew.
     if stale(top)
         renew(m.stack.Count() - 1)
+        placeRail()
         launchDialogDone()
         showNotice()
         return

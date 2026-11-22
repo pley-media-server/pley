@@ -81,6 +81,8 @@ describes how they are made.
 
 ### Fixed
 
+- After the language changed, the rail marked Settings over Home, scrolled
+  to its foot.
 - People's pictures in circles, and stills of another shape than their
   tile, are cropped, not squeezed: Roku OS 16 drew them stretched.
 - Search's groups line up under their titles, a channel's cards as the

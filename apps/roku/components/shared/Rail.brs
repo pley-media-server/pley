@@ -44,13 +44,22 @@ sub onEntries()
     if at > 0 then m.list.jumpToItem = at
 end sub
 
+' Closed, the rail shows from its top, or as far down as the current
+' entry needs (Settings, under a long list of libraries).
 sub onCurrent()
     content = m.list.content
     if content = invalid then return
+    at = -1
     for i = 0 to m.keys.Count() - 1
         node = content.getChild(i)
-        if node <> invalid then node.current = m.keys[i] = m.top.current
+        current = m.keys[i] = m.top.current
+        if node <> invalid then node.current = current
+        if current then at = i
     end for
+    if not m.open and at >= 0 and m.list.itemFocused <> at
+        m.list.jumpToItem = 0
+        m.list.jumpToItem = at
+    end if
 end sub
 
 sub onSelected(event as object)
