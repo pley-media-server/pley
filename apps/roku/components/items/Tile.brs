@@ -43,6 +43,7 @@ sub init()
     end if
     m.wide = false
     m.square = false
+    m.person = false
     m.progress = 0.0
     m.content = invalid
 end sub
@@ -55,6 +56,7 @@ sub onContent()
     m.content = item
     m.wide = item.hasField("wide") and item.wide = true
     m.square = item.hasField("square") and item.square = true
+    m.person = item.hasField("kind") and item.kind = "person"
     m.progress = 0.0
     if item.hasField("progress") then m.progress = item.progress
     m.watched.visible = item.hasField("watched") and item.watched = true
@@ -84,7 +86,13 @@ sub onContent()
     ' The scene's agent carries the token; it changes with each refresh.
     m.poster.setHttpAgent(m.top.getScene().getHttpAgent())
     onLayout()
-    m.poster.uri = item.image
+    ' A tile of words alone (Request more seasons, See all), bound where a
+    ' picture was, shows none: a Poster keeps its last bitmap when its uri
+    ' becomes "".
+    image = ""
+    if item.hasField("image") and item.image <> invalid then image = item.image
+    m.poster.visible = image <> ""
+    m.poster.uri = image
     onFocus()
 end sub
 
@@ -96,7 +104,20 @@ sub onLayout()
     if w <= 0 then return
     imageHeight = Int(w * 1.5)
     if m.wide then imageHeight = Int(w * 9 / 16)
-    if m.square then imageHeight = Int(w)
+    if m.square or m.person then imageHeight = Int(w)
+    ' A person's picture is a circle, its ring one too; the others' corners
+    ' round 8 px.
+    if m.round <> invalid and m.round.supported
+        radius = 8
+        if m.person then radius = w / 2
+        m.round.borderRadius = [radius]
+    end if
+    m.hairline.visible = not m.person
+    if m.person
+        m.ring.uri = "pkg:/images/ui/ring-round.png"
+    else
+        m.ring.uri = "pkg:/images/ui/ring.9.png"
+    end if
     m.imageWidth = w
     m.imageHeight = imageHeight
     m.art.scaleRotateCenter = [w / 2, imageHeight / 2]

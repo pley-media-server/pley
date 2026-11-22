@@ -110,7 +110,9 @@ shows its poster at the right. Audio and subtitles and More
 open a panel at the right; Back closes it, and Down from the buttons goes
 to the rows under them. Over the summary, as on Android TV, a line says
 who made it and who is in it ("Directed by Grace Hopper · Starring Ada
-Lovelace, Alan Turing"; a show's "Created by").
+Lovelace, Alan Turing"; a show's "Created by"). In the rows under it, Cast
+& crew are circles with their names and roles under them, as on Android
+TV, and so are the people Search finds.
 
 - **Audio and subtitles** (a movie or an episode with several files, or
   whose file has two audio tracks or more, or subtitles):

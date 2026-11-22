@@ -269,6 +269,7 @@ sub showRows()
         row = m.rowNodes[key]
         content.appendChild(row.node)
         shape = contentRowSize(row.wide, false)
+        if key = "credits" then shape = contentPersonRowSize()
         sizes.Push(shape.size)
         heights.Push(shape.height)
     end for

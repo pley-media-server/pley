@@ -31,6 +31,11 @@ describes how they are made.
 
 ### Fixed
 
+- Cast and crew, and the people Search finds, are circles with their names
+  and roles in view, as on Android TV: their tall pictures left the names
+  below the screen.
+- Request more seasons shows its words, not a picture left from another
+  tile.
 - Back from the player, a title's page has the focus on its buttons again:
   it was left with none, and the remote did nothing there.
 - The first video played after the app starts plays as it should: its

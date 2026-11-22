@@ -64,7 +64,7 @@ end sub
 
 sub test_search_row_sizes()
     tkEqual(searchRowSize("movie"), { size: [196, 370], height: 430 })
-    tkEqual(searchRowSize("person"), { size: [196, 370], height: 430 })
+    tkEqual(searchRowSize("person"), { size: [196, 300], height: 360 }, "people, circles")
     tkEqual(searchRowSize("channel"), { size: [220, 240], height: 300 })
     tkEqual(searchRowSize("episode"), { size: [300, 250], height: 310 })
     tkEqual(searchRowSize("track"), { size: [196, 280], height: 340 })

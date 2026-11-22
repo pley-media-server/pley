@@ -57,6 +57,7 @@ end function
 function searchRowSize(key as string) as object
     if key = "channel" then return { size: [220, 240], height: 300 }
     if key = "episode" then return { size: [300, 250], height: 310 }
+    if key = "person" then return { size: [196, 300], height: 360 }
     if contentMusic(key) then return { size: [196, 280], height: 340 }
     return { size: [196, 370], height: 430 }
 end function

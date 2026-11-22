@@ -4,7 +4,8 @@
      OS 16's Effect; square before), a faint line along its inner edge, how
      far along it is or a tick once watched, a badge (a TMDB title's "In
      library", "Requested"), a library's quality badges ("4K", "DV") at the
-     artwork's foot, and two lines under it. Focused, it grows to 1.08 with
+     artwork's foot, and two lines under it; a person's picture is a circle.
+     Focused, it grows to 1.08 with
      the accent's ring around it and its title goes bold; the list's
      focusPercent drives the growth and the ring, so a move animates with no
      BrightScript a frame. The well and the artwork grow by their size: a

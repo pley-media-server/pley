@@ -224,6 +224,11 @@ end function
 ' 264 or a poster 216, two lines of text 28 px under it, 24 px at its left
 ' and 30 over it for the focused tile's growth and ring (Tile), and the
 ' row's header.
+' A row of people, circles 192 px across, as Android TV's (TileKind.Person).
+function contentPersonRowSize() as object
+    return { size: [216, 320], height: 384 }
+end function
+
 function contentRowSize(wide as boolean, square as boolean) as object
     if wide then return { size: [432, 356], height: 420 }
     if square then return { size: [288, 390], height: 454 }

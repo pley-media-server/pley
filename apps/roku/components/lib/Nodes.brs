@@ -45,13 +45,19 @@ function nodesContent(items as object) as object
     return root
 end function
 
+' The nodes are filled before they join root, together: a list showing
+' root binds its tiles to children as they come, and a tile reads their
+' fields then (Request more seasons, Look further, skeletons).
 sub nodesAppend(root as object, items as object)
     known = invalid
+    nodes = []
     for each item in items
-        node = root.createChild("ContentNode")
+        node = CreateObject("roSGNode", "ContentNode")
         if known = invalid then known = nodesKnown(node, item)
         nodesSet(node, item, known)
+        nodes.Push(node)
     end for
+    if nodes.Count() > 0 then root.appendChildren(nodes)
 end sub
 
 ' Home's rows: a child per row (its title), with a child per tile.
