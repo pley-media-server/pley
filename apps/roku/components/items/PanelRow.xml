@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A row of the player's side panels, as the Android TV player's
+     PanelRow: its words, what they mean under them (a quality's hint, a
+     track's details), and a check at the right on the choice made. The
+     list draws the focus (the accent, its corners round); focused, the
+     words and the check are dark on it. 608 × 88. -->
+<component name="PanelRow" extends="Group">
+    <interface>
+        <field id="itemContent" type="node" onChange="onContent" />
+        <field id="itemHasFocus" type="boolean" onChange="onFocus" />
+        <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/items/PanelRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
+    <children>
+        <Label id="name" translation="[32, 0]" width="488" height="88" vertAlign="center" maxLines="1" color="0xEBEBEBFF" />
+        <Label id="note" translation="[32, 48]" width="488" maxLines="1" color="0xA1A9B6FF" visible="false" />
+        <Poster id="check" translation="[536, 24]" width="40" height="40" uri="pkg:/images/ui/icon-check-40.png" blendColor="0x38BDF8FF" visible="false" />
+    </children>
+</component>

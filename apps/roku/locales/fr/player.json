@@ -14,11 +14,8 @@
     "reset": "Réinitialiser"
   },
   "menu": {
-    "title": "Lecture",
     "subtitles": "Sous-titres",
-    "subtitlesNow": "Sous-titres : {{track}}",
     "audio": "Audio",
-    "audioNow": "Audio : {{track}}",
     "quality": "Qualité",
     "qualityNow": "Qualité : {{quality}}",
     "sync": "Décalage des sous-titres",
@@ -26,7 +23,6 @@
     "chapters": "Chapitres",
     "find": "Trouver des sous-titres…",
     "details": "Détails de lecture",
-    "backCloses": "Retour pour fermer.",
     "backGoesBack": "Retour pour revenir."
   },
   "details": {
@@ -42,7 +38,7 @@
     "subtitlesOff": "Sous-titres désactivés",
     "quality": "Qualité : {{quality}}",
     "qualityLowered": "Qualité réduite à {{quality}}",
-    "slowServer": "Le serveur n’arrive pas à suivre cette vidéo. Essayez une qualité inférieure : Bas, puis Qualité.",
+    "slowServer": "Le serveur n’arrive pas à suivre cette vidéo. Essayez une qualité inférieure : Bas, puis le bouton Qualité.",
     "notSaved": "Impossible d’enregistrer ce choix pour la prochaine fois.",
     "subtitlesAdded": "Sous-titres ajoutés : {{track}}"
   },
@@ -235,5 +231,21 @@
         "hint": "Les sous-titres dans votre langue s’affichent dès qu’il y en a."
       }
     }
+  },
+  "controls": {
+    "play": "Lire",
+    "pause": "Pause",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "info": "Infos",
+    "endsAt": "Se termine à {{time}}",
+    "remaining": "−{{time}}",
+    "intro": "Intro",
+    "credits": "Générique",
+    "seekBack": "−{{seconds}} s",
+    "seekForward": "+{{seconds}} s",
+    "chapter": "Chapitre {{number}}",
+    "chapterNamed": "Chapitre {{number}} · {{name}}",
+    "chapterWord": "Chapitre"
   }
 }

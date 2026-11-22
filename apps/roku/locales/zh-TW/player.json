@@ -14,11 +14,8 @@
     "reset": "重設"
   },
   "menu": {
-    "title": "播放",
     "subtitles": "字幕",
-    "subtitlesNow": "字幕：{{track}}",
     "audio": "音訊",
-    "audioNow": "音訊：{{track}}",
     "quality": "畫質",
     "qualityNow": "畫質：{{quality}}",
     "sync": "字幕同步",
@@ -26,7 +23,6 @@
     "chapters": "章節",
     "find": "搜尋字幕…",
     "details": "播放詳情",
-    "backCloses": "按「返回」將關閉此選單。",
     "backGoesBack": "按「返回」將返回上一級。"
   },
   "details": {
@@ -42,7 +38,7 @@
     "subtitlesOff": "字幕已關閉",
     "quality": "畫質：{{quality}}",
     "qualityLowered": "畫質已降至 {{quality}}",
-    "slowServer": "伺服器處理此影片的速度跟不上。請嘗試降低畫質：按「下」，再選「畫質」。",
+    "slowServer": "伺服器處理此影片的速度跟不上。請嘗試降低畫質：按「下」，再選「畫質」按鈕。",
     "notSaved": "無法儲存此次選擇供下次使用。",
     "subtitlesAdded": "已新增字幕：{{track}}"
   },
@@ -229,5 +225,21 @@
         "hint": "只要有你語言的字幕，就自動顯示。"
       }
     }
+  },
+  "controls": {
+    "play": "播放",
+    "pause": "暫停",
+    "previous": "上一個",
+    "next": "下一個",
+    "info": "資訊",
+    "endsAt": "結束於 {{time}}",
+    "remaining": "−{{time}}",
+    "intro": "片頭",
+    "credits": "片尾",
+    "seekBack": "−{{seconds}} 秒",
+    "seekForward": "+{{seconds}} 秒",
+    "chapter": "第 {{number}} 章",
+    "chapterNamed": "第 {{number}} 章 · {{name}}",
+    "chapterWord": "章"
   }
 }

@@ -202,7 +202,8 @@ function detLine(row as object) as string
     return t("titles.playback.line", { label: row.label, value: row.value })
 end function
 
-' A file's chapters, by start: [{ label ("1. Opening · 0:00"), startMs }].
+' A file's chapters, by start: [{ label ("1. Opening · 0:00"), name
+' ("Opening", "" for none), startMs }].
 function detChapters(file as dynamic) as object
     out = []
     if file = invalid then return out
@@ -211,9 +212,10 @@ function detChapters(file as dynamic) as object
             startMs = Int(httpNumber(chapter.start_ms, -1))
             if startMs >= 0
                 number = out.Count() + 1
-                title = httpSentence(chapter.title)
+                name = httpSentence(chapter.title)
+                title = name
                 if title = "" then title = t("titles.playback.chapter", { number: number })
-                out.Push({ label: urlValue(number) + ". " + title + " · " + fmtClock(startMs), startMs: startMs })
+                out.Push({ label: urlValue(number) + ". " + title + " · " + fmtClock(startMs), name: name, startMs: startMs })
             end if
         end if
     end for

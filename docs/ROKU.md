@@ -74,8 +74,10 @@ yet, Scanning your libraries…, or Nothing here yet.
 | Options (\*) | Watch history | Removes it |
 | Options (\*) | A playlist entry | Move (Up and Down carry it, OK puts it there, Back puts it back), Remove from playlist, Go to its title's page |
 | Options (\*) | A request | What can be done with it (Approve, Decline, Withdraw…) |
-| Down | The player | Pley's menu: Subtitles, Audio, Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
-| Options (\*) | The player | Roku's own options: subtitles and audio tracks |
+| OK, Up, Left, Right | The player | The controls, on the scrubber (Left and Right seek from there) |
+| Down | The player | The controls, on Play/Pause |
+| Options (\*) | The player | The Subtitles panel |
+| Replay | The player | Back 10 s |
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
 | Options (\*) | Live TV | A program's details (a card's: what's on), Watch, Add to or remove from favorites |
 | Options (\*) | The live player | Add to or remove from favorites |
@@ -289,16 +291,54 @@ the episode's "S1 E2 · Pilot", as on Android TV.
   end: a file played as it is is converted, and a stream opened again;
   falling short again within the minute, the player says so.
 - **Progress** goes to the server every 10 s while playing, every 30 s
-  paused, and at once after a seek, in Roku's own bar too.
-- **Playback details** are asked for again every 2 s while they show.
-- **Chapters** are in the menu for a file with two or more.
+  paused, and at once after a seek.
+- **Playback details** (Info) are asked for again every 2 s while they show.
 
-Fast forward and rewind show seek previews in Roku's own bar: the server's
-previews of the file as a BIF file, which the Video node fetches beside the
-media (`previews.bif`). While the server is still making them, the bar
-shows the time alone.
+The controls are Pley's own, as the Android TV player's
+(`components/shared/PlayerControls`); the Video node's are off
+(`enableUI`). They draw in the Video node, as Roku's own do. At the top,
+the title (a show's name over "S1 E2 · Pilot"), how it plays ("Direct
+play", "Direct stream", "Transcoding"), the clock and, while paused, when
+it ends; at the bottom the scrubber, the time played and the time left,
+the chapters as gaps in it and "Intro" or "Credits" under the marker
+playing, then a row of buttons: Chapters (for a file with two or more) and
+Sleep timer at the left, Previous, Play/Pause and Next in the middle
+(Previous and Next for an episode, a queue or chapters), Subtitles, Audio
+(where the file has tracks), Quality and Info at the right. The focused
+button fills with the accent and says its name.
 
-The sleep timer (Down, then Sleep timer) pauses after 15 to 90 minutes
+- **Showing them:** OK, Up, Left or Right bring them up on the scrubber,
+  Down on Play/Pause; the person's pause brings them up too. They hide 5 s
+  after the last key while it plays, not while paused or while a seek
+  waits. Back lets a seek waiting go, then hides them.
+- **Seeking** (`components/lib/Seeker.brs`), timed as the Android TV
+  player and YouTube's TV app do: Left and Right on the scrubber move where
+  it goes, 10 s a press, adding up ("+30 s"); it goes there on OK, or by
+  itself 5 s after the last press. Held (not let go within 0.4 s), the key
+  scrubs, faster the longer it's held, and nothing seeks until it's let
+  go. Fast forward and rewind jump 30 s, going 0.4 s after the last press,
+  and bring up the controls to show where; Replay goes back 10 s with only
+  a badge ("−10 s"). OK just after a seek confirms it and plays on.
+- **Previous and Next:** Previous goes to the chapter's start (the one
+  before within its first 3 s), Next to the next episode or entry, else the
+  next chapter.
+- **Seek previews** show over the scrubber while a seek waits: the
+  server's previews of the file as a BIF file (`previews.bif`, which the
+  session's key opens), fetched once into `cachefs:` (which doesn't count
+  against the app's memory as `tmp:` does) by a task
+  (`components/tasks/PreviewTask`), which cuts out each frame shown
+  (`components/lib/Previews.brs`); with the chapter's name under it. While
+  the server is still making them, the time shows alone.
+- **The panels** each button opens slide in at the right, as on Android
+  TV: Subtitles (every track, then Subtitle sync and Find subtitles…),
+  Audio, Quality (each with what it means under it), Chapters, Sleep timer
+  and Info (the playback's details). The choice made is checked; choosing
+  closes the panel, and Back does too, the controls coming back on the
+  button.
+- **Waiting** shows a turning ring half a second in, "Reconnecting…" under
+  it while the server is out of reach.
+
+The sleep timer (its button) pauses after 15 to 90 minutes
 or at the end of what plays, as on the other apps. In its last
 30 s it says "Pausing in 12 s" with Keep watching, which adds the same time
 again (or lets this title play to its end). Paused by it for 10 minutes,
@@ -329,20 +369,21 @@ next.
   video (a film cropped to 1920×800) keeps its own, fitted to the screen.
   The file says only how its video is stored, so a video of 576 lines or
   fewer is taken to show as 16:9. A picture shows while the video plays,
-  under the skip button and the player's panels; paused or seeking, Roku's
-  bar has the bottom of the screen. The next picture loads in a second
+  under the skip button and the player's controls and panels; paused, it
+  goes. The next picture loads in a second
   frame while one shows, and one that fails to load loads again 3 s later.
   The Video node tells its position every 0.2 s while pictures are drawn,
   else every second.
-- Roku's options list only text tracks, and a conversion's one audio.
-  Pley's menu (Down) lists every track of the file, as the title's page
-  does: Subtitles (Off, then each, PGS too) and Audio (Automatic, then
-  each). A pick there is saved for the show or movie, and the stream opens
-  again where it was with it. The remote on the profile's other devices
-  picks them the same way ([Remote control](#remote-control)).
-  A text track picked in the options takes the place of the pictures, and
-  captions turned off there turn them off; captions turned on without a
-  text track leave them be.
+- The Subtitles and Audio panels list every track of the file, as the
+  title's page does (Roku's own options list only text tracks, and a
+  conversion's one audio): Subtitles (Off, then each, PGS too) and Audio
+  (Automatic, then each). A pick there is saved for the show or movie, and
+  the stream opens again where it was with it. The remote on the profile's
+  other devices picks them the same way ([Remote control](#remote-control)).
+  Options (\*) opens the Subtitles panel: the controls hold the focus, so
+  Roku's own options don't slide in. Captions turned off in the Roku's
+  settings turn the pictures off; turned on without a text track, they
+  leave them be.
 - A server that can't make the pictures has them burned in: the stream
   reopens where it was with `subtitle_index`, and caps without PGS in
   `subtitle_codecs` or `picture_subtitles_sideload` (to the server, a
@@ -366,7 +407,8 @@ next.
 - The server picks the audio this Roku plays best in the profile's
   language. Any audio but the file's default makes the file a stream with
   its video copied.
-- Picks in Roku's options are saved for the show or movie, so the next
+- Tracks the Roku itself changes (its caption setting turned off, say)
+  are saved for the show or movie as a pick in the panels is, so the next
   episode starts with the same tracks. Roku's audio tracks are matched to
   the file's only when their count and languages agree.
 
@@ -473,7 +515,7 @@ remotes offer only Stop. They obey:
   entry). Next moves on without counting the title as watched; next with
   nothing after it does nothing; a video has no previous. The audio and
   subtitles, where the file has them (`audio`, `subtitles`), change as a
-  pick in Pley's menu changes them: saved for the show or movie, and the
+  pick in the player's panels changes them: saved for the show or movie, and the
   stream opened again where it was with them. The quality (`quality`), one
   of those the player's Quality menu offers for the file, changes as a
   pick there does: kept as the Roku's, and the title opened again where it
@@ -517,15 +559,10 @@ puts Up Next away, as Rewind does. The rule is
 pinned by `packages/tv/test/fixtures/remote.json`, which the tests read
 (the tracks and the quality by cases of their own).
 
-A command never brings up the player's controls. Paused, the Video node
-shows its title, clock and bar whoever paused it, so for the remote's
-pause the player turns them off (`enableUI`) until the video plays again,
-from either side, or the person presses a key: Play plays on, and the
-Video node's other keys are its own again from the next press. That
-first OK, left, right or skip only brings its controls back, where the
-other TVs act on it at once: the Video node hasn't had its controls to
-take it. What the
-remote did shows instead for 2 s in the player's notice at the top:
+A command never brings up the player's controls: the remote's pause
+doesn't, where the person's own does, and a key of the person's after it
+makes the pause theirs. What the remote did shows instead for 2 s in a
+notice at the top right, as the Android TV player's toasts:
 "Paused", "Playing", the skip asked for ("+30 s", "−10 s"), where a seek
 went ("Jumped to 12:34"), and the audio, subtitles ("Subtitles off") or
 quality picked, named as the player's menus name them
@@ -908,8 +945,15 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   tests), one fetch at a time, the odd dropped key, and no measure of a
   Roku's speed.
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
-  standard library). The home screen icons and splash screens come from
-  `bun scripts/render-icons.mjs` at the repository root.
+  standard library). The pictures of the Android TV look (`images/ui`:
+  Lucide's icons from the Android app's set, rounded boxes as nine-patch
+  pictures, the scrubber's parts, the player's scrim) come from
+  `bun scripts/render-roku-images.mjs` at the repository root, through a
+  headless Chrome or Edge, as the Kodi skin's do. The home screen icons and
+  splash screens come from `bun scripts/render-icons.mjs` there too.
+- **Type:** Roboto, the Android app's static files (`fonts/`), in the
+  Android TV app's sizes doubled (`components/shared/Type.brs`); Chinese
+  in the Roku's own font, which has its characters.
 
 ## Releases
 
@@ -929,6 +973,9 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
   stopped from another device stops at its next report (within 10 s while
   playing, 30 s while paused), a channel when its stream breaks off.
 - Audio other than the file's default isn't played as it is.
+- Text subtitles stay where the Roku draws them, under the player's
+  controls while those show: moving them would change the caption style of
+  the whole Roku. Picture subtitles, which Pley draws, go while paused.
 - Live TV has no channel numbers to type: Roku remotes have no number keys.
 - Not yet: an editable music queue.
 

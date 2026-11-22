@@ -8,6 +8,18 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The player has its own controls, drawn as Android TV's: the title, how
+  it plays and the clock at the top, a scrubber with the time played and
+  left, and a row of buttons (Chapters, Sleep timer, Previous, Play/Pause,
+  Next, Subtitles, Audio, Quality, Info) whose panels slide in at the right.
+  Left and Right seek 10 s a press, held they scrub, with the server's
+  seek previews over the scrubber; Down's menu is gone, and Options opens
+  Subtitles.
+- The app draws its player in Roboto, with Lucide's icons, as the Android
+  app does.
+
 ### Fixed
 
 - Dates in Chinese read 3月5日 and 2026年3月5日.

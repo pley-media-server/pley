@@ -1,0 +1,146 @@
+#!/usr/bin/env bun
+// Renders the pictures Pley's Roku screens are drawn with
+// (apps/roku/images/ui), in the Android TV app's look: its Lucide icons,
+// read from the Android app's own set (PleyIcons.kt), and the shapes its
+// controls are made of. Sizes are the Android TV app's dp doubled, as a
+// Roku's 1080-line screen is twice its 540.
+//
+// Most pictures are white, for the screens to tint (a Poster's
+// blendColor). Nine-patch pictures (.9.png) carry Roku's one-pixel border:
+// black on the top and left edges marks what stretches.
+//
+//   bun scripts/render-roku-images.mjs
+
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { renderer } from "./svg-render.mjs";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const out = join(root, "apps/roku/images/ui");
+
+// Pley's colors (apps/roku/components/shared/Ui.brs, Android's PleyColors.kt).
+const FG = "#ebebeb";
+const ACCENT = "#38bdf8";
+const ACCENT_BRIGHT = "#7dd3fc";
+
+/** Lucide's icons as the Android app has them: name → { filled, paths }. */
+function lucide() {
+  const source = readFileSync(join(root, "apps/android/core/designsystem/src/main/kotlin/app/pley/android/designsystem/icon/PleyIcons.kt"), "utf8");
+  const icons = {};
+  for (const m of source.matchAll(/PleyIcon\(\s*"([^"]+)",\s*(true|false),([\s\S]*?)\n\s*\)/g)) {
+    icons[m[1]] = { filled: m[2] === "true", paths: [...m[3].matchAll(/"([^"]*)"/g)].map((p) => p[1]) };
+  }
+  return icons;
+}
+
+const ICONS = lucide();
+// The player's sleep timer, as the Android TV player has it (TvPlayerExtras.kt).
+ICONS.moon ??= { filled: false, paths: ["M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"] };
+
+/** Icon [name], [size] px, in [color], with its top left at (x, y), as SVG elements. */
+function icon(name, size, color, x = 0, y = 0) {
+  const found = ICONS[name];
+  if (!found) throw new Error(`no Lucide icon ${name} in PleyIcons.kt`);
+  const fill = found.filled ? color : "none";
+  const paths = found.paths.map((d) => `<path d="${d}"/>`).join("");
+  return `<g transform="translate(${x} ${y}) scale(${size / 24})" fill="${fill}" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</g>`;
+}
+
+const svg = (width, height, body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${body}</svg>`;
+
+const pictures = [];
+const add = (name, width, height, body) => pictures.push({ name, width, height, svg: svg(width, height, body) });
+
+/**
+ * A nine-patch picture: [body] drawn [width] × [height] inside Roku's
+ * one-pixel border, whose top and left marks stretch the middle, leaving
+ * [corner] px at each end as they are.
+ */
+function ninePatch(name, width, height, corner, body) {
+  const marks =
+    `<rect x="${1 + corner}" y="0" width="${width - 2 * corner}" height="1" fill="#000000" shape-rendering="crispEdges"/>` +
+    `<rect x="0" y="${1 + corner}" width="1" height="${height - 2 * corner}" fill="#000000" shape-rendering="crispEdges"/>`;
+  add(name, width + 2, height + 2, `<g transform="translate(1 1)">${body}</g>${marks}`);
+}
+
+/** A rounded rectangle [width] × [height] of radius [r], filled. */
+const box = (width, height, r, fill) => `<rect width="${width}" height="${height}" rx="${r}" fill="${fill}"/>`;
+
+// Icons, white, as big as the screens draw them: 40 px (20 dp) in buttons
+// and rows, the player's previous and next 48, its play and pause 52.
+const ICONS_40 = [
+  "captions", "audio-lines", "gauge", "info", "moon", "list-video", "check", "play", "pause", "rotate-ccw",
+  "circle-check", "bookmark-plus", "bookmark-check", "list-plus", "ellipsis", "film", "eye-off", "shuffle",
+  "search", "house", "clapperboard", "tv", "music", "list-music", "layers", "settings", "compass", "radio",
+  "star", "chevron-right", "chevron-left", "arrow-up-narrow-wide", "arrow-down-wide-narrow", "sliders-horizontal",
+  "skip-forward", "skip-back", "x", "clock", "calendar-days", "user-round", "users", "image", "library-big",
+];
+for (const name of ICONS_40) add(`icon-${name}-40.png`, 40, 40, icon(name, 40, "#ffffff"));
+for (const name of ["skip-back", "skip-forward"]) add(`icon-${name}-48.png`, 48, 48, icon(name, 48, "#ffffff"));
+for (const name of ["play", "pause"]) add(`icon-${name}-52.png`, 52, 52, icon(name, 52, "#ffffff"));
+
+// Rounded boxes to tint: corners of 4 (badges), 8 (tiles), 12 (buttons and
+// the player's focused controls), and the bar of a scrubber or a progress
+// line (8 high, its ends round).
+ninePatch("r4.9.png", 16, 16, 4, box(16, 16, 4, "#ffffff"));
+ninePatch("r8.9.png", 32, 32, 8, box(32, 32, 8, "#ffffff"));
+ninePatch("r12.9.png", 48, 48, 12, box(48, 48, 12, "#ffffff"));
+ninePatch("bar.9.png", 16, 8, 4, box(16, 8, 4, "#ffffff"));
+
+// The player's side panel: 32 px corners on the left, square on the right,
+// where it meets the screen's edge.
+ninePatch("panel.9.png", 80, 80, 32, `<path d="M32 0H80V80H32A32 32 0 0 1 0 48V32A32 32 0 0 1 32 0Z" fill="#ffffff"/>`);
+
+// The edge of the seek preview: 2 px, corners 8, white for fg at 20 %.
+ninePatch("frame.9.png", 32, 32, 8, `<rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="#ffffff" stroke-width="2"/>`);
+
+// The scrubber's thumb: 20 px in fg; focused, 24 px with an accent-bright
+// ring 4 px out, 4 px wide (36 across).
+add("thumb.png", 20, 20, `<circle cx="10" cy="10" r="10" fill="#ffffff"/>`);
+add("thumb-focus.png", 36, 36, `<circle cx="18" cy="18" r="12" fill="${FG}"/><circle cx="18" cy="18" r="16" fill="none" stroke="${ACCENT_BRIGHT}" stroke-width="4"/>`);
+
+// Buffering: an 80 px ring, 4 px in fg, with a quarter in the accent, which
+// the player turns.
+add(
+  "buffering.png",
+  80,
+  80,
+  `<circle cx="40" cy="40" r="38" fill="none" stroke="${FG}" stroke-width="4"/>` +
+    `<path d="M40 2A38 38 0 0 1 78 40" fill="none" stroke="${ACCENT}" stroke-width="4" stroke-linecap="round"/>`,
+);
+
+// The scrim behind the player's controls, stretched over the screen: black
+// at 65 % at the top behind the title, 25 % through the middle, 70 % and
+// then 90 % at the bottom, where the controls stand (Android TV's
+// controlScrims).
+const stops = (pairs, color = "#000000") => pairs.map(([at, alpha]) => `<stop offset="${at}" stop-color="${color}" stop-opacity="${alpha}"/>`).join("");
+add(
+  "scrim-player.png",
+  4,
+  256,
+  `<defs><linearGradient id="g" x2="0" y2="1">${stops([[0, 0.65], [0.22, 0.25], [0.55, 0.25], [0.78, 0.7], [1, 0.9]])}</linearGradient></defs><rect width="4" height="256" fill="url(#g)"/>`,
+);
+
+// The title banner's band as each item begins: black at 65 % (the
+// controls' scrim's top) to clear (Android TV's TitleBand).
+add(
+  "band-top.png",
+  4,
+  256,
+  `<defs><linearGradient id="g" x2="0" y2="1">${stops([[0, 0.65], [1, 0]])}</linearGradient></defs><rect width="4" height="256" fill="url(#g)"/>`,
+);
+
+mkdirSync(out, { recursive: true });
+// Pictures this script made before and no longer makes go.
+const made = new Set(pictures.map((p) => p.name));
+for (const name of readdirSync(out)) {
+  if (!made.has(name) && name.endsWith(".png")) rmSync(join(out, name));
+}
+const r = await renderer();
+try {
+  for (const p of pictures) writeFileSync(join(out, p.name), await r.png(p.svg, p.width, p.height));
+  console.log(`rendered ${pictures.length} pictures into ${out}`);
+} finally {
+  r.close();
+}

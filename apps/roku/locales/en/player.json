@@ -14,11 +14,8 @@
     "reset": "Reset"
   },
   "menu": {
-    "title": "Playback",
     "subtitles": "Subtitles",
-    "subtitlesNow": "Subtitles: {{track}}",
     "audio": "Audio",
-    "audioNow": "Audio: {{track}}",
     "quality": "Quality",
     "qualityNow": "Quality: {{quality}}",
     "sync": "Subtitle sync",
@@ -26,7 +23,6 @@
     "chapters": "Chapters",
     "find": "Find subtitles…",
     "details": "Playback details",
-    "backCloses": "Back closes this.",
     "backGoesBack": "Back goes back."
   },
   "details": {
@@ -42,7 +38,7 @@
     "subtitlesOff": "Subtitles off",
     "quality": "Quality: {{quality}}",
     "qualityLowered": "Quality lowered to {{quality}}",
-    "slowServer": "The server can't keep up with this video. Try a lower quality: Down, then Quality.",
+    "slowServer": "The server can't keep up with this video. Try a lower quality: Down, then the Quality button.",
     "notSaved": "Couldn't save that choice for next time.",
     "subtitlesAdded": "Subtitles added: {{track}}"
   },
@@ -232,5 +228,21 @@
         "hint": "Subtitles in your language come on whenever there are some."
       }
     }
+  },
+  "controls": {
+    "play": "Play",
+    "pause": "Pause",
+    "previous": "Previous",
+    "next": "Next",
+    "info": "Info",
+    "endsAt": "Ends at {{time}}",
+    "remaining": "−{{time}}",
+    "intro": "Intro",
+    "credits": "Credits",
+    "seekBack": "−{{seconds}} s",
+    "seekForward": "+{{seconds}} s",
+    "chapter": "Chapter {{number}}",
+    "chapterNamed": "Chapter {{number}} · {{name}}",
+    "chapterWord": "Chapter"
   }
 }

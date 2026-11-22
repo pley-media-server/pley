@@ -2,7 +2,7 @@
 // a fake pley server on 127.0.0.1 (scripts/fixture-server.mjs), and walks
 // it with the remote: sign in with the TV code and its QR code on a server
 // that requires two-step sign-in, Home, a title's details, the player and
-// subtitles picked in its menu, the Options key, a library's grid, its A
+// subtitles picked in its controls' panels, the Options key, a library's grid, its A
 // to Z and the pages a jump passes over, a sort by bitrate and a filter
 // by resolution with their quality badges, filters saved as a smart
 // playlist, a library's collections by category and filtered by one,
@@ -359,7 +359,15 @@ const live = { busy: false };
 const sync = { label: false };
 // The picture subtitles the app draws: one of their PNGs loaded.
 const pictures = { loaded: false };
-// Subtitles picked in the player's own menu.
+// The player's row of buttons with the focus on its index-th: Down brings
+// the controls up (on Play/Pause) or leaves the row as it is, and Left
+// goes no further than its first.
+async function rowButton(index) {
+  await press("down");
+  await press("left", 8);
+  await press("right", index);
+}
+// Subtitles picked in the player's own panel.
 const menuTracks = { picked: false };
 // Within ms, whether a picture subtitle's PNG was fetched.
 async function loadedWithin(ms) {
@@ -477,49 +485,56 @@ async function walk() {
   if (fixture.playbacks.length < sessionsBefore + 2) throw new Error("no request for a session with the picture subtitles burned in");
   await settle();
   shoot("player");
-  // pley's menu (Down), and its subtitle sync: right moves the subtitles
-  // later, and Back closes it, the stream opening again with its text
-  // track moved.
+  // The controls (Down: on Play/Pause), as the Android TV player's: the row
+  // is Chapters, Sleep timer, Previous, Play/Pause, Next, Subtitles,
+  // Quality and Info (rowButton). Subtitles' panel ends with Subtitle sync
+  // and Find subtitles…; sync's right moves the subtitles later, and Back
+  // closes it, the stream opening again with its text track moved.
   await press("down");
   await sleep(300);
-  shoot("player-menu");
-  await press("down", 2); // past Subtitles and Quality: Subtitle sync
+  shoot("player-controls");
+  await rowButton(5); // Subtitles
+  await press("select");
+  await sleep(300);
+  shoot("player-subtitles");
+  await press("down", 10); // Find subtitles…, the last
+  await press("up"); // Subtitle sync
   await press("select");
   await press("right", 3);
   sync.label = await drawnWithin(2500, syncDrawn);
   shoot("player-sync");
   await press("back");
-  // The menu again: the first chapter gone to, then the playback's details,
-  // what the server makes of the conversion asked for.
-  await press("down");
-  await press("down"); // Chapters
+  // Chapters: the first chapter gone to.
+  await rowButton(0);
   await press("select");
-  await press("up");
+  await press("up", 10);
   await press("select");
-  // The sleep timer, after Chapters: 15 minutes, which the menu then
-  // counts down.
-  await press("down");
-  await press("down"); // Sleep timer
+  // The sleep timer: 15 minutes, which its panel then counts down.
+  await rowButton(1);
   await press("select");
   await sleep(300);
   shoot("player-sleep");
   await press("down"); // 15 min
   await press("select");
-  await press("down");
+  await rowButton(1);
+  await press("select");
   await sleep(300);
-  shoot("player-menu-sleep");
+  shoot("player-sleep-set");
+  await press("back");
+  // Info: what the server makes of the conversion asked for.
   since = mark();
-  await press("down", 2); // past Find subtitles…, Playback details
+  await rowButton(7);
   await press("select");
   await waitFor(/^GET \/api\/playback\/s\d+$/, since, "the conversion's details");
   shoot("player-details");
-  await press("back", 2);
+  await press("back");
   // Find subtitles…: the server's results listed, the first added, saved
   // as the pick, and the stream opened again with it (a new session, as
   // the server drew the picture subtitles onto this one).
   since = mark();
-  await press("down");
-  await press("up"); // Find subtitles…
+  await rowButton(5);
+  await press("select");
+  await press("down", 10); // Find subtitles…
   await press("select");
   await waitFor(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103$/, since, "the subtitles found for the file");
   shoot("player-find-subtitles");
@@ -537,17 +552,16 @@ async function walk() {
   await waitFor(/^PUT \/api\/items\/103\/streams$/, since, "the added subtitles saved as the pick");
   await waitFor(/^POST \/api\/playback$/, since, "a session without the picture subtitles drawn");
   await settle();
-  // The menu's Subtitles, at its top: the file's every track, English
-  // (SRT) picked, saved as the pick, and the stream opened again with it.
+  // Subtitles' panel: the file's every track, English (SRT) picked, saved
+  // as the pick, and the stream opened again with it.
   since = mark();
   const streamsBefore = fixture.streams.length;
-  await press("down");
-  await press("up", 8);
+  await rowButton(5);
   await press("select");
-  await press("up", 3); // Off
+  await press("up", 10); // Off
   await press("down"); // English (SRT)
   await press("select");
-  await waitFor(/^PUT \/api\/items\/103\/streams$/, since, "the subtitles picked in the player's menu, saved");
+  await waitFor(/^PUT \/api\/items\/103\/streams$/, since, "the subtitles picked in the player's panel, saved");
   await waitFor(/^POST \/api\/playback$/, since, "the stream opened again with the subtitles picked");
   menuTracks.picked = fixture.streams.slice(streamsBefore).some((s) => s.item === 103 && s.subtitle_index === 3);
   since = mark();
@@ -1485,7 +1499,7 @@ const checks = [
   ["found subtitles from the player's menu and added the first", fixture.subtitlesAdded.some((a) => a.item === 103 && a.result === "opensubtitles:1" && a.file_id === 7103)],
   ["looked for subtitles in a language picked above the results", asked(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103&language=ara$/)],
   ["saved the added subtitles as the pick", fixture.streams.some((s) => s.item === 103 && s.subtitle_index === 10001)],
-  ["picked subtitles in the player's own menu, saved and played", menuTracks.picked],
+  ["picked subtitles in the player's own panel, saved and played", menuTracks.picked],
   ["asked the server what it knows of the network before playing in Automatic", asked(/^GET \/api\/playback\/network\?client_id=/)],
   ["ran a speed test of 8 MiB where the server asked for one", fixture.speedTests.length > 0 && fixture.speedTests.every((n) => n === 8388608)],
   ["told the server what the speed test measured", fixture.networkTold.some((t) => t.probe_kbps > 0 && t.probe_complete === false && t.client_id)],

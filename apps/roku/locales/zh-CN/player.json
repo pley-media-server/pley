@@ -14,11 +14,8 @@
     "reset": "重置"
   },
   "menu": {
-    "title": "播放",
     "subtitles": "字幕",
-    "subtitlesNow": "字幕：{{track}}",
     "audio": "音频",
-    "audioNow": "音频：{{track}}",
     "quality": "画质",
     "qualityNow": "画质：{{quality}}",
     "sync": "字幕同步",
@@ -26,7 +23,6 @@
     "chapters": "章节",
     "find": "查找字幕…",
     "details": "播放详情",
-    "backCloses": "按“返回”将关闭此菜单。",
     "backGoesBack": "按“返回”将返回上一级。"
   },
   "details": {
@@ -42,7 +38,7 @@
     "subtitlesOff": "字幕已关闭",
     "quality": "画质：{{quality}}",
     "qualityLowered": "画质已降至 {{quality}}",
-    "slowServer": "服务器处理此视频时力不从心。请尝试降低画质：按“下”，再选“画质”。",
+    "slowServer": "服务器处理此视频时力不从心。请尝试降低画质：按“下”，再选“画质”按钮。",
     "notSaved": "无法保存此次选择供下次使用。",
     "subtitlesAdded": "已添加字幕：{{track}}"
   },
@@ -229,5 +225,21 @@
         "hint": "只要有你语言的字幕，就自动显示。"
       }
     }
+  },
+  "controls": {
+    "play": "播放",
+    "pause": "暂停",
+    "previous": "上一个",
+    "next": "下一个",
+    "info": "信息",
+    "endsAt": "结束于 {{time}}",
+    "remaining": "−{{time}}",
+    "intro": "片头",
+    "credits": "片尾",
+    "seekBack": "−{{seconds}} 秒",
+    "seekForward": "+{{seconds}} 秒",
+    "chapter": "第 {{number}} 章",
+    "chapterNamed": "第 {{number}} 章 · {{name}}",
+    "chapterWord": "章"
   }
 }

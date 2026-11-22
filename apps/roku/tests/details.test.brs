@@ -67,7 +67,7 @@ end sub
 
 sub test_details_chapters()
     chapters = detChapters(detailsTestFile())
-    tkEqual(chapters, [{ label: "1. Opening · 0:00", startMs: 0 }, { label: "2. Chapter 2 · 1:00", startMs: 60000 }])
+    tkEqual(chapters, [{ label: "1. Opening · 0:00", name: "Opening", startMs: 0 }, { label: "2. Chapter 2 · 1:00", name: "", startMs: 60000 }])
     tkEqual(detChapterAt(chapters, 59999), 0)
     tkEqual(detChapterAt(chapters, 60000), 1)
     tkEqual(detChapters(invalid).Count(), 0)
