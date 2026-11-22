@@ -115,7 +115,6 @@
     "mono": "单声道",
     "stereo": "立体声",
     "channelCount": "{{n}} 声道",
-    "fact": "{{label}}：{{value}}",
     "file": "文件",
     "video": "视频",
     "audio": "音频",

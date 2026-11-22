@@ -100,6 +100,8 @@
                 <Label id="menuTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xEBEBEBFF" />
                 <MarkupList id="menuList" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
                 <Label id="menuText" translation="[1256, 152]" width="608" wrap="true" maxLines="20" lineSpacing="8" color="0xEBEBEBFF" visible="false" />
+                <!-- The playback's details: each row's label and value. -->
+                <FactSheet id="menuFacts" translation="[1256, 152]" width="608" height="780" labelWidth="200" visible="false" />
                 <Label id="menuHint" translation="[1256, 960]" width="608" wrap="true" maxLines="2" color="0xA1A9B6FF" />
             </Group>
         </Group>

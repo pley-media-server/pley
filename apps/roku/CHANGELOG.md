@@ -72,6 +72,9 @@ describes how they are made.
   next below them; a button's name no longer runs past the screen's edge.
 - "Who's watching?" shows round profiles with the accent's ring, as the
   rail's.
+- Media info and the player's Playback details lay out as Android TV's:
+  a bold heading over each block, each label in grey beside its value,
+  and Media info scrolls smoothly with a bar showing where.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

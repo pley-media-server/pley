@@ -121,7 +121,6 @@
     "mono": "Mono",
     "stereo": "Estéreo",
     "channelCount": "{{n}} canales",
-    "fact": "{{label}}: {{value}}",
     "file": "Archivo",
     "video": "Video",
     "audio": "Audio",

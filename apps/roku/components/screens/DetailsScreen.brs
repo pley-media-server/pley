@@ -23,6 +23,7 @@ sub init()
     m.menu = m.top.findNode("menu")
     m.choices = m.top.findNode("choices")
     m.info = m.top.findNode("info")
+    m.facts = m.top.findNode("facts")
     m.message.text = t("common.states.loading")
     ' Pley's type, as Android TV's title page.
     fonts = { heading: "heroTitle", genres: "label", credits: "label", tagline: "title", summary: "bodyLarge", note: "label", message: "bodyLarge", panelTitle: "section" }
@@ -573,6 +574,7 @@ sub showMenu(kind as string, title as string, labels as object)
     if at > 0 and at < items.Count() then m.menu.jumpToItem = at
     m.choices.visible = false
     m.info.visible = false
+    m.facts.visible = false
     m.menu.visible = true
     m.panel.visible = true
     m.menu.setFocus(true)
@@ -593,23 +595,25 @@ sub showChoices(kind as string, title as string, labels as object, values as obj
     if current > 0 then m.choices.jumpToItem = current
     m.menu.visible = false
     m.info.visible = false
+    m.facts.visible = false
     m.choices.visible = true
     m.panel.visible = true
     m.choices.setFocus(true)
 end sub
 
 ' Media info: each file and every stream in full (Media.brs), as on the
-' other TVs, in text that Up and Down scroll; Back goes back to More.
+' other TVs, in a sheet that Up and Down scroll; Back goes back to More.
 sub showInfo()
     m.panelKind = "info"
     m.panelBack = "more"
     m.panelTitle.text = t("titles.page.mediaInfo")
-    m.info.text = mediaInfoText(m.item)
+    m.facts.lines = mediaInfoSheet(m.item)
     m.menu.visible = false
     m.choices.visible = false
-    m.info.visible = true
+    m.info.visible = false
+    m.facts.visible = true
     m.panel.visible = true
-    m.info.setFocus(true)
+    m.facts.setFocus(true)
 end sub
 
 ' Details: the whole summary, then who made the title, its original
@@ -622,6 +626,7 @@ sub showAbout()
     m.info.text = contentAbout(m.item, CreateObject("roDateTime").AsSeconds(), fmtZoneSeconds())
     m.menu.visible = false
     m.choices.visible = false
+    m.facts.visible = false
     m.info.visible = true
     m.panel.visible = true
     m.info.setFocus(true)

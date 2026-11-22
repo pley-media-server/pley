@@ -115,7 +115,6 @@
     "mono": "單聲道",
     "stereo": "立體聲",
     "channelCount": "{{n}} 聲道",
-    "fact": "{{label}}：{{value}}",
     "file": "檔案",
     "video": "影片",
     "audio": "音訊",

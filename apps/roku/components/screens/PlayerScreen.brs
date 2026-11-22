@@ -50,6 +50,8 @@ sub init()
     m.menuTitle = m.top.findNode("menuTitle")
     m.menuList = m.top.findNode("menuList")
     m.menuText = m.top.findNode("menuText")
+    m.menuFacts = m.top.findNode("menuFacts")
+    m.detailsShown = ""
     m.menuHint = m.top.findNode("menuHint")
     m.menuTitle.font = uiType("section")
     m.menuText.font = uiType("body")
@@ -2475,6 +2477,7 @@ sub showMenuChoices(items as object, current as integer)
     if at < 0 then at = 0
     m.menuList.jumpToItem = at
     m.menuText.visible = false
+    m.menuFacts.visible = false
     m.menuList.visible = true
     m.menuHint.text = ""
     m.menuList.setFocus(true)
@@ -2621,9 +2624,11 @@ end sub
 sub openDetails()
     m.menuKind = "details"
     m.menuTitle.text = t("player.menu.details")
+    m.detailsShown = ""
     showDetails(invalid)
     m.menuList.visible = false
-    m.menuText.visible = true
+    m.menuText.visible = false
+    m.menuFacts.visible = true
     m.menuHint.text = ""
     m.keys.setFocus(true)
     onDetailsTick()
@@ -2653,17 +2658,14 @@ end sub
 sub showDetails(live as dynamic)
     if m.info = invalid then return
     details = detPlayback(m.info, playingFile(), m.audioPlaying, live, m.positionMs)
-    lines = [details.method]
-    if details.why <> "" then lines.Push(details.why)
-    lines.Push("")
-    for each row in details.rows
-        lines.Push(detLine(row))
-    end for
-    if m.pictureIndex >= 0 then lines.Push(t("player.details.picturesDrawn"))
-    if m.watch <> invalid and aqLowered(m.watch) then lines.Push(t("player.details.qualityLowered", { quality: qualityShown() }))
-    ' Roboto, the panel's type, has no arrow: what plays goes to what is
-    ' sent with "›" instead ("HEVC 4K › H.264 1080p").
-    m.menuText.text = lines.Join(Chr(10)).Replace(" → ", " › ")
+    lines = detSheet(details)
+    if m.pictureIndex >= 0 then lines.Push({ kind: "note", text: t("player.details.picturesDrawn") })
+    if m.watch <> invalid and aqLowered(m.watch) then lines.Push({ kind: "note", text: t("player.details.qualityLowered", { quality: qualityShown() }) })
+    ' Asked again every 2 s: laid out again only when something changed.
+    shown = FormatJson(lines)
+    if shown = m.detailsShown then return
+    m.detailsShown = shown
+    m.menuFacts.lines = lines
 end sub
 
 ' --- Picture subtitles drawn here (Pictures.brs) ---
@@ -2864,6 +2866,7 @@ end sub
 sub showMenuText(text as string)
     m.menuText.text = text
     m.menuList.visible = false
+    m.menuFacts.visible = false
     m.menuText.visible = true
     m.menuHint.text = t("player.menu.backGoesBack")
 end sub
@@ -2892,6 +2895,7 @@ sub onSubtitlesFound(event as object)
         m.menuHint.text = ssNothingFound(m.findLanguage)
     end if
     m.menuText.visible = false
+    m.menuFacts.visible = false
     m.menuList.visible = true
     m.menuList.setFocus(true)
 end sub

@@ -196,10 +196,16 @@ function detPlayback(info as object, file as dynamic, audioIndex as integer, liv
     return { method: detMethod(info), why: why, rows: rows }
 end function
 
-' A row of the playback's details as a line: "Video: HEVC 4K", "Vidéo :
-' HEVC 4K".
-function detLine(row as object) as string
-    return t("titles.playback.line", { label: row.label, value: row.value })
+' The playback's details as a FactSheet's lines: the method as a heading,
+' why under it, then each row. Roboto, the panel's type, has no arrow:
+' what plays goes to what is sent with "›" instead ("HEVC 4K › H.264").
+function detSheet(details as object) as object
+    lines = [{ kind: "heading", text: details.method }]
+    if details.why <> "" then lines.Push({ kind: "note", text: details.why })
+    for each row in details.rows
+        lines.Push({ kind: "fact", text: row.label, value: row.value.Replace(" → ", " › ") })
+    end for
+    return lines
 end function
 
 ' A file's chapters, by start: [{ label ("1. Opening · 0:00"), name
