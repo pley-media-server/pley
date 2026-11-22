@@ -1108,7 +1108,8 @@ fn finalize(range: Option<(i64, i64)>, kind: MarkerKind, duration_ms: i64) -> Op
 ///   the shared audio was a scene's music (a game show's thinking music, a
 ///   song two episodes share): the text on black are the credits.
 /// - Otherwise they are credits only when text on black, or true black,
-///   shows while the shared audio plays; they then stop where the pictures
+///   shows while the shared audio plays, and from there: their music can
+///   begin over the last shot of a scene. They stop where the pictures
 ///   change (an after-credits scene). Shared audio over pictures alone,
 ///   short of the end, is no proof of credits: none.
 fn settle_credits(shared: Found, frames: &[FrameStats], duration_ms: i64) -> Option<Found> {
@@ -1129,8 +1130,8 @@ fn settle_credits(shared: Found, frames: &[FrameStats], duration_ms: i64) -> Opt
     {
         return Some(later);
     }
-    let on_screen = frames.iter().any(|f| (settled.start_ms..=settled.end_ms).contains(&f.ms) && is_black_page(f));
-    on_screen.then_some(settled)
+    let on_screen = frames.iter().find(|f| (settled.start_ms..=settled.end_ms).contains(&f.ms) && is_black_page(f))?;
+    Some(Found { start_ms: on_screen.ms, ..settled })
 }
 
 /// Credits short of the end that no one speaks after run to the end: what
@@ -1565,9 +1566,12 @@ mod tests {
         });
         assert_eq!(found.end_ms, 1_762_000);
         // Credits on black while the shared audio plays, then a scene right
-        // after it: the credits stop there.
+        // after it: the credits stop there. They begin at their first page:
+        // their music can begin over the last shot of a scene.
         let found = settle(&|s| if (1_680..1_740).contains(&s) { "page" } else { "scene" });
-        assert_eq!((found.start_ms, found.end_ms), (1_680_000, 1_740_000));
+        assert_eq!((found.start_ms, found.end_ms), (1_682_000, 1_740_000));
+        let found = settle(&|s| if (1_700..1_740).contains(&s) { "page" } else { "scene" });
+        assert_eq!((found.start_ms, found.end_ms), (1_702_000, 1_740_000));
         // A scene right after: credits over pictures, or a scene's music.
         // Text on black later on is the credits.
         let found = settle(&|s| if s >= 1_772 { "page" } else { "scene" });
