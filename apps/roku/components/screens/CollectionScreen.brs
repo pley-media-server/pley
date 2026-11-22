@@ -113,6 +113,7 @@ sub onCollection(event as object)
     if focused > 0 and focused < collection.shown then m.grid.jumpToItem = focused
     m.grid.visible = collection.shown > 0
     m.column.visible = true
+    placeGrid()
     if m.grid.isInFocusChain() and not m.grid.visible then focusGrid(false)
     ' Only while this screen has the focus: a dialog over it keeps it.
     if m.top.hasFocus() and m.buttons.visible then m.buttons.setFocus(true)
@@ -275,11 +276,24 @@ sub onTile(event as object)
     uiOpenTile(m.grid.content.getChild(event.getData()))
 end sub
 
+' The posters under the words and buttons, as a title page's rows: a short
+' summary left their names below the screen. Between 480 and 720 (their
+' tiles' art starts 30 px down).
+sub placeGrid()
+    rect = m.column.boundingRect()
+    if rect.height <= 0 then return
+    y = Int(rect.y + rect.height + 66)
+    if y < 480 then y = 480
+    if y > 720 then y = 720
+    if m.grid.translation[1] <> y then m.grid.translation = [168, y]
+end sub
+
 ' The page slides up to the posters as they take the focus, the backdrop
 ' shaded under them all, and back down.
 sub focusGrid(onGrid as boolean)
     if onGrid
-        m.page.translation = [0, -624]
+        placeGrid()
+        m.page.translation = [0, -(m.grid.translation[1] - 96)]
         m.shade.visible = true
         m.grid.setFocus(true)
     else

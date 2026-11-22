@@ -378,8 +378,6 @@ sub showRows()
     placeRows()
 end sub
 
-' The page slides up to the rows as they take the focus, the backdrop
-' shaded under them all, and back down.
 ' The rows 96 px under the title's words and buttons, not at a fixed
 ' place: a short summary left a third of the screen empty above them.
 ' Between 600 and 940; the page slides by as much to bring them to 120.
@@ -392,6 +390,8 @@ sub placeRows()
     if m.rows.translation[1] <> y then m.rows.translation = [168, y]
 end sub
 
+' The page slides up to the rows as they take the focus, the backdrop
+' shaded under them all, and back down.
 sub focusRows(onRows as boolean)
     if onRows
         placeRows()

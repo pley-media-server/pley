@@ -78,6 +78,8 @@ describes how they are made.
 - Now Playing's "Up next" is a section's heading, as on the title pages.
 - A collection's page and a request's title page have the backdrop over
   the whole screen with no hard edge, as the title pages.
+- A collection's posters start under its buttons, their names in view,
+  instead of at the screen's foot.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 
