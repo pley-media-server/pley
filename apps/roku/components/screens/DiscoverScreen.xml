@@ -37,12 +37,12 @@
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <children>
         <!-- The hero's backdrop over the whole screen, as Home's: a scrim
-             from the left under the words and a fade to the rows; shaded
-             all over while the rows have the focus. -->
+             from the left under the words and a fade to the rows. While the
+             rows have the focus, the backdrop alone, faint (uiDimBackdrop):
+             a shade over all three layers held the rows to 35 fps. -->
         <Poster id="backdrop" width="1920" height="1080" loadWidth="960" loadHeight="540" loadDisplayMode="scaleToZoom" />
-        <Poster id="scrimLeft" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
-        <Poster id="fadeDown" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" />
-        <Rectangle id="shade" width="1920" height="1080" color="0x16191ED9" visible="false" />
+        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
+        <Poster id="fade" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" />
         <Group id="page">
             <Label id="heading" translation="[192, 54]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
             <ChipRow id="chips" translation="[460, 68]" />

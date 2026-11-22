@@ -7,7 +7,6 @@ sub init()
     ' Whether Your requests showed: a poll that fails then leaves them be.
     m.requestsShown = false
     m.backdrop = m.top.findNode("backdrop")
-    m.shade = m.top.findNode("shade")
     m.page = m.top.findNode("page")
     m.chips = m.top.findNode("chips")
     m.credit = m.top.findNode("credit")
@@ -98,7 +97,7 @@ sub showPage()
     m.problem.visible = false
     m.problemShown = invalid
     m.page.translation = [0, 0]
-    m.shade.visible = false
+    uiDimBackdrop(m.top, false)
     m.signInOnly = summary.signInAgain = "requests"
     if m.signInOnly
         showProblem(reqSignInAgain())
@@ -412,7 +411,7 @@ sub showProblem(problem as object)
     m.credit.visible = false
     m.backdrop.uri = ""
     m.page.translation = [0, 0]
-    m.shade.visible = false
+    uiDimBackdrop(m.top, false)
     m.problemTitle.text = problem.title
     m.problemText.text = problem.text
     buttons = []
@@ -473,15 +472,15 @@ end sub
 ' --- The remote ---
 
 ' The page slides up to the rows as they take the focus, the backdrop
-' shaded under them all, and back down.
+' faint under them, and back down.
 sub focusRows(onRows as boolean)
     if onRows
         m.page.translation = [0, -m.slide]
-        m.shade.visible = true
+        uiDimBackdrop(m.top, true)
         m.rows.setFocus(true)
     else
         m.page.translation = [0, 0]
-        m.shade.visible = false
+        uiDimBackdrop(m.top, false)
         if m.hero.visible
             m.heroButtons.setFocus(true)
         else if m.chips.visible

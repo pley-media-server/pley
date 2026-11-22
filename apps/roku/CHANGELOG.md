@@ -87,6 +87,8 @@ describes how they are made.
 - A title's page scrolls at 60 fps, its rows and its Media info alike (40
   before): what a panel covers isn't drawn, and under the rows the
   backdrop alone is dimmed.
+- Discover's rows scroll at 60 fps (35 before): under them the backdrop
+  alone is dimmed, as on a title's page.
 - The player panel's hint ends inside the title-safe area on two lines.
 - A movie or episode started and not finished says what is left on its
   tile ("1 h 14 min left", "S1 E3 · 18 min left") instead of its year, as
