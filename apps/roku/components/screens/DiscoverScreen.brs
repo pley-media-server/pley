@@ -13,7 +13,7 @@ sub init()
     m.credit = m.top.findNode("credit")
     m.hero = m.top.findNode("hero")
     m.heroName = m.top.findNode("heroName")
-    m.heroLine = m.top.findNode("heroLine")
+    m.heroMeta = m.top.findNode("heroMeta")
     m.heroOverview = m.top.findNode("heroOverview")
     m.heroButtons = m.top.findNode("heroButtons")
     m.heroNote = m.top.findNode("heroNote")
@@ -24,6 +24,11 @@ sub init()
     m.problemButtons = m.top.findNode("problemButtons")
     m.busy = m.top.findNode("busy")
     m.top.findNode("heading").text = t("requests.names.discover")
+    ' Android TV's type: the page's title, the hero's, its overview.
+    m.top.findNode("heading").font = uiType("pageTitle")
+    m.heroName.font = uiType("heroTitle")
+    m.heroOverview.font = uiType("bodyLarge")
+    m.heroNote.font = uiType("label")
     m.credit.text = t("requests.credit")
     m.started = false
     ' The rows in order: { key (a list's, or "requests"), title, state
@@ -47,7 +52,7 @@ sub init()
     ' covered.
     m.slide = 560
     m.lastFocus = ""
-    m.heroButtons.observeField("buttonSelected", "onHeroButton")
+    m.heroButtons.observeField("chosen", "onHeroButton")
     m.problemButtons.observeField("buttonSelected", "onProblemButton")
     m.chips.observeField("chosen", "onChip")
     m.rows.observeField("rowItemSelected", "onTile")
@@ -93,7 +98,7 @@ sub showPage()
     m.problem.visible = false
     m.problemShown = invalid
     m.page.translation = [0, 0]
-    m.shade.width = 1260
+    m.shade.visible = false
     m.signInOnly = summary.signInAgain = "requests"
     if m.signInOnly
         showProblem(reqSignInAgain())
@@ -364,10 +369,11 @@ sub drawHero()
     if m.heroTitle = invalid then return
     m.heroShown = reqHero(m.heroTitle, reqSummaryOf(m.top.requestSummary), m.global.session.server, CreateObject("roDateTime").AsSeconds())
     m.heroName.text = m.heroShown.title
-    m.heroLine.text = m.heroShown.line
+    m.heroMeta.parts = m.heroShown.parts
     m.heroOverview.text = m.heroShown.overview
     m.heroNote.text = m.heroShown.note
-    if FormatJson(m.heroButtons.buttons) <> FormatJson(m.heroShown.buttons) then m.heroButtons.buttons = m.heroShown.buttons
+    chips = reqHeroChips(m.heroShown)
+    if FormatJson(m.heroButtons.chips) <> FormatJson(chips) then m.heroButtons.chips = chips
     if m.backdrop.uri <> m.heroShown.backdrop
         m.backdrop.setHttpAgent(m.top.getScene().getHttpAgent())
         m.backdrop.uri = m.heroShown.backdrop
@@ -406,7 +412,7 @@ sub showProblem(problem as object)
     m.credit.visible = false
     m.backdrop.uri = ""
     m.page.translation = [0, 0]
-    m.shade.width = 1260
+    m.shade.visible = false
     m.problemTitle.text = problem.title
     m.problemText.text = problem.text
     buttons = []
@@ -471,11 +477,11 @@ end sub
 sub focusRows(onRows as boolean)
     if onRows
         m.page.translation = [0, -m.slide]
-        m.shade.width = 1920
+        m.shade.visible = true
         m.rows.setFocus(true)
     else
         m.page.translation = [0, 0]
-        m.shade.width = 1260
+        m.shade.visible = false
         if m.hero.visible
             m.heroButtons.setFocus(true)
         else if m.chips.visible

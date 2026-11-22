@@ -614,9 +614,9 @@ function reqHeroOf(lists as object) as dynamic
     return {}
 end function
 
-' Discover's hero (reqHeroOf's title): { title, line,
-' overview, backdrop, buttons, actions, note, tmdbKind, tmdbId,
-' libraryId }. Its main action, as far as a list's title tells it (its
+' Discover's hero (reqHeroOf's title): { title, line, parts (line's,
+' MetaRow's), overview, backdrop, buttons, actions, note, tmdbKind,
+' tmdbId, libraryId }. Its main action, as far as a list's title tells it (its
 ' page has the rest): actions "open" (the library's title), "request"
 ' (Request, or Request more seasons for a show partly there: the title's
 ' page, asking at once), "details". With nothing of its kind left to ask
@@ -624,9 +624,17 @@ end function
 function reqHero(title as object, summary as object, server as string, now as integer) as object
     tile = reqTitleTile(title, server)
     parts = [tile.subtitle]
+    metaParts = []
+    if tile.subtitle <> "" then metaParts.Push({ text: tile.subtitle })
     rating = httpNumber(title.rating, 0)
-    if rating > 0 then parts.Push("★ " + fmtOneDecimal(rating))
-    if tile.badge <> "" then parts.Push(tile.badge)
+    if rating > 0
+        parts.Push("★ " + fmtOneDecimal(rating))
+        metaParts.Push({ text: fmtOneDecimal(rating), star: true })
+    end if
+    if tile.badge <> ""
+        parts.Push(tile.badge)
+        metaParts.Push({ text: tile.badge })
+    end if
     remaining = summary.moviesLeft
     if tile.tmdbKind = "show" then remaining = summary.seasonsLeft
     buttons = []
@@ -652,6 +660,7 @@ function reqHero(title as object, summary as object, server as string, now as in
     return {
         title: tile.title,
         line: parts.Join(" · "),
+        parts: metaParts,
         note: note,
         overview: httpClean(title.overview, 400, false),
         backdrop: urlImage(server, title.backdrop_url, contentBackdropWidth()),
@@ -661,6 +670,24 @@ function reqHero(title as object, summary as object, server as string, now as in
         tmdbId: tile.tmdbId,
         libraryId: tile.libraryId
     }
+end function
+
+' The hero's buttons as a ChipRow's, as Android TV's: its main action a
+' pill with its icon (Open, Play's; Request, a plus), the rest round icons
+' named while focused (Details, Info's).
+function reqHeroChips(hero as object) as object
+    icons = { open: "play", request: "plus", details: "info" }
+    chips = []
+    for i = 0 to hero.actions.Count() - 1
+        icon = icons[hero.actions[i]]
+        if icon = invalid then icon = "info"
+        if i = 0
+            chips.Push({ label: hero.buttons[i], icon: icon, width: 0 })
+        else
+            chips.Push({ label: "", icon: icon, name: hero.buttons[i], width: 0 })
+        end if
+    end for
+    return chips
 end function
 
 ' --- A title's page (DiscoverDetail) ---

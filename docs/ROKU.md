@@ -658,8 +658,9 @@ before is offered Sign in again. The rail shows what the profile may do;
 its number counts what waits: a manager's pending and failed requests
 (red while some failed) and their own news, anyone else's news.
 
-- **Discover**, for those who may ask: a hero for the first trending title
-  (its main action and Details; once nothing of its kind is left to ask
+- **Discover**, for those who may ask: a hero for the first trending title,
+  drawn as Home's (its backdrop over the screen, its facts in a line, its
+  main action a pill and Details a round button; once nothing of its kind is left to ask
   for, the limit's line in place of Request); when trending has nothing
   the profile may ask for, every row loads at once and the hero is the
   first title of the next one with any. Then rows of posters with their

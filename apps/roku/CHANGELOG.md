@@ -31,6 +31,10 @@ describes how they are made.
 - Settings looks as on Android TV: rows with an icon and the current value
   under the label, a switch for the next episode, and choices in a side
   panel. Diagnostics and the licenses are rows of the list.
+- Discover's hero looks as Home's: its backdrop over the whole screen, its
+  facts in a line with the star, Request or Open as a pill and Details as
+  a round button. Rows of posters leave room under their titles, which are
+  in the bold of Android TV's sections.
 - Menus are square: the side panels, the focus in their lists and in the
   rail. Buttons, the player's controls and pictures keep round corners.
 

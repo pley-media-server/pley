@@ -55,6 +55,8 @@ sub uiRestyle(node as object)
             font = node.getField(field)
             if type(font) = "roSGNode" and font.uri = ""
                 styled = uiSystemFont(font.size)
+                ' A row's title is a section's, as Android TV's rows have.
+                if field = "rowLabelFont" then styled = uiType("section")
                 if styled <> invalid then node.setField(field, styled)
             end if
         end if
