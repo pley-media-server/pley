@@ -44,9 +44,9 @@
         <Poster id="fadeDown" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" />
         <Rectangle id="shade" width="1920" height="1080" color="0x16191ED9" visible="false" />
         <Group id="page">
-            <Label id="heading" translation="[192, 48]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-            <ChipRow id="chips" translation="[460, 62]" />
-            <Label id="credit" translation="[1124, 78]" width="700" horizAlign="right" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <Label id="heading" translation="[192, 54]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+            <ChipRow id="chips" translation="[460, 68]" />
+            <Label id="credit" translation="[1124, 84]" width="700" horizAlign="right" color="0x8B95A5FF" font="font:SmallestSystemFont" />
             <LayoutGroup id="hero" translation="[192, 196]" layoutDirection="vert" itemSpacings="[16, 20, 40, 20]" visible="false">
                 <Label id="heroName" width="1100" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
                 <MetaRow id="heroMeta" />

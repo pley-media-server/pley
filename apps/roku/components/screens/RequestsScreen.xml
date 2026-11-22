@@ -29,10 +29,10 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <children>
-        <Label id="heading" translation="[192, 40]" width="1000" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="heading" translation="[192, 54]" width="1000" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <!-- How many there are; for an administrator whose sign-in can't
              approve, how to make it. -->
-        <Label id="count" translation="[1024, 60]" width="800" horizAlign="right" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
+        <Label id="count" translation="[1024, 74]" width="800" horizAlign="right" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
         <!-- Closer chips than a library's: a manager's eight tabs leave
              room for the filters (closer still where their numbers need
              it). -->
