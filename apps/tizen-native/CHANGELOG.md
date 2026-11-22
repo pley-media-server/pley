@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Fixed
 
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end instead.
 - A video whose audio the TV can't play plays with the audio converted by
   the server, or another track, instead of failing after a transcode.
 - Traditional Chinese uses the words people use in Taiwan, such as 影集 for

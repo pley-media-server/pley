@@ -126,6 +126,19 @@ segment at start + 4 s (a `HEAD` request), then moves the engine there. The
 screen is black meanwhile, and the loading ring waits 2.5 s. With no
 transcode free for two (`503`), the old session ends first.
 
+### Up Next
+
+Up Next (the next episode, or the next title of a playlist or collection)
+comes as credits that run to the end of the file begin: credits ending
+within 15 s of the end, where only a studio's logo or black follows.
+Seeking back into them doesn't bring it again. Its card counts down 10 s,
+then plays the next title; with Settings' Play the next episode by itself
+off, it waits. Credits that something follows (an after-credits scene, the last minutes
+of a show after music every episode shares) bring Skip Credits alone, and
+Up Next comes at the end of the file, as it does for a file without
+credits. `packages/tv/test/fixtures/markers.json` pins which credits bring
+it, for the native app too.
+
 ### Live TV
 
 Live TV works as in the [Android app](ANDROID.md#live-tv). The rail
@@ -641,7 +654,9 @@ second of the last ten, from the bytes the TV's network received, since
 Tizen's player doesn't say how fast it downloads),
 Chapters opening the chapters' cards, Skip Intro and Skip Credits (over the scrubber, where Up
 reaches them, as on Android TV), Up
-Next (the next episode, or the next in a playlist or collection),
+Next (the next episode, or the next in a playlist or collection, at
+credits that run to the end of the file, else at its end, as
+[Up Next](#up-next) describes),
 recovering by itself from stalls and a server out of reach, and Try again
 when it can't play. Back on its first screen asks "Exit Pley?". Unlike
 Android's, its music pauses while the app is hidden, since a hidden app
@@ -832,7 +847,8 @@ forms and the same values, French and Spanish to their punctuation.
   on; `requests.json` pins where a Discover poster opens; `featured.json`
   pins which titles Home's hero features, and in what order; `language.json`
   pins which language shows, and that a server naming any language, even
-  one the app doesn't have, keeps an account's. Where the
+  one the app doesn't have, keeps an account's; `markers.json` pins which
+  credits bring Up Next. Where the
   Android app is
   stricter (a token answer without `token_type`, a device code without
   `expires_in`), the native app follows it, and its test says which

@@ -18,6 +18,9 @@ public static class Markers
     /// <summary>Skip Intro lands this long before the intro ends, so its last moment plays.</summary>
     public const long IntroLeadMs = 750;
 
+    /// <summary>Credits ending this close to the end of their file run to it: only a studio's logo or black follows (the server's CREDITS_TAIL_MS).</summary>
+    public const long CreditsTailMs = 15_000;
+
     /// <summary>The intro and credits of the file playing (the item's first file when it isn't known yet).</summary>
     public static IReadOnlyList<Marker> ForFile(ItemDetail item, long? fileId)
     {
@@ -45,20 +48,33 @@ public static class Markers
 
     /// <summary>Identifies a segment, to tell entering it again apart from entering another.</summary>
     public static string KeyOf(Marker marker) => $"{marker.FileId}:{marker.Kind}:{marker.StartMs}";
+
+    /// <summary>
+    /// Whether <paramref name="marker"/> is credits that run to the end of its file,
+    /// <paramref name="durationMs"/> long (0 or null when unknown). Only those bring Up Next: its
+    /// countdown would skip what follows other credits (an after-credits scene, a show's last
+    /// minutes after music every episode shares), which bring Skip Credits alone.
+    /// packages/tv/test/fixtures/markers.json pins it for both Samsung apps.
+    /// </summary>
+    public static bool ReachesEnd(Marker marker, long? durationMs) =>
+        marker.Kind == "credits" && durationMs > 0 && durationMs - marker.EndMs <= CreditsTailMs;
 }
 
 /// <summary>
-/// Entering credits brings up Up Next, once per segment: seeking back into them later lets them
-/// play (the Android app's CreditsGate).
+/// Entering credits that run to the end brings up Up Next, once per segment: seeking back into
+/// them later lets them play (the Android app's CreditsGate).
 /// </summary>
 public sealed class CreditsGate
 {
     readonly HashSet<string> announced = new HashSet<string>();
 
-    /// <summary>The credits <paramref name="marker"/> the playhead just entered for the first time; null otherwise.</summary>
-    public Marker? Entered(Marker? marker)
+    /// <summary>
+    /// The credits <paramref name="marker"/> the playhead just entered for the first time, in a file
+    /// <paramref name="durationMs"/> long, when they run to its end; null otherwise.
+    /// </summary>
+    public Marker? Entered(Marker? marker, long? durationMs)
     {
-        if (marker == null || marker.Kind != "credits") return null;
+        if (marker == null || !Markers.ReachesEnd(marker, durationMs)) return null;
         return announced.Add(Markers.KeyOf(marker)) ? marker : null;
     }
 

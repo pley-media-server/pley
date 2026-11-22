@@ -353,6 +353,36 @@ public class PlayerModelTests
         Assert.Equal(2, h.Engine.Prepared.Count);
     }
 
+    /// <summary>Credits a minute before the end (an after-credits scene after them) bring Skip Credits alone; Up Next comes at the end, as without credits.</summary>
+    [Fact]
+    public void Credits_that_something_follows_bring_skip_credits_alone_and_up_next_at_the_end()
+    {
+        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_520_000, EndMs = 2_640_000, Source = "fingerprint" };
+        var next = PlayerHarness.Episode(2, 2);
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
+        h.Source.NextOf[1] = next;
+        h.Start(new PlayRequest(1, 2_519_000, false));
+        h.Play(1_000);
+        Assert.Equal(("Skip Credits", (UpNextCard?)null), (h.State.SkipLabel, h.State.UpNext));
+        h.Play(130_000);
+        Assert.Equal(((string?)null, (UpNextCard?)null), (h.State.SkipLabel, h.State.UpNext));
+        h.End();
+        Assert.Equal((2L, 10), (h.State.UpNext!.ItemId, h.State.UpNext.SecondsLeft));
+    }
+
+    [Fact]
+    public void A_playlists_movies_follow_the_same_rule()
+    {
+        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_520_000, EndMs = 2_640_000, Source = "fingerprint" };
+        h.Add(PlayerHarness.Movie(1) with { Markers = new[] { credits } }).Add(PlayerHarness.Movie(5));
+        h.Source.Queues[9] = new[] { new ItemSummary { Id = 1, Kind = "movie" }, new ItemSummary { Id = 5, Kind = "movie" } };
+        h.Start(new PlayRequest(1, 2_519_000, false, Queue: new PlayQueue.Playlist(9)));
+        h.Play(1_000);
+        Assert.Equal(("Skip Credits", (UpNextCard?)null), (h.State.SkipLabel, h.State.UpNext));
+        h.End();
+        Assert.Equal(5, h.State.UpNext!.ItemId);
+    }
+
     [Fact]
     public void An_engine_that_cant_go_on_from_a_place_gets_a_session_there_under_the_cover()
     {
