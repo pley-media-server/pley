@@ -22,6 +22,8 @@ describes how they are made.
 
 ### Fixed
 
+- Back from the player, a title's page has the focus on its buttons again:
+  it was left with none, and the remote did nothing there.
 - The first video played after the app starts plays as it should: its
   stream failed at once, so a file that plays as it is was converted, and
   a conversion flashed "Can't play this item" before it played.

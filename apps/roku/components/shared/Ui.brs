@@ -74,8 +74,11 @@ end function
 ' had none (hadFocus, read before the buttons changed), it would take the
 ' remote from the screen over it, or from another part of its own. There
 ' the index waits until the group has the focus again, so coming back to a
-' page whose buttons changed meanwhile finds the button left.
+' page whose buttons changed meanwhile finds the button left. Changed
+' buttons can take the focus away with the old ones (Roku OS 16): a group
+' that had it gets it back, on its first button too.
 sub uiKeepButton(group as object, index as integer, hadFocus as boolean)
+    if hadFocus and not group.isInFocusChain() and group.buttons.Count() > 0 then group.setFocus(true)
     if index <= 0 or index >= group.buttons.Count() then return
     if hadFocus
         group.focusButton = index
@@ -209,4 +212,3 @@ function uiChangesSince() as object
     m.changesSeen = scene.changeCount
     return out
 end function
-
