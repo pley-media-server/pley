@@ -19,6 +19,8 @@ sub init()
     m.requestPoll = m.top.findNode("requestPoll")
     m.panel = m.top.findNode("panel")
     m.panelTitle = m.top.findNode("panelTitle")
+    ' A side panel's title as the player's and Settings' (a section's).
+    m.panelTitle.font = uiType("section")
     m.menu = m.top.findNode("menu")
     m.choices = m.top.findNode("choices")
     m.info = m.top.findNode("info")

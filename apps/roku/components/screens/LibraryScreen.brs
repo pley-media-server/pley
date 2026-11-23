@@ -22,6 +22,8 @@ sub init()
     m.message.text = t("common.states.loading")
     m.panel = m.top.findNode("panel")
     m.panelTitle = m.top.findNode("panelTitle")
+    ' A side panel's title as the player's and Settings' (a section's).
+    m.panelTitle.font = uiType("section")
     m.choices = m.top.findNode("choices")
     m.menu = m.top.findNode("menu")
     m.panelHint = m.top.findNode("panelHint")

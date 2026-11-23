@@ -23,6 +23,8 @@ sub init()
     m.problemButtons = m.top.findNode("problemButtons")
     m.panel = m.top.findNode("panel")
     m.panelTitle = m.top.findNode("panelTitle")
+    ' A side panel's title as the player's and Settings' (a section's).
+    m.panelTitle.font = uiType("section")
     m.choices = m.top.findNode("choices")
     m.menu = m.top.findNode("menu")
     m.busy = m.top.findNode("busy")

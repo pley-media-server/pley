@@ -1,5 +1,7 @@
 sub init()
     m.title = m.top.findNode("title")
+    ' A side panel's title as the player's and Settings' (a section's).
+    m.title.font = uiType("section")
     m.choices = m.top.findNode("choices")
     m.values = []
     m.top.visible = false

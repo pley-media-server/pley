@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Changed
 
+- The side panels share one look: a title's menus and the language list
+  have the player's, a library's and Settings' rows and title.
 - The rail starts at the top of the screen, with room for one more entry
   before it scrolls.
 - The rail no longer has the requests: they open from Discover's button,
