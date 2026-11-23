@@ -1661,8 +1661,17 @@ fn read_payload(r: &mut impl Read, size: u64) -> Option<Vec<u8>> {
     if size == UNKNOWN_SIZE || size > MAX_ELEMENT_READ {
         return None;
     }
-    let mut buf = vec![0u8; size as usize];
-    r.read_exact(&mut buf).ok()?;
+    let size = size as usize;
+    // Room for twice what the file has given so far at most: a few bytes
+    // claiming a big element don't get its size allocated.
+    let mut buf = Vec::new();
+    while buf.len() < size {
+        let next = size.min((buf.len() * 2).max(64 * 1024));
+        buf.reserve_exact(next - buf.len());
+        if r.by_ref().take((next - buf.len()) as u64).read_to_end(&mut buf).ok()? == 0 {
+            return None;
+        }
+    }
     Some(buf)
 }
 
@@ -1770,6 +1779,7 @@ fn cue_times(cues: &[u8], track: u64) -> Vec<(u64, Option<u64>)> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::fuzz::{self, Bytes, Rng};
     use pley_transcoder_api::MediaStream;
 
     /// Encode an element (id bytes as written, 8-byte size).
@@ -1829,6 +1839,28 @@ pub(crate) mod tests {
             pos = data + size;
         }
         println!("result: {:?}", cue_keyframes(Path::new(&path)).map(|t| t.into_iter().take(5).collect::<Vec<_>>()));
+    }
+
+    /// A file of a few bytes whose seek head says it is 60 MiB long: the
+    /// seek head is read as far as the file has it, and no further room is
+    /// taken for it.
+    #[test]
+    fn an_element_takes_room_only_as_the_file_has_it() {
+        let mut seek_head = vec![0x11, 0x4D, 0x9B, 0x74, 0x01];
+        seek_head.extend_from_slice(&(60u64 << 20).to_be_bytes()[1..]);
+        seek_head.extend_from_slice(&[0; 16]);
+        let file =
+            [el(&[0x1A, 0x45, 0xDF, 0xA3], &[0x42, 0x86, 0x81, 0x01]), el(&[0x18, 0x53, 0x80, 0x67], &seek_head)];
+        let file = file.concat();
+        let dir = tempfile::tempdir().unwrap();
+        let input = move |_: &mut Rng| Bytes(file.clone());
+        let read = move |file: &Bytes| {
+            let path = dir.path().join("short.mkv");
+            std::fs::write(&path, &file.0).unwrap();
+            assert_eq!(cue_keyframes(&path), None);
+            assert_eq!(attached_fonts(&path, u64::MAX), Err("not a Matroska file".into()));
+        };
+        fuzz::check("a short file's long element", 1, input, |_| 1 << 20, read);
     }
 
     #[test]
