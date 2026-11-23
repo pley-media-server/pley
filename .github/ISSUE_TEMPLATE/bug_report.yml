@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for reporting it. One bug per issue, please.
 
-        Issues are for bugs. **To ask for a feature, start a discussion in [Ideas](https://github.com/pley-media-server/pley/discussions/new?category=ideas)**, or vote for one that's already there. For help setting Pley up, ask in [Q&A](https://github.com/pley-media-server/pley/discussions/new?category=q-a). A vulnerability is reported privately, as [SECURITY.md](https://github.com/pley-media-server/pley/blob/master/SECURITY.md) says.
+        This form is for bugs. **A feature request is best started in [Discussions → Ideas](https://github.com/pley-media-server/pley/discussions/new?category=ideas)**, where others can vote for it. For help setting Pley up, ask in [Q&A](https://github.com/pley-media-server/pley/discussions/new?category=q-a). A vulnerability is reported privately, as [SECURITY.md](https://github.com/pley-media-server/pley/blob/master/SECURITY.md) says.
   - type: textarea
     id: what
     attributes:

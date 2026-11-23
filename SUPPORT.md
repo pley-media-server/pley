@@ -7,8 +7,10 @@
   with the server's version and, for an app, the app's version and the
   device.
 - **A feature you'd like**: suggest it, or vote for it, in
-  [Discussions → Ideas](https://github.com/pley-media-server/pley/discussions/categories/ideas).
-  Issues are for bugs.
+  [Discussions → Ideas](https://github.com/pley-media-server/pley/discussions/categories/ideas),
+  where others can vote for it. A small, clear request can be
+  [an issue](https://github.com/pley-media-server/pley/issues/new?template=feature_request.yml)
+  instead.
 - **A vulnerability**: report it privately, as [SECURITY.md](SECURITY.md)
   says.
 - **A chat**: [Discord](https://discord.gg/wSsVdRRnT3).

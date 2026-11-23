@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Suggest a feature
+  - name: Suggest a feature (recommended for ideas)
     url: https://github.com/pley-media-server/pley/discussions/new?category=ideas
-    about: Feature requests go in Discussions, under Ideas, where others can vote for them and add to them.
+    about: Most feature requests are better started in Discussions, under Ideas, where others can vote for them and add to them.
   - name: Ask for help
     url: https://github.com/pley-media-server/pley/discussions/new?category=q-a
     about: Questions about installing, setting up or using Pley go in Discussions, under Q&A.
