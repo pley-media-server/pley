@@ -6,11 +6,7 @@ Live TV guide's programs sit on images/guide-cell.9.png, and what has
 aired on images/guide-past.9.png; images/spinner.png turns while a channel
 tunes, images/round.png makes a person's photo round, and images/globe.png
 is the globe that picks the language before signing in, drawn in white
-for the screens to tint. images/placeholder-poster.png, -wide.png and
--square.png are Pley's mark in white, each poster lighter than the one
-behind, in the middle of a tile's picture that won't come (the other
-apps' placeholder), one for each shape of tile so that it scales without
-stretching. The
+for the screens to tint. The
 icons and splash screens are pley's logo, rendered with the other apps'
 icons by scripts/render-icons.mjs at the repository's root. Standard
 library only.
@@ -46,12 +42,6 @@ ROUND_SIZE = 160
 # The language's globe, drawn at this size beside its two letters
 # (components/shared/LanguageGlobe).
 GLOBE_SIZE = 28
-
-
-# A tile's picture without a picture: its shapes (components/items/Tile.brs),
-# the mark 40 % of the shorter side, as the other apps draw it.
-PLACEHOLDERS = (("poster", 240, 360), ("wide", 400, 225), ("square", 300, 300))
-PLACEHOLDER_SHARE = 0.4
 
 
 def segment_distance(px, py, ax, ay, bx, by):
@@ -195,65 +185,6 @@ def render_globe(size):
     return rows
 
 
-def in_rounded_rect(x, y, left, top, right, bottom, radius, round_left):
-    """Whether (x, y) is in a box with its right corners rounded, and its left ones when round_left."""
-    if not (left <= x <= right and top <= y <= bottom):
-        return False
-    cy = min(max(y, top + radius), bottom - radius)
-    if x > right - radius:
-        return math.hypot(x - (right - radius), y - cy) <= radius
-    if round_left and x < left + radius:
-        return math.hypot(x - (left + radius), y - cy) <= radius
-    return True
-
-
-def in_play(x, y):
-    """Whether (x, y) is in the play cut out of the front poster: within 1 of its corners' centres' triangle."""
-    a, b, c = (20.0, 27.0), (20.0, 37.0), (28.5, 32.0)
-
-    def side(p, q):
-        return (q[0] - p[0]) * (y - p[1]) - (q[1] - p[1]) * (x - p[0])
-
-    s1, s2, s3 = side(a, b), side(b, c), side(c, a)
-    inside = (s1 >= 0 and s2 >= 0 and s3 >= 0) or (s1 <= 0 and s2 <= 0 and s3 <= 0)
-    if inside:
-        return True
-    return min(segment_distance(x, y, *a, *b), segment_distance(x, y, *b, *c), segment_distance(x, y, *c, *a)) <= 1.0
-
-
-def mark_alpha(x, y):
-    """How much white the mark has at (x, y) on its 64 by 64 grid: its three posters, back to front."""
-    if in_rounded_rect(x, y, 12, 15.5, 34, 48.5, 4, True):
-        return 0.0 if in_play(x, y) else 0.36
-    if in_rounded_rect(x, y, 36, 18.5, 44, 45.5, 3.5, False):
-        return 0.24
-    if in_rounded_rect(x, y, 46, 21.5, 52, 42.5, 3, False):
-        return 0.16
-    return 0.0
-
-
-def render_placeholder(width, height):
-    """RGBA rows of a tile's placeholder: the mark centred, white, the rest clear."""
-    side = min(width, height) * PLACEHOLDER_SHARE
-    left, top = (width - side) / 2, (height - side) / 2
-    samples = 4
-    rows = []
-    for row in range(height):
-        line = bytearray()
-        for col in range(width):
-            alpha = 0.0
-            if left - 1 <= col <= left + side and top - 1 <= row <= top + side:
-                for sy in range(samples):
-                    for sx in range(samples):
-                        gx = (col + (sx + 0.5) / samples - left) / side * 64
-                        gy = (row + (sy + 0.5) / samples - top) / side * 64
-                        alpha += mark_alpha(gx, gy)
-                alpha /= samples * samples
-            line += bytes((255, 255, 255, round(255 * alpha)))
-        rows.append(bytes(line))
-    return rows
-
-
 def write_png(path, width, height, rows):
     def chunk(kind, data):
         body = kind + data
@@ -288,10 +219,6 @@ def main():
     print("images/round.png", ROUND_SIZE, "x", ROUND_SIZE)
     write_png(os.path.join(folder, "globe.png"), GLOBE_SIZE, GLOBE_SIZE, render_globe(GLOBE_SIZE))
     print("images/globe.png", GLOBE_SIZE, "x", GLOBE_SIZE)
-    for shape, width, height in PLACEHOLDERS:
-        name = "placeholder-" + shape + ".png"
-        write_png(os.path.join(folder, name), width, height, render_placeholder(width, height))
-        print("images/" + name, width, "x", height)
 
 
 if __name__ == "__main__":

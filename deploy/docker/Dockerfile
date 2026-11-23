@@ -26,8 +26,10 @@ COPY package.json bun.lock bunfig.toml ./
 COPY scripts/commit.mjs scripts/commit.d.mts scripts/
 COPY apps/web/package.json apps/web/
 COPY packages/picture-subtitles/package.json packages/picture-subtitles/
+COPY packages/placeholder-mark/package.json packages/placeholder-mark/
 RUN bun install --frozen-lockfile
 COPY packages/picture-subtitles packages/picture-subtitles
+COPY packages/placeholder-mark packages/placeholder-mark
 COPY apps/web apps/web
 RUN bun run build
 

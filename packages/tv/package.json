@@ -18,6 +18,7 @@
     "@preact/signals": "^2.11.3",
     "lucide": "^1.61.0",
     "pley-picture-subtitles": "*",
+    "pley-placeholder-mark": "*",
     "preact": "^11.0.2",
     "qrcode-generator": "^2.0.4"
   },

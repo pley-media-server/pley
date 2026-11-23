@@ -22,6 +22,7 @@
     "lucide-react": "^1.61.0",
     "mpegts.js": "^1.8.2",
     "pley-picture-subtitles": "*",
+    "pley-placeholder-mark": "*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-i18next": "^17.1.13",

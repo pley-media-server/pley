@@ -25,10 +25,11 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
 | `apps/tizen-native` | Pley for Samsung TV, native (C#, Tizen .NET, NUI), built beside the web app |
 | `apps/webos` | Pley for LG TV, a native webOS app (Rust, a Cargo workspace of its own) |
 | `packages/tv` | The Samsung TV app's screens, player and API client (TypeScript, Preact) |
+| `packages/placeholder-mark` | Pley's mark on a picture that won't come, a glyph for each kind of library: the paths every app draws it from |
 | `packages/transcoder-api` | Protocol types shared by server and transcoder |
 | `deploy/` | Docker, systemd and launchd setups, the Windows installer, store listings |
 | `docs/` | Documentation |
-| `scripts/` | Versions and releases (`version.mjs`, `release.mjs`), release builds, the license checks, the apps' icons and store pictures (`render-icons.mjs`), marking a pull request's screenshots and animations (`mark-screenshot.mjs`, `mark-animation.mjs`), recording the Android app's animations (`record-android.mjs`) |
+| `scripts/` | Versions and releases (`version.mjs`, `release.mjs`), release builds, the license checks, the apps' icons and store pictures (`render-icons.mjs`), the placeholder mark's pictures (`render-placeholder-marks.mjs`), marking a pull request's screenshots and animations (`mark-screenshot.mjs`, `mark-animation.mjs`), recording the Android app's animations (`record-android.mjs`) |
 
 ## Requirements
 

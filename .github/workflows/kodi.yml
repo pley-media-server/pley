@@ -10,6 +10,7 @@ on:
     paths:
       - apps/kodi/**
       - packages/tv/test/fixtures/**
+      - packages/placeholder-mark/**
       - apps/server/**
       - apps/transcoder/**
       - packages/transcoder-api/**
@@ -21,6 +22,7 @@ on:
     paths:
       - apps/kodi/**
       - packages/tv/test/fixtures/**
+      - packages/placeholder-mark/**
       - apps/server/**
       - apps/transcoder/**
       - packages/transcoder-api/**
