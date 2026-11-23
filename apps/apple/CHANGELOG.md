@@ -168,6 +168,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Music playing here pauses once Play on… sends something to another
+  device, rather than playing in both places.
 - Traditional Chinese uses the words people use in Taiwan, such as 影集 for
   a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
   for an item and 設定檔 for a Dolby Vision profile, and quotes with 「」.
