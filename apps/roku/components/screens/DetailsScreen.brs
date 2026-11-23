@@ -156,6 +156,8 @@ sub onOnDeck(event as object)
     if answer.ok and answer.data <> invalid then m.onDeck = httpObject(answer.data.item)
     m.onDeckKnown = true
     showDetail()
+    ' The seasons came first: the page opens on the next episode's now.
+    if m.rowNodes.DoesExist("seasons") then firstSeason(m.rowNodes.seasons.node)
 end sub
 
 sub showDetail()
@@ -279,9 +281,12 @@ end sub
 
 ' --- A show's episodes ---
 
-' The season the page opens on: the next episode's, else the first.
+' The season the page opens on: the next episode's, else the first; for
+' a show, once the server said which episode is next, whichever answer
+' comes last.
 sub firstSeason(row as object)
     if m.episodesAsked <> invalid then return
+    if m.item <> invalid and httpString(m.item.kind) = "show" and not m.onDeckKnown then return
     wanted = 0
     if m.onDeck <> invalid then wanted = httpNumber(m.onDeck.parent_id, 0)
     first = invalid
@@ -295,13 +300,16 @@ sub firstSeason(row as object)
 end sub
 
 ' Focus resting on a season shows its episodes; on an episode, the info
-' block says it.
+' block says it. Only the person's focus: the list says it is on the
+' first tile as its content comes, which isn't a season chosen. A row
+' the content doesn't have yet (it is being rebuilt) is none.
 sub onRowFocused()
     if m.infoBlock.visible then infoFor(focusedTile(), false)
+    if not m.rows.isInFocusChain() then return
     position = m.rows.rowItemFocused
     if position = invalid or position.Count() <> 2 or position[0] < 0 or position[0] >= m.rowKeys.Count() then return
     if m.rowKeys[position[0]] <> "seasons" then return
-    tile = m.rows.content.getChild(position[0]).getChild(position[1])
+    tile = focusedTile()
     m.seasonRest.control = "stop"
     if tile = invalid or tile.kind <> "season" or tile.itemId = m.episodesAsked then return
     m.restSeason = tile
@@ -382,10 +390,12 @@ sub showRows()
         sizes.Push(shape.size)
         heights.Push(shape.height)
     end for
-    m.rowKeys = keys
     m.rows.rowItemSize = sizes
     m.rows.rowHeights = heights
     m.rows.content = content
+    ' After the content: the rows' nodes left the old one as they joined
+    ' this, and the keys say what the list shows.
+    m.rowKeys = keys
     for i = 0 to keys.Count() - 1
         if keys[i] = focusedKey then m.rows.jumpToRowItem = [i, position[1]]
     end for
