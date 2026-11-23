@@ -90,6 +90,17 @@ stay behind in the temporary folder; these are removed once the test's
 thread ends. The LG app's tests do the same with
 `pley_core::device::scratch_dir()`, which `FakeDevice::new` uses too.
 
+`apps/server/clippy.toml` and `apps/transcoder/clippy.toml` name what the
+server and the transcoder mustn't call themselves, and why: an HTTP client
+with reqwest's defaults, no time limit and redirects followed anywhere
+(`reqwest::get`, `reqwest::Client::new`), rather than one built with its
+limits for what it fetches; an answer read whole however big
+(`reqwest::Response`'s `bytes`, `text` and `json`; `util::read_body` reads
+one to a limit); and a program the transcoder starts other than with
+`util::command`, which makes it die with the transcoder. Clippy fails on
+them in the programs' code, not in their tests; a place that must call one
+says why in an `#[allow(clippy::disallowed_methods)]`.
+
 The transcoder's tests that run FFmpeg need `ffmpeg` and `ffprobe` on
 `PATH`, with libx264, libx265 and libass. Without one of them a test is
 skipped, saying so, unless `PLEY_TEST_FFMPEG=1`: then it fails, as in CI,

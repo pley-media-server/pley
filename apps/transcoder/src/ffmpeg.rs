@@ -20,7 +20,7 @@ use tokio::process::Command;
 use tokio::sync::Semaphore;
 
 use crate::devices;
-use crate::util::{configure_child, resolve_executable};
+use crate::util::{self, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
 const DETECTION_REVISION: u32 = 28;
@@ -81,15 +81,13 @@ impl Ffmpeg {
 
     /// An ffmpeg command with the common flags applied.
     pub fn command(&self) -> Command {
-        let mut cmd = Command::new(&self.ffmpeg);
-        configure_child(&mut cmd);
+        let mut cmd = util::command(&self.ffmpeg);
         cmd.arg("-hide_banner").arg("-nostdin");
         cmd
     }
 
     pub fn probe_command(&self) -> Command {
-        let mut cmd = Command::new(&self.ffprobe);
-        configure_child(&mut cmd);
+        let mut cmd = util::command(&self.ffprobe);
         cmd.arg("-hide_banner");
         cmd
     }
@@ -252,8 +250,7 @@ struct Output {
 }
 
 async fn run(program: &Path, args: &[&str], timeout: Duration) -> Option<Output> {
-    let mut cmd = Command::new(program);
-    configure_child(&mut cmd);
+    let mut cmd = util::command(program);
     cmd.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     let child = cmd.spawn().ok()?;
     let output = tokio::time::timeout(timeout, child.wait_with_output()).await.ok()?.ok()?;

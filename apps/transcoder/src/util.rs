@@ -174,9 +174,19 @@ fn on_path(program: &Path) -> Option<PathBuf> {
     None
 }
 
+/// A command to start `program` (FFmpeg, ffprobe), set up by
+/// [`configure_child`]: the only way the transcoder starts a program, which
+/// clippy holds it to (`clippy.toml`).
+#[allow(clippy::disallowed_methods)]
+pub fn command(program: impl AsRef<std::ffi::OsStr>) -> tokio::process::Command {
+    let mut cmd = tokio::process::Command::new(program);
+    configure_child(&mut cmd);
+    cmd
+}
+
 /// Apply platform tweaks to child processes: no console window on Windows; on
 /// Linux the child is killed when the transcoder dies without cleaning up.
-pub fn configure_child(cmd: &mut tokio::process::Command) {
+fn configure_child(cmd: &mut tokio::process::Command) {
     cmd.kill_on_drop(true);
     #[cfg(windows)]
     {
@@ -204,7 +214,7 @@ pub fn configure_child(cmd: &mut tokio::process::Command) {
 }
 
 /// Run a child at reduced CPU priority (background analysis that must never
-/// slow down playback). Call after [`configure_child`].
+/// slow down playback): a [`command`]'s.
 pub fn background_priority(cmd: &mut tokio::process::Command) {
     #[cfg(windows)]
     {

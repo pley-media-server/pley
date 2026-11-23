@@ -3,6 +3,10 @@
 //! The crate is organized as a library so integration tests can build the full
 //! application in-process; `main.rs` only parses the command line.
 
+// clippy.toml's rules hold for the program; Cargo.toml turns them off for
+// the tests, which fetch and read answers as they like.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
+
 pub mod access;
 pub mod accounts;
 pub mod airplay;

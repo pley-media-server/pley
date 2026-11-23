@@ -6,6 +6,10 @@
 //! Standalone transcoding service. It is the only pley component that runs
 //! FFmpeg; the media server talks to it over HTTP (docs/TRANSCODER.md).
 
+// clippy.toml's rules hold for the program: the tests run FFmpeg and
+// ffprobe themselves, to make media and to read what jobs made.
+#![cfg_attr(test, allow(clippy::disallowed_methods))]
+
 mod adaptive;
 mod background;
 mod cache;

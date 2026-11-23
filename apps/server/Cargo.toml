@@ -156,3 +156,8 @@ tempfile = "3.20"
 # Paused time in tests.
 tokio = { version = "1", features = ["test-util"] }
 tokio-tungstenite = "0.30"
+
+# clippy.toml's rules hold for the program, not for its tests (tests/ among
+# them): src/lib.rs and src/main.rs turn them on.
+[lints.clippy]
+disallowed_methods = "allow"
