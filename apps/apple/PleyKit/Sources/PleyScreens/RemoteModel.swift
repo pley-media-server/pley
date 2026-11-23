@@ -410,6 +410,8 @@ public final class RemoteModel: ObservableObject {
         do {
             guard let api = await app.session.api else { throw PleyError.signedOut }
             try await api.cast(target, to: receiver.receiverId)
+            // It plays there now: music playing here pauses, so it doesn't play in two places.
+            app.music.pause()
             // A sheet for this device alone closes: another device's may have opened while the cast was on its way.
             if paired && pairing?.id == device.id { pairing = nil }
             app.shell.show(Words.playingOn(name))

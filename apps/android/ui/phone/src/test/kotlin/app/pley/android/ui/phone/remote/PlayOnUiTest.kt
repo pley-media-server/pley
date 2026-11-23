@@ -467,6 +467,41 @@ class PlayOnUiTest {
     }
 
     @Test
+    fun musicPlayingHerePausesOnceTheDeviceTookTheCastNotWhileItStartsNorOnARefusal() {
+        shell(castTv())
+        choose(CastTarget(itemId = 101, video = true))
+        val refused = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = refused
+        graph.castRefusals += ApiException(409, "cast_unreachable", "the device can't be reached")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        assertEquals(0, graph.musicPauses)
+        refused.complete(Unit)
+        compose.waitForIdle()
+        compose.onNodeWithText("Bedroom Chromecast can't reach this server.").assertExists()
+        assertEquals(0, graph.musicPauses)
+
+        val took = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = took
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        assertEquals(0, graph.musicPauses)
+        took.complete(Unit)
+        compose.waitForIdle()
+        compose.onNodeWithText("Starting on Bedroom Chromecast…").assertExists()
+        assertEquals(1, graph.musicPauses)
+    }
+
+    @Test
+    fun aCastFromTheLivePlayerPausesMusicHereToo() {
+        shell(livingRoom())
+        CastsSent.tell("app-12", "Living room TV")
+        compose.waitForIdle()
+        compose.onNodeWithText("Starting on Living room TV…").assertExists()
+        assertEquals(1, graph.musicPauses)
+    }
+
+    @Test
     fun aChooserClosedWhileTheDeviceIsAskedForItsCodeSaysToPickItAgain() {
         shell(appleTv())
         choose(CastTarget(itemId = 101, video = true))

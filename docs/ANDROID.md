@@ -532,7 +532,9 @@ playlist has a Shuffle switch, which makes it **Shuffle on…** and sends
 `shuffle`. Picking a device sends `POST /api/remote/devices/{id}/cast`;
 once it is on its way the chooser closes, and the remote's bar says
 **Starting on** the device, then **Playing on** once what it was sent
-plays there; it opens the device's controls. The live player closes as
+plays there; it opens the device's controls. Music playing on the phone
+pauses then, as for a video, so it doesn't play in two places; its Play
+takes it up here again. The live player closes as
 its channel goes to the device, and the bar follows it the same way. A refusal is said under the
 devices, and another can be picked: the device **isn't on any more**
 (`404`), **can't play that** (`409`), **Too many at once** (`429`), and

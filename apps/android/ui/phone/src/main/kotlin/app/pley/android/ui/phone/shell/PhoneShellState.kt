@@ -19,6 +19,7 @@ import app.pley.android.data.RemoteRepository
 import app.pley.android.data.RequestNotice
 import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
+import app.pley.android.player.MusicControl
 import app.pley.android.player.NowPlaying
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.requests.RequestTexts
@@ -76,6 +77,9 @@ class PhoneShellState internal constructor(
     var remote: RemoteRepository? by mutableStateOf(null)
         internal set
 
+    /** The music playing in the background, which a cast to another device pauses ([castSent]); `null` until after the first frame. */
+    internal var music: MusicControl? = null
+
     /** What Play on…'s chooser sends, while it shows ([playOn]); `null` while it doesn't. */
     internal var playingOn: CastTarget? by mutableStateOf(null)
 
@@ -105,8 +109,11 @@ class PhoneShellState internal constructor(
     /**
      * This phone sent [deviceId] something to play (Play on…): the remote's
      * bar says it starts there, then what plays, and opens its controls.
+     * Music playing here pauses, as for a video, so it doesn't play in two
+     * places; Play takes it up here again.
      */
     internal fun castSent(deviceId: String) {
+        music?.pauseForVideo()
         remoteAsked = RemoteAsk(deviceId)
     }
 

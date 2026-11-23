@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Music playing on the phone pauses once Play on… sends something to
+  another device, rather than playing in both places.
+
 ## [0.1.17] - 2026-11-22
 
 ### Fixed

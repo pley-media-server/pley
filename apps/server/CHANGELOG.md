@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Music playing in the web app pauses once Play on… sends something to
+  another device, rather than playing in both places.
+
 ## [0.1.15] - 2026-11-22
 
 ### Added

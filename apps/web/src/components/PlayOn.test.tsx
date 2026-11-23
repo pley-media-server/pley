@@ -1,7 +1,8 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CastRequest, PlayingSession, RemoteDevice } from "@/api/types";
+import { AudioPlayerProvider } from "@/audio/AudioPlayer";
 import { makeItem, makeReceiver, makeSession } from "@/test/fixtures";
 import { apiError, mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
 import { PlayOn } from "./PlayOn";
@@ -156,6 +157,36 @@ describe("PlayOn", () => {
     rerender(<></>);
     act(() => answer());
     expect(await screen.findByText("Playing on Bedroom TV")).toBeInTheDocument();
+  });
+
+  it("pauses this tab's music once the device plays what was sent, not while it starts or when it refuses", async () => {
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    let answer: (took: boolean) => void = () => {};
+    serve(
+      () =>
+        new Promise((done) => {
+          answer = (took) => done(took ? undefined : apiError(404, "not_found", "no such device"));
+        }),
+    );
+    renderWithProviders(
+      <AudioPlayerProvider>
+        <PlayOn kind="item" cast={() => ({ item_id: 7 })} />
+      </AudioPlayerProvider>,
+    );
+    pause.mockClear();
+
+    await choose("Play on…", "Phone");
+    await screen.findByRole("button", { name: "Starting on Phone…" });
+    expect(pause).not.toHaveBeenCalled();
+    act(() => answer(false));
+    expect(await screen.findByText("Phone isn't on any more")).toBeInTheDocument();
+    expect(pause).not.toHaveBeenCalled();
+
+    await choose("Play on…", "Phone");
+    act(() => answer(true));
+    expect(await screen.findByText("Playing on Phone")).toBeInTheDocument();
+    expect(pause).toHaveBeenCalledTimes(1);
   });
 
   it("pairs with an AirPlay device that asks for the code it shows, sent with OK when its length isn't known, then plays it there", async () => {
