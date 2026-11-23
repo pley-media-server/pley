@@ -1057,6 +1057,9 @@ async function walk() {
   const age = Date.now() - loads[loads.length - 1].at;
   await press("back");
   await settle();
+  // Rows a minute old are asked for as Home shows, which a slow run can
+  // see after its settling: up to five seconds more for them.
+  if (age > 65000) for (let i = 0; i < 50 && !seen(/^GET \/api\/hubs\/home$/, since); i++) await sleep(100);
   const asked = seen(/^GET \/api\/hubs\/home$/, since);
   home.kept = age < 55000 ? !asked : age > 65000 ? asked : true;
   if (!home.kept) console.log(`Home's rows were ${Math.round(age / 1000)} s old, and Home ${asked ? "asked" : "didn't ask"} for them again`);
