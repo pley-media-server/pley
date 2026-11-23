@@ -19,6 +19,23 @@ BACKDROP_WIDTH = 1280
 PLAYABLE = ("movie", "episode", "extra", "track")
 VIDEO = ("movie", "show", "season", "episode")
 
+# The glyph cut out of Pley's mark on a tile's placeholder, by the item's
+# kind (the API's): its library's, else DEFAULT_GLYPH. Every app draws the
+# mark from packages/placeholder-mark/marks.json, which the skin's pictures
+# (media/mark-<glyph>.png) are rendered from; test_tiles holds these to it.
+GLYPHS = {
+    "movie": "movies",
+    "show": "shows",
+    "season": "shows",
+    "episode": "shows",
+    "artist": "music",
+    "album": "music",
+    "track": "music",
+    "audiobook": "audiobooks",
+    "part": "audiobooks",
+}
+DEFAULT_GLYPH = "play"
+
 
 def picture(base: str, item: dict, shape: str):
     """The picture a tile of `shape` shows of `item` (ArtworkCandidates):
@@ -82,7 +99,7 @@ def tile(base: str, item: dict, shape: str, quality: bool = False, bitrate: bool
     found = picture(base, item, shape)
     if found:
         li.setArt({"tile": found})
-    li.setProperty("ph", words.placeholder(title))
+    placeholder(li, title, item.get("kind"))
     li.setProperty("id", str(item["id"]))
     li.setProperty("kind", item.get("kind") or "")
     count = words.unwatched(item)
@@ -101,6 +118,13 @@ def tile(base: str, item: dict, shape: str, quality: bool = False, bitrate: bool
     return li
 
 
+def placeholder(li: xbmcgui.ListItem, seed: str, kind=None) -> None:
+    """A tile's placeholder, under its picture: the gradient for `seed` (its
+    title) and Pley's mark with the glyph for `kind`."""
+    li.setProperty("ph", words.placeholder(seed))
+    li.setProperty("mark", "mark-%s.png" % GLYPHS.get(kind, DEFAULT_GLYPH))
+
+
 def badges(media) -> list:
     """A poster's quality badges (words.media_badges) as (key, word): the
     skin draws each by its key (layout.BADGES), the server's token, as its
@@ -114,6 +138,7 @@ def person(base: str, credit: dict) -> xbmcgui.ListItem:
     found = image(base, credit.get("photo_url"), WIDTHS["person"])
     if found:
         li.setArt({"tile": found})
+    # A person's round well has no mark: the gradient alone.
     li.setProperty("ph", words.placeholder(credit.get("name") or ""))
     li.setProperty("id", str(credit.get("id")))
     li.setProperty("kind", "person")
@@ -129,7 +154,8 @@ def discover(base: str, title: dict, subtitle: str) -> xbmcgui.ListItem:
     found = image(base, title.get("poster_url"), WIDTHS["poster"])
     if found:
         li.setArt({"tile": found})
-    li.setProperty("ph", words.placeholder(name))
+    # Its kind is the API's, "movie" or "show".
+    placeholder(li, name, title.get("kind"))
     li.setProperty("kind", "tmdb")
     return li
 

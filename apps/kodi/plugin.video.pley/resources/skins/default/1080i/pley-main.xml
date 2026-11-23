@@ -1066,7 +1066,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -1245,7 +1245,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -1457,7 +1457,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -1544,7 +1544,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -1664,7 +1664,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -1843,7 +1843,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -2076,7 +2076,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -2255,7 +2255,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -2467,7 +2467,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -2554,7 +2554,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -2674,7 +2674,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -2853,7 +2853,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -3086,7 +3086,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -3265,7 +3265,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -3477,7 +3477,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -3564,7 +3564,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -3684,7 +3684,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -3863,7 +3863,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -4096,7 +4096,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -4275,7 +4275,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -4487,7 +4487,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -4574,7 +4574,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -4694,7 +4694,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -4873,7 +4873,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -5106,7 +5106,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -5285,7 +5285,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -5497,7 +5497,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -5584,7 +5584,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -5704,7 +5704,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -5883,7 +5883,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -6116,7 +6116,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -6295,7 +6295,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -6507,7 +6507,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -6594,7 +6594,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -6714,7 +6714,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -6893,7 +6893,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -7126,7 +7126,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -7305,7 +7305,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -7517,7 +7517,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -7604,7 +7604,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -7724,7 +7724,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -7903,7 +7903,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -8136,7 +8136,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -8315,7 +8315,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -8527,7 +8527,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -8614,7 +8614,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -8734,7 +8734,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -8913,7 +8913,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -9146,7 +9146,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -9325,7 +9325,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -9537,7 +9537,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -9624,7 +9624,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -9744,7 +9744,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -9923,7 +9923,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -10155,7 +10155,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -10334,7 +10334,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -10545,7 +10545,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -10632,7 +10632,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -10751,7 +10751,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -10930,7 +10930,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -12423,7 +12423,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -12602,7 +12602,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -12814,7 +12814,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -12901,7 +12901,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -13022,7 +13022,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -13113,7 +13113,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -13234,7 +13234,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -13295,7 +13295,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -13389,7 +13389,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -13568,7 +13568,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -13801,7 +13801,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -13980,7 +13980,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -14192,7 +14192,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -14279,7 +14279,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -14400,7 +14400,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -14491,7 +14491,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -14612,7 +14612,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -14673,7 +14673,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -14767,7 +14767,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -14946,7 +14946,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -15179,7 +15179,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -15358,7 +15358,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -15570,7 +15570,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -15657,7 +15657,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -15778,7 +15778,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -15869,7 +15869,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -15990,7 +15990,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -16051,7 +16051,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -16145,7 +16145,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -16324,7 +16324,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -16556,7 +16556,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -16735,7 +16735,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -16946,7 +16946,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -17033,7 +17033,7 @@
                 <width>92</width>
                 <height>92</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -17153,7 +17153,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -17244,7 +17244,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -17364,7 +17364,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -17425,7 +17425,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -17518,7 +17518,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -17697,7 +17697,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -18274,7 +18274,7 @@
                   <width>77</width>
                   <height>77</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -18617,7 +18617,7 @@
                   <width>77</width>
                   <height>77</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -18991,7 +18991,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -19082,7 +19082,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -19204,7 +19204,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -19387,7 +19387,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -19640,7 +19640,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -19819,7 +19819,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -20031,7 +20031,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -20118,7 +20118,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -20238,7 +20238,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -20417,7 +20417,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -20650,7 +20650,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -20829,7 +20829,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -21041,7 +21041,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -21128,7 +21128,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -21248,7 +21248,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -21427,7 +21427,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -21660,7 +21660,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -21839,7 +21839,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -22051,7 +22051,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -22138,7 +22138,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -22258,7 +22258,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -22437,7 +22437,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -22670,7 +22670,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -22849,7 +22849,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -23061,7 +23061,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -23148,7 +23148,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -23268,7 +23268,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -23447,7 +23447,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -23680,7 +23680,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -23859,7 +23859,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -24071,7 +24071,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -24158,7 +24158,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -24278,7 +24278,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -24457,7 +24457,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -24690,7 +24690,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -24869,7 +24869,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -25081,7 +25081,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -25168,7 +25168,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -25288,7 +25288,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -25467,7 +25467,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -25700,7 +25700,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -25879,7 +25879,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -26091,7 +26091,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -26178,7 +26178,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -26298,7 +26298,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -26477,7 +26477,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -26710,7 +26710,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -26889,7 +26889,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -27101,7 +27101,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -27188,7 +27188,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -27308,7 +27308,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -27487,7 +27487,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -27720,7 +27720,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -27899,7 +27899,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -28111,7 +28111,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -28198,7 +28198,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -28318,7 +28318,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -28497,7 +28497,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -28729,7 +28729,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -28908,7 +28908,7 @@
                   <width>86</width>
                   <height>86</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -29119,7 +29119,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -29206,7 +29206,7 @@
                   <width>92</width>
                   <height>92</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -29325,7 +29325,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -29504,7 +29504,7 @@
                   <width>106</width>
                   <height>106</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -29803,7 +29803,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -29982,7 +29982,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -30195,7 +30195,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -30286,7 +30286,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -30407,7 +30407,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -30468,7 +30468,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -30562,7 +30562,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -30741,7 +30741,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -31185,7 +31185,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -31364,7 +31364,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -31577,7 +31577,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -31668,7 +31668,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -31789,7 +31789,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -31850,7 +31850,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -31944,7 +31944,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -32123,7 +32123,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -32567,7 +32567,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -32746,7 +32746,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -32959,7 +32959,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -33050,7 +33050,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -33171,7 +33171,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -33232,7 +33232,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -33326,7 +33326,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -33505,7 +33505,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -33949,7 +33949,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -34128,7 +34128,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -34341,7 +34341,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -34432,7 +34432,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -34553,7 +34553,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -34614,7 +34614,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -34708,7 +34708,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -34887,7 +34887,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -35331,7 +35331,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -35510,7 +35510,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -35723,7 +35723,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -35814,7 +35814,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -35935,7 +35935,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -35996,7 +35996,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -36090,7 +36090,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -36269,7 +36269,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -36713,7 +36713,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -36892,7 +36892,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -37105,7 +37105,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -37196,7 +37196,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -37317,7 +37317,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -37378,7 +37378,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -37472,7 +37472,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -37651,7 +37651,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -38094,7 +38094,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -38273,7 +38273,7 @@
                 <width>86</width>
                 <height>86</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -38485,7 +38485,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -38576,7 +38576,7 @@
                   <width>83</width>
                   <height>83</height>
                   <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                  <texture>mark.png</texture>
+                  <texture>$INFO[ListItem.Property(mark)]</texture>
                 </control>
                 <control type="image">
                   <left>0</left>
@@ -38696,7 +38696,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -38757,7 +38757,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -38850,7 +38850,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -39029,7 +39029,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -39483,7 +39483,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -39826,7 +39826,7 @@
                 <width>77</width>
                 <height>77</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -40198,7 +40198,7 @@
                 <width>83</width>
                 <height>83</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -40289,7 +40289,7 @@
                 <width>83</width>
                 <height>83</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -40409,7 +40409,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>
@@ -40592,7 +40592,7 @@
                 <width>106</width>
                 <height>106</height>
                 <visible>String.IsEmpty(ListItem.Property(seeall))</visible>
-                <texture>mark.png</texture>
+                <texture>$INFO[ListItem.Property(mark)]</texture>
               </control>
               <control type="image">
                 <left>0</left>

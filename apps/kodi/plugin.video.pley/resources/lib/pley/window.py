@@ -2683,7 +2683,7 @@ def collection_tile(base: str, collection: dict) -> xbmcgui.ListItem:
     found = image(base, url, tiles.WIDTHS["grid"])
     if found:
         li.setArt({"tile": found})
-    li.setProperty("ph", words.placeholder(collection.get("title") or ""))
+    tiles.placeholder(li, collection.get("title") or "")
     return li
 
 
@@ -2990,7 +2990,8 @@ class Grid(Screen):
             artwork = playlist.get("artwork") or []
             if artwork:
                 li.setArt({"tile": image(win.session.base, artwork[0], tiles.WIDTHS["wide"])})
-            li.setProperty("ph", words.placeholder(playlist.get("title") or ""))
+            # A playlist of music takes music's glyph, one of video the logo's play.
+            tiles.placeholder(li, playlist.get("title") or "", "track" if playlist.get("kind") == "audio" else None)
             return li
 
         def menu_for(playlist):
