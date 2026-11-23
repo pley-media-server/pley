@@ -13,6 +13,8 @@ describes how they are made.
 
 - Home and a TV library's Recommended tab open at once after a big scan,
   also in a library of thousands of shows.
+- Music playing in the web app pauses once Play on… sends something to
+  another device, rather than playing in both places.
 
 ## [0.1.15] - 2026-11-22
 
