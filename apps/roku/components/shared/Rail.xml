@@ -35,7 +35,7 @@
             <Rectangle width="520" height="1080" color="0x1E222AFF" />
             <Poster translation="[520, 0]" width="48" height="1080" uri="pkg:/images/ui/shadow.png" />
         </Group>
-        <QuickList id="list" translation="[0, 144]" itemComponentName="RailRow" itemSize="[520, 80]" itemSpacing="[0, 8]" numRows="10" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <QuickList id="list" translation="[0, 60]" itemComponentName="RailRow" itemSize="[520, 80]" itemSpacing="[0, 8]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Animation id="opening" duration="0.15" easeFunction="outCubic">
             <FloatFieldInterpolator key="[0, 1]" keyValue="[0, 1]" fieldToInterp="panel.opacity" />
         </Animation>

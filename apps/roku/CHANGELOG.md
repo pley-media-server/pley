@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Changed
 
+- The rail starts at the top of the screen, with room for one more entry
+  before it scrolls.
 - The rail no longer has the requests: they open from Discover's button,
   which shows what waits there.
 - A library opens on Recommended. The Library tab keeps the sort and
