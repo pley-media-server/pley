@@ -17,8 +17,9 @@ sub init()
 end sub
 
 ' A title without a picture, or whose picture fails, shows Pley's mark
-' in its frame (the poster's failed bitmap, drawn for its shape), and not
-' its title: the line under it names it. No observer per tile.
+' in its frame (the poster's failed bitmap, drawn for its shape with its
+' library's glyph), and not its title: the line under it names it. No
+' observer per tile.
 sub onContent()
     item = m.top.itemContent
     if item = invalid then return
@@ -37,8 +38,13 @@ sub onContent()
     m.subtitle.text = item.subtitle
     m.subtitle.color = "0xA1A9B6FF"
     if item.hasField("subtitleColor") then m.subtitle.color = item.subtitleColor
+    ' A Live TV channel without its logo shows its name in the frame, as the
+    ' other apps do, and no mark; a person without a photo, the frame alone.
+    kind = ""
+    if item.hasField("kind") then kind = item.kind
+    named = words or kind = "channel"
     m.fallback.text = ""
-    if words then m.fallback.text = item.title
+    if named then m.fallback.text = item.title
     badge = ""
     if item.hasField("badge") then badge = item.badge
     m.badge.text = badge
@@ -57,8 +63,10 @@ sub onContent()
     ' The scene's agent carries the token; it changes with each refresh.
     m.poster.setHttpAgent(m.top.getScene().getHttpAgent())
     onLayout()
+    ' A frame without a title is one that loads (a row's skeleton, a
+    ' library's place a jump passed over): it stays empty.
     placeholder = ""
-    if not words then placeholder = placeholderUri()
+    if not named and kind <> "person" and item.title <> "" then placeholder = placeholderUri(item)
     m.poster.failedBitmapUri = placeholder
     image = item.image
     if image = invalid or image = "" then image = placeholder
@@ -66,12 +74,13 @@ sub onContent()
     onFocus()
 end sub
 
-' Pley's mark for this tile's shape, so that it scales without stretching
-' (scripts/make_images.py).
-function placeholderUri() as string
-    if m.wide then return "pkg:/images/placeholder-wide.png"
-    if m.square then return "pkg:/images/placeholder-square.png"
-    return "pkg:/images/placeholder-poster.png"
+' Pley's mark for this tile's kind and shape (lib/Mark.brs).
+function placeholderUri(item as object) as string
+    kind = ""
+    if item.hasField("kind") then kind = item.kind
+    tmdbKind = ""
+    if item.hasField("tmdbKind") then tmdbKind = item.tmdbKind
+    return markPlaceholderUri(markTileGlyph(kind, tmdbKind), m.wide, m.square)
 end function
 
 sub onLayout()

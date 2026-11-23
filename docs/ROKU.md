@@ -168,9 +168,13 @@ nor their books on Home, in search or in history.
   titles come.
 - **Pictures:** a title without one, or whose picture fails, shows Pley's
   mark in its frame, as the other apps do on their placeholder; the line
-  under it names it. There is no gradient behind it, only the tile's
-  frame. Roku can tell a picture that failed from one that loads, so the
-  mark never shows while one loads.
+  under it names it. The glyph on the mark's front poster is the title's
+  kind of library: a clapperboard for movies, a TV for shows, notes for
+  music, play for the rest. There is no gradient behind it, only the
+  tile's frame. Roku can tell a picture that failed from one that loads,
+  so the mark never shows while one loads, nor on a frame still waiting
+  for its title. A Live TV channel without its logo shows its name in the
+  frame instead, and a person without a photo the frame alone.
 - **Quality badges:** sorted by bitrate, or filtered by resolution or
   dynamic range, the posters say what sets their best file apart at their
   foot: "4K" (no other resolution), then "DV", "HDR+", "HDR" or "HLG".
