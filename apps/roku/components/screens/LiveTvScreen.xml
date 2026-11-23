@@ -60,7 +60,7 @@
         <QuickGrid id="cards" translation="[624, 168]" itemComponentName="LiveCard" numColumns="4" numRows="3" itemSize="[282, 270]" itemSpacing="[24, 32]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
         <Label id="message" translation="[624, 480]" width="1200" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- Under what failed with nothing to show. -->
-        <ButtonGroup id="retry" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[1064, 640]" minWidth="320" visible="false" />
+        <PillButtons id="retry" translation="[1064, 640]" minWidth="320" visible="false" />
         <Label id="hint" translation="[624, 980]" width="1200" horizAlign="right" color="0x8B95A5FF" font="font:TinySystemFont" />
         <!-- What's on moves on. -->
         <Timer id="clock" duration="15" repeat="true" />

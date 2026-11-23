@@ -84,7 +84,7 @@
             <Rectangle width="1920" height="1080" color="0x16191EF2" />
             <Label id="noticeTitle" translation="[96, 340]" width="1728" wrap="true" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
             <Label id="noticeText" translation="[96, 430]" width="1500" wrap="true" maxLines="6" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-            <ButtonGroup id="noticeButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 700]" minWidth="400" />
+            <PillButtons id="noticeButtons" translation="[96, 700]" minWidth="400" />
         </Group>
         <!-- The category's channels, at the left over the video. -->
         <Group id="list" visible="false">

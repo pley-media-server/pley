@@ -273,11 +273,6 @@ sub styleOverlays()
     for each id in fonts
         m.top.findNode(id).font = uiType(fonts[id])
     end for
-    for each id in ["nextButtons", "noticeButtons", "sleepButtons", "syncButtons"]
-        group = m.top.findNode(id)
-        group.textFont = uiType("label")
-        group.focusedTextFont = uiType("label")
-    end for
 end sub
 
 ' Paused, the progress goes on being told, so the session stays the

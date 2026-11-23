@@ -29,7 +29,7 @@
         <LayoutGroup id="side" translation="[1200, 210]" layoutDirection="vert" itemSpacings="[24, 40, 24]">
             <Label id="words" width="624" wrap="true" color="0xEBEBEBFF" font="font:SmallSystemFont" />
             <Label id="allowance" width="624" wrap="true" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-            <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="520" />
+            <PillButtons id="buttons" minWidth="520" />
             <!-- What stands in for Request (none ticked, too many), or what
                  came of asking. -->
             <Label id="line" width="624" wrap="true" color="0xA1A9B6FF" font="font:SmallSystemFont" />

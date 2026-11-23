@@ -10,6 +10,11 @@ describes how they are made.
 
 ### Changed
 
+- Dialogs' and notices' buttons are the pages' pills: each inside its
+  edge, the focused one in the accent, where Roku's showed the others as
+  bare words (Which seasons?, subtitle sync, the sleep timer, Up next,
+  a title ready to watch, Can't reach the server, sign-in, Sort
+  libraries and the rest).
 - The side panels share one look: a title's menus and the language list
   have the player's, a library's and Settings' rows and title.
 - The rail starts at the top of the screen, with room for one more entry

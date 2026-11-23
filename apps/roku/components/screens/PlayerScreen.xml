@@ -78,7 +78,7 @@
             <Label id="nextTitle" translation="[32, 400]" width="536" maxLines="1" color="0xEBEBEBFF" />
             <Label id="nextLine" translation="[32, 448]" width="536" maxLines="1" color="0xA1A9B6FF" />
             <Label id="countdown" translation="[32, 488]" width="536" maxLines="1" color="0xA1A9B6FF" />
-            <ButtonGroup id="nextButtons" layoutDirection="horiz" itemSpacings="[24]" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[32, 544]" minWidth="256" maxWidth="256" buttonHeight="72" />
+            <PillButtons id="nextButtons" layoutDirection="horiz" itemSpacings="[24]" translation="[32, 544]" minWidth="256" maxWidth="256" buttonHeight="72" />
         </Group>
         <!-- At the top, clear of the subtitles it moves. -->
         <Group id="sync" translation="[560, 72]" visible="false">
@@ -86,7 +86,7 @@
             <Label id="syncTitle" translation="[48, 40]" width="380" color="0x38BDF8FF" />
             <Label id="syncValue" translation="[48, 84]" width="340" color="0xEBEBEBFF" />
             <Label id="syncHint" translation="[48, 150]" width="360" wrap="true" maxLines="2" color="0xA1A9B6FF" />
-            <ButtonGroup id="syncButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[440, 48]" minWidth="312" />
+            <PillButtons id="syncButtons" translation="[440, 48]" minWidth="312" />
         </Group>
         <!-- The side panel the controls' buttons open, as the Android TV
              player's: 720 wide from the right edge, square as menus are,
@@ -116,7 +116,7 @@
             <Rectangle width="1920" height="1080" color="0x16191EFF" />
             <Label id="noticeTitle" translation="[240, 360]" width="1440" horizAlign="center" wrap="true" maxLines="2" color="0xEBEBEBFF" />
             <Label id="noticeText" translation="[240, 450]" width="1440" horizAlign="center" wrap="true" maxLines="6" color="0xA1A9B6FF" />
-            <ButtonGroup id="noticeButtons" layoutDirection="horiz" itemSpacings="[24]" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[0, 700]" minWidth="320" buttonHeight="72" />
+            <PillButtons id="noticeButtons" layoutDirection="horiz" itemSpacings="[24]" translation="[0, 700]" minWidth="320" buttonHeight="72" />
         </Group>
         <!-- The sleep timer's last 30 s, at the bottom left on surface3, the
              moon before its count: Keep watching adds the same time again. -->
@@ -124,7 +124,7 @@
             <Poster id="sleepBack" width="840" height="88" uri="pkg:/images/ui/r12.9.png" blendColor="0x2E3440FF" />
             <Poster translation="[40, 24]" width="40" height="40" uri="pkg:/images/ui/icon-moon-40.png" blendColor="0xA1A9B6FF" />
             <Label id="sleepText" translation="[100, 0]" width="360" height="88" vertAlign="center" color="0xEBEBEBFF" />
-            <ButtonGroup id="sleepButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[480, 8]" minWidth="320" buttonHeight="72" />
+            <PillButtons id="sleepButtons" translation="[480, 8]" minWidth="320" buttonHeight="72" />
         </Group>
         <!-- Brief notices at the top right on surface3, as the Android TV
              player's toasts: Automatic saying it went down, and what the
