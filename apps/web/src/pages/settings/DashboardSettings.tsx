@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Square,
 } from "lucide-react";
+import { markGlyph } from "pley-placeholder-mark";
 import { errorMessage } from "@/api/client";
 import { useActivity, useStopSession, useSystemInfo, useTranscoderStatus } from "@/api/hooks";
 import type {
@@ -190,6 +191,7 @@ function SessionCard({ s, receivedAtMs, onStop }: { s: SessionInfo; receivedAtMs
           width={160}
           alt=""
           title={s.item.title}
+          mark={markGlyph(s.item.kind)}
           className={cn("w-full rounded-md", s.item.kind === "track" ? "aspect-square" : "aspect-video")}
         />
       </Link>

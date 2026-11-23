@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Ban, ChevronLeft, Inbox, SearchX, ShieldCheck } from "lucide-react";
+import { markGlyph } from "pley-placeholder-mark";
 import { isApiError } from "@/api/client";
 import {
   hasRequests,
@@ -156,7 +157,6 @@ function Hero({ summary }: { summary: RequestSummary }) {
             width={1280}
             alt=""
             title={first.title}
-            bare
             eager
             className="size-full"
             imgClassName="object-cover object-[center_25%]"
@@ -204,6 +204,7 @@ function RequestPoster({ request, width, manage }: { request: MediaRequest; widt
           width={width}
           alt=""
           title={request.title}
+          mark={markGlyph(request.kind)}
           className={cn(ASPECT_CLASS.poster, "w-full")}
           imgClassName="transition-transform duration-300 motion-safe:group-hover/card:scale-[1.04]"
         />

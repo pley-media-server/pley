@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Link } from "react-router";
 import { Check, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { markGlyph } from "pley-placeholder-mark";
 import type { ItemSummary } from "@/api/types";
 import { cn } from "@/lib/cn";
 import { cardSubtitle, episodeLabel, formatRemaining, mediaBadges, mediaLine, progressFraction, seasonTitle, unwatchedCount } from "@/lib/format";
@@ -152,6 +153,7 @@ export const MediaCard = memo(function MediaCard({
             width={width}
             alt=""
             title={name}
+            mark={markGlyph(item.kind)}
             className={cn(ASPECT_CLASS[aspect], "w-full")}
             imgClassName="transition-transform duration-300 motion-safe:group-hover/card:scale-[1.04]"
           />

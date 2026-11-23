@@ -660,7 +660,6 @@ export function RequestCard({
               width={56}
               alt=""
               title=""
-              bare
               className="aspect-[2/3] w-14 rounded ring-1 ring-white/5"
             />
           </Link>

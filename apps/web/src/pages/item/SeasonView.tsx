@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { ChevronRight, Play } from "lucide-react";
+import { markGlyph } from "pley-placeholder-mark";
 import { useChildren, useOnDeck, type ChildItem } from "@/api/hooks";
 import type { ItemDetail } from "@/api/types";
 import { Artwork } from "@/components/Artwork";
@@ -24,7 +25,7 @@ function EpisodeRow({ ep }: { ep: ChildItem }) {
     <div className="group flex gap-4 rounded-lg p-2 transition-colors hover:bg-white/[0.035] sm:gap-5">
       <div className="relative w-36 shrink-0 sm:w-56">
         <Link to={itemUrl(ep.id)} className="block overflow-hidden rounded-md ring-1 ring-white/5" aria-label={ep.title}>
-          <Artwork candidates={thumbCandidates(ep)} width={224} alt="" title={ep.title} className="aspect-video w-full" />
+          <Artwork candidates={thumbCandidates(ep)} width={224} alt="" title={ep.title} mark={markGlyph(ep.kind)} className="aspect-video w-full" />
           {progress > 0 ? (
             <div className="absolute inset-x-0 bottom-0 h-1 bg-black/60">
               <div className="h-full bg-accent" style={{ width: `${progress * 100}%` }} />

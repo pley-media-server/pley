@@ -527,9 +527,8 @@ function PlayingControls({
             candidates={posterCandidates(session.item)}
             width={40}
             alt=""
+            // No mark: too small for it, and the lines beside it name the title.
             title={session.item.title}
-            // Too small for the title's text, which the lines beside it say anyway.
-            bare
             className={cn("w-10 shrink-0 rounded", session.item.kind === "track" ? "aspect-square" : "aspect-[2/3]")}
           />
         ) : null}

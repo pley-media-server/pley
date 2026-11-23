@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router";
 import { AudioLines, ChevronDown, ChevronUp, GripVertical, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
+import { markGlyph } from "pley-placeholder-mark";
 import { errorMessage, isApiError } from "@/api/client";
 import { usePlaylist, useDeletePlaylist, useRemoveFromPlaylist, useReorderPlaylist, type PlaylistDetail } from "@/api/lists";
 import { useAudioPlayer } from "@/audio/AudioPlayer";
@@ -152,6 +153,7 @@ function PlaylistView({ playlist: p }: { playlist: PlaylistDetail }) {
                       width={video ? 128 : 48}
                       alt=""
                       title={title}
+                      mark={markGlyph(item.kind)}
                       className={video ? "aspect-video w-full" : "aspect-square w-full"}
                     />
                     {progress > 0 ? (

@@ -16,6 +16,7 @@ import {
   VolumeX,
   X,
 } from "lucide-react";
+import { markGlyph } from "pley-placeholder-mark";
 import { Artwork } from "@/components/Artwork";
 import { Slider } from "@/components/Slider";
 import { IconButton } from "@/components/ui";
@@ -129,6 +130,7 @@ export function AudioPlayerBar() {
             width={56}
             alt=""
             title={track.parent_title ?? track.title}
+            mark={markGlyph(track.kind)}
             className="size-12 shrink-0 rounded"
           />
           <div className="min-w-0">

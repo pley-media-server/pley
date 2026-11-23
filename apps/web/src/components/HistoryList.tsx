@@ -49,7 +49,6 @@ function HistoryRow({
           width={40}
           alt=""
           title=""
-          bare
           className={cn("w-10 rounded", item.kind === "track" ? "aspect-square" : "aspect-[2/3]")}
         />
       </Link>
