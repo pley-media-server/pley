@@ -1510,7 +1510,7 @@ mod tests {
         for t in ["3. Opening", "28. Ending", "94. End Credits", "Chapter 12: Credits", "Epilogue/End Credits"] {
             assert_eq!(chapter_kind(t), None, "{t}");
         }
-        for t in ["Fan Club Credits", "Official Fan Club Credits", "Dubbing Credits", "Credits", "Closing Credits"] {
+        for t in ["Fan Club Credits", "Official Cast Credits", "Dubbing Credits", "Credits", "Closing Credits"] {
             assert!(names_credits(t), "{t}");
         }
         for t in [
@@ -1530,14 +1530,14 @@ mod tests {
     #[test]
     fn credits_chapters_run_on_through_more_credits_to_the_end() {
         let ch = |start_ms, end_ms, title: &str| Chapter { start_ms, end_ms, title: Some(title.into()) };
-        // An extended edition: the credits, then the fan club's.
+        // The credits, then more of them.
         let chapters = [
-            ch(0, 12_000_000, "The Return"),
-            ch(12_000_000, 12_600_000, "End Credits"),
-            ch(12_600_000, 13_200_000, "Official Fan Club Credits"),
+            ch(0, 6_000_000, "Story"),
+            ch(6_000_000, 6_600_000, "End Credits"),
+            ch(6_600_000, 7_200_000, "Dubbing Credits"),
         ];
-        let found = chapter_markers(&chapters, 13_200_400);
-        assert_eq!((found[0].start_ms, found[0].end_ms), (12_000_000, 13_200_400));
+        let found = chapter_markers(&chapters, 7_200_400);
+        assert_eq!((found[0].start_ms, found[0].end_ms), (6_000_000, 7_200_400));
         // A scene after the credits stays after them.
         let chapters = [
             ch(0, 1_200_000, "Story"),
@@ -1684,14 +1684,12 @@ mod tests {
         for t in ["Where were you?", "- Out.\n- Late.", "JOHN: Here.", "I stand corrected.", ""] {
             assert!(is_speech(&cue(t)), "{t:?}");
         }
-        for t in ["[door closes]", "<i>(sighs)</i>", "JOHN:", "♪ Switch me on ♪", "Synced and corrected by somebody"]
-        {
+        for t in ["[door closes]", "<i>(sighs)</i>", "JOHN:", "♪ La la la ♪", "Synced and corrected by somebody"] {
             assert!(!is_speech(&cue(t)), "{t:?}");
         }
         // After the credits only music and the subtitles' credits don't
         // count: a sound is a scene.
-        for t in ["♪ Switch me on ♪", "[theme music playing]", "Captioned by Media Access Group", "www.example.org"]
-        {
+        for t in ["♪ La la la ♪", "[theme music playing]", "Captioned by Media Access Group", "www.example.org"] {
             assert!(is_music_or_credit(&cue(t)), "{t:?}");
         }
         for t in ["[gunshot]", "(gasps)", "Where were you?", ""] {
