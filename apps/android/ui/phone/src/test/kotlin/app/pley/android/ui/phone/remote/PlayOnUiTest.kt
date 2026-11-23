@@ -493,6 +493,23 @@ class PlayOnUiTest {
     }
 
     @Test
+    fun aCastThatWentBeforeTheMusicWasReachedPausesItOnceItIs() {
+        shell(livingRoom())
+        // As in a shell made again with the activity: the cast's news comes before the music is reached.
+        val music = graph.player.music
+        compose.runOnIdle {
+            state.music = null
+            state.castSent("app-12")
+        }
+        assertEquals(0, graph.musicPauses)
+        compose.runOnIdle { state.music = music }
+        assertEquals(1, graph.musicPauses)
+        // Once.
+        compose.runOnIdle { state.music = music }
+        assertEquals(1, graph.musicPauses)
+    }
+
+    @Test
     fun aCastFromTheLivePlayerPausesMusicHereToo() {
         shell(livingRoom())
         CastsSent.tell("app-12", "Living room TV")

@@ -77,8 +77,21 @@ class PhoneShellState internal constructor(
     var remote: RemoteRepository? by mutableStateOf(null)
         internal set
 
-    /** The music playing in the background, which a cast to another device pauses ([castSent]); `null` until after the first frame. */
+    /**
+     * The music playing in the background, which a cast to another device
+     * pauses ([castSent]); `null` until after the first frame. A cast that
+     * went before then (one answered as the activity was made again) pauses
+     * it as soon as it is set.
+     */
     internal var music: MusicControl? = null
+        set(value) {
+            field = value
+            if (value != null && pauseOnceSet) {
+                pauseOnceSet = false
+                value.pauseForVideo()
+            }
+        }
+    private var pauseOnceSet = false
 
     /** What Play on…'s chooser sends, while it shows ([playOn]); `null` while it doesn't. */
     internal var playingOn: CastTarget? by mutableStateOf(null)
@@ -113,7 +126,8 @@ class PhoneShellState internal constructor(
      * places; Play takes it up here again.
      */
     internal fun castSent(deviceId: String) {
-        music?.pauseForVideo()
+        val playing = music
+        if (playing != null) playing.pauseForVideo() else pauseOnceSet = true
         remoteAsked = RemoteAsk(deviceId)
     }
 
