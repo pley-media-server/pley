@@ -811,11 +811,22 @@ sealed class PlaylistScreen : ShellPage
         }
     }
 
-    /// <summary>An entry's still or cover: its picture over the title's own gradient, and how much was played along its foot.</summary>
+    /// <summary>
+    /// An entry's still or cover: its picture over the title's own gradient, with Pley's mark on it
+    /// when no picture will come (the row's title names it), and how much was played along its foot.
+    /// </summary>
     sealed class Thumb : View
     {
         public Thumb(TileModel tile, float width, float height, Images images)
         {
+            void Mark()
+            {
+                var spot = Placeholder.Layout(width, height, missing: true);
+                var mark = Icons.PlaceholderMark(spot.MarkSide, (width - spot.MarkSide) / 2, spot.MarkTop);
+                Add(mark);
+                mark.LowerToBottom();
+            }
+
             var w = Ui.Dp(width);
             var h = Ui.Dp(height);
             Size = new Size(w, h);
@@ -838,10 +849,19 @@ sealed class PlaylistScreen : ShellPage
                 Add(new View { Size = new Size(w, bar), Position = new Position(0, h - bar), BackgroundColor = PleyColors.ProgressTrackOnArt });
                 Add(new View { Size = new Size(w * Math.Min(1f, tile.Progress), bar), Position = new Position(0, h - bar), BackgroundColor = PleyColors.Accent });
             }
-            if (tile.Images.Count == 0) return;
+            if (tile.Images.Count == 0)
+            {
+                Mark();
+                return;
+            }
             images.Load(tile.Images, width, file =>
             {
-                if (file == null || Disposed) return;
+                if (Disposed) return;
+                if (file == null)
+                {
+                    Mark();
+                    return;
+                }
                 picture.ResourceUrl = file;
                 var fade = new Animation(PleyMotion.ImageFadeMs);
                 fade.AnimateTo(picture, "Opacity", 1f);

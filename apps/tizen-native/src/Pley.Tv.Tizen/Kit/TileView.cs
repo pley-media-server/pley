@@ -9,9 +9,10 @@ namespace Pley.Tv.Tizen.Kit;
 
 /// <summary>
 /// A tile on TV (the Android app's TvTile and ArtworkTile, design spec §2.3, D-pad rule 8): the
-/// well with its picture, or the title on a placeholder until the picture comes, and its overlays;
-/// a caption under it. Focused, the well grows to 1.08 and gets the accent ring around it, and the
-/// caption turns bold. While a key repeats its focus look changes evenly over the time between moves.
+/// well with its picture, or the title's gradient until the picture comes, with Pley's mark on it
+/// once none will, and its overlays; a caption under it, which names the tile. Focused, the well
+/// grows to 1.08 and gets the accent ring around it, and the caption turns bold. While a key
+/// repeats its focus look changes evenly over the time between moves.
 /// </summary>
 sealed class TileView : View
 {
@@ -23,7 +24,8 @@ sealed class TileView : View
     readonly View ring;
     readonly View well;
     readonly ImageView picture;
-    readonly TextLabel? placeholder;
+    /// <summary>Pley's mark on the placeholder, made the first time no picture will come.</summary>
+    ImageView? mark;
     /// <summary>The progress bar, the watched tick or count and the badges, made again for each tile shown.</summary>
     readonly View overlays;
     readonly TextLabel title;
@@ -71,21 +73,12 @@ sealed class TileView : View
         };
         ring.Hide();
         frame.Add(ring);
-        // Until the picture comes, and when there is none: the title's own gradient with the title on it
-        // (the Android app's Placeholder); people's round tiles have no title on theirs. The well
-        // doesn't clip: each clip is a pass of its own for the TV's GPU, and the picture rounds its
-        // own corners, as the progress bar does.
+        // Until the picture comes, and when there is none: the title's own gradient (the Android app's
+        // Placeholder), with Pley's mark once no picture will come (Mark); no title, the caption
+        // has it. The well doesn't clip: each clip is a pass of its own for the TV's
+        // GPU, and the picture rounds its own corners, as the progress bar does.
         well = new View { Size = new Size(w, h), CornerRadius = radius };
         frame.Add(well);
-        if (!kind.Round)
-        {
-            placeholder = Text.Label("", PleyType.Title, new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, 0.7f), maxLines: 4);
-            placeholder.Size = new Size(w - Ui.Dp(24), h - Ui.Dp(24));
-            placeholder.Position = new Position(Ui.Dp(12), Ui.Dp(12));
-            placeholder.HorizontalAlignment = HorizontalAlignment.Center;
-            placeholder.VerticalAlignment = VerticalAlignment.Center;
-            well.Add(placeholder);
-        }
         picture = new ImageView
         {
             Size = new Size(w, h),
@@ -156,7 +149,7 @@ sealed class TileView : View
             pictureAsked = false;
             picture.Opacity = 0;
             picture.ResourceUrl = "";
-            // A picture shown before comes back at once: no title and gradient under it to flash by.
+            // A picture shown before comes back at once: no gradient under it to flash by.
             // A person's circle is Surface2, as on Android (the gradient is for a title, which it has
             // none of): the TV's gradient visual stays square whatever its corner radius, and drew a
             // dark square behind each round picture. A color takes the well's.
@@ -167,7 +160,9 @@ sealed class TileView : View
                 var (from, to) = Placeholder.Colors(model.Title);
                 well.Background = Gradients.Diagonal(AvatarView.Rgb(from), AvatarView.Rgb(to));
             }
-            if (placeholder != null) placeholder.Text = known ? "" : model.Title;
+            // The mark only when no picture will come: while one loads, the gradient alone, so a
+            // page of tiles scrolling in doesn't flash marks before their pictures.
+            Mark(!known && Placeholder.Tile(model, kind).Mark);
         }
         // Drawn again only when they change, the new over the old for the same item: emptied first,
         // a badge's text and the progress bar blinked as Home came back from a film.
@@ -203,6 +198,27 @@ sealed class TileView : View
     static void Set(TextLabel label, string text)
     {
         if (label.Text != text) label.Text = text;
+    }
+
+    /// <summary>
+    /// Pley's mark on the placeholder, shown or hidden, only when that changes. It is made the first
+    /// time it shows, under the picture, and kept as the tile is used again: the same size in every
+    /// tile of a kind, so a row's marks line up, and none made for tiles whose pictures come.
+    /// </summary>
+    void Mark(bool on)
+    {
+        if (mark == null)
+        {
+            if (!on) return;
+            var spot = Placeholder.Layout(kind.Width, kind.Height, missing: true);
+            mark = Icons.PlaceholderMark(spot.MarkSide, (kind.Width - spot.MarkSide) / 2, spot.MarkTop);
+            well.Add(mark);
+            mark.LowerToBottom();
+            return;
+        }
+        if (mark.Visibility == on) return;
+        if (on) mark.Show();
+        else mark.Hide();
     }
 
     /// <summary>What the overlays show, and for which item, as last drawn.</summary>
@@ -258,7 +274,13 @@ sealed class TileView : View
         images.Load(Model.Images, kind.Width, file =>
         {
             // Gone, or showing another tile by now.
-            if (file == null || Disposed || mine != shown) return;
+            if (Disposed || mine != shown) return;
+            if (file == null)
+            {
+                // None of its addresses loaded: no picture will come.
+                Mark(Placeholder.Tile(Model, kind, failed: true).Mark);
+                return;
+            }
             picture.ResourceUrl = file;
             var key = PictureKey(Model);
             shownKey = key;
@@ -267,7 +289,6 @@ sealed class TileView : View
                 // Shown before: at once, not faded in again.
                 picture.Opacity = 1;
                 well.BackgroundColor = PleyColors.Surface2;
-                if (placeholder != null) placeholder.Text = "";
                 return;
             }
             if (key != null)
