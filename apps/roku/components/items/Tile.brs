@@ -16,8 +16,9 @@ sub init()
     m.progress = 0.0
 end sub
 
-' The title under the poster shows until a picture covers it, or when
-' there is none: no observer per tile.
+' A title without a picture, or whose picture fails, shows Pley's mark
+' in its frame (the poster's failed bitmap, drawn for its shape), and not
+' its title: the line under it names it. No observer per tile.
 sub onContent()
     item = m.top.itemContent
     if item = invalid then return
@@ -31,11 +32,13 @@ sub onContent()
     m.title.text = item.title
     ' See all, a row's Try again or note, a grid's Look further and Request
     ' more seasons: their words in the frame only.
-    if item.hasField("kind") and (item.kind = "more" or item.kind = "retry" or item.kind = "note" or item.kind = "further" or item.kind = "askMore") then m.title.text = ""
+    words = item.hasField("kind") and (item.kind = "more" or item.kind = "retry" or item.kind = "note" or item.kind = "further" or item.kind = "askMore")
+    if words then m.title.text = ""
     m.subtitle.text = item.subtitle
     m.subtitle.color = "0xA1A9B6FF"
     if item.hasField("subtitleColor") then m.subtitle.color = item.subtitleColor
-    m.fallback.text = item.title
+    m.fallback.text = ""
+    if words then m.fallback.text = item.title
     badge = ""
     if item.hasField("badge") then badge = item.badge
     m.badge.text = badge
@@ -54,9 +57,22 @@ sub onContent()
     ' The scene's agent carries the token; it changes with each refresh.
     m.poster.setHttpAgent(m.top.getScene().getHttpAgent())
     onLayout()
-    m.poster.uri = item.image
+    placeholder = ""
+    if not words then placeholder = placeholderUri()
+    m.poster.failedBitmapUri = placeholder
+    image = item.image
+    if image = invalid or image = "" then image = placeholder
+    m.poster.uri = image
     onFocus()
 end sub
+
+' Pley's mark for this tile's shape, so that it scales without stretching
+' (scripts/make_images.py).
+function placeholderUri() as string
+    if m.wide then return "pkg:/images/placeholder-wide.png"
+    if m.square then return "pkg:/images/placeholder-square.png"
+    return "pkg:/images/placeholder-poster.png"
+end function
 
 sub onLayout()
     w = m.top.width
@@ -130,7 +146,7 @@ sub onFocus()
     ' gridHasFocus false on its tiles, which only a MarkupGrid's mean.
     gridHasFocus = m.top.gridHasFocus or inRowList()
     focused = m.top.itemHasFocus and m.top.rowHasFocus and m.top.rowListHasFocus and gridHasFocus
-    ' Words in the frame (See all, a title without a picture) stay legible
+    ' Words in the frame (See all, Try again) stay legible
     ' on the accent.
     if focused
         m.frame.color = "0x38BDF8FF"
