@@ -682,7 +682,15 @@ its number counts what waits: a manager's pending and failed requests
   all (a grid, a page at a time; after five pages in a row that leave
   it short of a screenful, as an age limit can, Look further asks for
   more, and after a page that failed, a tile says so, Select asking for
-  it again); then Your requests, from the first one asked for. At the top,
+  it again); then Your requests, from the first one asked for. In the
+  rows, an info block takes the place of the page over them, as on Home:
+  the name of the title focus rests on, its facts as the hero's (year and
+  kind, TMDB's rating, its badge) and two lines of its overview, and the
+  backdrop becomes that title's, faint under the rows; a request has its
+  name and its stage. The block shows as the rows take the focus, then
+  follows once the focus has rested 0.4 s, so a held key draws nothing
+  on its way; See all, a row still loading and a row's notice have no
+  block. At the top,
   the way to the requests, with the number of what waits there: they are
   a page of their own reached from Discover, not an entry of the rail.
   TMDB is searched from Search. A poster opens the title's page, or,

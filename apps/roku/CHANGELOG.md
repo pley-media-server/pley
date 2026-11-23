@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Changed
 
+- Discover says what the poster in focus is: over its rows, the title's
+  name, its year, kind, rating and badge, and the start of its overview,
+  with its backdrop behind, as on Home. The hero went off the screen
+  there, and nothing said what a poster was.
 - Rows of posters scroll with less work: a tile lays itself out again
   only when its size or shape changes, and a title's page only when its
   words do.

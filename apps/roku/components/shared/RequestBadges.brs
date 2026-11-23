@@ -13,7 +13,7 @@ sub uiPatchRequestTiles(content as dynamic, note as object)
             uiPatchRequestTiles(node, note)
         else if node.hasField("key") and node.hasField("tmdbId") and node.key = note.key
             fields = {}
-            for each name in ["title", "subtitle", "image", "wide", "progress", "watched", "itemId", "kind", "tmdbKind", "tmdbId", "key"]
+            for each name in ["title", "subtitle", "image", "wide", "progress", "watched", "itemId", "kind", "tmdbKind", "tmdbId", "key", "score", "overview", "backdrop"]
                 if node.hasField(name) then fields[name] = node.getField(name)
             end for
             status = httpString(note.status)

@@ -7,8 +7,10 @@
      loaded as it comes into view and ending with See all, then Your
      requests for those who have any. The requests at the top, with the
      number that waits there; Down
-     slides the page up to the rows. A sign-in from before apps could
-     ask sees only how to sign in again. -->
+     goes to the rows, where an info block about the title focus rests on
+     takes the page's place over them and the backdrop follows it, as on
+     Home. A sign-in from before apps could ask sees only how to sign in
+     again. -->
 <component name="DiscoverScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -38,11 +40,13 @@
     <children>
         <!-- The hero's backdrop over the whole screen, as Home's: a scrim
              from the left under the words and a fade to the rows. While the
-             rows have the focus, the backdrop alone, faint (uiDimBackdrop):
-             a shade over all three layers held the rows to 35 fps. -->
+             rows have the focus, the backdrop of the title focus rests on,
+             alone and faint (uiDimBackdrop): a shade over all three layers
+             held the rows to 35 fps. -->
         <Backdrop id="backdrop" />
         <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
         <Poster id="fade" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" />
+        <!-- At rest; out of sight while the rows have the focus. -->
         <Group id="page">
             <!-- The requests' button and TMDB's credit on the heading's
                  middle line (y 87). -->
@@ -57,9 +61,20 @@
                 <!-- In place of Request, with nothing of its kind left to ask for. -->
                 <Label id="heroNote" width="1100" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallSystemFont" />
             </LayoutGroup>
-            <!-- Its top shows under the hero; the page slides up to it. -->
-            <QuickRowList id="rows" translation="[168, 700]" itemComponentName="Tile" itemSize="[1728, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
+        <!-- In the rows: what the title focus rests on is, over them, as
+             Home's (its place, sizes and type). -->
+        <LayoutGroup id="info" translation="[192, 72]" layoutDirection="vert" itemSpacings="[8, 12]" visible="false">
+            <Label id="infoName" width="1300" maxLines="1" color="0xEBEBEBFF" />
+            <MetaRow id="infoMeta" />
+            <Label id="infoOverview" width="928" wrap="true" maxLines="2" lineSpacing="6" color="0xEBEBEBFF" />
+        </LayoutGroup>
+        <!-- At rest its top shows under the hero; with the focus it comes
+             up under the info block (y 344, as Home's rows), the rows
+             scrolled past cut at the top, under the block's words. -->
+        <QuickRowList id="rows" translation="[168, 700]" itemComponentName="Tile" itemSize="[1728, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" clippingRect="[-48, -40, 1800, 1120]" visible="false" />
+        <!-- Focus resting on a tile: the info block and the backdrop follow. -->
+        <Timer id="rest" duration="0.4" />
         <!-- Why Discover can't be used, and what to do about it. -->
         <LayoutGroup id="problem" translation="[192, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">
             <Label id="problemTitle" width="1400" wrap="true" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />

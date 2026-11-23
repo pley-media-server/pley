@@ -648,6 +648,31 @@ sub test_requests_hero()
     tkEqual(reqHero({ kind: "movie", tmdb_id: 27205, title: "Inception", status: "none" }, reqTestSummary({ access: "off" }), "", now).note, "", "nothing to say where Discover doesn't show")
 end sub
 
+' The info block over Discover's rows says of a title's tile what the
+' hero would, with the same picture; of a request's, its stage.
+sub test_requests_info_block_says_what_a_tile_is()
+    server = "http://s"
+    title = { kind: "show", tmdb_id: 8004, title: "A Show", year: 2021, overview: "Its first line." + Chr(10) + "Its second.", backdrop_url: "/api/discover/images/backdrop/show.jpg", rating: 7.46, status: "requested" }
+    hero = reqHero(title, reqTestSummary({}), server, reqTestNow())
+    tile = reqTitleTile(title, server)
+    tkEqual(tile.overview, "Its first line. Its second.", "on one line")
+    info = reqTileInfo(tile)
+    tkEqual(info.title, "A Show")
+    tkEqual(info.parts, [{ text: "2021 · Show" }, { text: "7.5", star: true }, { text: "Requested" }])
+    tkEqual(info.parts, hero.parts, "the hero's facts")
+    tkEqual(info.overview, "Its first line. Its second.")
+    tkEqual(info.backdrop, "http://s/api/discover/images/backdrop/show.jpg?w=640")
+    tkEqual(info.backdrop, hero.backdrop, "the hero's picture, loaded once")
+    bare = reqTitleTile({ kind: "movie", tmdb_id: 7001, title: "A Movie", overview: String(400, "a"), rating: invalid, backdrop_url: invalid, status: "none" }, server)
+    tkEqual(Len(bare.overview), 300, "only an overview's start")
+    tkEqual(reqTileInfo(bare).parts, [{ text: "Movie" }], "no rating with too few votes, no badge")
+    tkEqual(reqTileInfo(bare).backdrop, "")
+    request = reqRequestTile(reqTestRequest({ title: "A Show", status: "approved", stage: "downloading", backdrop_url: "/api/discover/images/backdrop/show.jpg", download: { progress: 0.42, state: "downloading", eta: invalid, episodes: 3 } }), server, false, reqTestNow(), 0)
+    tkEqual(reqTileInfo(request), { title: "A Show", parts: [{ text: "Downloading 42%" }], overview: "", backdrop: "http://s/api/discover/images/backdrop/show.jpg?w=640" })
+    tkEqual(reqTileInfo({ title: "A Show" }), { title: "A Show", parts: [], overview: "", backdrop: "" }, "a tile without the fields")
+    tkEqual(reqMetaParts("2021 · Show", 8, "In library"), [{ text: "2021 · Show" }, { text: "8", star: true }, { text: "In library" }])
+end sub
+
 ' The hero is the first title of the first list with any: trending's,
 ' else the next list's once trending came with none or failed.
 sub test_requests_hero_comes_from_the_first_list_with_a_title()
