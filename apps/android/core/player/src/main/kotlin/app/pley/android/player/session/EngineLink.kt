@@ -32,8 +32,17 @@ sealed interface EngineError {
      * The device can't play what it was given: a decoder failed or refused
      * the format, or the file couldn't be read. [audio] when the audio was
      * the trouble, [container] when the file itself couldn't be opened.
+     * [audioCodec]: the server's name for the audio that failed, when the
+     * engine knows it; [output] when the audio output failed rather than a
+     * decoder.
      */
-    data class Unsupported(val audio: Boolean, val container: Boolean, override val detail: String) : EngineError
+    data class Unsupported(
+        val audio: Boolean,
+        val container: Boolean,
+        override val detail: String,
+        val audioCodec: String? = null,
+        val output: Boolean = false,
+    ) : EngineError
 
     /** The server answered [status] for the media: 404 and 410 mean the session expired. */
     data class Http(val status: Int, override val detail: String) : EngineError

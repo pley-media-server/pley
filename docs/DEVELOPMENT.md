@@ -87,7 +87,8 @@ temporary folders with `testing::tempdir()` (`common::tempdir()` in the
 server's integration tests), not `tempfile::tempdir()`. On Windows those
 files are still open when a test's `TempDir` is dropped, so its folder would
 stay behind in the temporary folder; these are removed once the test's
-thread ends.
+thread ends. The LG app's tests do the same with
+`pley_core::device::scratch_dir()`, which `FakeDevice::new` uses too.
 
 The Android app builds with the Android SDK and JDK 17 or newer (on Windows,
 Android Studio's: `JAVA_HOME=C:\Program Files\Android\Android Studio\jbr`).
@@ -131,10 +132,11 @@ streams, at the device's address on port 8008 (forwarded above), or at
 `PLEY_CAST_SETUP`. Release builds ignore all three. `tests/cast_devices.rs` plays against
 a fake device instead.
 
-The README's screenshot (`docs/images/web-home.jpg`) shows a demo library of
-made-up titles ([scripts/store-library](../scripts/store-library/README.md)):
-`bun scripts/store-library/web.mjs <dir> <address>` takes it from a server
-holding it.
+The README's picture (`docs/images/apps.webp`) shows the TV and phone apps
+with a demo library of made-up titles
+([scripts/store-library](../scripts/store-library/README.md)):
+`bun scripts/store-library/devices.mjs <tv screenshot> <phone screenshot>`
+draws it from a screenshot of each, with `ffmpeg` on `PATH`.
 
 ## Versions and releases
 

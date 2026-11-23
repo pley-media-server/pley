@@ -5,7 +5,7 @@
     <string name="playlists_new">新建播放清單</string>
     <string name="playlists_failed">無法載入播放清單</string>
     <string name="playlists_none_title">暫無播放清單</string>
-    <string name="playlists_none_body">可在此建立，或在電影、劇集、專輯或分集頁面上點“新增到播放清單”（長按海報也可以）。</string>
+    <string name="playlists_none_body">可在此建立，或在電影、影集、專輯或單集頁面上點「新增到播放清單」（長按海報也可以）。</string>
     <string name="playlists_smart">智慧</string>
 
     <!-- A playlist's page (PlaylistPage.tsx, design spec §4.9). -->
@@ -19,24 +19,24 @@
     <string name="playlist_not_found">未找到播放清單</string>
     <string name="playlist_not_found_body">它已被刪除，或屬於其他設定檔。</string>
     <string name="playlist_empty_smart">暫時沒有符合此播放清單篩選條件的內容。</string>
-    <string name="playlist_empty_video">此播放清單為空。可在電影、劇集或分集頁面上點“新增到播放清單”，或長按海報。</string>
-    <string name="playlist_empty_music">此播放清單為空。可在音樂人或專輯頁面上點“新增到播放清單”，或長按封面。</string>
+    <string name="playlist_empty_video">此播放清單為空。可在電影、影集或單集頁面上點「新增到播放清單」，或長按海報。</string>
+    <string name="playlist_empty_music">此播放清單為空。可在藝人或專輯頁面上點「新增到播放清單」，或長按封面。</string>
     <string name="playlist_play_entry">播放 %1$s</string>
     <string name="playlist_move_up">上移</string>
     <string name="playlist_move_down">下移</string>
     <string name="playlist_remove">從播放清單移除</string>
-    <string name="playlist_removed">已移除“%1$s”</string>
+    <string name="playlist_removed">已移除「%1$s」</string>
     <string name="playlist_undo">撤銷</string>
     <string name="playlist_deleted">播放清單已刪除</string>
     <string name="playlist_delete_title">刪除播放清單？</string>
-    <string name="playlist_delete_body">“%1$s”將被刪除。其中的內容仍保留在你的媒體庫中。</string>
+    <string name="playlist_delete_body">「%1$s」將被刪除。其中的內容仍保留在你的媒體庫中。</string>
     <string name="playlist_delete_confirm">刪除</string>
     <string name="playlist_rename_save">儲存</string>
 
     <!-- New playlist and Save these filters (PlaylistFormModal, SaveFiltersModal). -->
     <string name="playlist_form_title">標題</string>
-    <string name="playlist_form_for">型別</string>
-    <string name="playlist_form_video">電影與劇集</string>
+    <string name="playlist_form_for">類型</string>
+    <string name="playlist_form_video">電影與影集</string>
     <string name="playlist_form_music">音樂</string>
     <string name="playlist_form_create">建立</string>
     <string name="playlist_form_save">儲存</string>
@@ -54,7 +54,7 @@
     <string name="add_added">已新增到 %1$s</string>
     <!-- %1$d: how many entries were added (more than one); %2$s: the playlist. -->
     <plurals name="add_added_many">
-        <item quantity="other">已將 %1$d 個專案新增到 %2$s</item>
+        <item quantity="other">已將 %1$d 個項目新增到 %2$s</item>
     </plurals>
     <string name="add_nothing">沒有可新增的內容</string>
 </resources>

@@ -76,7 +76,7 @@ mod desktop {
         // With the fake server, a fresh folder each time: its address changes from run to run.
         let root = match (&args.data, args.fixtures) {
             (Some(dir), _) => dir.clone(),
-            (None, true) => pley_core::device::scratch_dir("lg-sim"),
+            (None, true) => pley_core::device::kept_dir("lg-sim"),
             (None, false) => std::env::temp_dir().join("pley-lg-sim"),
         };
         logger::init(Some(&root.join("logs")), args.verbose);

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Search on TV (apps/web/src/pages/SearchPage.tsx, design spec §4.5). -->
-    <string name="tv_search_field">搜尋電影、劇集、人物…</string>
+    <string name="tv_search_field">搜尋電影、影集、人物…</string>
     <string name="tv_search_recent">最近搜尋</string>
     <string name="tv_search_recent_clear">清除</string>
     <string name="tv_search_empty_title">搜尋你的媒體庫</string>
-    <string name="tv_search_empty_body">可搜尋電影、劇集、單集、人物、藝人、專輯、曲目和直播電影片道。</string>
-    <string name="tv_search_none_title">“%1$s”沒有結果</string>
+    <string name="tv_search_empty_body">可搜尋電影、影集、單集、人物、藝人、專輯、曲目和直播頻道。</string>
+    <string name="tv_search_none_title">「%1$s」沒有結果</string>
     <string name="tv_search_none_body">換個拼寫或減少關鍵詞試試。</string>
     <string name="tv_search_failed">搜尋失敗</string>
     <string name="tv_search_retry">重試</string>
@@ -16,7 +16,7 @@
     <string name="tv_search_group_people">人物</string>
     <string name="tv_search_group_live">直播電視</string>
     <string name="tv_search_group_movies">電影</string>
-    <string name="tv_search_group_shows">劇集</string>
+    <string name="tv_search_group_shows">影集</string>
     <string name="tv_search_group_seasons">季</string>
     <string name="tv_search_group_episodes">集</string>
     <string name="tv_search_group_artists">藝人</string>

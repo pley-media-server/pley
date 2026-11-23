@@ -6,7 +6,7 @@
     <string name="tv_onboarding_unreachable">無法連線</string>
     <string name="tv_onboarding_lookalike">與已儲存的伺服器不符</string>
     <string name="tv_onboarding_unencrypted">未加密</string>
-    <string name="tv_onboarding_searching">正在網路中查詢 Pley…</string>
+    <string name="tv_onboarding_searching">正在網路中尋找 Pley…</string>
     <string name="tv_onboarding_none_found">未找到伺服器。請確保這臺電視和伺服器在同一網路中。</string>
     <string name="tv_onboarding_enter_address">輸入位址</string>
     <string name="tv_onboarding_search_network">搜尋此網路</string>
@@ -23,7 +23,7 @@
 
     <!-- Local network access (Android 17, Fire OS 16). -->
     <string name="tv_onboarding_access_title">允許 Pley 存取你的網路</string>
-    <string name="tv_onboarding_access_body">Pley 會在家庭網路中查詢伺服器。請允許它檢視此網路上的裝置。</string>
+    <string name="tv_onboarding_access_body">Pley 會在家庭網路中尋找伺服器。請允許它檢視此網路上的裝置。</string>
     <string name="tv_onboarding_continue">繼續</string>
     <string name="tv_onboarding_access_denied">Pley 需要存取網路上的裝置，才能找到並連線家裡的伺服器。</string>
     <string name="tv_onboarding_open_settings">開啟設定</string>
@@ -31,7 +31,7 @@
     <!-- What went wrong with a server. -->
     <string name="tv_onboarding_problem_unreachable">無法連線 %1$s：%2$s</string>
     <string name="tv_onboarding_problem_not_pley">%1$s 有回應，但不是 Pley。</string>
-    <string name="tv_onboarding_problem_unencrypted">%1$s 未加密：你觀看的內容可能在傳輸途中被讀取。若有 https 位址請使用它，或再次按“連線”以繼續。</string>
+    <string name="tv_onboarding_problem_unencrypted">%1$s 未加密：你觀看的內容可能在傳輸途中被讀取。若有 https 位址請使用它，或再次按「連線」以繼續。</string>
     <string name="tv_onboarding_problem_address">輸入位址，例如 nas、192.168.1.20 或 pley.example.com。</string>
 
     <!-- Typing a server's address (design spec §2.11). -->
@@ -51,13 +51,13 @@
     <string name="tv_onboarding_link_other_device">或在已登入的裝置上開啟 Pley → 關聯電視</string>
     <string name="tv_onboarding_link_scan">用手機攝像頭掃描</string>
     <string name="tv_onboarding_change_server">更換伺服器</string>
-    <string name="tv_onboarding_waiting">等待審批…</string>
+    <string name="tv_onboarding_waiting">等待核准…</string>
     <string name="tv_onboarding_getting_code">正在取得代碼…</string>
     <string name="tv_onboarding_declined">請求被拒絕</string>
     <string name="tv_onboarding_expired">代碼已過期：按 OK 取得新代碼</string>
     <string name="tv_onboarding_new_code">取得新代碼</string>
     <string name="tv_onboarding_retrying">無法連線伺服器。%1$d 秒後重試</string>
-    <string name="tv_onboarding_signed_in">已以 %1$s 身份登入</string>
+    <string name="tv_onboarding_signed_in">已以 %1$s 身分登入</string>
     <string name="tv_onboarding_signed_in_plain">已登入</string>
     <string name="tv_onboarding_code_label">代碼：%1$s</string>
 

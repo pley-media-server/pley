@@ -548,6 +548,11 @@ impl FromRequestParts<AppState> for PlexUser {
                 let user =
                     state.auth.validate_compatibility(&token, Some(&used)).await.ok_or(PlexError::Unauthorized)?;
                 parts.extensions.insert(user.clone());
+                if let Ok(client) = ClientInfo::from_request_parts(parts, state).await {
+                    crate::traffic::name(&parts.extensions, &user.username, || {
+                        client.shown_device().unwrap_or_default()
+                    });
+                }
                 user
             }
         };
@@ -663,6 +668,14 @@ pub struct ClientInfo {
     pub device: Option<String>,
     pub device_name: Option<String>,
     pub address: Option<String>,
+}
+
+impl ClientInfo {
+    /// Its device as Now playing shows it: the device's name, or else the
+    /// app's.
+    pub fn shown_device(&self) -> Option<String> {
+        self.device_name.as_deref().or(self.product.as_deref()).and_then(crate::oauth::clients::clean_name)
+    }
 }
 
 impl<S: Send + Sync> FromRequestParts<S> for ClientInfo {

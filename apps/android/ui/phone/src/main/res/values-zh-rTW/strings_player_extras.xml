@@ -13,7 +13,7 @@
     <!-- The playback speed's row and page. -->
     <string name="player_speed">速度</string>
     <!-- The subtitles page's row that looks for subtitles online, and its page. -->
-    <string name="player_find_subtitles">查詢字幕…</string>
+    <string name="player_find_subtitles">搜尋字幕…</string>
     <string name="player_searching">搜尋中…</string>
     <string name="player_adding">新增中…</string>
     <!-- The settings row and page of the sleep timer. -->

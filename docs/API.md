@@ -2825,7 +2825,11 @@ reports still send the version 1 fields: `containers` always counts;
   [Dolby Vision remuxes](#dolby-vision-remuxes).
 - **Audio** plays as it is when its codec is in `audio_decode` or
   `audio_passthrough`. With `audio_track_switching`, a track other than the
-  file's default needs no HLS: the player switches to it itself.
+  file's default needs no HLS: the player switches to it itself. A stream
+  copies AAC, MP3, AC-3 and E-AC-3 the player lists, whatever the `mode`
+  (`transcode` re-encodes only the video). So a player whose decoder fails
+  on a track asks again with that codec left out of both lists: the server
+  then picks another track that plays, or converts this one.
 - **Picture subtitles** (PGS, VobSub, DVB) in `subtitle_codecs` are shown
   by the player when the file plays as it is. When it doesn't, or a
   stream is asked for (`remux`, `transcode`), they are burned in as for
@@ -4577,7 +4581,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 |---|---|---|---|
 | GET | `/api/live` | `library` | `{ available, allowed, channels, sources, recent: Id[] }`: whether to show Live TV (`allowed`: open to this account; `available`: and it has channels), the channel count, the sources set up (administrators; else 0) and the 12 channels watched last, newest first |
 | GET | `/api/live/channels` | `library` | `LiveChannel[]`, the shown channels by number, each with what's on now and next |
-| GET | `/api/live/groups` | `library` | `{ total, favorites, recent, groups: LiveGroup[] }`: the groups in the lineup's order, and how many channels in all, marked and watched lately |
+| GET | `/api/live/groups` | `library` | `{ total, favorites, recent, groups: LiveGroup[] }`: the groups in the order they first come in the lineup (a source with `sort_groups` has its own A to Z, in the places they take), and how many channels in all, marked and watched lately |
 | GET | `/api/live/browse` | `library` | `?category=all\|favorites\|recent\|group&group=&q=&offset=&limit=&around=` → `{ total, offset, channels: LiveChannel[] }`: a page (100 by default, 500 at most) of a category's channels matching `q` as search finds them (by name, slips too, a number's beginning, or the title of what's on), the closest first as in search (`recent` keeps the order they were watched); `around` gives the page with that channel in it |
 | GET | `/api/live/channels/{id}` | `library` | `LiveChannel` |
 | GET | `/api/live/channels/{id}/logo` | `library` | the logo, kept a week at a time (no larger than 1 MB and 400 px; one drawn dark on a see-through background is made light, for dark screens); `?w=` resizes it, a see-through one staying see-through |
@@ -4600,7 +4604,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | DELETE | `/api/live/sources/{id}` | `admin` | `204`, with its channels |
 | POST | `/api/live/sources/{id}/refresh` | `admin` | `202`: reads its channels and guide again now, or after a read under way |
 | GET | `/api/live/lineup` | `admin` | `?source_id=` → `LiveLineupChannel[]`, hidden ones too |
-| PATCH | `/api/live/lineup` | `admin` | `{ ids?: Id[], groups?: string[], filter?: { source_id?, group?, state?, q? }, hidden?, name?, number?, guide_id? }` → `204`: those channels, every one of `groups` and every one `filter` keeps; `""` gives back the source's own value; 20,000 ids and 5,000 groups at most |
+| PATCH | `/api/live/lineup` | `admin` | `{ ids?: Id[], groups?: string[], filter?: { source_id?, group?, state?, q? }, hidden?, name?, number?, guide_id? }` → `204`: those channels, every one of `groups` and every one `filter` keeps; `""` gives back the source's own value; 20,000 ids and 5,000 groups at most. `guide_id` is a channel of the source's guide, or the `http(s)` address of an XMLTV guide of the channel's own (at most 2,048 characters), read with the source's, once however many channels name it, 500 a source at most: the channel named after `#` (`…/epg-us.xml.gz#DisneyChannel.us`, percent-encoded or not), else its only channel, else the one of the channel's id or name. Channels given the same address are one channel: when they would find different channels of the guide, none gets its programs, and the source's `guide_error` says to name each after `#`. A guide that can't be read, the source's own too, keeps the programs it had and is named in `guide_error`; the others are read all the same |
 | GET | `/api/live/lineup/page` | `admin` | `?source_id=&group=&state=all\|shown\|hidden\|no-guide\|offline&q=&offset=&limit=` → `{ total, hidden, offset, channels: LiveLineupChannel[] }`: a page of the lineup, filtered |
 | GET | `/api/live/lineup/groups` | `admin` | `(LiveGroup & { hidden, offline })[]`: every group, hidden and offline channels counted |
 | GET | `/api/live/tuners` | `admin` | `LiveTuner[]`: the channels being pulled and who watches them |
@@ -4632,6 +4636,8 @@ interface LiveSourceInput {
   username?: string; password?: string; // Xtream
   guide_url?: string;                  // XMLTV: a web address, or a file on this computer (/…, file://…), not a share; empty: the playlist's own (an http(s) address), or Xtream's
   user_agent?: string; max_connections?: number /* 1 */; enabled?: boolean /* true */;
+  sort_groups?: boolean /* false */;  // its groups listed A to Z, by every app, not in the provider's order
+  failover?: boolean /* false */;     // its channels play on another source with it too, when its connections are all in use (Watching, below)
 }
 interface LiveSource extends Omit<LiveSourceInput, "password"> {
   id: Id; uid: string;                 // uid: its short id, as in LiveChannel.source_uid
@@ -4700,6 +4706,19 @@ interface LiveTuner {                  // a connection in use
   them is) ends that channel's viewers and takes its connection. Taking
   over another's connection otherwise: `403`. A viewer only joins a
   channel someone already watches; nobody is ended for it.
+- **The same channel on other sources.** When the channel's source and
+  others have `failover`, the channels of those others with the same
+  guide channel (the one set by hand, else the one matched, else the
+  source's `tvg-id`), hidden ones too but not offline ones, are the same
+  channel: a tuner already pulling any of them is joined, else the first
+  with a connection free is tuned, the asked one first. Only when all are
+  full does the `409` above come, with the asked channel's source's
+  connections, and `take_over` takes one of those. A connection lists the
+  copy it pulls (its `channel_id` and name); the viewer is still the
+  asked channel's, in `/api/sessions` and `live_taken_over`, and ends
+  when that channel is hidden. Feeds a provider gives one `tvg-id`
+  (East and West, +1) count as one channel unless given guide channels
+  of their own.
 - **Taken over.** Each viewer ended by a take-over gets
   `live_taken_over` (`session_id`, `channel_id`, `message`) on their event
   streams at once, and its session answers `410` with the same `message`
@@ -4800,7 +4819,7 @@ on another administrator's account, but for the `GET`s
 |---|---|---|---|
 | GET | `/api/system` | `admin` | `SystemInfo` |
 | PUT | `/api/system/transcode-dir` | `admin` | `{ path: string \| null }` → `SystemInfo.transcode_dir` as it now is: the folder for the next start |
-| GET | `/api/system/resources?since=` | `admin` | CPU and memory use, sampled every 2 s for the last five minutes |
+| GET | `/api/system/resources?since=` | `admin` | CPU, memory and network use, sampled every 2 s for the last five minutes, and who Pley is sending to |
 | GET | `/api/system/library-work` | `admin` | `WatchingHours`: when [library work](#library-work) runs |
 | GET | `/api/system/storage` | `admin` | `{ blobs, blob_bytes, media_folders, media_bytes, cache_bytes }` |
 | POST | `/api/system/storage/clean` | `admin` | `{ blobs_removed, media_folders_removed, subtitles_removed, bytes_freed, cache_files_removed, cache_bytes_freed }` |
@@ -4822,13 +4841,30 @@ on another administrator's account, but for the `GET`s
   relative path, a whole drive, the data folder itself, a folder Pley can't
   write in, and when the command line or the environment sets it.
 - **`resources`** answers
-  `{ available, interval_ms, cpus, memory_total, samples: [{ at, cpu, pley_cpu, memory, pley_memory }] }`,
-  oldest first:
+  `{ available, interval_ms, cpus, memory_total, samples: [{ at, cpu, pley_cpu, memory, pley_memory, net_in, net_out, pley_out }], clients: [{ user, device, address, sent }] }`,
+  samples oldest first:
   - `since` (unix ms) keeps only later samples; `at` is unix ms too;
   - `cpu` and `pley_cpu`: shares of all processors' time, 0–100;
   - `memory`: bytes in use on the machine, without what only caches files;
     `pley_memory`: its processes' resident memory; `memory_total`: the
     machine's; `cpus`: its logical processors;
+  - `net_in` and `net_out`: bytes a second the machine's hardware network
+    adapters received and sent since the sample before (in a container,
+    its own adapters, loopback aside); `pley_out`: what Pley sent its
+    clients, response bodies on every port (the web app's, Plex's and
+    Jellyfin's);
+  - `clients`: who Pley is sending to now, the busiest first (50 at most),
+    `sent` in bytes a second over the last 10 seconds. `user` and `device`
+    are the account and device a request signed in as ("Chrome on
+    Windows"; an app of the compatibility APIs by its token's account and
+    the device it names, as Now playing shows it), `null` for what came
+    with no sign-in Pley read (the web app's files), which then counts for
+    the signed-in client at the same `address` if there is one. An
+    account's requests from one address count as one client, named after
+    its busiest device that has a name (a TV's app and its player).
+    `address` is the client's, through proxies on this computer or
+    network. Every field is `null` for the count past 512 clients, which
+    they share;
   - "Pley" is the server and every process it started (a managed
     transcoder and its FFmpegs);
   - `available` is false where the system can't be sampled (Windows, Linux

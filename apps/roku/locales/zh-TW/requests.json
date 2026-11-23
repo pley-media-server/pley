@@ -6,9 +6,9 @@
   },
   "kind": {
     "movie": "電影",
-    "show": "劇集"
+    "show": "影集"
   },
-  "quoted": "“{{text}}”",
+  "quoted": "「{{text}}」",
   "credit": "詳情和圖片來自 TMDB。",
   "following": "已關注",
   "counts": {
@@ -46,11 +46,11 @@
   "asking": {
     "auto": "請求後自動批准並發送到下載佇列。",
     "decided": "由管理員決定。就緒時會通知你。",
-    "confirm": "請求“{{title}}”？",
-    "following": "“{{title}}”就緒時會通知你。",
-    "approved": "“{{title}}”已批准，正在準備中。",
-    "failed": "已請求“{{title}}”，但暫時無法傳送到下載佇列。",
-    "pending": "已請求“{{title}}”：由管理員決定。"
+    "confirm": "請求「{{title}}」？",
+    "following": "「{{title}}」就緒時會通知你。",
+    "approved": "「{{title}}」已批准，正在準備中。",
+    "failed": "已請求「{{title}}」，但暫時無法傳送到下載佇列。",
+    "pending": "已請求「{{title}}」：由管理員決定。"
   },
   "seasons": {
     "list_other": "第 {{list}} 季",
@@ -69,14 +69,14 @@
   },
   "problem": {
     "off": "請求功能已關閉",
-    "offText": "此伺服器不接收電影和劇集請求。",
+    "offText": "此伺服器不接收電影和影集請求。",
     "tmdbKey": "TMDB 拒絕了此伺服器的金鑰",
     "tmdbKeyText": "需要管理員檢查。",
-    "tmdbKeyManage": "請在網頁版 Pley 的“設定 → 伺服器”中修復。",
+    "tmdbKeyManage": "請在網頁版 Pley 的「設定 → 伺服器」中修復。",
     "tmdbDown": "TMDB 沒有回應",
     "noAccess": "此帳戶未開放請求功能",
-    "noAccessText": "管理員可以允許它請求電影和劇集。",
-    "signIn": "請重新登入後請求電影和劇集",
+    "noAccessText": "管理員可以允許它請求電影和影集。",
+    "signIn": "請重新登入後請求電影和影集",
     "askAgain": "你可以在 {{when}} 再次請求。",
     "askMore": "{{when}} 後可請求更多內容。",
     "atMostMovies_other": "每 7 天最多可請求 {{count, number}} 部電影：請少選一些。",
@@ -89,20 +89,20 @@
     "lists": {
       "trending": "本週熱門",
       "movies": "熱門電影",
-      "shows": "熱門劇集",
+      "shows": "熱門影集",
       "upcoming": "即將上映",
       "anime": "熱門動漫"
     },
-    "resultsFor": "“{{query}}”的搜尋結果",
-    "nothingFound": "沒有找到“{{query}}”。",
+    "resultsFor": "「{{query}}」的搜尋結果",
+    "nothingFound": "沒有找到「{{query}}」。",
     "nothingHere": "這裡暫時沒有內容。",
     "loadFailed": "無法載入這些內容"
   },
   "tiles": {
-    "theseFailed": "無法載入這些內容。選中可重試。",
-    "moreFailed": "無法載入更多內容。選中可重試。",
-    "problemRetry": "{{problem}}。選中可重試。",
-    "further": "可能還有更多內容。選中可繼續查詢。"
+    "theseFailed": "無法載入這些內容。選取可重試。",
+    "moreFailed": "無法載入更多內容。選取可重試。",
+    "problemRetry": "{{problem}}。選取可重試。",
+    "further": "可能還有更多內容。選取即可繼續尋找。"
   },
   "buttons": {
     "signIn": "登入",
@@ -121,9 +121,9 @@
   },
   "declined": {
     "plain": "已拒絕。",
-    "because": "已拒絕：“{{reason}}”。",
+    "because": "已拒絕：「{{reason}}」。",
     "when": "已拒絕。你可以在 {{when}} 再次請求。",
-    "becauseWhen": "已拒絕：“{{reason}}”。你可以在 {{when}} 再次請求。"
+    "becauseWhen": "已拒絕：「{{reason}}」。你可以在 {{when}} 再次請求。"
   },
   "picker": {
     "title": "選擇哪些季？",
@@ -131,7 +131,7 @@
     "request_other": "請求 {{count, number}} 季"
   },
   "stage": {
-    "pending": "等待審批",
+    "pending": "等待核准",
     "approved": "已批准",
     "searching": "搜尋中",
     "downloading": "下載中",
@@ -177,12 +177,12 @@
     "none": "目前對此請求無法執行任何操作。"
   },
   "confirm": {
-    "remove": "從你的請求中移除“{{title}}”？",
-    "withdraw": "撤回你對“{{title}}”的請求？",
+    "remove": "從你的請求中移除「{{title}}」？",
+    "withdraw": "撤回你對「{{title}}」的請求？",
     "delete": "刪除此請求？Radarr 和 Sonarr 會保留已有內容。"
   },
   "decline": {
-    "title": "拒絕“{{title}}”",
+    "title": "拒絕「{{title}}」",
     "text": "原因會告訴請求人。"
   },
   "page": {
@@ -192,7 +192,7 @@
     "tabs": {
       "attention": "需要處理",
       "all": "全部",
-      "pending": "待審批",
+      "pending": "待核准",
       "approved": "已批准",
       "available": "可觀看",
       "declined": "已拒絕",
@@ -200,7 +200,7 @@
       "mine": "你的"
     },
     "empty": {
-      "match": "沒有匹配項。",
+      "match": "沒有相符的項目。",
       "attention": "沒有需要處理的請求。",
       "everyone": {
         "pending": "沒有等待決定的請求。",
@@ -223,9 +223,9 @@
   "filters": {
     "filter": "篩選",
     "kinds": {
-      "both": "電影和劇集",
+      "both": "電影和影集",
       "movie": "電影",
-      "show": "劇集"
+      "show": "影集"
     },
     "everyone": "所有人",
     "anyTitle": "任意",
@@ -239,9 +239,9 @@
     "clear": "清除篩選"
   },
   "news": {
-    "ready": "“{{title}}”可以觀看了。",
-    "seasonsReady_other": "“{{title}}”的 {{seasons}} 可以觀看了。",
-    "specialsReady": "“{{title}}”的特別篇可以觀看了。",
+    "ready": "「{{title}}」可以觀看了。",
+    "seasonsReady_other": "「{{title}}」的 {{seasons}} 可以觀看了。",
+    "specialsReady": "「{{title}}」的特別篇可以觀看了。",
     "several_other": "你的 {{count, number}} 個請求有新動態"
   }
 }

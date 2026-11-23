@@ -228,7 +228,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ 請求了“%@”（%@）。"
+            "value" : "%@ 請求了「%@」（%@）。"
           }
         }
       }
@@ -257,7 +257,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ 請求了“%@”。"
+            "value" : "%@ 請求了「%@」。"
           }
         }
       }
@@ -634,7 +634,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@” 中 %@ 部已可觀看。"
+            "value" : "「%@」中 %@ 部已可觀看。"
           }
         }
       }
@@ -663,7 +663,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@” 中 %@ 部已可觀看。"
+            "value" : "「%@」中 %@ 部已可觀看。"
           }
         }
       }
@@ -2771,7 +2771,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld 部劇集"
+                  "value" : "%lld 部影集"
                 }
               }
             }
@@ -3407,7 +3407,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "管理員可以允許請求電影和劇集。"
+            "value" : "管理員可以允許請求電影和影集。"
           }
         }
       }
@@ -3523,7 +3523,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "批准“%@”"
+            "value" : "批准「%@」"
           }
         }
       }
@@ -3726,7 +3726,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已請求“%@”，但暫時無法傳送下載。"
+            "value" : "已請求「%@」，但暫時無法傳送下載。"
           }
         }
       }
@@ -3755,7 +3755,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已請求“%@”：由管理員決定。"
+            "value" : "已請求「%@」：由管理員決定。"
           }
         }
       }
@@ -4132,7 +4132,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "無法載入“發現”"
+            "value" : "無法載入「發現」"
           }
         }
       }
@@ -4480,7 +4480,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "拒絕“%@”？"
+            "value" : "拒絕「%@」？"
           }
         }
       }
@@ -4596,7 +4596,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已拒絕：“%@”。"
+            "value" : "已拒絕：「%@」。"
           }
         }
       }
@@ -4625,7 +4625,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已拒絕：“%@”。你可以在 %@ 再次請求。"
+            "value" : "已拒絕：「%@」。你可以在 %@ 再次請求。"
           }
         }
       }
@@ -5176,7 +5176,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在“發現”中找到電影和劇集，請求媒體庫裡沒有的內容。"
+            "value" : "在「發現」中找到電影和影集，請求媒體庫裡沒有的內容。"
           }
         }
       }
@@ -5205,7 +5205,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查詢要請求的電影和劇集"
+            "value" : "搜尋要請求的電影和影集"
           }
         }
       }
@@ -5234,7 +5234,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查詢要請求的內容"
+            "value" : "搜尋要請求的內容"
           }
         }
       }
@@ -5263,7 +5263,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在伺服器設定中修正：網頁端“設定 → 伺服器”。"
+            "value" : "在伺服器設定中修正：網頁端「設定 → 伺服器」。"
           }
         }
       }
@@ -5814,7 +5814,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "電影和劇集"
+            "value" : "電影和影集"
           }
         }
       }
@@ -6220,7 +6220,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的媒體庫中沒有匹配內容"
+            "value" : "你的媒體庫中沒有相符的內容"
           }
         }
       }
@@ -6278,7 +6278,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TMDB 上沒有匹配“%@”的內容"
+            "value" : "TMDB 上沒有符合「%@」的內容"
           }
         }
       }
@@ -6336,7 +6336,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”暫無內容"
+            "value" : "「%@」暫無內容"
           }
         }
       }
@@ -6800,7 +6800,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "熱門劇集"
+            "value" : "熱門影集"
           }
         }
       }
@@ -7301,7 +7301,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從請求中移除“%@”？"
+            "value" : "從請求中移除「%@」？"
           }
         }
       }
@@ -7657,7 +7657,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "等待審批的請求以及無法傳送的請求顯示在這裡。"
+            "value" : "等待核准的請求以及無法傳送的請求顯示在這裡。"
           }
         }
       }
@@ -7715,7 +7715,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”的搜尋結果"
+            "value" : "「%@」的搜尋結果"
           }
         }
       }
@@ -8179,7 +8179,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在 %@ 上快進"
+            "value" : "在 %@ 上調整播放位置"
           }
         }
       }
@@ -8208,7 +8208,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "用“投放到…”把內容傳送到這裡"
+            "value" : "用「投放到…」把內容傳送到這裡"
           }
         }
       }
@@ -8266,7 +8266,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "劇集"
+            "value" : "影集"
           }
         }
       }
@@ -8324,7 +8324,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "劇集"
+            "value" : "影集"
           }
         }
       }
@@ -8411,7 +8411,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重新登入以在此審批請求。"
+            "value" : "重新登入以在此核准請求。"
           }
         }
       }
@@ -8440,7 +8440,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重新登入以請求電影和劇集"
+            "value" : "重新登入以請求電影和影集"
           }
         }
       }
@@ -8469,7 +8469,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重新登入以允許 Pley 請求電影和劇集。"
+            "value" : "重新登入以允許 Pley 請求電影和影集。"
           }
         }
       }
@@ -8962,7 +8962,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TMDB 的列表中沒有此帳戶可請求的內容。"
+            "value" : "TMDB 的清單中沒有此帳戶可請求的內容。"
           }
         }
       }
@@ -8991,7 +8991,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "TMDB 的列表中沒有此帳戶可請求的內容。請改為搜尋標題。"
+            "value" : "TMDB 的清單中沒有此帳戶可請求的內容。請改為搜尋標題。"
           }
         }
       }
@@ -9223,7 +9223,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此伺服器不接受電影和劇集請求。"
+            "value" : "此伺服器不接受電影和影集請求。"
           }
         }
       }
@@ -9890,7 +9890,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "撤回你對“%@”的請求？"
+            "value" : "撤回你對「%@」的請求？"
           }
         }
       }
@@ -10151,7 +10151,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”就緒時會通知你。"
+            "value" : "「%@」就緒時會通知你。"
           }
         }
       }
@@ -10412,7 +10412,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "以 %@ 身份"
+            "value" : "以 %@ 身分"
           }
         }
       }
@@ -10504,7 +10504,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld 天后"
+                  "value" : "%lld 天後"
                 }
               }
             }
@@ -12065,7 +12065,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”無法傳送到 Radarr。"
+            "value" : "「%@」無法傳送到 Radarr。"
           }
         }
       }
@@ -12094,7 +12094,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”無法傳送到 Radarr：%@"
+            "value" : "「%@」無法傳送到 Radarr：%@"
           }
         }
       }
@@ -12123,7 +12123,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”無法傳送到 Sonarr。"
+            "value" : "「%@」無法傳送到 Sonarr。"
           }
         }
       }
@@ -12152,7 +12152,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”無法傳送到 Sonarr：%@"
+            "value" : "「%@」無法傳送到 Sonarr：%@"
           }
         }
       }
@@ -12181,7 +12181,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”已批准，正在處理中。"
+            "value" : "「%@」已批准，正在處理中。"
           }
         }
       }
@@ -12210,7 +12210,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”已可觀看。"
+            "value" : "「%@」已可觀看。"
           }
         }
       }
@@ -12239,7 +12239,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”已獲批准。"
+            "value" : "「%@」已獲批准。"
           }
         }
       }
@@ -12268,7 +12268,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”已被拒絕。"
+            "value" : "「%@」已被拒絕。"
           }
         }
       }
@@ -12297,7 +12297,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”已被拒絕：“%@”。"
+            "value" : "「%@」已被拒絕：「%@」。"
           }
         }
       }

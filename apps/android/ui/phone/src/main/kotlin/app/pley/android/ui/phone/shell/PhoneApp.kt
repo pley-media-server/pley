@@ -244,8 +244,9 @@ private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
             }
         }
         launch {
-            val music = withContext(Dispatchers.Default) { g.player.music.nowPlaying }
-            music.collect { shell.nowPlaying = it }
+            val music = withContext(Dispatchers.Default) { g.player.music }
+            shell.music = music
+            music.nowPlaying.collect { shell.nowPlaying = it }
         }
         launch {
             // The profile's other devices, for the remote: read while the app shows.

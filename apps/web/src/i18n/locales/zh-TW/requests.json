@@ -26,7 +26,7 @@
   },
   "off": {
     "title": "請求功能已關閉",
-    "text": "開啟後，使用者可以請求電影和劇集，你批准的內容會發送到 Radarr 和 Sonarr。",
+    "text": "開啟後，使用者可以請求電影和影集，你批准的內容會發送到 Radarr 和 Sonarr。",
     "setUp": "設定請求功能"
   },
   "discover": {
@@ -34,20 +34,20 @@
     "lists": {
       "trending": "本週熱門",
       "movies": "熱門電影",
-      "shows": "熱門劇集",
+      "shows": "熱門影集",
       "upcoming": "即將上映",
       "anime": "熱門動漫"
     },
     "backToSearch": "返回搜尋",
-    "resultsFor": "“{{query}}”的搜尋結果",
+    "resultsFor": "「{{query}}」的搜尋結果",
     "searchFailed": "無法搜尋 TMDB",
-    "nothingFound": "TMDB 上沒有“{{query}}”",
+    "nothingFound": "TMDB 上沒有「{{query}}」",
     "nothingFoundHint": "換一種拼寫，或使用標題的原語言試試。",
     "backToDiscover": "返回發現",
     "emptyList": "這裡暫時沒有內容",
     "emptyListAgeLimit": "TMDB 在此列出的內容超出了此設定檔的年齡限制。",
-    "emptyListToday": "TMDB 今天在此列表中沒有內容。",
-    "trendingNow": "當前熱門",
+    "emptyListToday": "TMDB 今天在此清單中沒有內容。",
+    "trendingNow": "目前熱門",
     "moreAboutIt": "瞭解更多",
     "waiting_other": "等待中",
     "loadFailed": "無法載入發現頁",
@@ -64,7 +64,7 @@
       "mine": "我的"
     },
     "statusGroup": "狀態",
-    "kindGroup": "型別",
+    "kindGroup": "類型",
     "all": "全部",
     "statuses": {
       "pending": "待處理",
@@ -74,15 +74,15 @@
       "failed": "失敗"
     },
     "movies": "電影",
-    "shows": "劇集",
+    "shows": "影集",
     "whoAsked": "請求者",
     "everyone": "所有人",
-    "findTitle": "查詢標題",
+    "findTitle": "搜尋標題",
     "searchLabel": "標題包含以下內容的請求",
     "clearFilters": "清除篩選",
     "attentionHint": "新請求和傳送失敗的請求會顯示在這裡。",
     "seeAll": "檢視所有請求",
-    "findSomething": "查詢想請求的內容",
+    "findSomething": "搜尋想請求的內容",
     "empty": {
       "match": "沒有符合條件的請求。",
       "attention": "沒有需要你處理的內容。",
@@ -109,8 +109,8 @@
     "picked_other": "已選 {{count}} 個請求",
     "approved_other": "已批准 {{count}} 個請求。",
     "declined_other": "已拒絕 {{count}} 個請求。",
-    "approvedSome": "已批准 {{done}} / {{total}}。“{{title}}”：{{error}}",
-    "declinedSome": "已拒絕 {{done}} / {{total}}。“{{title}}”：{{error}}",
+    "approvedSome": "已批准 {{done}} / {{total}}。「{{title}}」：{{error}}",
+    "declinedSome": "已拒絕 {{done}} / {{total}}。「{{title}}」：{{error}}",
     "declineTitle_other": "拒絕 {{count}} 個請求？",
     "reasonHint": "可選。請求者可以看到。"
   },
@@ -127,22 +127,22 @@
     "declinedBy": "由 {{name}} 拒絕",
     "declinedWhen": "於 <when/> 拒絕",
     "declinedByWhen": "由 {{name}} 於 <when/> 拒絕",
-    "reason": "：“{{reason}}”",
+    "reason": "：「{{reason}}」",
     "sentTo": "已傳送至 {{where}}",
     "outOfReach": "已就緒，但位於你無法存取的媒體庫中：聯絡管理員"
   },
   "actions": {
     "more": "{{title}} 的更多操作",
-    "markedByHand": "“{{title}}”已標記為手動新增。",
-    "unfollowed": "你不會再收到關於“{{title}}”的通知。",
+    "markedByHand": "「{{title}}」已標記為手動新增。",
+    "unfollowed": "你不會再收到關於「{{title}}」的通知。",
     "deleteText": "所有請求或關注 <strong>{{title}}</strong> 的人都將失去它。Radarr 和 Sonarr 會保留已有內容。",
     "askAgain": "可以再次請求。",
     "noMore": "不能再次請求。",
     "noMoreUnlessFollowed": "不能再次請求，除非關注者保留它。"
   },
   "approve": {
-    "title": "批准“{{title}}”",
-    "retryTitle": "重試“{{title}}”",
+    "title": "批准「{{title}}」",
+    "retryTitle": "重試「{{title}}」",
     "withSettings": "按設定中的選項批准",
     "retryWithSettings": "按設定中的選項重試",
     "notConnected": "{{service}} 未連線",
@@ -155,10 +155,10 @@
     "goneProfile": "設定檔 {{id}}（已不存在）",
     "goneFolder": "{{folder}}（已不存在）",
     "freeSpace": "{{path}}（剩餘 {{free}}）",
-    "seasonsHint": "未選中的季會從請求中移除，之後可以再次請求。"
+    "seasonsHint": "未選取的季會從請求中移除，之後可以再次請求。"
   },
   "decline": {
-    "title": "拒絕“{{title}}”？",
+    "title": "拒絕「{{title}}」？",
     "nameHears": "{{name}} 會收到被拒絕的通知，如果你填寫原因，也會一併看到。",
     "someoneHears": "請求者會收到被拒絕的通知，如果你填寫原因，也會一併看到。",
     "followersHear": "關注者也會收到通知，但不包含原因。",
@@ -171,7 +171,7 @@
     "inLibrary": "在媒體庫中",
     "requestMoreSeasons": "請求更多季",
     "notOpen": "此帳戶未開放請求。",
-    "signInToAsk": "重新登入以請求電影和劇集",
+    "signInToAsk": "重新登入以請求電影和影集",
     "requested": "已請求",
     "following": "已關注",
     "stopFollowing": "取消關注",

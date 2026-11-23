@@ -189,6 +189,8 @@ describes how they are made.
 
 ### Fixed
 
+- A video whose audio the TV can't decode plays with the audio converted
+  by the server, or another track, instead of failing after a transcode.
 - A collection's page shows its titles under Play and Shuffle, where they
   were drawn below the screen.
 - Live TV's channel up or down, still finding the next channel when another
@@ -237,6 +239,9 @@ describes how they are made.
   its page as from Home and Continue Watching: the one this TV plays
   best, unless you pick another. The page's badges and tracks are that
   version's.
+- Traditional Chinese uses the words people use in Taiwan, such as 影集 for
+  a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
+  for an item and 設定檔 for a Dolby Vision profile, and quotes with 「」.
 
 ## [0.0.1] - 2026-10-29
 

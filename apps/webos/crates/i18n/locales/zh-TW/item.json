@@ -23,8 +23,8 @@
     "partOf": "{{collection}} 的一部分"
   },
   "rows": {
-    "episodes": "分集",
-    "noEpisodes": "未找到分集。",
+    "episodes": "單集",
+    "noEpisodes": "未找到單集。",
     "extras": "花絮",
     "moreLikeThis": "更多類似內容",
     "cast": "演員",
@@ -83,7 +83,7 @@
     "playFromStart": "從頭播放",
     "removeFromContinueWatching": "從繼續觀看中移除",
     "removeFromMyList": "從我的片單移除",
-    "goToShow": "前往劇集",
+    "goToShow": "前往影集",
     "goToSeason": "前往季"
   },
   "states": {
@@ -110,7 +110,7 @@
     "seasons_other": "{{count, number}} 季",
     "episodes_other": "{{count, number}} 集",
     "movies_other": "{{count, number}} 部電影",
-    "shows_other": "{{count, number}} 部劇集"
+    "shows_other": "{{count, number}} 部影集"
   },
   "person": {
     "acting": "表演",

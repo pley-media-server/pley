@@ -102,6 +102,19 @@ public static class PlaybackPlan
     }
 
     /// <summary>
+    /// The audio the TV's player starts <paramref name="file"/> with, before the app switches: the
+    /// default, else the first, of the tracks it lists. It leaves out <see cref="TizenCaps.PlayerLeavesOut"/>,
+    /// so a remux whose first track is TrueHD starts on the one after it.
+    /// </summary>
+    public static MediaStream? StartingAudio(MediaFile? file)
+    {
+        var audio = AudioStreams(file);
+        var listed = audio.Where(s => !TizenCaps.PlayerLeavesOut.Contains(s.Codec.ToLowerInvariant())).ToList();
+        if (listed.Count == 0) listed = audio.ToList();
+        return listed.FirstOrDefault(s => s.Default) ?? listed.FirstOrDefault();
+    }
+
+    /// <summary>
     /// The audio the item's details give: the profile's choice (<c>selected_audio</c>, which its
     /// defaults fill in), else the file's default, else the first.
     /// </summary>
@@ -148,6 +161,27 @@ public static class PlaybackPlan
         if (stream == null || caps == null) return true;
         var codec = stream.Codec.ToLowerInvariant();
         return caps.AudioCodecs.Concat(caps.AudioDecode).Concat(caps.AudioPassthrough).Any(c => string.Equals(c, codec, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>The report's lists of audio this TV decodes or sends on as it is.</summary>
+    static readonly string[] AudioLists = { "audio_codecs", "audio_decode", "audio_passthrough" };
+
+    /// <summary>
+    /// <paramref name="report"/> as the server is told of it for one item: without the audio codecs this TV failed
+    /// to play in it (<paramref name="refusedAudio"/>, the server's names), decoded or sent on, so the server plays
+    /// another track as it is or converts them. The report itself when none is refused.
+    /// </summary>
+    public static IReadOnlyDictionary<string, object?> CapsFor(IReadOnlyDictionary<string, object?> report, IReadOnlyCollection<string> refusedAudio)
+    {
+        if (refusedAudio.Count == 0) return report;
+        var told = new Dictionary<string, object?>();
+        foreach (var pair in report)
+        {
+            told[pair.Key] = AudioLists.Contains(pair.Key) && pair.Value is IEnumerable<string> codecs
+                ? codecs.Where(c => !refusedAudio.Contains(c.ToLowerInvariant())).ToArray()
+                : pair.Value;
+        }
+        return told;
     }
 
     /// <summary>Whether this TV opens <paramref name="file"/>'s container as it is.</summary>

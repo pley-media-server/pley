@@ -1121,6 +1121,9 @@ pub async fn keyed_media(
         });
     };
     let gone = || AppError::not_found("playback session expired");
+    if let Some(slot) = request.extensions().get::<Arc<crate::traffic::Slot>>() {
+        slot.name(&session.username, || session.device.clone().unwrap_or_default());
+    }
     let mut user = AuthUser::load(&state.db, session.user_id).await?.ok_or_else(gone)?;
     if let Some(grant) = session.app_grant {
         // Signed out since: the key goes with the token.

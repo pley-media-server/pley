@@ -162,6 +162,10 @@ export interface LiveSource {
   /** 0: no limit. */
   max_connections: number;
   enabled: boolean;
+  /** Its groups listed A to Z, not in the provider's order. */
+  sort_groups: boolean;
+  /** Its channels play on another source with this too, which has the same channel, when it's full. */
+  failover: boolean;
   created_at: Timestamp;
   channels_at: Timestamp | null;
   channels_error: string | null;
@@ -186,6 +190,8 @@ export interface SourceInput {
   user_agent: string;
   max_connections: number;
   enabled: boolean;
+  sort_groups: boolean;
+  failover: boolean;
 }
 
 export interface SourceTest {

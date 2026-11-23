@@ -130,6 +130,24 @@ public class PlaybackPlanTests
     }
 
     [Fact]
+    public void Audio_refused_after_it_failed_leaves_the_report_decoded_or_passed_through()
+    {
+        var report = TizenCaps.Of(new TizenFacts { OutputMode = "DOLBY_DIGITAL_PLUS" });
+        var told = PlaybackPlan.CapsFor(report, new[] { "ac3", "flac" });
+        foreach (var list in new[] { "audio_codecs", "audio_decode", "audio_passthrough" })
+        {
+            var codecs = (IEnumerable<string>)told[list]!;
+            Assert.DoesNotContain("ac3", codecs);
+            Assert.DoesNotContain("flac", codecs);
+            Assert.Contains("eac3", codecs);
+        }
+        Assert.Equal(new[] { "eac3" }, (IEnumerable<string>)told["audio_passthrough"]!);
+        Assert.Same(report["video"], told["video"]);
+        Assert.False(PlaybackPlan.AudioPlaysHere(Ac3, ClientCaps.Of(told)));
+        Assert.Same(report, PlaybackPlan.CapsFor(report, new string[0]));
+    }
+
+    [Fact]
     public void Automatic_audio_is_named_to_no_server_even_for_a_stream()
     {
         var trueHd = new MediaStream { Index = 1, Kind = "audio", Codec = "truehd", Language = "eng", Default = true, Channels = 8 };

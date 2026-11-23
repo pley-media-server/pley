@@ -13,7 +13,7 @@
     <string name="requests_manage">請求</string>
     <string name="requests_attention">需要處理</string>
     <!-- Under Discover's way in (search, Me). -->
-    <string name="requests_discover_hint">查詢想請求的電影和劇集</string>
+    <string name="requests_discover_hint">搜尋想請求的電影和影集</string>
     <!-- Under Requests' way in, for managers. -->
     <string name="requests_manage_hint">批准、拒絕並跟進大家的請求</string>
     <!-- The number on the way into requests, said: "3 requests need you, 1 couldn't be sent". -->
@@ -28,13 +28,13 @@
     <!-- Discover's rows, in their order. -->
     <string name="requests_row_trending">本週熱門</string>
     <string name="requests_row_movies">熱門電影</string>
-    <string name="requests_row_shows">熱門劇集</string>
+    <string name="requests_row_shows">熱門影集</string>
     <string name="requests_row_upcoming">即將上映</string>
     <string name="requests_row_anime">熱門動漫</string>
-    <string name="requests_search_none">TMDB 上沒有匹配“%1$s”的內容</string>
+    <string name="requests_search_none">TMDB 上沒有符合「%1$s」的內容</string>
     <string name="requests_search_none_body">換一種拼寫，或使用標題的原語言試試。</string>
     <string name="requests_kind_movie">電影</string>
-    <string name="requests_kind_show">劇集</string>
+    <string name="requests_kind_show">影集</string>
 
     <!-- Badges on posters. -->
     <string name="requests_badge_library">已在媒體庫</string>
@@ -52,16 +52,16 @@
     <string name="requests_asked_already">已經有人請求過了。</string>
     <string name="requests_more_seasons">請求更多季</string>
     <!-- "Declined: “Not on our servers”. You can ask again in 12 days." -->
-    <string name="requests_declined_reason">已拒絕：“%1$s”。%2$s 可以再次請求。</string>
+    <string name="requests_declined_reason">已拒絕：「%1$s」。%2$s 可以再次請求。</string>
     <string name="requests_declined_plain">已拒絕。%1$s 可以再次請求。</string>
-    <string name="requests_declined_reason_only">已拒絕：“%1$s”。</string>
+    <string name="requests_declined_reason_only">已拒絕：「%1$s」。</string>
     <string name="requests_declined_only">已拒絕。</string>
     <string name="requests_ready_elsewhere">已就緒，但位於你無法存取的媒體庫中：請聯絡管理員</string>
     <string name="requests_watch">觀看</string>
     <string name="requests_details">詳情</string>
 
     <!-- Stage pills. -->
-    <string name="requests_stage_pending">等待審批</string>
+    <string name="requests_stage_pending">等待核准</string>
     <string name="requests_stage_approved">已批准</string>
     <!-- "Out Nov 4": a movie's release. -->
     <string name="requests_stage_out">%1$s 上線</string>
@@ -104,7 +104,7 @@
         <item quantity="other">%1$d 小時後</item>
     </plurals>
     <plurals name="requests_in_days">
-        <item quantity="other">%1$d 天后</item>
+        <item quantity="other">%1$d 天後</item>
     </plurals>
 
     <!-- Allowance. -->
@@ -133,10 +133,10 @@
     <string name="requests_all_for_now">目前你能請求的都已請求完。</string>
 
     <!-- Asking. -->
-    <string name="requests_asked_pending">已請求“%1$s”：由管理員決定。</string>
-    <string name="requests_asked_approved">“%1$s”已批准，正在處理。</string>
-    <string name="requests_asked_failed">已請求“%1$s”，但暫時無法傳送到下載。</string>
-    <string name="requests_asked_following">“%1$s”就緒時會通知你。</string>
+    <string name="requests_asked_pending">已請求「%1$s」：由管理員決定。</string>
+    <string name="requests_asked_approved">「%1$s」已批准，正在處理。</string>
+    <string name="requests_asked_failed">已請求「%1$s」，但暫時無法傳送到下載。</string>
+    <string name="requests_asked_following">「%1$s」就緒時會通知你。</string>
     <string name="requests_picker_title">選擇哪些季？</string>
     <plurals name="requests_picker_request">
         <item quantity="other">請求 %1$d 季</item>
@@ -159,9 +159,9 @@
 
     <!-- Actions on a request. -->
     <string name="requests_withdraw">撤回</string>
-    <string name="requests_withdraw_confirm">撤回對“%1$s”的請求？</string>
+    <string name="requests_withdraw_confirm">撤回對「%1$s」的請求？</string>
     <string name="requests_remove">移除</string>
-    <string name="requests_remove_confirm">從你的請求中移除“%1$s”？</string>
+    <string name="requests_remove_confirm">從你的請求中移除「%1$s」？</string>
     <string name="requests_approve">批准</string>
     <string name="requests_approve_with">批准…</string>
     <string name="requests_try_again">重試</string>
@@ -174,7 +174,7 @@
     <string name="requests_cancel">取消</string>
 
     <!-- The managers' dialogs. -->
-    <string name="requests_approve_title">批准“%1$s”</string>
+    <string name="requests_approve_title">批准「%1$s」</string>
     <string name="requests_approve_profile">品質設定</string>
     <string name="requests_approve_folder">資料夾</string>
     <string name="requests_approve_seasons">季</string>
@@ -182,7 +182,7 @@
     <string name="requests_approve_default">與設定中一致</string>
     <!-- "1.2 TB free". -->
     <string name="requests_folder_free">剩餘 %1$s</string>
-    <string name="requests_decline_title">拒絕“%1$s”？</string>
+    <string name="requests_decline_title">拒絕「%1$s」？</string>
     <string name="requests_decline_reason">原因（可選）</string>
     <string name="requests_decline_reason_hint">請求者會看到。</string>
 
@@ -194,21 +194,21 @@
     <string name="requests_filter_declined">已拒絕</string>
     <string name="requests_filter_failed">失敗</string>
     <string name="requests_filter_movies">電影</string>
-    <string name="requests_filter_shows">劇集</string>
+    <string name="requests_filter_shows">影集</string>
     <string name="requests_filter_everyone">所有人</string>
     <string name="requests_filter_mine">你的</string>
     <string name="requests_filter_title">搜尋請求</string>
     <!-- A view with how many it holds: "Pending · 2". -->
     <string name="requests_filter_count">%1$s · %2$d</string>
     <string name="requests_none_title">還沒有人請求任何內容</string>
-    <string name="requests_none_body">在“發現”中查詢電影和劇集，請求媒體庫中還沒有的內容。</string>
+    <string name="requests_none_body">在「發現」中搜尋電影和影集，請求媒體庫中還沒有的內容。</string>
     <string name="requests_none_body_off">你發起或關注的請求會顯示在這裡。</string>
     <string name="requests_attention_none">沒有需要你處理的內容</string>
-    <string name="requests_attention_none_body">等待審批的請求和傳送失敗的請求會顯示在這裡。</string>
+    <string name="requests_attention_none_body">等待核准的請求和傳送失敗的請求會顯示在這裡。</string>
     <string name="requests_filtered_none">沒有符合條件的請求</string>
     <string name="requests_filtered_none_body">試試其他篩選條件。</string>
     <!-- Why it was declined, in the words of whoever declined it. -->
-    <string name="requests_reason_quoted">“%1$s”</string>
+    <string name="requests_reason_quoted">「%1$s」</string>
     <plurals name="requests_watchers">
         <item quantity="other">%1$d 人關注</item>
     </plurals>
@@ -217,23 +217,23 @@
     <string name="requests_sent_to_sonarr" translatable="false">Sonarr</string>
 
     <!-- Notices. -->
-    <string name="requests_notice_ready">“%1$s”可以觀看了。</string>
+    <string name="requests_notice_ready">「%1$s」可以觀看了。</string>
     <!-- "Season 2 of “Severance” is ready to watch." -->
-    <string name="requests_notice_season_ready">“%2$s”的 %1$s 可以觀看了。</string>
-    <string name="requests_notice_seasons_ready">“%2$s”的 %1$s 可以觀看了。</string>
+    <string name="requests_notice_season_ready">「%2$s」的 %1$s 可以觀看了。</string>
+    <string name="requests_notice_seasons_ready">「%2$s」的 %1$s 可以觀看了。</string>
     <!-- The specials alone. -->
-    <string name="requests_notice_specials_ready">“%1$s”的特別篇可以觀看了。</string>
-    <string name="requests_notice_approved">“%1$s”已獲批准。</string>
-    <string name="requests_notice_declined_reason">“%1$s”已被拒絕：“%2$s”。</string>
-    <string name="requests_notice_declined">“%1$s”已被拒絕。</string>
+    <string name="requests_notice_specials_ready">「%1$s」的特別篇可以觀看了。</string>
+    <string name="requests_notice_approved">「%1$s」已獲批准。</string>
+    <string name="requests_notice_declined_reason">「%1$s」已被拒絕：「%2$s」。</string>
+    <string name="requests_notice_declined">「%1$s」已被拒絕。</string>
     <!-- Managers: "Ann asked for “Arcane” (Seasons 1–3)." -->
-    <string name="requests_notice_asked_seasons">%1$s 請求了“%2$s”（%3$s）。</string>
-    <string name="requests_notice_asked">%1$s 請求了“%2$s”。</string>
+    <string name="requests_notice_asked_seasons">%1$s 請求了「%2$s」（%3$s）。</string>
+    <string name="requests_notice_asked">%1$s 請求了「%2$s」。</string>
     <string name="requests_notice_someone">有人</string>
-    <string name="requests_notice_failed_radarr">“%1$s”無法傳送到 Radarr：%2$s</string>
-    <string name="requests_notice_failed_sonarr">“%1$s”無法傳送到 Sonarr：%2$s</string>
-    <string name="requests_notice_failed_radarr_plain">“%1$s”無法傳送到 Radarr。</string>
-    <string name="requests_notice_failed_sonarr_plain">“%1$s”無法傳送到 Sonarr。</string>
+    <string name="requests_notice_failed_radarr">「%1$s」無法傳送到 Radarr：%2$s</string>
+    <string name="requests_notice_failed_sonarr">「%1$s」無法傳送到 Sonarr：%2$s</string>
+    <string name="requests_notice_failed_radarr_plain">「%1$s」無法傳送到 Radarr。</string>
+    <string name="requests_notice_failed_sonarr_plain">「%1$s」無法傳送到 Sonarr。</string>
     <plurals name="requests_notice_news">
         <item quantity="other">你的 %1$d 個請求有新動態</item>
     </plurals>
@@ -247,15 +247,15 @@
 
     <!-- When requests can't be used. -->
     <string name="requests_off_title">請求功能已關閉</string>
-    <string name="requests_off_body">此伺服器不接受電影和劇集請求。</string>
+    <string name="requests_off_body">此伺服器不接受電影和影集請求。</string>
     <string name="requests_no_access_title">此帳戶未開放請求功能</string>
-    <string name="requests_no_access_body">管理員可以允許此帳戶請求電影和劇集。</string>
+    <string name="requests_no_access_body">管理員可以允許此帳戶請求電影和影集。</string>
     <string name="requests_tmdb_down">TMDB 沒有回應</string>
     <string name="requests_tmdb_down_body">它恢復回應後，詳情和圖片就會回來。</string>
     <string name="requests_tmdb_key">TMDB 拒絕了此伺服器的金鑰</string>
     <string name="requests_tmdb_key_manage">請在 設定 → 伺服器 中修復（在網頁版中）。</string>
     <string name="requests_tmdb_key_others">需要管理員檢查。</string>
-    <string name="requests_sign_in_title">重新登入以請求電影和劇集</string>
+    <string name="requests_sign_in_title">重新登入以請求電影和影集</string>
     <string name="requests_sign_in_approvals">重新登入以在此批准或拒絕請求。</string>
     <string name="requests_sign_in">登入</string>
     <string name="requests_not_found">TMDB 上沒有此標題</string>
@@ -264,7 +264,7 @@
     <!-- Where Request would be, with access "off". -->
     <string name="requests_no_access_line">此帳戶未開放請求功能。</string>
     <!-- Any other failure, over the error's own sentence. -->
-    <string name="requests_discover_failed">無法載入“發現”</string>
+    <string name="requests_discover_failed">無法載入「發現」</string>
     <string name="requests_search_failed">無法搜尋 TMDB</string>
     <string name="requests_title_failed">無法載入此標題</string>
     <string name="requests_list_failed">無法載入請求</string>
@@ -277,7 +277,7 @@
     <!-- Global search. -->
     <string name="requests_search_row">發現</string>
     <string name="requests_see_all">檢視全部</string>
-    <string name="requests_nothing_in_libraries">你的媒體庫中沒有匹配的內容</string>
+    <string name="requests_nothing_in_libraries">你的媒體庫中沒有相符的內容</string>
 
     <!-- Credits. -->
     <string name="requests_credit">詳情和圖片來自 TMDB。</string>

@@ -16,6 +16,7 @@ import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.extractor.metadata.Chapter as ContainerChapter
+import app.pley.android.caps.Codecs
 import app.pley.android.model.Chapter
 import app.pley.android.model.DynamicRange
 import app.pley.android.model.PleyJson
@@ -317,9 +318,13 @@ class Media3EngineLink(override val engine: PlayerEngine, private val texts: Pla
                     EngineError.Unsupported(audio = false, container = true, detail = detail)
                 code in DECODER_ERRORS -> {
                     val mime = (error as? ExoPlaybackException)?.rendererFormat?.sampleMimeType
-                    EngineError.Unsupported(audio = MimeTypes.isAudio(mime), container = false, detail = detail)
+                    val audio = MimeTypes.isAudio(mime)
+                    EngineError.Unsupported(audio = audio, container = false, detail = detail, audioCodec = if (audio) Codecs.audioCodecOf(mime) else null)
                 }
-                code in AUDIO_OUTPUT_ERRORS -> EngineError.Unsupported(audio = true, container = false, detail = detail)
+                code in AUDIO_OUTPUT_ERRORS -> {
+                    val mime = (error as? ExoPlaybackException)?.rendererFormat?.sampleMimeType
+                    EngineError.Unsupported(audio = true, container = false, detail = detail, audioCodec = Codecs.audioCodecOf(mime), output = true)
+                }
                 code in NETWORK_ERRORS -> EngineError.Network(detail)
                 else -> EngineError.Other(detail)
             }

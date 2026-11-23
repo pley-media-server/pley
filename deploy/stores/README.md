@@ -25,7 +25,7 @@ recreates.
 
 | Phone | TV |
 |---|---|
-| `phone-1-home` Home: Continue Watching, My List | `tv-1-home` Home |
+| `phone-1-home` Home: the banner, Continue Watching | `tv-1-home` Home: Continue Watching, My List |
 | `phone-2-movie` A film's page | `tv-2-library` The Movies library |
 | `phone-3-library` The Movies library | `tv-3-movie` A film's page |
 | `phone-4-show` A show's page | `tv-4-episodes` A season's episodes |

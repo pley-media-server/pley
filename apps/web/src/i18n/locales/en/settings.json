@@ -826,7 +826,17 @@
     "processors_one": "{{count}} processor",
     "processors_other": "{{count}} processors",
     "memory": "Memory",
-    "inAll": "{{size}} in all"
+    "inAll": "{{size}} in all",
+    "network": "Network",
+    "fastest": "Fastest {{speed}}",
+    "pleyNetworkHint": "What Pley sends its apps and browsers",
+    "upload": "Upload",
+    "download": "Download",
+    "clients": "Clients",
+    "clientCount_one": "{{count}} now",
+    "clientCount_other": "{{count}} now",
+    "noClients": "Pley isn't sending anything right now.",
+    "others": "Others"
   },
   "storage": {
     "title": "Storage",

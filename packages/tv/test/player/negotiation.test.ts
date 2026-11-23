@@ -4,7 +4,20 @@ import type { ClientCaps, ItemDetail, MediaFile, MediaStream, PlaybackInfo, Play
 import type { KeyValue } from "../../src/auth/tokens";
 import { PlaybackController, type PlayerEnv } from "../../src/player/controller";
 import type { EngineListener, EngineSource, EngineStatus, PlayerEngine } from "../../src/player/engine";
-import { dvContainerMode, dvRetryMode, initialAudio, initialSubtitle, pictureUrlAt, playbackRequest, playingAudio, withTracks, type Choices, type PlayRequest } from "../../src/player/plan";
+import {
+  audioPlaysHere,
+  dvContainerMode,
+  dvRetryMode,
+  initialAudio,
+  initialSubtitle,
+  pictureUrlAt,
+  playbackRequest,
+  playingAudio,
+  withoutAudio,
+  withTracks,
+  type Choices,
+  type PlayRequest,
+} from "../../src/player/plan";
 import { storedMemory, type Remembered } from "../../src/player/autoquality";
 import type { NetworkMemory } from "../../src/player/network";
 import { ORIGINAL } from "../../src/player/quality";
@@ -187,6 +200,14 @@ describe("the play request", () => {
     expect(playbackRequest(70, choices({ subtitle: pgs, streaming: true, sideload: true }), "c", LG, true).subtitle_index).toBeUndefined();
     expect(playbackRequest(70, choices({ subtitle: pgs, streaming: true, sideload: false }), "c", LG, true).subtitle_index).toBe(3);
     expect(playbackRequest(70, choices({ subtitle: f.streams[4]!, streaming: true, sideload: false }), "c", LG, true).subtitle_index).toBeUndefined();
+  });
+
+  it("leaves out audio refused after it failed, decoded or passed through", () => {
+    const refused = withoutAudio(LG, ["ac3", "flac"])!;
+    expect([refused.audio_codecs, refused.audio_decode, refused.audio_passthrough]).toEqual([["aac", "eac3"], ["aac", "eac3"], ["eac3"]]);
+    expect(audioPlaysHere(stream({ kind: "audio", codec: "ac3" }), refused)).toBe(false);
+    expect(withoutAudio(LG, [])).toBe(LG);
+    expect(withoutAudio(null, ["ac3"])).toBeNull();
   });
 });
 
@@ -500,8 +521,11 @@ describe("a playback session", () => {
     c.close();
   });
 
+  /** AAC is the server's last resort when it converts: there is nothing to leave out, so an AAC failure goes down the ladder. */
   it("starts one session when AVPlay says one failure twice", async () => {
-    const w = world(item(file()), (req) =>
+    const f = file();
+    f.streams[1] = stream({ index: 1, kind: "audio", codec: "aac", language: "eng", channels: 2 });
+    const w = world(item(f), (req) =>
       info(req.mode === "auto" ? {} : { session_id: "s2", method: req.mode === "remux" ? "remux" : "transcode", hls: true, url: "/api/media/pley_mk_KEY2/master.m3u8" }),
     );
     const c = new PlaybackController({ itemId: 70 }, w.env, 0);
@@ -512,9 +536,101 @@ describe("a playback session", () => {
     w.engine.listener?.error({ kind: "unsupported", audio: true, container: false, detail: "audio" });
     await new Promise((r) => setTimeout(r, 2_200));
     expect(w.requests.map((r) => r.mode)).toEqual(["auto", "remux"]);
+    expect(w.requests[1]!.caps).toEqual(w.requests[0]!.caps);
+    expect(c.state.value.note).toBe("This device couldn't play the original file.");
     c.close();
   });
 
+  it("asks again in the same mode without the audio the TV failed to play, and the server converts it", async () => {
+    // The server copies E-AC-3 in any mode while the TV lists it; left out, it converts it.
+    const w = world(item(file()), (req) =>
+      req.caps.audio_codecs.indexOf("eac3") >= 0
+        ? info()
+        : info({ session_id: "s2", method: "remux", hls: true, url: "/api/media/pley_mk_KEY2/master.m3u8", audio_converted: true }),
+    );
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    // AVPlay doesn't say which codec: the file's track that plays (E-AC-3) is the one.
+    w.engine.listener?.error({ kind: "unsupported", audio: true, container: false, detail: "PLAYER_ERROR_NOT_SUPPORTED_FORMAT audio" });
+    await new Promise((r) => setTimeout(r, 2_200));
+    const again = w.requests[1]!;
+    // The same mode, not a remux that would copy the same E-AC-3 again.
+    expect(again.mode).toBe("auto");
+    expect([again.caps.audio_codecs, again.caps.audio_decode, again.caps.audio_passthrough]).toEqual([["aac", "ac3"], ["aac", "ac3"], ["ac3"]]);
+    expect(w.engine.prepared[1]).toMatchObject({ hls: true, audioCodec: null });
+    expect(c.state.value.note).toBe("This device couldn't play the original audio.");
+    expect(c.state.value.method).toBe("Direct stream · Audio transcoding");
+
+    // Its video fails next: the ladder goes on, still without E-AC-3.
+    w.engine.listener?.error({ kind: "unsupported", audio: false, container: false, detail: "decoder" });
+    await new Promise((r) => setTimeout(r, 2_200));
+    expect(w.requests.map((r) => r.mode)).toEqual(["auto", "auto", "transcode"]);
+    expect(w.requests[2]!.caps.audio_codecs).toEqual(["aac", "ac3"]);
+    c.close();
+  });
+
+  it("plays another track as it is once the audio is refused, and the refused one picked is converted", async () => {
+    const f = file();
+    f.streams[2] = stream({ index: 2, kind: "audio", codec: "ac3", language: "eng", channels: 6, default: false });
+    // With E-AC-3 listed the server plays it; without, the AC-3 beside it, as it is.
+    const w = world(item(f), (req) =>
+      req.caps.audio_codecs.indexOf("eac3") >= 0
+        ? info()
+        : req.audio_index === 1
+          ? info({ session_id: "s3", method: "remux", hls: true, url: "/api/media/pley_mk_KEY3/master.m3u8", audio_index: 1, audio_converted: true })
+          : info({ session_id: "s2", audio_index: 2 }),
+    );
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    w.engine.listener?.error({ kind: "unsupported", audio: true, container: false, detail: "audio" });
+    await new Promise((r) => setTimeout(r, 2_200));
+    expect(w.requests.map((r) => [r.mode, r.audio_index])).toEqual([
+      ["auto", undefined],
+      ["auto", undefined],
+    ]);
+    expect(w.engine.prepared[1]).toMatchObject({ hls: false, audioCodec: "ac3" });
+    expect(w.engine.switched[w.engine.switched.length - 1]).toBe(1);
+    // The E-AC-3 picked again isn't switched to in place: the server converts it.
+    const switches = w.engine.switched.length;
+    c.selectAudio(1);
+    await new Promise((r) => setTimeout(r, 2_200));
+    expect(w.engine.switched.length).toBe(switches);
+    expect(w.requests.map((r) => r.audio_index)).toEqual([undefined, undefined, 1]);
+    expect(w.requests[2]!.caps.audio_codecs).toEqual(["aac", "ac3"]);
+    c.close();
+  });
+
+  it("goes down the ladder for audio the server converted, and for a codec the capabilities didn't list", async () => {
+    // A remux whose audio the server converted: the file's E-AC-3 never reached the TV.
+    const converted = world(item(file()), (req) =>
+      req.mode === "auto"
+        ? info({ method: "remux", hls: true, url: "/api/media/pley_mk_KEY/master.m3u8", audio_converted: true })
+        : info({ session_id: "s2", method: "transcode", hls: true, url: "/api/media/pley_mk_KEY2/master.m3u8" }),
+    );
+    const c = new PlaybackController({ itemId: 70 }, converted.env, 0);
+    c.start();
+    await settle();
+    converted.engine.listener?.error({ kind: "unsupported", audio: true, container: false, detail: "audio" });
+    await new Promise((r) => setTimeout(r, 2_200));
+    expect(converted.requests.map((r) => r.mode)).toEqual(["auto", "transcode"]);
+    expect(converted.requests[1]!.caps).toEqual(LG);
+    c.close();
+
+    // The engine names DTS, which LG's report doesn't list: leaving it out would change nothing.
+    const unlisted = world(item(file()), (req) =>
+      info(req.mode === "auto" ? {} : { session_id: "s2", method: req.mode === "remux" ? "remux" : "transcode", hls: true, url: "/api/media/pley_mk_KEY2/master.m3u8" }),
+    );
+    const d = new PlaybackController({ itemId: 70 }, unlisted.env, 0);
+    d.start();
+    await settle();
+    unlisted.engine.listener?.error({ kind: "unsupported", audio: true, container: false, detail: "audio", audioCodec: "dts" });
+    await new Promise((r) => setTimeout(r, 2_200));
+    expect(unlisted.requests.map((r) => r.mode)).toEqual(["auto", "remux"]);
+    expect(unlisted.requests[1]!.caps).toEqual(LG);
+    d.close();
+  });
 });
 
 describe("the server out of reach", () => {

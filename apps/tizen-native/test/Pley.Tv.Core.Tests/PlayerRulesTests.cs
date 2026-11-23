@@ -25,6 +25,50 @@ public class RecoveryTests
     }
 
     [Fact]
+    public void Audio_that_fails_is_refused_at_once_in_the_same_mode_once_per_codec()
+    {
+        var r = new Recovery();
+        Assert.Equal(new RecoveryAction.NewSession(null, FallbackReason.AudioUnplayable), r.Decide(UnsupportedAudio, "direct", "hevc", "EAC3"));
+        Assert.Equal(new[] { "eac3" }, r.RefusedAudio);
+        Assert.Null(r.FallbackMode);
+        Assert.Equal(FallbackReason.AudioUnplayable, r.FallbackReason);
+        // The track the server plays instead, an AC-3, fails too: refused as well.
+        Assert.Equal(new RecoveryAction.NewSession(null, FallbackReason.AudioUnplayable), r.Decide(UnsupportedAudio, "remux", "hevc", "ac3"));
+        Assert.Equal(new[] { "ac3", "eac3" }, r.RefusedAudio.OrderBy(c => c));
+        // A codec refused already, AAC, or none known: the ladder as before.
+        Assert.Equal(new RecoveryAction.NewSession("transcode", FallbackReason.Unplayable), r.Decide(UnsupportedAudio, "remux", "hevc", "eac3"));
+        Assert.Equal(new RecoveryAction.Fail(Failure.Unplayable, "audio"), r.Decide(UnsupportedAudio, "transcode", "hevc", "aac"));
+        Assert.Equal(2, r.RefusedAudio.Count);
+        Assert.Equal("remux", ((RecoveryAction.NewSession)new Recovery().Decide(UnsupportedAudio, "direct", "hevc", null)).Mode);
+        // A video failure refuses nothing, whatever the audio.
+        var v = new Recovery();
+        Assert.Equal("transcode", ((RecoveryAction.NewSession)v.Decide(UnsupportedVideo, "direct", "h264", "eac3")).Mode);
+        Assert.Empty(v.RefusedAudio);
+    }
+
+    [Fact]
+    public void A_refusal_keeps_a_fallbacks_mode()
+    {
+        var r = new Recovery();
+        r.Decide(UnsupportedContainer, "direct", "h264");
+        Assert.Equal(new RecoveryAction.NewSession("remux", FallbackReason.AudioUnplayable), r.Decide(UnsupportedAudio, "remux", "h264", "truehd"));
+        Assert.Equal("remux", r.FallbackMode);
+    }
+
+    [Fact]
+    public void A_new_item_forgets_the_refused_audio_Retry_and_another_quality_dont()
+    {
+        var r = new Recovery();
+        r.Decide(UnsupportedAudio, "direct", "h264", "eac3");
+        r.Retry();
+        r.QualityChanged();
+        Assert.Equal(new[] { "eac3" }, r.RefusedAudio);
+        r.NewItem();
+        Assert.Empty(r.RefusedAudio);
+        Assert.Equal(new RecoveryAction.NewSession(null, FallbackReason.AudioUnplayable), r.Decide(UnsupportedAudio, "direct", "h264", "eac3"));
+    }
+
+    [Fact]
     public void A_container_failure_of_h264_remuxes_of_other_video_transcodes_as_does_a_video_failure()
     {
         Assert.Equal("remux", ((RecoveryAction.NewSession)new Recovery().Decide(UnsupportedContainer, "direct", "h264")).Mode);

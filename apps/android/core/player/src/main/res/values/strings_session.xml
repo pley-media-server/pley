@@ -57,6 +57,7 @@
     <string name="session_method_transcode">Transcoding</string>
     <string name="session_method_remux_audio">Direct stream · Audio transcoding</string>
     <string name="session_fallback_unplayable">This device couldn\'t play the original file.</string>
+    <string name="session_fallback_audio_unplayable">This device couldn\'t play the original audio.</string>
     <string name="session_fallback_not_smooth">The original didn\'t play smoothly on this device.</string>
     <string name="session_slow_server">The server can\'t keep up with this video. Try a lower quality.</string>
 

@@ -3,9 +3,9 @@
   "device": "這臺電視",
   "app": "應用",
   "plays": "可播放的內容",
-  "probing": "正在檢測這臺電視的播放能力…",
-  "probeFailed": "檢測這臺電視失敗。",
-  "probeAgain": "重新檢測",
+  "probing": "正在偵測這臺電視的播放能力…",
+  "probeFailed": "偵測這臺電視失敗。",
+  "probeAgain": "重新偵測",
   "facts": {
     "model": "型號",
     "system": "系統",
@@ -26,8 +26,8 @@
     "none": "無",
     "video": "影片：{{decoders}}",
     "audioDecoded": "解碼音訊：{{formats}}",
-    "sent": "傳送給接收端：{{formats}}",
-    "sentWithOutput": "傳送給接收端：{{formats}}（聲音輸出 {{output}}）",
+    "sent": "傳送給擴大機：{{formats}}",
+    "sentWithOutput": "傳送給擴大機：{{formats}}（聲音輸出 {{output}}）",
     "nothing": "無",
     "streams": "流：HLS {{segments}}"
   }

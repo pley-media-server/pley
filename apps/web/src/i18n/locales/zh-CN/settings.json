@@ -405,22 +405,22 @@
     "kinds": {
       "movies": {
         "label": "电影",
-        "layout": "Movie Name (Year)/Movie Name (Year).mkv",
+        "layout": "电影名称 (年份)/电影名称 (年份).mkv",
         "defaultName": "电影"
       },
       "shows": {
         "label": "剧集",
-        "layout": "Show Name/Season 01/Show Name - S01E01.mkv",
+        "layout": "剧集名称/Season 01/剧集名称 - S01E01.mkv",
         "defaultName": "剧集"
       },
       "music": {
         "label": "音乐",
-        "layout": "Artist/Album/01 - Track.flac",
+        "layout": "艺人/专辑/01 - 曲目.flac",
         "defaultName": "音乐"
       },
       "audiobooks": {
         "label": "有声书",
-        "layout": "Author/Book Title/01 - Chapter.mp3",
+        "layout": "作者/书名/01 - 章节.mp3",
         "defaultName": "有声书"
       }
     },
@@ -808,7 +808,16 @@
     "cpu": "CPU",
     "processors_other": "{{count}} 个处理器",
     "memory": "内存",
-    "inAll": "共 {{size}}"
+    "inAll": "共 {{size}}",
+    "network": "网络",
+    "fastest": "峰值 {{speed}}",
+    "pleyNetworkHint": "Pley 发送给应用和浏览器的数据",
+    "upload": "上传",
+    "download": "下载",
+    "clients": "客户端",
+    "clientCount_other": "当前 {{count}} 个",
+    "noClients": "Pley 目前没有发送任何数据。",
+    "others": "其他"
   },
   "storage": {
     "title": "存储",

@@ -650,6 +650,122 @@ fn tries_again_with_a_conversion_when_the_tv_cant_decode_the_file() {
     assert_eq!((load.kind, load.url.as_str()), (MediaKind::Hls, "http://nas:7539/api/media/pley_mk_KEY2/master.m3u8"));
 }
 
+#[test]
+fn audio_the_tv_cant_decode_is_asked_again_without_that_codec_and_the_server_converts_it() {
+    // Without E-AC-3 in the caps, the server converts the file's E-AC-3 in a remux.
+    let fake = Fake::new(item(file()), |req| {
+        info(|i| {
+            if req.mode == PlaybackMode::Transcode {
+                i.session_id = "s3".into();
+                i.method = PlaybackMethod::Transcode;
+                i.hls = true;
+                i.url = "/api/media/pley_mk_KEY3/master.m3u8".into();
+            } else if !req.caps.audio_codecs.iter().any(|c| c == "eac3") {
+                i.session_id = "s2".into();
+                i.method = PlaybackMethod::Remux;
+                i.hls = true;
+                i.audio_converted = true;
+                i.url = "/api/media/pley_mk_KEY2/master.m3u8".into();
+            }
+        })
+    });
+    let mut w = World::new(fake, |_| ());
+    w.start();
+    w.open();
+    w.advance(2_000);
+    let at = w.c.live_position_ms();
+    // LG's pipeline doesn't say which codec: the file's track that plays (E-AC-3) is the one.
+    w.sim.fail(3, "audio decoder");
+    w.advance(100);
+    let requests = w.fake.requests();
+    assert!(requests[0].caps.audio_codecs.iter().any(|c| c == "eac3"));
+    // The same mode, not a remux that would copy the same E-AC-3 again.
+    assert_eq!(w.fake.modes(), [PlaybackMode::Auto, PlaybackMode::Auto]);
+    let again = &requests[1];
+    assert_eq!(again.start_ms, Some(at));
+    let caps = &again.caps;
+    assert!(!caps.audio_codecs.iter().chain(&caps.audio_decode).chain(&caps.audio_passthrough).any(|c| c == "eac3"));
+    assert!(caps.audio_decode.iter().any(|c| c == "ac3"));
+    assert_eq!(w.sim.loads()[1].kind, MediaKind::Hls);
+    assert_eq!(w.c.state().note.as_deref(), Some("This device couldn't play the original audio."));
+    assert_eq!(w.c.state().method.as_deref(), Some("Direct stream · Audio transcoding"));
+
+    // Its video fails next: the ladder goes on, still without E-AC-3.
+    w.open();
+    w.sim.fail(3, "decoder");
+    w.advance(100);
+    assert_eq!(w.fake.modes(), [PlaybackMode::Auto, PlaybackMode::Auto, PlaybackMode::Transcode]);
+    assert!(!w.fake.requests()[2].caps.audio_codecs.iter().any(|c| c == "eac3"));
+}
+
+#[test]
+fn a_track_picked_whose_codec_failed_here_goes_to_the_server() {
+    let fake = Fake::new(item(remux()), |req| {
+        info(|i| {
+            i.audio_index = req.audio_index.or(Some(3));
+            if !req.caps.audio_codecs.iter().any(|c| c == "eac3") {
+                i.session_id = "s2".into();
+                i.audio_index = req.audio_index.or(Some(2));
+            }
+        })
+    });
+    let mut w = World::new(fake, |_| ());
+    w.start();
+    w.open();
+    // The server's pick, the English E-AC-3, fails: asked again, the server plays the AC-3 as it is.
+    w.sim.fail(3, "audio decoder");
+    w.advance(100);
+    w.open();
+    assert_eq!(w.c.session().map(|s| s.session_id.as_str()), Some("s2"));
+    assert_eq!(selected(&w.c.state().audio), [Some(2)]);
+    // The French E-AC-3 picked isn't switched to in place: a new session names it, for the server to convert.
+    w.c.select_audio(4);
+    w.settle();
+    let requests = w.fake.requests();
+    assert_eq!(requests.len(), 3);
+    assert_eq!(requests[2].audio_index, Some(4));
+    assert!(!requests[2].caps.audio_codecs.iter().any(|c| c == "eac3"));
+}
+
+#[test]
+fn an_audio_failure_before_the_switch_is_the_track_the_file_starts_with() {
+    // The file starts with E-AC-3; once that is refused, the server picks the AC-3 beside it.
+    let mut f = file();
+    f.streams = vec![
+        f.streams[0].clone(),
+        stream(1, "audio", "eac3", Some("eng"), true, |s| s.channels = Some(6)),
+        stream(2, "audio", "ac3", Some("eng"), false, |s| s.channels = Some(6)),
+    ];
+    let fake = Fake::new(item(f), |req| {
+        info(|i| {
+            let eac3 = req.caps.audio_codecs.iter().any(|c| c == "eac3");
+            i.audio_index = req.audio_index.or(Some(if eac3 { 1 } else { 2 }));
+            if req.mode == PlaybackMode::Remux {
+                i.session_id = "s3".into();
+                i.method = PlaybackMethod::Remux;
+                i.hls = true;
+                i.url = "/api/media/pley_mk_KEY3/master.m3u8".into();
+            } else if !eac3 {
+                i.session_id = "s2".into();
+            }
+        })
+    });
+    let mut w = World::new(fake, |_| ());
+    w.start();
+    w.open();
+    w.sim.fail(3, "audio decoder");
+    w.advance(100);
+    // The AC-3 is switched to once the pipeline lists its tracks; before that, the E-AC-3 the
+    // file starts with fails again. The AC-3 isn't refused: a remux carries it alone.
+    assert_eq!(w.sim.loads().len(), 2);
+    w.sim.fail(3, "audio decoder");
+    w.advance(100);
+    assert_eq!(w.fake.modes(), [PlaybackMode::Auto, PlaybackMode::Auto, PlaybackMode::Remux]);
+    let caps = &w.fake.requests()[2].caps;
+    assert!(caps.audio_decode.iter().any(|c| c == "ac3"));
+    assert!(!caps.audio_codecs.iter().any(|c| c == "eac3"));
+}
+
 // ---- the server out of reach
 
 /// A playback that has shown its picture, standing still.

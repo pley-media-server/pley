@@ -110,8 +110,24 @@ export function pictureUrlAt(url: string, atMs: number): string {
 /** Whether this TV decodes `stream`'s audio or sends it as it is to the receiver. */
 export function audioPlaysHere(stream: MediaStream | null, caps: ClientCaps | null): boolean {
   if (!stream || !caps) return true;
-  const codec = stream.codec.toLowerCase();
-  return caps.audio_codecs.concat(caps.audio_decode, caps.audio_passthrough).some((c) => c.toLowerCase() === codec);
+  return audioListed(stream.codec, caps);
+}
+
+/** Whether `caps` list the audio `codec` (the server's name), decoded or sent on. */
+export function audioListed(codec: string, caps: ClientCaps): boolean {
+  const c = codec.toLowerCase();
+  return caps.audio_codecs.concat(caps.audio_decode, caps.audio_passthrough).some((x) => x.toLowerCase() === c);
+}
+
+/**
+ * `caps` without the audio `codecs` (the server's names), decoded or sent
+ * on: the TV failed to play them, so the server picks another track or
+ * converts them.
+ */
+export function withoutAudio(caps: ClientCaps | null, codecs: readonly string[]): ClientCaps | null {
+  if (!caps || !codecs.length) return caps;
+  const kept = (list: string[]) => list.filter((c) => codecs.indexOf(c.toLowerCase()) < 0);
+  return { ...caps, audio_codecs: kept(caps.audio_codecs), audio_decode: kept(caps.audio_decode), audio_passthrough: kept(caps.audio_passthrough) };
 }
 
 /** Whether this TV opens `file`'s container as it is. */

@@ -1,5 +1,5 @@
 {
-  "field": "搜尋電影、劇集、人物…",
+  "field": "搜尋電影、影集、人物…",
   "searching": "搜尋中…",
   "recent": {
     "title": "最近搜尋",
@@ -7,20 +7,20 @@
   },
   "empty": {
     "title": "搜尋你的媒體庫",
-    "body": "查詢電影、劇集、單集、人物、藝人、專輯、曲目和直播電影片道。在搜尋框上按 OK 輸入，或使用鍵盤的麥克風。"
+    "body": "搜尋電影、影集、單集、人物、藝人、專輯、曲目和直播頻道。在搜尋框上按 OK 輸入，或使用鍵盤的麥克風。"
   },
   "none": {
-    "title": "“{{query}}”沒有結果",
+    "title": "「{{query}}」沒有結果",
     "body": "試試不同的拼寫或更少的詞。"
   },
-  "nothingInLibraries": "你的媒體庫中沒有匹配項",
+  "nothingInLibraries": "你的媒體庫中沒有相符的項目",
   "failed": "搜尋失敗",
   "retry": "重試",
   "groups": {
     "people": "人物",
     "liveTv": "直播電視",
     "movies": "電影",
-    "shows": "劇集",
+    "shows": "影集",
     "seasons": "季",
     "episodes": "集",
     "artists": "藝人",

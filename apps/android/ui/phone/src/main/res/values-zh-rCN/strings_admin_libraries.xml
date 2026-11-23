@@ -11,7 +11,7 @@
         <item quantity="other">%1$,d 部剧集</item>
     </plurals>
     <plurals name="admin_libraries_items_music">
-        <item quantity="other">%1$,d 位音乐人</item>
+        <item quantity="other">%1$,d 位艺人</item>
     </plurals>
     <string name="admin_libraries_scanned">扫描于 %1$s</string>
     <string name="admin_libraries_never_scanned">从未扫描</string>
@@ -35,9 +35,9 @@
     <string name="admin_libraries_kind_movies">电影</string>
     <string name="admin_libraries_kind_shows">剧集</string>
     <string name="admin_libraries_kind_music">音乐</string>
-    <string name="admin_libraries_layout_movies">电影名称（年份）/电影名称（年份）.mkv</string>
-    <string name="admin_libraries_layout_shows">剧集名称/第 01 季/剧集名称 - S01E01.mkv</string>
-    <string name="admin_libraries_layout_music">音乐人/专辑/01 - 曲目.flac</string>
+    <string name="admin_libraries_layout_movies">电影名称 (年份)/电影名称 (年份).mkv</string>
+    <string name="admin_libraries_layout_shows">剧集名称/Season 01/剧集名称 - S01E01.mkv</string>
+    <string name="admin_libraries_layout_music">艺人/专辑/01 - 曲目.flac</string>
     <string name="admin_libraries_default_movies">电影</string>
     <string name="admin_libraries_default_shows">剧集</string>
     <string name="admin_libraries_default_music">音乐</string>

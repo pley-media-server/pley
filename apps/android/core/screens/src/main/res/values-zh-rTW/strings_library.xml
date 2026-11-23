@@ -5,10 +5,10 @@
         <item quantity="other">%1$,d 部電影</item>
     </plurals>
     <plurals name="library_entry_shows">
-        <item quantity="other">%1$,d 部劇集</item>
+        <item quantity="other">%1$,d 部影集</item>
     </plurals>
     <plurals name="library_entry_artists">
-        <item quantity="other">%1$,d 位藝術家</item>
+        <item quantity="other">%1$,d 位藝人</item>
     </plurals>
     <plurals name="library_entry_items">
         <item quantity="other">%1$,d 個條目</item>
@@ -18,7 +18,7 @@
       What a smart filter finds, in words (SmartFilter.words), as the web
       says it. %1$s is the filter's value as it is ("Comedy", "2019").
     -->
-    <string name="library_filter_genre">型別：%1$s</string>
+    <string name="library_filter_genre">類型：%1$s</string>
     <string name="library_filter_label">標籤：%1$s</string>
     <string name="library_filter_studio">製作公司：%1$s</string>
     <string name="library_filter_rated">分級 %1$s</string>

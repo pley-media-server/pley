@@ -1,16 +1,23 @@
 import type { PlaybackMethod, PlaybackMode } from "../api/types";
 import { t } from "../i18n";
 
-/** Why a fallback plays something other than the original. */
-export type FallbackReason = "unplayable" | "not_smooth";
+/**
+ * Why a fallback plays something other than the original: the file didn't
+ * play, its audio didn't (another track plays, or the same converted), or
+ * it didn't play smoothly.
+ */
+export type FallbackReason = "unplayable" | "audio_unplayable" | "not_smooth";
 
 /** Why playback gave up. */
 export type Failure = "unplayable" | "stuck" | "short" | "stopped" | "network" | "engine";
 
 /** What went wrong in the TV's player, in the terms recovery decides on. */
 export type EngineError =
-  /** It can't decode or open this: `audio` when the audio failed, `container` when the file did. */
-  | { kind: "unsupported"; audio: boolean; container: boolean; detail: string }
+  /**
+   * It can't decode or open this: `audio` when the audio failed, `container` when the file did.
+   * `audioCodec`: the server's name for the audio that failed, when the engine knows it.
+   */
+  | { kind: "unsupported"; audio: boolean; container: boolean; detail: string; audioCodec?: string | null }
   | { kind: "http"; status: number; detail: string }
   /** 410: stopped from elsewhere. */
   | { kind: "stopped"; message: string | null }
@@ -33,10 +40,20 @@ export const MAX_STUCK = 1;
 export const MAX_SHORT = 1;
 /** Videos a remux copies, which the TV takes in another container. */
 const COPYABLE_VIDEO = ["h264", "hevc"];
+/** The server's last resort when it converts audio: refusing it would leave nothing to play. */
+const AAC = "aac";
 
 /**
  * The Android app's recovery ladder (core/player/session/Recovery.kt):
  *
+ * - Audio the TV fails to play, in any session: a new session in the same
+ *   mode whose capabilities leave that codec out (`refusedAudio`), so the
+ *   server plays another track as it is or converts this one, the video
+ *   untouched; once per codec, never AAC. A remux or a transcode would only
+ *   copy the same audio again: the server copies what the capabilities say
+ *   plays. The TV's player doesn't tell its audio output's failures from
+ *   its decoders', so every one counts at once (Android first gives an
+ *   output that failed a new session as it was).
  * - Direct play the TV can't decode or open: a remux when the video is
  *   H.264 or HEVC and only the container or the audio failed, else a
  *   transcode; each once.
@@ -55,6 +72,8 @@ export class Recovery {
   fallbackMode: PlaybackMode | null = null;
   fallbackReason: FallbackReason | null = null;
   struggleSwitched = false;
+  /** Audio codecs (the server's names) this TV failed to play in this item: left out of the capabilities sent from then on. */
+  refusedAudio: readonly string[] = [];
   private remuxTried = false;
   private transcodeTried = false;
   recreate = 0;
@@ -82,10 +101,18 @@ export class Recovery {
     this.playedFrom = null;
   }
 
-  decide(error: EngineError, method: PlaybackMethod, videoCodec: string | null): RecoveryAction {
+  /**
+   * What to do about `error` in a session played as `method`, whose video is `videoCodec` and whose
+   * audio, as it reached the TV's player, is `audioCodec` (the server's name, one the capabilities
+   * sent list; `null` when not known).
+   */
+  decide(error: EngineError, method: PlaybackMethod, videoCodec: string | null, audioCodec: string | null = null): RecoveryAction {
     switch (error.kind) {
       case "unsupported":
-        return this.fallback(method, videoCodec, error.audio || error.container, error.detail);
+        return (
+          this.refuseAudio(error.audio, (audioCodec ?? "").toLowerCase()) ??
+          this.fallback(method, videoCodec, error.audio || error.container, error.detail)
+        );
       case "http":
         return error.status === 404 || error.status === 410 ? this.expired(error.detail) : this.networkError(error.detail);
       case "playlist":
@@ -97,6 +124,17 @@ export class Recovery {
       case "other":
         return { kind: "fail", failure: "engine", detail: error.detail };
     }
+  }
+
+  /**
+   * The audio `codec` failed: refused, and a new session in the mode asked for now; `null` when the
+   * ladder's next step is what helps instead (a video failure, a codec unknown or refused already, AAC).
+   */
+  private refuseAudio(audio: boolean, codec: string): RecoveryAction | null {
+    if (!audio || !codec || codec === AAC || this.refusedAudio.indexOf(codec) >= 0) return null;
+    this.refusedAudio = this.refusedAudio.concat([codec]);
+    this.fallbackReason = "audio_unplayable";
+    return { kind: "new_session", mode: this.fallbackMode, reason: "audio_unplayable" };
   }
 
   private fallback(method: PlaybackMethod, videoCodec: string | null, partial: boolean, detail: string): RecoveryAction {
@@ -207,6 +245,7 @@ export class Recovery {
     this.fallbackMode = null;
     this.fallbackReason = null;
     this.struggleSwitched = false;
+    this.refusedAudio = [];
     this.remuxTried = false;
     this.transcodeTried = false;
   }
