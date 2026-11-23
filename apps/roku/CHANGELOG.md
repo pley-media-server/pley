@@ -139,6 +139,8 @@ describes how they are made.
 - A show's page opens on the next episode's season even when the
   seasons come before the server says which episode is next, and a
   season stays chosen as the page's rows come in.
+- Home chosen in the rail puts the focus back on what had it, shown: it
+  went to the page itself, and the next key only brought it back.
 - What is meant to be bold is: episode, request and channel titles, the
   status pills, an artist's Albums and Search's recent searches heading
   showed in Roboto's regular weight.

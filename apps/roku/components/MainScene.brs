@@ -1270,7 +1270,9 @@ sub onRailChosen()
         home.visible = true
         home.active = true
         placeRail()
-        home.setFocus(true)
+        ' Home put the focus back where it was as it became active: on
+        ' the screen itself, nothing would show it, and a key would be lost.
+        if not home.isInFocusChain() then home.setFocus(true)
         return
     end if
     show(nav)
