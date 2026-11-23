@@ -1,4 +1,5 @@
 import PleyData
+import PleyModel
 import PleyScreens
 import SwiftUI
 
@@ -7,9 +8,10 @@ import SwiftUI
 /// sizes share one cached picture). Each of `paths` is tried in turn until
 /// one comes. Until then, a plain box with `symbol` faintly in its middle,
 /// or, given a `title`, the title's gradient, with Pley's mark on it once no
-/// picture will come (`PlaceholderArt`). It fades in, except under Reduce
-/// Motion, and its fetch is canceled when it goes off screen. The picture
-/// says nothing to VoiceOver: what holds it carries the label.
+/// picture will come, the glyph of its `kind`'s library cut out of the mark
+/// (`PlaceholderArt`). It fades in, except under Reduce Motion, and its
+/// fetch is canceled when it goes off screen. The picture says nothing to
+/// VoiceOver: what holds it carries the label.
 struct ServerImage: View {
     let app: AppModel
     let paths: [String]
@@ -19,6 +21,8 @@ struct ServerImage: View {
     var symbol: String?
     /// The title whose gradient is the placeholder, in place of the box and its symbol.
     var title: String?
+    /// What the title is, which picks the mark's glyph.
+    var kind: ItemKind?
     /// Whether a box shows until the picture comes.
     var placeholder = true
     /// The widest picture asked for, in pixels.
@@ -30,12 +34,13 @@ struct ServerImage: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(app: AppModel, paths: [String], width: CGFloat, symbol: String? = nil, title: String? = nil,
-         placeholder: Bool = true, limit: Int = 4096) {
+         kind: ItemKind? = nil, placeholder: Bool = true, limit: Int = 4096) {
         self.app = app
         self.paths = paths
         self.width = width
         self.symbol = symbol
         self.title = title
+        self.kind = kind
         self.placeholder = placeholder
         self.limit = limit
     }
@@ -51,7 +56,8 @@ struct ServerImage: View {
     var body: some View {
         ZStack {
             if placeholder, let title {
-                PlaceholderArt(title: title, mark: image == nil && (paths.isEmpty || failed))
+                PlaceholderArt(title: title, glyph: Placeholder.glyph(kind: kind),
+                               mark: image == nil && (paths.isEmpty || failed))
             } else if placeholder {
                 Rectangle().fill(.quaternary)
                 if image == nil, let symbol {
@@ -86,10 +92,13 @@ struct ServerImage: View {
 
 /// The picture of a title without one, as on the web and the other apps
 /// (`Placeholder`): its 135° gradient, and Pley's mark on it when `mark`,
-/// once no picture will come. Not while one loads: a page of tiles
-/// scrolling in would flash marks before their pictures.
+/// once no picture will come, `glyph` cut out of its front poster. Not
+/// while one loads: a page of tiles scrolling in would flash marks before
+/// their pictures.
 struct PlaceholderArt: View {
     let title: String
+    /// The glyph of the title's library (`Placeholder.glyph(kind:)`).
+    let glyph: MarkGlyph
     let mark: Bool
 
     var body: some View {
@@ -107,8 +116,8 @@ struct PlaceholderArt: View {
             var layer = context
             layer.translateBy(x: (size.width - side) / 2, y: (size.height - side) / 2)
             layer.scaleBy(x: side / Placeholder.markGrid, y: side / Placeholder.markGrid)
-            for poster in Placeholder.markLayers {
-                layer.fill(Path(poster.path), with: .color(.white.opacity(poster.opacity)),
+            for poster in Placeholder.markLayers(glyph) {
+                layer.fill(Path(poster.path), with: .color(.white.opacity(poster.alpha)),
                            style: FillStyle(eoFill: poster.evenOdd))
             }
         }

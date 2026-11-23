@@ -3,14 +3,15 @@ import PleyScreens
 import SwiftUI
 
 /// One tile: its picture in its shape (without one, its title's gradient
-/// with Pley's mark, the caption naming it), a caption of one or two lines,
-/// and over the picture the progress while in progress, a check once watched,
-/// or a show's unwatched episodes. One element for VoiceOver ("Arrival,
-/// 2016", "watched", "Opens its page"). The pointer lifts it on iPad; on
-/// the Mac, hovering grows it a little, or outlines it under Reduce Motion,
-/// and shows a play button over a video's picture. On the Mac, Return opens
-/// the tile with the focus and ⌘↩ plays it. Its title's actions are its
-/// context menu and VoiceOver's actions; a mark made there shows at once.
+/// with Pley's mark and its library's glyph, the caption naming it), a
+/// caption of one or two lines, and over the picture the progress while in
+/// progress, a check once watched, or a show's unwatched episodes. One
+/// element for VoiceOver ("Arrival, 2016", "watched", "Opens its page").
+/// The pointer lifts it on iPad; on the Mac, hovering grows it a little, or
+/// outlines it under Reduce Motion, and shows a play button over a video's
+/// picture. On the Mac, Return opens the tile with the focus and ⌘↩ plays
+/// it. Its title's actions are its context menu and VoiceOver's actions; a
+/// mark made there shows at once.
 struct ArtworkTile: View {
     let app: AppModel
     @ObservedObject private var actions: ItemActionsModel
@@ -100,7 +101,7 @@ struct ArtworkTile: View {
     #endif
 
     private var picture: some View {
-        ServerImage(app: app, paths: tile.pictures, width: width, title: tile.title)
+        ServerImage(app: app, paths: tile.pictures, width: width, title: tile.title, kind: tile.item.kind)
             .frame(width: width, height: Metrics.pictureHeight(tile.shape, width: width))
             .overlay(alignment: .bottom) {
                 if tile.progress > 0 {

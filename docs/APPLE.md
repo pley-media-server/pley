@@ -169,12 +169,16 @@ behind it.
   size, up to 1.6 times. Pictures are fetched at the width they show,
   rounded up to a multiple of 64 pixels, and fade in except under Reduce
   Motion. A tile without a picture, or whose picture doesn't load, shows
-  its title's gradient (the web's) with Pley's mark on it; while a picture
-  loads, the gradient alone. At most 6 are fetched at once, the newest
-  asked for first, and one scrolled away before it comes isn't fetched. They are kept in memory
-  up to 32 MB on a device with 3 GB of memory or less (otherwise 64 MB on
-  Apple TV and 96 MB elsewhere), half of that when the app goes to the
-  background, and none after a memory warning. While loading, still gray
+  its title's gradient (the web's) with Pley's mark on it, the glyph of its
+  library cut out of the front poster: a clapperboard for movies, a TV for
+  shows, notes for music, the logo's play for extras. The mark is a copy
+  of `packages/placeholder-mark/marks.json`, which a test holds it to.
+  While a picture loads, the gradient shows alone. At most 6 pictures are
+  fetched at once, the newest asked for first, and one scrolled away
+  before it comes isn't fetched. They are kept in memory up to 32 MB on a
+  device with 3 GB of memory or less (otherwise 64 MB on Apple TV and 96
+  MB elsewhere), half of that when the app goes to the background, and
+  none after a memory warning. While loading, still gray
   rows show; a load that fails says why with Try again. With no rows,
   Home says why: no library this profile may open, the libraries being
   scanned, or nothing in them yet. Home's rows after Continue Watching

@@ -535,18 +535,120 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         #expect(bytes(Placeholder.hsl(240, 1, 0.5)) == [0, 0, 255])
     }
 
-    @Test func theMarksFrontPosterHasItsPlayTriangleCutOut() {
-        let layers = Placeholder.markLayers
-        #expect(layers.map { $0.opacity } == [0.16, 0.24, 0.36])
-        let front = layers[2]
-        #expect(front.evenOdd)
-        #expect(front.path.contains(CGPoint(x: 14, y: 32), using: .evenOdd))
-        #expect(!front.path.contains(CGPoint(x: 23, y: 32), using: .evenOdd))
-        // Its corners are rounded; the posters behind keep their left corners square.
-        #expect(!front.path.contains(CGPoint(x: 12.3, y: 15.8), using: .evenOdd))
+    /// packages/placeholder-mark/marks.json, the mark every app draws.
+    private struct Marks: Decodable {
+        struct Poster: Decodable {
+            var path: String
+            var alpha: Double
+        }
+
+        var grid: Double
+        var share: Double
+        var shareOverTitle: Double
+        var max: Double
+        var gap: Double
+        var posters: [Poster]
+        var glyphs: [String: String]
+        var kinds: [String: String]
+        var fallback: String
+
+        enum CodingKeys: String, CodingKey {
+            case grid, share, shareOverTitle, max, gap, posters, glyphs, kinds
+            case fallback = "default"
+        }
+    }
+
+    /// marks.json, found from this file up the repository.
+    private static let marks: Marks? = {
+        var directory = URL(fileURLWithPath: #filePath)
+        while directory.pathComponents.count > 1 {
+            directory.deleteLastPathComponent()
+            let file = directory.appendingPathComponent("packages/placeholder-mark/marks.json")
+            if FileManager.default.fileExists(atPath: file.path) {
+                return try? JSONDecoder().decode(Marks.self, from: Data(contentsOf: file))
+            }
+        }
+        return nil
+    }()
+
+    @Test func theMarkIsTheOneInMarksJson() throws {
+        let marks = try #require(Self.marks)
+        #expect(Double(Placeholder.markGrid) == marks.grid)
+        #expect(Double(Placeholder.markShare) == marks.share)
+        #expect(Double(Placeholder.markShareOverTitle) == marks.shareOverTitle)
+        #expect(Double(Placeholder.markMax) == marks.max)
+        #expect(Double(Placeholder.markGap) == marks.gap)
+        #expect(Placeholder.markPosters.map { $0.path } == marks.posters.map { $0.path })
+        #expect(Placeholder.markPosters.map { $0.alpha } == marks.posters.map { $0.alpha })
+        #expect(Dictionary(uniqueKeysWithValues: MarkGlyph.allCases.map { ($0.rawValue, $0.path) }) == marks.glyphs)
+        #expect(Placeholder.markKinds.mapValues { $0.rawValue } == marks.kinds)
+        #expect(Placeholder.markDefault.rawValue == marks.fallback)
+    }
+
+    @Test func eachKindTakesItsLibrarysGlyph() {
+        #expect(Placeholder.glyph(kind: .movie) == .movies)
+        #expect(Placeholder.glyph(kind: .season) == .shows)
+        #expect(Placeholder.glyph(kind: .episode) == .shows)
+        #expect(Placeholder.glyph(kind: .artist) == .music)
+        #expect(Placeholder.glyph(kind: .album) == .music)
+        #expect(Placeholder.glyph(kind: ItemKind(rawValue: "part")) == .audiobooks)
+        // Any other kind, one from a newer server too, takes the logo's play.
+        #expect(Placeholder.glyph(kind: .extra) == .play)
+        #expect(Placeholder.glyph(kind: ItemKind(rawValue: "collection")) == .play)
+        #expect(Placeholder.glyph(kind: nil) == .play)
+    }
+
+    /// Points on marks.json's glyph paths: each glyph's parts are cut out of
+    /// the front poster, and the gaps between them stay filled.
+    @Test func eachGlyphIsCutOutOfTheFrontPoster() throws {
+        let glyphs: [(glyph: MarkGlyph, cut: [CGPoint], filled: [CGPoint])] = [
+            (.play, [CGPoint(x: 23, y: 32)], []),
+            // The clapperboard's body and stick, and the gap between them.
+            (.movies, [CGPoint(x: 23, y: 36), CGPoint(x: 19, y: 29.4)], [CGPoint(x: 23, y: 31)]),
+            // The TV and its antenna, and inside the antenna's V.
+            (.shows, [CGPoint(x: 23, y: 34.6), CGPoint(x: 20.5, y: 25.6)], [CGPoint(x: 23, y: 26)]),
+            // A note's head and the beam, and between the stems.
+            (.music, [CGPoint(x: 19.2, y: 37), CGPoint(x: 25, y: 26.7)], [CGPoint(x: 24, y: 32)]),
+            // Both pages, and the spine between them.
+            (.audiobooks, [CGPoint(x: 19, y: 32), CGPoint(x: 27, y: 32)], [CGPoint(x: 23, y: 32)]),
+        ]
+        #expect(glyphs.map { $0.glyph } == MarkGlyph.allCases)
+        for (glyph, cut, filled) in glyphs {
+            let layers = Placeholder.markLayers(glyph)
+            #expect(layers.map { $0.alpha } == [0.16, 0.24, 0.36])
+            #expect(layers.map { $0.evenOdd } == [false, false, true])
+            let front = try #require(layers.last?.path)
+            // Left of every glyph it is filled; its corners are rounded.
+            #expect(front.contains(CGPoint(x: 14, y: 32), using: .evenOdd), "\(glyph)")
+            #expect(!front.contains(CGPoint(x: 12.3, y: 15.8), using: .evenOdd), "\(glyph)")
+            for point in cut {
+                #expect(!front.contains(point, using: .evenOdd), "\(glyph) at \(point)")
+            }
+            for point in filled {
+                #expect(front.contains(point, using: .evenOdd), "\(glyph) at \(point)")
+            }
+        }
+    }
+
+    @Test func thePathsAreReadWhole() {
+        func near(_ a: CGRect, _ b: CGRect) -> Bool {
+            [a.minX - b.minX, a.minY - b.minY, a.maxX - b.maxX, a.maxY - b.maxY].allSatisfy { abs($0) < 0.001 }
+        }
+        let layers = Placeholder.markLayers(.play)
+        // Each poster spans what marks.json gives it, so none of its commands was dropped.
+        #expect(near(layers[0].path.boundingBox, CGRect(x: 46, y: 21.5, width: 6, height: 21)))
+        #expect(near(layers[1].path.boundingBox, CGRect(x: 36, y: 18.5, width: 8, height: 27)))
+        #expect(near(Placeholder.path(Placeholder.markPosters[2].path).boundingBox,
+                     CGRect(x: 12, y: 15.5, width: 22, height: 33)))
+        // The posters behind keep their left corners square, under the one in front; their right ones are rounded.
         #expect(layers[1].path.contains(CGPoint(x: 36.2, y: 18.7)))
         #expect(layers[0].path.contains(CGPoint(x: 49, y: 32)))
         #expect(!layers[0].path.contains(CGPoint(x: 51.8, y: 21.7)))
+        // Every glyph stays 3 units inside the front poster.
+        for glyph in MarkGlyph.allCases {
+            let box = Placeholder.path(glyph.path).boundingBox
+            #expect(!box.isEmpty && CGRect(x: 15, y: 18.5, width: 16, height: 27).contains(box), "\(glyph)")
+        }
     }
 }
 

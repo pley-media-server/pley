@@ -157,7 +157,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Movies, shows and music without a picture, or whose picture doesn't
   load, show their title's colors with Pley's mark, as the other apps do,
-  in place of a gray box; the caption under the tile names them.
+  in place of a gray box; the caption under the tile names them. The mark
+  shows what they are: a clapperboard for movies, a TV for shows, notes
+  for music.
 - English words are spelled the American way: color, favorite, program.
 - A library's Recommended tab no longer ends with a row of every collection.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
