@@ -42,12 +42,12 @@ function libDefaultOrder(sort as string) as string
     return "desc"
 end function
 
-' How the Library tab is sorted, in words: "Title, A to Z", "Year, newest
-' first".
-function libSortLabel(sort as string, order as string) as string
-    direction = "asc"
-    if order = "desc" then direction = "desc"
-    return t("browse.library.sortOrders." + libSortKey(sort) + "." + direction)
+' The Library tab's sort as its chip: the sort's name, then its order's
+' arrow (Android TV's, rising bars up, falling bars down).
+function libSortChip(sort as string, order as string) as object
+    icon = "arrow-down-wide-narrow"
+    if order = "asc" then icon = "arrow-up-narrow-wide"
+    return { label: t("browse.library.sorts." + libSortKey(sort)), icon: icon, iconAfter: true, width: 0 }
 end function
 
 ' The view of a library a fresh Roku opens on: the Library tab by title,

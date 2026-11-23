@@ -33,7 +33,18 @@ sub onContent()
     m.note.text = note
     m.note.visible = note <> ""
     placeWords()
-    m.check.visible = entry.hasField("checked") and entry.checked = true
+    ' A sort's order shows as its arrow where a check would be: Lucide's
+    ' rising and falling bars, as the other apps mark it.
+    arrow = ""
+    if entry.hasField("arrow") then arrow = entry.arrow
+    if arrow = "up"
+        m.check.uri = "pkg:/images/ui/icon-arrow-up-narrow-wide-40.png"
+    else if arrow = "down"
+        m.check.uri = "pkg:/images/ui/icon-arrow-down-wide-narrow-40.png"
+    else
+        m.check.uri = "pkg:/images/ui/icon-check-40.png"
+    end if
+    m.check.visible = arrow <> "" or (entry.hasField("checked") and entry.checked = true)
     onFocus()
 end sub
 

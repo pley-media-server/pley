@@ -108,46 +108,7 @@
       "lastPlayed": "Última reproducción",
       "bitrate": "Tasa de bits"
     },
-    "sortOrders": {
-      "title": {
-        "asc": "Título, de la A a la Z",
-        "desc": "Título, de la Z a la A"
-      },
-      "year": {
-        "asc": "Año, más antiguo primero",
-        "desc": "Año, más reciente primero"
-      },
-      "added": {
-        "asc": "Añadidos antes primero",
-        "desc": "Recién añadidos primero"
-      },
-      "rating": {
-        "asc": "Peor valorados primero",
-        "desc": "Mejor valorados primero"
-      },
-      "userRating": {
-        "asc": "Tus peor valorados primero",
-        "desc": "Tus mejor valorados primero"
-      },
-      "release": {
-        "asc": "Estrenos antiguos primero",
-        "desc": "Estrenos recientes primero"
-      },
-      "duration": {
-        "asc": "Más cortos primero",
-        "desc": "Más largos primero"
-      },
-      "lastPlayed": {
-        "asc": "Reproducidos antes primero",
-        "desc": "Recién reproducidos primero"
-      },
-      "bitrate": {
-        "asc": "Menor tasa de bits primero",
-        "desc": "Mayor tasa de bits primero"
-      }
-    },
     "sortBy": "Ordenar por",
-    "sortHint": "Pulsa OK en la opción marcada para invertir el orden.",
     "filter": "Filtros",
     "show": "Mostrar",
     "genre": "Género",

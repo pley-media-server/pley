@@ -10,7 +10,8 @@ end sub
 ' filters chips (surface3), its tabs words alone, the tab shown on
 ' surface3. A chip of width 0 is as wide as its icon, words and number,
 ' with room either side. A chip's number (count, "" for none) is a small
-' box after its words.
+' box after its words; its icon comes before them, or after with
+' iconAfter (a sort's name, then its order's arrow).
 sub onChips()
     m.top.removeChildrenIndex(m.top.getChildCount(), 0)
     m.chipNodes = []
@@ -79,7 +80,12 @@ sub onChips()
         end if
         if number <> invalid then content = content + number.gap + number.width
         start = Int((width - content) / 2)
-        if icon <> invalid
+        after = chip.DoesExist("iconAfter") and chip.iconAfter = true
+        if icon <> invalid and after
+            iconX = start + words
+            if words > 0 then iconX = iconX + 16
+            icon.translation = [iconX, (height - 40) / 2]
+        else if icon <> invalid
             icon.translation = [start, (height - 40) / 2]
             start = start + 40
             if words > 0 then start = start + 16

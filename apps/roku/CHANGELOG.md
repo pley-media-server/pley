@@ -10,6 +10,9 @@ describes how they are made.
 
 ### Changed
 
+- A library's sort shows as its name and its order's arrow ("Title" and
+  the rising bars) in place of "Title, A to Z", and the sort's panel
+  marks the current one with that arrow, without the line under it.
 - The backdrop of Home, Discover, a title's page and a collection fades
   from one picture to the next: it went blank until the next one came.
 - The focus moves at once in every list, grid and row of posters, a menu

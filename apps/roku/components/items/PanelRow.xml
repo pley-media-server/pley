@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A row of the player's side panels, as the Android TV player's
      PanelRow: its words, what they mean under them (a quality's hint, a
-     track's details), and a check at the right on the choice made.
+     track's details), and a check at the right on the choice made (a sort's
+     order, its arrow).
      Focused, it fills with the accent itself (square), the words and the
      check dark on it: at once, where a list's sliding focus lagged, and
      with room either side of the words. As wide and tall as the list's
