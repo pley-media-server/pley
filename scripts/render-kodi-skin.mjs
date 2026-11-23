@@ -190,11 +190,21 @@ for (let i = 0; i < 24; i++) {
   );
 }
 
+// Pley's mark on a placeholder (the Android app's PleyMark.Layers): its
+// three posters in white, each lighter than the one behind, on its 64 by 64
+// grid. Drawn under a tile's picture, as large as a 1080-line tile needs.
+add(
+  "mark.png",
+  192,
+  192,
+  `<g transform="scale(3)"><path fill="#fff" fill-opacity="0.16" d="M46 21.5h3a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3h-3z"/><path fill="#fff" fill-opacity="0.24" d="M36 18.5h4.5a3.5 3.5 0 0 1 3.5 3.5v20a3.5 3.5 0 0 1-3.5 3.5H36z"/><path fill="#fff" fill-opacity="0.36" fill-rule="evenodd" d="M16 15.5h14a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4v-25a4 4 0 0 1 4-4zM19 27v10a1 1 0 0 0 1.51.86l8.5-5a1 1 0 0 0 0-1.72l-8.5-5A1 1 0 0 0 19 27z"/></g>`,
+);
+
 mkdirSync(out, { recursive: true });
 // Pictures this script made before and no longer makes go; others stay (pley-white.png).
 const made = new Set(pictures.map((p) => p.name));
 for (const name of readdirSync(out)) {
-  if (!made.has(name) && /^(icon|button|pill|chip|round|circle|mask|ring|tick|hairline|badge|field|scrim|fade|shadow|ph)-?/.test(name) && name !== "pley-white.png") {
+  if (!made.has(name) && /^(icon|button|pill|chip|round|circle|mask|ring|tick|hairline|badge|field|scrim|fade|shadow|ph|mark)-?/.test(name) && name !== "pley-white.png") {
     rmSync(join(out, name));
   }
 }

@@ -78,6 +78,11 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   apps' size, so beside Live TV it lists four libraries.
 - **The profile's menu** has Discover and Your requests where the server
   takes requests; they open in Kodi's lists ([Requests](#requests)).
+- **Pictures:** a tile shows its title's gradient with Pley's mark on it
+  until its picture covers it; the caption under the tile names it. Kodi
+  doesn't tell the window whether a picture loads or won't come, so the
+  mark is there while one loads too, where the other apps show the
+  gradient alone.
 - **The menu key** on a tile: mark watched, My List, add to a playlist,
   remove from Continue Watching, go to the show. In a playlist it also
   moves and removes entries.

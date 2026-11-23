@@ -381,7 +381,7 @@ def quality_badges(h: int) -> list:
 
 
 def tile_parts(shape: L.Shape, list_id: int, focused: bool) -> list:
-    """What a tile draws (ArtworkTile): its placeholder and title, its art,
+    """What a tile draws (ArtworkTile): its placeholder and Pley's mark, its art,
     progress, watched tick or unwatched count, and the caption under it.
     Focused, it grows and takes the ring, and its title is bold."""
     w, h, m = shape.width, shape.height, L.LIST_MARGIN
@@ -397,10 +397,13 @@ def tile_parts(shape: L.Shape, list_id: int, focused: bool) -> list:
             image(32, 24, w - 64, h - 48, "$INFO[ListItem.Art(tile)]", aspect="keep", fade=150, background="true"),
         ]
     else:
+        # Pley's mark on the placeholder, 40 % of its shorter side, and not the
+        # title: the caption names the tile. Kodi can't tell a picture that
+        # loads from one that won't come, so the mark is under the picture.
+        side = round(min(w, h) * 0.4)
         well = [
             image(0, 0, w, h, "$INFO[ListItem.Property(ph)]", diffuse=mask, visible=plain),
-            # The title over the placeholder, on two lines (list labels keep to one).
-            control("textbox", left=16, top=h // 2 - 46, width=w - 32, height=92, visible=plain, font=L.FONT_TITLE, textcolor=L.FG, align="center", autoscroll="false", label="$INFO[ListItem.Label]"),
+            image((w - side) // 2, (h - side) // 2, side, side, "mark.png", visible=plain),
             image(0, 0, w, h, "$INFO[ListItem.Art(tile)]", diffuse=mask, aspect="scale", fade=150, background="true", visible=plain),
         ]
     if not shape.round:
