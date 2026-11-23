@@ -40,6 +40,8 @@ describes how they are made.
 
 ### Changed
 
+- Movies, shows and music without a picture show Pley's mark on their
+  placeholder instead of their title, which the caption under it shows.
 - English words are spelled the American way: color, favorite, program.
 - Recommended no longer ends with a row of every collection: it shows
   the rows administrators chose.

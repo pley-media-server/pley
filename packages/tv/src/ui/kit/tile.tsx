@@ -101,7 +101,6 @@ function TileView(p: TileProps) {
             candidates={p.candidates ?? artCandidates(p.item, spec.art)}
             width={spec.w}
             title={p.item.title}
-            showTitle={!spec.round}
             class="tile-clip"
             priority={p.priority}
           />
@@ -237,7 +236,7 @@ function ArtTileView(p: {
     >
       <div class={`tile-well${spec.round ? " round" : ""}`} style={`width:${spec.w}px;height:${spec.h}px`}>
         <div class="tile-clip">
-          <Art candidates={p.candidates} width={spec.w} title={p.title} showTitle={!spec.round} class="tile-clip" priority={p.priority} />
+          <Art candidates={p.candidates} width={spec.w} title={p.title} class="tile-clip" priority={p.priority} />
           {!spec.round && <div class="tile-hairline" />}
           {p.badge && <div class="tile-corner-badge t-badge">{p.badge}</div>}
         </div>

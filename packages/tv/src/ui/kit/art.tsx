@@ -34,32 +34,34 @@ export function artCandidates(item: ItemSummary, kind: ArtKind): string[] {
   return out;
 }
 
-/** The placeholder's padding, each side. */
-const TITLE_PAD = 12;
-/** A bold glyph's width in ems, about, for the title's longest word. */
-const GLYPH_EM = 0.56;
-
-/**
- * The size a placeholder's title is set in, in px: Title's 16, or smaller
- * so that its longest word fits across the tile whole ("Casablanca" on a
- * poster), down to 11; a word longer still breaks where it must.
- */
-export function placeholderTitleSize(title: string, width: number): number {
-  const longest = title.split(/\s+/).reduce((n, word) => Math.max(n, word.length), 0);
-  const fits = (width - 2 * TITLE_PAD) / (longest * GLYPH_EM);
-  return fits >= 16 ? 16 : Math.max(11, Math.floor(fits));
+/** The mark's three posters on its 64 by 64 grid, back to front, each lighter than the one behind (the Android app's `PleyMark.Layers`). */
+function Mark() {
+  return (
+  <svg class="tile-mark" viewBox="0 0 64 64" aria-hidden="true">
+    <path fill="#fff" fill-opacity="0.16" d="M46 21.5h3a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3h-3z" />
+    <path fill="#fff" fill-opacity="0.24" d="M36 18.5h4.5a3.5 3.5 0 0 1 3.5 3.5v20a3.5 3.5 0 0 1-3.5 3.5H36z" />
+    <path
+      fill="#fff"
+      fill-opacity="0.36"
+      fill-rule="evenodd"
+      d="M16 15.5h14a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4v-25a4 4 0 0 1 4-4zM19 27v10a1 1 0 0 0 1.51.86l8.5-5a1 1 0 0 0 0-1.72l-8.5-5A1 1 0 0 0 19 27z"
+    />
+  </svg>
+  );
 }
 
 /**
  * One picture from its candidates, `width` canvas px wide: the first that
- * loads wins. Until then the title's gradient, with the title on it when
- * `title` says so. Fades in over 150 ms unless it was in memory already.
+ * loads wins. Until then the title's gradient, and Pley's mark on it once
+ * none will come (no candidates, or none loaded); not while one loads, so
+ * a row scrolling in doesn't flash marks. The title isn't on it: a tile's
+ * caption names it. Fades in over 150 ms unless it was in memory already.
  */
 export function Art(props: {
   candidates: string[];
   width: number;
+  /** What the placeholder's gradient is made from. */
   title: string;
-  showTitle?: boolean;
   class?: string;
   style?: CSSProperties;
   /** The widest picture asked for, in px (backdrops: 1280). */
@@ -71,7 +73,13 @@ export function Art(props: {
   const urls = props.candidates.map((c) => ui.images.url(c, px, props.cap));
   const key = urls.join("|");
   const firstReady = urls.map((u) => ui.images.ready(u)).filter(Boolean)[0] ?? null;
-  const [src, setSrc] = useState<{ key: string; url: string | null; instant: boolean }>({ key, url: firstReady, instant: !!firstReady });
+  // "none": every candidate was tried and none could be had.
+  const [src, setSrc] = useState<{ key: string; url: string | null; instant: boolean; none: boolean }>({
+    key,
+    url: firstReady,
+    instant: !!firstReady,
+    none: urls.length === 0,
+  });
   useEffect(() => {
     let release = () => {};
     let cancelled = false;
@@ -79,7 +87,7 @@ export function Art(props: {
       if (cancelled) return;
       const u = urls[i];
       if (!u) {
-        setSrc({ key, url: null, instant: true });
+        setSrc({ key, url: null, instant: true, none: true });
         return;
       }
       if (ui.images.isMissing(u)) {
@@ -91,7 +99,7 @@ export function Art(props: {
         u,
         (objectUrl) => {
           if (cancelled) return;
-          if (objectUrl) setSrc({ key, url: objectUrl, instant: !!ready || ui.tier === "low" });
+          if (objectUrl) setSrc({ key, url: objectUrl, instant: !!ready || ui.tier === "low", none: false });
           else {
             release();
             tryAt(i + 1);
@@ -108,6 +116,7 @@ export function Art(props: {
   }, [key]);
   const shown = src.key === key ? src.url : firstReady;
   const instant = src.key === key ? src.instant : !!firstReady;
+  const none = src.key === key ? src.none : urls.length === 0;
   // "loaded": the picture is in; "covered": its fade is over, so the placeholder can go.
   const [state, setState] = useState<{ url: string | null; loaded: boolean; covered: boolean }>({ url: null, loaded: false, covered: false });
   const loaded = state.url === shown && state.loaded;
@@ -117,16 +126,11 @@ export function Art(props: {
     const t = setTimeout(() => setState((s) => (s.url === shown ? { ...s, covered: true } : s)), instant ? 0 : 160);
     return () => clearTimeout(t);
   }, [loaded, covered, shown]);
-  const titleSize = props.showTitle ? placeholderTitleSize(props.title, props.width) : 16;
   return (
     <div class={props.class} style={props.style}>
       {!covered && (
         <div class="tile-placeholder" style={{ background: placeholderGradient(props.title) }}>
-          {props.showTitle && (
-            <div class="t-title lines-4" style={titleSize < 16 ? `font-size:${titleSize}px;line-height:${Math.round(titleSize * 1.375)}px` : undefined}>
-              {props.title}
-            </div>
-          )}
+          {none && !shown && <Mark />}
         </div>
       )}
       {shown && (

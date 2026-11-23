@@ -395,7 +395,7 @@ function SeasonTileView(p: {
     <F class="tile" style={`width:${spec.w}px`} fid={p.fid} label={[p.name, p.badge, p.line].filter(Boolean).join(", ")} onSelect={p.onSelect} onFocus={p.onFocus}>
       <div class="tile-well" style={`width:${spec.w}px;height:${spec.h}px`}>
         <div class="tile-clip">
-          <Art candidates={p.art} width={spec.w} title={p.name} showTitle class="tile-clip" priority={p.priority} />
+          <Art candidates={p.art} width={spec.w} title={p.name} class="tile-clip" priority={p.priority} />
           <div class="tile-hairline" />
           {p.progress !== null && (
             <div class="tile-progress">

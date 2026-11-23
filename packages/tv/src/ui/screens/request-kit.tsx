@@ -130,7 +130,7 @@ function TitleTileView(p: {
     >
       <div class="tile-well" style={`width:${spec.w}px;height:${spec.h}px`}>
         <div class="tile-clip">
-          <Art candidates={p.poster ? [p.poster] : []} width={spec.w} title={p.name} showTitle class="tile-clip" priority={p.priority} />
+          <Art candidates={p.poster ? [p.poster] : []} width={spec.w} title={p.name} class="tile-clip" priority={p.priority} />
           <div class="tile-hairline" />
           {p.badge && <div class={`title-badge t-badge tone-${p.tone}`}>{p.badge}</div>}
         </div>
@@ -163,7 +163,7 @@ function RequestTileView(p: {
     <F class="tile" style={`width:${spec.w}px`} fid={p.fid} initial={p.initial} label={`${p.name}, ${p.stage}`} onSelect={p.onSelect} onFocus={p.onFocus}>
       <div class="tile-well" style={`width:${spec.w}px;height:${spec.h}px`}>
         <div class="tile-clip">
-          <Art candidates={p.art} width={spec.w} title={p.name} showTitle class="tile-clip" priority={p.priority} />
+          <Art candidates={p.art} width={spec.w} title={p.name} class="tile-clip" priority={p.priority} />
           <div class="tile-hairline" />
           {p.progress !== null && (
             <div class="tile-progress">
