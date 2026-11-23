@@ -114,6 +114,8 @@ describes how they are made.
 
 ### Fixed
 
+- On Discover, the requests' button and TMDB's credit line up with the
+  page's name.
 - A focused poster's outline sits against its picture: it stood off it,
   and on a wide tile reached the next one and was cut at the row's left.
 - The focused poster at the right end of a row keeps its whole outline:

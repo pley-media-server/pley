@@ -44,9 +44,11 @@
         <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
         <Poster id="fade" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" />
         <Group id="page">
+            <!-- The requests' button and TMDB's credit on the heading's
+                 middle line (y 87). -->
             <Label id="heading" translation="[192, 54]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-            <ChipRow id="chips" translation="[460, 68]" />
-            <Label id="credit" translation="[1124, 84]" width="700" horizAlign="right" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <ChipRow id="chips" translation="[460, 51]" />
+            <Label id="credit" translation="[1124, 72]" width="700" horizAlign="right" color="0x8B95A5FF" font="font:SmallestSystemFont" />
             <LayoutGroup id="hero" translation="[192, 196]" layoutDirection="vert" itemSpacings="[16, 20, 40, 20]" visible="false">
                 <Label id="heroName" width="1100" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
                 <MetaRow id="heroMeta" />
