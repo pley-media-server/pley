@@ -2452,6 +2452,9 @@ one of an audiobook library is refused (`400`).
   client_id?: string;             // identifies the player (browser tab, device)
   keep_previous?: boolean;        // the client's last session plays on: don't end it (the player ends it
                                   // as it moves over)
+  ahead?: boolean;                // with keep_previous: asked for ahead, to play once what plays ends (music's
+                                  // next track, without a gap): not listed as playing (the dashboard, remotes,
+                                  // the Plex and Jellyfin APIs) until its first progress report
   keyed_urls?: boolean;           // the player can't send the Authorization header: its addresses carry a
                                   // key (Keyed URLs)
   controls?: Control[];           // the remote's commands this player obeys (Remote control); left out: none.

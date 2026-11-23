@@ -466,7 +466,7 @@ pub async fn sessions(State(state): State<AppState>, PlexUser(user): PlexUser) -
     let now = crate::util::now();
     let everyone = super::sees_everyone(&user);
     let sessions: Vec<Arc<Session>> =
-        all.into_iter().filter(|s| (everyone || s.user_id == user.id) && s.is_active(now)).collect();
+        all.into_iter().filter(|s| (everyone || s.user_id == user.id) && s.is_listed(now)).collect();
     let jobs: HashMap<String, JobStatus> = if sessions.iter().any(|s| s.job_id().is_some()) {
         match state.transcoder.status().await {
             Ok(status) => status.jobs.into_iter().map(|j| (j.id.clone(), j)).collect(),
@@ -572,7 +572,7 @@ fn mark_decision(node: &mut Node, method: Method) {
 pub async fn transcode_sessions(State(state): State<AppState>, PlexUser(user): PlexUser) -> PlexResult<Node> {
     let everyone = super::sees_everyone(&user);
     let sessions: Vec<Arc<Session>> =
-        state.sessions.active().into_iter().filter(|s| everyone || s.user_id == user.id).collect();
+        state.sessions.listed().into_iter().filter(|s| everyone || s.user_id == user.id).collect();
     let jobs: HashMap<String, JobStatus> = match state.transcoder.status().await {
         Ok(status) => status.jobs.into_iter().map(|j| (j.id.clone(), j)).collect(),
         Err(_) => HashMap::new(),
@@ -646,6 +646,7 @@ pub async fn universal_start(
         mode: if params.get("directStream") == Some("0") { PlaybackMode::Transcode } else { PlaybackMode::Remux },
         client_id,
         keep_previous: false,
+        ahead: false,
         keyed_urls: false,
         // Plex clients only ever hear of a stop.
         controls: Controls::new(),

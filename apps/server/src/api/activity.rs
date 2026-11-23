@@ -96,7 +96,7 @@ pub struct Activity {
 /// who manages the server ([`AuthUser::administers`]).
 pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResult<Json<Activity>> {
     let everyone = user.oversees_playback();
-    let sessions: Vec<_> = state.sessions.active().into_iter().filter(|s| everyone || s.user_id == user.id).collect();
+    let sessions: Vec<_> = state.sessions.listed().into_iter().filter(|s| everyone || s.user_id == user.id).collect();
     let jobs: HashMap<String, JobStatus> = if sessions.iter().any(|s| s.job_id().is_some()) {
         match state.transcoder.status().await {
             Ok(status) => status.jobs.into_iter().map(|j| (j.id.clone(), j)).collect(),

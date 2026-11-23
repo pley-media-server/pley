@@ -343,6 +343,12 @@ pub struct PlaybackRequest {
     /// client's other sessions are left to it to end.
     #[serde(default)]
     pub keep_previous: bool,
+    /// With `keep_previous`: asked for ahead of time, to play once what
+    /// plays now ends (music's next track, read ahead so the two play
+    /// without a gap). It isn't listed as playing until its player's first
+    /// progress report ([`Session::is_listed`]).
+    #[serde(default)]
+    pub ahead: bool,
     /// The player can't send the Authorization header with its media
     /// requests (a TV's own player): the session's addresses carry a key
     /// of their own instead ([`Session::media_key`]).
@@ -1977,6 +1983,9 @@ pub struct Session {
     /// next sign of life wakes it, and a request for media makes a new
     /// transcode (`api::playback::replacement_job`).
     quiet: AtomicBool,
+    /// Asked for ahead of what plays now ([`PlaybackRequest::ahead`]): not
+    /// listed as playing before its player's first report.
+    pub ahead: bool,
 }
 
 impl Session {
@@ -2031,6 +2040,7 @@ impl Session {
             commands: Mutex::new(CommandWindow::default()),
             last_transcoder_touch: AtomicI64::new(now),
             quiet: AtomicBool::new(false),
+            ahead: false,
         }
     }
 
@@ -2059,11 +2069,14 @@ impl Session {
     }
 
     /// Records a progress report; whether the play state (playing, paused,
-    /// stopped) changed, the place jumped (a seek, a skip) or the session
-    /// woke, which the dashboard and the user's remotes hear about at once.
+    /// stopped) changed, the place jumped (a seek, a skip), the session
+    /// woke, or one asked for ahead plays now and is listed
+    /// ([`Self::is_listed`]), which the dashboard and the user's remotes
+    /// hear about at once.
     pub fn update(&self, position_ms: i64, state: &str) -> bool {
         let now_ms = now_ms();
         let mut play = self.play.lock();
+        let shown = self.ahead && play.reported_at_ms.is_none();
         let changed = play.state != state;
         let jumped = play.reported_at_ms.is_some_and(|at| jumped(&play, at, now_ms, position_ms));
         play.position_ms = position_ms;
@@ -2074,7 +2087,7 @@ impl Session {
         play.reported_at_ms = Some(now_ms);
         drop(play);
         let woke = self.quiet.swap(false, Ordering::SeqCst);
-        changed || jumped || woke
+        changed || jumped || woke || shown
     }
 
     /// The tracks its play request picked, which remotes show until its
@@ -2133,6 +2146,15 @@ impl Session {
     pub fn is_active(&self, now: i64) -> bool {
         let play = self.play.lock();
         play.state != "stopped" && now - play.updated_at <= ACTIVE_WINDOW_SECS
+    }
+
+    /// Whether it is listed as playing (the dashboard, the user's remotes,
+    /// the Plex and Jellyfin APIs' sessions): active ([`Self::is_active`]),
+    /// and, asked for ahead of what plays now ([`Self::ahead`]), reported
+    /// by its player since. Until then its player is still on the session
+    /// before, which is listed.
+    pub fn is_listed(&self, now: i64) -> bool {
+        self.is_active(now) && !(self.ahead && self.play.lock().reported_at_ms.is_none())
     }
 
     /// Keep the transcoder job alive while the player reports progress (paused players).
@@ -2650,6 +2672,12 @@ impl Sessions {
         self.list().into_iter().filter(|s| s.is_active(now)).collect()
     }
 
+    /// The sessions listed as playing ([`Session::is_listed`]).
+    pub fn listed(&self) -> Vec<Arc<Session>> {
+        let now = now();
+        self.list().into_iter().filter(|s| s.is_listed(now)).collect()
+    }
+
     /// Seconds since anything played: 0 while a player is there, counted
     /// from the last sign of the sessions still kept otherwise, and "long
     /// ago" without any.
@@ -3076,6 +3104,7 @@ mod tests {
             mode: PlaybackMode::Auto,
             client_id: None,
             keep_previous: false,
+            ahead: false,
             keyed_urls: false,
             controls: Controls::new(),
             device_name: None,
@@ -4079,6 +4108,23 @@ mod tests {
         let forgotten = ids(sessions.sweep(later).forgotten);
         assert_eq!(forgotten.len(), 4);
         assert!(sessions.list().is_empty());
+    }
+
+    #[test]
+    fn a_session_asked_for_ahead_is_listed_once_its_player_reports() {
+        let sessions = Sessions::default();
+        let playing = sessions.insert(session(1, Some("phone"), false));
+        let mut next = session(1, Some("phone"), false);
+        next.ahead = true;
+        let next = sessions.insert(next);
+        let ids = |list: Vec<Arc<Session>>| list.iter().map(|s| s.id.clone()).collect::<Vec<_>>();
+        // Its player is still on the track before: that one alone is listed, both are active.
+        assert_eq!(ids(sessions.listed()), vec![playing.id.clone()]);
+        assert_eq!(sessions.active().len(), 2);
+        // Its first report lists it, and says so at once.
+        assert!(next.update(0, "playing"));
+        assert!(ids(sessions.listed()).contains(&next.id));
+        assert!(!next.update(0, "playing"), "said once");
     }
 
     #[test]

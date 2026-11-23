@@ -263,7 +263,7 @@ impl Listener {
     /// `playing` notifications for sessions that started, changed state or
     /// moved on since the last look, and `stopped` for those that ended.
     fn sessions_changed(&mut self) -> Vec<Value> {
-        let live = self.state.sessions.active();
+        let live = self.state.sessions.listed();
         let everyone = super::sees_everyone(&self.user);
         let mine: Vec<_> = live.iter().filter(|s| everyone || s.user_id == self.user.id).collect();
         let mut notes = Vec::new();

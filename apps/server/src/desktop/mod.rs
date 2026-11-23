@@ -233,7 +233,7 @@ fn status_line(state: &AppState) -> String {
     if state.stopping.is_cancelled() {
         return t("stopping");
     }
-    let playing = state.sessions.active().len();
+    let playing = state.sessions.listed().len();
     let transcoding = state.sessions.active_transcodes();
     let mut parts = Vec::new();
     if playing > 0 {

@@ -248,10 +248,10 @@ async fn playing_live(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playin
 }
 
 /// The user's sessions of the library's titles whose players are there
-/// ([`Session::is_active`]).
+/// ([`Session::is_listed`]).
 async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<PlayingSession>> {
     let mut out = Vec::new();
-    for session in state.sessions.active().into_iter().filter(|s| s.user_id == user.id) {
+    for session in state.sessions.listed().into_iter().filter(|s| s.user_id == user.id) {
         let Some(row) = catalog::item(&state.db, user.id, session.item_id).await? else { continue };
         let file = catalog::file(&state.db, session.file_id).await?;
         let tracks = track_options(&file.as_ref().map(|f| f.streams()).unwrap_or_default());

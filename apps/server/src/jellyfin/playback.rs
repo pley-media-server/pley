@@ -165,6 +165,7 @@ async fn playback_info(
             mode: PlaybackMode::Auto,
             client_id: client.device_id.clone(),
             keep_previous: false,
+            ahead: false,
             keyed_urls: false,
             controls: Controls::new(),
             device_name: None,
@@ -442,6 +443,7 @@ async fn master(
                 mode: if copy { PlaybackMode::Remux } else { PlaybackMode::Transcode },
                 client_id: device,
                 keep_previous: false,
+                ahead: false,
                 keyed_urls: false,
                 controls: Controls::new(),
                 device_name: client.device.clone(),
@@ -947,7 +949,7 @@ async fn sessions(
         return Ok(Json(Vec::new()));
     }
     let mut playing = Vec::new();
-    for session in state.sessions.active() {
+    for session in state.sessions.listed() {
         if let Some(row) = catalog::item(&state.db, session.user_id, session.item_id).await? {
             playing.push((session, row));
         }
