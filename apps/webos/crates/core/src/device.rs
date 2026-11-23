@@ -338,7 +338,8 @@ pub struct FakeDevice {
 }
 
 impl FakeDevice {
-    /// A device whose folders are in a new temporary folder.
+    /// A device whose folders are in a new temporary folder, removed when the
+    /// thread that made the device ends ([`scratch_dir`]).
     pub fn new(engine: impl Fn() -> Box<dyn PlayerEngine> + Send + Sync + 'static) -> FakeDevice {
         FakeDevice::in_dir(scratch_dir("device"), engine)
     }
