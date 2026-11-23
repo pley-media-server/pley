@@ -1587,9 +1587,10 @@ after them.
   track's lines, read after seeking with the file's own times (`-copyts`),
   or a picture track's display times, from its packets copied in the same
   pass as the key frames (`framecrc`): the largest packet at a time over
-  200 bytes holds a picture, a smaller one clears it; no text. At most 4,000
-  cues of at most 200 characters. Subtitles that can't be read leave `cues`
-  out, as an older transcoder does.
+  200 bytes holds a picture, a smaller one clears it; no text. Each cue's
+  text is cut at 200 characters. Subtitles that can't be read, or with more
+  than 4,000 cues there, leave `cues` out, as an older transcoder does:
+  a shortened list would lose the last cues.
 - Shares the fingerprints' limit and priority.
 
 ## Reading ahead

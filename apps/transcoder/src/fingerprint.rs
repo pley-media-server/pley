@@ -124,7 +124,7 @@ impl Fingerprinter {
             },
             (None, _) => None,
         };
-        Ok(Frames { frames, cues: cues.map(bounded) })
+        Ok(Frames { frames, cues: cues.and_then(bounded) })
     }
 
     /// The lines of an embedded text track over part of a file. `-copyts`
@@ -156,21 +156,26 @@ impl Fingerprinter {
     }
 }
 
-/// Cues kept, and the length of their text: a track can't make the reply or
-/// the server's cache grow without end.
+/// Cues a track may have, and the length of their text: a track can't make
+/// the reply or the server's cache grow without end.
 const MAX_CUES: usize = 4_000;
 const MAX_CUE_TEXT: usize = 200;
 /// Reading a text track's lines takes seconds; a stuck read is given up.
 const CUES_TIMEOUT: Duration = Duration::from_secs(2 * 60);
 
-fn bounded(mut cues: Vec<Cue>) -> Vec<Cue> {
-    cues.truncate(MAX_CUES);
+/// The cues with their text cut short, or none for a track with too many:
+/// cutting the list would drop its last cues, which tell whether anyone
+/// speaks after the credits.
+fn bounded(mut cues: Vec<Cue>) -> Option<Vec<Cue>> {
+    if cues.len() > MAX_CUES {
+        return None;
+    }
     for cue in &mut cues {
         if let Some((cut, _)) = cue.text.char_indices().nth(MAX_CUE_TEXT) {
             cue.text.truncate(cut);
         }
     }
-    cues
+    Some(cues)
 }
 
 /// The cues of SRT text, `offset_ms` added to their times. Each block is a
@@ -302,6 +307,19 @@ mod tests {
             ]
         );
         assert!(parse_srt("", 0).is_empty());
+    }
+
+    #[test]
+    fn cues_are_bounded_and_too_many_are_unknown() {
+        let cue = |i: i64, text: String| Cue { start_ms: i * 1_000, end_ms: i * 1_000 + 900, text };
+        let long = bounded(vec![cue(0, "é".repeat(500))]).expect("one cue");
+        assert_eq!(long[0].text.chars().count(), MAX_CUE_TEXT);
+        let full: Vec<Cue> = (0..MAX_CUES as i64).map(|i| cue(i, "Line.".into())).collect();
+        assert_eq!(bounded(full.clone()).map(|c| c.len()), Some(MAX_CUES));
+        // One more and the last ones would be missing: whether anyone speaks
+        // at the end is unknown.
+        let over = [full, vec![cue(MAX_CUES as i64, "Hello?".into())]].concat();
+        assert_eq!(bounded(over), None);
     }
 
     #[test]
