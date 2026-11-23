@@ -845,7 +845,15 @@ fn entry_boxes(boxes: &[Child], config: Option<DoviConfig>) -> Vec<u8> {
     let mut out = Vec::new();
     let mut record = config.map(DoviConfig::to_box);
     for b in boxes.iter().filter(|b| !DOVI_BOXES.contains(&b.kind)) {
-        out.extend_from_slice(b.whole);
+        // A box that runs to its parent's end (a size of 0) is given its
+        // own size: the record after it would be taken in otherwise.
+        match u32::try_from(b.whole.len()) {
+            Ok(size) if b.whole.starts_with(&[0; 4]) => {
+                out.extend_from_slice(&size.to_be_bytes());
+                out.extend_from_slice(&b.whole[4..]);
+            }
+            _ => out.extend_from_slice(b.whole),
+        }
         if b.kind == *b"hvcC" || b.kind == *b"avcC" {
             out.extend(record.take().unwrap_or_default());
         }
@@ -1441,6 +1449,20 @@ mod tests {
             skip = then;
         }
         children(&data[skip..]).unwrap().iter().map(|b| b.kind).collect()
+    }
+
+    #[test]
+    fn the_record_goes_after_a_box_that_runs_to_its_parents_end() {
+        let p81 = DoviConfig { profile: 8, level: 6, rpu: true, el: false, bl: true, compat: 1 };
+        // A sample entry whose only box says it runs to the entry's end.
+        let video = top(b"hvc1", &[&[0; 78][..], &[0, 0, 0, 0], b"pasp", &u32s(&[1, 1])].concat());
+        let mvhd = full(b"mvhd", 0, &u32s(&[0, 0, 1000, 0]));
+        let moov = top(b"moov", &[mvhd, handmade_trak(1, b"vide", 90000, &video)].concat());
+        let init = [top(b"ftyp", b"isom\0\0\x02\0isomiso6"), moov].concat();
+        let inserted = set_dovi(&init, Some(p81)).unwrap();
+        assert!(sizes_add_up(&inserted));
+        assert_eq!(entry_kinds(&inserted), [*b"pasp", *b"dvvC"]);
+        assert_eq!(Init::from_bytes(&inserted).unwrap().tracks[0].dovi, Some(p81));
     }
 
     #[test]
