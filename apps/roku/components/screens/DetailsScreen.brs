@@ -165,7 +165,6 @@ sub showDetail()
     layoutText()
     agent = m.top.getScene().getHttpAgent()
     if m.backdrop.uri <> m.detail.backdrop
-        m.backdrop.setHttpAgent(agent)
         m.backdrop.uri = m.detail.backdrop
     end if
     ' The poster at the right only for a title without a backdrop.

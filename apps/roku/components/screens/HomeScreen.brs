@@ -397,11 +397,10 @@ sub layOut(column as object, parts as object, last as dynamic, lastGap as intege
     if focused then last.setFocus(true)
 end sub
 
-' The scene's agent as each backdrop is asked for, as the other screens
-' do: a new token makes the scene a new one.
+' The backdrop fades to the title's (Backdrop.xml), which asks for it with
+' the scene's agent: a new token makes the scene a new one.
 sub setBackdrop(uri as string)
     if m.backdrop.uri = uri then return
-    m.backdrop.setHttpAgent(m.top.getScene().getHttpAgent())
     m.backdrop.uri = uri
 end sub
 

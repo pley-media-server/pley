@@ -103,7 +103,6 @@ sub onCollection(event as object)
     showBadges()
     showFacts()
     if m.backdrop.uri <> collection.backdrop
-        m.backdrop.setHttpAgent(m.top.getScene().getHttpAgent())
         m.backdrop.uri = collection.backdrop
     end if
     showButtons()

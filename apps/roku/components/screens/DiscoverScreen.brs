@@ -374,7 +374,6 @@ sub drawHero()
     chips = reqHeroChips(m.heroShown)
     if FormatJson(m.heroButtons.chips) <> FormatJson(chips) then m.heroButtons.chips = chips
     if m.backdrop.uri <> m.heroShown.backdrop
-        m.backdrop.setHttpAgent(m.top.getScene().getHttpAgent())
         m.backdrop.uri = m.heroShown.backdrop
     end if
     m.hero.visible = true

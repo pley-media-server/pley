@@ -169,7 +169,6 @@ sub showDetail()
     layoutText()
     agent = m.top.getScene().getHttpAgent()
     if m.backdrop.uri <> m.shown.backdrop
-        m.backdrop.setHttpAgent(agent)
         m.backdrop.uri = m.shown.backdrop
     end if
     if m.poster.uri <> m.shown.poster

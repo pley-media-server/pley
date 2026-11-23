@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Changed
 
+- The backdrop of Home, Discover, a title's page and a collection fades
+  from one picture to the next: it went blank until the next one came.
 - The focus moves at once in every list, grid and row of posters, a menu
   and a side panel alike: Roku's lists glided to each item, so a press
   felt slow and the highlight went dark until it arrived. Holding a key

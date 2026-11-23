@@ -49,7 +49,7 @@
         <!-- All but the panel: cut to the panel's left while it shows, so
              what it covers isn't drawn (onPanel). -->
         <Group id="under">
-        <Poster id="backdrop" width="1920" height="1080" loadWidth="960" loadHeight="540" loadDisplayMode="scaleToZoom" />
+        <Backdrop id="backdrop" />
         <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
         <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" />
         <Group id="page">
