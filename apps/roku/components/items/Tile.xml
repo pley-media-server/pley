@@ -51,7 +51,7 @@
                 <Label id="quality0" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
                 <Poster id="qualityBack1" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="36" visible="false" />
                 <Label id="quality1" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
-                <!-- The accent's ring, 12 px out from the well all round. -->
+                <!-- The accent's ring, against the well all round. -->
                 <Poster id="ring" uri="pkg:/images/ui/ring.9.png" opacity="0" />
             </Group>
             <Label id="title" color="0xEBEBEBFF" maxLines="1" />

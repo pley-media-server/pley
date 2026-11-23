@@ -121,10 +121,10 @@ end sub
 
 ' The tile's item is 24 px wider than its artwork and 30 px taller: room
 ' at the left and top for the focused one's growth and ring, which a list
-' cuts at its edges (the lists move 24 px left to match). At the right,
-' the growth and the ring reach 22 px past the item, so a row of them ends
-' 24 px short of the screen's edge: the last tile the focus rests on keeps
-' its ring.
+' cuts at its edges (the lists move 24 px left to match): grown, a wide
+' tile and its ring reach 23 px out. At the right they reach as far past
+' the item, so a row of them ends 24 px short of the screen's edge: the
+' last tile the focus rests on keeps its ring.
 sub onLayout()
     w = m.top.width - 24
     if w <= 0 then return
@@ -177,9 +177,9 @@ sub onLayout()
     m.poster.loadHeight = imageHeight
     m.hairline.width = w
     m.hairline.height = imageHeight
-    m.ring.translation = [-12, -12]
-    m.ring.width = w + 24
-    m.ring.height = imageHeight + 24
+    m.ring.translation = [-6, -6]
+    m.ring.width = w + 12
+    m.ring.height = imageHeight + 12
     m.fallback.translation = [16, 16]
     m.fallback.width = w - 32
     m.fallback.height = imageHeight - 32

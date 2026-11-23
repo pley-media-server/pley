@@ -114,6 +114,8 @@ describes how they are made.
 
 ### Fixed
 
+- A focused poster's outline sits against its picture: it stood off it,
+  and on a wide tile reached the next one and was cut at the row's left.
 - The focused poster at the right end of a row keeps its whole outline:
   the row reached the screen's edge, which cut it off.
 - In a library's Recommended and Collections rows, and on Discover, the

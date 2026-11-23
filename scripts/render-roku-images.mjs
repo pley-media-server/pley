@@ -137,13 +137,15 @@ add(
   `<defs><linearGradient id="g" x2="0" y2="1">${stops([[0, 0.65], [1, 0]])}</linearGradient></defs><rect width="4" height="256" fill="url(#g)"/>`,
 );
 
-// The focus ring around a tile (Android TV's, the Kodi skin's): a 6 px
-// accent-bright stroke whose middle runs 9 px outside the tile, drawn 12 px
-// out from it all round; nine-patch, its corners left whole.
-ninePatch("ring.9.png", 64, 64, 22, `<rect x="3" y="3" width="58" height="58" rx="17" fill="none" stroke="${ACCENT_BRIGHT}" stroke-width="6"/>`);
+// The focus ring around a tile: a 6 px accent-bright stroke against the
+// tile's edge, drawn 6 px out from it all round, its inner corners the
+// tile's 8 px; nine-patch, its corners left whole. Android TV's stands 3 dp
+// off the tile, a gap that on a Roku's grown tiles read as loose and
+// reached the next tile.
+ninePatch("ring.9.png", 64, 64, 22, `<rect x="3" y="3" width="58" height="58" rx="11" fill="none" stroke="${ACCENT_BRIGHT}" stroke-width="6"/>`);
 // The same ring around a person's circle, as wide as a row's (192 px and
-// 12 px each side).
-add("ring-round.png", 216, 216, `<circle cx="108" cy="108" r="105" fill="none" stroke="${ACCENT_BRIGHT}" stroke-width="6"/>`);
+// 6 px each side).
+add("ring-round.png", 204, 204, `<circle cx="102" cy="102" r="99" fill="none" stroke="${ACCENT_BRIGHT}" stroke-width="6"/>`);
 // A profile's face in "Who's watching?" (220 px, to tint), and its focus
 // ring, the same stroke 12 px out all round.
 add("face.png", 220, 220, `<circle cx="110" cy="110" r="110" fill="#ffffff"/>`);

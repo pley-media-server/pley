@@ -75,7 +75,7 @@ takes the hero's place, and the backdrop follows it. Up from the first row
 goes back to the hero; Back, to the hero, then to the rail; Left, to the
 rail.
 Tiles are the Android TV app's: their pictures' corners round (Roku OS
-16), focused they grow and take the accent's ring.
+16), focused they grow and take the accent's ring, against the picture.
 The hero's summary, content rating and quality come with its details
 (`GET /api/items/{id}`, which the API task reduces to what Home says), as
 do the info block's. With nothing to show, Home says why: No libraries
