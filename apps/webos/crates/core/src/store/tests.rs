@@ -202,6 +202,18 @@ fn a_snapshot_saved_after_its_data_folder_went_makes_none_of_it_again() {
 }
 
 #[test]
+fn a_snapshot_is_saved_again_after_they_were_all_cleared() {
+    let data = scratch_dir("snap-cleared");
+    let snaps = Snapshots::open(data.join("snapshots"));
+    let server = "http://nas:7539";
+    snaps.put(server, 2, snapshot_keys::HOME, &serde_json::json!({"hubs": []})).unwrap();
+    snaps.clear();
+    assert!(!snaps.root().exists() && snaps.total_bytes() == 0, "clearing takes the root with it");
+    snaps.put(server, 2, snapshot_keys::HOME, &serde_json::json!({"hubs": [1]})).unwrap();
+    assert_eq!(snaps.get::<serde_json::Value>(server, 2, "home"), Some(serde_json::json!({"hubs": [1]})));
+}
+
+#[test]
 fn snapshots_stay_within_their_budget_dropping_the_least_recently_used() {
     let snaps = Snapshots::with_budget(scratch_dir("snap-budget"), 10_000);
     let server = "http://nas:7539";
