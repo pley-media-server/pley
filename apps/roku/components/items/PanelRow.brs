@@ -28,6 +28,8 @@ sub onContent()
     if entry = invalid then return
     m.content = entry
     m.name.text = entry.title
+    ' 简体中文 and 繁體中文 among the languages, in a font that has them.
+    m.name.font = uiFontFor(entry.title, "medium", 28)
     note = ""
     if entry.description <> invalid then note = entry.description
     m.note.text = note

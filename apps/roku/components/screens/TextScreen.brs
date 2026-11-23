@@ -33,7 +33,7 @@ end function
 function licences() as string
     own = t("settings.licence")
     out = own
-    for each name in ["bslib", "roboto", "lucide"]
+    for each name in ["bslib", "roboto", "noto-sans", "lucide"]
         out = out + Chr(10) + Chr(10) + ReadAsciiFile("pkg:/licenses/" + name + ".txt")
     end for
     return out

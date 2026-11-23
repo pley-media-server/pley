@@ -1027,9 +1027,10 @@ sub onLanguageChoice()
 end sub
 
 ' Whether a screen shows another language than the one shown now, and is
-' made again for it.
+' made again for it. One that draws its words again itself is made again
+' only for another family of type (Chinese's), its fonts being its own.
 function stale(screen as object) as boolean
-    if screen.hasField("language") then return false
+    if screen.hasField("language") then return i18nFontFamily(screen.madeIn) <> uiFontFamily()
     kind = screen.subtype()
     if kind = "PlayerScreen" or kind = "LivePlayerScreen" or kind = "NowPlayingScreen" then return false
     return screen.madeIn <> m.global.language

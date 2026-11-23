@@ -1007,9 +1007,12 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   splash screens come from `bun scripts/render-icons.mjs` there too.
 - **Type:** Roboto, the Android app's static files (`fonts/`), in the
   Android TV app's sizes doubled (`components/shared/Type.brs`); Chinese
-  in the Roku's own font, which has its characters. The scene gives every
-  screen it makes Roboto wherever the screen's markup still names a
-  system font (`uiRestyle`, by size: the Roku doesn't say which are bold).
+  in Noto Sans SC or TC, which Roboto and the Roku's own font lack, cut to
+  the app's characters by `scripts/subset-roku-cjk.py` (run again when the
+  Chinese words change). A language's name in Chinese, as in the language
+  list, takes Noto in any language. The scene gives every screen it makes
+  Pley's type wherever the screen's markup still names a system font
+  (`uiRestyle`, by size: the Roku doesn't say which are bold).
 - **Tiles** (`components/items/Tile`) grow by their size, not a scale:
   scaled, Roku OS 16's Effect draws square corners again. Their items are
   24 px wider and 30 px taller than the picture, room the lists would

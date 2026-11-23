@@ -125,6 +125,9 @@ describes how they are made.
 
 ### Fixed
 
+- Chinese shows: Roboto and the Roku's own font have no Chinese
+  characters, so its words were empty boxes. The app draws Chinese in Noto
+  Sans SC and TC, and the language list shows 简体中文 and 繁體中文.
 - Spacing on several pages: a library's rows sit as far under its tabs as
   its grid, the requests' list no longer touches its tabs, Live TV's guide
   clears its hint and its categories sit on the pages' edge, a show's

@@ -22,7 +22,7 @@ In short, the AGPL means:
 | **protocol types** | `packages/transcoder-api` | AGPL-3.0-only | Plain serde structs shared by the server and the transcoder |
 | **Pley for desktop** | `apps/desktop` | AGPL-3.0-only | A window on a server's web app (Tauri, MIT OR Apache-2.0) |
 | **Pley for Android** | `apps/android` | AGPL-3.0-only | A native app for phones, tablets and TVs (Kotlin and Compose): AndroidX, Media3, OkHttp, Coil and kotlinx under Apache-2.0, Lucide's icons under ISC, Nayuki's QR code generator under MIT |
-| **Pley for Roku** | `apps/roku` | AGPL-3.0-only | A native SceneGraph app in BrightScript, built with BrighterScript (MIT), which adds its runtime helpers, bslib (MIT), to the package, with pictures drawn from Lucide's icons (ISC, and MIT for those from Feather) and the Roboto font (OFL-1.1) |
+| **Pley for Roku** | `apps/roku` | AGPL-3.0-only | A native SceneGraph app in BrightScript, built with BrighterScript (MIT), which adds its runtime helpers, bslib (MIT), to the package, with pictures drawn from Lucide's icons (ISC, and MIT for those from Feather), the Roboto font (OFL-1.1), and Noto Sans SC and TC (OFL-1.1) for Chinese |
 | **Pley for Samsung TV** | `apps/tizen`, `packages/tv` | AGPL-3.0-only | A web app for the TV's own engine in TypeScript: Preact and its signals (MIT), Lucide's icons (ISC, and MIT for those from Feather), a QR code generator (MIT) and the Roboto font (OFL-1.1) |
 | **Pley for Samsung TV, native** | `apps/tizen-native` | AGPL-3.0-only | A Tizen .NET app in C# with NUI screens, on Tizen.NET (Apache-2.0) and .NET Standard (MIT), which the TV provides, Lucide's icons (ISC, and MIT for those from Feather), Nayuki's QR code generator (MIT, `Net.Codecrete.QrCodeGenerator`) and the Roboto font (OFL-1.1) |
 | **Pley for LG TV** | `apps/webos` | AGPL-3.0-only | A native webOS app in Rust, on permissively licensed crates (MIT, Apache-2.0, BSD, ISC, Zlib and the like), with Lucide's icons (ISC, and MIT for those from Feather) and the Roboto font (OFL-1.1); the TV's own libraries and media pipeline do the rest |
@@ -177,9 +177,11 @@ What each build contains of others' work, and where its notices are:
   (`images/ui`) are drawn from Lucide's icons (ISC, and MIT for those
   Lucide took from Feather) by `scripts/render-roku-images.mjs`, and it
   draws its text in Roboto (OFL-1.1, `fonts/`, the Android app's static
-  files from googlefonts/roboto-3-classic); their notices are beside bslib's
-  (`licenses/lucide.txt`, `licenses/roboto.txt`), and Settings → Open-source
-  licenses lists all three.
+  files from googlefonts/roboto-3-classic), and Chinese in Noto Sans SC and
+  TC (OFL-1.1, from google/fonts, cut to the app's characters by
+  `scripts/subset-roku-cjk.py`); their notices are beside bslib's
+  (`licenses/lucide.txt`, `licenses/roboto.txt`, `licenses/noto-sans.txt`),
+  and Settings → Open-source licenses lists all four.
 - The Kodi add-on uses Python's standard library alone, and pictures drawn
   from Lucide's icons (ISC, and MIT for those Lucide took from Feather); the
   notice ships in the add-on's `NOTICES.txt`, and its `addon.xml` gives the

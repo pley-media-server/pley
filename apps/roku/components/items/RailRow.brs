@@ -7,9 +7,6 @@ sub init()
     m.count = m.top.findNode("count")
     m.avatar = m.top.findNode("avatar")
     m.initial = m.top.findNode("initial")
-    m.name.font = uiType("label")
-    m.count.font = uiType("badge")
-    m.initial.font = uiType("title")
     m.current = false
     m.danger = false
 end sub
@@ -21,6 +18,12 @@ sub onContent()
     ' The profile: its initial in a circle, where the others have an icon.
     initial = ""
     if entry.hasField("initial") then initial = entry.initial
+    ' Set with each entry, so a language that changed the family of type
+    ' (the rail's entries come again in it) shows in its fonts; a library's
+    ' or a profile's name in Chinese has a font with its characters.
+    m.name.font = uiFontFor(entry.title, "medium", 28)
+    m.initial.font = uiFontFor(initial, "bold", 32)
+    m.count.font = uiType("badge")
     m.avatar.visible = initial <> ""
     m.initial.visible = initial <> ""
     m.icon.visible = initial = ""
