@@ -3,7 +3,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Search Ideas first and vote for it if it's there. Something broken is a bug: [report it as an issue](https://github.com/pley-media-server/pley/issues/new?template=bug_report.yml).
+        Search Ideas first: if yours is there, vote for it. Something broken is a bug: [report it as an issue](https://github.com/pley-media-server/pley/issues/new?template=bug_report.yml).
   - type: textarea
     id: idea
     attributes:
