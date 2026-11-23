@@ -110,7 +110,10 @@ Mark as watched, Audio and subtitles, My List, Trailer (where its extras
 have one: it plays from its start) and More…. A title without a backdrop
 shows its poster at the right. Audio and subtitles and More
 open a panel at the right; Back closes it, and Down from the buttons goes
-to the rows under them. Over the summary, as on Android TV, a line says
+to the rows under them. In the rows, as on Android TV, an info block
+stays at the top over them: the title on one line, its line of facts and
+two lines of the summary, or, on an episode, its name, its time and two
+lines of its own summary. Over the summary, as on Android TV, a line says
 who made it and who is in it ("Directed by Grace Hopper · Starring Ada
 Lovelace, Alan Turing"; a show's "Created by"). A show's seasons are
 followed by the episodes of one, as on Android TV: the next episode's

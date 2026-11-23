@@ -34,6 +34,16 @@ sub init()
         m.top.findNode(id).font = uiType(fonts[id])
     end for
     m.rows.rowLabelFont = uiType("section")
+    m.infoBlock = m.top.findNode("infoBlock")
+    m.infoTitle = m.top.findNode("infoTitle")
+    m.infoLine = m.top.findNode("infoLine")
+    m.infoName = m.top.findNode("infoName")
+    m.infoSummary = m.top.findNode("infoSummary")
+    m.infoTitle.font = uiType("heroTitle")
+    m.infoName.font = uiType("title")
+    m.infoSummary.font = uiType("bodyLarge")
+    ' The episode the info block shows (invalid for the title's own).
+    m.infoTile = invalid
     m.chipsShown = ""
     m.column.visible = false
     ' What the panel shows: "" (closed), a menu ("more", "tracks"), the
@@ -189,6 +199,7 @@ sub showDetail()
     m.buttons.visible = hasButtons
     m.column.visible = true
     if m.rows.visible then placeRows()
+    if m.infoBlock.visible then fillInfo(focusedTile())
     ' A menu of the panel says its entries as they are now.
     if m.panelKind = "more"
         openMore()
@@ -283,8 +294,10 @@ sub firstSeason(row as object)
     if first <> invalid then askEpisodes(first, false)
 end sub
 
-' Focus resting on a season shows its episodes.
+' Focus resting on a season shows its episodes; on an episode, the info
+' block says it.
 sub onRowFocused()
+    if m.infoBlock.visible then infoFor(focusedTile(), false)
     position = m.rows.rowItemFocused
     if position = invalid or position.Count() <> 2 or position[0] < 0 or position[0] >= m.rowKeys.Count() then return
     if m.rowKeys[position[0]] <> "seasons" then return
@@ -382,7 +395,8 @@ end sub
 
 ' The rows 64 px under the title's words and buttons, not at a fixed
 ' place: a short summary left a third of the screen empty above them.
-' Between 560 and 940; the page slides by as much to bring them to 120.
+' Between 560 and 940; the page slides by as much to bring them to 360,
+' under the info block.
 sub placeRows()
     rect = m.column.boundingRect()
     if rect.height <= 0 then return
@@ -390,15 +404,27 @@ sub placeRows()
     if y < 560 then y = 560
     if y > 940 then y = 940
     if m.rows.translation[1] <> y then m.rows.translation = [168, y]
+    ' In the rows, the page keeps their top under the info block.
+    if m.infoBlock.visible then m.page.translation = [0, -(y - 360)]
 end sub
 
 ' The page slides up to the rows as they take the focus, the backdrop
-' shaded under them all, and back down.
+' shaded under them all, and back down. Over the rows the info block
+' takes the place of the title's words and buttons, which would show cut
+' at the top; the rows' top comes under it.
 sub focusRows(onRows as boolean)
+    shown = 1.0
+    if onRows then shown = 0.0
+    for each node in [m.column, m.poster, m.stage, m.stageLine]
+        node.opacity = shown
+    end for
+    m.infoBlock.visible = onRows
     if onRows
         placeRows()
-        m.page.translation = [0, -(m.rows.translation[1] - 120)]
+        m.page.translation = [0, -(m.rows.translation[1] - 360)]
         uiDimBackdrop(m.top, true)
+        m.infoTile = invalid
+        fillInfo(focusedTile())
         m.rows.setFocus(true)
     else
         m.page.translation = [0, 0]
@@ -410,6 +436,50 @@ sub focusRows(onRows as boolean)
         end if
     end if
 end sub
+
+' The info block: the title and its line as the page has them, then the
+' episode focus is on (tile), or the title's own summary.
+sub fillInfo(tile as dynamic)
+    if m.detail = invalid then return
+    m.infoTitle.text = m.detail.heading
+    m.infoLine.parts = m.line.parts
+    m.infoTile = invalid
+    infoFor(tile, true)
+end sub
+
+' What the info block says under the line, as focus moves through the
+' rows: only when it goes to another episode, or off the episodes.
+sub infoFor(tile as dynamic, force as boolean)
+    if tile <> invalid and not (tile.hasField("kind") and tile.kind = "episode") then tile = invalid
+    if not force
+        if tile = invalid and m.infoTile = invalid then return
+        if tile <> invalid and m.infoTile <> invalid and tile.isSameNode(m.infoTile) then return
+    end if
+    m.infoTile = tile
+    if tile = invalid
+        m.infoName.visible = false
+        m.infoSummary.translation = [0, 164]
+        m.infoSummary.text = m.detail.summary
+        return
+    end if
+    name = tile.title
+    if tile.subtitle <> invalid and tile.subtitle <> "" then name = name + " · " + tile.subtitle
+    m.infoName.text = name
+    m.infoName.visible = true
+    m.infoSummary.translation = [0, 212]
+    summary = ""
+    if tile.hasField("summary") and tile.summary <> invalid then summary = tile.summary
+    m.infoSummary.text = summary
+end sub
+
+' The tile focus is on in the rows, invalid for none.
+function focusedTile() as dynamic
+    position = m.rows.rowItemFocused
+    if position = invalid or position.Count() <> 2 or m.rows.content = invalid then return invalid
+    row = m.rows.content.getChild(position[0])
+    if row = invalid or position[1] < 0 then return invalid
+    return row.getChild(position[1])
+end function
 
 ' A season chosen goes down into its episodes, as on Android TV: the page
 ' has them, or asks for them; any other tile opens.

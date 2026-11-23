@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Changed
 
+- A title's page keeps the title, its line and two lines of the summary
+  at the top while the focus is in the rows under it, as Android TV's
+  info block does: on an episode, its name and its own summary. The
+  title's words went off the top of the screen.
 - Dialogs' and notices' buttons are the pages' pills: each inside its
   edge, the focused one in the accent, where Roku's showed the others as
   bare words (Which seasons?, subtitle sync, the sleep timer, Up next,

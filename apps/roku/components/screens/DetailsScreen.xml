@@ -78,6 +78,16 @@
             <!-- Its top shows under the buttons; the page slides up to it. -->
             <QuickRowList id="rows" translation="[168, 940]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
+        <!-- With the focus in the rows, the info block at the top over
+             them, as Android TV's: the title on one line, its line of
+             facts, and two lines of the summary; on an episode, its name
+             and line, then two lines of its own summary. -->
+        <Group id="infoBlock" translation="[192, 48]" visible="false">
+            <Label id="infoTitle" width="1500" maxLines="1" color="0xEBEBEBFF" />
+            <MetaRow id="infoLine" translation="[0, 108]" />
+            <Label id="infoName" translation="[0, 164]" width="1100" maxLines="1" color="0xEBEBEBFF" />
+            <Label id="infoSummary" translation="[0, 164]" width="1040" wrap="true" maxLines="2" lineSpacing="6" color="0xEBEBEBFF" />
+        </Group>
         <Label id="message" translation="[192, 480]" width="1100" wrap="true" color="0xA1A9B6FF" />
         </Group>
         <!-- A menu (Audio and subtitles, More), or the choices of one of its
