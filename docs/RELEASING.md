@@ -163,7 +163,7 @@ workflow's `on.paths` has the exact list.
 | Kodi | `apps/kodi`, and the server's Rust code: its end-to-end test runs against a server built from the same commit |
 | Roku | `apps/roku`, the root `package.json` (Bun's version) |
 | FFmpeg | `deploy/ffmpeg` on master: publishes the Docker image's FFmpeg ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) |
-| Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, `README.md`, a unit's version (the first file in its "Version in") |
+| Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, `README.md`, a unit's version (the first file in its "Version in"), any source file (its size, `scripts/check-file-sizes.mjs`) |
 | Release | A unit's version on master (the first file in its "Version in") |
 | CodeQL | Every push to master and pull request, and weekly: GitHub's code scanning of each language, Kotlin and Swift read as the Android and Apple apps compile |
 

@@ -71,6 +71,7 @@ Then follow [First start](CONFIGURATION.md#first-start).
 | `cargo test -p pley-server --test providers -- --ignored` | Also checks the real TVmaze and MusicBrainz (and TheTVDB with `PLEY_TEST_TVDB_KEY` and, if needed, `PLEY_TEST_TVDB_PIN`) |
 | `cargo clippy --workspace --all-targets`, `cargo fmt --all` | Lint and format the Rust code |
 | `scripts/check-licenses.ps1` | Checks that no copyleft-only crate is in the server, the transcoder or the LG app ([LICENSING.md](../LICENSING.md)) |
+| `bun scripts/check-file-sizes.mjs` | Checks that no source file has grown past its language's limit of lines (2,000 for Rust, 1,000 for the other languages, 500 for scripts), or a file that was past it already past its size in `scripts/file-sizes.json`: split a file that reaches it. `--write` lowers the sizes listed to the files' own, once they shrink |
 | `bun run check` | The web app's and desktop app's type check, ESLint and tests (Vitest) |
 | `bun run desktop` | Runs the desktop app (on Linux needs WebKitGTK: `libwebkit2gtk-4.1-dev`); `bun run --cwd apps/desktop build` makes its installers |
 | `bun run tv:check` | Type-checks and tests the Samsung app; `bun run tizen` packages it ([TV_PLATFORMS.md](TV_PLATFORMS.md)) |
