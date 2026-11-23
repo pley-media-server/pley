@@ -688,12 +688,21 @@ async function walk() {
   await press("back"); // Home
   await settle();
   since = mark();
-  await openFromMenu(5, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies");
+  // A library opens on Recommended, the focus in its rows: Up to the tabs,
+  // Right to Library, OK, and Down into its grid.
+  await openFromMenu(5, /^GET \/api\/libraries\/1\/hubs$/, "Movies");
+  await settle();
+  await press("up");
+  await press("right");
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=0/, since, "Movies' Library tab");
   // Sorted by title: the A to Z, once every title's letter came, right of
   // the grid's last column (a right press more than needed, which the
   // letters take). Down from "#" to W, whose first title is on the third
   // page: OK asks for that page and the grid goes there.
   await waitFor(/^GET \/api\/libraries\/1\/items\?.*limit=1000/, since, "the library's letters");
+  await press("down");
+  await settle();
   shoot("library");
   await press("right", 8);
   await press("down", 23);
@@ -716,9 +725,14 @@ async function walk() {
   // Resolution and Dynamic range once the server says the movies differ in
   // them, and Resolution's 4K: the grid lists 4K titles only, and the chip
   // says so.
-  await openFromMenu(5, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies again");
+  await openFromMenu(5, /^GET \/api\/libraries\/1\/hubs$/, "Movies again");
   await settle();
-  await press("up"); // the tabs, on Library
+  since = mark();
+  await press("up"); // the tabs, on Recommended
+  await press("right"); // Library
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=0/, since, "Movies' Library tab again");
+  await settle();
   await press("right", 2); // past Collections to the sort
   await press("select");
   await sleep(500);
@@ -748,18 +762,16 @@ async function walk() {
   await settle();
   shoot("library-4k");
   await press("back");
-  await openFromMenu(6, /^GET \/api\/libraries\/2\/items/, "TV Shows");
-  // Its tabs: Recommended, Collections, then Library again, sorted by year.
-  since = mark();
-  await press("up"); // the tabs, on Library
-  await press("left"); // Recommended
-  await press("select");
-  await waitFor(/^GET \/api\/libraries\/2\/hubs$/, since, "a library's recommendations");
+  // Its tabs: Recommended, where it opens, Collections, then Library
+  // again, sorted by year.
+  await openFromMenu(6, /^GET \/api\/libraries\/2\/hubs$/, "TV Shows");
+  await settle();
   shoot("library-recommended");
   // See all after Recently Added's one show: the Library tab, newest added
   // first.
   since = mark();
-  await press("down"); // the rows
+  await press("up"); // the tabs
+  await press("down"); // the rows, on the first
   await press("right"); // See all
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/items\?.*sort=added/, since, "a library row's See all");
@@ -916,7 +928,15 @@ async function walk() {
   // shuffling, the album's order again (Previous plays the one before), and
   // the sleep timer's button. Now Playing stopped; then the album's second
   // disc played from its list and stopped, and Back to Home.
-  await openFromMenu(7, /^GET \/api\/libraries\/3\/items\?.*offset=0/, "Music");
+  await openFromMenu(7, /^GET \/api\/libraries\/3\/hubs$/, "Music");
+  await settle();
+  since = mark();
+  await press("up"); // the tabs, on Recommended
+  await press("right"); // Library
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/3\/items\?.*offset=0/, since, "Music's Library tab");
+  await settle();
+  await press("down"); // the artists
   shoot("music");
   since = mark();
   await press("select"); // the artist
@@ -1414,7 +1434,7 @@ async function walk() {
   fixture.down = false;
   since = mark();
   await press("select"); // Try again
-  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=0/, since, "the library after Try again");
+  await waitFor(/^GET \/api\/libraries\/1\/hubs$/, since, "the library after Try again");
   shoot("retried");
   // Signed out, and in again with a server that has no QR codes yet, nor
   // requests, and doesn't say whether it requires two-step sign-in: the
@@ -1443,8 +1463,8 @@ async function walk() {
   await openFromMenu(4, /^GET \/api\/libraries\/2\//, "TV Shows on a server without categories");
   await settle();
   since = mark();
-  await press("up"); // the tabs, on Library
-  await press("right"); // Collections
+  await press("up"); // the tabs, on Recommended
+  await press("right", 2); // past Library to Collections
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/collections$/, since, "a library's collections without categories");
   await waitFor(/^GET \/api\/collection-categories$/, since, "the categories, answered 404");

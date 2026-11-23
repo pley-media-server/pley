@@ -154,15 +154,11 @@ function viewSection() as object
     return CreateObject("roRegistrySection", "libraryViews")
 end function
 
-' Keeps the view on the Roku. In a See all's order only the tab is kept:
-' the sort and filters kept before stay until the person changes them.
+' Keeps the view on the Roku. A See all's order isn't kept: the sort and
+' filters kept before stay until the person changes them.
 sub keepView()
-    kept = m.view
-    if m.seeAll
-        kept = libLoadView(viewSection(), m.viewKey, m.library.kind)
-        kept.tab = m.view.tab
-    end if
-    libSaveView(viewSection(), m.viewKey, kept)
+    if m.seeAll then return
+    libSaveView(viewSection(), m.viewKey, m.view)
 end sub
 
 sub onTitleChanged(change as object)

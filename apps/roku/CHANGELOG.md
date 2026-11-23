@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Changed
 
+- A library opens on Recommended. The Library tab keeps the sort and
+  filters it was left with.
 - A library's sort shows as its name and its order's arrow ("Title" and
   the rising bars) in place of "Title, A to Z", and the sort's panel
   marks the current one with that arrow, without the line under it.

@@ -184,11 +184,11 @@ it. A playlist's entries move with the Options key's Move.
 ### Libraries
 
 A library has the tabs Recommended, Library and Collections (a music
-library has no Collections), and opens on the tab, sort and filters it was
-left on, kept on the Roku for each server, profile and library. The
-sort's chip shows its name and its order's arrow ("Title" and the
-rising bars), and its panel marks the current sort with that arrow; OK
-on it turns the order around. Audiobook
+library has no Collections), and opens on Recommended. The Library tab
+shows the sort and filters it was left with, kept on the Roku for each
+server, profile and library. The sort's chip shows its name and its
+order's arrow ("Title" and the rising bars), and its panel marks the
+current sort with that arrow; OK on it turns the order around. Audiobook
 libraries are in the web and desktop apps: the server gives this app none,
 nor their books on Home, in search or in history.
 

@@ -134,12 +134,13 @@ sub test_library_views_kept_and_checked()
     view.order = "desc"
     view.genre = "Drama"
     libSaveView(section, key, view)
-    tkEqual(libLoadView(section, key, "movies"), view)
+    kept = libLoadView(section, key, "movies")
+    tkEqual(kept.tab, "recommended", "a library opens on Recommended")
+    view.tab = "recommended"
+    tkEqual(kept, view)
     shows = libLoadView(section, key, "shows")
     tkEqual(shows.sort, "title", "a sort the kind doesn't offer")
     tkEqual(shows.order, "desc", "the order kept")
-    music = libLoadView(section, key, "music")
-    tkEqual(music.tab, "library", "a tab the kind doesn't have")
     view.resolution = "4k"
     view.dynamic_range = "hdr10plus"
     libSaveView(section, key, view)
