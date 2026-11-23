@@ -98,7 +98,8 @@ impl Fingerprinter {
         };
 
         let _permit = self.limiter.acquire().await.map_err(|e| ApiError::Internal(e.into()))?;
-        let (out, log, read_picture) = match self.background.run(command(picture.is_some()), TIMEOUT).await {
+        let with_picture = self.background.run_limited(command(picture.is_some()), TIMEOUT, MAX_CUES_BYTES).await;
+        let (out, log, read_picture) = match with_picture {
             Ok((out, log)) => (out, log, picture.is_some()),
             // The subtitles in the way: the key frames alone. A pass that ran
             // out of time isn't run again.
@@ -150,7 +151,7 @@ impl Fingerprinter {
             .arg(input_arg(video))
             .args(["-map", &format!("0:{stream}"), "-f", "srt", "-"]);
         background_priority(&mut cmd);
-        let (out, _) = self.background.run(cmd, CUES_TIMEOUT).await?;
+        let (out, _) = self.background.run_limited(cmd, CUES_TIMEOUT, MAX_CUES_BYTES).await?;
         let cues = parse_srt(&String::from_utf8_lossy(&out), 0);
         Ok(cues.into_iter().filter(|c| c.end_ms > start_ms && c.start_ms < end_ms).collect())
     }
@@ -160,6 +161,9 @@ impl Fingerprinter {
 /// the reply or the server's cache grow without end.
 const MAX_CUES: usize = 4_000;
 const MAX_CUE_TEXT: usize = 200;
+/// The most of a track read for its cues, as SRT or a `framecrc` listing:
+/// [`MAX_CUES`] cues take far less. A track with more leaves them unknown.
+const MAX_CUES_BYTES: usize = 4 << 20;
 /// Reading a text track's lines takes seconds; a stuck read is given up.
 const CUES_TIMEOUT: Duration = Duration::from_secs(2 * 60);
 
@@ -207,6 +211,7 @@ fn parse_framecrc(listing: &str, offset_ms: i64) -> Vec<(i64, usize)> {
         if let Some(tb) = line.strip_prefix("#tb 0:") {
             if let Some((num, den)) = tb.trim().split_once('/')
                 && let (Ok(num), Ok(den)) = (num.parse::<i64>(), den.parse::<i64>())
+                && num > 0
                 && den > 0
             {
                 base = (num, den);
@@ -214,10 +219,16 @@ fn parse_framecrc(listing: &str, offset_ms: i64) -> Vec<(i64, usize)> {
             continue;
         }
         let fields: Vec<&str> = line.split(',').map(str::trim).collect();
+        // A packet without a time (`i64::MIN`), or one too far out to be in
+        // the file, is left out.
         if let [_, _, pts, _, size, ..] = fields[..]
             && let (Ok(pts), Ok(size)) = (pts.parse::<i64>(), size.parse::<usize>())
+            && let Some(ms) = pts
+                .checked_mul(base.0)
+                .and_then(|t| t.checked_mul(1_000))
+                .and_then(|t| offset_ms.checked_add(t / base.1))
         {
-            packets.push((offset_ms + pts * base.0 * 1_000 / base.1, size));
+            packets.push((ms, size));
         }
     }
     packets
@@ -351,6 +362,13 @@ mod tests {
             ),
             [(10_000, 500)]
         );
+        // A packet without a time, and one whose time can't be in a file.
+        let listing = format!(
+            "#tb 0: 1/1000\n0, {min}, {min}, 0, 500, 0x0\n0, {max}, {max}, 0, 500, 0x0\n0, 7, 7, 0, 500, 0x0\n",
+            min = i64::MIN,
+            max = i64::MAX
+        );
+        assert_eq!(parse_framecrc(&listing, 1_000), [(1_007, 500)]);
     }
 
     #[test]
