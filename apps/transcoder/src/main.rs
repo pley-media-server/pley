@@ -18,6 +18,8 @@ mod extract;
 mod ffmpeg;
 mod fingerprint;
 mod fmp4;
+#[cfg(test)]
+mod fuzz;
 mod hls;
 mod http;
 mod job;

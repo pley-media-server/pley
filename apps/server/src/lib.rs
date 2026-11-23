@@ -25,6 +25,8 @@ pub mod disks;
 pub mod error;
 pub mod events;
 pub mod folders;
+#[cfg(test)]
+mod fuzz;
 pub mod history;
 pub mod http;
 pub mod i18n;
