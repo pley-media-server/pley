@@ -159,8 +159,14 @@ rates as the decoder gives them, the same in every language.
 
 - **Pictures**, here and on TVs: a title without one, or whose picture
   doesn't load, shows its title's gradient (the web's) with Pley's mark
-  on it; while a picture loads, the gradient alone. A tile's name is in
-  its caption, not on its picture.
+  on it, a glyph cut out of its front poster for the title's kind of
+  library (a clapperboard for movies, a TV for shows, notes for music,
+  play for the rest); while a picture loads, the gradient alone. A
+  tile's name is in its caption, not on its picture. The mark shows only
+  where the title's name is by its picture (a caption, the line beside
+  it): backdrops, people, Live TV's programs and a playlist's mosaic
+  keep the gradient alone. The mark is `packages/placeholder-mark`'s,
+  which a unit test holds the app's copy of its paths to.
 - **The player** shows its controls, the title with them, for 3 s as
   playback starts and as each later item begins (the next episode, a
   queue's next), where TVs show the title alone at the top; a tap shows
@@ -1357,7 +1363,8 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
 - A tile is drawn in its rounded shape, not clipped to it (a clip is a
   pass of its own for a TV's GPU, for each tile), on a layer of its own
   that scrolling moves rather than draws again, and its placeholder's
-  gradient is one draw of one small picture shared by every title.
+  gradient is one draw of one small picture shared by every title; Pley's
+  mark on it is three paths, parsed once for each glyph.
 
 On an emulator, frame times (the benchmarks', the counter's or
 `dumpsys gfxinfo`'s) say little about drawing: the emulator's GPU takes

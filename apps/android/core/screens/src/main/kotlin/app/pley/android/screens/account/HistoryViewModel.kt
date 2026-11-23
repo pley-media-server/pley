@@ -53,6 +53,8 @@ data class HistoryRow(
     val square: Boolean,
     /** The page the row opens: the album for a track (the track highlighted). */
     val opens: PleyKey,
+    /** What was played: the glyph of Pley's mark on its picture when none comes. */
+    val kind: ItemKind,
 )
 
 /** The history's state. */
@@ -188,5 +190,6 @@ fun historyRow(entry: HistoryEntry, now: Long, words: FormatWords = AppLanguage.
         artPaths = art,
         square = item.kind == ItemKind.Track || item.kind == ItemKind.Album || item.kind == ItemKind.Artist,
         opens = opens,
+        kind = item.kind,
     )
 }

@@ -52,6 +52,7 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkCandidates
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.text.sharedFit
 import app.pley.android.designsystem.tile.QualityBadge
@@ -118,6 +119,7 @@ internal fun ItemHeader(page: ItemPage, actions: PageActions, requests: @Composa
                         image = poster,
                         title = page.title,
                         titleStyle = MaterialTheme.typography.titleSmall,
+                        mark = MarkGlyph.of(page.kind),
                         modifier = Modifier
                             .width(WidePosterWidth)
                             .aspectRatio(2f / 3f)

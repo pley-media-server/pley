@@ -80,6 +80,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.player.MusicError
@@ -157,7 +158,7 @@ internal fun TvNowPlayingScreen() {
         }
         Row(Modifier.fillMaxSize().padding(start = PleyTv.Gutter, top = 58.dp, end = TvSafeArea.Horizontal)) {
             Box(Modifier.size(ART).clip(PleyShape.Dialog).background(PleyColors.Surface2)) {
-                Artwork(art, now.album ?: now.title, Modifier.matchParentSize())
+                Artwork(art, now.album ?: now.title, Modifier.matchParentSize(), mark = MarkGlyph.Music)
             }
             Spacer(Modifier.width(32.dp))
             Column(Modifier.fillMaxSize().focusGroup()) {
