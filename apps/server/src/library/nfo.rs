@@ -709,9 +709,11 @@ fn content_ratings(text: &str) -> Vec<NfoRating> {
         for (i, _) in text.match_indices('/') {
             let after = &text[i + 1..];
             let spaced = text[..i].ends_with(' ') && after.starts_with(' ');
-            let country = after.trim_start().split_once(':').is_some_and(|(country, _)| {
-                (2..=3).contains(&country.len()) && country.chars().all(|c| c.is_ascii_alphabetic())
-            });
+            // Two or three letters and a colon: only the start of what
+            // follows is looked at, so a text of slashes reads at once.
+            let after = after.trim_start().as_bytes();
+            let letters = after.iter().take(4).take_while(|b| b.is_ascii_alphabetic()).count();
+            let country = (2..=3).contains(&letters) && after.get(letters) == Some(&b':');
             if spaced || country {
                 cut.push(&text[start..i]);
                 start = i + 1;
@@ -844,7 +846,20 @@ fn musicbrainz(text: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, Instant};
+
     use super::*;
+
+    /// A rating as long as a file may be, of slashes (each perhaps where
+    /// another country's rating starts) is read at once: every slash isn't
+    /// followed to the end of the text.
+    #[test]
+    fn a_rating_of_slashes_reads_at_once() {
+        let started = Instant::now();
+        let xml = format!("<movie><mpaa>{}</mpaa></movie>", "/x".repeat(MAX_BYTES as usize / 2 - 20));
+        assert_eq!(one(&xml).fields.content_rating.as_deref().map(str::len), Some(MAX_SHORT));
+        assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
+    }
 
     fn one(xml: &str) -> Nfo {
         one_of(xml.as_bytes())
