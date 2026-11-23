@@ -26,9 +26,10 @@
     <None Include="..\..\..\android\core\testing\src\main\resources\fixtures\requests\*.json" Link="android\requests\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- The logo and the placeholder's mark, for PlaceholderTests: the mark is the logo's posters. -->
+  <!-- Pley's placeholder mark as every app draws it, and the app's pictures of it, for PlaceholderTests. -->
   <ItemGroup>
-    <None Include="..\..\src\Pley.Tv.Tizen\shared\res\pley-mark*.svg" Link="res\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\..\packages\placeholder-mark\marks.json" Link="placeholder-mark\marks.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\Pley.Tv.Tizen\shared\res\placeholder-mark-*.svg" Link="res\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- The app's own sources, for DisposeRulesTests: a rule of NUI's the compiler can't hold them to. -->

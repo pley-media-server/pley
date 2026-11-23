@@ -358,7 +358,7 @@ sealed class DiscoverTitleScreen : ShellPage
         var name = RequestText.SeasonName(season);
         var art = new[] { season.PosterUrl, detail.PosterUrl }.Where(u => !string.IsNullOrEmpty(u)).Select(u => Artwork.Absolute(u!, origin)).ToList();
         return new TileModel(season.Number, name, line, art, asked ? RequestRules.DownloadProgress(request!) ?? 0f : 0f, false, 0,
-            badgeText == null ? Array.Empty<string>() : new[] { badgeText }, string.Join(", ", new[] { name, badgeText, line }.Where(s => s != null)));
+            badgeText == null ? Array.Empty<string>() : new[] { badgeText }, string.Join(", ", new[] { name, badgeText, line }.Where(s => s != null)), "season");
     }
 
     /// <summary>The block over the rows once focus leaves the hero: the title, its facts, two lines of overview.</summary>

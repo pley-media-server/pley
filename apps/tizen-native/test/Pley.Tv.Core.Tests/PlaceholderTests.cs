@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Xml.Linq;
+using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Ui;
 using Xunit;
 
@@ -44,25 +46,40 @@ public class PlaceholderTests
         Assert.Equal(0x0000FFu, Placeholder.Hsl(240, 1, 0.5f));
     }
 
-    static TileModel Tile(params string[] images) => new TileModel(1, "Northern Lights", "2021", images, 0, false, 0, new string[0], "");
+    static TileModel Tile(string? kind = "movie", string? image = null) =>
+        new TileModel(1, "Northern Lights", "2021", image == null ? new string[0] : new[] { image }, 0, false, 0, new string[0], "", kind);
 
     [Fact]
-    public void A_tile_without_a_picture_shows_Pleys_mark_and_not_its_title()
+    public void A_tile_without_a_picture_shows_Pleys_mark_with_its_librarys_glyph_and_not_its_title()
     {
         // The caption under the tile names it: the placeholder doesn't say it again.
         var look = Placeholder.Tile(Tile(), TileKind.Poster);
         Assert.True(look.Mark);
+        Assert.Equal("movies", look.Glyph);
         Assert.False(look.Title);
         // 40 % of the shorter side, centered.
         Assert.Equal(108 * 0.4f, look.MarkSide, 3);
         Assert.Equal((162 - 108 * 0.4f) / 2, look.MarkTop, 3);
+        Assert.Equal("shows", Placeholder.Tile(Tile("episode"), TileKind.Episode).Glyph);
+        Assert.Equal("music", Placeholder.Tile(Tile("album"), TileKind.Square).Glyph);
+        Assert.Equal("play", Placeholder.Tile(Tile("collection"), TileKind.Poster).Glyph);
+    }
+
+    [Fact]
+    public void A_tile_without_a_kind_shows_no_mark()
+    {
+        // People's circles: the gradient alone.
+        var look = Placeholder.Tile(Tile(kind: null), TileKind.Person);
+        Assert.False(look.Mark);
+        Assert.Null(look.Glyph);
+        Assert.False(look.Title);
     }
 
     [Fact]
     public void A_tile_whose_picture_loads_shows_neither_the_mark_nor_its_title()
     {
         // The gradient alone: a page of tiles scrolling in doesn't flash marks before their pictures.
-        var look = Placeholder.Tile(Tile("/api/items/1/images/poster"), TileKind.Poster);
+        var look = Placeholder.Tile(Tile(image: "/api/items/1/images/poster"), TileKind.Poster);
         Assert.False(look.Mark);
         Assert.False(look.Title);
     }
@@ -70,8 +87,9 @@ public class PlaceholderTests
     [Fact]
     public void A_tile_whose_picture_failed_shows_the_mark()
     {
-        var look = Placeholder.Tile(Tile("/api/items/1/images/poster"), TileKind.Landscape, failed: true);
+        var look = Placeholder.Tile(Tile(image: "/api/items/1/images/poster"), TileKind.Landscape, failed: true);
         Assert.True(look.Mark);
+        Assert.Equal("movies", look.Glyph);
         Assert.False(look.Title);
         Assert.Equal(115 * 0.4f, look.MarkSide, 3);
     }
@@ -79,48 +97,105 @@ public class PlaceholderTests
     [Fact]
     public void The_mark_is_at_most_120_dp()
     {
-        Assert.Equal(120, Placeholder.Layout(960, 540, missing: true).MarkSide);
+        Assert.Equal(120, Placeholder.Layout(960, 540, missing: true, "play").MarkSide);
     }
 
     [Fact]
     public void Over_a_title_the_mark_is_smaller_above_it_and_left_out_without_room()
     {
         // A playlist's cover keeps its title: two lines of 22 dp leave the mark room above them.
-        var two = Placeholder.Layout(132, 132, missing: true, titleHeight: 44);
+        var two = Placeholder.Layout(132, 132, missing: true, "music", titleHeight: 44);
         Assert.True(two.Title);
+        Assert.Equal("music", two.Glyph);
         Assert.Equal(132 * 0.26f, two.MarkSide, 3);
         var top = (132 - 132 * 0.26f - 10 - 44) / 2;
         Assert.Equal(top, two.MarkTop, 3);
         Assert.Equal(top + 132 * 0.26f + 10, two.TitleTop, 3);
         // Four lines leave it none: the title alone, centered.
-        var four = Placeholder.Layout(132, 132, missing: true, titleHeight: 88);
+        var four = Placeholder.Layout(132, 132, missing: true, "music", titleHeight: 88);
         Assert.False(four.Mark);
+        Assert.Null(four.Glyph);
         Assert.True(four.Title);
         Assert.Equal(22, four.TitleTop, 3);
-        // While its picture loads, the title alone.
-        var loading = Placeholder.Layout(132, 132, missing: false, titleHeight: 44);
+        // While its picture loads, or without a glyph, the title alone.
+        var loading = Placeholder.Layout(132, 132, missing: false, "music", titleHeight: 44);
         Assert.False(loading.Mark);
         Assert.Equal(44, loading.TitleTop, 3);
+        Assert.False(Placeholder.Layout(132, 132, missing: true, null, titleHeight: 44).Mark);
     }
 
-    /// <summary>The app draws the mark from its SVG: the logo's paths, white at the layers' alphas.</summary>
     [Fact]
-    public void The_marks_svg_is_the_logos_posters_at_the_layers_alphas()
+    public void Tiles_carry_their_items_kind_and_playlist_covers_their_own_glyph()
     {
-        static List<XElement> Paths(string file) =>
-            XDocument.Load(Path.Combine(AppContext.BaseDirectory, "res", file)).Descendants().Where(e => e.Name.LocalName == "path").ToList();
-        var logo = Paths("pley-mark.svg");
-        var mark = Paths("pley-mark-placeholder.svg");
-        Assert.Equal(Placeholder.MarkLayers.Count, mark.Count);
-        // The logo's last three paths are its posters, after its tile.
-        Assert.Equal(logo.Skip(logo.Count - 3).Select(p => (string?)p.Attribute("d")), mark.Select(p => (string?)p.Attribute("d")));
-        for (var i = 0; i < mark.Count; i++)
+        var album = new ItemSummary { Id = 7, Kind = "album", Title = "Tidewater" };
+        Assert.Equal("album", TileModel.Of(album, TileKind.Square, "https://pley.example.com").ItemKind);
+        Assert.Equal("music", TileModel.Of(album, TileKind.Square, "https://pley.example.com").MarkGlyph);
+        Assert.Null(Tile(kind: null).MarkGlyph);
+        Assert.Equal("music", new PlaylistCard(1, "Late", "", Video: false, false, new string[0]).MarkGlyph);
+        Assert.Equal("play", new PlaylistCard(2, "Saturday", "", Video: true, false, new string[0]).MarkGlyph);
+    }
+
+    /// <summary>packages/placeholder-mark/marks.json: the mark every app draws.</summary>
+    static JsonElement Marks()
+    {
+        using var file = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "placeholder-mark", "marks.json")));
+        return file.RootElement.Clone();
+    }
+
+    static Dictionary<string, string> Map(JsonElement map) => map.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString()!);
+
+    [Fact]
+    public void Kinds_take_the_glyphs_marks_json_gives_them()
+    {
+        var marks = Marks();
+        var kinds = Map(marks.GetProperty("kinds"));
+        Assert.Equal(kinds.OrderBy(k => k.Key), Placeholder.Kinds.OrderBy(k => k.Key));
+        foreach (var (kind, glyph) in kinds) Assert.Equal(glyph, Placeholder.Glyph(kind));
+        Assert.Equal(Placeholder.DefaultGlyph, marks.GetProperty("default").GetString());
+        Assert.Equal(Placeholder.DefaultGlyph, Placeholder.Glyph("extra"));
+        Assert.Equal(Placeholder.DefaultGlyph, Placeholder.Glyph(""));
+        Assert.Equal(Placeholder.DefaultGlyph, Placeholder.Glyph("Movie"));
+        // Every glyph a kind takes is one marks.json draws, so the app has its picture.
+        var glyphs = marks.GetProperty("glyphs").EnumerateObject().Select(p => p.Name).ToList();
+        Assert.Contains(Placeholder.DefaultGlyph, glyphs);
+        foreach (var glyph in kinds.Values) Assert.Contains(glyph, glyphs);
+    }
+
+    [Fact]
+    public void The_marks_sizes_are_marks_json()
+    {
+        var marks = Marks();
+        Assert.Equal(Placeholder.MarkShare, marks.GetProperty("share").GetSingle());
+        Assert.Equal(Placeholder.MarkShareOverTitle, marks.GetProperty("shareOverTitle").GetSingle());
+        Assert.Equal(Placeholder.MarkMax, marks.GetProperty("max").GetSingle());
+        Assert.Equal(Placeholder.MarkGap, marks.GetProperty("gap").GetSingle());
+    }
+
+    /// <summary>
+    /// The app draws the mark from an SVG for each glyph (scripts/render-placeholder-marks.mjs):
+    /// marks.json's posters, white at their alphas, the glyph cut out of the front one, even-odd.
+    /// </summary>
+    [Fact]
+    public void Each_glyphs_svg_is_marks_json()
+    {
+        var marks = Marks();
+        var grid = marks.GetProperty("grid").GetInt32();
+        var posters = marks.GetProperty("posters").EnumerateArray().ToList();
+        foreach (var (glyph, cut) in Map(marks.GetProperty("glyphs")))
         {
-            var layer = Placeholder.MarkLayers[i];
-            Assert.Equal(layer.Path, (string?)mark[i].Attribute("d"));
-            Assert.Equal("#ffffff", (string?)mark[i].Attribute("fill"));
-            Assert.Equal(layer.Alpha, float.Parse((string)mark[i].Attribute("fill-opacity")!, CultureInfo.InvariantCulture), 3);
-            Assert.Equal(layer.EvenOdd ? "evenodd" : null, (string?)mark[i].Attribute("fill-rule"));
+            var svg = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "res", $"placeholder-mark-{glyph}.svg")).Root!;
+            Assert.Equal($"0 0 {grid} {grid}", (string?)svg.Attribute("viewBox"));
+            var paths = svg.Descendants().Where(e => e.Name.LocalName == "path").ToList();
+            Assert.Equal(posters.Count, paths.Count);
+            for (var i = 0; i < paths.Count; i++)
+            {
+                var front = i == paths.Count - 1;
+                var poster = posters[i];
+                Assert.Equal(poster.GetProperty("path").GetString() + (front ? cut : ""), (string?)paths[i].Attribute("d"));
+                Assert.Equal("#ffffff", (string?)paths[i].Attribute("fill"));
+                Assert.Equal(poster.GetProperty("alpha").GetSingle(), float.Parse((string)paths[i].Attribute("fill-opacity")!, CultureInfo.InvariantCulture), 3);
+                Assert.Equal(front ? "evenodd" : null, (string?)paths[i].Attribute("fill-rule"));
+            }
         }
     }
 }

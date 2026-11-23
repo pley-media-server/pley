@@ -812,8 +812,9 @@ sealed class PlaylistScreen : ShellPage
     }
 
     /// <summary>
-    /// An entry's still or cover: its picture over the title's own gradient, with Pley's mark on it
-    /// when no picture will come (the row's title names it), and how much was played along its foot.
+    /// An entry's still or cover: its picture over the title's own gradient, with Pley's mark on it,
+    /// its kind's glyph cut out, when no picture will come (the row's title names it), and how much
+    /// was played along its foot.
     /// </summary>
     sealed class Thumb : View
     {
@@ -821,8 +822,9 @@ sealed class PlaylistScreen : ShellPage
         {
             void Mark()
             {
-                var spot = Placeholder.Layout(width, height, missing: true);
-                var mark = Icons.PlaceholderMark(spot.MarkSide, (width - spot.MarkSide) / 2, spot.MarkTop);
+                var spot = Placeholder.Layout(width, height, missing: true, tile.MarkGlyph);
+                if (spot.Glyph == null) return;
+                var mark = Icons.PlaceholderMark(spot.Glyph, spot.MarkSide, (width - spot.MarkSide) / 2, spot.MarkTop);
                 Add(mark);
                 mark.LowerToBottom();
             }

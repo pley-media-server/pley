@@ -288,9 +288,9 @@ sealed class PlaylistsScreen : ShellPage
 /// <summary>
 /// A playlist's square art (the Android app's TvPlaylistArt; the web's PlaylistArt): a 2 by 2
 /// mosaic of its first four entries' pictures, or its first entry's picture over the title's own
-/// gradient (the title on it on a cover large enough, Pley's mark too if the picture doesn't load),
-/// or, empty, its kind's glyph (list-video or list-music) on a Surface3 to Surface2
-/// gradient; with the tile's 1 dp hairline.
+/// gradient (the title on it on a cover large enough, Pley's mark too if the picture doesn't load,
+/// music's glyph or the logo's play cut out of it), or, empty, its kind's glyph (list-video or
+/// list-music) on a Surface3 to Surface2 gradient; with the tile's 1 dp hairline.
 /// </summary>
 sealed class PlaylistArtView : View
 {
@@ -321,7 +321,7 @@ sealed class PlaylistArtView : View
                 well.Add(name);
             }
             Add(well);
-            Add(Picture(images, art[0], size, 0, 0, failed: () => Mark(well, name, size)));
+            Add(Picture(images, art[0], size, 0, 0, failed: () => Mark(well, name, size, card.MarkGlyph)));
         }
         else
         {
@@ -343,16 +343,17 @@ sealed class PlaylistArtView : View
     }
 
     /// <summary>
-    /// Pley's mark on the cover's placeholder once its picture didn't load, above its title on a
-    /// cover large enough to have one, smaller there, and left out where the title leaves no room.
+    /// Pley's mark on the cover's placeholder once its picture didn't load, <paramref name="glyph"/>
+    /// cut out of it: above its title on a cover large enough to have one, smaller there, and left
+    /// out where the title leaves no room.
     /// </summary>
-    static void Mark(View well, TextLabel? name, float size)
+    static void Mark(View well, TextLabel? name, float size, string glyph)
     {
         var inner = size - 24;
         float? titleHeight = name == null ? null : Math.Min(name.GetHeightForWidth(Ui.Dp(inner)), Text.LineHeight(PleyType.Title) * 4) / Ui.Scale;
-        var spot = Placeholder.Layout(size, size, missing: true, titleHeight);
-        if (!spot.Mark) return;
-        well.Add(Icons.PlaceholderMark(spot.MarkSide, (size - spot.MarkSide) / 2, spot.MarkTop));
+        var spot = Placeholder.Layout(size, size, missing: true, glyph, titleHeight);
+        if (spot.Glyph == null) return;
+        well.Add(Icons.PlaceholderMark(spot.Glyph, spot.MarkSide, (size - spot.MarkSide) / 2, spot.MarkTop));
         if (name == null || titleHeight == null) return;
         name.Size = new Size(Ui.Dp(inner), Ui.Dp(titleHeight.Value));
         name.Position = new Position(Ui.Dp(12), Ui.Dp(spot.TitleTop));

@@ -10,9 +10,10 @@ namespace Pley.Tv.Tizen.Kit;
 /// <summary>
 /// A tile on TV (the Android app's TvTile and ArtworkTile, design spec §2.3, D-pad rule 8): the
 /// well with its picture, or the title's gradient until the picture comes, with Pley's mark on it
-/// once none will, and its overlays; a caption under it, which names the tile. Focused, the well
-/// grows to 1.08 and gets the accent ring around it, and the caption turns bold. While a key
-/// repeats its focus look changes evenly over the time between moves.
+/// once none will (its library's glyph cut out of it; people get none), and its overlays; a caption
+/// under it, which names the tile. Focused, the well grows to 1.08 and gets the accent ring around
+/// it, and the caption turns bold. While a key repeats its focus look changes evenly over the time
+/// between moves.
 /// </summary>
 sealed class TileView : View
 {
@@ -24,8 +25,9 @@ sealed class TileView : View
     readonly View ring;
     readonly View well;
     readonly ImageView picture;
-    /// <summary>Pley's mark on the placeholder, made the first time no picture will come.</summary>
+    /// <summary>Pley's mark on the placeholder, made the first time no picture will come, and the glyph cut out of it.</summary>
     ImageView? mark;
+    string? markGlyph;
     /// <summary>The progress bar, the watched tick or count and the badges, made again for each tile shown.</summary>
     readonly View overlays;
     readonly TextLabel title;
@@ -162,7 +164,7 @@ sealed class TileView : View
             }
             // The mark only when no picture will come: while one loads, the gradient alone, so a
             // page of tiles scrolling in doesn't flash marks before their pictures.
-            Mark(!known && Placeholder.Tile(model, kind).Mark);
+            Mark(known ? null : Placeholder.Tile(model, kind).Glyph);
         }
         // Drawn again only when they change, the new over the old for the same item: emptied first,
         // a badge's text and the progress bar blinked as Home came back from a film.
@@ -201,24 +203,33 @@ sealed class TileView : View
     }
 
     /// <summary>
-    /// Pley's mark on the placeholder, shown or hidden, only when that changes. It is made the first
-    /// time it shows, under the picture, and kept as the tile is used again: the same size in every
-    /// tile of a kind, so a row's marks line up, and none made for tiles whose pictures come.
+    /// Pley's mark on the placeholder with <paramref name="glyph"/> cut out of it, or none when null,
+    /// each only when it changes. It is made the first time it shows, under the picture, and kept as
+    /// the tile is used again, its file changed only for another glyph: the same size in every tile
+    /// of a kind, so a row's marks line up, and none made for tiles whose pictures come.
     /// </summary>
-    void Mark(bool on)
+    void Mark(string? glyph)
     {
+        if (glyph == null)
+        {
+            if (mark != null && mark.Visibility) mark.Hide();
+            return;
+        }
         if (mark == null)
         {
-            if (!on) return;
-            var spot = Placeholder.Layout(kind.Width, kind.Height, missing: true);
-            mark = Icons.PlaceholderMark(spot.MarkSide, (kind.Width - spot.MarkSide) / 2, spot.MarkTop);
+            var spot = Placeholder.Layout(kind.Width, kind.Height, missing: true, glyph);
+            mark = Icons.PlaceholderMark(glyph, spot.MarkSide, (kind.Width - spot.MarkSide) / 2, spot.MarkTop);
+            markGlyph = glyph;
             well.Add(mark);
             mark.LowerToBottom();
             return;
         }
-        if (mark.Visibility == on) return;
-        if (on) mark.Show();
-        else mark.Hide();
+        if (glyph != markGlyph)
+        {
+            mark.ResourceUrl = Icons.PlaceholderMarkUrl(glyph);
+            markGlyph = glyph;
+        }
+        if (!mark.Visibility) mark.Show();
     }
 
     /// <summary>What the overlays show, and for which item, as last drawn.</summary>
@@ -278,7 +289,7 @@ sealed class TileView : View
             if (file == null)
             {
                 // None of its addresses loaded: no picture will come.
-                Mark(Placeholder.Tile(Model, kind, failed: true).Mark);
+                Mark(Placeholder.Tile(Model, kind, failed: true).Glyph);
                 return;
             }
             picture.ResourceUrl = file;
