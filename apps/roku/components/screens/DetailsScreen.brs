@@ -380,9 +380,9 @@ sub showRows()
     placeRows()
 end sub
 
-' The rows 96 px under the title's words and buttons, not at a fixed
+' The rows 64 px under the title's words and buttons, not at a fixed
 ' place: a short summary left a third of the screen empty above them.
-' Between 600 and 940; the page slides by as much to bring them to 120.
+' Between 560 and 940; the page slides by as much to bring them to 120.
 sub placeRows()
     rect = m.column.boundingRect()
     if rect.height <= 0 then return
