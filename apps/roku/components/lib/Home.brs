@@ -193,15 +193,13 @@ function homeEmpty(libraries as dynamic) as object
 end function
 
 ' Home's menu, in the order of the other TVs' rail: Search, Home, Discover
-' and the requests (requests: their entries, from the summary), Live TV
-' where the server has it, the libraries, Playlists, Collections where
+' where requests are on (the requests open from Discover's button), Live
+' TV where the server has it, the libraries, Playlists, Collections where
 ' there is a library of movies or shows (the page says when none has any),
-' Now Playing while music plays, and Settings last. [{ title, action, library, count, danger }].
-function homeMenu(libraries as object, live as boolean, requests as object, music as boolean) as object
+' Now Playing while music plays, and Settings last. [{ title, action, library }].
+function homeMenu(libraries as object, live as boolean, discover as boolean, music as boolean) as object
     entries = [{ title: t("browse.menu.search"), action: "search" }, { title: t("browse.menu.home"), action: "home" }]
-    for each entry in requests
-        entries.Push(entry)
-    end for
+    if discover then entries.Push({ title: t("browse.menu.discover"), action: "discover" })
     if live then entries.Push({ title: t("browse.menu.liveTv"), action: "live" })
     videos = false
     ' A library's name is the server's, never translated.
@@ -220,7 +218,7 @@ end function
 ' (RailItems.kt): a library's by its kind.
 function homeMenuIcon(entry as object) as string
     icons = {
-        search: "search", home: "house", discover: "compass", requests: "list-video", live: "tv-minimal",
+        search: "search", home: "house", discover: "compass", live: "tv-minimal",
         playlists: "list-music", collections: "layers", nowPlaying: "audio-lines", settings: "settings"
     }
     if entry.action = "library"

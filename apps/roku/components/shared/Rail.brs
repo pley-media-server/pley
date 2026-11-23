@@ -20,8 +20,8 @@ function railKey(entry as object) as string
 end function
 
 ' The entries as nodes, the current one marked; while it is open, the
-' focus stays on its entry as others come or go above it (the requests'
-' once the summary comes, Live TV, libraries).
+' focus stays on its entry as others come or go above it (Discover once
+' the requests' summary comes, Live TV, libraries).
 sub onEntries()
     focusedKey = ""
     focused = m.list.itemFocused

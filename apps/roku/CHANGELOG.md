@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Changed
 
+- The rail no longer has the requests: they open from Discover's button,
+  which shows what waits there.
 - A library opens on Recommended. The Library tab keeps the sort and
   filters it was left with.
 - A library's sort shows as its name and its order's arrow ("Title" and

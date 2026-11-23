@@ -309,7 +309,7 @@ async function waitFor(pattern, since, what, { ms = 30000, settles = true } = {}
 }
 
 // brs-node drops a key now and then: the rail's entries are reached from
-// its top (the profile, then twelve entries at most, Settings the last,
+// its top (the profile, then eleven entries at most, Settings the last,
 // which 11 reaches whatever the rail holds) and checked by the request
 // they lead to.
 async function openFromMenu(index, pattern, what, then = async () => {}) {
@@ -623,7 +623,7 @@ async function walk() {
   // listed there, then a channel whose
   // source has no connection left; Back leaves to the guide at that
   // channel, then the Channels tab.
-  await openFromMenu(4, /^GET \/api\/live\/guide\?/, "Live TV's guide");
+  await openFromMenu(3, /^GET \/api\/live\/guide\?/, "Live TV's guide");
   await sleep(1500);
   shoot("live-guide");
   await press("right"); // the guide
@@ -690,7 +690,7 @@ async function walk() {
   since = mark();
   // A library opens on Recommended, the focus in its rows: Up to the tabs,
   // Right to Library, OK, and Down into its grid.
-  await openFromMenu(5, /^GET \/api\/libraries\/1\/hubs$/, "Movies");
+  await openFromMenu(4, /^GET \/api\/libraries\/1\/hubs$/, "Movies");
   await settle();
   await press("up");
   await press("right");
@@ -725,7 +725,7 @@ async function walk() {
   // Resolution and Dynamic range once the server says the movies differ in
   // them, and Resolution's 4K: the grid lists 4K titles only, and the chip
   // says so.
-  await openFromMenu(5, /^GET \/api\/libraries\/1\/hubs$/, "Movies again");
+  await openFromMenu(4, /^GET \/api\/libraries\/1\/hubs$/, "Movies again");
   await settle();
   since = mark();
   await press("up"); // the tabs, on Recommended
@@ -764,7 +764,7 @@ async function walk() {
   await press("back");
   // Its tabs: Recommended, where it opens, Collections, then Library
   // again, sorted by year.
-  await openFromMenu(6, /^GET \/api\/libraries\/2\/hubs$/, "TV Shows");
+  await openFromMenu(5, /^GET \/api\/libraries\/2\/hubs$/, "TV Shows");
   await settle();
   shoot("library-recommended");
   // See all after Recently Added's one show: the Library tab, newest added
@@ -928,7 +928,7 @@ async function walk() {
   // shuffling, the album's order again (Previous plays the one before), and
   // the sleep timer's button. Now Playing stopped; then the album's second
   // disc played from its list and stopped, and Back to Home.
-  await openFromMenu(7, /^GET \/api\/libraries\/3\/hubs$/, "Music");
+  await openFromMenu(6, /^GET \/api\/libraries\/3\/hubs$/, "Music");
   await settle();
   since = mark();
   await press("up"); // the tabs, on Recommended
@@ -1073,7 +1073,7 @@ async function walk() {
   // key's Move, then taken out, and the playlist played from the top. Then
   // New playlist, for Movies & TV, named on the keyboard: it opens, made.
   // Back to Home.
-  await openFromMenu(8, /^GET \/api\/playlists$/, "Playlists");
+  await openFromMenu(7, /^GET \/api\/playlists$/, "Playlists");
   shoot("playlists");
   since = mark();
   await press("select"); // the first playlist
@@ -1168,8 +1168,13 @@ async function walk() {
   // oldest, Approve. Meanwhile Anna's download came into a library, which
   // no event told of: the summary asked after Approve has news, whose
   // notice waits while the requests show. Then Yours, the last tab, which
-  // marks Anna's news seen.
-  await openFromMenu(3, /^GET \/api\/requests\?.*attention=1/, "Requests");
+  // marks Anna's news seen. The requests open from Discover's button,
+  // over its hero.
+  await openFromMenu(2, /^GET \/api\/requests\?.*attention=1/, "Requests", async () => {
+    await sleep(1500);
+    await press("up"); // the requests' button
+    await press("select");
+  });
   shoot("requests");
   since = mark();
   await press("options");
@@ -1181,7 +1186,9 @@ async function walk() {
   await waitFor(/^GET \/api\/requests\?.*unseen=1/, since, "the requests with news");
   notice.waited = !(await drawnWithin(2500, readyNoticeDrawn));
   shoot("requests-approved");
-  for (let attempt = 0; attempt < 3 && !seen(/^GET \/api\/requests\?.*mine=1/, since); attempt++) {
+  // Yours asks for 50 at a time; Discover's row of them, under the
+  // requests, asks for 20 as they change.
+  for (let attempt = 0; attempt < 3 && !seen(/^GET \/api\/requests\?(?=.*mine=1)(?=.*limit=50)/, since); attempt++) {
     await press("up"); // the tabs
     await press("left", 8); // the first, then the rail
     await press("right"); // the rail closed, on the first tab
@@ -1427,7 +1434,7 @@ async function walk() {
   fixture.down = true;
   await press("left", 3);
   await press("up", 11);
-  await press("down", 6); // Movies, after the profile, Search, Home, Discover, Your requests and Live TV
+  await press("down", 5); // Movies, after the profile, Search, Home, Discover and Live TV
   await press("select");
   await sleep(3000);
   shoot("unreachable");
@@ -1457,7 +1464,7 @@ async function walk() {
   await waitFor(/^GET \/api\/hubs\/home$/, since, "Home after signing in again");
   // Nor has it categories (404) or collections in one: a library's
   // Collections tab is the grid, as before them, and opens the first.
-  // TV Shows is the fifth entry, the menu without Discover and requests.
+  // TV Shows is the fifth entry, the menu without Discover.
   fixture.categories = false;
   await settle();
   await openFromMenu(4, /^GET \/api\/libraries\/2\//, "TV Shows on a server without categories");

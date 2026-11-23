@@ -79,13 +79,13 @@ sub test_home_in_french_and_spanish()
     tkEqual(homeHeroButtons(homeInfo(homeTestEpisode(), "http://s", false)).labels, ["Reprendre", "Depuis le début", "Infos", "Marquer comme vu"])
     tkEqual(homeEmpty([]), { title: "Aucune bibliothèque pour l’instant", text: "Demandez au propriétaire du serveur d’ajouter une bibliothèque." })
     titles = []
-    for each entry in homeMenu([{ id: 1, name: "Movies", kind: "movies" }], true, [], true)
+    for each entry in homeMenu([{ id: 1, name: "Movies", kind: "movies" }], true, false, true)
         titles.Push(entry.title)
     end for
     tkEqual(titles, ["Recherche", "Accueil", "TV en direct", "Movies", "Playlists", "Collections", "En lecture", "Paramètres"], "a library keeps the server's name")
     i18nUse("es")
     titles = []
-    for each entry in homeMenu([{ id: 1, name: "Movies", kind: "movies" }], false, [], false)
+    for each entry in homeMenu([{ id: 1, name: "Movies", kind: "movies" }], false, false, false)
         titles.Push(entry.title)
     end for
     tkEqual(titles, ["Buscar", "Inicio", "Movies", "Listas", "Colecciones", "Ajustes"])
@@ -96,14 +96,13 @@ end sub
 sub test_home_menu_follows_the_other_tvs_rail()
     movies = { id: 1, name: "Movies", kind: "movies" }
     music = { id: 3, name: "Music", kind: "music" }
-    requests = [{ title: "Discover", action: "discover" }, { title: "Requests", action: "requests", count: 2, danger: false }]
     actions = []
-    for each entry in homeMenu([movies, music], true, requests, true)
+    for each entry in homeMenu([movies, music], true, true, true)
         actions.Push(entry.action)
     end for
-    tkEqual(actions, ["search", "home", "discover", "requests", "live", "library", "library", "playlists", "collections", "nowPlaying", "settings"])
+    tkEqual(actions, ["search", "home", "discover", "live", "library", "library", "playlists", "collections", "nowPlaying", "settings"])
     actions = []
-    for each entry in homeMenu([music], false, [], false)
+    for each entry in homeMenu([music], false, false, false)
         actions.Push(entry.action)
     end for
     tkEqual(actions, ["search", "home", "library", "playlists", "settings"], "no Collections without movies or shows")

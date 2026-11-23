@@ -1172,15 +1172,9 @@ end function
 ' The rail's entries, as Home's menu was (Home.brs's homeMenu): the
 ' profile first, its initial in a circle, then each entry with its icon.
 sub buildRail()
-    summary = reqSummaryOf(m.top.requestSummary)
-    requests = []
-    if reqShowsDiscover(summary) then requests.Push({ title: t("browse.menu.discover"), action: "discover" })
-    if reqShowsRequests(summary)
-        badge = reqBadge(summary)
-        requests.Push({ title: reqPageName(summary), action: "requests", count: badge.count, danger: badge.danger })
-    end if
+    discover = reqShowsDiscover(reqSummaryOf(m.top.requestSummary))
     libraries = httpArray(m.top.railLibraries)
-    entries = homeMenu(libraries, m.top.railLive, requests, m.global.music.state <> "stopped")
+    entries = homeMenu(libraries, m.top.railLive, discover, m.global.music.state <> "stopped")
     name = m.global.session.profileName
     if name <> invalid and name <> "" then entries.Unshift({ title: name, action: "profiles", initial: UCase(Left(name, 1)) })
     for each entry in entries
@@ -1207,7 +1201,9 @@ sub placeRail()
     current = ""
     if top.route = "home" then current = "home"
     if top.route = "library" and top.params <> invalid and top.params.library <> invalid then current = "library:" + urlValue(top.params.library.id)
-    if top.route = "search" or top.route = "discover" or top.route = "requests" or top.route = "settings" or top.route = "live" or top.route = "collections" then current = top.route
+    if top.route = "search" or top.route = "discover" or top.route = "settings" or top.route = "live" or top.route = "collections" then current = top.route
+    ' The requests open from Discover's button.
+    if top.route = "requests" then current = "discover"
     if top.route = "grid" and top.params <> invalid and top.params.kind = "playlists" then current = "playlists"
     if top.route = "nowPlaying" then current = "nowPlaying"
     if current = "" and top.hasField("railEntry") then current = top.railEntry
@@ -1256,7 +1252,6 @@ sub onRailChosen()
     nav = invalid
     if action = "search" then nav = { to: "search" }
     if action = "discover" then nav = { to: "discover" }
-    if action = "requests" then nav = { to: "requests" }
     if action = "live" then nav = { to: "live" }
     if action = "settings" then nav = { to: "settings" }
     if action = "profiles" then nav = { to: "profiles" }

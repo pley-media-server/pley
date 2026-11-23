@@ -678,7 +678,8 @@ its number counts what waits: a manager's pending and failed requests
   it short of a screenful, as an age limit can, Look further asks for
   more, and after a page that failed, a tile says so, Select asking for
   it again); then Your requests, from the first one asked for. At the top,
-  the way to the requests, with the rail's number of what waits there.
+  the way to the requests, with the number of what waits there: they are
+  a page of their own reached from Discover, not an entry of the rail.
   TMDB is searched from Search. A poster opens the title's page, or,
   when a library the account can open has the title whole, the
   library's title, where it plays (a show partly there opens its page,
@@ -905,13 +906,13 @@ Rules the code keeps:
   requests learns it from the summary (`sign_in_again`), on Discover and
   the requests.
 - **Requests' summary** (`GET /api/requests/summary`;
-  `components/lib/Requests.brs`) decides the menu, its number and what the
-  screens offer. It is asked with each profile, when the event stream
-  connects, a second after request events (once for those that come
-  together), after the person acts on a request, and each minute without
-  the event stream. An older server's `404`, or a `403` from one built
-  before apps could ask, turns requests off until the stream connects
-  again or the app starts.
+  `components/lib/Requests.brs`) decides whether the rail has Discover,
+  the number on Discover's button and what the screens offer. It is asked
+  with each profile, when the event stream connects, a second after
+  request events (once for those that come together), after the person
+  acts on a request, and each minute without the event stream. An older
+  server's `404`, or a `403` from one built before apps could ask, turns
+  requests off until the stream connects again or the app starts.
 - **Request changes:** request events give every tile of their titles, on
   covered screens too, its new badge: the title's status for the profile
   (`GET /api/discover/{kind}/{tmdb_id}`, once a title for events that come

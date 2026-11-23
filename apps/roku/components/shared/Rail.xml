@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The rail at the left of the browsing pages, as the Android TV app's
-     shell has it (TvRail): the profile's initial, Search, Home, Discover and
-     the requests, Live TV, the libraries, Playlists, Collections, Now
-     Playing and Settings (Home.brs's homeMenu), their icons in a 144 px
+     shell has it (TvRail): the profile's initial, Search, Home, Discover,
+     Live TV, the libraries, Playlists, Collections, Now Playing and
+     Settings (Home.brs's homeMenu), their icons in a 144 px
      column over the page's dark, the current page's marked. With the focus
      it opens over the page, a panel of surface with their names. The scene
      gives it the focus (Left at a page's edge) and takes it back (Right,
