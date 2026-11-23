@@ -90,6 +90,17 @@ stay behind in the temporary folder; these are removed once the test's
 thread ends. The LG app's tests do the same with
 `pley_core::device::scratch_dir()`, which `FakeDevice::new` uses too.
 
+The code that reads what comes from outside (file and folder names, NFO
+files, Matroska, MP4 and MPEG-TS, Dolby Vision and HDR10+ metadata) is also
+tested on arbitrary input, in the tests whose names start with `any_`. Each
+runs a few thousand inputs made from a fixed seed, valid ones changed and
+random ones (`fuzz::check`, in `src/fuzz.rs` of the server and of the
+transcoder), and fails on one that makes the code panic, run longer than
+10 seconds or hold more memory than its bounds allow, showing that input.
+`PLEY_FUZZ_CASES=<n>` runs `n` of them each, and `PLEY_FUZZ_SEED=<n>` others,
+to look further: `PLEY_FUZZ_CASES=50000 cargo test -p pley-transcoder any_`.
+An input that finds something becomes a test of its own beside the fix.
+
 The Android app builds with the Android SDK and JDK 17 or newer (on Windows,
 Android Studio's: `JAVA_HOME=C:\Program Files\Android\Android Studio\jbr`).
 In `apps/android`:

@@ -1034,6 +1034,31 @@ pub fn with_rpus(stream: &[u8], rpu: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::fuzz::{self, Bytes, Rng};
+
+    /// RPUs and SEI messages changed, or bytes: read, or refused, never a
+    /// panic; and what is written reads again as it was meant.
+    #[test]
+    fn any_nal_unit_is_rewritten_or_refused() {
+        let hdr10plus: &[u8] = &[0xB5, 0x00, 0x3C, 0x00, 0x01, 0x04, 0x01, 0x40, 0x00, 0x00];
+        let seeds = [p7_rpu(true), p7_rpu(false), test_rpu().unwrap(), sei(&[(137, &[1; 24]), (4, hdr10plus)])];
+        let input = move |rng: &mut Rng| {
+            let seed = &seeds[rng.below(seeds.len())];
+            Bytes(if rng.one_in(8) { rng.bytes(1024) } else { rng.mutate(seed) })
+        };
+        let limit = |nal: &Bytes| (16 << 20) + 64 * nal.0.len();
+        fuzz::check("Dolby Vision and HDR10+ NAL units", 3000, input, limit, |nal| {
+            let nal = nal.0.as_slice();
+            nal_type(nal);
+            escape(&unescape(nal));
+            if let Ok(NalEdit::Replace(p81)) = rpu_to_p81(nal) {
+                assert_eq!(rpu_to_p81(&p81).ok(), Some(NalEdit::Keep), "8.1 already: {p81:02x?}");
+            }
+            if let NalEdit::Replace(kept) = strip_hdr10plus(nal) {
+                assert_eq!(strip_hdr10plus(&kept), NalEdit::Keep, "no HDR10+ left: {kept:02x?}");
+            }
+        });
+    }
 
     /// Whether an RPU NAL unit reads, and writes back bit for bit.
     pub(crate) fn rewrites_as_read(nal: &[u8]) -> anyhow::Result<bool> {

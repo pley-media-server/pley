@@ -301,6 +301,25 @@ fn size8(n: u64) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fuzz::{self, Bytes, Rng};
+
+    /// Files being written, changed: read as far as they can be, never past
+    /// their end.
+    #[test]
+    fn any_file_being_written_reads_within_it() {
+        let seeds =
+            [to_bytes("S_HDMV/PGS", b"", &blocks()), to_bytes("S_VOBSUB", b"palette", &[]), header_only("S_DVBSUB")];
+        let input = move |rng: &mut Rng| {
+            let seed = &seeds[rng.below(seeds.len())];
+            Bytes(if rng.one_in(8) { rng.bytes(512) } else { rng.mutate(seed) })
+        };
+        let limit = |file: &Bytes| (1 << 20) + 16 * file.0.len();
+        fuzz::check("Matroska files being written", 3000, input, limit, |file| {
+            if let Some((end, _)) = readable_to(&file.0) {
+                assert!(end <= file.0.len());
+            }
+        });
+    }
 
     fn blocks() -> Vec<Block> {
         vec![

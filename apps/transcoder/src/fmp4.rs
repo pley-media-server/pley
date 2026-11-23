@@ -1100,6 +1100,7 @@ mod tests {
     use tokio::io::AsyncWriteExt;
 
     use super::*;
+    use crate::fuzz::{self, Bytes, Rng};
 
     /// The movie flags fMP4 jobs give FFmpeg.
     const MOVFLAGS: &str = "+frag_keyframe+empty_moov+default_base_moof+delay_moov+frag_discont+skip_trailer";
@@ -1330,6 +1331,60 @@ mod tests {
             let first = String::from_utf8_lossy(&packets.stdout).lines().next().unwrap().trim().to_owned();
             assert_eq!(first, after.to_string(), "{audio}");
         }
+    }
+
+    /// Streams of an init and fragments, changed: read box by box, taken
+    /// apart, trimmed, edited and written again, or refused, never a panic;
+    /// what is written reads back.
+    #[test]
+    fn any_stream_is_taken_apart_or_refused() {
+        let p7 = DoviConfig { profile: 7, level: 6, rpu: true, el: true, bl: true, compat: 6 };
+        let (av_moof, av_mdat, _) = handmade_av_fragment();
+        let offset = handmade_fragment(0, 0).0.len() as u32 + 8;
+        let (audio_moof, audio_mdat) = handmade_fragment(TFHD_DEFAULT_BASE_IS_MOOF, offset);
+        let seeds = [
+            [handmade_av_init(&[]), av_moof.clone(), av_mdat.clone()].concat(),
+            [handmade_av_init(&[p7.to_box()]), av_moof, av_mdat].concat(),
+            [handmade_init().bytes, audio_moof, audio_mdat].concat(),
+        ];
+        let input = move |rng: &mut Rng| {
+            let seed = &seeds[rng.below(seeds.len())];
+            Bytes(if rng.one_in(8) { rng.bytes(1024) } else { rng.mutate(seed) })
+        };
+        // Besides what the stream holds, the samples a fragment may have,
+        // read, written and read again.
+        let limit = |stream: &Bytes| (16 << 20) + 64 * stream.0.len() + 128 * MAX_FRAGMENT_SAMPLES;
+        fuzz::check("fMP4 streams", 2000, input, limit, move |stream| {
+            let runtime = tokio::runtime::Builder::new_current_thread().build().unwrap();
+            let Ok(boxes) = runtime.block_on(read_all(BoxReader::new(stream.0.as_slice()))) else { return };
+            let [ftyp, moov, fragments @ ..] = boxes.as_slice() else { return };
+            let Ok(init) = Init::parse(&ftyp.bytes, &moov.bytes) else { return };
+            for config in [Some(p7), None] {
+                if let (Ok(bytes), Some(video)) = (set_dovi(&init.bytes, config), init.video) {
+                    let again = Init::from_bytes(&bytes).expect("the init written reads");
+                    assert_eq!(again.track(video).map(|t| t.dovi), Some(config));
+                }
+            }
+            for [moof, mdat] in fragments.as_chunks().0 {
+                let Ok(mut fragment) = Fragment::parse(moof.bytes.clone(), mdat.bytes.clone(), &init) else {
+                    continue;
+                };
+                fragment.presentation_start_ms(&init);
+                if fragment.needs_trim(&init) {
+                    fragment.trim_before_zero(&init);
+                }
+                let _ = fragment.edit_video(&init, Edits { to_81: true, strip_hdr10plus: true });
+                if fragment.rewritable() {
+                    let bytes = fragment.to_bytes();
+                    let moof = u32::from_be_bytes(bytes[..4].try_into().unwrap()) as usize;
+                    let again = Fragment::parse(bytes[..moof].to_vec(), bytes[moof..].to_vec(), &init)
+                        .expect("the fragment written reads");
+                    if let Some(video) = init.video {
+                        assert_eq!(again.samples(video), fragment.samples(video), "the same samples");
+                    }
+                }
+            }
+        });
     }
 
     // ---- a fragment made by hand
