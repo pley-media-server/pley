@@ -100,6 +100,16 @@ class PlaybackPlanTest {
         assertEquals(1, PlaybackPlan.request(70, choices(audio = ac3), "c", noAc3).audioIndex)
     }
 
+    @Test
+    fun `audio refused after it failed leaves the capabilities, decoded or passed through`() {
+        val refused = PlaybackPlan.capsFor(tv, dolbyVisionShown = null, refusedAudio = setOf("ac3", "flac"))!!.report
+        assertEquals(listOf("aac", "mp3", "opus", "eac3"), refused.audioCodecs)
+        assertEquals(listOf("aac", "mp3", "opus"), refused.audioDecode)
+        assertEquals(listOf("eac3"), refused.audioPassthrough)
+        assertFalse(PlaybackPlan.audioPlaysHere(ac3, PlaybackPlan.capsFor(tv, null, refusedAudio = setOf("ac3"))))
+        assertEquals(tv, PlaybackPlan.capsFor(tv, null))
+    }
+
     /**
      * A remux whose first track is TrueHD, with E-AC-3 beside it (as most
      * are) and a commentary: a TV whose output takes E-AC-3 but not TrueHD

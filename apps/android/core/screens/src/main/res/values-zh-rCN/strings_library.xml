@@ -8,7 +8,7 @@
         <item quantity="other">%1$,d 部剧集</item>
     </plurals>
     <plurals name="library_entry_artists">
-        <item quantity="other">%1$,d 位艺术家</item>
+        <item quantity="other">%1$,d 位艺人</item>
     </plurals>
     <plurals name="library_entry_items">
         <item quantity="other">%1$,d 个条目</item>

@@ -31,6 +31,7 @@
     <string name="session_method_transcode">Transcodificación</string>
     <string name="session_method_remux_audio">Transmisión directa · Audio transcodificado</string>
     <string name="session_fallback_unplayable">Este dispositivo no pudo reproducir el archivo original.</string>
+    <string name="session_fallback_audio_unplayable">Este dispositivo no pudo reproducir el audio original.</string>
     <string name="session_fallback_not_smooth">El original no se reproducía con fluidez en este dispositivo.</string>
     <string name="session_slow_server">El servidor no da abasto con este video. Prueba una calidad más baja.</string>
 

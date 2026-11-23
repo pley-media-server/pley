@@ -134,6 +134,7 @@ pub fn method_text(info: &PlaybackInfo) -> &'static str {
 pub fn fallback_text(reason: FallbackReason) -> &'static str {
     match reason {
         FallbackReason::Unplayable => t!("player.errors.originalFailed"),
+        FallbackReason::AudioUnplayable => t!("player.errors.originalAudioFailed"),
         FallbackReason::NotSmooth => t!("player.errors.originalNotSmooth"),
     }
 }

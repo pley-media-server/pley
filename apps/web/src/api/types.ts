@@ -1393,6 +1393,21 @@ export interface ResourceSample {
   /** Bytes in use. */
   memory: number;
   pley_memory: number;
+  /** Bytes a second the machine's network adapters received and sent. */
+  net_in: number;
+  net_out: number;
+  /** Bytes a second Pley sent its clients. */
+  pley_out: number;
+}
+
+/** A client Pley is sending to now. */
+export interface ResourceClient {
+  /** The account it signed in as, and its device ("Chrome on Windows"). */
+  user: string | null;
+  device: string | null;
+  address: string | null;
+  /** Bytes a second, over the last few seconds. */
+  sent: number;
 }
 
 export interface Resources {
@@ -1402,6 +1417,8 @@ export interface Resources {
   memory_total: number;
   /** Oldest first, the last five minutes. */
   samples: ResourceSample[];
+  /** Who Pley is sending to now, the busiest first. */
+  clients: ResourceClient[];
 }
 
 export interface FsEntry {

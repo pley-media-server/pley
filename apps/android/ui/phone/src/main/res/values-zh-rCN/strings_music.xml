@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Artist and album pages (apps/web/src/pages/item/MusicViews.tsx). -->
-    <string name="music_artist">音乐人</string>
+    <string name="music_artist">艺人</string>
     <string name="music_album">专辑</string>
     <string name="music_albums">专辑</string>
     <string name="music_play">播放</string>
@@ -13,10 +13,10 @@
     <string name="music_no_albums">未找到专辑。</string>
     <string name="music_no_tracks">未找到曲目</string>
     <string name="music_nothing_to_play">无法播放：没有曲目。</string>
-    <string name="music_artist_not_found">未找到音乐人</string>
+    <string name="music_artist_not_found">未找到艺人</string>
     <string name="music_album_not_found">未找到专辑</string>
     <string name="music_not_found_body">它可能已被移除，或此配置文件无权查看。</string>
-    <string name="music_artist_failed">无法加载此音乐人</string>
+    <string name="music_artist_failed">无法加载此艺人</string>
     <string name="music_album_failed">无法加载此专辑</string>
 
     <!-- Now Playing and the mini player (design spec §3.6, §4.10). -->
@@ -33,7 +33,7 @@
     <string name="music_position">曲目进度</string>
     <string name="music_loading">加载中…</string>
     <string name="music_nothing_playing">当前没有播放</string>
-    <string name="music_nothing_playing_body">播放专辑或音乐人后，会显示在这里。</string>
+    <string name="music_nothing_playing_body">播放专辑或艺人后，会显示在这里。</string>
     <string name="music_error_offline">无法连接服务器。</string>
     <string name="music_error_signed_out">请重新登录后再播放。</string>
     <string name="music_error_stopped">服务器已停止播放。</string>

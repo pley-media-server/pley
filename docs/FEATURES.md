@@ -75,11 +75,16 @@ In the web and desktop apps only, for now.
 ## Live TV
 
 - IPTV from M3U playlists and Xtream Codes, with XMLTV guides, on every
-  app.
+  app. A channel its source's guide lacks can take a guide of its own by
+  its address, such as epg.pw's, or a country's from IPTV-EPG.org with the
+  channel named after `#`.
 - One connection per channel however many people watch, within the
-  provider's limit.
+  provider's limit. A channel several sources carry can play on another's
+  connection when its own source's are all in use.
 - Channels play straight from the provider when the device can, through
   the transcoder when it can't.
+- Groups in the provider's order, or A to Z for a provider that lists them
+  in none.
 
 ## Watching
 
@@ -114,8 +119,9 @@ In the web and desktop apps only, for now.
 ## Administration
 
 - Edit metadata, lock fields, fix matches and choose artwork.
-- A live dashboard, a Test button for every service, and daily database
-  backups ([STORAGE.md](STORAGE.md)).
+- A live dashboard (the processors, memory and network over the last five
+  minutes, and who Pley is sending to how fast), a Test button for every
+  service, and daily database backups ([STORAGE.md](STORAGE.md)).
 - Manage libraries, users and invites from an Android phone
   ([ANDROID.md](ANDROID.md)).
 

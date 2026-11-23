@@ -32,7 +32,7 @@
   "nowPlaying": {
     "upNext": "接下來播放",
     "loading": "載入中…",
-    "nothingTitle": "當前沒有播放",
+    "nothingTitle": "目前沒有播放",
     "nothingBody": "播放專輯或藝人後，會在這裡顯示。"
   },
   "errors": {

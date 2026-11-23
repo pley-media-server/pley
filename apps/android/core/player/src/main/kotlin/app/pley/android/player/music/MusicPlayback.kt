@@ -158,6 +158,12 @@ class MusicPlayback(
     /** Tracks that couldn't be played one after another, skipped by themselves: a queue none of plays stops. */
     private var failedInARow = 0
 
+    /** Paused as the person left the TV app ([pauseForLeave]): plays on when they're back, if nothing changed it since. */
+    private var playOnReturn = false
+
+    /** Where the track [startTrack] asks the server for starts, until the output has it (its place is the track before's). */
+    private var askedAtMs: Long? = null
+
     /** Paused for [PAUSED_HOLD_MS]: the event stream is let go in the background until it plays again. */
     private var rested = false
     private var resting: Job? = null
@@ -314,10 +320,11 @@ class MusicPlayback(
 
     /** Plays, or after the queue's end, a failure or a video, starts the current track again. */
     fun play() {
+        playOnReturn = false
         if (queue.isEmpty) return
         when {
             ended -> startTrack(0)
-            error != null || yielded -> startTrack(lastPosition(), sameTrack = true, play = true)
+            error != null || yielded -> startTrack(askedAtMs ?: lastPosition(), sameTrack = true, play = true)
             starting -> {
                 startPlays = true
                 publish()
@@ -327,6 +334,7 @@ class MusicPlayback(
     }
 
     fun pause() {
+        playOnReturn = false
         // Paused on a track that can't be played: the next one waits too.
         if (skipJob != null) {
             cancelSkip()
@@ -548,6 +556,7 @@ class MusicPlayback(
      * session there. A track still being asked for isn't loaded.
      */
     fun pauseForVideo() {
+        playOnReturn = false
         if (queue.isEmpty) return
         cancelSkip()
         loadJob?.cancel()
@@ -560,8 +569,34 @@ class MusicPlayback(
         publish()
     }
 
+    /**
+     * The person leaves the TV app: music meant to play (playing, waiting
+     * for data, or a track being asked for that will play) pauses as for a
+     * video ([pauseForVideo]). With [playOnReturn], [returnAfterLeave] plays
+     * it on. Music paused, at its end, failed or waiting paused (the sleep
+     * timer's next track) stays as it is.
+     */
+    fun pauseForLeave(playOnReturn: Boolean) {
+        if (!wantsPlay) return
+        pauseForVideo()
+        this.playOnReturn = playOnReturn
+    }
+
+    /**
+     * The person is back in the TV app: music [pauseForLeave] paused plays
+     * on, with [playOn], unless it was played, paused or changed meanwhile
+     * (the phone's remote, a media key, a video). Either way it is
+     * forgotten.
+     */
+    fun returnAfterLeave(playOn: Boolean) {
+        val again = playOn && playOnReturn && yielded
+        playOnReturn = false
+        if (again) play()
+    }
+
     /** Ends the session, stops the output and forgets the queue. */
     fun stop() {
+        playOnReturn = false
         cancelSkip()
         loadJob?.cancel()
         stopTicker()
@@ -583,6 +618,7 @@ class MusicPlayback(
         yielded = false
         waitingAt = null
         error = null
+        askedAtMs = null
         now.value = null
         order.value = MusicQueueState()
         env.playing(this, false)
@@ -611,6 +647,8 @@ class MusicPlayback(
         val wantPlay = play ?: (!sameTrack || error != null || (out?.playWhenReady ?: true))
         waitingAt = null
         cancelSkip()
+        askedAtMs = atMs
+        playOnReturn = false
         loadJob?.cancel()
         stopTicker()
         endSession()
@@ -655,6 +693,7 @@ class MusicPlayback(
             o.setSpeed(speedOf(track))
             o.load(source, atMs, startPlays, trackInfo(track, server))
             held = true
+            askedAtMs = null
             // From now on, also while it waits paused (the sleep timer's next track).
             startTicker()
             publish()
@@ -796,6 +835,9 @@ class MusicPlayback(
         }
 
         override fun onError(error: OutputError) {
+            // A video or the person leaving the TV app took over, and the session went: the output's last fetch
+            // failing changes nothing, and Play starts a new session anyway.
+            if (yielded) return
             val s = session
             val direct = s?.info?.method == PlaybackMethod.Direct
             when {

@@ -215,6 +215,7 @@ class ResourcePlayerTexts(context: Context) : PlayerTexts {
     override fun fallback(reason: FallbackReason): String = s(
         when (reason) {
             FallbackReason.Unplayable -> R.string.session_fallback_unplayable
+            FallbackReason.AudioUnplayable -> R.string.session_fallback_audio_unplayable
             FallbackReason.NotSmooth -> R.string.session_fallback_not_smooth
         },
     )

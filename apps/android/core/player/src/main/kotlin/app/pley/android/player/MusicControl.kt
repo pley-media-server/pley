@@ -135,7 +135,8 @@ data class MusicPosition(val positionMs: Long = 0, val durationMs: Long = 0, val
  * Music, which keeps playing in the background with the lock screen's and
  * the notification's controls (a media session service). Video never does:
  * a video or a channel starting pauses the music and ends its session
- * ([pauseForVideo]).
+ * ([pauseForVideo]). A TV's home screen has no such controls, so the TV
+ * app pauses the music when the person leaves it ([pauseForLeave]).
  *
  * Everything is called on the main thread. The members besides
  * [nowPlaying] and [pauseForVideo] do nothing by default, for fakes.
@@ -206,6 +207,19 @@ interface MusicControl {
      * session on the server; Play starts a new one where it was.
      */
     fun pauseForVideo()
+
+    /**
+     * The person leaves the TV app: music meant to play pauses as for a
+     * video ([pauseForVideo]), and with [playOnReturn], [returnAfterLeave]
+     * plays it on. Paused music stays paused.
+     */
+    fun pauseForLeave(playOnReturn: Boolean) {}
+
+    /**
+     * Back in the TV app: music [pauseForLeave] paused plays on, with
+     * [playOn], unless it was played, paused or changed meanwhile.
+     */
+    fun returnAfterLeave(playOn: Boolean) {}
 
     /** The sleep timer of the music. */
     val sleep: StateFlow<SleepState> get() = NO_SLEEP

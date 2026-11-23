@@ -3,6 +3,7 @@ package app.pley.android.player.session
 import android.graphics.Bitmap
 import androidx.media3.common.text.Cue
 import app.pley.android.caps.CapsSnapshot
+import app.pley.android.caps.Codecs
 import app.pley.android.common.errorText
 import app.pley.android.data.LocalFile
 import app.pley.android.model.AddSubtitle
@@ -487,7 +488,7 @@ class SessionPlaybackController(
         val detail = item ?: return
         val chosen = file ?: return fail(texts.noFile, canRetry = false)
         // A file on a drive plays as it is, always: no server streams it.
-        val local = localFile(chosen.id)?.takeIf { env.drive || (recovery.fallbackMode == null && !streamingPicked) }
+        val local = localFile(chosen.id)?.takeIf { env.drive || (!recovery.leftOriginal && !streamingPicked) }
         // A change while the media shows: the session playing plays on while the next one gets ready.
         val playing = session?.takeIf { alongside && local == null && link != null && mediaShown && !ended && ui.value.phase !is PlayerPhase.Error }
         if (playing != null) return beginBeside(playing, detail, chosen, atMs, refused)
@@ -515,7 +516,7 @@ class SessionPlaybackController(
         } catch (_: Exception) {
             null
         }
-        fileCaps = PlaybackPlan.capsFor(caps, dolbyVision, decoded = serverDecodes)
+        fileCaps = PlaybackPlan.capsFor(caps, dolbyVision, decoded = serverDecodes, refusedAudio = recovery.refusedAudio)
     }
 
     /**
@@ -1015,7 +1016,9 @@ class SessionPlaybackController(
         val audioUnplayable = tracks.audio.isNotEmpty() && tracks.audio.none { it.supported }
         if (videoUnplayable || audioUnplayable) {
             val what = if (videoUnplayable) "video" else "audio"
-            onError(EngineError.Unsupported(audio = !videoUnplayable, container = false, detail = "no $what track plays here"))
+            // A stream's one audio track says what it carries; a file's tracks are the file's.
+            val audioCodec = Codecs.audioCodecOf(tracks.audio.singleOrNull()?.mimeType).takeIf { !videoUnplayable }
+            onError(EngineError.Unsupported(audio = !videoUnplayable, container = false, detail = "no $what track plays here", audioCodec = audioCodec))
         }
     }
 
@@ -1060,14 +1063,31 @@ class SessionPlaybackController(
             return
         }
         val videoCodec = PlaybackPlan.videoStream(file)?.codec
-        act(recovery.decide(error, s.info.method, videoCodec), starving = false)
+        act(recovery.decide(error, s.info.method, videoCodec, failedAudioCodec(error, s.info)), starving = false)
+    }
+
+    /**
+     * The server's name for the audio that failed in [error]: the engine's,
+     * else the file's track that plays, when it reached the player as it
+     * is in the file (not converted by the server or for a download).
+     * Only a codec the capabilities sent name: leaving out one they don't
+     * would change nothing.
+     */
+    private fun failedAudioCodec(error: EngineError, info: PlaybackInfo): String? {
+        if (error !is EngineError.Unsupported || !error.audio) return null
+        val codec = error.audioCodec
+            ?: (audio ?: PlaybackPlan.playedAudio(file, info.audioIndex))?.codec?.takeIf { !info.audioConverted && !playingConverted }
+            ?: return null
+        val report = fileCaps?.report ?: return codec
+        val listed = report.audioCodecs + report.audioDecode.orEmpty() + report.audioPassthrough.orEmpty()
+        return codec.takeIf { c -> listed.any { it.equals(c, ignoreCase = true) } }
     }
 
     /** Does what the recovery ladder says; [alongside]: a new session is made ready beside the one playing, which plays on. */
     private fun act(action: Recovery.Action, starving: Boolean, alongside: Boolean = false) {
         // A file on a drive has no server: what only a conversion would play doesn't play, and a
         // file that still can't be read (the drive pulled out) says so, not that a server is away.
-        if (env.drive && action is Recovery.Action.NewSession && action.mode != null) {
+        if (env.drive && action is Recovery.Action.NewSession && (action.mode != null || action.reason != null)) {
             return fail(texts.driveUnplayable, canRetry = false)
         }
         if (env.drive && action is Recovery.Action.Fail && (action.failure == Failure.Network || action.failure == Failure.Stopped)) {
@@ -1609,7 +1629,8 @@ class SessionPlaybackController(
         if (playingLocal && ui.value.speedNote != null) ui.update { it.copy(speedNote = null) }
         val s = session ?: return TrackChange.NewSession
         val engineLink = link
-        return if (!s.info.hls && engineLink != null && PlaybackPlan.audioPlaysHere(chosen, caps)) {
+        // Audio refused in this item failed here already: the server converts it instead.
+        return if (!s.info.hls && engineLink != null && PlaybackPlan.audioPlaysHere(chosen, caps?.withoutAudio(recovery.refusedAudio))) {
             // The engine loads the other track: its wait is no play issue.
             autoQuality.jumped()
             engineLink.selectAudio(PlaybackPlan.audioStreams(file).indexOf(chosen), chosen.language)
@@ -2256,7 +2277,7 @@ class SessionPlaybackController(
             return
         }
         // A download that didn't play here as it is went to the server, which is out of reach.
-        val leftDownload = recovery.fallbackMode != null && downloaded
+        val leftDownload = recovery.leftOriginal && downloaded
         if (error is OfflineException && !leftDownload) {
             return fail(if (error.blocked) texts.words(errorText(error)) else texts.unreachable(errorText(error)), canRetry = true, offline = true)
         }

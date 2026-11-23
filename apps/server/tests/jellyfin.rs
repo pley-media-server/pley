@@ -5,10 +5,13 @@
 mod common;
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
-use axum::http::{Method, StatusCode, header};
+use axum::body::Body;
+use axum::http::{Method, Request, StatusCode, header};
 use futures::{SinkExt, StreamExt};
 use serde_json::{Value, json};
+use tower::ServiceExt;
 
 use common::{Reply, TestApp, jf_names};
 
@@ -1309,4 +1312,40 @@ async fn date_episode_added_sorts_series_by_their_newest_episode() {
     // Merged across libraries, a film by its own date.
     assert_eq!(names("IncludeItemTypes=Series,Movie&SortBy=DateLastContentAdded").await, ["Old", "Film", "New"]);
     assert_eq!(names("IncludeItemTypes=Series,Movie&SortBy=DateCreated").await, ["Film", "New", "Old"]);
+}
+
+/// What a request is counted for on the dashboard's list of clients
+/// (src/traffic.rs): the account and device its slot names once answered.
+async fn counted_for(app: &TestApp, uri: &str, headers: &[(&str, &str)]) -> Option<(String, String)> {
+    let slot = Arc::new(pley::traffic::Slot::default());
+    let mut req = Request::builder().uri(uri);
+    for (name, value) in headers {
+        req = req.header(*name, *value);
+    }
+    let mut req = req.body(Body::empty()).unwrap();
+    req.extensions_mut().insert(slot.clone());
+    let status = app.jellyfin.clone().oneshot(req).await.unwrap().status();
+    assert!(status.is_success(), "{uri}: {status}");
+    slot.named()
+}
+
+#[tokio::test]
+async fn the_dashboard_lists_an_app_by_its_account_and_device() {
+    let w = world().await;
+    let app = &w.app;
+    let signed_in = sign_in(app, json!({"Username": "admin", "Pw": "secret-one"})).await;
+    let token = signed_in.body["AccessToken"].as_str().unwrap().to_owned();
+    let authorization = format!(r#"{FINDROID}, Token="{token}""#);
+    let me = counted_for(app, "/Users/Me", &[("authorization", &authorization)]).await;
+    assert_eq!(me, Some(("admin".to_owned(), "Phone".to_owned())));
+
+    // Its player opens the stream by the source's id and names no device:
+    // the dashboard takes the name the app's other requests give.
+    let film = app.jf_item(w.film);
+    let info = app
+        .jf_raw(Method::POST, &format!("/Items/{film}/PlaybackInfo"), &[("x-emby-token", &token)], Some(json!({})))
+        .await;
+    let source = info.body["MediaSources"][0]["Id"].as_str().unwrap().to_owned();
+    let stream = format!("/Videos/{film}/stream.mkv?static=true&MediaSourceId={source}");
+    assert_eq!(counted_for(app, &stream, &[]).await, Some(("admin".to_owned(), String::new())));
 }

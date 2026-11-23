@@ -58,7 +58,7 @@
     "inSeconds_other": "{{count}} 秒後",
     "inMinutes_other": "{{count}} 分鐘後",
     "inHours_other": "{{count}} 小時後",
-    "inDays_other": "{{count}} 天后",
+    "inDays_other": "{{count}} 天後",
     "inWeeks_other": "{{count}} 周後",
     "inMonths_other": "{{count}} 個月後",
     "inYears_other": "{{count}} 年後"

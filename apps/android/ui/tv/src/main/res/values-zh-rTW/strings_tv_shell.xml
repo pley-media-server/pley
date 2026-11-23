@@ -22,6 +22,6 @@
 
     <!-- Screens not built yet. -->
     <string name="tv_shell_placeholder_title">%1$s 尚未上線</string>
-    <string name="tv_shell_placeholder_body">這是電視版 Pley，正在開發中：用遙控器瀏覽、用代碼登入，並按電視自身的幀率和 HDR 播放。</string>
+    <string name="tv_shell_placeholder_body">這是電視版 Pley，正在開發中：用遙控器瀏覽、用代碼登入，並按電視自身的影格速率和 HDR 播放。</string>
     <string name="tv_shell_placeholder_next">開啟其他頁面</string>
 </resources>

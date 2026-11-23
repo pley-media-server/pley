@@ -140,6 +140,7 @@
     "playerGaveUp": "Le lecteur de la TV a abandonné.",
     "playerGaveUpWith": "Le lecteur de la TV a abandonné ({{detail}}).",
     "originalFailed": "Cet appareil n’a pas pu lire le fichier original.",
+    "originalAudioFailed": "Cet appareil n’a pas pu lire l’audio original.",
     "originalNotSmooth": "L’original n’était pas fluide sur cet appareil.",
     "stoppedByAdmin": "La lecture a été arrêtée par l’administrateur du serveur.",
     "stoppedElsewhere": "La lecture a été arrêtée depuis un autre appareil."

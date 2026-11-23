@@ -447,13 +447,13 @@
     "count": {
       "movies_other": "{{count, number}} 部电影",
       "shows_other": "{{count, number}} 部剧集",
-      "music_other": "{{count, number}} 位艺术家",
+      "music_other": "{{count, number}} 位艺人",
       "audiobooks_other": "{{count, number}} 本书"
     },
     "countOf": {
       "movies_other": "{{count, number}} 部电影中的 {{shown, number}} 部",
       "shows_other": "{{count, number}} 部剧集中的 {{shown, number}} 部",
-      "music_other": "{{count, number}} 位艺术家中的 {{shown, number}} 位",
+      "music_other": "{{count, number}} 位艺人中的 {{shown, number}} 位",
       "audiobooks_other": "{{count, number}} 本书中的 {{shown, number}} 本"
     },
     "all": {
@@ -555,7 +555,7 @@
       "show": "剧集",
       "season": "季",
       "episode": "集",
-      "artist": "艺术家",
+      "artist": "艺人",
       "album": "专辑",
       "track": "曲目",
       "audiobook": "有声书"
@@ -568,7 +568,7 @@
     "cantSearchTmdb": "搜索 TMDB 失败：{{error}}",
     "nothingThere": "其中也没有结果。试试其他拼写或更短的关键词。",
     "emptyTitle": "搜索你的媒体库",
-    "emptyHint": "查找电影、剧集、单集、人物、艺术家、专辑、曲目、有声书和直播电视频道。在任意处按 / 可跳到搜索框。",
+    "emptyHint": "查找电影、剧集、单集、人物、艺人、专辑、曲目、有声书和直播电视频道。在任意处按 / 可跳到搜索框。",
     "cantSearch": "搜索媒体库失败",
     "resultsFor": "“{{q}}”的搜索结果",
     "nothingInLibraries": "你的媒体库中没有匹配项。",

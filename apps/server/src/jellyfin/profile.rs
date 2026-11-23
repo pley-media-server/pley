@@ -798,6 +798,7 @@ mod tests {
             fmp4_segments: true,
             download: false,
             copy_video_only: false,
+            convert_audio: false,
             stream_only: false,
             device_id: None,
             api: crate::playback::Api::Jellyfin,

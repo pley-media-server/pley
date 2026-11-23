@@ -16,16 +16,16 @@
     <string name="tv_library_sort_bitrate">位元速率</string>
     <string name="tv_library_sort_by">排序方式</string>
     <string name="tv_library_order">順序</string>
-    <string name="tv_library_ascending">升序</string>
-    <string name="tv_library_descending">降序</string>
+    <string name="tv_library_ascending">遞增</string>
+    <string name="tv_library_descending">遞減</string>
 
     <string name="tv_library_filter">篩選</string>
     <string name="tv_library_show">顯示</string>
     <string name="tv_library_show_all">全部</string>
     <string name="tv_library_unwatched">未觀看</string>
     <string name="tv_library_watched">已觀看</string>
-    <string name="tv_library_genre">型別</string>
-    <string name="tv_library_all_genres">所有型別</string>
+    <string name="tv_library_genre">類型</string>
+    <string name="tv_library_all_genres">所有類型</string>
     <string name="tv_library_year">年份</string>
     <string name="tv_library_all_years">所有年份</string>
     <string name="tv_library_resolution">解析度</string>
@@ -40,7 +40,7 @@
         <item quantity="other">%s 部電影</item>
     </plurals>
     <plurals name="tv_library_count_shows">
-        <item quantity="other">%s 部劇集</item>
+        <item quantity="other">%s 部影集</item>
     </plurals>
     <plurals name="tv_library_count_artists">
         <item quantity="other">%s 位藝人</item>
@@ -49,7 +49,7 @@
         <item quantity="other">%2$s 部電影中的 %1$s 部</item>
     </plurals>
     <plurals name="tv_library_count_of_shows">
-        <item quantity="other">%2$s 部劇集中的 %1$s 部</item>
+        <item quantity="other">%2$s 部影集中的 %1$s 部</item>
     </plurals>
     <plurals name="tv_library_count_of_artists">
         <item quantity="other">%2$s 位藝人中的 %1$s 位</item>
@@ -59,7 +59,7 @@
     </plurals>
 
     <!-- The A to Z jump control. -->
-    <string name="tv_library_jump">跳轉到字母：%s</string>
+    <string name="tv_library_jump">跳至字母：%s</string>
 
     <!-- States (design spec §8). -->
     <string name="tv_library_failed">無法載入此媒體庫</string>
@@ -67,8 +67,8 @@
     <string name="tv_library_missing_body">它可能已被刪除，或此設定檔無權檢視。</string>
     <string name="tv_library_empty_title">此媒體庫為空</string>
     <string name="tv_library_empty_body">這裡還是空的。伺服器新增內容後會顯示在這裡。</string>
-    <string name="tv_library_no_matches_title">沒有匹配項</string>
-    <string name="tv_library_no_matches_body">此媒體庫中沒有符合當前篩選條件的內容。</string>
+    <string name="tv_library_no_matches_title">沒有相符的項目</string>
+    <string name="tv_library_no_matches_body">此媒體庫中沒有符合目前篩選條件的內容。</string>
     <string name="tv_library_recommended_failed">無法載入推薦</string>
     <string name="tv_library_recommended_empty_title">暫無推薦</string>
     <string name="tv_library_recommended_empty_body">媒體庫中有內容後即可顯示推薦。</string>
@@ -92,7 +92,7 @@
     <string name="tv_collection_shuffle">隨機播放</string>
     <string name="tv_collection_empty">此合集暫無內容。</string>
     <string name="tv_collection_failed">無法載入此合集</string>
-    <string name="tv_collection_nothing_to_play">無法播放：這部劇還沒有集數</string>
+    <string name="tv_collection_nothing_to_play">無法播放：這部影集還沒有任何單集</string>
     <string name="tv_collection_from">來自</string>
     <plurals name="tv_library_count_books">
         <item quantity="other">%s 本書</item>

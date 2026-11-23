@@ -18,15 +18,15 @@
   "panel": {
     "sortBy": "排序方式",
     "order": "順序",
-    "ascending": "升序",
-    "descending": "降序",
+    "ascending": "遞增",
+    "descending": "遞減",
     "filter": "篩選",
     "show": "顯示",
     "all": "全部",
     "unwatched": "未觀看",
     "watched": "已觀看",
-    "genre": "型別",
-    "allGenres": "所有型別",
+    "genre": "類型",
+    "allGenres": "所有類型",
     "year": "年份",
     "allYears": "所有年份",
     "resolution": "解析度",
@@ -36,7 +36,7 @@
     "clearFilters": "清除篩選",
     "saveAs": "另存為…",
     "unchosen": {
-      "genre": "所有型別",
+      "genre": "所有類型",
       "year": "所有年份",
       "resolution": "所有解析度",
       "dynamicRange": "所有動態範圍"
@@ -46,17 +46,17 @@
   },
   "anyHdr": "任意 HDR",
   "bitrateUnknown": "位元速率未知",
-  "jump": "跳轉到字母：{{letter}}",
+  "jump": "跳至字母：{{letter}}",
   "count": {
     "movies_other": "{{count, number}} 部電影",
-    "shows_other": "{{count, number}} 部劇集",
+    "shows_other": "{{count, number}} 部影集",
     "artists_other": "{{count, number}} 位藝人",
     "items_other": "{{count, number}} 個內容",
     "collections_other": "{{count, number}} 個合集"
   },
   "countOf": {
     "movies_other": "{{shown, number}} / {{count, number}} 部電影",
-    "shows_other": "{{shown, number}} / {{count, number}} 部劇集",
+    "shows_other": "{{shown, number}} / {{count, number}} 部影集",
     "artists_other": "{{shown, number}} / {{count, number}} 位藝人"
   },
   "messages": {
@@ -65,8 +65,8 @@
     "missingBody": "它可能已被移除，或此設定檔無權檢視。",
     "emptyTitle": "此媒體庫是空的",
     "emptyBody": "這裡還沒有內容。伺服器新增內容後就會顯示。",
-    "noMatchesTitle": "沒有匹配項",
-    "noMatchesBody": "此媒體庫中沒有符合當前篩選條件的內容。",
+    "noMatchesTitle": "沒有相符的項目",
+    "noMatchesBody": "此媒體庫中沒有符合目前篩選條件的內容。",
     "recommendedFailed": "無法載入推薦內容",
     "recommendedEmptyTitle": "暫時沒有可推薦的內容",
     "recommendedEmptyBody": "媒體庫中有內容後就會出現推薦。",
@@ -93,7 +93,7 @@
     "noneBody": "請讓伺服器所有者新增一個媒體庫。"
   },
   "smartFilter": {
-    "genre": "型別：{{value}}",
+    "genre": "類型：{{value}}",
     "label": "標籤：{{value}}",
     "studio": "製作公司：{{value}}",
     "rated": "分級 {{value}}",

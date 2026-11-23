@@ -5,7 +5,7 @@
         <item quantity="other">%1$,d 部電影</item>
     </plurals>
     <plurals name="person_count_shows">
-        <item quantity="other">%1$,d 部劇集</item>
+        <item quantity="other">%1$,d 部影集</item>
     </plurals>
 
     <!-- What a person is credited as on a title (roleWords), as the web says it. -->

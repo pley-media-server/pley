@@ -1,6 +1,14 @@
 //! The recovery ladder (packages/tv/src/player/recovery.ts, the Android
 //! app's `Recovery.kt`):
 //!
+//! - Audio the TV fails to play, in any session: a new session in the same
+//!   mode whose capabilities leave that codec out (`refused_audio`), so the
+//!   server plays another track as it is or converts this one, the video
+//!   untouched; once per codec, never AAC. A remux or a transcode would only
+//!   copy the same audio again: the server copies what the capabilities say
+//!   plays. LG's pipeline doesn't tell its audio output's failures from its
+//!   decoders', so every one counts at once (Android first gives an output
+//!   that failed a new session as it was).
 //! - Direct play the TV can't decode or open: a remux when the video is
 //!   H.264 or HEVC and only the container or the audio failed, else a
 //!   transcode; each once.
@@ -18,10 +26,13 @@
 use pley_core::model::{PlaybackMethod, PlaybackMode};
 use pley_i18n::t;
 
-/// Why a fallback plays something other than the original.
+/// Why a fallback plays something other than the original: the file didn't
+/// play, its audio didn't (another track plays, or the same converted), or
+/// it didn't play smoothly.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FallbackReason {
     Unplayable,
+    AudioUnplayable,
     NotSmooth,
 }
 
@@ -94,6 +105,8 @@ pub const MAX_STUCK: u32 = 1;
 pub const MAX_SHORT: u32 = 1;
 /// Videos a remux copies, which the TV takes in another container.
 const COPYABLE_VIDEO: [&str; 2] = ["h264", "hevc"];
+/// The server's last resort when it converts audio: refusing it would leave nothing to play.
+const AAC: &str = "aac";
 
 /// One title's recovery budgets and the fallback it keeps.
 #[derive(Clone, Debug, Default)]
@@ -101,6 +114,9 @@ pub struct Recovery {
     pub fallback_mode: Option<PlaybackMode>,
     pub fallback_reason: Option<FallbackReason>,
     pub struggle_switched: bool,
+    /// Audio codecs (the server's names) this TV failed to play in this item: left out of the
+    /// capabilities sent from then on.
+    pub refused_audio: Vec<String>,
     remux_tried: bool,
     transcode_tried: bool,
     pub recreate: u32,
@@ -132,12 +148,21 @@ impl Recovery {
         self.played_from = None;
     }
 
-    /// What to do about `error` in a session played by `method`, of a video in `video_codec`.
-    pub fn decide(&mut self, error: &EngineError, method: PlaybackMethod, video_codec: Option<&str>) -> RecoveryAction {
+    /// What to do about `error` in a session played by `method`, of a video in `video_codec` and
+    /// audio that reached the TV's pipeline as `audio_codec` (the server's name, one the
+    /// capabilities sent list; none when not known).
+    pub fn decide(
+        &mut self,
+        error: &EngineError,
+        method: PlaybackMethod,
+        video_codec: Option<&str>,
+        audio_codec: Option<&str>,
+    ) -> RecoveryAction {
         match error {
-            EngineError::Unsupported { audio, container, detail } => {
-                self.fallback(method, video_codec, *audio || *container, detail)
-            }
+            EngineError::Unsupported { audio, container, detail } => match self.refuse_audio(*audio, audio_codec) {
+                Some(action) => action,
+                None => self.fallback(method, video_codec, *audio || *container, detail),
+            },
             EngineError::Http { status, detail } => {
                 if *status == 404 || *status == 410 {
                     self.expired(detail)
@@ -154,6 +179,19 @@ impl Recovery {
                 RecoveryAction::Fail { failure: Failure::Engine, detail: Some(detail.clone()) }
             }
         }
+    }
+
+    /// The audio `codec` failed: refused for the rest of the item, and a new session in the mode
+    /// asked for now; none when the ladder's next step is what helps instead (a video failure, a
+    /// codec unknown or refused already, AAC).
+    fn refuse_audio(&mut self, audio: bool, codec: Option<&str>) -> Option<RecoveryAction> {
+        let codec = codec?.to_ascii_lowercase();
+        if !audio || codec.is_empty() || codec == AAC || self.refused_audio.contains(&codec) {
+            return None;
+        }
+        self.refused_audio.push(codec);
+        self.fallback_reason = Some(FallbackReason::AudioUnplayable);
+        Some(RecoveryAction::NewSession { mode: self.fallback_mode, reason: Some(FallbackReason::AudioUnplayable) })
     }
 
     fn fallback(
@@ -354,15 +392,16 @@ mod tests {
         EngineError::Unsupported { audio, container, detail: "no".into() }
     }
 
+    /// AAC is the server's last resort when it converts: there is nothing to leave out, so the ladder goes on.
     #[test]
     fn direct_play_falls_back_to_a_remux_then_a_transcode() {
         let mut r = Recovery::default();
-        let a = r.decide(&unsupported(true, false), PlaybackMethod::Direct, Some("hevc"));
+        let a = r.decide(&unsupported(true, false), PlaybackMethod::Direct, Some("hevc"), Some("aac"));
         assert_eq!(
             a,
             RecoveryAction::NewSession { mode: Some(PlaybackMode::Remux), reason: Some(FallbackReason::Unplayable) }
         );
-        let a = r.decide(&unsupported(true, false), PlaybackMethod::Remux, Some("hevc"));
+        let a = r.decide(&unsupported(true, false), PlaybackMethod::Remux, Some("hevc"), Some("aac"));
         assert_eq!(
             a,
             RecoveryAction::NewSession {
@@ -370,14 +409,77 @@ mod tests {
                 reason: Some(FallbackReason::Unplayable)
             }
         );
-        let a = r.decide(&unsupported(true, false), PlaybackMethod::Transcode, Some("hevc"));
+        let a = r.decide(&unsupported(true, false), PlaybackMethod::Transcode, Some("hevc"), Some("aac"));
         assert!(matches!(a, RecoveryAction::Fail { failure: Failure::Unplayable, .. }));
+        assert!(r.refused_audio.is_empty());
+    }
+
+    #[test]
+    fn audio_the_tv_fails_to_play_is_refused_at_once_in_the_same_mode_once_per_codec() {
+        let mut r = Recovery::default();
+        let audio = unsupported(true, false);
+        let refused = RecoveryAction::NewSession { mode: None, reason: Some(FallbackReason::AudioUnplayable) };
+        assert_eq!(r.decide(&audio, PlaybackMethod::Direct, Some("hevc"), Some("EAC3")), refused);
+        assert_eq!(r.refused_audio, ["eac3"]);
+        assert_eq!((r.fallback_mode, r.fallback_reason), (None, Some(FallbackReason::AudioUnplayable)));
+        // The file's AC-3, which the server played next, fails too: refused as well.
+        assert_eq!(r.decide(&audio, PlaybackMethod::Remux, Some("hevc"), Some("ac3")), refused);
+        assert_eq!(r.refused_audio, ["eac3", "ac3"]);
+        // A codec refused already, AAC, or none known: the ladder as before.
+        assert_eq!(
+            r.decide(&audio, PlaybackMethod::Remux, Some("hevc"), Some("eac3")),
+            RecoveryAction::NewSession {
+                mode: Some(PlaybackMode::Transcode),
+                reason: Some(FallbackReason::Unplayable)
+            }
+        );
+        assert!(matches!(
+            r.decide(&audio, PlaybackMethod::Transcode, Some("hevc"), Some("aac")),
+            RecoveryAction::Fail { failure: Failure::Unplayable, .. }
+        ));
+        assert_eq!(r.refused_audio, ["eac3", "ac3"]);
+        assert!(matches!(
+            Recovery::default().decide(&audio, PlaybackMethod::Direct, Some("hevc"), None),
+            RecoveryAction::NewSession { mode: Some(PlaybackMode::Remux), .. }
+        ));
+        // A video failure refuses nothing, whatever the audio.
+        let mut v = Recovery::default();
+        assert!(matches!(
+            v.decide(&unsupported(false, false), PlaybackMethod::Direct, Some("h264"), Some("eac3")),
+            RecoveryAction::NewSession { mode: Some(PlaybackMode::Transcode), .. }
+        ));
+        assert!(v.refused_audio.is_empty());
+    }
+
+    #[test]
+    fn a_refusal_keeps_a_fallbacks_mode() {
+        let mut r = Recovery::default();
+        r.decide(&unsupported(false, true), PlaybackMethod::Direct, Some("h264"), None);
+        assert_eq!(
+            r.decide(&unsupported(true, false), PlaybackMethod::Remux, Some("h264"), Some("truehd")),
+            RecoveryAction::NewSession {
+                mode: Some(PlaybackMode::Remux),
+                reason: Some(FallbackReason::AudioUnplayable)
+            }
+        );
+        assert_eq!(r.fallback_mode, Some(PlaybackMode::Remux));
+    }
+
+    #[test]
+    fn a_new_item_forgets_the_refused_audio_retry_and_another_quality_dont() {
+        let mut r = Recovery::default();
+        r.decide(&unsupported(true, false), PlaybackMethod::Direct, Some("h264"), Some("eac3"));
+        r.retry();
+        r.quality_changed();
+        assert_eq!(r.refused_audio, ["eac3"]);
+        r.new_item();
+        assert!(r.refused_audio.is_empty());
     }
 
     #[test]
     fn a_video_it_cant_decode_goes_straight_to_a_transcode() {
         let mut r = Recovery::default();
-        let a = r.decide(&unsupported(false, false), PlaybackMethod::Direct, Some("av1"));
+        let a = r.decide(&unsupported(false, false), PlaybackMethod::Direct, Some("av1"), None);
         assert_eq!(r.fallback_mode, Some(PlaybackMode::Transcode));
         assert!(matches!(a, RecoveryAction::NewSession { mode: Some(PlaybackMode::Transcode), .. }));
     }
@@ -388,19 +490,19 @@ mod tests {
         let gone = EngineError::Http { status: 404, detail: "gone".into() };
         for _ in 0..MAX_RECREATE {
             assert_eq!(
-                r.decide(&gone, PlaybackMethod::Transcode, None),
+                r.decide(&gone, PlaybackMethod::Transcode, None, None),
                 RecoveryAction::NewSession { mode: None, reason: None }
             );
         }
         assert!(matches!(
-            r.decide(&gone, PlaybackMethod::Transcode, None),
+            r.decide(&gone, PlaybackMethod::Transcode, None, None),
             RecoveryAction::Fail { failure: Failure::Stopped, .. }
         ));
         // Five seconds played on: the budget is back.
         r.on_position(1_000);
         r.on_position(6_000);
         assert_eq!(
-            r.decide(&gone, PlaybackMethod::Transcode, None),
+            r.decide(&gone, PlaybackMethod::Transcode, None, None),
             RecoveryAction::NewSession { mode: None, reason: None }
         );
     }
@@ -410,14 +512,14 @@ mod tests {
         let mut r = Recovery::default();
         let net = EngineError::Network { detail: "x".into() };
         for _ in 0..MAX_NETWORK {
-            assert!(matches!(r.decide(&net, PlaybackMethod::Direct, None), RecoveryAction::NewSession { .. }));
+            assert!(matches!(r.decide(&net, PlaybackMethod::Direct, None, None), RecoveryAction::NewSession { .. }));
         }
         assert!(matches!(
-            r.decide(&net, PlaybackMethod::Direct, None),
+            r.decide(&net, PlaybackMethod::Direct, None, None),
             RecoveryAction::Fail { failure: Failure::Network, .. }
         ));
         r.retry();
-        assert!(matches!(r.decide(&net, PlaybackMethod::Direct, None), RecoveryAction::NewSession { .. }));
+        assert!(matches!(r.decide(&net, PlaybackMethod::Direct, None, None), RecoveryAction::NewSession { .. }));
     }
 
     #[test]

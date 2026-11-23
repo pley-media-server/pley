@@ -25,7 +25,7 @@
     -->
     <string name="downloads_error_missing">下載的檔案已丟失</string>
     <string name="downloads_error_no_space">此裝置儲存空間不足</string>
-    <string name="downloads_error_no_conversions">伺服器無法生成更小的下載檔案：請在 設定 → 下載 中選擇“原始”</string>
+    <string name="downloads_error_no_conversions">伺服器無法產生更小的下載檔案：請在 設定 → 下載 中選擇「原始」</string>
     <string name="downloads_error_conversion">伺服器無法為此裝置處理該檔案</string>
     <!-- %1$s: the server's own words, as it wrote them. -->
     <string name="downloads_error_conversion_said">伺服器無法為此裝置處理該檔案：%1$s</string>

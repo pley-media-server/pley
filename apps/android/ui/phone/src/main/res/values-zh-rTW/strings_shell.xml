@@ -15,7 +15,7 @@
     <string name="kit_offline_body">%1$s 請檢查伺服器是否已開啟，以及此裝置是否連線到同一網路。</string>
     <string name="shell_scope">Pley 沒有權限執行此操作：重新登入以授權</string>
     <string name="shell_scope_action">登入</string>
-    <string name="shell_now_playing">開啟“正在播放”</string>
+    <string name="shell_now_playing">開啟「正在播放」</string>
 
     <!-- Screens that aren't built yet. -->
     <string name="shell_placeholder_title">%1$s 尚未開發完成</string>
@@ -24,7 +24,7 @@
     <string name="shell_placeholder_in">前往首頁</string>
     <string name="shell_placeholder_kit">顯示手機元件庫</string>
     <!-- The top bar of a title's page not built yet: "Item 101". -->
-    <string name="shell_placeholder_item">專案 %1$d</string>
+    <string name="shell_placeholder_item">項目 %1$d</string>
 
     <!-- The kit. -->
     <string name="kit_back">返回</string>

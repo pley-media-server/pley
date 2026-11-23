@@ -604,7 +604,7 @@ const NUMBER_WIDTH: usize = 10;
 /// A file's name as a book's parts are sorted by it: in any case, and with
 /// each number padded to the same width, so `Part 2` comes before `Part 10`
 /// and `Chapter 9` before `chapter 10`.
-fn natural_key(name: &str) -> String {
+pub(crate) fn natural_key(name: &str) -> String {
     let mut key = String::with_capacity(name.len() + NUMBER_WIDTH);
     let mut chars = name.chars().peekable();
     while let Some(c) = chars.next() {

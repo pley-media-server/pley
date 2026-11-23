@@ -11,11 +11,11 @@
     <string name="livetv_search_clear">清除</string>
     <string name="livetv_failed">直播電視載入失敗</string>
     <string name="livetv_not_allowed_title">此設定檔無法使用直播電視</string>
-    <string name="livetv_not_allowed_body">管理員可在 Pley 網頁版的“設定 → 直播電視”中開啟。</string>
+    <string name="livetv_not_allowed_body">管理員可在 Pley 網頁版的「設定 → 直播電視」中開啟。</string>
     <string name="livetv_none_title">暫無頻道</string>
-    <string name="livetv_none_body">管理員在 Pley 網頁版中新增 IPTV 提供商後，頻道會顯示在這裡。</string>
-    <string name="livetv_no_match_title">沒有匹配的頻道</string>
-    <string name="livetv_no_match_search">沒有頻道名稱、頻道號或正在播放的節目包含“%1$s”。</string>
+    <string name="livetv_none_body">管理員在 Pley 網頁版中新增 IPTV 供應商後，頻道會顯示在這裡。</string>
+    <string name="livetv_no_match_title">沒有相符的頻道</string>
+    <string name="livetv_no_match_search">沒有頻道名稱、頻道號或正在播放的節目包含「%1$s」。</string>
     <string name="livetv_no_match_group">此分組中沒有頻道。</string>
     <string name="livetv_categories">頻道分組</string>
     <string name="livetv_category_all">所有頻道</string>
@@ -26,7 +26,7 @@
     <string name="livetv_more_groups">更多分組</string>
     <string name="livetv_no_group_name">未分組</string>
     <string name="livetv_found_groups">分組</string>
-    <string name="livetv_results_for">“%1$s”的搜尋結果</string>
+    <string name="livetv_results_for">「%1$s」的搜尋結果</string>
     <string name="livetv_none_favorites_title">暫無收藏</string>
     <string name="livetv_none_favorites_body">收藏頻道後即可在這裡找到。</string>
     <string name="livetv_none_recent_title">暫無觀看記錄</string>
@@ -34,7 +34,7 @@
     <string name="livetv_favorite_failed">收藏失敗：%1$s</string>
 
     <!-- What's on. -->
-    <string name="livetv_nothing_now">當前節目指南中沒有內容</string>
+    <string name="livetv_nothing_now">目前節目指南中沒有內容</string>
     <string name="livetv_no_guide">此頻道沒有節目指南</string>
     <string name="livetv_no_info">此時段沒有資訊</string>
     <string name="livetv_next">接下來 %1$s · %2$s</string>

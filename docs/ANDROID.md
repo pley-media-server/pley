@@ -314,6 +314,14 @@ rates as the decoder gives them, the same in every language.
   the middle of a gray tile, whatever its shape or banner.
 - **Watch Next** (Android TV and Google TV): the home screen's row shows
   the profile's Continue Watching, ten at most.
+- **Music** plays on behind the app's pages and under the screensaver,
+  and pauses when Home or another app takes the screen, or the last Back
+  leaves the app: Android TV's guidelines let audio go on in the
+  background only with media controls on the home screen, and Google
+  TV's has none. Back from Home or another app, it plays on from where
+  it was, as on Samsung TVs, unless it was played or paused from
+  elsewhere meanwhile or a Watch Next program brought the app back.
+  Music that was paused stays paused.
 - **Dolby Vision and HDR** go by the display mode each video plays in: the
   one in use, or the one of its size the TV switches to for the frame rate
   (the device's match-content setting, or Settings → Playback; not for
@@ -532,7 +540,9 @@ playlist has a Shuffle switch, which makes it **Shuffle on…** and sends
 `shuffle`. Picking a device sends `POST /api/remote/devices/{id}/cast`;
 once it is on its way the chooser closes, and the remote's bar says
 **Starting on** the device, then **Playing on** once what it was sent
-plays there; it opens the device's controls. The live player closes as
+plays there; it opens the device's controls. Music playing on the phone
+pauses once the device took the cast, as for a video, so it doesn't play
+in two places; its Play takes it up here again. The live player closes as
 its channel goes to the device, and the bar follows it the same way. A refusal is said under the
 devices, and another can be picked: the device **isn't on any more**
 (`404`), **can't play that** (`409`), **Too many at once** (`429`), and

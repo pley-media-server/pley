@@ -1,13 +1,13 @@
 import { useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Gauge } from "lucide-react";
+import { Gauge, Monitor } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useResources } from "@/api/hooks";
-import type { ResourceSample, Resources } from "@/api/types";
+import type { ResourceClient, ResourceSample, Resources } from "@/api/types";
 import { SectionTitle, Skeleton } from "@/components/ui";
-import { currentLocale } from "@/i18n";
+import { currentLocale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { formatBytes } from "@/lib/format";
+import { formatBitrate, formatBytes } from "@/lib/format";
 
 /** What the charts span, as the server keeps it. */
 const WINDOW_MS = 5 * 60_000;
@@ -18,6 +18,8 @@ const H = 120;
 /** pley in the brand's light blue; the whole machine, behind it, in gray. */
 const PLEY = "var(--color-accent)";
 const SYSTEM = "#7a8292";
+/** What the machine receives, apart from what it sends. */
+const RECEIVED = "#c98a3d";
 
 interface Series {
   label: string;
@@ -34,6 +36,17 @@ const percent = (n: number) => {
   const digits = n === 0 || n >= 10 ? 0 : 1;
   return new Intl.NumberFormat(currentLocale(), { style: "percent", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n / 100);
 };
+
+/** Bytes a second, in bits as network speeds are given: "8.2 Mbps", "0 kbps". */
+const speed = (bytes: number) => formatBitrate(bytes * 8) || t("format.kbps", { n: 0 });
+
+/** The network chart's top, in bytes a second: the five minutes' fastest, rounded up to 1, 2 or 5 times a power of ten in bits, 1 Mbps at least. */
+export function networkScale(samples: ResourceSample[]): number {
+  const peak = Math.max(1_000_000, ...samples.map((s) => Math.max(s.net_in, s.net_out, s.pley_out) * 8));
+  const power = 10 ** Math.floor(Math.log10(peak));
+  const step = [1, 2, 5, 10].find((m) => m * power >= peak) ?? 10;
+  return (step * power) / 8;
+}
 
 /** The path through `points`, broken where samples are missing (the server was busy or restarted). */
 function linePath(points: [number, number, number][], gapMs: number): string {
@@ -64,7 +77,20 @@ function LineKey({ color }: { color: string }) {
 }
 
 /** One measure over the last five minutes: pley's line in front of the machine's. */
-function Chart({ title, detail, data, series }: { title: string; detail: ReactNode; data: Resources; series: Series[] }) {
+function Chart({
+  title,
+  detail,
+  data,
+  series,
+  marks = [percent(100), percent(50)],
+}: {
+  title: string;
+  detail: ReactNode;
+  data: Resources;
+  series: Series[];
+  /** What the top and middle lines stand for. */
+  marks?: [string, string];
+}) {
   const { t } = useTranslation("settings");
   // The sample pointed at, by its time: new samples move the others along.
   const [hoverAt, setHoverAt] = useState<number | null>(null);
@@ -164,10 +190,10 @@ function Chart({ title, detail, data, series }: { title: string; detail: ReactNo
         </svg>
         {/* Each just above its line, out of the lines' way. */}
         <span className="pointer-events-none absolute top-0 right-0 -translate-y-full pb-0.5 text-[10px] leading-none tabular-nums text-subtle">
-          {percent(100)}
+          {marks[0]}
         </span>
         <span className="pointer-events-none absolute top-1/2 right-0 -translate-y-full pb-0.5 text-[10px] leading-none tabular-nums text-subtle">
-          {percent(50)}
+          {marks[1]}
         </span>
         {hover != null && shown ? (
           <>
@@ -206,9 +232,53 @@ function Chart({ title, detail, data, series }: { title: string; detail: ReactNo
   );
 }
 
+/** Who Pley is sending to, the busiest first, each with a bar of its share. */
+function Clients({ clients }: { clients: ResourceClient[] }) {
+  const { t } = useTranslation("settings");
+  const total = clients.reduce((sum, c) => sum + c.sent, 0) || 1;
+  return (
+    <div className="rounded-lg border border-border bg-surface p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-base font-semibold">{t("resources.clients")}</h3>
+        <span className="text-xs text-subtle">{t("resources.clientCount", { count: clients.length })}</span>
+      </div>
+      {clients.length === 0 ? (
+        <p className="mt-6 text-center text-sm text-subtle">{t("resources.noClients")}</p>
+      ) : (
+        <ul className="mt-3 max-h-56 space-y-2.5 overflow-y-auto pr-1" aria-label={t("resources.clients")}>
+          {clients.map((c) => {
+            // The account first, then the device and address it is on; with no
+            // sign-in, the device or address in its place.
+            const [name = t("resources.others"), ...rest] = [c.user, c.device, c.address].filter((part): part is string => !!part);
+            const about = rest.join(" · ");
+            return (
+              <li key={`${c.user}|${c.device}|${c.address}`} className="flex items-center gap-3 text-sm">
+                <Monitor aria-hidden className="size-4 shrink-0 text-subtle" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="truncate font-bold text-fg" title={name}>
+                      {name}
+                    </span>
+                    <span className="shrink-0 font-semibold tabular-nums text-fg">{speed(c.sent)}</span>
+                  </div>
+                  {about ? <div className="truncate text-xs text-subtle">{about}</div> : null}
+                  <div aria-hidden className="mt-1 h-1 overflow-hidden rounded-full bg-surface-2">
+                    <div className="h-full rounded-full" style={{ width: `${(c.sent / total) * 100}%`, background: PLEY }} />
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /**
  * How busy the machine is and how much of it pley takes, as Plex's
- * dashboard shows it: the processors and the memory over five minutes.
+ * dashboard shows it: the processors, the memory and the network over five
+ * minutes, and who Pley is sending to now.
  */
 export function ResourcesSection() {
   const { t } = useTranslation("settings");
@@ -227,6 +297,8 @@ export function ResourcesSection() {
       <div className="grid gap-3 lg:grid-cols-2">
         <Skeleton className="h-60" />
         <Skeleton className="h-60" />
+        <Skeleton className="h-60" />
+        <Skeleton className="h-60" />
       </div>
     );
   } else if (!data.available) {
@@ -239,6 +311,8 @@ export function ResourcesSection() {
     const total = data.memory_total || 1;
     const pleyHint = t("resources.pleyHint");
     const system = t("resources.system");
+    const top = networkScale(data.samples);
+    const peak = Math.max(0, ...data.samples.map((s) => Math.max(s.net_in, s.net_out, s.pley_out)));
     body = (
       <div className="grid gap-3 lg:grid-cols-2">
         <Chart
@@ -259,6 +333,18 @@ export function ResourcesSection() {
             { label: system, color: SYSTEM, value: (s) => s.memory / total, text: (s) => formatBytes(s.memory) },
           ]}
         />
+        <Chart
+          title={t("resources.network")}
+          detail={t("resources.fastest", { speed: speed(peak) })}
+          data={data}
+          marks={[speed(top), speed(top / 2)]}
+          series={[
+            { label: "Pley", color: PLEY, value: (s) => s.pley_out / top, text: (s) => speed(s.pley_out), title: t("resources.pleyNetworkHint") },
+            { label: t("resources.upload"), color: SYSTEM, value: (s) => s.net_out / top, text: (s) => speed(s.net_out) },
+            { label: t("resources.download"), color: RECEIVED, value: (s) => s.net_in / top, text: (s) => speed(s.net_in) },
+          ]}
+        />
+        <Clients clients={data.clients} />
       </div>
     );
   }

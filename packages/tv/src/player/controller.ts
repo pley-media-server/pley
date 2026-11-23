@@ -31,6 +31,7 @@ import type { EngineSource, EngineStatus, PlayerEngine } from "./engine";
 import { activeMarker, CreditsGate, markersOf, skipLabel, skipTarget } from "./markers";
 import { hasNext, labelOf, nextAfter, startOf, TRICKPLAY_GIVE_UP_MS, TRICKPLAY_RETRY_MS } from "./nextup";
 import {
+  audioListed,
   audioPlaysHere,
   audioStreams,
   chooseFile,
@@ -47,6 +48,7 @@ import {
   startMs as startOfPlay,
   subtitleStreams,
   willStream,
+  withoutAudio,
   type Choices,
   type PlayRequest,
 } from "./plan";
@@ -604,9 +606,10 @@ export class PlaybackController {
     // The original, chosen or played by Automatic, gets the Dolby Vision guards and the fallbacks; a lower quality is a conversion.
     const playing = this.playingPreset;
     const original = playing.id === ORIGINAL.id;
-    if (original && !this.guardMode) this.guardMode = dvContainerMode(chosen, this.caps, this.env.dvContainers?.());
+    const caps = this.sentCaps;
+    if (original && !this.guardMode) this.guardMode = dvContainerMode(chosen, caps, this.env.dvContainers?.());
     const mode = original ? this.recovery.fallbackMode ?? this.guardMode ?? modeOf(playing) : modeOf(playing);
-    const decision = this.caps ? decide(chosen, this.caps) : null;
+    const decision = caps ? decide(chosen, caps) : null;
     // Automatic audio is chosen again for each session: a stream (a lower
     // quality, say) has the track it copies rather than converting the one
     // the file played as it is.
@@ -618,11 +621,11 @@ export class PlaybackController {
       subtitle: this.subtitle,
       quality: playing,
       mode,
-      streaming: willStream(mode, decision, chosen, audio, this.caps),
+      streaming: willStream(mode, decision, chosen, audio, caps),
       sideload: this.sideload,
     };
     const ask = (c: Choices): PlaybackRequest => {
-      const req = playbackRequest(detail.id, c, this.env.clientId, this.caps, this.env.keyedUrls);
+      const req = playbackRequest(detail.id, c, this.env.clientId, caps, this.env.keyedUrls);
       req.controls = videoControls(hasNext(detail.kind, this.current.queue), audioStreams(chosen).length, subtitleStreams(chosen).length);
       if (alongside) req.keep_previous = true;
       return req;
@@ -646,7 +649,7 @@ export class PlaybackController {
       this.discard(info);
       return;
     }
-    const guarded = dvRetryMode(info, chosen, this.caps);
+    const guarded = dvRetryMode(info, chosen, caps);
     if (guarded) {
       this.discard(info);
       this.guardMode = guarded;
@@ -914,7 +917,26 @@ export class PlaybackController {
 
   private recover(error: EngineError, info: PlaybackInfo): void {
     if (this.info !== info || this.closed || this.stopped) return;
-    this.act(this.recovery.decide(error, info.method, videoStreamOf(this.file)?.codec ?? null), false);
+    this.act(this.recovery.decide(error, info.method, videoStreamOf(this.file)?.codec ?? null, this.failedAudioCodec(error, info)), false);
+  }
+
+  /**
+   * The server's name for the audio that failed in `error`: the engine's,
+   * else the file's track that plays, when it reached the TV as it is in
+   * the file (not converted by the server). Only a codec the capabilities
+   * sent list: leaving out one they don't would change nothing.
+   */
+  private failedAudioCodec(error: EngineError, info: PlaybackInfo): string | null {
+    if (error.kind !== "unsupported" || !error.audio) return null;
+    const track = audioStreams(this.file).filter((s) => s.index === this.playingTracks.audio)[0] ?? playingAudio(this.file, info);
+    const codec = error.audioCodec ?? (info.audio_converted ? null : track?.codec ?? null);
+    const sent = this.sentCaps;
+    return codec && sent && audioListed(codec, sent) ? codec : null;
+  }
+
+  /** The capabilities the server is told of: the TV's, without the audio it failed to play in this item. */
+  private get sentCaps(): ClientCaps | null {
+    return withoutAudio(this.caps, this.recovery.refusedAudio);
   }
 
   private act(action: RecoveryAction, starving: boolean): void {
@@ -1402,7 +1424,7 @@ export class PlaybackController {
     const info = this.info;
     if (!info) return;
     const engine = this.engineRef;
-    if (!info.hls && engine && audioPlaysHere(chosen, this.caps) && engine.selectAudio(audioStreams(this.file).indexOf(chosen), chosen.language)) {
+    if (!info.hls && engine && audioPlaysHere(chosen, this.sentCaps) && engine.selectAudio(audioStreams(this.file).indexOf(chosen), chosen.language)) {
       this.quietFrames();
       this.playingTracks = { ...this.playingTracks, audio: chosen.index };
       return;

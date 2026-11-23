@@ -839,7 +839,18 @@
     "processors_many": "{{count}} de procesadores",
     "processors_other": "{{count}} procesadores",
     "memory": "Memoria",
-    "inAll": "{{size}} en total"
+    "inAll": "{{size}} en total",
+    "network": "Red",
+    "fastest": "Máximo: {{speed}}",
+    "pleyNetworkHint": "Lo que Pley envía a sus aplicaciones y navegadores",
+    "upload": "Subida",
+    "download": "Bajada",
+    "clients": "Clientes",
+    "clientCount_one": "{{count}} ahora",
+    "clientCount_many": "{{count}} ahora",
+    "clientCount_other": "{{count}} ahora",
+    "noClients": "Pley no está enviando nada ahora mismo.",
+    "others": "Otros"
   },
   "storage": {
     "title": "Almacenamiento",
