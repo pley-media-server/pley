@@ -796,7 +796,10 @@ class Player(xbmc.Player):
             lambda path, body: self.worker.put(lambda: self.send(playing, path, body)),
             lambda path: self.worker.put(lambda: self.end(path)),
         )
-        moments = prompts.Moments(playing.get("markers") or [])
+        # The markers are the playing file's, and its length the server's
+        # (the file's duration_ms): credits bring up Up Next only when they
+        # run to the end of it.
+        moments = prompts.Moments(playing.get("markers") or [], duration_ms=playing.get("duration_ms") or 0)
         reports.credits_from = moments.credits_from()
         follower = None
         if playing.get("tracks"):

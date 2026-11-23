@@ -42,6 +42,20 @@ struct MarkersTests {
         #expect(Markers.skipTarget(marker(.intro, 0, 1_000)) == 500)
     }
 
+    /// The server's `Marker::reaches_end`, on a 1,300 s file.
+    @Test func creditsReachTheEndWhenNothingElseFollowsThem() {
+        #expect(Markers.reachesEnd(credits, durationMs: 1_300_000))
+        // A logo after them.
+        #expect(Markers.reachesEnd(marker(.credits, 1_200_000, 1_286_000), durationMs: 1_300_000))
+        #expect(Markers.reachesEnd(marker(.credits, 1_200_000, 1_285_000), durationMs: 1_300_000))
+        // A scene after them.
+        #expect(!Markers.reachesEnd(marker(.credits, 1_200_000, 1_284_000), durationMs: 1_300_000))
+        #expect(!Markers.reachesEnd(marker(.credits, 1_200_000, 1_240_000), durationMs: 1_300_000))
+        #expect(!Markers.reachesEnd(marker(.intro, 1_200_000, 1_300_000), durationMs: 1_300_000))
+        // A file of unknown length.
+        #expect(!Markers.reachesEnd(credits, durationMs: 0))
+    }
+
     @Test func announcesTheCreditsOnceEvenWhenSeekingBackIntoThem() {
         var gate = CreditsGate()
         #expect(gate.entered(nil) == nil)

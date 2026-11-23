@@ -176,6 +176,17 @@ Kodi's part (`autoquality.py`):
   a way up; a stream that can't go higher raises where the next title
   starts instead.
 
+### Skip and Up Next
+
+While the video is on screen, Skip Intro and Skip Credits show from a
+marker's start until a second before its end, for 10 seconds at most. An
+episode's credits that run to the end of the file (ending 15 seconds or
+less before it) bring Up Next instead: the next episode plays after a
+10-second countdown unless canceled, which leaves Skip Credits. Credits
+that something follows (an after-credits scene, a show's last minutes)
+keep Skip Credits, and Up Next comes when the file ends, as it does for an
+episode without credits.
+
 ### Live TV
 
 Live TV works as in the [Android app](ANDROID.md#live-tv). On Kodi:

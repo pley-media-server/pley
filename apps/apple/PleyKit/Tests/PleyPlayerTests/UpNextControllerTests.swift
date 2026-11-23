@@ -6,10 +6,11 @@ import PleyTesting
 import Testing
 
 /// Two 75 s episodes, as make-test-media.sh makes them: an intro from 10 to
-/// 30 s and credits from 55 s on, from their chapters.
+/// 30 s and credits from 55 to 75 s, from their chapters. A longer
+/// `durationMs` has something after the credits; 0 is a length not known.
 @MainActor
 private func showRig(start: Int? = nil, secondResumesAt: Int = 20_000, method: String = "direct",
-                     autoplayNext: Bool = true) async throws -> Rig {
+                     autoplayNext: Bool = true, durationMs: Int = 75_000) async throws -> Rig {
     let server = FixtureServer()
     try await server.start()
     let chapters = [Chapter(startMs: 0, endMs: 10_000, title: "Prologue"),
@@ -18,7 +19,7 @@ private func showRig(start: Int? = nil, secondResumesAt: Int = 20_000, method: S
                     Chapter(startMs: 55_000, endMs: 75_000, title: "")]
     for (id, number) in [(31, 1), (32, 2)] {
         var episode = FixtureServer.Playable(itemId: id, fileId: id * 10, title: "Episode \(number)", container: "mp4",
-                                             durationMs: 75_000, positionMs: number == 2 ? secondResumesAt : 0)
+                                             durationMs: durationMs, positionMs: number == 2 ? secondResumesAt : 0)
         episode.episode = (show: "Pley Test Show", season: 1, number: number)
         episode.next = number == 1 ? 32 : nil
         episode.chapters = chapters
@@ -112,6 +113,59 @@ struct UpNextControllerTests {
         #expect(rig.controller.state.skipLabel == "Skip Credits")
         #expect(rig.controller.state.upNext == nil)
         #expect(rig.server.requests("/api/items/31/next").count == 1)
+        await rig.controller.close()
+    }
+
+    @Test func creditsThatSomethingFollowsOfferOnlySkipCreditsAndUpNextComesAtTheEnd() async throws {
+        // The credits end at 75 s of 135 s: a scene follows them.
+        let rig = try await showRig(start: 50_000, durationMs: 135_000)
+        defer { rig.cleanUp() }
+        _ = try await started(rig)
+        at(rig, 56_000)
+        #expect(rig.controller.state.skipLabel == "Skip Credits")
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(rig.controller.state.upNext == nil)
+        #expect(rig.server.requests("/api/items/31/next").isEmpty)
+        // Past them, what follows plays with no card, until the end.
+        at(rig, 80_000, after: 1_000)
+        #expect(rig.controller.state.skipLabel == nil)
+        #expect(rig.controller.state.upNext == nil)
+        rig.engine.emit(.ended)
+        try await until("the card at the end") { rig.controller.state.upNext != nil }
+        let card = try #require(rig.controller.state.upNext)
+        #expect(card.itemId == 32)
+        #expect(card.secondsLeft == 10)
+        await rig.controller.close()
+    }
+
+    @Test func creditsEndingWithin15SecondsOfTheEndBringUpNext() async throws {
+        // The credits end at 75 s of 85 s: only a logo or a promo follows them.
+        let rig = try await showRig(start: 50_000, durationMs: 85_000)
+        defer { rig.cleanUp() }
+        _ = try await started(rig)
+        at(rig, 56_000)
+        try await until("the card") { rig.controller.state.upNext != nil }
+        let card = try #require(rig.controller.state.upNext)
+        #expect(card.itemId == 32)
+        #expect(card.secondsLeft == 10)
+        #expect(rig.controller.state.skipLabel == "Skip Credits")
+        await rig.controller.close()
+    }
+
+    @Test func creditsOfAFileOfUnknownLengthBringNoUpNextUntilThePlayerKnowsIt() async throws {
+        let rig = try await showRig(start: 50_000, durationMs: 0)
+        defer { rig.cleanUp() }
+        _ = try await started(rig)
+        at(rig, 56_000)
+        #expect(rig.controller.state.skipLabel == "Skip Credits")
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(rig.controller.state.upNext == nil)
+        #expect(rig.server.requests("/api/items/31/next").isEmpty)
+        // The player finds the file 75 s long: the credits run to its end.
+        rig.engine.current.durationMs = 75_000
+        at(rig, 57_000)
+        try await until("the card") { rig.controller.state.upNext != nil }
+        #expect(rig.controller.state.upNext?.itemId == 32)
         await rig.controller.close()
     }
 

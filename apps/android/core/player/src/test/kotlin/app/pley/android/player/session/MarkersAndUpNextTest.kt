@@ -48,7 +48,7 @@ class MarkersAndUpNextTest {
     }
 
     @Test
-    fun `entering the credits offers Skip Credits and Up Next, once per segment`() {
+    fun `entering credits that run to the end offers Skip Credits and Up Next, once per segment`() {
         val c = episode(15_000)
         h.advance(1_500)
         val state = c.state.value
@@ -70,6 +70,51 @@ class MarkersAndUpNextTest {
         assertEquals("Skip Credits", c.state.value.skipLabel)
         assertNull(c.state.value.upNextCard)
         assertEquals(1, h.api.count("next"))
+    }
+
+    /** Plays the first episode from [startMs] with its file [durationMs] long, as the item's files say; its credits stay at 16-20 s. */
+    private fun episodeLasting(durationMs: Long, startMs: Long): SessionPlaybackController {
+        h.editDetail = { d -> d.copy(files = d.files.map { it.copy(durationMs = durationMs) }) }
+        return episode(startMs)
+    }
+
+    @Test
+    fun `credits that something follows offer Skip Credits only, and Up Next comes at the end`() {
+        // The credits end 60 s before the end of the file: an after-credits scene, say.
+        val c = episodeLasting(80_000, startMs = 15_000)
+        h.advance(1_500)
+        assertEquals("Skip Credits", c.state.value.skipLabel)
+        assertNull(c.state.value.upNextCard)
+        assertEquals(0, h.api.count("next"))
+
+        h.engine.end()
+        h.settle()
+        assertEquals(FixtureIds.SHOW_S1E2, c.state.value.upNextCard?.itemId)
+        assertEquals(10, c.state.value.upNextSecondsLeft)
+    }
+
+    @Test
+    fun `credits ending 10 s before the end bring Up Next`() {
+        val c = episodeLasting(30_000, startMs = 15_000)
+        h.advance(1_500)
+        assertEquals("Skip Credits", c.state.value.skipLabel)
+        assertEquals(FixtureIds.SHOW_S1E2, c.state.value.upNextCard?.itemId)
+        assertEquals(10, c.state.value.upNextSecondsLeft)
+    }
+
+    @Test
+    fun `credits of a file whose length nothing says offer Skip Credits only`() {
+        // A download: no session on the server says how long it is either, nor the engine.
+        val first = runBlocking { h.api.item(FixtureIds.SHOW_S1E1) }
+        h.local = object : LocalMedia {
+            override fun file(fileId: Long) = LocalFile("file:///downloads/e1/media.mkv").takeIf { fileId == first.files.first().id }
+        }
+        h.editDetail = { d -> d.copy(durationMs = null, files = d.files.map { it.copy(durationMs = null) }) }
+        val c = h.play(PlayRequest(FixtureIds.SHOW_S1E1, startMs = 15_000))
+        h.engine.ready()
+        h.advance(1_500)
+        assertEquals("Skip Credits", c.state.value.skipLabel)
+        assertNull(c.state.value.upNextCard)
     }
 
     @Test

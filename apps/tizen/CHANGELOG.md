@@ -191,6 +191,8 @@ describes how they are made.
 
 ### Fixed
 
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end instead.
 - A video whose audio the TV can't decode plays with the audio converted
   by the server, or another track, instead of failing after a transcode.
 - A collection's page shows its titles under Play and Shuffle, where they

@@ -13,6 +13,12 @@ describes how they are made.
 - Movies, shows and music without a picture show Pley's mark instead of
   their title, which the line under it shows.
 
+### Fixed
+
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end instead.
+  Without credits, it comes at the end too, rather than 30 s before it.
+
 ## [0.1.12] - 2026-11-22
 
 ### Fixed

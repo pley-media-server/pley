@@ -980,10 +980,17 @@ skipped by itself.
 
 **Up Next** follows an episode with the next one
 (`GET /api/items/{id}/next`, looked up at 90 % of the episode, or when its
-credits begin). Entering the credits brings up a card, once per segment
-(seeking back out of them hides it, and coming back into the same credits
-doesn't bring it again); the end of the episode brings it up too, also
-after it was canceled. The card shows the next episode's picture, "Up
+card comes). Entering credits that run to the end of the file brings up a
+card, once per segment (seeking back out of them hides it, and coming back
+into the same credits doesn't bring it again); the end of the episode
+brings it up too, also after it was canceled. Credits run to the end when
+they end 15 seconds or less before it (a studio's logo or a channel's
+promo may follow), by the file's length from the server, else the
+player's; with no length known, they don't. Credits that something else
+follows (an after-credits scene, the last minutes of a show whose music
+every episode shares) only offer Skip Credits, and the card waits for the
+end, so its countdown doesn't skip what follows.
+The card shows the next episode's picture, "Up
 next · S1 E2", its title, and counts 10 seconds down while it plays (the
 countdown waits while paused), then plays it; Play Next plays it at once,
 Cancel hides the card. With Play the next episode automatically off
@@ -1486,7 +1493,8 @@ or a season, whose device plays its next episode), the playlist or the
 channel. The quality is never sent: the device keeps its own, since what
 suits a phone's network doesn't suit a TV's. "Playing on Living room TV"
 says it went, and the remote opens on that device, whose controls show
-once its session does. A refusal says why: "Living room TV isn't on any more" (`404`),
+once its session does; music playing here pauses, so it doesn't play in
+two places. A refusal says why: "Living room TV isn't on any more" (`404`),
 "Living room TV can't play that" (`409`), "Too many at once: try again
 in a moment" (`429`), and the server's own words otherwise.
 
@@ -2396,8 +2404,9 @@ activity, the session's status and the item:
 - MKVs with Opus and with FLAC are repackaged with their audio made AAC,
   and an MP4 with Opus plays as it is, with its sound;
 - the show's first episode, its markers asked for and made from its
-  chapters: Skip Intro lands past the intro, entering the credits brings
-  up Up Next for the second episode, and Play Next (past 90 %) marks the
+  chapters: Skip Intro lands past the intro, entering the credits (which
+  run to the end of the file) brings up Up Next for the second episode,
+  and Play Next (past 90 %) marks the
   first watched, ends its session and plays the second;
 - the MP4 with two audio tracks switches to its AC-3 track in the same
   session, and the server keeps the choice (`selected_audio`,

@@ -197,14 +197,27 @@ pub(crate) fn hex_digest(bytes: &[u8]) -> String {
 
 /// Makes `dir` (and its parents), readable by the app alone on the TV.
 pub(crate) fn make_dir(dir: &Path) -> io::Result<()> {
+    dir_builder(true).create(dir)
+}
+
+/// Makes `dir` in its parent, which must be there, readable by the app alone
+/// on the TV; one made already is fine.
+pub(crate) fn make_dir_in_parent(dir: &Path) -> io::Result<()> {
+    match dir_builder(false).create(dir) {
+        Err(e) if e.kind() == io::ErrorKind::AlreadyExists => Ok(()),
+        made => made,
+    }
+}
+
+fn dir_builder(recursive: bool) -> fs::DirBuilder {
     let mut b = fs::DirBuilder::new();
-    b.recursive(true);
+    b.recursive(recursive);
     #[cfg(unix)]
     {
         use std::os::unix::fs::DirBuilderExt;
         b.mode(0o700);
     }
-    b.create(dir)
+    b
 }
 
 /// Writes `bytes` to `path` atomically: a temporary file beside it, flushed

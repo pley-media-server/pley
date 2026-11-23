@@ -536,7 +536,9 @@ playlist has a Shuffle switch, which makes it **Shuffle on…** and sends
 `shuffle`. Picking a device sends `POST /api/remote/devices/{id}/cast`;
 once it is on its way the chooser closes, and the remote's bar says
 **Starting on** the device, then **Playing on** once what it was sent
-plays there; it opens the device's controls. The live player closes as
+plays there; it opens the device's controls. Music playing on the phone
+pauses once the device took the cast, as for a video, so it doesn't play
+in two places; its Play takes it up here again. The live player closes as
 its channel goes to the device, and the bar follows it the same way. A refusal is said under the
 devices, and another can be picked: the device **isn't on any more**
 (`404`), **can't play that** (`409`), **Too many at once** (`429`), and
@@ -714,6 +716,20 @@ channels (`GET /api/search?limit=200`), the most it gives, and shows every
 one: a row per group (Movies, Shows, Seasons, Episodes, Artists, Albums,
 Tracks, Live TV, People) on phones and TVs, each scrolling sideways, with
 no See all. TMDB's Discover row comes after them ([Requests](#requests)).
+
+### Up Next
+
+Skip Intro and Skip Credits show while an intro or the credits play, until
+a second before they end; nothing is skipped by itself. Up Next, what
+plays next with a 10 s countdown (none with Play the next episode by
+itself off), comes as credits that run to the end of their file begin,
+and otherwise at the end of the file. Credits run to the end when they end
+at most 15 s before it, by the file's length as the server lists it, else
+as the player has it; with no length known, they don't. Credits that
+something follows, an after-credits scene or a show's last minutes, offer
+only Skip Credits, so the countdown never skips what comes after them. An
+episode goes on to the next one, and a title played from a playlist or a
+collection to the next title there, the same on phones and TVs.
 
 ### Audio and subtitles
 

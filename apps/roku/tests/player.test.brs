@@ -96,18 +96,35 @@ end sub
 
 sub test_player_up_next_at_the_credits()
     item = {
-        files: [{ id: 7 }, { id: 8 }],
+        files: [{ id: 7, duration_ms: 3300000 }, { id: 8, duration_ms: 3300000 }, { id: 9, duration_ms: 3300000 }],
         markers: [
             { file_id: 7, kind: "intro", start_ms: 30000, end_ms: 90000, source: "fingerprint" },
             { file_id: 7, kind: "credits", start_ms: 3100000, end_ms: 3300000, source: "fingerprint" },
-            { file_id: 8, kind: "credits", start_ms: 3200000, end_ms: 3300000, source: "chapter" }
+            { file_id: 8, kind: "credits", start_ms: 3200000, end_ms: 3290000, source: "chapter" }
         ]
     }
-    tkEqual(playerUpNextAt(3300000, playerFileMarkers(item, 7)), 3100000)
-    tkEqual(playerUpNextAt(3300000, playerFileMarkers(item, 8)), 3200000)
-    tkEqual(playerUpNextAt(3300000, playerFileMarkers(item, 9)), 3270000, "no credits for this file: 30 s before the end")
-    tkEqual(playerUpNextAt(3300000, []), 3270000)
-    tkEqual(playerUpNextAt(45000, []), -1, "too short")
+    tkEqual(playerUpNextAt(3300000, playerFileMarkers(item, 7)), 3100000, "credits that run to the end")
+    tkEqual(playerUpNextAt(3300000, playerFileMarkers(item, 8)), 3200000, "10 s before the end: a logo, not a scene")
+    tkEqual(playerUpNextAt(3300000, playerFileMarkers(item, 9)), -1, "no credits for this file: at the end")
+    tkEqual(playerUpNextAt(3300000, []), -1)
+end sub
+
+sub test_player_waits_for_the_end_after_credits_something_follows()
+    item = {
+        files: [{ id: 7, duration_ms: 3300000 }, { id: 8 }],
+        markers: [
+            { file_id: 7, kind: "credits", start_ms: 3000000, end_ms: 3240000, source: "fingerprint" },
+            { file_id: 8, kind: "credits", start_ms: 3100000, end_ms: 3300000, source: "fingerprint" }
+        ]
+    }
+    markers = playerFileMarkers(item, 7, 3300000)
+    tkFalse(markers[0].reachesEnd, "a scene in the last minute")
+    tkEqual(playerUpNextAt(3300000, markers), -1, "Up Next comes at the end")
+    tkEqual(playerSkipFor(markers, 3100000, true).kind, "credits", "Skip Credits shows while Up Next is to come")
+    tkFalse(playerFileMarkers(item, 7, 3240000)[0].reachesEnd, "the file's own length first")
+    tkFalse(playerFileMarkers(item, 8)[0].reachesEnd, "a file of unknown length")
+    tkEqual(playerUpNextAt(0, playerFileMarkers(item, 8)), -1)
+    tkTrue(playerFileMarkers(item, 8, 3300000)[0].reachesEnd, "the session's length, when the file's isn't known")
 end sub
 
 sub test_player_takes_the_markers_of_the_file_played()
@@ -121,8 +138,8 @@ sub test_player_takes_the_markers_of_the_file_played()
             "credits"
         ]
     }
-    tkEqual(playerFileMarkers(item, 2), [{ kind: "intro", startMs: 0, endMs: 5000, key: "intro:0" }])
-    tkEqual(playerFileMarkers(item, invalid), [{ kind: "intro", startMs: 10000, endMs: 70000, key: "intro:10000" }], "the first file's, without other kinds or empty parts")
+    tkEqual(playerFileMarkers(item, 2), [{ kind: "intro", startMs: 0, endMs: 5000, key: "intro:0", reachesEnd: false }])
+    tkEqual(playerFileMarkers(item, invalid), [{ kind: "intro", startMs: 10000, endMs: 70000, key: "intro:10000", reachesEnd: false }], "the first file's, without other kinds or empty parts")
     tkEqual(playerFileMarkers({ files: [{ id: 1 }], markers: invalid }, 1), [])
     tkEqual(playerFileMarkers({ files: [], markers: item.markers }, invalid), [], "no file: no markers")
     tkEqual(playerFileMarkers(invalid, 1), [])
@@ -130,7 +147,7 @@ end sub
 
 function skipMarkers() as object
     return playerFileMarkers({
-        files: [{ id: 1 }],
+        files: [{ id: 1, duration_ms: 1300000 }],
         markers: [
             { file_id: 1, kind: "intro", start_ms: 10000, end_ms: 70000, source: "fingerprint" },
             { file_id: 1, kind: "credits", start_ms: 1200000, end_ms: 1300000, source: "fingerprint" }
@@ -156,7 +173,7 @@ end sub
 sub test_player_leaves_an_episodes_credits_to_up_next()
     markers = skipMarkers()
     tkEqual(playerSkipFor(markers, 1250000, false).kind, "credits", "a movie, or an episode without a next one")
-    tkInvalid(playerSkipFor(markers, 1250000, true), "Up Next comes up instead")
+    tkInvalid(playerSkipFor(markers, 1250000, true), "credits to the end: Up Next comes up instead")
     tkEqual(playerSkipFor(markers, 20000, true).kind, "intro")
     tkInvalid(playerSkipFor(markers, 80000, false))
 end sub
