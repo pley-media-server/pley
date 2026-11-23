@@ -966,7 +966,7 @@ fn paint_tmdb_tile(ui: &mut Ui, slot: &TileSlot, t: &TmdbTile) {
         if shown.is_some_and(|s| s.opaque()) {
             ui.fill(rect, theme::SURFACE2, r);
         } else {
-            placeholder(ui, rect, &t.title, &t.title, r);
+            placeholder(ui, rect, &t.title, "", shown.is_none(), r);
         }
         if let Some(s) = shown {
             ui.draw_image(rect, &s, &ImageOpts::cover().rounded(r));
@@ -1058,7 +1058,7 @@ fn channel_tile(ui: &mut Ui, slot: &TileSlot, found: &ChannelResult, now: i64) {
     let well = |ui: &mut Ui, rect: Rect| {
         let shown = found.logo.as_ref().map(|logo| ui.image_state(logo, priority));
         if shown.is_none_or(|s| matches!(s.state, ImageState::Failed)) {
-            placeholder(ui, rect, &channel.name, &channel.name, radius::TILE);
+            placeholder(ui, rect, &channel.name, &channel.name, false, radius::TILE);
         } else {
             ui.fill(rect, theme::SURFACE3, radius::TILE);
             if let Some(s) = shown {

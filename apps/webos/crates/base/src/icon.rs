@@ -1,6 +1,6 @@
 //! The icons the app draws: Lucide's (ISC license), on a 24-unit grid, as the
-//! Android TV app and the web TV app draw them. `pley-gfx` holds their paths
-//! and rasterises them at device pixels.
+//! Android TV app and the web TV app draw them, and Pley's mark. `pley-gfx`
+//! holds their paths and rasterises them at device pixels.
 
 /// An icon by its Lucide name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -67,6 +67,9 @@ pub enum Icon {
     Pause,
     Pencil,
     Play,
+    /// Pley's mark (not Lucide's): its three posters, back to front, at 16,
+    /// 24 and 36 % of the tint, as a placeholder without a picture shows it.
+    PleyMark,
     Plus,
     Radio,
     RefreshCw,

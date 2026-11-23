@@ -282,7 +282,8 @@ impl<'a> Tile<'a> {
                 if shown.is_some_and(|s| s.opaque()) || self.kind.round() {
                     ui.fill(rect, theme::SURFACE2, r);
                 } else {
-                    placeholder(ui, rect, self.seed, self.title, r);
+                    // No title on it: the caption names the tile.
+                    placeholder(ui, rect, self.seed, "", shown.is_none(), r);
                 }
                 if let Some(s) = shown {
                     ui.draw_image(rect, &s, &ImageOpts::cover().rounded(r));
@@ -426,29 +427,55 @@ pub fn first_art(ui: &mut Ui, art: &[ImageRequest], priority: Priority) -> Optio
 }
 
 /// The placeholder art (`Placeholder.kt`): a 135° gradient from hsl(h, 30 %, 22 %) at the top-left
-/// to hsl(h + 40, 35 %, 12 %) at the bottom-right, `h` from the seed, with `title` centered on it
-/// in `Tv.Title` at Fg 70 % (12 dp in, up to 4 lines), smaller (down to 0.7×) when its longest
-/// word wouldn't fit whole. An empty title draws the gradient alone (backdrops, a channel's or an
-/// album's well); a person's round well is Surface2 instead.
-pub fn placeholder(ui: &mut Ui, rect: Rect, seed: &str, title: &str, corner: f32) {
+/// to hsl(h + 40, 35 %, 12 %) at the bottom-right, `h` from the seed. With `mark` (no picture will
+/// come: none, or none of its addresses can be had), Pley's mark in the middle, 40 % of the shorter
+/// side and at most 120; while a picture may still come, the gradient alone, so a page of tiles
+/// scrolling in doesn't flash marks. A `title` (a playlist's cover, a channel's name) goes in the
+/// middle in `Tv.Title` at Fg 70 % (12 dp in, up to 4 lines), smaller (down to 0.7×) when its
+/// longest word wouldn't fit whole, the mark above it at 26 % of the shorter side, 10 over it, or
+/// left out where the title leaves it no room. Tiles give no title: their caption names them. A
+/// person's round well is Surface2 instead.
+pub fn placeholder(ui: &mut Ui, rect: Rect, seed: &str, title: &str, mark: bool, corner: f32) {
     let (a, b) = theme::placeholder_colors(seed);
     // CSS's 135° gradient puts the end colors on the top-left and bottom-right corners; the other
     // two corners sit where their projection on the gradient line falls.
     let k = if rect.w + rect.h > 0.0 { (rect.w - rect.h) / (2.0 * (rect.w + rect.h)) } else { 0.0 };
     let colors = [a, a.lerp(b, 0.5 + k), a.lerp(b, 0.5 - k), b];
     ui.cmd(pley_base::Cmd::Quad { rect, colors, radius: corner });
-    if title.is_empty() {
-        return;
-    }
     let avail = rect.w - 24.0;
-    if avail <= 0.0 {
-        return;
+    let text = (!title.is_empty() && avail > 0.0).then(|| {
+        let opts = TextOpts::wrap(avail, 4).aligned(pley_base::Align::Center);
+        ui.layout(title, &placeholder_style(title, avail), &opts)
+    });
+    let title_h = text.as_ref().map(|t| t.size.h);
+    let side = if mark { mark_side(rect, title_h) } else { 0.0 };
+    let gap = if side > 0.0 && text.is_some() { MARK_GAP } else { 0.0 };
+    let top = rect.y + (rect.h - side - gap - title_h.unwrap_or(0.0)) / 2.0;
+    if side > 0.0 {
+        let at = Rect::new(rect.x + (rect.w - side) / 2.0, top, side, side);
+        ui.icon(at, Icon::PleyMark, Color::WHITE);
     }
-    let style = placeholder_style(title, avail);
-    let opts = TextOpts::wrap(avail, 4).aligned(pley_base::Align::Center);
-    let layout = ui.layout(title, &style, &opts);
-    let y = rect.y + (rect.h - layout.size.h) / 2.0;
-    ui.draw_text(Point::new(rect.x + 12.0, y), layout, theme::PLACEHOLDER_TITLE);
+    if let Some(layout) = text {
+        ui.draw_text(Point::new(rect.x + 12.0, top + side + gap), layout, theme::PLACEHOLDER_TITLE);
+    }
+}
+
+/// How much of a placeholder's shorter side Pley's mark takes, alone and over a title.
+const MARK_SHARE: f32 = 0.4;
+const MARK_SHARE_OVER_TITLE: f32 = 0.26;
+/// The mark's largest side (a backdrop), and its gap to the title under it.
+const MARK_MAX: f32 = 120.0;
+const MARK_GAP: f32 = 10.0;
+
+/// The mark's side in `rect`, over a title `title_h` tall if there is one: none where the title
+/// leaves it no room (a long one on a small tile).
+fn mark_side(rect: Rect, title_h: Option<f32>) -> f32 {
+    let share = if title_h.is_some() { MARK_SHARE_OVER_TITLE } else { MARK_SHARE };
+    let side = rect.w.min(rect.h) * share;
+    match title_h {
+        Some(h) if side > (rect.h - h - MARK_GAP) * 0.9 => 0.0,
+        _ => side.min(MARK_MAX),
+    }
 }
 
 /// The placeholder title's style: `Tv.Title`, shrunk in half steps so the longest word fits

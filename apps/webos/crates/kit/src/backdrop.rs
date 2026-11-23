@@ -161,7 +161,7 @@ fn draw_slot(ui: &mut Ui, slot: &Slot) {
         s
     });
     if !shown.is_some_and(|s| s.opaque()) {
-        placeholder(ui, full, &art.seed, "", 0.0);
+        placeholder(ui, full, &art.seed, "", shown.is_none(), 0.0);
     }
     if let Some(s) = shown {
         let (h, v) = theme::BACKDROP_BIAS;

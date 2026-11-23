@@ -47,7 +47,7 @@ pub fn art_well(ui: &mut Ui, rect: Rect, art: &[ImageRequest], seed: &str, corne
     if shown.is_some_and(|s| s.opaque()) {
         ui.fill(rect, theme::SURFACE2, corner);
     } else {
-        placeholder(ui, rect, seed, "", corner);
+        placeholder(ui, rect, seed, "", shown.is_none(), corner);
     }
     if let Some(s) = shown {
         ui.draw_image(rect, &s, &ImageOpts::cover().rounded(corner));
@@ -69,7 +69,7 @@ pub fn faint_art(ui: &mut Ui, art: &[ImageRequest], seed: &str, alpha: f32) {
     let shown = first_art(ui, art, Priority::Visible);
     ui.opacity(alpha, |ui| {
         if !shown.as_ref().is_some_and(|s| s.opaque()) {
-            placeholder(ui, full, seed, "", 0.0);
+            placeholder(ui, full, seed, "", shown.is_none(), 0.0);
         }
         if let Some(s) = &shown {
             ui.draw_image(full, s, &ImageOpts::cover());

@@ -104,7 +104,7 @@ pub fn cover(ui: &mut Ui, rect: Rect, card: &Card, corner: f32, glyph: f32) {
         if shown.is_some_and(|s| s.opaque()) {
             ui.fill(rect, theme::SURFACE2, corner);
         } else {
-            pley_kit::placeholder(ui, rect, &card.title, &card.title, corner);
+            pley_kit::placeholder(ui, rect, &card.title, &card.title, shown.is_none(), corner);
         }
         if let Some(s) = shown {
             ui.draw_image(rect, &s, &ImageOpts::cover().rounded(corner));

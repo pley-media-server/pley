@@ -1,12 +1,12 @@
 //! Tiles: focus growth, the ring, the press, overlays, placeholders and pictures.
 
-use pley_base::{Cmd, Icon, ImageId, ImageRequest, Key, Point, Rect};
+use pley_base::{Cmd, Color, DisplayList, Icon, ImageId, ImageRequest, Key, Point, Rect};
 use pley_ui::testing::{Harness, Step};
 use pley_ui::theme;
 use pley_ui::{Id, Ui};
 
-use super::{close, close_rect, fills_of, scales, settle, strokes, text_at};
-use crate::tile::{ProfileTile, Tile, TileKind};
+use super::{close, close_rect, fills_of, scales, settle, strokes, text_at, text_color};
+use crate::tile::{ProfileTile, Tile, TileKind, placeholder};
 
 fn poster(ui: &mut Ui, tile: Tile) {
     let id = ui.id("arrival");
@@ -27,8 +27,7 @@ fn a_focused_tile_grows_to_1_08_inside_its_ring() {
     assert!(close_rect(rect, ring));
     assert_eq!((color, width), (theme::ACCENT_BRIGHT, 3.0));
     assert!(close(radius, 4.0 * 1.08 + 4.5));
-    // The ring reaches 6 dp past the grown edge; the caption stays put, 14 under the well (the
-    // first "Arrival" is the placeholder's, in Fg at 70 %).
+    // The ring reaches 6 dp past the grown edge; the caption stays put, 14 under the well.
     assert!(close(rect.x - 1.5, 96.0 - 108.0 * 0.04 - 6.0));
     let caption = f.list.cmds.iter().find_map(|c| match c {
         Cmd::Text { origin, layout, color } if &*layout.text == "Arrival" && *color == theme::FG => Some(*origin),
@@ -83,11 +82,8 @@ fn the_placeholder_shows_until_the_picture_covers_it() {
     let mut screen = |ui: &mut Ui| poster(ui, Tile::new(TileKind::Poster, "Arrival").art(&art));
     let mut h = Harness::new();
     let f = h.idle(&mut screen);
-    let quad = |l: &pley_base::DisplayList| l.cmds.iter().any(|c| matches!(c, Cmd::Quad { .. }));
+    let quad = |l: &DisplayList| l.cmds.iter().any(|c| matches!(c, Cmd::Quad { .. }));
     assert!(quad(&f.list));
-    // The placeholder's title, at Fg 70 %.
-    assert!(f.list.cmds.iter().any(|c| matches!(c, Cmd::Text { layout, color, .. }
-        if &*layout.text == "Arrival" && *color == theme::PLACEHOLDER_TITLE)));
     // Ready long ago: it shows at once on the well, with no placeholder under it.
     let id = h.images.ready("http://pley/poster/1", 240, 360, -10.0);
     let f = h.idle(&mut screen);
@@ -96,6 +92,88 @@ fn the_placeholder_shows_until_the_picture_covers_it() {
         f.list.cmds.iter().any(|c| matches!(c, Cmd::Image { image, opacity, .. } if *image == id && *opacity == 1.0))
     );
     assert_eq!(fills_of(&f.list, theme::SURFACE2).len(), 1);
+}
+
+/// Where Pley's mark is drawn, and in what.
+fn marks(list: &DisplayList) -> Vec<(Rect, Color)> {
+    list.cmds
+        .iter()
+        .filter_map(|c| match c {
+            Cmd::Icon { rect, icon: Icon::PleyMark, color } => Some((*rect, *color)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// How many times `text` is drawn.
+fn times(list: &DisplayList, text: &str) -> usize {
+    list.texts().filter(|t| *t == text).count()
+}
+
+#[test]
+fn a_tile_without_a_picture_shows_pleys_mark_and_not_its_title() {
+    let art = [ImageRequest::new("http://pley/poster/1", 240)];
+    let mut screen = |ui: &mut Ui| {
+        let a = ui.id("none");
+        Tile::new(TileKind::Poster, "Arrival").show(ui, a, Point::new(96.0, 210.0));
+        let b = ui.id("failed");
+        Tile::new(TileKind::Poster, "Sicario").art(&art).show(ui, b, Point::new(218.0, 210.0));
+    };
+    let mut h = Harness::new();
+    h.images.fail("http://pley/poster/1");
+    let f = h.idle(&mut screen);
+    // Without a picture, and when its picture can't be had: the mark in the middle, 40 % of the
+    // well's shorter side, in white (its posters carry their own alphas).
+    let side = 108.0 * 0.4;
+    let mid = |x: f32| Rect::new(x + (108.0 - side) / 2.0, 210.0 + (162.0 - side) / 2.0, side, side);
+    let m = marks(&f.list);
+    assert_eq!(m.len(), 2);
+    assert!(close_rect(m[0].0, mid(96.0)) && close_rect(m[1].0, mid(218.0)), "{m:?}");
+    assert!(m.iter().all(|(_, c)| *c == Color::WHITE));
+    // The caption names the tile; the placeholder doesn't say it again.
+    assert_eq!((times(&f.list, "Arrival"), times(&f.list, "Sicario")), (1, 1));
+    assert_eq!(text_color(&f.list, "Arrival"), Some(theme::FG));
+}
+
+#[test]
+fn a_tile_whose_picture_loads_shows_the_gradient_alone() {
+    // A page of tiles scrolling in shows no marks before its pictures.
+    let art = [ImageRequest::new("http://pley/poster/1", 240)];
+    let mut screen = |ui: &mut Ui| poster(ui, Tile::new(TileKind::Poster, "Arrival").art(&art));
+    let mut h = Harness::new();
+    let f = h.idle(&mut screen);
+    assert!(f.list.cmds.iter().any(|c| matches!(c, Cmd::Quad { .. })));
+    assert!(marks(&f.list).is_empty());
+    assert_eq!(times(&f.list, "Arrival"), 1);
+}
+
+#[test]
+fn a_placeholder_given_a_title_puts_the_mark_above_it_where_there_is_room() {
+    let cover = Rect::new(96.0, 210.0, 132.0, 132.0);
+    let small = Rect::new(300.0, 210.0, 96.0, 40.0);
+    let mut screen = |ui: &mut Ui| {
+        // A playlist's cover whose picture can't be had, and one whose picture is coming.
+        placeholder(ui, cover, "Road trip", "Road trip", true, 4.0);
+        placeholder(ui, cover.translate(0.0, 160.0), "Coming", "Coming", false, 4.0);
+        // A box the title fills: no mark.
+        placeholder(ui, small, "Night drive", "Night drive", true, 4.0);
+    };
+    let mut h = Harness::new();
+    let f = h.idle(&mut screen);
+    let m = marks(&f.list);
+    assert_eq!(m.len(), 1, "{m:?}");
+    // 26 % of the shorter side, centered across; the title 10 under it, the two centered down.
+    let side = 132.0 * 0.26;
+    let title = text_at(&f.list, "Road trip").unwrap();
+    let title_h = f.list.cmds.iter().find_map(|c| match c {
+        Cmd::Text { layout, .. } if &*layout.text == "Road trip" => Some(layout.size.h),
+        _ => None,
+    });
+    let top = cover.y + (cover.h - side - 10.0 - title_h.unwrap()) / 2.0;
+    assert!(close_rect(m[0].0, Rect::new(cover.x + (cover.w - side) / 2.0, top, side, side)), "{m:?}");
+    assert!(close(title.y, top + side + 10.0));
+    assert_eq!(text_color(&f.list, "Road trip"), Some(theme::PLACEHOLDER_TITLE));
+    assert!(f.list.says("Coming") && f.list.says("Night drive"));
 }
 
 #[test]

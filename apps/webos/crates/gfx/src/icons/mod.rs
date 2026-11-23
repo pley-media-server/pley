@@ -71,6 +71,7 @@ pub const ALL: &[Icon] = &[
     Icon::Pause,
     Icon::Pencil,
     Icon::Play,
+    Icon::PleyMark,
     Icon::Plus,
     Icon::Radio,
     Icon::RefreshCw,
@@ -108,6 +109,9 @@ pub const ALL: &[Icon] = &[
 /// units (of 24): one coverage byte per pixel, rows top to bottom. `None` only
 /// for a zero size.
 pub fn rasterize(icon: Icon, size_px: u32, stroke: f32) -> Option<Vec<u8>> {
+    if icon == Icon::PleyMark {
+        return mark(size_px);
+    }
     let mut pixmap = Pixmap::new(size_px, size_px)?;
     let mut paint = Paint::default();
     paint.set_color_rgba8(255, 255, 255, 255);
@@ -122,6 +126,35 @@ pub fn rasterize(icon: Icon, size_px: u32, stroke: f32) -> Option<Vec<u8>> {
         pixmap.stroke_path(&path, &paint, &line, transform, None);
     }
     // White premultiplied by coverage: the alpha byte is the coverage.
+    Some(pixmap.data().as_chunks::<4>().0.iter().map(|p| p[3]).collect())
+}
+
+/// Pley's mark on its 64-unit grid (the web's `LogoMark`, Android's
+/// `PleyMark.Layers`): its three posters back to front, each with the share of
+/// the tint it is filled with, the front one with play cut out of it.
+const MARK: [(&str, f32, FillRule); 3] = [
+    ("M46 21.5h3a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3h-3z", 0.16, FillRule::Winding),
+    ("M36 18.5h4.5a3.5 3.5 0 0 1 3.5 3.5v20a3.5 3.5 0 0 1-3.5 3.5H36z", 0.24, FillRule::Winding),
+    (
+        "M16 15.5h14a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4v-25a4 4 0 0 1 4-4zM19 27v10a1 1 0 0 0 1.51.86l8.5-5a1 1 0 0 0 0-1.72l-8.5-5A1 1 0 0 0 19 27z",
+        0.36,
+        FillRule::EvenOdd,
+    ),
+];
+
+/// The mark `size_px` square as one mask: the posters don't overlap, so each
+/// pixel's byte is its coverage times its poster's share, and one tint draws
+/// all three, in the atlas with the text and icons around it.
+fn mark(size_px: u32) -> Option<Vec<u8>> {
+    let mut pixmap = Pixmap::new(size_px, size_px)?;
+    let transform = Transform::from_scale(size_px as f32 / 64.0, size_px as f32 / 64.0);
+    for (data, share, rule) in MARK {
+        let Some(path) = parse(data) else { continue };
+        let mut paint = Paint::default();
+        paint.set_color_rgba8(255, 255, 255, (share * 255.0).round() as u8);
+        paint.anti_alias = true;
+        pixmap.fill_path(&path, &paint, rule, transform, None);
+    }
     Some(pixmap.data().as_chunks::<4>().0.iter().map(|p| p[3]).collect())
 }
 
@@ -384,7 +417,7 @@ mod tests {
         for icon in ALL {
             assert!(seen.insert(*icon), "{icon:?} twice");
         }
-        assert_eq!(ALL.len(), 93);
+        assert_eq!(ALL.len(), 94);
     }
 
     #[test]
@@ -418,6 +451,20 @@ mod tests {
         let outline = rasterize(Icon::StarOutline, 48, 2.0).unwrap();
         assert_eq!(star[26 * 48 + 24], 255);
         assert_eq!(outline[26 * 48 + 24], 0);
+    }
+
+    #[test]
+    fn the_marks_posters_lighten_toward_the_front_around_play() {
+        let mark = rasterize(Icon::PleyMark, 64, 0.0).unwrap();
+        let at = |x: usize, y: usize| mark[y * 64 + x];
+        // Inside each poster, on the 64-unit grid: 16, 24 and 36 % of the tint.
+        assert_eq!(at(49, 32), 41);
+        assert_eq!(at(40, 32), 61);
+        assert_eq!(at(14, 20), 92);
+        // Play is cut out of the front poster; the shelf around them is empty.
+        assert_eq!(at(22, 32), 0);
+        assert_eq!(at(4, 4), 0);
+        assert_eq!(at(45, 32), 0);
     }
 
     #[test]

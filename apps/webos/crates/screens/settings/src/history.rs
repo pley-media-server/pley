@@ -590,7 +590,7 @@ fn history_line(ui: &mut Ui, id: Id, y: f32, row: &HistoryRow, art: &[ImageReque
     ui.fill(cell, theme::SURFACE2, radius::BADGE);
     let shown = first_art(ui, art, Priority::Visible);
     if !shown.as_ref().is_some_and(|s| s.opaque()) {
-        placeholder(ui, cell, &row.title, "", radius::BADGE);
+        placeholder(ui, cell, &row.title, "", shown.is_none(), radius::BADGE);
     }
     if let Some(s) = shown {
         ui.draw_image(cell, &s, &ImageOpts::cover().rounded(radius::BADGE));
