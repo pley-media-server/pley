@@ -43,7 +43,7 @@ body:
     id: server-version
     attributes:
       label: Server version
-      description: "`pley --version`. Only the latest release gets fixes."
+      description: "At the bottom of the Account page, or `pley --version`. Only the latest release gets fixes."
       placeholder: 0.1.15
     validations:
       required: true
