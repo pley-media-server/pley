@@ -384,8 +384,8 @@ end sub
 sub placeRows()
     rect = m.column.boundingRect()
     if rect.height <= 0 then return
-    y = Int(rect.y + rect.height + 96)
-    if y < 600 then y = 600
+    y = Int(rect.y + rect.height + 64)
+    if y < 560 then y = 560
     if y > 940 then y = 940
     if m.rows.translation[1] <> y then m.rows.translation = [168, y]
 end sub

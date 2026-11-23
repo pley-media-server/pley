@@ -36,8 +36,8 @@
         <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
         <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" />
         <Group id="page">
-            <Poster id="poster" translation="[1404, 120]" width="420" height="630" loadWidth="420" loadHeight="630" loadDisplayMode="scaleToZoom" />
-            <Label id="credit" translation="[1404, 770]" width="420" wrap="true" color="0x8B95A5FF" font="font:SmallestSystemFont" visible="false" />
+            <Poster id="poster" translation="[1504, 120]" width="320" height="480" loadWidth="320" loadHeight="480" loadDisplayMode="scaleToZoom" />
+            <Label id="credit" translation="[1504, 620]" width="320" wrap="true" color="0x8B95A5FF" font="font:SmallestSystemFont" visible="false" />
             <LayoutGroup id="column" translation="[192, 96]" layoutDirection="vert" itemSpacings="[40]" visible="false">
                 <!-- Only the parts with text stay in it (layoutText). -->
                 <LayoutGroup id="text" layoutDirection="vert">
@@ -52,7 +52,8 @@
                 </LayoutGroup>
                 <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
             </LayoutGroup>
-            <!-- Its top shows under the buttons; the page slides up to it. -->
+            <!-- Its top shows under the buttons (placeRows); the page slides
+                 up to it. -->
             <QuickRowList id="rows" translation="[168, 940]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
         <Label id="message" translation="[192, 480]" width="1100" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />

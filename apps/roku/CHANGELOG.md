@@ -125,6 +125,13 @@ describes how they are made.
 
 ### Fixed
 
+- Spacing on several pages: a library's rows sit as far under its tabs as
+  its grid, the requests' list no longer touches its tabs, Live TV's guide
+  clears its hint and its categories sit on the pages' edge, a show's
+  Seasons row isn't cut at the foot of the screen, a TMDB title's rows
+  sit under its buttons, and Search's rows, the Playlists grid and a
+  collection's posters keep the other pages' gaps. Wide tiles are a
+  little smaller, so four fit whole in a row.
 - On Discover, the requests' button and TMDB's credit line up with the
   page's name.
 - A focused poster's outline sits against its picture: it stood off it,

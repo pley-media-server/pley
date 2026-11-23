@@ -39,8 +39,9 @@ sub onLayout()
     if w <= 0 or h <= 0 then return
     m.back.width = w
     m.back.height = h
-    x = 16
-    if m.inner then x = 48
+    ' The words on the pages' gutter (x 192, the list at 168).
+    x = 24
+    if m.inner then x = 56
     m.mark.translation = [x - 8, 0]
     m.mark.height = h
     textX = x + 28

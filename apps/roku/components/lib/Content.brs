@@ -234,17 +234,19 @@ function contentRowSquare(hub as object) as boolean
 end function
 
 ' The size of a row's tiles, and the row's height, for its shape, as the
-' Android TV app's (TileKind, doubled): a 16:9 picture 408 wide, a square
-' 264 or a poster 216, two lines of text 28 px under it, 24 px at its left
-' and 30 over it for the focused tile's growth and ring (Tile), and the
-' row's header.
+' Android TV app's (TileKind, doubled): a 16:9 picture 396 wide (Android
+' TV's 408 would leave a fourth cut by a few pixels at the row's end;
+' four whole fit, the fifth showing as the next), a square 264 or a
+' poster 216, two lines of text 28 px under it, 24 px at its left and 30
+' over it for the focused tile's growth and ring (Tile), and the row's
+' header.
 ' A row of people, circles 192 px across, as Android TV's (TileKind.Person).
 function contentPersonRowSize() as object
     return { size: [216, 320], height: 384 }
 end function
 
 function contentRowSize(wide as boolean, square as boolean) as object
-    if wide then return { size: [432, 356], height: 420 }
+    if wide then return { size: [420, 349], height: 413 }
     if square then return { size: [288, 390], height: 454 }
     return { size: [240, 450], height: 514 }
 end function

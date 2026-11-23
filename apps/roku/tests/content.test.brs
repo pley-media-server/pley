@@ -114,6 +114,7 @@ sub test_content_home_rows_of_every_kind()
     tkTrue(rows[2].tiles[1].square, "See all in the row's shape")
     tkEqual(rows[2].tiles[0].image, "http://nas:7539/api/items/5/images/poster?w=260", "an album's cover, asked for square")
     tkEqual(contentRowSize(false, true), { size: [288, 390], height: 454 })
+    tkEqual(contentRowSize(true, false), { size: [420, 349], height: 413 }, "four wide tiles whole")
     tkEqual(contentPersonRowSize(), { size: [216, 320], height: 384 }, "people, circles")
     tkEqual(contentLibraries(libraries), [{ id: 1, name: "Movies", kind: "movies", itemCount: 245 }, { id: 2, name: "TV Shows", kind: "shows", itemCount: 31 }, { id: 3, name: "Music", kind: "music", itemCount: 120 }])
 end sub

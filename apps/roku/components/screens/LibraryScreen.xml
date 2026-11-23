@@ -39,10 +39,10 @@
         <!-- Recommended's rows and the categories' keep the focused row at
              the top, as Home's: the second row showed its focus below the
              screen's foot. Rows scrolled past are cut under the tabs. -->
-        <QuickRowList id="rows" translation="[168, 212]" clippingRect="[-48, 0, 1800, 868]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <QuickRowList id="rows" translation="[168, 236]" clippingRect="[-48, 0, 1800, 844]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         <!-- The Collections tab by category, a row each, when there are
              several; one category's are in the grid. -->
-        <QuickRowList id="groups" translation="[168, 212]" clippingRect="[-48, 0, 1800, 868]" itemComponentName="Tile" itemSize="[1728, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <QuickRowList id="groups" translation="[168, 236]" clippingRect="[-48, 0, 1800, 844]" itemComponentName="Tile" itemSize="[1728, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         <Label id="message" translation="[192, 480]" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- The sort's or the filters' choices, over the right half. -->
         <Group id="panel" visible="false">

@@ -190,6 +190,7 @@ sub showDetail()
     m.buttons.visible = hasButtons
     m.column.visible = true
     m.credit.visible = true
+    placeRows()
     ' Only while this screen has the focus: a dialog over it keeps it.
     if m.top.isInFocusChain() and not m.rows.isInFocusChain()
         if hasButtons
@@ -282,11 +283,25 @@ function tileChanged(tile as object, fresh as object) as boolean
     return false
 end function
 
+' The rows 64 px under the words and buttons, and under the poster's
+' credit, their top showing as the page rests (as a title's page has
+' them, DetailsScreen.brs).
+sub placeRows()
+    y = 560
+    for each node in [m.column, m.credit]
+        rect = node.boundingRect()
+        if rect.height > 0 and Int(rect.y + rect.height + 64) > y then y = Int(rect.y + rect.height + 64)
+    end for
+    if y > 940 then y = 940
+    if m.rows.translation[1] <> y then m.rows.translation = [168, y]
+end sub
+
 ' The page slides up to the rows as they take the focus, the backdrop
 ' shaded under them all, and back down.
 sub focusRows(onRows as boolean)
     if onRows
-        m.page.translation = [0, -820]
+        placeRows()
+        m.page.translation = [0, -(m.rows.translation[1] - 120)]
         uiDimBackdrop(m.top, true)
         m.rows.setFocus(true)
     else

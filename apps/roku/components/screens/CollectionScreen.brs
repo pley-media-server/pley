@@ -110,7 +110,7 @@ sub onCollection(event as object)
     m.grid.content = event.getRoSGNode().content
     if focused > 0 and focused < collection.shown then m.grid.jumpToItem = focused
     m.grid.visible = collection.shown > 0
-    m.column.visible = true
+    m.column.visible = not m.grid.isInFocusChain()
     placeGrid()
     if m.grid.isInFocusChain() and not m.grid.visible then focusGrid(false)
     ' Only while this screen has the focus: a dialog over it keeps it.
@@ -281,7 +281,7 @@ sub placeGrid()
     rect = m.column.boundingRect()
     if rect.height <= 0 then return
     y = Int(rect.y + rect.height + 66)
-    if y < 480 then y = 480
+    if y < 400 then y = 400
     if y > 720 then y = 720
     if m.grid.translation[1] <> y then m.grid.translation = [168, y]
 end sub
@@ -292,10 +292,13 @@ sub focusGrid(onGrid as boolean)
     if onGrid
         placeGrid()
         m.page.translation = [0, -(m.grid.translation[1] - 96)]
+        ' Slid up, the buttons' foot would show over the posters.
+        m.column.visible = false
         uiDimBackdrop(m.top, true)
         m.grid.setFocus(true)
     else
         m.page.translation = [0, 0]
+        m.column.visible = true
         uiDimBackdrop(m.top, false)
         if m.buttons.visible
             m.buttons.setFocus(true)

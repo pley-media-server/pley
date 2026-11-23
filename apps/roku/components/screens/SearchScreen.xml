@@ -37,7 +37,7 @@
         <DynamicMiniKeyboard id="keyboard" translation="[192, 170]" />
         <!-- Each row's tiles are sized for its kind (lib/Search.brs's
              searchRowSize). -->
-        <QuickRowList id="rows" translation="[852, 170]" itemComponentName="ResultTile" itemSize="[1044, 430]" rowItemSize="[[196, 370]]" numRows="2" itemSpacing="[0, 20]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <QuickRowList id="rows" translation="[852, 170]" itemComponentName="ResultTile" itemSize="[1044, 430]" rowItemSize="[[196, 370]]" numRows="2" itemSpacing="[0, 46]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         <Label id="message" translation="[876, 200]" width="948" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- Before anything is typed: the recent searches, then Clear, their
              words under the heading and in line with the results' row

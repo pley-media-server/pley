@@ -31,7 +31,7 @@
             <!-- Play (or Resume) the next episode: Android TV's pill. -->
             <ChipRow id="play" look="buttons" pad="64" visible="false" />
         </LayoutGroup>
-        <QuickList id="seasons" translation="[160, 380]" itemComponentName="PanelRow" itemSize="[484, 64]" itemSpacing="[0, 4]" numRows="9" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <QuickList id="seasons" translation="[168, 380]" itemComponentName="PanelRow" itemSize="[484, 64]" itemSpacing="[0, 4]" numRows="9" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <QuickList id="episodes" translation="[700, 64]" itemComponentName="EpisodeRow" itemSize="[1124, 196]" itemSpacing="[0, 16]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <Timer id="seasonTimer" duration="0.35" />
