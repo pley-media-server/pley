@@ -8,12 +8,6 @@ describes how they are made.
 
 ## [Unreleased]
 
-### Changed
-
-- Pley's license gains a permission for app stores: Pley may be
-  distributed through stores whose terms add restrictions of their own,
-  as long as its source stays available.
-
 ## [0.1.13] - 2026-11-22
 
 ### Fixed
