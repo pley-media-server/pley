@@ -168,8 +168,10 @@ behind it.
   reads it as one ("Arrival, 2016", "watched"). Tiles grow with the text
   size, up to 1.6 times. Pictures are fetched at the width they show,
   rounded up to a multiple of 64 pixels, and fade in except under Reduce
-  Motion. At most 6 are fetched at once, the newest asked for first, and
-  one scrolled away before it comes isn't fetched. They are kept in memory
+  Motion. A tile without a picture, or whose picture doesn't load, shows
+  its title's gradient (the web's) with Pley's mark on it; while a picture
+  loads, the gradient alone. At most 6 are fetched at once, the newest
+  asked for first, and one scrolled away before it comes isn't fetched. They are kept in memory
   up to 32 MB on a device with 3 GB of memory or less (otherwise 64 MB on
   Apple TV and 96 MB elsewhere), half of that when the app goes to the
   background, and none after a memory warning. While loading, still gray

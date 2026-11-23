@@ -510,6 +510,46 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
     }
 }
 
+@Suite struct PlaceholderTests {
+    /// Hues from apps/web/src/lib/images.ts's placeholderGradient for these titles, as Android's test pins them.
+    @Test func huesAreTheWebsForTheSameTitles() {
+        let web = [
+            "Heat": 176, "Alien": 159, "": 0, "Glasshouse": 124, "Northern Lights": 121, "Ashfall": 265,
+            "A Film With No Poster Yet": 71, "Amélie": 331, "千と千尋の神隠し": 156, "The Quiet Harbor": 303,
+        ]
+        for (title, hue) in web {
+            #expect(Placeholder.hue(title) == hue, "\(title)")
+        }
+    }
+
+    @Test func colorsAreTheWebsHsl() {
+        func bytes(_ c: (red: Double, green: Double, blue: Double)) -> [Int] {
+            [c.red, c.green, c.blue].map { Int(($0 * 255).rounded()) }
+        }
+        // "" → hsl(0 30% 22%) to hsl(40 35% 12%).
+        let colors = Placeholder.colors("")
+        #expect(bytes(colors.from) == [73, 39, 39])
+        #expect(bytes(colors.to) == [41, 34, 20])
+        #expect(bytes(Placeholder.hsl(0, 1, 0.5)) == [255, 0, 0])
+        #expect(bytes(Placeholder.hsl(120, 1, 0.5)) == [0, 255, 0])
+        #expect(bytes(Placeholder.hsl(240, 1, 0.5)) == [0, 0, 255])
+    }
+
+    @Test func theMarksFrontPosterHasItsPlayTriangleCutOut() {
+        let layers = Placeholder.markLayers
+        #expect(layers.map { $0.opacity } == [0.16, 0.24, 0.36])
+        let front = layers[2]
+        #expect(front.evenOdd)
+        #expect(front.path.contains(CGPoint(x: 14, y: 32), using: .evenOdd))
+        #expect(!front.path.contains(CGPoint(x: 23, y: 32), using: .evenOdd))
+        // Its corners are rounded; the posters behind keep their left corners square.
+        #expect(!front.path.contains(CGPoint(x: 12.3, y: 15.8), using: .evenOdd))
+        #expect(layers[1].path.contains(CGPoint(x: 36.2, y: 18.7)))
+        #expect(layers[0].path.contains(CGPoint(x: 49, y: 32)))
+        #expect(!layers[0].path.contains(CGPoint(x: 51.8, y: 21.7)))
+    }
+}
+
 @Suite struct WordsTests {
     @Test func messagesReadAsSentences() {
         #expect(asSentence("no answer in time") == "No answer in time.")

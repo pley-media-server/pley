@@ -2,8 +2,9 @@ import PleyModel
 import PleyScreens
 import SwiftUI
 
-/// One tile: its picture in its shape, a caption of one or two lines, and
-/// over the picture the progress while in progress, a check once watched,
+/// One tile: its picture in its shape (without one, its title's gradient
+/// with Pley's mark, the caption naming it), a caption of one or two lines,
+/// and over the picture the progress while in progress, a check once watched,
 /// or a show's unwatched episodes. One element for VoiceOver ("Arrival,
 /// 2016", "watched", "Opens its page"). The pointer lifts it on iPad; on
 /// the Mac, hovering grows it a little, or outlines it under Reduce Motion,
@@ -99,7 +100,7 @@ struct ArtworkTile: View {
     #endif
 
     private var picture: some View {
-        ServerImage(app: app, paths: tile.pictures, width: width, symbol: Metrics.symbol(tile.item.kind))
+        ServerImage(app: app, paths: tile.pictures, width: width, title: tile.title)
             .frame(width: width, height: Metrics.pictureHeight(tile.shape, width: width))
             .overlay(alignment: .bottom) {
                 if tile.progress > 0 {
