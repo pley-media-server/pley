@@ -157,6 +157,10 @@ rates as the decoder gives them, the same in every language.
 
 ### Phones and tablets
 
+- **Pictures**, here and on TVs: a title without one, or whose picture
+  doesn't load, shows its title's gradient (the web's) with Pley's mark
+  on it; while a picture loads, the gradient alone. A tile's name is in
+  its caption, not on its picture.
 - **The player** shows its controls, the title with them, for 3 s as
   playback starts and as each later item begins (the next episode, a
   queue's next), where TVs show the title alone at the top; a tap shows
@@ -1326,10 +1330,9 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
   Each held glide stays a step and a quarter long, so focus never runs
   further ahead of the grid than the rows on the screen.
 - A tile is few nodes, and costs little to make: its caption is one node
-  drawing its two lines with the platform's paint, its picture draws in
-  its own box, and its placeholder's title is laid out on a thread of its
-  own. While a key holds pictures back, their requests are set aside off
-  the main thread, and go on there when the key comes up.
+  drawing its two lines with the platform's paint, and its picture draws
+  in its own box. While a key holds pictures back, their requests are set
+  aside off the main thread, and go on there when the key comes up.
 - A held Up or Down on a page of rows moves focus to the next row's
   tile itself (the one nearest across, or the tile that row comes back
   to), and stays at the page's ends and below a hero. Compose's own

@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.icon.PleyMark
 import app.pley.android.designsystem.reducedMotion
 import coil3.BitmapImage
 import coil3.ImageLoader
@@ -101,6 +103,9 @@ class ArtworkLoad {
      * [ArtworkBox] as it composes, before anything is drawn.
      */
     internal var known: Boolean = false
+
+    /** Whether there is no picture at all, as [ArtworkBox] is given none. */
+    internal var none: Boolean = false
 
     /**
      * Whether the loaded picture has no transparency, so it hides whatever is
@@ -175,6 +180,7 @@ internal fun ArtworkBox(
     contentScale: ContentScale = ContentScale.Crop,
     alignment: Alignment = Alignment.Center,
 ) {
+    load.none = image == null || image.isEmpty
     if (image == null || image.isEmpty) {
         Box(modifier)
         return
@@ -306,14 +312,18 @@ private class PlaceholderNode(
         } else if (!load.loaded) {
             with(Placeholder) { drawGradient(look ?: look(title).also { look = it }, outline) }
             askTitle(size)
-            layout?.let { text ->
+            val text = layout
+            // No picture to come (none, or none of its addresses loaded): Pley's mark on the gradient, the title under
+            // it. Not while one loads: a page of tiles scrolling in would flash marks before their pictures.
+            val markSide = if (load.none || load.failed) markSide(text) else 0f
+            val gap = if (markSide > 0f && text != null) MarkGap.toPx() else 0f
+            val top = (size.height - markSide - gap - (text?.size?.height ?: 0)) / 2f
+            if (markSide > 0f) drawMark(Offset((size.width - markSide) / 2f, top), markSide)
+            text?.let {
                 drawText(
-                    text,
+                    it,
                     color = PleyColors.Fg.copy(alpha = 0.7f),
-                    topLeft = Offset(
-                        (size.width - text.size.width) / 2f,
-                        (size.height - text.size.height) / 2f,
-                    ),
+                    topLeft = Offset((size.width - it.size.width) / 2f, top + markSide + gap),
                 )
             }
         } else if (well.isSpecified && !load.opaque) {
@@ -327,6 +337,27 @@ private class PlaceholderNode(
             clipPath(path) { this@draw.drawContent() }
         } else {
             drawContent()
+        }
+    }
+
+    /**
+     * The mark's side: a share of the box, smaller over a title, and none
+     * where a title leaves it no room (a long one on a small tile).
+     */
+    private fun ContentDrawScope.markSide(text: TextLayoutResult?): Float {
+        val side = minOf(size.width, size.height) * (if (text == null) MARK_SHARE else MARK_SHARE_OVER_TITLE)
+        val room = size.height - (text?.size?.height ?: 0) - MarkGap.toPx()
+        return if (text != null && side > room * 0.9f) 0f else side.coerceAtMost(MarkMax.toPx())
+    }
+
+    /** Pley's mark, [side] square, its top left at [at]: white posters, each lighter than the one behind. */
+    private fun ContentDrawScope.drawMark(at: Offset, side: Float) {
+        val scale = side / PleyMark.GRID
+        withTransform({
+            translate(at.x, at.y)
+            scale(scale, scale, pivot = Offset.Zero)
+        }) {
+            for ((path, alpha) in PleyMark.Layers) drawPath(path, Color.White.copy(alpha = alpha))
         }
     }
 
@@ -390,6 +421,14 @@ private class PlaceholderNode(
         layoutKey = null
     }
 }
+
+/** How much of a placeholder's shorter side Pley's mark takes, alone and over a title. */
+private const val MARK_SHARE = 0.4f
+private const val MARK_SHARE_OVER_TITLE = 0.26f
+
+/** The mark's largest side (a backdrop), and its gap to the title under it. */
+private val MarkMax = 120.dp
+private val MarkGap = 10.dp
 
 /** At smallest, a placeholder's title is set this much of its style's size so that a word fits whole. */
 internal const val MIN_TITLE_SCALE = 0.7f

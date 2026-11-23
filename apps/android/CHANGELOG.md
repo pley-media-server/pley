@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Movies, shows and music without a picture show Pley's mark on their
+  placeholder instead of their title, which the caption under it shows.
+
 ## [0.1.17] - 2026-11-22
 
 ### Fixed
