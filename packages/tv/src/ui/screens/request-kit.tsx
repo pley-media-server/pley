@@ -1,5 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import type { MarkGlyph } from "pley-placeholder-mark";
 import type { DiscoverDetail, DiscoverTitle, ItemKind, ItemRequest, MediaRequest, NewRequest } from "../../api/types";
 import { displayAddress } from "../../auth/addresses";
 import { t } from "../../i18n";
@@ -109,6 +110,8 @@ function TitleTileView(p: {
   name: string;
   subtitle: string;
   poster: string | null;
+  /** The glyph on a poster that won't come: the title's kind's. */
+  mark: MarkGlyph;
   badge: string | null;
   tone: Tone;
   fid: string;
@@ -130,7 +133,7 @@ function TitleTileView(p: {
     >
       <div class="tile-well" style={`width:${spec.w}px;height:${spec.h}px`}>
         <div class="tile-clip">
-          <Art candidates={p.poster ? [p.poster] : []} width={spec.w} title={p.name} class="tile-clip" priority={p.priority} />
+          <Art candidates={p.poster ? [p.poster] : []} width={spec.w} title={p.name} mark={p.mark} class="tile-clip" priority={p.priority} />
           <div class="tile-hairline" />
           {p.badge && <div class={`title-badge t-badge tone-${p.tone}`}>{p.badge}</div>}
         </div>
@@ -147,6 +150,8 @@ export const RequestTile = memo(RequestTileView, ["priority"]);
 function RequestTileView(p: {
   name: string;
   art: string[];
+  /** The glyph on a picture that won't come: the title's kind's. */
+  mark: MarkGlyph;
   stage: string;
   tone: Tone;
   progress: number | null;
@@ -163,7 +168,7 @@ function RequestTileView(p: {
     <F class="tile" style={`width:${spec.w}px`} fid={p.fid} initial={p.initial} label={`${p.name}, ${p.stage}`} onSelect={p.onSelect} onFocus={p.onFocus}>
       <div class="tile-well" style={`width:${spec.w}px;height:${spec.h}px`}>
         <div class="tile-clip">
-          <Art candidates={p.art} width={spec.w} title={p.name} class="tile-clip" priority={p.priority} />
+          <Art candidates={p.art} width={spec.w} title={p.name} mark={p.mark} class="tile-clip" priority={p.priority} />
           <div class="tile-hairline" />
           {p.progress !== null && (
             <div class="tile-progress">

@@ -1,5 +1,6 @@
 import { useSignal, type Signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { markGlyph } from "pley-placeholder-mark";
 import type { DiscoverDetail, DiscoverList, DiscoverPage, DiscoverTitle, MediaRequest, RequestList } from "../../api/types";
 import { formatNumber, t } from "../../i18n";
 import { Cancel } from "../../net/transport";
@@ -362,6 +363,7 @@ function DiscoverRows(p: { entry: Entry; inRows: boolean; setInRows: (v: boolean
                 name={x.title}
                 subtitle={titleSubtitle(x, r.mixed)}
                 poster={x.poster_url}
+                mark={markGlyph(x.kind)}
                 badge={titleBadge(x)}
                 tone={titleTone(x)}
                 fid={`${r.list}/${titleKey(x)}`}
@@ -401,6 +403,7 @@ function DiscoverRows(p: { entry: Entry; inRows: boolean; setInRows: (v: boolean
               <RequestTile
                 name={r.title}
                 art={[r.backdrop_url, r.poster_url].filter((u): u is string => !!u)}
+                mark={markGlyph(r.kind)}
                 stage={w.text}
                 tone={w.tone}
                 progress={w.progress}
@@ -690,6 +693,7 @@ function TitleGrid(p: {
             name={x.title}
             subtitle={titleSubtitle(x, true)}
             poster={x.poster_url}
+            mark={markGlyph(x.kind)}
             badge={titleBadge(x)}
             tone={titleTone(x)}
             fid={`${p.fidPrefix}/${titleKey(x)}`}

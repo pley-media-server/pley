@@ -1,5 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { markGlyph } from "pley-placeholder-mark";
 import { errorMessage, isApiError } from "../../api/client";
 import type { HistoryEntry, SubtitleMode } from "../../api/types";
 import { displayAddress } from "../../auth/addresses";
@@ -802,7 +803,7 @@ export function HistoryScreen(p: { entry: Entry }) {
                   onLongSelect={() => remove(e)}
                 >
                   <div class={`history-art${e.item.kind === "track" || e.item.kind === "album" || e.item.kind === "artist" ? " square" : ""}`}>
-                    <Art candidates={artCandidates(e.item, "poster")} width={48} title={e.item.title} class="tile-clip" />
+                    <Art candidates={artCandidates(e.item, "poster")} width={48} title={e.item.title} mark={markGlyph(e.item.kind)} class="tile-clip" />
                   </div>
                   <div style="flex:1;min-width:0;margin-left:16px">
                     <div class="t-body one-line">{historyTitle(e)}</div>

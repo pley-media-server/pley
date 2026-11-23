@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { markGlyph } from "pley-placeholder-mark";
 import type { MediaRequest, RequestList, RequestUser, TitleKind } from "../../api/types";
 import { t } from "../../i18n";
 import {
@@ -524,7 +525,7 @@ function RequestCardView(p: {
       onSelect={p.onSelect}
     >
       <div class="request-poster">
-        <Art candidates={r.poster_url ? [r.poster_url] : []} width={48} title={r.title} class="tile-clip" />
+        <Art candidates={r.poster_url ? [r.poster_url] : []} width={48} title={r.title} mark={markGlyph(r.kind)} class="tile-clip" />
       </div>
       {p.news && <i class="request-news" />}
       <div class="request-text">

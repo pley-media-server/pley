@@ -1,5 +1,6 @@
 import type { CSSProperties } from "preact";
 import { useEffect, useState } from "preact/hooks";
+import { markLayers, type MarkGlyph } from "pley-placeholder-mark";
 import type { ItemSummary } from "../../api/types";
 import { useUi } from "../context";
 import { placeholderGradient } from "../images";
@@ -34,34 +35,36 @@ export function artCandidates(item: ItemSummary, kind: ArtKind): string[] {
   return out;
 }
 
-/** The mark's three posters on its 64 by 64 grid, back to front, each lighter than the one behind (the Android app's `PleyMark.Layers`). */
-function Mark() {
+/**
+ * Pley's mark (packages/placeholder-mark): its three posters back to front,
+ * each lighter than the one behind, `glyph` cut out of the front one.
+ */
+function Mark(p: { glyph: MarkGlyph }) {
   return (
-  <svg class="tile-mark" viewBox="0 0 64 64" aria-hidden="true">
-    <path fill="#fff" fill-opacity="0.16" d="M46 21.5h3a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3h-3z" />
-    <path fill="#fff" fill-opacity="0.24" d="M36 18.5h4.5a3.5 3.5 0 0 1 3.5 3.5v20a3.5 3.5 0 0 1-3.5 3.5H36z" />
-    <path
-      fill="#fff"
-      fill-opacity="0.36"
-      fill-rule="evenodd"
-      d="M16 15.5h14a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4v-25a4 4 0 0 1 4-4zM19 27v10a1 1 0 0 0 1.51.86l8.5-5a1 1 0 0 0 0-1.72l-8.5-5A1 1 0 0 0 19 27z"
-    />
-  </svg>
+    <svg class="tile-mark" viewBox="0 0 64 64" aria-hidden="true">
+      {markLayers(p.glyph).map((layer) => (
+        <path key={layer.alpha} fill="#fff" fill-opacity={layer.alpha} fill-rule={layer.evenOdd ? "evenodd" : undefined} d={layer.path} />
+      ))}
+    </svg>
   );
 }
 
 /**
  * One picture from its candidates, `width` canvas px wide: the first that
- * loads wins. Until then the title's gradient, and Pley's mark on it once
- * none will come (no candidates, or none loaded); not while one loads, so
- * a row scrolling in doesn't flash marks. The title isn't on it: a tile's
- * caption names it. Fades in over 150 ms unless it was in memory already.
+ * loads wins. Until then the title's gradient, with Pley's mark on it once
+ * none will come (no candidates, or none loaded) when given `mark`; not
+ * while one loads, so a row scrolling in doesn't flash marks. Only a
+ * picture whose name is beside or under it gets a mark (a tile's caption, a
+ * row's line), so the mark never stands for a title no one can read.
+ * Fades in over 150 ms unless it was in memory already.
  */
 export function Art(props: {
   candidates: string[];
   width: number;
   /** What the placeholder's gradient is made from. */
   title: string;
+  /** Pley's mark with this glyph (`markGlyph(item.kind)`) once no picture will come. */
+  mark?: MarkGlyph;
   class?: string;
   style?: CSSProperties;
   /** The widest picture asked for, in px (backdrops: 1280). */
@@ -130,7 +133,7 @@ export function Art(props: {
     <div class={props.class} style={props.style}>
       {!covered && (
         <div class="tile-placeholder" style={{ background: placeholderGradient(props.title) }}>
-          {none && !shown && <Mark />}
+          {props.mark && none && !shown && <Mark glyph={props.mark} />}
         </div>
       )}
       {shown && (
