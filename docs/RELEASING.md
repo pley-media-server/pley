@@ -131,7 +131,7 @@ the tags, so fetch them first (`git fetch --tags`).
   version: they ship only inside the server's release files. The server and
   transcoder check compatibility with the protocol's `api_version`.
 - `packages/tv`, `packages/picture-subtitles` and
-  `packages/placeholder-mark` have no version: the apps that use them build
+  `packages/placeholder` have no version: the apps that use them build
   them in. Neither do the LG app's other crates: they
   are built into its one binary.
 - webOS takes three numbers for a version, with no suffix.

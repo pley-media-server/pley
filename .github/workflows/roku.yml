@@ -9,7 +9,7 @@ on:
     paths:
       - apps/roku/**
       - packages/tv/test/fixtures/**
-      - packages/placeholder-mark/**
+      - packages/placeholder/**
       - package.json
       - .github/workflows/roku.yml
       - "!**/CHANGELOG.md"
@@ -17,7 +17,7 @@ on:
     paths:
       - apps/roku/**
       - packages/tv/test/fixtures/**
-      - packages/placeholder-mark/**
+      - packages/placeholder/**
       - package.json
       - .github/workflows/roku.yml
       - "!**/CHANGELOG.md"

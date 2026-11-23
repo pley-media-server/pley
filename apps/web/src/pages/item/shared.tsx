@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { BookmarkCheck, BookmarkPlus, Check, Eye, EyeOff, Star, Tag } from "lucide-react";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage } from "@/api/client";
 import { useSetInWatchlist, useSetWatched } from "@/api/hooks";
 import type { ItemDetail, ItemSummary, MediaFile } from "@/api/types";

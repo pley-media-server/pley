@@ -1,11 +1,11 @@
 {
-  "name": "pley-placeholder-mark",
+  "name": "pley-placeholder",
   "private": true,
-  "description": "Pley's mark on a picture that won't come, with a glyph for the title's kind of library: the paths every app draws it from.",
+  "description": "Pley's placeholder for a picture that hasn't come: the title's gradient, and the mark with a glyph for its kind of library. What every app draws it from.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./marks.json": "./marks.json"
+    "./placeholder.json": "./placeholder.json"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

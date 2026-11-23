@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { unreachable } from "../../api/client";
 import type { DiscoverDetail, DiscoverSeason, RequestSummary, TitleKind } from "../../api/types";
 import { t } from "../../i18n";

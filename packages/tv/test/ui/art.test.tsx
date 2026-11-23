@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
-import { markLayers, type MarkGlyph } from "pley-placeholder-mark";
+import { markLayers, type MarkGlyph } from "pley-placeholder";
 import { describe, expect, it } from "vitest";
 import { UiContext, type Ui } from "../../src/ui/context";
 import { Art } from "../../src/ui/kit/art";

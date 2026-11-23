@@ -1,8 +1,8 @@
 ' Pley's mark on a tile without a picture: the logo's three posters, a
 ' glyph cut out of the front one for the title's kind of library. Every
-' app draws it from packages/placeholder-mark/marks.json; this app ships it
+' app draws it from packages/placeholder/placeholder.json; this app ships it
 ' as pictures (scripts/render-placeholder-marks.mjs at the repository's
-' root), and tests/mark.test.brs holds this file to marks.json. Kept apart
+' root), and tests/mark.test.brs holds this file to placeholder.json. Kept apart
 ' from Content.brs so that each tile loads only this.
 
 ' The glyph for an item of kind, the API's: its library's, or play.

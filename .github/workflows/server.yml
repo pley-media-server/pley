@@ -12,7 +12,7 @@ on:
       - apps/transcoder/**
       - packages/transcoder-api/**
       - apps/web/**
-      - packages/placeholder-mark/**
+      - packages/placeholder/**
       - Cargo.toml
       - Cargo.lock
       - rustfmt.toml
@@ -49,7 +49,7 @@ on:
       - apps/transcoder/**
       - packages/transcoder-api/**
       - apps/web/**
-      - packages/placeholder-mark/**
+      - packages/placeholder/**
       - Cargo.toml
       - Cargo.lock
       - rustfmt.toml
@@ -121,7 +121,7 @@ jobs:
       # version, which its CHANGELOG has (scripts/version.mjs).
       - run: bun scripts/version.mjs check server
       - run: bun install --frozen-lockfile
-      - run: bun run --cwd packages/placeholder-mark check
+      - run: bun run --cwd packages/placeholder check
       - run: bun run typecheck
       - run: bun run lint
       - run: bun run test

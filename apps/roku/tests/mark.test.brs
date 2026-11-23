@@ -1,12 +1,12 @@
 ' Pley's mark on a tile without a picture (Mark.brs), held to the one
-' definition every app draws it from (packages/placeholder-mark/
-' marks.json, which the runner gives as pkg:/placeholder-mark/marks.json),
+' definition every app draws it from (packages/placeholder/
+' placeholder.json, which the runner gives as pkg:/placeholder/placeholder.json),
 ' and its pictures, which scripts/render-placeholder-marks.mjs draws.
 
 function markTestMarks() as object
-    marks = ParseJson(ReadAsciiFile("pkg:/placeholder-mark/marks.json"))
+    marks = ParseJson(ReadAsciiFile("pkg:/placeholder/placeholder.json"))
     if marks = invalid or GetInterface(marks.kinds, "ifAssociativeArray") = invalid or GetInterface(marks.glyphs, "ifAssociativeArray") = invalid
-        tkFail("packages/placeholder-mark/marks.json didn't load")
+        tkFail("packages/placeholder/placeholder.json didn't load")
         return invalid
     end if
     return marks

@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { markLayers, type MarkGlyph } from "pley-placeholder-mark";
+import { markLayers, type MarkGlyph } from "pley-placeholder";
 import { cn } from "@/lib/cn";
 import { placeholderGradient, sizedImage } from "@/lib/images";
 
@@ -84,7 +84,7 @@ export const Artwork = memo(function Artwork({
 });
 
 /**
- * Pley's mark on a picture that won't come (packages/placeholder-mark): white
+ * Pley's mark on a picture that won't come (packages/placeholder): white
  * posters, each lighter than the one behind, `glyph` cut out of the front one,
  * centered at 40 % of the box's shorter side and 120 px at most. The SVG's box
  * is 40 % by 40 %; its square viewBox keeps the mark the shorter of the two.

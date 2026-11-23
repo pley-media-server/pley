@@ -11,7 +11,7 @@ import app.pley.android.model.TitleKind
 /**
  * The glyph cut out of the front poster of Pley's mark, which a
  * placeholder draws once no picture will come: the kind of library its
- * title is in. packages/placeholder-mark/marks.json defines the mark for
+ * title is in. packages/placeholder/placeholder.json defines the mark for
  * every app; PlaceholderMarkTest holds this copy of it to that file.
  */
 enum class MarkGlyph(internal val path: String) {

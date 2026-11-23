@@ -8,7 +8,7 @@ from pley import tiles, words
 HERE = os.path.dirname(os.path.abspath(__file__))
 MEDIA = os.path.join(HERE, "..", "plugin.video.pley", "resources", "skins", "default", "media")
 # Pley's placeholder mark, as every app draws it.
-MARKS = os.path.join(HERE, "..", "..", "..", "packages", "placeholder-mark", "marks.json")
+MARKS = os.path.join(HERE, "..", "..", "..", "packages", "placeholder", "placeholder.json")
 
 BASE = "http://127.0.0.1:5000/s"
 EPISODE = {

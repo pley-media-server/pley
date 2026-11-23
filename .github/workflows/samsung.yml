@@ -11,7 +11,7 @@ on:
     paths:
       - apps/tizen/**
       - packages/tv/**
-      - packages/placeholder-mark/**
+      - packages/placeholder/**
       - package.json
       - bun.lock
       - bunfig.toml
@@ -23,7 +23,7 @@ on:
     paths:
       - apps/tizen/**
       - packages/tv/**
-      - packages/placeholder-mark/**
+      - packages/placeholder/**
       - package.json
       - bun.lock
       - bunfig.toml
@@ -67,7 +67,7 @@ jobs:
       # Its manifests carry one version, which its CHANGELOG has (scripts/version.mjs).
       - run: bun scripts/version.mjs check samsung
       - run: bun install --frozen-lockfile
-      - run: bun run --cwd packages/placeholder-mark check
+      - run: bun run --cwd packages/placeholder check
       - run: bun run --cwd packages/tv check
       - run: bun run --cwd apps/tizen check
       # Packaging needs Samsung's tools and certificate; the bundle is built here.

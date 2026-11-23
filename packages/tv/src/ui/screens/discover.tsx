@@ -1,6 +1,6 @@
 import { useSignal, type Signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import type { DiscoverDetail, DiscoverList, DiscoverPage, DiscoverTitle, MediaRequest, RequestList } from "../../api/types";
 import { formatNumber, t } from "../../i18n";
 import { Cancel } from "../../net/transport";

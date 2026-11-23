@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage, isApiError } from "../../api/client";
 import type { HistoryEntry, SubtitleMode } from "../../api/types";
 import { displayAddress } from "../../auth/addresses";

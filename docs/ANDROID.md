@@ -165,7 +165,7 @@ rates as the decoder gives them, the same in every language.
   tile's name is in its caption, not on its picture. The mark shows only
   where the title's name is by its picture (a caption, the line beside
   it): backdrops, people, Live TV's programs and a playlist's mosaic
-  keep the gradient alone. The mark is `packages/placeholder-mark`'s,
+  keep the gradient alone. The mark is `packages/placeholder`'s,
   which a unit test holds the app's copy of its paths to.
 - **The player** shows its controls, the title with them, for 3 s as
   playback starts and as each later item begins (the next episode, a

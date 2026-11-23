@@ -21,7 +21,7 @@ VIDEO = ("movie", "show", "season", "episode")
 
 # The glyph cut out of Pley's mark on a tile's placeholder, by the item's
 # kind (the API's): its library's, else DEFAULT_GLYPH. Every app draws the
-# mark from packages/placeholder-mark/marks.json, which the skin's pictures
+# mark from packages/placeholder/placeholder.json, which the skin's pictures
 # (media/mark-<glyph>.png) are rendered from; test_tiles holds these to it.
 GLYPHS = {
     "movie": "movies",

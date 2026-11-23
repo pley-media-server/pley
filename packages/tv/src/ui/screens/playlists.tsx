@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage, isApiError } from "../../api/client";
 import type { ItemSummary, Playlist, PlaylistEntry } from "../../api/types";
 import { cardSubtitle, episodeLabel, formatDuration, pluralize, seasonTitle } from "../../format/format";

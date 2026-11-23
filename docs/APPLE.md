@@ -172,7 +172,7 @@ behind it.
   its title's gradient (the web's) with Pley's mark on it, the glyph of its
   library cut out of the front poster: a clapperboard for movies, a TV for
   shows, notes for music, the logo's play for extras. The mark is a copy
-  of `packages/placeholder-mark/marks.json`, which a test holds it to.
+  of `packages/placeholder/placeholder.json`, which a test holds it to.
   While a picture loads, the gradient shows alone. At most 6 pictures are
   fetched at once, the newest asked for first, and one scrolled away
   before it comes isn't fetched. They are kept in memory up to 32 MB on a

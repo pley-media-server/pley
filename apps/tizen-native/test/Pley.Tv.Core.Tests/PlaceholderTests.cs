@@ -14,17 +14,27 @@ namespace Pley.Tv.Core.Tests;
 /// <summary>The artwork placeholder's colors (the Android app's PlaceholderTest) and what it draws on them.</summary>
 public class PlaceholderTests
 {
-    /// <summary>Hues from apps/web/src/lib/images.ts's placeholderGradient, run in Node for these titles.</summary>
+    /// <summary>
+    /// packages/placeholder's examples, which every app's gradient is held to: each title's hue, and
+    /// its two colors as CSS makes them, within a step of a byte.
+    /// </summary>
     [Fact]
-    public void Hues_are_the_webs_for_the_same_titles()
+    public void Colors_are_the_placeholder_files_examples()
     {
-        var web = new Dictionary<string, int>
+        using var file = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "placeholder", "placeholder.json")));
+        // Gradients.Diagonal draws CSS's 135°: another angle needs it drawn again.
+        Assert.Equal(135, file.RootElement.GetProperty("gradient").GetProperty("angle").GetInt32());
+        var examples = file.RootElement.GetProperty("examples").EnumerateArray().ToList();
+        Assert.NotEmpty(examples);
+        static bool Near(uint a, uint b) => new[] { 16, 8, 0 }.All(shift => Math.Abs((int)((a >> shift) & 0xFF) - (int)((b >> shift) & 0xFF)) <= 1);
+        static uint Hex(JsonElement e) => uint.Parse(e.GetString()!.Substring(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        foreach (var example in examples)
         {
-            ["Heat"] = 176, ["Alien"] = 159, [""] = 0, ["Glasshouse"] = 124, ["Northern Lights"] = 121,
-            ["Ashfall"] = 265, ["A Film With No Poster Yet"] = 71, ["Amélie"] = 331, ["千と千尋の神隠し"] = 156,
-            ["The Quiet Harbor"] = 303,
-        };
-        foreach (var (title, hue) in web) Assert.Equal(hue, Placeholder.Hue(title));
+            var seed = example.GetProperty("seed").GetString()!;
+            Assert.Equal(example.GetProperty("hue").GetInt32(), Placeholder.Hue(seed));
+            var (from, to) = Placeholder.Colors(seed);
+            Assert.True(Near(Hex(example.GetProperty("from")), from) && Near(Hex(example.GetProperty("to")), to), $"{seed}: {from:x6} {to:x6}");
+        }
     }
 
     [Fact]
@@ -135,10 +145,10 @@ public class PlaceholderTests
         Assert.Equal("play", new PlaylistCard(2, "Saturday", "", Video: true, false, new string[0]).MarkGlyph);
     }
 
-    /// <summary>packages/placeholder-mark/marks.json: the mark every app draws.</summary>
+    /// <summary>packages/placeholder/placeholder.json: the mark every app draws.</summary>
     static JsonElement Marks()
     {
-        using var file = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "placeholder-mark", "marks.json")));
+        using var file = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "placeholder", "placeholder.json")));
         return file.RootElement.Clone();
     }
 
@@ -155,7 +165,7 @@ public class PlaceholderTests
         Assert.Equal(Placeholder.DefaultGlyph, Placeholder.Glyph("extra"));
         Assert.Equal(Placeholder.DefaultGlyph, Placeholder.Glyph(""));
         Assert.Equal(Placeholder.DefaultGlyph, Placeholder.Glyph("Movie"));
-        // Every glyph a kind takes is one marks.json draws, so the app has its picture.
+        // Every glyph a kind takes is one placeholder.json draws, so the app has its picture.
         var glyphs = marks.GetProperty("glyphs").EnumerateObject().Select(p => p.Name).ToList();
         Assert.Contains(Placeholder.DefaultGlyph, glyphs);
         foreach (var glyph in kinds.Values) Assert.Contains(glyph, glyphs);
@@ -173,7 +183,7 @@ public class PlaceholderTests
 
     /// <summary>
     /// The app draws the mark from an SVG for each glyph (scripts/render-placeholder-marks.mjs):
-    /// marks.json's posters, white at their alphas, the glyph cut out of the front one, even-odd.
+    /// placeholder.json's posters, white at their alphas, the glyph cut out of the front one, even-odd.
     /// </summary>
     [Fact]
     public void Each_glyphs_svg_is_marks_json()

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import type { DiscoverTitle, ItemSummary, LiveChannel, PersonSummary } from "../../api/types";
 import { cardSubtitle, episodeLabel } from "../../format/format";
 import { t } from "../../i18n";

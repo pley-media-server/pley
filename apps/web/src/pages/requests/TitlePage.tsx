@@ -3,7 +3,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Link, useParams, useSearchParams } from "react-router";
 import { Ban, Bell, Check, Clock, Play, Plus, UserMinus } from "lucide-react";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { isApiError } from "@/api/client";
 import {
   useAskRequest,

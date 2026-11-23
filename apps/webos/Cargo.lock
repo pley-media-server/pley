@@ -1517,6 +1517,7 @@ name = "pley-ui"
 version = "0.0.0"
 dependencies = [
  "pley-base",
+ "serde_json",
 ]
 
 [[package]]

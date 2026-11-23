@@ -55,11 +55,5 @@ export function thumbCandidates(item: ItemSummary): string[] {
   return out;
 }
 
-/** Deterministic gradient for placeholders. */
-export function placeholderGradient(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const hue = h % 360;
-  const hue2 = (hue + 40) % 360;
-  return `linear-gradient(135deg, hsl(${hue} 30% 22%), hsl(${hue2} 35% 12%))`;
-}
+/** A title's own gradient for its picture's place (packages/placeholder, as every app draws it). */
+export { placeholderGradient } from "pley-placeholder";

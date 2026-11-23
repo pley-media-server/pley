@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type R
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Ban, Check, CircleCheck, Clock, CloudOff, Inbox, KeyRound, LogIn } from "lucide-react";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage } from "@/api/client";
 import { useLogout } from "@/api/hooks";
 import {

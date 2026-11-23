@@ -511,14 +511,28 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
 }
 
 @Suite struct PlaceholderTests {
-    /// Hues from apps/web/src/lib/images.ts's placeholderGradient for these titles, as Android's test pins them.
-    @Test func huesAreTheWebsForTheSameTitles() {
-        let web = [
-            "Heat": 176, "Alien": 159, "": 0, "Glasshouse": 124, "Northern Lights": 121, "Ashfall": 265,
-            "A Film With No Poster Yet": 71, "Amélie": 331, "千と千尋の神隠し": 156, "The Quiet Harbor": 303,
-        ]
-        for (title, hue) in web {
-            #expect(Placeholder.hue(title) == hue, "\(title)")
+    /// packages/placeholder's examples, which every app's gradient is held to: each title's hue, and
+    /// its two colors as CSS makes them, within a step of a byte.
+    @Test func colorsAreThePlaceholderFilesExamples() throws {
+        let file = try #require(Self.marks)
+        // PlaceholderArt draws CSS's 135°: another angle needs it drawn again.
+        #expect(file.gradient.angle == 135)
+        #expect(!file.examples.isEmpty)
+        func bytes(_ c: (red: Double, green: Double, blue: Double)) -> [Int] {
+            [c.red, c.green, c.blue].map { Int(($0 * 255).rounded()) }
+        }
+        func hex(_ text: String) -> [Int] {
+            let value = Int(text.dropFirst(), radix: 16) ?? -1
+            return [(value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF]
+        }
+        func near(_ a: [Int], _ b: [Int]) -> Bool {
+            zip(a, b).allSatisfy { abs($0 - $1) <= 1 }
+        }
+        for example in file.examples {
+            #expect(Placeholder.hue(example.seed) == example.hue, "\(example.seed)")
+            let colors = Placeholder.colors(example.seed)
+            #expect(near(bytes(colors.from), hex(example.from)), "\(example.seed)")
+            #expect(near(bytes(colors.to), hex(example.to)), "\(example.seed)")
         }
     }
 
@@ -535,13 +549,26 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         #expect(bytes(Placeholder.hsl(240, 1, 0.5)) == [0, 0, 255])
     }
 
-    /// packages/placeholder-mark/marks.json, the mark every app draws.
+    /// packages/placeholder/placeholder.json, the gradient and the mark every app draws.
     private struct Marks: Decodable {
         struct Poster: Decodable {
             var path: String
             var alpha: Double
         }
 
+        struct Gradient: Decodable {
+            var angle: Int
+        }
+
+        struct Example: Decodable {
+            var seed: String
+            var hue: Int
+            var from: String
+            var to: String
+        }
+
+        var gradient: Gradient
+        var examples: [Example]
         var grid: Double
         var share: Double
         var shareOverTitle: Double
@@ -553,17 +580,17 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         var fallback: String
 
         enum CodingKeys: String, CodingKey {
-            case grid, share, shareOverTitle, max, gap, posters, glyphs, kinds
+            case gradient, examples, grid, share, shareOverTitle, max, gap, posters, glyphs, kinds
             case fallback = "default"
         }
     }
 
-    /// marks.json, found from this file up the repository.
+    /// placeholder.json, found from this file up the repository.
     private static let marks: Marks? = {
         var directory = URL(fileURLWithPath: #filePath)
         while directory.pathComponents.count > 1 {
             directory.deleteLastPathComponent()
-            let file = directory.appendingPathComponent("packages/placeholder-mark/marks.json")
+            let file = directory.appendingPathComponent("packages/placeholder/placeholder.json")
             if FileManager.default.fileExists(atPath: file.path) {
                 return try? JSONDecoder().decode(Marks.self, from: Data(contentsOf: file))
             }
@@ -598,7 +625,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         #expect(Placeholder.glyph(kind: nil) == .play)
     }
 
-    /// Points on marks.json's glyph paths: each glyph's parts are cut out of
+    /// Points on placeholder.json's glyph paths: each glyph's parts are cut out of
     /// the front poster, and the gaps between them stay filled.
     @Test func eachGlyphIsCutOutOfTheFrontPoster() throws {
         let glyphs: [(glyph: MarkGlyph, cut: [CGPoint], filled: [CGPoint])] = [
@@ -635,7 +662,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
             [a.minX - b.minX, a.minY - b.minY, a.maxX - b.maxX, a.maxY - b.maxY].allSatisfy { abs($0) < 0.001 }
         }
         let layers = Placeholder.markLayers(.play)
-        // Each poster spans what marks.json gives it, so none of its commands was dropped.
+        // Each poster spans what placeholder.json gives it, so none of its commands was dropped.
         #expect(near(layers[0].path.boundingBox, CGRect(x: 46, y: 21.5, width: 6, height: 21)))
         #expect(near(layers[1].path.boundingBox, CGRect(x: 36, y: 18.5, width: 8, height: 27)))
         #expect(near(Placeholder.path(Placeholder.markPosters[2].path).boundingBox,

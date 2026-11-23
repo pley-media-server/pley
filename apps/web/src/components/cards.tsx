@@ -2,7 +2,7 @@ import { memo } from "react";
 import { Link } from "react-router";
 import { Check, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import type { ItemSummary } from "@/api/types";
 import { cn } from "@/lib/cn";
 import { cardSubtitle, episodeLabel, formatRemaining, mediaBadges, mediaLine, progressFraction, seasonTitle, unwatchedCount } from "@/lib/format";

@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import type { MarkGlyph } from "pley-placeholder-mark";
+import type { MarkGlyph } from "pley-placeholder";
 import type { DiscoverDetail, DiscoverTitle, ItemKind, ItemRequest, MediaRequest, NewRequest } from "../../api/types";
 import { displayAddress } from "../../auth/addresses";
 import { t } from "../../i18n";

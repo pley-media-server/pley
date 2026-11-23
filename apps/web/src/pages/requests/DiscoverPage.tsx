@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Ban, ChevronLeft, Inbox, SearchX, ShieldCheck } from "lucide-react";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { isApiError } from "@/api/client";
 import {
   hasRequests,

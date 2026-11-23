@@ -25,7 +25,7 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
 | `apps/tizen-native` | Pley for Samsung TV, native (C#, Tizen .NET, NUI), built beside the web app |
 | `apps/webos` | Pley for LG TV, a native webOS app (Rust, a Cargo workspace of its own) |
 | `packages/tv` | The Samsung TV app's screens, player and API client (TypeScript, Preact) |
-| `packages/placeholder-mark` | Pley's mark on a picture that won't come, a glyph for each kind of library: the paths every app draws it from |
+| `packages/placeholder` | The placeholder of a picture that hasn't come, as every app draws it: the title's gradient, and Pley's mark with a glyph for each kind of library |
 | `packages/transcoder-api` | Protocol types shared by server and transcoder |
 | `deploy/` | Docker, systemd and launchd setups, the Windows installer, store listings |
 | `docs/` | Documentation |

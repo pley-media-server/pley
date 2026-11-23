@@ -1,12 +1,12 @@
 import CoreGraphics
 import PleyModel
 
-/// The picture of a title without one, as the web's `placeholderGradient`
-/// (apps/web/src/lib/images.ts) and Android's `Placeholder`: a 135° gradient
+/// The picture of a title without one, as every app draws it
+/// (packages/placeholder/placeholder.json, PlaceholderTests): a 135° gradient
 /// from hsl(h, 30 %, 22 %) to hsl(h + 40, 35 %, 12 %), where h comes from a
 /// hash of the title, and Pley's mark on it once no picture will come.
 public enum Placeholder {
-    /// The web's hue for `seed`: `h = h * 31 + unit` over its UTF-16 units, unsigned 32-bit, mod 360.
+    /// The hue for `seed`, as every app's: `h = h * 31 + unit` over its UTF-16 units, unsigned 32-bit, mod 360.
     public static func hue(_ seed: String) -> Int {
         var h: UInt32 = 0
         for unit in seed.utf16 { h = h &* 31 &+ UInt32(unit) }
@@ -38,7 +38,7 @@ public enum Placeholder {
         return (rgb.0 + m, rgb.1 + m, rgb.2 + m)
     }
 
-    // Pley's mark is a copy of packages/placeholder-mark/marks.json, the one
+    // Pley's mark is a copy of packages/placeholder/placeholder.json, the one
     // every app draws it from; a test holds the copy to the file.
 
     /// The side of the grid Pley's mark is drawn on.
@@ -95,8 +95,8 @@ public enum Placeholder {
         }
     }
 
-    /// `data`, a path of absolute M, L, C and Z as marks.json writes them,
-    /// as a CGPath: marks.json keeps to those so that this takes a few lines
+    /// `data`, a path of absolute M, L, C and Z as placeholder.json writes them,
+    /// as a CGPath: placeholder.json keeps to those so that this takes a few lines
     /// in place of an SVG parser. A command without the numbers it takes is
     /// left out.
     static func path(_ data: String) -> CGPath {

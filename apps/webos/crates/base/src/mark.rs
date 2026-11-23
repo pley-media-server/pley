@@ -1,6 +1,6 @@
 //! Pley's mark, as a placeholder shows it once no picture will come: the logo's three posters in
 //! white, each lighter than the one behind, a glyph cut out of the front one for the title's kind
-//! of library. packages/placeholder-mark/marks.json defines it for every app; this is the LG app's
+//! of library. packages/placeholder/placeholder.json defines it for every app; this is the LG app's
 //! copy, which a test holds to that file. `pley-gfx` rasterises it, `pley-kit` sizes it.
 
 /// The side of the square the paths are on (the logo's).
@@ -65,7 +65,7 @@ impl MarkGlyph {
         KINDS.iter().find(|(k, _)| *k == kind).map_or(MarkGlyph::DEFAULT, |(_, glyph)| *glyph)
     }
 
-    /// Its name in marks.json.
+    /// Its name in placeholder.json.
     pub fn name(self) -> &'static str {
         match self {
             MarkGlyph::Play => "play",
@@ -124,15 +124,15 @@ mod tests {
 
     use serde_json::Value;
 
-    /// packages/placeholder-mark/marks.json, from the repository this crate is in.
+    /// packages/placeholder/placeholder.json, from the repository this crate is in.
     fn marks() -> Value {
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../packages/placeholder-mark/marks.json");
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../packages/placeholder/placeholder.json");
         let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
         serde_json::from_str(&text).unwrap()
     }
 
     fn number(v: &Value, key: &str) -> f32 {
-        v[key].as_f64().unwrap_or_else(|| panic!("marks.json has no number {key}")) as f32
+        v[key].as_f64().unwrap_or_else(|| panic!("placeholder.json has no number {key}")) as f32
     }
 
     fn close(a: f32, b: f32) -> bool {

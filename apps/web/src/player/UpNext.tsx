@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Play, X } from "lucide-react";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import type { ItemSummary } from "@/api/types";
 import { Artwork } from "@/components/Artwork";
 import { episodeLabel } from "@/lib/format";

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { ChevronRight, Play } from "lucide-react";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { useChildren, useOnDeck, type ChildItem } from "@/api/hooks";
 import type { ItemDetail } from "@/api/types";
 import { Artwork } from "@/components/Artwork";

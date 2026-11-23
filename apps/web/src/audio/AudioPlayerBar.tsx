@@ -16,7 +16,7 @@ import {
   VolumeX,
   X,
 } from "lucide-react";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { Artwork } from "@/components/Artwork";
 import { Slider } from "@/components/Slider";
 import { IconButton } from "@/components/ui";

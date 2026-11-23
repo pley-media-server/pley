@@ -15,7 +15,7 @@ import {
   RefreshCw,
   Square,
 } from "lucide-react";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage } from "@/api/client";
 import { useActivity, useStopSession, useSystemInfo, useTranscoderStatus } from "@/api/hooks";
 import type {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router";
 import { ArrowUpDown, ChevronDown, ChevronUp, GripVertical, ImageUp, Layers, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage, isApiError } from "@/api/client";
 import { useLibraries } from "@/api/hooks";
 import {

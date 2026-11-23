@@ -13,7 +13,7 @@ on:
     paths:
       - apps/tizen-native/**
       - packages/tv/test/fixtures/**
-      - packages/placeholder-mark/**
+      - packages/placeholder/**
       - apps/android/core/testing/src/main/resources/fixtures/discover/**
       - apps/android/core/testing/src/main/resources/fixtures/requests/**
       - scripts/check-nuget-licenses.mjs
@@ -24,7 +24,7 @@ on:
     paths:
       - apps/tizen-native/**
       - packages/tv/test/fixtures/**
-      - packages/placeholder-mark/**
+      - packages/placeholder/**
       - apps/android/core/testing/src/main/resources/fixtures/discover/**
       - apps/android/core/testing/src/main/resources/fixtures/requests/**
       - scripts/check-nuget-licenses.mjs

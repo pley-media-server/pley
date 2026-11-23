@@ -1,6 +1,6 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { markLayers } from "pley-placeholder-mark";
+import { markLayers } from "pley-placeholder";
 import { Artwork } from "./Artwork";
 
 /** The `d` of the mark's front poster, where the glyph is cut out, or null without a mark. */

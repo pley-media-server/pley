@@ -1,6 +1,6 @@
 import type { CSSProperties } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { markLayers, type MarkGlyph } from "pley-placeholder-mark";
+import { markLayers, type MarkGlyph } from "pley-placeholder";
 import type { ItemSummary } from "../../api/types";
 import { useUi } from "../context";
 import { placeholderGradient } from "../images";
@@ -36,7 +36,7 @@ export function artCandidates(item: ItemSummary, kind: ArtKind): string[] {
 }
 
 /**
- * Pley's mark (packages/placeholder-mark): its three posters back to front,
+ * Pley's mark (packages/placeholder): its three posters back to front,
  * each lighter than the one behind, `glyph` cut out of the front one.
  */
 function Mark(p: { glyph: MarkGlyph }) {

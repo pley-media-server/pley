@@ -69,7 +69,7 @@ for (const name of ["remote.json", "language.json"]) {
 }
 // Pley's placeholder mark as every app draws it, and the pictures of it
 // this app ships (pkg:/images/placeholder-<shape>-<glyph>.png).
-files.set("placeholder-mark/marks.json", new Blob([readFileSync(join(root, "../../packages/placeholder-mark/marks.json"))]));
+files.set("placeholder/placeholder.json", new Blob([readFileSync(join(root, "../../packages/placeholder/placeholder.json"))]));
 for (const name of readdirSync(join(root, "images")).filter((n) => n.startsWith("placeholder-"))) {
   files.set(`images/${name}`, new Blob([readFileSync(join(root, "images", name))]));
 }

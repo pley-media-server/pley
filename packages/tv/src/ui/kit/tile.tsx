@@ -1,4 +1,4 @@
-import { markGlyph, type MarkGlyph } from "pley-placeholder-mark";
+import { markGlyph, type MarkGlyph } from "pley-placeholder";
 import type { ItemSummary } from "../../api/types";
 import { cardSubtitle, episodeLabel, formatRuntime, formatTimeLeft, isInProgress, progressFraction, summaryBadges, unwatchedCount } from "../../format/format";
 import { t } from "../../i18n";

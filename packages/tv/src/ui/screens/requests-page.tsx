@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { markGlyph } from "pley-placeholder-mark";
+import { markGlyph } from "pley-placeholder";
 import type { MediaRequest, RequestList, RequestUser, TitleKind } from "../../api/types";
 import { t } from "../../i18n";
 import {

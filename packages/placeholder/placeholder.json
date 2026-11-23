@@ -1,4 +1,84 @@
 {
+  "gradient": {
+    "angle": 135,
+    "from": {
+      "saturation": 0.3,
+      "lightness": 0.22
+    },
+    "to": {
+      "hueShift": 40,
+      "saturation": 0.35,
+      "lightness": 0.12
+    }
+  },
+  "examples": [
+    {
+      "seed": "Heat",
+      "hue": 176,
+      "from": "#274947",
+      "to": "#141c29"
+    },
+    {
+      "seed": "Alien",
+      "hue": 159,
+      "from": "#27493d",
+      "to": "#142329"
+    },
+    {
+      "seed": "",
+      "hue": 0,
+      "from": "#492727",
+      "to": "#292214"
+    },
+    {
+      "seed": "Glasshouse",
+      "hue": 124,
+      "from": "#27492a",
+      "to": "#142924"
+    },
+    {
+      "seed": "Northern Lights",
+      "hue": 121,
+      "from": "#274928",
+      "to": "#142923"
+    },
+    {
+      "seed": "Ashfall",
+      "hue": 265,
+      "from": "#352749",
+      "to": "#291428"
+    },
+    {
+      "seed": "A Film With No Poster Yet",
+      "hue": 71,
+      "from": "#434927",
+      "to": "#172914"
+    },
+    {
+      "seed": "Amélie",
+      "hue": 331,
+      "from": "#492738",
+      "to": "#291814"
+    },
+    {
+      "seed": "千と千尋の神隠し",
+      "hue": 156,
+      "from": "#27493b",
+      "to": "#142429"
+    },
+    {
+      "seed": "The Quiet Harbor",
+      "hue": 303,
+      "from": "#492747",
+      "to": "#29141a"
+    },
+    {
+      "seed": "Night 🎬 Drive",
+      "hue": 314,
+      "from": "#492741",
+      "to": "#291416"
+    }
+  ],
   "grid": 64,
   "share": 0.4,
   "shareOverTitle": 0.26,

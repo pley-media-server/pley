@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// Draws Pley's placeholder mark (packages/placeholder-mark/marks.json), one
+// Draws Pley's placeholder mark (packages/placeholder/placeholder.json), one
 // for each glyph, for the apps that ship it as a file rather than drawing
 // its paths:
 //
@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 import { renderer } from "./svg-render.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const marks = JSON.parse(readFileSync(join(root, "packages/placeholder-mark/marks.json"), "utf8"));
+const marks = JSON.parse(readFileSync(join(root, "packages/placeholder/placeholder.json"), "utf8"));
 const glyphs = Object.keys(marks.glyphs);
 
 /** The mark's paths with `glyph` cut out of the front poster, white at each poster's alpha. */

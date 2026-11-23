@@ -1,6 +1,38 @@
 import { describe, expect, it } from "vitest";
-import marks from "../marks.json";
-import { markGlyph, markLayers } from "../src/index";
+import marks from "../placeholder.json";
+import { markGlyph, markLayers, placeholderGradient, placeholderHue, placeholderStops } from "../src/index";
+
+/** CSS's hsl() as #rrggbb: hue in degrees, saturation and lightness in %. */
+function hex([h, s, l]: [number, number, number]): string {
+  const [sat, light] = [s / 100, l / 100];
+  const c = (1 - Math.abs(2 * light - 1)) * sat;
+  const sector = (h % 360) / 60;
+  const x = c * (1 - Math.abs((sector % 2) - 1));
+  const rgb = sector < 1 ? [c, x, 0] : sector < 2 ? [x, c, 0] : sector < 3 ? [0, c, x] : sector < 4 ? [0, x, c] : sector < 5 ? [x, 0, c] : [c, 0, x];
+  return "#" + rgb.map((v) => Math.round((v + light - c / 2) * 255).toString(16).padStart(2, "0")).join("");
+}
+
+describe("the placeholder's gradient", () => {
+  it("takes each example's hue from its title", () => {
+    for (const e of marks.examples) expect(placeholderHue(e.seed), JSON.stringify(e.seed)).toBe(e.hue);
+  });
+
+  it("has each example's colors at its two ends", () => {
+    // The examples are the rule worked out: a change to one without the other fails here.
+    for (const e of marks.examples) {
+      const { from, to } = placeholderStops(e.seed);
+      expect([hex(from), hex(to)], JSON.stringify(e.seed)).toEqual([e.from, e.to]);
+    }
+  });
+
+  it("counts a character beyond the first plane as its two UTF-16 units", () => {
+    expect(marks.examples.some((e) => [...e.seed].length < e.seed.length)).toBe(true);
+  });
+
+  it("is CSS with commas, which the TVs' older browsers read", () => {
+    expect(placeholderGradient("")).toBe("linear-gradient(135deg, hsl(0, 30%, 22%), hsl(40, 35%, 12%))");
+  });
+});
 
 /** A path's commands and their numbers; anything but absolute M, L, C and Z fails. */
 function commands(path: string): { cmd: string; args: number[] }[] {

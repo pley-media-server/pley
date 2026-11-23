@@ -5,14 +5,14 @@ namespace Pley.Tv.Core.Ui;
 
 /// <summary>
 /// The picture shown while artwork loads and when there is none (the Android app's Placeholder, the
-/// web's <c>placeholderGradient</c> in apps/web/src/lib/images.ts): a 135° gradient from
+/// other apps', packages/placeholder/placeholder.json, which the tests hold it to): a 135° gradient from
 /// hsl(h, 30 %, 22 %) to hsl(h + 40, 35 %, 12 %), where h comes from a hash of the title, so each
 /// title has its own color. Once no picture will come, Pley's mark is on it, with a glyph for the
 /// title's kind of library cut out of its front poster.
 /// </summary>
 public static class Placeholder
 {
-    /// <summary>The web's hue for <paramref name="seed"/>: <c>h = h * 31 + code</c> over UTF-16 units, unsigned 32-bit, mod 360.</summary>
+    /// <summary>The hue for <paramref name="seed"/>, as every app's: <c>h = h * 31 + code</c> over UTF-16 units, unsigned 32-bit, mod 360.</summary>
     public static int Hue(string seed)
     {
         ulong h = 0;
@@ -29,7 +29,7 @@ public static class Placeholder
 
     /// <summary>
     /// The glyph cut out of the mark's front poster for each kind of item (the API's kind): its
-    /// library's. packages/placeholder-mark/marks.json defines the mark for every app; the app draws
+    /// library's. packages/placeholder/placeholder.json defines the mark for every app; the app draws
     /// it from shared/res/placeholder-mark-&lt;glyph&gt;.svg, which
     /// scripts/render-placeholder-marks.mjs makes from it, and the tests hold this map and those
     /// files to it.
