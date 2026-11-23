@@ -48,18 +48,23 @@ end function
 ' A style of PleyType.Tv by name: heroTitle, pageTitle, section, title,
 ' bodyLarge, body, label, caption (captionBold, a focused tile's), badge.
 function uiType(style as string) as object
-    styles = {
-        heroTitle: ["bold", 76],
-        pageTitle: ["bold", 56],
-        section: ["bold", 36],
-        title: ["bold", 32],
-        bodyLarge: ["regular", 30],
-        body: ["regular", 28],
-        label: ["medium", 28],
-        caption: ["medium", 26],
-        captionBold: ["bold", 26],
-        badge: ["bold", 22]
-    }
+    ' Made once a component: list items ask for their styles each time
+    ' they show another entry.
+    if m.uiTypeStyles = invalid
+        m.uiTypeStyles = {
+            heroTitle: ["bold", 76],
+            pageTitle: ["bold", 56],
+            section: ["bold", 36],
+            title: ["bold", 32],
+            bodyLarge: ["regular", 30],
+            body: ["regular", 28],
+            label: ["medium", 28],
+            caption: ["medium", 26],
+            captionBold: ["bold", 26],
+            badge: ["bold", 22]
+        }
+    end if
+    styles = m.uiTypeStyles
     found = styles[style]
     if found = invalid then found = styles.body
     return uiFont(found[0], found[1])

@@ -12,6 +12,9 @@ sub init()
     m.maskPlace = m.top.findNode("maskPlace")
     m.imageWidth = 0
     m.imageHeight = 0
+    ' The size and shape laid out, and the marks measured, for onLayout.
+    m.shapeShown = ""
+    m.marksShown = ""
     m.well = m.top.findNode("well")
     m.fallback = m.top.findNode("fallback")
     m.poster = m.top.findNode("poster")
@@ -99,9 +102,8 @@ sub onContent()
     for i = 0 to m.qualities.Count() - 1
         text = ""
         if i < qualities.Count() then text = qualities[i]
+        ' Shown by onLayout, which knows which fit.
         m.qualities[i].text = text
-        m.qualities[i].visible = text <> ""
-        m.qualityBacks[i].visible = text <> ""
     end for
     ' The scene's agent carries the token; it changes with each refresh.
     m.poster.setHttpAgent(m.top.getScene().getHttpAgent())
@@ -132,6 +134,19 @@ sub onLayout()
     imageHeight = Int(w * 1.5)
     if m.wide then imageHeight = Int(w * 9 / 16)
     if m.square or m.person then imageHeight = Int(w)
+    ' The shape's layout only when the size or the shape changed: a list
+    ' binds its tiles to title after title of the same shape as it scrolls.
+    shape = w.ToStr() + " " + imageHeight.ToStr()
+    if m.person then shape = shape + " person"
+    if shape <> m.shapeShown
+        m.shapeShown = shape
+        layoutShape(w, imageHeight)
+    end if
+    layoutMarks(w, imageHeight)
+end sub
+
+' The artwork, its well, ring and growth for its size and shape.
+sub layoutShape(w as float, imageHeight as integer)
     ' A person's picture is a circle, its ring one too; the others' corners
     ' round 8 px.
     if m.round <> invalid and m.round.supported
@@ -185,6 +200,19 @@ sub onLayout()
     m.fallback.translation = [16, 16]
     m.fallback.width = w - 32
     m.fallback.height = imageHeight - 32
+    m.watched.translation = [w - 52, 12]
+    m.title.translation = [0, imageHeight + 28]
+    m.title.width = w
+    m.subtitle.translation = [0, imageHeight + 62]
+    m.subtitle.width = w
+end sub
+
+' What the title has on its artwork: how far along, its badge and its
+' quality badges, measured again only when their words change.
+sub layoutMarks(w as float, imageHeight as integer)
+    ' The round corners again for each title: onLoaded takes them off a
+    ' picture of another shape.
+    if m.round <> invalid and m.round.supported and not m.person then m.poster.effect = m.round
     ' How far along: an 8 px bar along the artwork's foot.
     m.track.translation = [0, imageHeight - 8]
     m.track.width = w
@@ -194,7 +222,13 @@ sub onLayout()
     m.fill.height = 8
     m.track.visible = m.progress > 0
     m.fill.visible = m.progress > 0
-    m.watched.translation = [w - 52, 12]
+    marks = m.shapeShown + " " + m.badge.text
+    if m.progress > 0 then marks = marks + " along"
+    for each label in m.qualities
+        marks = marks + " " + label.text
+    end for
+    if marks = m.marksShown then return
+    m.marksShown = marks
     ' The badge at the artwork's top left, as wide as its words; cut short
     ' only when they don't fit.
     if m.badge.visible
@@ -216,6 +250,8 @@ sub onLayout()
     for i = 0 to m.qualities.Count() - 1
         label = m.qualities[i]
         back = m.qualityBacks[i]
+        label.visible = false
+        back.visible = false
         if label.text <> ""
             label.width = 0
             chipWidth = label.boundingRect().width + 24
@@ -228,10 +264,6 @@ sub onLayout()
             x = x + chipWidth + 12
         end if
     end for
-    m.title.translation = [0, imageHeight + 28]
-    m.title.width = w
-    m.subtitle.translation = [0, imageHeight + 62]
-    m.subtitle.width = w
 end sub
 
 ' The list's focusPercent grows the tile and fades its ring in as focus

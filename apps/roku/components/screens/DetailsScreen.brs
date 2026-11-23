@@ -165,7 +165,10 @@ sub showDetail()
     m.detail = contentDetail(m.item, m.global.session.server, m.onDeck)
     m.message.visible = false
     m.heading.text = m.detail.heading
-    m.line.parts = contentDetailParts(m.item)
+    ' Each answer (the on-deck one, a reload, a rating) draws the line and
+    ' lays the words out again only when they changed.
+    parts = contentDetailParts(m.item)
+    if FormatJson(parts) <> FormatJson(m.line.parts) then m.line.parts = parts
     m.genres.text = m.detail.genres
     m.credits.text = m.detail.credits
     m.tagline.text = m.detail.tagline
@@ -235,6 +238,11 @@ sub layoutText()
             shown.Push(part.label)
         end if
     end for
+    same = m.text.getChildCount() = shown.Count()
+    for i = 0 to shown.Count() - 1
+        if same and not m.text.getChild(i).isSameNode(shown[i]) then same = false
+    end for
+    if same then return
     m.text.removeChildrenIndex(m.text.getChildCount(), 0)
     m.text.appendChildren(shown)
     m.text.itemSpacings = spacings
