@@ -897,7 +897,11 @@ async function walk() {
   // Back on the show's page, its last row: the collections it is part of,
   // whose first, of five movies, plays them in its order. Down past its
   // buttons slides its page up to its posters, Up back to the buttons.
+  // Showing again, the page asks for its rows again: Down waits for the
+  // collections' row, the last to come, or would stop at More like this.
+  const backOnShow = mark();
   await press("back");
+  for (let i = 0; i < 50 && !seen(/^GET \/api\/items\/99\/collections$/, backOnShow); i++) await sleep(100);
   await settle();
   await press("down", 2); // past More like this to Collections
   since = mark();
@@ -1140,7 +1144,11 @@ async function walk() {
   await press("select"); // Request
   await waitFor(/^POST \/api\/requests$/, since, "a movie asked for");
   shoot("discover-asked");
-  await press("select"); // OK: its page, saying how it stands
+  // OK: its page, saying how it stands, asked for again as it shows; Back
+  // waits for it, or would come before the page had the focus again.
+  const okOnAsked = mark();
+  await press("select");
+  for (let i = 0; i < 50 && !seen(/^GET \/api\/discover\/movie\/7001$/, okOnAsked); i++) await sleep(100);
   await settle();
   shoot("discover-title");
   await press("back"); // Discover, on the hero
