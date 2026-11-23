@@ -17,7 +17,9 @@
         <Group id="body">
             <Rectangle id="box" translation="[32, 22]" width="44" height="44" color="0x2E3440FF" />
             <Poster id="tick" translation="[34, 24]" width="40" height="40" uri="pkg:/images/watched.png" visible="false" />
-            <Label id="name" translation="[104, 0]" width="500" height="88" vertAlign="center" color="0xEBEBEBFF" font="font:SmallBoldSystemFont" />
+            <Label id="name" translation="[104, 0]" width="500" height="88" vertAlign="center" color="0xEBEBEBFF">
+                <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="30" />
+            </Label>
             <Label id="state" translation="[620, 0]" width="350" height="88" vertAlign="center" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         </Group>
     </children>

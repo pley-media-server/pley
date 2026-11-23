@@ -18,7 +18,9 @@
         <Poster id="thumb" translation="[16, 14]" width="298" height="168" loadWidth="298" loadHeight="168" loadDisplayMode="scaleToZoom" />
         <Rectangle id="track" translation="[16, 172]" width="298" height="10" color="0x16191ECC" visible="false" />
         <Rectangle id="fill" translation="[16, 172]" width="0" height="10" color="0x38BDF8FF" visible="false" />
-        <Label id="title" translation="[340, 16]" width="760" color="0xEBEBEBFF" font="font:SmallBoldSystemFont" />
+        <Label id="title" translation="[340, 16]" width="760" color="0xEBEBEBFF">
+            <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="30" />
+        </Label>
         <Label id="subtitle" translation="[340, 60]" width="760" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <Label id="summary" translation="[340, 100]" width="760" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:TinySystemFont" />
     </children>

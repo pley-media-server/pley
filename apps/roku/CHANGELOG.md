@@ -127,6 +127,9 @@ describes how they are made.
 
 ### Fixed
 
+- What is meant to be bold is: episode, request and channel titles, the
+  status pills, an artist's Albums and Search's recent searches heading
+  showed in Roboto's regular weight.
 - Media info and the player's Playback details end at a whole line, and
   scroll a line at a time, where a line was cut in half at the foot.
 - Choosing a language the server is too old to keep says to update Pley

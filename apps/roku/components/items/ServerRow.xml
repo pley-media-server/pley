@@ -12,7 +12,9 @@
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="background" width="1000" height="104" color="0x262B35FF" />
-        <Label id="name" translation="[32, 14]" width="620" color="0xEBEBEBFF" font="font:MediumBoldSystemFont" />
+        <Label id="name" translation="[32, 14]" width="620" color="0xEBEBEBFF">
+            <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="36" />
+        </Label>
         <Label id="address" translation="[32, 60]" width="620" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <Label id="tag" translation="[640, 36]" width="328" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
     </children>

@@ -18,7 +18,9 @@
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="back" height="44" />
-        <Label id="label" translation="[18, 0]" height="44" vertAlign="center" color="0x16191EFF" font="font:SmallestBoldSystemFont" />
+        <Label id="label" translation="[18, 0]" height="44" vertAlign="center" color="0x16191EFF">
+            <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
+        </Label>
         <Rectangle id="track" width="240" height="10" color="0x2E3440FF" visible="false" />
         <Rectangle id="fill" height="10" visible="false" />
     </children>

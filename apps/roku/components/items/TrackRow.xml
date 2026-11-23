@@ -18,6 +18,8 @@
         <Label id="subtitle" translation="[800, 0]" width="180" height="80" vertAlign="center" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <Label id="duration" translation="[984, 0]" width="108" height="80" horizAlign="right" vertAlign="center" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <!-- "Disc 2", at the foot of its row, over the disc's tracks. -->
-        <Label id="heading" translation="[32, 0]" width="760" height="72" vertAlign="bottom" color="0xA1A9B6FF" font="font:SmallBoldSystemFont" visible="false" />
+        <Label id="heading" translation="[32, 0]" width="760" height="72" vertAlign="bottom" color="0xA1A9B6FF" visible="false">
+            <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="30" />
+        </Label>
     </children>
 </component>
