@@ -1,0 +1,88 @@
+name: Report a bug
+description: Something in Pley doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. One bug per issue, please.
+
+        Issues are for bugs. **To ask for a feature, start a discussion in [Ideas](https://github.com/pley-media-server/pley/discussions/new?category=ideas)**, or vote for one that's already there. For help setting Pley up, ask in [Q&A](https://github.com/pley-media-server/pley/discussions/new?category=q-a). A vulnerability is reported privately, as [SECURITY.md](https://github.com/pley-media-server/pley/blob/master/SECURITY.md) says.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you saw, and what you expected instead. Copy any error message as it reads.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Open a movie with Dolby Atmos audio
+        2. Press Play
+        3. …
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it happens
+      multiple: true
+      options:
+        - Server
+        - Web app
+        - Desktop app (Windows, macOS, Linux)
+        - Android phone or tablet
+        - Android TV, Google TV or Fire TV
+        - Samsung TV
+        - LG TV
+        - Roku
+        - Kodi
+        - Another app, through the compatibility APIs
+    validations:
+      required: true
+  - type: input
+    id: server-version
+    attributes:
+      label: Server version
+      description: "`pley --version`, or the release you installed. Only the latest release gets fixes."
+      placeholder: 0.1.15
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How the server runs
+      options:
+        - Docker
+        - Windows
+        - macOS
+        - Linux
+        - Synology
+        - Unraid
+        - Other
+  - type: input
+    id: app
+    attributes:
+      label: The app and the device
+      description: The app's version and the device it runs on, if the bug is in an app.
+      placeholder: Android 0.1.17 on a Chromecast with Google TV
+  - type: textarea
+    id: media
+    attributes:
+      label: The file
+      description: For something that won't play or plays wrong, what the file holds (container, video and audio codecs, HDR, subtitles). MediaInfo's summary has all of it.
+  - type: textarea
+    id: log
+    attributes:
+      label: The server's log
+      description: The lines from when it happened, from `logs/pley.log` in the data folder ([STORAGE.md](https://github.com/pley-media-server/pley/blob/master/docs/STORAGE.md)) or `docker logs`. Read them over first, since they can show titles, user names and addresses.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send it
+      options:
+        - label: I searched the issues, and this bug isn't reported yet.
+          required: true
+        - label: It happens on the latest release.
