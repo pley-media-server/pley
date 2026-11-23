@@ -1235,12 +1235,16 @@ async function walk() {
   shoot("movie-audio");
   await press("select"); // French (AC3 5.1), then the menu again
   await waitFor(/^PUT \/api\/items\/1011\/streams$/, pickedSince, "the audio picked, saved");
+  // Saved, the menu is made again with the choice in it: a press meanwhile
+  // can land before its focus is back on Audio.
+  await sleep(800);
   pickedSince = mark();
   await press("down");
   await press("select"); // Subtitles' choices, English (SRT) checked
   await press("up");
   await press("select"); // Off
   await waitFor(/^PUT \/api\/items\/1011\/streams$/, pickedSince, "the subtitles turned off, saved");
+  await sleep(800);
   await press("up", 2);
   await press("select"); // Version's choices, the first checked
   await press("down");
