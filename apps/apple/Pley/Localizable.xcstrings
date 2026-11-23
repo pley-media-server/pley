@@ -510,6 +510,35 @@
         }
       }
     },
+    "%lld of %lld" : {
+      "comment" : "VoiceOver: which of Home's featured titles shows (\"2 of 6\").",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld de %2$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld sur %2$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %1$lld 个，共 %2$lld 个"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %1$lld 個，共 %2$lld 個"
+          }
+        }
+      }
+    },
     "%lld percent" : {
       "comment" : "VoiceOver value of a request's download progress bar: \"42 percent\".",
       "localizations" : {
@@ -1048,6 +1077,35 @@
         }
       }
     },
+    "Artists" : {
+      "comment" : "A row on the Listen tab: the music library's artists.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artistas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artistes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "艺人"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "藝人"
+          }
+        }
+      }
+    },
     "Ascending" : {
       "comment" : "A library's order.",
       "localizations" : {
@@ -1218,6 +1276,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "背景"
+          }
+        }
+      }
+    },
+    "Browse by genre" : {
+      "comment" : "Heading in Search before anything is typed: a library's genres as tiles, each opening the library filtered by it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explorar por género"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parcourir par genre"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按类型浏览"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按類型瀏覽"
           }
         }
       }
@@ -2411,6 +2498,35 @@
         }
       }
     },
+    "Edit order" : {
+      "comment" : "The last row of the iPhone's Library picker: opens the list of libraries, where they are put in order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editar orden"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier l’ordre"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑顺序"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編輯順序"
+          }
+        }
+      }
+    },
     "Episodes" : {
       "comment" : "A title's page: the heading of a season's episodes.",
       "localizations" : {
@@ -2523,6 +2639,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "收藏"
+          }
+        }
+      }
+    },
+    "Featured" : {
+      "comment" : "VoiceOver's name for Home's banner of featured titles.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Destacados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À la une"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精选"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精選"
           }
         }
       }
@@ -3550,6 +3695,35 @@
         }
       }
     },
+    "Listen" : {
+      "comment" : "The iPhone's tab for music and playlists, in place of Playlists.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escuchar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écouter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收听"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收聽"
+          }
+        }
+      }
+    },
     "Live" : {
       "comment" : "The live player's badge; a program's Live badge.",
       "localizations" : {
@@ -4097,6 +4271,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "音樂"
+          }
+        }
+      }
+    },
+    "Music Libraries" : {
+      "comment" : "The Listen tab's last part: the profile's music libraries, each opening its page.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliotecas de música"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothèques de musique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音乐资料库"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音樂資料庫"
           }
         }
       }
@@ -6185,6 +6388,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最近搜尋"
+          }
+        }
+      }
+    },
+    "Recently Played" : {
+      "comment" : "A row on the Listen tab: the albums of the profile's latest tracks.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escuchado recientemente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écouté récemment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近播放"
           }
         }
       }
@@ -8563,6 +8795,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "版本"
+          }
+        }
+      }
+    },
+    "Video" : {
+      "comment" : "A badge on a video playlist's tile, among the music on the Listen tab.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vidéo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影片"
           }
         }
       }

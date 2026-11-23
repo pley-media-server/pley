@@ -25,6 +25,8 @@ struct ShellView: View {
     @ObservedObject private var remote: RemoteModel
     private let layout = WideLayout()
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// The Library tab's picker is open.
+    @State private var pickingLibrary = false
 
     init(app: AppModel) {
         self.app = app
@@ -50,6 +52,12 @@ struct ShellView: View {
             ShellSheet(app: app, sheet: sheet)
         }
         #if os(iOS)
+        .sheet(isPresented: $pickingLibrary) {
+            let entries = libraryEntries
+            LibraryPickerSheet(shell: shell, entries: entries) { pickingLibrary = false }
+                .presentationDetents([.height(LibraryPickerSheet.height(entries.count)), .large])
+                .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: Binding(get: { shell.nowPlayingOpen }, set: { shell.nowPlayingOpen = $0 })) {
             NavigationStack {
                 NowPlayingView(app: app) { shell.nowPlayingOpen = false }
@@ -100,11 +108,11 @@ struct ShellView: View {
 
     @ViewBuilder private var tabs: some View {
         // A library opened from the sidebar shows under Libraries.
-        let view = TabView(selection: Binding(get: { Self.tab(shell.section) }, set: { shell.select($0) })) {
+        let view = TabView(selection: Binding(get: { Self.tab(shell.section) }, set: { choose(tab: $0) })) {
             ForEach(shell.sections, id: \.self) { section in
                 stack(section == Self.tab(shell.section) ? shell.section : section)
                     .safeAreaInset(edge: .bottom, spacing: 0) { foot(inAccessory: accessoryHoldsMiniPlayer) }
-                    .tabItem { Label(Self.title(section), systemImage: Self.symbol(section)) }
+                    .tabItem { tabLabel(section) }
                     .badge(section == .me ? shell.requestsEntry.badgeText.map { Text($0) } : nil)
                     #if os(iOS)
                     .background { TabBadgeColour(alarm: shell.requestsEntry.alarm) }
@@ -130,6 +138,44 @@ struct ShellView: View {
         #else
         view
         #endif
+    }
+
+    /// A tab chosen. The Library tab opens its picker, or goes straight to
+    /// the one place it has to show (`LibraryPicker.direct`); with none, to
+    /// the list of libraries, which says why.
+    private func choose(tab: ShellSection) {
+        #if os(iOS)
+        if tab == .libraries {
+            let entries = libraryEntries
+            if let only = LibraryPicker.direct(entries) {
+                shell.select(only)
+            } else if entries.isEmpty {
+                shell.select(.libraries)
+            } else {
+                pickingLibrary = true
+            }
+            return
+        }
+        #endif
+        shell.select(tab)
+    }
+
+    /// The Library tab's places, as its picker lists them.
+    private var libraryEntries: [LibraryPickerEntry] {
+        LibraryPicker.entries(libraries: shell.libraries, liveTv: shell.liveTv)
+    }
+
+    /// A tab's label: the Library tab takes the name of the library it shows, or showed last;
+    /// Playlists is Listen.
+    private func tabLabel(_ section: ShellSection) -> some View {
+        if section == .playlists {
+            return Label(localized("Listen"), systemImage: "headphones")
+        }
+        if section == .libraries {
+            let label = LibraryPicker.label(showing: shell.section, last: shell.lastLibrary, libraries: shell.libraries)
+            return Label(label.title, systemImage: label.symbol)
+        }
+        return Label(Self.title(section), systemImage: Self.symbol(section))
     }
 
     private static func tab(_ section: ShellSection) -> ShellSection {
@@ -230,9 +276,11 @@ struct ShellView: View {
         switch section {
         case .home: HomeView(app: app)
         case .libraries: LibrariesView(app: app)
-        case .library(let id): LibraryView(app: app, libraryId: id)
+        // Another library picked under the same tab is a page of its own, never the last one's.
+        case .library(let id): LibraryView(app: app, libraryId: id).id(id)
         case .search: SearchView(app: app)
-        case .playlists: PlaylistsView(app: app)
+        // The iPhone's Listen holds the playlists, beside the music; the sidebar keeps Playlists.
+        case .playlists: if layout.wide { PlaylistsView(app: app) } else { ListenView(app: app) }
         case .me, .settings, .nowPlaying: MeView(app: app)
         case .liveTv: LiveTvView(app: app)
         // Apple TV's tab only: here requests are under Me.
@@ -439,7 +487,9 @@ struct ScreenView: View {
         case .person(let id):
             PersonView(app: app, personId: id)
         case .library(let id, let view):
+            // A library swapped in from the title's menu is a page of its own, never the last one's.
             LibraryView(app: app, libraryId: id, view: view)
+                .id("\(id) \(view ?? "")")
         case .libraries:
             LibrariesView(app: app)
         case .collection(let id):

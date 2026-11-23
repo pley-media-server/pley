@@ -4,8 +4,10 @@ import SwiftUI
 
 /// A library's page: Recommended (its rows, the collections administrators put
 /// there), Library (every title, sorted and filtered, in a grid read 100 at a
-/// time) and Collections (not for music). Sort is a menu with the order beside
-/// it; the filters are a sheet on iPhone and a menu on iPad and Mac; More has
+/// time) and Collections (not for music). Its title is a menu of the
+/// profile's other libraries, which shows one instead (`ShellModel.switchLibrary`).
+/// Sort is a menu with the order beside it; the filters are a sheet on iPhone
+/// and a menu on iPad and Mac, and Filter has a dot while one is on; More has
 /// Save as Smart Playlist. Sorted by title, a strip of letters down the side
 /// jumps through the grid. The page opens as it was left, or as See all asks.
 struct LibraryView: View {
@@ -22,6 +24,7 @@ struct LibraryView: View {
     var body: some View {
         content
             .navigationTitle(model.title)
+            .toolbarTitleMenu { otherLibraries }
             .toolbar { toolbar }
             .sheet(isPresented: $filtering) {
                 NavigationStack {
@@ -180,6 +183,18 @@ struct LibraryView: View {
         }
     }
 
+    /// The title's menu: the profile's other libraries, in its order.
+    @ViewBuilder private var otherLibraries: some View {
+        ForEach(app.shell.libraries.filter { $0.id != model.libraryId }) { library in
+            Button {
+                app.shell.switchLibrary(to: library.id)
+            } label: {
+                Label(library.name, systemImage: LibraryEntry.symbol(library.kind))
+            }
+            .accessibilityIdentifier("library.switch.\(library.id)")
+        }
+    }
+
     /// How the titles are sorted: "Year, descending".
     private var sorting: String {
         let sort = model.params.sort.title
@@ -192,9 +207,22 @@ struct LibraryView: View {
         [sorting, model.filterSummary].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
+    /// Filter, with a dot while a filter is on.
     private var filterLabel: some View {
-        Label("Filter", systemImage: model.params.filtered
-            ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+        Label {
+            Text("Filter")
+        } icon: {
+            Image(systemName: "line.3.horizontal.decrease")
+                .overlay(alignment: .topTrailing) {
+                    if model.params.filtered {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 8, height: 8)
+                            .offset(x: 4, y: -3)
+                            .accessibilityHidden(true)
+                    }
+                }
+        }
     }
 }
 

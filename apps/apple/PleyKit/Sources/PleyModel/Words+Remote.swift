@@ -161,8 +161,11 @@ extension Words {
         }
     }
 
-    /// After "Play on…": where it went.
+    /// After "Play on…": where it went. Also the remote bar's second line under what plays.
     public static func playingOn(_ device: String) -> String { localized("Playing on \(device)") }
+
+    /// The remote bar's second line while what plays on `device` is paused.
+    public static func pausedOn(_ device: String) -> String { localized("Paused on \(device)") }
 
     /// "Play on…" while a cast is on its way there, until the device plays it.
     public static func startingOn(_ device: String) -> String { localized("Starting on \(device)…") }

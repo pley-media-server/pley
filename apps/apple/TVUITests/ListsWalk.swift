@@ -66,13 +66,14 @@ extension Walk {
         wait(element("addToPlaylist.what"), "Add to playlist's panel")
     }
 
-    /// `first`: the way to the Playlists tab from the tab showing, up into
+    /// `first`: the way to the Listen tab from the tab showing, up into
     /// the tabs and then along them (left from Now Playing, which follows it).
+    /// Listen, Apple TV's tab of playlists and music.
     func openPlaylists(first: [XCUIRemote.Button] = [.up, .right]) {
-        let tab = app.tabBars.buttons["Playlists"]
-        focus(tab, "the Playlists tab", first: first)
+        let tab = app.tabBars.buttons["Listen"]
+        focus(tab, "the Listen tab", first: first)
         remote.press(.select)
-        wait(button("playlists.new"), "Playlists")
+        wait(button("listen.newPlaylist"), "Listen")
     }
 
     /// A movie's actions, Add to playlist and a new playlist "UI Test"; a
@@ -109,7 +110,7 @@ extension Walk {
         guard entries.count == 2 else { return }
 
         openPlaylists()
-        select(button("tile.playlist.\(id)"), "UI Test in Playlists", first: [.down, .right])
+        select(button("tile.playlist.\(id)"), "UI Test in Listen", first: [.down, .right])
         wait(element("playlist.title"), "UI Test's page")
         shot("18-playlist")
 
@@ -161,7 +162,7 @@ extension Walk {
         select(button("playlist.delete"), "Delete", first: [.right, .left])
         select(button("playlist.delete.confirm", or: "Delete Playlist"), "Delete's confirmation", first: [.up, .down])
         await eventually("the server deleted it") { await Admin.playlists().allSatisfy { $0["id"] as? Int != id } }
-        wait(button("playlists.new"), "Playlists after the delete")
+        wait(button("listen.newPlaylist"), "Listen after the delete")
     }
 
     /// Movies' filters saved as a smart playlist from the row of controls:

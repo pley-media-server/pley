@@ -57,9 +57,18 @@ with Home meanwhile). Switching profile, signing out or signing
 in to another server starts every section again at Home.
 
 - **iPhone**, and iPad in a narrow window (Slide Over, a third of Split
-  View): a tab bar with Home, Libraries, Search, Playlists and Me. A library
-  opened from the sidebar before the window narrowed shows under
-  Libraries. While music has a queue, the mini player sits above the tab
+  View): a tab bar with Home, Library, Search, Listen and Me. Library
+  opens a picker over the tab bar: the profile's movie and show libraries
+  in its order (music is under Listen),
+  each with its kind's symbol and what it holds, then Live TV with its
+  channel count when it shows (marked Live), the one showing checked,
+  then Edit order, which shows the list of libraries. Choosing one shows
+  it under the tab, which takes its name ("Movies") and keeps it while
+  other tabs show; a tap on the tab opens the picker again. With one
+  place to show, the tab goes straight there; with none, to the list,
+  which says why. VoiceOver reads the picker as a list of buttons, the
+  one showing selected. A library opened from the sidebar before the
+  window narrowed shows under Library. While music has a queue, the mini player sits above the tab
   bar (on iOS 26.1 and later, in the tab bar's own accessory, whose words
   stop growing at the largest size below the accessibility sizes, as the
   tab bar's own do). While another of the profile's devices is on, the
@@ -75,15 +84,16 @@ in to another server starts every section again at Home.
   ([Remote control](#remote-control)).
 - **Apple TV**: tabs across the top: Search (a magnifying glass alone,
   first, as in Apple's apps), Home, Discover (or Your requests, Requests
-  for administrators) where requests are open, Live TV when it shows, a
-  tab per library with its name while they all fit (the first that fit
-  otherwise, and a Libraries tab for the rest; a long name fits fewer),
-  Playlists, Now Playing while music has a queue (a music note alone),
-  and Settings (a gear alone; it holds what Me holds elsewhere). Seven
-  tabs at most show, and no more than fit the screen's width, unless the
-  requests' tab, Live TV and Now Playing all show: then Libraries is an
-  eighth tab and the tabs scroll, as Android TV's rail does. VoiceOver
-  reads the symbols' names. The focus engine and the Siri Remote move
+  for administrators) where requests are open, Live TV when it shows,
+  Libraries (one tab for the movie and show libraries, showing the one
+  chosen last, the first in the profile's order before any; a library's
+  title switches to another), Listen (the playlists and
+  the music libraries, which have no tab), Now Playing while music has a
+  queue (a music note alone), and Settings (a gear alone; it holds what
+  Me holds elsewhere, Switch profile and Sign out among it). While the
+  tabs' words wouldn't fit across the screen, Listen, then Libraries, Live
+  TV and Discover show their symbol alone until they do, so Settings
+  stays in sight. VoiceOver reads the symbols' names. The focus engine and the Siri Remote move
   through it; Menu goes back, then to the tabs, then out of the app.
 
 **On the Mac**, the menu bar has the app's commands, and Settings (⌘,)
@@ -159,19 +169,40 @@ behind it.
   Apple TV, keeps the profile in use). Each profile shows its picture, or
   its initials on its color; one with a PIN asks for it (4 to 8 digits,
   typed on the number pad), one that needs its password says how to choose
-  it, and a locked one can't be chosen.
-- **Home**: the server's rows for the profile, each a line of tiles in the
-  row's shape: stills for Continue Watching and episodes, posters for
-  films and shows, squares for music. A tile shows its picture, its title
-  and a second line (the year, "S2 · E5", the artist), how far it was
-  played, a check once watched, and a show's unwatched episodes; VoiceOver
-  reads it as one ("Arrival, 2016", "watched"). Tiles grow with the text
-  size, up to 1.6 times. Pictures are fetched at the width they show,
-  rounded up to a multiple of 64 pixels, and fade in except under Reduce
-  Motion. At most 6 are fetched at once, the newest asked for first, and
-  one scrolled away before it comes isn't fetched. They are kept in memory
-  up to 32 MB on a device with 3 GB of memory or less (otherwise 64 MB on
-  Apple TV and 96 MB elsewhere), half of that when the app goes to the
+  it, and a locked one can't be chosen. On Apple TV the profiles sit in
+  the middle of the screen, with Sign out below them (asked first, as in
+  Settings), for a profile that needs its password.
+- **Home**: a banner of featured titles, then the server's rows for the
+  profile. The banner picks its titles as Android's and the web's do:
+  the newest movies and shows not yet watched that have a backdrop, a
+  library's at a time, then My List's (the newest watched ones once
+  everything has been), and in every third place one of the movie and
+  show libraries' Top Rated not yet watched, the same ones all day. It
+  shows one at a time over its backdrop, which fades into the page: why
+  it is there ("New in Movies", "Top rated", "On your list"), its title,
+  year, running time and rating, Play (Resume when part played), My List
+  and Details, and a dot for each title. It turns to the next every 9
+  seconds, except while touched, scrolled away, or under Reduce Motion;
+  a swipe or a dot turns it, and VoiceOver turns it with a swipe up or
+  down on the title, saying which of how many it is. On iPhone it runs
+  up under the status bar, without a navigation bar; beside the iPad's
+  and the Mac's sidebar it is a rounded card under the title. On Apple
+  TV Home opens with the focus on its Play, the backdrop fills the
+  screen and the banner shows the summary too; left from Play and right
+  from Details turn it, it turns by itself only while it shows, and
+  VoiceOver reads the title with Play and which of how many it is. Each
+  of the server's rows is a line of tiles in the row's shape: stills for
+  Continue Watching and episodes, posters for films and shows, squares
+  for music. A tile shows its picture, its title and a second line (the
+  year, "S2 · E5", the artist), how far it was played, a check once
+  watched, and a show's unwatched episodes; VoiceOver reads it as one
+  ("Arrival, 2016", "watched"). Tiles grow with the text size, up to 1.6
+  times. Pictures are fetched at the width they show, rounded up to a
+  multiple of 64 pixels, and fade in except under Reduce Motion. At most
+  6 are fetched at once, the newest asked for first, and one scrolled
+  away before it comes isn't fetched. They are kept in memory up to 32
+  MB on a device with 3 GB of memory or less (otherwise 64 MB on Apple
+  TV and 96 MB elsewhere), half of that when the app goes to the
   background, and none after a memory warning. While loading, still gray
   rows show; a load that fails says why with Try again. With no rows,
   Home says why: no library this profile may open, the libraries being
@@ -189,10 +220,13 @@ behind it.
   the tile out at once. After it loads, Home reads the first three
   Continue Watching titles' details, which starts the server reading
   their video ahead. iPhone and iPad pull to refresh, the Mac has Reload
-  (⌘R). Choosing a tile opens its page. On Apple TV, above the rows, what the
-  tile with the focus is: its title (a show's, for an episode), the
-  episode, the year, rating, running time and quality, the time left, and
-  once the focus rests 0.3 s, its summary in three lines.
+  (⌘R). Choosing a tile opens its page. On Apple TV, once the focus goes
+  down to the rows, the banner gives its room to what the tile with the
+  focus is (up from the first row brings the banner back): its title (a
+  show's, for an episode), the episode, the year, rating, running time
+  and quality, the time left, and once the focus rests 0.3 s, its
+  summary in three lines and its backdrop (its show's, for an episode)
+  behind the whole page, darkened under the words and the rows.
 - **A title's actions**: a long press on a tile (iPhone, iPad and Apple TV,
   with Select), or a right-click or Control-click on the Mac, opens its
   menu; VoiceOver offers the same list as actions. By kind: Play, or
@@ -203,7 +237,7 @@ behind it.
   music. Play/Pause on the Siri Remote plays a tile. A mark or My List
   shows at once and goes back, with a toast saying why, when the server
   refuses. Nothing for administrators is offered.
-- **Libraries** (the iPhone's tab, Live TV first; the sidebar on iPad
+- **Libraries** (Edit order in the iPhone's Library picker, Live TV first; the sidebar on iPad
   and Mac; a tab on Apple TV when the libraries don't all fit): each library with what it holds ("412
   movies", "37 shows", "128 artists") and whether the server is scanning
   it. With two or more, they can be put in the profile's own order: Edit
@@ -213,7 +247,10 @@ behind it.
   move shows at once and is saved in order; Home, the sidebar, the tabs
   and the profile's other devices follow. "Use the Server's Order" goes
   back to the server's.
-- **A library**: **Recommended** (its rows: Continue Watching, then the
+- **A library**: its title is a menu of the profile's other libraries
+  (on Apple TV, its other movie and show libraries), which shows one in
+  its place (in a library's own section, that library's section).
+  **Recommended** (its rows: Continue Watching, then the
   collections administrators put there), **Library** (every title, in a
   grid) and **Collections** (not for music). The grid reads 100 titles
   at a time, the page showing and the next once it is 70 % through, keeps at most 2,000
@@ -222,19 +259,22 @@ behind it.
   date, duration for movies, last played, bitrate), each with its own
   order and the other one beside it; sorted by bitrate, each title's
   second line is its file ("1080p · 6.6 Mbps · 50.4 GB"). **Filter**
-  (not for music): unwatched or watched, a genre, a year, and Clear; on
-  iPhone a sheet, on iPad and Mac a menu, on Apple TV a menu in the row
+  (not for music): unwatched or watched, a genre, a year, and Clear, with
+  a dot on Filter while one is on; on iPhone a sheet, on iPad and Mac a menu, on Apple TV a menu in the row
   of buttons. A line under the tabs says how the titles are listed ("Year,
   descending · Unwatched"). Sorted by title, with more than 30 titles and
   at most 2,000, the letters "#" and A to Z jump through the grid: down
   the side on iPhone, iPad and Mac (a tap or a drag; VoiceOver's "Jump to
-  letter", swiped up and down), a row above the grid on Apple TV. A letter
-  without titles is dim and goes to the next that has some. The page
-  opens as it was last left, for each server, profile and library, unless
-  See all asks for a view. Filters that hide everything say so, with
-  Clear filters. **Save as Smart Playlist** (in More on iPhone, iPad and
-  Mac, a button in the row on Apple TV) keeps the sort and filters
-  showing as a smart playlist.
+  letter", swiped up and down), down the right of the screen on Apple TV,
+  staying while the grid scrolls (right from the grid's last column). A
+  letter without titles is dim and goes to the next that has some. The
+  page opens as it was last left, for each server, profile and library,
+  unless See all asks for a view. Filters that hide everything say so,
+  with Clear filters. **Save as Smart Playlist** (in More on iPhone, iPad
+  and Mac, at the far end of the row on Apple TV) keeps the sort and
+  filters showing as a smart playlist. On Apple TV the top of the page and
+  its buttons scroll away with the titles, so the grid has the screen once
+  the focus is in it, and its columns fill the width between the margins.
 - **Me** (Settings on Apple TV): the profile's picture and name ("Managed
   profile" for one without a password of its own), Switch profile (when
   the household has another profile), Discover and Your requests
@@ -267,10 +307,16 @@ behind it.
   Choosing a result opens its page. With nothing typed, the profile's
   **recent searches** show, newest first: the last 10 searched or opened,
   kept on the device for each server and profile, each searched again
-  when chosen, and Clear. Nothing found says so ("No results for
-  “clip”"); a failed search says why, with Try again. Where requests
+  when chosen, and Clear (on iPhone, iPad and Mac as chips that wrap).
+  Under them, **Browse by genre**: the genres of one of the profile's
+  movie and show libraries, as its Filter offers them, 12 at most, each a
+  colored tile (on Apple TV, a card in a row) that opens the library
+  filtered by it; with more than one such library, a menu beside the
+  heading picks which, the first in the profile's order to begin with.
+  Nothing found says so ("No results for “clip”"); a failed search says
+  why, with Try again. Where requests
   are open, TMDB's titles that no library has follow the results in the
-  Discover row, and on iPhone, iPad and Mac Discover heads the page
+  Discover row, and on iPhone, iPad and Mac a Discover card ends the page
   before anything is typed ([Requests](#requests)).
 - **History**: the profile's plays, newest first, 15 at a time with Show
   more (`GET /api/history`). Each says what played ("The Office", "S2 · E3
@@ -407,8 +453,17 @@ behind it.
   titles. Play plays a collection of movies in its order as a queue;
   Shuffle starts the queue at a random movie. A collection of shows plays
   the first show's next episode (Shuffle, a random show's).
-- **Playlists** (the iPhone's tab, the sidebar's row on iPad and Mac, a
-  tab on Apple TV): the profile's playlists by title, each as a mosaic of
+- **Listen** (the iPhone's and Apple TV's tab, in place of Playlists):
+  Recently Played, the albums of the profile's latest tracks in History,
+  newest first, 12 at most; the profile's playlists, music and video
+  alike, a video one marked Video, with New Playlist first (and on
+  iPhone in the toolbar); Artists, the first music library's, the most
+  recently played first, with See all opening the library; then each
+  music library, opening its page. A part with nothing in it is left
+  out. Audiobooks aren't there: the server gives Pley's apps no
+  audiobook library.
+- **Playlists** (Listen's on iPhone and Apple TV, the sidebar's row on
+  iPad and Mac): the profile's playlists by title, each as a mosaic of
   its first four pictures with "12 items · 3h 12m", and **New Playlist**.
   A playlist's page: its mosaic, title, the count and length, a smart
   one's filter in words, **Play** and **Shuffle**, then its entries, each
@@ -439,7 +494,7 @@ behind it.
 - **Live TV** (when an administrator added an IPTV provider and opened
   it to the profile, `GET /api/live`; read at sign-in, at a profile change,
   when the lineup changes and when the event stream connects again): the
-  first row of the iPhone's Libraries (with its channel count), the
+  last row of the iPhone's Library picker (with its channel count), the
   sidebar's row after Home on iPad and Mac (View → Live TV, ⌘L), and a tab
   after Home on Apple TV. The categories (Favorites, Recently watched, All
   channels, each region's groups under it when two regions or more have
@@ -1371,14 +1426,15 @@ it plays. Both lists are read again on `sessions_changed` (a receiver
 appearing or going sends it too), when the event stream connects again
 and when the app comes back to the front.
 
-- **iPhone and iPad**: a bar above the tabs with the device and what
-  plays there ("Ready to play" on one that plays nothing), or how many
-  devices and their names, and Play or Pause when one device plays and
+- **iPhone and iPad**: a bar above the tabs in two lines: what plays and
+  "Playing on" the device ("Paused on" while paused), the device and
+  "Ready to play" on one that plays nothing, or how many devices and their
+  names, and Play or Pause when one device plays and
   its player obeys it: pausing the TV takes one tap. From iOS 26.1 it is
   the tab bar's own accessory, where the mini player sits too; the
   accessory holds one of them, so while music plays here the mini player
   keeps it and has the remote's button at its end. Before iOS 26.1, and
-  at the foot of the page beside the iPad's sidebar, it is a card above
+  at the foot of the page beside the iPad's sidebar, it is a pill above
   the mini player. A Google Cast or an AirPlay device counts for the bar
   only while it plays: one is on whenever the network is, so idle, it
   would keep the bar there for good. Choosing it opens the remote as a

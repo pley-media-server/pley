@@ -56,19 +56,37 @@ struct MeRequestsSection: View {
     }
 }
 
-/// Discover's way in, at the top of Search before anything is typed.
-struct SearchDiscoverEntry: View {
+/// Discover's way in, a card at the foot of Search before anything is typed.
+struct SearchDiscoverCard: View {
     var body: some View {
         NavigationLink(value: Screen.discover) {
-            Label {
+            HStack(spacing: 14) {
+                Image(systemName: "safari")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(RequestWords.discover).foregroundStyle(.primary)
+                    Text(RequestWords.discover).font(.headline).foregroundStyle(.primary)
                     Text(RequestWords.discoverHint).font(.footnote).foregroundStyle(.secondary)
                 }
-            } icon: {
-                Image(systemName: "safari")
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
+            .padding(14)
+            .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.3))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
         .accessibilityIdentifier("search.discover")
     }
 }

@@ -2,8 +2,9 @@ import PleyModel
 import PleyScreens
 import SwiftUI
 
-/// Search on Apple TV: the system's keyboard and field at the top, the
-/// profile's recent searches while nothing is typed, then the results in
+/// Search on Apple TV: the system's keyboard and field at the top; while
+/// nothing is typed, the profile's recent searches and Browse by genre;
+/// then the results in
 /// rows the focus moves down through: Movies, Shows, Seasons, Episodes,
 /// Artists, Albums, Tracks, Live TV and People, with their counts. Where
 /// the account may ask for titles, TMDB's titles the libraries don't have
@@ -12,11 +13,15 @@ import SwiftUI
 /// there is no way into Discover here: its tab is the way in.
 struct SearchView: View {
     @ObservedObject private var app: AppModel
+    @ObservedObject private var shell: ShellModel
     @StateObject private var model: SearchModel
+    @StateObject private var genres: GenreBrowseModel
 
     init(app: AppModel) {
         self.app = app
+        _shell = ObservedObject(wrappedValue: app.shell)
         _model = StateObject(wrappedValue: SearchModel(app: app))
+        _genres = StateObject(wrappedValue: GenreBrowseModel(app: app))
     }
 
     var body: some View {
@@ -29,12 +34,14 @@ struct SearchView: View {
         .searchable(text: $model.query, prompt: "Movies, shows, people and music")
         .onSubmit(of: .search) { model.submit() }
         .task(id: app.user?.id) { model.loadRecent() }
+        .task(id: shell.libraries.map(\.id)) { await genres.load() }
     }
 
     @ViewBuilder private var content: some View {
         switch model.state {
         case .idle:
             recent
+            if !genres.genres.isEmpty { genreRow }
         case .loading:
             ProgressView()
                 .frame(maxWidth: .infinity)
@@ -78,9 +85,9 @@ struct SearchView: View {
 
     /// The recent searches, newest first, then Clear.
     @ViewBuilder private var recent: some View {
-        if model.recent.isEmpty {
+        if model.recent.isEmpty && genres.genres.isEmpty {
             message(localized("Search for movies, shows, people and music."))
-        } else {
+        } else if !model.recent.isEmpty {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Recent searches")
                     .font(.headline)
@@ -107,6 +114,51 @@ struct SearchView: View {
             .padding(.horizontal, Metrics.gutter)
             .focusSection()
         }
+    }
+
+    /// A movie or show library's genres, as colored cards in a row, each
+    /// opening the library filtered by it; with more than one such
+    /// library, a menu beside the heading picks which.
+    private var genreRow: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .firstTextBaseline, spacing: 32) {
+                Text("Browse by genre")
+                    .font(.headline)
+                    .accessibilityAddTraits(.isHeader)
+                if genres.libraries.count > 1, let name = genres.libraryName {
+                    Menu {
+                        Picker("Library", selection: Binding(get: { genres.libraryId ?? 0 },
+                                                             set: { id in Task { await genres.choose(id) } })) {
+                            ForEach(genres.libraries) { Text($0.name).tag($0.id) }
+                        }
+                    } label: {
+                        Label(name, systemImage: "chevron.down")
+                    }
+                    .accessibilityLabel("Library")
+                    .accessibilityValue(name)
+                    .accessibilityIdentifier("search.genres.library")
+                }
+            }
+            .padding(.horizontal, Metrics.gutter)
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: Metrics.tileSpacing) {
+                    ForEach(genres.genres, id: \.self) { genre in
+                        Button {
+                            if let screen = genres.screen(for: genre) { app.shell.open(screen) }
+                        } label: {
+                            GenreCard(name: genre, tint: GenreBrowseModel.tint(genre))
+                        }
+                        .buttonStyle(.card)
+                        .accessibilityValue(genres.libraryName ?? "")
+                        .accessibilityIdentifier("search.genre.\(genre)")
+                    }
+                }
+                .padding(.horizontal, Metrics.gutter)
+                .padding(.vertical, 20)
+            }
+            .scrollClipDisabled()
+        }
+        .focusSection()
     }
 
     /// `text`, in the language shown.
@@ -265,5 +317,38 @@ private struct TVSearchChannels: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("search.group.channels")
+    }
+}
+
+/// A genre in Browse by genre: its name on one of `GenreBrowseModel.tints`
+/// colors (the iPhone's), dark enough for white words.
+private struct GenreCard: View {
+    let name: String
+    let tint: Int
+
+    static let colors: [Color] = [
+        Color(red: 0.60, green: 0.20, blue: 0.07), Color(red: 0.55, green: 0.38, blue: 0.03),
+        Color(red: 0.43, green: 0.16, blue: 0.85), Color(red: 0.05, green: 0.45, blue: 0.56),
+        Color(red: 0.09, green: 0.40, blue: 0.20), Color(red: 0.75, green: 0.09, blue: 0.36),
+        Color(red: 0.12, green: 0.25, blue: 0.62), Color(red: 0.36, green: 0.27, blue: 0.20),
+    ]
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            Self.colors[tint % Self.colors.count]
+            Circle()
+                .fill(.white.opacity(0.16))
+                .frame(width: 110, height: 110)
+                .offset(x: 24, y: -24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .accessibilityHidden(true)
+            Text(name)
+                .font(.headline)
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .padding(20)
+        }
+        .frame(width: Metrics.tileWidth(.poster) * 1.4, height: 150)
+        .clipShape(RoundedRectangle(cornerRadius: Metrics.corner, style: .continuous))
     }
 }

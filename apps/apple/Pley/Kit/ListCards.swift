@@ -143,11 +143,13 @@ struct PlaylistMosaic: View {
     }
 }
 
-/// A playlist's tile: its mosaic, its title and "12 items · 3h 12m".
+/// A playlist's tile: its mosaic, its title and "12 items · 3h 12m";
+/// among music, a video playlist is marked Video (`marksVideo`).
 struct PlaylistTile: View {
     let app: AppModel
     let card: PlaylistCard
     let width: CGFloat
+    var marksVideo = false
     let open: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -159,6 +161,9 @@ struct PlaylistTile: View {
                 PlaylistMosaic(app: app, artwork: card.artwork, video: card.video, size: width)
                     .overlay(alignment: .topLeading) {
                         if card.smart { ListBadge(text: localized("Smart")).padding(6) }
+                    }
+                    .overlay(alignment: .bottomLeading) {
+                        if marksVideo && card.video { ListBadge(text: localized("Video")).padding(6) }
                     }
                     .overlay {
                         if hovering && reduceMotion {

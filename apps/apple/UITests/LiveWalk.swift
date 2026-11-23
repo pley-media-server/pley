@@ -57,13 +57,12 @@ extension Walk {
         }
     }
 
-    /// Live TV: from Libraries on iPhone, the sidebar on iPad.
+    /// Live TV: from the Library tab's picker on iPhone, the sidebar on iPad.
     func openLiveTv() {
         if UIDevice.current.userInterfaceIdiom == .pad {
             wait(element("shell.sidebar.liveTv"), "Live TV in the sidebar", timeout: 30).tap()
         } else {
-            openSection("Libraries", sidebar: "shell.sidebar.home")
-            wait(element("libraries.liveTv"), "Live TV in Libraries", timeout: 30).tap()
+            pickFromLibraryTab("liveTv", "Live TV", timeout: 30)
         }
         // The view is kept per profile: a run before may have left Channels.
         let guide = element("live.guide")

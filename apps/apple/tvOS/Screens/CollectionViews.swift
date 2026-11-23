@@ -10,21 +10,26 @@ import SwiftUI
 struct CollectionsGrid: View {
     let app: AppModel
     @ObservedObject var model: CollectionsModel
+    /// The top of a library's page, which scrolls away with the collections.
+    var header: AnyView?
 
     var body: some View {
         switch model.state {
         case .loading:
-            StateView(kind: .loading)
+            withHeader(StateView(kind: .loading))
                 .task { await model.load() }
         case .failed(let why):
-            StateView(kind: .failed(title: CollectionsModel.failedTitle, why: why) { Task { await model.load() } })
+            withHeader(StateView(kind: .failed(title: CollectionsModel.failedTitle, why: why) {
+                Task { await model.load() }
+            }))
         case .loaded where model.collections.isEmpty:
-            StateView(kind: .empty(symbol: "square.stack", text: CollectionsModel.emptyTitle, action: nil))
+            withHeader(StateView(kind: .empty(symbol: "square.stack", text: CollectionsModel.emptyTitle, action: nil)))
         case .loaded:
             let width = Metrics.tileWidth(.poster)
             let groups = model.groups
             ScrollView {
                 VStack(alignment: .leading, spacing: 40) {
+                    header
                     filters
                     ForEach(groups) { group in
                         VStack(alignment: .leading, spacing: 0) {
@@ -57,6 +62,18 @@ struct CollectionsGrid: View {
             // Down from any tab above reaches the grid, however few it holds.
             .focusSection()
             .accessibilityIdentifier("library.collections")
+        }
+    }
+
+    /// `state` under the header, when there is one.
+    @ViewBuilder private func withHeader(_ state: StateView) -> some View {
+        if let header {
+            VStack(alignment: .leading, spacing: 32) {
+                header
+                state.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        } else {
+            state
         }
     }
 

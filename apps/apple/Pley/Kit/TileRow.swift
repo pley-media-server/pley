@@ -46,7 +46,7 @@ struct TileRow: View {
                 // The title opens what See all does: VoiceOver reads it as
                 // the heading, See all is the button.
                 Text(title)
-                    .font(.title3.bold())
+                    .font(.title2.bold())
                     .accessibilityAddTraits(.isHeader)
                     .contentShape(Rectangle())
                     .onTapGesture { seeAll?() }

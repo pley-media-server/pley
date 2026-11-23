@@ -48,9 +48,9 @@ extension Walk {
         wait(element("addToPlaylist.what"), "Add to playlist's sheet")
     }
 
-    /// Playlists: the tab on iPhone, the sidebar's row on iPad.
+    /// Playlists: Listen's tab on iPhone, the sidebar's row on iPad.
     func openPlaylists() {
-        let tab = openSection("Playlists", sidebar: "shell.sidebar.playlists")
+        let tab = openSection(wide ? "Playlists" : "Listen", sidebar: "shell.sidebar.playlists")
         // On iPhone, twice goes back to the list from a playlist left open.
         if !wide && !element("playlists.new").waitForExistence(timeout: 3) { tab.tap() }
         wait(element("playlists.new"), "Playlists")

@@ -36,12 +36,13 @@ extension RemoteModel.Device {
 }
 
 #if os(iOS)
-/// The profile's other devices, above the tabs: the device and what plays
-/// there (or "Ready to play"), or how many devices and their names, and
-/// Play or Pause when there is one device whose player obeys it. A tap
-/// elsewhere opens the remote. From iOS 26.1 it is the tab bar's bottom
-/// accessory, which draws its own glass; before, and at the foot of the
-/// sidebar layout's page, a card of its own.
+/// The profile's other devices, above the tabs, in two lines: what plays
+/// and "Playing on" (or "Paused on") the device, the device and "Ready to
+/// play", or how many devices and their names; and Play or Pause when there
+/// is one device whose player obeys it. A tap elsewhere opens the remote.
+/// From iOS 26.1 it is the tab bar's bottom accessory, which draws its own
+/// glass; before, and at the foot of the sidebar layout's page, a pill of
+/// its own.
 struct RemoteBar: View {
     @ObservedObject var remote: RemoteModel
     /// In the tab bar's accessory, which draws its own background and has a height of its own.
@@ -56,6 +57,8 @@ struct RemoteBar: View {
             let one = devices.count == 1 ? devices[0] : nil
             let device = one.map { names[$0.id] ?? Words.unnamedDevice } ?? localized("\(devices.count) devices")
             let playing = one?.line ?? devices.compactMap { names[$0.id] }.joined(separator: ", ")
+            // What plays comes first, and where under it; a device ready to play, or several, the other way round.
+            let (top, bottom) = Self.lines(one: one, device: device, playing: playing)
             let lines = typeSize.isAccessibilitySize && !inAccessory ? 3 : 1
             HStack(spacing: 4) {
                 Button(action: open) {
@@ -65,12 +68,12 @@ struct RemoteBar: View {
                             .foregroundStyle(Color.accentColor)
                             .frame(minWidth: 32)
                         VStack(alignment: .leading, spacing: inAccessory ? 0 : 2) {
-                            Text(device)
+                            Text(top)
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(lines)
+                            Text(bottom)
                                 .font(inAccessory ? .caption : .footnote)
                                 .foregroundStyle(.secondary)
-                                .lineLimit(lines)
-                            Text(playing)
-                                .font(.subheadline.weight(.semibold))
                                 .lineLimit(lines)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -94,8 +97,9 @@ struct RemoteBar: View {
             .dynamicTypeSize(...(inAccessory ? DynamicTypeSize.xxxLarge : .accessibility5))
             .background {
                 if !inAccessory {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    Capsule(style: .continuous)
                         .fill(.regularMaterial)
+                        .overlay { Capsule(style: .continuous).strokeBorder(.primary.opacity(0.08)) }
                         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
                 }
             }
@@ -104,6 +108,15 @@ struct RemoteBar: View {
             .padding(.top, inAccessory ? 0 : 8)
             .padding(.bottom, inAccessory ? 0 : 16)
         }
+    }
+
+    /// The bar's two lines: what plays and "Playing on" or "Paused on" the
+    /// one device playing; else the device or how many, and "Ready to play"
+    /// or their names.
+    static func lines(one: RemoteModel.Device?, device: String, playing: String) -> (String, String) {
+        guard let entry = one?.entry else { return (device, playing) }
+        let on = entry.session.state == .paused ? Words.pausedOn(device) : Words.playingOn(device)
+        return (playing, on)
     }
 
     /// Play or Pause for the one device playing, when its player obeys it:

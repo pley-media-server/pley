@@ -6,11 +6,13 @@ import SwiftUI
 /// the tiles' widths. Text uses the system's text styles only.
 enum Metrics {
     /// Corner radius of tiles and pictures.
-    static let corner: CGFloat = 8
+    static let corner: CGFloat = 12
+    /// Corner radius of Home's banner beside the iPad's and the Mac's sidebar (on a phone it runs edge to edge).
+    static let heroCorner: CGFloat = 20
     /// Space between the tiles of a row or a grid.
     static let tileSpacing: CGFloat = 12
     /// Space between rows.
-    static let rowSpacing: CGFloat = 28
+    static let rowSpacing: CGFloat = 32
     /// A tile's width grows with Dynamic Type up to this many times.
     static let maxTileScale: CGFloat = 1.6
 
@@ -25,12 +27,12 @@ enum Metrics {
     /// The side margin: narrower on iPhone.
     static func gutter(regular: Bool) -> CGFloat { regular ? 20 : 16 }
 
-    /// A tile's width before Dynamic Type: iPhone 110 (posters and squares)
-    /// or 220 (stills); iPad and Mac 140 or 260.
+    /// A tile's width before Dynamic Type: iPhone 116 (posters and squares)
+    /// or 250 (stills); iPad and Mac 140 or 280.
     static func tileWidth(_ shape: RowShape, regular: Bool) -> CGFloat {
         switch shape {
-        case .landscape: regular ? 260 : 220
-        case .poster, .square: regular ? 140 : 110
+        case .landscape: regular ? 280 : 250
+        case .poster, .square: regular ? 140 : 116
         }
     }
 

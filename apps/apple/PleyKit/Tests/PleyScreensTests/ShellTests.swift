@@ -52,6 +52,24 @@ import Testing
         #expect(shell.section == .playlists)
     }
 
+    @Test func aLibrarysTitleMenuSwapsTheLibraryShowing() {
+        let shell = ShellModel(settings: freshSettings(), tv: false)
+        shell.setLibraries([Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "TV Shows", kind: .shows)])
+        // A library page opened from Libraries is replaced, not stacked.
+        shell.select(.libraries)
+        shell.open(.library(1))
+        shell.switchLibrary(to: 2)
+        #expect(shell.path(for: .libraries) == [.library(2)])
+        // On top of another page, the library opens on top.
+        shell.open(.item(7))
+        shell.switchLibrary(to: 1)
+        #expect(shell.path(for: .libraries) == [.library(2), .item(7), .library(1)])
+        // In a library's own section (the sidebar), the other library's section shows.
+        shell.select(.library(1))
+        shell.switchLibrary(to: 2)
+        #expect(shell.section == .library(2))
+    }
+
     @Test func musicHasItsOwnPages() {
         #expect(Screen.page(of: item(1, .artist)) == .artist(1))
         #expect(Screen.page(of: item(2, .album)) == .album(2))
@@ -125,67 +143,82 @@ import Testing
         let libraries = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Shows", kind: .shows)]
         // Search first on Apple TV, where tvOS puts it.
         #expect(ShellModel.sections(tv: true, libraries: libraries)
-            == [.search, .home, .library(1), .library(2), .playlists, .settings])
+            == [.search, .home, .libraries, .playlists, .settings])
+        #expect(ShellModel.tabWidth(.playlists, libraries: libraries) == "Listen".count + ShellModel.tabPadding)
         let shell = ShellModel(settings: freshSettings(), tv: false)
         shell.setLibraries(libraries)
         #expect(shell.sidebar == [.home, .search, .playlists, .library(1), .library(2)])
     }
 
-    @Test func appleTVShowsSevenTabsAtMostWhateverTheLibrariesLiveTVAndMusic() {
+    @Test func appleTVHasOneLibraryTabWhateverTheLibrariesLiveTVAndMusic() {
         for (live, music) in [(false, false), (true, false), (false, true), (true, true)] {
             for count in 0...9 {
-                let libraries = (1...max(count, 1)).prefix(count).map { Library(id: $0, name: "L\($0)", kind: .movies) }
+                let libraries = (0..<count).map { Library(id: $0 + 1, name: "L\($0 + 1)", kind: .movies) }
                 let tabs = ShellModel.sections(tv: true, libraries: libraries, liveTv: live, nowPlaying: music)
-                #expect(tabs.count <= ShellModel.maxTabs)
                 #expect(Array(tabs.prefix(2)) == [.search, .home])
                 let end: [ShellSection] = music ? [.playlists, .nowPlaying, .settings] : [.playlists, .settings]
                 #expect(Array(tabs.suffix(end.count)) == end)
                 #expect(tabs.contains(.liveTv) == live)
                 if live { #expect(tabs[2] == .liveTv) }
-                let room = 3 - (live ? 1 : 0) - (music ? 1 : 0)
-                let shown = tabs.compactMap { if case .library(let id) = $0 { id } else { nil } }
-                if count <= room {
-                    // Each library has its tab while they all fit.
-                    #expect(shown == Array(1...max(count, 1)).prefix(count).map { $0 })
-                    #expect(!tabs.contains(.libraries))
-                } else {
-                    // The first that fit keep theirs; Libraries takes the rest's place, last of them.
-                    #expect(shown == Array((1...max(room - 1, 1)).prefix(room - 1)))
-                    #expect(tabs[tabs.count - end.count - 1] == .libraries)
-                    #expect(tabs.count == ShellModel.maxTabs)
-                }
+                // One Libraries tab for them all; none without a library to show.
+                #expect(tabs.contains(.libraries) == (count > 0))
+                #expect(!tabs.contains { if case .library = $0 { true } else { false } })
             }
         }
-        // Music playing beside Live TV and four libraries: Libraries holds them all.
-        #expect(ShellModel.sections(tv: true, libraries: (1...4).map { Library(id: $0, name: "L\($0)", kind: .movies) },
-                                    liveTv: true, nowPlaying: true)
-            == [.search, .home, .liveTv, .libraries, .playlists, .nowPlaying, .settings])
-        // Four libraries and Live TV: one library keeps its tab.
-        let four = (1...4).map { Library(id: $0, name: "L\($0)", kind: .movies) }
-        #expect(ShellModel.sections(tv: true, libraries: four, liveTv: true)
-            == [.search, .home, .liveTv, .library(1), .libraries, .playlists, .settings])
-        // Named as people name them, the tabs must fit across the screen too.
-        let named = ["Movies", "Shows", "Clips", "Music"].enumerated().map {
-            Library(id: $0.offset + 1, name: $0.element, kind: .movies)
+        // Music is under Listen: music libraries alone make no Libraries tab.
+        let music = [Library(id: 3, name: "Music", kind: .music)]
+        #expect(ShellModel.sections(tv: true, libraries: music) == [.search, .home, .playlists, .settings])
+        // The tab is Libraries whatever library it shows.
+        let named = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Documentaries", kind: .movies)]
+        #expect(ShellModel.tabWidth(.libraries, libraries: named) == "Libraries".count + ShellModel.tabPadding)
+        // Discover, Live TV and Now Playing: Listen gives up its words first.
+        let discover = RequestsEntry(discover: true, requests: true)
+        let long = [Library(id: 1, name: "Documentaries and Concerts", kind: .movies)]
+        let crowded = ShellModel.sections(tv: true, libraries: long, liveTv: true, nowPlaying: true, requests: discover)
+        #expect(crowded == [.search, .home, .requests, .liveTv, .libraries, .playlists, .nowPlaying, .settings])
+        let symbols = ShellModel.symbolOnly(crowded, libraries: long, requests: discover)
+        #expect(symbols.contains(.playlists) && !symbols.contains(.home))
+        let shown = crowded.reduce(0) {
+            $0 + (symbols.contains($1) ? ShellModel.tabPadding : ShellModel.tabWidth($1, libraries: long, requests: discover))
         }
-        #expect(ShellModel.sections(tv: true, libraries: Array(named.prefix(2)))
-            == [.search, .home, .library(1), .library(2), .playlists, .settings])
-        #expect(ShellModel.sections(tv: true, libraries: named)
-            == [.search, .home, .library(1), .library(2), .libraries, .playlists, .settings])
-        #expect(ShellModel.sections(tv: true, libraries: named, liveTv: true)
-            == [.search, .home, .liveTv, .library(1), .libraries, .playlists, .settings])
-        // A long name gives its tab to Libraries.
-        let long = [Library(id: 1, name: "Documentaries and Concerts", kind: .movies),
-                    Library(id: 2, name: "Shows", kind: .shows)]
-        #expect(ShellModel.sections(tv: true, libraries: long, liveTv: true)
-            == [.search, .home, .liveTv, .libraries, .playlists, .settings])
-        for tabs in [ShellModel.sections(tv: true, libraries: named, liveTv: true),
-                     ShellModel.sections(tv: true, libraries: long, liveTv: true, nowPlaying: true)] {
-            let width = tabs.reduce(0) { $0 + ShellModel.tabWidth($1, libraries: named + long) }
-            #expect(width <= ShellModel.tabRoom)
-        }
+        #expect(shown <= ShellModel.tabRoom)
+        // While they fit, every tab keeps its words.
+        let two = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Shows", kind: .shows)]
+        #expect(ShellModel.symbolOnly(ShellModel.sections(tv: true, libraries: two, liveTv: true), libraries: two)
+            == ShellModel.symbolTabs)
+
         // The phone's five tabs don't change: Live TV is a row of Libraries.
-        #expect(ShellModel.sections(tv: false, libraries: four, liveTv: true) == [.home, .libraries, .search, .playlists, .me])
+        #expect(ShellModel.sections(tv: false, libraries: two, liveTv: true) == [.home, .libraries, .search, .playlists, .me])
+    }
+
+    @Test func appleTVsLibraryTabShowsTheLibraryChosenLast() {
+        let settings = freshSettings()
+        let shell = ShellModel(settings: settings, tv: true)
+        let libraries = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Shows", kind: .shows),
+                         Library(id: 3, name: "Music", kind: .music)]
+        shell.setLibraries(libraries)
+        // The first movie or show library, before one is chosen.
+        #expect(shell.libraryTabSection == .library(1))
+        shell.openLibraryTab()
+        #expect(shell.section == .library(1))
+        // Another chosen from the title's menu stays the tab's, after other tabs.
+        shell.switchLibrary(to: 2)
+        #expect(shell.section == .library(2))
+        shell.select(.home)
+        #expect(shell.libraryTabSection == .library(2))
+        shell.openLibraryTab()
+        #expect(shell.section == .library(2) && settings.lastSection == ShellSection.library(2).key)
+        // Live TV has its own tab on Apple TV: it never becomes the Library tab's.
+        shell.setLiveTv(LiveSummary(available: true, allowed: true, channels: 3))
+        shell.select(.liveTv)
+        #expect(shell.libraryTabSection == .library(2))
+        // A music library is a page under Listen, never a section.
+        #expect(!shell.shows(.library(3)))
+        shell.select(.library(3))
+        #expect(shell.section == .liveTv)
+        // The library chosen last went: the first again.
+        shell.setLibraries(Array(libraries.prefix(1)))
+        #expect(shell.libraryTabSection == .library(1))
     }
 
     @Test func liveTVShowsOnceTheServerSaysItIsAvailable() {
@@ -208,7 +241,7 @@ import Testing
         #expect(again.section == .home)
         again.setLiveTv(LiveSummary(available: true, allowed: true, channels: 3))
         #expect(again.section == .liveTv)
-        #expect(again.sections == [.search, .home, .liveTv, .library(1), .playlists, .settings])
+        #expect(again.sections == [.search, .home, .liveTv, .libraries, .playlists, .settings])
         // It went: back to Home.
         again.setLiveTv(LiveSummary(available: false, allowed: false))
         #expect(again.section == .home && !again.sections.contains(.liveTv))
@@ -257,8 +290,8 @@ import Testing
         let two = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Shows", kind: .shows)]
         let discover = RequestsEntry(discover: true, requests: true, badge: 1)
         #expect(ShellModel.sections(tv: true, libraries: two, requests: discover)
-            == [.search, .home, .requests, .library(1), .library(2), .playlists, .settings])
-        // Before Live TV, and like it, it takes a tab's room.
+            == [.search, .home, .requests, .libraries, .playlists, .settings])
+        // Before Live TV.
         #expect(ShellModel.sections(tv: true, libraries: two, liveTv: true, requests: discover)
             == [.search, .home, .requests, .liveTv, .libraries, .playlists, .settings])
         // Nothing to see or ask for: no tab. The phone's five don't change.
@@ -284,15 +317,18 @@ import Testing
                     let libraries = (0..<count).map { Library(id: $0 + 1, name: "L\($0 + 1)", kind: .movies) }
                     let tabs = ShellModel.sections(tv: true, libraries: libraries, liveTv: live, nowPlaying: music,
                                                    requests: entry)
-                    #expect(tabs.count <= ShellModel.maxTabs && tabs[2] == .requests)
-                    // Beside Live TV or Now Playing too, Libraries alone can be past the screen's edge: tvOS scrolls.
-                    guard !live && !music else { continue }
-                    let width = tabs.reduce(0) { $0 + ShellModel.tabWidth($1, libraries: libraries, requests: entry) }
+                    #expect(tabs[2] == .requests)
+                    // Whatever shows, the tabs' words fit, or give way to their symbols.
+                    let symbols = ShellModel.symbolOnly(tabs, libraries: libraries, requests: entry)
+                    let width = tabs.reduce(0) {
+                        $0 + (symbols.contains($1) ? ShellModel.tabPadding
+                            : ShellModel.tabWidth($1, libraries: libraries, requests: entry))
+                    }
                     #expect(width <= ShellModel.tabRoom)
                 }
             }
         }
-        // With Live TV and music too, nothing else gives way: Libraries is an eighth tab, and the bar scrolls.
+        // With Live TV and music too: eight tabs.
         #expect(ShellModel.sections(tv: true, libraries: two, liveTv: true, nowPlaying: true, requests: discover)
             == [.search, .home, .requests, .liveTv, .libraries, .playlists, .nowPlaying, .settings])
         #expect(ShellModel.sections(tv: true, libraries: [], liveTv: true, nowPlaying: true, requests: discover)
@@ -304,10 +340,10 @@ import Testing
         let two = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Shows", kind: .shows)]
         shell.setLibraries(two)
         shell.setRequestsEntry(RequestsEntry(discover: true, requests: true))
-        #expect(shell.sections == [.search, .home, .requests, .library(1), .library(2), .playlists, .settings])
+        #expect(shell.sections == [.search, .home, .requests, .libraries, .playlists, .settings])
         shell.select(.requests)
         #expect(shell.section == .requests)
-        // Asking no longer works: the tab is the person's requests, which leaves the libraries no room.
+        // Asking no longer works: the tab is the person's requests.
         shell.setRequestsEntry(RequestsEntry(requests: true, badge: 1))
         #expect(shell.sections == [.search, .home, .requests, .libraries, .playlists, .settings])
         #expect(shell.section == .requests)
@@ -375,7 +411,7 @@ import Testing
                       settings: settings, tv: true)
         await app.start()
         #expect(app.shell.section == .search)
-        // The fixture's libraries, beside Live TV and Discover, are under Libraries.
+        // The fixture's libraries are under one Libraries tab.
         #expect(await eventually { app.shell.sections.contains(.libraries) })
         #expect(app.shell.section == .search)
     }

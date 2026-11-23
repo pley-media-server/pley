@@ -213,6 +213,17 @@ struct Walk {
         return element.frame.maxY < app.windows.firstMatch.frame.maxY - 140
     }
 
+    /// The iPhone's Library tab, second in the bar, whatever library names it.
+    var libraryTab: XCUIElement { app.tabBars.buttons.element(boundBy: 1) }
+
+    /// `entry` (`library:<id>`, `liveTv`, `editOrder`) from the Library tab's picker.
+    func pickFromLibraryTab(_ entry: String, _ what: String, timeout: Double = 20,
+                            file: StaticString = #filePath, line: UInt = #line) {
+        wait(libraryTab, "the Library tab", file: file, line: line).tap()
+        wait(element("library.picker.\(entry)"), "\(what) in the Library picker", timeout: timeout,
+             file: file, line: line).tap()
+    }
+
     /// The tab called `tab` on iPhone, the sidebar's row `sidebar` on iPad.
     /// The tab bar is waited for: at the accessibility text sizes it can
     /// be slow to settle, and a tab checked too early looks missing.

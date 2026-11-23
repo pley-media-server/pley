@@ -100,6 +100,8 @@ struct PlaylistTile: View {
     let app: AppModel
     let card: PlaylistCard
     let width: CGFloat
+    /// Among music (Listen), a video playlist is marked Video.
+    var marksVideo = false
     let open: () -> Void
 
     var body: some View {
@@ -108,6 +110,9 @@ struct PlaylistTile: View {
                 PlaylistMosaic(app: app, artwork: card.artwork, video: card.video, size: width)
                     .overlay(alignment: .topLeading) {
                         if card.smart { ListBadge(text: localized("Smart")).padding(10) }
+                    }
+                    .overlay(alignment: .bottomLeading) {
+                        if marksVideo && card.video { ListBadge(text: localized("Video")).padding(10) }
                     }
             }
             .buttonStyle(.card)

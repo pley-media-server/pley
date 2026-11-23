@@ -92,7 +92,7 @@ extension Walk {
             return
         }
         openPlaylists(first: [.up, .left])
-        select(button("tile.playlist.\(id)"), "UI Music in Playlists", first: [.down, .right])
+        select(button("tile.playlist.\(id)"), "UI Music in Listen", first: [.down, .right])
         wait(element("playlist.title"), "UI Music's page")
         select(button("playlist.entry.\(entries[1])"), "UI Music's second entry", first: [.down, .right])
         await nowPlaying(says: "Second")

@@ -382,6 +382,9 @@ public enum Words {
         }
     }
 
+    /// "106 channels": how many Live TV has.
+    public static func channelCount(_ n: Int) -> String { localized("\(n) channels") }
+
     /// "S1 · E3", "E3", or "" with neither number: the screens' episode label.
     public static func episodeLabel(season: Int?, episode: Int?) -> String {
         switch (season, episode) {

@@ -160,15 +160,20 @@ public final class ShellModel: ObservableObject {
     /// How long a toast shows.
     public static let toastSeconds: Double = 5
 
-    @Published public private(set) var section: ShellSection
+    @Published public private(set) var section: ShellSection {
+        didSet { if Self.underLibraryTab(section, tv: tv), section != .libraries { lastLibrary = section } }
+    }
+    /// The library (or Live TV, on iPhone) shown last under the iPhone's
+    /// Library tab, which takes its name, or Apple TV's Libraries tab.
+    @Published public private(set) var lastLibrary: ShellSection?
     @Published public private(set) var paths: [ShellSection: [Screen]] = [:]
     @Published public var sheet: Sheet?
     @Published public private(set) var toast: Toast?
     /// The tabs this device shows, in order: the iPhone's tab bar (and the
     /// iPad's in a narrow window), or Apple TV's tabs across the top.
     @Published public private(set) var sections: [ShellSection]
-    /// The libraries, in the profile's order: the sidebar's rows, and
-    /// Apple TV's library tabs.
+    /// The libraries, in the profile's order: the sidebar's rows, and what
+    /// Apple TV's Libraries tab switches between.
     @Published public private(set) var libraries: [Library] = []
     /// Live TV on the open server for this profile (`GET /api/live`);
     /// `nil` while not known. It shows when it is `available`.
@@ -182,9 +187,6 @@ public final class ShellModel: ObservableObject {
     @Published public private(set) var nowPlaying = false
     /// iPhone and iPad: Now Playing shows, in a sheet over the shell.
     @Published public var nowPlayingOpen = false
-
-    /// Apple TV shows at most this many tabs: past it, tvOS cuts them off.
-    public static let maxTabs = 7
 
     /// How much of Apple TV's tab bar the tabs may take, counted in
     /// characters: a tab with words takes its title's and `tabPadding`
@@ -207,13 +209,14 @@ public final class ShellModel: ObservableObject {
 
     /// The shell on this device, opening on the section shown last: on
     /// iPhone, iPad and Mac, Home, Libraries, Search, Playlists and Me (the
-    /// Android phone's five); on Apple TV, Search, Home, the libraries,
-    /// Playlists and Settings.
+    /// Android phone's five); on Apple TV, Search, Home, Libraries, Listen
+    /// and Settings.
     public init(settings: AppSettings = AppSettings(), tv: Bool = ShellModel.isTV) {
         self.settings = settings
         self.tv = tv
         sections = Self.sections(tv: tv, libraries: [])
         let last = settings.lastSection.flatMap(ShellSection.init(key:))
+        if let last, Self.underLibraryTab(last, tv: tv), last != .libraries { lastLibrary = last }
         // A library's section, Live TV's and requests', wait on Home for what decides whether they show.
         if case .library = last {
             restoring = last
@@ -237,31 +240,61 @@ public final class ShellModel: ObservableObject {
 
     /// The tabs of a shell, with `libraries`, Live TV when it shows, the
     /// way into requests (`requests`) and Now Playing while music has a
-    /// queue. On Apple TV, at most `maxTabs` (Android's rail rule), within
-    /// `tabRoom` across the screen: Search, Home, Discover or the requests,
-    /// Live TV, the libraries, Playlists, Now Playing and Settings. While
-    /// they all fit each library has a tab; otherwise the first that fit
-    /// keep theirs and a Libraries tab takes the rest's place. With Live
-    /// TV, Now Playing and the way into requests all showing, nothing
-    /// gives way: Libraries is an eighth tab, and the bar scrolls (as
-    /// Android TV's rail does).
+    /// queue. On Apple TV: Search, Home, Discover or the requests, Live TV,
+    /// Libraries (while there is a movie or show library: one tab for them
+    /// all, showing the one chosen last), Listen (the Playlists tab, which
+    /// has the music libraries), Now Playing and Settings.
     public static func sections(tv: Bool, libraries: [Library], liveTv: Bool = false, nowPlaying: Bool = false,
                                 requests: RequestsEntry = .none) -> [ShellSection] {
         guard tv else { return [.home, .libraries, .search, .playlists, .me] }
         // Search first, where tvOS puts it.
         let start: [ShellSection] = [.search, .home] + (requests.shows ? [.requests] : []) + (liveTv ? [.liveTv] : [])
-        let end: [ShellSection] = [.playlists] + (nowPlaying ? [.nowPlaying] : []) + [.settings]
-        let room = maxTabs - start.count - end.count
-        func width(_ section: ShellSection) -> Int { tabWidth(section, libraries: libraries, requests: requests) }
-        let taken = (start + end).reduce(0) { $0 + width($1) }
-        func fits(_ middle: [ShellSection]) -> Bool {
-            middle.count <= room && taken + middle.reduce(0) { $0 + width($1) } <= tabRoom
+        let library: [ShellSection] = libraries.contains { $0.kind != .music } ? [.libraries] : []
+        return start + library + [.playlists] + (nowPlaying ? [.nowPlaying] : []) + [.settings]
+    }
+
+    /// Whether `section` shows under the Library tab: on Apple TV (its
+    /// Libraries tab) a movie or show library's, as Live TV has its own
+    /// tab; on iPhone the picker's places (`LibraryPicker.underTab`).
+    static func underLibraryTab(_ section: ShellSection, tv: Bool) -> Bool {
+        guard tv else { return LibraryPicker.underTab(section) }
+        switch section {
+        case .libraries, .library: return true
+        default: return false
         }
-        let tabs = libraries.map { ShellSection.library($0.id) }
-        if fits(tabs) { return start + tabs + end }
-        var kept = Array(tabs.prefix(max(room - 1, 0)))
-        while !kept.isEmpty && !fits(kept + [.libraries]) { kept.removeLast() }
-        return start + kept + [.libraries] + end
+    }
+
+    /// Apple TV's Libraries tab chosen: the library shown last under it,
+    /// else the first movie or show library in the profile's order.
+    public func openLibraryTab() {
+        select(libraryTabSection)
+    }
+
+    /// What Apple TV's Libraries tab shows: the library showing, or shown
+    /// last, else the first movie or show library; Libraries without one.
+    public var libraryTabSection: ShellSection {
+        if case .library = section, shows(section) { return section }
+        if let last = lastLibrary, case .library = last, shows(last) { return last }
+        return libraries.first { $0.kind != .music }.map { .library($0.id) } ?? .libraries
+    }
+
+    /// The tabs of `sections` that show their symbol alone on Apple TV:
+    /// Search, Now Playing and Settings, and while the tabs' words would
+    /// take more than `tabRoom`, Playlists, then Libraries, then Live TV,
+    /// then the requests' tab, until they fit. So the bar never scrolls
+    /// Settings, which holds Switch profile and Sign out, off the screen.
+    public static func symbolOnly(_ sections: [ShellSection], libraries: [Library],
+                                  requests: RequestsEntry = .none) -> Set<ShellSection> {
+        var symbols = symbolTabs
+        func total() -> Int {
+            sections.reduce(0) { sum, section in
+                sum + (symbols.contains(section) ? tabPadding : tabWidth(section, libraries: libraries, requests: requests))
+            }
+        }
+        for section in [ShellSection.playlists, .libraries, .liveTv, .requests] where total() > tabRoom {
+            if sections.contains(section) { symbols.insert(section) }
+        }
+        return symbols
     }
 
     /// How much of the bar `section`'s tab takes (`tabRoom`).
@@ -270,7 +303,7 @@ public final class ShellModel: ObservableObject {
         let title = switch section {
         case .home: localized("Home")
         case .libraries: localized("Libraries")
-        case .playlists: localized("Playlists")
+        case .playlists: localized("Listen")
         case .liveTv: localized("Live TV")
         case .requests: requestsTitle(requests)
         case .library(let id): libraries.first { $0.id == id }?.name ?? localized("Library")
@@ -297,7 +330,8 @@ public final class ShellModel: ObservableObject {
     /// Whether `section` is one this device can show now.
     public func shows(_ section: ShellSection) -> Bool {
         if sections.contains(section) { return true }
-        if case .library(let id) = section { return libraries.contains { $0.id == id } }
+        // Apple TV's music libraries are pages under Listen, never a section.
+        if case .library(let id) = section { return libraries.contains { $0.id == id && (!tv || $0.kind != .music) } }
         // The sidebar's Live TV row: in a tab bar it shows under Libraries, as a library does.
         if section == .liveTv { return showsLiveTv }
         return false
@@ -399,6 +433,24 @@ public final class ShellModel: ObservableObject {
     /// `screen` on top of the section showing.
     public func open(_ screen: Screen) {
         paths[section, default: []].append(screen)
+    }
+
+    /// A library's page title menu: library `id` instead of the one
+    /// showing. A library's own section (the sidebar's rows) goes to that
+    /// library's section; a library page opened in another section is
+    /// replaced, so Back doesn't walk through every library chosen.
+    public func switchLibrary(to id: Int) {
+        if case .library = section, shows(.library(id)) {
+            select(.library(id))
+            return
+        }
+        var path = paths[section, default: []]
+        if case .library = path.last {
+            path[path.count - 1] = .library(id)
+            paths[section] = path
+        } else {
+            open(.library(id))
+        }
     }
 
     /// The page `item` opens.

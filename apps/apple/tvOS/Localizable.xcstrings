@@ -328,6 +328,35 @@
         }
       }
     },
+    "%lld of %lld" : {
+      "comment" : "VoiceOver: which of Home's featured titles shows (\"2 of 6\").",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld de %2$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld sur %2$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %1$lld 个，共 %2$lld 个"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 %1$lld 個，共 %2$lld 個"
+          }
+        }
+      }
+    },
     "%lld percent" : {
       "comment" : "VoiceOver value of a request's download progress bar: \"42 percent\".",
       "localizations" : {
@@ -837,6 +866,35 @@
         }
       }
     },
+    "Artists" : {
+      "comment" : "A row on the Listen tab: the music library's artists.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artistas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artistes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "艺人"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "藝人"
+          }
+        }
+      }
+    },
     "Ascending" : {
       "comment" : "A library: the order button.",
       "localizations" : {
@@ -1036,6 +1094,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "背景"
+          }
+        }
+      }
+    },
+    "Browse by genre" : {
+      "comment" : "Heading in Search before anything is typed: a library's genres as cards, each opening the library filtered by it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explorar por género"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parcourir par genre"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按类型浏览"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按類型瀏覽"
           }
         }
       }
@@ -2933,6 +3020,35 @@
         }
       }
     },
+    "Listen" : {
+      "comment" : "The iPhone's tab for music and playlists, in place of Playlists.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escuchar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écouter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收听"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收聽"
+          }
+        }
+      }
+    },
     "Live" : {
       "comment" : "Live TV: the red badge on what's on live.",
       "localizations" : {
@@ -3480,6 +3596,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "音樂"
+          }
+        }
+      }
+    },
+    "Music Libraries" : {
+      "comment" : "The Listen tab's last part: the profile's music libraries, each opening its page.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliotecas de música"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothèques de musique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音乐资料库"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音樂資料庫"
           }
         }
       }
@@ -5253,6 +5398,35 @@
         }
       }
     },
+    "Recently Played" : {
+      "comment" : "A row on the Listen tab: the albums of the profile's latest tracks.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escuchado recientemente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écouté récemment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近播放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近播放"
+          }
+        }
+      }
+    },
     "Recently watched" : {
       "comment" : "Live TV's categories: the channels watched last.",
       "localizations" : {
@@ -6471,6 +6645,35 @@
         }
       }
     },
+    "Switches to another library" : {
+      "comment" : "VoiceOver hint on a library page's title on Apple TV: a menu of the other movie and show libraries.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cambia a otra biblioteca"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passe à une autre bibliothèque"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换到另一个媒体库"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切換到另一個媒體庫"
+          }
+        }
+      }
+    },
     "System uses your caption style from the Apple TV's Settings → Accessibility → Subtitles and Captioning. Position moves text subtitles only." : {
       "comment" : "Settings: the note under Subtitles. \"System\" and \"Position\" are the choice and the row above it; the path is the Apple TV's own Settings.",
       "localizations" : {
@@ -7163,6 +7366,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "版本"
+          }
+        }
+      }
+    },
+    "Video" : {
+      "comment" : "A badge on a video playlist's tile, among the music on the Listen tab.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vidéo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视频"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "影片"
           }
         }
       }

@@ -2715,6 +2715,35 @@
         }
       }
     },
+    "Couldn't load your music" : {
+      "comment" : "The iPhone's Listen tab when it couldn't be read.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cargar tu música"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger votre musique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载你的音乐"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法載入你的音樂"
+          }
+        }
+      }
+    },
     "Couldn't load your playlists" : {
       "comment" : "Playlists when they didn't load.",
       "localizations" : {
@@ -4513,6 +4542,35 @@
         }
       }
     },
+    "Listen" : {
+      "comment" : "The iPhone's tab for music and playlists, in place of Playlists.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escuchar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écouter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收听"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收聽"
+          }
+        }
+      }
+    },
     "Live TV" : {
       "comment" : "A section, a search group, and Now Playing's title for a channel without a name.",
       "localizations" : {
@@ -4799,6 +4857,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "網路"
+          }
+        }
+      }
+    },
+    "New" : {
+      "comment" : "Why a title is in Home's banner when its library has no name: it was added lately.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Novedad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新上架"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新上架"
+          }
+        }
+      }
+    },
+    "New in %@" : {
+      "comment" : "Why a title is in Home's banner: it was added lately to this library (\"New in Movies\").",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Novedad en %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau dans %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 中的新内容"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 中的新內容"
           }
         }
       }
@@ -5118,6 +5234,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "尚無媒體庫"
+          }
+        }
+      }
+    },
+    "No music yet" : {
+      "comment" : "The iPhone's Listen tab with no plays, playlists or music library.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todavía no hay música"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore de musique"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有音乐"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還沒有音樂"
           }
         }
       }
@@ -5582,6 +5727,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最早優先"
+          }
+        }
+      }
+    },
+    "On your list" : {
+      "comment" : "Why a title is in Home's banner: it is on the profile's My List.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En tu lista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans votre liste"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在你的片单中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在你的片單中"
           }
         }
       }
@@ -7699,6 +7873,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "明天，%@"
+          }
+        }
+      }
+    },
+    "Top rated" : {
+      "comment" : "Why a title is in Home's banner when its library has no name: it is among the best rated.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mejor valorados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mieux notés"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "评分最高"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "評分最高"
+          }
+        }
+      }
+    },
+    "Top rated in %@" : {
+      "comment" : "Why a title is in Home's banner: it is among the best rated of this library (\"Top rated in Movies\").",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mejor valorados en %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mieux notés dans %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 中评分最高"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 中評分最高"
           }
         }
       }

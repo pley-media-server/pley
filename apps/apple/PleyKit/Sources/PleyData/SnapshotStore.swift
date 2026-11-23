@@ -43,6 +43,8 @@ public enum SnapshotKeys {
     /// `GET /api/libraries/{id}`.
     public static func library(_ libraryId: Int) -> String { "library:\(libraryId)" }
     public static func libraryHubs(_ libraryId: Int) -> String { "libhubs:\(libraryId)" }
+    /// `GET /api/libraries/{id}/filters`: its genres and years.
+    public static func libraryFilters(_ libraryId: Int) -> String { "libfilters:\(libraryId)" }
     /// The first items of a library's listing as `query` (its sort, order and filters) asks.
     public static func libraryHead(_ libraryId: Int, _ query: String) -> String { "library:\(libraryId):\(query):head" }
     public static func collections(_ libraryId: Int) -> String { "collections:\(libraryId)" }
