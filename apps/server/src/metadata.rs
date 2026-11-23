@@ -28,6 +28,9 @@ use crate::util::{composed, normalize_key, now, sort_title};
 
 pub(crate) const API: &str = "https://api.themoviedb.org/3";
 pub(crate) const IMAGES: &str = "https://image.tmdb.org/t/p";
+/// The most of a TMDB answer read: its biggest, a long show's with its
+/// credits and pictures, take a few megabytes.
+const MAX_ANSWER_BYTES: usize = 32 << 20;
 
 pub struct MetadataAgent {
     db: Db,
@@ -889,7 +892,10 @@ impl MetadataAgent {
                 .await
                 .map_err(|e| TmdbError::Other(e.without_url().into()))?;
             match resp.status().as_u16() {
-                200 => return resp.json::<T>().await.map_err(|e| TmdbError::Other(e.without_url().into())),
+                200 => {
+                    let body = crate::util::read_body(resp, MAX_ANSWER_BYTES).await.map_err(TmdbError::Other)?;
+                    return serde_json::from_slice(&body).map_err(|e| TmdbError::Other(e.into()));
+                }
                 401 => return Err(TmdbError::Unauthorized),
                 404 => return Err(TmdbError::NotFound),
                 429 => tokio::time::sleep(Duration::from_millis(1000 * (attempt + 1))).await,

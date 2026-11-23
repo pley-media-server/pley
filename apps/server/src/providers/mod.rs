@@ -403,15 +403,19 @@ impl Api {
 
     /// Send a request and read the JSON answer, up to [`MAX_ANSWER_BYTES`].
     pub(crate) async fn json<T: DeserializeOwned>(&self, request: reqwest::RequestBuilder) -> Result<T, ProviderError> {
-        let mut resp = self.send(request).await?;
-        let mut bytes = Vec::new();
-        while let Some(chunk) = resp.chunk().await.map_err(|e| anyhow!("{}: {e}", self.name))? {
-            if bytes.len() + chunk.len() > MAX_ANSWER_BYTES {
-                return Err(anyhow!("{}'s answer is too large", self.name).into());
-            }
-            bytes.extend_from_slice(&chunk);
-        }
+        let bytes = self.body(request).await?;
         serde_json::from_slice(&bytes).map_err(|e| anyhow!("unexpected answer from {}: {e}", self.name).into())
+    }
+
+    /// Send a request and read the answer, up to [`MAX_ANSWER_BYTES`].
+    pub(crate) async fn body(&self, request: reqwest::RequestBuilder) -> Result<Vec<u8>, ProviderError> {
+        let resp = self.send(request).await?;
+        self.read(resp).await
+    }
+
+    /// An answer [`Api::send`] gave, read up to [`MAX_ANSWER_BYTES`].
+    pub(crate) async fn read(&self, resp: reqwest::Response) -> Result<Vec<u8>, ProviderError> {
+        crate::util::read_body(resp, MAX_ANSWER_BYTES).await.map_err(|e| anyhow!("{}: {e:#}", self.name).into())
     }
 }
 

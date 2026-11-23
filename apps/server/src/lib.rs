@@ -486,7 +486,8 @@ async fn pley_answering(bind: SocketAddr) -> Option<String> {
     }
     let client = reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(2)).build().ok()?;
     let response = client.get(format!("http://{addr}/api/server")).send().await.ok()?;
-    let server: serde_json::Value = response.json().await.ok()?;
+    // Whatever answers on this port is read within bounds: Pley's answer is far smaller.
+    let server: serde_json::Value = serde_json::from_slice(&util::read_body(response, 64 << 10).await.ok()?).ok()?;
     server.get("setup_required").is_some().then(|| desktop::web_url(addr))
 }
 

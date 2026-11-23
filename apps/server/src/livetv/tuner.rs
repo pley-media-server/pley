@@ -1520,14 +1520,21 @@ async fn pull_once(tuner: &Tuner, http: &reqwest::Client) -> Result<(), String> 
     }
 }
 
-async fn read_text(resp: reqwest::Response) -> Result<String, String> {
-    let bytes = tokio::time::timeout(Duration::from_secs(10), resp.bytes())
+async fn read_text(mut resp: reqwest::Response) -> Result<String, String> {
+    // Refused once past the limit, not after all of it has come.
+    let read = async {
+        let mut bytes = Vec::new();
+        while let Some(chunk) = resp.chunk().await.map_err(|e| super::describe(&e))? {
+            if bytes.len() + chunk.len() > 2 << 20 {
+                return Err("the provider's playlist is too large".to_owned());
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        Ok(bytes)
+    };
+    let bytes = tokio::time::timeout(Duration::from_secs(10), read)
         .await
-        .map_err(|_| "the provider's playlist didn't come".to_owned())?
-        .map_err(|e| super::describe(&e))?;
-    if bytes.len() > 2 << 20 {
-        return Err("the provider's playlist is too large".into());
-    }
+        .map_err(|_| "the provider's playlist didn't come".to_owned())??;
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
