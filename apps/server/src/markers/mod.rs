@@ -1340,7 +1340,8 @@ fn chapter_markers(chapters: &[Chapter], duration_ms: i64) -> Vec<Found> {
         if kind == MarkerKind::Credits && duration_ms - end <= CREDITS_TAIL_MS {
             end = duration_ms;
         }
-        if plausible && !out.iter().any(|m| m.kind == kind) {
+        // A chapter that starts past the end of the file says nothing of it.
+        if plausible && start < end && !out.iter().any(|m| m.kind == kind) {
             out.push(Found { kind, start_ms: start, end_ms: end, source: "chapter" });
         }
     }
@@ -1914,6 +1915,10 @@ mod tests {
         assert!(found.is_empty(), "{found:?}");
         let found = chapter_markers(&[chapter(1_500_000, 1_571_000, "Credits")], 1_571_000);
         assert_eq!(found.len(), 1);
+        // Credits past the end of the file, from a longer cut's chapters.
+        let found =
+            chapter_markers(&[chapter(0, 1_200_000, "Episode"), chapter(1_300_000, 1_400_000, "Credits")], 1_250_000);
+        assert!(found.is_empty(), "{found:?}");
     }
 
     #[test]
