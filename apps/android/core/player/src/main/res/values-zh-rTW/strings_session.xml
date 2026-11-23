@@ -22,7 +22,7 @@
     <!-- Automatic's hint in the quality menu. -->
     <string name="session_quality_automatic_hint">根據情況動態調整</string>
     <!-- Automatic's hint while it plays lower: "Now 8 Mbps 1080p". -->
-    <string name="session_quality_automatic_now">當前 %1$s</string>
+    <string name="session_quality_automatic_now">目前 %1$s</string>
     <!-- Automatic went down, said once, briefly: "Quality lowered to 8 Mbps 1080p". -->
     <string name="session_quality_lowered_notice">畫質已降至 %1$s</string>
     <!-- Why Automatic plays lower, in the details. -->
@@ -57,6 +57,7 @@
     <string name="session_method_transcode">轉碼中</string>
     <string name="session_method_remux_audio">直接流式傳輸 · 音訊轉碼</string>
     <string name="session_fallback_unplayable">此裝置無法播放原始檔案。</string>
+    <string name="session_fallback_audio_unplayable">此裝置無法播放原始音訊。</string>
     <string name="session_fallback_not_smooth">原始畫質在此裝置上播放不流暢。</string>
     <string name="session_slow_server">伺服器處理此影片吃力。請嘗試更低的畫質。</string>
 
@@ -88,7 +89,7 @@
     <string name="session_engine_audio">音訊：%1$s %2$d 聲道</string>
     <string name="session_engine_audio_decoder">音訊解碼器：%1$s</string>
     <!-- "Dropped frames: 3 of 5000". -->
-    <string name="session_engine_dropped">丟幀：%1$d / %2$d</string>
+    <string name="session_engine_dropped">掉格：%1$d / %2$d</string>
 
     <!-- Playback speed, when a download's sound keeps it at 1×, or a stream's the server couldn't convert. -->
     <string name="session_speed_undecodable">不適用於此下載：其音訊原樣輸出到你的音響，此處沒有裝置可以解碼</string>
@@ -118,7 +119,7 @@
     <string name="session_error_unreachable">%1$s 請檢查伺服器是否已開啟，且本裝置是否與其在同一網路中。</string>
     <!-- "Playback failed (ERROR_CODE_DECODING_FAILED)." -->
     <string name="session_error_engine">播放失敗（%1$s）。</string>
-    <string name="session_error_no_file">此專案沒有可播放的檔案。</string>
+    <string name="session_error_no_file">此項目沒有可播放的檔案。</string>
     <!-- Play pressed with no server signed in to. -->
     <string name="session_sign_in_to_play">登入後播放</string>
 </resources>

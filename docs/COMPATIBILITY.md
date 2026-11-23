@@ -340,7 +340,9 @@ them.
   Pley playback session. It is listed in `/status/sessions` (with `User`,
   `Player` and `Session`, plus `TranscodeSession` for HLS) and in Pley's
   dashboard. The user's Pley apps list it among their sessions, and can
-  only stop it: Plex clients get no other remote commands from Pley.
+  only stop it: Plex clients get no other remote commands from Pley. The
+  dashboard's Clients list names a client by its token's account and its
+  `X-Plex-Device-Name` (or `X-Plex-Product`).
 - **Notifications.** `/:/websockets/notifications` (token as `X-Plex-Token`
   query parameter or header) streams JSON `NotificationContainer`s:
   - `playing`: a session starts, pauses, resumes or stops, and every 10 s
@@ -774,7 +776,16 @@ without a base layer.
 - The sound is copied when its codec is listed (AAC, MP3, AC-3, E-AC-3),
   else converted: to E-AC-3 or AC-3 5.1 where the app lists them and takes
   six channels, else to AAC on as many channels as it takes, up to 5.1
-  (stereo when it doesn't say).
+  (stereo when it doesn't say). `AllowAudioStreamCopy=false`, which apps
+  send once they have failed on the sound, converts it whatever it is, in
+  the same way but never to its own codec: E-AC-3 becomes AC-3 5.1 or AAC.
+- `PlaybackInfo` takes `AllowVideoStreamCopy=false` and
+  `AllowAudioStreamCopy=false` too, as Jellyfin's apps send them when they
+  retry after a playback error, and writes them into the `TranscodingUrl`,
+  as Jellyfin does: jellyfin-web looks for them there to know how far its
+  retries have gone (the video converted first, then the sound too). As in
+  Jellyfin, whether the file plays as it is stays up to `EnableDirectPlay`,
+  and `AllowVideoStreamCopy=false` turns off `SupportsDirectStream`.
 - The answer is the stream's own multivariant playlist, which names what
   it carries (`CODECS`, `SUPPLEMENTAL-CODECS` for Dolby Vision,
   `VIDEO-RANGE`), in one size; `TranscodingContainer` says `mp4` for fMP4.
@@ -794,7 +805,9 @@ WebVTT or SubRip at their `DeliveryUrl`.
 
 A player's reports (`/Sessions/Playing`, `/Progress`, `/Stopped`) keep the
 resume point and the watched state by Pley's rules, and show as playback on
-Pley's Dashboard, by the device's `DeviceId`. Playback stopped from Pley
+Pley's Dashboard, by the device's `DeviceId`; the dashboard's Clients list
+names the app by its token's account and its `Device` (or `Client`), and its
+player's streams with it. Playback stopped from Pley
 tells the device's socket (`Playstate` `Stop`), and its reports don't start
 it again until it stops. `/MediaSegments/{id}` gives the intro and credits
 Pley found as `Intro` and `Outro`, for Skip buttons.

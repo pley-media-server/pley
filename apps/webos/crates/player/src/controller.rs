@@ -60,7 +60,8 @@ use crate::nextup::{
 use crate::plan::{
     self, Choices, PlayRequest, audio_plays_here, audio_streams, choose_file, dv_container_mode, dv_retry_mode,
     initial_audio, initial_subtitle, is_keyed, is_picture, mime_type_of, needs_indexes, picture_path, playback_request,
-    playing_audio, subtitle_streams, text_path, video_stream_of, will_stream, with_width,
+    playing_audio, starting_audio, subtitle_streams, text_path, video_stream_of, will_stream, with_width,
+    without_audio,
 };
 use crate::prepare::{PREPARE_LEAD_MS, PREPARE_MAX_MS, warm_stream};
 use crate::quality::{
@@ -1166,6 +1167,11 @@ impl PlaybackController {
         !self.pictures_unavailable && self.caps.as_ref().is_some_and(|c| c.picture_subtitles_sideload)
     }
 
+    /// The capabilities the server is told of: the TV's, without the audio it failed to play in this item.
+    fn sent_caps(&self) -> Option<ClientCaps> {
+        without_audio(self.caps.as_ref(), &self.recovery.refused_audio)
+    }
+
     /// Asks for a session at `at_ms` and has the engine play it. `alongside`:
     /// the session playing plays on meanwhile (`keep_previous`), and the
     /// engine moves once the new stream's first segment is made (20 s at most).
@@ -1185,22 +1191,23 @@ impl PlaybackController {
         }
         let playing = self.playing_preset();
         let original = playing.id == ORIGINAL_ID;
+        let caps = self.sent_caps();
         // A file on a drive has no server to remux it: it plays as it is, and
         // the screen gets what Playback details says.
         if original && self.guard_mode.is_none() && !self.local() {
-            self.guard_mode = dv_container_mode(Some(&chosen), self.caps.as_ref(), self.dv_containers.as_deref());
+            self.guard_mode = dv_container_mode(Some(&chosen), caps.as_ref(), self.dv_containers.as_deref());
         }
         let mode = if original {
             self.recovery.fallback_mode.or(self.guard_mode).unwrap_or(playing.mode())
         } else {
             playing.mode()
         };
-        let decision = self.caps.as_ref().map(|c| decide(&chosen, c));
+        let decision = caps.as_ref().map(|c| decide(&chosen, c));
         // Automatic audio is chosen again for each session: a stream (a lower
         // quality, say) has the track it copies rather than converting the one
         // the file played as it is.
         let audio = if self.audio_picked { self.audio.clone() } else { None };
-        let streaming = will_stream(mode, decision.as_ref(), Some(&chosen), audio.as_ref(), self.caps.as_ref());
+        let streaming = will_stream(mode, decision.as_ref(), Some(&chosen), audio.as_ref(), caps.as_ref());
         let choices = Choices {
             file: chosen,
             start_ms: at_ms,
@@ -1224,7 +1231,7 @@ impl PlaybackController {
         let reporter = self.env.reporter.clone();
         let generation = self.generation.clone();
         let (client_id, keyed) = (self.env.client_id.clone(), self.env.keyed_urls);
-        let caps = self.caps.clone();
+        let caps = self.sent_caps();
         let local = self.local();
         let has_next = self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue.as_ref()));
         let file = Some(&asked.choices.file);
@@ -1810,8 +1817,31 @@ impl PlaybackController {
             return;
         }
         let codec = video_stream_of(self.file.as_ref()).map(|v| v.codec.clone());
-        let action = self.recovery.decide(error, info.method, codec.as_deref());
+        let audio = self.failed_audio_codec(error, info);
+        let action = self.recovery.decide(error, info.method, codec.as_deref(), audio.as_deref());
         self.act(action, false);
+    }
+
+    /// The server's name for the audio that failed in `error`: the file's track that plays, as
+    /// LG's pipeline doesn't say which, when it reached the TV as it is in the file (not converted
+    /// by the server). Only a codec the capabilities sent list: leaving out one they don't would
+    /// change nothing. A file on a drive has no server to convert its audio: the ladder says so,
+    /// as before.
+    fn failed_audio_codec(&self, error: &EngineError, info: &PlaybackInfo) -> Option<String> {
+        if !matches!(error, EngineError::Unsupported { audio: true, .. }) || info.audio_converted || self.local() {
+            return None;
+        }
+        let file = self.file.as_ref();
+        // Until the pipeline lists its tracks, the one chosen isn't switched to: the file plays the one it starts with.
+        let played = if self.audio_pending.is_some() {
+            starting_audio(file)
+        } else {
+            self.tracks_now
+                .audio
+                .and_then(|index| audio_streams(file).into_iter().find(|s| s.index == index).cloned())
+                .or_else(|| playing_audio(file, info))
+        }?;
+        self.sent_caps()?.plays_audio(&played.codec).then_some(played.codec)
     }
 
     fn act(&mut self, action: RecoveryAction, starving: bool) {
@@ -2386,7 +2416,8 @@ impl PlaybackController {
         self.publish_choices();
         let Some(info) = &self.info else { return };
         let ordinal = audio_streams(self.file.as_ref()).iter().position(|s| s.index == index).unwrap_or(0);
-        if !info.hls && audio_plays_here(Some(&chosen), self.caps.as_ref()) {
+        // A track whose codec failed here goes to the server, which converts it.
+        if !info.hls && audio_plays_here(Some(&chosen), self.sent_caps().as_ref()) {
             if self.switch_audio(ordinal, chosen.language.as_deref()) {
                 self.quiet_frames();
                 self.tracks_now.audio = Some(index);

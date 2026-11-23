@@ -6,7 +6,7 @@
     <string name="search_recent">最近搜索</string>
     <string name="search_recent_clear">清除</string>
     <string name="search_empty_title">搜索你的媒体库</string>
-    <string name="search_empty_body">查找电影、剧集、分集、人物、音乐人、专辑、曲目和直播电视频道。</string>
+    <string name="search_empty_body">查找电影、剧集、分集、人物、艺人、专辑、曲目和直播电视频道。</string>
     <string name="search_results_for">“%1$s”的搜索结果</string>
     <string name="search_loading">搜索中…</string>
     <string name="search_none_title">“%1$s”没有结果</string>
@@ -20,7 +20,7 @@
     <string name="search_group_shows">剧集</string>
     <string name="search_group_seasons">季</string>
     <string name="search_group_episodes">集</string>
-    <string name="search_group_artists">音乐人</string>
+    <string name="search_group_artists">艺人</string>
     <string name="search_group_albums">专辑</string>
     <string name="search_group_tracks">曲目</string>
     <!-- "Movies, 12 results", for screen readers. -->

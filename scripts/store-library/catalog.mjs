@@ -28,14 +28,14 @@ export const movies = [
 
 export const shows = [
   { title: "Harbor Town", year: 2023, scene: "harbor", pal: ["#102a43", "#486581", "#f0b429", "#f0f4f8"], font: "serif", genres: ["Drama"], rating: "TV-14",
-    summary: "In a fishing town where everyone knows everyone, a new harbourmaster starts asking about the night the old pier burned.",
+    summary: "In a fishing town where everyone knows everyone, a new harbormaster starts asking about the night the old pier burned.",
     seasons: [[
-      ["Low Tide", "Mara takes over the harbour office and finds the records from the fire missing."],
+      ["Low Tide", "Mara takes over the harbor office and finds the records from the fire missing."],
       ["Knots", "A storm keeps the fleet ashore, and old grudges come out at the pub."],
       ["The Pier", "Mara finds a witness who saw two boats leave the night of the fire."],
       ["Fog Warning", "A trawler goes missing in the fog, and the town turns on its newest arrival."],
       ["Ballast", "Jonah finally tells Mara what his father kept in the boathouse."],
-      ["High Water", "The spring tide floods the harbour, and the truth about the fire comes in with it."],
+      ["High Water", "The spring tide floods the harbor, and the truth about the fire comes in with it."],
     ]] },
   { title: "Starfall", year: 2024, scene: "meteors", pal: ["#0f0c29", "#302b63", "#a78bfa", "#f5f3ff"], font: "sans", genres: ["Science Fiction", "Drama"], rating: "TV-14",
     summary: "The crew of a colony ship wakes three hundred years early to find their destination already settled, by someone who knows their names.",

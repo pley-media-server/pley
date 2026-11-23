@@ -70,6 +70,7 @@ pub mod strm;
 pub mod subtitles;
 #[cfg(test)]
 mod testing;
+pub mod traffic;
 pub mod transcoder;
 pub mod trickplay;
 pub mod two_step;

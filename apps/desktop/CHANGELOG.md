@@ -8,10 +8,18 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-11-22
+
+### Fixed
+
+- Traditional Chinese uses the words people use in Taiwan, and quotes with
+  「」.
+
+## [0.1.6] - 2026-11-20
+
 ### Added
 
-- Simplified and Traditional Chinese for the server picker and the request
-  notifications, in the language of the computer or the server's pages.
+- Simplified and Traditional Chinese.
 
 ## [0.1.5] - 2026-11-14
 
@@ -104,7 +112,9 @@ On a Mac:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-14...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
+[0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05

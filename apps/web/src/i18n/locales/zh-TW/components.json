@@ -16,7 +16,7 @@
     "ratingSystem": "分級制度",
     "rating": "分級",
     "ratingOption": "{{rating}}（{{age}} 歲）",
-    "noLimitHint": "所有電影和劇集，無論是否有分級。",
+    "noLimitHint": "所有電影和影集，無論是否有分級。",
     "ratingHint": "適合 {{age}} 歲觀看的影片：{{rating}} 及更溫和的分級，來自任何國家。",
     "ageHint": "適合 {{age}} 歲觀看的影片，依據任何國家的分級。",
     "ratingHintAllAges": "僅適合所有年齡段觀看的影片，例如 {{rating}}，來自任何國家。",
@@ -26,7 +26,7 @@
     "birthdayHint": "限制每年在 {{month}} 的第一天提高，到 {{end}} 結束。",
     "grownUpHint": "無限制：他們已滿 {{age}} 歲。",
     "exceptions": "例外",
-    "exceptionsHint": "依據影片上的標籤，你在影片的“編輯詳情”中設定。",
+    "exceptionsHint": "依據影片上的標籤，你在影片的「編輯詳情」中設定。",
     "exceptionsNone": "無",
     "exceptionsShown_other": "始終顯示 {{count, number}} 個標籤",
     "exceptionsHidden_other": "從不顯示 {{count, number}} 個標籤",
@@ -47,7 +47,7 @@
     "placeholder": "新增標籤",
     "titles_other": "{{count, number}} 部影片",
     "inRules": "在例外中",
-    "create": "新增“{{label}}”",
+    "create": "新增「{{label}}」",
     "suggestions": "建議"
   },
   "addToCollection": {
@@ -94,11 +94,11 @@
       "signedOut": "請重新登入伺服器，然後再次下載。",
       "diskFull": "磁碟已滿。",
       "notWritten": "無法寫入檔案：{{detail}}",
-      "cantMake": "伺服器無法為此電腦的播放器生成檔案：請更新它。",
-      "notMade": "伺服器無法為此電腦生成該檔案。",
-      "notMadeBecause": "伺服器無法為此電腦生成該檔案：{{detail}}",
+      "cantMake": "伺服器無法為此電腦的播放器產生檔案：請更新它。",
+      "notMade": "伺服器無法為此電腦產生該檔案。",
+      "notMadeBecause": "伺服器無法為此電腦產生該檔案：{{detail}}",
       "unreadable": "無法讀取伺服器的回應。",
-      "busy": "伺服器目前無法生成該檔案。",
+      "busy": "伺服器目前無法產生該檔案。",
       "noReply": "伺服器無法回應。",
       "unreachable": "無法連線到伺服器。",
       "dropped": "與伺服器的連線已斷開。",
@@ -118,7 +118,7 @@
   },
   "collectionCard": {
     "movies_other": "{{count, number}} 部電影",
-    "shows_other": "{{count, number}} 部劇集"
+    "shows_other": "{{count, number}} 部影集"
   },
   "connectionBanner": {
     "offline": "Pley 處於離線狀態",
@@ -133,7 +133,7 @@
     "go": "前往",
     "backToTop": "返回頂部",
     "empty": "此處沒有子資料夾。",
-    "hint": "單擊開啟資料夾，雙擊可直接選擇它。"
+    "hint": "按一下開啟資料夾，按兩下可直接選擇它。"
   },
   "historyList": {
     "remove": "從歷史記錄中移除"
@@ -171,7 +171,7 @@
     "label": "在其他裝置上播放…",
     "playingOn": "正在 {{device}} 上播放",
     "starting": "正在 {{device}} 上啟動…",
-    "otherProfile": "{{device}} 當前使用 {{profile}} 的設定檔：會先切換到你的設定檔。",
+    "otherProfile": "{{device}} 目前使用 {{profile}} 的設定檔：會先切換到你的設定檔。",
     "enterPin": "輸入你的 PIN",
     "pairWith": "與 {{device}} 配對",
     "pairWhy": "輸入 {{device}} 顯示的代碼。之後家裡的每個人都可以用它播放。",
@@ -185,13 +185,13 @@
     "buttonReady_other": "遙控器，{{count, number}} 臺裝置可以播放",
     "yourDevices": "你的裝置",
     "nothingPlaying": "沒有正在播放的內容",
-    "sendHint": "用“在其他裝置上播放…”把內容傳送到這裡",
+    "sendHint": "用「在其他裝置上播放…」把內容傳送到這裡",
     "noAnswer": "{{device}} 沒有回應。",
     "audioOn": "{{device}} 的音軌",
     "subtitlesOn": "{{device}} 的字幕",
     "qualityOn": "{{device}} 的畫質",
     "subtitlesOff": "關閉",
-    "seekOn": "在 {{device}} 上跳轉",
+    "seekOn": "在 {{device}} 上調整播放位置",
     "timeOf": "{{position}} / {{duration}}",
     "progressOn": "{{device}} 的進度",
     "playOnDevice": "在 {{device}} 上播放",
@@ -202,7 +202,7 @@
     "channel": "頻道",
     "previousOn": "在 {{device}} 上上一個",
     "backOn": "在 {{device}} 上後退 30 秒",
-    "forwardOn": "在 {{device}} 上快進 30 秒",
+    "forwardOn": "在 {{device}} 上快轉 30 秒",
     "skip": {
       "intro": "跳過片頭",
       "credits": "跳過片尾"
@@ -253,7 +253,7 @@
     "moved": "{{name}} 已移到第 {{position}} 位，共 {{total}} 個",
     "movedBack": "{{name}} 已移回第 {{position}} 位，共 {{total}} 個",
     "notMoved": "{{name}} 未移動",
-    "drag": "拖動以排序",
+    "drag": "拖曳以排序",
     "moveUp": "將 {{name}} 上移",
     "moveDown": "將 {{name}} 下移"
   },
@@ -272,7 +272,7 @@
     "clearSearch": "清除搜尋",
     "phases": {
       "queued": "排隊中",
-      "walking": "正在查詢檔案",
+      "walking": "正在尋找檔案",
       "probing": "正在分析",
       "metadata": "正在取得中介資料",
       "done": "完成"

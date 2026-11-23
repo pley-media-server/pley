@@ -70,7 +70,7 @@
   },
   "audio": {
     "delay": "音訊延遲",
-    "notOffered": "這臺電視的播放器不提供 {{chosen}}：當前播放 {{playing}}"
+    "notOffered": "這臺電視的播放器不提供 {{chosen}}：目前播放 {{playing}}"
   },
   "quality": {
     "original": "原始",
@@ -78,22 +78,23 @@
     "preset": "{{mbps}} Mbps {{lines}}",
     "automaticHint": "根據網路狀況動態調整",
     "automaticPlaying": "自動 · {{quality}}",
-    "automaticNow": "當前 {{quality}}",
+    "automaticNow": "目前 {{quality}}",
     "lowered": "畫質已降至 {{quality}}",
     "loweredNetwork": "因你的網路狀況降低",
     "loweredDevice": "因這臺裝置降低",
     "playOriginal": "播放原始畫質",
     "playOriginalHint": "再次嘗試原始畫質",
-    "transcodeToast": "{{note}} “播放原始畫質”在“畫質”中。",
+    "transcodeToast": "{{note}} 「播放原始畫質」在「畫質」中。",
     "slowServer": "伺服器無法跟上此影片。請嘗試更低畫質。",
-    "slowServerToast": "{{note}} 請在“畫質”中選擇。"
+    "slowServerToast": "{{note}} 請在「畫質」中選擇。"
   },
   "fallback": {
     "unplayable": "此裝置無法播放原始檔案。",
+    "audioUnplayable": "此裝置無法播放原始音訊。",
     "notSmooth": "原始檔案在此裝置上播放不流暢。"
   },
   "speed": {
-    "passthrough": "聲音原樣傳給接收端時無法調整：它按其自身速度播放"
+    "passthrough": "聲音原樣傳給擴大機時無法調整：它按其自身速度播放"
   },
   "method": {
     "direct": "直接播放",
@@ -132,13 +133,13 @@
     "playback": "播放",
     "why": "原因",
     "quality": "畫質",
-    "currentBitrate": "當前位元速率",
+    "currentBitrate": "目前位元速率",
     "asInFile": "與檔案中一致",
     "output": "輸出",
     "track": "軌道",
     "off": "關閉",
     "shown": "顯示",
-    "fromServerText": "來自伺服器的文本",
+    "fromServerText": "來自伺服器的文字",
     "fromServerPictures": "來自伺服器的影像",
     "burnedInByServer": "由伺服器內嵌",
     "convertsTo": "轉換為",
@@ -150,14 +151,14 @@
     "decoded": "已解碼",
     "bitDepth": "{{n}} 位",
     "codecString": "編解碼器字串",
-    "dropped": "掉幀",
-    "droppedFrames": "掉幀數",
+    "dropped": "掉格",
+    "droppedFrames": "掉格數",
     "droppedOf": "{{dropped}} / {{frames}}",
     "buffer": "緩衝",
     "ahead": "領先 {{seconds}} 秒",
     "bufferedAhead": "預緩衝",
     "stalls": "卡頓",
-    "firstFrame": "首幀"
+    "firstFrame": "第一個影格"
   },
   "chapters": {
     "word": "章節",
@@ -193,7 +194,7 @@
   "remote": {
     "paused": "已暫停",
     "playing": "正在播放",
-    "jumpedTo": "已跳轉到 {{time}}",
+    "jumpedTo": "已跳至 {{time}}",
     "audio": "音訊：{{track}}",
     "quality": "畫質：{{quality}}"
   },

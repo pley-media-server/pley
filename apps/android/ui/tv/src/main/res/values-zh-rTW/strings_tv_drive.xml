@@ -7,7 +7,7 @@
     <string name="tv_drive_up">上一級資料夾</string>
     <!-- A video started before: "MKV · Resumes at 1:02:03". -->
     <string name="tv_drive_resumes">%1$s · 從 %2$s 繼續</string>
-    <string name="tv_drive_none_title">未檢測到 USB 裝置</string>
+    <string name="tv_drive_none_title">未偵測到 USB 裝置</string>
     <string name="tv_drive_none_body">將 USB 裝置插入電視，即可在此播放其中的影片。</string>
     <string name="tv_drive_unreadable_title">無法讀取此資料夾</string>
     <string name="tv_drive_unreadable_body">裝置可能已被拔出。</string>

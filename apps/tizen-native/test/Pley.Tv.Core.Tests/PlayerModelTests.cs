@@ -452,19 +452,152 @@ public class PlayerModelTests
         Assert.DoesNotContain(h.Source.Reports, r => r.Position > 1_000_000);
     }
 
+    static readonly MediaStream Aac = new MediaStream { Index = 1, Kind = "audio", Codec = "aac", Language = "eng", Default = true, Channels = 2 };
+
+    /// <summary>A movie whose one audio track is AAC, the server's last resort when it converts.</summary>
+    static ItemDetail AacMovie() => PlayerHarness.Movie() with { Files = new[] { PlayerHarness.FileOf(10) with { Streams = new[] { PlayerHarness.Video, Aac } } } };
+
+    /// <summary>The audio codecs in <paramref name="list"/> of the report a body sends.</summary>
+    static IEnumerable<string> AudioIn(IReadOnlyDictionary<string, object?> body, string list) =>
+        (IEnumerable<string>)((IReadOnlyDictionary<string, object?>)body["caps"]!)[list]!;
+
+    /// <summary>AAC is the server's last resort when it converts: there is nothing to leave out, so the ladder goes on.</summary>
     [Fact]
-    public void An_unsupported_track_in_direct_play_falls_back_to_a_remux_then_a_transcode_then_fails()
+    public void An_AAC_track_that_fails_in_direct_play_falls_back_to_a_remux_then_a_transcode_then_fails()
     {
-        h.Add(PlayerHarness.Movie());
+        h.Add(AacMovie());
         h.Start(new PlayRequest(1, 0, true));
         h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
         Assert.Equal("remux", h.LastBody["mode"]);
+        Assert.Same(h.Source.Bodies[0]["caps"], h.LastBody["caps"]);
+        Assert.Equal("This device couldn't play the original file.", h.State.Note);
         h.Source.Answer = _ => FakePlayerSource.Stream(10, "remux");
         h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
         Assert.Equal("transcode", h.LastBody["mode"]);
         h.Source.Answer = _ => FakePlayerSource.Stream(10);
         h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
         Assert.Equal(PlayerPhase.Error(SessionText.ErrorUnplayable, canRetry: false), h.State.Phase);
+    }
+
+    [Fact]
+    public void Audio_that_fails_is_asked_for_again_in_the_same_mode_without_its_codec_and_the_server_converts_it()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true));
+        Assert.Contains("eac3", AudioIn(h.LastBody, "audio_codecs"));
+        h.Play(2_000);
+        h.Source.Answer = _ => FakePlayerSource.Stream(10, "remux") with { AudioConverted = true };
+        // Tizen's player doesn't say which codec: the file's track that plays (E-AC-3) is the one.
+        h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        // The same mode, not a remux that would copy the same E-AC-3 again.
+        Assert.Equal(("auto", 2_000L), ((string)h.LastBody["mode"]!, (long)h.LastBody["start_ms"]!));
+        foreach (var list in new[] { "audio_codecs", "audio_decode", "audio_passthrough" }) Assert.DoesNotContain("eac3", AudioIn(h.LastBody, list));
+        Assert.Contains("ac3", AudioIn(h.LastBody, "audio_passthrough"));
+        Assert.Equal(("This device couldn't play the original audio.", "Direct stream · Audio transcoding"), (h.State.Note, h.State.Method));
+
+        // Its video fails next: the ladder goes on, still without E-AC-3.
+        h.Source.Answer = _ => FakePlayerSource.Stream(10);
+        h.Engine.Fail(new EngineError.Unsupported("video"));
+        Assert.Equal("transcode", h.LastBody["mode"]);
+        Assert.DoesNotContain("eac3", AudioIn(h.LastBody, "audio_codecs"));
+        Assert.Equal(3, h.Source.Bodies.Count);
+    }
+
+    [Fact]
+    public void A_track_picked_whose_audio_failed_is_named_for_the_server_to_convert_and_Retry_keeps_it_refused()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true, AudioIndex: 2));
+        h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        // The French AC-3 no longer plays here as the report says: the server converts it.
+        Assert.Equal(("auto", 2), ((string)h.LastBody["mode"]!, (int)h.LastBody["audio_index"]!));
+        Assert.DoesNotContain("ac3", AudioIn(h.LastBody, "audio_passthrough"));
+        h.Engine.Fail(new EngineError.Other("PLAYER_ERROR_INVALID_OPERATION"));
+        h.Model.Retry();
+        Assert.Equal(3, h.Source.Bodies.Count);
+        Assert.DoesNotContain("ac3", AudioIn(h.LastBody, "audio_codecs"));
+    }
+
+    [Fact]
+    public void A_track_picked_whose_codec_failed_here_goes_to_the_server_not_to_the_engine()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true));
+        var before = h.Engine.AudioSwitches.Count;
+        h.Model.SelectAudio(2);
+        Assert.Equal((before + 1, (1, "fre")), (h.Engine.AudioSwitches.Count, h.Engine.AudioSwitches.Last()));
+        h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.Equal(2, (int)h.LastBody["audio_index"]!);
+        // Back to the E-AC-3, which plays as it is; then the French AC-3 again: the server converts it.
+        h.Engine.Open();
+        h.Engine.Show();
+        h.Play(2_000);
+        h.Model.SelectAudio(1);
+        Assert.Equal((0, "eng"), h.Engine.AudioSwitches.Last());
+        var asked = h.Source.Bodies.Count;
+        var switched = h.Engine.AudioSwitches.Count;
+        h.Model.SelectAudio(2);
+        Assert.Equal(asked + 1, h.Source.Bodies.Count);
+        Assert.Equal(2, (int)h.LastBody["audio_index"]!);
+        Assert.Equal(switched, h.Engine.AudioSwitches.Count);
+    }
+
+    [Fact]
+    public void An_audio_failure_before_the_player_is_ready_is_the_track_the_file_starts_with()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true));
+        // The E-AC-3 fails and is refused; the server then plays the AC-3 beside it as it is.
+        h.Source.Answer = _ => FakePlayerSource.Direct(10) with { AudioIndex = 2 };
+        h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.DoesNotContain("eac3", AudioIn(h.LastBody, "audio_codecs"));
+        // The AC-3 is switched to once the player is ready; before that, the E-AC-3 the file starts
+        // with fails again. The AC-3 isn't refused: a remux carries it alone.
+        h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.Equal("remux", h.LastBody["mode"]);
+        Assert.Contains("ac3", AudioIn(h.LastBody, "audio_passthrough"));
+    }
+
+    [Fact]
+    public void A_remux_whose_first_track_is_TrueHD_starts_on_the_track_after_it()
+    {
+        // The TV's player leaves the TrueHD out of its tracks and starts on the E-AC-3, which the server picked.
+        var trueHd = new MediaStream { Index = 1, Kind = "audio", Codec = "truehd", Language = "eng", Default = true, Channels = 8 };
+        var eac3 = new MediaStream { Index = 2, Kind = "audio", Codec = "eac3", Language = "eng", Channels = 6 };
+        h.Add(PlayerHarness.Movie() with { Files = new[] { PlayerHarness.FileOf(10) with { Streams = new[] { PlayerHarness.Video, trueHd, eac3 } } } });
+        h.Source.Answer = _ => FakePlayerSource.Direct(10) with { AudioIndex = 2 };
+        h.Start(new PlayRequest(1, 0, true), show: false);
+        // It fails before the player is ready: the E-AC-3 is refused, not the TrueHD that never played.
+        h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.Equal("auto", h.LastBody["mode"]);
+        Assert.DoesNotContain("eac3", AudioIn(h.LastBody, "audio_codecs"));
+    }
+
+    [Fact]
+    public void Audio_is_refused_only_as_it_reached_the_TV_and_as_the_report_listed_it()
+    {
+        // The server converted it already: leaving out the file's codec would change nothing.
+        var converted = new PlayerHarness().Add(PlayerHarness.Movie());
+        converted.Source.Answer = _ => FakePlayerSource.Stream(10, "remux") with { AudioConverted = true };
+        converted.Start(new PlayRequest(1, 0, true));
+        converted.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.Equal("transcode", converted.LastBody["mode"]);
+        Assert.Same(converted.Source.Bodies[0]["caps"], converted.LastBody["caps"]);
+
+        // DTS that a 2025 TV without a receiver neither decodes nor sends on: not in the report to leave out.
+        var dts = new MediaStream { Index = 1, Kind = "audio", Codec = "dts", Language = "eng", Default = true, Channels = 6 };
+        var unlisted = new PlayerHarness().Add(PlayerHarness.Movie() with { Files = new[] { PlayerHarness.FileOf(10) with { Streams = new[] { PlayerHarness.Video, dts } } } });
+        unlisted.Source.Report = TizenCaps.Of(new TizenFacts());
+        unlisted.Start(new PlayRequest(1, 0, true));
+        unlisted.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.Equal("remux", unlisted.LastBody["mode"]);
+
+        // A file on a drive has no server to convert its audio.
+        var drive = new PlayerHarness().Add(PlayerHarness.Movie());
+        drive.Source.Local = true;
+        drive.Start(new PlayRequest(1, 0, true));
+        drive.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.Equal("remux", drive.LastBody["mode"]);
     }
 
     [Fact]
@@ -783,7 +916,7 @@ public class PlayerModelTests
     [Fact]
     public void A_failure_the_TV_says_twice_starts_one_session_at_the_next_step()
     {
-        h.Add(PlayerHarness.Movie());
+        h.Add(AacMovie());
         h.Start(new PlayRequest(1, 0, true));
         var again = true;
         h.Source.Answer = _ =>

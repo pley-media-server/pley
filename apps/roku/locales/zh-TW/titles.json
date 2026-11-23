@@ -8,8 +8,8 @@
     "addToMyList": "新增到我的片單",
     "removeFromMyList": "從我的片單中移除",
     "addToPlaylist": "新增到播放清單",
-    "removeFromContinueWatching": "從“繼續觀看”中移除",
-    "goToShow": "前往劇集",
+    "removeFromContinueWatching": "從「繼續觀看」中移除",
+    "goToShow": "前往影集",
     "goToSeason": "前往季",
     "goToArtist": "前往藝人",
     "goTo": "前往 {{title}}",
@@ -85,7 +85,7 @@
   "collection": {
     "label": "合集",
     "empty": "此合集中還沒有內容。",
-    "noEpisodes": "這部劇集還沒有任何一集。",
+    "noEpisodes": "這部影集還沒有任何一集。",
     "order": {
       "release": "按發行日期",
       "title": "按標題",
@@ -94,7 +94,7 @@
     "onlyLibrary": "僅 {{library}}"
   },
   "smartFilter": {
-    "genre": "型別：{{value}}",
+    "genre": "類型：{{value}}",
     "label": "標籤：{{value}}",
     "studio": "製作公司：{{value}}",
     "rated": "分級 {{value}}",
@@ -167,9 +167,9 @@
     "deleteTitle": "刪除 {{title}}？",
     "deleteBody": "播放清單將被刪除，其中的內容仍保留在你的媒體庫中。",
     "notDeleted": "播放清單刪除失敗",
-    "empty": "此播放清單是空的。在內容上按“選項”鍵即可新增。",
+    "empty": "此播放清單是空的。在內容上按「選項」鍵即可新增。",
     "moving": "{{title}}（移動中）",
-    "movingHint": "用上下鍵移動，按“確定”放在這裡，按“返回”放回原處。"
+    "movingHint": "用上下鍵移動，按「確定」放在這裡，按「返回」放回原處。"
   },
   "playback": {
     "method": {
@@ -185,7 +185,7 @@
     "subtitles": "字幕",
     "burnedIn": "已壓制",
     "speed": "速度",
-    "toneMapped": "SDR（通過 {{method}} 色調對映）",
+    "toneMapped": "SDR（透過 {{method}} 色調對映）",
     "realTime": "{{speed}}× 即時",
     "realTimeReady": "{{speed}}× 即時 · 已準備 {{seconds, number}} 秒",
     "chapter": "第 {{number}} 章",

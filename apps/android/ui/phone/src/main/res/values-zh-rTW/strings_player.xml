@@ -64,7 +64,7 @@
     <string name="player_sheet_back">返回設定</string>
     <string name="player_subtitle_style">字幕樣式</string>
     <string name="player_details">播放詳情</string>
-    <string name="player_size">字號</string>
+    <string name="player_size">字型大小</string>
     <string name="player_background">背景</string>
     <string name="player_size_small">小</string>
     <string name="player_size_normal">正常</string>
@@ -83,7 +83,7 @@
     <string name="player_details_frame_rate">%1$s fps</string>
     <string name="player_details_display">顯示</string>
     <!-- "1080 × 2400 · 120 Hz · HDR10, HLG". -->
-    <string name="player_details_dropped">丟幀</string>
+    <string name="player_details_dropped">掉格</string>
     <!-- "3 of 4,512". -->
     <string name="player_details_dropped_of">%1$d / %2$d</string>
     <string name="player_details_audio_out">音訊輸出</string>
@@ -93,7 +93,7 @@
     </plurals>
     <string name="player_details_passthrough">%1$s，直通音響裝置</string>
     <string name="player_details_decoded">%1$s，在此裝置解碼</string>
-    <string name="player_details_first_frame">首幀</string>
+    <string name="player_details_first_frame">第一個影格</string>
     <!-- "640 ms". -->
     <string name="player_details_ms">%1$d 毫秒</string>
 </resources>

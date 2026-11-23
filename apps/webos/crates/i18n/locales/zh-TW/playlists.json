@@ -4,12 +4,12 @@
     "new": "新建播放清單",
     "failed": "無法載入你的播放清單",
     "noneTitle": "還沒有播放清單",
-    "noneBody": "在這裡建立一個，或在電影、劇集、專輯或單集上使用「新增到播放清單」（在海報上按住 OK 也可以）。",
+    "noneBody": "在這裡建立一個，或在電影、影集、專輯或單集上使用「新增到播放清單」（在海報上按住 OK 也可以）。",
     "retry": "重試",
     "smart": "智慧"
   },
   "count": {
-    "items_other": "{{count, number}} 個專案"
+    "items_other": "{{count, number}} 個項目"
   },
   "page": {
     "video": "影片播放清單",
@@ -26,7 +26,7 @@
     "back": "返回",
     "retry": "重試",
     "emptySmart": "目前沒有符合此播放清單篩選條件的內容。",
-    "emptyVideo": "此播放清單為空。在電影、劇集或單集上使用「新增到播放清單」，或在海報上按住 OK。",
+    "emptyVideo": "此播放清單為空。在電影、影集或單集上使用「新增到播放清單」，或在海報上按住 OK。",
     "emptyMusic": "此播放清單為空。在藝人或專輯上使用「新增到播放清單」，或在封面上按住 OK。",
     "more": "更多",
     "playFromHere": "從這裡播放",
@@ -52,8 +52,8 @@
     "smartBodyFilters": "{{filters}}。它會隨媒體庫自動更新。",
     "titleField": "標題",
     "hint": "在標題上按 OK 即可輸入。",
-    "for": "型別",
-    "video": "電影和劇集",
+    "for": "類型",
+    "video": "電影和影集",
     "music": "音樂",
     "create": "建立",
     "save": "儲存",
@@ -69,7 +69,7 @@
     "noneMusic": "還沒有音樂播放清單：先在上方命名一個。",
     "nothing": "沒有可新增的內容",
     "addedTo": "已新增到 {{playlist}}",
-    "addedItems_other": "已將 {{count, number}} 個專案新增到 {{playlist}}",
+    "addedItems_other": "已將 {{count, number}} 個項目新增到 {{playlist}}",
     "done": "完成"
   }
 }

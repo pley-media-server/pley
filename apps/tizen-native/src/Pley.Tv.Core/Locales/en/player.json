@@ -90,6 +90,7 @@
   },
   "fallback": {
     "unplayable": "This device couldn't play the original file.",
+    "audioUnplayable": "This device couldn't play the original audio.",
     "notSmooth": "The original didn't play smoothly on this device."
   },
   "speed": {

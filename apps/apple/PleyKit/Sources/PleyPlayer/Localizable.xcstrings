@@ -412,13 +412,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "后台"
+            "value" : "背景"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "後臺"
+            "value" : "背景"
           }
         }
       }
@@ -1897,7 +1897,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此專案沒有可播放的檔案。"
+            "value" : "此項目沒有可播放的檔案。"
           }
         }
       }
@@ -2193,7 +2193,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "伺服器返回 %@"
+            "value" : "伺服器回傳 %@"
           }
         }
       }

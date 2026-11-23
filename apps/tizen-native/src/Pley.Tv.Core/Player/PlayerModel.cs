@@ -89,6 +89,8 @@ public sealed class PlayerModel : IDisposable
     ItemDetail? item;
     IReadOnlyDictionary<string, object?>? report;
     ClientCaps? caps;
+    /// <summary>The report the session playing was asked for with, read: <see cref="caps"/> without the audio refused.</summary>
+    ClientCaps? sentCaps;
     MediaFile? file;
     /// <summary>The audio playing; null while automatic, until the session says which track the server chose.</summary>
     MediaStream? audio;
@@ -343,12 +345,15 @@ public sealed class PlayerModel : IDisposable
 
         // A lower quality is always a transcode; the original keeps a fallback's mode, or a guard's.
         var mode = !quality.Original ? "transcode" : recovery.FallbackMode ?? guardMode ?? quality.Mode;
+        // The report without the audio this TV failed to play in this item: the server plays another track or converts it.
+        var told = report != null ? PlaybackPlan.CapsFor(report, recovery.RefusedAudio) : null;
+        var toldCaps = told == null || ReferenceEquals(told, report) ? caps : ReadCaps(told);
         CapsDecision? decision = null;
-        if (caps != null)
+        if (toldCaps != null)
         {
             try
             {
-                decision = CapsPolicy.Decide(chosen, caps);
+                decision = CapsPolicy.Decide(chosen, toldCaps);
             }
             catch (Exception)
             {
@@ -359,9 +364,9 @@ public sealed class PlayerModel : IDisposable
         var wanted = audioPicked ? audio : null;
         // Picture subtitles this player can't draw (the server makes no .mks of them) are asked to be
         // burned in, as for a stream, wherever the file would play as it is.
-        var streaming = PlaybackPlan.Streams(mode, decision, chosen, wanted, caps) || (PlaybackPlan.IsImage(subtitle) && !Sideload);
+        var streaming = PlaybackPlan.Streams(mode, decision, chosen, wanted, toldCaps) || (PlaybackPlan.IsImage(subtitle) && !Sideload);
         var choices = new PlaybackPlan.Choices(chosen, atMs, wanted, subtitle, quality, mode, streaming, Sideload);
-        var sent = Body(detail.Id, choices);
+        var sent = Body(detail.Id, choices, told, toldCaps);
         if (Marks.On) Marks.Note("player: asking the server to play");
         var started = await Ui(() => source.StartPlayback(sent));
         if (Marks.On) Marks.Note("player: the server answered");
@@ -373,19 +378,19 @@ public sealed class PlayerModel : IDisposable
         }
         // A file on a drive has no server to convert it: played as it is, the TV shows Dolby Vision
         // profile 7's HDR10 base layer, where asking again only refused it.
-        if (!source.Local && DvGuards.RetryMode(started, chosen, caps) is string guarded)
+        if (!source.Local && DvGuards.RetryMode(started, chosen, toldCaps) is string guarded)
         {
             Discard(started);
             guardMode = guarded;
             choices = choices with { Mode = guarded, Streaming = true };
-            sent = Body(detail.Id, choices);
+            sent = Body(detail.Id, choices, told, toldCaps);
             started = await Ui(() => source.StartPlayback(sent));
         }
         if (at == generation && !closed && PlaybackPlan.NeedsIndexes(started, sent, choices))
         {
             Discard(started);
             choices = choices with { Streaming = true };
-            sent = Body(detail.Id, choices);
+            sent = Body(detail.Id, choices, told, toldCaps);
             started = await Ui(() => source.StartPlayback(sent));
         }
         if (at != generation || closed)
@@ -402,6 +407,7 @@ public sealed class PlayerModel : IDisposable
             return;
         }
         info = started;
+        sentCaps = toldCaps;
         originalOnly = started.OriginalOnly;
         if (originalOnly)
         {
@@ -446,8 +452,9 @@ public sealed class PlayerModel : IDisposable
         ApplyTracks();
     }
 
-    Dictionary<string, object?> Body(long itemId, PlaybackPlan.Choices choices) =>
-        PlayRequests.Body(itemId, choices, source.ClientId, report ?? new Dictionary<string, object?>(), caps,
+    /// <summary>The body asking for <paramref name="choices"/>, with <paramref name="told"/> as the report (<paramref name="read"/>, read).</summary>
+    Dictionary<string, object?> Body(long itemId, PlaybackPlan.Choices choices, IReadOnlyDictionary<string, object?>? told, ClientCaps? read) =>
+        PlayRequests.Body(itemId, choices, source.ClientId, told ?? new Dictionary<string, object?>(), read,
             controls: Remote.VideoControls(item != null && NextUp.HasNext(item.Kind, current.Queue),
                 PlaybackPlan.AudioStreams(choices.File).Count, PlaybackPlan.SubtitleStreams(choices.File).Count, quality: !source.Local));
 
@@ -748,7 +755,23 @@ public sealed class PlayerModel : IDisposable
     void Recover(EngineError error, PlaybackInfo s)
     {
         if (info != s || closed || stopped) return;
-        Act(recovery.Decide(error, s.Method, PlaybackPlan.VideoStream(file)?.Codec), starving: false);
+        Act(recovery.Decide(error, s.Method, PlaybackPlan.VideoStream(file)?.Codec, FailedAudioCodec(error, s)), starving: false);
+    }
+
+    /// <summary>
+    /// The server's name for the audio that failed in <paramref name="error"/>: the file's track that plays, as
+    /// Tizen's player doesn't say which, when it reached the TV as it is in the file (not converted by the server).
+    /// Only a codec the report sent lists: leaving out one it doesn't would change nothing. A file on a drive has
+    /// no server to convert its audio: the ladder says so, as before.
+    /// </summary>
+    string? FailedAudioCodec(EngineError error, PlaybackInfo s)
+    {
+        if (error is not EngineError.Unsupported { Audio: true } || s.AudioConverted || source.Local || sentCaps == null) return null;
+        // Until the player is ready, the audio chosen isn't switched to (OnOpened): the file plays the track it starts with.
+        var played = !s.Hls && !engineReady
+            ? PlaybackPlan.StartingAudio(file)
+            : PlayingAudio() ?? PlaybackPlan.PlayedAudio(file, s.AudioIndex);
+        return played != null && PlaybackPlan.AudioPlaysHere(played, sentCaps) ? played.Codec : null;
     }
 
     /// <summary>Does what the recovery ladder says.</summary>
@@ -1239,7 +1262,8 @@ public sealed class PlayerModel : IDisposable
         PublishChoices();
         var s = info;
         if (s == null) return;
-        if (!s.Hls && engine != null && engineReady && PlaybackPlan.AudioPlaysHere(chosen, caps)
+        // Audio refused in this item failed here already: the server converts it instead.
+        if (!s.Hls && engine != null && engineReady && PlaybackPlan.AudioPlaysHere(chosen, sentCaps ?? caps)
             && PlaybackPlan.EngineAudioOrdinal(PlaybackPlan.AudioStreams(file), chosen, engine.AudioTracks().Count) is int ordinal
             && engine.SelectAudio(ordinal, CheckedLanguage(chosen)))
         {

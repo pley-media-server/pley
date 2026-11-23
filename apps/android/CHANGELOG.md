@@ -8,16 +8,36 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.17] - 2026-11-22
+
+### Fixed
+
+- A video whose audio the device can't decode (Dolby Atmos in E-AC-3 on
+  some phones) plays with the audio converted by the server, or another
+  track, instead of failing after a transcode.
+- The recommended folder layouts in Chinese put the year in (年份) and
+  call the season folder Season 01.
+- Traditional Chinese uses the words people use in Taiwan, such as 影集 for
+  a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
+  for an item and 設定檔 for a Dolby Vision profile, and quotes with 「」.
+- Simplified Chinese calls an artist 艺人 everywhere.
+
+On Android TV:
+
+- Music pauses when you go Home, open another app or leave with Back, and
+  plays on when you come back from Home or another app.
+
+## [0.1.16] - 2026-11-20
+
 ### Added
 
-- Choose Simplified Chinese (简体中文) or Traditional Chinese (繁體中文) as
-  the app's language, for your account or on this device.
-- Manage server → Libraries can turn off a film library's collections from
-  TMDB.
+- Simplified and Traditional Chinese.
+- Manage server → Libraries can turn off a movie library's collections
+  from TMDB.
 
 ### Changed
 
-- English words are spelled the American way: color, favorite, program.
+- English is spelled the American way (color, favorite).
 
 ## [0.1.15] - 2026-11-18
 
@@ -892,7 +912,9 @@ On Android TV:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-18...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[0.1.17]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
+[0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-16
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14

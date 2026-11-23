@@ -118,6 +118,7 @@
     "playerGaveUp": "电视播放器已放弃播放。",
     "playerGaveUpWith": "电视播放器已放弃播放（{{detail}}）。",
     "originalFailed": "此设备无法播放原始文件。",
+    "originalAudioFailed": "此设备无法播放原始音频。",
     "originalNotSmooth": "原始文件在此设备上播放不流畅。",
     "stoppedByAdmin": "播放已被服务器管理员停止。",
     "stoppedElsewhere": "播放已从另一台设备停止。",

@@ -241,9 +241,20 @@ pub(crate) async fn start_watching(
     how.home = if how.take_over.is_some() { state.live.home_now(user.id).await } else { None };
     let channel = state.live.channel(user, id).await?;
     let row = state.live.channel_row(id).await?;
-    let (source_name, max_connections, user_agent) = state.live.source_of(&row).await?;
-    let watching =
-        state.live.tuners.watch(user, Tune { channel: &row, source_name, max_connections, user_agent }, how).await?;
+    // The channel itself first, then its copies on other sources: whichever
+    // has the channel pulled already, or a connection free, plays it.
+    let twins = state.live.twins(&row).await?;
+    let mut tunes = Vec::with_capacity(1 + twins.len());
+    for channel in std::iter::once(&row).chain(&twins) {
+        let (source_name, max_connections, user_agent) = match state.live.source_of(channel).await {
+            Ok(source) => source,
+            // A copy whose source was deleted since the lineup was read isn't one.
+            Err(AppError::NotFound(_)) if channel.id != row.id => continue,
+            Err(err) => return Err(err),
+        };
+        tunes.push(Tune { channel, source_name, max_connections, user_agent });
+    }
+    let watching = state.live.tuners.watch(user, &tunes, how).await?;
     state.live.watched(user.id, id).await;
     Ok((watching, channel))
 }
@@ -332,13 +343,17 @@ pub async fn session_file(
 pub async fn keyed_file(
     State(state): State<AppState>,
     Path((key, file)): Path<(String, String)>,
+    slot: Option<axum::Extension<std::sync::Arc<crate::traffic::Slot>>>,
 ) -> ApiResult<Response> {
     let gone = || AppError::SessionStopped(Some("this channel isn't being watched any more".into()));
-    let Some((session, user_id, grant)) = state.live.tuners.by_media_key(&key) else {
+    let Some((session, user_id, grant, device)) = state.live.tuners.by_media_key(&key) else {
         // Taken over or stopped: why, as the session's own address says.
         return Err(state.live.tuners.ended_by_key(&key).map_or_else(gone, AppError::SessionStopped));
     };
     let mut user = AuthUser::load(&state.db, user_id).await?.ok_or_else(gone)?;
+    if let Some(axum::Extension(slot)) = slot {
+        slot.name(&user.username, || device.unwrap_or_default());
+    }
     if let Some(grant) = grant {
         // Signed out since: the key goes with the token.
         let access = crate::auth::grants::access_of(&state.db, grant).await?.ok_or_else(gone)?;
@@ -535,6 +550,16 @@ pub async fn patch_channels(
 ) -> ApiResult<StatusCode> {
     if req.ids.len() > 20_000 || req.groups.len() > 5_000 {
         return Err(AppError::bad_request("too many channels at once"));
+    }
+    if let Some(guide) = req.patch.guide_id.as_deref().map(str::trim) {
+        if guide.len() > 2048 {
+            return Err(AppError::bad_request("the guide channel is longer than 2,048 characters"));
+        }
+        // A guide of its own is read from the web only, never a file here.
+        let looks_like_address = guide.contains("://") || guide.starts_with('/');
+        if looks_like_address && !crate::livetv::is_guide_address(guide) {
+            return Err(AppError::bad_request("a channel's own guide is an http:// or https:// address"));
+        }
     }
     let mut ids = req.ids;
     if !req.groups.is_empty() {

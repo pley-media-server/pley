@@ -53,7 +53,7 @@
   "count": {
     "movies_other": "{{count, number}} 部电影",
     "shows_other": "{{count, number}} 部剧集",
-    "artists_other": "{{count, number}} 位艺术家",
+    "artists_other": "{{count, number}} 位艺人",
     "items_other": "{{count, number}} 个项目",
     "collections_other": "{{count, number}} 个合集",
     "titles_other": "{{count, number}} 个标题"
@@ -61,7 +61,7 @@
   "countOf": {
     "movies_other": "{{shown, number}} / {{count, number}} 部电影",
     "shows_other": "{{shown, number}} / {{count, number}} 部剧集",
-    "artists_other": "{{shown, number}} / {{count, number}} 位艺术家"
+    "artists_other": "{{shown, number}} / {{count, number}} 位艺人"
   },
   "messages": {
     "offline": "无法访问你的服务器",
