@@ -22,7 +22,8 @@
   },
   "language": {
     "title": "语言",
-    "automatic": "自动（{{language}}）"
+    "automatic": "自动（{{language}}）",
+    "tooOld": "请在服务器上更新 Pley，以便为帐户保存{{language}}。"
   },
   "quality": "画质",
   "autoplay": "自动播放下一集",

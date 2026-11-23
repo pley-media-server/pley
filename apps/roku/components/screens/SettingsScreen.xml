@@ -36,7 +36,7 @@
     <children>
         <Label id="title" translation="[192, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <!-- What a choice said, at the top right, as the Android TV app's. -->
-        <Label id="message" translation="[1024, 56]" width="800" height="72" horizAlign="right" vertAlign="center" maxLines="1" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        <Label id="message" translation="[824, 56]" width="1000" height="72" horizAlign="right" vertAlign="center" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <QuickList id="categories" translation="[168, 150]" itemComponentName="SettingRow" itemSize="[536, 88]" itemSpacing="[0, 4]" numRows="6" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <!-- Profile's head: the profile's picture, or its initial on its
              color, its name and the server's address. -->

@@ -125,6 +125,8 @@ describes how they are made.
 
 ### Fixed
 
+- Choosing a language the server is too old to keep says to update Pley
+  on the server, in place of the server's own message.
 - Chinese shows: Roboto and the Roku's own font have no Chinese
   characters, so its words were empty boxes. The app draws Chinese in Noto
   Sans SC and TC, and the language list shows 简体中文 and 繁體中文.

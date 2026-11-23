@@ -22,7 +22,8 @@
   },
   "language": {
     "title": "Idioma",
-    "automatic": "Automático ({{language}})"
+    "automatic": "Automático ({{language}})",
+    "tooOld": "Actualiza Pley en el servidor para guardar {{language}} en la cuenta."
   },
   "quality": "Calidad",
   "autoplay": "Siguiente episodio automático",

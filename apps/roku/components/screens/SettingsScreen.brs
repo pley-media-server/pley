@@ -567,6 +567,8 @@ end sub
 sub showWords()
     text = m.words.text
     if m.words.key <> "" then text = t(m.words.key, m.words.values)
+    ' 简体中文 named in another language, in a font that has it.
+    m.message.font = uiFontFor(text, "regular", 30)
     m.message.text = text
 end sub
 
@@ -607,7 +609,8 @@ end sub
 
 ' A Pley from before languages has no such route (404, or 405): the
 ' choice is this Roku's while the server is the one in use, unless one
-' was picked since. Any other refusal says why.
+' was picked since. One from before a language refuses it (400): the
+' server wants updating. Any other refusal says why.
 sub onLanguageSaved(event as object)
     answer = event.getData()
     if answer.ok
@@ -620,6 +623,11 @@ sub onLanguageSaved(event as object)
         scene.languageRefused = m.global.session.server
         if spec.pick = m.languagePicks then scene.languageChoice = spec.language
         showPane()
+        return
+    end if
+    spec = event.getRoSGNode().spec
+    if answer.status = 400 and spec.language <> ""
+        sayText(t("settings.language.tooOld", { language: i18nName(spec.language) }))
         return
     end if
     if not uiFailed(answer) then sayText(answer.message)
