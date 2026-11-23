@@ -74,7 +74,7 @@ body:
     id: log
     attributes:
       label: The server's log
-      description: "From when it happened, in `logs/pley.log` in the data folder or `docker logs`. Remove anything private, such as titles, user names and addresses."
+      description: "From when it happened, in `logs/pley.log` in the data folder or `docker logs`. Remove anything private, such as titles, user names, addresses and the setup code."
       render: text
   - type: checkboxes
     id: checks
