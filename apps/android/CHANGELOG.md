@@ -59,6 +59,8 @@ With Android Auto:
 
 ### Changed
 
+- Music goes from one track into the next without a gap or a wait to
+  load, on the phone, on a TV and in the car.
 - An artist's, album's or playlist's page puts the cover beside the
   title on a phone on its side and on tablets, with Play in view, and
   keeps Play and Shuffle side by side above the bar of what plays.

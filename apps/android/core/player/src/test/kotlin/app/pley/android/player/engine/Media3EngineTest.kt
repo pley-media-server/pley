@@ -29,6 +29,10 @@ import app.pley.android.model.StreamKind
 import app.pley.android.model.caps.ClientCaps
 import app.pley.android.model.caps.DolbyVisionCaps
 import app.pley.android.player.EngineSource
+import app.pley.android.player.music.EngineMusicOutput
+import app.pley.android.player.music.MusicOutput
+import app.pley.android.player.music.OutputError
+import app.pley.android.player.music.TrackInfo
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -52,6 +56,7 @@ import org.robolectric.Shadows.shadowOf
 import java.io.File
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.runBlocking
 
 @RunWith(RobolectricTestRunner::class)
@@ -260,6 +265,71 @@ class Media3EngineTest {
             TestPlayerRunHelper.run(engine.player).ignoringNonFatalErrors().untilState(Player.STATE_READY)
             RobolectricUtil.runMainLooperUntil { !engine.state.value.reconnecting }
             assertEquals(8, server.requestCount)
+        } finally {
+            server.close()
+        }
+    }
+
+    /** What music's output told its listener, in order. */
+    private class Told : MusicOutput.Listener {
+        val said = mutableListOf<String>()
+
+        override fun onPlayingChanged(playing: Boolean) = Unit
+
+        override fun onEnded() {
+            said += "ended"
+        }
+
+        override fun onNext() {
+            said += "next"
+        }
+
+        override fun onError(error: OutputError) {
+            said += "error $error"
+        }
+    }
+
+    @Test
+    fun musicPlaysOnToTheTrackPutAfterItAndLetsGoOfTheOneBefore() {
+        codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
+        val engine = engine(music = true)
+        val output = EngineMusicOutput(engine, MainScope()) { null }
+        val told = Told()
+        output.setListener(told)
+        output.load(EngineSource(file(), hls = false), startMs = 15_000, play = true, info = TrackInfo("One", null, null, null, id = 1))
+        output.setNext(EngineSource(file(), hls = false), TrackInfo("Two", null, null, null, id = 2))
+        assertEquals(2, engine.player.mediaItemCount)
+
+        RobolectricUtil.runMainLooperUntil { "next" in told.said }
+        // The track before is let go; the one playing is described as the next one was.
+        assertEquals(1, engine.player.mediaItemCount)
+        assertEquals("Two", engine.player.mediaMetadata.title)
+        assertEquals(2L, engine.player.currentMediaItem?.mediaMetadata?.extras?.getLong(EngineMusicOutput.TRACK_ID))
+        RobolectricUtil.runMainLooperUntil { "ended" in told.said }
+        assertEquals(listOf("next", "ended"), told.said)
+    }
+
+    @Test
+    fun aNextTrackThatCantBeReadFailsAsItselfOnceTheTrackBeforeHasPlayed() {
+        codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
+        val server = MockWebServer()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest) = MockResponse.Builder().code(404).build()
+        }
+        server.start()
+        try {
+            val engine = engine(music = true)
+            val output = EngineMusicOutput(engine, MainScope()) { null }
+            val told = Told()
+            output.setListener(told)
+            output.load(EngineSource(file(), hls = false), startMs = 15_000, play = true, info = TrackInfo("One", null, null, null, id = 1))
+            output.setNext(EngineSource(server.url("/api/files/602/stream").toString(), hls = false), TrackInfo("Two", null, null, null, id = 2))
+
+            RobolectricUtil.runMainLooperUntil { told.said.any { it.startsWith("error") } }
+            // Media3 holds the next item's failure until it plays it: the track playing plays to its end, and the music
+            // takes the failure as the next track's, as for any track asked for as it comes.
+            assertEquals(listOf("next", "error Gone"), told.said)
+            assertEquals(2L, engine.player.currentMediaItem?.mediaMetadata?.extras?.getLong(EngineMusicOutput.TRACK_ID))
         } finally {
             server.close()
         }

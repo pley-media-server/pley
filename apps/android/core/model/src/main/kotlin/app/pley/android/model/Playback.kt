@@ -80,6 +80,12 @@ data class PlaybackRequest(
      * ended, the player ends it as it moves over. `null` leaves it out.
      */
     val keepPrevious: Boolean? = null,
+    /**
+     * With [keepPrevious]: asked for ahead, to play once what plays now ends
+     * (music's next track): the server doesn't list it as playing until its
+     * first progress report. `null` leaves it out.
+     */
+    val ahead: Boolean? = null,
     /** What this device decodes. */
     val caps: ClientCaps = ClientCaps(),
     /** The remote's commands this player obeys (Remote control); `null` leaves them out: none but Stop. */

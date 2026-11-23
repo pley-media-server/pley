@@ -115,7 +115,23 @@ class MusicQueue(private val random: Random = Random.Default) {
      * The track that plays by itself once the current one has ended: the
      * same one with [repeat] on the track, else as [next]; `false` at the end.
      */
-    fun advance(): Boolean = (repeat == MusicRepeat.One && order.isNotEmpty()) || next()
+    fun advance(): Boolean {
+        index = upcoming ?: return false
+        return true
+    }
+
+    /** Where in the play order [advance] goes; `null` at the end. */
+    val upcoming: Int?
+        get() = when {
+            order.isEmpty() -> null
+            repeat == MusicRepeat.One -> index
+            index + 1 < order.size -> index + 1
+            repeat == MusicRepeat.All -> 0
+            else -> null
+        }
+
+    /** The track at [position] of the play order. */
+    fun trackAt(position: Int): ItemSummary? = order.getOrNull(position)?.let { given[it] }
 
     /**
      * What Previous does (the web's rule): after [RESTART_AFTER_MS] of the

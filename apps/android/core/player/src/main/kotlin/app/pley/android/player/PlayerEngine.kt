@@ -61,6 +61,15 @@ interface PlayerEngine {
     fun prepare(source: EngineSource, startMs: Long, playWhenReady: Boolean)
 
     /**
+     * Puts [source] after the media playing, in place of any put there
+     * before (`null`: nothing): as that media ends, the player goes on to
+     * it without a gap ([Player.MEDIA_ITEM_TRANSITION_REASON_AUTO]), and the
+     * media before is let go. Music's tracks, one after the other; a
+     * [prepare] takes it back.
+     */
+    fun setNext(source: EngineSource?) {}
+
+    /**
      * Whether [video], [durationMs] long, would come out as Dolby Vision
      * here: the screen shows it in the display mode the video would play
      * in. Asked before the server is, so it sends what plays; `null` when

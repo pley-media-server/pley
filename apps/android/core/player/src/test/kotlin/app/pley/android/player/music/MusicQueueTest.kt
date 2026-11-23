@@ -84,10 +84,17 @@ class MusicQueueTest {
         val queue = MusicQueue()
         queue.start(album, startIndex = 11)
         assertFalse(queue.hasNext)
+        assertEquals(null, queue.upcoming)
         assertFalse(queue.advance())
 
         queue.repeat = MusicRepeat.All
         assertTrue(queue.hasNext)
+        // What comes by itself is said before it comes: the track to ask for ahead.
+        assertEquals(0, queue.upcoming)
+        assertEquals(1L, queue.trackAt(0)?.id)
+        queue.repeat = MusicRepeat.One
+        assertEquals(11, queue.upcoming)
+        queue.repeat = MusicRepeat.All
         assertTrue(queue.advance())
         assertEquals(1L, queue.current?.id)
         // Previous on the first track goes to the last, unless the track has played a while.

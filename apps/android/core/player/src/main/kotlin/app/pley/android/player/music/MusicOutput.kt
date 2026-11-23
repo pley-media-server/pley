@@ -22,6 +22,17 @@ interface MusicOutput {
     /** Loads [source] at [startMs] with [info] for the notification, and plays it when [play]. */
     fun load(source: EngineSource, startMs: Long, play: Boolean, info: TrackInfo)
 
+    /** Whether it takes the next track ahead ([setNext]). */
+    val takesNext: Boolean get() = false
+
+    /**
+     * Puts [source], with [info], after the track loaded, in place of any
+     * put there before (`null`: nothing): as that track ends, the output
+     * goes on to it without a gap and says so ([Listener.onNext]), rather
+     * than ending. A [load] takes it back.
+     */
+    fun setNext(source: EngineSource?, info: TrackInfo?) {}
+
     fun play()
 
     fun pause()
@@ -62,6 +73,12 @@ interface MusicOutput {
 
         /** The track played to its end. */
         fun onEnded()
+
+        /**
+         * The track played to its end, and the one [setNext] put after it
+         * plays now. Should that one fail, it is said after this ([onError]).
+         */
+        fun onNext() {}
 
         fun onError(error: OutputError)
     }

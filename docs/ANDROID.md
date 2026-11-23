@@ -1165,6 +1165,23 @@ It doesn't when the server is out of reach (the next track would fail
 the same way), at the queue's end, or once every track of the queue has
 failed in a row.
 
+Tracks play one into the next without a gap or a wait to load, in the
+car as on the phone and the TV. 30 seconds before a track ends, the one
+that plays by itself after it (the next, the first again when the queue
+repeats, the same one when the track does) is asked of the server beside
+it (`keep_previous`, and `ahead`, so the server doesn't list it as
+playing yet) and waits after it in the player, which goes on to it as
+the track ends: it says it plays, and the session of the track that
+ended then ends, as at any end. Shuffle and Repeat ask again for the
+track that now comes next; the sleep timer set to the end of the track,
+Next, Previous and a pick from the queue let it go. The server forgets a
+session it doesn't hear from, so the one asked ahead is let go too after
+half a minute paused or a seek a minute or more from the end, and asked
+again once the music plays near the end. When the server refuses it (no
+conversion free beside the track playing), the next track is asked for
+as the one playing ends, after a short wait. One the player can't read
+fails once the track before has played, as any track does.
+
 "Hey Google, play … on Pley" plays the music playlist named so (by the
 name the Assistant heard, or said with a word for a playlist, as in "my
 Night Drive playlist", in English, French and Spanish), else the closest

@@ -523,6 +523,185 @@ class MusicPlaybackTest {
         assertEquals(1, music.nowPlaying.value?.index)
     }
 
+    /** Plays the album to 20 s before its first track's end, the next one's session answered as [next]. */
+    private fun TestScope.nearTheFirstTracksEnd(music: MusicPlayback, next: PlaybackInfo = nextInfo()) {
+        output.takes = true
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        api.answer("startPlayback", next)
+        output.position = 100_000
+        advanceTimeBy(10_000)
+        runCurrent()
+        // 80 s left: nothing asked ahead yet.
+        assertEquals(1, starts().size)
+        output.position = 160_000
+        advanceTimeBy(10_000)
+        runCurrent()
+    }
+
+    @Test
+    fun theNextTrackIsAskedForAheadAndPlaysOnWithoutAGap() = runTest {
+        val music = music()
+        nearTheFirstTracksEnd(music)
+
+        // Asked for beside the track playing, which plays on, and put after it in the output.
+        val ahead = starts().last()
+        assertEquals(2L, ahead.itemId)
+        assertEquals(true, ahead.keepPrevious)
+        assertEquals(true, ahead.ahead)
+        assertNull(ahead.startMs)
+        assertEquals("http://127.0.0.1:7539/api/files/602/stream", output.next?.url)
+        assertEquals("Track 2", output.nextInfo?.title)
+        assertEquals(DIRECT_SESSION, here.last())
+
+        // The output goes on to it: no new session asked for, nothing loaded, the first session ended at its length.
+        output.goOn()
+        settle()
+        assertEquals(2, starts().size)
+        assertEquals(1, output.loaded.size)
+        val now = music.nowPlaying.value!!
+        assertEquals(2L, now.itemId)
+        assertEquals(1, now.index)
+        assertTrue(now.playing)
+        assertFalse(now.loading)
+        assertEquals(listOf(DIRECT_SESSION), api.calls("stopPlayback").map { it.args[0] })
+        // The next one says it plays, then the one before ends at its length: the server lists one or the other.
+        val (started, ended) = reports().takeLast(2)
+        assertEquals("next" to ProgressState.Playing, started.sessionId to started.state)
+        assertEquals(DIRECT_SESSION to ProgressState.Stopped, ended.sessionId to ended.state)
+        assertEquals(3_427_000L, ended.positionMs)
+        assertEquals("next", here.last())
+        // Its progress goes out on the next track's session.
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertEquals("next", reports().last().sessionId)
+    }
+
+    @Test
+    fun whatChangesTheTrackToComeLetsGoOfTheOneAskedAhead() = runTest {
+        val music = music()
+        nearTheFirstTracksEnd(music)
+        assertEquals(2L, starts().last().itemId)
+
+        // Repeat on the track: the same track comes next. The one asked ahead is deleted, never reported as played.
+        api.answer("startPlayback", nextInfo(id = "again", fileId = 601))
+        music.setRepeat(MusicRepeat.One)
+        runCurrent()
+        assertEquals(listOf("next"), api.calls("stopPlayback").map { it.args[0] })
+        assertTrue(api.calls("reportProgress").none { it.args[0] == 2L })
+        assertEquals(listOf(1L, 2L, 1L), starts().map { it.itemId })
+        assertEquals("http://127.0.0.1:7539/api/files/601/stream", output.next?.url)
+
+        // The sleep timer ending with this track: the next waits, so nothing waits in the output.
+        music.setSleep(SleepChoice.EndOfItem)
+        runCurrent()
+        assertNull(output.next)
+        assertEquals(listOf("next", "again"), api.calls("stopPlayback").map { it.args[0] })
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertEquals(3, starts().size)
+
+        // Off again: asked for again. Next pressed meanwhile: asked for as it comes, as before.
+        music.setSleep(SleepChoice.Off)
+        runCurrent()
+        assertEquals(4, starts().size)
+        music.next()
+        settle()
+        assertNull(output.next)
+        assertEquals(null, starts().last().keepPrevious)
+        assertEquals(2L, starts().last().itemId)
+    }
+
+    @Test
+    fun aTrackAskedAheadIsLetGoPausedAWhileOrSoughtFarFromTheEnd() = runTest {
+        val music = music()
+        nearTheFirstTracksEnd(music)
+        assertTrue(output.next != null)
+
+        // A seek a little back keeps it.
+        music.seekTo(140_000)
+        assertTrue(output.next != null)
+        // Far back, it goes: the server would forget a session it doesn't hear from.
+        music.seekTo(30_000)
+        runCurrent()
+        assertNull(output.next)
+        assertEquals(listOf("next"), api.calls("stopPlayback").map { it.args[0] })
+
+        // Near the end again, and paused: kept a while, then let go as the paused report goes out.
+        music.seekTo(165_000)
+        runCurrent()
+        assertTrue(output.next != null)
+        music.pause()
+        advanceTimeBy(20_000)
+        runCurrent()
+        assertTrue(output.next != null)
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertNull(output.next)
+        // Played again: asked for again.
+        music.play()
+        output.startPlaying()
+        runCurrent()
+        assertTrue(output.next != null)
+    }
+
+    @Test
+    fun aNextTrackRefusedAheadOrFailingOnceItPlaysIsAskedForAsAnyTrack() = runTest {
+        val music = music()
+        nearTheFirstTracksEnd(music)
+        // The output goes on to it, and it fails (the player says so only once it plays it): asked for again where it
+        // is, as any track that fails, the session asked ahead ended.
+        output.goOn()
+        output.fail(OutputError.Gone)
+        settle()
+        assertEquals(listOf(1L, 2L, 2L), starts().map { it.itemId })
+        assertNull(starts().last().keepPrevious)
+        assertEquals(listOf(DIRECT_SESSION, "next"), api.calls("stopPlayback").map { it.args[0] })
+        assertEquals(2L, music.nowPlaying.value!!.itemId)
+
+        // No transcode free beside the track playing: refused, not asked again for this track, and the next track is
+        // asked for as it comes.
+        api.reset()
+        api.fail("startPlayback", ApiException(503, "transcode_limit", "No transcode is free"))
+        output.startPlaying()
+        output.position = 165_000
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertEquals(listOf(true), starts().map { it.keepPrevious })
+        assertNull(output.next)
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertEquals(1, starts().size)
+        api.reset()
+        output.end()
+        settle()
+        assertEquals(listOf(3L), starts().map { it.itemId })
+        assertNull(starts().single().keepPrevious)
+    }
+
+    @Test
+    fun theLastTrackAsksForNothingAheadUntilTheQueueRepeats() = runTest {
+        val music = music()
+        output.takes = true
+        music.play(album, startIndex = 2)
+        runCurrent()
+        output.startPlaying()
+        output.position = 170_000
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertEquals(1, starts().size)
+        assertNull(output.next)
+
+        // Repeat on the queue: the first track comes after the last.
+        music.setRepeat(MusicRepeat.All)
+        runCurrent()
+        assertEquals(listOf(3L, 1L), starts().map { it.itemId })
+        output.goOn()
+        settle()
+        assertEquals(0, music.nowPlaying.value!!.index)
+    }
+
     @Test
     fun theLastTrackEndingStopsAndPlayStartsItAgain() = runTest {
         val music = music()
@@ -1237,6 +1416,10 @@ class MusicPlaybackTest {
         assertFalse(music.nowPlaying.value!!.wantsPlay)
     }
 
+    /** The next track's session, asked for ahead. */
+    private fun nextInfo(id: String = "next", fileId: Long = 602) =
+        PlaybackInfo(sessionId = id, method = PlaybackMethod.Direct, url = "/api/files/$fileId/stream", hls = false, fileId = fileId, durationMs = 180_000)
+
     private fun transcodeInfo() = PlaybackInfo(sessionId = "t1", method = PlaybackMethod.Transcode, url = "/api/playback/t1/index.m3u8", hls = true, fileId = 601, durationMs = 180_000)
 
     private fun track(id: Long) = ItemSummary(
@@ -1283,6 +1466,28 @@ class MusicPlaybackTest {
         fun startPlaying() {
             playing = true
             listener?.onPlayingChanged(true)
+        }
+
+        /** Whether it takes the next track ahead, as the app's output does. */
+        var takes = false
+        var next: EngineSource? = null
+        var nextInfo: TrackInfo? = null
+
+        override val takesNext: Boolean get() = takes
+
+        override fun setNext(source: EngineSource?, info: TrackInfo?) {
+            next = source
+            nextInfo = info.takeIf { source != null }
+        }
+
+        /** The track ends and the one put after it plays on, as ExoPlayer goes on to its next item. */
+        fun goOn() {
+            checkNotNull(next)
+            info = nextInfo
+            next = null
+            nextInfo = null
+            position = 0
+            listener?.onNext()
         }
 
         fun buffer() {

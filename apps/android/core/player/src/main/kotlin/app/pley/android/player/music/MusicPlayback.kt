@@ -71,6 +71,12 @@ class MusicEnvironment(
  *
  * - one server session per track (POST /api/playback), the one before
  *   ended first, so a transcode never waits on the last one;
+ * - while a track plays, the one that plays by itself after it is asked
+ *   for [AHEAD_MS] before its end, beside it (`keep_previous`, `ahead`:
+ *   not listed as playing until it reports), and waits
+ *   after it in the output, which goes on to it without a gap or a pause
+ *   to load ([lookAhead]); whatever changes what comes next takes it back,
+ *   and the track to come is then asked for as it comes;
  * - progress every 10 s while playing, on pause, and every 30 s paused (the
  *   server lets a session it hasn't heard from go, its transcode with it);
  *   at the end of a track `stopped` at its length and DELETE, then the next
@@ -164,6 +170,21 @@ class MusicPlayback(
     /** Where the track [startTrack] asks the server for starts, until the output has it (its place is the track before's). */
     private var askedAtMs: Long? = null
 
+    /**
+     * The track that plays by itself once this one ends, at [index] of the
+     * play order: asked for ahead ([lookAhead]), its [session] once the
+     * server answers, which then waits after this track in the output.
+     */
+    private class Ahead(val index: Int, val trackId: Long) {
+        var job: Job? = null
+        var session: ServerPlaybackSession? = null
+    }
+
+    private var ahead: Ahead? = null
+
+    /** The server refused what was asked ahead for this track (no transcode free beside it, say): the next is asked for as it comes. */
+    private var aheadFailed = false
+
     /** Paused for [PAUSED_HOLD_MS]: the event stream is let go in the background until it plays again. */
     private var rested = false
     private var resting: Job? = null
@@ -237,6 +258,7 @@ class MusicPlayback(
         session = null
         // Where it was is kept (best effort); nothing is deleted.
         s?.stoppedByServer(lastPosition())
+        dropAhead()
         loadJob?.cancel()
         timer.cancel()
         out?.stop()
@@ -246,10 +268,15 @@ class MusicPlayback(
     fun setSleep(choice: SleepChoice) {
         if (queue.isEmpty && choice != SleepChoice.Off) return
         timer.set(choice)
+        // At the end of this track, the next one waits: it isn't to play on without a gap.
+        lookAhead()
     }
 
     /** "Keep listening": the same time again. */
-    fun keepListening() = timer.extend()
+    fun keepListening() {
+        timer.extend()
+        lookAhead()
+    }
 
     /** Told when the queue is forgotten ([stop]): the service lets go of its session. */
     internal var onStopped: (() -> Unit)? = null
@@ -300,10 +327,12 @@ class MusicPlayback(
         if (waitingAt != null && !shuffle && waiting.index == at && waiting.given == given.orEmpty() && waiting.tracks.map { it.id } == tracks.map { it.id }) return
         failedInARow = 0
         cancelSkip()
+        dropAhead()
         loadJob?.cancel()
         stopTicker()
         endSession()
         out?.stop()
+        askedAtMs = null
         if (given == null || !queue.restore(tracks, given, at)) queue.start(tracks, at, shuffle)
         held = false
         fallback = null
@@ -324,7 +353,8 @@ class MusicPlayback(
         if (queue.isEmpty) return
         when {
             ended -> startTrack(0)
-            error != null || yielded -> startTrack(askedAtMs ?: lastPosition(), sameTrack = true, play = true)
+            // Where it waits (sought to, or cued), else where it was asked for, else where the output was.
+            error != null || yielded -> startTrack(waitingAt ?: askedAtMs ?: lastPosition(), sameTrack = true, play = true)
             starting -> {
                 startPlays = true
                 publish()
@@ -423,8 +453,9 @@ class MusicPlayback(
     fun setBookSpeed(value: Float) {
         speed.value = value
         out?.setSpeed(speedOf(queue.current))
-        // The next chapter comes sooner or later.
+        // The next chapter comes sooner or later, and so does the next part.
         watchChapters()
+        lookAhead()
     }
 
     private fun speedOf(track: ItemSummary?): Float = if (track?.kind == ItemKind.Part) speed.value else 1f
@@ -531,6 +562,7 @@ class MusicPlayback(
         seeks++
         publish()
         watchChapters()
+        lookAhead()
     }
 
     fun jumpTo(index: Int) {
@@ -540,12 +572,15 @@ class MusicPlayback(
 
     fun setShuffle(shuffle: Boolean) {
         queue.setShuffle(shuffle)
+        // Another track may come next.
+        lookAhead()
         publish()
     }
 
     /** Repeats the queue, the track, or nothing, from the track playing on; the queue's end, passed already, stays. */
     fun setRepeat(repeat: MusicRepeat) {
         queue.repeat = repeat
+        lookAhead()
         publish()
     }
 
@@ -559,6 +594,7 @@ class MusicPlayback(
         playOnReturn = false
         if (queue.isEmpty) return
         cancelSkip()
+        dropAhead()
         loadJob?.cancel()
         yielded = true
         stopTicker()
@@ -598,6 +634,7 @@ class MusicPlayback(
     fun stop() {
         playOnReturn = false
         cancelSkip()
+        dropAhead()
         loadJob?.cancel()
         stopTicker()
         timer.cancel()
@@ -641,7 +678,10 @@ class MusicPlayback(
         if (!sameTrack) {
             fallback = null
             recreates = 0
+            aheadFailed = false
         }
+        // Asked for as it comes: whatever was asked ahead is let go.
+        dropAhead()
         // Chapters that couldn't be read are asked for again.
         if (chapters.isEmpty()) chaptersOf = null
         val wantPlay = play ?: (!sameTrack || error != null || (out?.playWhenReady ?: true))
@@ -670,15 +710,7 @@ class MusicPlayback(
             val started = try {
                 val server = env.api()
                 api = server
-                val request = PlaybackRequest(
-                    itemId = track.id,
-                    startMs = atMs.takeIf { it > 0 },
-                    mode = fallback ?: PlaybackMode.Auto,
-                    clientId = env.clientId(),
-                    caps = capsOrNone(),
-                    controls = CONTROLS,
-                )
-                ServerPlaybackSession.start(server, request, env.reporter)
+                ServerPlaybackSession.start(server, requestFor(track, atMs, fallback ?: PlaybackMode.Auto), env.reporter)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -688,10 +720,8 @@ class MusicPlayback(
             }
             session = started
             val server = api ?: return@launch
-            val info = started.info
-            val source = EngineSource(url = server.url(info.url), hls = info.hls, durationMs = info.durationMs.takeIf { it > 0 })
             o.setSpeed(speedOf(track))
-            o.load(source, atMs, startPlays, trackInfo(track, server))
+            o.load(sourceOf(started, server), atMs, startPlays, trackInfo(track, server))
             held = true
             askedAtMs = null
             // From now on, also while it waits paused (the sleep timer's next track).
@@ -701,6 +731,83 @@ class MusicPlayback(
         startJob = loadJob
         // Said once the track counts as starting: Play/Pause shows whether it will play, not what the last one did.
         publish()
+    }
+
+    /** What the server is asked for [track], [atMs] into it; [ahead]: beside the track playing, which plays on. */
+    private suspend fun requestFor(track: ItemSummary, atMs: Long, mode: PlaybackMode, ahead: Boolean = false) = PlaybackRequest(
+        itemId = track.id,
+        startMs = atMs.takeIf { it > 0 },
+        mode = mode,
+        clientId = env.clientId(),
+        caps = capsOrNone(),
+        controls = CONTROLS,
+        keepPrevious = true.takeIf { ahead },
+        ahead = true.takeIf { ahead },
+    )
+
+    private fun sourceOf(session: ServerPlaybackSession, server: PleyApi): EngineSource {
+        val info = session.info
+        return EngineSource(url = server.url(info.url), hls = info.hls, durationMs = info.durationMs.takeIf { it > 0 })
+    }
+
+    /**
+     * Asks for the track that plays by itself after this one, [AHEAD_MS]
+     * before this one's end (at the speed it plays), and puts it after it
+     * in the output, which plays on to it without a gap ([MusicOutput.setNext]).
+     * Only while this track plays, held by the output, and with a track
+     * to come; not when the sleep timer ends with this track (the next one
+     * waits), nor again for this track once it failed. What was asked
+     * ahead is let go when the track to come changes (Shuffle, Repeat),
+     * the timer is to end with this track, or a seek takes it back more
+     * than [KEEP_AHEAD_MS] from its end: the server forgets a session it
+     * doesn't hear from.
+     */
+    private fun lookAhead() {
+        val o = out
+        val index = queue.upcoming
+        val next = index?.let(queue::trackAt)
+        val left = timeLeftMs()
+        val possible = o != null && o.takesNext && session != null && held && !starting && !ended && error == null &&
+            !yielded && waitingAt == null && next != null && !timer.endsWith(queue.current?.id)
+        val a = ahead
+        if (a != null) {
+            if (possible && a.index == index && a.trackId == next?.id && (left == null || left <= KEEP_AHEAD_MS)) return
+            dropAhead()
+        }
+        if (!possible || !playing || aheadFailed || index == null || next == null || left == null || left > AHEAD_MS) return
+        val asked = Ahead(index, next.id)
+        ahead = asked
+        asked.job = scope.launch {
+            val (started, server) = try {
+                val server = env.api()
+                ServerPlaybackSession.start(server, requestFor(next, 0, PlaybackMode.Auto, ahead = true), env.reporter) to server
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // No transcode free beside this one, or the server out of reach: the next track is asked for as it comes.
+                if (ahead === asked) ahead = null
+                aheadFailed = true
+                return@launch
+            }
+            asked.session = started
+            out?.setNext(sourceOf(started, server), trackInfo(next, server))
+        }
+    }
+
+    /** Lets go of what [lookAhead] asked for, in the output and on the server (never played: no `stopped`). */
+    private fun dropAhead() {
+        val a = ahead ?: return
+        ahead = null
+        a.job?.cancel()
+        a.session?.discard()
+        out?.setNext(null, null)
+    }
+
+    /** How long the track has left at the speed it plays; `null` while that isn't known. */
+    private fun timeLeftMs(): Long? {
+        val p = position()
+        if (p.durationMs <= 0) return null
+        return ((p.durationMs - p.positionMs).coerceAtLeast(0) / speedOf(queue.current).coerceAtLeast(0.1f)).toLong()
     }
 
     private suspend fun capsOrNone(): ClientCaps = try {
@@ -734,6 +841,7 @@ class MusicPlayback(
         playing = false
         error = why
         stopTicker()
+        dropAhead()
         // A track the server can't play, while the music plays: the next one plays by itself after a moment to read why,
         // as a driver can't look for Next. Not when the server is out of reach (the next track would fail the same way),
         // not at the queue's end, and not round a queue none of whose tracks plays.
@@ -780,7 +888,10 @@ class MusicPlayback(
                 if (wants || quiet >= PAUSED_EVERY_MS) {
                     quiet = 0
                     s.progress(lastPosition(), if (wants) ProgressState.Playing else ProgressState.Paused)
+                    // Paused a while: the session asked ahead, which reports nothing until it plays, is let go.
+                    if (!wants) dropAhead()
                 }
+                lookAhead()
             }
         }
     }
@@ -800,6 +911,7 @@ class MusicPlayback(
             }
             publish()
             watchChapters()
+            lookAhead()
         }
 
         override fun onBuffering(buffering: Boolean) {
@@ -817,6 +929,8 @@ class MusicPlayback(
         }
 
         override fun onEnded() {
+            // The output didn't go on to what was asked ahead (it came too late): the next track is asked for as it comes.
+            dropAhead()
             val s = session
             session = null
             stopTicker()
@@ -832,6 +946,53 @@ class MusicPlayback(
                 loading = false
                 publish()
             }
+        }
+
+        /**
+         * The track ended and the output went on to the one asked for ahead:
+         * this one's session ends at its length, as at any end, and that one's
+         * is the track's.
+         */
+        override fun onNext() {
+            val a = ahead
+            ahead = null
+            val track = queue.current
+            // The session asked ahead, for the track still to come (what changes it takes back what was asked first).
+            val next = a?.session?.takeIf { queue.upcoming == a.index && queue.trackAt(a.index)?.id == a.trackId }
+            val s = session
+            session = null
+            // Said to play before the track before ends, so the server lists one or the other all along.
+            next?.progress(0, ProgressState.Playing)
+            s?.end(s.info.durationMs.takeIf { it > 0 } ?: track?.durationMs ?: 0)
+            val sleeping = timer.itemEnded(track?.id)
+            if (next == null) {
+                // Not the track to come: that one is asked for now.
+                a?.session?.discard()
+                if (queue.advance()) {
+                    startTrack(0, play = !sleeping)
+                } else {
+                    out?.stop()
+                    ended = true
+                    playing = false
+                    loading = false
+                    publish()
+                }
+                return
+            }
+            queue.advance()
+            session = next
+            fallback = null
+            recreates = 0
+            aheadFailed = false
+            askedAtMs = null
+            out?.setSpeed(speedOf(queue.current))
+            // The sleep timer ended with the track before (and paused): this one waits at its start.
+            if (sleeping) {
+                out?.seekTo(0)
+                next.progress(0, ProgressState.Paused)
+            }
+            publish()
+            watchChapters()
         }
 
         override fun onError(error: OutputError) {
@@ -993,6 +1154,16 @@ class MusicPlayback(
 
         /** The longest a new track waits for the last one's reports to go out. */
         const val FLUSH_WAIT_MS = 3_000L
+
+        /**
+         * How long before a track's end the next one is asked for ([lookAhead]):
+         * time to answer and to read its start on a phone's network, checked
+         * at each progress report.
+         */
+        const val AHEAD_MS = 30_000L
+
+        /** How far from a track's end what was asked ahead is kept: a seek a little back doesn't let it go. */
+        const val KEEP_AHEAD_MS = 60_000L
 
         /** How long past a chapter's start it is said ([watchChapters]): the output's position runs a little behind. */
         private const val CHAPTER_SLACK_MS = 250L

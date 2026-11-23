@@ -13,6 +13,7 @@ import android.view.Window
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -222,6 +223,9 @@ class Media3Engine(
     private var window: Window? = null
     private var frameRate: FrameRateController? = null
     private var loaded: EngineSource? = null
+
+    /** What [setNext] put after the media playing: [loaded] once it plays. */
+    private var next: EngineSource? = null
     private var matchJob: Job? = null
     private var matchPending = false
     private var request: MatchRequest? = null
@@ -290,6 +294,7 @@ class Media3Engine(
         val asked = matchRequest(source)
         request = asked
         loaded = source
+        next = null
         dolbyVisionShown = source.dolbyVision ?: details?.let { ModeChoice.dolbyVisionShown(it, asked, sdk) }
         profile7BaseLayer = source.profile7BaseLayer
         matchPending = asked != null
@@ -305,6 +310,15 @@ class Media3Engine(
         if (source.live && playWhenReady) focus?.beforePlay()
         player.prepare()
         if (matchPending && window != null) startMatch()
+    }
+
+    override fun setNext(source: EngineSource?) {
+        if (released) return
+        val after = player.currentMediaItemIndex + 1
+        if (player.mediaItemCount > after) player.removeMediaItems(after, player.mediaItemCount)
+        // Only after media loaded: alone, it would be the media playing.
+        next = source?.takeIf { player.mediaItemCount > 0 }
+        next?.let { player.addMediaSource(loading.mediaSource(it)) }
     }
 
     /**
@@ -564,6 +578,14 @@ class Media3Engine(
             Log.i(TAG, if (isPlaying) "playing" else "not playing")
             main.removeCallbacks(tick)
             if (isPlaying) main.postDelayed(tick, TICK_MS)
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) return
+            // What setNext put after the media that ended plays now: the media loaded, and the one before is let go.
+            next?.let { loaded = it }
+            next = null
+            if (player.currentMediaItemIndex > 0) player.removeMediaItems(0, player.currentMediaItemIndex)
         }
 
         override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
