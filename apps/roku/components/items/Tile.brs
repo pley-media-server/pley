@@ -1,5 +1,6 @@
 sub init()
     m.art = m.top.findNode("art")
+    m.grow = m.top.findNode("grow")
     m.wellWidth = m.top.findNode("wellWidth")
     m.wellHeight = m.top.findNode("wellHeight")
     m.wellPlace = m.top.findNode("wellPlace")
@@ -158,7 +159,8 @@ sub onLayout()
     end if
     m.imageWidth = w
     m.imageHeight = imageHeight
-    m.art.scaleRotateCenter = [w / 2, imageHeight / 2]
+    m.grow.translation = [w / 2, imageHeight / 2]
+    m.art.translation = [-w / 2, -imageHeight / 2]
     ' The well and the artwork grow by their size, from the middle.
     grownWidth = w * 1.08
     grownHeight = imageHeight * 1.08
@@ -171,7 +173,7 @@ sub onLayout()
     m.posterPlace.keyValue = [[0, 0], grownPlace]
     m.maskSizer.keyValue = [[w, imageHeight], [grownWidth, grownHeight]]
     m.maskPlace.keyValue = [[0, 0], grownPlace]
-    growTo(m.art.scale[0] > 1)
+    growTo(m.grow.scale[0] > 1)
     ' Decoded at the size it's drawn: small textures for small devices.
     m.poster.loadWidth = w
     m.poster.loadHeight = imageHeight
@@ -289,11 +291,11 @@ sub growTo(grown as boolean)
     w = m.imageWidth
     h = m.imageHeight
     if grown
-        m.art.scale = [1.08, 1.08]
+        m.grow.scale = [1.08, 1.08]
         w = w * 1.08
         h = h * 1.08
     else
-        m.art.scale = [1, 1]
+        m.grow.scale = [1, 1]
     end if
     place = [-(w - m.imageWidth) / 2, -(h - m.imageHeight) / 2]
     m.well.width = w

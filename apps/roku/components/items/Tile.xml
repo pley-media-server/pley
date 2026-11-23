@@ -36,28 +36,33 @@
             <MaskGroup id="mask">
                 <Poster id="poster" loadDisplayMode="scaleToZoom" />
             </MaskGroup>
-            <!-- What is on the artwork grows with it, as a group. -->
-            <Group id="art">
-                <Poster id="hairline" uri="pkg:/images/ui/hairline.9.png" />
-                <Rectangle id="track" color="0x16191E99" visible="false" />
-                <Rectangle id="fill" color="0x38BDF8FF" visible="false" />
-                <Poster id="watched" uri="pkg:/images/ui/tick.png" width="40" height="40" visible="false" />
-                <Poster id="badgeBack" uri="pkg:/images/ui/r4.9.png" height="36" visible="false" />
-                <Label id="badge" height="36" vertAlign="center" color="0x16191EFF" visible="false" />
-                <!-- Two quality badges at most: "4K" and the dynamic range,
-                     dark under light words, as the other apps draw them on
-                     pictures. -->
-                <Poster id="qualityBack0" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="36" visible="false" />
-                <Label id="quality0" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
-                <Poster id="qualityBack1" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="36" visible="false" />
-                <Label id="quality1" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
-                <!-- The accent's ring, against the well all round. -->
-                <Poster id="ring" uri="pkg:/images/ui/ring.9.png" opacity="0" />
+            <!-- What is on the artwork grows with it, as a group, from its
+                 middle: "grow" sits there and "art" back at the corner
+                 (onLayout), so scaling "grow" needs no scaleRotateCenter,
+                 which brs-node doesn't draw. -->
+            <Group id="grow">
+                <Group id="art">
+                    <Poster id="hairline" uri="pkg:/images/ui/hairline.9.png" />
+                    <Rectangle id="track" color="0x16191E99" visible="false" />
+                    <Rectangle id="fill" color="0x38BDF8FF" visible="false" />
+                    <Poster id="watched" uri="pkg:/images/ui/tick.png" width="40" height="40" visible="false" />
+                    <Poster id="badgeBack" uri="pkg:/images/ui/r4.9.png" height="36" visible="false" />
+                    <Label id="badge" height="36" vertAlign="center" color="0x16191EFF" visible="false" />
+                    <!-- Two quality badges at most: "4K" and the dynamic range,
+                         dark under light words, as the other apps draw them on
+                         pictures. -->
+                    <Poster id="qualityBack0" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="36" visible="false" />
+                    <Label id="quality0" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
+                    <Poster id="qualityBack1" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="36" visible="false" />
+                    <Label id="quality1" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
+                    <!-- The accent's ring, against the well all round. -->
+                    <Poster id="ring" uri="pkg:/images/ui/ring.9.png" opacity="0" />
+                </Group>
             </Group>
             <Label id="title" color="0xEBEBEBFF" maxLines="1" />
             <Label id="subtitle" color="0xA1A9B6FF" maxLines="1" />
         </Group>
-        <Vector2DFieldInterpolator id="growth" key="[0, 1]" keyValue="[[1, 1], [1.08, 1.08]]" fieldToInterp="art.scale" />
+        <Vector2DFieldInterpolator id="growth" key="[0, 1]" keyValue="[[1, 1], [1.08, 1.08]]" fieldToInterp="grow.scale" />
         <!-- The well's and the artwork's sizes and places, grown 4 % each
              way from the middle (onLayout fills them in). -->
         <FloatFieldInterpolator id="wellWidth" key="[0, 1]" keyValue="[0, 0]" fieldToInterp="well.width" />
