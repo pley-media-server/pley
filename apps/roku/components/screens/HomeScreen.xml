@@ -63,7 +63,7 @@
         <!-- The focused row's header at y 344 (Android TV's), the others
              scrolling past it; the rows scrolled past are cut at the top,
              under the info block's words. -->
-        <QuickRowList id="rows" translation="[168, 620]" itemComponentName="Tile" itemSize="[1752, 470]" numRows="3" itemSpacing="[0, 56]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 28]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" clippingRect="[-48, -40, 1776, 1120]" visible="false" />
+        <QuickRowList id="rows" translation="[168, 620]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="3" itemSpacing="[0, 56]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 28]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" clippingRect="[-48, -40, 1800, 1120]" visible="false" />
         <LayoutGroup id="message" translation="[192, 440]" layoutDirection="vert" itemSpacings="[16]">
             <Label id="messageTitle" width="1632" wrap="true" horizAlign="center" color="0xEBEBEBFF" />
             <Label id="messageText" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" />

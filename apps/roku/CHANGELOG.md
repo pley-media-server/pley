@@ -114,6 +114,8 @@ describes how they are made.
 
 ### Fixed
 
+- The focused poster at the right end of a row keeps its whole outline:
+  the row reached the screen's edge, which cut it off.
 - In a library's Recommended and Collections rows, and on Discover, the
   focused row stays at the top: below it, its highlight was cut off at
   the foot of the screen.

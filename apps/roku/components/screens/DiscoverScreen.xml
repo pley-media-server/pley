@@ -56,7 +56,7 @@
                 <Label id="heroNote" width="1100" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallSystemFont" />
             </LayoutGroup>
             <!-- Its top shows under the hero; the page slides up to it. -->
-            <QuickRowList id="rows" translation="[168, 700]" itemComponentName="Tile" itemSize="[1752, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+            <QuickRowList id="rows" translation="[168, 700]" itemComponentName="Tile" itemSize="[1728, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
         <!-- Why Discover can't be used, and what to do about it. -->
         <LayoutGroup id="problem" translation="[192, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">

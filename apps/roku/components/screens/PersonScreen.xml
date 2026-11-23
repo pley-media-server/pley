@@ -32,7 +32,7 @@
         </MaskGroup>
         <Label id="name" translation="[384, 78]" width="1440" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="line" translation="[384, 158]" width="1440" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <QuickRowList id="rows" translation="[168, 264]" itemComponentName="Tile" itemSize="[1752, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <QuickRowList id="rows" translation="[168, 264]" itemComponentName="Tile" itemSize="[1728, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         <Label id="message" translation="[192, 480]" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
     </children>
 </component>

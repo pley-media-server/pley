@@ -121,7 +121,10 @@ end sub
 
 ' The tile's item is 24 px wider than its artwork and 30 px taller: room
 ' at the left and top for the focused one's growth and ring, which a list
-' cuts at its edges (the lists move 24 px left to match).
+' cuts at its edges (the lists move 24 px left to match). At the right,
+' the growth and the ring reach 22 px past the item, so a row of them ends
+' 24 px short of the screen's edge: the last tile the focus rests on keeps
+' its ring.
 sub onLayout()
     w = m.top.width - 24
     if w <= 0 then return
