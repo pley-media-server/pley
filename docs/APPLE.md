@@ -1491,7 +1491,8 @@ or a season, whose device plays its next episode), the playlist or the
 channel. The quality is never sent: the device keeps its own, since what
 suits a phone's network doesn't suit a TV's. "Playing on Living room TV"
 says it went, and the remote opens on that device, whose controls show
-once its session does. A refusal says why: "Living room TV isn't on any more" (`404`),
+once its session does; music playing here pauses, so it doesn't play in
+two places. A refusal says why: "Living room TV isn't on any more" (`404`),
 "Living room TV can't play that" (`409`), "Too many at once: try again
 in a moment" (`429`), and the server's own words otherwise.
 

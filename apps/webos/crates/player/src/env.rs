@@ -212,9 +212,7 @@ mod tests {
     use super::*;
 
     fn store(name: &str) -> Store {
-        let dir = std::env::temp_dir().join(format!("pley-player-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        Store::open(dir).expect("a store")
+        Store::open(pley_core::device::scratch_dir(&format!("player-{name}"))).expect("a store")
     }
 
     #[test]
