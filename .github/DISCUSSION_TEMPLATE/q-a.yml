@@ -2,7 +2,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Ask anything about installing, setting up or using Pley. The [docs](https://github.com/pley-media-server/pley#docs) may already answer it. Something that's broken is a bug: [report it as an issue](https://github.com/pley-media-server/pley/issues/new?template=bug_report.yml). When an answer solves it, mark it as the answer so the next person finds it.
+        Check the [docs](https://github.com/pley-media-server/pley#docs) first. Something broken is a bug: [report it as an issue](https://github.com/pley-media-server/pley/issues/new?template=bug_report.yml). Mark the reply that solves it as the answer.
   - type: textarea
     id: question
     attributes:

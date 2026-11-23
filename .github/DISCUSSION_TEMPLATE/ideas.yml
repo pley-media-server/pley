@@ -3,12 +3,12 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the idea. Search Ideas first: if someone has suggested it already, vote for it there and say what you'd use it for. Something that's broken is a bug: [report it as an issue](https://github.com/pley-media-server/pley/issues/new?template=bug_report.yml).
+        Search Ideas first and vote for it if it's there. Something broken is a bug: [report it as an issue](https://github.com/pley-media-server/pley/issues/new?template=bug_report.yml).
   - type: textarea
     id: idea
     attributes:
       label: What you'd like Pley to do
-      description: Describe it as you'd use it, what you'd do and what you'd see.
+      description: What you'd do and what you'd see.
     validations:
       required: true
   - type: textarea

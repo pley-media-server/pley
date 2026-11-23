@@ -6,13 +6,12 @@ checks to run, licensing, security, and how commits read.
 
 ## Bugs, ideas and questions
 
-Bugs go in issues. Feature requests are best started in
-[Discussions → Ideas](https://github.com/pley-media-server/pley/discussions/categories/ideas),
-where others can vote for them, though a small, clear one can be an issue;
-questions go in [Q&A](https://github.com/pley-media-server/pley/discussions/categories/q-a)
-([SUPPORT.md](SUPPORT.md)). An idea is easier to take on once people have
-voted for it and said what they'd use it for, so a large change starts there
-or in an issue before a pull request.
+Bugs go in issues. Start feature requests in
+[Discussions → Ideas](https://github.com/pley-media-server/pley/discussions/categories/ideas)
+(a small, clear one can be an issue) and questions in
+[Q&A](https://github.com/pley-media-server/pley/discussions/categories/q-a)
+([SUPPORT.md](SUPPORT.md)). Discuss a large change before opening a pull
+request.
 
 ## The license of a contribution
 
