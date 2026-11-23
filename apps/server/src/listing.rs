@@ -894,10 +894,15 @@ const BITRATE_SQL: &str = "(CASE WHEN i.kind = 'show'
     ELSE (SELECT MAX(f.bitrate) FROM media_files f WHERE f.item_id = i.id) END)";
 
 /// When a title's newest episode was added, as [`SortField::EpisodeAdded`]
-/// sorts it.
+/// sorts it. `+kind`: the episodes are found through the parent indexes.
+/// Without statistics for them (a big scan's new rows, before `PRAGMA
+/// optimize` analyzes them), SQLite answers `MAX(added_at)` from
+/// `items_kind_added` instead, walking down every episode of every library
+/// newer than the show's: up to a minute for a TV library's Recently Added
+/// row of 3,000 shows and 137,000 episodes, under 0.1 s this way.
 const EPISODE_ADDED_SQL: &str = "COALESCE(CASE i.kind
-    WHEN 'show' THEN (SELECT MAX(e.added_at) FROM items e WHERE e.grandparent_id = i.id AND e.kind = 'episode')
-    WHEN 'season' THEN (SELECT MAX(e.added_at) FROM items e WHERE e.parent_id = i.id AND e.kind = 'episode')
+    WHEN 'show' THEN (SELECT MAX(e.added_at) FROM items e WHERE e.grandparent_id = i.id AND +e.kind = 'episode')
+    WHEN 'season' THEN (SELECT MAX(e.added_at) FROM items e WHERE e.parent_id = i.id AND +e.kind = 'episode')
     END, i.added_at)";
 
 /// A title's release date in unix seconds, as [`date_secs`] reads it, or
@@ -2799,6 +2804,31 @@ mod tests {
             let found: Option<i64> =
                 sqlx::query_scalar(sqlx::AssertSqlSafe(sql.as_str())).bind(date).fetch_one(&db.read).await.unwrap();
             assert_eq!(found, date_secs(date), "{date:?}");
+        }
+    }
+
+    /// A new database has no statistics, as a big scan's new rows have none
+    /// until `PRAGMA optimize` analyzes them: the newest episode of each show
+    /// and season is still read through its parent, not by walking every
+    /// episode newer than it (see [`EPISODE_ADDED_SQL`]).
+    #[tokio::test]
+    async fn the_newest_episode_is_read_through_the_parent_without_statistics() {
+        use sqlx::Row;
+
+        let dir = crate::testing::tempdir();
+        let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
+        let sql = format!("EXPLAIN QUERY PLAN SELECT {EPISODE_ADDED_SQL} FROM items i WHERE i.library_id = 1");
+        let plan: Vec<String> = sqlx::query(sqlx::AssertSqlSafe(sql.as_str()))
+            .fetch_all(&db.read)
+            .await
+            .unwrap()
+            .iter()
+            .map(|row| row.get::<String, _>(3))
+            .collect();
+        let episodes: Vec<&String> = plan.iter().filter(|step| step.starts_with("SEARCH e ")).collect();
+        assert_eq!(episodes.len(), 2, "{plan:#?}");
+        for index in ["USING INDEX items_grandparent ", "USING INDEX items_parent "] {
+            assert!(episodes.iter().any(|step| step.contains(index)), "{index}: {plan:#?}");
         }
     }
 }

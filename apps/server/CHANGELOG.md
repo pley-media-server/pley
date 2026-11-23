@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Home and a TV library's Recommended tab open at once after a big scan,
+  also in a library of thousands of shows.
+
 ## [0.1.15] - 2026-11-22
 
 ### Added
