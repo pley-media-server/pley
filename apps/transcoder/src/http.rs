@@ -962,10 +962,7 @@ mod tests {
     /// segments of; `None` without FFmpeg.
     async fn serve_ffmpeg(dir: &std::path::Path) -> Option<(SocketAddr, std::path::PathBuf)> {
         use pley_transcoder_api::{EncoderInfo, HwAccel, VideoCodec};
-        let ok =
-            |tool: &str| std::process::Command::new(tool).arg("-version").output().is_ok_and(|o| o.status.success());
-        if !(ok("ffmpeg") && ok("ffprobe")) {
-            eprintln!("ffmpeg not found: skipped");
+        if !crate::testing::has_encoder("libx264") {
             return None;
         }
         let input = dir.join("clip.mkv");

@@ -527,16 +527,6 @@ mod tests {
         assert_ne!(conversion_id(&request(1080), 100, 6), id);
     }
 
-    fn has_ffmpeg() -> bool {
-        let ok =
-            |tool: &str| std::process::Command::new(tool).arg("-version").output().is_ok_and(|o| o.status.success());
-        let found = ok("ffmpeg") && ok("ffprobe");
-        if !found {
-            eprintln!("ffmpeg not found: skipped");
-        }
-        found
-    }
-
     /// An MP4 conversion, for players that open no Matroska (skipped without
     /// FFmpeg and its x265): HEVC copied and tagged hvc1, SubRip made MP4's
     /// own text, and the index ahead of the media, as QuickTime wants them.
@@ -545,7 +535,7 @@ mod tests {
         use pley_transcoder_api::{
             AudioCodec, AudioMode, AudioRequest, Capabilities, EncoderInfo, HwAccel, Limits, VideoCodec, VideoRequest,
         };
-        if !has_ffmpeg() {
+        if !crate::testing::has_encoder("libx265") {
             return;
         }
         let dir = tempfile::tempdir().unwrap();
@@ -564,10 +554,7 @@ mod tests {
             .arg(&source)
             .status()
             .unwrap();
-        if !made.success() {
-            eprintln!("no x265 here: skipped");
-            return;
-        }
+        assert!(made.success());
         let ff = Arc::new(Ffmpeg {
             ffmpeg: "ffmpeg".into(),
             ffprobe: "ffprobe".into(),
@@ -643,7 +630,7 @@ mod tests {
         use pley_transcoder_api::{
             AudioCodec, AudioMode, AudioRequest, Capabilities, EncoderInfo, HwAccel, Limits, VideoCodec, VideoRequest,
         };
-        if !has_ffmpeg() {
+        if !crate::testing::has_encoder("libx264") {
             return;
         }
         let dir = tempfile::tempdir().unwrap();

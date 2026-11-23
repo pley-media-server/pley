@@ -90,6 +90,13 @@ stay behind in the temporary folder; these are removed once the test's
 thread ends. The LG app's tests do the same with
 `pley_core::device::scratch_dir()`, which `FakeDevice::new` uses too.
 
+The transcoder's tests that run FFmpeg need `ffmpeg` and `ffprobe` on
+`PATH`, with libx264, libx265 and libass. Without one of them a test is
+skipped, saying so, unless `PLEY_TEST_FFMPEG=1`: then it fails, as in CI,
+which installs FFmpeg for them. What only some builds or versions have is
+skipped either way: libx265 with HDR10+ (Debian and Ubuntu build it
+without), and the `dovi_rpu` filter of FFmpeg 7.1 and later.
+
 The code that reads what comes from outside (file and folder names, NFO
 files, Matroska, MP4 and MPEG-TS, Dolby Vision and HDR10+ metadata) is also
 tested on arbitrary input, in the tests whose names start with `any_`. Each

@@ -144,6 +144,10 @@ jobs:
           - { name: macos-arm64, os: macos-latest }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    env:
+      # The transcoder's tests that run FFmpeg fail, rather than skip, when
+      # it or an encoder they need is missing (apps/transcoder/src/testing.rs).
+      PLEY_TEST_FFMPEG: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -152,6 +156,32 @@ jobs:
         with:
           name: web-dist
           path: apps/web/dist
+      # The distribution's FFmpeg on Linux, Homebrew's ffmpeg-full on macOS
+      # (its ffmpeg has no libass), gyan.dev's build through Chocolatey on
+      # Windows.
+      - name: FFmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: FFmpeg (macOS)
+        if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          brew install ffmpeg-full
+          echo "$(brew --prefix ffmpeg-full)/bin" >> "$GITHUB_PATH"
+      # Chocolatey puts a shim of ffmpeg.exe on PATH: the tests start, and
+      # stop, FFmpeg itself.
+      - name: FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install ffmpeg --version=9.1.0 --no-progress -y
+          $ffmpeg = Get-ChildItem "$env:ChocolateyInstall\lib\ffmpeg" -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          if (-not $ffmpeg) { throw "Chocolatey's ffmpeg package has no ffmpeg.exe" }
+          $ffmpeg.DirectoryName | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - name: FFmpeg's version
+        run: ffmpeg -hide_banner -version
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: stable

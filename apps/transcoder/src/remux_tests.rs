@@ -3,7 +3,8 @@
 //! written by the planned command line, edited (`tsedit` for MPEG-TS; for
 //! fMP4 cut and edited as jobs cut them, the init given its Dolby Vision
 //! record), and read back with ffprobe; the master playlist next to them.
-//! Skipped without FFmpeg (and libx265) on the PATH.
+//! Skipped without FFmpeg and libx265 on the PATH, unless they must run
+//! ([`crate::testing`]).
 //!
 //! The sources are made here: HEVC Main 10 HDR10 with HDR10+ (libx265),
 //! E-AC-3 5.1, and Dolby Vision profile 7 put in by these tests (an RPU
@@ -29,16 +30,8 @@ use crate::fmp4::{DoviConfig, Fragment, Init};
 use crate::hls;
 use crate::job;
 use crate::plan::{ArgsContext, Plan};
+use crate::testing::{has_bitstream_filter, has_encoder, skip};
 use crate::tsedit::{self, nal_units};
-
-fn has_ffmpeg() -> bool {
-    let ok = |tool: &str| Command::new(tool).arg("-version").output().is_ok_and(|o| o.status.success());
-    let found = ok("ffmpeg") && ok("ffprobe");
-    if !found {
-        eprintln!("ffmpeg not found: skipped");
-    }
-    found
-}
 
 fn ffmpeg(dir: &Path, args: &[&str]) -> bool {
     let out = Command::new("ffmpeg")
@@ -164,8 +157,20 @@ fn hdr10_source(dir: &Path) -> Option<(PathBuf, bool)> {
             return Some((dir.join(name), name == "hdr10plus.mkv"));
         }
     }
-    eprintln!("libx265 can't make HDR10 HEVC: skipped");
+    skip("libx265 can't make HDR10 HEVC");
     None
+}
+
+/// [`hdr10_source`]'s file with HDR10+; `None`, skipped either way, where
+/// libx265 was built without it (Debian's and Ubuntu's are).
+fn hdr10plus_source(dir: &Path) -> Option<PathBuf> {
+    match hdr10_source(dir)? {
+        (source, true) => Some(source),
+        (_, false) => {
+            eprintln!("libx265 without HDR10+: skipped");
+            None
+        }
+    }
 }
 
 /// HDR10+ shows only in the frames (an HEVC SEI message, not the
@@ -173,7 +178,7 @@ fn hdr10_source(dir: &Path) -> Option<(PathBuf, bool)> {
 /// (see `hybrids_are_found_at_probe_time`), and plain HDR10 stays HDR10.
 #[tokio::test]
 async fn plain_hdr10_stays_hdr10() {
-    if !has_ffmpeg() {
+    if !has_encoder("libx265") {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
@@ -197,7 +202,7 @@ async fn plain_hdr10_stays_hdr10() {
         ],
     );
     if !made {
-        eprintln!("libx265 can't make HDR10 HEVC: skipped");
+        skip("libx265 can't make HDR10 HEVC");
         return;
     }
     let prober = crate::probe::Prober::new(Arc::new(ff()), Arc::default(), 1);
@@ -376,7 +381,7 @@ fn nal_types(segment: &Path) -> Vec<Vec<u8>> {
 
 #[test]
 fn profile_7_is_remuxed_as_8_1_without_hdr10_plus() {
-    if !has_ffmpeg() {
+    if !has_encoder("libx265") {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
@@ -466,11 +471,11 @@ fn assert_made_8_1(segment: &Path) {
 /// and the job serves the master playlist.
 #[tokio::test]
 async fn jobs_edit_segments_before_serving_them() {
-    if !has_ffmpeg() {
+    if !has_encoder("libx265") {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
-    let Some((source, true)) = hdr10_source(dir.path()) else { return };
+    let Some(source) = hdr10plus_source(dir.path()) else { return };
     let input = with_profile_7(dir.path(), &source);
     // Matroska: its Cues are the keyframe index, at once.
     assert!(ffmpeg(dir.path(), &["-i", input.to_str().unwrap(), "-map", "0", "-c", "copy", "p7.mkv"]));
@@ -559,7 +564,7 @@ async fn jobs_edit_segments_before_serving_them() {
 
 #[test]
 fn hdr10_remuxes_are_left_as_they_are() {
-    if !has_ffmpeg() {
+    if !has_encoder("libx265") {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
@@ -592,7 +597,7 @@ fn hdr10_remuxes_are_left_as_they_are() {
 /// HDR10 base layer is what comes out.
 #[test]
 fn hdr_transcodes_keep_hdr10_and_leave_dolby_vision_out() {
-    if !has_ffmpeg() {
+    if !has_encoder("libx265") {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
@@ -659,26 +664,24 @@ fn hdr_transcodes_keep_hdr10_and_leave_dolby_vision_out() {
 
 /// Dolby Vision 8.1 + HDR10+ made from the profile 7 test file: its RPUs
 /// made 8.1 here, then given a configuration record by FFmpeg's `dovi_rpu`
-/// filter (FFmpeg 7.1 and later) in Matroska. `None` without the filter.
+/// filter (FFmpeg 7.1 and later) in Matroska. `None` without HDR10+ or the
+/// filter.
 fn hybrid_81(dir: &Path) -> Option<PathBuf> {
-    let (source, true) = hdr10_source(dir)? else {
-        eprintln!("libx265 can't write HDR10+: skipped");
+    if !has_bitstream_filter("dovi_rpu", (7, 1)) {
         return None;
-    };
+    }
+    let source = hdr10plus_source(dir)?;
     let p7 = std::fs::read(with_profile_7(dir, &source)).unwrap();
     let edits = tsedit::Edits { to_81: true, strip_hdr10plus: false };
     let (p81, _) = tsedit::edit_ts(&p7, edits).unwrap();
     std::fs::write(dir.join("p81.ts"), p81.unwrap()).unwrap();
-    if !ffmpeg(dir, &["-i", "p81.ts", "-map", "0", "-c", "copy", "-bsf:v", "dovi_rpu", "hybrid.mkv"]) {
-        eprintln!("FFmpeg without the dovi_rpu filter: skipped");
-        return None;
-    }
+    assert!(ffmpeg(dir, &["-i", "p81.ts", "-map", "0", "-c", "copy", "-bsf:v", "dovi_rpu", "hybrid.mkv"]));
     Some(dir.join("hybrid.mkv"))
 }
 
 #[tokio::test]
 async fn hybrids_are_found_at_probe_time() {
-    if !has_ffmpeg() {
+    if !has_encoder("libx265") {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
@@ -736,7 +739,7 @@ fn dolby_vision_samples_rewrite_and_remux() {
         eprintln!("PLEY_TEST_DV_SAMPLES not set: skipped");
         return;
     };
-    if !has_ffmpeg() {
+    if !crate::testing::has_ffmpeg() {
         return;
     }
     let dir = tempfile::tempdir().unwrap();
@@ -847,7 +850,7 @@ fn dolby_vision_samples_rewrite_and_remux() {
 /// headers ("Malformed AAC bitstream").
 #[test]
 fn aac_from_mpeg_ts_is_copied_into_fmp4() {
-    if !has_ffmpeg() {
+    if !has_encoder("libx264") {
         return;
     }
     let dir = tempfile::tempdir().unwrap();

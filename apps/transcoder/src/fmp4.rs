@@ -1106,17 +1106,7 @@ mod tests {
     const MOVFLAGS: &str = "+frag_keyframe+empty_moov+default_base_moof+delay_moov+frag_discont+skip_trailer";
 
     fn has_ffmpeg() -> bool {
-        let ok = |tool: &str| Command::new(tool).arg("-version").output().is_ok_and(|o| o.status.success());
-        if !(ok("ffmpeg") && ok("ffprobe")) {
-            eprintln!("ffmpeg not found: skipped");
-            return false;
-        }
-        let encoders = Command::new("ffmpeg").args(["-hide_banner", "-encoders"]).output().unwrap();
-        if !String::from_utf8_lossy(&encoders.stdout).contains("libx264") {
-            eprintln!("FFmpeg without libx264: skipped");
-            return false;
-        }
-        true
+        crate::testing::has_encoder("libx264")
     }
 
     /// 6 s of x264 with B-frames, keyframes every 2 s as jobs force them,
