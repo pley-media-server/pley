@@ -1331,6 +1331,9 @@ fn chapter_markers(chapters: &[Chapter], duration_ms: i64) -> Vec<Found> {
                 next += 1;
             }
         }
+        // Chapters can run past the end of the file (a longer cut's): what
+        // they say of it is what is in it.
+        end = end.min(duration_ms);
         let plausible = match kind {
             MarkerKind::Intro => (5_000..=5 * 60_000).contains(&(end - start)),
             // Shorter "Credits" chapters mark the last seconds of a file (a
@@ -1340,8 +1343,7 @@ fn chapter_markers(chapters: &[Chapter], duration_ms: i64) -> Vec<Found> {
         if kind == MarkerKind::Credits && duration_ms - end <= CREDITS_TAIL_MS {
             end = duration_ms;
         }
-        // A chapter that starts past the end of the file says nothing of it.
-        if plausible && start < end && !out.iter().any(|m| m.kind == kind) {
+        if plausible && !out.iter().any(|m| m.kind == kind) {
             out.push(Found { kind, start_ms: start, end_ms: end, source: "chapter" });
         }
     }
@@ -1915,10 +1917,20 @@ mod tests {
         assert!(found.is_empty(), "{found:?}");
         let found = chapter_markers(&[chapter(1_500_000, 1_571_000, "Credits")], 1_571_000);
         assert_eq!(found.len(), 1);
-        // Credits past the end of the file, from a longer cut's chapters.
+        // Credits past the end of the file, from a longer cut's chapters, or
+        // only their first seconds in it; an intro past it.
         let found =
             chapter_markers(&[chapter(0, 1_200_000, "Episode"), chapter(1_300_000, 1_400_000, "Credits")], 1_250_000);
         assert!(found.is_empty(), "{found:?}");
+        let found =
+            chapter_markers(&[chapter(0, 1_245_000, "Episode"), chapter(1_245_000, 1_400_000, "Credits")], 1_250_000);
+        assert!(found.is_empty(), "{found:?}");
+        let found = chapter_markers(&[chapter(1_300_000, 1_360_000, "Intro")], 1_250_000);
+        assert!(found.is_empty(), "{found:?}");
+        // Credits that are in it run to its end.
+        let found =
+            chapter_markers(&[chapter(0, 1_100_000, "Episode"), chapter(1_100_000, 1_400_000, "Credits")], 1_250_000);
+        assert_eq!((found[0].start_ms, found[0].end_ms), (1_100_000, 1_250_000));
     }
 
     #[test]
