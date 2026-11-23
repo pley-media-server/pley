@@ -65,7 +65,6 @@ fn up_next() {
         let cues: Option<Vec<Cue>> = std::fs::read(dir.join("cues").join(format!("{file_id}.json")))
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok());
-        let quiet = |m: Option<Found>, f: &[FrameStats]| m.map(|m| quiet_to_the_end(m, f, cues.as_deref(), duration));
 
         // The credits as the server now settles them: chapters first, then
         // the stored fingerprint or key-frame match with today's rules.
@@ -77,7 +76,9 @@ fn up_next() {
                     Some(("fingerprint", start, end)) => {
                         let shared = finalize(Some((start, end)), MarkerKind::Credits, duration);
                         match (shared, &frames) {
-                            (Some(s), Some(f)) if s.end_ms < duration => quiet(settle_credits(s, f, duration), f),
+                            (Some(s), Some(f)) if s.end_ms < duration => {
+                                credits_from_pictures(Some(s), f, cues.as_deref(), duration)
+                            }
                             (Some(s), None) if s.end_ms < duration => {
                                 measured = false;
                                 Some(s)
@@ -87,7 +88,7 @@ fn up_next() {
                     }
                     // Found again from the key frames when they are at hand.
                     Some(("frames", start, end)) => match &frames {
-                        Some(f) => quiet(credits_from_frames(f, duration), f),
+                        Some(f) => credits_from_pictures(None, f, cues.as_deref(), duration),
                         None => {
                             measured = false;
                             Some(Found { kind: MarkerKind::Credits, start_ms: start, end_ms: end, source: "frames" })

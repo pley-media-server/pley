@@ -72,6 +72,8 @@ const OTHER_SEASONS: usize = 6;
 const INTRO_MIN_SECONDS: f64 = 12.0;
 const INTRO_MAX_MS: i64 = 3 * 60_000;
 const CREDITS_MIN_SECONDS: f64 = 15.0;
+/// The shortest marker shared audio leaves, once trimmed to the file.
+const MARKER_MIN_MS: i64 = 10_000;
 /// The last matching fingerprint value is computed from audio that starts
 /// about this long before the shared audio ends.
 const END_PADDING_MS: i64 = 1_300;
@@ -776,11 +778,7 @@ impl MarkerService {
                 // settled by the pictures after it; without shared audio the
                 // pictures are all there is.
                 if let Some(end) = self.frames(&target, watched).await? {
-                    marker = match marker {
-                        Some(shared) => settle_credits(shared, &end.frames, target.duration_ms),
-                        None => credits_from_frames(&end.frames, target.duration_ms),
-                    }
-                    .map(|credits| quiet_to_the_end(credits, &end.frames, end.cues.as_deref(), target.duration_ms));
+                    marker = credits_from_pictures(marker, &end.frames, end.cues.as_deref(), target.duration_ms);
                 }
             }
             found[i].1.extend(marker);
@@ -1092,7 +1090,33 @@ fn finalize(range: Option<(i64, i64)>, kind: MarkerKind, duration_ms: i64) -> Op
             }
         }
     }
-    (end - start >= 10_000).then_some(Found { kind, start_ms: start, end_ms: end, source: "fingerprint" })
+    (end - start >= MARKER_MIN_MS).then_some(Found { kind, start_ms: start, end_ms: end, source: "fingerprint" })
+}
+
+/// The credits of a file, from its `shared` audio if any stops before its
+/// end, and the key frames and subtitle cues of the end of it
+/// ([`settle_credits`], [`credits_from_frames`], [`quiet_to_the_end`]).
+/// Key frames that stop before the shared audio begins say nothing about
+/// it: it stays as it is. Credits the pictures leave shorter than shared
+/// audio may be ([`MARKER_MIN_MS`]) are none: a fade to black between two
+/// shots isn't credits.
+fn credits_from_pictures(
+    shared: Option<Found>,
+    frames: &[FrameStats],
+    cues: Option<&[Cue]>,
+    duration_ms: i64,
+) -> Option<Found> {
+    if let Some(shared) = &shared
+        && !frames.iter().any(|f| f.ms >= shared.start_ms)
+    {
+        return Some(shared.clone());
+    }
+    let credits = match shared {
+        Some(shared) => settle_credits(shared, frames, duration_ms),
+        None => credits_from_frames(frames, duration_ms),
+    }?;
+    let credits = quiet_to_the_end(credits, frames, cues, duration_ms);
+    (credits.end_ms - credits.start_ms >= MARKER_MIN_MS).then_some(credits)
 }
 
 /// Credits found from shared audio that stops before the end of the file,
@@ -1122,11 +1146,11 @@ fn settle_credits(shared: Found, frames: &[FrameStats], duration_ms: i64) -> Opt
     if settled.end_ms == duration_ms {
         return Some(settled);
     }
-    // Text on black among the key frames after them, opening on true black
-    // rather than a dark scene.
+    // Text on black among the key frames after them, opening on black (text
+    // of any color) rather than a dark scene.
     let rest = &frames[first + pages..];
     if let Some(later) = credits_from_frames(rest, duration_ms)
-        && rest.iter().any(|f| f.ms == later.start_ms && is_black_page(f))
+        && rest.iter().any(|f| f.ms == later.start_ms && is_on_black(f))
     {
         return Some(later);
     }
@@ -1210,17 +1234,23 @@ fn credits_end(frames: &[FrameStats], last: usize, duration_ms: i64) -> i64 {
     if duration_ms - end <= CREDITS_TAIL_MS { duration_ms } else { end }
 }
 
-/// A key frame that may be a page of credits: mostly near black, or a
-/// smaller share around text on true black.
+/// A key frame that may be a page of credits: mostly near black, as true
+/// black always is. Dense text, less of the page near black, doesn't count:
+/// by these measures it looks like a dim scene.
 fn is_page(f: &FrameStats) -> bool {
     f.black >= PAGE_BLACK || is_black_page(f)
 }
 
-/// A key frame of true black, or text on it: studio-range luma 16 at its
-/// darkest tenth, no color, and its brightest tenth at most luma 32, so nine
+/// A key frame of black, or text of any color on it: studio-range luma 16
+/// at its darkest tenth and its brightest tenth at most luma 32, so nine
 /// tenths of it near black (a dark scene has gray in it).
+fn is_on_black(f: &FrameStats) -> bool {
+    f.ylow <= 16.5 && f.yhigh <= 32.0
+}
+
+/// A key frame of true black, or text on it: on black, with no color.
 fn is_black_page(f: &FrameStats) -> bool {
-    f.ylow <= 16.5 && f.sat <= 4.0 && f.yhigh <= 32.0
+    is_on_black(f) && f.sat <= 4.0
 }
 
 /// Credits as text on black in key frames (sorted by time) of the end of a
@@ -1258,16 +1288,20 @@ fn credits_from_frames(frames: &[FrameStats], duration_ms: i64) -> Option<Found>
     if duration_ms - frames[last].ms > CREDITS_NEAR_END_MS {
         return None;
     }
-    // They begin at the first page of true black from which pages run on
-    // unbroken for the shortest credits, or to the last one: a dark scene
-    // with flashes of black before the roll is the episode's. Credits in
-    // color on black, never true black, keep their first page.
+    // They begin at the first page on black, text of any color or black,
+    // from which pages run on unbroken for the shortest credits (to where
+    // they end, when they reach the last page): a dark scene with flashes of
+    // black before the roll is the episode's, and so is a night scene
+    // between black bars (gray in it). Credits with no such page keep their
+    // first: a key frame of black just before they end isn't where they
+    // begin.
+    let end = credits_end(frames, last, duration_ms);
     let unbroken = |i: usize| {
         let run = (i..last).take_while(|&j| is_page(&frames[j + 1])).count();
-        i + run == last || (frames[i + run].ms - frames[i].ms) as f64 >= CREDITS_MIN_SECONDS * 1000.0
+        let until = if i + run == last { end } else { frames[i + run].ms };
+        (until - frames[i].ms) as f64 >= CREDITS_MIN_SECONDS * 1000.0
     };
-    let first = (first..=last).find(|&i| is_black_page(&frames[i]) && unbroken(i)).unwrap_or(first);
-    let end = credits_end(frames, last, duration_ms);
+    let first = (first..=last).find(|&i| is_on_black(&frames[i]) && unbroken(i)).unwrap_or(first);
     Some(Found { kind: MarkerKind::Credits, start_ms: frames[first].ms, end_ms: end, source: "frames" })
 }
 
@@ -1576,6 +1610,9 @@ mod tests {
         // Text on black later on is the credits.
         let found = settle(&|s| if s >= 1_772 { "page" } else { "scene" });
         assert_eq!((found.start_ms, found.end_ms, found.source), (1_774_000, 1_800_000, "frames"));
+        // In color too.
+        let found = settle(&|s| if s >= 1_772 { "color" } else { "scene" });
+        assert_eq!((found.start_ms, found.end_ms, found.source), (1_774_000, 1_800_000, "frames"));
         // Shared audio over pictures alone, short of the end, a dark scene
         // after it even letterboxed: no credits.
         assert_eq!(settled(&|_| "scene"), None);
@@ -1759,6 +1796,8 @@ mod tests {
                     "color" => (93.0, 16.0, 16.0, 190.0, 6.0),
                     // A dim, colorless shot: true black, not pure.
                     "dim" => (90.0, 16.0, 28.0, 200.0, 2.0),
+                    // Text on a black a little lifted (luma 18).
+                    "lifted" => (95.0, 18.0, 18.0, 230.0, 0.1),
                     _ => (10.0, 30.0, 150.0, 235.0, 20.0),
                 };
                 FrameStats { ms: s * 1000, black, ylow, yhigh, ymax, sat }
@@ -1804,9 +1843,54 @@ mod tests {
             _ => "scene",
         });
         assert_eq!(credits_from_frames(&frames, 1_800_000).map(|f| f.start_ms), Some(1_720_000));
-        // Credits in color on black, never true black, keep their first page.
+        // Credits in color on black keep their first page, a key frame of
+        // black among them too.
         let frames = key_frames(1_320, 1_800, |s| if s >= 1_740 { "color" } else { "scene" });
         assert_eq!(credits_from_frames(&frames, 1_800_000).map(|f| f.start_ms), Some(1_740_000));
+        let frames = key_frames(1_320, 1_800, |s| match s {
+            1_740 => "black",
+            1_680.. => "color",
+            _ => "scene",
+        });
+        assert_eq!(credits_from_frames(&frames, 1_800_000).map(|f| f.start_ms), Some(1_680_000));
+        // A night scene between black bars before the roll is the episode's.
+        let frames = key_frames(1_320, 1_800, |s| match s {
+            1_660..1_720 => "night",
+            1_720.. => "page",
+            _ => "scene",
+        });
+        assert_eq!(credits_from_frames(&frames, 1_800_000).map(|f| f.start_ms), Some(1_720_000));
+        // Credits on a lifted black, never true black, that end on a key
+        // frame of black begin at their first page, not at that last frame.
+        let frames = key_frames(1_320, 1_800, |s| match s {
+            1_796 => "black",
+            1_700.. => "lifted",
+            _ => "scene",
+        });
+        assert_eq!(credits_from_frames(&frames, 1_800_000).map(|f| f.start_ms), Some(1_700_000));
+    }
+
+    #[test]
+    fn a_fade_to_black_is_no_credits_and_pictures_that_miss_the_music_leave_it() {
+        // A 30 min episode; the shared audio is 28:00–29:00, a scene after it.
+        let shared = Found { kind: MarkerKind::Credits, start_ms: 1_680_000, end_ms: 1_740_000, source: "fingerprint" };
+        let from = |frames: &[FrameStats]| credits_from_pictures(Some(shared.clone()), frames, None, 1_800_000);
+        // One key frame of black, a fade between two shots, inside the music
+        // or right after it: no credits.
+        for fade in [1_734, 1_742] {
+            let frames = key_frames(1_170, 1_800, |s| if s == fade { "black" } else { "scene" });
+            assert_eq!(from(&frames), None, "{fade}");
+        }
+        // Ten seconds of it is as short as shared audio may be.
+        let frames = key_frames(1_170, 1_800, |s| if s == 1_730 { "black" } else { "scene" });
+        assert_eq!(from(&frames).map(|f| (f.start_ms, f.end_ms)), Some((1_730_000, 1_740_000)));
+        // Credits on black while the music plays, long enough, still are.
+        let frames = key_frames(1_170, 1_800, |s| if (1_700..1_740).contains(&s) { "page" } else { "scene" });
+        assert_eq!(from(&frames).map(|f| (f.start_ms, f.end_ms)), Some((1_702_000, 1_740_000)));
+        // No key frames, or none from where the music begins: the pictures
+        // say nothing about it, and the shared audio stays.
+        assert_eq!(from(&[]), Some(shared.clone()));
+        assert_eq!(from(&key_frames(1_170, 1_600, |_| "scene")), Some(shared.clone()));
     }
 
     #[test]

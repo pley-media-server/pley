@@ -3180,17 +3180,21 @@ credits follows them:
   which the transcoder reads for those files only (as it does for credits
   no episode shares). Key frames of true black, or text on it (no color, no
   gray), from where it stops are more of the credits, up to the first key
-  frame that isn't one. When something else follows and text on black comes
-  after that, the shared audio was a scene's music (a game show's thinking
+  frame that isn't one. When something else follows and text on black, in
+  any color, comes after that, beginning on black rather than in a dark
+  scene, the shared audio was a scene's music (a game show's thinking
   music, a song two episodes share) and the text on black are the credits.
   Otherwise they are credits only if text on black, or true black, shows
   while the shared audio plays, and stop where the pictures change (an
   after-credits scene); shared audio over pictures alone, short of the end,
-  is no proof of credits and gives none.
-- Credits found from key frames begin at the first key frame of true black
-  from which pages run on unbroken for at least 15 s (or to their end): a
-  dark scene with flashes of black before the roll is the episode's.
-  Credits in color on black keep their first page.
+  is no proof of credits and gives none. Credits this leaves shorter than
+  10 s are none (a fade to black between two shots), and key frames that
+  stop before the shared audio begins leave it as it is.
+- Credits found from key frames begin at the first key frame on black
+  (black, or text of any color on it) from which they run on, pages
+  unbroken, for at least 15 s: a dark scene with flashes of black, or a
+  night scene between black bars, before the roll is the episode's. Without
+  such a key frame they begin at their first page.
 - Credits that still stop short of the end run to it when no one speaks
   from them to the end of the file: what follows is then a channel's
   promos, a logo or a preview, not a scene. That takes a full embedded
