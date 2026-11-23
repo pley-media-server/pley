@@ -125,6 +125,8 @@ describes how they are made.
 
 ### Fixed
 
+- Media info and the player's Playback details end at a whole line, and
+  scroll a line at a time, where a line was cut in half at the foot.
 - Choosing a language the server is too old to keep says to update Pley
   on the server, in place of the server's own message.
 - Chinese shows: Roboto and the Roku's own font have no Chinese
