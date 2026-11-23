@@ -3193,8 +3193,10 @@ credits follows them:
 - Credits found from key frames begin at the first key frame on black
   (black, or text of any color on it) from which they run on, pages
   unbroken, for at least 15 s: a dark scene with flashes of black, or a
-  night scene between black bars, before the roll is the episode's. Without
-  such a key frame they begin at their first page.
+  night scene between black bars, before the roll is the episode's. Failing
+  that, they begin where pages on black run unbroken to their end for at
+  least 10 s (a short roll after shots cut between cards), else at their
+  first page.
 - Credits that still stop short of the end run to it when no one speaks
   from them to the end of the file: what follows is then a channel's
   promos, a logo or a preview, not a scene. That takes a full embedded

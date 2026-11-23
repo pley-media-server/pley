@@ -1292,16 +1292,22 @@ fn credits_from_frames(frames: &[FrameStats], duration_ms: i64) -> Option<Found>
     // from which pages run on unbroken for the shortest credits (to where
     // they end, when they reach the last page): a dark scene with flashes of
     // black before the roll is the episode's, and so is a night scene
-    // between black bars (gray in it). Credits with no such page keep their
-    // first: a key frame of black just before they end isn't where they
-    // begin.
+    // between black bars (gray in it). Failing that, at the first page on
+    // black from which pages run unbroken to their end, for as long as a
+    // marker may be: a short roll after shots cut between cards. Credits
+    // with neither keep their first page: a key frame of black just before
+    // they end isn't where they begin.
     let end = credits_end(frames, last, duration_ms);
-    let unbroken = |i: usize| {
+    let on_black_for = |i: usize, min_ms: i64, to_the_end: bool| {
         let run = (i..last).take_while(|&j| is_page(&frames[j + 1])).count();
         let until = if i + run == last { end } else { frames[i + run].ms };
-        (until - frames[i].ms) as f64 >= CREDITS_MIN_SECONDS * 1000.0
+        is_on_black(&frames[i]) && (i + run == last || !to_the_end) && until - frames[i].ms >= min_ms
     };
-    let first = (first..=last).find(|&i| is_on_black(&frames[i]) && unbroken(i)).unwrap_or(first);
+    let shortest = (CREDITS_MIN_SECONDS * 1000.0) as i64;
+    let first = (first..=last)
+        .find(|&i| on_black_for(i, shortest, false))
+        .or_else(|| (first..=last).find(|&i| on_black_for(i, MARKER_MIN_MS, true)))
+        .unwrap_or(first);
     Some(Found { kind: MarkerKind::Credits, start_ms: frames[first].ms, end_ms: end, source: "frames" })
 }
 
@@ -1868,6 +1874,13 @@ mod tests {
             _ => "scene",
         });
         assert_eq!(credits_from_frames(&frames, 1_800_000).map(|f| f.start_ms), Some(1_700_000));
+        // Cards cut with shots, then a short roll on black to the end: the
+        // roll.
+        let frames = key_frames(1_320, 1_800, |s| match s {
+            1_740 | 1_744 | 1_756 | 1_760 | 1_772 | 1_776 | 1_788.. => "page",
+            _ => "scene",
+        });
+        assert_eq!(credits_from_frames(&frames, 1_800_000).map(|f| f.start_ms), Some(1_788_000));
     }
 
     #[test]
