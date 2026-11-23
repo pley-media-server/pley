@@ -12,6 +12,9 @@
         <field id="itemHasFocus" type="boolean" onChange="onFocus" />
         <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
         <field id="width" type="float" onChange="onWidth" />
+        <!-- 80, or less when the rail's entries wouldn't all fit
+             (Rail.brs): what is on it stays in its middle. -->
+        <field id="height" type="float" onChange="onHeight" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/RailRow.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />

@@ -50,15 +50,31 @@ sub onContent()
     onFocus()
 end sub
 
+' The pill as tall as the entry, the icon, the circle, the mark and the
+' number in its middle.
+sub onHeight()
+    h = m.top.height
+    if h <= 0 then return
+    m.pill.height = h
+    m.name.height = h
+    m.mark.translation = [0, (h - 40) / 2]
+    m.icon.translation = [52, (h - 40) / 2]
+    m.avatar.translation = [44, (h - 56) / 2]
+    m.initial.translation = [44, (h - 56) / 2]
+    onWidth()
+end sub
+
 ' The number at the open rail's right edge; collapsed, a dot of it on the
 ' icon's corner.
 sub onWidth()
     if not m.count.visible then return
     w = m.top.width
     if w <= 0 then w = 456
+    y = 20
+    if m.top.height > 0 then y = (m.top.height - 40) / 2
     x = w - 32 - m.countBoxWidth
-    m.count.translation = [x, 20]
-    m.countBack.translation = [x, 20]
+    m.count.translation = [x, y]
+    m.countBack.translation = [x, y]
 end sub
 
 sub onFocus()

@@ -52,7 +52,9 @@ Android TV app's: the profile's initial (OK switches profiles), then
 Search, Home, Discover and the requests (where the server has them), Live
 TV, the libraries, Playlists, Collections (every library's collections, a
 row each), Now Playing while music plays, and Settings, each with its icon
-(a library's by its kind). Collapsed, it shows the icons alone, the
+(a library's by its kind). Every entry is in view, Settings at the
+foot: up to eleven 80 px tall, thirteen at 72 and fourteen at 64, past
+which the list scrolls. Collapsed, it shows the icons alone, the
 current page's with an accent mark; Left at a page's edge, or Back on
 Home, opens it over the page, their names beside them, and Right or Back
 closes it, the focus back where it was. An entry chosen there switches

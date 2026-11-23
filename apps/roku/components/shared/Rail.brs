@@ -38,6 +38,7 @@ sub onEntries()
         item.current = key = m.top.current
         items.Push(item)
     end for
+    fitEntries(items.Count())
     m.list.content = nodesContent(items)
     ' Closed, it shows the current entry as it would once closed.
     if not m.open
@@ -47,6 +48,27 @@ sub onEntries()
     if focusedKey = "" then focusedKey = m.top.current
     at = navMenuFocus(m.keys, focusedKey, focused)
     if at > 0 then m.list.jumpToItem = at
+end sub
+
+' Every entry in view, Settings at the foot: 80 tall 8 apart from y = 60
+' while they fit (eleven), then 72 and 64 tall 4 apart from y = 48
+' (thirteen, fourteen); past that the list scrolls.
+sub fitEntries(count as integer)
+    top = 60
+    height = 80
+    gap = 8
+    for each size in [[72, 4], [64, 4]]
+        if count * (height + gap) - gap <= 1080 - 2 * top then exit for
+        top = 48
+        height = size[0]
+        gap = size[1]
+    end for
+    if m.list.itemSize[1] <> height
+        m.list.itemSize = [520, height]
+        m.list.itemSpacing = [0, gap]
+    end if
+    m.list.translation = [0, top]
+    m.list.numRows = Int((1080 - 2 * top + gap) / (height + gap))
 end sub
 
 sub onCurrent()

@@ -17,8 +17,8 @@ describes how they are made.
   libraries and the rest).
 - The side panels share one look: a title's menus and the language list
   have the player's, a library's and Settings' rows and title.
-- The rail starts at the top of the screen, with room for one more entry
-  before it scrolls.
+- The rail starts at the top of the screen and shows every entry,
+  Settings at the foot, its entries a little shorter when there are many.
 - The rail no longer has the requests: they open from Discover's button,
   which shows what waits there.
 - A library opens on Recommended. The Library tab keeps the sort and
