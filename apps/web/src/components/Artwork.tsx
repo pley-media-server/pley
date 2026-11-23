@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import { cn } from "@/lib/cn";
 import { placeholderGradient, sizedImage } from "@/lib/images";
+import { PlaceholderMark } from "./Logo";
 
 export interface ArtworkProps {
   /** Unsized image urls in priority order (the first that loads wins). */
@@ -8,17 +9,21 @@ export interface ArtworkProps {
   /** Rendered CSS width used to pick the image bucket. */
   width: number;
   alt: string;
-  /** Text shown on the placeholder tile. */
+  /** The title the placeholder's gradient is made from. */
   title: string;
   className?: string;
   imgClassName?: string;
   eager?: boolean;
-  /** Hide the title on the placeholder (e.g. for backdrops). */
+  /** Nothing on the placeholder, not even Pley's mark (e.g. for backdrops). */
   bare?: boolean;
 }
 
 /**
  * Lazy-loaded image with fade-in, fallback chain and a gradient placeholder.
+ * Once no picture will come (none, or none of the candidates loaded) Pley's
+ * mark is on the gradient; not while one loads, so a page of tiles scrolling
+ * in doesn't flash marks. The title isn't on it: the caption or the line
+ * beside the picture names it.
  * The parent controls the box size (aspect ratio) through `className`.
  */
 export const Artwork = memo(function Artwork({
@@ -43,13 +48,7 @@ export const Artwork = memo(function Artwork({
       className={cn("relative overflow-hidden bg-surface-2", className)}
       style={!current.loaded ? { backgroundImage: placeholderGradient(title || alt) } : undefined}
     >
-      {failed && !bare ? (
-        <div className="absolute inset-0 flex items-center justify-center p-3 text-center">
-          <span className="line-clamp-4 text-sm font-semibold leading-snug text-white/70 [text-wrap:balance]">
-            {title}
-          </span>
-        </div>
-      ) : null}
+      {failed && !bare ? <PlaceholderMark /> : null}
       {src ? (
         <img
           key={src}
