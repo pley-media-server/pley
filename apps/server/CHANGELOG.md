@@ -16,10 +16,10 @@ describes how they are made.
 
 ### Changed
 
-- With the software encoder's preset on automatic, a transcode uses the
-  best-looking preset the computer is measured to encode at twice real
-  time, up to `faster`, and several transcodes at once leave room for each
-  other.
+- With the software encoder's preset on automatic, a transcode starts and
+  seeks on a quick preset, so the picture comes sooner, then moves to the
+  best-looking one the computer is measured to encode at twice real time,
+  up to `faster`. Several transcodes at once leave room for each other.
 
 ### Fixed
 

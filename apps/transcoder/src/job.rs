@@ -226,6 +226,13 @@ const PRESET_KINDS: usize = 64;
 
 /// How often the reaper looks at the jobs.
 const REAP_EVERY: Duration = Duration::from_secs(5);
+/// How often the automatic preset looks at them (see [`JobManager::adapt`]):
+/// a process started for a waiting player makes many seconds of video a
+/// second at its quick preset, and moves as soon as its speed is known.
+const ADAPT_EVERY: Duration = Duration::from_secs(1);
+/// The fastest the players play (× real time): the web app's and Android's
+/// speed menus go up to 2.
+const FASTEST_PLAYBACK: f64 = 2.0;
 
 /// How near the read rate's limit (ms of video) a process counts as held by
 /// it: FFmpeg limits what it reads, which is a few seconds ahead of what it
@@ -507,6 +514,9 @@ struct Runtime {
     /// The automatic preset of the running process (index in
     /// [`adaptive::LADDER`]), and when it started or moved.
     preset: Option<(usize, Instant)>,
+    /// Whether that process started at one quick for a waiting player, to
+    /// hand over to the steady one ([`adaptive::hand_over`]).
+    quick: bool,
     /// What the latest process does on the GPU, when libplacebo tone maps
     /// (see [`crate::share`]).
     share: Option<Share>,
@@ -1163,13 +1173,16 @@ impl JobManager {
 
     /// The preset the next process of `job` starts with at segment `start`,
     /// on the automatic preset: by what jobs alike were measured to make,
-    /// or the load's before any was (see [`adaptive::start`]).
-    fn start_preset(&self, job: &Job, start: u32) -> usize {
+    /// or the load's before any was (see [`adaptive::start`]); and whether
+    /// it is one quick for a waiting player. An fMP4 job keeps its first
+    /// process's (see [`InitEncoder`]), which never moves: the steady one.
+    fn start_preset(&self, job: &Job, start: u32) -> (usize, bool) {
         let now = Instant::now();
         let kind = job.plan.encode_kind(&job.media);
         let speeds = kind.and_then(|kind| self.preset_speeds.lock().get(&kind).cloned()).unwrap_or_default();
         let current = job.runtime.lock().preset.map(|(preset, _)| preset);
-        adaptive::start(&speeds, self.load_for(job), job.lead_secs(start), current, now)
+        let lead = if job.fmp4() { f64::INFINITY } else { job.lead_secs(start) };
+        (adaptive::start(&speeds, self.load_for(job), lead, current, now), lead <= 0.0)
     }
 
     /// Learns what the presets of jobs on the automatic one make from how
@@ -1199,7 +1212,11 @@ impl JobManager {
             return;
         }
         for job in &jobs {
-            let Some((current, moved_at)) = job.runtime.lock().preset else { continue };
+            let (preset, quick) = {
+                let rt = job.runtime.lock();
+                (rt.preset, rt.quick)
+            };
+            let Some((current, moved_at)) = preset else { continue };
             let Some(kind) = job.plan.encode_kind(&job.media) else { continue };
             let Ok(mut guard) = job.process.try_lock() else { continue };
             let Some(proc) = guard.as_ref().filter(|p| p.running()) else { continue };
@@ -1207,7 +1224,8 @@ impl JobManager {
             if next >= proc.end {
                 continue;
             }
-            let sharing = self.load_for(job).software_jobs;
+            let load = self.load_for(job);
+            let sharing = load.software_jobs;
             let measured = job.measured(proc);
             // A paused process makes nothing now: what it made before tells
             // of its preset, not of how it goes.
@@ -1217,7 +1235,7 @@ impl JobManager {
                 adaptive::Measured::Exactly(made) => Some(made),
                 adaptive::Measured::AtLeast(_) => None,
             });
-            let lead = job.lead_secs(next);
+            let (lead, ahead) = (job.lead_secs(next), job.ahead_of_player(proc, next));
             let (to, expected) = {
                 let mut kinds = self.preset_speeds.lock();
                 if kinds.len() >= PRESET_KINDS && !kinds.contains_key(&kind) {
@@ -1227,7 +1245,7 @@ impl JobManager {
                 // As fast as it goes, a process tells what its preset makes
                 // only if no other encode ran beside it meanwhile.
                 if let Some((_, of_its_preset, at)) = measured
-                    && (crowd.alone(at, Pace::STEADY + REAP_EVERY)
+                    && (crowd.alone(at, Pace::STEADY + ADAPT_EVERY)
                         || matches!(of_its_preset, adaptive::Measured::AtLeast(_)))
                 {
                     speeds.learn(current, of_its_preset, at);
@@ -1250,13 +1268,19 @@ impl JobManager {
                     jobs: sharing,
                     settled: crowd.settled(now),
                 };
-                let Some(to) = adaptive::decide(speeds, going, now) else { continue };
-                (to, speeds.expect(to, now).map(|(alone, _)| alone / f64::from(sharing.max(1))))
+                // A process started quick for a waiting player hands over to
+                // the steady preset once its speed is known.
+                let hand_over = quick && speed.is_some();
+                let to = adaptive::decide(speeds, going, now).or_else(|| {
+                    hand_over.then(|| adaptive::hand_over(speeds, load, current, moved_at.elapsed(), ahead, now))?
+                });
+                let Some(to) = to else { continue };
+                (to, speeds.expect(to, now).map(|alone| alone / f64::from(sharing.max(1))))
             };
             let times = |speed: Option<f64>| speed.map_or("?".into(), |s| format!("{s:.1}"));
             tracing::info!(
                 job = %job.id,
-                "preset {} → {} ({lead:.0} s ahead of the player, making {}× real time, {}× expected)",
+                "preset {} → {} ({ahead:.0} s ahead of the player, making {}× real time, {}× expected)",
                 adaptive::LADDER[current],
                 adaptive::LADDER[to],
                 times(measured.map(|(_, of_its_preset, _)| of_its_preset.speed())),
@@ -1619,7 +1643,14 @@ impl JobManager {
         // nothing is ready ahead.
         let software = planned.is_some() && (!want_hw || fallback.is_some());
         let auto = job.plan.video.as_ref().is_some_and(|v| v.preset == adaptive::AUTO);
-        let chosen = (software && auto).then(|| preset.unwrap_or_else(|| self.start_preset(job, start)));
+        let (chosen, quick) = match preset {
+            _ if !(software && auto) => (None, false),
+            Some(preset) => (Some(preset), false),
+            None => {
+                let (preset, quick) = self.start_preset(job, start);
+                (Some(preset), quick)
+            }
+        };
         let preset_name = match chosen {
             Some(i) => Some(adaptive::LADDER[i].to_owned()),
             None if software => job.plan.video.as_ref().map(|v| v.preset.clone()),
@@ -1678,6 +1709,7 @@ impl JobManager {
             rt.state = JobState::Running;
             rt.encoder_override = fallback.cloned();
             rt.preset = chosen.map(|i| (i, Instant::now()));
+            rt.quick = quick;
             rt.share = share;
             rt.process = Some(ProcessStatus {
                 pid: child.id(),
@@ -1819,11 +1851,16 @@ impl JobManager {
     pub fn spawn_reaper(self: &Arc<Self>) {
         let weak = Arc::downgrade(self);
         tokio::spawn(async move {
-            let mut tick = tokio::time::interval(REAP_EVERY);
-            loop {
+            let mut tick = tokio::time::interval(ADAPT_EVERY);
+            let reap_every = (REAP_EVERY.as_secs_f64() / ADAPT_EVERY.as_secs_f64()).round() as u32;
+            for n in (0..reap_every).cycle() {
                 tick.tick().await;
                 let Some(mgr) = weak.upgrade() else { break };
-                mgr.reap().await;
+                if n == 0 {
+                    mgr.reap().await;
+                } else {
+                    mgr.adapt().await;
+                }
             }
         });
     }
@@ -2240,6 +2277,20 @@ impl Job {
     fn lead_secs(&self, next: u32) -> f64 {
         let asked = self.last_requested.load(Relaxed);
         (f64::from(next) - f64::from(asked) - 1.0) * self.plan.segment_seconds
+    }
+
+    /// Seconds of video ready past where the player can be, with process
+    /// `p` at segment `next`: more than [`Self::lead_secs`] says early in
+    /// the process, while the player asks for each segment as it comes. The
+    /// player was at most a segment into where `p` started, and has played
+    /// since at [`FASTEST_PLAYBACK`] at most.
+    fn ahead_of_player(&self, p: &Proc, next: u32) -> f64 {
+        let lead = self.lead_secs(next);
+        if lead < 0.0 {
+            return lead;
+        }
+        let made = f64::from(next.saturating_sub(p.start + 1)) * self.plan.segment_seconds;
+        lead.max(made - FASTEST_PLAYBACK * p.started.elapsed().as_secs_f64())
     }
 
     /// [`Self::segment_path`] of segment `n`, made and handed out, saying

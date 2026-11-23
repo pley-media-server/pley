@@ -756,47 +756,55 @@ N of them use the slowest that makes 2 N times real time alone.
 
 - **Measuring.** A process's speed is its preset's when nothing else holds
   it back: the read rate doesn't ([Throttling](#throttling)), and no other
-  software encode ran in the 25 s before (one paused far ahead doesn't
+  software encode ran in the 21 s before (one paused far ahead doesn't
   count). It is measured over up to 20 s.
   - A lower measurement replaces what was known at once. A higher one
-    counts in full once it has held for a minute: one easy stretch of film
-    isn't a faster computer.
+    counts in as long as it holds, and in full after a minute: one easy
+    stretch of film isn't a faster computer.
   - A process the read rate holds shows that its preset still makes that
     much, which keeps what is known from expiring.
   - Speeds are kept for each kind of job (the same codecs, sizes, frame
     rate, decoder, tone mapper and burned-in subtitles), for 10 minutes
     after a process last measured or showed them.
   - A speed under 0.1 × tells nothing: the input stopped coming.
-- **Estimating.** The preset one step slower than a measured one is
-  estimated from it: `superfast` makes 0.55 of what `ultrafast` does,
-  `veryfast` and `faster` 0.7 of the preset before. Nothing is estimated
-  further than that step, so a job reaches a slow preset one measured step
-  at a time. Presets faster than a measured one are estimated the same
-  way, however many steps away.
+- **Estimating.** The other presets are estimated from the nearest one
+  measured: `superfast` makes 0.55 of what `ultrafast` does, `veryfast`
+  and `faster` 0.7 of the preset before, however many steps away.
+  Estimated from `ultrafast`, `faster` made as little as 0.6 of that on the
+  computers measured: one expected at twice real time still keeps ahead,
+  and is measured as soon as a job is on it.
 - **Starting.** At a start or a seek the player waits, so the process
   starts at the slowest preset expected to encode its first segment within
-  0.7 s: with 2 s segments at 24 frames a second, 3.6 × real time at
-  `ultrafast` and 4.8 × at `faster`, which reads 20 frames ahead. Where
-  none is that fast, `ultrafast`.
+  0.4 s, about as long as FFmpeg takes to start: with 2 s segments at 24
+  frames a second, 6.3 × real time at `ultrafast` and 8.3 × at `faster`,
+  which reads 20 frames ahead. Where none is that fast, `ultrafast`.
+  - It hands over to the steady preset (below) as soon as the process's
+    speed is known, about 2 s in, once 10 s are ready past where the player
+    can be: from where the process started, playing at up to twice real
+    time. Before anything is measured, it hands over to the processors'
+    preset.
+  - In the process's first minute, the hand-over doesn't wait for the
+    number of encodes to settle: it moves this job alone.
 - **Before anything is measured**, a job starts by the processors each
   software encode has: 5 for each 1080p x264 encode give `faster`, 3
-  `veryfast`, 1.5 `superfast`, fewer `ultrafast`, and a step faster at a
-  start or a seek unless there are 8 or more. 4K counts as four 1080p
-  encodes, 720p as 0.44, x265 as three, and 60 frames a second as two at
-  30 or fewer.
-- **Moves**, looked at every 5 s. Each restarts FFmpeg at the next segment.
-  - *Slower*: a job 45 s ahead of its player, 10 s after its last start or
-    move, goes to the slowest preset expected to make twice real time for
-    each encode. A process paused far ahead moves too.
+  `veryfast`, 1.5 `superfast`, fewer `ultrafast`. A start or a seek takes
+  `veryfast` with 12 or more, `superfast` with 8, `ultrafast` with fewer.
+  4K counts as four 1080p encodes, 720p as 0.44, x265 as three, and 60
+  frames a second as two at 30 or fewer.
+- **Moves**, looked at every second. Each restarts FFmpeg at the next
+  segment once its process's speed is measured: the hand-over after a start
+  or a seek as soon as it is, the others 4 s after the job's last start or
+  move at the earliest.
+  - *Slower*: a job 10 s ahead of its player goes to the slowest preset
+    expected to make twice real time for each encode, as many steps at once
+    as that takes. A process paused far ahead moves too.
   - *Faster, about to stall*: a process going as fast as it can under
-    1.15 × real time, with less than 8 s ready ahead of its player, 4 s
-    after its last start or move, goes to the slowest preset expected to
-    make 1.5 ×, a step faster at least.
+    1.15 × real time, with less than 8 s ready ahead of its player, goes to
+    the slowest preset expected to make 1.5 ×, a step faster at least.
   - *Faster, a wrong estimate*: so does one that makes under 1.15 × over
-    its last 20 s between 10 s and a minute after a start or a move,
-    whatever is ready ahead.
+    its last 20 s in its first minute at a preset, whatever is ready ahead.
   - *For the number of encodes*: when software encodes start or end, each
-    job 45 s ahead moves to the preset for the new number, once that number
+    job 10 s ahead moves to the preset for the new number, once that number
     has stayed the same for a minute. A job leaves its preset for a faster
     one when it leaves each encode under 1.6 × real time.
 - A job alone that keeps ahead otherwise stays where it is: it isn't
@@ -811,7 +819,8 @@ N of them use the slowest that makes 2 N times real time alone.
 - A process the player went past (a seek into segments made before) is left
   alone until it ends where they begin.
 - An fMP4 job keeps the preset of its first process
-  ([fMP4 segments](#fmp4-segments)): the one chosen for a start.
+  ([fMP4 segments](#fmp4-segments)), which starts at the steady one rather
+  than one quick for a start.
 
 ### Housekeeping
 
