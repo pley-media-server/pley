@@ -143,6 +143,9 @@ describes how they are made.
 
 ### Fixed
 
+- A Discover or requests page that can't load, with nothing to say under
+  its title (TMDB isn't answering), has its button under the title: an
+  empty line held it further down.
 - A show's page opens on the next episode's season even when the
   seasons come before the server says which episode is next, and a
   season stays chosen as the page's rows come in.

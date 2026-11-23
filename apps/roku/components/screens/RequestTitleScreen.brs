@@ -443,7 +443,7 @@ sub showProblem(problem as object)
     m.credit.visible = false
     m.rows.visible = false
     m.problemTitle.text = problem.title
-    m.problemText.text = problem.text
+    uiProblemWords(m.top.findNode("problem"), m.problemText, problem.text)
     buttons = []
     if problem.signIn then buttons.Push(t("requests.buttons.signIn"))
     if problem.retry then buttons.Push(t("common.actions.tryAgain"))

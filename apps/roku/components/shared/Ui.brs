@@ -229,3 +229,18 @@ function uiChangesSince() as object
     m.changesSeen = scene.changeCount
     return out
 end function
+
+' A problem page's words under its title (problem: the LayoutGroup of the
+' title, the words and the buttons): without any, the label leaves the
+' group, whose empty line held the buttons a line further down.
+sub uiProblemWords(problem as object, words as object, text as string)
+    words.text = text
+    inside = problem.getChildCount() = 3
+    if text = "" and inside
+        problem.removeChild(words)
+        problem.itemSpacings = [48]
+    else if text <> "" and not inside
+        problem.insertChild(words, 1)
+        problem.itemSpacings = [20, 48]
+    end if
+end sub
