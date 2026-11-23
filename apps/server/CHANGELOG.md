@@ -20,6 +20,8 @@ describes how they are made.
   seeks on a quick preset, so the picture comes sooner, then moves to the
   best-looking one the computer is measured to encode at twice real time,
   up to `faster`. Several transcodes at once leave room for each other.
+- A playback or a seek starts sooner while other transcodes run: those
+  well ahead of their players pause for that moment.
 
 ### Fixed
 

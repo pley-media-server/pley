@@ -87,6 +87,9 @@ pub const MIN_BITRATE_KBPS: u32 = 1_000;
 /// leaves as they are: the next is likely being fetched already.
 const REBITRATE_KEEP: u32 = 2;
 const RESUME_AHEAD: Duration = Duration::from_secs(60);
+/// How often a process paused for another player's start ([`Job::yields`])
+/// looks again: that start may end, and its own player come closer.
+const YIELD_LOOK: Duration = Duration::from_millis(250);
 
 /// Concurrency budget shared by all jobs.
 pub struct Slots {
@@ -594,6 +597,12 @@ impl Pace {
     /// of the GPU (see [`share::verdict`]).
     const STEADY: Duration = Duration::from_secs(20);
 
+    /// It was paused and goes on: its speed is measured anew.
+    fn went_on(&mut self) {
+        self.samples.clear();
+        self.resumed = true;
+    }
+
     fn record(&mut self, at: Instant, out_ms: i64) {
         self.samples.push_back((at, out_ms));
         while self.samples.get(1).is_some_and(|(t, _)| at.saturating_duration_since(*t) >= Self::STEADY) {
@@ -660,9 +669,7 @@ impl Proc {
     fn set_paused(&self, on: bool) -> bool {
         let changed = self.pause.send_if_modified(|paused| std::mem::replace(paused, on) != on);
         if changed && !on {
-            let mut pace = self.pace.lock();
-            pace.samples.clear();
-            pace.resumed = true;
+            self.pace.lock().went_on();
         }
         changed
     }
@@ -786,8 +793,8 @@ impl JobManager {
         }
         self.note_creation();
         let creating = Instant::now();
-        // Until its process takes over (see `spawn`).
-        let _starting = self.background.start();
+        // Until its process takes over (see `spawn`), with its player waiting.
+        let _starting = self.background.start_waited();
         let input = PathBuf::from(&req.input);
         // An address ([`crate::source`]) is there or not once it is read.
         match tokio::fs::metadata(&input).await {
@@ -1689,7 +1696,13 @@ impl JobManager {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        let starting = self.background.start();
+        // A player waits for its first segment (Play, a seek), or it starts
+        // ahead of the player (another preset): processes far ahead of their
+        // players pause only for the first (see `Job::yields`).
+        let starting = match job.lead_secs(start) <= 0.0 {
+            true => self.background.start_waited(),
+            false => self.background.start(),
+        };
         let spawned = Instant::now();
         let mut child =
             cmd.spawn().map_err(|err| ApiError::Internal(anyhow::anyhow!("failed to start ffmpeg: {err}")))?;
@@ -1760,25 +1773,43 @@ impl JobManager {
         let metrics = self.metrics.clone();
         let job_ref = job.clone();
         let next_ref = next.clone();
+        let pace_ref = pace.clone();
+        let background = self.background.clone();
         tokio::spawn(async move {
             // What was done to it: Windows counts suspensions.
             let mut suspended = false;
+            // Paused far ahead of its player (see `PAUSE_AHEAD`).
+            let mut far_ahead = false;
+            let mut changes = background.changes();
             let waited = loop {
+                // While another player waits for a start, it pauses too
+                // when far enough ahead of its own (see `Job::yields`).
+                let yields = background.waited() && job_ref.yields(next_ref.load(Relaxed));
+                let on = far_ahead || yields;
+                // Between polls of `wait`: the pid is still the child's.
+                if on != suspended && background::pause(&child, on) {
+                    suspended = on;
+                    if !on {
+                        pace_ref.lock().went_on();
+                    }
+                    tracing::debug!(
+                        job = %job_ref.id,
+                        "ffmpeg {}",
+                        match (on, far_ahead) {
+                            (true, true) => "paused: far enough ahead of the player",
+                            (true, false) => "paused: another player waits for a start",
+                            (false, _) => "resumed",
+                        }
+                    );
+                }
                 tokio::select! {
                     status = child.wait() => break Some(status),
                     _ = &mut kill_rx => break None,
-                    // Between polls of `wait`: the pid is still the child's.
-                    Ok(()) = pause_rx.changed() => {
-                        let on = *pause_rx.borrow_and_update();
-                        if on != suspended && background::pause(&child, on) {
-                            suspended = on;
-                            tracing::debug!(
-                                job = %job_ref.id,
-                                "ffmpeg {}",
-                                if on { "paused: far enough ahead of the player" } else { "resumed" }
-                            );
-                        }
-                    }
+                    Ok(()) = pause_rx.changed() => far_ahead = *pause_rx.borrow_and_update(),
+                    Ok(()) = changes.changed() => {}
+                    // A start lasts a while at most, and its own player
+                    // may come closer.
+                    () = tokio::time::sleep(YIELD_LOOK), if yields => {}
                 }
             };
             let (status, killed) = match waited {
@@ -2258,6 +2289,15 @@ impl Job {
         // FFmpeg keeps to the read rate within a hundredth.
         let told = |speed: f64| if speed < held_to * 0.97 { Exactly(speed) } else { AtLeast(speed) };
         Some((told(speed), told(steady), at))
+    }
+
+    /// Whether a process at segment `next` pauses while another player
+    /// waits for a start ([`Background::start_waited`]), so that start has
+    /// the processor: it has more video ready past the segment its own
+    /// player asked for last than that start lasts at most
+    /// ([`background::MAX_START`]), on top of what that player fetched.
+    fn yields(&self, next: u32) -> bool {
+        self.plan.throttle && self.lead_secs(next) >= background::MAX_START.as_secs_f64()
     }
 
     /// Whether a process at segment `next` is far enough ahead of the
@@ -3314,8 +3354,16 @@ mod tests {
         job.pace_lead(&p);
         assert!(!p.paused());
         assert!(!job.far_ahead(100));
+        assert!(!job.yields(100));
 
         job.plan.throttle = true;
+        // While another player waits for a start, it pauses from 20 s ahead.
+        at(10, 0);
+        assert!(!job.yields(10), "18 s ahead");
+        at(11, 0);
+        assert!(job.yields(11), "20 s ahead");
+        at(11, 11);
+        assert!(!job.yields(11), "its own player waits");
         job.runtime.lock().process = Some(ProcessStatus { speed: Some(1.0), ..Default::default() });
         at(40, 0);
         job.pace_lead(&p);
@@ -3703,12 +3751,16 @@ mod tests {
         let jobs = manager_with(dir.path(), ff);
         let background = jobs.background.clone();
         let seen = Arc::new(AtomicBool::new(false));
+        let waited = Arc::new(AtomicBool::new(false));
         let watch = tokio::spawn({
-            let (background, seen) = (background.clone(), seen.clone());
+            let (background, seen, waited) = (background.clone(), seen.clone(), waited.clone());
             async move {
                 loop {
                     if background.starting() {
                         seen.store(true, Relaxed);
+                    }
+                    if background.waited() {
+                        waited.store(true, Relaxed);
                     }
                     tokio::time::sleep(Duration::from_millis(1)).await;
                 }
@@ -3727,11 +3779,13 @@ mod tests {
         jobs.segment(&job, STARTED_AFTER - 1).await.unwrap();
         watch.abort();
         assert!(seen.load(Relaxed), "held while the job started");
+        assert!(waited.load(Relaxed), "its player waited");
         let deadline = Instant::now() + Duration::from_secs(5);
         while background.starting() && Instant::now() < deadline {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
         assert!(!background.starting(), "started once its first segments are out");
+        assert!(!background.waited());
         jobs.remove(&created.id).await;
         tokio::time::sleep(background::AFTER_TRANSCODE + Duration::from_millis(100)).await;
         assert!(!background.held(), "free once nothing transcodes");

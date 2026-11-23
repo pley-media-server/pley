@@ -730,6 +730,10 @@ server, on by default), and FFmpeg supports `readrate`.
   asked for is suspended (`NtSuspendProcess` on Windows, `SIGSTOP` on Linux)
   until it is less than 60 s ahead, or a request waits for a segment it is to
   make.
+- **Making way for a start**: while a player waits for a job to be created,
+  or for a process's first 3 segments at Play or a seek (20 s at most), the
+  processes of other jobs 20 s or more ahead of the last segment their
+  players asked for are suspended too, so the start has the processor.
 - **Speed** is measured over the process's last 4 s of progress since it last
   resumed. A job's status reports it, with the frames a second that speed
   makes, and 1× for a process held to the read rate. A paused process
