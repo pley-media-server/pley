@@ -161,7 +161,8 @@ fn draw_slot(ui: &mut Ui, slot: &Slot) {
         s
     });
     if !shown.is_some_and(|s| s.opaque()) {
-        placeholder(ui, full, &art.seed, "", shown.is_none(), 0.0);
+        // A backdrop is behind the page, not a picture of something: the gradient alone, no mark.
+        placeholder(ui, full, &art.seed, "", None, 0.0);
     }
     if let Some(s) = shown {
         let (h, v) = theme::BACKDROP_BIAS;

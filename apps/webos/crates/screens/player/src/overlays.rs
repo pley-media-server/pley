@@ -6,7 +6,7 @@
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use pley_base::{Color, Icon, ImageRequest, ImageState, Point, Priority, Rect, RgbaImage, Size, TextOpts};
+use pley_base::{Color, Icon, ImageRequest, ImageState, MarkGlyph, Point, Priority, Rect, RgbaImage, Size, TextOpts};
 use pley_i18n::t;
 use pley_kit::look::shade;
 use pley_kit::{Button, placeholder};
@@ -104,6 +104,8 @@ pub struct Card<'a> {
     pub heading: &'a str,
     pub title: &'a str,
     pub image: Option<ImageRequest>,
+    /// The glyph of the mark on the still's placeholder: the title's kind's.
+    pub mark: MarkGlyph,
     /// Seconds before the next plays; none when it won't by itself.
     pub seconds_left: Option<i64>,
 }
@@ -136,14 +138,14 @@ pub fn up_next(ui: &mut Ui, group: Id, play_id: Id, cancel_id: Id, card: &Card, 
     // The card's shape cuts the still: rounded at the top, square where the text starts. It is
     // drawn taller by the corner and clipped to its own height. Until the still is in, and when
     // there is none, the title's placeholder gradient stands in (`Artwork`, without its title),
-    // with Pley's mark once no still will come.
+    // with Pley's mark for its kind once no still will come (the title is under it).
     let still = Rect::new(rect.x, rect.y, CARD_W, STILL_H);
     let drawn = Rect::new(rect.x, rect.y, CARD_W, STILL_H + radius::DIALOG);
     ui.clip(still, |ui| {
         let shown = card.image.as_ref().map(|req| ui.image_state(req, Priority::Visible));
         if !shown.is_some_and(|s| s.opaque()) {
             let none = shown.is_none_or(|s| matches!(s.state, ImageState::Failed));
-            placeholder(ui, drawn, card.title, "", none, radius::DIALOG);
+            placeholder(ui, drawn, card.title, "", none.then_some(card.mark), radius::DIALOG);
         }
         if let Some(s) = shown {
             ui.draw_image(drawn, &s, &ImageOpts::cover().rounded(radius::DIALOG));

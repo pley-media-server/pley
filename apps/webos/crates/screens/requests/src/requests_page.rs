@@ -1150,7 +1150,7 @@ fn card(
         let poster = Rect::new(rect.x + 12.0, rect.y + (rect.h - 72.0) / 2.0, 48.0, 72.0);
         let shown = pley_kit::first_art(ui, art, pley_base::Priority::Visible);
         if !shown.is_some_and(|s| s.opaque()) {
-            placeholder(ui, poster, &r.title, "", shown.is_none(), radius::TILE);
+            placeholder(ui, poster, &r.title, "", shown.is_none().then(|| r.kind.mark_glyph()), radius::TILE);
         }
         if let Some(s) = shown {
             ui.draw_image(poster, &s, &pley_ui::ImageOpts::cover().rounded(radius::TILE));

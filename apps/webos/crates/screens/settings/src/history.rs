@@ -10,7 +10,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use pley_base::{Icon, ImageRequest, Point, Priority, Rect, TextOpts};
+use pley_base::{Icon, ImageRequest, MarkGlyph, Point, Priority, Rect, TextOpts};
 use pley_core::format::episode_label;
 use pley_core::http::sentence;
 use pley_core::model::{HistoryEntry, HistoryPage, ItemKind};
@@ -124,6 +124,8 @@ pub struct HistoryRow {
     pub art: Vec<String>,
     /// Albums and tracks have square art; the rest posters.
     pub square: bool,
+    /// The glyph of the mark on its placeholder: the item's kind's.
+    pub mark: MarkGlyph,
     /// The page it opens: the album for a track (the track highlighted).
     pub opens: Route,
     /// The line under the title, made once.
@@ -192,6 +194,7 @@ pub fn history_row(entry: &HistoryEntry, now: i64) -> HistoryRow {
         device,
         art,
         square: matches!(item.kind, ItemKind::Track | ItemKind::Album | ItemKind::Artist),
+        mark: item.kind.mark_glyph(),
         opens,
         line,
     }
@@ -590,7 +593,7 @@ fn history_line(ui: &mut Ui, id: Id, y: f32, row: &HistoryRow, art: &[ImageReque
     ui.fill(cell, theme::SURFACE2, radius::BADGE);
     let shown = first_art(ui, art, Priority::Visible);
     if !shown.as_ref().is_some_and(|s| s.opaque()) {
-        placeholder(ui, cell, &row.title, "", shown.is_none(), radius::BADGE);
+        placeholder(ui, cell, &row.title, "", shown.is_none().then_some(row.mark), radius::BADGE);
     }
     if let Some(s) = shown {
         ui.draw_image(cell, &s, &ImageOpts::cover().rounded(radius::BADGE));

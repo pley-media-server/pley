@@ -180,6 +180,8 @@ pub struct ChapterMark {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UpNextCard {
     pub item_id: i64,
+    /// What it is: its still's placeholder shows its kind's mark.
+    pub kind: ItemKind,
     pub title: String,
     /// "Up next · S1 · E2".
     pub heading: String,
@@ -2859,6 +2861,7 @@ impl PlaybackController {
         let image = found.thumb_url.as_deref().or(found.backdrop_url.as_deref());
         self.state.up_next = Some(UpNextCard {
             item_id: found.id,
+            kind: found.kind,
             title: found.title.clone(),
             heading: details::up_next(label_of(&found).as_deref()),
             image_url: image.map(|i| self.env.server.url(&with_width(i, UP_NEXT_IMAGE_WIDTH))),

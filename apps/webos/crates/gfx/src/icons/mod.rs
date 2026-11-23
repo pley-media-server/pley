@@ -4,7 +4,7 @@
 
 mod paths;
 
-use pley_base::Icon;
+use pley_base::{Icon, MarkGlyph, mark};
 use tiny_skia::{FillRule, LineCap, LineJoin, Paint, Path, PathBuilder, Pixmap, Stroke, Transform};
 
 /// Every icon, for warming caches and for tests.
@@ -71,7 +71,11 @@ pub const ALL: &[Icon] = &[
     Icon::Pause,
     Icon::Pencil,
     Icon::Play,
-    Icon::PleyMark,
+    Icon::PleyMark(MarkGlyph::Play),
+    Icon::PleyMark(MarkGlyph::Movies),
+    Icon::PleyMark(MarkGlyph::Shows),
+    Icon::PleyMark(MarkGlyph::Music),
+    Icon::PleyMark(MarkGlyph::Audiobooks),
     Icon::Plus,
     Icon::Radio,
     Icon::RefreshCw,
@@ -109,8 +113,8 @@ pub const ALL: &[Icon] = &[
 /// units (of 24): one coverage byte per pixel, rows top to bottom. `None` only
 /// for a zero size.
 pub fn rasterize(icon: Icon, size_px: u32, stroke: f32) -> Option<Vec<u8>> {
-    if icon == Icon::PleyMark {
-        return mark(size_px);
+    if let Icon::PleyMark(glyph) = icon {
+        return pley_mark(glyph, size_px);
     }
     let mut pixmap = Pixmap::new(size_px, size_px)?;
     let mut paint = Paint::default();
@@ -129,27 +133,23 @@ pub fn rasterize(icon: Icon, size_px: u32, stroke: f32) -> Option<Vec<u8>> {
     Some(pixmap.data().as_chunks::<4>().0.iter().map(|p| p[3]).collect())
 }
 
-/// Pley's mark on its 64-unit grid (the web's `LogoMark`, Android's
-/// `PleyMark.Layers`): its three posters back to front, each with the share of
-/// the tint it is filled with, the front one with play cut out of it.
-const MARK: [(&str, f32, FillRule); 3] = [
-    ("M46 21.5h3a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3h-3z", 0.16, FillRule::Winding),
-    ("M36 18.5h4.5a3.5 3.5 0 0 1 3.5 3.5v20a3.5 3.5 0 0 1-3.5 3.5H36z", 0.24, FillRule::Winding),
-    (
-        "M16 15.5h14a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4v-25a4 4 0 0 1 4-4zM19 27v10a1 1 0 0 0 1.51.86l8.5-5a1 1 0 0 0 0-1.72l-8.5-5A1 1 0 0 0 19 27z",
-        0.36,
-        FillRule::EvenOdd,
-    ),
-];
-
-/// The mark `size_px` square as one mask: the posters don't overlap, so each
-/// pixel's byte is its coverage times its poster's share, and one tint draws
-/// all three, in the atlas with the text and icons around it.
-fn mark(size_px: u32) -> Option<Vec<u8>> {
+/// Pley's mark with `glyph` cut out of it ([`pley_base::mark`], the web's
+/// `LogoMark`), `size_px` square as one mask: the posters don't overlap, so
+/// each pixel's byte is its coverage times its poster's share, and one tint
+/// draws all three, in the atlas with the text and icons around it.
+fn pley_mark(glyph: MarkGlyph, size_px: u32) -> Option<Vec<u8>> {
     let mut pixmap = Pixmap::new(size_px, size_px)?;
-    let transform = Transform::from_scale(size_px as f32 / 64.0, size_px as f32 / 64.0);
-    for (data, share, rule) in MARK {
-        let Some(path) = parse(data) else { continue };
+    let scale = size_px as f32 / mark::GRID;
+    let transform = Transform::from_scale(scale, scale);
+    let front = mark::POSTERS.len() - 1;
+    for (i, (data, share)) in mark::POSTERS.into_iter().enumerate() {
+        // The front poster and the glyph as one path filled even-odd: the glyph is a hole in it.
+        let (path, rule) = if i == front {
+            (parse(&[data, glyph.path()].concat()), FillRule::EvenOdd)
+        } else {
+            (parse(data), FillRule::Winding)
+        };
+        let Some(path) = path else { continue };
         let mut paint = Paint::default();
         paint.set_color_rgba8(255, 255, 255, (share * 255.0).round() as u8);
         paint.anti_alias = true;
@@ -417,7 +417,7 @@ mod tests {
         for icon in ALL {
             assert!(seen.insert(*icon), "{icon:?} twice");
         }
-        assert_eq!(ALL.len(), 94);
+        assert_eq!(ALL.len(), 98);
     }
 
     #[test]
@@ -455,7 +455,7 @@ mod tests {
 
     #[test]
     fn the_marks_posters_lighten_toward_the_front_around_play() {
-        let mark = rasterize(Icon::PleyMark, 64, 0.0).unwrap();
+        let mark = rasterize(Icon::PleyMark(MarkGlyph::Play), 64, 0.0).unwrap();
         let at = |x: usize, y: usize| mark[y * 64 + x];
         // Inside each poster, on the 64-unit grid: 16, 24 and 36 % of the tint.
         assert_eq!(at(49, 32), 41);
@@ -465,6 +465,27 @@ mod tests {
         assert_eq!(at(22, 32), 0);
         assert_eq!(at(4, 4), 0);
         assert_eq!(at(45, 32), 0);
+    }
+
+    #[test]
+    fn each_glyph_cuts_its_own_hole_in_the_front_poster_alone() {
+        let masks: Vec<Vec<u8>> =
+            MarkGlyph::ALL.iter().map(|g| rasterize(Icon::PleyMark(*g), 64, 0.0).unwrap()).collect();
+        // The back posters, from x 36 on, are the same whatever the glyph; the front one, from 12 to
+        // 34, differs from glyph to glyph.
+        let back = |m: &[u8]| m.chunks(64).flat_map(|row| row[35..].to_vec()).collect::<Vec<u8>>();
+        let front = |m: &[u8]| m.chunks(64).flat_map(|row| row[..35].to_vec()).collect::<Vec<u8>>();
+        for (i, m) in masks.iter().enumerate() {
+            assert_eq!(back(m), back(&masks[0]), "{:?}", MarkGlyph::ALL[i]);
+            for (j, n) in masks.iter().enumerate().skip(i + 1) {
+                assert_ne!(front(m), front(n), "{:?} and {:?}", MarkGlyph::ALL[i], MarkGlyph::ALL[j]);
+            }
+            // Each glyph leaves a hole in the middle of the front poster (x 12 to 34), whose fill is
+            // whole above and under it.
+            let poster = |y: usize| m[y * 64 + 23];
+            assert_eq!((poster(18), poster(45)), (92, 92), "{:?}", MarkGlyph::ALL[i]);
+            assert!((24..41).any(|y| m[y * 64 + 13..y * 64 + 33].contains(&0)), "{:?}", MarkGlyph::ALL[i]);
+        }
     }
 
     #[test]

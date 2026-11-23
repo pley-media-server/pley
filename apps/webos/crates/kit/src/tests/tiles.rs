@@ -1,6 +1,6 @@
 //! Tiles: focus growth, the ring, the press, overlays, placeholders and pictures.
 
-use pley_base::{Cmd, Color, DisplayList, Icon, ImageId, ImageRequest, Key, Point, Rect};
+use pley_base::{Cmd, Color, DisplayList, Icon, ImageId, ImageRequest, Key, MarkGlyph, Point, Rect};
 use pley_ui::testing::{Harness, Step};
 use pley_ui::theme;
 use pley_ui::{Id, Ui};
@@ -94,12 +94,12 @@ fn the_placeholder_shows_until_the_picture_covers_it() {
     assert_eq!(fills_of(&f.list, theme::SURFACE2).len(), 1);
 }
 
-/// Where Pley's mark is drawn, and in what.
-fn marks(list: &DisplayList) -> Vec<(Rect, Color)> {
+/// Where Pley's mark is drawn, with which glyph, and in what.
+fn marks(list: &DisplayList) -> Vec<(Rect, MarkGlyph, Color)> {
     list.cmds
         .iter()
         .filter_map(|c| match c {
-            Cmd::Icon { rect, icon: Icon::PleyMark, color } => Some((*rect, *color)),
+            Cmd::Icon { rect, icon: Icon::PleyMark(glyph), color } => Some((*rect, *glyph, *color)),
             _ => None,
         })
         .collect()
@@ -111,35 +111,47 @@ fn times(list: &DisplayList, text: &str) -> usize {
 }
 
 #[test]
-fn a_tile_without_a_picture_shows_pleys_mark_and_not_its_title() {
+fn a_tile_without_a_picture_shows_its_kinds_mark_and_not_its_title() {
     let art = [ImageRequest::new("http://pley/poster/1", 240)];
     let mut screen = |ui: &mut Ui| {
         let a = ui.id("none");
-        Tile::new(TileKind::Poster, "Arrival").show(ui, a, Point::new(96.0, 210.0));
+        Tile::new(TileKind::Poster, "Arrival").mark(Some(MarkGlyph::Movies)).show(ui, a, Point::new(96.0, 210.0));
         let b = ui.id("failed");
-        Tile::new(TileKind::Poster, "Sicario").art(&art).show(ui, b, Point::new(218.0, 210.0));
+        let show = Tile::new(TileKind::Poster, "Severance").art(&art).mark(Some(MarkGlyph::Shows));
+        show.show(ui, b, Point::new(218.0, 210.0));
     };
     let mut h = Harness::new();
     h.images.fail("http://pley/poster/1");
     let f = h.idle(&mut screen);
-    // Without a picture, and when its picture can't be had: the mark in the middle, 40 % of the
-    // well's shorter side, in white (its posters carry their own alphas).
+    // Without a picture, and when its picture can't be had: the mark with the tile's glyph in the
+    // middle, 40 % of the well's shorter side, in white (its posters carry their own alphas).
     let side = 108.0 * 0.4;
     let mid = |x: f32| Rect::new(x + (108.0 - side) / 2.0, 210.0 + (162.0 - side) / 2.0, side, side);
     let m = marks(&f.list);
     assert_eq!(m.len(), 2);
     assert!(close_rect(m[0].0, mid(96.0)) && close_rect(m[1].0, mid(218.0)), "{m:?}");
-    assert!(m.iter().all(|(_, c)| *c == Color::WHITE));
+    assert_eq!((m[0].1, m[1].1), (MarkGlyph::Movies, MarkGlyph::Shows));
+    assert!(m.iter().all(|(_, _, c)| *c == Color::WHITE));
     // The caption names the tile; the placeholder doesn't say it again.
-    assert_eq!((times(&f.list, "Arrival"), times(&f.list, "Sicario")), (1, 1));
+    assert_eq!((times(&f.list, "Arrival"), times(&f.list, "Severance")), (1, 1));
     assert_eq!(text_color(&f.list, "Arrival"), Some(theme::FG));
+}
+
+#[test]
+fn a_tile_given_no_kind_shows_the_gradient_alone() {
+    let mut screen = |ui: &mut Ui| poster(ui, Tile::new(TileKind::Poster, "Arrival"));
+    let mut h = Harness::new();
+    let f = h.idle(&mut screen);
+    assert!(f.list.cmds.iter().any(|c| matches!(c, Cmd::Quad { .. })));
+    assert!(marks(&f.list).is_empty());
 }
 
 #[test]
 fn a_tile_whose_picture_loads_shows_the_gradient_alone() {
     // A page of tiles scrolling in shows no marks before its pictures.
     let art = [ImageRequest::new("http://pley/poster/1", 240)];
-    let mut screen = |ui: &mut Ui| poster(ui, Tile::new(TileKind::Poster, "Arrival").art(&art));
+    let mut screen =
+        |ui: &mut Ui| poster(ui, Tile::new(TileKind::Poster, "Arrival").art(&art).mark(Some(MarkGlyph::Movies)));
     let mut h = Harness::new();
     let f = h.idle(&mut screen);
     assert!(f.list.cmds.iter().any(|c| matches!(c, Cmd::Quad { .. })));
@@ -153,15 +165,16 @@ fn a_placeholder_given_a_title_puts_the_mark_above_it_where_there_is_room() {
     let small = Rect::new(300.0, 210.0, 96.0, 40.0);
     let mut screen = |ui: &mut Ui| {
         // A playlist's cover whose picture can't be had, and one whose picture is coming.
-        placeholder(ui, cover, "Road trip", "Road trip", true, 4.0);
-        placeholder(ui, cover.translate(0.0, 160.0), "Coming", "Coming", false, 4.0);
+        placeholder(ui, cover, "Road trip", "Road trip", Some(MarkGlyph::Music), 4.0);
+        placeholder(ui, cover.translate(0.0, 160.0), "Coming", "Coming", None, 4.0);
         // A box the title fills: no mark.
-        placeholder(ui, small, "Night drive", "Night drive", true, 4.0);
+        placeholder(ui, small, "Night drive", "Night drive", Some(MarkGlyph::Music), 4.0);
     };
     let mut h = Harness::new();
     let f = h.idle(&mut screen);
     let m = marks(&f.list);
     assert_eq!(m.len(), 1, "{m:?}");
+    assert_eq!(m[0].1, MarkGlyph::Music);
     // 26 % of the shorter side, centered across; the title 10 under it, the two centered down.
     let side = 132.0 * 0.26;
     let title = text_at(&f.list, "Road trip").unwrap();
