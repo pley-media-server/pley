@@ -148,10 +148,10 @@ class MusicLibrary(
     /** Live TV's tab and channels ([LiveLibrary]); `null` without them. */
     val live: LiveLibrary? = null,
     /**
-     * The picture of an artist without one of their own, by id, with their name for its placeholder
-     * ([MusicArt.artistUri]): found as it is shown ([artistPicture]); `null` for their placeholder alone.
+     * The picture of an artist without one of their own ([MusicArt.artistUri]): found as it is shown
+     * ([artistPicture]); `null` for their placeholder alone.
      */
-    private val artistArt: (artistId: Long, seed: String) -> Uri? = { _, _ -> null },
+    private val artistArt: (artist: ItemSummary) -> Uri? = { null },
     /** The cover for what has none, from its title ([MusicArt.placeholderUri]). */
     private val placeholder: (seed: String) -> Uri? = { null },
 ) {
@@ -577,7 +577,7 @@ class MusicLibrary(
         playable = false,
         artPath = item.posterUrl,
         seed = item.title,
-        picture = if (item.posterUrl == null) artistArt(item.id, item.title) else null,
+        picture = if (item.posterUrl == null) artistArt(item) else null,
         browsableStyle = GRID,
         mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
     )

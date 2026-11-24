@@ -60,6 +60,15 @@ internal object PlaceholderCover {
     /** As large as the server's covers for cars. */
     const val SIZE = 512
 
+    /**
+     * Which drawing this is, named in every placeholder's address
+     * ([MusicArt.placeholderUri]): one higher whenever how it is drawn
+     * changes. Android Auto keeps each cover it has read by its address, so
+     * under the same address a car went on showing the drawing before (2 is
+     * the lighter one, its mark brighter).
+     */
+    const val DRAWING = 2
+
     /** The gradient's saturation, and its lightness at either end: the app's is 0.30 to 0.35, 0.22 to 0.12. */
     private const val SATURATION = 0.50f
     private const val LIGHT_FROM = 0.42f

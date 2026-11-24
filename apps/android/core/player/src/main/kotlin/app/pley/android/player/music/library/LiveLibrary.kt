@@ -171,7 +171,8 @@ class LiveLibrary(
             .setDisplayTitle(name)
             .setSubtitle(on)
             .setArtist(on)
-            .setArtworkUri(channel.logo?.let { art(logoPath(channel.id)) })
+            // The server's address, whose version changes with the provider's picture: a car keeps a logo by its address.
+            .setArtworkUri(channel.logo?.let { art(it) ?: art(logoPath(channel.id)) })
             .setIsBrowsable(false)
             .setIsPlayable(true)
             .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)

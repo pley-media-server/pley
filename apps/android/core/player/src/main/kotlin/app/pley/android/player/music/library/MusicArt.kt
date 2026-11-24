@@ -55,7 +55,10 @@ object MusicArt {
             val (of, id, kind, version) = found.destructured
             return listOf(if (of == "items") ITEM else COLLECTION, id, kind, version).filter { it.isNotEmpty() }.joinToString("/")
         }
-        return CHANNEL_LOGO.matchEntire(path)?.let { "$LOGO/${it.groupValues[1]}" }
+        return CHANNEL_LOGO.matchEntire(path)?.let { found ->
+            val (id, version) = found.destructured
+            listOf(LOGO, id, version).filter { it.isNotEmpty() }.joinToString("/")
+        }
     }
 
     /** An address of [segments], already made of nothing but digits, lowercase letters, "/", "?", "=" and "-". */
@@ -64,6 +67,9 @@ object MusicArt {
     /**
      * A cover for what has none, [seed] its title ([PlaceholderCover]): drawn
      * by the provider from the title's hue alone, the title not in the address.
+     * The address names the drawing ([PlaceholderCover.DRAWING]): Android
+     * Auto keeps each cover it has read by its address, and showed the
+     * placeholders as first drawn after they were drawn brighter.
      */
     fun placeholderUri(context: Context, seed: String): Uri = placeholderOf(context, PlaceholderCover.hue(seed))
 
@@ -73,22 +79,30 @@ object MusicArt {
      * asks for it ([MusicLibrary.artistPicture]), so a list of hundreds of
      * artists asks the server for nothing until its rows are shown. Else the
      * placeholder of [seed], the artist's name, whose hue alone is in the
-     * address.
+     * address. Their count of [albums] goes in it too: a car keeps a cover
+     * by its address, and an album added is a newer cover.
      */
-    fun artistUri(context: Context, artistId: Long, seed: String): Uri = address(context, "$ARTIST/$artistId?$HUE=${PlaceholderCover.hue(seed)}")
+    fun artistUri(context: Context, artistId: Long, albums: Int?, seed: String): Uri =
+        address(context, listOfNotNull(ARTIST, artistId, albums?.takeIf { it >= 0 }).joinToString("/") + "?$HUE=${PlaceholderCover.hue(seed)}")
 
     /** The artist an [artistUri] names, a positive id of digits alone; `null` for any other address. */
     internal fun artistOf(context: Context, uri: Uri): Long? {
         val segments = segmentsOf(context, uri) ?: return null
-        if (segments.size != 2 || segments[0] != ARTIST) return null
-        return segments[1].takeIf { ID.matches(it) }?.toLongOrNull()?.takeIf { it > 0 }
+        if (segments.size !in 2..3 || segments[0] != ARTIST || !segments.drop(1).all { ID.matches(it) }) return null
+        return segments[1].toLongOrNull()?.takeIf { it > 0 }
     }
 
-    /** The hue a [placeholderUri] names; `null` for any other address. */
+    /**
+     * The hue a [placeholderUri] names; `null` for any other address, and for
+     * one of another drawing than [PlaceholderCover.DRAWING], which isn't
+     * drawn: the car then shows no cover, rather than this drawing under an
+     * address it keeps for another, and asks for the lists' new addresses
+     * the next time it reads them.
+     */
     internal fun hueOf(context: Context, uri: Uri): Int? {
         val segments = segmentsOf(context, uri) ?: return null
-        if (segments.size != 2 || segments[0] != PLACEHOLDER || !ID.matches(segments[1])) return null
-        return segments[1].toIntOrNull()?.takeIf { it in 0 until 360 }
+        if (segments.size != 3 || segments[0] != PLACEHOLDER || segments[1] != PlaceholderCover.DRAWING.toString() || !ID.matches(segments[2])) return null
+        return segments[2].toIntOrNull()?.takeIf { it in 0 until 360 }
     }
 
     /** The placeholder shown in place of the picture [uri] names when it can't be had; `null` when it has no hue. */
@@ -97,14 +111,18 @@ object MusicArt {
         return uri.getQueryParameter(HUE)?.takeIf { ID.matches(it) }?.toIntOrNull()?.takeIf { it in 0 until 360 }?.let { placeholderOf(context, it) }
     }
 
-    private fun placeholderOf(context: Context, hue: Int): Uri = address(context, "$PLACEHOLDER/$hue")
+    private fun placeholderOf(context: Context, hue: Int): Uri = address(context, "$PLACEHOLDER/${PlaceholderCover.DRAWING}/$hue")
 
     /** The server path [uri] names, when it is one of these addresses: a short one, or one carrying the path whole. */
     internal fun pathOf(context: Context, uri: Uri): String? {
         val segments = segmentsOf(context, uri) ?: return null
         val path = when {
             segments == listOf(PICTURE) -> uri.getQueryParameter(PATH)
-            segments.size == 2 && segments[0] == LOGO && ID.matches(segments[1]) -> "/api/live/channels/${segments[1]}/logo"
+            (segments.size == 2 || segments.size == 3) && segments[0] == LOGO -> {
+                val version = segments.getOrNull(2)
+                if (!ID.matches(segments[1]) || (version != null && !LOGO_VERSION.matches(version))) return null
+                "/api/live/channels/${segments[1]}/logo" + (version?.let { "?v=$it" }.orEmpty())
+            }
             (segments.size == 3 || segments.size == 4) && (segments[0] == ITEM || segments[0] == COLLECTION) -> {
                 val (_, id, kind) = segments
                 val version = segments.getOrNull(3)
@@ -139,10 +157,13 @@ object MusicArt {
     private val PICTURE_PATH =
         Regex("""(/api/(items|collections)/\d{1,19}/images/[a-z]{1,16}|/api/live/channels/\d{1,19}/logo)(\?[A-Za-z0-9=&._-]{0,128})?""")
     private val ITEM_PICTURE = Regex("""/api/(items|collections)/(\d{1,19})/images/([a-z]{1,16})(?:\?v=(-?\d{1,19}))?""")
-    private val CHANNEL_LOGO = Regex("""/api/live/channels/(\d{1,19})/logo""")
+    private val CHANNEL_LOGO = Regex("""/api/live/channels/(\d{1,19})/logo(?:\?v=([0-9a-f]{1,16}))?""")
     private val ID = Regex("""\d{1,19}""")
     private val KIND = Regex("""[a-z]{1,16}""")
     private val VERSION = Regex("""-?\d{1,19}""")
+
+    /** A logo's version: a few bytes of a hash, in hex, which change with its provider's picture (the server's logo_path). */
+    private val LOGO_VERSION = Regex("""[0-9a-f]{1,16}""")
 }
 
 /**

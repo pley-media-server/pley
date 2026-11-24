@@ -1137,9 +1137,17 @@ sent with only what the car reads (its id, two lines, picture, flags
 and Android's hints, not Media3's media type or a second copy of its
 title), a hint the root already gives (a list) isn't repeated, and a
 picture's address is a few short segments (`i/12/poster/1700000000`
-for `/api/items/12/images/poster?v=1700000000`). 500 album tracks or
-channels of long names fit; 500 artists don't, each row's picture and
-the hint that their albums are a grid leaving room for some 360 to 380.
+for `/api/items/12/images/poster?v=1700000000`). 500 album tracks of
+long titles fit, and 500 channels of names and programs as long as
+most; 500 artists don't, each row's picture and the hint that their
+albums are a grid leaving room for some 360 to 380.
+
+Android Auto keeps each picture it has read by its address, so every
+address changes with what it shows: the server's pictures and channel
+logos carry their version, an artist's the count of their albums (an
+album added is a newer cover), and a placeholder the version of its
+drawing, one higher whenever it is drawn otherwise. A placeholder's
+address of another drawing isn't drawn.
 
 An album or playlist opens to its tracks, wherever it is listed: a car
 plays what can be played rather than open it, so only one of a single

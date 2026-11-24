@@ -45,7 +45,7 @@ class CarListSizeTest {
         source,
         { Look },
         { path, seed -> MusicArt.uri(context, path, seed) },
-        artistArt = { id, seed -> MusicArt.artistUri(context, id, seed) },
+        artistArt = { artist -> MusicArt.artistUri(context, artist.id, artist.childCount, artist.title) },
     ) { seed -> MusicArt.placeholderUri(context, seed) }
     private val live = LiveLibrary(LongLiveSource(), { LiveWords }, { path -> MusicArt.uri(context, path) }, now = { NOW })
 
@@ -166,7 +166,7 @@ class CarListSizeTest {
                 id,
                 name = "UK| " + long("Channel $i", CHANNEL_NAME),
                 group = GROUP,
-                logo = "/api/live/channels/$id/logo",
+                logo = "/api/live/channels/$id/logo?v=0a1b2c3d",
                 now = LiveProgram(id, NOW - 60, NOW + 600, long("Program $i", PROGRAM)),
             )
         }
@@ -232,14 +232,16 @@ class CarListSizeTest {
         const val VERSION = 1_763_856_000L
 
         /**
-         * Names longer than most, each row's: an artist's (most are under 16 characters), a classical work's movement,
-         * an album's and its performers' (not sent in the album's list), a channel's, what is on, a provider's group.
+         * The lengths of each row's words: an artist's name longer than most (most are under 16 characters), a
+         * classical work's movement, an album's and its performers' (not sent in the album's list); a channel's name
+         * with its region, what is on and a provider's group as long as most. A channel's row has the most besides:
+         * its id names its group, and its logo's address its version.
          */
         const val ARTIST_NAME = 24
         const val TRACK_TITLE = 48
         const val NAME = 80
         const val CHANNEL_NAME = 16
-        const val PROGRAM = 24
+        const val PROGRAM = 16
         const val GROUP = "UK| Sport & News"
 
         const val NOW = 1_763_856_000L

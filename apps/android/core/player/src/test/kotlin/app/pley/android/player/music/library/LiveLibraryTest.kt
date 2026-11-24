@@ -86,7 +86,8 @@ class LiveLibraryTest {
         val one = news[0].mediaMetadata
         assertEquals("News One", one.title.toString())
         assertEquals("The Morning", one.subtitle.toString())
-        assertEquals("content://art/api/live/channels/1/logo", one.artworkUri.toString())
+        // The server's address, with the version that changes with the provider's picture.
+        assertEquals("content://art/api/live/channels/1/logo?v=0a1b2c3d", one.artworkUri.toString())
         assertEquals(MediaMetadata.MEDIA_TYPE_RADIO_STATION, one.mediaType)
         assertTrue(one.isPlayable == true && one.isBrowsable == false)
         // No logo, nothing on: no picture, no subtitle.
@@ -184,7 +185,7 @@ class LiveLibraryTest {
         /** Searches answer after a minute, as an IPTV provider's lineup can. */
         var slow = false
         val channels = mutableListOf(
-            LiveChannel(1, name = "News One", group = "News", logo = "/api/live/channels/1/logo", favorite = true, now = LiveProgram(1, NOW - 60, NOW + 600, "The Morning")),
+            LiveChannel(1, name = "News One", group = "News", logo = "/api/live/channels/1/logo?v=0a1b2c3d", favorite = true, now = LiveProgram(1, NOW - 60, NOW + 600, "The Morning")),
             LiveChannel(2, name = "News Two", group = "News"),
             LiveChannel(3, name = "Sport 24", group = "Sport"),
         )
