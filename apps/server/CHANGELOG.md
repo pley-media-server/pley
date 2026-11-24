@@ -27,12 +27,10 @@ describes how they are made.
 - Pley's license gains a permission for app stores: Pley may be
   distributed through stores whose terms add restrictions of their own,
   as long as its source stays available.
-- A change in a library's folders scans again only the folder of the title
-  it's in, not the whole library, and so does a refresh from another tool
-  that names a folder.
-- A title no metadata source found anything for is looked up again a day
-  later, then less and less often, so one the source adds later gets its
-  details without a Refresh.
+- Files added or changed in a large library, or named in a refresh from
+  another tool, show up sooner.
+- A title a metadata source had nothing for gets its details once the
+  source adds them, without a Refresh.
 
 ### Fixed
 
