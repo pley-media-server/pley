@@ -183,7 +183,11 @@ private fun NowPlayingPage() {
                         modifier = Modifier.weight(1f).semantics { heading() },
                     )
                 }
-                if (now?.book == true) SpeedButton(model)
+                if (now?.book == true) {
+                    SpeedButton(model)
+                    // A car's targets stand apart, as Queue and the timer do.
+                    if (car) Spacer(Modifier.width(CarGap))
+                }
                 if (now != null) {
                     PleyIconButton(PleyIcons.ListMusic, stringResource(R.string.music_queue), onClick = { queue = true }, tint = PleyColors.Muted)
                     if (car) Spacer(Modifier.width(CarGap))
