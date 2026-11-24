@@ -70,7 +70,9 @@ class MusicEnvironment(
  * Music's queue and the server's side of it (apps/web/src/audio/AudioPlayer.tsx):
  *
  * - one server session per track (POST /api/playback), the one before
- *   ended first, so a transcode never waits on the last one;
+ *   ended first when its reports go out quickly ([FLUSH_WAIT_MS]); the
+ *   server ends it anyway as the next starts, so a transcode never waits
+ *   on the last one;
  * - while a track plays, the one that plays by itself after it is asked
  *   for [AHEAD_MS] before its end, beside it (`keep_previous`, `ahead`:
  *   not listed as playing until it reports), and waits
@@ -733,7 +735,9 @@ class MusicPlayback(
         playing = false
         startPlays = wantPlay
         loadJob = scope.launch {
-            // The session before goes first (stopped, then DELETE): the server's transcode limit.
+            // The session before goes first (stopped, then DELETE) when that is quick. Not waited for long: the server
+            // ends this player's sessions as it starts the next (its transcode limit), and keeps the place a `stopped`
+            // that comes later says, so on a slow network Next doesn't wait for two answers before it is asked.
             withTimeoutOrNull(FLUSH_WAIT_MS) { env.reporter.flush() }
             val started = try {
                 val server = env.api()
@@ -1182,8 +1186,12 @@ class MusicPlayback(
         /** New sessions asked in a row for one track before it counts as failed. */
         const val MAX_RECREATES = 3
 
-        /** The longest a new track waits for the last one's reports to go out. */
-        const val FLUSH_WAIT_MS = 3_000L
+        /**
+         * The longest a new track waits for the last one's reports to go out:
+         * on a quick network they go first, as on the web; on a slow one they
+         * follow it, in their order.
+         */
+        const val FLUSH_WAIT_MS = 150L
 
         /**
          * How long before a track's end the next one is asked for ([lookAhead]):

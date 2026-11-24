@@ -18,6 +18,7 @@ import app.pley.android.model.ServerEvent
 import app.pley.android.model.caps.ClientCaps
 import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
+import app.pley.android.network.PleyApi
 import app.pley.android.player.EngineSource
 import app.pley.android.player.MusicError
 import app.pley.android.player.MusicRepeat
@@ -26,6 +27,7 @@ import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.testing.network.FakePleyApi
 import java.io.IOException
 import kotlin.random.Random
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -57,9 +59,9 @@ class MusicPlaybackTest {
     /** The sessions it said it plays, in order (RemoteRepository.here). */
     private val here = mutableListOf<String?>()
 
-    private fun TestScope.music(): MusicPlayback {
+    private fun TestScope.music(server: PleyApi = api): MusicPlayback {
         val env = MusicEnvironment(
-            api = { api },
+            api = { server },
             caps = { ClientCaps(containers = listOf("mp4"), audioCodecs = listOf("aac")) },
             clientId = { "android-test-music" },
             reporter = SessionReporter(backgroundScope),
@@ -521,6 +523,44 @@ class MusicPlaybackTest {
         assertEquals(listOf(1L, 2L), starts().map { it.itemId })
         assertEquals(2, output.loaded.size)
         assertEquals(1, music.nowPlaying.value?.index)
+    }
+
+    @Test
+    fun nextIsAskedForAtOnceWhileTheReportsBeforeItAreSlowAndTheyStillGoOutInOrder() = runTest {
+        // Reports hang on a slow network; the server's other answers come at once.
+        val slow = CompletableDeferred<Unit>()
+        val server = object : PleyApi by api {
+            override suspend fun reportProgress(itemId: Long, report: ProgressReport) {
+                slow.await()
+                api.reportProgress(itemId, report)
+            }
+        }
+        val music = music(server)
+        val parts = listOf(track(1).copy(kind = ItemKind.Part), track(2).copy(kind = ItemKind.Part))
+        music.play(parts)
+        runCurrent()
+        output.startPlaying()
+        output.position = 120_000
+
+        // Next: the part after is asked for without waiting on the reports of the one before.
+        music.next()
+        advanceTimeBy(MusicPlayback.FLUSH_WAIT_MS + 1)
+        runCurrent()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        assertTrue(api.calls("reportProgress").isEmpty())
+
+        // Once they go out, they are in the order they were made: the part before stopped where it was (its place in
+        // the book), its session deleted, then the part after.
+        slow.complete(Unit)
+        output.startPlaying()
+        advanceTimeBy(10_000)
+        runCurrent()
+        val sent = api.calls.filter { it.method == "reportProgress" || it.method == "stopPlayback" }
+        assertEquals("reportProgress" to 1L, sent[0].method to sent[0].args[0])
+        assertEquals(ProgressState.Stopped, (sent[0].args[1] as ProgressReport).state)
+        assertEquals(120_000L, (sent[0].args[1] as ProgressReport).positionMs)
+        assertEquals("stopPlayback", sent[1].method)
+        assertEquals("reportProgress" to 2L, sent[2].method to sent[2].args[0])
     }
 
     /** Plays the album to 20 s before its first track's end, the next one's session answered as [next]. */
