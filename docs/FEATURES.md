@@ -41,6 +41,9 @@ In the web and desktop apps only, for now.
   `Author/Series/Book` layouts.
 - Titles, authors, narrators and series come from tags first, then folder
   names, then Open Library and Audnexus.
+- Administrators can edit a book's details, authors, narrators and series,
+  fix its match (an Open Library work, or an Audible recording by its
+  ASIN) and choose its cover, as for movies and shows.
 - `.m4b` chapters, resume across parts, and Continue Listening on Home.
 - Skip back 15 s and forward 30 s, 0.75× to 3× speed, and a sleep timer.
 
