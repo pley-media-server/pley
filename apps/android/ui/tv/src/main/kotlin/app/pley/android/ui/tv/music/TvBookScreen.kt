@@ -117,7 +117,6 @@ internal fun TvBookScreen(bookId: Long) {
                     art,
                     current = s.current,
                     playing = s.playing,
-                    busy = s.busy,
                     chapterNow = chapterNow,
                     problem = problem,
                     model = model,
@@ -134,7 +133,6 @@ private fun BookContent(
     art: ArtworkImage?,
     current: Long?,
     playing: Boolean,
-    busy: Boolean,
     chapterNow: Int,
     problem: UiText?,
     model: BookViewModel,
@@ -192,7 +190,9 @@ private fun BookContent(
                     ),
                     onClick = model::play,
                     icon = if (playingThis && playing) PleyIcons.Pause else PleyIcons.Play,
-                    enabled = !busy && (page.partsLoading || page.parts.isNotEmpty()),
+                    // Not turned off while the book is asked for: a TV moves the focus off a button that turns off,
+                    // onto From the start or Mark as finished, where a second press would act. play() ignores it.
+                    enabled = page.partsLoading || page.parts.isNotEmpty(),
                     modifier = Modifier.rememberedFocus(memory, "play", initial = true),
                 )
                 if (page.started) {
