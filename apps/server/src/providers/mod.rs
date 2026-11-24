@@ -261,7 +261,7 @@ impl Providers {
     fn books(&self) -> anyhow::Result<&books::Books> {
         match &self.books {
             Some(books) if self.settings.get().book_metadata => Ok(books),
-            _ => Err(anyhow!("turn on Open Library and Audnexus in Settings → Server to match audiobooks")),
+            _ => Err(anyhow!("turn on Open Library and Audnexus in Settings → Server to look audiobooks up")),
         }
     }
 

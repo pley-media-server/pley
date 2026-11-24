@@ -221,7 +221,12 @@ describe("editing an audiobook", () => {
     expect(screen.getByRole("button", { name: /OL3W/ })).toHaveTextContent("Current");
     expect(screen.getByText("Read by June Ashby")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /B0HOURS001/ }));
+    // Cleared, the author is asked for as none, not left out.
+    await user.clear(screen.getByLabelText("Author"));
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(requests.at(-1)?.path).toMatch(/author=$/));
+
+    await user.click(await screen.findByRole("button", { name: /B0HOURS001/ }));
     await waitFor(() =>
       expect(requests.find((r) => r.method === "POST")?.body).toEqual({ asin: "B0HOURS001" }),
     );

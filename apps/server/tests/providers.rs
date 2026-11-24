@@ -686,6 +686,13 @@ async fn audiobooks_matched_by_hand() {
     let works: Vec<&Value> = candidates.as_array().unwrap().iter().map(|c| &c["openlibrary_id"]).collect();
     assert_eq!(works, [&json!("OL1W"), &json!("OL3W"), &json!("OL2W")], "{candidates}");
     assert!(mock.requested("GET /ol/search.json?title=Small+Hours&limit=12&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cfirst_publish_year%2Ccover_i%2Cedition_count&author=Imogen+Vale") > 0);
+    // An empty author asks for none, even with the book's own title.
+    app.get(&format!("/api/items/{id}/matches?title=Small%20Hours&author="), &token).await;
+    let fields = "fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cfirst_publish_year%2Ccover_i%2Cedition_count";
+    assert!(
+        mock.requests.lock().iter().any(|r| r == &format!("GET /ol/search.json?title=Small+Hours&limit=12&{fields}")),
+        "searched without a writer"
+    );
     let recording = app.get(&format!("/api/items/{id}/matches?title=b0lantern1"), &token).await;
     assert_eq!(recording[0]["asin"], "B0LANTERN1", "{recording}");
     assert_eq!(recording[0]["narrators"], json!(["June Ashby"]));
@@ -767,6 +774,16 @@ async fn audiobooks_matched_by_hand() {
     assert_eq!(book["book"]["narrators"], json!([]), "{book}");
     assert_eq!((book["book"]["series"].as_str(), book["book"]["series_index"].as_f64()), (None, None));
     assert_eq!(book["locked_fields"], json!([]));
+    // What the files don't give is fetched again after the answer.
+    let mut book = book;
+    for _ in 0..200 {
+        if book["year"] == 1987 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        book = app.get(&format!("/api/items/{id}"), &token).await;
+    }
+    assert_eq!((book["year"].as_i64(), book["book"]["openlibrary_id"].as_str()), (Some(1987), Some("OL3W")), "{book}");
 
     // A book's fields are a book's only.
     let part = app.children(&token, &json!(id)).await[0]["id"].clone();
@@ -780,6 +797,14 @@ async fn audiobooks_matched_by_hand() {
     let (status, body) = app.call(Method::GET, &format!("/api/items/{id}/matches"), Some(&token), None).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
     assert!(body["message"].as_str().unwrap().contains("Open Library"));
+    // And an unlocked field doesn't take away what was fetched, which
+    // nothing would fetch again.
+    let path = format!("/api/items/{id}");
+    let (status, _) = app.call(Method::PATCH, &path, Some(&token), Some(json!({"series": "Kept"}))).await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, book) = app.call(Method::PATCH, &path, Some(&token), Some(json!({"series": null}))).await;
+    assert_eq!(status, StatusCode::OK, "{book}");
+    assert_eq!((book["year"].as_i64(), book["summary"].as_str()), (Some(1987), Some("A night porter's quiet year.")));
 }
 
 // ------------------------------------------------------------------ the real services

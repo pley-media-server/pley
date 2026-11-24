@@ -451,8 +451,9 @@ function BookMatchDialog({ item, onClose }: { item: ItemDetail; onClose: () => v
   const results = useQuery({
     queryKey: ["matches", item.id, query.title, query.author],
     queryFn: ({ signal }) => {
-      const p = new URLSearchParams({ title: query.title });
-      if (query.author) p.set("author", query.author);
+      // An empty author asks for none: the server goes by the book's own
+      // writer only when it's left out.
+      const p = new URLSearchParams({ title: query.title, author: query.author });
       return api.get<BookCandidate[]>(`/api/items/${item.id}/matches?${p}`, { signal });
     },
     retry: false,

@@ -1867,8 +1867,9 @@ user's watch state and their access are unchanged.
   file names that entry.
 - **Audiobooks' `matches` and `match`** need Open Library and Audnexus on
   (Settings → Server; else `400`). `matches` searches Open Library by
-  `title` (the book's own when left out) and `author` (the book's first
-  writer with its own title), with the book's own recording first when it
+  `title` (the book's own when left out) and `author` (with its own title,
+  the book's first writer when `author` is left out; empty asks for no
+  writer), with the book's own recording first when it
   has an ASIN; a `title` that is an ASIN (ten letters and digits, with a
   digit) looks that recording up on Audnexus instead. `match` takes one
   of `openlibrary_id` and `asin`: what the earlier match filled in goes

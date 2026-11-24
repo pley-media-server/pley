@@ -86,15 +86,17 @@ pub async fn edit(
     }
     // A book's sources only fill in what it lacks: what is unlocked is what
     // its files say again, for the refresh to fill in the rest.
+    // While the sources are off, nothing would fill the rest again: it stays.
+    let refetched = row.kind == "audiobook" && state.metadata.can_refresh(&row.kind);
     let unlocked: Vec<&str> = changes.iter().filter(|(_, v)| v.is_none()).map(|(f, _)| f.as_str()).collect();
-    if row.kind == "audiobook" && !unlocked.is_empty() {
+    if refetched && !unlocked.is_empty() {
         crate::library::scanner::read_book_again(&state.db, id, &unlocked).await.map_err(AppError::Internal)?;
     }
     // Fix Match undone: the item's NFO file decides its match again, and a
     // book loses what its match filled in.
     if changes.iter().any(|(field, value)| field == overrides::MATCH && value.is_none()) {
         crate::library::scanner::nfo_match_dropped(&state.db, id).await?;
-        if row.kind == "audiobook" {
+        if refetched {
             state.metadata.forget_book_match(id).await.map_err(AppError::Internal)?;
         }
     }
@@ -156,13 +158,19 @@ pub async fn matches(
                 .bind(id)
                 .fetch_one(&state.db.read)
                 .await?;
-        // The book's own writer and recording go with its own title.
+        // The book's own recording goes with its own title, and so does its
+        // own writer when none is asked for (`author=` empty asks for none).
         let (author, own_asin) = match &title {
             Some(t) if !t.eq_ignore_ascii_case(row.title.trim()) => (search(query.author), None),
             _ => {
-                let first =
-                    own.0.and_then(|j| serde_json::from_str::<Vec<String>>(&j).ok()).and_then(|a| a.into_iter().next());
-                (search(query.author).or(first), own.1)
+                let first = || {
+                    own.0.and_then(|j| serde_json::from_str::<Vec<String>>(&j).ok()).and_then(|a| a.into_iter().next())
+                };
+                let author = match query.author {
+                    Some(author) => search(Some(author)),
+                    None => first(),
+                };
+                (author, own.1)
             }
         };
         let title = title.unwrap_or_else(|| row.title.clone());
