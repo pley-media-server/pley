@@ -1252,10 +1252,10 @@ the same way), at the queue's end, or once every track of the queue has
 failed in a row.
 
 Tracks play one into the next without a gap or a wait to load, in the
-car as on the phone and the TV. Music reads up to 10 minutes ahead of
-where it plays, within 32 MiB (16 MiB on a device short of memory),
+car as on the phone and the TV. Music reads up to 3 minutes ahead of
+where it plays, within 16 MiB (8 MiB on a device short of memory),
 where a video reads less than a minute: it plays on through a tunnel,
-and the phone's radio rests between reads. 30 seconds before a track ends, the one
+and little is fetched for music skipped on mobile data. 30 seconds before a track ends, the one
 that plays by itself after it (the next, the first again when the queue
 repeats, the same one when the track does) is asked of the server beside
 it (`keep_previous`, and `ahead`, so the server doesn't list it as

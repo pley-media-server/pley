@@ -70,15 +70,16 @@ data class BufferPlan(
         val PHONE = BufferPlan(targetBytes = C.LENGTH_UNSET, minMs = 15_000, maxMs = 50_000, backBufferMs = 10_000)
 
         /**
-         * Music: a few MiB a track, so far more time than video in far fewer
-         * bytes. It loads in long bursts and then lets the network rest,
-         * and plays on through a gap in the signal; the bytes stop it
-         * first on a lossless file or a long book part.
+         * Music: a few MiB a track, so more time than video in fewer bytes:
+         * three minutes, enough to play on through a tunnel or a gap in the
+         * signal, and no more, as music skipped on mobile data would have
+         * been fetched for nothing. The bytes stop it first on a lossless
+         * file.
          */
         private fun music(profile: DeviceProfile): BufferPlan = BufferPlan(
-            targetBytes = if (profile.lowRam || profile.tier == Tier.T0) 16 * MIB else 32 * MIB,
+            targetBytes = if (profile.lowRam || profile.tier == Tier.T0) 8 * MIB else 16 * MIB,
             minMs = 50_000,
-            maxMs = 600_000,
+            maxMs = 180_000,
             backBufferMs = 10_000,
         )
 
