@@ -1296,7 +1296,9 @@ screen the player keeps the screen's orientation, has no picture in
 picture, and its volume and brightness drags are off (the car has its
 own). It draws a third larger there, as Google's car app quality
 criteria ask: buttons of 64 dp at least and no text under 24 sp, its
-sheets, menus, dialogs and messages too, and the controls over the video keep
+sheets, menus, dialogs and messages too (body text and labels at 24 sp,
+and titles a step larger each: a list's titles 27 sp, a section's 30, Now
+Playing's 34 and a page's 38), and the controls over the video keep
 24 dp from each other and from the screen's edges. Play sits between
 10 seconds back and 10 seconds forward, midway between the top row and
 the seek bar (and smaller on a screen too short for it, one split in

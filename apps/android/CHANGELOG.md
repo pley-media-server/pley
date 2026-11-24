@@ -61,7 +61,8 @@ With Android Auto:
   they're kept on the phone for each profile.
 - Parked, the sideloaded app plays videos and Live TV on the car's screen
   (Android 15 and later, in cars that allow video apps), every page and
-  control sized for the car, with 10-second skip buttons, and pauses as
+  control sized for the car, titles larger than the words under them,
+  with 10-second skip buttons, and pauses as
   soon as the car moves off.
 
 ### Changed

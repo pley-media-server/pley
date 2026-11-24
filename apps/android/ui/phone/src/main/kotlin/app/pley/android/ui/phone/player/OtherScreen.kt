@@ -126,7 +126,7 @@ internal fun CarSized(car: Boolean, content: @Composable () -> Unit) {
     // of the car's layouts, which already hold no text under 24 sp.
     val larger = remember(density) { Density(density.density * CAR_SCALE, fontScale = 1f) }
     val smallest = (CAR_TEXT.value / CAR_SCALE).sp
-    val readable = remember(type) { type.atLeast(smallest) }
+    val readable = remember(type) { type.forCar(smallest) }
     // The theme's styles are raised here; text in a size of its own (a tile's caption, a badge) reads the floor itself.
     CompositionLocalProvider(LocalDensity provides larger, LocalCarScreen provides true, LocalMinTextSize provides smallest) {
         // The page's widths and margins as the car's dp have them, not the phone's: measured again inside.
@@ -161,22 +161,30 @@ private val CAR_TEXT = 24.sp
 /** How far the car's controls keep from the screen's edges and from each other, once scaled: 24 dp. */
 internal val CarGap = (24f / CAR_SCALE).dp
 
-/** Every style at [min] at least, its line height grown with it. */
-private fun Typography.atLeast(min: TextUnit): Typography {
-    fun TextStyle.grown(): TextStyle {
-        if (!fontSize.isSpecified || fontSize.value >= min.value) return this
+/**
+ * The theme's styles on a car's screen: body text and labels at [floor]
+ * (24 sp once scaled), and titles a step above each other from there, so
+ * a list's title still stands over its second line and a page's heading
+ * over both. Raised to the floor alone, a phone's 16 sp list title, 14 sp
+ * body and 12 sp caption would all read the same. Line heights grow with
+ * their text; a style already larger keeps its size.
+ */
+internal fun Typography.forCar(floor: TextUnit): Typography {
+    fun TextStyle.grown(to: Float = floor.value): TextStyle {
+        val least = maxOf(to, floor.value)
+        if (!fontSize.isSpecified || fontSize.value >= least) return this
         val ratio = if (lineHeight.isSpecified) lineHeight.value / fontSize.value else 1.25f
-        return copy(fontSize = min, lineHeight = (min.value * ratio).sp)
+        return copy(fontSize = least.sp, lineHeight = (least * ratio).sp)
     }
     return Typography(
         displayLarge = displayLarge.grown(),
         displayMedium = displayMedium.grown(),
         displaySmall = displaySmall.grown(),
-        headlineLarge = headlineLarge.grown(),
-        headlineMedium = headlineMedium.grown(),
-        headlineSmall = headlineSmall.grown(),
-        titleLarge = titleLarge.grown(),
-        titleMedium = titleMedium.grown(),
+        headlineLarge = headlineLarge.grown(CAR_HEADLINE_MEDIUM),
+        headlineMedium = headlineMedium.grown(CAR_HEADLINE_MEDIUM),
+        headlineSmall = headlineSmall.grown(CAR_HEADLINE_SMALL),
+        titleLarge = titleLarge.grown(CAR_TITLE_LARGE),
+        titleMedium = titleMedium.grown(CAR_TITLE_MEDIUM),
         titleSmall = titleSmall.grown(),
         bodyLarge = bodyLarge.grown(),
         bodyMedium = bodyMedium.grown(),
@@ -186,3 +194,9 @@ private fun Typography.atLeast(min: TextUnit): Typography {
         labelSmall = labelSmall.grown(),
     )
 }
+
+/** The car's titles, in sp before [CAR_SCALE]: 26.7, 30, 34 and 38 sp on its screen, over body text's 24. */
+private const val CAR_TITLE_MEDIUM = 20f
+private const val CAR_TITLE_LARGE = 22.5f
+private const val CAR_HEADLINE_SMALL = 25.5f
+private const val CAR_HEADLINE_MEDIUM = 28.5f
