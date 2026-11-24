@@ -3,6 +3,7 @@ package app.pley.android.player.music.library
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import androidx.core.graphics.ColorUtils
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.session.MediaConstants
@@ -411,6 +412,9 @@ class MusicLibraryTest {
         // Opaque all over: the gradient under the mark.
         val middle = cover.getPixel(PlaceholderCover.SIZE / 2, PlaceholderCover.SIZE / 2)
         assertTrue(Color.alpha(middle) == 255)
+        // Light enough to stand out on a car's dark gray list: its top left corner, the gradient's lightest end.
+        val corner = FloatArray(3).also { ColorUtils.colorToHSL(cover.getPixel(1, 1), it) }
+        assertTrue(corner[2] > 0.35f)
     }
 
     private val MediaItem.browsableStyle: Int? get() = mediaMetadata.extras?.takeIf { it.containsKey(BROWSABLE) }?.getInt(BROWSABLE)
