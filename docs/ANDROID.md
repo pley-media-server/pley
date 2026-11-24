@@ -1114,11 +1114,13 @@ Playlists goes first in the artists' tab, which is then named Music.
   before the books, as the album or book waiting in Now Playing is
   chosen (below).
 - **Artists**: by name, with how many albums each has (with several music
-  libraries, the libraries first), and a picture: the artist's own when
+  libraries, the libraries first), and a picture cut to a circle with
+  transparent corners, as the phone shows artists: the artist's own when
   the server has one (an `artist.jpg` or `folder.jpg` in their folder),
   else the cover of their newest album, looked for only as the car shows
   the row (so a list of hundreds asks the server for nothing more until
-  it is scrolled). It stays a list, read for a name. An artist lists
+  it is scrolled), else their placeholder, round too. It stays a list,
+  read for a name. An artist lists
   Shuffle, then their
   albums, newest first, each with its year and how many tracks it has
   (elsewhere an album says its artist); an album lists its tracks
@@ -1154,7 +1156,9 @@ album added is a newer cover), and a placeholder the version of its
 drawing, one higher whenever it is drawn otherwise. A channel's logo on
 its plate has an address of its own (`p/12/0a1b2c3d`, as short as the
 logo's, as a list of 500 channels is near the cut), whose letter
-changes whenever the plate is drawn otherwise. A placeholder's
+changes whenever the plate is drawn otherwise; an artist's picture in
+its circle, the circle's drawing and then the picture's own address
+(`r/1/i/40/poster/1700000000`, `r/1/a/40/3`). A placeholder's
 address of another drawing isn't drawn.
 
 An album or playlist opens to its tracks, wherever it is listed: a car

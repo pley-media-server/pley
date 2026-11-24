@@ -46,7 +46,7 @@ class CarListSizeTest {
         source,
         { Look },
         { path, seed -> MusicArt.uri(context, path, seed) },
-        artistArt = { artist -> MusicArt.artistUri(context, artist.id, artist.childCount, artist.title) },
+        artistArt = { artist -> MusicArt.artistUri(context, artist.id, artist.childCount, artist.title, artist.posterUrl) },
     ) { seed -> MusicArt.placeholderUri(context, seed) }
     private val liveSource = LongLiveSource()
     private val live = LiveLibrary(

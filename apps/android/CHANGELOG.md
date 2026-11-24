@@ -33,7 +33,7 @@ With Android Auto:
 - Pley plays music on the car's screen: Recent (what you heard last
   first, kept up to date as you play, then what was added, each album
   once), Artists and
-  Playlists tabs with album covers and artists' pictures (an artist
+  Playlists tabs with album covers and artists' pictures in circles (an artist
   without one shows their newest album's cover; Pley's mark on what has
   no picture at all;
   an album or playlist opens to its

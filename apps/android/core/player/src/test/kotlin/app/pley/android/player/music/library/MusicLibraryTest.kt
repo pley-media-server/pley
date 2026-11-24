@@ -507,32 +507,68 @@ class MusicLibraryTest {
     fun anArtistsAddressNamesTheArtistAloneByDigits() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val uri = MusicArt.artistUri(context, 40, 3, "Harbour Lights")
-        assertEquals(40L, MusicArt.artistOf(context, uri))
+        assertEquals(null to 40L, MusicArt.roundOf(context, uri))
         // The name isn't in the address, its hue is: the placeholder when no cover can be had.
         assertFalse(uri.toString().contains("Harbour"))
-        assertEquals(PlaceholderCover.hue("Harbour Lights"), MusicArt.hueOf(context, MusicArt.standIn(context, uri)!!))
+        assertEquals(PlaceholderCover.hue("Harbour Lights"), MusicArt.hueIn(uri))
         // It is no server path: nothing of the API goes through it.
         assertNull(MusicArt.pathOf(context, uri))
         assertNull(MusicArt.hueOf(context, uri))
         val authority = MusicArt.authority(context)
-        assertEquals("content://$authority/a/40/3?h=${PlaceholderCover.hue("Harbour Lights")}", uri.toString())
+        val hue = PlaceholderCover.hue("Harbour Lights")
+        // A circle, of its drawing: Android Auto kept the square pictures by addresses without it.
+        assertEquals("content://$authority/r/${RoundPicture.DRAWING}/a/40/3?h=$hue", uri.toString())
         for (text in listOf("a/0", "a/-1", "a/4x", "a/+4", "a/99999999999999999999", "a/40/extra", "a/40/3/1", "a", "a/%2E%2E", "artist/40")) {
             assertNull(text, MusicArt.artistOf(context, Uri.parse("content://$authority/$text")))
+            assertNull(text, MusicArt.roundOf(context, Uri.parse("content://$authority/r/1/$text")))
         }
         assertNull(MusicArt.artistOf(context, Uri.parse("content://elsewhere/a/40")))
+        assertNull(MusicArt.roundOf(context, Uri.parse("content://elsewhere/r/1/a/40")))
+
+        // Their own picture, by the server's short form, read back as strictly; one of an unusual form is passed over.
+        val own = MusicArt.artistUri(context, 40, 3, "Harbour Lights", "/api/items/40/images/poster?v=17")
+        assertEquals("content://$authority/r/1/i/40/poster/17?h=$hue", own.toString())
+        assertEquals("/api/items/40/images/poster?v=17" to null, MusicArt.roundOf(context, own))
+        assertEquals(uri, MusicArt.artistUri(context, 40, 3, "Harbour Lights", "/api/items/40/images/poster?v=1&w=2"))
+        assertEquals(uri, MusicArt.artistUri(context, 40, 3, "Harbour Lights", "/api/auth/me"))
+        for (text in listOf("r/1", "r/1/i/40", "r/1/i/4x/poster", "r/1/i/40/Poster", "r/1/l/12", "r/1/picture?p=/api/items/1/images/poster", "r/1/h/2/12", "r/2/a/40", "r/x/a/40", "r/1/r/1/a/40")) {
+            assertNull(text, MusicArt.roundOf(context, Uri.parse("content://$authority/$text")))
+        }
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun anArtistsPictureIsACircleItsCornersTransparent() {
+        val square = android.graphics.Bitmap.createBitmap(400, 300, android.graphics.Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+        val png = java.io.ByteArrayOutputStream().also { square.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+        val round = RoundPicture.png(png)!!.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+        assertEquals(RoundPicture.SIZE, round.width)
+        assertEquals(RoundPicture.SIZE, round.height)
+        assertEquals(0, Color.alpha(round.getPixel(2, 2)))
+        assertEquals(Color.RED, round.getPixel(RoundPicture.SIZE / 2, RoundPicture.SIZE / 2))
+        assertEquals(Color.RED, round.getPixel(RoundPicture.SIZE / 2, 4))
+        assertNull(RoundPicture.png(byteArrayOf(1, 2)))
+
+        // Their placeholder too.
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val placeholder = RoundPicture.placeholder(context, 200).let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+        assertEquals(0, Color.alpha(placeholder.getPixel(2, RoundPicture.SIZE - 3)))
+        assertEquals(255, Color.alpha(placeholder.getPixel(RoundPicture.SIZE / 2, RoundPicture.SIZE / 2)))
     }
 
     @Test
     fun anArtistWithoutAPictureOfTheirOwnHasTheirNewestAlbumsCover() = runTest {
-        val pictured = MusicLibrary(source, { Look }, { path, _ -> Uri.parse("content://art$path") }, artistArt = { Uri.parse("content://artist/${it.id}/${it.title}") })
-        // The server has one of theirs: it is shown.
-        assertEquals("content://art/api/items/40/images/poster", pictured.children(MusicId.Artists, 0, 50).single().mediaMetadata.artworkUri.toString())
+        val pictured = MusicLibrary(source, { Look }, { path, _ -> Uri.parse("content://art$path") }, artistArt = { Uri.parse("content://artist/${it.id}/${it.title}/${it.posterUrl}") })
+        // The server has one of theirs: the artist's picture address is made with it (cut to a circle).
+        assertEquals("content://artist/40/Harbour Lights//api/items/40/images/poster", pictured.children(MusicId.Artists, 0, 50).single().mediaMetadata.artworkUri.toString())
+        // Without the artists' addresses, the server's picture as it is.
+        assertEquals("content://art/api/items/40/images/poster", library.children(MusicId.Artists, 0, 50).single().mediaMetadata.artworkUri.toString())
 
         // None: the address of their picture, looked for only as the car asks for it.
         source.artist = ARTIST
         source.found = listOf(ARTIST)
-        assertEquals("content://artist/40/Harbour Lights", pictured.children(MusicId.Artists, 0, 50).single().mediaMetadata.artworkUri.toString())
-        assertEquals("content://artist/40/Harbour Lights", pictured.search("harbour").first { it.mediaId == "artist:40" }.mediaMetadata.artworkUri.toString())
+        assertEquals("content://artist/40/Harbour Lights/null", pictured.children(MusicId.Artists, 0, 50).single().mediaMetadata.artworkUri.toString())
+        assertEquals("content://artist/40/Harbour Lights/null", pictured.search("harbour").first { it.mediaId == "artist:40" }.mediaMetadata.artworkUri.toString())
         // Asked for, the cover of their newest album that can be had.
         val asked = mutableListOf<String>()
         val bytes = pictured.artistPicture(40) { path ->

@@ -148,8 +148,8 @@ class MusicLibrary(
     /** Live TV's tab and channels ([LiveLibrary]); `null` without them. */
     val live: LiveLibrary? = null,
     /**
-     * The picture of an artist without one of their own ([MusicArt.artistUri]): found as it is shown
-     * ([artistPicture]); `null` for their placeholder alone.
+     * An artist's picture ([MusicArt.artistUri], a circle): their own, else one found as it is shown
+     * ([artistPicture]); `null` for their own as any picture is shown, else their placeholder.
      */
     private val artistArt: (artist: ItemSummary) -> Uri? = { null },
     /** The cover for what has none, from its title ([MusicArt.placeholderUri]). */
@@ -578,9 +578,9 @@ class MusicLibrary(
     }
 
     /**
-     * An artist's row, with their picture: their own when the server has one
-     * (an artist.jpg or folder.jpg in their folder), else their newest
-     * album's cover, looked for only as the car shows the row
+     * An artist's row, with their picture in a circle: their own when the
+     * server has one (an artist.jpg or folder.jpg in their folder), else
+     * their newest album's cover, looked for only as the car shows the row
      * ([artistPicture]). The list stays a list: a driver scans it for a name.
      */
     private fun artist(item: ItemSummary): MediaItem = node(
@@ -591,7 +591,7 @@ class MusicLibrary(
         playable = false,
         artPath = item.posterUrl,
         seed = item.title,
-        picture = if (item.posterUrl == null) artistArt(item) else null,
+        picture = artistArt(item),
         browsableStyle = GRID,
         mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
     )

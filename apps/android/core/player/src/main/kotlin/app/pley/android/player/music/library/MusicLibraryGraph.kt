@@ -48,7 +48,7 @@ class MusicLibraryGraph(
         { look() },
         { path, seed -> MusicArt.uri(app, path, seed) },
         live,
-        artistArt = { artist -> MusicArt.artistUri(app, artist.id, artist.childCount, artist.title) },
+        artistArt = { artist -> MusicArt.artistUri(app, artist.id, artist.childCount, artist.title, artist.posterUrl) },
     ) { seed -> MusicArt.placeholderUri(app, seed) }
 
     /** The car's radio of Live TV's channels; `null` without Live TV here. */

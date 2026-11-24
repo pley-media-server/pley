@@ -98,23 +98,47 @@ object MusicArt {
     }
 
     /**
-     * The picture of artist [artistId], who has none of their own on the
-     * server: the cover of their newest album, looked for only when the car
+     * The picture of artist [artistId], cut to a circle ([RoundPicture]):
+     * their own on the server at [picture] ("r/1/i/40/poster/1700000000"),
+     * else the cover of their newest album, looked for only when the car
      * asks for it ([MusicLibrary.artistPicture]), so a list of hundreds of
-     * artists asks the server for nothing until its rows are shown. Else the
-     * placeholder of [seed], the artist's name, whose hue alone is in the
-     * address. Their count of [albums] goes in it too: a car keeps a cover
-     * by its address, and an album added is a newer cover.
+     * artists asks the server for nothing until its rows are shown
+     * ("r/1/a/40/3"). Else the placeholder of [seed], the artist's name,
+     * whose hue alone is in the address. Their count of [albums] goes in it
+     * too, and the circle's drawing: a car keeps a cover by its address,
+     * an album added is a newer cover, and the square pictures it kept
+     * before had addresses without the circle's.
      */
-    fun artistUri(context: Context, artistId: Long, albums: Int?, seed: String): Uri =
-        address(context, listOfNotNull(ARTIST, artistId, albums?.takeIf { it >= 0 }).joinToString("/") + "?$HUE=${PlaceholderCover.hue(seed)}")
+    fun artistUri(context: Context, artistId: Long, albums: Int?, seed: String, picture: String? = null): Uri {
+        // Their own picture in one of the server's usual forms; one in another is passed over for their albums' covers.
+        val own = picture?.takeIf(::servable)?.let(::shortOf)?.takeIf { it.startsWith("$ITEM/") || it.startsWith("$COLLECTION/") }
+        val shown = own ?: listOfNotNull(ARTIST, artistId, albums?.takeIf { it >= 0 }).joinToString("/")
+        return address(context, "$ROUND/${RoundPicture.DRAWING}/$shown?$HUE=${PlaceholderCover.hue(seed)}")
+    }
 
-    /** The artist an [artistUri] names, a positive id of digits alone; `null` for any other address. */
-    internal fun artistOf(context: Context, uri: Uri): Long? {
-        val segments = segmentsOf(context, uri) ?: return null
+    /** The artist an address of their newest album's cover names, a positive id of digits alone; `null` for any other address. */
+    internal fun artistOf(context: Context, uri: Uri): Long? = segmentsOf(context, uri)?.let(::artistIn)
+
+    private fun artistIn(segments: List<String>): Long? {
         if (segments.size !in 2..3 || segments[0] != ARTIST || !segments.drop(1).all { ID.matches(it) }) return null
         return segments[1].toLongOrNull()?.takeIf { it > 0 }
     }
+
+    /**
+     * What a round [artistUri] shows: the server's picture's path, or the artist whose newest album's cover it is,
+     * each read as strictly as alone; `null` for any other address, and for one of another drawing than
+     * [RoundPicture.DRAWING], which isn't drawn.
+     */
+    internal fun roundOf(context: Context, uri: Uri): Pair<String?, Long?>? {
+        val segments = segmentsOf(context, uri) ?: return null
+        if (segments.size < 3 || segments[0] != ROUND || segments[1] != RoundPicture.DRAWING.toString()) return null
+        val shown = segments.drop(2)
+        itemPathIn(shown)?.let { return it to null }
+        return artistIn(shown)?.let { null to it }
+    }
+
+    /** The hue of the placeholder an address carries for when its picture can't be had; `null` without one. */
+    internal fun hueIn(uri: Uri): Int? = uri.getQueryParameter(HUE)?.takeIf { ID.matches(it) }?.toIntOrNull()?.takeIf { it in 0 until 360 }
 
     /**
      * The hue a [placeholderUri] names; `null` for any other address, and for
@@ -132,7 +156,7 @@ object MusicArt {
     /** The placeholder shown in place of the picture [uri] names when it can't be had; `null` when it has no hue. */
     internal fun standIn(context: Context, uri: Uri): Uri? {
         if (pathOf(context, uri) == null && artistOf(context, uri) == null) return null
-        return uri.getQueryParameter(HUE)?.takeIf { ID.matches(it) }?.toIntOrNull()?.takeIf { it in 0 until 360 }?.let { placeholderOf(context, it) }
+        return hueIn(uri)?.let { placeholderOf(context, it) }
     }
 
     private fun placeholderOf(context: Context, hue: Int): Uri = address(context, "$PLACEHOLDER/${PlaceholderCover.DRAWING}/$hue")
@@ -147,16 +171,19 @@ object MusicArt {
                 if (!ID.matches(segments[1]) || (version != null && !LOGO_VERSION.matches(version))) return null
                 "/api/live/channels/${segments[1]}/logo" + (version?.let { "?v=$it" }.orEmpty())
             }
-            (segments.size == 3 || segments.size == 4) && (segments[0] == ITEM || segments[0] == COLLECTION) -> {
-                val (_, id, kind) = segments
-                val version = segments.getOrNull(3)
-                if (!ID.matches(id) || !KIND.matches(kind) || (version != null && !VERSION.matches(version))) return null
-                val of = if (segments[0] == ITEM) "items" else "collections"
-                "/api/$of/$id/images/$kind" + (version?.let { "?v=$it" }.orEmpty())
-            }
-            else -> null
+            else -> itemPathIn(segments)
         }
         return path?.takeIf(::servable)
+    }
+
+    /** The server path of an item's or a collection's picture [segments] name ("i/12/poster/1700000000"); `null` for others. */
+    private fun itemPathIn(segments: List<String>): String? {
+        if ((segments.size != 3 && segments.size != 4) || (segments[0] != ITEM && segments[0] != COLLECTION)) return null
+        val (_, id, kind) = segments
+        val version = segments.getOrNull(3)
+        if (!ID.matches(id) || !KIND.matches(kind) || (version != null && !VERSION.matches(version))) return null
+        val of = if (segments[0] == ITEM) "items" else "collections"
+        return ("/api/$of/$id/images/$kind" + (version?.let { "?v=$it" }.orEmpty())).takeIf(::servable)
     }
 
     /** [uri]'s path segments, when it is one of the provider's addresses. */
@@ -172,6 +199,9 @@ object MusicArt {
     private const val LOGO = "l"
     private const val ARTIST = "a"
     private const val PLACEHOLDER = "h"
+
+    /** A picture cut to a circle: the letter, the circle's drawing, then the picture's own address. */
+    private const val ROUND = "r"
 
     /** A channel's logo on a plate: another letter, not a number, whenever the plate is drawn otherwise. */
     private const val PLATE = "p"
@@ -205,6 +235,7 @@ class MusicArtProvider : ContentProvider() {
         val context = context ?: throw FileNotFoundException()
         if (mode != "r") throw FileNotFoundException("Read only")
         MusicArt.hueOf(context, uri)?.let { hue -> return pipe { PlaceholderCover.png(context, hue) } }
+        MusicArt.roundOf(context, uri)?.let { (path, artist) -> return round(context, path, artist, MusicArt.hueIn(uri)) }
         val logo = MusicArt.logoOf(context, uri)
         val path = logo?.first ?: MusicArt.pathOf(context, uri)
         val artist = if (path == null) MusicArt.artistOf(context, uri) ?: throw FileNotFoundException() else null
@@ -226,6 +257,23 @@ class MusicArtProvider : ContentProvider() {
                     if (artist != null) library?.artistPicture(artist) else path?.let { library?.picture(it) }
                 }
             } ?: standIn?.let { PlaceholderCover.png(context, it) }
+        }
+    }
+
+    /**
+     * An artist's picture cut to a circle: the server's at [path], else the cover of [artist]'s newest album; one that
+     * can't be had in [FETCH_MS] is the placeholder of [hue] cut so too, without one the pipe ends empty.
+     */
+    private fun round(context: Context, path: String?, artist: Long?, hue: Int?): ParcelFileDescriptor {
+        val owner = context.applicationContext as? PlayerGraphOwner ?: throw FileNotFoundException()
+        return pipe {
+            val bytes = runBlocking {
+                withTimeoutOrNull(FETCH_MS) {
+                    val library = owner.playerGraph.musicLibrary
+                    if (path != null) library?.picture(path) else artist?.let { library?.artistPicture(it) }
+                }
+            }
+            bytes?.let(RoundPicture::png) ?: hue?.let { RoundPicture.placeholder(context, it) }
         }
     }
 
