@@ -111,6 +111,7 @@
       "match": "Fix match…",
       "thumb": "Choose thumbnail…",
       "poster": "Choose poster…",
+      "cover": "Choose cover…",
       "backdrop": "Choose background…"
     },
     "details": {
@@ -118,6 +119,7 @@
       "hint": "Edited fields are locked <lock/> so metadata refreshes keep them. Unlock a field to let the next refresh fill it again.",
       "nfoHint": "Fields from the NFO file next to it win over the metadata source; an edit here wins over them.",
       "genresPlaceholder": "Drama, Thriller",
+      "namesPlaceholder": "One name per line",
       "locked": "Locked: click to unlock",
       "willUnlock": "Will be unlocked",
       "ratingCountry": "Country: {{country}}",
@@ -128,6 +130,10 @@
         "title": "Title",
         "sort_title": "Sort title",
         "original_title": "Original title",
+        "authors": "Authors",
+        "narrators": "Narrators",
+        "series": "Series",
+        "series_index": "Book in series",
         "year": "Year",
         "release_date": "Release date",
         "content_rating": "Content rating",
@@ -143,15 +149,22 @@
     "match": {
       "title": "Fix match",
       "byHand": "Matched here by hand. An NFO file next to it doesn't change this match until you undo it.",
+      "bookByHand": "Matched here by hand. Refreshes and the book’s files don’t change this match until you undo it.",
       "undo": "Undo Fix Match",
       "undone": "Fix Match undone",
       "matched": "Matched to “{{title}}”",
       "noMatches": "No matches. Try another title or no year.",
-      "current": "Current"
+      "current": "Current",
+      "bookTitle": "Title, or an Audible ASIN",
+      "author": "Author",
+      "noBookMatches": "No matches. Try another title, no author, or the book’s ASIN.",
+      "audible": "Audible · {{asin}}",
+      "openLibrary": "Open Library · {{id}}"
     },
     "artwork": {
       "titles": {
         "poster": "Choose poster",
+        "cover": "Choose cover",
         "backdrop": "Choose background",
         "thumb": "Choose thumbnail"
       },
@@ -161,7 +174,8 @@
       "upload": "Upload a picture…",
       "uploading": "Uploading…",
       "loadError": "{{error}} You can still upload a picture.",
-      "none": "TMDB has no other artwork for this item."
+      "none": "TMDB has no other artwork for this item.",
+      "noCovers": "Open Library and Audible have no covers for this book. If it’s matched to the wrong book, fix the match first."
     }
   },
   "request": {

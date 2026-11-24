@@ -9,6 +9,7 @@ import { cn } from "@/lib/cn";
 import { formatClock, formatDuration } from "@/lib/format";
 import { usePlayItem } from "@/lib/usePlayItem";
 import { chapterTitle } from "@/player/ChaptersMenu";
+import { MoreActions } from "./ItemActions";
 import { Genres, ItemArt, Labels, MetaLine, SectionError, Summary, WatchedButton } from "./shared";
 
 /** A list of names as people say it: "A", "A and B", "A, B and C". */
@@ -137,6 +138,7 @@ export function BookView({ item }: { item: ItemDetail }) {
               </Button>
             ) : null}
             <WatchedButton item={item} />
+            <MoreActions item={item} />
           </div>
           {started && deck.data && list.length > 1 ? (
             <div className="text-xs text-muted">{t("book.upTo", { part: deck.data.title })}</div>

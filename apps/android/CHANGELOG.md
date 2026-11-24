@@ -86,11 +86,6 @@ With Android Auto:
   tabs' icons alone, in a column centered on its height.
 - A track that can't be played says so for 5 seconds, then the next one
   plays by itself; Play tries it again.
-- Movies, shows, music and audiobooks without a picture show Pley's mark
-  on their placeholder instead of their title, which the caption under it
-  shows. The mark has a glyph for the title's kind of library: a
-  clapperboard for movies, a TV for shows, notes for music, a book for
-  audiobooks.
 - Changing tabs fades from one to the next, Now Playing comes up from
   the bar of what plays, and that bar rises in as music starts.
 - Now Playing's sleep timer opens its choices in a sheet, as the queue
@@ -116,8 +111,20 @@ With Android Auto:
 - Play and Shuffle on an artist's or album's page are the same height.
 - Now Playing fits a phone turned on its side, with the cover beside
   the title and every control in view.
+
+## [0.1.18] - 2026-11-24
+
+### Changed
+
+- Movies, shows and music without a picture show Pley's mark on their
+  placeholder instead of their title, which the caption under it shows.
+  The mark has a glyph for the title's kind of library: a clapperboard
+  for movies, a TV for shows, notes for music.
+
+### Fixed
+
 - Music playing on the phone pauses once Play on… sends something to
-  another device.
+  another device, rather than playing in both places.
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end
   instead, so its countdown no longer skips them.
@@ -1026,7 +1033,8 @@ On Android TV:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[0.1.18]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.17]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18

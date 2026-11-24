@@ -337,6 +337,8 @@ interface Book {                    // from its first part's tags, else its fold
   narrators: string[];              // may be empty
   series: string | null;            // "Series X"
   series_index: number | null;      // the book's place in its series: 2, or 2.5 between two books
+  openlibrary_id?: string;          // the Open Library work it is matched to: "OL21745884W"
+  asin?: string;                    // the Audible recording it is matched to: "B08G9PRS1K"
 }
 
 interface Credit {
@@ -1792,10 +1794,10 @@ user's watch state and their access are unchanged.
 | POST | `/api/items/{id}/unwatched` | `play` | `204` |
 | PUT | `/api/items/{id}/rating` | `play` | `{ rating: number \| null }` → `204`: the user's own rating (`user_state.rating`); `400` outside 0-10 |
 | PUT | `/api/items/{id}/streams` | `play` | `{ file_id?, audio_index?, subtitle_index? }` → `204`: remembers track choices |
-| PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, match?, labels? }` → `ItemDetail` |
-| GET | `/api/items/{id}/matches?title=&year=` | `admin` | TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` for movies and shows (needs a TMDB key) |
-| POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed; a movie other copies were merged into lets them go first, each matched again on its own and kept apart from it; a movie matched to another copy's title goes into it, and the answer is that movie |
-| GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]` |
+| PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, authors?, narrators?, series?, series_index?, match?, labels? }` → `ItemDetail` |
+| GET | `/api/items/{id}/matches?title=&year=&author=` | `admin` | Movies and shows: TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` (needs a TMDB key). Audiobooks: `{ openlibrary_id, asin, title, authors, narrators, year, poster_url }[]` |
+| POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` (movies, shows), `{ openlibrary_id }` or `{ asin }` (audiobooks) → `ItemDetail`, re-matched and refreshed; a movie other copies were merged into lets them go first, each matched again on its own and kept apart from it; a movie matched to another copy's title goes into it, and the answer is that movie |
+| GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]`; an audiobook's covers (`poster`) from Audible and Open Library, with `width` and `height` 0 |
 | PUT | `/api/items/{id}/artwork/{kind}` | `admin` | `{ url }` (a TMDB image, or one on another host Pley takes pictures from: [COMPATIBILITY.md](COMPATIBILITY.md#editing)) → `ItemDetail`; downloaded and locked |
 | POST | `/api/items/{id}/artwork/{kind}/upload` | `admin` | raw image bytes (≤ 25 MB) → `ItemDetail`; stored as JPEG, without the file's metadata but Kometa's overlay mark, and locked |
 | DELETE | `/api/items/{id}/artwork/{kind}` | `admin` | `204`; back to local or downloaded artwork |
@@ -1861,15 +1863,32 @@ user's watch state and their access are unchanged.
   Fix Match: the NFO file's ids decide the match again (any other value:
   `400`). `labels` replaces the labels of a movie, show, season, episode,
   artist or album (at most 100, of at most 120 characters); labels aren't
-  metadata, so they aren't locked and no refresh changes them.
+  metadata, so they aren't locked and no refresh changes them. `authors`
+  and `narrators` (lists of at most 50 names of at most 500 characters),
+  `series` and `series_index` (a number from 0) are an audiobook's only
+  (another kind: `400`).
 - **`match`**: a show whose TV source is TVmaze or TheTVDB is found there by
   the chosen entry's IMDb and TheTVDB ids. The choice wins over the NFO
   file's ids, and `locked_fields` then lists `"match"`. When none of the
   NFO file's ids is the chosen entry's, its fields and lockdata stop
   applying and `nfo_fields` is empty, until Fix Match is undone or the
   file names that entry.
+- **Audiobooks' `matches` and `match`** need Open Library and Audnexus on
+  (Settings → Server; else `400`). `matches` searches Open Library by
+  `title` (the book's own when left out) and `author` (with its own title,
+  the book's first writer when `author` is left out; empty asks for no
+  writer), with the book's own recording first when it
+  has an ASIN; a `title` that is an ASIN (ten letters and digits, with a
+  digit) looks that recording up on Audnexus instead. `match` takes one
+  of `openlibrary_id` and `asin`: what the earlier match filled in goes
+  (the book's details are its files' again, and a cover that came from a
+  source), and the chosen work or recording is fetched. It wins over the
+  search and over the ASIN in the book's files until Fix Match is undone,
+  which forgets it the same way and finds the book again. `400` when the
+  chosen book can't be fetched; the choice is kept, for the next refresh.
 - **`refresh`** sources: movies, TMDB; shows, seasons and episodes, the TV
-  source; artists, albums and tracks, MusicBrainz. `400` when that source
+  source; artists, albums and tracks, MusicBrainz; audiobooks, Audnexus
+  and Open Library. `400` when that source
   is off or lacks its key. An item its NFO file locks (`<lockdata>`) is
   never fetched, by `refresh` (still `202`) or by `match` to the title the
   file names.
@@ -4912,6 +4931,12 @@ on another administrator's account, but for the `GET`s
     its own adapters, loopback aside); `pley_out`: what Pley sent its
     clients, response bodies on every port (the web app's, Plex's and
     Jellyfin's);
+  - `pley_cpu`, `pley_memory`, `net_in` and `net_out` are read with every
+    sample for 30 s after someone asks, and for 30 s after one of Pley's
+    processes began or ended; otherwise every 10 s, and the samples in
+    between take the averages over those 10 s (and Pley's memory at their
+    end). A sample still waiting for them isn't answered: it comes with a
+    later answer, once they are read;
   - `clients`: who Pley is sending to now, the busiest first (50 at most),
     `sent` in bytes a second over the last 10 seconds. `user` and `device`
     are the account and device a request signed in as ("Chrome on

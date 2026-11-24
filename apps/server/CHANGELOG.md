@@ -17,6 +17,23 @@ describes how they are made.
 - A player can ask for the next track ahead (`ahead`), to play it
   without a gap: it isn't shown as playing on the dashboard, to remotes
   or in Tautulli until it plays.
+
+### Fixed
+
+- Live TV channels played as they are no longer stall every few seconds in the
+  browser.
+
+## [0.1.16] - 2026-11-24
+
+### Added
+
+- A TheTVDB or IMDb id in a show folder's name (`{tvdb-…}`, `{imdb-tt…}`)
+  finds the show, as a TMDB id (`{tmdb-…}`) does.
+- An audiobook's page has the ⋯ menu movies and shows have. Administrators
+  can edit a book's authors, narrators and series with its other details,
+  fix its match by picking an Open Library work or an Audible recording
+  (searched by title and author, or by its ASIN), choose its cover from
+  Audible's and Open Library's, and refresh its metadata.
 - Editions named in a movie's file or folder name without the
   `{edition-…}` tag, such as Director's Cut, Extended, Theatrical,
   Unrated, Remastered or IMAX, are versions of one movie with their names.
@@ -33,6 +50,8 @@ describes how they are made.
 - Pley's license gains a permission for app stores: Pley may be
   distributed through stores whose terms add restrictions of their own,
   as long as its source stays available.
+- An idle server and its transcoder use far less of the processor and
+  wake it far less often.
 - Files added or changed in a large library, or named in a refresh from
   another tool, show up sooner.
 - A title a metadata source had nothing for gets its details once the
@@ -40,6 +59,11 @@ describes how they are made.
 
 ### Fixed
 
+- Different shows whose folders have the same name, in two of a library's
+  folders or named alike but for their punctuation, are no longer one show
+  when the ids in their folders' names or `tvshow.nfo` files differ. A show
+  already made of two is split at the next scan without losing what was
+  watched.
 - Episodes added to a show that already has its details get theirs at the
   next scan, and so do those of a show whose seasons TMDB didn't answer
   for.
@@ -1244,7 +1268,8 @@ On Intel graphics:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18

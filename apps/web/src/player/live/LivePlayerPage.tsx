@@ -53,6 +53,7 @@ import { useDocumentTitle, useLocalStorage } from "@/lib/hooks";
 import { clientId } from "@/lib/progress";
 import { ChannelLogo, formatSpan, formatTime, liveUrl, setLastWatched, timeLeft, useNow } from "@/pages/livetv/common";
 import { ChannelPanel } from "./ChannelPanel";
+import { keepCushion } from "./cushion";
 
 /** Controls hide after this long without the pointer moving. */
 const HIDE_CONTROLS_AFTER = 3500;
@@ -283,6 +284,8 @@ function LivePlayer({
   const [problem, setProblem] = useState<Trouble | null>(null);
   const [buffering, setBuffering] = useState(false);
   const [playing, setPlaying] = useState(false);
+  // Waiting for the cushion after a stall: the spinner stays, though the browser could go on.
+  const cushionHold = useRef(false);
   const [volume, setVolume] = useLocalStorage<number>("pley.volume", 1);
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -315,6 +318,8 @@ function LivePlayer({
     let cancelled = false;
     let networkRetries = 0;
     let mediaRetries = 0;
+    // What keeps a cushion under a channel played from its stream.
+    let stopCushion = () => {};
     setStatus("tuning");
     setProblem(null);
     setBanner(false);
@@ -324,6 +329,7 @@ function LivePlayer({
       // Whatever broke as the connection was taken, that's why it stopped.
       setProblem(takenOver.current ?? why);
       setStatus("error");
+      stopCushion();
       hlsRef.current?.destroy();
       hlsRef.current = null;
       directRef.current?.destroy();
@@ -385,6 +391,7 @@ function LivePlayer({
       let chosen = false;
       player.on(mpegts.Events.ERROR, () => {
         failed = true;
+        stopCushion();
         player.destroy();
         if (directRef.current === player) directRef.current = null;
         // Not chosen yet: the transcoder's segments play once the plan comes, below.
@@ -413,7 +420,12 @@ function LivePlayer({
         return false;
       }
       chosen = true;
-      start();
+      // Played a few seconds behind live, so the provider's bursts play through.
+      stopCushion = keepCushion(video, start, (holding) => {
+        cushionHold.current = holding;
+        // Gone on after waiting its longest, it may still have nothing to play.
+        setBuffering(holding || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
+      });
       return true;
     };
     const playHls = async (url: string) => {
@@ -470,6 +482,7 @@ function LivePlayer({
     })();
     return () => {
       cancelled = true;
+      stopCushion();
       // The last picture stays while the next channel tunes.
       keepPicture(video);
       hlsRef.current?.destroy();
@@ -583,9 +596,13 @@ function LivePlayer({
     let stalled: number | undefined;
     const waiting = () => {
       window.clearTimeout(stalled);
-      stalled = window.setTimeout(() => setBuffering(true), SPINNER_AFTER);
+      stalled = window.setTimeout(() => {
+        // The cushion came back at once, so it plays on: no spinner.
+        if (cushionHold.current || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) setBuffering(true);
+      }, SPINNER_AFTER);
     };
     const going = () => {
+      if (cushionHold.current) return;
       window.clearTimeout(stalled);
       stalled = undefined;
       setBuffering(false);

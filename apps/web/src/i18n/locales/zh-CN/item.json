@@ -98,6 +98,7 @@
       "match": "修正匹配…",
       "thumb": "选择缩略图…",
       "poster": "选择海报…",
+      "cover": "选择封面…",
       "backdrop": "选择背景图…"
     },
     "details": {
@@ -105,6 +106,7 @@
       "hint": "编辑过的字段会被锁定 <lock/>，这样刷新元数据时会保留它们。解锁某个字段后，下次刷新会重新填充它。",
       "nfoHint": "旁边的 NFO 文件中的字段优先于元数据源；而此处的编辑优先于它们。",
       "genresPlaceholder": "剧情、惊悚",
+      "namesPlaceholder": "每行一个名字",
       "locked": "已锁定：点击解锁",
       "willUnlock": "将被解锁",
       "ratingCountry": "国家：{{country}}",
@@ -115,6 +117,10 @@
         "title": "标题",
         "sort_title": "排序标题",
         "original_title": "原始标题",
+        "authors": "作者",
+        "narrators": "朗读者",
+        "series": "系列",
+        "series_index": "系列中的第几本",
         "year": "年份",
         "release_date": "发行日期",
         "content_rating": "分级",
@@ -130,15 +136,22 @@
     "match": {
       "title": "修正匹配",
       "byHand": "此处为手动匹配。旁边的 NFO 文件不会改变此匹配，除非你撤销它。",
+      "bookByHand": "此处为手动匹配。刷新和书的文件不会改变此匹配，除非你撤销它。",
       "undo": "撤销修正匹配",
       "undone": "已撤销修正匹配",
       "matched": "已匹配到“{{title}}”",
       "noMatches": "没有匹配结果。试试其他标题或不填年份。",
-      "current": "当前"
+      "current": "当前",
+      "bookTitle": "标题，或 Audible ASIN",
+      "author": "作者",
+      "noBookMatches": "没有匹配结果。试试其他标题、不填作者，或书的 ASIN。",
+      "audible": "Audible · {{asin}}",
+      "openLibrary": "Open Library · {{id}}"
     },
     "artwork": {
       "titles": {
         "poster": "选择海报",
+        "cover": "选择封面",
         "backdrop": "选择背景图",
         "thumb": "选择缩略图"
       },
@@ -148,7 +161,8 @@
       "upload": "上传图片…",
       "uploading": "正在上传…",
       "loadError": "{{error}} 你仍然可以上传图片。",
-      "none": "TMDB 没有此项目的其他封面。"
+      "none": "TMDB 没有此项目的其他封面。",
+      "noCovers": "Open Library 和 Audible 没有这本书的封面。如果它匹配到了错误的书，请先修正匹配。"
     }
   },
   "request": {

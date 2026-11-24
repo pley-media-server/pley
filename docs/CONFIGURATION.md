@@ -149,7 +149,10 @@ TV libraries, at each scan:
   on one of those sites, as in Kodi's NFO files that hold only a link. A
   movie or show with ids is looked up by them instead of searched for by
   name: they win over a match found by name, or an id in the names
-  (`{tmdb-603}`), unless that match has one of them.
+  (`{tmdb-603}`), unless that match has one of them. Show folders of the
+  same name in a library are one show, whose `tvshow.nfo` is the one in the
+  folder the show was first found in, unless their `tvshow.nfo` files name
+  different shows.
 - **Fields**: title, original title, sort title, year, release date
   (`premiered`, `releasedate` or `aired`), summary (`plot`, else
   `outline`), tagline, content rating (`mpaa` or `certification`), genres,
