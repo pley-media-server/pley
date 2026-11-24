@@ -39,6 +39,7 @@ import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.PlayerGraphOwner
 import app.pley.android.player.R
+import app.pley.android.player.music.library.KeptSearches
 import app.pley.android.player.music.library.MusicArt
 import app.pley.android.player.music.library.MusicCallers
 import app.pley.android.player.music.library.MusicId
@@ -111,6 +112,9 @@ class MusicService : MediaLibraryService() {
 
     /** A book brought back, waiting for where the profile is in it on the server ([cueBook]). */
     private var catchingUp: Job? = null
+
+    /** The results of a car's last searches ([KeptSearches]): the profile's, forgotten as another signs in. */
+    private val searches = KeptSearches()
     private val owner: PlayerGraphOwner? get() = application as? PlayerGraphOwner
 
     // The notification's words, Media3's included, and the car's, in the language shown.
@@ -193,6 +197,7 @@ class MusicService : MediaLibraryService() {
                 launch {
                     library.profileChanges.drop(1).collect { profile ->
                         covers?.clear()
+                        searches.clear()
                         showMusic(made, playback, library.library)
                         tellCars(made, signedIn = profile != null)
                     }
@@ -566,7 +571,6 @@ class MusicService : MediaLibraryService() {
             val live = radio
             if (live?.active == true) live.player.pause() else playback.pause()
         }
-        private val searches = HashMap<String, List<MediaItem>>()
 
         /** The lists a car was shown from what was saved: a car is told when the server's turn out different. */
         private val savedLists = SavedLists(
@@ -709,18 +713,15 @@ class MusicService : MediaLibraryService() {
         override fun onSearch(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, query: String, params: LibraryParams?): ListenableFuture<LibraryResult<Void>> =
             // Media3 answers a MediaBrowserCompat car's search only once its results are said to have changed.
             if (!answers(browser)) refused() else answer(slow = { session.notifySearchResultChanged(browser, query, 0, params) }) {
-                val found = try {
+                val found = searches.get(query) ?: try {
                     library().search(query.take(MAX_QUERY))
                 } catch (e: Exception) {
                     // A car waits for this, failed too: an empty result.
                     if (e !is CancellationException) onMain { session.notifySearchResultChanged(browser, query, 0, params) }
                     throw e
                 }
-                onMain {
-                    searches.clear()
-                    searches[query] = found
-                    session.notifySearchResultChanged(browser, query, found.size, params)
-                }
+                searches.put(query, found)
+                onMain { session.notifySearchResultChanged(browser, query, found.size, params) }
                 LibraryResult.ofVoid()
             }
 
@@ -732,7 +733,7 @@ class MusicService : MediaLibraryService() {
             pageSize: Int,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!answers(browser)) refused() else answer {
-            val found = onMain { searches[query] } ?: library().search(query.take(MAX_QUERY))
+            val found = searches.get(query) ?: library().search(query.take(MAX_QUERY)).also { searches.put(query, it) }
             val size = pageSize.coerceIn(1, MusicLibrary.MAX_PAGE)
             LibraryResult.ofItemList(rowsFor(browser, found.drop(page * size).take(size)), params)
         }

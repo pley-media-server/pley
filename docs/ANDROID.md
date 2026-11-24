@@ -1176,7 +1176,9 @@ heading, the kind of the server's closest match first, then channels:
 those found within a second and a half, so a slow IPTV provider doesn't
 hold back the music's results. Each
 search the car sends is asked of the server by itself, so one overtaken
-by the next letter typed still gets its answer. A list or search the server hasn't
+by the next letter typed still gets its answer, and the results of the
+last three are kept for a minute, so one asked again (a letter taken
+back) shows at once. A list or search the server hasn't
 sent within 8 seconds shows as the server out of reach, as cars are to
 show what they ask for within 10 seconds. A list the phone has seen
 before (an artist's albums, an album's or a playlist's tracks, the
