@@ -17,6 +17,8 @@ describes how they are made.
   more than the file holds.
 - What metadata services and IPTV providers answer is refused once it
   passes a size limit, rather than read whole first.
+- With FFmpeg 7.1 or 8, a converted file whose subtitles end before the
+  credits do is kept, rather than thrown away as cut short.
 
 ## [0.1.16] - 2026-11-24
 
