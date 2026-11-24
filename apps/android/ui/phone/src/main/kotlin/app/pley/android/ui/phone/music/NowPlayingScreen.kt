@@ -668,12 +668,14 @@ private fun SpeedButton(model: NowPlayingViewModel) {
     var open by rememberSaveable { mutableStateOf(false) }
     val label = stringResource(ScreensR.string.book_speed)
     val shown = speedText(speed)
+    // Read out as one phrase, its words in the order each language puts them (as the TV's button says it).
+    val spoken = stringResource(ScreensR.string.book_speed_value, shown)
     Box(
         Modifier
             .size(48.dp)
             .clip(PleyShape.Circle)
             .clickable(role = Role.Button, onClickLabel = label, onClick = { open = true })
-            .semantics { contentDescription = "$label, $shown" },
+            .semantics { contentDescription = spoken },
         contentAlignment = Alignment.Center,
     ) {
         Text(shown, style = MaterialTheme.typography.labelLarge, color = if (speed != 1f) PleyColors.AccentBright else PleyColors.Muted)
