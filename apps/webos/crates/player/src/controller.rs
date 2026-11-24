@@ -1995,7 +1995,7 @@ impl PlaybackController {
                 self.changed();
             }
             if let Some(m) = marker
-                && self.credits.enter(&m)
+                && self.credits.enter(&m, self.file_duration(m.file_id))
             {
                 self.on_credits();
             }
@@ -2799,6 +2799,14 @@ impl PlaybackController {
     }
 
     // ---------------------------------------------------------------- Up Next
+
+    /// The length of file `file_id` (0 when not known): the item's, else the player's for the file playing.
+    fn file_duration(&self, file_id: i64) -> i64 {
+        let listed = self.item.as_ref().and_then(|d| d.files.iter().find(|f| f.id == file_id)?.duration_ms);
+        let session = self.info.as_ref().map(|i| i.duration_ms);
+        let engine = self.view.duration_ms.map(|d| d as i64);
+        [listed, session, engine].into_iter().flatten().find(|d| *d > 0).unwrap_or(0)
+    }
 
     fn on_credits(&mut self) {
         let has = self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue.as_ref()));

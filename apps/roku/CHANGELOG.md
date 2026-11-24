@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end instead.
+  Without credits, it comes at the end too, rather than 30 s before it.
+
 ## [0.1.12] - 2026-11-22
 
 ### Fixed

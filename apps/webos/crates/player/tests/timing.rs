@@ -52,19 +52,31 @@ fn episode() -> World {
 }
 
 fn episode_with(tweak: impl FnOnce(&mut pley_player::PlayerEnv)) -> World {
+    credits_until(7_200_000, true, tweak)
+}
+
+/// An episode of 2 h whose credits run from 7,100 s to `end_ms`, and the episode after it. Unless
+/// `known`, neither the item, the session nor the player says how long it is.
+fn credits_until(end_ms: i64, known: bool, tweak: impl FnOnce(&mut pley_player::PlayerEnv)) -> World {
     let mut detail = item(file());
     detail.summary.kind = ItemKind::Episode;
     detail.summary.grandparent_title = Some("Show".into());
     detail.summary.parent_index = Some(1);
     detail.summary.index = Some(1);
-    detail.markers = vec![Marker {
-        file_id: 7,
-        kind: MarkerKind::Credits,
-        start_ms: 7_100_000,
-        end_ms: 7_200_000,
-        ..Marker::default()
-    }];
-    let fake = Fake::new(detail, |req| info(|i| i.session_id = format!("s{}", req.item_id)));
+    if !known {
+        detail.summary.duration_ms = None;
+        detail.files[0].duration_ms = None;
+    }
+    detail.markers =
+        vec![Marker { file_id: 7, kind: MarkerKind::Credits, start_ms: 7_100_000, end_ms, ..Marker::default() }];
+    let fake = Fake::new(detail, move |req| {
+        info(|i| {
+            i.session_id = format!("s{}", req.item_id);
+            if !known {
+                i.duration_ms = 0;
+            }
+        })
+    });
     fake.set_next(Some(ItemSummary {
         id: 71,
         kind: ItemKind::Episode,
@@ -103,6 +115,41 @@ fn credits_show_up_next_and_its_countdown_plays_the_next_episode_10_s_on() {
     assert!(w.c.state().up_next.is_none());
     // The episode before was ended first.
     assert!(w.fake.calls().contains(&"delete s70".to_string()));
+}
+
+#[test]
+fn credits_that_something_follows_bring_skip_credits_and_up_next_comes_at_the_end() {
+    // The credits stop a minute before the end: an after-credits scene, or a show's last minutes.
+    let mut w = credits_until(7_140_000, true, |_| ());
+    w.c.seek_to(7_099_000);
+    w.advance(2_500);
+    assert_eq!(w.c.state().skip_label.as_deref(), Some("Skip Credits"));
+    assert!(w.c.state().up_next.is_none());
+    // Through the rest of the credits and what follows them: nothing until the end.
+    w.advance(97_000);
+    assert!(w.c.state().up_next.is_none());
+    w.advance(3_000);
+    let card = w.c.state().up_next.clone().expect("Up Next shows at the end");
+    assert_eq!(card.item_id, 71);
+    assert!(card.seconds_left.is_some());
+}
+
+#[test]
+fn credits_ending_10_s_before_the_end_bring_up_next() {
+    // What follows them is a studio's logo, not a scene.
+    let mut w = credits_until(7_190_000, true, |_| ());
+    w.c.seek_to(7_099_000);
+    w.advance(2_500);
+    assert_eq!(w.c.state().up_next.as_ref().map(|c| c.item_id), Some(71));
+}
+
+#[test]
+fn credits_of_a_file_whose_length_isnt_known_bring_skip_credits_only() {
+    let mut w = credits_until(7_200_000, false, |_| ());
+    w.c.seek_to(7_099_000);
+    w.advance(2_500);
+    assert_eq!(w.c.state().skip_label.as_deref(), Some("Skip Credits"));
+    assert!(w.c.state().up_next.is_none());
 }
 
 #[test]

@@ -902,7 +902,8 @@ public sealed class PlayerModel : IDisposable
             SetClock(positionMs: pos, bufferedMs: e.BufferedMs, durationMs: s.DurationMs > 0 ? s.DurationMs : engineDuration > 0 ? engineDuration : Clock.Value.DurationMs);
             var label = marker != null ? Markers.SkipLabel(marker) : null;
             if (label != State.Value.SkipLabel) Update(st => st with { SkipLabel = label });
-            if (credits.Entered(marker) != null) OnCredits();
+            // The markers are this file's: its length, else the player's.
+            if (credits.Entered(marker, file?.DurationMs > 0 ? file.DurationMs : Clock.Value.DurationMs) != null) OnCredits();
         }
         // Reconnecting: the stall ladder and the frame counts wait; the engine moving on by itself ends it.
         if (outage != null)

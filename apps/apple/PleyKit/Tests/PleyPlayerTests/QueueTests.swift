@@ -6,15 +6,20 @@ import PleyTesting
 import Testing
 
 /// Three 60 s movies, played through a collection or playlist: the second
-/// is watched, with a resume point left over from before.
+/// is watched, with a resume point left over from before. Each has
+/// `credits` (ms) when asked.
 @MainActor
-private func queueRig(position: Int = 0) async throws -> Rig {
+private func queueRig(position: Int = 0, credits: Range<Int>? = nil) async throws -> Rig {
     let server = FixtureServer()
     try await server.start()
     for (n, id) in [51, 52, 53].enumerated() {
         var movie = FixtureServer.Playable(itemId: id, fileId: id * 10, title: "Movie \(n + 1)", container: "mp4",
                                            durationMs: 60_000, positionMs: id == 52 ? 30_000 : 0)
         movie.watched = id == 52
+        if let credits {
+            movie.markers = [Marker(fileId: id * 10, kind: .credits, startMs: credits.lowerBound,
+                                    endMs: credits.upperBound, source: "chapter")]
+        }
         server.addPlayable(movie)
     }
     let queue = PlayQueue(kind: .playlist, id: 901, itemIds: [51, 52, 53], position: position)
@@ -100,6 +105,24 @@ struct QueueControllerTests {
         try await until("the notice") { rig.controller.state.notice != nil }
         #expect(rig.controller.state.notice == "Nothing plays next")
         #expect(rig.engine.loads.count == 3)
+        await rig.controller.close()
+    }
+
+    @Test func aMoviesCreditsThatSomethingFollowsLeaveTheNextToTheEnd() async throws {
+        // Credits from 30 to 40 s of 60 s: a scene follows them.
+        let rig = try await queueRig(credits: 30_000..<40_000)
+        defer { rig.cleanUp() }
+        try await started(rig)
+        rig.engine.playing(at: 31_000)
+        rig.clock.advance(ms: 500)
+        rig.controller.tick()
+        #expect(rig.controller.state.skipLabel == "Skip Credits")
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(rig.controller.state.upNext == nil)
+        #expect(rig.server.requests("/api/items/52").isEmpty)
+        rig.engine.emit(.ended)
+        try await until("the card") { rig.controller.state.upNext != nil }
+        #expect(rig.controller.state.upNext?.itemId == 52)
         await rig.controller.close()
     }
 

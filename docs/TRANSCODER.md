@@ -1675,15 +1675,25 @@ episodes' fingerprints to find shared intros and credits.
 
 ### Key frames
 
-`POST /v1/frames` takes `{path, start_ms, duration_ms}` and returns `Frames
-{frames: [{ms, black, ylow, yhigh, ymax, sat}]}`. The server looks in them for
-credits: text on black.
+`POST /v1/frames` takes `{path, start_ms, duration_ms, subtitles?}` and
+returns `Frames {frames: [{ms, black, ylow, yhigh, ymax, sat}], cues?}`. The
+server looks in them for credits: text on black, and whether anyone speaks
+after them.
 
 - Decodes only the key frames of the first video stream, shrunk to 320 pixels
   wide in 8 bits (HDR too).
 - `black` is the percentage of pixels at most 32; `ylow` and `yhigh` the luma
   of the darkest and brightest tenth; `ymax` the brightest; `sat` the average
   saturation. Luma is 8-bit studio range (black is 16).
+- `subtitles` `{stream, text}` names an embedded subtitle stream to read over
+  the same part of the file. `cues` are `[{start_ms, end_ms, text}]`: a text
+  track's lines, read after seeking with the file's own times (`-copyts`),
+  or a picture track's display times, from its packets copied in the same
+  pass as the key frames (`framecrc`): the largest packet at a time over
+  200 bytes holds a picture, a smaller one clears it; no text. Each cue's
+  text is cut at 200 characters. Subtitles that can't be read, or with more
+  than 4,000 cues there, leave `cues` out, as an older transcoder does:
+  a shortened list would lose the last cues.
 - Shares the fingerprints' limit and priority.
 
 ## Reading ahead

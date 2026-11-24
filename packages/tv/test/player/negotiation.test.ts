@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type Api } from "../../src/api/client";
-import type { ClientCaps, ItemDetail, MediaFile, MediaStream, PlaybackInfo, PlaybackRequest, PlayingTracks, ServerEvent } from "../../src/api/types";
+import type { ClientCaps, ItemDetail, ItemSummary, Marker, MediaFile, MediaStream, PlaybackInfo, PlaybackRequest, PlayingTracks, ServerEvent } from "../../src/api/types";
 import type { KeyValue } from "../../src/auth/tokens";
 import { PlaybackController, type PlayerEnv } from "../../src/player/controller";
 import type { EngineListener, EngineSource, EngineStatus, PlayerEngine } from "../../src/player/engine";
@@ -746,6 +746,70 @@ describe("the server out of reach", () => {
     await vi.advanceTimersByTimeAsync(4_000);
     expect(c.state.value.phase).toMatchObject({ kind: "error", message: "The transcoder is not reachable", canRetry: true });
     expect(c.state.value.reconnecting).toBe(false);
+    c.close();
+  });
+});
+
+describe("Up Next at the credits", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * A 45-minute episode with `credits` (a movie in `queue`, a playlist) whose
+   * picture shows, on a clock the test moves, and the title after it.
+   */
+  async function playing(credits: Marker, queue?: PlayRequest["queue"]) {
+    vi.useFakeTimers();
+    const kind = queue ? "movie" : "episode";
+    const w = world(item(file({ duration_ms: 2_700_000 }), { kind, duration_ms: 2_700_000, markers: [credits] }), () => info({ duration_ms: 2_700_000 }));
+    const next = { id: 71, kind, title: "Next", user_state: { position_ms: 0, watched: false, play_count: 0 } } as ItemSummary;
+    w.env.api.next = async () => ({ item: next });
+    w.env.api.playlist = (async () => ({ entries: [{ item: { id: 70, kind: "movie" } }, { item: next }] })) as unknown as Api["playlist"];
+    w.env.now = () => Date.now();
+    const c = new PlaybackController({ itemId: 70, queue }, w.env, 0);
+    c.start();
+    await vi.advanceTimersByTimeAsync(50);
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+    return { w, c };
+  }
+
+  const credits = (start_ms: number, end_ms: number): Marker => ({ file_id: 7, kind: "credits", start_ms, end_ms, source: "fingerprint" });
+
+  it("comes as credits that run to the end of the file begin, with its countdown", async () => {
+    const { w, c } = await playing(credits(2_600_000, 2_700_000));
+    w.engine.pos = 2_600_500;
+    await vi.advanceTimersByTimeAsync(600);
+    expect(c.state.value.upNext).toMatchObject({ itemId: 71, secondsLeft: 10 });
+    c.close();
+  });
+
+  it("waits for the end after credits that something follows, Skip Credits showing meanwhile", async () => {
+    const { w, c } = await playing(credits(2_520_000, 2_640_000));
+    w.engine.pos = 2_520_500;
+    await vi.advanceTimersByTimeAsync(600);
+    expect([c.state.value.skipLabel, c.state.value.upNext]).toEqual(["Skip Credits", null]);
+    // Past the credits, the scene after them plays on to the end.
+    w.engine.pos = 2_660_000;
+    await vi.advanceTimersByTimeAsync(600);
+    expect([c.state.value.skipLabel, c.state.value.upNext]).toEqual([null, null]);
+    w.engine.pos = 2_700_000;
+    w.engine.listener?.status("ended");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(c.state.value.upNext).toMatchObject({ itemId: 71, secondsLeft: 10 });
+    c.close();
+  });
+
+  it("follows the same rule through a playlist of movies", async () => {
+    const { w, c } = await playing(credits(2_520_000, 2_640_000), { kind: "playlist", id: 3 });
+    w.engine.pos = 2_520_500;
+    await vi.advanceTimersByTimeAsync(600);
+    expect([c.state.value.skipLabel, c.state.value.upNext]).toEqual(["Skip Credits", null]);
+    w.engine.pos = 2_700_000;
+    w.engine.listener?.status("ended");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(c.state.value.upNext).toMatchObject({ itemId: 71, secondsLeft: 10 });
     c.close();
   });
 });

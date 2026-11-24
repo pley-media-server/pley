@@ -27,15 +27,32 @@ export function skipLabel(m: Marker): string {
 }
 
 /**
- * Credits start Up Next once each: seeking back into the same credits
- * doesn't show the card again. Forgotten for a new item.
+ * Credits ending this close to the end of their file run to it: only a
+ * studio's logo or black follows (the server's CREDITS_TAIL_MS).
+ */
+export const CREDITS_TAIL_MS = 15_000;
+
+/**
+ * Whether `m` is credits that run to the end of its file, `durationMs` long
+ * (0 or null when unknown). Only those bring Up Next: its countdown would
+ * skip what follows other credits (an after-credits scene, a show's last
+ * minutes after music every episode shares), which bring Skip Credits alone.
+ * test/fixtures/markers.json pins it for both Samsung apps.
+ */
+export function reachesEnd(m: Marker, durationMs: number | null): boolean {
+  return m.kind === "credits" && durationMs !== null && durationMs > 0 && durationMs - m.end_ms <= CREDITS_TAIL_MS;
+}
+
+/**
+ * Credits that run to the end start Up Next once each: seeking back into
+ * the same credits doesn't show the card again. Forgotten for a new item.
  */
 export class CreditsGate {
   private seen = new Set<string>();
 
-  /** Whether entering `m` should start Up Next (the first time only). */
-  enter(m: Marker): boolean {
-    if (m.kind !== "credits") return false;
+  /** Whether entering `m`, in a file `durationMs` long, should start Up Next (the first time only). */
+  enter(m: Marker, durationMs: number | null): boolean {
+    if (!reachesEnd(m, durationMs)) return false;
     const key = `${m.file_id}:${m.kind}:${m.start_ms}`;
     if (this.seen.has(key)) return false;
     this.seen.add(key);

@@ -1843,11 +1843,15 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     if (v) report(v.paused ? "paused" : "playing");
   }, [shownSubtitleIndex, qualityShown, report]);
 
-  // Skip Intro / Skip Credits; an episode's credits bring up Up Next.
-  const markers = useMemo(() => fileMarkers(item, info?.file_id ?? file?.id), [item, info?.file_id, file?.id]);
+  // Skip Intro / Skip Credits; credits that run to the end of the file bring
+  // up Up Next, and other credits leave it for the end.
+  const markersFileId = info?.file_id ?? file?.id;
+  const markers = useMemo(() => fileMarkers(item, markersFileId), [item, markersFileId]);
   const marker = useSkipMarkers({
     markers,
     seconds: current,
+    // The file's length as the server lists it, else as it plays.
+    durationMs: item.files.find((f) => f.id === markersFileId)?.duration_ms || duration * 1000,
     enabled: !!info && !loading && !error && !ended,
     onCredits: () => {
       if (!hasNext || upNext || sleep.atEnd) return;

@@ -232,7 +232,14 @@ impl Background {
     /// transcodes or reads a player's subtitles, and paused while something
     /// does. Its output and log; an error when it fails or runs longer than
     /// `timeout`.
-    pub async fn run(&self, mut cmd: Command, timeout: Duration) -> ApiResult<(Vec<u8>, String)> {
+    pub async fn run(&self, cmd: Command, timeout: Duration) -> ApiResult<(Vec<u8>, String)> {
+        self.run_limited(cmd, timeout, usize::MAX).await
+    }
+
+    /// [`Background::run`] keeping at most `limit` bytes of the output, for
+    /// output a file decides the size of: more is an error, and is read on
+    /// and dropped meanwhile, so the process isn't held up.
+    pub async fn run_limited(&self, mut cmd: Command, timeout: Duration, limit: usize) -> ApiResult<(Vec<u8>, String)> {
         self.wait().await;
         cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
         let mut child = cmd.spawn().map_err(|e| ApiError::Internal(anyhow::anyhow!("failed to start ffmpeg: {e}")))?;
@@ -240,12 +247,13 @@ impl Background {
             return Err(ApiError::Internal(anyhow::anyhow!("ffmpeg pipes unavailable")));
         };
         let (status, stdout, stderr) =
-            tokio::join!(self.supervise(&mut child, timeout), read_all(stdout), read_all(stderr));
+            tokio::join!(self.supervise(&mut child, timeout), read_up_to(stdout, limit), read_all(stderr));
         let stderr = String::from_utf8_lossy(&stderr).trim().to_owned();
         if !status?.success() {
             let message = stderr.lines().last().unwrap_or("ffmpeg failed").to_owned();
             return Err(ApiError::Failed(message));
         }
+        let stdout = stdout.ok_or_else(|| ApiError::Failed(format!("more than {limit} bytes of output")))?;
         Ok((stdout, stderr))
     }
 
@@ -373,6 +381,19 @@ async fn read_all(mut pipe: impl AsyncRead + Unpin) -> Vec<u8> {
     out
 }
 
+/// All of a pipe, or `None` when it gives more than `limit` bytes: the rest
+/// is read and dropped.
+async fn read_up_to(pipe: impl AsyncRead + Unpin, limit: usize) -> Option<Vec<u8>> {
+    let mut out = Vec::new();
+    let mut kept = pipe.take(u64::try_from(limit).unwrap_or(u64::MAX).saturating_add(1));
+    let _ = kept.read_to_end(&mut out).await;
+    if out.len() <= limit {
+        return Some(out);
+    }
+    let _ = tokio::io::copy(&mut kept.into_inner(), &mut tokio::io::sink()).await;
+    None
+}
+
 #[cfg(windows)]
 #[link(name = "ntdll.dll", kind = "raw-dylib", modifiers = "+verbatim")]
 unsafe extern "system" {
@@ -410,6 +431,14 @@ mod tests {
     use super::*;
     #[cfg(any(windows, target_os = "linux"))]
     use tokio::io::{AsyncBufReadExt, BufReader};
+
+    #[tokio::test]
+    async fn output_over_its_limit_is_none() {
+        assert_eq!(read_up_to(&b"cues"[..], 4).await.as_deref(), Some(&b"cues"[..]));
+        assert_eq!(read_up_to(&b"cues!"[..], 4).await, None);
+        assert_eq!(read_up_to(&b""[..], 0).await.as_deref(), Some(&b""[..]));
+        assert_eq!(read_up_to(&b"cues"[..], usize::MAX).await.as_deref(), Some(&b"cues"[..]));
+    }
 
     #[tokio::test(start_paused = true)]
     async fn starts_hold_background_work_until_they_are_over() {

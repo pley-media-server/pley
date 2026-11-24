@@ -9,6 +9,10 @@ public enum Markers {
     public static let tailMs = 1_000
     /// Skip Intro lands this long before the intro ends, so its last moment plays.
     public static let introLeadMs = 750
+    /// Credits ending this close to the end of their file run to the end, as
+    /// the server counts them: only a studio's logo, a channel's promo or
+    /// black is that short.
+    public static let creditsTailMs = 15_000
 
     /// The markers of the file playing (the item's first file when it isn't known yet).
     public static func forFile(_ item: ItemDetail, fileId: Int?) -> [Marker] {
@@ -28,6 +32,15 @@ public enum Markers {
         return marker.endMs - lead
     }
 
+    /// Whether `marker` is credits that run to the end of their file
+    /// (`durationMs`, 0 when not known). Only those bring up Up Next: its
+    /// countdown would skip what follows other credits (an after-credits
+    /// scene, the last minutes of a show whose music every episode shares),
+    /// so they only offer Skip Credits and Up Next waits for the end.
+    public static func reachesEnd(_ marker: Marker, durationMs: Int) -> Bool {
+        marker.kind == .credits && durationMs > 0 && durationMs - marker.endMs <= creditsTailMs
+    }
+
     /// Identifies a segment, to tell entering it again apart from entering another.
     public static func key(_ marker: Marker) -> String { "\(marker.fileId):\(marker.kind.rawValue):\(marker.startMs)" }
 
@@ -38,7 +51,8 @@ public enum Markers {
 }
 
 /// Entering credits brings up Up Next, once per segment: seeking back into
-/// them later lets them play.
+/// them later lets them play. The player passes only credits that run to
+/// the end (`Markers.reachesEnd`).
 public struct CreditsGate: Sendable {
     private var announced: Set<String> = []
 
