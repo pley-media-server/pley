@@ -1327,8 +1327,8 @@ class MusicPlaybackTest {
         assertTrue(music.active)
         assertFalse(held.lastOrNull() ?: false)
 
-        // Made ready again as it waits (the Assistant asks to prepare, then to play): it stays as it is.
-        music.cue(album, startIndex = 2, startMs = 0)
+        // Made ready again as it waits (the Assistant asks to prepare, then to play, for the same): it stays as it is.
+        music.cue(album, startIndex = 2, startMs = 61_000)
         assertEquals(61_000L, music.position().positionMs)
 
         music.play()
@@ -1338,6 +1338,28 @@ class MusicPlaybackTest {
         assertEquals(61_000L, request.startMs)
         assertEquals(61_000L, output.startPositions.single())
         assertTrue(output.wants)
+    }
+
+    @Test
+    fun theSameQueueAskedForAtAnotherPlaceWaitsThere() = runTest {
+        val music = music()
+        // Kept on the device at 61 s; then the car picks the book where the profile is now, at 5 s.
+        music.cue(album, startIndex = 2, startMs = 61_000)
+        music.cue(album, startIndex = 2, startMs = 5_000)
+        assertEquals(5_000L, music.position().positionMs)
+        assertTrue(music.nowPlaying.value!!.seeks > 0)
+        music.play()
+        runCurrent()
+        assertEquals(5_000L, starts().single().startMs)
+    }
+
+    @Test
+    fun aTrackPlayedFromWhereItWaitedReadsAsThereWhileItLoads() = runTest {
+        val music = music()
+        music.cue(album, startIndex = 2, startMs = 61_000)
+        music.play()
+        // Asked for at 61 s and not yet loaded: there, not 0 (which would be kept as its place).
+        assertEquals(61_000L, music.position().positionMs)
     }
 
     @Test
@@ -1392,8 +1414,8 @@ class MusicPlaybackTest {
         assertEquals(30_000L, music.position().positionMs)
         assertEquals(emptyList<PlaybackRequest>(), starts())
 
-        // Brought back again as it waits: it stays as it is.
-        music.cue(saved.copy(positionMs = 0))
+        // Brought back again as it waits (the same kept queue, as a media key's Play asks for it): it stays as it is.
+        music.cue(saved)
         assertEquals(30_000L, music.position().positionMs)
 
         music.setShuffle(false)

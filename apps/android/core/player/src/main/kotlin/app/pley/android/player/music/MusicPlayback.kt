@@ -303,8 +303,9 @@ class MusicPlayback(
         // A queue that waits, where it starts: no output is made for it until it plays.
         waitingAt?.let { return MusicPosition(it, queue.current?.durationMs ?: 0, 0) }
         val o = out ?: return MusicPosition()
-        // Between tracks: the start of the one coming, not where the last one was.
-        if (!held) return MusicPosition(0, queue.current?.durationMs ?: 0, 0)
+        // Between tracks: where the one coming was asked for (its start, or the place a waiting one is played from),
+        // not where the last one was, and never 0 for a track asked for further in: that would be kept as its place.
+        if (!held) return MusicPosition(askedAtMs ?: 0, queue.current?.durationMs ?: 0, 0)
         val duration = o.durationMs.takeIf { it > 0 } ?: queue.current?.durationMs ?: 0
         val position = if (ended) duration else o.positionMs
         return MusicPosition(position.coerceAtLeast(0), duration, o.bufferedMs.coerceAtLeast(0))
@@ -342,7 +343,16 @@ class MusicPlayback(
         if (tracks.isEmpty()) return
         val at = startIndex.coerceIn(tracks.indices)
         val waiting = queue.state
-        if (waitingAt != null && !shuffle && waiting.index == at && waiting.given == given.orEmpty() && waiting.tracks.map { it.id } == tracks.map { it.id }) return
+        if (waitingAt != null && !shuffle && waiting.index == at && waiting.given == given.orEmpty() && waiting.tracks.map { it.id } == tracks.map { it.id }) {
+            // The same queue made ready again (the Assistant's prepare, then its play) stays as it is; asked for at
+            // another place (a book picked in the car, where the profile is in it now), it waits there.
+            val place = startMs.coerceAtLeast(0)
+            if (waitingAt != place) {
+                waitingAt = place
+                sought()
+            }
+            return
+        }
         this.suggested = suggested
         failedInARow = 0
         // A new queue: the server's refusal of what was asked ahead was for the track before.
@@ -547,7 +557,7 @@ class MusicPlayback(
 
     /** Which of [chapters] the position is in; `null` when the part has none, or isn't where it plays yet. */
     private fun chapterNow(): Int? {
-        if (chapters.isEmpty() || ended || (!held && waitingAt == null)) return null
+        if (chapters.isEmpty() || ended || (!held && waitingAt == null && askedAtMs == null)) return null
         return chapterIndexAt(chapters, lastPosition())
     }
 
@@ -854,7 +864,7 @@ class MusicPlayback(
     }
 
     /** Where the queue's track is; its start while the output still holds the track before it, or where it waits ([cue]). */
-    private fun lastPosition(): Long = if (held) out?.positionMs?.coerceAtLeast(0) ?: 0 else waitingAt ?: 0
+    private fun lastPosition(): Long = if (held) out?.positionMs?.coerceAtLeast(0) ?: 0 else waitingAt ?: askedAtMs ?: 0
 
     /** How long the track has left, for the sleep timer; `null` while it isn't playing. */
     private fun trackLeftMs(): Long? {
