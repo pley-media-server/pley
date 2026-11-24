@@ -1438,7 +1438,9 @@ Android Auto (`CarConnection`, as Google tells parked apps to check):
 another screen the phone drives, such as a monitor, keeps the phone's
 sizes. A window opened there as the app starts, before Android Auto has
 answered, is car-sized until it does; one moved to the phone's screen as
-the car goes is the phone's again, a player turned to landscape. A
+the car goes is the phone's again, a player turned to landscape. The
+store build, which a car's screen never opens, doesn't ask Android Auto:
+its windows keep the phone's sizes on every screen. A
 debuggable build counts the displays the developer options simulate as
 cars' too, so these layouts can be tried on an emulator, where Android
 Auto itself doesn't run. As the car moves off, Android Auto covers the

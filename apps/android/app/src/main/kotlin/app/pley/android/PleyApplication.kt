@@ -78,8 +78,10 @@ class PleyApplication : Application(), PleyGraphOwner, PlayerGraphOwner, Downloa
             FrameRate.watch(this, shells = setOf(TvActivity::class.java, MainActivity::class.java))
             // Players open where the app is shown: a car's screen with Android Auto.
             registerActivityLifecycleCallbacks(shownScreen)
-            // Whether Android Auto projects: the players are car-sized on its screen alone.
-            OtherScreen.follow(this)
+            // Whether Android Auto projects: the players are car-sized on its screen alone. Only the sideloaded build
+            // opens on a car's screen (its CAR_LAUNCHER); the store build never does, and doesn't ask Android Auto at
+            // each start, its windows on another screen (a monitor, DeX) never car-sized.
+            if (BuildConfig.FLAVOR == "direct") OtherScreen.follow(this) else OtherScreen.neverACar()
             startup = StartupRead.start(this)
             restartDemoServer()
             warmGraph()

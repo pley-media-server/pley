@@ -65,6 +65,11 @@ object OtherScreen {
     /** Whether Android Auto projects, as it says it: what is drawn follows it ([onCarScreen]). */
     val projected: StateFlow<Boolean?> get() = projection
 
+    /** A build that never opens on a car's screen (the store build): no other screen is a car's. */
+    fun neverACar() {
+        projection.value = false
+    }
+
     /** Follows Android Auto's connection for the app's life: the Application calls it once. */
     fun follow(context: Context) {
         CarConnection(context.applicationContext).type.observeForever { type ->
