@@ -13,7 +13,6 @@ sub init()
     m.tops = []
     m.bottoms = []
     m.shape = ""
-    m.top.observeField("visible", "onVisible")
 end sub
 
 ' The lines laid out top to bottom: a version's name in the accent, a
@@ -22,7 +21,8 @@ end sub
 ' across the width. The same sheet again (its headings the same: a
 ' conversion's details, asked for again every 2 s, whose speed comes and
 ' goes) changes only the words that changed, and the panel stays on the
-' line at its top; another sheet, or one shown again, is read from the top.
+' line at its top; another sheet, or lines set after fromTop, is read
+' from the top.
 sub onLines()
     lines = m.top.lines
     shape = ""
@@ -31,18 +31,22 @@ sub onLines()
         if line.kind = "heading" or line.kind = "version" then shape += line.kind + ":" + line.text + chr(10)
         keys.Push(line.kind + ":" + line.text)
     end for
-    if m.top.visible and shape = m.shape
-        ' The line at the panel's top, to find again among the new ones.
+    fromTop = m.top.fromTop
+    if fromTop then m.top.fromTop = false
+    if not fromTop and shape = m.shape
+        ' The line at the panel's top, found again among the new ones: else
+        ' the nearest line above it that is still there, as far on from it.
         at = 0
         for i = 0 to m.tops.Count() - 1
             if m.tops[i] <= m.offset then at = i
         end for
         anchor = -1
-        if at < m.keys.Count()
-            for i = 0 to keys.Count() - 1
-                if anchor < 0 and keys[i] = m.keys[at] then anchor = i
-            end for
-        end if
+        before = at
+        while anchor < 0 and before >= 0 and before < m.keys.Count()
+            found = nearestKey(keys, m.keys[before], before)
+            if found >= 0 then anchor = found + at - before
+            before = before - 1
+        end while
         if anchor < 0 then anchor = at
         for i = 0 to lines.Count() - 1
             line = lines[i]
@@ -75,10 +79,15 @@ sub onLines()
     place(-1)
 end sub
 
-' A sheet put away is read from the top when it shows again.
-sub onVisible()
-    if not m.top.visible then m.shape = ""
-end sub
+' Where key is among keys, the one nearest index near when it repeats (a
+' label under each stream); -1 when it isn't.
+function nearestKey(keys as object, key as string, near as integer) as integer
+    found = -1
+    for i = 0 to keys.Count() - 1
+        if keys[i] = key and (found < 0 or Abs(i - near) < Abs(found - near)) then found = i
+    end for
+    return found
+end function
 
 ' A line's labels: { kind, label, value (a fact's, else invalid) }.
 function makeNode(line as object) as object

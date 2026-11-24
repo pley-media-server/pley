@@ -729,6 +729,7 @@ sub showInfo()
     m.panelKind = "info"
     m.panelBack = "more"
     m.panelTitle.text = t("titles.page.mediaInfo")
+    m.facts.fromTop = true
     m.facts.lines = mediaInfoSheet(m.item)
     m.menu.visible = false
     m.choices.visible = false
