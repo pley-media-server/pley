@@ -57,6 +57,8 @@ With Android Auto:
   where it was, and the car's Play plays it; with nothing kept on the
   phone, the book or album you heard last waits, or the album added last. "Hey
   Google, stop" pauses and keeps the queue for the next drive.
+- Lists and covers seen before show at once, also on a slow network:
+  they're kept on the phone for each profile.
 - Parked, the sideloaded app plays videos and Live TV on the car's screen
   (Android 15 and later, in cars that allow video apps), every page and
   control sized for the car, with 10-second skip buttons, and pauses as
@@ -81,11 +83,6 @@ With Android Auto:
   placeholder instead of their title, which the caption under it shows.
 - Changing tabs fades from one to the next, Now Playing comes up from
   the bar of what plays, and that bar rises in as music starts.
-
-With Android Auto:
-
-- Covers seen before show at once, kept on the phone for each profile.
-- Lists seen before open at once on a slow network, as they were last.
 
 ### Fixed
 
