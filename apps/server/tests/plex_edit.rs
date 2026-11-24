@@ -169,6 +169,39 @@ async fn posters_are_uploaded() {
     assert_eq!(w.app.plex(Method::PUT, &elsewhere, &w.admin, &[]).await.status, StatusCode::BAD_REQUEST);
 }
 
+/// Audiobooks, which this API doesn't show, aren't edited through it either:
+/// not their fields or their pictures.
+#[tokio::test]
+async fn audiobooks_are_not_edited() {
+    let w = world().await;
+    w.app.media_file("books/Imogen Vale/Small Hours/01.mp3", 2048);
+    let books = w.app.library(&w.admin, "Books", "audiobooks", "books").await;
+    let book = w.app.ids(books, &w.admin).await["Small Hours"];
+    let shown = w.app.plex(Method::GET, &format!("/library/metadata/{book}"), &w.admin, &[]).await;
+    assert_eq!(shown.status, StatusCode::NOT_FOUND, "hidden from this API");
+
+    let path = format!("/library/metadata/{book}");
+    assert_eq!(put(&w, &path, "summary.value=Edited&summary.locked=1").await, StatusCode::NOT_FOUND);
+    let section = format!("/library/sections/{books}/all");
+    assert_eq!(put(&w, &section, &format!("type=9&id={book}&summary.value=Edited")).await, StatusCode::NOT_FOUND);
+    // A movie and a book together: neither is edited.
+    let both = format!("/library/metadata/{},{book}", w.alien);
+    assert_eq!(put(&w, &both, "summary.value=Edited").await, StatusCode::NOT_FOUND);
+    let mut png = Vec::new();
+    image::RgbImage::from_pixel(40, 40, image::Rgb([30, 200, 30]))
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+    let posters = format!("/library/metadata/{book}/posters");
+    assert_eq!(w.app.plex_upload(Method::POST, &posters, &w.admin, png).await.status, StatusCode::NOT_FOUND);
+    let chosen = format!("/library/metadata/{book}/poster?url=upload%3A%2F%2Fposters%2F1");
+    assert_eq!(w.app.plex(Method::PUT, &chosen, &w.admin, &[]).await.status, StatusCode::NOT_FOUND);
+
+    let edited = w.app.get(&format!("/api/items/{book}"), &w.admin).await.body;
+    assert_ne!(edited["summary"], json!("Edited"), "{edited}");
+    assert_eq!(edited["locked_fields"], json!([]), "{edited}");
+    assert_ne!(w.app.get(&format!("/api/items/{}", w.alien), &w.admin).await.body["summary"], json!("Edited"));
+}
+
 #[tokio::test]
 async fn what_pley_doesnt_keep_is_refused_whole() {
     let w = world().await;

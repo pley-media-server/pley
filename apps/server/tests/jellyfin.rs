@@ -484,6 +484,45 @@ async fn metadata_is_edited_with_a_token_that_may_manage_libraries() {
     assert_eq!(refresh.status, StatusCode::NO_CONTENT, "{}", refresh.text());
 }
 
+/// Audiobooks, which this API doesn't show, aren't edited through it either:
+/// not their fields, their pictures or their metadata.
+#[tokio::test]
+async fn audiobooks_are_not_edited() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    app.media_file("books/Imogen Vale/Small Hours/01.mp3", 2048);
+    let books = app.library(admin, "Books", "audiobooks", "books").await;
+    let id = app.ids(books, admin).await["Small Hours"];
+    let book = app.jf_item(id);
+    let manager = app.compatibility_token(admin, "manage").await;
+    let as_manager = |method: Method, uri: String, body: Option<Value>| {
+        let token = manager.clone();
+        async move { app.jf_raw(method, &uri, &[("x-emby-token", &token)], body).await }
+    };
+    assert_eq!(as_manager(Method::GET, format!("/Items/{book}"), None).await.status, StatusCode::NOT_FOUND);
+
+    let edit = json!({"Name": "Small Hours", "Overview": "Edited", "LockedFields": ["Overview"]});
+    assert_eq!(as_manager(Method::POST, format!("/Items/{book}"), Some(edit)).await.status, StatusCode::NOT_FOUND);
+    for (method, uri) in [
+        (Method::POST, format!("/Items/{book}/Refresh")),
+        (Method::GET, format!("/Items/{book}/MetadataEditor")),
+        (Method::GET, format!("/Items/{book}/RemoteImages")),
+        (Method::DELETE, format!("/Items/{book}/Images/Primary")),
+    ] {
+        assert_eq!(as_manager(method, uri.clone(), None).await.status, StatusCode::NOT_FOUND, "{uri}");
+    }
+    let mut png = Vec::new();
+    image::RgbImage::from_pixel(4, 6, image::Rgb([30, 200, 30]))
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+    let uri = format!("/Items/{book}/Images/Primary");
+    assert_eq!(jf_upload(app, &uri, &manager, "image/png", png).await, StatusCode::NOT_FOUND);
+
+    let edited = app.get(&format!("/api/items/{id}"), admin).await.body;
+    assert_ne!(edited["summary"], json!("Edited"), "{edited}");
+    assert_eq!(edited["locked_fields"], json!([]), "{edited}");
+}
+
 #[tokio::test]
 async fn pictures_and_matches_through_the_editing_endpoints() {
     let w = world().await;

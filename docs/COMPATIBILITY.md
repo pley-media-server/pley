@@ -616,7 +616,7 @@ playback and sessions, editing, collections, playlists and play queues.
   remote access, and the apps that depend on it to find servers.
 - Audiobook libraries: Plex has no such sections, and its apps would read
   books as albums of tracks, so the API lists none, nor their books in
-  search or history.
+  search or history, and edits none of them.
 - Accounts: they are listed, never made, changed or deleted.
 - Collection modes (`collectionMode`): Pley has none.
 - Theme music, logos and square art: changes answer `400`.
@@ -1009,7 +1009,8 @@ Run against Pley with the API on Pley's port and on a port of its own:
 
 - Quick Connect, and so signing in from an app with an account that uses
   two-step sign-in.
-- Audiobook libraries: the API lists none, nor their books.
+- Audiobook libraries: the API lists none, nor their books, and edits none
+  of them.
 - Administration: the dashboard, users, libraries, plugins, scheduled
   tasks and logs. Activity monitors see what is playing
   ([Activity monitors](#activity-monitors)).

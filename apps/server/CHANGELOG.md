@@ -26,6 +26,8 @@ describes how they are made.
   passes a size limit, rather than read whole first.
 - With FFmpeg 7.1 or 8, a converted file whose subtitles end before the
   credits do is kept, rather than thrown away as cut short.
+- Apps and tools that edit through the Plex- or Jellyfin-compatible API, such
+  as Kometa, can no longer change audiobooks, which those APIs don't show.
 
 ## [0.1.16] - 2026-11-24
 

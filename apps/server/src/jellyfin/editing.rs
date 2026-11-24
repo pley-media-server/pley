@@ -151,6 +151,11 @@ async fn fields_of(state: &AppState, id: i64) -> JfResult<Current> {
 /// The item `id` as the caller may see it, and its fields.
 async fn current(state: &AppState, user: &AuthUser, id: i64) -> JfResult<(ItemRow, Current)> {
     let row = crate::catalog::item(&state.db, user.id, id).await?.ok_or(JfError::NotFound)?;
+    // An audiobook, which this API doesn't show (`AuthUser::audiobooks`),
+    // isn't edited through it either.
+    if crate::access::withholds(&state.db, user, row.library_id).await? {
+        return Err(JfError::NotFound);
+    }
     Ok((row, fields_of(state, id).await?))
 }
 
