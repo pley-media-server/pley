@@ -9,6 +9,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import app.pley.android.ui.phone.player.CarGap
+import app.pley.android.ui.phone.player.LocalCarScreen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -165,6 +172,8 @@ private fun Slide(
     val tier = LocalPhoneDeviceTier.current
     val metrics = LocalPhoneMetrics.current
     val backdrop = remember(info.item, origin, tier) { ArtworkCandidates.backdrop(info.item, origin, tier) }
+    // Where the words start, from the banner's top: the scrim under them is dark enough by then, on a short screen too.
+    var wordsTop by remember { mutableFloatStateOf(-1f) }
     Box(Modifier.fillMaxSize()) {
         Artwork(
             image = backdrop,
@@ -173,13 +182,7 @@ private fun Slide(
             modifier = Modifier.fillMaxSize().clearAndSetSemantics { }.drawWithCache {
                 // The top keeps the bar's icons readable; the bottom melts into the page under the words.
                 val top = Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent, endY = size.height * 0.22f)
-                val bottom = Brush.verticalGradient(
-                    0f to Color.Transparent,
-                    0.45f to PleyColors.Bg.copy(alpha = 0.75f),
-                    0.85f to PleyColors.Bg,
-                    startY = size.height * 0.3f,
-                    endY = size.height,
-                )
+                val bottom = Brush.verticalGradient(*scrimStops(wordsTop / size.height), startY = 0f, endY = size.height)
                 onDrawWithContent {
                     drawContent()
                     drawRect(Color.Black.copy(alpha = 0.18f))
@@ -192,7 +195,8 @@ private fun Slide(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(start = metrics.marginStart, end = metrics.marginEnd, bottom = WordsBottom),
+                .padding(start = metrics.marginStart, end = metrics.marginEnd, bottom = WordsBottom)
+                .onGloballyPositioned { wordsTop = it.positionInParent().y },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
@@ -235,7 +239,13 @@ private fun Slide(
                 )
             }
             Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            // A car's targets stand 24 dp apart; where three don't fit across (a narrow car screen), the last goes under.
+            val gap = if (LocalCarScreen.current) CarGap else 10.dp
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(gap),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
                 PrimaryButton(
                     text = stringResource(if (info.inProgress) R.string.item_resume else R.string.item_play),
                     onClick = { onPlay(info) },
@@ -251,6 +261,20 @@ private fun Slide(
             }
         }
     }
+}
+
+/**
+ * The bottom scrim's stops over the banner's height: clear from 30 %, 75 %
+ * of the page's color by 61 %, the page's color at 90 %, as a phone's tall
+ * banner has it; but 75 % by the words' top at the latest ([wordsTop], a
+ * share of the height), where a short screen's words start higher up.
+ */
+internal fun scrimStops(wordsTop: Float): Array<Pair<Float, Color>> {
+    val start = 0.3f
+    val dark = if (wordsTop > 0f) minOf(start + 0.45f * (1f - start), wordsTop) else start + 0.45f * (1f - start)
+    val clear = minOf(start, dark - 0.15f).coerceAtLeast(0f)
+    val full = maxOf(clear + 0.85f * (1f - clear), dark + 0.1f).coerceAtMost(1f)
+    return arrayOf(clear to Color.Transparent, dark to PleyColors.Bg.copy(alpha = 0.75f), full to PleyColors.Bg)
 }
 
 /** My List: a ring with + to put the title on it, ✓ once it is. */
