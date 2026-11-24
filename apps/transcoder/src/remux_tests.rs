@@ -110,9 +110,9 @@ fn hdr10plus_json(frames: usize) -> String {
     )
 }
 
-/// 6 s of 640×360 HEVC Main 10 HDR10 at 24 fps, a keyframe a second, with
-/// HDR10+ when libx265 takes it (`hdr10plus.mkv`, else `hdr10.mkv`), and
-/// E-AC-3 5.1. `None` when libx265 is missing.
+/// 6 s of 640×360 HEVC Main 10 HDR10 at 24 fps, a keyframe a second, and
+/// E-AC-3 5.1; with HDR10+ where libx265 writes it, which the second value
+/// says. `None` when libx265 is missing.
 fn hdr10_source(dir: &Path) -> Option<(PathBuf, bool)> {
     std::fs::write(dir.join("hdr10plus.json"), hdr10plus_json(144)).unwrap();
     let x265 = "log-level=error:keyint=24:min-keyint=24:scenecut=0:hdr10=1:repeat-headers=1:colorprim=bt2020:\
@@ -153,8 +153,12 @@ fn hdr10_source(dir: &Path) -> Option<(PathBuf, bool)> {
                 name,
             ],
         );
+        // A libx265 built without HDR10+ (Debian's and Ubuntu's) takes
+        // `dhdr10-info` and writes none: the frames say whether it did.
         if made {
-            return Some((dir.join(name), name == "hdr10plus.mkv"));
+            let path = dir.join(name);
+            let hdr10plus = name == "hdr10plus.mkv" && frames(&path, 1).contains("2094-40");
+            return Some((path, hdr10plus));
         }
     }
     skip("libx265 can't make HDR10 HEVC");
