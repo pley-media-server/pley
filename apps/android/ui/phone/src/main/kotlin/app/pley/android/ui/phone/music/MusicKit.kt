@@ -57,6 +57,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
@@ -85,23 +88,29 @@ import kotlinx.coroutines.flow.first
  * rest of the screen doesn't recompose with it.
  * [MusicPositionState.refresh] reads it at once, after a seek made here:
  * the scrubber is where it was sent, not where the last reading had it.
+ * Only while the screen is started: music plays on with the app out of
+ * sight or the phone locked, and nothing then reads where it is; back in
+ * view, it is read again at once.
  */
 @Composable
 internal fun rememberMusicPosition(position: () -> MusicPosition, playing: Boolean, key: Any?, everyMs: Long = POSITION_EVERY_MS): MusicPositionState {
     val state = remember { MusicPositionState(position) }
     state.read = position
-    LaunchedEffect(playing, key) {
-        state.refresh()
-        while (playing) {
-            delay(everyMs)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(playing, key, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             state.refresh()
-        }
-        var still = 0
-        while (still < SETTLED_READS) {
-            delay(everyMs)
-            val before = state.value
-            state.refresh()
-            still = if (state.value == before) still + 1 else 0
+            while (playing) {
+                delay(everyMs)
+                state.refresh()
+            }
+            var still = 0
+            while (still < SETTLED_READS) {
+                delay(everyMs)
+                val before = state.value
+                state.refresh()
+                still = if (state.value == before) still + 1 else 0
+            }
         }
     }
     return state
@@ -135,10 +144,16 @@ internal const val POSITION_EVERY_MS = 500L
  * share a cover, and nothing changes at all). The first cover comes in as
  * any picture does. Without one, [title]'s placeholder shows when
  * [placeholder]. With reduced motion the next cover takes the place of
- * the last at once.
+ * the last at once. [onCover] hears of each cover as its picture comes.
  */
 @Composable
-internal fun TrackArt(image: ArtworkImage?, title: String, modifier: Modifier = Modifier, placeholder: Boolean = true) {
+internal fun TrackArt(
+    image: ArtworkImage?,
+    title: String,
+    modifier: Modifier = Modifier,
+    placeholder: Boolean = true,
+    onCover: (ArtworkImage) -> Unit = {},
+) {
     // The cover shown in full: under the one coming until that is in.
     var under by remember { mutableStateOf<ArtworkImage?>(null) }
     // A track without a cover shows its placeholder: the cover after it has none to fade in over.
@@ -151,14 +166,16 @@ internal fun TrackArt(image: ArtworkImage?, title: String, modifier: Modifier = 
         val below = under.takeIf { it != image }
         // Keyed, from one place: the cover that was on top is the same picture underneath, not one loaded again.
         for (cover in listOfNotNull(below, image)) {
-            key(cover) { TrackArtLayer(cover, title, over = cover == image && below != null, onShown = { if (cover == image) under = cover }) }
+            key(cover) {
+                TrackArtLayer(cover, title, over = cover == image && below != null, onShown = { if (cover == image) under = cover }, onCover = onCover)
+            }
         }
     }
 }
 
-/** One cover; [over] another, it is unseen until it has loaded and then fades in. */
+/** One cover; [over] another, it is unseen until it has loaded and then fades in. [onCover] hears when its picture has come. */
 @Composable
-private fun TrackArtLayer(image: ArtworkImage, title: String, over: Boolean, onShown: () -> Unit) {
+private fun TrackArtLayer(image: ArtworkImage, title: String, over: Boolean, onShown: () -> Unit, onCover: (ArtworkImage) -> Unit) {
     val load = remember { ArtworkLoad() }
     // Decided as it first shows: once it is the cover underneath, it stays as it is.
     val fades = remember { over }
@@ -169,7 +186,13 @@ private fun TrackArtLayer(image: ArtworkImage, title: String, over: Boolean, onS
     val there = !fades || load.loaded || load.failed
     val alpha by animateFloatAsState(if (there) 1f else 0f, if (reduced) snap() else tween(COVER_FADE_MS), label = "cover")
     val shown by rememberUpdatedState(onShown)
+    val came by rememberUpdatedState(onCover)
     Artwork(model, title, Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }, load = load)
+    LaunchedEffect(Unit) {
+        // As soon as the loader has it, before any fade: the memory cache holds it from then on.
+        snapshotFlow { load.settled }.first { it }
+        if (!load.failed) came(image)
+    }
     LaunchedEffect(Unit) {
         snapshotFlow { load.loaded || load.failed }.first { it }
         if (fades && !reduced) delay(COVER_FADE_MS.toLong())

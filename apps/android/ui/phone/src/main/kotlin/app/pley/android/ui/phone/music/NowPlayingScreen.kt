@@ -75,6 +75,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -155,21 +161,11 @@ private fun NowPlayingPage() {
     val music = rememberMusicControl()
     val noSleep = remember { MutableStateFlow(SleepState()) }
     val sleep by (music?.sleep ?: noSleep).collectAsStateWithLifecycle()
+    val cover = remember { ShownCover() }
+    // A track without a cover has no backdrop: not the one of the track before it.
+    LaunchedEffect(art) { if (art == null) cover.image = null }
     Box(Modifier.fillMaxSize().background(PleyColors.Bg).testTag(NOW_PLAYING_PAGE)) {
-        // The art, faint and unblurred, fading into the page.
-        TrackArt(
-            art,
-            now?.title.orEmpty(),
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .graphicsLayer { alpha = BACKDROP_ALPHA }
-                .drawWithContent {
-                    drawContent()
-                    drawRect(Brush.verticalGradient(0.3f to Color.Transparent, 1f to PleyColors.Bg))
-                },
-            placeholder = false,
-        )
+        Backdrop(cover, now?.title.orEmpty())
         BoxWithConstraints(
             Modifier
                 .fillMaxSize()
@@ -227,9 +223,9 @@ private fun NowPlayingPage() {
                 }
                 val onAlbum = now.albumId?.let { id -> { navigator.open(PleyKey.Album(id, now.itemId)) } }
                 if (wide) {
-                    WideNowPlaying(now, art, model, onAlbum, Modifier.weight(1f))
+                    WideNowPlaying(now, art, cover, model, onAlbum, Modifier.weight(1f))
                 } else {
-                    TallNowPlaying(now, art, model, onAlbum, Modifier.weight(1f))
+                    TallNowPlaying(now, art, cover, model, onAlbum, Modifier.weight(1f))
                 }
             }
         }
@@ -243,7 +239,7 @@ private fun NowPlayingPage() {
  * controls in a column no wider than [TALL_MAX].
  */
 @Composable
-private fun TallNowPlaying(now: NowPlaying, art: ArtworkImage?, model: NowPlayingViewModel, onAlbum: (() -> Unit)?, modifier: Modifier) {
+private fun TallNowPlaying(now: NowPlaying, art: ArtworkImage?, cover: ShownCover, model: NowPlayingViewModel, onAlbum: (() -> Unit)?, modifier: Modifier) {
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         // The art is as wide as its share of the column, and no taller than what the title, the scrubber and the
         // controls leave: on a window a little too short for all of it at that size (a car's portrait screen,
@@ -268,7 +264,7 @@ private fun TallNowPlaying(now: NowPlaying, art: ArtworkImage?, model: NowPlayin
                     .clip(PleyShape.Card)
                     .background(PleyColors.Surface2),
             ) {
-                TrackArt(art, now.album ?: now.title, Modifier.matchParentSize())
+                CoverArt(art, now.album ?: now.title, cover)
             }
             TrackTitle(now, onAlbum, Modifier.fillMaxWidth(), centred = true)
             Scrubber(now, model)
@@ -282,7 +278,7 @@ private fun TallNowPlaying(now: NowPlaying, art: ArtworkImage?, model: NowPlayin
  * scrubber and the controls across the width (no wider than a phone's).
  */
 @Composable
-private fun WideNowPlaying(now: NowPlaying, art: ArtworkImage?, model: NowPlayingViewModel, onAlbum: (() -> Unit)?, modifier: Modifier) {
+private fun WideNowPlaying(now: NowPlaying, art: ArtworkImage?, cover: ShownCover, model: NowPlayingViewModel, onAlbum: (() -> Unit)?, modifier: Modifier) {
     Column(
         modifier
             .fillMaxHeight()
@@ -300,7 +296,7 @@ private fun WideNowPlaying(now: NowPlaying, art: ArtworkImage?, model: NowPlayin
                     .clip(PleyShape.Card)
                     .background(PleyColors.Surface2),
             ) {
-                TrackArt(art, now.album ?: now.title, Modifier.matchParentSize())
+                CoverArt(art, now.album ?: now.title, cover)
             }
             Spacer(Modifier.width(24.dp))
             TrackTitle(now, onAlbum, Modifier.weight(1f), centred = false)
@@ -361,6 +357,64 @@ private fun TrackWordsBlock(now: NowPlaying, onAlbum: (() -> Unit)?, centred: Bo
                 modifier = onAlbum?.let { Modifier.clickable(role = Role.Button, onClick = it) } ?: Modifier,
             )
         }
+    }
+}
+
+/** The cover as the page shows it: the last picture that came, and its box's size in pixels. */
+@Stable
+private class ShownCover {
+    var image by mutableStateOf<ArtworkImage?>(null)
+    var size by mutableStateOf(IntSize.Zero)
+}
+
+/** The cover in its box ([TrackArt]), telling [cover] what it shows, and how large, for the [Backdrop]. */
+@Composable
+private fun BoxScope.CoverArt(art: ArtworkImage?, title: String, cover: ShownCover) {
+    TrackArt(
+        art,
+        title,
+        Modifier.matchParentSize().onSizeChanged { cover.size = it },
+        onCover = { cover.image = it },
+    )
+}
+
+/**
+ * The cover, faint and unblurred, across the top of the page and fading
+ * into it. It is the cover's own picture: asked for at the cover's size
+ * once the cover has it, then stretched, so it comes from the memory cache
+ * (one address, one download and one decode) rather than as a second
+ * picture at the window's width, for a copy drawn at 18 %.
+ */
+@Composable
+private fun Backdrop(cover: ShownCover, title: String) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .graphicsLayer { alpha = BACKDROP_ALPHA }
+            .drawWithContent {
+                drawContent()
+                drawRect(Brush.verticalGradient(0.3f to Color.Transparent, 1f to PleyColors.Bg))
+            },
+    ) {
+        val image = cover.image
+        val size = cover.size
+        if (image == null || size.width == 0 || size.height == 0) return@Box
+        TrackArt(
+            image,
+            title,
+            Modifier.layout { measurable, constraints ->
+                val picture = measurable.measure(Constraints.fixed(size.width, size.height))
+                layout(constraints.maxWidth, constraints.maxHeight) {
+                    picture.placeWithLayer(0, 0) {
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        scaleX = constraints.maxWidth / size.width.toFloat()
+                        scaleY = constraints.maxHeight / size.height.toFloat()
+                    }
+                }
+            },
+            placeholder = false,
+        )
     }
 }
 
