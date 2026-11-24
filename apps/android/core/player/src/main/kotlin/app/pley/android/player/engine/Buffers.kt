@@ -23,8 +23,12 @@ import java.net.URISyntaxException
  * stop at a size their memory allows (48 MiB on 1 GB sticks, 64 MiB on
  * 1.5 GB ones, 96 MiB on T1, 120 MiB on T2), 15 to 30 s ahead on T0 and
  * 50 s elsewhere; phones buffer 15 to 50 s ahead and keep 10 s behind for
- * quick jumps back. Playback starts after 500 ms from a server on the home
- * network and 1 s from elsewhere; after a stall, 1.5 s and 2 s.
+ * quick jumps back. Music, on any device, buffers up to 10 minutes ahead
+ * (a whole track, mostly), at least 50 s, within 32 MiB (16 MiB on a
+ * low-memory device), and keeps 10 s behind: a car's tunnel doesn't
+ * stop it, and the radio sleeps between reads. Playback starts after
+ * 500 ms from a server on the home network and 1 s from elsewhere; after
+ * a stall, 1.5 s and 2 s.
  */
 data class BufferPlan(
     /** Bytes to stop at; [C.LENGTH_UNSET] lets Media3 size it from the tracks. */
@@ -55,10 +59,28 @@ data class BufferPlan(
         /** 1 GB sticks report about 0.9 GiB; 1.5 GB devices about 1.4. */
         private const val ONE_GB_BELOW = 5L * (1L shl 30) / 4
 
-        fun of(profile: DeviceProfile): BufferPlan = if (profile.isTv) tv(profile) else PHONE
+        /** The plan of [profile]'s video, or with [music] of the music's player. */
+        fun of(profile: DeviceProfile, music: Boolean = false): BufferPlan = when {
+            music -> music(profile)
+            profile.isTv -> tv(profile)
+            else -> PHONE
+        }
 
         /** Phones: Media3's sizes, 15 to 50 s ahead, 10 s behind. */
         val PHONE = BufferPlan(targetBytes = C.LENGTH_UNSET, minMs = 15_000, maxMs = 50_000, backBufferMs = 10_000)
+
+        /**
+         * Music: a few MiB a track, so far more time than video in far fewer
+         * bytes. It loads in long bursts and then lets the network rest,
+         * and plays on through a gap in the signal; the bytes stop it
+         * first on a lossless file or a long book part.
+         */
+        private fun music(profile: DeviceProfile): BufferPlan = BufferPlan(
+            targetBytes = if (profile.lowRam || profile.tier == Tier.T0) 16 * MIB else 32 * MIB,
+            minMs = 50_000,
+            maxMs = 600_000,
+            backBufferMs = 10_000,
+        )
 
         private fun tv(profile: DeviceProfile): BufferPlan = when (profile.tier) {
             Tier.T0 -> BufferPlan(

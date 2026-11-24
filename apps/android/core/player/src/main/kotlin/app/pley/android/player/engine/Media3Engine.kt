@@ -156,7 +156,9 @@ class Media3Engine(
         profile7BaseLayer = { profile7BaseLayer },
     )
 
-    private val loadControl = PleyLoadControl(BufferPlan.of(profile))
+    /** How much it buffers: music's own plan for the music's player, the device's for video. */
+    internal val bufferPlan = BufferPlan.of(profile, music)
+    private val loadControl = PleyLoadControl(bufferPlan)
     private val audioDelay = AudioDelay()
     private val audioDecoding = AudioDecoding()
     private val trackSelector = DefaultTrackSelector(app, sizeSwitching())

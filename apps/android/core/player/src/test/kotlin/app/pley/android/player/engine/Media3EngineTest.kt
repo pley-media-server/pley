@@ -310,6 +310,13 @@ class Media3EngineTest {
     }
 
     @Test
+    fun theMusicsPlayerBuffersAsMusicAndVideosAsTheDevice() {
+        assertEquals(BufferPlan.of(phone, music = true), engine(music = true).bufferPlan)
+        assertEquals(BufferPlan.PHONE, engine().bufferPlan)
+        assertEquals(BufferPlan.of(tv), engine(profile = tv).bufferPlan)
+    }
+
+    @Test
     fun musicFetchesNoCoverOfItsOwnWhenTheSessionReadsThemFromTheLibrary() {
         codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
         val asked = mutableListOf<String>()
