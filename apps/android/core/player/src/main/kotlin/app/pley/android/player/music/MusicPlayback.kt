@@ -383,10 +383,14 @@ class MusicPlayback(
      * Whether it plays, or will as soon as it can ([NowPlaying.wantsPlay]):
      * what Play/Pause shows, and what [toggle] turns round. Not after the
      * queue's end, a failure or a video: Play starts the track again there.
+     * While the next track is counted down to after a failure, it will play:
+     * Pause stops the count.
      */
     private val wantsPlay: Boolean
         get() = when {
-            queue.isEmpty || ended || error != null || yielded -> false
+            queue.isEmpty -> false
+            skipJob != null -> true
+            ended || error != null || yielded -> false
             starting -> startPlays
             else -> out?.playWhenReady == true
         }

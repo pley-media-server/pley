@@ -793,8 +793,11 @@ class MusicPlaybackTest {
         api.fail("startPlayback", RuntimeException("the server can't open the file"))
         music.play(album)
         runCurrent()
-        music.pause()
+        // Counting down, Play/Pause shows Pause, and the button (toggle) pauses: it doesn't ask for the track again.
+        assertTrue(music.nowPlaying.value!!.wantsPlay)
+        music.toggle()
         assertNull(music.nowPlaying.value?.nextIn)
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
         advanceTimeBy(10_000)
         runCurrent()
         assertEquals(1L, music.nowPlaying.value?.itemId)
@@ -802,8 +805,9 @@ class MusicPlaybackTest {
 
         assertEquals(listOf(1L), starts().map { it.itemId })
 
+        // Paused, the button plays: the track is tried again.
         api.reset()
-        music.play()
+        music.toggle()
         settle()
         assertEquals(listOf(1L), starts().map { it.itemId })
         assertNull(music.nowPlaying.value?.error)

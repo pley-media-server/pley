@@ -41,8 +41,9 @@ data class NowPlaying(
     val error: MusicError? = null,
     val repeat: MusicRepeat = MusicRepeat.Off,
     /**
-     * Whether it plays, or will as soon as it can (a track starting, or
-     * waiting for data): what Play/Pause shows. Paused, it stays `false`
+     * Whether it plays, or will as soon as it can (a track starting,
+     * waiting for data, or [nextIn] counting down): what Play/Pause shows,
+     * so Pause stops the count. Paused, it stays `false`
      * through a seek's loading; [playing] is sound coming out.
      */
     val wantsPlay: Boolean = playing,
