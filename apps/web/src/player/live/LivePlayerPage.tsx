@@ -492,6 +492,9 @@ function LivePlayer({
           } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR && mediaRetries < 2) {
             mediaRetries++;
             hls.recoverMediaError();
+            // Recovering loads the video again, which cuts short a play under
+            // way and leaves it paused, without a pause event: it plays on.
+            start();
           } else {
             fail(answered ?? brokeOff(channel.name, data.details));
           }

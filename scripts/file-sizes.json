@@ -50,7 +50,7 @@
   "apps/web/src/api/types.ts": 1483,
   "apps/web/src/player/VideoPlayer.test.tsx": 1323,
   "apps/web/src/player/VideoPlayer.tsx": 2300,
-  "apps/web/src/player/live/LivePlayerPage.tsx": 1090,
+  "apps/web/src/player/live/LivePlayerPage.tsx": 1036,
   "apps/webos/crates/player/src/controller.rs": 3727,
   "apps/webos/crates/screens/item/src/item.rs": 2183,
   "packages/transcoder-api/src/lib.rs": 2045,

@@ -254,6 +254,37 @@ describe("LivePlayerPage, its connection taken over", () => {
   });
 });
 
+describe("LivePlayerPage, a channel played from the transcoder's segments", () => {
+  beforeEach(() => {
+    hlsInstances.length = 0;
+    vi.stubGlobal("EventSource", FakeEventSource);
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("plays on, with its sound, after a media error it recovers from", async () => {
+    // hls.js loads the video again as it recovers, which cuts short the play under way.
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockRejectedValueOnce(new DOMException("cut short", "AbortError"))
+      .mockResolvedValue();
+    serve();
+    const { container } = renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+    act(() => hlsInstances[0]?.emit("hlsManifestParsed", {}));
+    expect(play).toHaveBeenCalledTimes(1);
+    act(() => hlsInstances[0]?.emit("hlsError", { fatal: true, type: "mediaError", details: "bufferAppendError" }));
+    expect(hlsInstances[0]?.calls).toContain("recoverMediaError");
+    expect(play).toHaveBeenCalledTimes(2);
+    await act(() => Promise.resolve());
+    expect(container.querySelector("video")!.muted).toBe(false);
+  });
+});
+
 describe("LivePlayerPage, a channel the browser can't play as sent", () => {
   beforeEach(() => {
     hlsInstances.length = 0;
@@ -541,6 +572,21 @@ describe("LivePlayerPage, a channel played from its stream", () => {
     await toHls();
     expect(mpegtsPlayers).toHaveLength(2);
     expect(mpegtsPlayers[1]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+  });
+
+  it("reads its stream again once more when it stands still again, two minutes on", async () => {
+    const { video } = await readAgain();
+    ahead = 3;
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    // A provider whose clock starts over now and then, not at every break.
+    for (let i = 0; i < 41; i++) playsOn();
+    stall(video);
+    comesForNothing(10);
+    await waitFor(() => expect(mpegtsPlayers).toHaveLength(3));
+    expect(plans(requests)).toHaveLength(3);
+    expect(hlsInstances).toHaveLength(0);
   });
 
   it("waits, without reading its stream again, while the stream doesn't come", async () => {
