@@ -330,8 +330,9 @@ them.
   the file names is never given. `container` and `size` are the media's
   once it has been opened or played (`strm` and 0 before).
 - **Editions.** Movies whose versions are tagged with an edition
-  (`{edition-Director's Cut}` in the file or folder name) carry the default
-  version's `editionTitle`.
+  (`{edition-Director's Cut}` in the file or folder name), or name one in
+  words (`Film (2010) - Director's Cut`), carry the default version's
+  `editionTitle`.
 - **Watch state.** `viewCount` is the play count of watched items and 0 once
   an item is marked unplayed. `viewOffset` is the resume position.
   `/:/progress` and `/:/timeline` count as Pley's own progress reports (90 %

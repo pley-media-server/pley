@@ -818,6 +818,16 @@ impl Scanner {
             tx.commit().await?;
         }
         let mut tx = self.db.write.begin().await?;
+        // A movie whose every file now makes another (copies its names once
+        // made a movie of their own, now read as that one's editions) goes
+        // into it, with what was done with it.
+        if kind == LibraryKind::Movies {
+            for &(from, into) in &writer.moved {
+                if super::merge::absorb(&mut tx, from, into).await? {
+                    tracing::info!("movie {from}, whose files are versions of movie {into} now, went into it");
+                }
+            }
+        }
         cleanup_orphans(&mut tx, library_id).await?;
         tx.commit().await?;
         if kind == LibraryKind::Audiobooks {
@@ -1043,7 +1053,14 @@ impl Scanner {
             let is_new = known.is_none();
             match writer.write(&mut tx, &file, outcome).await {
                 Ok(_) if is_new => totals.added += 1,
-                Ok(_) => totals.updated += 1,
+                Ok(item) => {
+                    totals.updated += 1;
+                    if let (Some(known), Some(item)) = (known, item)
+                        && known.item_id != item
+                    {
+                        writer.moved.push((known.item_id, item));
+                    }
+                }
                 Err(err) => tracing::warn!("could not save {}: {err:#}", file.path.display()),
             }
         }
@@ -1086,6 +1103,9 @@ struct Writer<'a> {
     containers: HashMap<String, i64>,
     /// A scan of every file again, changed or not.
     force: bool,
+    /// Known files that went to another item: the item each was in, and
+    /// the one it is in now.
+    moved: Vec<(i64, i64)>,
     /// The items files were written to.
     written: HashSet<i64>,
 }
@@ -1141,6 +1161,7 @@ impl<'a> Writer<'a> {
             sidecars,
             containers: HashMap::new(),
             force,
+            moved: Vec::new(),
             written: HashSet::new(),
         }
     }

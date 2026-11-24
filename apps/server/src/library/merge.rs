@@ -99,6 +99,26 @@ async fn mergeable(conn: &mut SqliteConnection, library_id: i64, into: i64, from
     .await
 }
 
+/// Movie `from` goes into `into`, both of one library, when a scan found its
+/// files all to be `into`'s versions (copies a name once made a movie of its
+/// own): what was done with it goes with them. Whether it went.
+pub(super) async fn absorb(conn: &mut SqliteConnection, from: i64, into: i64) -> sqlx::Result<bool> {
+    let left: bool = sqlx::query_scalar(
+        "SELECT ?1 != ?2
+            AND EXISTS (SELECT 1 FROM items a JOIN items b ON b.library_id = a.library_id
+                        WHERE a.id = ?1 AND b.id = ?2 AND a.kind = 'movie' AND b.kind = 'movie')
+            AND NOT EXISTS (SELECT 1 FROM media_files WHERE item_id = ?1)",
+    )
+    .bind(from)
+    .bind(into)
+    .fetch_one(&mut *conn)
+    .await?;
+    if left {
+        merge_into(conn, into, from).await?;
+    }
+    Ok(left)
+}
+
 /// Move everything of `from` to `into`, then delete `from`. What both have,
 /// `into`'s wins, except what adds up: plays, watched, the latest position.
 async fn merge_into(conn: &mut SqliteConnection, into: i64, from: i64) -> sqlx::Result<()> {

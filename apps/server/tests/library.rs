@@ -1203,6 +1203,78 @@ async fn editions_are_versions_of_one_movie_with_their_names() {
     assert_eq!(versions, editions);
 }
 
+/// An edition named in words, without the tag, is a version of the movie
+/// too, its year or not; a title that merely has such words in it is a film
+/// of its own, and an episode's title is no edition.
+#[tokio::test]
+async fn editions_named_in_words_are_versions_of_one_movie() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    app.media_file("movies/Silent Orchard (2011)/Silent Orchard (2011).mkv", 1024);
+    app.media_file("movies/Silent Orchard (2011)/Silent Orchard (2011) - Director's Cut.mkv", 2048);
+    app.media_file("movies/Lantern Road.mkv", 1024);
+    app.media_file("movies/Lantern Road (Uncut).mkv", 2048);
+    app.media_file("movies/The Final Cut Society (2009).mkv", 1024);
+    app.media_file("tv/Night Rounds/Season 1/Night Rounds - S01E03 - Final Cut.mkv", 1024);
+    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let movies = app.ids(lib, &token).await;
+    let mut listed: Vec<&str> = movies.keys().map(String::as_str).collect();
+    listed.sort_unstable();
+    assert_eq!(listed, ["Lantern Road", "Silent Orchard", "The Final Cut Society"]);
+    assert_eq!(editions(&app, &token, movies["Silent Orchard"]).await, [json!("Director's Cut"), Value::Null]);
+    assert_eq!(editions(&app, &token, movies["Lantern Road"]).await, [json!("Uncut"), Value::Null]);
+    assert_eq!(editions(&app, &token, movies["The Final Cut Society"]).await, [Value::Null]);
+
+    let jellyfin = app.jf_json(&format!("/Items/{}", app.jf_item(movies["Silent Orchard"])), &token).await;
+    let mut versions: Vec<&str> =
+        jellyfin["MediaSources"].as_array().unwrap().iter().map(|s| s["Name"].as_str().unwrap()).collect();
+    versions.sort_unstable();
+    assert_eq!(versions, ["Director's Cut", "Silent Orchard (2011)"]);
+
+    let tv = app.library(&token, "TV", "shows", "tv").await;
+    let show = app.ids(tv, &token).await["Night Rounds"];
+    let season = app.children(show, &token).await["Season 1"];
+    let episode = app.children(season, &token).await["Final Cut"];
+    assert_eq!(editions(&app, &token, episode).await, [Value::Null]);
+}
+
+/// A copy an earlier Pley made a movie of its own, which its name now makes
+/// a version of another, goes into that movie once its file is scanned
+/// again, with what was done with it.
+#[tokio::test]
+async fn a_copy_found_to_be_a_version_brings_what_was_done_with_it() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    app.media_file("movies/Lantern Road.mkv", 1024);
+    app.media_file("movies/Lantern Road (Uncut).mkv", 2048);
+    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let film = app.ids(lib, &token).await["Lantern Road"];
+    // As it was: the uncut copy a movie of its own, watched part way.
+    let db = &app.state.db.write;
+    let copy: i64 = sqlx::query_scalar(
+        "INSERT INTO items (id, library_id, kind, key, title, sort_title, added_at, updated_at)
+         VALUES ((SELECT last + 1 FROM item_ids), ?, 'movie', 'movie:lantern road uncut:0', 'Lantern Road (Uncut)',
+                 'lantern road (uncut)', 1, 1)
+         RETURNING id",
+    )
+    .bind(lib)
+    .fetch_one(db)
+    .await
+    .unwrap();
+    sqlx::query("UPDATE media_files SET item_id = ? WHERE path LIKE '%(Uncut)%'").bind(copy).execute(db).await.unwrap();
+    let progress = json!({"position_ms": 40_000, "duration_ms": 100_000, "state": "paused"});
+    assert!(app.post(&format!("/api/items/{copy}/progress"), &token, progress).await.status.is_success());
+
+    // A scan that reads its file again (no transcoder here: one that changed).
+    app.media_file("movies/Lantern Road (Uncut).mkv", 3072);
+    rescan(&app, &token, lib).await;
+    assert_eq!(titles(&app.get(&format!("/api/libraries/{lib}/items"), &token).await.body["items"]), ["Lantern Road"]);
+    let detail = app.get(&format!("/api/items/{film}"), &token).await.body;
+    assert_eq!(detail["files"].as_array().unwrap().len(), 2);
+    assert_eq!(detail["user_state"]["position_ms"], json!(40_000));
+    assert_eq!(app.get(&format!("/api/items/{copy}"), &token).await.status, StatusCode::NOT_FOUND);
+}
+
 #[tokio::test]
 async fn libraries_sort_by_bitrate_and_say_what_the_files_are_like() {
     let app = TestApp::new().await;

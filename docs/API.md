@@ -382,7 +382,8 @@ interface MediaFile {
   video_codec: string | null;       // ffprobe codec name: "h264", "hevc", "av1", ...
   audio_codec: string | null;       // codec of the default audio stream
   streams: MediaStream[];
-  edition: string | null;           // from `{edition-Final Cut}` in the file's or its folder's name
+  edition: string | null;           // from `{edition-Final Cut}` in the file's or its folder's name, or of a
+                                    // movie's, its words there (`Film (2010) - Director's Cut`)
   selected_audio: number | null;    // track to start with for this user (their choice, else their
                                     // defaults); null = the file's default. Not player-specific:
                                     // a play request picks that language's best track for its

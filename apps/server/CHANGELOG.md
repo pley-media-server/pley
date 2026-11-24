@@ -9,6 +9,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Editions named in a movie's file or folder name without the
+  `{edition-…}` tag, such as Director's Cut, Extended, Theatrical,
+  Unrated, Remastered or IMAX, are versions of one movie with their names.
+  Copies already listed as movies of their own join it once every file is
+  scanned again.
+
 ### Changed
 
 - Pley's license gains a permission for app stores: Pley may be

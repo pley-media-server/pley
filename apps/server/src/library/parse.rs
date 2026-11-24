@@ -96,6 +96,22 @@ static TMDB_ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)[\[{(]tmdb(?
 static IMDB_ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b(tt\d{7,9})\b").unwrap());
 /// Plex's edition tag: `Blade Runner (1982) {edition-Final Cut}`.
 static EDITION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\{edition-([^}]+)\}").unwrap());
+/// Words that name an edition of a film: `Director's Cut`, `Extended
+/// Edition`, `Unrated`, `Remastered`, `25th Anniversary Edition`, `IMAX`.
+/// Words alone that are as likely a title's (`Final`, `Special`) only count
+/// with the word after them.
+const EDITION_WORDS: &str = concat!(
+    r"(?:director(?:['’]?s)?[ ._-]+cut",
+    r"|(?:extended|theatrical|unrated)(?:[ ._-]+(?:cut|edition|version))?",
+    r"|(?:ultimate|final)[ ._-]+cut",
+    r"|(?:ultimate|special|collector(?:['’]?s)?)[ ._-]+edition",
+    r"|\d{1,3}(?:st|nd|rd|th)[ ._-]+anniversary(?:[ ._-]+edition)?|anniversary[ ._-]+edition",
+    r"|uncut|remaster(?:ed)?|imax(?:[ ._-]+edition)?)"
+);
+static EDITION_IN: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"(?i)\b{EDITION_WORDS}\b")).unwrap());
+static EDITION_ALONE: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"(?i)^{EDITION_WORDS}$")).unwrap());
+/// What is in brackets, parentheses or braces.
+static GROUPS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[([^\]]*)\]|\(([^)]*)\)|\{([^}]*)\}").unwrap());
 static PART_SUFFIX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)[ ._-]+(?:cd|dvd|disc|disk|part|pt)[ ._-]?\d{1,2}$").unwrap());
 static TRACK_PREFIX: LazyLock<Regex> =
@@ -150,22 +166,101 @@ fn cut_at_junk(s: &str) -> &str {
 /// `"The Matrix (1999) - 1080p"` → `("The Matrix", Some(1999))`.
 pub fn title_and_year(raw: &str) -> (String, Option<i32>) {
     let s = spaces(&strip_brackets(raw));
-    let max = max_year();
-    let mut chosen = None;
-    for caps in YEAR.captures_iter(&s) {
-        let m = caps.get(1).unwrap();
-        let year: i32 = m.as_str().parse().unwrap_or(0);
-        if m.start() > 0 && (1900..=max).contains(&year) {
-            chosen = Some((m.start(), year));
-        }
-    }
-    match chosen {
-        Some((start, year)) => {
+    match year_in(&s) {
+        Some((start, _, year)) => {
             let title = clean_title(&s[..start]);
             if title.is_empty() { (clean_title(cut_at_junk(&s)), Some(year)) } else { (title, Some(year)) }
         }
         None => (clean_title(cut_at_junk(&s)), None),
     }
+}
+
+/// The year a name (without its brackets, spaced) gives, where it starts
+/// and ends: the last one after the start of it.
+fn year_in(s: &str) -> Option<(usize, usize, i32)> {
+    let max = max_year();
+    let mut chosen = None;
+    for caps in YEAR.captures_iter(s) {
+        let m = caps.get(1).unwrap();
+        let year: i32 = m.as_str().parse().unwrap_or(0);
+        if m.start() > 0 && (1900..=max).contains(&year) {
+            chosen = Some((m.start(), m.end(), year));
+        }
+    }
+    chosen
+}
+
+/// An edition's words as they are shown: `directors.cut` → "Director's Cut".
+fn edition_name(words: &str) -> String {
+    words
+        .split([' ', '.', '_', '-'])
+        .filter(|word| !word.is_empty())
+        .map(|word| {
+            let lower = word.to_lowercase();
+            if lower.starts_with("director") {
+                "Director's".to_owned()
+            } else if lower.starts_with("collector") {
+                "Collector's".to_owned()
+            } else if lower == "imax" {
+                "IMAX".to_owned()
+            } else {
+                let mut chars = lower.chars();
+                chars.next().map(|first| first.to_uppercase().chain(chars).collect()).unwrap_or_default()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// The edition `text` names when it names nothing else, release details
+/// after it aside (`Director's Cut 1080p`).
+fn edition_alone(text: &str) -> Option<String> {
+    let separator = |c: char| c.is_whitespace() || matches!(c, '-' | '.' | '_' | ',');
+    let words = cut_at_junk(text.trim_matches(separator)).trim_matches(separator);
+    EDITION_ALONE.is_match(words).then(|| edition_name(words))
+}
+
+/// The edition a movie's name gives in words, apart from its title: after
+/// its year, or without one, after where release details begin; alone in
+/// brackets or parentheses; or without a year, alone after ` - `. Words
+/// before a year are the title's ("The Final Cut (2004)").
+fn edition_words(name: &str) -> Option<String> {
+    let s = spaces(&strip_brackets(name));
+    let year = year_in(&s);
+    let details = match year {
+        Some((_, end, _)) => Some(end),
+        None => JUNK.find(&s).map(|m| m.start()).filter(|start| *start > 0),
+    };
+    if let Some(found) = details.and_then(|start| EDITION_IN.find(&s[start..])) {
+        return Some(edition_name(found.as_str()));
+    }
+    let grouped =
+        GROUPS.captures_iter(name).find_map(|c| c.iter().skip(1).flatten().find_map(|g| edition_alone(g.as_str())));
+    grouped.or_else(|| year.is_none().then(|| s.rsplit_once(" - ").and_then(|(_, rest)| edition_alone(rest))).flatten())
+}
+
+/// A title without a year, less an edition set apart at its end
+/// (`Film - Director's Cut`, `Film (Uncut)`); the title itself when that
+/// would leave nothing.
+fn without_edition(title: &str) -> String {
+    let rest = if let Some(open) = title.strip_suffix(')').and_then(|t| t.rfind('(')) {
+        edition_alone(&title[open + 1..title.len() - 1]).map(|_| &title[..open])
+    } else {
+        title.rsplit_once(" - ").and_then(|(left, right)| edition_alone(right).map(|_| left))
+    };
+    rest.map(clean_title).filter(|t| !t.is_empty()).unwrap_or_else(|| title.to_owned())
+}
+
+/// The edition after the title of the folder a file is in, when the file
+/// is named as that film and the edition, without a year
+/// (`Film/Film Directors Cut.mkv`).
+fn edition_after_folder(stem: &str, folder: &str) -> Option<String> {
+    let (title, year) = title_and_year(stem);
+    if year.is_some() {
+        return None;
+    }
+    let (folder, _) = title_and_year(folder);
+    edition_alone(&title[prefix_end(&title, &folder)?..])
 }
 
 fn extract_ids(s: &str) -> (Option<i64>, Option<String>) {
@@ -174,11 +269,24 @@ fn extract_ids(s: &str) -> (Option<i64>, Option<String>) {
     (tmdb, imdb)
 }
 
-/// The edition a movie file is tagged with (`{edition-Director's Cut}`), in
-/// its name or its folder's. Editions of a film are versions of one movie.
-pub fn edition(path: &Path) -> Option<String> {
+/// The edition a file is tagged with (`{edition-Director's Cut}`), in its
+/// name or its folder's, else, of a `movie`'s, the one its name or its
+/// folder's gives in words (`Film (2010) - Director's Cut`, see
+/// [`edition_words`]). Editions of a film are versions of one movie.
+pub fn edition(path: &Path, movie: bool) -> Option<String> {
     let tagged = |name: &str| EDITION.captures(name).map(|c| c[1].trim().to_owned()).filter(|e| !e.is_empty());
-    tagged(&file_stem(path)).or_else(|| path.parent()?.file_name().and_then(|f| tagged(&f.to_string_lossy())))
+    let stem = file_stem(path);
+    let folder = path.parent().and_then(Path::file_name).map(|f| f.to_string_lossy().into_owned());
+    let found = tagged(&stem).or_else(|| folder.as_deref().and_then(tagged));
+    // Words name only a movie's edition: an episode's title may well be
+    // such words ("Final Cut").
+    if found.is_some() || !movie {
+        return found;
+    }
+    let stem = PART_SUFFIX.replace(&stem, "").into_owned();
+    edition_words(&stem)
+        .or_else(|| folder.as_deref().and_then(|folder| edition_after_folder(&stem, folder)))
+        .or_else(|| folder.as_deref().and_then(edition_words))
 }
 
 fn rel_components(path: &Path, root: &Path) -> Vec<String> {
@@ -215,8 +323,23 @@ pub fn parse_movie(path: &Path, root: &Path) -> MovieName {
         imdb_id = imdb_id.or(i);
     }
 
-    let from_file = title_and_year(&stem);
-    let from_folder = folder.as_deref().map(title_and_year);
+    // An edition set apart at the end of a name without a year is no part
+    // of its title, as one after a year isn't: copies of a film in its
+    // editions are one movie.
+    let mut from_file = title_and_year(&stem);
+    let mut from_folder = folder.as_deref().map(title_and_year);
+    if from_file.1.is_none() {
+        from_file.0 = without_edition(&from_file.0);
+        if let Some((folder_title, _)) = &from_folder
+            && let Some(f) = &folder
+            && edition_after_folder(&stem, f).is_some()
+        {
+            from_file.0 = folder_title.clone();
+        }
+    }
+    if let Some((folder_title, None)) = &mut from_folder {
+        *folder_title = without_edition(folder_title);
+    }
     let (title, year) = match (from_file, from_folder) {
         // A title of digits alone ("300", "1917") is the film's when the
         // name gives its year too, as a renamed file's does.
@@ -794,7 +917,7 @@ mod tests {
 
     #[test]
     fn editions_are_read_from_the_file_or_its_folder() {
-        let edition = |rel: &str| edition(&Path::new("/media/movies").join(rel));
+        let edition = |rel: &str| edition(&Path::new("/media/movies").join(rel), true);
         assert_eq!(edition("Blade Runner (1982) {edition-Final Cut}.mkv").as_deref(), Some("Final Cut"));
         assert_eq!(
             edition("Blade Runner (1982) {Edition-Director's Cut}/Blade Runner (1982).mkv").as_deref(),
@@ -804,6 +927,57 @@ mod tests {
         assert_eq!(edition("Alien (1979) {tmdb-348}.mkv"), None);
         // The tag stays out of the title, as every brace tag does.
         assert_eq!(movie("Blade Runner (1982) {edition-Final Cut}.mkv").title, "Blade Runner");
+    }
+
+    #[test]
+    fn editions_are_read_from_the_words_after_a_title() {
+        let edition = |rel: &str| edition(&Path::new("/media/movies").join(rel), true);
+        for (name, expected) in [
+            ("Film Name (2010) - Director's Cut.mkv", "Director's Cut"),
+            ("Film.Name.2010.Directors.Cut.1080p.BluRay.x264-GRP.mkv", "Director's Cut"),
+            ("Film Name (2010) [Extended Edition].mkv", "Extended Edition"),
+            ("Film Name (2010) EXTENDED.mkv", "Extended"),
+            ("Film Name (2010) Unrated Version.mkv", "Unrated Version"),
+            ("Film Name 2010 Remastered 2160p.mkv", "Remastered"),
+            ("Film Name (2010) 25th Anniversary Edition.mkv", "25th Anniversary Edition"),
+            ("Film Name (2010) IMAX.mkv", "IMAX"),
+            ("Film Name (2010) - Special Edition.mkv", "Special Edition"),
+            ("Film Name (2010) Collectors Edition.mkv", "Collector's Edition"),
+            ("Film Name (2010) Theatrical Cut - cd1.mkv", "Theatrical Cut"),
+            ("Film Name (2010) Theatrical Cut/Film Name (2010).mkv", "Theatrical Cut"),
+            ("Film Name (2010) {edition-Final Cut} Extended.mkv", "Final Cut"),
+            // Without a year: set apart, or after the folder's title.
+            ("Film Name - Director's Cut.mkv", "Director's Cut"),
+            ("Film Name (Uncut).mkv", "Uncut"),
+            ("Film Name [Remastered].mkv", "Remastered"),
+            ("Film Name Unrated 1080p.mkv", "Unrated"),
+            ("Film Name/Film Name Directors Cut.mkv", "Director's Cut"),
+        ] {
+            assert_eq!(edition(name).as_deref(), Some(expected), "{name}");
+            assert_eq!(movie(name).title, "Film Name", "{name}");
+        }
+        assert_eq!(movie("Film Name (2010) - Director's Cut.mkv").year, Some(2010));
+    }
+
+    #[test]
+    fn titles_with_edition_words_in_them_are_no_editions() {
+        let edition = |rel: &str| edition(&Path::new("/media/movies").join(rel), true);
+        for (name, title) in [
+            ("The Final Cut Society (2004).mkv", "The Final Cut Society"),
+            ("Director's Cut (2027).mkv", "Director's Cut"),
+            ("Extended Family Picnic (2019).mkv", "Extended Family Picnic"),
+            ("Uncut Diamonds (2019)/Uncut Diamonds (2019).mkv", "Uncut Diamonds"),
+            ("Special Edition Blues (2005).mkv", "Special Edition Blues"),
+            ("Theatrical Lives - The Final Cut (1983).mkv", "Theatrical Lives - The Final Cut"),
+            ("The Uncut Story.mkv", "The Uncut Story"),
+            ("Remastered Hearts.mkv", "Remastered Hearts"),
+            ("A Night - Special Guests.mkv", "A Night - Special Guests"),
+            ("Final Cut/Final Cut.mkv", "Final Cut"),
+            ("Ultimate Lanterns (2012).mkv", "Ultimate Lanterns"),
+        ] {
+            assert_eq!(edition(name), None, "{name}");
+            assert_eq!(movie(name).title, title, "{name}");
+        }
     }
 
     #[test]

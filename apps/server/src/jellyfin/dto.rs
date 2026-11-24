@@ -1119,7 +1119,7 @@ pub fn media_source(jellyfin: &Jellyfin, row: &ItemRow, file: &FileRow, token_id
     // Versions are named by their edition, as Jellyfin names them, else by
     // their file.
     let path = std::path::Path::new(&file.path);
-    let name = crate::library::parse::edition(path)
+    let name = crate::library::parse::edition(path, row.kind == "movie")
         .or_else(|| path.file_stem().map(|n| n.to_string_lossy().into_owned()))
         .unwrap_or_else(|| row.title.clone());
     MediaSource {
