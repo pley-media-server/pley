@@ -249,7 +249,7 @@ class MusicService : MediaLibraryService() {
             when {
                 heard != null -> playback.cue(heard.tracks, heard.startIndex, startMs = heard.startMs)
                 saved != null -> playback.cue(saved)
-                suggested != null -> playback.cue(suggested.tracks, suggested.startIndex, suggested.shuffle, suggested.startMs)
+                suggested != null -> playback.cue(suggested.tracks, suggested.startIndex, suggested.shuffle, suggested.startMs, suggested = true)
             }
         }
     }

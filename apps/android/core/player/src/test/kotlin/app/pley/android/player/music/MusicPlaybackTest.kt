@@ -1274,6 +1274,24 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun aSuggestedQueueIsSuggestedUntilATrackOfItStarts() = runTest {
+        val music = music()
+        // The library's suggestion for a car with nothing kept: not what played last on this device.
+        music.cue(album, startIndex = 1, suggested = true)
+        assertTrue(music.suggested)
+        music.play()
+        runCurrent()
+        assertFalse(music.suggested)
+
+        // What was kept, cued again, was played here; and a queue stopped is suggested no more.
+        music.cue(album.reversed(), suggested = true)
+        music.stop()
+        assertFalse(music.suggested)
+        music.cue(album.reversed())
+        assertFalse(music.suggested)
+    }
+
+    @Test
     fun anotherQueueIsNeverShownWithTheTrackBeforesPlace() = runTest {
         val music = music()
         music.play(album)

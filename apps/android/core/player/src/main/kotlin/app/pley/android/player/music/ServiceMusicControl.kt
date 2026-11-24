@@ -218,7 +218,8 @@ class ServiceMusicControl(
                 scope = main,
                 signInRead = { data.signInRead() },
             )
-            val keep ={ resume.keep(playback.queueState.value, playback.position().positionMs) }
+            // A suggestion waiting for a car's Play isn't what played last: the next car is offered what's heard last then.
+            val keep = { if (!playback.suggested) resume.keep(playback.queueState.value, playback.position().positionMs) }
             main.launch { playback.queueState.drop(1).collect { keep() } }
             main.launch {
                 data.session.state.map { it is SessionState.SignedOut || it is SessionState.NoServer }.distinctUntilChanged().collect { out ->

@@ -185,6 +185,13 @@ class MusicPlayback(
     /** The server refused what was asked ahead for this track (no transcode free beside it, say): the next is asked for as it comes. */
     private var aheadFailed = false
 
+    /**
+     * The queue waiting was suggested by the library, not played on this
+     * device ([cue]): not kept as what played last until a track of it starts.
+     */
+    var suggested = false
+        private set
+
     /** Paused for [PAUSED_HOLD_MS]: the event stream is let go in the background until it plays again. */
     private var rested = false
     private var resting: Job? = null
@@ -318,14 +325,26 @@ class MusicPlayback(
      * meanwhile. The same queue cued again, still waiting, stays as it is.
      * What was playing shuffled comes with [given]: where each of [tracks],
      * as they played, was in the order the queue was given, so it waits
-     * shuffled as it was ([MusicQueue.restore]).
+     * shuffled as it was ([MusicQueue.restore]). A [suggested] queue (the
+     * library's, for a car with nothing kept) is [suggested] until a track
+     * of it starts: nothing played it on this device.
      */
-    fun cue(tracks: List<ItemSummary>, startIndex: Int = 0, shuffle: Boolean = false, startMs: Long = 0, given: List<Int>? = null) {
+    fun cue(
+        tracks: List<ItemSummary>,
+        startIndex: Int = 0,
+        shuffle: Boolean = false,
+        startMs: Long = 0,
+        given: List<Int>? = null,
+        suggested: Boolean = false,
+    ) {
         if (tracks.isEmpty()) return
         val at = startIndex.coerceIn(tracks.indices)
         val waiting = queue.state
         if (waitingAt != null && !shuffle && waiting.index == at && waiting.given == given.orEmpty() && waiting.tracks.map { it.id } == tracks.map { it.id }) return
+        this.suggested = suggested
         failedInARow = 0
+        // A new queue: the server's refusal of what was asked ahead was for the track before.
+        aheadFailed = false
         cancelSkip()
         dropAhead()
         loadJob?.cancel()
@@ -647,6 +666,7 @@ class MusicPlayback(
         out = null
         chapterTicker?.cancel()
         chapterTicker = null
+        suggested = false
         queue.clear()
         readChapters(null)
         queue.repeat = MusicRepeat.Off
@@ -679,6 +699,7 @@ class MusicPlayback(
      */
     private fun startTrack(atMs: Long, sameTrack: Boolean = false, play: Boolean? = null) {
         val track = queue.current ?: return
+        suggested = false
         if (!sameTrack) {
             fallback = null
             recreates = 0
