@@ -27,6 +27,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
+import { markGlyph } from "pley-placeholder";
 import {
   queries,
   sessionCommandError,
@@ -527,8 +528,8 @@ function PlayingControls({
             candidates={posterCandidates(session.item)}
             width={40}
             alt=""
-            // No mark: too small for it, and the lines beside it name the title.
             title={session.item.title}
+            mark={markGlyph(session.item.kind)}
             className={cn("w-10 shrink-0 rounded", session.item.kind === "track" ? "aspect-square" : "aspect-[2/3]")}
           />
         ) : null}

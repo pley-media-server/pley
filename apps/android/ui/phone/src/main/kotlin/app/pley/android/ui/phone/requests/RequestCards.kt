@@ -116,7 +116,6 @@ internal fun RequestCard(
             Artwork(
                 image = remember(request.posterUrl, origin) { ArtworkImage.of(request.posterUrl, origin) },
                 title = request.title,
-                titleStyle = MaterialTheme.typography.labelSmall,
                 mark = MarkGlyph.of(request.kind),
                 modifier = Modifier
                     .width(POSTER_WIDTH)

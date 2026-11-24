@@ -85,13 +85,12 @@ internal fun TvPlaylistArt(
                     }
                 }
             }
-            // Should the picture not come, Pley's mark over the title: music's glyph for tracks, play for movies and
-            // episodes alike.
+            // Should the picture not come, Pley's mark: music's glyph for tracks, play for movies and episodes alike. The
+            // title isn't on it: the caption or the row's line beside the cover names it.
             images.isNotEmpty() -> Artwork(
                 images.first(),
                 title,
                 Modifier.fillMaxSize(),
-                titleStyle = PleyType.Tv.Title.copy(color = PleyColors.Fg.copy(alpha = 0.7f)),
                 mark = if (video) MarkGlyph.Play else MarkGlyph.Music,
             )
             else -> Box(

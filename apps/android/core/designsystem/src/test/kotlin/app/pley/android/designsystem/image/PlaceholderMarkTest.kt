@@ -26,21 +26,21 @@ class PlaceholderMarkTest {
     private val MarkGlyph.key: String get() = name.lowercase()
 
     @Test
-    fun eachGlyphIsMarksJsons() {
+    fun eachGlyphIsThePlaceholderFiles() {
         val glyphs = marks.getValue("glyphs").jsonObject
         assertEquals(glyphs.keys, MarkGlyph.entries.map { it.key }.toSet())
         for (glyph in MarkGlyph.entries) assertEquals(glyph.name, glyphs.getValue(glyph.key).jsonPrimitive.content, glyph.path)
     }
 
     @Test
-    fun thePostersAreMarksJsons() {
+    fun thePostersAreThePlaceholderFiles() {
         val posters = marks.getValue("posters").jsonArray.map { it.jsonObject }
         val expected = posters.map { it.getValue("path").jsonPrimitive.content to it.getValue("alpha").jsonPrimitive.float }
         assertEquals(expected, PlaceholderMark.POSTERS)
     }
 
     @Test
-    fun theSizesAreMarksJsons() {
+    fun theSizesAreThePlaceholderFiles() {
         assertEquals(number("grid"), PlaceholderMark.GRID, 0f)
         assertEquals(number("share"), PlaceholderMark.SHARE, 0f)
         assertEquals(number("shareOverTitle"), PlaceholderMark.SHARE_OVER_TITLE, 0f)
@@ -49,7 +49,7 @@ class PlaceholderMarkTest {
     }
 
     @Test
-    fun eachKindTakesMarksJsonsGlyph() {
+    fun eachKindTakesThePlaceholderFilesGlyph() {
         val kinds = marks.getValue("kinds").jsonObject.mapValues { it.value.jsonPrimitive.content }
         assertEquals(kinds, MarkGlyph.KINDS.mapValues { it.value.key })
         assertEquals(text("default"), MarkGlyph.DEFAULT.key)

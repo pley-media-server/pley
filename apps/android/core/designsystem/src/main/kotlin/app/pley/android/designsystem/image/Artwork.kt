@@ -325,8 +325,10 @@ private class PlaceholderNode(
             val text = layout
             val mark = mark
             // No picture to come (none, or none of its addresses loaded): Pley's mark on the gradient, the title under
-            // it. Not while one loads: a page of tiles scrolling in would flash marks before their pictures.
-            val markSide = if (mark != null && (load.none || load.failed)) markSide(text) else 0f
+            // it. Not while one loads: a page of tiles scrolling in would flash marks before their pictures. Nor while
+            // a title is still being laid out: the mark would show at its full size, then shrink above the title.
+            val titleComing = titleStyle != null && title.isNotEmpty() && text == null
+            val markSide = if (mark != null && (load.none || load.failed) && !titleComing) markSide(text) else 0f
             val gap = if (markSide > 0f && text != null) PlaceholderMark.Gap.toPx() else 0f
             val top = (size.height - markSide - gap - (text?.size?.height ?: 0)) / 2f
             if (mark != null && markSide > 0f) drawMark(mark, Offset((size.width - markSide) / 2f, top), markSide)

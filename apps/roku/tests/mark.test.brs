@@ -12,7 +12,7 @@ function markTestMarks() as object
     return marks
 end function
 
-sub test_mark_glyph_by_kind_is_marks_jsons()
+sub test_mark_glyph_by_kind_is_the_placeholder_files()
     marks = markTestMarks()
     if marks = invalid then return
     for each kind in marks.kinds
@@ -30,6 +30,8 @@ sub test_mark_a_tmdb_titles_glyph_is_its_kinds()
     tkEqual(markTileGlyph("discoverSeason", ""), "shows")
     tkEqual(markTileGlyph("album", ""), "music")
     tkEqual(markTileGlyph("person", ""), "play")
+    tkEqual(markTileGlyph("playlist", "audio"), "music")
+    tkEqual(markTileGlyph("playlist", "video"), "play")
 end sub
 
 sub test_mark_every_glyph_has_a_picture_of_each_shape()

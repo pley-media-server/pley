@@ -158,15 +158,16 @@ rates as the decoder gives them, the same in every language.
 ### Phones and tablets
 
 - **Pictures**, here and on TVs: a title without one, or whose picture
-  doesn't load, shows its title's gradient (the web's) with Pley's mark
+  doesn't load, shows its title's gradient (every app's) with Pley's mark
   on it, a glyph cut out of its front poster for the title's kind of
   library (a clapperboard for movies, a TV for shows, notes for music,
   play for the rest); while a picture loads, the gradient alone. A
   tile's name is in its caption, not on its picture. The mark shows only
   where the title's name is by its picture (a caption, the line beside
   it): backdrops, people, Live TV's programs and a playlist's mosaic
-  keep the gradient alone. The mark is `packages/placeholder`'s,
-  which a unit test holds the app's copy of its paths to.
+  keep the gradient alone, and the player's Up Next card too, as it
+  doesn't know its title's kind. The gradient and the mark are
+  `packages/placeholder`'s, which unit tests hold the app's copies to.
 - **The player** shows its controls, the title with them, for 3 s as
   playback starts and as each later item begins (the next episode, a
   queue's next), where TVs show the title alone at the top; a tap shows

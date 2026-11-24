@@ -54,9 +54,14 @@ export const MARK = {
 
 const kinds: Record<string, string | undefined> = placeholder.kinds;
 
-/** The glyph for an item of `kind` (the API's `kind`): its library's, or play. */
+const own = Object.prototype.hasOwnProperty;
+
+/**
+ * The glyph for an item of `kind` (the API's `kind`): its library's, or
+ * play. Not Object.hasOwn: the Samsung app runs on Chromium 56.
+ */
 export function markGlyph(kind?: string | null): MarkGlyph {
-  return ((kind && Object.hasOwn(kinds, kind) && kinds[kind]) || placeholder.default) as MarkGlyph;
+  return ((kind && own.call(kinds, kind) && kinds[kind]) || placeholder.default) as MarkGlyph;
 }
 
 const layers = new Map<MarkGlyph, MarkLayer[]>();

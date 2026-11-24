@@ -86,6 +86,14 @@ public static class Placeholder
     public static PlaceholderLayout Tile(TileModel model, TileKind kind, bool failed = false) =>
         Layout(kind.Width, kind.Height, missing: model.Images.Count == 0 || failed, model.MarkGlyph);
 
+    /// <summary>
+    /// The words on a tile's placeholder: a tile that is no title's, with neither a picture nor a kind
+    /// (Discover's Show more and Try again), keeps its words on its well, as it had them before the
+    /// mark. A title's tile has none, its caption names it; a person's round one neither.
+    /// </summary>
+    public static string? Words(TileModel model, TileKind kind) =>
+        model.ItemKind == null && model.Images.Count == 0 && !kind.Round ? model.Title : null;
+
     static float MarkSide(float width, float height, float? titleHeight)
     {
         var side = Math.Min(width, height) * (titleHeight == null ? MarkShare : MarkShareOverTitle);

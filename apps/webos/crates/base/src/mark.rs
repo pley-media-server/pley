@@ -140,7 +140,7 @@ mod tests {
     }
 
     #[test]
-    fn the_sizes_match_marks_json() {
+    fn the_sizes_match_the_placeholder_file() {
         let m = marks();
         assert!(close(number(&m, "grid"), GRID));
         assert!(close(number(&m, "share"), SHARE));
@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn the_posters_match_marks_json() {
+    fn the_posters_match_the_placeholder_file() {
         let m = marks();
         let posters = m["posters"].as_array().unwrap();
         assert_eq!(posters.len(), POSTERS.len());
@@ -161,7 +161,7 @@ mod tests {
     }
 
     #[test]
-    fn the_glyphs_match_marks_json() {
+    fn the_glyphs_match_the_placeholder_file() {
         let m = marks();
         let glyphs = m["glyphs"].as_object().unwrap();
         assert_eq!(glyphs.len(), MarkGlyph::ALL.len());
@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn the_kinds_and_the_default_match_marks_json() {
+    fn the_kinds_and_the_default_match_the_placeholder_file() {
         let m = marks();
         let kinds = m["kinds"].as_object().unwrap();
         assert_eq!(kinds.len(), KINDS.len());

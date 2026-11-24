@@ -39,7 +39,8 @@ sub onContent()
     m.subtitle.color = "0xA1A9B6FF"
     if item.hasField("subtitleColor") then m.subtitle.color = item.subtitleColor
     ' A Live TV channel without its logo shows its name in the frame, as the
-    ' other apps do, and no mark; a person without a photo, the frame alone.
+    ' other apps do, and no mark; a person without a photo (a library's or
+    ' TMDB's cast), the frame alone.
     kind = ""
     if item.hasField("kind") then kind = item.kind
     named = words or kind = "channel"
@@ -66,7 +67,7 @@ sub onContent()
     ' A frame without a title is one that loads (a row's skeleton, a
     ' library's place a jump passed over): it stays empty.
     placeholder = ""
-    if not named and kind <> "person" and item.title <> "" then placeholder = placeholderUri(item)
+    if not named and kind <> "person" and kind <> "cast" and item.title <> "" then placeholder = placeholderUri(item)
     m.poster.failedBitmapUri = placeholder
     image = item.image
     if image = invalid or image = "" then image = placeholder
@@ -78,9 +79,10 @@ end sub
 function placeholderUri(item as object) as string
     kind = ""
     if item.hasField("kind") then kind = item.kind
-    tmdbKind = ""
-    if item.hasField("tmdbKind") then tmdbKind = item.tmdbKind
-    return markPlaceholderUri(markTileGlyph(kind, tmdbKind), m.wide, m.square)
+    detail = ""
+    if item.hasField("tmdbKind") then detail = item.tmdbKind
+    if item.hasField("playlistKind") then detail = item.playlistKind
+    return markPlaceholderUri(markTileGlyph(kind, detail), m.wide, m.square)
 end function
 
 sub onLayout()

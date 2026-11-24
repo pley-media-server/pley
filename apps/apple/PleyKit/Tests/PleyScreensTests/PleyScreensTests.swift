@@ -598,7 +598,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         return nil
     }()
 
-    @Test func theMarkIsTheOneInMarksJson() throws {
+    @Test func theMarkIsTheOneInThePlaceholderFile() throws {
         let marks = try #require(Self.marks)
         #expect(Double(Placeholder.markGrid) == marks.grid)
         #expect(Double(Placeholder.markShare) == marks.share)

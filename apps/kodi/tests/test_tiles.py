@@ -72,7 +72,7 @@ class TilesTest(unittest.TestCase):
         self.assertEqual((counted.properties["count"], counted.properties["countsize"]), ("117", "3"))
         self.assertTrue(counted.properties["ph"].startswith("ph-"))
 
-    def test_the_marks_glyph_is_the_librarys_as_marks_json_has_it(self):
+    def test_the_marks_glyph_is_the_librarys_as_the_placeholder_file_has_it(self):
         with open(MARKS, encoding="utf-8") as f:
             marks = json.load(f)
         self.assertEqual(tiles.GLYPHS, marks["kinds"])

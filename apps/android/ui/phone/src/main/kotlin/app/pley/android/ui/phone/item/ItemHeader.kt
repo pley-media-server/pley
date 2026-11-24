@@ -118,7 +118,6 @@ internal fun ItemHeader(page: ItemPage, actions: PageActions, requests: @Composa
                     Artwork(
                         image = poster,
                         title = page.title,
-                        titleStyle = MaterialTheme.typography.titleSmall,
                         mark = MarkGlyph.of(page.kind),
                         modifier = Modifier
                             .width(WidePosterWidth)

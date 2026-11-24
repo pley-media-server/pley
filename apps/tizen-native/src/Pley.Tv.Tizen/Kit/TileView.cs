@@ -28,6 +28,8 @@ sealed class TileView : View
     /// <summary>Pley's mark on the placeholder, made the first time no picture will come, and the glyph cut out of it.</summary>
     ImageView? mark;
     string? markGlyph;
+    /// <summary>The words on a placeholder that is no title's (Show more), made the first time one shows.</summary>
+    TextLabel? words;
     /// <summary>The progress bar, the watched tick or count and the badges, made again for each tile shown.</summary>
     readonly View overlays;
     readonly TextLabel title;
@@ -165,6 +167,7 @@ sealed class TileView : View
             // The mark only when no picture will come: while one loads, the gradient alone, so a
             // page of tiles scrolling in doesn't flash marks before their pictures.
             Mark(known ? null : Placeholder.Tile(model, kind).Glyph);
+            Words(Placeholder.Words(model, kind));
         }
         // Drawn again only when they change, the new over the old for the same item: emptied first,
         // a badge's text and the progress bar blinked as Home came back from a film.
@@ -232,6 +235,30 @@ sealed class TileView : View
         if (!mark.Visibility) mark.Show();
     }
 
+    /// <summary>
+    /// The words on the placeholder of a tile that is no title's (Placeholder.Words), or none, each
+    /// only when they change; the label is made the first time a tile shows words, and kept.
+    /// </summary>
+    void Words(string? text)
+    {
+        if (text == null)
+        {
+            if (words != null && words.Text.Length > 0) words.Text = "";
+            return;
+        }
+        if (words == null)
+        {
+            words = Text.Label("", PleyType.Title, new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, 0.7f), maxLines: 4);
+            words.Size = new Size(w - Ui.Dp(24), h - Ui.Dp(24));
+            words.Position = new Position(Ui.Dp(12), Ui.Dp(12));
+            words.HorizontalAlignment = HorizontalAlignment.Center;
+            words.VerticalAlignment = VerticalAlignment.Center;
+            well.Add(words);
+            words.LowerToBottom();
+        }
+        if (words.Text != text) words.Text = text;
+    }
+
     /// <summary>What the overlays show, and for which item, as last drawn.</summary>
     string? overlaysFor;
     long overlaysId = -1;
@@ -288,7 +315,14 @@ sealed class TileView : View
             if (Disposed || mine != shown) return;
             if (file == null)
             {
-                // None of its addresses loaded: no picture will come.
+                // None of its addresses loaded: no picture will come. One shown before left the well
+                // Surface2 to come back at once; it won't now, so the gradient goes back under the mark.
+                if (PictureKey(Model) is { } failed) Seen.Remove(failed);
+                if (!kind.Round)
+                {
+                    var (from, to) = Placeholder.Colors(Model.Title);
+                    well.Background = Gradients.Diagonal(AvatarView.Rgb(from), AvatarView.Rgb(to));
+                }
                 Mark(Placeholder.Tile(Model, kind, failed: true).Glyph);
                 return;
             }

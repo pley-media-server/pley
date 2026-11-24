@@ -133,8 +133,8 @@ pub fn rasterize(icon: Icon, size_px: u32, stroke: f32) -> Option<Vec<u8>> {
     Some(pixmap.data().as_chunks::<4>().0.iter().map(|p| p[3]).collect())
 }
 
-/// Pley's mark with `glyph` cut out of it ([`pley_base::mark`], the web's
-/// `LogoMark`), `size_px` square as one mask: the posters don't overlap, so
+/// Pley's mark with `glyph` cut out of it ([`pley_base::mark`], as every
+/// app draws it), `size_px` square as one mask: the posters don't overlap, so
 /// each pixel's byte is its coverage times its poster's share, and one tint
 /// draws all three, in the atlas with the text and icons around it.
 fn pley_mark(glyph: MarkGlyph, size_px: u32) -> Option<Vec<u8>> {

@@ -280,6 +280,7 @@ function SeasonRow({ season, title, manage }: { season: DiscoverSeason; title: D
         width={40}
         alt=""
         title=""
+        mark="shows"
         className="aspect-[2/3] w-10 shrink-0 rounded ring-1 ring-white/5"
       />
       <div className="min-w-0 flex-1">

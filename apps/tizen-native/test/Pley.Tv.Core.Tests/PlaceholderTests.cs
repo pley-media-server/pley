@@ -56,6 +56,18 @@ public class PlaceholderTests
         Assert.Equal(0x0000FFu, Placeholder.Hsl(240, 1, 0.5f));
     }
 
+    [Fact]
+    public void A_tile_that_is_no_titles_keeps_its_words()
+    {
+        // Discover's Show more: no picture, no kind. Its words stay on its well, with no mark.
+        var more = new TileModel(-1, "Show more", "", Array.Empty<string>(), 0f, false, 0, Array.Empty<string>(), "Show more");
+        Assert.Equal("Show more", Placeholder.Words(more, TileKind.Poster));
+        Assert.False(Placeholder.Tile(more, TileKind.Poster).Mark);
+        // A title's tile has its caption; a person's round one shows its picture's circle alone.
+        Assert.Null(Placeholder.Words(Tile(), TileKind.Poster));
+        Assert.Null(Placeholder.Words(Tile(kind: null), TileKind.Person));
+    }
+
     static TileModel Tile(string? kind = "movie", string? image = null) =>
         new TileModel(1, "Northern Lights", "2021", image == null ? new string[0] : new[] { image }, 0, false, 0, new string[0], "", kind);
 
@@ -155,7 +167,7 @@ public class PlaceholderTests
     static Dictionary<string, string> Map(JsonElement map) => map.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString()!);
 
     [Fact]
-    public void Kinds_take_the_glyphs_marks_json_gives_them()
+    public void Kinds_take_the_glyphs_the_placeholder_file_gives_them()
     {
         var marks = Marks();
         var kinds = Map(marks.GetProperty("kinds"));
@@ -172,7 +184,7 @@ public class PlaceholderTests
     }
 
     [Fact]
-    public void The_marks_sizes_are_marks_json()
+    public void The_marks_sizes_are_the_placeholder_files()
     {
         var marks = Marks();
         Assert.Equal(Placeholder.MarkShare, marks.GetProperty("share").GetSingle());
@@ -186,7 +198,7 @@ public class PlaceholderTests
     /// placeholder.json's posters, white at their alphas, the glyph cut out of the front one, even-odd.
     /// </summary>
     [Fact]
-    public void Each_glyphs_svg_is_marks_json()
+    public void Each_glyphs_svg_is_the_placeholder_files()
     {
         var marks = Marks();
         var grid = marks.GetProperty("grid").GetInt32();

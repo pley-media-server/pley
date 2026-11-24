@@ -14,11 +14,13 @@ function markGlyph(kind as string) as string
     return "play"
 end function
 
-' The glyph for a tile of kind: a TMDB title's (kind "discover") is its
-' tmdbKind's, "movie" or "show", and a TMDB season's a season's.
-function markTileGlyph(kind as string, tmdbKind as string) as string
-    if kind = "discover" then return markGlyph(tmdbKind)
+' The glyph for a tile of kind, detail saying more of it: a TMDB title's
+' (kind "discover") is its tmdbKind's, "movie" or "show", a TMDB season's a
+' season's, and a playlist's music's when it holds music (its kind "audio").
+function markTileGlyph(kind as string, detail as string) as string
+    if kind = "discover" then return markGlyph(detail)
     if kind = "discoverSeason" then return markGlyph("season")
+    if kind = "playlist" and detail = "audio" then return markGlyph("track")
     return markGlyph(kind)
 end function
 

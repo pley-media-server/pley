@@ -109,8 +109,9 @@ pub fn cover(ui: &mut Ui, rect: Rect, card: &Card, corner: f32, glyph: f32) {
         if shown.is_some_and(|s| s.opaque()) {
             ui.fill(rect, theme::SURFACE2, corner);
         } else {
+            // No title on it: the tile's caption or the row beside the cover names it.
             let mark = shown.is_none().then_some(card.mark);
-            pley_kit::placeholder(ui, rect, &card.title, &card.title, mark, corner);
+            pley_kit::placeholder(ui, rect, &card.title, "", mark, corner);
         }
         if let Some(s) = shown {
             ui.draw_image(rect, &s, &ImageOpts::cover().rounded(corner));

@@ -270,7 +270,6 @@ private fun Poster(detail: DiscoverDetail, origin: String, width: Dp) {
     Artwork(
         image = remember(detail.posterUrl, origin) { ArtworkImage.of(detail.posterUrl, origin) },
         title = detail.title,
-        titleStyle = MaterialTheme.typography.labelMedium,
         mark = MarkGlyph.of(detail.kind),
         modifier = Modifier
             .width(width)
@@ -362,7 +361,6 @@ private fun SeasonRow(season: DiscoverSeason, detail: DiscoverDetail, manage: Bo
         Artwork(
             image = remember(season.posterUrl, origin) { ArtworkImage.of(season.posterUrl, origin) },
             title = name,
-            titleStyle = MaterialTheme.typography.labelSmall,
             mark = MarkGlyph.of(ItemKind.Season),
             modifier = Modifier
                 .width(SeasonPosterWidth)
