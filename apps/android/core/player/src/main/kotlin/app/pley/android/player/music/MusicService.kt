@@ -595,7 +595,16 @@ class MusicService : MediaLibraryService() {
             Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED))
 
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
-            if (!allowed(controller)) return MediaSession.ConnectionResult.reject()
+            if (!allowed(controller)) {
+                // An app the person gave access to notifications (a watch's companion, a remote-control app): Media3
+                // trusts it, as Android lets it control any media session. It plays, pauses, skips and seeks, as a
+                // media button does; it doesn't browse the library or choose what plays.
+                if (!controller.isTrusted) return MediaSession.ConnectionResult.reject()
+                return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
+                    .setAvailableSessionCommands(SessionCommands.EMPTY)
+                    .setAvailablePlayerCommands(PLAYBACK_ONLY)
+                    .build()
+            }
             val car = isCar(controller)
             // The car reads the library's pictures from the app (MusicArt): it may read them, and only them.
             if (car) grantArt(controller.packageName)
@@ -928,6 +937,23 @@ class MusicService : MediaLibraryService() {
 
     private companion object {
         const val SESSION_ID = "pley.music"
+
+        /**
+         * What an app with access to notifications may do ([onConnect]): play, pause, stop, skip and seek, and read
+         * what plays to show it; never choose what plays.
+         */
+        val PLAYBACK_ONLY: Player.Commands = Player.Commands.Builder().addAll(
+            Player.COMMAND_PLAY_PAUSE,
+            Player.COMMAND_STOP,
+            Player.COMMAND_SEEK_TO_NEXT,
+            Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+            Player.COMMAND_SEEK_TO_PREVIOUS,
+            Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+            Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+            Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
+            Player.COMMAND_GET_METADATA,
+            Player.COMMAND_GET_TIMELINE,
+        ).build()
 
         /** Shuffle's button: shuffles the queue, or plays it in order again. */
         val SHUFFLE = SessionCommand("app.pley.music.SHUFFLE", Bundle.EMPTY)

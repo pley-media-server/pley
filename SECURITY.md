@@ -743,7 +743,9 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   Android Auto and the Google app: those two by the certificate Google signs
   them with, and only as the app that asks (its name must be the asking
   uid's). They browse the music and pick what plays; a media button, from a
-  headset or another app, only plays, pauses and skips. Their covers come
+  headset or another app, only plays, pauses and skips, as do apps given
+  access to notifications (a watch's companion), which Android lets control
+  any media session. Their covers come
   through a content provider that isn't exported: each of them is granted
   reading it alone, and it fetches only the server's item and collection
   pictures and Live TV's channel logos. What music played last is kept on
