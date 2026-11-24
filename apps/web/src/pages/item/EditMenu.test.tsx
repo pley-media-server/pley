@@ -5,7 +5,7 @@ import type { ItemDetail } from "@/api/types";
 import { makeItem } from "@/test/fixtures";
 import { itemUrl } from "@/lib/urls";
 import { LocationDisplay, mockApi, renderWithProviders } from "@/test/render";
-import { EditDialogs } from "./EditMenu";
+import { EditDialogs, editActions } from "./EditMenu";
 
 function movie(overrides: Partial<ItemDetail> = {}): ItemDetail {
   return {
@@ -151,5 +151,91 @@ describe("EditDialogs", () => {
     mockApi({ "GET /api/items/5/matches": () => [] });
     renderWithProviders(<EditDialogs item={movie()} dialog="match" onClose={() => {}} />);
     expect(screen.queryByRole("button", { name: "Undo Fix Match" })).not.toBeInTheDocument();
+  });
+});
+
+function audiobook(overrides: Partial<ItemDetail> = {}): ItemDetail {
+  return movie({
+    ...makeItem({ id: 7, kind: "audiobook", title: "Small Hours", year: 1987 }),
+    tmdb_id: null,
+    book: { authors: ["Vale, Imogen"], narrators: [], series: null, series_index: null, openlibrary_id: "OL3W" },
+    ...overrides,
+  });
+}
+
+describe("editing an audiobook", () => {
+  it("offers its details, its match and its cover, not a background", () => {
+    expect(editActions(audiobook()).map((a) => [a.dialog, a.label])).toEqual([
+      ["details", "Edit details…"],
+      ["match", "Fix match…"],
+      ["poster", "Choose cover…"],
+    ]);
+  });
+
+  it("edits who wrote and reads a book and its series, a name to a line", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({ "PATCH /api/items/7": () => audiobook() });
+    renderWithProviders(<EditDialogs item={audiobook()} dialog="details" onClose={() => {}} />);
+    // A film's fields aren't a book's.
+    expect(screen.queryByLabelText("Studio")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Content rating")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Authors")).toHaveValue("Vale, Imogen");
+
+    await user.type(screen.getByLabelText("Narrators"), "June Ashby{Enter}Ada Quill");
+    await user.type(screen.getByLabelText("Series"), "Night Porters");
+    await user.type(screen.getByLabelText("Book in series"), "2.5");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({
+        narrators: ["June Ashby", "Ada Quill"],
+        series: "Night Porters",
+        series_index: 2.5,
+      }),
+    );
+  });
+
+  it("matches a book to an Open Library work or a recording, marking the one it has", async () => {
+    const user = userEvent.setup();
+    const work = { asin: null, narrators: [], year: 1987, poster_url: null };
+    const requests = mockApi({
+      "GET /api/items/7/matches": () => [
+        { ...work, openlibrary_id: "OL3W", title: "Small Hours", authors: ["Imogen Vale"] },
+        { ...work, openlibrary_id: "OL9W", title: "Small Hours: A Porter's Year", authors: ["Imogen Vale"] },
+        {
+          openlibrary_id: null,
+          asin: "B0HOURS001",
+          title: "Small Hours (Unabridged)",
+          authors: ["Imogen Vale"],
+          narrators: ["June Ashby"],
+          year: 2019,
+          poster_url: null,
+        },
+      ],
+      "POST /api/items/7/match": () => audiobook({ locked_fields: ["match"] }),
+    });
+    renderWithProviders(<EditDialogs item={audiobook()} dialog="match" onClose={() => {}} />);
+
+    // Searched with the book's own writer.
+    await screen.findByText("Open Library · OL9W");
+    expect(requests.find((r) => r.path.startsWith("/api/items/7/matches"))?.path).toContain("author=Vale%2C+Imogen");
+    expect(screen.getByRole("button", { name: /OL3W/ })).toHaveTextContent("Current");
+    expect(screen.getByText("Read by June Ashby")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /B0HOURS001/ }));
+    await waitFor(() =>
+      expect(requests.find((r) => r.method === "POST")?.body).toEqual({ asin: "B0HOURS001" }),
+    );
+  });
+
+  it("says a book's match was chosen by hand, and undoes it", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/items/7/matches": () => [],
+      "PATCH /api/items/7": () => audiobook(),
+    });
+    renderWithProviders(<EditDialogs item={audiobook({ locked_fields: ["match"] })} dialog="match" onClose={() => {}} />);
+    expect(screen.getByText(/the book’s files don’t change this match/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo Fix Match" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ match: null }));
   });
 });

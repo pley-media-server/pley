@@ -36,11 +36,13 @@ export function MoreActions({ item, file = item.files[0] }: { item: ItemDetail; 
 
   const admin = user.is_admin;
   const edits = admin ? editActions(item) : [];
+  // No playlist holds an audiobook's parts.
+  const playlists = item.kind === "audiobook" ? null : lists;
   const canCollect = admin && collectable(item);
   const canAnalyze = admin && ANALYZABLE.has(item.kind);
   // The Android app's web view keeps no files (the app downloads on its own).
   const download = file && appShell() !== "android" ? file : null;
-  if (!lists && !admin && !download) return null;
+  if (!playlists && !admin && !download) return null;
 
   const findMarkers = () => {
     const scope = item.kind === "episode" ? "season" : item.kind === "show" ? "show" : "item";
@@ -76,18 +78,18 @@ export function MoreActions({ item, file = item.files[0] }: { item: ItemDetail; 
                 <span className="ml-auto whitespace-nowrap pl-6 text-xs tabular-nums text-subtle">{formatBytes(download.size)}</span>
               </MenuItem>
             ) : null}
-            {download && lists ? <MenuSeparator /> : null}
-            {lists ? (
-              <MenuItem icon={<ListPlus />} onClick={() => (close(), lists.addToPlaylist(item))}>
+            {download && playlists ? <MenuSeparator /> : null}
+            {playlists ? (
+              <MenuItem icon={<ListPlus />} onClick={() => (close(), playlists.addToPlaylist(item))}>
                 {t("actions.addToPlaylist")}
               </MenuItem>
             ) : null}
-            {lists && canCollect ? (
-              <MenuItem icon={<FolderPlus />} onClick={() => (close(), lists.addToCollection(item))}>
+            {playlists && canCollect ? (
+              <MenuItem icon={<FolderPlus />} onClick={() => (close(), playlists.addToCollection(item))}>
                 {t("actions.addToCollection")}
               </MenuItem>
             ) : null}
-            {edits.length ? <MenuSeparator /> : null}
+            {edits.length && (download || playlists) ? <MenuSeparator /> : null}
             {edits.map((edit) => (
               <MenuItem key={edit.dialog} icon={edit.icon} onClick={() => (close(), setDialog(edit.dialog))}>
                 {edit.label}

@@ -164,6 +164,12 @@ async fn start_mock() -> (Mock, String) {
             get(|Query(q): Query<Vec<(String, String)>>| async move {
                 if q.iter().any(|(k, v)| k == "title" && v == "Small Hours") {
                     json_reply(OL_SEARCH)
+                } else if q.iter().any(|(k, v)| k == "q" && v == "key:/works/OL9W") {
+                    // A work looked up by its id, for Fix Match.
+                    json_reply(
+                        r#"{"numFound": 1, "docs": [{"key": "/works/OL9W", "title": "Collected Nights",
+                            "author_name": ["Imogen Vale"], "first_publish_year": 1999, "cover_i": 11}]}"#,
+                    )
                 } else {
                     json_reply(r#"{"numFound": 0, "docs": []}"#)
                 }
@@ -172,7 +178,14 @@ async fn start_mock() -> (Mock, String) {
         .route(
             "/ol/works/{id}",
             get(|Path(id): Path<String>| async move {
-                if id == "OL3W.json" { json_reply(OL_WORK) } else { StatusCode::NOT_FOUND.into_response() }
+                match id.as_str() {
+                    "OL3W.json" => json_reply(OL_WORK),
+                    "OL9W.json" => json_reply(
+                        r#"{"key": "/works/OL9W", "title": "Collected Nights", "description": "Every night, collected.",
+                            "covers": [11, -1, 12, 11]}"#,
+                    ),
+                    _ => StatusCode::NOT_FOUND.into_response(),
+                }
             }),
         )
         .layer(axum::middleware::from_fn_with_state(mock.clone(), record))
@@ -636,6 +649,137 @@ async fn audiobooks_from_open_library_and_audnexus() {
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
     assert!(body["message"].as_str().unwrap().contains("Open Library"));
     assert_eq!(mock.requests.lock().len(), before);
+}
+
+/// Fix Match for a book: a work or a recording chosen by hand wins over the
+/// search, takes away what the earlier match filled in, keeps hand edits,
+/// and once undone the search finds the book again.
+#[tokio::test]
+async fn audiobooks_matched_by_hand() {
+    let (mock, base) = start_mock().await;
+    let app = TestApp::new(&base).await;
+    app.seed_picture(&format!("{base}/audnexus-images/lantern.jpg")).await;
+    app.seed_picture(&format!("{base}/olcovers/b/id/7-L.jpg")).await;
+    app.seed_picture(&format!("{base}/olcovers/b/id/11-L.jpg")).await;
+    let token = app.setup_admin().await;
+    app.media_file("books/Imogen Vale/Small Hours/01.mp3");
+    let lib = app.library(&token, "audiobooks", "books").await;
+    let found = app.single_item(&token, lib).await;
+    let id = found["id"].as_i64().unwrap();
+    assert_eq!(found["book"]["openlibrary_id"], "OL3W", "{found}");
+    let poster = || {
+        let db = app.state.db.read.clone();
+        async move {
+            sqlx::query_scalar::<_, Option<String>>("SELECT poster FROM items WHERE id = ?")
+                .bind(id)
+                .fetch_one(&db)
+                .await
+                .unwrap()
+        }
+    };
+    let searched_cover = poster().await;
+    assert!(searched_cover.is_some());
+
+    // Open Library's works by the book's own writer, and an ASIN typed
+    // looked up on Audnexus.
+    let candidates = app.get(&format!("/api/items/{id}/matches"), &token).await;
+    let works: Vec<&Value> = candidates.as_array().unwrap().iter().map(|c| &c["openlibrary_id"]).collect();
+    assert_eq!(works, [&json!("OL1W"), &json!("OL3W"), &json!("OL2W")], "{candidates}");
+    assert!(mock.requested("GET /ol/search.json?title=Small+Hours&limit=12&fields=key%2Ctitle%2Csubtitle%2Cauthor_name%2Cfirst_publish_year%2Ccover_i%2Cedition_count&author=Imogen+Vale") > 0);
+    let recording = app.get(&format!("/api/items/{id}/matches?title=b0lantern1"), &token).await;
+    assert_eq!(recording[0]["asin"], "B0LANTERN1", "{recording}");
+    assert_eq!(recording[0]["narrators"], json!(["June Ashby"]));
+    assert_eq!(recording[0]["year"], 2019);
+
+    // Ids of other shapes, or a movie's, aren't a book's match.
+    for body in [json!({"asin": "nope"}), json!({"openlibrary_id": "OL9M"}), json!({"tmdb_id": 5}), json!({})] {
+        let (status, _) = app.call(Method::POST, &format!("/api/items/{id}/match"), Some(&token), Some(body)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+
+    // Another work: what the first match filled in goes.
+    let (status, book) = app
+        .call(Method::POST, &format!("/api/items/{id}/match"), Some(&token), Some(json!({"openlibrary_id": "OL9W"})))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{book}");
+    assert_eq!(book["book"]["openlibrary_id"], "OL9W");
+    assert_eq!((book["year"].as_i64(), book["summary"].as_str()), (Some(1999), Some("Every night, collected.")));
+    assert_eq!(book["locked_fields"], json!(["match"]));
+    assert!(poster().await.is_some_and(|p| Some(&p) != searched_cover.as_ref()), "the chosen work's cover");
+    // Its covers to choose from: its editions', once each.
+    let covers = app.get(&format!("/api/items/{id}/artwork/poster"), &token).await;
+    let urls: Vec<&str> = covers.as_array().unwrap().iter().map(|c| c["url"].as_str().unwrap()).collect();
+    assert_eq!(urls, [format!("{base}/olcovers/b/id/11-L.jpg"), format!("{base}/olcovers/b/id/12-L.jpg")]);
+    assert!(app.get(&format!("/api/items/{id}/artwork/backdrop"), &token).await.as_array().unwrap().is_empty());
+
+    // Hand edits of who reads it and its series, kept through a new match.
+    let edit = json!({"narrators": ["Ada Quill"], "series": "Night Porters", "series_index": 2.5});
+    let (status, book) = app.call(Method::PATCH, &format!("/api/items/{id}"), Some(&token), Some(edit)).await;
+    assert_eq!(status, StatusCode::OK, "{book}");
+    assert_eq!(book["book"]["narrators"], json!(["Ada Quill"]));
+    assert_eq!(
+        (book["book"]["series"].as_str(), book["book"]["series_index"].as_f64()),
+        (Some("Night Porters"), Some(2.5))
+    );
+
+    // A recording: Audnexus's details, over the work's.
+    let (status, book) = app
+        .call(Method::POST, &format!("/api/items/{id}/match"), Some(&token), Some(json!({"asin": "b0lantern1"})))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{book}");
+    assert_eq!(book["book"]["asin"], "B0LANTERN1");
+    assert!(book["book"].get("openlibrary_id").is_none(), "{book}");
+    assert_eq!(book["summary"], "A lighthouse keeper charts a sea that glows.");
+    assert_eq!((book["year"].as_i64(), book["release_date"].as_str()), (Some(2019), Some("2019-03-05")));
+    assert_eq!(book["book"]["narrators"], json!(["Ada Quill"]), "the hand edit wins");
+    assert_eq!(book["book"]["series"], "Night Porters");
+    // A refresh asks only for it.
+    let searches = mock.requested("GET /ol/search.json");
+    let (status, _) = app.call(Method::POST, &format!("/api/items/{id}/refresh"), Some(&token), None).await;
+    assert!(status.is_success());
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(mock.requested("GET /ol/search.json"), searches);
+
+    // Undone: the search finds the book again, and the recording's details go.
+    let (status, book) =
+        app.call(Method::PATCH, &format!("/api/items/{id}"), Some(&token), Some(json!({"match": null}))).await;
+    assert_eq!(status, StatusCode::OK, "{book}");
+    let mut book = book;
+    for _ in 0..200 {
+        book = app.get(&format!("/api/items/{id}"), &token).await;
+        // The refresh runs in the background, and a scan of the folder may
+        // read the book's files again before it.
+        if book["book"]["openlibrary_id"] == "OL3W" && book["year"] == 1987 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(book["book"]["openlibrary_id"], "OL3W", "{book}");
+    assert!(book["book"].get("asin").is_none(), "{book}");
+    assert_eq!((book["year"].as_i64(), book["release_date"].as_str()), (Some(1987), None), "{book}");
+    assert_eq!(book["summary"], "A night porter's quiet year.");
+    assert_eq!(book["locked_fields"], json!(["narrators", "series", "series_index"]));
+
+    // Unlocked, they're what the files say again (nothing, here).
+    let unlock = json!({"narrators": null, "series": null, "series_index": null});
+    let (status, book) = app.call(Method::PATCH, &format!("/api/items/{id}"), Some(&token), Some(unlock)).await;
+    assert_eq!(status, StatusCode::OK, "{book}");
+    assert_eq!(book["book"]["narrators"], json!([]), "{book}");
+    assert_eq!((book["book"]["series"].as_str(), book["book"]["series_index"].as_f64()), (None, None));
+    assert_eq!(book["locked_fields"], json!([]));
+
+    // A book's fields are a book's only.
+    let part = app.children(&token, &json!(id)).await[0]["id"].clone();
+    let (status, _) =
+        app.call(Method::PATCH, &format!("/api/items/{part}"), Some(&token), Some(json!({"series": "X"}))).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // Turned off: Fix Match says how to turn them on.
+    let (status, _) = app.call(Method::PUT, "/api/settings", Some(&token), Some(json!({"book_metadata": false}))).await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, body) = app.call(Method::GET, &format!("/api/items/{id}/matches"), Some(&token), None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert!(body["message"].as_str().unwrap().contains("Open Library"));
 }
 
 // ------------------------------------------------------------------ the real services

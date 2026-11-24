@@ -11,6 +11,11 @@ describes how they are made.
 
 ### Added
 
+- An audiobook's page has the ⋯ menu movies and shows have. Administrators
+  can edit a book's authors, narrators and series with its other details,
+  fix its match by picking an Open Library work or an Audible recording
+  (searched by title and author, or by its ASIN), choose its cover from
+  Audible's and Open Library's, and refresh its metadata.
 - Editions named in a movie's file or folder name without the
   `{edition-…}` tag, such as Director's Cut, Extended, Theatrical,
   Unrated, Remastered or IMAX, are versions of one movie with their names.

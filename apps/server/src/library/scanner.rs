@@ -1023,44 +1023,9 @@ impl Scanner {
         Ok(Some((totals, phases, processed, total)))
     }
 
-    /// Gives `books` what their first parts say of them: their titles,
-    /// writers, series and the rest. A scan reads a book's files in any
-    /// order, and one file added later (untagged, say) must not decide it.
-    /// The tags are the ones stored when the files were read; like
-    /// artwork, this is worked out without the writer, and only changes are
-    /// written.
+    /// See [`read_books`].
     async fn read_books(&self, lib: &LibraryRow, books: HashSet<i64>) -> anyhow::Result<()> {
-        if books.is_empty() {
-            return Ok(());
-        }
-        let firsts: Vec<FirstPart> =
-            sqlx::query_as(FIRST_PARTS).bind(serde_json::to_string(&books)?).fetch_all(&self.db.read).await?;
-        let roots = lib.paths();
-        let names = crate::util::blocking(move || {
-            Ok(firsts
-                .into_iter()
-                .filter_map(|first| {
-                    let tags =
-                        first.media_info.as_deref().and_then(|info| serde_json::from_str::<StoredTags>(info).ok());
-                    let path = PathBuf::from(first.path);
-                    // The library's folder the file was found in, the deepest
-                    // when one is in another.
-                    let root =
-                        roots.iter().filter(|root| path.starts_with(root)).max_by_key(|root| root.as_os_str().len())?;
-                    Some((first.book, parse_audiobook(&path, root, &tags.map(|t| t.tags).unwrap_or_default())))
-                })
-                .collect::<Vec<_>>())
-        })
-        .await?;
-        let at = now();
-        for chunk in names.chunks(CHANGE_BATCH) {
-            let mut tx = self.db.write.begin().await?;
-            for (book, name) in chunk {
-                save_book(&mut tx, *book, name, at).await?;
-            }
-            tx.commit().await?;
-        }
-        Ok(())
+        read_books(&self.db, lib, books).await
     }
 
     /// Reads the NFO files of the library's movies, shows, seasons and
@@ -1571,6 +1536,76 @@ struct FirstPart {
 struct StoredTags {
     #[serde(default)]
     tags: BTreeMap<String, String>,
+}
+
+/// Gives `books` of library `lib` what their first parts say of them: their
+/// titles, writers, series and the rest. A scan reads a book's files in any
+/// order, and one file added later (untagged, say) must not decide it. The
+/// tags are the ones stored when the files were read; like artwork, this is
+/// worked out without the writer, and only changes are written.
+pub(crate) async fn read_books(db: &Db, lib: &LibraryRow, books: HashSet<i64>) -> anyhow::Result<()> {
+    if books.is_empty() {
+        return Ok(());
+    }
+    let firsts: Vec<FirstPart> =
+        sqlx::query_as(FIRST_PARTS).bind(serde_json::to_string(&books)?).fetch_all(&db.read).await?;
+    let roots = lib.paths();
+    let names = crate::util::blocking(move || {
+        Ok(firsts
+            .into_iter()
+            .filter_map(|first| {
+                let tags = first.media_info.as_deref().and_then(|info| serde_json::from_str::<StoredTags>(info).ok());
+                let path = PathBuf::from(first.path);
+                // The library's folder the file was found in, the deepest
+                // when one is in another.
+                let root =
+                    roots.iter().filter(|root| path.starts_with(root)).max_by_key(|root| root.as_os_str().len())?;
+                Some((first.book, parse_audiobook(&path, root, &tags.map(|t| t.tags).unwrap_or_default())))
+            })
+            .collect::<Vec<_>>())
+    })
+    .await?;
+    let at = now();
+    for chunk in names.chunks(CHANGE_BATCH) {
+        let mut tx = db.write.begin().await?;
+        for (book, name) in chunk {
+            save_book(&mut tx, *book, name, at).await?;
+        }
+        tx.commit().await?;
+    }
+    Ok(())
+}
+
+/// Book `id` is what its files say again, for the next refresh to fill in
+/// the rest: `clear`'s details go first (those the files don't give, such
+/// as a release date, would stay otherwise), then its first part is read
+/// again, and hand edits go back over it.
+pub(crate) async fn read_book_again(db: &Db, id: i64, clear: &[&str]) -> anyhow::Result<()> {
+    // The details a book's files or sources give; the title is always read again.
+    const CLEARED: &[&str] =
+        &["year", "summary", "genres", "release_date", "authors", "narrators", "series", "series_index"];
+    let mut tx = db.write.begin().await?;
+    for column in CLEARED.iter().filter(|c| clear.contains(c)) {
+        // `column` is one of CLEARED, so formatting it into SQL is safe.
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "UPDATE items SET {column} = NULL, metadata_at = NULL WHERE id = ? AND kind = 'audiobook'"
+        )))
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    let library: Option<i64> = sqlx::query_scalar("SELECT library_id FROM items WHERE id = ? AND kind = 'audiobook'")
+        .bind(id)
+        .fetch_optional(&db.read)
+        .await?;
+    if let Some(library) = library
+        && let Some(lib) = super::get_library(db, library).await?
+    {
+        read_books(db, &lib, HashSet::from([id])).await?;
+    }
+    crate::overrides::apply(db, &[id]).await?;
+    Ok(())
 }
 
 /// Writes what a book's first part says of it where that changed: its

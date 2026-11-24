@@ -416,10 +416,12 @@ async fn tv_app_cors(request: axum::extract::Request, next: axum::middleware::Ne
 
 /// What pages of the web app may load and do: only pley's own scripts and
 /// styles (an injected script can't run, nor send what it finds elsewhere),
-/// pictures from pley and TMDB (Fix Match, artwork), media and hls.js's
-/// worker from pley or `blob:`, and no other site may frame them.
+/// pictures from pley, TMDB, Open Library (whose covers the Internet Archive
+/// serves) and Audible (Fix Match, artwork), media and hls.js's worker from
+/// pley or `blob:`, and no other site may frame them.
 const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; script-src 'self'; style-src 'self'; \
-    img-src 'self' data: blob: https://image.tmdb.org; media-src 'self' blob:; worker-src 'self' blob:; \
+    img-src 'self' data: blob: https://image.tmdb.org https://covers.openlibrary.org https://archive.org \
+    https://*.us.archive.org https://m.media-amazon.com; media-src 'self' blob:; worker-src 'self' blob:; \
     connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; \
     frame-ancestors 'none'";
 
