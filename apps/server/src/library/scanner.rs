@@ -438,9 +438,11 @@ impl Scanner {
             let started = Instant::now();
             let result = self.scan(&req).await;
             let scanned = matches!(result, Ok(Some(_)));
-            // A request that scanned nothing says nothing of a library whose
-            // scans fail: it waits on.
-            if scanned || result.is_err() {
+            // A request that scanned nothing, or only where paths changed,
+            // says nothing of a library whose scans of all of it fail: it
+            // waits on.
+            let in_part = matches!(&result, Ok(Some((_, phases))) if phases.changed.is_some());
+            if (scanned && !in_part) || result.is_err() {
                 self.failures.lock().record(req.library_id, scanned, now());
             }
             match result {
@@ -549,9 +551,10 @@ impl Scanner {
             return Ok(None);
         }
         self.events.send(ServerEvent::ScanStarted { library_id });
-        let whole = scope.is_none();
         let (totals, mut phases, processed, total) = match scope {
-            Some(scope) if scope.is_empty() => (Totals::default(), Phases::default(), 0, 0),
+            Some(scope) if scope.is_empty() => {
+                (Totals::default(), Phases { changed: Some(0), ..Default::default() }, 0, 0)
+            }
             // All of the library, where the part that changed isn't enough.
             mut scope if req.files => loop {
                 if let Some(scanned) = self.scan_files(&lib, force, scope.take()).await? {
@@ -560,6 +563,9 @@ impl Scanner {
             },
             _ => (Totals::default(), Phases::default(), 0, 0),
         };
+        // Whether the whole library was walked: as asked, or because the
+        // part that changed wasn't enough.
+        let whole = phases.changed.is_none();
 
         let mut phase = Instant::now();
         if req.metadata && self.metadata.enabled_for(lib.kind()) {

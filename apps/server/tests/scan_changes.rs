@@ -358,7 +358,8 @@ async fn what_was_renamed_unnoticed_keeps_its_title_at_a_change_elsewhere() {
 
 /// A library whose scans fail waits longer and longer between them: a
 /// change only where scans never look, which scans nothing, doesn't end the
-/// wait.
+/// wait, and neither does a scan of where a change was that works, since
+/// the whole library's may still fail.
 #[tokio::test]
 async fn a_change_that_scans_nothing_leaves_a_failing_library_waiting() {
     let (app, admin) = app().await;
@@ -377,9 +378,11 @@ async fn a_change_that_scans_nothing_leaves_a_failing_library_waiting() {
     assert!(app.state.scanner.backing_off(lib, 3600), "the scan failed");
     changed(&app, lib, &["movies/Film One (2001)/@eaDir/Film One (2001).mkv/SYNOFILE_THUMB_M.jpg"]).await;
     assert!(app.state.scanner.backing_off(lib, 3600), "nothing was scanned");
-    // A scan that works ends it.
+    // A scan of all of it that works ends it.
     sqlx::query("DROP TRIGGER scans_fail").execute(db).await.unwrap();
     changed(&app, lib, &["movies/Film One (2001)/Film One (2001).mkv"]).await;
+    assert!(app.state.scanner.backing_off(lib, 3600), "only part of it was scanned");
+    rescan(&app, &admin, lib).await;
     assert!(!app.state.scanner.backing_off(lib, 3600));
 }
 
