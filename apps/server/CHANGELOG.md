@@ -9,6 +9,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- An NFO file with a very long content rating no longer holds a library
+  scan up.
+- A damaged Matroska file no longer makes the transcoder take memory for
+  more than the file holds.
+- What metadata services and IPTV providers answer is refused once it
+  passes a size limit, rather than read whole first.
+
 ## [0.1.16] - 2026-11-24
 
 ### Added
@@ -71,8 +80,6 @@ describes how they are made.
   chapters of more credits after the credits (Fan Club Credits) count with
   them, and Plex apps get the same last credits. Libraries are analyzed
   again in the background.
-- An NFO file with a very long content rating no longer holds a library
-  scan up.
 
 ## [0.1.15] - 2026-11-22
 
