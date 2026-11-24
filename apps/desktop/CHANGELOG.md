@@ -11,6 +11,9 @@ describes how they are made.
 ### Fixed
 
 - Live TV channels played as they are no longer stall every few seconds.
+- A Live TV channel played as it is plays on, after a few seconds, when its
+  provider's stream starts over (as the server connects to it again), instead
+  of freezing for good.
 
 ## [0.1.8] - 2026-11-24
 

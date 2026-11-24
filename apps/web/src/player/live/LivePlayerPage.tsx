@@ -54,6 +54,7 @@ import { clientId } from "@/lib/progress";
 import { ChannelLogo, formatSpan, formatTime, liveUrl, setLastWatched, timeLeft, useNow } from "@/pages/livetv/common";
 import { ChannelPanel } from "./ChannelPanel";
 import { keepCushion } from "./cushion";
+import { whenStuck } from "./stuck";
 
 /** Controls hide after this long without the pointer moving. */
 const HIDE_CONTROLS_AFTER = 3500;
@@ -318,8 +319,9 @@ function LivePlayer({
     let cancelled = false;
     let networkRetries = 0;
     let mediaRetries = 0;
-    // What keeps a cushion under a channel played from its stream.
-    let stopCushion = () => {};
+    // What keeps a channel played from its stream going: its cushion, and
+    // the watch for a picture that stands still.
+    let stopKeeping = () => {};
     setStatus("tuning");
     setProblem(null);
     setBanner(false);
@@ -329,7 +331,7 @@ function LivePlayer({
       // Whatever broke as the connection was taken, that's why it stopped.
       setProblem(takenOver.current ?? why);
       setStatus("error");
-      stopCushion();
+      stopKeeping();
       hlsRef.current?.destroy();
       hlsRef.current = null;
       directRef.current?.destroy();
@@ -370,44 +372,90 @@ function LivePlayer({
       if (cancelled || !mpegts?.isSupported()) return false;
       // A device id of its own: reading the stream doesn't end the session asked about.
       const url = new URL(streamUrl(channel.id, `${clientId()}-stream`), window.location.href).href;
-      const player = mpegts.createPlayer(
-        { type: "mpegts", isLive: true, url },
-        {
-          enableWorker: true,
-          enableStashBuffer: false,
-          lazyLoad: false,
-          // Never skipped ahead (the picture jumped as a channel started, its
-          // first seconds all coming at once): a few seconds behind live is
-          // fine. Only far behind (stalls adding up) is it caught up, by
-          // playing a little faster.
-          liveSync: true,
-          liveSyncMaxLatency: 30,
-          liveSyncTargetLatency: 10,
-          liveSyncPlaybackRate: 1.1,
-        },
-      );
       let failed = false;
       // Played from its stream, as the server or the stream said it could be.
       let chosen = false;
-      player.on(mpegts.Events.ERROR, () => {
-        failed = true;
-        stopCushion();
-        player.destroy();
-        if (directRef.current === player) directRef.current = null;
-        // Not chosen yet: the transcoder's segments play once the plan comes, below.
-        if (cancelled || !chosen) return;
-        // It broke off, playing or before its first picture: the transcoder's
-        // segments from now, unless its connection was taken over (that's
-        // told as the stream ends, and tuning again would only find every
-        // connection in use).
+      // The stream came in the last second, as the player last said.
+      let coming = false;
+      // It broke off, or stood still before its first picture: the
+      // transcoder's segments from now, unless its connection was taken over
+      // (that's told as the stream ends, and tuning again would only find
+      // every connection in use).
+      const toHls = () =>
         window.setTimeout(() => {
           if (cancelled || takenOver.current) return;
           void watch().then((w) => w && playHls(w.url));
         }, TAKEN_OVER_GRACE);
-      });
-      directRef.current = player;
-      player.attachMediaElement(video);
-      player.load();
+      const read = () => {
+        coming = false;
+        const player = mpegts.createPlayer(
+          { type: "mpegts", isLive: true, url },
+          {
+            enableWorker: true,
+            enableStashBuffer: false,
+            lazyLoad: false,
+            // Never skipped ahead (the picture jumped as a channel started, its
+            // first seconds all coming at once): a few seconds behind live is
+            // fine. Only far behind (stalls adding up) is it caught up, by
+            // playing a little faster.
+            liveSync: true,
+            liveSyncMaxLatency: 30,
+            liveSyncTargetLatency: 10,
+            liveSyncPlaybackRate: 1.1,
+          },
+        );
+        player.on(mpegts.Events.STATISTICS_INFO, (info: { speed?: number }) => {
+          coming = (info.speed ?? 0) > 0;
+        });
+        player.on(mpegts.Events.ERROR, () => {
+          failed = true;
+          stopKeeping();
+          player.destroy();
+          if (directRef.current === player) directRef.current = null;
+          // Not chosen yet: the transcoder's segments play once the plan comes, below.
+          if (cancelled || !chosen) return;
+          toHls();
+        });
+        directRef.current = player;
+        player.attachMediaElement(video);
+        player.load();
+        return player;
+      };
+      // Played a few seconds behind live, so the provider's bursts play
+      // through; read again from its last keyframe, by a new player, once it
+      // stands still for good while the stream comes.
+      const keep = () => {
+        const stopCushion = keepCushion(video, start, (holding) => {
+          cushionHold.current = holding;
+          // Gone on after waiting its longest, it may still have nothing to play.
+          setBuffering(holding || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
+        });
+        const stopWatch = whenStuck(
+          video,
+          () => coming,
+          (played) => {
+            stopKeeping();
+            const stuck = directRef.current;
+            if (cancelled || !stuck) return;
+            directRef.current = null;
+            // The picture it stood still on stays while the new player starts.
+            keepPicture(video);
+            stuck.destroy();
+            // One that never played, a new one wouldn't either.
+            if (!played) {
+              toHls();
+              return;
+            }
+            read();
+            keep();
+          },
+        );
+        stopKeeping = () => {
+          stopCushion();
+          stopWatch();
+        };
+      };
+      const player = read();
       const known = await plan;
       if (cancelled) return true;
       // Let go already (mpegts.js throws when let go twice): it failed, and
@@ -420,12 +468,7 @@ function LivePlayer({
         return false;
       }
       chosen = true;
-      // Played a few seconds behind live, so the provider's bursts play through.
-      stopCushion = keepCushion(video, start, (holding) => {
-        cushionHold.current = holding;
-        // Gone on after waiting its longest, it may still have nothing to play.
-        setBuffering(holding || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
-      });
+      keep();
       return true;
     };
     const playHls = async (url: string) => {
@@ -482,7 +525,7 @@ function LivePlayer({
     })();
     return () => {
       cancelled = true;
-      stopCushion();
+      stopKeeping();
       // The last picture stays while the next channel tunes.
       keepPicture(video);
       hlsRef.current?.destroy();

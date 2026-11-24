@@ -13,6 +13,9 @@ describes how they are made.
 
 - Live TV channels played as they are no longer stall every few seconds in the
   browser.
+- A Live TV channel played as it is in the browser plays on, after a few
+  seconds, when its provider's stream starts over (as the server connects to
+  it again), instead of freezing for good.
 
 ## [0.1.16] - 2026-11-24
 

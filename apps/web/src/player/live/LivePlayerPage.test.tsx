@@ -52,19 +52,23 @@ const { FakeHls, hlsInstances } = vi.hoisted(() => {
  * A stand-in for mpegts.js's player, as Chrome's goes with a channel whose
  * audio it can't play (AC-3): it fails as it loads (or, with `failsAsItLoads`
  * off, when `fail` says), and throws when let go twice, as the real one does.
+ * `comes` reports the stream coming, as the real one does every 600 ms.
  */
 const { FakeMpegts, mpegtsPlayers, mpegtsLoader } = vi.hoisted(() => {
   const mpegtsPlayers: FakeMpegtsPlayer[] = [];
   class FakeMpegtsPlayer {
     static failsAsItLoads = true;
     readonly calls: string[] = [];
-    private readonly handlers = new Map<string, () => void>();
+    private readonly handlers = new Map<string, (info?: unknown) => void>();
     private engine: object | null = {};
     constructor() {
       mpegtsPlayers.push(this);
     }
-    on(event: string, handler: () => void) {
+    on(event: string, handler: (info?: unknown) => void) {
       this.handlers.set(event, handler);
+    }
+    comes(kbps: number) {
+      this.handlers.get("statistics_info")?.({ speed: kbps });
     }
     attachMediaElement() {
       this.calls.push("attachMediaElement");
@@ -85,7 +89,7 @@ const { FakeMpegts, mpegtsPlayers, mpegtsLoader } = vi.hoisted(() => {
   const FakeMpegts = {
     Player: FakeMpegtsPlayer,
     isSupported: () => true,
-    Events: { ERROR: "error" },
+    Events: { ERROR: "error", STATISTICS_INFO: "statistics_info" },
     createPlayer: () => new FakeMpegtsPlayer(),
   };
   // No MPEG-TS player unless a test gives one: every channel plays from the transcoder's HLS.
@@ -342,12 +346,16 @@ describe("LivePlayerPage, a channel the browser can't play as sent", () => {
 });
 
 describe("LivePlayerPage, a channel played from its stream", () => {
-  // Seconds buffered past what plays, and how ready the video says it is.
+  // Where what's buffered ends, how ready the video says it is, and where it plays.
   let ahead = 0;
   let ready = 0;
+  let time = 0;
+  let requests: FakeRequest[] = [];
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    hlsInstances.length = 0;
     mpegtsPlayers.length = 0;
+    time = 0;
     mpegtsLoader.load = () => Promise.resolve(FakeMpegts);
     FakeMpegts.Player.failsAsItLoads = false;
     vi.stubGlobal("EventSource", FakeEventSource);
@@ -360,7 +368,8 @@ describe("LivePlayerPage, a channel played from its stream", () => {
       end: () => ahead,
     }));
     vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockImplementation(() => ready);
-    mockApi({
+    vi.spyOn(HTMLMediaElement.prototype, "currentTime", "get").mockImplementation(() => time);
+    requests = mockApi({
       "GET /api/live/channels/5": () => news,
       "POST /api/live/channels/5/watch": () => ({ session_id: "s1", url: "/api/live/sessions/s1/index.m3u8", kind: "hls", channel: news }),
       "GET /api/live/sessions/s1/plan": () => ({ video_codec: "h264", audio_codec: "aac", video: "copy", audio: "copy" }),
@@ -435,6 +444,56 @@ describe("LivePlayerPage, a channel played from its stream", () => {
       video.dispatchEvent(new Event("canplay"));
     });
     expect(spinner()).not.toBeInTheDocument();
+  });
+
+  /** The stream comes for `seconds`, as the player says every 600 ms, and none of it is buffered. */
+  function comesForNothing(seconds: number) {
+    for (let ms = 0; ms < seconds * 1000; ms += 600) {
+      act(() => {
+        mpegtsPlayers.at(-1)?.comes(320);
+        vi.advanceTimersByTime(600);
+      });
+    }
+  }
+
+  it("reads its stream again, on the same session, when it stands still while the stream comes", async () => {
+    const { video, spinner } = await playing();
+    // It plays a while…
+    time = 2;
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    // …then stands still for good: the provider's clock started over, and what comes is never buffered.
+    stall(video);
+    comesForNothing(6);
+    expect(mpegtsPlayers).toHaveLength(1);
+    comesForNothing(4);
+    expect(mpegtsPlayers).toHaveLength(2);
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+    expect(mpegtsPlayers[1]?.calls).toEqual(["attachMediaElement", "load"]);
+    expect(watches(requests)).toHaveLength(1);
+    expect(hlsInstances).toHaveLength(0);
+    expect(spinner()).toBeInTheDocument();
+    // The new player stands still too, never having played: the transcoder's segments, then.
+    comesForNothing(10);
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("loadSource /api/live/sessions/s1/index.m3u8"));
+    expect(mpegtsPlayers).toHaveLength(2);
+    expect(mpegtsPlayers[1]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+  });
+
+  it("waits, without reading its stream again, while the stream doesn't come", async () => {
+    const { video, spinner } = await playing();
+    time = 2;
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    stall(video);
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(mpegtsPlayers).toHaveLength(1);
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load"]);
+    expect(spinner()).toBeInTheDocument();
   });
 });
 
