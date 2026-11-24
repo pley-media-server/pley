@@ -7,6 +7,7 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
 import android.util.LruCache
+import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import app.pley.android.player.R
@@ -31,13 +32,24 @@ internal object PlaceholderCover {
         return (h % 360).toInt()
     }
 
-    /** Covers drawn, by hue: an album's tracks, and the rows of a car's list, ask for the same few. */
+    /** What a cover shows on its gradient: Pley's mark, or the glyph of what it stands for, at [share] of its side. */
+    enum class Glyph(@DrawableRes val drawable: Int, val share: Float) {
+        Mark(R.drawable.music_art_mark, MARK_SHARE),
+
+        /** An artist's Shuffle, as the first tile of their page: the glyph is drawn at half its box. */
+        Shuffle(R.drawable.music_library_shuffle, 2 * MARK_SHARE),
+    }
+
+    /** Covers drawn, by glyph and hue: an album's tracks, and the rows of a car's list, ask for the same few. */
     private val drawn = LruCache<Int, ByteArray>(KEPT)
 
-    /** [hue]'s cover, a PNG [SIZE] px square. */
-    fun png(context: Context, hue: Int): ByteArray = drawn.get(hue) ?: draw(context, hue).also { drawn.put(hue, it) }
+    /** [hue]'s cover with [glyph] on it, a PNG [SIZE] px square. */
+    fun png(context: Context, hue: Int, glyph: Glyph = Glyph.Mark): ByteArray {
+        val key = glyph.ordinal * 360 + hue
+        return drawn.get(key) ?: draw(context, hue, glyph).also { drawn.put(key, it) }
+    }
 
-    private fun draw(context: Context, hue: Int): ByteArray {
+    private fun draw(context: Context, hue: Int, glyph: Glyph): ByteArray {
         val bitmap = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val side = SIZE.toFloat()
@@ -45,8 +57,8 @@ internal object PlaceholderCover {
         val from = ColorUtils.HSLToColor(floatArrayOf(hue.toFloat(), SATURATION, LIGHT_FROM))
         val to = ColorUtils.HSLToColor(floatArrayOf(((hue + 40) % 360).toFloat(), SATURATION, LIGHT_TO))
         canvas.drawRect(0f, 0f, side, side, Paint().apply { shader = LinearGradient(0f, 0f, side, side, from, to, Shader.TileMode.CLAMP) })
-        ContextCompat.getDrawable(context, R.drawable.music_art_mark)?.let { mark ->
-            val size = (SIZE * MARK_SHARE).toInt()
+        ContextCompat.getDrawable(context, glyph.drawable)?.let { mark ->
+            val size = (SIZE * glyph.share).toInt()
             val at = (SIZE - size) / 2
             mark.setBounds(at, at, at + size, at + size)
             mark.draw(canvas)

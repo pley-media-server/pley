@@ -115,9 +115,9 @@ class MusicLibraryTest {
                 "recent > single album" to "grid",
                 "recent > book" to "grid",
                 "artists > artist" to "list",
-                "artist > shuffle" to "list",
+                "artist > shuffle" to "grid",
                 "artist > album" to "grid",
-                "artist > single album" to "list",
+                "artist > single album" to "grid",
                 "album > track" to "list",
                 "playlists > playlist" to "grid",
                 "playlists > single playlist" to "grid",
@@ -284,8 +284,18 @@ class MusicLibraryTest {
         assertEquals("Shuffle", children[0].mediaMetadata.title.toString())
         assertTrue(children[0].mediaMetadata.isPlayable == true)
         assertFalse(children[0].mediaMetadata.isBrowsable == true)
-        // The page names the artist: each album says its year and how many tracks it has, as far as they are known.
-        assertEquals(listOf("2023", "2019 · 2 tracks"), children.drop(1).map { it.mediaMetadata.subtitle.toString() })
+        // The page names the artist: each album's tile says its year alone, a tile's line having room for little.
+        assertEquals(listOf("2023", "2019"), children.drop(1).map { it.mediaMetadata.subtitle.toString() })
+        // Shuffle says how many tracks it plays once every album's are counted; it is a tile of the albums' grid.
+        assertNull(children[0].mediaMetadata.subtitle)
+        assertEquals(GRID, children[0].mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_SINGLE_ITEM))
+        assertEquals("android.resource://pley/drawable/shuffle", children[0].mediaMetadata.artworkUri.toString())
+        source.albums = source.albums.map { it.copy(leafCount = 7) }
+        val tiled = MusicLibrary(source, { Look }, { path, _ -> Uri.parse("content://art$path") }, shuffleArt = { Uri.parse("content://shuffle/$it") })
+        val shuffle = tiled.children(MusicId.Artist(40), 0, 50)[0].mediaMetadata
+        assertEquals("14 tracks", shuffle.subtitle.toString())
+        // Its tile is of the artist's hue, from their name.
+        assertEquals("content://shuffle/Harbour Lights", shuffle.artworkUri.toString())
         // Elsewhere an album says its artist.
         assertEquals("Harbour Lights", library.search("deep").first { it.mediaId == "album:50" }.mediaMetadata.subtitle.toString())
     }
@@ -701,6 +711,19 @@ class MusicLibraryTest {
         // The web's hue for a title, which the app's placeholder draws too.
         assertEquals(0, PlaceholderCover.hue(""))
         assertEquals(97 % 360, PlaceholderCover.hue("a"))
+
+        // An artist's Shuffle tile: of their hue, named strictly as a placeholder is, the shuffle glyph on its gradient.
+        val shuffle = MusicArt.shuffleUri(context, "Deep Water")
+        assertEquals("content://${MusicArt.authority(context)}/s/${PlaceholderCover.DRAWING}/$hue", shuffle.toString())
+        assertEquals(hue, MusicArt.shuffleHueOf(context, shuffle))
+        assertNull(MusicArt.hueOf(context, shuffle))
+        assertNull(MusicArt.shuffleHueOf(context, uri))
+        for (text in listOf("s/2/400", "s/1/12", "s/2", "s/2/12/3", "s/2/1x")) {
+            assertNull(text, MusicArt.shuffleHueOf(context, Uri.parse("content://${MusicArt.authority(context)}/$text")))
+        }
+        val tile = PlaceholderCover.png(context, hue, PlaceholderCover.Glyph.Shuffle).let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+        assertEquals(PlaceholderCover.SIZE, tile.width)
+        assertFalse(PlaceholderCover.png(context, hue, PlaceholderCover.Glyph.Shuffle).contentEquals(PlaceholderCover.png(context, hue)))
 
         val png = PlaceholderCover.png(context, MusicArt.hueOf(context, uri)!!)
         val cover = BitmapFactory.decodeByteArray(png, 0, png.size)

@@ -1120,10 +1120,12 @@ Playlists goes first in the artists' tab, which is then named Music.
   else the cover of their newest album, looked for only as the car shows
   the row (so a list of hundreds asks the server for nothing more until
   it is scrolled), else their placeholder, round too. It stays a list,
-  read for a name. An artist lists
-  Shuffle, then their
-  albums, newest first, each with its year and how many tracks it has
-  (elsewhere an album says its artist); an album lists its tracks
+  read for a name. An artist's page is
+  one grid: Shuffle first, a tile of the artist's placeholder color with
+  the shuffle glyph, saying how many tracks it plays when the server has
+  counted each album's, then their albums, newest first, each with its
+  year (elsewhere an album says its artist), an album of a single track a
+  tile too; an album lists its tracks
   numbered, as its page on the phone does, with their lengths, under each
   disc's heading when it has several. Now Playing and the queue name a
   track by its title alone.

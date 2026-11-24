@@ -152,6 +152,8 @@ class MusicLibrary(
      * ([artistPicture]); `null` for their own as any picture is shown, else their placeholder.
      */
     private val artistArt: (artist: ItemSummary) -> Uri? = { null },
+    /** The tile of an artist's Shuffle, from their name ([MusicArt.shuffleUri]); `null` for the shuffle icon. */
+    private val shuffleArt: (seed: String) -> Uri? = { null },
     /** The cover for what has none, from its title ([MusicArt.placeholderUri]). */
     private val placeholder: (seed: String) -> Uri? = { null },
 ) {
@@ -197,9 +199,9 @@ class MusicLibrary(
             MusicId.Playlists -> musicPlaylists().map(::playlist)
             is MusicId.Artist -> {
                 val albums = source.children(id.id).filter { it.kind == ItemKind.Album }.sortedWith(NEWEST_FIRST)
-                val l = look()
-                listOf(node(MusicId.ShuffleArtist(id.id), l.shuffle, browsable = false, playable = true, icon = l.shuffleIcon)) +
-                    albums.map { album(it, onArtist = true) }
+                // One grid of tiles, Shuffle the first: what plays (Shuffle, an album of one track) is a row by the
+                // root's default, and as rows they split the albums' grid.
+                listOf(shuffle(id, albums).styled(GRID)) + albums.map { album(it, onArtist = true).let { row -> if (row.mediaMetadata.isPlayable == true) row.styled(GRID) else row } }
             }
             is MusicId.Album -> albumTracks(id)
             is MusicId.Playlist -> source.playlist(id.id).entries.map { it.item }.filter { it.kind == ItemKind.Track }.map { track(it, from = id) }
@@ -601,13 +603,12 @@ class MusicLibrary(
      * An album opens to its tracks, as a car plays what can play rather than
      * open it; one of a single track (as far as the server counts) just plays.
      * Under it, its artist; on the artist's own page ([onArtist]), which
-     * names the artist already, its year and how many tracks it has
-     * ("2023 · 14 tracks"), each as far as the server knows it.
+     * names the artist already, its year: a tile's line has room for little.
      */
     private fun album(item: ItemSummary, onArtist: Boolean = false): MediaItem = node(
         MusicId.Album(item.id),
         item.title,
-        subtitle = if (onArtist) yearAndTracks(item) else item.parentTitle ?: item.year?.toString(),
+        subtitle = if (onArtist) item.year?.toString() else item.parentTitle ?: item.year?.toString(),
         browsable = item.leafCount != 1,
         playable = item.leafCount == 1,
         artPath = item.posterUrl,
@@ -616,8 +617,17 @@ class MusicLibrary(
         artist = item.parentTitle,
     )
 
-    private fun yearAndTracks(album: ItemSummary): String? =
-        listOfNotNull(album.year?.toString(), album.leafCount?.takeIf { it > 0 }?.let { look().tracks(it) }).joinToString(" · ").ifEmpty { null }
+    /**
+     * An artist's Shuffle, a tile of their placeholder's hue with the shuffle glyph ([shuffleArt]), saying how many
+     * tracks it plays: their [albums]' tracks, when the server has counted each album's.
+     */
+    private fun shuffle(id: MusicId.Artist, albums: List<ItemSummary>): MediaItem {
+        val l = look()
+        val counts = albums.map { it.leafCount?.takeIf { n -> n > 0 } }
+        val tracks = if (counts.isNotEmpty() && counts.all { it != null }) counts.sumOf { it ?: 0 } else null
+        val tile = albums.firstNotNullOfOrNull { it.parentTitle }?.let(shuffleArt)
+        return node(MusicId.ShuffleArtist(id.id), l.shuffle, subtitle = tracks?.let(l::tracks), browsable = false, playable = true, icon = tile ?: l.shuffleIcon)
+    }
 
     /**
      * An album's tracks, each with its number as the album's page shows it;

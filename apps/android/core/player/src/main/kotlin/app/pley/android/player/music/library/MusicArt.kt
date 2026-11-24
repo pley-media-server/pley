@@ -74,6 +74,19 @@ object MusicArt {
     fun placeholderUri(context: Context, seed: String): Uri = placeholderOf(context, PlaceholderCover.hue(seed))
 
     /**
+     * The tile of an artist's Shuffle, [seed] their name: their placeholder's gradient with the shuffle glyph on it
+     * ([PlaceholderCover.Glyph.Shuffle]), named by its hue and its drawing as a placeholder is.
+     */
+    fun shuffleUri(context: Context, seed: String): Uri = address(context, "$SHUFFLE/${PlaceholderCover.DRAWING}/${PlaceholderCover.hue(seed)}")
+
+    /** The hue a [shuffleUri] names; `null` for any other address, and for one of another drawing. */
+    internal fun shuffleHueOf(context: Context, uri: Uri): Int? {
+        val segments = segmentsOf(context, uri) ?: return null
+        if (segments.size != 3 || segments[0] != SHUFFLE || segments[1] != PlaceholderCover.DRAWING.toString() || !ID.matches(segments[2])) return null
+        return segments[2].toIntOrNull()?.takeIf { it in 0 until 360 }
+    }
+
+    /**
      * The address of a channel's logo on its plate ([LogoPlate]) from the server's logo at [path]
      * ("/api/live/channels/12/logo?v=0a1b2c3d" as "p/12/0a1b2c3d"); `null` for any other path. The letter names the
      * plate's drawing, and the server's version the logo: Android Auto keeps each picture by its address, and had
@@ -201,6 +214,7 @@ object MusicArt {
     private const val LOGO = "l"
     private const val ARTIST = "a"
     private const val PLACEHOLDER = "h"
+    private const val SHUFFLE = "s"
 
     /** An artist's own picture, and their newest album's cover, cut to a circle ([RoundPicture]): letters of this drawing. */
     private const val ROUND_OWN = "o"
@@ -238,6 +252,7 @@ class MusicArtProvider : ContentProvider() {
         val context = context ?: throw FileNotFoundException()
         if (mode != "r") throw FileNotFoundException("Read only")
         MusicArt.hueOf(context, uri)?.let { hue -> return pipe { PlaceholderCover.png(context, hue) } }
+        MusicArt.shuffleHueOf(context, uri)?.let { hue -> return pipe { PlaceholderCover.png(context, hue, PlaceholderCover.Glyph.Shuffle) } }
         MusicArt.roundOf(context, uri)?.let { (path, artist) -> return round(context, path, artist, MusicArt.hueIn(uri)) }
         val logo = MusicArt.logoOf(context, uri)
         val path = logo?.first ?: MusicArt.pathOf(context, uri)
