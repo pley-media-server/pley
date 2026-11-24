@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,6 +56,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -159,83 +162,66 @@ private fun NowPlayingPage() {
                 },
             placeholder = false,
         )
-        Column(
+        BoxWithConstraints(
             Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
-            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // On a car's screen, clear of its edges, and without the label: the page says what it is.
+            // On a car's screen, clear of its edges, and without the label: the page says what it is. Its edge is the
+            // content's, so Close stands over Shuffle; on a phone, Close's glyph and Shuffle's line up on the content's
+            // margin (Shuffle and Repeat reach out to it, Controls).
             val car = LocalCarScreen.current
-            val edge = if (car) CarGap else 4.dp
-            Row(Modifier.fillMaxWidth().padding(start = edge, end = edge, top = edge, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                PleyIconButton(PleyIcons.ChevronDown, stringResource(R.string.music_close_now_playing), onClick = navigator::back)
-                if (car) {
-                    Spacer(Modifier.weight(1f))
-                } else {
-                    // As much room on the label's left as the buttons take on its right: it stays centered.
-                    if (now != null) Spacer(Modifier.width(if (now.book) 96.dp else 48.dp))
-                    Text(
-                        stringResource(R.string.music_now_playing),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = PleyColors.Muted,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f).semantics { heading() },
-                    )
-                }
-                if (now?.book == true) {
-                    SpeedButton(model)
-                    // A car's targets stand apart, as Queue and the timer do.
-                    if (car) Spacer(Modifier.width(CarGap))
-                }
-                if (now != null) {
-                    PleyIconButton(PleyIcons.ListMusic, stringResource(R.string.music_queue), onClick = { queue = true }, tint = PleyColors.Muted)
-                    if (car) Spacer(Modifier.width(CarGap))
-                }
-                if (music != null && now != null) MusicSleepButton(sleep, music) else Spacer(Modifier.width(48.dp))
-            }
-            if (now == null) {
-                EmptyState(
-                    title = stringResource(R.string.music_nothing_playing),
-                    body = stringResource(R.string.music_nothing_playing_body),
-                    icon = PleyIcons.Music,
-                )
-                return@Column
-            }
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                val onAlbum = now.albumId?.let { id -> { navigator.open(PleyKey.Album(id, now.itemId)) } }
-                if (maxWidth > maxHeight && maxHeight < WIDE_BELOW) {
-                    WideNowPlaying(now, art, model, onAlbum)
-                } else {
-                    // The art is as wide as its share of the column, and no taller than what the title, the scrubber and the
-                    // controls leave: on a window a little too short for all of it at that size (a car's portrait screen,
-                    // 1042 × 991 at 185 dpi on some), it is the art that is smaller, not the controls that are cut off.
-                    val artSide = (minOf(maxWidth, TALL_MAX) - TALL_EDGE * 2) * ART_SHARE
-                    Column(
-                        Modifier
-                            .fillMaxHeight()
-                            .widthIn(max = TALL_MAX)
-                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                            .padding(start = TALL_EDGE, end = TALL_EDGE, bottom = if (LocalCarScreen.current) CarGap else 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.SpaceEvenly,
-                    ) {
-                        Box(
-                            Modifier
-                                .weight(1f, fill = false)
-                                // Air under the cover also where it takes all the height left: the title sat against it.
-                                .padding(bottom = ART_GAP)
-                                .sizeIn(maxWidth = artSide, maxHeight = artSide)
-                                .aspectRatio(1f)
-                                .clip(PleyShape.Card)
-                                .background(PleyColors.Surface2),
-                        ) {
-                            TrackArt(art, now.album ?: now.title, Modifier.matchParentSize())
-                        }
-                        TrackTitle(now, onAlbum, Modifier.fillMaxWidth(), centred = true)
-                        Scrubber(now, model)
-                        Controls(now, model)
+            val edge = if (car) TALL_EDGE else TALL_EDGE / 2
+            val top = if (car) CarGap else 4.dp
+            // One choice for the whole page, the top bar's width with it: wide when the room under the bar is short and wide.
+            val room = maxHeight - (top + BAR_HEIGHT + 4.dp)
+            val wide = maxWidth > room && room < WIDE_BELOW
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(
+                    Modifier
+                        .widthIn(max = if (wide) WIDE_MAX else TALL_MAX)
+                        .fillMaxWidth()
+                        .padding(start = edge, end = edge, top = top, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PleyIconButton(PleyIcons.ChevronDown, stringResource(R.string.music_close_now_playing), onClick = navigator::back)
+                    if (car) {
+                        Spacer(Modifier.weight(1f))
+                    } else {
+                        // As much room on the label's left as the buttons take on its right: it stays centered.
+                        if (now != null) Spacer(Modifier.width(if (now.book) 96.dp else 48.dp))
+                        Text(
+                            stringResource(R.string.music_now_playing),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = PleyColors.Muted,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f).semantics { heading() },
+                        )
                     }
+                    if (now?.book == true) {
+                        SpeedButton(model)
+                        // A car's targets stand apart, as Queue and the timer do.
+                        if (car) Spacer(Modifier.width(CarGap))
+                    }
+                    if (now != null) {
+                        PleyIconButton(PleyIcons.ListMusic, stringResource(R.string.music_queue), onClick = { queue = true }, tint = PleyColors.Muted)
+                        if (car) Spacer(Modifier.width(CarGap))
+                    }
+                    if (music != null && now != null) MusicSleepButton(sleep, music) else Spacer(Modifier.width(48.dp))
+                }
+                if (now == null) {
+                    EmptyState(
+                        title = stringResource(R.string.music_nothing_playing),
+                        body = stringResource(R.string.music_nothing_playing_body),
+                        icon = PleyIcons.Music,
+                    )
+                    return@Column
+                }
+                val onAlbum = now.albumId?.let { id -> { navigator.open(PleyKey.Album(id, now.itemId)) } }
+                if (wide) {
+                    WideNowPlaying(now, art, model, onAlbum, Modifier.weight(1f))
+                } else {
+                    TallNowPlaying(now, art, model, onAlbum, Modifier.weight(1f))
                 }
             }
         }
@@ -245,13 +231,52 @@ private fun NowPlayingPage() {
 }
 
 /**
+ * An upright window's Now Playing: the art, the title, the scrubber and the
+ * controls in a column no wider than [TALL_MAX].
+ */
+@Composable
+private fun TallNowPlaying(now: NowPlaying, art: ArtworkImage?, model: NowPlayingViewModel, onAlbum: (() -> Unit)?, modifier: Modifier) {
+    BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        // The art is as wide as its share of the column, and no taller than what the title, the scrubber and the
+        // controls leave: on a window a little too short for all of it at that size (a car's portrait screen,
+        // 1042 × 991 at 185 dpi on some), it is the art that is smaller, not the controls that are cut off.
+        val artSide = (minOf(maxWidth, TALL_MAX) - TALL_EDGE * 2) * ART_SHARE
+        Column(
+            Modifier
+                .fillMaxHeight()
+                .widthIn(max = TALL_MAX)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                .padding(start = TALL_EDGE, end = TALL_EDGE, bottom = if (LocalCarScreen.current) CarGap else 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            Box(
+                Modifier
+                    .weight(1f, fill = false)
+                    // Air under the cover also where it takes all the height left: the title sat against it.
+                    .padding(bottom = ART_GAP)
+                    .sizeIn(maxWidth = artSide, maxHeight = artSide)
+                    .aspectRatio(1f)
+                    .clip(PleyShape.Card)
+                    .background(PleyColors.Surface2),
+            ) {
+                TrackArt(art, now.album ?: now.title, Modifier.matchParentSize())
+            }
+            TrackTitle(now, onAlbum, Modifier.fillMaxWidth(), centred = true)
+            Scrubber(now, model)
+            Controls(now, model)
+        }
+    }
+}
+
+/**
  * A short, wide window's Now Playing: the art beside the title, then the
  * scrubber and the controls across the width (no wider than a phone's).
  */
 @Composable
-private fun WideNowPlaying(now: NowPlaying, art: ArtworkImage?, model: NowPlayingViewModel, onAlbum: (() -> Unit)?) {
+private fun WideNowPlaying(now: NowPlaying, art: ArtworkImage?, model: NowPlayingViewModel, onAlbum: (() -> Unit)?, modifier: Modifier) {
     Column(
-        Modifier
+        modifier
             .fillMaxHeight()
             .widthIn(max = WIDE_MAX)
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
@@ -283,30 +308,51 @@ private fun TrackTitle(now: NowPlaying, onAlbum: (() -> Unit)?, modifier: Modifi
     val align = if (centred) TextAlign.Center else TextAlign.Start
     val across = if (centred) Alignment.CenterHorizontally else Alignment.Start
     Column(modifier, horizontalAlignment = across) {
-        TrackChange(trackWords(now), Modifier.fillMaxWidth(), if (centred) Alignment.TopCenter else Alignment.TopStart) { words ->
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = across) {
-                Text(
-                    words.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = PleyColors.Fg,
-                    textAlign = align,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    words.byline,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = PleyColors.Muted,
-                    textAlign = align,
-                    maxLines = if (centred) 1 else 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = onAlbum?.let { Modifier.clickable(role = Role.Button, onClick = it) } ?: Modifier,
-                )
-            }
+        Box(Modifier.fillMaxWidth(), contentAlignment = if (centred) Alignment.Center else Alignment.TopStart) {
+            // Upright, the words keep the room of a title on two lines: a title on one line or two moves neither the
+            // cover above nor the scrubber and the controls under it as the track changes.
+            if (centred) TitleRoom()
+            TrackWordsBlock(now, onAlbum, centred, align, across)
         }
         // Beside the art, the block centres on it: a line kept for a status to come would lift it.
         StatusLine(now, keepRoom = centred)
+    }
+}
+
+/** As high as a title on two lines and its byline, drawn as nothing. */
+@Composable
+private fun TitleRoom() {
+    Column(Modifier.alpha(0f).clearAndSetSemantics {}) {
+        Text("", style = MaterialTheme.typography.headlineSmall, minLines = 2, maxLines = 2)
+        Spacer(Modifier.height(4.dp))
+        Text("", style = MaterialTheme.typography.bodyLarge, minLines = 1, maxLines = 1)
+    }
+}
+
+/** The track's title and byline, changing with it ([TrackChange]). */
+@Composable
+private fun TrackWordsBlock(now: NowPlaying, onAlbum: (() -> Unit)?, centred: Boolean, align: TextAlign, across: Alignment.Horizontal) {
+    TrackChange(trackWords(now), Modifier.fillMaxWidth(), if (centred) Alignment.Center else Alignment.TopStart) { words ->
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = across) {
+            Text(
+                words.title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = PleyColors.Fg,
+                textAlign = align,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                words.byline,
+                style = MaterialTheme.typography.bodyLarge,
+                color = PleyColors.Muted,
+                textAlign = align,
+                maxLines = if (centred) 1 else 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = onAlbum?.let { Modifier.clickable(role = Role.Button, onClick = it) } ?: Modifier,
+            )
+        }
     }
 }
 
@@ -475,17 +521,22 @@ private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel, inline: Boolea
 @Composable
 private fun Controls(now: NowPlaying, model: NowPlayingViewModel) = BoxWithConstraints(Modifier.fillMaxWidth()) {
     val playSize = if (LocalCarScreen.current && maxWidth < CAR_CONTROLS_WIDTH) 48.dp else 72.dp
+    // On a phone the outer buttons reach out to the content's margin, so their glyphs line up with the times above and
+    // with Close; a car's keep their whole target clear of its screen's edge.
+    val reach = if (LocalCarScreen.current) 0.dp else OUTER_REACH
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         // A book steps back 15 seconds and forward 30 in place of Shuffle and Repeat, as audiobook apps do.
-        if (now.book) {
-            StepButton(PleyIcons.RotateCcw, BOOK_BACK_MS, stringResource(ScreensR.string.book_back), onClick = model::back)
-        } else {
-            ModeButton(
-            PleyIcons.Shuffle,
-            stringResource(if (now.shuffle) R.string.music_shuffle_off else R.string.music_shuffle_on),
-            on = now.shuffle,
-            onClick = { model.setShuffle(!now.shuffle) },
-        )
+        Box(Modifier.offset(x = -reach)) {
+            if (now.book) {
+                StepButton(PleyIcons.RotateCcw, BOOK_BACK_MS, stringResource(ScreensR.string.book_back), onClick = model::back)
+            } else {
+                ModeButton(
+                    PleyIcons.Shuffle,
+                    stringResource(if (now.shuffle) R.string.music_shuffle_off else R.string.music_shuffle_on),
+                    on = now.shuffle,
+                    onClick = { model.setShuffle(!now.shuffle) },
+                )
+            }
         }
         SkipButton(PleyIcons.SkipBack, stringResource(R.string.music_previous), onClick = model::previous)
         // What it will do, a track still starting too; paused, it stays Play through a seek's loading.
@@ -503,22 +554,24 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) = BoxWithConst
             PlayPauseGlyph(playing, size = playSize * 4 / 9, tint = PleyColors.OnAccent)
         }
         SkipButton(PleyIcons.SkipForward, stringResource(R.string.music_next), onClick = model::next, enabled = now.hasNext)
-        if (now.book) {
-            StepButton(PleyIcons.RotateCw, BOOK_FORWARD_MS, stringResource(ScreensR.string.book_forward), onClick = model::forward)
-            return@Row
+        Box(Modifier.offset(x = reach)) {
+            if (now.book) {
+                StepButton(PleyIcons.RotateCw, BOOK_FORWARD_MS, stringResource(ScreensR.string.book_forward), onClick = model::forward)
+            } else {
+                ModeButton(
+                    if (now.repeat == MusicRepeat.One) PleyIcons.Repeat1 else PleyIcons.Repeat,
+                    stringResource(
+                        when (now.repeat) {
+                            MusicRepeat.Off -> R.string.music_repeat_on
+                            MusicRepeat.All -> R.string.music_repeat_one
+                            MusicRepeat.One -> R.string.music_repeat_off
+                        },
+                    ),
+                    on = now.repeat != MusicRepeat.Off,
+                    onClick = { model.setRepeat(now.repeat.next) },
+                )
+            }
         }
-        ModeButton(
-            if (now.repeat == MusicRepeat.One) PleyIcons.Repeat1 else PleyIcons.Repeat,
-            stringResource(
-                when (now.repeat) {
-                    MusicRepeat.Off -> R.string.music_repeat_on
-                    MusicRepeat.All -> R.string.music_repeat_one
-                    MusicRepeat.One -> R.string.music_repeat_off
-                },
-            ),
-            on = now.repeat != MusicRepeat.Off,
-            onClick = { model.setRepeat(now.repeat.next) },
-        )
     }
 }
 
@@ -669,6 +722,12 @@ private val WIDE_BELOW = 560.dp
 /** The widest the tall layout's column gets, and its side margins. */
 private val TALL_MAX = 520.dp
 private val TALL_EDGE = 24.dp
+
+/** The top bar's buttons' height (PleyIconButton): what the page takes off its height before it chooses its layout. */
+private val BAR_HEIGHT = 48.dp
+
+/** How far a phone's outer controls reach past the content's margin: their 48 dp target's padding round a 24 dp glyph. */
+private val OUTER_REACH = 12.dp
 
 /** The widest a wide window's controls spread. */
 private val WIDE_MAX = 640.dp
