@@ -20,6 +20,36 @@ use crate::overrides::RATING_LOCKED;
 /// may fetch two pictures); TMDB allows about 40 a second and 429 answers
 /// are retried with a pause.
 const LOOKUPS: usize = 8;
+
+/// Whether a title looked up at `$last` (seconds), and in the library since
+/// `$added`, is looked up again now, as SQL: a day after at first, then
+/// after as long again as it had been in the library by then, up to a
+/// month. A title a source adds later is found without a Refresh, and one
+/// it never will costs a few requests a month. A title no source found has
+/// the time of its last lookup, negated, as its `metadata_at`; a show
+/// whose new episodes a source didn't describe yet is looked up as theirs.
+macro_rules! looked_up_again {
+    ($last:literal, $added:literal) => {
+        concat!("unixepoch() - ", $last, " >= MIN(MAX(", $last, " - ", $added, ", 86400), 2592000)")
+    };
+}
+pub(crate) use looked_up_again;
+
+/// An episode `e` of the show `items` that no fetch described, in a season
+/// that is fetched (one locked isn't), as the start of an SQL subquery.
+macro_rules! undescribed_episode {
+    () => {
+        "SELECT 1 FROM items e JOIN items s ON s.id = e.parent_id
+         WHERE e.grandparent_id = items.id AND +e.kind = 'episode' AND e.metadata_at IS NULL
+           AND e.metadata_locked = 0 AND s.metadata_locked = 0"
+    };
+}
+
+/// Of the titles due to be looked up again, how many of a kind a scan
+/// does, those waiting longest first: a library with many (after an
+/// update, say) goes through them over a few scans, without asking a
+/// source for all of them at once.
+pub(crate) const LOOKED_UP_AGAIN: i64 = 50;
 use crate::people;
 use crate::providers::{Endpoints, ProviderError, Providers, TvSource};
 use crate::settings::SettingsStore;
@@ -379,29 +409,61 @@ impl MetadataAgent {
         })
     }
 
-    /// Fetch metadata for items that never had any (or all, when `force`).
+    /// Fetch metadata for items that never had any (or all, when `force`):
+    /// shows with episodes added since they were fetched among them, and
+    /// `again` a few of those found nothing for a while ago
+    /// ([`looked_up_again`]).
     pub async fn refresh_library(
         &self,
         lib: &LibraryRow,
         force: bool,
+        again: bool,
         progress: &(dyn Fn(u64, u64) + Sync),
     ) -> anyhow::Result<()> {
         let kind = match lib.kind() {
             LibraryKind::Movies => "movie",
             LibraryKind::Shows => "show",
-            LibraryKind::Music => return self.providers.refresh_music_library(lib, force, progress).await,
-            LibraryKind::Audiobooks => return self.providers.refresh_book_library(lib, force, progress).await,
+            LibraryKind::Music => return self.providers.refresh_music_library(lib, force, again, progress).await,
+            LibraryKind::Audiobooks => return self.providers.refresh_book_library(lib, force, again, progress).await,
         };
-        let items: Vec<Candidate> = sqlx::query_as(
+        // An episode comes with no details: its show is fetched again. Shows
+        // are fetched whole, so an episode isn't looked up without them.
+        let mut items: Vec<Candidate> = sqlx::query_as(concat!(
             "SELECT id, kind, title, year, tmdb_id, imdb_id, tvdb_id, poster, backdrop FROM items
-             WHERE library_id = ? AND kind = ? AND metadata_locked = 0 AND (? OR metadata_at IS NULL)
-             ORDER BY added_at DESC",
-        )
+             WHERE library_id = ?1 AND kind = ?2 AND metadata_locked = 0
+               AND (?3 OR metadata_at IS NULL OR (kind = 'show' AND metadata_at > 0 AND EXISTS (",
+            undescribed_episode!(),
+            " AND e.added_at >= items.metadata_at)))
+             ORDER BY added_at DESC"
+        ))
         .bind(lib.id)
         .bind(kind)
         .bind(force)
         .fetch_all(&self.db.read)
         .await?;
+        if again && !force {
+            // Episodes the source didn't describe are looked up again with
+            // their show, as titles it found nothing for are.
+            let due: Vec<Candidate> = sqlx::query_as(concat!(
+                "SELECT id, kind, title, year, tmdb_id, imdb_id, tvdb_id, poster, backdrop FROM items
+                 WHERE library_id = ?1 AND kind = ?2 AND metadata_locked = 0
+                   AND ((metadata_at < 0 AND ",
+                looked_up_again!("(-metadata_at)", "added_at"),
+                ") OR (kind = 'show' AND metadata_at > 0 AND EXISTS (",
+                undescribed_episode!(),
+                " AND ",
+                looked_up_again!("items.metadata_at", "e.added_at"),
+                ")))
+                 ORDER BY ABS(metadata_at) LIMIT ?3"
+            ))
+            .bind(lib.id)
+            .bind(kind)
+            .bind(LOOKED_UP_AGAIN)
+            .fetch_all(&self.db.read)
+            .await?;
+            let fresh: HashSet<i64> = items.iter().map(|item| item.id).collect();
+            items.extend(due.into_iter().filter(|item| !fresh.contains(&item.id)));
+        }
         let total = items.len() as u64;
         if total == 0 {
             return Ok(());

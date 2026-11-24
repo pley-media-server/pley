@@ -214,15 +214,18 @@ impl Books {
     }
 
     /// Look up the books of a library that have no metadata yet (all of
-    /// them when `force`). `country` is the server's (ISO 3166-1, "GB").
+    /// them when `force`), and `again` a few of those found nothing for a
+    /// while ago ([`crate::metadata::looked_up_again`]). `country` is the
+    /// server's (ISO 3166-1, "GB").
     pub async fn refresh_library(
         &self,
         lib: &LibraryRow,
         force: bool,
+        again: bool,
         country: &str,
         progress: &(dyn Fn(u64, u64) + Sync),
     ) -> anyhow::Result<()> {
-        let books: Vec<i64> = sqlx::query_scalar(
+        let mut books: Vec<i64> = sqlx::query_scalar(
             "SELECT id FROM items WHERE library_id = ? AND kind = 'audiobook' AND metadata_locked = 0
                AND (? OR metadata_at IS NULL) ORDER BY added_at DESC",
         )
@@ -230,6 +233,19 @@ impl Books {
         .bind(force)
         .fetch_all(&self.db.read)
         .await?;
+        if again && !force {
+            let due: Vec<i64> = sqlx::query_scalar(concat!(
+                "SELECT id FROM items WHERE library_id = ? AND kind = 'audiobook' AND metadata_locked = 0
+                   AND metadata_at < 0 AND ",
+                crate::metadata::looked_up_again!("(-metadata_at)", "added_at"),
+                " ORDER BY ABS(metadata_at) LIMIT ?"
+            ))
+            .bind(lib.id)
+            .bind(crate::metadata::LOOKED_UP_AGAIN)
+            .fetch_all(&self.db.read)
+            .await?;
+            books.extend(due);
+        }
         let total = books.len() as u64;
         if total == 0 {
             return Ok(());

@@ -539,6 +539,7 @@ impl Scanner {
             return Ok(None);
         }
         self.events.send(ServerEvent::ScanStarted { library_id });
+        let whole = scope.is_none();
         let (totals, mut phases, processed, total) = match scope {
             Some(scope) if scope.is_empty() => (Totals::default(), Phases::default(), 0, 0),
             _ if req.files => self.scan_files(&lib, force, scope).await?,
@@ -549,7 +550,10 @@ impl Scanner {
         if req.metadata && self.metadata.enabled_for(lib.kind()) {
             self.set_status(&lib, ScanPhase::Metadata, 0, 0);
             let progress = |done: u64, total: u64| self.set_status(&lib, ScanPhase::Metadata, done, total);
-            if let Err(err) = self.metadata.refresh_library(&lib, refetch, &progress).await {
+            // Titles found nothing for are looked up again as the whole
+            // library is scanned, not as each change in it is: some sources
+            // answer a request a second.
+            if let Err(err) = self.metadata.refresh_library(&lib, refetch, whole, &progress).await {
                 tracing::warn!("metadata refresh for library {} failed: {err:#}", lib.id);
             }
             self.events.send(ServerEvent::LibraryChanged { library_id });

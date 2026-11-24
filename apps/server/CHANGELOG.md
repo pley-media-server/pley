@@ -17,9 +17,14 @@ describes how they are made.
 - A change in a library's folders scans again only the folder of the title
   it's in, not the whole library, and so does a refresh from another tool
   that names a folder.
+- A title no metadata source found anything for is looked up again a day
+  later, then less and less often, so one the source adds later gets its
+  details without a Refresh.
 
 ### Fixed
 
+- Episodes added to a show that already has its details get theirs at the
+  next scan.
 - Home and a TV library's Recommended tab open at once after a big scan,
   also in a library of thousands of shows.
 - Music playing in the web app pauses once Play on… sends something to

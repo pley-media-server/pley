@@ -6,7 +6,7 @@ mod common;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use axum::extract::{Query, State};
@@ -28,6 +28,10 @@ const KEY: &str = "test-key";
 struct Tmdb {
     /// "/search/movie?query=Alien&…" for every request.
     requests: Arc<Mutex<Vec<String>>>,
+    /// TMDB has since added a film and an episode it didn't have.
+    added: Arc<AtomicBool>,
+    /// Every request fails, as when TMDB is down.
+    down: Arc<AtomicBool>,
 }
 
 impl Tmdb {
@@ -43,6 +47,7 @@ fn movie(id: i64) -> Option<Value> {
         8077 => ("Alien³", "1992-05-22", 114, "tt0103644", true),
         99_999 => ("Alien Nation", "1988-10-07", 91, "tt0094631", false),
         4497 => ("Br\u{fc}no", "2009-07-10", 81, "tt0889583", false),
+        77 => ("Nothing Like It", "2001-03-03", 95, "tt0000077", false),
         _ => return None,
     };
     Some(json!({
@@ -79,9 +84,35 @@ fn search_result(id: i64, title: &str, date: &str, popularity: f64) -> Value {
            "overview": format!("About {title}."), "poster_path": null})
 }
 
-fn answer(path: &str, query: &[(String, String)]) -> Option<Value> {
+/// TMDB's answer, `added` once it has the film and the episode it lacked.
+fn answer(path: &str, query: &[(String, String)], added: bool) -> Option<Value> {
     let param = |name: &str| query.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str());
+    let episode = |number: i64, name: &str| {
+        json!({"episode_number": number, "name": name, "overview": format!("{name}, told."), "air_date": "2019-05-01",
+               "still_path": null, "vote_average": 7.0, "crew": [], "guest_stars": []})
+    };
     Some(match path {
+        "/search/movie" if added && param("query") == Some("Nothing Like It") => {
+            json!({"results": [search_result(77, "Nothing Like It", "2001-03-03", 5.0)]})
+        }
+        "/search/tv" if param("query") == Some("Harbor Lights") => json!({"results": [
+            {"id": 9001, "name": "Harbor Lights", "original_name": "Harbor Lights", "first_air_date": "2019-05-01",
+             "popularity": 10.0}
+        ]}),
+        "/tv/9001" => json!({
+            "name": "Harbor Lights", "original_name": "Harbor Lights", "overview": "A lighthouse town.",
+            "tagline": "", "vote_average": 7.5, "first_air_date": "2019-05-01", "genres": [], "networks": [],
+            "poster_path": null, "backdrop_path": null, "external_ids": {"imdb_id": null, "tvdb_id": null},
+            "content_ratings": {"results": []}, "aggregate_credits": {"cast": []}, "created_by": []
+        }),
+        "/tv/9001/season/1" => {
+            let mut episodes = vec![episode(1, "Arrival at Dusk"), episode(2, "The Lantern"), episode(3, "Low Tide")];
+            if added {
+                episodes.push(episode(4, "Fog Bank"));
+            }
+            json!({"name": "Season 1", "overview": "", "poster_path": null, "air_date": "2019-05-01",
+                   "episodes": episodes})
+        }
         "/configuration" => json!({"images": {"secure_base_url": "https://image.tmdb.org/t/p/"}}),
         "/search/movie" => json!({"results": match param("query") {
             // The most popular result is not the right one.
@@ -164,7 +195,10 @@ async fn tmdb(State(mock): State<Tmdb>, uri: Uri, Query(query): Query<Vec<(Strin
     if !query.iter().any(|(k, v)| k == "api_key" && v == KEY) {
         return (StatusCode::UNAUTHORIZED, axum::Json(json!({"status_code": 7}))).into_response();
     }
-    match answer(&path, &query) {
+    if mock.down.load(Ordering::SeqCst) {
+        return StatusCode::SERVICE_UNAVAILABLE.into_response();
+    }
+    match answer(&path, &query, mock.added.load(Ordering::SeqCst)) {
         Some(body) => axum::Json(body).into_response(),
         None => (StatusCode::NOT_FOUND, axum::Json(json!({"status_code": 34}))).into_response(),
     }
@@ -720,6 +754,119 @@ async fn an_episode_without_a_number_is_found_by_its_title() {
     assert_eq!(rescan.status, StatusCode::ACCEPTED);
     app.wait_for_scans().await;
     assert_eq!(listed().await, numbered);
+}
+
+async fn rescan(app: &TestApp, admin: &str, lib: i64) {
+    let reply = app.post(&format!("/api/libraries/{lib}/scan"), admin, json!({})).await;
+    assert_eq!(reply.status, StatusCode::ACCEPTED);
+    app.wait_for_scans().await;
+}
+
+/// Moves what the database knows of `items` (an SQL condition) `hours`
+/// back in time: when they were added and last looked up.
+async fn hours_ago(app: &TestApp, items: &str, hours: i64) {
+    let sql = format!(
+        "UPDATE items SET added_at = added_at - {seconds},
+             metadata_at = CASE WHEN metadata_at < 0 THEN metadata_at + {seconds}
+                                WHEN metadata_at > 0 THEN metadata_at - {seconds} END
+         WHERE {items}",
+        seconds = hours * 3600
+    );
+    sqlx::query(sqlx::AssertSqlSafe(sql)).execute(&app.state.db.write).await.unwrap();
+}
+
+/// A film TMDB found nothing for is looked up again a day later, then less
+/// and less often, so that one it adds later is found without a Refresh.
+/// While TMDB doesn't answer, nothing is taken for unknown: what wasn't
+/// looked up is at the next scan.
+#[tokio::test]
+async fn a_film_found_nothing_for_is_looked_up_again_less_and_less_often() {
+    let (app, tmdb, admin, lib) = world().await;
+    use_key(&app, &admin, KEY).await;
+    let film = app.ids(lib, &admin).await["Nothing Like It"];
+    let lookups = || tmdb.requested("/search/movie?query=Nothing").len();
+    assert_eq!(lookups(), 2, "with its year, then without");
+    let unknown = "title = 'Nothing Like It'";
+    rescan(&app, &admin, lib).await;
+    assert_eq!(lookups(), 2, "not again at once");
+
+    // A day after it was looked up, it is again; then after as long again
+    // as it had been in the library by then.
+    for (hours, looked_up) in [(20, false), (5, true), (20, false), (6, true), (30, false), (25, true)] {
+        let before = lookups();
+        hours_ago(&app, unknown, hours).await;
+        rescan(&app, &admin, lib).await;
+        assert_eq!(lookups() > before, looked_up, "{hours} hours later");
+    }
+
+    // TMDB has it now. A scan of where files changed leaves it to the next
+    // scan of the whole library.
+    tmdb.added.store(true, Ordering::SeqCst);
+    hours_ago(&app, unknown, 24 * 5).await;
+    let before = lookups();
+    app.state.scanner.enqueue_changes(lib, vec![app.media.path().join("movies/Aliens (1986).mkv")]);
+    app.wait_for_scans().await;
+    assert_eq!(lookups(), before);
+    rescan(&app, &admin, lib).await;
+    let detail = app.get(&format!("/api/items/{film}"), &admin).await.body;
+    assert_eq!(
+        (detail["tmdb_id"].clone(), detail["summary"].clone()),
+        (json!(77), json!("The story of Nothing Like It."))
+    );
+
+    // TMDB down: a new film isn't taken for one it doesn't know.
+    tmdb.down.store(true, Ordering::SeqCst);
+    app.media_file("movies/Quiet Harbor (2015).mkv", 1024);
+    rescan(&app, &admin, lib).await;
+    let stored = || async {
+        sqlx::query_scalar::<_, Option<i64>>("SELECT metadata_at FROM items WHERE title = 'Quiet Harbor'")
+            .fetch_one(&app.state.db.read)
+            .await
+            .unwrap()
+    };
+    assert_eq!(stored().await, None, "not looked up yet");
+    tmdb.down.store(false, Ordering::SeqCst);
+    let searches = tmdb.requested("/search/movie?query=Quiet").len();
+    rescan(&app, &admin, lib).await;
+    assert!(tmdb.requested("/search/movie?query=Quiet").len() > searches, "looked up at the next scan");
+    assert!(stored().await.is_some_and(|at| at < 0), "TMDB doesn't know it");
+}
+
+/// An episode added to a show TMDB described gets its details at the scan
+/// that finds it; one TMDB doesn't have yet gets them once it does, without
+/// the show being fetched again at every scan meanwhile.
+#[tokio::test]
+async fn episodes_added_to_a_show_get_their_details() {
+    let (app, tmdb, admin, _) = world().await;
+    use_key(&app, &admin, KEY).await;
+    app.media_file("tv/Harbor Lights (2019)/Season 01/Harbor Lights - S01E01.mkv", 1024);
+    let tv = app.library(&admin, "TV", "shows", "tv").await;
+    let show = app.ids(tv, &admin).await["Harbor Lights"];
+    let season = app.children(show, &admin).await["Season 1"];
+    let episodes = || async {
+        let listed = app.get(&format!("/api/items/{season}/children"), &admin).await.body;
+        titles(&listed["items"])
+    };
+    assert_eq!(episodes().await, ["Arrival at Dusk"]);
+
+    app.media_file("tv/Harbor Lights (2019)/Season 01/Harbor Lights - S01E03.mkv", 1024);
+    app.media_file("tv/Harbor Lights (2019)/Season 01/Harbor Lights - S01E04.mkv", 1024);
+    rescan(&app, &admin, tv).await;
+    assert_eq!(episodes().await, ["Arrival at Dusk", "Low Tide", "Episode 4"]);
+    // (Added before the show was fetched, as a second can't tell here.)
+    sqlx::query("UPDATE items SET added_at = added_at - 10 WHERE kind = 'episode'")
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    let fetched = || tmdb.requested("/tv/9001/season/1").len();
+    let before = fetched();
+    rescan(&app, &admin, tv).await;
+    assert_eq!(fetched(), before, "not fetched again at once for the episode TMDB lacks");
+
+    tmdb.added.store(true, Ordering::SeqCst);
+    hours_ago(&app, &format!("library_id = {tv}"), 26).await;
+    rescan(&app, &admin, tv).await;
+    assert_eq!(episodes().await, ["Arrival at Dusk", "Low Tide", "Fog Bank"]);
 }
 
 /// Copies of a film whose names give different years (TMDB corrected it
