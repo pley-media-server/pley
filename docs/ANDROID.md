@@ -1136,9 +1136,11 @@ as a row with its icon at an icon's size.
   title's placeholder.
 - **Books**: as a grid of covers, the books being heard (Continue
   listening, the one heard last first), those added last to each
-  audiobook library, then every book by title. Each says its authors,
-  how long is left of one being heard, and a bar under its cover of how
-  far the profile is in it (a book heard to its end shows as such).
+  audiobook library, then every book by title. Each says its authors
+  and how long is left of one being heard (under Continue listening, how
+  long is left alone), and a bar under its cover of how far the profile
+  is in it (a book heard to its end shows as such; one not started says
+  nothing, rather than be marked as not played).
 
 Recent and Books follow what plays: 2 seconds after a new album or
 playlist starts, or a book pauses or goes on to its next part, a car
@@ -1159,7 +1161,8 @@ search's artists and albums, each row a list of its own hint; a hint on
 each of hundreds of rows is sent with every list. 500 album tracks of
 long titles fit, and 500 channels of names and programs as long as
 most; 500 artists don't, each row's picture leaving room for some 430
-to 450.
+to 450, nor do 500 books of long titles, how far each is heard taking
+room too (some 320).
 
 Android Auto keeps each picture it has read by its address, so every
 address changes with what it shows: the server's pictures and channel
@@ -1841,7 +1844,9 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
 - No Watch Next row on phones or Fire TV.
 - Android Auto's videos are in the sideloaded build only. Its Artists tab
   lists the first 500 artists of a library by name and its Books tab the
-  first 500 books by title (search finds the others), and its music has no downloads: a car out of signal browses
+  first 500 books by title, of which the car shows those that fit the
+  256 KiB of a list (some 430 artists and 320 books of long names; search
+  finds the others), and its music has no downloads: a car out of signal browses
   the albums, playlists and Recently added it saw last (Artists,
   Recently played and search need the server) and plays nothing new.
 - The TV's display mode isn't matched for live channels.

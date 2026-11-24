@@ -21,6 +21,7 @@ import app.pley.android.model.LiveGroups
 import app.pley.android.model.LiveProgram
 import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.PlaylistSummary
+import app.pley.android.model.UserState
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -83,6 +84,13 @@ class CarListSizeTest {
         val many = library(live).children(MusicId.LiveTv, 0, ROWS)
         assertTrue(many.last().mediaMetadata.artworkUri == null)
         assertTrue(sent("Live TV's tab", many) >= 440)
+    }
+
+    @Test
+    fun aBooksTabSendsSomeThreeHundredOfItsBooks() = runTest {
+        // Every book by title, each under the heading of All books, with its authors and how far the profile is in it
+        // (the status and the share heard, each under a long key of Android's): 500 don't fit, some 800 bytes a row.
+        assertTrue(sent("books", library.children(MusicId.Books, 0, ROWS)) >= 320)
     }
 
     @Test
@@ -175,11 +183,25 @@ class CarListSizeTest {
 
         override suspend fun search(query: String) = emptyList<ItemSummary>()
 
-        override suspend fun bookLibraries() = emptyList<Library>()
+        override suspend fun bookLibraries() = listOf(Library(LIBRARY + 1, "Books", LibraryKind.Audiobooks, itemCount = ROWS))
 
         override suspend fun bookShelves(libraryId: Long) = BookShelves()
 
-        override suspend fun books(libraryId: Long, limit: Int) = emptyList<ItemSummary>()
+        /** Books of long titles by two authors, each third heard part way and each fifth to its end. */
+        override suspend fun books(libraryId: Long, limit: Int) = (0 until minOf(limit, ROWS)).map { i ->
+            val id = ITEM + i
+            ItemSummary(
+                id,
+                LIBRARY + 1,
+                ItemKind.Audiobook,
+                long("Book $i", BOOK_TITLE),
+                posterUrl = "/api/items/$id/images/poster?v=$VERSION",
+                leafCount = 40,
+                viewedLeafCount = if (i % 3 == 0) 12 else 0,
+                authors = listOf(long("Author", AUTHOR), long("Another", AUTHOR)),
+                userState = UserState(watched = i % 5 == 0),
+            )
+        }
 
         override suspend fun parts(bookId: Long) = emptyList<ItemSummary>()
 
@@ -268,10 +290,13 @@ class CarListSizeTest {
         /**
          * The lengths of each row's words: an artist's name longer than most (most are under 16 characters), a
          * classical work's movement, an album's and its performers' (not sent in the album's list); a channel's name
-         * with its region, what is on and a provider's group as long as most. A channel's row has the most besides:
+         * with its region, what is on and a provider's group as long as most; a book's title and its two authors' as
+         * long as most. A channel's row has the most besides:
          * its id names its group, and its logo's address its version.
          */
         const val ARTIST_NAME = 24
+        const val BOOK_TITLE = 40
+        const val AUTHOR = 18
         const val TRACK_TITLE = 48
         const val NAME = 80
         const val CHANNEL_NAME = 16

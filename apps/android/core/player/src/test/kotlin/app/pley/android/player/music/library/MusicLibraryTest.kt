@@ -169,12 +169,15 @@ class MusicLibraryTest {
         val heard = books[0].mediaMetadata
         assertTrue(heard.isPlayable == true && heard.isBrowsable == false)
         assertEquals(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK, heard.mediaType)
-        assertEquals("A Writer · 30 min left", heard.subtitle.toString())
+        // Under Continue listening, how long is left alone; elsewhere its authors beside it.
+        assertEquals("30 min left", heard.subtitle.toString())
+        assertEquals("A Writer · 30 min left", books[2].mediaMetadata.subtitle.toString())
         assertEquals(MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED, heard.extras!!.getInt(MediaConstants.EXTRAS_KEY_COMPLETION_STATUS))
         assertEquals(0.75, heard.extras!!.getDouble(MediaConstants.EXTRAS_KEY_COMPLETION_PERCENTAGE), 0.001)
+        // One not started says nothing of it: the car would mark it.
         val fresh = books[1].mediaMetadata
         assertEquals("A Writer, Another", fresh.subtitle.toString())
-        assertEquals(MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED, fresh.extras!!.getInt(MediaConstants.EXTRAS_KEY_COMPLETION_STATUS))
+        assertFalse(fresh.extras?.containsKey(MediaConstants.EXTRAS_KEY_COMPLETION_STATUS) == true)
         assertEquals(listOf("book:70", "album:50"), library.children(MusicId.Recent, 0, 50).map { it.mediaId })
 
         // Played: from the part it was in, where it was.

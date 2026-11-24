@@ -496,7 +496,7 @@ class MusicLibrary(
             shelves.added.map { book(it, heard[it.id]).grouped(group) }
         }
         val all = everyOne.awaitAll().flatten().sortedBy { it.sortTitle.ifEmpty { it.title }.lowercase() }.take(MAX_PAGE)
-        listening.map { book(it, heard[it.id]).grouped(l.continueListening) } + added + all.map { book(it, heard[it.id]).grouped(l.allBooks) }
+        listening.map { book(it, heard[it.id], listening = true).grouped(l.continueListening) } + added + all.map { book(it, heard[it.id]).grouped(l.allBooks) }
     }
 
     /**
@@ -509,7 +509,7 @@ class MusicLibrary(
         val heard = heardOf(parts)
         val l = look()
         val heardAt = parts.values.flatten().mapNotNull { it.userState.lastPlayedAt }.maxOrNull()
-        return listening.map { book(it, heard[it.id]).grouped(l.continueListening) } to heardAt
+        return listening.map { book(it, heard[it.id], listening = true).grouped(l.continueListening) } to heardAt
     }
 
     /** Each of [libraries]' rows of books; a library whose rows can't be read has none. */
@@ -701,9 +701,13 @@ class MusicLibrary(
      * A book: played as it is picked, where the profile is in it, never
      * opened (its parts are the queue). Its authors, and how long is left
      * of one being heard ([heard]), beside the bar under its cover: a car
-     * doesn't always draw that bar.
+     * doesn't always draw that bar. Under Continue listening ([listening]),
+     * how long is left alone: a tile's line has room for little, and the
+     * books there are the profile's own. One not started says nothing of
+     * it: a car marks what is said not to be played, and most of a
+     * library's books are.
      */
-    private fun book(item: ItemSummary, heard: Heard?): MediaItem {
+    private fun book(item: ItemSummary, heard: Heard?, listening: Boolean = false): MediaItem {
         val authors = item.authors.joinToString(", ").ifEmpty { null }
         val finished = item.userState.watched
         val partway = !finished && heard != null && heard.heardMs > 0 && heard.heardMs < heard.totalMs
@@ -715,19 +719,18 @@ class MusicLibrary(
             finished -> extras.putInt(MediaConstants.EXTRAS_KEY_COMPLETION_STATUS, MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED)
             partway && heard != null -> extras.partly(heard.heardMs.toDouble() / heard.totalMs)
             viewed in 1 until parts -> extras.partly(viewed.toDouble() / parts)
-            else -> extras.putInt(MediaConstants.EXTRAS_KEY_COMPLETION_STATUS, MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED)
         }
         val metadata = MediaMetadata.Builder()
             .setTitle(item.title)
             .setDisplayTitle(item.title)
-            .setSubtitle(listOfNotNull(authors, left).joinToString(" · ").ifEmpty { item.year?.toString() })
+            .setSubtitle((if (listening) left else null) ?: listOfNotNull(authors, left).joinToString(" · ").ifEmpty { item.year?.toString() })
             .setArtist(authors)
             .setDurationMs(item.durationMs?.takeIf { it > 0 })
             .setArtworkUri(cover(item.posterUrl, item.title))
             .setIsBrowsable(false)
             .setIsPlayable(true)
             .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
-            .setExtras(extras)
+            .setExtras(extras.takeUnless { it.isEmpty })
             .build()
         return MediaItem.Builder().setMediaId(MusicId.Book(item.id).text).setMediaMetadata(metadata).build()
     }
