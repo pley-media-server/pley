@@ -87,7 +87,7 @@ With Android Auto:
 - A track that can't be played says so for 5 seconds, then the next one
   plays by itself; Play tries it again.
 - Music, movies and shows without a picture show Pley's mark on their
-  placeholder instead of their title, which the caption under it shows.
+  placeholder; their title is in the caption under it.
 - Changing tabs fades from one to the next, Now Playing comes up from
   the bar of what plays, and that bar rises in as music starts.
 - Now Playing's sleep timer opens its choices in a sheet, as the queue
@@ -95,13 +95,12 @@ With Android Auto:
 
 ### Fixed
 
-- Pause pressed while a track is starting now keeps it paused once it
-  loads, instead of playing it.
+- Pause pressed while a track is starting keeps it paused once it loads.
 - The scrubber no longer shows the last track's position while the next
   one loads, nor jumps back for a moment after a seek, and it moves when
   seeking while paused, also from the notification or the remote.
 - Previous pressed again while a track is still loading goes one more
-  track back, instead of starting the loading track again.
+  track back.
 - A track that failed to start no longer starts where the track before
   it was when Play is pressed.
 - Play/Pause no longer shows Pause for a track that will wait paused, or
@@ -113,9 +112,9 @@ With Android Auto:
   and Spanish, with Cancel under it when they don't fit side by side.
 - Play and Shuffle on an artist's or album's page are the same height.
 - Now Playing fits a phone turned on its side, with the cover beside
-  the title, instead of the cover hiding the controls.
+  the title and every control in view.
 - Music playing on the phone pauses once Play on… sends something to
-  another device, rather than playing in both places.
+  another device.
 
 ## [0.1.17] - 2026-11-22
 

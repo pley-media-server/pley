@@ -1722,8 +1722,9 @@ open only some libraries see those, in that order.
 **Audiobooks** are for Pley's own sign-in (the web app and the desktop
 app's window, which show them) and for an app's request that says it
 shows them with `X-Pley-Features: audiobooks` (comma-separated features,
-`audiobooks` the only one yet; the Android app sends it with every
-request and on its event stream). Such a request gets them as Pley's own
+`audiobooks` the only one yet; the Android app sends it with every API
+request and on its event stream, not with pictures, which don't depend
+on it). Such a request gets them as Pley's own
 sign-in does, from the libraries the account may open; an app that sends
 it with some requests only keeps their answers apart from the others' (an
 HTTP cache of their own), as they differ. Any other

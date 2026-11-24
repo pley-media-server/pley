@@ -146,6 +146,15 @@ code is above 20003, which Google Play already has. The stores take each
 code once: to upload the same version again, build it with `PLEY_BUILD`
 (1 to 99), which is added to the code.
 
+### Android Auto on Google Play
+
+The store build is an Android Auto media app (`automotive_app_desc.xml`,
+`<uses name="media"/>`). Before the first release that carries it, Android
+Auto is added as a form factor in the Play Console and its terms accepted;
+Google then reviews the app for cars as well as phones, and an update waits
+for both. The sideloaded build's parked videos (`CAR_LAUNCHER`) are not in
+the store build: Google takes video apps for cars from its partners only.
+
 ## CI
 
 Each unit has a workflow named after it. It runs by hand, and on pushes to

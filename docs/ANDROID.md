@@ -1270,7 +1270,10 @@ again once the music plays near the end. When the server refuses it (no
 conversion free beside the track playing), the next track is asked for
 as the one playing ends, after a short wait; when the server is out of
 reach for a moment, it is asked again 10 seconds later. One the player can't read
-fails once the track before has played, as any track does.
+fails once the track before has played, as any track does. A server
+older than `ahead` lists the track asked ahead as playing from when it
+is asked, so its dashboard shows two of the phone's sessions for the
+last half minute of each track.
 
 "Hey Google, play … on Pley" plays the music playlist named so (by the
 name the Assistant heard, or said with a word for a playlist, as in "my
@@ -1356,8 +1359,8 @@ watched lately count as one list); two channels that would then read
 the same (a provider's HD and RAW feeds) keep the names the provider
 gave them. Favorites, channels watched lately, groups, search and Now
 Playing name channels so, the rule kept in the app's shared model
-(`LiveNames.channelLines`) for the phone's and the TV's Live TV to take
-up; they show the provider's names for now. A
+(`LiveNames.channelLines`); the phone's and the TV's Live TV lists
+show the names the provider gives. A
 channel shows its logo, fitted at three quarters of a square plate with
 rounded corners, as the phone fits it in its well: the plate is light
 under a dark logo and dark under a light one, from the logo's mean
