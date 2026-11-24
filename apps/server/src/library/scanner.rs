@@ -814,13 +814,33 @@ impl Scanner {
                     .collect(),
                 unavailable: walked.offline_roots.iter().chain(&walked.unreadable).cloned().collect(),
                 held: self.merges_held.lock().contains(&library_id),
-                outside: scope.as_ref().map(|_| outside.iter().filter_map(|f| f.show_id).collect()),
+                // The shows with show folders outside a scan of part of the
+                // library (not just files directly in a library folder).
+                outside: scope.as_ref().map(|_| {
+                    let in_show_folder = |path: &Path| {
+                        let root = roots
+                            .iter()
+                            .filter(|root| path.starts_with(root))
+                            .max_by_key(|root| root.as_os_str().len());
+                        root.is_some_and(|root| show_dir(path, root).is_some())
+                    };
+                    let mut shows = HashSet::new();
+                    for file in &outside {
+                        if let Some(show) = file.show_id
+                            && !shows.contains(&show)
+                            && in_show_folder(Path::new(&file.path))
+                        {
+                            shows.insert(show);
+                        }
+                    }
+                    shows
+                }),
             };
             match super::shows::plan(&self.db, scan, &self.show_nfos).await? {
                 Some(planned) => (placement, moves) = planned,
                 None => {
                     tracing::info!(
-                        "library {library_id}: a show is in the part that changed and the rest, scanning all of it"
+                        "library {library_id}: a show's folders change where it has others, scanning all of it"
                     );
                     return Ok(None);
                 }
@@ -980,8 +1000,9 @@ impl Scanner {
             containers.extend(went);
         }
         let mut tx = self.db.write.begin().await?;
-        // Seasons that folders left get a folder of theirs again.
-        if !moves.is_empty() || !left.is_empty() {
+        // Seasons that folders left get a folder of theirs again, also after
+        // a scan that stopped before.
+        if kind == LibraryKind::Shows {
             super::shows::season_folders(&mut tx, library_id, &roots).await?;
         }
         // A movie whose files went to another, but for one that is gone,

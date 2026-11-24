@@ -13,18 +13,23 @@
 //! with the folders that have its ids. Folders without ids stay with the
 //! show of their name.
 //!
-//! A folder stays in the show its files are in while its ids fit those of
-//! the folders that stay there before it: the folder the show is named
-//! after (its path) first, so that a show keeps its own folder, and with it
-//! its match and what was done with it. While a show's own folder can't be
-//! read, the show is known by the ids that folder had. The folders that
-//! don't stay go to the show of their ids, else to the show of their name.
+//! A folder stays in the show its files are in while its ids fit the one
+//! the show's key names and those of the folders that stay there before
+//! it: the folder the show is named after (its path) first, so that a show
+//! keeps its own folder, and with it its match and what was done with it.
+//! It doesn't stay when another show's key names one of its ids and its
+//! own show's names none. While a show's own folder can't be read, the show
+//! is known by the ids that folder had. The folders that don't stay go to
+//! the show of their ids, else to the show of their name (for one without
+//! ids, the only show of the name when the name makes none).
 //! A folder that leaves its show takes what was watched of its episodes
 //! along, as files renamed do (the scanner's `relink`).
 //!
-//! A show's folders are placed together, so a scan of the part of a library
-//! that changed places them only when none of the shows it touches has a
-//! folder in the rest: else all of the library is scanned.
+//! A show's folders are placed together. A scan of the part of a library
+//! that changed takes those of the rest to be as they were: when a folder
+//! would go into or out of a show that has folders there, comes with its
+//! name, or the `tvshow.nfo` of one of its folders changed, all of the
+//! library is scanned instead ([`plan`]).
 
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -158,14 +163,17 @@ fn fits(shows: &[(String, ItemIds)], key: &str, ids: &ItemIds) -> bool {
 /// The show `key` is known by `ids` too.
 fn add(shows: &mut Vec<(String, ItemIds)>, key: &str, ids: &ItemIds) {
     match shows.iter_mut().find(|(k, _)| k == key) {
-        Some((_, of)) => {
-            of.tmdb_id = of.tmdb_id.or(ids.tmdb_id);
-            of.imdb_id = of.imdb_id.take().or_else(|| ids.imdb_id.clone());
-            of.tvdb_id = of.tvdb_id.or(ids.tvdb_id);
-            of.tvmaze_id = of.tvmaze_id.or(ids.tvmaze_id);
-        }
+        Some((_, of)) => join(of, ids),
         None => shows.push((key.to_owned(), ids.clone())),
     }
+}
+
+/// `of` with the ids of `ids` it lacks.
+fn join(of: &mut ItemIds, ids: &ItemIds) {
+    of.tmdb_id = of.tmdb_id.or(ids.tmdb_id);
+    of.imdb_id = of.imdb_id.take().or_else(|| ids.imdb_id.clone());
+    of.tvdb_id = of.tvdb_id.or(ids.tvdb_id);
+    of.tvmaze_id = of.tvmaze_id.or(ids.tvmaze_id);
 }
 
 /// Which show each of `folders` goes into, of the library's `shows`.
@@ -204,14 +212,18 @@ pub(super) fn place(
     for (key, mut folders) in named {
         let group = known.get(key.as_str()).map(Vec::as_slice).unwrap_or_default();
         let found: HashSet<PathBuf> = folders.iter().map(|f| f.path.clone()).collect();
-        // The shows of this name and the ids they're known by: those of the
-        // folders placed in them, and while a show's own folder wasn't
-        // found, the ids it had. The show the name makes first.
+        // The shows of this name and the ids they're known by: the one their
+        // key names, those of the folders placed in them, and while a show's
+        // own folder wasn't found, the ids it had. The show the name makes
+        // first.
         let mut ids_of: Vec<(String, ItemIds)> = group
             .iter()
             .map(|s| {
-                let own = s.path.as_deref().is_some_and(|p| found.contains(Path::new(p)));
-                (s.key.clone(), if own { ItemIds::default() } else { s.ids() })
+                let mut ids = ids_in_key(&s.key);
+                if !s.path.as_deref().is_some_and(|p| found.contains(Path::new(p))) {
+                    join(&mut ids, &s.ids());
+                }
+                (s.key.clone(), ids)
             })
             .collect();
         ids_of.sort_by(|(a, _), (b, _)| (*a != key, a).cmp(&(*b != key, b)));
@@ -235,7 +247,8 @@ pub(super) fn place(
 
         // First the folders that stay in their shows, each show's own
         // folder before its others: their ids fit those of the folders
-        // there before them.
+        // there before them, and no other show of the name is told apart by
+        // one of them while theirs isn't.
         folders.sort_by_cached_key(|f| {
             let rank = match stays_in(f) {
                 Some(s) if s.path.as_deref().map(Path::new) == Some(f.path.as_path()) => 0,
@@ -244,10 +257,15 @@ pub(super) fn place(
             };
             (rank, f.path.clone())
         });
+        let named_by = |key: &str, ids: &ItemIds| ids_in_key(key).shares_with(ids);
         let mut others = Vec::new();
         for folder in folders {
             let ids = folder_ids(nfo_ids(&folder.path), &folder.path);
-            match stays_in(&folder).filter(|s| held || fits(&ids_of, &s.key, &ids)) {
+            let stays = stays_in(&folder).filter(|s| {
+                held || (fits(&ids_of, &s.key, &ids)
+                    && (named_by(&s.key, &ids) || !group.iter().any(|t| named_by(&t.key, &ids))))
+            });
+            match stays {
                 Some(show) => {
                     let target = show.key.clone();
                     add(&mut ids_of, &target, &ids);
@@ -256,17 +274,19 @@ pub(super) fn place(
                 None => others.push((folder, ids)),
             }
         }
-        // Then the others: to the show of this name that has their ids (one
-        // none of whose folders gives any still has those of its key), else
-        // the show their name makes, else one of their own.
+        // Then the others: to the show of this name that has their ids, else
+        // the show their name makes (the only show of the name, for a folder
+        // without ids, when the name makes none), else one of their own.
         for (folder, ids) in others {
+            let only = match ids_of.as_slice() {
+                [(only, _)] if ids == ItemIds::default() => Some(only.clone()),
+                _ => None,
+            };
             let target = ids_of
                 .iter()
-                .find(|(k, of)| {
-                    let of = if *of == ItemIds::default() { &ids_in_key(k) } else { of };
-                    ids.shares_with(of) && !ids.conflicts_with(of)
-                })
+                .find(|(_, of)| ids.shares_with(of) && !ids.conflicts_with(of))
                 .map(|(k, _)| k.clone())
+                .or(only)
                 .or_else(|| fits(&ids_of, &key, &ids).then(|| key.clone()))
                 .unwrap_or_else(|| apart_key(&key, &ids, &folder.path, |k| ids_of.iter().any(|(s, _)| s == k)));
             add(&mut ids_of, &target, &ids);
@@ -310,10 +330,11 @@ pub(super) fn place(
     out
 }
 
-/// The ids of the show in a `tvshow.nfo` file.
-fn read_nfo_ids(path: &Path) -> Option<ItemIds> {
-    let entry = nfo::read(path)?.into_iter().find(is_show_entry)?;
-    Some(ItemIds::of_nfo("show", &entry.ids))
+/// The ids of the show in a `tvshow.nfo` file, if any; `None` when the file
+/// can't be read.
+fn read_nfo_ids(path: &Path) -> Option<Option<ItemIds>> {
+    let entries = nfo::read(path)?;
+    Some(entries.into_iter().find(is_show_entry).map(|entry| ItemIds::of_nfo("show", &entry.ids)))
 }
 
 /// The `tvshow.nfo` files a scan read, by path: their size and
@@ -338,15 +359,23 @@ pub(super) struct Scan<'a> {
     pub unavailable: Vec<PathBuf>,
     /// Folders stay in their shows ([`place`]).
     pub held: bool,
-    /// In a scan of part of the library, the shows of the files outside it.
+    /// In a scan of part of the library, the shows with show folders
+    /// outside it.
     pub outside: Option<HashSet<i64>>,
 }
 
 /// Where the files of a TV library's show folders go ([`place`]), and the
 /// files that change shows, with their length: they are written again
-/// without being read again. `None` when the scan is of part of the library
-/// and a show it touches has folders in the rest. `nfos` holds, by library,
-/// the `tvshow.nfo` files the last scans read.
+/// without being read again. `nfos` holds, by library, the `tvshow.nfo`
+/// files the last scans read.
+///
+/// A scan of part of the library places its folders with the shows' folders
+/// in the rest as they were, a show's own folder there kept as one that
+/// can't be read is. `None` when that may not be where all of the library
+/// would place them: a folder would go into or out of a show with folders
+/// in the rest, a new folder has the name of such a show, the `tvshow.nfo`
+/// of one of its folders changed, or such a show would take another key or
+/// folder.
 pub(super) async fn plan(
     db: &Db,
     scan: Scan<'_>,
@@ -392,37 +421,65 @@ pub(super) async fn plan(
             }
         })
         .collect();
-    // Of a scan of part of the library: the shows of its files, and those of
-    // its folders' names, have no folder in the rest.
-    if let Some(outside) = &scan.outside {
-        let names: HashSet<&str> = folders.iter().map(|f| f.key.as_str()).collect();
-        let mut touched = scan
-            .known
-            .values()
-            .map(|(show, _)| *show)
-            .chain(shows.iter().filter(|s| names.contains(name_key_of(&s.key))).map(|s| s.id));
-        if touched.any(|show| outside.contains(&show)) {
-            return Ok(None);
+    // Of a scan of part of the library, the shows it touches (by their files,
+    // or by their folders' names) that have show folders in the rest too.
+    let spread: HashSet<i64> = match &scan.outside {
+        Some(outside) => {
+            let names: HashSet<&str> = folders.iter().map(|f| f.key.as_str()).collect();
+            scan.known
+                .values()
+                .map(|(show, _)| *show)
+                .chain(shows.iter().filter(|s| names.contains(name_key_of(&s.key))).map(|s| s.id))
+                .filter(|show| outside.contains(show))
+                .collect()
         }
-    }
+        None => HashSet::new(),
+    };
+    // Their own folders in the rest, which the scan didn't look at.
+    let walked: HashSet<&Path> = folders.iter().map(|f| f.path.as_path()).collect();
+    let kept: Vec<PathBuf> = shows
+        .iter()
+        .filter(|s| spread.contains(&s.id))
+        .filter_map(|s| s.path.as_deref().map(PathBuf::from))
+        .filter(|own| !walked.contains(own.as_path()) && !scan.known.keys().any(|f| Path::new(f).starts_with(own)))
+        .collect();
+    let currents: Vec<(PathBuf, String, Option<i64>)> =
+        folders.iter().map(|f| (f.path.clone(), f.key.clone(), f.current)).collect();
+
     let (library_id, whole) = (scan.library_id, scan.outside.is_none());
     let cache = nfos.lock().remove(&library_id).unwrap_or_default();
-    let (placement, cache) = {
+    let (placement, changed, cache) = {
         let shows = shows.clone();
-        let Scan { sidecars, read_nfo, listed, unavailable, held, .. } = scan;
+        let Scan { sidecars, read_nfo, listed, mut unavailable, held, .. } = scan;
+        unavailable.extend(kept);
+        let spread = spread.clone();
         crate::util::blocking(move || {
+            let nfo_of = |folder: &Path| sidecars.folder_nfo(folder, &["tvshow"]).filter(|_| read_nfo);
+            // The folders of shows with folders in the rest whose
+            // `tvshow.nfo` came or changed since it was last read.
+            let changed: HashSet<PathBuf> = folders
+                .iter()
+                .filter(|f| f.current.is_some_and(|show| spread.contains(&show)))
+                .filter(|f| {
+                    nfo_of(&f.path)
+                        .and_then(|nfo| Some((listed.get(&nfo)?, cache.get(&nfo))))
+                        .is_some_and(|(now, before)| before.is_none_or(|(size, mtime, _)| *now != (*size, *mtime)))
+                })
+                .map(|f| f.path.clone())
+                .collect();
             let mut read = NfoCache::new();
             let nfo_ids = |folder: &Path| {
-                let path = sidecars.folder_nfo(folder, &["tvshow"]).filter(|_| read_nfo)?;
+                let path = nfo_of(folder)?;
                 let listed = listed.get(&path).copied();
                 let ids = match (listed, cache.get(&path)) {
-                    (Some(now), Some((size, mtime, ids))) if now == (*size, *mtime) => ids.clone(),
+                    (Some(now), Some((size, mtime, ids))) if now == (*size, *mtime) => Some(ids.clone()),
                     _ => read_nfo_ids(&path),
                 };
-                if let Some((size, mtime)) = listed {
+                // One that couldn't be read is read again the next time.
+                if let (Some((size, mtime)), Some(ids)) = (listed, &ids) {
                     read.insert(path, (size, mtime, ids.clone()));
                 }
-                ids
+                ids.flatten()
             };
             let placement = place(folders, &shows, &unavailable, held, nfo_ids);
             // A scan of part of the library listed only its files: those of
@@ -432,11 +489,33 @@ pub(super) async fn plan(
                 cache.extend(read);
                 read = cache;
             }
-            Ok((placement, read))
+            Ok((placement, changed, read))
         })
         .await?
     };
     nfos.lock().insert(library_id, cache);
+
+    if !spread.is_empty() {
+        let key_of: HashMap<i64, &str> = shows.iter().map(|s| (s.id, s.key.as_str())).collect();
+        let spread_keys: HashSet<&str> = spread.iter().filter_map(|show| key_of.get(show).copied()).collect();
+        let spread_names: HashSet<&str> = spread_keys.iter().map(|key| name_key_of(key)).collect();
+        // (A new folder of such a show's name may share ids with one of its
+        // folders in the rest.)
+        let moves = currents.iter().any(|(folder, name, current)| {
+            let target = placement.keys[folder].as_str();
+            let from_spread = current.is_some_and(|show| spread.contains(&show));
+            let stays = current.and_then(|show| key_of.get(&show).copied()) == Some(target);
+            (!stays && (from_spread || spread_keys.contains(target)))
+                || (current.is_none() && spread_names.contains(name.as_str()))
+                || changed.contains(folder)
+        });
+        if moves
+            || placement.keys_changed.iter().any(|(show, _)| spread.contains(show))
+            || placement.paths.iter().any(|(show, _)| spread.contains(show))
+        {
+            return Ok(None);
+        }
+    }
 
     let mut key_of: HashMap<i64, &str> = shows.iter().map(|s| (s.id, s.key.as_str())).collect();
     key_of.extend(placement.keys_changed.iter().map(|(id, key)| (*id, key.as_str())));
@@ -643,7 +722,40 @@ mod tests {
         let folders = vec![folder("/b/Lantern Bay x", Some(7)), folder("/a/Lantern Bay", Some(8))];
         let placed = place_all(folders, &shows, nfo(&[("/b/Lantern Bay x", tvdb(1)), ("/a/Lantern Bay", tvdb(3))]));
         assert_eq!(key(&placed, "/b/Lantern Bay x"), KEY);
-        assert_eq!(key(&placed, "/a/Lantern Bay"), apart, "a show's only folder stays in it");
+        // Its key names another show now: it takes the third show's, with
+        // its items.
+        let third = "show:lantern bay:0:tvdb:3";
+        assert_eq!(key(&placed, "/a/Lantern Bay"), third);
+        assert_eq!(placed.keys_changed, [(8, third.to_owned())]);
+        assert!(placed.leaving.is_empty());
+    }
+
+    #[test]
+    fn a_folder_goes_to_the_show_whose_key_names_its_ids() {
+        // Told apart, then its NFO file corrected to the other show's id:
+        // it joins that show instead of staying a second one.
+        let apart = "show:lantern bay:0:tvdb:2";
+        let shows = [show(7, KEY, "/a/Lantern Bay"), show(8, apart, "/b/Lantern Bay")];
+        let folders = vec![folder("/a/Lantern Bay", Some(7)), folder("/b/Lantern Bay", Some(8))];
+        let placed = place_all(folders, &shows, nfo(&[("/a/Lantern Bay", tvdb(1)), ("/b/Lantern Bay", tvdb(1))]));
+        assert_eq!(key(&placed, "/b/Lantern Bay"), KEY);
+        assert_eq!(placed.leaving, [(PathBuf::from("/b/Lantern Bay"), 8)]);
+
+        // The show of the name went, the other stayed: a folder without ids
+        // joins it, the only show of the name.
+        let only = [show(8, apart, "/b/Lantern Bay")];
+        let folders = vec![folder("/b/Lantern Bay", Some(8)), folder("/c/Lantern Bay", None)];
+        let placed = place_all(folders, &only, nfo(&[("/b/Lantern Bay", tvdb(2))]));
+        assert_eq!(key(&placed, "/c/Lantern Bay"), apart);
+
+        // A show of the name whose folder gets the id the other's key names
+        // goes into that one.
+        let shows = [show(7, KEY, "/c/Lantern Bay"), show(8, apart, "/b/Lantern Bay")];
+        let folders = vec![folder("/b/Lantern Bay", Some(8)), folder("/c/Lantern Bay", Some(7))];
+        let placed = place_all(folders, &shows, nfo(&[("/c/Lantern Bay", tvdb(2))]));
+        assert_eq!(key(&placed, "/c/Lantern Bay"), apart);
+        assert_eq!(placed.leaving, [(PathBuf::from("/c/Lantern Bay"), 7)]);
+        assert!(placed.keys_changed.is_empty(), "{:?}", placed.keys_changed);
     }
 
     #[test]

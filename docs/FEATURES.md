@@ -20,9 +20,8 @@ Everything Pley does. The [README](../README.md) has the short version.
   looser episode names like `04 - Title` in a `Season 1` folder
   ([example layout](../deploy/docker/media/README.md)).
 - A show spread over a library's folders, a season on each drive, is one
-  show; a change to it has the whole library scanned. Different shows
-  whose folders have the same name are told apart by the ids in their
-  folders' names (`{tvdb-123}`) or `tvshow.nfo` files.
+  show. Different shows whose folders have the same name are told apart by
+  the ids in their folders' names (`{tvdb-123}`) or `tvshow.nfo` files.
 - Copies of a movie matched to the same TMDB title become one movie with
   several versions, even when their file names differ. Fix Match splits
   them again.
