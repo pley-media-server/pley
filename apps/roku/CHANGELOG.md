@@ -16,7 +16,8 @@ describes how they are made.
   there, and nothing said what a poster was.
 - Rows of posters scroll with less work: a tile lays itself out again
   only when its size or shape changes, and a title's page only when its
-  words do.
+  words do. A title's page adds More Like This and its collections under
+  its rows as they come, without drawing the others again.
 - A title's page keeps the title, its line and two lines of the summary
   at the top while the focus is in the rows under it, as Android TV's
   info block does: on an episode, its name and its own summary. The

@@ -377,39 +377,71 @@ sub keepRow(key as string, row as object, wide as boolean)
     m.rowNodes[key] = { node: row, wide: wide }
 end sub
 
-' The rows there are, in their order; the focus stays on its row.
+' The rows there are, in their order; the focus stays on its row while
+' the person is in them. Rows that come after the others (More Like
+' This, the collections) join the end of the content the list shows, so
+' the rows there keep their tiles; a row that comes above others (the
+' seasons, a season's episodes) makes a new content, as each row's size
+' goes with its place.
 sub showRows()
     keys = []
     for each key in ["seasons", "episodes", "credits", "extras", "related", "collections"]
         if m.rowNodes.DoesExist(key) then keys.Push(key)
     end for
     if keys.Count() = 0 or FormatJson(keys) = FormatJson(m.rowKeys) then return
+    ' Only the person's focus: the list says it is on its first tile as
+    ' content comes, and the page opens on the first row.
     focusedKey = ""
     position = m.rows.rowItemFocused
-    if position <> invalid and position.Count() = 2 and position[0] >= 0 and position[0] < m.rowKeys.Count() then focusedKey = m.rowKeys[position[0]]
-    content = CreateObject("roSGNode", "ContentNode")
+    if m.rows.isInFocusChain() and position <> invalid and position.Count() = 2 and position[0] >= 0 and position[0] < m.rowKeys.Count() then focusedKey = m.rowKeys[position[0]]
     sizes = []
     heights = []
     for each key in keys
-        row = m.rowNodes[key]
-        content.appendChild(row.node)
-        shape = contentRowSize(row.wide, false)
+        shape = contentRowSize(m.rowNodes[key].wide, false)
         if key = "credits" then shape = contentPersonRowSize()
         sizes.Push(shape.size)
         heights.Push(shape.height)
     end for
-    m.rows.rowItemSize = sizes
-    m.rows.rowHeights = heights
-    m.rows.content = content
-    ' After the content: the rows' nodes left the old one as they joined
-    ' this, and the keys say what the list shows.
+    content = m.rows.content
+    rebuilt = not rowsInPlace(content, keys)
+    if not rebuilt
+        ' The sizes first: the list draws a row as it joins with its own.
+        m.rows.rowItemSize = sizes
+        m.rows.rowHeights = heights
+        for i = m.rowKeys.Count() to keys.Count() - 1
+            content.appendChild(m.rowNodes[keys[i]].node)
+        end for
+    else
+        content = CreateObject("roSGNode", "ContentNode")
+        for each key in keys
+            content.appendChild(m.rowNodes[key].node)
+        end for
+        m.rows.rowItemSize = sizes
+        m.rows.rowHeights = heights
+        m.rows.content = content
+    end if
+    ' After the content: the keys say what the list shows.
     m.rowKeys = keys
+    ' A new content starts on its first row: the focus goes back to its
+    ' row and tile.
     for i = 0 to keys.Count() - 1
-        if keys[i] = focusedKey then m.rows.jumpToRowItem = [i, position[1]]
+        if keys[i] = focusedKey and rebuilt then m.rows.jumpToRowItem = [i, position[1]]
     end for
     m.rows.visible = true
     placeRows()
 end sub
+
+' Whether the new rows (keys) only follow those the list shows, its
+' content still the rows kept for them in order, so they can join its end.
+function rowsInPlace(content as dynamic, keys as object) as boolean
+    shown = m.rowKeys.Count()
+    if content = invalid or shown = 0 or content.getChildCount() <> shown or keys.Count() <= shown then return false
+    for i = 0 to shown - 1
+        if keys[i] <> m.rowKeys[i] then return false
+        if not content.getChild(i).isSameNode(m.rowNodes[keys[i]].node) then return false
+    end for
+    return true
+end function
 
 ' The rows 64 px under the title's words and buttons, not at a fixed
 ' place: a short summary left a third of the screen empty above them.
