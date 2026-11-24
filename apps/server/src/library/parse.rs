@@ -108,8 +108,11 @@ const EDITION_WORDS: &str = concat!(
     r"|\d{1,3}(?:st|nd|rd|th)[ ._-]+anniversary(?:[ ._-]+edition)?|anniversary[ ._-]+edition",
     r"|uncut|remaster(?:ed)?|imax(?:[ ._-]+edition)?)"
 );
-static EDITION_IN: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"(?i)\b{EDITION_WORDS}\b")).unwrap());
-static EDITION_ALONE: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"(?i)^{EDITION_WORDS}$")).unwrap());
+/// One edition, or several in a row that name one together (`Unrated
+/// Director's Cut`).
+static EDITIONS: LazyLock<String> = LazyLock::new(|| format!(r"{EDITION_WORDS}(?:[ ._-]+{EDITION_WORDS})*"));
+static EDITION_IN: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"(?i)\b{}\b", *EDITIONS)).unwrap());
+static EDITION_ALONE: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"(?i)^{}$", *EDITIONS)).unwrap());
 /// What is in brackets, parentheses or braces.
 static GROUPS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[([^\]]*)\]|\(([^)]*)\)|\{([^}]*)\}").unwrap());
 static PART_SUFFIX: LazyLock<Regex> =
@@ -946,6 +949,12 @@ mod tests {
             ("Film Name (2010) Theatrical Cut - cd1.mkv", "Theatrical Cut"),
             ("Film Name (2010) Theatrical Cut/Film Name (2010).mkv", "Theatrical Cut"),
             ("Film Name (2010) {edition-Final Cut} Extended.mkv", "Final Cut"),
+            // An edition of several of the words has them all.
+            ("Film Name (2010) Unrated Director's Cut.mkv", "Unrated Director's Cut"),
+            ("Film.Name.2010.EXTENDED.UNRATED.1080p.BluRay.x264-GRP.mkv", "Extended Unrated"),
+            ("Film Name (2010) - 25th Anniversary Extended Edition.mkv", "25th Anniversary Extended Edition"),
+            ("Film Name - Extended Director's Cut.mkv", "Extended Director's Cut"),
+            ("Film Name (Unrated Extended Cut).mkv", "Unrated Extended Cut"),
             // Without a year: set apart, or after the folder's title.
             ("Film Name - Director's Cut.mkv", "Director's Cut"),
             ("Film Name (Uncut).mkv", "Uncut"),
