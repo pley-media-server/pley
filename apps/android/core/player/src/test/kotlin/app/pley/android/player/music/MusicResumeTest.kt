@@ -9,10 +9,13 @@ import app.pley.android.model.PleyJson
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
 import kotlin.random.Random
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -46,7 +49,11 @@ class MusicResumeTest {
             snapshotsOf(whose)[key] = bytes
         },
         scope = backgroundScope,
+        work = offMain(),
     )
+
+    /** Another dispatcher than the test's, as the app's JSON is made off the main thread, run as the test's runs. */
+    private fun TestScope.offMain() = StandardTestDispatcher(testScheduler)
 
     private val album = (1..12L).map { track(it) }
 
@@ -67,6 +74,7 @@ class MusicResumeTest {
             write = { _, _, _ -> },
             scope = backgroundScope,
             signInRead = { read.await() },
+            work = offMain(),
         )
         val music = async { again.saved() }
         val radio = async { again.savedRadio() }
@@ -88,8 +96,65 @@ class MusicResumeTest {
             read = { whose, key -> if (key == MusicResume.PLACE) error("The disk said no") else snapshotsOf(whose)[key] },
             write = { _, _, _ -> },
             scope = backgroundScope,
+            work = offMain(),
         )
         assertNull(failing.saved())
+    }
+
+    @Test
+    fun theQueuesJsonIsMadeAndReadOffTheMainThreadAndWrittenInOrder() = runTest {
+        // Off the main thread: a dispatcher of its own, run only when the test says.
+        val elsewhere = Held()
+        val resume = MusicResume(
+            profile = { signedIn },
+            read = { whose, key -> snapshotsOf(whose)[key]?.takeIf { it.isNotEmpty() } },
+            write = { whose, key, bytes ->
+                written += key
+                snapshotsOf(whose)[key] = bytes
+            },
+            scope = backgroundScope,
+            work = elsewhere,
+        )
+        resume.keep(MusicQueueState(album, index = 4), positionMs = 61_000)
+        resume.keep(MusicQueueState(album, index = 5), positionMs = 0)
+        runCurrent()
+        // The main thread made nothing: the queue's JSON waits for the other side.
+        assertTrue(written.isEmpty())
+
+        repeat(3) {
+            elsewhere.run()
+            runCurrent()
+        }
+        // The queue once, then the order it was given in, then the latest place.
+        assertEquals(listOf(MusicResume.QUEUE, MusicResume.GIVEN, MusicResume.PLACE), written)
+        val saved = async { resume.saved() }
+        repeat(3) {
+            runCurrent()
+            elsewhere.run()
+        }
+        assertEquals(album, saved.await()!!.tracks)
+        assertEquals(5, saved.await()!!.index)
+    }
+
+    @Test
+    fun aQueueBeingMadeAsTheProfileSignsOutIsNotWritten() = runTest {
+        val elsewhere = Held()
+        val resume = MusicResume(
+            profile = { signedIn },
+            read = { whose, key -> snapshotsOf(whose)[key] },
+            write = { _, key, _ -> written += key },
+            scope = backgroundScope,
+            work = elsewhere,
+        )
+        resume.keep(MusicQueueState(album, index = 4), positionMs = 61_000)
+        runCurrent()
+        // Signed out, then in again, while the queue's JSON is being made: the saved things went with the sign-in.
+        resume.signedOut()
+        repeat(3) {
+            elsewhere.run()
+            runCurrent()
+        }
+        assertTrue(written.isEmpty())
     }
 
     @Test
@@ -371,6 +436,19 @@ class MusicResumeTest {
         assertNull(resume.saved())
         store[MusicResume.QUEUE] = PleyJson.encodeToString(ListSerializer(ItemSummary.serializer()), listOf(track(1), track(2))).encodeToByteArray()
         assertTrue(resume.saved() != null)
+    }
+
+    /** A dispatcher whose work waits until [run]. */
+    private class Held : CoroutineDispatcher() {
+        private val waiting = ArrayDeque<Runnable>()
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            waiting += block
+        }
+
+        fun run() {
+            while (waiting.isNotEmpty()) waiting.removeFirst().run()
+        }
     }
 
     private fun track(id: Long) = ItemSummary(

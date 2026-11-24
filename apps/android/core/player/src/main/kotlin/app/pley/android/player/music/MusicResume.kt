@@ -6,10 +6,13 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.PleyJson
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 
 /** What music was playing: the queue's [tracks] in the order they played, which one and where in it, and what repeats. */
@@ -46,7 +49,9 @@ fun MusicPlayback.cue(saved: SavedMusic) {
  * it keeps what it had), so another profile never gets it; one of other
  * tracks, started since, is the profile's signed in now. Signing out
  * deletes it. A long queue keeps [MAX_TRACKS] tracks around the one
- * playing. Main thread only; the writing itself is the store's, off it.
+ * playing. Main thread only; the queue's JSON is made and read off it
+ * (500 tracks at each change of queue), and the writing itself is the
+ * store's, off it too.
  */
 class MusicResume(
     private val profile: () -> ProfileScope?,
@@ -58,6 +63,8 @@ class MusicResume(
      * Android started again for the music (a car connecting, a headset's Play) found nothing kept.
      */
     private val signInRead: suspend () -> Unit = {},
+    /** Where the queue's JSON is made and read: off the main thread. */
+    private val work: CoroutineContext = Dispatchers.Default,
 ) {
     /** The profile the queue kept is that of: the one signed in as it was first kept, until it is forgotten. */
     private var owner: ProfileScope? = null
@@ -77,9 +84,12 @@ class MusicResume(
     private var radio: String? = UNREAD
     private var radioOf: ProfileScope? = null
 
-    /** What waits to be written, the latest of each profile's key, in order. */
-    private val pending = LinkedHashMap<Pair<ProfileScope, String>, ByteArray>()
+    /** What waits to be written, the latest of each profile's key, in order: its bytes, made as it is written. */
+    private val pending = LinkedHashMap<Pair<ProfileScope, String>, () -> ByteArray>()
     private var writer: Job? = null
+
+    /** Counts [signedOut]s: what was on its way before one is written no more. */
+    private var signIns = 0
 
     /** Keeps [queue] and where its track is, [positionMs]; an empty queue forgets what was kept. */
     fun keep(queue: MusicQueueState, positionMs: Long) {
@@ -110,17 +120,19 @@ class MusicResume(
         }
         val window = if (tracks.size <= MAX_TRACKS) tracks else tracks.subList(from, from + MAX_TRACKS)
         if (window != kept || from != keptFrom) {
-            kept = window.toList()
+            val tracksKept = window.toList()
+            kept = tracksKept
             keptFrom = from
-            put(now, QUEUE, PleyJson.encodeToString(TRACKS, window).encodeToByteArray())
+            put(now, QUEUE) { PleyJson.encodeToString(TRACKS, tracksKept).encodeToByteArray() }
         }
         // Shuffled, the tracks kept in the order they were given, among themselves: Shuffle off plays them so once back.
         val given = if (queue.shuffle && queue.given.size == tracks.size) ranks(queue.given.subList(from, from + window.size)) else emptyList()
         if (given != keptGiven) {
             keptGiven = given
-            put(now, GIVEN, given.joinToString(" ").encodeToByteArray())
+            put(now, GIVEN) { given.joinToString(" ").encodeToByteArray() }
         }
-        put(now, PLACE, "${queue.index - from} ${positionMs.coerceAtLeast(0)} ${queue.repeat.name}".encodeToByteArray())
+        val place = "${queue.index - from} ${positionMs.coerceAtLeast(0)} ${queue.repeat.name}"
+        put(now, PLACE) { place.encodeToByteArray() }
     }
 
     /**
@@ -135,7 +147,7 @@ class MusicResume(
         if (now == radioOf && mediaId == radio) return
         radioOf = now
         radio = mediaId
-        put(now, RADIO, (mediaId ?: "").encodeToByteArray())
+        put(now, RADIO) { (mediaId ?: "").encodeToByteArray() }
     }
 
     /** The channel kept by [keepRadio] for the profile in use, or `null`: music played last, or nothing did. */
@@ -169,9 +181,9 @@ class MusicResume(
         forgotten = true
         if (who == null || who != profile()) return
         // Empty: the store reads that as nothing kept.
-        put(who, QUEUE, ByteArray(0))
-        put(who, GIVEN, ByteArray(0))
-        put(who, PLACE, ByteArray(0))
+        put(who, QUEUE) { ByteArray(0) }
+        put(who, GIVEN) { ByteArray(0) }
+        put(who, PLACE) { ByteArray(0) }
     }
 
     /**
@@ -182,6 +194,7 @@ class MusicResume(
      * it is stays known, so a profile signed in next isn't given it.
      */
     fun signedOut() {
+        signIns++
         pending.clear()
         kept = null
         keptGiven = null
@@ -205,7 +218,8 @@ class MusicResume(
     }
 
     private suspend fun saved(now: ProfileScope): SavedMusic? {
-        val tracks = read(now, QUEUE)?.let { PleyJson.decodeFromString(TRACKS, it.decodeToString()) }
+        val bytes = read(now, QUEUE)
+        val tracks = bytes?.let { withContext(work) { PleyJson.decodeFromString(TRACKS, it.decodeToString()) } }
         // Music's tracks, or a book's parts (the car's), never what else plays.
         if (tracks.isNullOrEmpty() || tracks.size > MAX_TRACKS || tracks.any { it.kind != ItemKind.Track && it.kind != ItemKind.Part }) return null
         val place = read(now, PLACE)?.decodeToString()?.split(' ').orEmpty()
@@ -229,7 +243,7 @@ class MusicResume(
         return ranks.toList()
     }
 
-    private fun put(whose: ProfileScope, key: String, bytes: ByteArray) {
+    private fun put(whose: ProfileScope, key: String, bytes: () -> ByteArray) {
         val at = whose to key
         pending.remove(at)
         pending[at] = bytes
@@ -238,9 +252,12 @@ class MusicResume(
             while (true) {
                 val next = pending.entries.firstOrNull() ?: break
                 pending.remove(next.key)
-                // Signed out meanwhile: the saved things went with the sign-in, and none are written again.
-                if (profile() == null) continue
-                write(next.key.first, next.key.second, next.value)
+                val signIn = signIns
+                val made = withContext(work) { next.value() }
+                // Signed out meanwhile, even as it was made: the saved things went with the sign-in, and none are
+                // written again.
+                if (profile() == null || signIn != signIns) continue
+                write(next.key.first, next.key.second, made)
             }
         }
     }
