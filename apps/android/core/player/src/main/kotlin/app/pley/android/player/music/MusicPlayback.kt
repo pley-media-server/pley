@@ -440,18 +440,20 @@ class MusicPlayback(
         // as Previous does with tracks; from the first chapter's start, the part before.
         // Before the first chapter (an intro without a mark), the part's own rule.
         val chapter = chapterNow()?.takeIf { it >= 0 }
+        var from = lastPosition()
         if (chapter != null) {
-            val at = lastPosition()
             val start = chapters[chapter].startMs
-            val to = if (at - start > MusicQueue.RESTART_AFTER_MS) start else chapters.getOrNull(chapter - 1)?.startMs
+            val to = if (from - start > MusicQueue.RESTART_AFTER_MS) start else chapters.getOrNull(chapter - 1)?.startMs
             if (to != null) {
                 toChapter(to)
                 return
             }
+            // Within the first chapter's first seconds, after an intro: the part before, as from the part's start.
+            from = 0
         }
         val o = out
         // Pressed again while the track before is still asked for, it goes one more back: that one hasn't played.
-        when (queue.previous(lastPosition())) {
+        when (queue.previous(from)) {
             MusicQueue.Previous.Moved -> startTrack(0)
             // A queue that waits waits on, at the track's start, as a paused one does.
             MusicQueue.Previous.Restart -> when {
@@ -537,7 +539,8 @@ class MusicPlayback(
      * again from there while it is still being asked for.
      */
     private fun toChapter(startMs: Long) {
-        if (starting) startTrack(startMs, sameTrack = true) else seekTo(startMs)
+        // Asked again as Play or Pause left it while it was asked for, not as the output held the track before.
+        if (starting) startTrack(startMs, sameTrack = true, play = startPlays) else seekTo(startMs)
     }
 
     /** Which of [chapters] the position is in; `null` when the part has none, or isn't where it plays yet. */
@@ -1018,6 +1021,8 @@ class MusicPlayback(
             }
             publish()
             watchChapters()
+            // Playing on with no change the output tells of: a track shorter than the ticker's step is asked ahead now.
+            lookAhead()
         }
 
         override fun onError(error: OutputError) {

@@ -1560,7 +1560,9 @@ class SessionPlaybackController(
             restart(0)
             return
         }
-        link?.play()
+        // Before the stream is ready, a pause meanwhile is taken back: it opens playing.
+        val engineLink = link
+        if (engineLink == null) wantPlay.value = true else engineLink.play()
     }
 
     override fun pause() {
