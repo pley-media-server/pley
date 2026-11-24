@@ -86,7 +86,8 @@ journalctl -u pley    # the setup link, and the log
 Give the `pley` user read access to your media.
 
 **FFmpeg.** FFmpeg 9 is recommended. 8 works too; 7.1 (Debian 13's)
-works without a few speed-ups. For one not on `PATH`, such as
+works without a few speed-ups. Pley's own, pley-ffmpeg, comes with the
+Docker image, which needs nothing more. For one not on `PATH`, such as
 [jellyfin-ffmpeg](https://repo.jellyfin.org), set `Environment=PLEY_FFMPEG=…`
 and `PLEY_FFPROBE=…` in the unit.
 
@@ -123,9 +124,10 @@ burn-in). Until releases are signed, downloaded binaries may need
 `pley-server-<version>-windows-<arch>-setup.exe` installs Pley with FFmpeg
 and a firewall rule, as a locked-down service or in the notification area:
 [windows/README.md](windows/README.md); its FFmpeg is pley-ffmpeg's
-Windows build, with the Docker image's patches for Intel GPUs. Or extract
-the archive, install FFmpeg (`winget install Gyan.FFmpeg`, whose "full"
-build has NVENC, QSV, AMF and Vulkan tone mapping) and run `pley.exe`.
+Windows build, with the Docker image's patches for Intel GPUs, which makes
+the installer the way to prefer. Or extract the archive, install FFmpeg
+(`winget install Gyan.FFmpeg`, whose "full" build has NVENC, QSV, AMF and
+Vulkan tone mapping) and run `pley.exe`.
 
 ## Synology
 
