@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,12 +32,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
-import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.reducedMotion
@@ -45,6 +47,7 @@ import app.pley.android.player.NowPlaying
 import app.pley.android.screens.PleyKey
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleyIconButton
+import app.pley.android.ui.phone.music.PlayPauseGlyph
 import app.pley.android.ui.phone.music.TrackArt
 import app.pley.android.ui.phone.music.TrackChange
 import app.pley.android.ui.phone.music.rememberMusicControl
@@ -122,11 +125,9 @@ private fun MiniPlayer(nowPlaying: NowPlaying, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(56.dp).clip(PleyShape.TilePhone).background(PleyColors.Surface3), contentAlignment = Alignment.Center) {
-            if (art != null) {
-                TrackArt(art, nowPlaying.album ?: nowPlaying.title, Modifier.matchParentSize())
-            } else {
-                Icon(PleyIcons.Music, contentDescription = null, tint = PleyColors.Muted)
-            }
+            // Without a cover, the placeholder Now Playing and the queue show for the same track: its title's colors and
+            // Pley's mark, not a note of its own.
+            TrackArt(art, nowPlaying.album ?: nowPlaying.title, Modifier.matchParentSize())
         }
         Spacer(Modifier.width(12.dp))
         TrackChange(trackWords(nowPlaying), Modifier.weight(1f), Alignment.CenterStart) { words ->
@@ -137,11 +138,11 @@ private fun MiniPlayer(nowPlaying: NowPlaying, modifier: Modifier = Modifier) {
                 }
             }
         }
-        PleyIconButton(
-            if (playing) PleyIcons.Pause else PleyIcons.Play,
-            stringResource(if (playing) R.string.music_pause else R.string.music_play),
-            onClick = { music?.toggle() },
-        )
+        // Play and Pause give way to each other as Now Playing's do, not in one frame.
+        val label = stringResource(if (playing) R.string.music_pause else R.string.music_play)
+        IconButton(onClick = { music?.toggle() }, modifier = Modifier.size(48.dp).semantics { contentDescription = label }) {
+            PlayPauseGlyph(playing, size = 24.dp, tint = PleyColors.Fg)
+        }
         if (car) Spacer(Modifier.width(CarGap))
         PleyIconButton(
             PleyIcons.SkipForward,
