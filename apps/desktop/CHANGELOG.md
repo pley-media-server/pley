@@ -8,6 +8,10 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Live TV channels played as they are no longer stall every few seconds.
+
 ## [0.1.8] - 2026-11-24
 
 ### Changed

@@ -11,6 +11,8 @@ describes how they are made.
 
 ### Fixed
 
+- Live TV channels played as they are no longer stall every few seconds in the
+  browser.
 - An NFO file with a very long content rating no longer holds a library
   scan up.
 - A damaged Matroska file no longer makes the transcoder take memory for
