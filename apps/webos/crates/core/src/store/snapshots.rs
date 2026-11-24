@@ -16,7 +16,7 @@ use std::time::SystemTime;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use super::{file_name, hex_digest, make_dir, write_atomic};
+use super::{file_name, hex_digest, make_dir_in_parent, write_atomic};
 
 /// The most the snapshots take on disk.
 pub const SNAPSHOT_BUDGET: u64 = 25 * 1024 * 1024;
@@ -241,8 +241,11 @@ impl Snapshots {
             }
             return Ok(());
         }
-        let dir = self.profile_dir(server, profile);
-        make_dir(&dir)?;
+        // A folder at a time from the root, never the data folder above it: a save that comes
+        // after that folder was deleted (a test's, by a task finishing late) makes none of it again.
+        for dir in [self.root.clone(), self.server_dir(server), self.profile_dir(server, profile)] {
+            make_dir_in_parent(&dir)?;
+        }
         write_atomic(&path, bytes)?;
         let old = index.files.insert(path.clone(), File { size: bytes.len() as u64, used: tick }).map_or(0, |f| f.size);
         index.total = index.total - old + bytes.len() as u64;

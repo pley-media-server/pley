@@ -28,10 +28,22 @@ class MarkersTest(unittest.TestCase):
         self.assertEqual(prompts.episode_line({"kind": "movie", "title": "Film"}), "Film")
 
 
+class ReachesEndTest(unittest.TestCase):
+    def test_credits_run_to_the_end_when_less_than_15_seconds_follow(self):
+        self.assertTrue(prompts.reaches_end(CREDITS, 90_000))
+        self.assertTrue(prompts.reaches_end(CREDITS, 100_000), "10 s after: a logo, not a scene")
+        self.assertTrue(prompts.reaches_end(CREDITS, 105_000))
+        self.assertFalse(prompts.reaches_end(CREDITS, 105_001))
+        self.assertFalse(prompts.reaches_end(CREDITS, 150_000), "a scene in the last minute")
+        self.assertFalse(prompts.reaches_end(CREDITS, 0), "a file of unknown length")
+        self.assertFalse(prompts.reaches_end(CREDITS, None))
+        self.assertFalse(prompts.reaches_end(dict(INTRO, end_ms=90_000), 90_000), "only credits")
+
+
 class MomentsTest(unittest.TestCase):
     def setUp(self):
         self.now = 0.0
-        self.moments = prompts.Moments([INTRO, CREDITS], NEXT, clock=lambda: self.now)
+        self.moments = prompts.Moments([INTRO, CREDITS], NEXT, clock=lambda: self.now, duration_ms=90_000)
 
     def test_an_episodes_credits_bring_up_the_next_one(self):
         self.assertEqual(self.moments.offer(10_000), ("skip", INTRO))
@@ -66,8 +78,17 @@ class MomentsTest(unittest.TestCase):
         self.assertIsNone(prompts.Moments([INTRO]).credits_from())
 
     def test_without_a_next_episode_credits_are_skipped(self):
-        movie = prompts.Moments([CREDITS])
+        movie = prompts.Moments([CREDITS], duration_ms=90_000)
         self.assertEqual(movie.offer(85_000), ("skip", CREDITS))
+
+    def test_credits_something_follows_leave_up_next_to_the_end(self):
+        scene_after = prompts.Moments([CREDITS], NEXT, duration_ms=150_000)
+        self.assertEqual(scene_after.offer(81_000), ("skip", CREDITS), "60 s follow them: Skip Credits")
+        self.assertIsNone(scene_after.offer(120_000))
+        logo_after = prompts.Moments([CREDITS], NEXT, duration_ms=100_000)
+        self.assertEqual(logo_after.offer(81_000), ("next", CREDITS), "10 s follow them")
+        unknown = prompts.Moments([CREDITS], NEXT)
+        self.assertEqual(unknown.offer(81_000), ("skip", CREDITS), "a file of unknown length")
 
 
 if __name__ == "__main__":

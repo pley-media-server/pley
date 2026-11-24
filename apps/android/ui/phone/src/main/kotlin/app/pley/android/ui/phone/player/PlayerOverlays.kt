@@ -195,11 +195,12 @@ internal fun BoxScope.SkipButton(state: PlayerScreenState) {
 }
 
 /**
- * What plays next, from the credits on: its still, "Up next · S1 E4", the
- * title, Play now with the seconds left (a fill sweeping across it once a
- * second) and Cancel. It is announced once, not every second. While the
- * controls show, it goes up above them without its still, so on a phone on
- * its side it stays on screen and clear of the top bar.
+ * What plays next, from credits that run to the end on, else from the end:
+ * its still, "Up next · S1 E4", the title, Play now with the seconds left
+ * (a fill sweeping across it once a second) and Cancel. It is announced
+ * once, not every second. While the controls show, it goes up above them
+ * without its still, so on a phone on its side it stays on screen and clear
+ * of the top bar.
  */
 @Composable
 internal fun BoxScope.UpNextCard(state: PlayerScreenState) {

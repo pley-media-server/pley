@@ -301,11 +301,14 @@ As each item begins (the first, the next episode, a playlist's or a
 collection's next), its title shows at the top for 4 s, a show's name over
 the episode's "S1 E2 · Pilot", as on Android TV.
 
-- **Up Next** shows at the credits (else 30 s before the end) with its
-  countdown. Canceled, or with Play the next episode by itself off, it
-  waits at the end, paused, as on the other apps: Play now (or Play) plays
-  the next one, Cancel or Back leaves. With the setting on, the countdown
-  starts again there.
+- **Up Next** shows with its countdown as credits that run to the end of
+  the file begin (ending 15 s or less before it), else at the end.
+  Credits that something follows (an after-credits scene, a show's last
+  minutes) bring Skip Credits instead, so the countdown doesn't skip what
+  comes after them. At the end, Up Next waits, paused, as on the other
+  apps, as it does after a Cancel or with Play the next episode by itself
+  off: Play now (or Play) plays the next one, Cancel or Back leaves. With
+  the setting on, the countdown runs there, again after a Cancel.
 - **The server out of reach:** once something played, the player keeps its
   place and its queue and asks again every 2 s, saying "Reconnecting…",
   for 90 s, as long as the server keeps a session it doesn't hear from;

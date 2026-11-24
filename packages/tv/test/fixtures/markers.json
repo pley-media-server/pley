@@ -1,0 +1,64 @@
+{
+  "up_next": [
+    {
+      "name": "credits that run to the end of the file",
+      "marker": { "file_id": 7, "kind": "credits", "start_ms": 2580000, "end_ms": 2700000, "source": "fingerprint" },
+      "duration_ms": 2700000,
+      "up_next": true
+    },
+    {
+      "name": "credits ending 10 s before the end, a studio's logo after them",
+      "marker": { "file_id": 7, "kind": "credits", "start_ms": 2580000, "end_ms": 2690000, "source": "chapter" },
+      "duration_ms": 2700000,
+      "up_next": true
+    },
+    {
+      "name": "credits ending 15 s before the end, the most that may follow them",
+      "marker": { "file_id": 7, "kind": "credits", "start_ms": 2580000, "end_ms": 2685000, "source": "chapter" },
+      "duration_ms": 2700000,
+      "up_next": true
+    },
+    {
+      "name": "credits ending just over 15 s before the end",
+      "marker": { "file_id": 7, "kind": "credits", "start_ms": 2580000, "end_ms": 2684999, "source": "chapter" },
+      "duration_ms": 2700000,
+      "up_next": false
+    },
+    {
+      "name": "credits ending 60 s before the end, an after-credits scene after them",
+      "marker": { "file_id": 7, "kind": "credits", "start_ms": 2520000, "end_ms": 2640000, "source": "fingerprint" },
+      "duration_ms": 2700000,
+      "up_next": false
+    },
+    {
+      "name": "music every episode shares, the show's last minutes after it",
+      "marker": { "file_id": 7, "kind": "credits", "start_ms": 1500000, "end_ms": 1560000, "source": "fingerprint" },
+      "duration_ms": 2700000,
+      "up_next": false
+    },
+    {
+      "name": "credits ending past the length the file gives",
+      "marker": { "file_id": 7, "kind": "credits", "start_ms": 2580000, "end_ms": 2700400, "source": "chapter" },
+      "duration_ms": 2700000,
+      "up_next": true
+    },
+    {
+      "name": "an intro, even one at the end",
+      "marker": { "file_id": 7, "kind": "intro", "start_ms": 2640000, "end_ms": 2700000, "source": "chapter" },
+      "duration_ms": 2700000,
+      "up_next": false
+    },
+    {
+      "name": "credits of a file of unknown length",
+      "marker": { "file_id": 7, "kind": "credits", "start_ms": 2580000, "end_ms": 2700000, "source": "chapter" },
+      "duration_ms": null,
+      "up_next": false
+    },
+    {
+      "name": "credits of a file whose length is 0",
+      "marker": { "file_id": 7, "kind": "credits", "start_ms": 2580000, "end_ms": 2700000, "source": "chapter" },
+      "duration_ms": 0,
+      "up_next": false
+    }
+  ]
+}

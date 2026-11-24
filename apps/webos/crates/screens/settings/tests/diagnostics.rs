@@ -44,9 +44,7 @@ fn notices_file(name: &str) -> PathBuf {
     }
     text += &format!("\n{rule}\nserde 1.0.219, MIT OR Apache-2.0\nhttps://github.com/serde-rs/serde\n{rule}\n\n");
     text += "--- LICENSE-MIT ---\n\nPermission is hereby granted, free of charge.\n";
-    let dir = std::env::temp_dir().join(format!("pley-settings-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("NOTICES.txt");
+    let path = pley_core::device::scratch_dir(&format!("settings-{name}")).join("NOTICES.txt");
     std::fs::write(&path, text).unwrap();
     path
 }

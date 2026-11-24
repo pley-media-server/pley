@@ -7,8 +7,10 @@ import app.pley.android.model.MarkerKind
 import app.pley.android.model.MarkerSource
 import app.pley.android.model.MediaFile
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The cases of apps/web/src/player/SkipButton.test.tsx. */
@@ -55,14 +57,37 @@ class MarkersTest {
     @Test
     fun `announces the credits once, even when seeking back into them`() {
         val gate = CreditsGate()
-        assertNull(gate.entered(null))
-        assertNull(gate.entered(intro))
-        assertSame(credits, gate.entered(credits))
-        assertNull(gate.entered(credits))
+        assertNull(gate.entered(null, 1_300_000))
+        assertNull(gate.entered(intro, 1_300_000))
+        assertSame(credits, gate.entered(credits, 1_300_000))
+        assertNull(gate.entered(credits, 1_300_000))
         // Other credits (another file's, or another segment) are announced.
         val other = marker(MarkerKind.Credits, 1_200_000, 1_300_000, file = 2)
-        assertSame(other, gate.entered(other))
+        assertSame(other, gate.entered(other, 1_300_000))
         gate.reset()
-        assertSame(credits, gate.entered(credits))
+        assertSame(credits, gate.entered(credits, 1_300_000))
+    }
+
+    @Test
+    fun `credits run to the end when they end at most 15 s before it`() {
+        assertTrue(Markers.reachesEnd(credits, 1_300_000))
+        assertTrue(Markers.reachesEnd(credits, 1_310_000))
+        assertTrue(Markers.reachesEnd(credits, 1_315_000))
+        assertFalse(Markers.reachesEnd(credits, 1_315_001))
+        assertFalse(Markers.reachesEnd(credits, 1_360_000))
+        // With no length known, they don't.
+        assertFalse(Markers.reachesEnd(credits, null))
+        assertFalse(Markers.reachesEnd(credits, 0))
+        assertFalse(Markers.reachesEnd(intro, 70_000))
+    }
+
+    @Test
+    fun `announces only credits that run to the end`() {
+        val gate = CreditsGate()
+        // An after-credits scene follows: Skip Credits only.
+        assertNull(gate.entered(credits, 1_360_000))
+        assertNull(gate.entered(credits, null))
+        // Turned down, they are still announced once known to run to the end.
+        assertSame(credits, gate.entered(credits, 1_310_000))
     }
 }

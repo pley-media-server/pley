@@ -1719,12 +1719,41 @@ pub struct FramesRequest {
     pub start_ms: i64,
     /// How much video to look at; the end of the file may stop it earlier.
     pub duration_ms: i64,
+    /// Subtitles whose cues to report over the same part of the file
+    /// ([`Frames::cues`]), for when people speak. Older transcoders ignore it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subtitles: Option<CuesSource>,
+}
+
+/// Embedded subtitles to read the cues of.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CuesSource {
+    /// FFmpeg stream index of the subtitle stream.
+    pub stream: Option<i64>,
+    /// Text subtitles give their lines; picture ones (PGS, DVD) only when
+    /// each shows.
+    pub text: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Frames {
     /// Key frames in order of time.
     pub frames: Vec<FrameStats>,
+    /// The cues of [`FramesRequest::subtitles`] in the same part of the file,
+    /// in order of time; `None` when not asked for, not readable, or from a
+    /// transcoder that can't.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cues: Option<Vec<Cue>>,
+}
+
+/// A subtitle cue: when it shows, ms from the beginning of the file, and its
+/// text (empty for picture subtitles).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Cue {
+    pub start_ms: i64,
+    pub end_ms: i64,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub text: String,
 }
 
 /// One key frame, its luma in 8-bit studio range (black is 16).

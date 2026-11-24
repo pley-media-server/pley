@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { isApiError } from "@/api/client";
 import { castError, pairingError, useCast, usePairDevice } from "@/api/hooks";
 import type { CastKind, CastRequest } from "@/api/types";
+import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { useAuth } from "@/auth";
 import { cn } from "@/lib/cn";
 import { useDismiss } from "@/lib/hooks";
@@ -63,11 +64,12 @@ interface PinAsk {
  * "Play on…" beside a page's own Play: the user's other devices that play
  * what the page shows, and their household's, as the remote lists them.
  * Picking one plays it there, as that device's own Play would, says so, and
- * opens the remote on it. A device on another profile switches to the
- * user's first, after the user's PIN when their profile has one, which it
- * asks for in the menu's place. An AirPlay device the server hasn't paired
- * with shows a PIN, which it asks for the same way, once. There is nothing
- * to show while no device takes it.
+ * opens the remote on it; music playing in this tab pauses, as it does for
+ * a video here, so it doesn't play in two places. A device on another
+ * profile switches to the user's first, after the user's PIN when their
+ * profile has one, which it asks for in the menu's place. An AirPlay device
+ * the server hasn't paired with shows a PIN, which it asks for the same
+ * way, once. There is nothing to show while no device takes it.
  */
 export function PlayOn({
   kind,
@@ -90,6 +92,7 @@ export function PlayOn({
   const pair = usePairDevice();
   const toast = useToast();
   const me = useAuth();
+  const audio = useOptionalAudioPlayer();
   const [menuOpen, setMenuOpen] = useState(false);
   // The device a cast is starting on: a Cast device takes seconds to answer.
   const [starting, setStarting] = useState<string | null>(null);
@@ -223,6 +226,8 @@ export function PlayOn({
       .then(
         () => {
           if (pin !== undefined) stopAsking(false);
+          // It plays there now: not here too. Paused, not closed, so Play here takes it up again.
+          audio?.pause();
           toast.success(t("playOn.playingOn", { device: device.name }));
           openRemoteOn(device.id);
           onCast?.();

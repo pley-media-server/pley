@@ -163,8 +163,21 @@ async fn intro_and_credits_markers_on_request() {
     assert_eq!((found[0]["startTimeOffset"].as_i64(), found[0]["endTimeOffset"].as_i64()), (Some(30000), Some(90000)));
     assert_eq!(found[0]["final"], Value::Null);
     assert_eq!(found[1]["type"], json!("credits"));
-    assert_eq!(found[1]["final"].as_i64(), Some(1));
+    assert_eq!(found[1]["final"], Value::Null, "the file's length is unknown");
     assert_ne!(found[0]["id"], found[1]["id"]);
+
+    // Credits running to the end of the file are the last: Plex apps offer
+    // the next episode there. Credits a scene follows aren't.
+    for (duration, last) in [(5_400_000, Some(1)), (5_410_000, Some(1)), (5_500_000, None)] {
+        sqlx::query("UPDATE media_files SET duration_ms = ? WHERE id = ?")
+            .bind(duration)
+            .bind(file)
+            .execute(&app.state.db.write)
+            .await
+            .unwrap();
+        let details = app.plex_json(&format!("/library/metadata/{alien}?includeMarkers=1"), &admin).await;
+        assert_eq!(markers(&details)[1]["final"].as_i64(), last, "{duration}");
+    }
 }
 
 #[tokio::test]

@@ -143,6 +143,9 @@ describes how they are made.
 
 ### Fixed
 
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end instead.
+  Without credits, it comes at the end too, rather than 30 s before it.
 - A Discover or requests page that can't load, with nothing to say under
   its title (TMDB isn't answering), has its button under the title: an
   empty line held it further down.

@@ -271,9 +271,9 @@ func episodes(_ page: AdminPage, api: PleyAPI, showId: Int) async throws -> (fir
     return (found[0], found[1])
 }
 
-/// (f) S01E01: Skip Intro lands past the intro; entering the credits brings
-/// up the next episode; Play Next ends this session (watched at 90 %) and
-/// plays S01E02.
+/// (f) S01E01: Skip Intro lands past the intro; entering the credits, which
+/// run to the end of the file, brings up the next episode; Play Next ends
+/// this session (watched at 90 %) and plays S01E02.
 @MainActor
 func checkEpisodes(api: PleyAPI, page: AdminPage, caps: DeviceCaps, reporter: SessionReporter,
                    episodes: (first: Int, second: Int)) async throws {
@@ -283,6 +283,10 @@ func checkEpisodes(api: PleyAPI, page: AdminPage, caps: DeviceCaps, reporter: Se
     try check(abs(intro.startMs - 10_000) <= 1_000 && abs(intro.endMs - 30_000) <= 1_000,
               "the intro runs \(intro.startMs)–\(intro.endMs) ms, not as its chapter")
     try check(abs(credits.startMs - 55_000) <= 1_000, "the credits start at \(credits.startMs) ms, not as their chapter")
+    // Only credits that run to the end of their file bring up Up Next.
+    let length = first.files.first { $0.id == credits.fileId }?.durationMs ?? 0
+    try check(Markers.reachesEnd(credits, durationMs: length),
+              "the credits end at \(credits.endMs) ms of \(length) ms, short of the end")
     let run = Run(api: api, caps: caps, reporter: reporter, itemId: episodes.first)
     do {
         try await run.playing(past: 11_000, seconds: 60)

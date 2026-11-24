@@ -9,6 +9,29 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Pley's license gains a permission for app stores: Pley may be
+  distributed through stores whose terms add restrictions of their own,
+  as long as its source stays available.
+
+### Fixed
+
+- Home and a TV library's Recommended tab open at once after a big scan,
+  also in a library of thousands of shows.
+- Music playing in the web app pauses once Play on… sends something to
+  another device, rather than playing in both places.
+- Credits that something follows no longer bring up Up Next: a game
+  show's thinking music shared by every episode, music two episodes share
+  in a scene, or credits with an after-credits scene. Those credits only
+  offer Skip Credits, and Up Next comes at the end. The pictures decide
+  where credits end, shared music in a scene no longer gets Skip Credits,
+  credits found from the pictures no longer begin in a dark scene before
+  them, credits no one speaks after (by the subtitles) still bring Up Next,
+  chapters of more credits after the credits (Fan Club Credits) count with
+  them, and Plex apps get the same last credits. Libraries are analyzed
+  again in the background.
+
 ## [0.1.15] - 2026-11-22
 
 ### Added

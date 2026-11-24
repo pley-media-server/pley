@@ -77,6 +77,9 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
     val active = MutableStateFlow(server)
     val scans = MutableStateFlow<List<ScanState>>(emptyList())
     val music = MutableStateFlow<NowPlaying?>(null)
+
+    /** How many times something paused the music as for a video ([MusicControl.pauseForVideo]). */
+    @Volatile var musicPauses = 0
     val sessionState = MutableStateFlow<SessionState>(SessionState.Starting)
 
     /** The profile's other devices that are on, for the remote's bar. */
@@ -128,7 +131,9 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
             override val services: PlaybackServices get() = error("no playback in shell tests")
             override val music = object : MusicControl {
                 override val nowPlaying: StateFlow<NowPlaying?> = this@TestGraph.music
-                override fun pauseForVideo() = Unit
+                override fun pauseForVideo() {
+                    musicPauses++
+                }
             }
         }.also { touched += "player" }
 

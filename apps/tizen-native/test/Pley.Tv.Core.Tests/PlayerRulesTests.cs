@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Player;
 using Pley.Tv.Core.Ui;
@@ -254,14 +255,38 @@ public class MarkersTests
     public void Announces_the_credits_once_even_when_seeking_back_into_them()
     {
         var gate = new CreditsGate();
-        Assert.Null(gate.Entered(null));
-        Assert.Null(gate.Entered(Intro));
-        Assert.Same(Credits, gate.Entered(Credits));
-        Assert.Null(gate.Entered(Credits));
+        Assert.Null(gate.Entered(null, 1_300_000));
+        Assert.Null(gate.Entered(Intro, 1_300_000));
+        Assert.Same(Credits, gate.Entered(Credits, 1_300_000));
+        Assert.Null(gate.Entered(Credits, 1_300_000));
         var other = MarkerOf("credits", 1_200_000, 1_300_000, file: 2);
-        Assert.Same(other, gate.Entered(other));
+        Assert.Same(other, gate.Entered(other, 1_300_000));
         gate.Reset();
-        Assert.Same(Credits, gate.Entered(Credits));
+        Assert.Same(Credits, gate.Entered(Credits, 1_300_000));
+    }
+
+    [Fact]
+    public void Never_announces_credits_that_something_follows_nor_in_a_file_of_unknown_length()
+    {
+        var gate = new CreditsGate();
+        Assert.Null(gate.Entered(Credits, 1_360_000));
+        Assert.Null(gate.Entered(Credits, null));
+        Assert.Null(gate.Entered(Credits, 0));
+    }
+
+    public static IEnumerable<object[]> UpNextCases() =>
+        Enumerable.Range(0, Fixtures.Load("markers").GetProperty("up_next").GetArrayLength()).Select(i => new object[] { i });
+
+    /// <summary>The credits that bring Up Next are the Samsung web app's (packages/tv/test/fixtures/markers.json): those that run to the end of their file.</summary>
+    [Theory]
+    [MemberData(nameof(UpNextCases))]
+    public void Up_next_comes_at_credits_that_run_to_the_end_of_their_file(int i)
+    {
+        var c = Fixtures.Load("markers").GetProperty("up_next")[i];
+        var marker = JsonSerializer.Deserialize<Marker>(c.GetProperty("marker").GetRawText(), ApiJson.Options)!;
+        var duration = c.GetProperty("duration_ms");
+        long? durationMs = duration.ValueKind == JsonValueKind.Null ? null : duration.GetInt64();
+        Assert.Equal((c.GetProperty("name").GetString(), c.GetProperty("up_next").GetBoolean()), (c.GetProperty("name").GetString(), Markers.ReachesEnd(marker, durationMs)));
     }
 
     [Fact]

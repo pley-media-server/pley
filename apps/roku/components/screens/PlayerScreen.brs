@@ -679,7 +679,7 @@ sub begin()
     m.stillSince = m.clock.TotalMilliseconds()
     m.stallTimer.control = "start"
     m.durationMs = httpNumber(m.info.duration_ms, 0)
-    m.markers = playerFileMarkers(m.item, m.info.file_id)
+    m.markers = playerFileMarkers(m.item, m.info.file_id, m.durationMs)
     m.upNextAt = playerUpNextAt(m.durationMs, m.markers)
     ' The sync remembered for this file moves every text track.
     m.syncKey = syncKey(m.global.session.server, m.info.file_id)
@@ -1296,12 +1296,16 @@ sub ended()
         uiNavigate({ back: true })
         return
     end if
-    if not m.upNextCancelled and playerAutoplay(playbackSection())
+    ' Up Next was counting down over credits that ran to the end: the next
+    ' one plays now.
+    if m.upNextShown and not m.upNextCancelled and playerAutoplay(playbackSection())
         playNext()
         return
     end if
-    ' Up Next waits at the end, as on the other apps: counting down again
-    ' after a Cancel when the next plays by itself, for Play now when not.
+    ' Up Next waits at the end, as on the other apps, counting down when the
+    ' next plays by itself: where no credits ran to the end (a scene can
+    ' play in the last seconds), and again after a Cancel. For Play now when
+    ' it doesn't.
     m.ended = true
     m.upNextCancelled = false
     showUpNext()
