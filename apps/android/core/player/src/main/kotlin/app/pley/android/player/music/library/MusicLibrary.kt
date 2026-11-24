@@ -568,7 +568,7 @@ class MusicLibrary(
         }
         val l = look()
         val tracks = played.flatten().filter { it.kind == ItemKind.Track }
-        val albums = tracks.mapNotNull(::albumOf).distinctBy { it.id }.take(RECENTLY_PLAYED)
+        val albums = detailed(tracks.mapNotNull(::albumOf).distinctBy { it.id }.take(RECENTLY_PLAYED))
         val playedIds = albums.mapTo(HashSet()) { it.id }
         val playedAlbums = albums.map { album(it).grouped(l.recentlyPlayed) }
         val fresh = added.map { (library, items) -> library to items.filter { it.kind == ItemKind.Album && it.id !in playedIds }.take(RECENTLY_ADDED) }
@@ -581,6 +581,25 @@ class MusicLibrary(
         val trackAt = tracks.mapNotNull { it.userState.lastPlayedAt }.maxOrNull()
         val musicFirst = trackAt != null && trackAt > (heardAt ?: 0)
         return (if (musicFirst) playedAlbums + heard else heard + playedAlbums) + addedAlbums
+    }
+
+    /**
+     * [albums] as the server has them, each read (mostly from what's saved on the phone, within [KNOWN_MS]): the
+     * play history says nothing of an album's tracks, so one of a single track would open to its one track rather
+     * than play, and its cover would lack the address's version. One that can't be read stays as the track said.
+     */
+    private suspend fun detailed(albums: List<ItemSummary>): List<ItemSummary> = coroutineScope {
+        albums.map { album ->
+            async {
+                val read = known { source.item(album.id) }?.takeIf { it.kind == ItemKind.Album } ?: return@async album
+                album.copy(
+                    leafCount = read.leafCount,
+                    posterUrl = read.posterUrl ?: album.posterUrl,
+                    year = read.year ?: album.year,
+                    parentTitle = album.parentTitle ?: read.parentTitle,
+                )
+            }
+        }.awaitAll()
     }
 
     /** The album [track] is on, as far as the track says: its title, artist and cover. */

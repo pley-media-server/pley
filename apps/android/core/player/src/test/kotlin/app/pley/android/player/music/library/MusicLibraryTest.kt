@@ -235,7 +235,30 @@ class MusicLibraryTest {
         assertEquals(listOf("Recently played", "Recently played"), recent.map { it.group })
         assertEquals("Second Tide", recent[1].mediaMetadata.title.toString())
         assertEquals("Harbour Lights", recent[1].mediaMetadata.subtitle.toString())
-        assertEquals("content://art/api/items/55/images/poster", recent[1].mediaMetadata.artworkUri.toString())
+        // The album as the server has it, its cover's address with its version, not as the track named it.
+        assertEquals("content://art/api/items/55/images/poster?v=1", recent[1].mediaMetadata.artworkUri.toString())
+    }
+
+    @Test
+    fun aRecentlyPlayedAlbumOfOneTrackPlaysAsItIsPicked() = runTest {
+        // The history says nothing of an album's tracks: the album is read for them.
+        source.albums = listOf(source.albums[0], source.albums[1].copy(leafCount = 1))
+        source.played[3] = listOf(track(56, 55).copy(parentTitle = "Second Tide"), track(52, 50))
+        val recent = library.children(MusicId.Recent, 0, 50)
+        val single = recent.first { it.mediaId == "album:55" }.mediaMetadata
+        assertTrue(single.isPlayable == true && single.isBrowsable == false)
+        val several = recent.first { it.mediaId == "album:50" }.mediaMetadata
+        assertTrue(several.isPlayable == false && several.isBrowsable == true)
+    }
+
+    @Test
+    fun aRecentlyPlayedAlbumThatCantBeReadOpensAsBefore() = runTest {
+        // Album 99 isn't the server's to give now: as the track said, and it opens to its tracks.
+        source.played[3] = listOf(track(98, 99).copy(parentTitle = "Unread"))
+        val recent = library.children(MusicId.Recent, 0, 50)
+        val unread = recent.first { it.mediaId == "album:99" }.mediaMetadata
+        assertTrue(unread.isPlayable == false && unread.isBrowsable == true)
+        assertEquals("content://art/api/items/99/images/poster", unread.artworkUri.toString())
     }
 
     @Test
