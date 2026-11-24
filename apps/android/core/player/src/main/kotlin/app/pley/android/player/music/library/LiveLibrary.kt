@@ -107,7 +107,10 @@ private const val PARALLEL_PAGES = 4
 class LiveLibrary(
     private val source: LiveSource,
     private val look: () -> LiveLook,
+    /** A channel's logo's address from the server's path ([MusicArt.logoUri], on its plate). */
     private val art: (path: String) -> Uri?,
+    /** The picture of a channel without a logo, from its name ([MusicArt.placeholderUri]): its row lines up with the others. */
+    private val placeholder: (seed: String) -> Uri? = { null },
     /** Now, in unix seconds: what is on. */
     private val now: () -> Long = { System.currentTimeMillis() / 1000 },
 ) {
@@ -115,7 +118,8 @@ class LiveLibrary(
     suspend fun tab(): MediaItem? {
         if (!runCatching { source.shown() }.getOrDefault(false)) return null
         val l = look()
-        return node(MusicId.LiveTv, l.liveTv, icon = l.liveIcon, mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_TV_CHANNELS)
+        // Its groups as category rows: each with the tab's icon, small and tinted, as their names are what one reads.
+        return node(MusicId.LiveTv, l.liveTv, icon = l.liveIcon, mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_TV_CHANNELS, browsableStyle = CATEGORY_LIST)
     }
 
     /** The node [id] names, without its children; `null` for one that isn't Live TV's. */
@@ -196,7 +200,7 @@ class LiveLibrary(
             .setSubtitle(under)
             .setArtist(under)
             // The server's address, whose version changes with the provider's picture: a car keeps a logo by its address.
-            .setArtworkUri(channel.logo?.let { art(it) ?: art(logoPath(channel.id)) })
+            .setArtworkUri(channel.logo?.let { art(it) ?: art(logoPath(channel.id)) } ?: placeholder(channel.name))
             .setIsBrowsable(false)
             .setIsPlayable(true)
             .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
@@ -209,14 +213,17 @@ class LiveLibrary(
         val l = look()
         val groups = async { source.groups() }
         val favorites = async { source.channels(LiveCategory.Favorites, limit = TAB_EACH) }
-        val recent = async { source.channels(LiveCategory.Recent, limit = TAB_EACH) }
+        val recent = async { source.channels(LiveCategory.Recent, limit = TAB_EACH + RECENTLY_WATCHED) }
         val shown = groups.await()
         val favored = if (shown.favorites > 0) favorites.await() else emptyList()
-        val lately = if (shown.recent > 0) recent.await().filter { c -> favored.none { it.id == c.id } } else emptyList()
+        val lately = if (shown.recent > 0) recent.await().filter { c -> favored.none { it.id == c.id } }.take(RECENTLY_WATCHED) else emptyList()
+        // A group's icon takes some 130 bytes of the 256 KiB a car's list is cut at: a provider's hundreds of groups
+        // go without, so that all of them still reach the car.
+        val icon = l.liveIcon.takeIf { favored.size + lately.size + shown.groups.size <= ICONED_ROWS }
         val lists = if (shown.groups.size > 1) {
-            shown.groups.map { list(LiveCategory.Group(it.name), LiveNames.groupName(it, it.name), l.channelCount(it.count)).grouped(l.groups) }
+            shown.groups.map { list(LiveCategory.Group(it.name), LiveNames.groupName(it, it.name), l.channelCount(it.count), icon).grouped(l.groups) }
         } else {
-            listOf(list(LiveCategory.All, l.allChannels, l.channelCount(shown.total)).grouped(l.groups))
+            listOf(list(LiveCategory.All, l.allChannels, l.channelCount(shown.total), icon).grouped(l.groups))
         }
         // Named as one screen's rows: a region every channel of both has is said by none.
         val lines = LiveNames.channelLines(favored + lately, LiveCategory.Favorites)
@@ -237,12 +244,13 @@ class LiveLibrary(
         }
     }
 
-    private fun list(category: LiveCategory, title: String, subtitle: String?): MediaItem =
-        node(MusicId.LiveList(category), title, subtitle = subtitle, mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_TV_CHANNELS)
+    private fun list(category: LiveCategory, title: String, subtitle: String?, icon: Uri? = null): MediaItem =
+        node(MusicId.LiveList(category), title, subtitle = subtitle, icon = icon, mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_TV_CHANNELS)
 
-    private fun node(id: MusicId, title: String, subtitle: String? = null, icon: Uri? = null, mediaType: Int): MediaItem {
-        // Channels list in rows, the root's default for both kinds (MusicService), so no hint is sent with each: their logos
-        // are wide, and their names and what's on are what one reads.
+    private fun node(id: MusicId, title: String, subtitle: String? = null, icon: Uri? = null, mediaType: Int, browsableStyle: Int? = null): MediaItem {
+        // Channels list in rows, the root's default for what plays (MusicService), so no hint is sent with each: their
+        // names and what's on are what one reads.
+        val extras = browsableStyle?.let { style -> Bundle().apply { putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, style) } }
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
             .setDisplayTitle(title)
@@ -251,6 +259,7 @@ class LiveLibrary(
             .setIsBrowsable(true)
             .setIsPlayable(false)
             .setMediaType(mediaType)
+            .setExtras(extras)
             .build()
         return MediaItem.Builder().setMediaId(id.text).setMediaMetadata(metadata).build()
     }
@@ -264,8 +273,16 @@ class LiveLibrary(
         /** The most channels a list holds: cars don't page, and a provider can list tens of thousands. */
         const val MAX_CHANNELS = 500
 
-        /** The most favourites and channels watched lately the tab lists. */
+        /** The most favourites the tab lists. */
         private const val TAB_EACH = 50
+
+        /** The most channels watched lately the tab lists after them: a few, the groups under them. */
+        private const val RECENTLY_WATCHED = 8
+
+        private const val CATEGORY_LIST = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_CATEGORY_LIST_ITEM
+
+        /** The most rows of the tab whose groups have their icon: as many as fit a car's list, names as long as most (CarListSizeTest). */
+        private const val ICONED_ROWS = 350
 
         /** The most channels a search shows. */
         private const val SEARCH_LIMIT = 15

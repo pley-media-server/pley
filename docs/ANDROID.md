@@ -1151,7 +1151,10 @@ Android Auto keeps each picture it has read by its address, so every
 address changes with what it shows: the server's pictures and channel
 logos carry their version, an artist's the count of their albums (an
 album added is a newer cover), and a placeholder the version of its
-drawing, one higher whenever it is drawn otherwise. A placeholder's
+drawing, one higher whenever it is drawn otherwise. A channel's logo on
+its plate has an address of its own (`p/12/0a1b2c3d`, as short as the
+logo's, as a list of 500 channels is near the cut), whose letter
+changes whenever the plate is drawn otherwise. A placeholder's
 address of another drawing isn't drawn.
 
 An album or playlist opens to its tracks, wherever it is listed: a car
@@ -1307,9 +1310,11 @@ pick what plays; a media button (a headset's, the steering wheel's, or
 one another app sends) only plays, pauses and skips.
 
 **Live TV**, while driving or parked, to a profile Live TV is open to:
-its tab lists the favorites, then the channels watched lately, each
-under its heading, then the provider's groups (or All channels, without
-groups); a list holds 500 channels at most, as cars don't page, read
+its tab lists the favorites, then the channels watched lately (eight at
+most), each under its heading, then the provider's groups (or All
+channels, without groups) as category rows, each with the tab's TV icon
+(a tab of more than 350 rows has its groups without, so that all of them
+fit the list a car is sent); a list holds 500 channels at most, as cars don't page, read
 from the server a page of 100 at a time: the first, then the others
 four at once. Groups
 are named as the phone's Live TV lists them, a group of a region as
@@ -1326,7 +1331,12 @@ gave them. Favorites, channels watched lately, groups, search and Now
 Playing name channels so, the rule kept in the app's shared model
 (`LiveNames.channelLines`) for the phone's and the TV's Live TV to take
 up; they show the provider's names for now. A
-channel shows its logo and what is on. Picked, it plays its sound alone,
+channel shows its logo, fitted at three quarters of a square plate with
+rounded corners, as the phone fits it in its well: the plate is light
+under a dark logo and dark under a light one, from the logo's mean
+luminance, each pixel weighed by its opacity. A channel without a logo,
+or whose logo can't be had, shows a placeholder, so the rows line up.
+Picked, it plays its sound alone,
 as radio, watched through the server as the phone's Live TV player
 watches it; Next and Previous change channel through the list it was
 picked from, which Now Playing names over its channels (a channel found

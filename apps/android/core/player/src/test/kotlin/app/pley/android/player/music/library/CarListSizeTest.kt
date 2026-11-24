@@ -16,6 +16,7 @@ import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
+import app.pley.android.model.LiveGroup
 import app.pley.android.model.LiveGroups
 import app.pley.android.model.LiveProgram
 import app.pley.android.model.PlaylistDetail
@@ -47,7 +48,14 @@ class CarListSizeTest {
         { path, seed -> MusicArt.uri(context, path, seed) },
         artistArt = { artist -> MusicArt.artistUri(context, artist.id, artist.childCount, artist.title) },
     ) { seed -> MusicArt.placeholderUri(context, seed) }
-    private val live = LiveLibrary(LongLiveSource(), { LiveWords }, { path -> MusicArt.uri(context, path) }, now = { NOW })
+    private val liveSource = LongLiveSource()
+    private val live = LiveLibrary(
+        liveSource,
+        { LiveWords },
+        { path -> MusicArt.logoUri(context, path) ?: MusicArt.uri(context, path) },
+        { seed -> MusicArt.placeholderUri(context, seed) },
+        now = { NOW },
+    )
 
     @Test
     fun anAlbumOfFiveHundredLongTracksFits() = runTest {
@@ -62,6 +70,22 @@ class CarListSizeTest {
     }
 
     @Test
+    fun liveTvsTabOfFavoritesAndGroupsFits() = runTest {
+        // 50 favorites, 8 watched lately, then a provider's groups, each with the tab's icon while they fit with it.
+        fun groups(count: Int) = LiveGroups(total = 9_999, favorites = 50, recent = 50, groups = (0 until count).map { LiveGroup(long("UK| Group $it", CHANNEL_NAME), "UK", long("Group $it", 12), 999) })
+        liveSource.groups = groups(292)
+        val iconed = live.children(MusicId.LiveTv)!!
+        assertEquals(350, iconed.size)
+        assertTrue(iconed.last().mediaMetadata.artworkUri != null)
+        assertEquals(350, keptForCar(iconed.map { it.forOlderBrowser() }))
+        // More, as many as a page holds: without, all of them sent.
+        liveSource.groups = groups(ROWS)
+        val many = library(live).children(MusicId.LiveTv, 0, ROWS)
+        assertTrue(many.last().mediaMetadata.artworkUri == null)
+        assertTrue(sent("Live TV's tab", many) >= 440)
+    }
+
+    @Test
     fun halfAsManyArtistsAgainAreSent() = runTest {
         // Each with a picture of their own on the server, the longest address. 500 don't fit: what Media3 takes, the
         // picture's address and the hint that an artist's albums are a grid leave a row some 660 bytes before its name.
@@ -73,6 +97,8 @@ class CarListSizeTest {
         source.pictured = false
         assertTrue(sent("artists without", library.children(MusicId.Artists, 0, ROWS)) >= 360)
     }
+
+    private fun library(live: LiveLibrary) = MusicLibrary(source, { Look }, { _, _ -> null }, live)
 
     /** How many of [rows] a car is sent; each is shown as it was, only what the car doesn't read left out. */
     private fun sent(what: String, rows: List<MediaItem>): Int {
@@ -156,9 +182,11 @@ class CarListSizeTest {
 
     /** A provider's group of channels with long names, each with a logo and a long program on. */
     private class LongLiveSource : LiveSource {
+        var groups = LiveGroups()
+
         override suspend fun shown() = true
 
-        override suspend fun groups() = LiveGroups()
+        override suspend fun groups() = groups
 
         override suspend fun channels(category: LiveCategory, query: String, limit: Int) = (0 until minOf(limit, ROWS)).map { i ->
             val id = ITEM + i
@@ -216,7 +244,7 @@ class CarListSizeTest {
 
         override fun channelCount(count: Int) = "$count channels"
 
-        override val liveIcon: Uri? = null
+        override val liveIcon: Uri = Uri.parse("android.resource://app.pley.android/drawable/music_library_live")
     }
 
     private companion object {

@@ -74,6 +74,30 @@ object MusicArt {
     fun placeholderUri(context: Context, seed: String): Uri = placeholderOf(context, PlaceholderCover.hue(seed))
 
     /**
+     * The address of a channel's logo on its plate ([LogoPlate]) from the server's logo at [path]
+     * ("/api/live/channels/12/logo?v=0a1b2c3d" as "p/12/0a1b2c3d"); `null` for any other path. The letter names the
+     * plate's drawing, and the server's version the logo: Android Auto keeps each picture by its address, and had
+     * kept the logos unplated under theirs. It is as short as the logo's: a car's list of 500 channels is near the
+     * 256 KiB a list is cut at.
+     */
+    fun logoUri(context: Context, path: String): Uri? {
+        if (!servable(path)) return null
+        val (id, version) = CHANNEL_LOGO.matchEntire(path)?.destructured ?: return null
+        return address(context, listOf(PLATE, id, version).filter { it.isNotEmpty() }.joinToString("/"))
+    }
+
+    /** The server's logo a [logoUri] plates, and its channel; `null` for any other address. */
+    internal fun logoOf(context: Context, uri: Uri): Pair<String, Long>? {
+        val segments = segmentsOf(context, uri) ?: return null
+        if (segments.size !in 2..3 || segments[0] != PLATE || !ID.matches(segments[1])) return null
+        val version = segments.getOrNull(2)
+        if (version != null && !LOGO_VERSION.matches(version)) return null
+        val channel = segments[1].toLongOrNull()?.takeIf { it > 0 } ?: return null
+        val path = "/api/live/channels/$channel/logo" + (version?.let { "?v=$it" }.orEmpty())
+        return if (servable(path)) path to channel else null
+    }
+
+    /**
      * The picture of artist [artistId], who has none of their own on the
      * server: the cover of their newest album, looked for only when the car
      * asks for it ([MusicLibrary.artistPicture]), so a list of hundreds of
@@ -149,6 +173,9 @@ object MusicArt {
     private const val ARTIST = "a"
     private const val PLACEHOLDER = "h"
 
+    /** A channel's logo on a plate: another letter, not a number, whenever the plate is drawn otherwise. */
+    private const val PLATE = "p"
+
     /** The address that carries a server path whole, for one of an unusual form. */
     private const val PICTURE = "picture"
     private const val PATH = "p"
@@ -178,9 +205,17 @@ class MusicArtProvider : ContentProvider() {
         val context = context ?: throw FileNotFoundException()
         if (mode != "r") throw FileNotFoundException("Read only")
         MusicArt.hueOf(context, uri)?.let { hue -> return pipe { PlaceholderCover.png(context, hue) } }
-        val path = MusicArt.pathOf(context, uri)
+        val logo = MusicArt.logoOf(context, uri)
+        val path = logo?.first ?: MusicArt.pathOf(context, uri)
         val artist = if (path == null) MusicArt.artistOf(context, uri) ?: throw FileNotFoundException() else null
         val owner = context.applicationContext as? PlayerGraphOwner ?: throw FileNotFoundException()
+        if (logo != null) {
+            // A logo that can't be had or read is a placeholder of the channel's hue, so its row lines up with the others.
+            return pipe {
+                val bytes = runBlocking { withTimeoutOrNull(FETCH_MS) { owner.playerGraph.musicLibrary?.picture(logo.first) } }
+                bytes?.let(LogoPlate::png) ?: PlaceholderCover.png(context, (logo.second % 360).toInt())
+            }
+        }
         val standIn = MusicArt.standIn(context, uri)?.let { MusicArt.hueOf(context, it) }
         // One that can't be had in FETCH_MS is its placeholder, as the app shows it; without one, the pipe ends empty and
         // the car shows no cover.

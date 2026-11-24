@@ -34,7 +34,14 @@ class MusicLibraryGraph(
     private val pictures = SharedPictures(CoroutineScope(SupervisorJob() + Dispatchers.IO))
 
     /** Live TV's tab and channels, when the radio can play them. */
-    val live: LiveLibrary? = livePlayback?.let { LiveLibrary(RepositoryLiveSource(data), { liveLook() }, { path -> MusicArt.uri(app, path) }) }
+    val live: LiveLibrary? = livePlayback?.let {
+        LiveLibrary(
+            RepositoryLiveSource(data),
+            { liveLook() },
+            { path -> MusicArt.logoUri(app, path) ?: MusicArt.uri(app, path) },
+            placeholder = { seed -> MusicArt.placeholderUri(app, seed) },
+        )
+    }
 
     val library = MusicLibrary(
         source,

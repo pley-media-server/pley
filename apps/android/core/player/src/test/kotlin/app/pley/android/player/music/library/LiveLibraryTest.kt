@@ -98,6 +98,26 @@ class LiveLibraryTest {
     }
 
     @Test
+    fun aChannelWithoutALogoHasAPlaceholderSoTheRowsLineUp() = runTest {
+        val placed = LiveLibrary(source, { Look }, { path -> Uri.parse("content://art$path") }, { seed -> Uri.parse("content://placeholder/$seed") }, now = { NOW })
+        val news = placed.children(MusicId.LiveList(LiveCategory.Group("News")))!!
+        assertEquals(listOf("content://art/api/live/channels/1/logo?v=0a1b2c3d", "content://placeholder/News Two"), news.map { it.mediaMetadata.artworkUri.toString() })
+    }
+
+    @Test
+    fun theGroupsAreCategoryRowsWithTheTabsIconAndAFewChannelsWatchedLately() = runTest {
+        assertEquals(MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_CATEGORY_LIST_ITEM, live.tab()!!.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE))
+        val groups = live.children(MusicId.LiveTv)!!.filter { it.mediaId.startsWith("live:") }
+        assertTrue(groups.all { it.mediaMetadata.artworkUri.toString() == "content://icon/live" })
+
+        // Twenty channels watched lately: eight.
+        source.channels += (10..29L).map { LiveChannel(it, name = "Channel $it", group = "Sport") }
+        source.recent = (10..29L).toList()
+        source.groups = source.groups.copy(recent = 20)
+        assertEquals(8, live.children(MusicId.LiveTv)!!.count { it.group == "Recently watched" })
+    }
+
+    @Test
     fun aChannelPlaysAmongTheListItWasPickedFrom() = runTest {
         assertEquals(listOf(1L, 2L) to 1, live.lineup(MusicId.Channel(2, LiveCategory.Group("News")))?.let { (l, at) -> l.map { it.id } to at })
         // Picked from a search, or gone from its list: alone.
@@ -254,7 +274,7 @@ class LiveLibraryTest {
             LiveChannel(3, name = "Sport 24", group = "Sport"),
         )
         var groups = LiveGroups(total = 3, favorites = 1, recent = 2, groups = listOf(LiveGroup("News", label = "News", count = 2), LiveGroup("Sport", label = "Sport", count = 1)))
-        val recent = listOf(1L, 3L)
+        var recent = listOf(1L, 3L)
 
         override suspend fun shown(): Boolean {
             if (failing) error("offline")

@@ -55,7 +55,8 @@ With Android Auto:
   the artists' tab, named Music.
 - Live TV's channels play as radio: a Live TV tab with favorites,
   channels watched lately and groups, each channel by its name alone
-  with its region beside what's on, channel search, and "Hey Google, play … on Pley" by channel name.
+  with its region beside what's on and its logo on a plate that sets it
+  off, channel search, and "Hey Google, play … on Pley" by channel name.
 - As the car connects, what played last waits in its Now Playing, paused
   where it was, and the car's Play plays it; with nothing kept on the
   phone, the book or album you heard last waits, or the album added last. "Hey
