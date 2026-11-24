@@ -220,8 +220,11 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           cargo test --workspace --locked --exclude pley-transcoder
-          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e PLEY_TEST_FFMPEG \
-            -e CARGO_TARGET_DIR="$GITHUB_WORKSPACE/target/debian" \
+          # The runner's user, with a home of its own: not the temporary
+          # folder, which the transcoder keeps its work out of.
+          mkdir -p target/debian/home
+          docker run --rm --user "$(id -u):$(id -g)" -e PLEY_TEST_FFMPEG \
+            -e HOME="$GITHUB_WORKSPACE/target/debian/home" -e CARGO_TARGET_DIR="$GITHUB_WORKSPACE/target/debian" \
             -v "${CARGO_HOME:-$HOME/.cargo}/registry:/usr/local/cargo/registry" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" \
             pley-tests cargo test -p pley-transcoder --locked
