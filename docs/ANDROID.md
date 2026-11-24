@@ -1104,10 +1104,15 @@ channels. A tab whose contents the server can't say now (out of reach) is
 shown all the same. Cars show four tabs at most: with all five,
 Playlists goes first in the artists' tab, which is then named Music.
 
-- **Recent**: as grids of covers, the books being heard (Continue
-  listening), then the albums played last (Recently played, twelve at
-  most), then those added last to each music library (Recently added, or
-  Recently added in each library's name when there are several).
+- **Recent**: as grids of covers (a book, and an album of a single track,
+  are tiles too), the books being heard (Continue listening, three at
+  most), then the albums played last (Recently played, twelve at most),
+  then those added last to each music library (Recently added, twelve of
+  each library at most, or Recently added in each library's name when
+  there are several), an album played not listed again as added. When a
+  track was heard after the books' last part, the albums played come
+  before the books, as the album or book waiting in Now Playing is
+  chosen (below).
 - **Artists**: by name, with how many albums each has (with several music
   libraries, the libraries first), and a picture: the artist's own when
   the server has one (an `artist.jpg` or `folder.jpg` in their folder),

@@ -444,7 +444,7 @@ class MusicLibrary(
         // Without music, Recent has only the books being heard.
         val heard = !hasMusic && bookLibraries.isNotEmpty() && shelves(bookLibraries).any { it.second.listening.isNotEmpty() }
         val all = listOfNotNull(
-            if (hasMusic || heard) node(MusicId.Recent, l.recent, browsable = true, playable = false, icon = l.recentIcon, browsableStyle = GRID) else null,
+            if (hasMusic || heard) node(MusicId.Recent, l.recent, browsable = true, playable = false, icon = l.recentIcon, browsableStyle = GRID, playableStyle = GRID) else null,
             if (hasMusic) node(MusicId.Artists, l.artists, browsable = true, playable = false, icon = l.artistsIcon) else null,
             if (hasPlaylists) playlistsNode(l) else null,
             if (bookLibraries.isNotEmpty()) booksNode(l) else null,
@@ -463,8 +463,10 @@ class MusicLibrary(
     @Volatile
     private var playlistsInArtists = false
 
+    // Grids for what plays as it is picked too (a book, an album or playlist of one track): a row of the root's list
+    // in a grid of covers broke it in two.
     private fun playlistsNode(l: MusicLibraryLook): MediaItem =
-        node(MusicId.Playlists, l.playlists, browsable = true, playable = false, icon = l.playlistsIcon, browsableStyle = GRID)
+        node(MusicId.Playlists, l.playlists, browsable = true, playable = false, icon = l.playlistsIcon, browsableStyle = GRID, playableStyle = GRID)
 
     private fun booksNode(l: MusicLibraryLook): MediaItem =
         node(MusicId.Books, l.books, browsable = true, playable = false, icon = l.booksIcon, browsableStyle = GRID, playableStyle = GRID)
@@ -480,7 +482,7 @@ class MusicLibrary(
         val everyOne = libraries.map { async { source.books(it.id, MAX_PAGE) } }
         val shelved = shelves(libraries)
         val listening = shelved.flatMap { it.second.listening }.distinctBy { it.id }.take(RECENTLY_PLAYED)
-        val heard = heardOf(listening)
+        val heard = heardOf(partsOf(listening))
         val several = shelved.count { it.second.added.isNotEmpty() } > 1
         val added = shelved.flatMap { (library, shelves) ->
             val group = if (several) l.recentlyAddedIn(library.name) else l.recentlyAdded
@@ -490,12 +492,17 @@ class MusicLibrary(
         listening.map { book(it, heard[it.id]).grouped(l.continueListening) } + added + all.map { book(it, heard[it.id]).grouped(l.allBooks) }
     }
 
-    /** The books of [libraries] being heard (the one heard last first), as Recent shows them first. */
-    private suspend fun listening(libraries: List<Library>): List<MediaItem> {
-        val listening = shelves(libraries).flatMap { it.second.listening }.distinctBy { it.id }.take(RECENTLY_PLAYED)
-        val heard = heardOf(listening)
+    /**
+     * The books of [libraries] being heard (the one heard last first), [RECENT_BOOKS] at most, as Recent shows them,
+     * and when a part of one was heard last (unix seconds; `null` when none says).
+     */
+    private suspend fun listening(libraries: List<Library>): Pair<List<MediaItem>, Long?> {
+        val listening = shelves(libraries).flatMap { it.second.listening }.distinctBy { it.id }.take(RECENT_BOOKS)
+        val parts = partsOf(listening)
+        val heard = heardOf(parts)
         val l = look()
-        return listening.map { book(it, heard[it.id]).grouped(l.continueListening) }
+        val heardAt = parts.values.flatten().mapNotNull { it.userState.lastPlayedAt }.maxOrNull()
+        return listening.map { book(it, heard[it.id]).grouped(l.continueListening) } to heardAt
     }
 
     /** Each of [libraries]' rows of books; a library whose rows can't be read has none. */
@@ -503,10 +510,13 @@ class MusicLibrary(
         libraries.map { library -> async { known { source.bookShelves(library.id) }?.let { library to it } } }.awaitAll().filterNotNull()
     }
 
-    /** How far the profile is in each of [books], from their parts; a book whose parts can't be read isn't said. */
-    private suspend fun heardOf(books: List<ItemSummary>): Map<Long, Heard> = coroutineScope {
-        books.map { book -> async { known { source.parts(book.id) }?.let(::heardIn)?.let { book.id to it } } }.awaitAll().filterNotNull().toMap()
+    /** The parts of each of [books], by book; a book whose parts can't be read isn't there. */
+    private suspend fun partsOf(books: List<ItemSummary>): Map<Long, List<ItemSummary>> = coroutineScope {
+        books.map { book -> async { known { source.parts(book.id) }?.let { book.id to it } } }.awaitAll().filterNotNull().toMap()
     }
+
+    /** How far the profile is in each book of [parts] ([partsOf]); one without lengths isn't said. */
+    private fun heardOf(parts: Map<Long, List<ItemSummary>>): Map<Long, Heard> = parts.mapNotNull { (id, of) -> heardIn(of)?.let { id to it } }.toMap()
 
     /**
      * What [block] reads; `null` when it can't be read now, or not within [KNOWN_MS]: what it reads is a tab's or a
@@ -523,30 +533,34 @@ class MusicLibrary(
     /**
      * The books being heard, the albums played last (as YouTube Music's
      * Last played), then those added last to each music library, each under
-     * its heading. Books or plays that can't be read leave their group out;
-     * the added albums still show.
+     * its heading; the albums played before the books when a track was heard
+     * after the books' last part, as [suggestion] weighs them. An album
+     * played isn't listed again as added. Books or plays that can't be read
+     * leave their group out; the added albums still show.
      */
     private suspend fun recent(): List<MediaItem> {
         val libraries = source.libraries()
         val (played, added, books) = coroutineScope {
-            val books = async { known { listening(source.bookLibraries()) }.orEmpty() }
+            val books = async { known { listening(source.bookLibraries()) } ?: (emptyList<MediaItem>() to null) }
             val played = libraries.map { async { runCatching { source.recentlyPlayed(it.id) }.getOrDefault(emptyList()) } }
             val added = libraries.map { async { it to source.recentlyAdded(it.id) } }
             Triple(played.awaitAll(), added.awaitAll(), books.await())
         }
         val l = look()
-        val playedAlbums = played.flatten()
-            .filter { it.kind == ItemKind.Track }
-            .mapNotNull(::albumOf)
-            .distinctBy { it.id }
-            .take(RECENTLY_PLAYED)
-            .map { album(it).grouped(l.recentlyPlayed) }
-        val several = added.count { it.second.isNotEmpty() } > 1
-        val addedAlbums = added.flatMap { (library, items) ->
+        val tracks = played.flatten().filter { it.kind == ItemKind.Track }
+        val albums = tracks.mapNotNull(::albumOf).distinctBy { it.id }.take(RECENTLY_PLAYED)
+        val playedIds = albums.mapTo(HashSet()) { it.id }
+        val playedAlbums = albums.map { album(it).grouped(l.recentlyPlayed) }
+        val fresh = added.map { (library, items) -> library to items.filter { it.kind == ItemKind.Album && it.id !in playedIds }.take(RECENTLY_ADDED) }
+        val several = fresh.count { it.second.isNotEmpty() } > 1
+        val addedAlbums = fresh.flatMap { (library, items) ->
             val group = if (several) l.recentlyAddedIn(library.name) else l.recentlyAdded
-            items.filter { it.kind == ItemKind.Album }.map { album(it).grouped(group) }
+            items.map { album(it).grouped(group) }
         }
-        return books + playedAlbums + addedAlbums
+        val (heard, heardAt) = books
+        val trackAt = tracks.mapNotNull { it.userState.lastPlayedAt }.maxOrNull()
+        val musicFirst = trackAt != null && trackAt > (heardAt ?: 0)
+        return (if (musicFirst) playedAlbums + heard else heard + playedAlbums) + addedAlbums
     }
 
     /** The album [track] is on, as far as the track says: its title, artist and cover. */
@@ -757,8 +771,14 @@ class MusicLibrary(
         /** The most children a page holds, whatever the car asks for. */
         const val MAX_PAGE = 500
 
-        /** The most albums Recently played shows, and books Continue listening. */
+        /** The most albums Recently played shows, and books the Books tab's Continue listening. */
         private const val RECENTLY_PLAYED = 12
+
+        /** The most books Recent shows: a row of them, the music under it. */
+        private const val RECENT_BOOKS = 3
+
+        /** The most albums Recently added shows of each library. */
+        private const val RECENTLY_ADDED = 12
 
         /** The most tabs a car shows (Android Auto's ROOT_CHILDREN_LIMIT). */
         private const val MAX_TABS = 4

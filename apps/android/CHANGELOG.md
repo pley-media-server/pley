@@ -30,8 +30,9 @@ describes how they are made.
 
 With Android Auto:
 
-- Pley plays music on the car's screen: Recent (what you played last,
-  kept up to date as you play, then what was added), Artists and
+- Pley plays music on the car's screen: Recent (what you heard last
+  first, kept up to date as you play, then what was added, each album
+  once), Artists and
   Playlists tabs with album covers and artists' pictures (an artist
   without one shows their newest album's cover; Pley's mark on what has
   no picture at all;

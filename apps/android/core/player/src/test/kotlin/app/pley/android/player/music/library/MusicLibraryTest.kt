@@ -166,11 +166,41 @@ class MusicLibraryTest {
         val other = track(56, 55).copy(parentTitle = "Second Tide")
         source.played[3] = listOf(track(52, 50), track(51, 50), ItemSummary(9, 3, ItemKind.Movie, "A film"), other)
         val recent = library.children(MusicId.Recent, 0, 50)
-        assertEquals(listOf("album:50", "album:55", "album:50"), recent.map { it.mediaId })
-        assertEquals(listOf("Recently played", "Recently played", "Recently added"), recent.map { it.group })
+        // Deep Water, added last too, isn't listed again under Recently added.
+        assertEquals(listOf("album:50", "album:55"), recent.map { it.mediaId })
+        assertEquals(listOf("Recently played", "Recently played"), recent.map { it.group })
         assertEquals("Second Tide", recent[1].mediaMetadata.title.toString())
         assertEquals("Harbour Lights", recent[1].mediaMetadata.subtitle.toString())
         assertEquals("content://art/api/items/55/images/poster", recent[1].mediaMetadata.artworkUri.toString())
+    }
+
+    @Test
+    fun recentIsAGridOfAFewBooksAndTheAlbumsAddedLast() = runTest {
+        // What plays as it is picked (a book, an album of one track) is a tile of Recent's and Playlists' grids too.
+        val tabs = library.children(MusicId.Root, 0, 10)
+        assertEquals(GRID, tabs.first { it.mediaId == "recent" }.playableStyle)
+        assertEquals(GRID, tabs.first { it.mediaId == "playlists" }.playableStyle)
+
+        // Five books being heard: Recent shows three, the Books tab all of them.
+        val many = (1..5L).map { LONG_BOOK.copy(id = 100 + it) }
+        source.bookLibraries = listOf(BOOKS)
+        source.shelves = BookShelves(listening = many)
+        assertEquals(3, library.children(MusicId.Recent, 0, 50).count { it.mediaId.startsWith("book:") })
+        assertEquals(5, library.children(MusicId.Books, 0, 50).count { it.group == "Continue listening" })
+
+        // Twenty albums added: twelve.
+        source.recent[3] = (1..20L).map { album(200 + it, "Album $it") }
+        assertEquals(12, library.children(MusicId.Recent, 0, 50).count { it.group == "Recently added" })
+    }
+
+    @Test
+    fun recentPutsTheMusicFirstWhenATrackWasHeardAfterTheBooks() = runTest {
+        source.bookLibraries = listOf(BOOKS)
+        // The book's part heard last was heard at 2 000: before the track, the book leads; after it, the album.
+        source.played[3] = listOf(track(52, 50).copy(userState = UserState(lastPlayedAt = 1_500)))
+        assertEquals(listOf("book:70", "album:50"), library.children(MusicId.Recent, 0, 50).map { it.mediaId })
+        source.played[3] = listOf(track(52, 50).copy(userState = UserState(lastPlayedAt = 3_000)))
+        assertEquals(listOf("album:50", "book:70"), library.children(MusicId.Recent, 0, 50).map { it.mediaId })
     }
 
     @Test
@@ -584,6 +614,8 @@ class MusicLibraryTest {
 
     private val MediaItem.browsableStyle: Int? get() = mediaMetadata.extras?.takeIf { it.containsKey(BROWSABLE) }?.getInt(BROWSABLE)
 
+    private val MediaItem.playableStyle: Int? get() = mediaMetadata.extras?.takeIf { it.containsKey(PLAYABLE) }?.getInt(PLAYABLE)
+
     private val MediaItem.group: String? get() = mediaMetadata.extras?.getString(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE)
 
     private object Look : MusicLibraryLook {
@@ -694,6 +726,7 @@ class MusicLibraryTest {
         val GRID = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
         val ARTIST = ItemSummary(40, 3, ItemKind.Artist, "Harbour Lights", childCount = 2)
         val BROWSABLE = MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE
+        val PLAYABLE = MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE
 
         fun album(id: Long, title: String, year: Int? = null) = ItemSummary(
             id,
