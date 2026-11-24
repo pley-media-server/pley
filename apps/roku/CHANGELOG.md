@@ -10,10 +10,9 @@ describes how they are made.
 
 ### Fixed
 
-- The player's Playback details stay where they were scrolled to while a
-  conversion's figures change every 2 seconds, and only the figures that
-  changed are drawn again: the panel was laid out anew and went back to
-  the top each time.
+- While a conversion's figures change every 2 seconds, the player's
+  Playback details draw only the figures that changed: the whole panel was
+  laid out anew each time.
 
 ## [0.1.13] - 2026-11-24
 
