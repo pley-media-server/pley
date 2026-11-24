@@ -47,6 +47,7 @@ import app.pley.android.player.music.library.MusicLibraryGraph
 import app.pley.android.player.music.library.MusicSelection
 import app.pley.android.player.music.library.SessionArt
 import app.pley.android.player.music.library.SignedOutException
+import app.pley.android.player.music.library.SpokenFocus
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -684,8 +685,9 @@ class MusicService : MediaLibraryService() {
          * the session's Play, which Media3 sends after a request to play
          * and not after one to prepare, starts it. A channel, or a request
          * naming one exactly, is the radio's; a request matching no music
-         * gets the closest channel. A request naming nothing ("play
-         * music") gets what was playing.
+         * gets the closest channel, unless it asked for an artist, an album
+         * or a track. A request naming nothing ("play music") gets what was
+         * playing.
          */
         override fun onSetMediaItems(
             mediaSession: MediaSession,
@@ -710,9 +712,12 @@ class MusicService : MediaLibraryService() {
                     val id = MusicId.parse(picked.mediaId)
                     val query = picked.requestMetadata.searchQuery?.take(MAX_QUERY)?.takeIf { picked.mediaId.isEmpty() }
                     val playlist = spokenPlaylist(picked)
+                    // Asked for as an artist, an album or a track: music, never a channel of that name.
+                    val focus = SpokenFocus.of(picked.requestMetadata.extras)
+                    val music = focus.kind != null
                     val channel = when {
                         id is MusicId.Channel -> (live?.lineup(id) ?: throw UnsupportedOperationException("No such channel")) to id
-                        query != null -> live?.let { runCatching { it.named(query) }.getOrNull() }?.let { (listOf(it) to 0) to MusicId.Channel(it.id) }
+                        query != null && !music -> live?.let { runCatching { it.named(query) }.getOrNull() }?.let { (listOf(it) to 0) to MusicId.Channel(it.id) }
                         else -> null
                     }
                     if (channel != null) {
@@ -722,7 +727,7 @@ class MusicService : MediaLibraryService() {
                     // "Play music" with nothing named: the queue that waits plays on, or the one kept from before the
                     // app left memory; only with neither, something new (the album added last). The session's Play
                     // that follows starts it.
-                    if (query != null && query.isBlank() && playlist == null) {
+                    if (query != null && query.isBlank() && playlist == null && focus.isEmpty) {
                         val saved = if (playback.active) null else MusicHub.resume?.saved()
                         if (playback.active || saved != null) {
                             showMusic(made, playback, graph.library)
@@ -733,7 +738,7 @@ class MusicService : MediaLibraryService() {
                         }
                     }
                     val selection = selectionFor(picked)
-                    if (selection == null && query != null) {
+                    if (selection == null && query != null && !music) {
                         val closest = live?.let { runCatching { it.closest(query) }.getOrNull() }
                         if (closest != null) {
                             future.set(playRadio(made, playback, graph, listOf(closest) to 0, MusicId.Channel(closest.id)))
@@ -823,7 +828,7 @@ class MusicService : MediaLibraryService() {
             val query = item.requestMetadata.searchQuery
             return when {
                 item.mediaId.isNotEmpty() -> MusicId.parse(item.mediaId)?.let { library().selection(it) }
-                query != null -> library().selectionFor(query.take(MAX_QUERY), spokenPlaylist(item))
+                query != null -> library().selectionFor(query.take(MAX_QUERY), spokenPlaylist(item), SpokenFocus.of(item.requestMetadata.extras))
                 else -> null
             }
         }

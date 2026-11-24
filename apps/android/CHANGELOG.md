@@ -38,8 +38,9 @@ With Android Auto:
   disc when it has several), search (the closest kind of match first),
   the whole queue under the album's, playlist's or artist's name, Shuffle
   and Repeat on Now Playing, and "Hey Google, play … on
-  Pley", which finds music playlists by name ("my … playlist" too) and
-  says so when it finds nothing. Signed out, the car says to open Pley on the phone.
+  Pley", which finds music playlists by name ("my … playlist" too),
+  plays the album, artist or song asked for as such ("play the album …")
+  and says so when it finds nothing. Signed out, the car says to open Pley on the phone.
 - Audiobooks play in the car: a Books tab (being heard, added last, every
   book) with how far you are in each, the books being heard first in
   Recent, search and "Hey Google, play … on Pley". A book goes on where

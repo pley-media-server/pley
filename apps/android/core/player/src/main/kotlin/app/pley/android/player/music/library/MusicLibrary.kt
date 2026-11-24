@@ -2,6 +2,7 @@ package app.pley.android.player.music.library
 
 import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -77,6 +78,51 @@ data class MusicSelection(
     val startMs: Long = 0,
     val title: String? = null,
 )
+
+/**
+ * What a spoken request asks for beside what was said, as the Assistant
+ * puts it in MediaStore's extras: an artist, an album or a track ([kind]),
+ * and the names it heard ("play the album Thriller by Michael Jackson":
+ * an album, [album] Thriller, [artist] Michael Jackson).
+ */
+data class SpokenFocus(val kind: ItemKind? = null, val artist: String? = null, val album: String? = null, val title: String? = null) {
+    val isEmpty: Boolean get() = kind == null && artist == null && album == null && title == null
+
+    companion object {
+        /**
+         * The focus [extras] give. Without one (or one for anything), the
+         * names heard say it: a title is a track's, else an album an
+         * album's, else an artist an artist's. A playlist's, a genre's or
+         * the radio's isn't one of these.
+         */
+        fun of(extras: Bundle?): SpokenFocus {
+            if (extras == null) return SpokenFocus()
+            fun heard(key: String) = extras.getString(key)?.trim()?.take(MAX_NAME)?.takeIf { it.isNotEmpty() }
+            val artist = heard(MediaStore.EXTRA_MEDIA_ARTIST)
+            val album = heard(MediaStore.EXTRA_MEDIA_ALBUM)
+            val title = heard(MediaStore.EXTRA_MEDIA_TITLE)
+            val kind = when (extras.getString(MediaStore.EXTRA_MEDIA_FOCUS)) {
+                MediaStore.Audio.Artists.ENTRY_CONTENT_TYPE -> ItemKind.Artist
+                MediaStore.Audio.Albums.ENTRY_CONTENT_TYPE -> ItemKind.Album
+                MediaStore.Audio.Media.ENTRY_CONTENT_TYPE -> ItemKind.Track
+                null, ANY_FOCUS -> when {
+                    title != null -> ItemKind.Track
+                    album != null -> ItemKind.Album
+                    artist != null -> ItemKind.Artist
+                    else -> null
+                }
+                else -> null
+            }
+            return SpokenFocus(kind, artist, album, title)
+        }
+
+        /** The focus of a request for anything ("play some music"). */
+        private const val ANY_FOCUS = "vnd.android.cursor.item/*"
+
+        /** The longest name heard that is used, as for what was said. */
+        private const val MAX_NAME = 200
+    }
+}
 
 /**
  * Pley's music as cars and voice assistants browse it (Android Auto, a
@@ -206,21 +252,25 @@ class MusicLibrary(
     }
 
     /**
-     * What a spoken request plays ("play … on Pley"): the music playlist
-     * named so ([playlist], the Assistant's own reading of the name, first;
-     * then what was said, with or without its word for a playlist: "my
-     * Night Drive playlist" names "Night Drive"), else the closest artist,
-     * album or track found, an artist shuffled, else the playlist whose name
-     * holds what was said; with nothing said, the album added last. A book
-     * found goes on where the profile is in it.
+     * What a spoken request plays ("play … on Pley"): asked for as an
+     * artist, an album or a track ([focus]), the closest of that kind to
+     * the name heard (by the artist heard, when there are several), an
+     * artist shuffled. Else the music playlist named so ([playlist], the
+     * Assistant's own reading of the name, first; then what was said, with
+     * or without its word for a playlist: "my Night Drive playlist" names
+     * "Night Drive"), else the closest artist, album or track found, else
+     * the playlist whose name holds what was said; with nothing said, the
+     * album added last. A book found goes on where the profile is in it.
      */
-    suspend fun selectionFor(query: String, playlist: String? = null): MusicSelection? {
+    suspend fun selectionFor(query: String, playlist: String? = null, focus: SpokenFocus = SpokenFocus()): MusicSelection? {
         val spoken = playlist?.trim()?.takeIf { it.isNotEmpty() }
-        if (query.isBlank() && spoken == null) {
+        if (query.isBlank() && spoken == null && focus.isEmpty) {
             val album = source.libraries().firstNotNullOfOrNull { source.recentlyAdded(it.id).firstOrNull { a -> a.kind == ItemKind.Album } }
             return album?.let { selection(MusicId.Album(it.id)) }
         }
         val said = query.trim()
+        // "Play the album Night Drive" is the album, before a playlist of that name or an artist whose name holds it.
+        if (spoken == null) focused(focus, said)?.let { return it }
         val names = listOfNotNull(spoken, said.takeIf { it.isNotEmpty() }, playlistNamed(said)).distinctBy { it.lowercase() }
         // The profile's own playlists first: the search doesn't list them, and "my Road Trip playlist" names one exactly.
         val playlists = try {
@@ -241,6 +291,33 @@ class MusicLibrary(
             ItemKind.Track -> selection(MusicId.Track(best.id))
             else -> names.firstNotNullOfOrNull { name -> playlists.firstOrNull { it.title.contains(name, ignoreCase = true) } }?.let { selection(MusicId.Playlist(it.id)) }
         }
+    }
+
+    /**
+     * The closest [focus]'s kind to the name heard (what was [said] without
+     * one), by the artist heard first; `null` when the request has no such
+     * focus or none of that kind is found, and the request is read as
+     * any other.
+     */
+    private suspend fun focused(focus: SpokenFocus, said: String): MusicSelection? {
+        val kind = focus.kind ?: return null
+        val name = when (kind) {
+            ItemKind.Artist -> focus.artist
+            ItemKind.Album -> focus.album
+            else -> focus.title
+        } ?: said.takeIf { it.isNotEmpty() } ?: return null
+        val found = source.search(name).filter { it.kind == kind }
+        val by = focus.artist?.takeIf { kind != ItemKind.Artist }
+        val best = by?.let { artist -> found.firstOrNull { (if (kind == ItemKind.Album) it.parentTitle else it.grandparentTitle).equals(artist, ignoreCase = true) } }
+            ?: found.firstOrNull()
+            ?: return null
+        return selection(
+            when (kind) {
+                ItemKind.Artist -> MusicId.ShuffleArtist(best.id)
+                ItemKind.Album -> MusicId.Album(best.id)
+                else -> MusicId.Track(best.id)
+            },
+        )
     }
 
     /**

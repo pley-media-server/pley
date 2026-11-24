@@ -3,6 +3,8 @@ package app.pley.android.player.music.library
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.os.Bundle
+import android.provider.MediaStore
 import androidx.core.graphics.ColorUtils
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -332,6 +334,56 @@ class MusicLibraryTest {
     }
 
     @Test
+    fun aSpokenRequestForAnArtistAnAlbumOrATrackPlaysOneOfThatKind() = runTest {
+        // The server's closest match is an album; then a track, then the artist.
+        source.found = listOf(album(55, "Second Tide"), track(52, 50), ARTIST)
+        // Said alone: the closest, the album.
+        assertEquals(listOf(56L), library.selectionFor("harbour")!!.tracks.map { it.id })
+        // Asked for as an artist: the artist, shuffled, by the name heard.
+        val artist = library.selectionFor("harbour", focus = SpokenFocus(ItemKind.Artist, artist = "Harbour Lights"))!!
+        assertTrue(artist.shuffle)
+        assertEquals("Harbour Lights", source.searched.last())
+        // As a track: its album from it.
+        val song = library.selectionFor("track 52", focus = SpokenFocus(ItemKind.Track, title = "Track 52"))!!
+        assertEquals(listOf(51L, 52L), song.tracks.map { it.id })
+        assertEquals(1, song.startIndex)
+        assertEquals("Track 52", source.searched.last())
+
+        // As an album, before a playlist of that name ("play the album Night Drive").
+        source.found = listOf(track(52, 50), album(50, "Night Drive"))
+        assertEquals(listOf(51L, 52L), library.selectionFor("night drive", focus = SpokenFocus(ItemKind.Album, album = "Night Drive"))!!.tracks.map { it.id })
+        assertEquals(0, library.selectionFor("night drive", focus = SpokenFocus(ItemKind.Album))!!.startIndex)
+        assertEquals(library.selection(MusicId.Playlist(7))!!.tracks.map { it.id }, library.selectionFor("night drive")!!.tracks.map { it.id })
+
+        // By the artist heard, when albums of several artists have the name.
+        source.found = listOf(album(60, "Greatest Hits").copy(parentTitle = "Someone Else"), album(55, "Greatest Hits"))
+        val hits = library.selectionFor("greatest hits by harbour lights", focus = SpokenFocus(ItemKind.Album, artist = "harbour lights", album = "Greatest Hits"))!!
+        assertEquals(listOf(56L), hits.tracks.map { it.id })
+
+        // None of that kind: read as any other request.
+        source.found = listOf(track(52, 50))
+        assertEquals(listOf(51L, 52L), library.selectionFor("anything", focus = SpokenFocus(ItemKind.Album, album = "Missing"))!!.tracks.map { it.id })
+    }
+
+    @Test
+    fun theAssistantsExtrasSayWhatIsAskedFor() {
+        fun of(vararg extras: Pair<String, String>) = SpokenFocus.of(Bundle().apply { for ((k, v) in extras) putString(k, v) })
+        assertEquals(
+            SpokenFocus(ItemKind.Album, artist = "Harbour Lights", album = "Deep Water"),
+            of(MediaStore.EXTRA_MEDIA_FOCUS to MediaStore.Audio.Albums.ENTRY_CONTENT_TYPE, MediaStore.EXTRA_MEDIA_ALBUM to " Deep Water ", MediaStore.EXTRA_MEDIA_ARTIST to "Harbour Lights"),
+        )
+        assertEquals(ItemKind.Artist, of(MediaStore.EXTRA_MEDIA_FOCUS to MediaStore.Audio.Artists.ENTRY_CONTENT_TYPE).kind)
+        assertEquals(ItemKind.Track, of(MediaStore.EXTRA_MEDIA_FOCUS to MediaStore.Audio.Media.ENTRY_CONTENT_TYPE, MediaStore.EXTRA_MEDIA_TITLE to "First Light").kind)
+        // Without a focus, or one for anything, the names heard say it.
+        assertEquals(ItemKind.Track, of(MediaStore.EXTRA_MEDIA_TITLE to "First Light", MediaStore.EXTRA_MEDIA_ARTIST to "Harbour Lights").kind)
+        assertEquals(ItemKind.Album, of(MediaStore.EXTRA_MEDIA_FOCUS to "vnd.android.cursor.item/*", MediaStore.EXTRA_MEDIA_ALBUM to "Deep Water").kind)
+        // A playlist's is the playlist's, a genre's nothing of these; nothing heard, nothing asked.
+        assertNull(of(MediaStore.EXTRA_MEDIA_FOCUS to MediaStore.Audio.Playlists.ENTRY_CONTENT_TYPE, MediaStore.EXTRA_MEDIA_TITLE to "Night Drive").kind)
+        assertNull(of(MediaStore.EXTRA_MEDIA_FOCUS to "vnd.android.cursor.item/genre", MediaStore.EXTRA_MEDIA_ARTIST to " ").kind)
+        assertTrue(SpokenFocus.of(null).isEmpty)
+    }
+
+    @Test
     fun aCarIsSuggestedTheAlbumPlayedLastFromItsTrackElseTheOneAddedLast() = runTest {
         // Nothing played: the album added last, from its start.
         val added = library.suggestion()!!
@@ -563,6 +615,7 @@ class MusicLibraryTest {
 
     private companion object {
         val GRID = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
+        val ARTIST = ItemSummary(40, 3, ItemKind.Artist, "Harbour Lights", childCount = 2)
         val BROWSABLE = MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE
 
         fun album(id: Long, title: String, year: Int? = null) = ItemSummary(

@@ -1197,8 +1197,12 @@ fails once the track before has played, as any track does.
 "Hey Google, play … on Pley" plays the music playlist named so (by the
 name the Assistant heard, or said with a word for a playlist, as in "my
 Night Drive playlist", in English, French and Spanish), else the closest
-artist (shuffled), album, track or book (where the profile is in it);
-"play music on Pley" plays on what
+artist (shuffled), album, track or book (where the profile is in it).
+Asked for as an artist, an album or a song ("play the album Night Drive
+by …"), as the Assistant tells apps, it plays the closest of that kind,
+by the artist named first, before a playlist or a channel of that name;
+with none of that kind, the other music found, never a channel. "Play music
+on Pley" plays on what
 was playing, else the album added last. A request that finds nothing
 says so on the car's screen for a moment ("Pley found no music for …"),
 and what was playing plays on. The Assistant asks for what it heard to be
