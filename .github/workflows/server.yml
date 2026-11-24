@@ -38,6 +38,7 @@ on:
       - scripts/build-spk.sh
       - scripts/check-licenses.ps1
       - scripts/test-watchdog.ps1
+      - scripts/pley-ffmpeg.ps1
       - scripts/commit.mjs
       - scripts/commit.d.mts
       - .github/workflows/server.yml
@@ -75,6 +76,7 @@ on:
       - scripts/build-spk.sh
       - scripts/check-licenses.ps1
       - scripts/test-watchdog.ps1
+      - scripts/pley-ffmpeg.ps1
       - scripts/commit.mjs
       - scripts/commit.d.mts
       - .github/workflows/server.yml
@@ -151,6 +153,10 @@ jobs:
       # The transcoder's tests that run FFmpeg fail, rather than skip, when
       # it or an encoder they need is missing (apps/transcoder/src/testing.rs).
       PLEY_TEST_FFMPEG: "1"
+      # pley-ffmpeg whose recipe isn't published yet (the FFmpeg workflow
+      # publishes it from master) is replaced by the one this recipe names:
+      # master's, or on master the commit's before it.
+      FFMPEG_FALLBACK: ${{ github.event_name == 'push' && github.event.before || 'master' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -169,7 +175,7 @@ jobs:
         shell: pwsh
         run: |
           $arch = if ($env:RUNNER_ARCH -eq 'ARM64') { 'arm64' } else { 'amd64' }
-          ./scripts/pley-ffmpeg.ps1 -Platform linux -Arch $arch -Destination "$env:RUNNER_TEMP/pley-ffmpeg"
+          ./scripts/pley-ffmpeg.ps1 -Platform linux -Arch $arch -Destination "$env:RUNNER_TEMP/pley-ffmpeg" -Fallback $env:FFMPEG_FALLBACK
       - name: Debian 13 with pley-ffmpeg (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -195,7 +201,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          ./scripts/pley-ffmpeg.ps1 -Platform windows -Destination "$env:RUNNER_TEMP\pley-ffmpeg"
+          ./scripts/pley-ffmpeg.ps1 -Platform windows -Destination "$env:RUNNER_TEMP\pley-ffmpeg" -Fallback $env:FFMPEG_FALLBACK
           "$env:RUNNER_TEMP\pley-ffmpeg\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
       - name: FFmpeg's version
         if: runner.os != 'Linux'
