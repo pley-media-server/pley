@@ -112,7 +112,7 @@ const EDITION_WORDS: &str = concat!(
 /// Director's Cut`).
 static EDITIONS: LazyLock<String> = LazyLock::new(|| format!(r"{EDITION_WORDS}(?:[ ._-]+{EDITION_WORDS})*"));
 static EDITION_IN: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"(?i)\b{}\b", *EDITIONS)).unwrap());
-static EDITION_ALONE: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"(?i)^{}$", *EDITIONS)).unwrap());
+static EDITION_START: LazyLock<Regex> = LazyLock::new(|| Regex::new(&format!(r"(?i)^{}\b", *EDITIONS)).unwrap());
 /// What is in brackets, parentheses or braces.
 static GROUPS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[([^\]]*)\]|\(([^)]*)\)|\{([^}]*)\}").unwrap());
 static PART_SUFFIX: LazyLock<Regex> =
@@ -219,8 +219,13 @@ fn edition_name(words: &str) -> String {
 /// after it aside (`Director's Cut 1080p`).
 fn edition_alone(text: &str) -> Option<String> {
     let separator = |c: char| c.is_whitespace() || matches!(c, '-' | '.' | '_' | ',');
-    let words = cut_at_junk(text.trim_matches(separator)).trim_matches(separator);
-    EDITION_ALONE.is_match(words).then(|| edition_name(words))
+    let text = text.trim_matches(separator);
+    // Release details may begin with one of an edition's words (`Extended
+    // 1080p`), so they are what follows the edition, not what a cut at the
+    // first of them leaves.
+    let words = EDITION_START.find(text)?;
+    let rest = text[words.end()..].trim_start_matches(separator);
+    (rest.is_empty() || JUNK.find(rest).is_some_and(|junk| junk.start() == 0)).then(|| edition_name(words.as_str()))
 }
 
 /// The edition a movie's name gives in words, apart from its title: after
@@ -955,6 +960,11 @@ mod tests {
             ("Film Name (2010) - 25th Anniversary Extended Edition.mkv", "25th Anniversary Extended Edition"),
             ("Film Name - Extended Director's Cut.mkv", "Extended Director's Cut"),
             ("Film Name (Unrated Extended Cut).mkv", "Unrated Extended Cut"),
+            // Release details after it, whichever word they begin with.
+            ("Film Name (2010) [Extended 1080p].mkv", "Extended"),
+            ("Film Name (2010) [Director's Cut 1080p].mkv", "Director's Cut"),
+            ("Film Name [Unrated 1080p].mkv", "Unrated"),
+            ("Film Name - IMAX 2160p.mkv", "IMAX"),
             // Without a year: set apart, or after the folder's title.
             ("Film Name - Director's Cut.mkv", "Director's Cut"),
             ("Film Name (Uncut).mkv", "Uncut"),
@@ -983,6 +993,7 @@ mod tests {
             ("A Night - Special Guests.mkv", "A Night - Special Guests"),
             ("Final Cut/Final Cut.mkv", "Final Cut"),
             ("Ultimate Lanterns (2012).mkv", "Ultimate Lanterns"),
+            ("Film Name [Extended Family 1080p].mkv", "Film Name"),
         ] {
             assert_eq!(edition(name), None, "{name}");
             assert_eq!(movie(name).title, title, "{name}");
