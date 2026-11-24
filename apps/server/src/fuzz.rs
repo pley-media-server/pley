@@ -95,7 +95,8 @@ impl Rng {
             if pieces.is_empty() || self.one_in(6) {
                 text.push(self.char());
             } else {
-                text.push_str(self.pick(pieces));
+                let piece = *self.pick(pieces);
+                text.push_str(piece);
             }
         }
         text
