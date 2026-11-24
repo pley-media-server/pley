@@ -8,9 +8,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import app.pley.android.player.NowPlaying
+import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
 import app.pley.android.ui.phone.kit.LocalOffline
@@ -24,6 +31,8 @@ import app.pley.android.ui.phone.shell.MiniPlayerSlot
 import app.pley.android.ui.phone.shell.PhoneShellState
 import app.pley.android.ui.phone.shell.rememberPhoneNavigation
 import app.pley.android.ui.phone.theme.PhoneTheme
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -86,6 +95,36 @@ class CarMusicSizesTest {
         CarScreenChecks.controls(compose, "the album, $screen", listOf("Play", "Shuffle"))
         CarScreenChecks.apart(compose, "the album, $screen", listOf("Play", "Shuffle"))
     }
+
+    /**
+     * The sleep timer opens in a sheet, as the queue does: its choices a car's size (the sheet starts again from the
+     * screen's density), the last one reached by scrolling where the screen is short, and a choice sets the timer.
+     */
+    private fun checkSleep(screen: String) {
+        show { NowPlayingScreen(car = true) }
+        compose.onNode(hasContentDescription("Sleep timer") and hasClickAction()).performClick()
+        compose.waitForIdle()
+        CarScreenChecks.save(compose, "sleep-$screen")
+        val density = compose.density.density
+        for (choice in listOf("Off", "15 min", "30 min")) {
+            val row = compose.onNode(hasText(choice) and hasClickAction()).fetchSemanticsNode()
+            val height = row.layoutInfo.height / density
+            assertTrue("$screen: $choice is $height dp tall", height >= 64f - 0.5f)
+        }
+        compose.onNode(hasText("Off") and hasClickAction()).assertIsSelected()
+        compose.onNode(hasText("End of this track") and hasClickAction()).performScrollTo().assertIsDisplayed()
+        compose.onNode(hasText("30 min") and hasClickAction()).performScrollTo().performClick()
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("15 min")).fetchSemanticsNodes().isEmpty() }
+        assertEquals(listOf<SleepChoice>(SleepChoice.Minutes(30)), graph.music.sleeps)
+    }
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.SMALL)
+    fun sleepSmallLandscape() = checkSleep("small")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.NARROW)
+    fun sleepNarrow() = checkSleep("narrow")
 
     @Test
     @Config(qualifiers = CarScreenChecks.SMALL)

@@ -84,6 +84,8 @@ With Android Auto:
   placeholder instead of their title, which the caption under it shows.
 - Changing tabs fades from one to the next, Now Playing comes up from
   the bar of what plays, and that bar rises in as music starts.
+- Now Playing's sleep timer opens its choices in a sheet, as the queue
+  and a book's speed do.
 
 ### Fixed
 

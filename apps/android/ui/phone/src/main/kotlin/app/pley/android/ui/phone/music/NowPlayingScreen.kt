@@ -623,20 +623,12 @@ private fun SpeedButton(model: NowPlayingViewModel) {
     }
     if (open) {
         PleySheet(onDismiss = { open = false }, title = label) {
-            BOOK_SPEEDS.sorted().forEach { choice ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp)
-                        .clickable(role = Role.RadioButton) {
-                            model.setBookSpeed(choice)
-                            open = false
-                        }
-                        .padding(horizontal = 24.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(speedText(choice), style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg, modifier = Modifier.weight(1f))
-                    if (choice == speed) Icon(PleyIcons.Check, contentDescription = null, size = 20.dp, tint = PleyColors.Accent)
+            MusicChoices {
+                BOOK_SPEEDS.sorted().forEach { choice ->
+                    MusicChoiceRow(speedText(choice), chosen = choice == speed) {
+                        model.setBookSpeed(choice)
+                        open = false
+                    }
                 }
             }
         }

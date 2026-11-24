@@ -7,6 +7,8 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.onRoot
 import java.io.File
@@ -69,10 +71,13 @@ internal object CarScreenChecks {
         assertTrue("$screen, ${(window.height / density).toInt()} dp tall: ${close.joinToString("; ")} ($where)", close.isEmpty())
     }
 
-    /** A picture of the screen, kept when `PLEY_CAR_SHOTS` names a folder: to look at a layout, not to compare. */
+    /**
+     * A picture of the screen, kept when `PLEY_CAR_SHOTS` names a folder: to look at a layout, not to compare. The
+     * page's window, also with a sheet open over it (Robolectric draws no other window).
+     */
     fun save(compose: ComposeContentTestRule, name: String) {
         val folder = System.getenv("PLEY_CAR_SHOTS") ?: return
-        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+        val bitmap = compose.onAllNodes(isRoot()).onFirst().captureToImage().asAndroidBitmap()
         File(folder).mkdirs()
         File(folder, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }

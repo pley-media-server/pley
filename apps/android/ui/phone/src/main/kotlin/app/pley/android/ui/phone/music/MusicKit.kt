@@ -17,8 +17,12 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -311,6 +315,36 @@ internal fun TrackLine(
         }
         Spacer(Modifier.width(12.dp))
         Text(row.duration, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted)
+    }
+}
+
+/**
+ * A sheet's choices ([MusicChoiceRow]), scrolling where the window is too
+ * short for them all: a car's small screen, or a phone on its side, shows
+ * only some.
+ */
+@Composable
+internal fun MusicChoices(content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), content = content)
+}
+
+/**
+ * One choice in a sheet of Now Playing's (a book's speed, the sleep timer):
+ * its label, and the accent check at the end when it is the one in force.
+ * Screen readers hear a radio button.
+ */
+@Composable
+internal fun MusicChoiceRow(label: String, chosen: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .selectable(selected = chosen, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg, modifier = Modifier.weight(1f))
+        if (chosen) Icon(PleyIcons.Check, contentDescription = null, size = 20.dp, tint = PleyColors.Accent)
     }
 }
 
