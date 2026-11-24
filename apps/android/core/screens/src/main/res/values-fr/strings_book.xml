@@ -20,9 +20,10 @@
     <string name="book_chapters">Chapitres</string>
     <string name="book_chapter">Chapitre %1$d</string>
     <string name="book_heard">Écouté</string>
-    <string name="book_up_to">Repris à %1$s</string>
+    <string name="book_up_to">Vous en êtes à %1$s</string>
     <string name="book_percent_heard">%1$s écouté</string>
     <string name="book_speed">Vitesse</string>
+    <string name="book_speed_value">Vitesse %1$s</string>
     <string name="book_back">Reculer de 15 secondes</string>
     <string name="book_forward">Avancer de 30 secondes</string>
     <plurals name="book_count_parts">

@@ -23,6 +23,7 @@
     <string name="book_up_to">聽到 %1$s</string>
     <string name="book_percent_heard">已聽 %1$s</string>
     <string name="book_speed">速度</string>
+    <string name="book_speed_value">速度 %1$s</string>
     <string name="book_back">倒退 15 秒</string>
     <string name="book_forward">快轉 30 秒</string>
     <plurals name="book_count_parts">

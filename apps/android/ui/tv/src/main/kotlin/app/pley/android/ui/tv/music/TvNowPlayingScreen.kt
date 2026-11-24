@@ -332,7 +332,7 @@ private fun RowScope.BookControls(now: NowPlaying, model: NowPlayingViewModel) {
     val shown = remember(speed, locale) { NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 1 }.format(speed) + "×" }
     Box(Modifier.padding(top = BESIDE_PLAY)) {
         TvRoundButton(
-            stringResource(ScreensR.string.book_speed) + " " + shown,
+            stringResource(ScreensR.string.book_speed_value, shown),
             PleyIcons.Gauge,
             onClick = { model.setBookSpeed(BOOK_SPEEDS[(BOOK_SPEEDS.indexOf(speed) + 1) % BOOK_SPEEDS.size]) },
             onArt = true,

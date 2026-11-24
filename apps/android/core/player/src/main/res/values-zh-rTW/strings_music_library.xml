@@ -40,7 +40,7 @@
     <string name="music_library_signed_out">請在安全時開啟手機上的 Pley 並登入</string>
     <string name="music_library_open_pley">開啟 Pley</string>
     <string name="music_library_offline">無法連線你的 Pley 伺服器</string>
-    <string name="music_library_no_match">Pley 找不到“%1$s”的音樂</string>
+    <string name="music_library_no_match">Pley 找不到「%1$s」的音樂</string>
     <string name="music_library_failed">發生錯誤，請重試。</string>
     <string name="music_library_unplayable">此曲目無法播放</string>
     <plurals name="music_library_unplayable_next">
