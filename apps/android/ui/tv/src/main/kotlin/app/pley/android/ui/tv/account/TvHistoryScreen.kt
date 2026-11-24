@@ -53,6 +53,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.account.HistoryRow
 import app.pley.android.screens.account.HistoryUiState
@@ -199,7 +200,7 @@ private fun HistoryLine(
                         .clip(PleyShape.Badge)
                         .background(PleyColors.Surface2),
                 ) {
-                    Artwork(art, row.title, Modifier.matchParentSize())
+                    Artwork(art, row.title, Modifier.matchParentSize(), mark = MarkGlyph.of(row.kind))
                 }
             }
             Spacer(Modifier.width(16.dp))

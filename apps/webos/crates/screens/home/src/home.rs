@@ -739,6 +739,7 @@ fn paint_tile(ui: &mut Ui, row: &RowModel, slot: &TileSlot) {
         Some(t) => Tile::new(row.kind, &t.text.title)
             .subtitle(&t.text.subtitle)
             .art(&t.art)
+            .mark(Some(t.item.kind.mark_glyph()))
             .progress(t.text.progress)
             .unwatched(t.text.unwatched)
             .watched(t.text.watched)

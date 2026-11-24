@@ -7,7 +7,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use pley_base::{Color, Icon, ImageRequest, Point, Rect, Size, TextOpts};
+use pley_base::{Color, Icon, ImageRequest, MarkGlyph, Point, Rect, Size, TextOpts};
 use pley_core::addresses::display_address;
 use pley_core::model::{DiscoverDetail, DiscoverTitle, MediaRequest, NewRequest, RequestSummary, TitleStatus};
 use pley_core::requests::{
@@ -180,7 +180,7 @@ fn on_well(ui: &mut Ui, slot: &TileSlot, draw: impl FnOnce(&mut Ui, Rect)) {
 /// Draws a title's poster in its slot, its badge on it.
 pub fn paint_title(ui: &mut Ui, slot: &TileSlot, t: &TitleTileModel) {
     let tile = Tile::new(TileKind::Poster, &t.title.title).subtitle(&t.subtitle).art(&t.art);
-    tile.paint(ui, slot);
+    tile.mark(Some(t.title.kind.mark_glyph())).paint(ui, slot);
     if slot.mode == SlotMode::Draw
         && let Some(badge) = t.badge
     {
@@ -197,6 +197,8 @@ pub struct ToneTile<'a> {
     pub tone: Option<Tone>,
     pub lines: usize,
     pub art: &'a [ImageRequest],
+    /// The glyph of the mark on its placeholder: the title's kind's.
+    pub mark: MarkGlyph,
     pub progress: Option<f64>,
     pub badge: Option<(&'a str, Tone)>,
     /// News since the requests were last looked at: an accent dot.
@@ -206,7 +208,7 @@ pub struct ToneTile<'a> {
 impl ToneTile<'_> {
     pub fn paint(&self, ui: &mut Ui, slot: &TileSlot) {
         let progress = self.progress.map(|p| p.clamp(0.0, 1.0) as f32).filter(|p| *p > 0.0);
-        let tile = Tile::new(self.kind, self.title).art(self.art).progress(progress);
+        let tile = Tile::new(self.kind, self.title).art(self.art).mark(Some(self.mark)).progress(progress);
         tile.paint(ui, slot);
         if slot.mode != SlotMode::Draw {
             return;

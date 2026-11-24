@@ -48,6 +48,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.ItemKind
@@ -206,7 +207,7 @@ private fun DownloadRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(112.dp).aspectRatio(16f / 9f).clip(PleyShape.TilePhone)) {
-            Artwork(entry.imageUri?.let { ArtworkImage(listOf(it)) }, entry.title, Modifier.fillMaxSize())
+            Artwork(entry.imageUri?.let { ArtworkImage(listOf(it)) }, entry.title, Modifier.fillMaxSize(), mark = MarkGlyph.of(entry.kind))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {

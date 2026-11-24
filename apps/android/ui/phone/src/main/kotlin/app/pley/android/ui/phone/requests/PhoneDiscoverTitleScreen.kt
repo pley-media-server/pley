@@ -48,6 +48,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.tile.ArtworkTile
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileCaption
@@ -56,6 +57,7 @@ import app.pley.android.designsystem.tile.TileStyle
 import app.pley.android.model.CastMember
 import app.pley.android.model.DiscoverDetail
 import app.pley.android.model.DiscoverSeason
+import app.pley.android.model.ItemKind
 import app.pley.android.model.SeasonState
 import app.pley.android.model.TitleKind
 import app.pley.android.model.format.formatRuntime
@@ -268,7 +270,7 @@ private fun Poster(detail: DiscoverDetail, origin: String, width: Dp) {
     Artwork(
         image = remember(detail.posterUrl, origin) { ArtworkImage.of(detail.posterUrl, origin) },
         title = detail.title,
-        titleStyle = MaterialTheme.typography.labelMedium,
+        mark = MarkGlyph.of(detail.kind),
         modifier = Modifier
             .width(width)
             .aspectRatio(2f / 3f)
@@ -359,7 +361,7 @@ private fun SeasonRow(season: DiscoverSeason, detail: DiscoverDetail, manage: Bo
         Artwork(
             image = remember(season.posterUrl, origin) { ArtworkImage.of(season.posterUrl, origin) },
             title = name,
-            titleStyle = MaterialTheme.typography.labelSmall,
+            mark = MarkGlyph.of(ItemKind.Season),
             modifier = Modifier
                 .width(SeasonPosterWidth)
                 .aspectRatio(2f / 3f)

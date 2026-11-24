@@ -4,9 +4,9 @@
 //! captioned with its title and "12 items · 3h 12m" (and "Smart"). Focus starts on the first
 //! cover, or New playlist when there are none, and comes back to the cover left.
 
-use pley_base::{Cmd, Icon, ImageRequest, Point, Rect, Size, TextOpts};
+use pley_base::{Cmd, Icon, ImageRequest, MarkGlyph, Point, Rect, Size, TextOpts};
 use pley_core::format::format_duration;
-use pley_core::model::{PlaylistKind, PlaylistList, PlaylistSummary};
+use pley_core::model::{ItemKind, PlaylistKind, PlaylistList, PlaylistSummary};
 use pley_core::store::snapshot_keys;
 use pley_i18n::t;
 use pley_kit::{Button, GridState, PosterGrid, Tile, TileKind, skeleton_row};
@@ -44,6 +44,9 @@ pub struct Card {
     pub caption: String,
     pub video: bool,
     pub smart: bool,
+    /// The glyph of Pley's mark on its cover without a picture: an audio playlist's tracks take
+    /// music's; a video one's movies and episodes together take play.
+    pub mark: MarkGlyph,
     /// The first entries' pictures at the cover's width, then at a quarter's.
     pub art: Vec<ImageRequest>,
     pub quarters: Vec<ImageRequest>,
@@ -70,13 +73,15 @@ impl Card {
                 None => Vec::new(),
             }
         };
+        let video = playlist.kind != PlaylistKind::Audio;
         Card {
             id: playlist.id,
             title: playlist.title.clone(),
             meta,
             caption,
-            video: playlist.kind != PlaylistKind::Audio,
+            video,
             smart,
+            mark: if video { MarkGlyph::DEFAULT } else { ItemKind::Track.mark_glyph() },
             art: ask(px),
             quarters: ask(quarter_px),
         }
@@ -104,7 +109,9 @@ pub fn cover(ui: &mut Ui, rect: Rect, card: &Card, corner: f32, glyph: f32) {
         if shown.is_some_and(|s| s.opaque()) {
             ui.fill(rect, theme::SURFACE2, corner);
         } else {
-            pley_kit::placeholder(ui, rect, &card.title, &card.title, corner);
+            // No title on it: the tile's caption or the row beside the cover names it.
+            let mark = shown.is_none().then_some(card.mark);
+            pley_kit::placeholder(ui, rect, &card.title, "", mark, corner);
         }
         if let Some(s) = shown {
             ui.draw_image(rect, &s, &ImageOpts::cover().rounded(corner));

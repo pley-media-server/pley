@@ -65,6 +65,7 @@ export function CollectionsScreen(p: { entry: Entry; libraryId?: number }) {
             title={c.title}
             subtitle={collectionCount(c, g.library.kind)}
             candidates={[c.poster_url]}
+            mark="play"
             fid={`collections/${c.id}`}
             initial={gi === 0 && i === 0}
             priority={place.priority}

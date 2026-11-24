@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type R
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Ban, Check, CircleCheck, Clock, CloudOff, Inbox, KeyRound, LogIn } from "lucide-react";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage } from "@/api/client";
 import { useLogout } from "@/api/hooks";
 import {
@@ -72,6 +73,7 @@ export const TitleCard = memo(function TitleCard({ title, width, fixed }: { titl
           width={width}
           alt=""
           title={title.title}
+          mark={markGlyph(title.kind)}
           className={cn(ASPECT_CLASS.poster, "w-full")}
           imgClassName="transition-transform duration-300 motion-safe:group-hover/card:scale-[1.04]"
         />

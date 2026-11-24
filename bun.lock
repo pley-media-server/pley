@@ -43,6 +43,7 @@
         "lucide-react": "^1.61.0",
         "mpegts.js": "^1.8.2",
         "pley-picture-subtitles": "*",
+        "pley-placeholder": "*",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
         "react-i18next": "^17.1.13",
@@ -79,6 +80,13 @@
         "vitest": "^5.0.5",
       },
     },
+    "packages/placeholder": {
+      "name": "pley-placeholder",
+      "devDependencies": {
+        "typescript": "~6.0.3",
+        "vitest": "^5.0.5",
+      },
+    },
     "packages/tv": {
       "name": "pley-tv",
       "dependencies": {
@@ -86,6 +94,7 @@
         "@preact/signals": "^2.11.3",
         "lucide": "^1.61.0",
         "pley-picture-subtitles": "*",
+        "pley-placeholder": "*",
         "preact": "^11.0.2",
         "qrcode-generator": "^2.0.4",
       },
@@ -668,6 +677,8 @@
     "pley-desktop": ["pley-desktop@workspace:apps/desktop"],
 
     "pley-picture-subtitles": ["pley-picture-subtitles@workspace:packages/picture-subtitles"],
+
+    "pley-placeholder": ["pley-placeholder@workspace:packages/placeholder"],
 
     "pley-tizen": ["pley-tizen@workspace:apps/tizen"],
 

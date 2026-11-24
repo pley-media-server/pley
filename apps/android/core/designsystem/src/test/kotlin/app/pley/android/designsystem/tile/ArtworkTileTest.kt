@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -34,11 +35,13 @@ import app.pley.android.common.Tier
 import app.pley.android.common.formatWords
 import app.pley.android.designsystem.LocalReducedMotion
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.ArtworkInterceptor
 import app.pley.android.designsystem.image.ArtworkLoad
 import app.pley.android.designsystem.image.ArtworkPolicy
 import app.pley.android.designsystem.image.LocalArtworkImageLoader
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.image.Placeholder
 import app.pley.android.designsystem.image.TitleKey
 import app.pley.android.designsystem.image.TitleLayouts
@@ -161,7 +164,7 @@ class ArtworkTileTest {
         val image = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
         val (from, to) = Placeholder.colors(model.title)
         // Near the bottom right corner, about its second color; halfway along the diagonal (top right, clear of
-        // the title in the middle), halfway between the two in sRGB, as CSS blends them.
+        // Pley's mark in the middle), halfway between the two in sRGB, as CSS blends them.
         assertNear(to, image[image.width - 14, image.height - 14])
         val half = Color((from.red + to.red) / 2f, (from.green + to.green) / 2f, (from.blue + to.blue) / 2f)
         assertNear(half, image[image.width * 9 / 10, image.height / 10])
@@ -235,23 +238,132 @@ class ArtworkTileTest {
     }
 
     @Test
-    fun aWordWiderThanThePosterStaysWhole() {
+    fun aTileWithoutAPictureShowsPleysMarkAndNotItsTitle() {
+        // The caption under the tile names it: the placeholder doesn't say it again.
+        val model = model(title = "Northern Lights").copy(image = null, mark = MarkGlyph.Movies)
+        compose.setContent {
+            ArtworkTile(model, TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
+        }
+        compose.waitForIdle()
+        val image = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
+        assertEquals(0, textLines(image))
+        assertTrue("${markPixels(image)} pixels of the mark", markPixels(image) > 500)
+    }
+
+    @Test
+    fun aTileGivenNoKindKeepsItsGradientAlone() {
+        // Without a picture and given no kind (a person's circle, say), the gradient as it is while a picture loads.
+        val engine = FakeImageLoaderEngine.Builder().default { awaitCancellation() }.build()
+        val loader = ImageLoader.Builder(context)
+            .components {
+                add(ArtworkInterceptor(ArtworkPolicy(Tier.T0, 1920)))
+                add(engine)
+            }
+            .memoryCache(null)
+            .diskCache(null)
+            .coroutineContext(Dispatchers.Unconfined)
+            .build()
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkImageLoader provides loader) {
+                Row {
+                    ArtworkTile(model().copy(image = null), TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("none"))
+                    ArtworkTile(model().copy(mark = MarkGlyph.Movies), TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("loading"))
+                }
+            }
+        }
+        compose.waitForIdle()
+        val none = compose.onNodeWithTag("none").captureToImage().toPixelMap()
+        assertEquals(0, differing(none, compose.onNodeWithTag("loading").captureToImage().toPixelMap()))
+    }
+
+    @Test
+    fun eachKindOfLibraryHasItsOwnGlyph() {
+        compose.setContent {
+            Row {
+                for (glyph in MarkGlyph.entries) {
+                    val model = model(title = "Northern Lights").copy(image = null, mark = glyph)
+                    ArtworkTile(model, TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag(glyph.name))
+                }
+            }
+        }
+        compose.waitForIdle()
+        val images = MarkGlyph.entries.map { compose.onNodeWithTag(it.name).captureToImage().toPixelMap() }
+        for (i in images.indices) {
+            for (j in i + 1 until images.size) {
+                val differ = differing(images[i], images[j])
+                assertTrue("${MarkGlyph.entries[i]} and ${MarkGlyph.entries[j]}: $differ pixels apart", differ > 20)
+            }
+        }
+    }
+
+    @Test
+    fun aTileUsedAgainForAnotherKindTakesItsGlyph() {
+        var model by mutableStateOf(model(title = "Northern Lights").copy(image = null, mark = MarkGlyph.Movies))
+        var fresh by mutableStateOf(false)
+        compose.setContent {
+            Row {
+                ArtworkTile(model, TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
+                // A tile that has music's glyph from the start.
+                if (fresh) ArtworkTile(model, TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("fresh"))
+            }
+        }
+        compose.waitForIdle()
+        val movies = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
+        model = model.copy(mark = MarkGlyph.Music)
+        fresh = true
+        compose.waitForIdle()
+        val music = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
+        assertTrue(differing(movies, music) > 20)
+        assertEquals(0, differing(music, compose.onNodeWithTag("fresh").captureToImage().toPixelMap()))
+    }
+
+    /** Pixels of Pley's mark in the middle of [image]: lighter than the gradient at its lightest corner. */
+    private fun markPixels(image: PixelMap): Int {
+        val corner = image[14, 14]
+        var lighter = 0
+        for (y in image.height * 2 / 5 until image.height * 3 / 5) {
+            for (x in image.width / 4 until image.width * 3 / 4) {
+                val p = image[x, y]
+                if (p.red > corner.red + 0.1f && p.green > corner.green + 0.1f && p.blue > corner.blue + 0.1f) lighter++
+            }
+        }
+        return lighter
+    }
+
+    /** How many pixels of two pictures the same size are visibly apart. */
+    private fun differing(a: PixelMap, b: PixelMap): Int {
+        var differ = 0
+        for (y in 0 until a.height) {
+            for (x in 0 until a.width) {
+                val p = a[x, y]
+                val q = b[x, y]
+                if (abs(p.red - q.red) + abs(p.green - q.green) + abs(p.blue - q.blue) > 0.1f) differ++
+            }
+        }
+        return differ
+    }
+
+    @Test
+    fun aWordWiderThanThePlaceholderStaysWhole() {
         // "Extraterrestrial" in Title's 16 sp is wider than a poster's 84 dp of room: smaller, rather than broken.
         compose.setContent {
-            CompositionLocalProvider(LocalArtworkImageLoader provides loader()) {
-                ArtworkTile(model(title = "Extraterrestrial"), TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
-            }
+            Box(Modifier.tvTileSize(TileKind.Poster).testTag("tile").artworkPlaceholder("Extraterrestrial", PleyType.Tv.Title, ArtworkLoad()))
         }
         compose.waitForIdle()
         assertEquals(1, textLines(compose.onNodeWithTag("tile").captureToImage().toPixelMap()))
     }
 
-    /** Lines of light text in [image]: bands of rows with a light pixel, 4 px or more apart, inside the rounded corners. */
+    /**
+     * Lines of light text in [image]: bands of rows with a light pixel, 4 px
+     * or more apart, inside the rounded corners. The title is drawn at 70 %
+     * white, Pley's mark over a tile without a picture at 36 % at most: light
+     * is brighter than the mark.
+     */
     private fun textLines(image: PixelMap): Int {
         var lines = 0
         var gap = -1
         for (y in 16 until image.height - 16) {
-            val light = (16 until image.width - 16).any { x -> image[x, y].let { it.alpha > 0.9f && maxOf(it.red, it.green, it.blue) > 0.5f } }
+            val light = (16 until image.width - 16).any { x -> image[x, y].let { it.alpha > 0.9f && maxOf(it.red, it.green, it.blue) > 0.6f } }
             if (light) {
                 if (gap == -1 || gap >= 4) lines++
                 gap = 0
@@ -321,10 +433,9 @@ class ArtworkTileTest {
 
     @Test
     fun aPlaceholdersTitleIsLaidOutAwayFromTheMainThreadAndDrawn() {
+        // A placeholder given a title's style (a playlist's cover on TV): tiles have none, their caption names them.
         compose.setContent {
-            CompositionLocalProvider(LocalArtworkImageLoader provides loader()) {
-                ArtworkTile(model(title = "Northern Lights"), TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
-            }
+            Box(Modifier.tvTileSize(TileKind.Poster).testTag("tile").artworkPlaceholder("Northern Lights", PleyType.Tv.Title, ArtworkLoad()))
         }
         compose.waitForIdle()
         val image = compose.onNodeWithTag("tile").captureToImage().toPixelMap()
@@ -347,7 +458,7 @@ class ArtworkTileTest {
     @Test
     fun aPlaceholderGivenAnotherTitleAsksForItAsItIsMeasured() {
         var title by mutableStateOf("A first title for a tile used again")
-        val style = TileStyle.Tv.placeholderText
+        val style = PleyType.Tv.Title
         val load = ArtworkLoad()
         compose.setContent {
             Box(Modifier.drawWithContent { }) {
@@ -494,6 +605,9 @@ class ArtworkTileTest {
         val poster = ArtworkTileModel.of(show, TileKind.Poster, origin, FormatWords.English, locale = java.util.Locale.US)
         assertEquals(6, poster.unwatched)
         assertEquals("2 seasons", poster.subtitle)
+        // The mark a show's or an episode's tile shows without a picture: the TV of shows.
+        assertEquals(MarkGlyph.Shows, poster.mark)
+        assertEquals(MarkGlyph.Shows, row.mark)
     }
 
     @Test

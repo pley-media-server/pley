@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { Ban, Check, Ellipsis, Hand, Play, Plug, RotateCw, Settings2, Trash2, TriangleAlert, Undo2, UserMinus } from "lucide-react";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage } from "@/api/client";
 import {
   requestProblem,
@@ -660,7 +661,7 @@ export function RequestCard({
               width={56}
               alt=""
               title=""
-              bare
+              mark={markGlyph(request.kind)}
               className="aspect-[2/3] w-14 rounded ring-1 ring-white/5"
             />
           </Link>

@@ -1031,6 +1031,7 @@ impl PlayerView {
                 heading: &c.heading,
                 title: &c.title,
                 image: c.image_url.as_deref().map(|u| pley_base::ImageRequest::new(u, 480)),
+                mark: c.kind.mark_glyph(),
                 seconds_left: c.seconds_left,
             };
             let reduced = ui.reduced_motion();

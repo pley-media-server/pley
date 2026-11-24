@@ -67,6 +67,7 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.model.MediaRequest
 import app.pley.android.model.TitleKind
@@ -542,7 +543,12 @@ private fun RequestCard(
     ) {
         val poster = remember(request.posterUrl, origin) { ArtworkImage.of(request.posterUrl, origin) }
         Box {
-            Artwork(poster, request.title, Modifier.size(PosterWidth, PosterHeight).clip(PleyShape.Badge).background(PleyColors.Surface3))
+            Artwork(
+                poster,
+                request.title,
+                Modifier.size(PosterWidth, PosterHeight).clip(PleyShape.Badge).background(PleyColors.Surface3),
+                mark = MarkGlyph.of(request.kind),
+            )
             // On the poster's top right corner, ringed in the card's color, so the words beside it never move.
             if (news) {
                 Box(

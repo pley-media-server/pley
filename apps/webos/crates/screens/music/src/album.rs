@@ -227,7 +227,7 @@ impl AlbumScreen {
     fn left(&self, ui: &mut Ui, cover: &[ImageRequest], current: Option<(i64, bool)>) -> (Option<Go>, Option<bool>) {
         let Some(album) = self.detail.value() else { return (None, None) };
         let x = theme::GUTTER;
-        art_well(ui, Rect::new(x, TOP, ART, ART), cover, &album.title, radius::TILE);
+        art_well(ui, Rect::new(x, TOP, ART, ART), cover, &album.title, album.kind.mark_glyph(), radius::TILE);
         let mut y = TOP + ART + 12.0;
         y += ui.text(Point::new(x, y), &album.title, &theme::TITLE, &TextOpts::wrap(COLUMN, 2).balanced(), theme::FG).h;
 
