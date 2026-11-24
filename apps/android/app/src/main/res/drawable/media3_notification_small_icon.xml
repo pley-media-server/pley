@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   The music notification's status bar icon: Pley's mark in one color, as
-  Android draws it, in place of Media3's note (its default notification
-  provider takes the drawable of this name).
+  Android draws it, in place of Media3's circled play (its default
+  notification provider takes the drawable of this name), and Android
+  Auto's attribution icon (core/player's manifest). Here in the app, whose
+  resources win over every library's: in core/player, a library like
+  Media3, Media3's own of this name won the merge.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
