@@ -1,15 +1,5 @@
 package app.pley.android.ui.phone.music
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
@@ -43,7 +33,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -53,7 +42,6 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.TrackWords
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
-import app.pley.android.designsystem.reducedMotion
 import app.pley.android.player.MusicControl
 import app.pley.android.player.MusicPosition
 import app.pley.android.player.NowPlaying
@@ -135,26 +123,6 @@ internal fun trackWords(now: NowPlaying): TrackWords {
 
 /** More than a file has (the server sends 1,000 at most): a chapter's place in the queue orders as a part's does. */
 private const val CHAPTERS_PER_PART = 10_000
-
-/** Play or Pause's glyph, one giving way to the other in place. */
-@Composable
-internal fun PlayPauseGlyph(playing: Boolean, size: Dp, tint: Color) {
-    val reduced = reducedMotion()
-    AnimatedContent(
-        targetState = playing,
-        contentAlignment = Alignment.Center,
-        transitionSpec = {
-            if (reduced) {
-                ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
-            } else {
-                (fadeIn(tween(GLYPH_MS)) + scaleIn(tween(GLYPH_MS), initialScale = 0.7f)) togetherWith (fadeOut(tween(GLYPH_MS)) + scaleOut(tween(GLYPH_MS), targetScale = 0.7f))
-            }
-        },
-        label = "play",
-    ) { pause -> Icon(if (pause) PleyIcons.Pause else PleyIcons.Play, contentDescription = null, size = size, tint = tint) }
-}
-
-private const val GLYPH_MS = 120
 
 /** The app's music, for the mini player; `null` in tests whose Application holds no graph. */
 @Composable

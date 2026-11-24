@@ -79,7 +79,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
-import app.pley.android.designsystem.icon.Icon
+import app.pley.android.designsystem.icon.PlayPauseGlyph
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.TrackChange
 import app.pley.android.designsystem.TrackWords
@@ -432,7 +432,8 @@ private fun PlayPause(now: NowPlaying, onClick: () -> Unit) {
         scale = IconButtonDefaults.scale(focusedScale = PleyFocus.ROUND_SCALE, pressedScale = 1f),
         glow = IconButtonDefaults.glow(Glow.None, Glow.None, Glow.None),
     ) {
-        Icon(if (playing) PleyIcons.Pause else PleyIcons.Play, contentDescription = null, size = 28.dp, tint = androidx.tv.material3.LocalContentColor.current)
+        // Play and Pause give way to each other as on the phone, not in one frame.
+        PlayPauseGlyph(playing, size = 28.dp, tint = androidx.tv.material3.LocalContentColor.current)
     }
 }
 
