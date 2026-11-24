@@ -350,7 +350,7 @@ class MusicArtProvider : ContentProvider() {
     }
 
     /**
-     * A playlist's mosaic of the covers at [paths], fetched together: those that can be had in [FETCH_MS]; with none,
+     * A playlist's mosaic of the covers at [paths], fetched together: those that can be had in [FETCH_MS] each; with none,
      * the placeholder of [hue], without one the pipe ends empty.
      */
     private fun mosaic(context: Context, paths: List<String>, hue: Int?): ParcelFileDescriptor {
@@ -358,7 +358,8 @@ class MusicArtProvider : ContentProvider() {
         return pipe {
             val covers = runBlocking {
                 val library = owner.playerGraph.musicLibrary
-                withTimeoutOrNull(FETCH_MS) { paths.map { async { library?.picture(it) } }.awaitAll() }
+                // Each in its own time: one cover that doesn't come leaves the others' mosaic, not the placeholder.
+                paths.map { async { withTimeoutOrNull(FETCH_MS) { library?.picture(it) } } }.awaitAll()
             }
             MosaicCover.png(covers.orEmpty().filterNotNull()) ?: hue?.let { PlaceholderCover.png(context, it) }
         }
@@ -379,6 +380,9 @@ class MusicArtProvider : ContentProvider() {
                         bytes()?.let(out::write)
                     } catch (_: IOException) {
                         // The car stopped reading.
+                    } catch (_: Exception) {
+                        // A picture that can't be had (signed out meanwhile, the server's answer unreadable): no cover,
+                        // as for one that doesn't come in time. Thrown on, it would end the app's process, music and all.
                     }
                 }
             }

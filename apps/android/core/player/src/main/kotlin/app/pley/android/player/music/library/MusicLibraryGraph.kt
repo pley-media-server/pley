@@ -89,7 +89,12 @@ class MusicLibraryGraph(
     }
 
     /** The picture of an artist who has none of their own ([MusicArt.artistUri]): their newest album's cover. */
-    suspend fun artistPicture(artistId: Long): ByteArray? = library.artistPicture(artistId, ::picture)
+    suspend fun artistPicture(artistId: Long): ByteArray? {
+        // Signed out, there's no artist to read: none, as for a picture ([picture]), rather than the library's error.
+        data.signInRead()
+        if (sessions.value == null) return null
+        return library.artistPicture(artistId, ::picture)
+    }
 
     /** The words in the language shown now. */
     private fun look(): MusicLibraryLook {
