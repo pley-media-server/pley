@@ -26,6 +26,7 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionCommands
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import app.pley.android.common.AppLanguage
@@ -731,7 +732,7 @@ class MusicService : MediaLibraryService() {
                     if (e !is CancellationException) onMain { session.notifySearchResultChanged(browser, query, 0, params) }
                     throw e
                 }
-                searches.put(query, found)
+                searches.put(query, found, generation)
                 onMain { session.notifySearchResultChanged(browser, query, found.size, params) }
                 LibraryResult.ofVoid()
             }
@@ -819,7 +820,8 @@ class MusicService : MediaLibraryService() {
                     }
                     if (selection == null) {
                         // Said, and found nowhere: the car and the Assistant say so a moment, and what played plays on.
-                        val said = playlist ?: query?.trim()
+                        // What was heard, cut to what a car's line shows: the request may run to 200 characters.
+                        val said = (playlist ?: query?.trim())?.let { if (it.length > SAID_MOST) it.take(SAID_MOST).trimEnd() + "…" else it }
                         if (!said.isNullOrEmpty()) {
                             val words = AppLanguage.resources(this@MusicService).getString(R.string.music_library_no_match, said)
                             made.sendError(SessionError(SessionError.ERROR_BAD_VALUE, words))
@@ -982,6 +984,9 @@ class MusicService : MediaLibraryService() {
 
         /** The longest search a car or the Assistant sends that is used. */
         const val MAX_QUERY = 200
+
+        /** The most of a request heard that "found no music for …" repeats. */
+        const val SAID_MOST = 40
 
         /** How long the radio's channel is waited for as what played last is read back ([bringBack]), and Play for that. */
         const val BRING_BACK_WAIT_MS = 3_000L
