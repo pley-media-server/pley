@@ -5,6 +5,7 @@ pub mod merge;
 pub mod nfo;
 pub mod parse;
 pub mod scanner;
+mod shows;
 pub mod sidecar;
 pub mod walk;
 pub mod watcher;

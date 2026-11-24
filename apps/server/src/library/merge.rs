@@ -99,8 +99,9 @@ async fn mergeable(conn: &mut SqliteConnection, library_id: i64, into: i64, from
     .await
 }
 
-/// Move everything of `from` to `into`, then delete `from`. What both have,
-/// `into`'s wins, except what adds up: plays, watched, the latest position.
+/// Move everything of movie `from` to `into`, then delete `from`. What both
+/// have, `into`'s wins, except what adds up: plays, watched, the latest
+/// position.
 async fn merge_into(conn: &mut SqliteConnection, into: i64, from: i64) -> sqlx::Result<()> {
     let statements = [
         // Its files' keys now find `into`, and so do the keys of the movies
@@ -111,8 +112,23 @@ async fn merge_into(conn: &mut SqliteConnection, into: i64, from: i64) -> sqlx::
         // What was kept apart from it is from `into` too.
         "INSERT OR IGNORE INTO movies_apart (library_id, key, item_id) SELECT library_id, key, ?1 FROM movies_apart
          WHERE item_id = ?2",
+        "INSERT OR IGNORE INTO item_nfo (item_id, path, size, mtime, ids, fields, locked)
+         SELECT ?1, path, size, mtime, ids, fields, locked FROM item_nfo WHERE item_id = ?2",
+    ];
+    for sql in statements {
+        sqlx::query(sql).bind(into).bind(from).execute(&mut *conn).await?;
+    }
+    merge_items(conn, into, from).await
+}
+
+/// Move the files and children of item `from`, and what people did with it,
+/// to `into`, then delete `from`: watched, ratings, My List, playlists,
+/// collections, labels, hand edits, track choices. What both have, `into`'s
+/// wins, except what adds up: plays, watched, the latest position.
+pub(super) async fn merge_items(conn: &mut SqliteConnection, into: i64, from: i64) -> sqlx::Result<()> {
+    let statements = [
         "UPDATE media_files SET item_id = ?1 WHERE item_id = ?2",
-        // Bonus material.
+        // Its children: a movie's bonus material.
         "UPDATE items SET parent_id = ?1 WHERE parent_id = ?2",
         "INSERT INTO user_item_state (user_id, item_id, position_ms, watched, play_count, last_played_at, updated_at,
                                       rating, rated_at)
@@ -149,10 +165,8 @@ async fn merge_into(conn: &mut SqliteConnection, into: i64, from: i64) -> sqlx::
          FROM stream_preferences WHERE item_id = ?2",
         "INSERT OR IGNORE INTO item_overrides (item_id, field, value)
          SELECT ?1, field, value FROM item_overrides WHERE item_id = ?2",
-        "INSERT OR IGNORE INTO item_nfo (item_id, path, size, mtime, ids, fields, locked)
-         SELECT ?1, path, size, mtime, ids, fields, locked FROM item_nfo WHERE item_id = ?2",
         "UPDATE requests SET item_id = ?1 WHERE item_id = ?2",
-        // It was in the library since the first copy came.
+        // It was in the library since the first of them came.
         "UPDATE items SET added_at = MIN(added_at, (SELECT added_at FROM items WHERE id = ?2)), updated_at = ?3
          WHERE id = ?1",
         // Cast, genres and the rest of what is left of it go with it.

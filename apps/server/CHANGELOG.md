@@ -22,6 +22,11 @@ describes how they are made.
 
 ### Fixed
 
+- Different shows whose folders have the same name, in two of a library's
+  folders or named alike but for their punctuation, are no longer one show
+  when the ids in their folders' names or `tvshow.nfo` files differ. A show
+  already made of two is split at the next scan without losing what was
+  watched.
 - Home and a TV library's Recommended tab open at once after a big scan,
   also in a library of thousands of shows.
 - Music playing in the web app pauses once Play on… sends something to

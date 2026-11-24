@@ -248,6 +248,14 @@ pub fn season_from_dir(name: &str) -> Option<i32> {
     SEASON_DIR.captures(name.trim()).and_then(|c| c[1].parse().ok())
 }
 
+/// The show folder of an episode's file, as [`parse_episode`] finds it: the
+/// first folder below the library root, unless that is a season folder.
+pub fn show_dir(path: &Path, root: &Path) -> Option<PathBuf> {
+    let comps = rel_components(path, root);
+    let first = comps.first().filter(|_| comps.len() >= 2)?;
+    season_from_dir(first).is_none().then(|| root.join(first))
+}
+
 pub fn parse_episode(path: &Path, root: &Path) -> EpisodeName {
     let comps = rel_components(path, root);
     let dirs = &comps[..comps.len().saturating_sub(1)];
@@ -898,6 +906,15 @@ mod tests {
         assert_eq!(ids("Lantern Bay {tvdb-0}/Lantern Bay - S01E01.mkv").2, None);
         // A file's own tags are a release's, not the show's.
         assert_eq!(ids("Lantern Bay/Lantern Bay - S01E01 {tvdb-900001}.mkv"), ("Lantern Bay".into(), None, None, None));
+    }
+
+    #[test]
+    fn the_show_folder_of_an_episode() {
+        for rel in ["Lantern Bay/Season 1/Lantern Bay - S01E01.mkv", "Season 1/Lantern Bay - S01E01.mkv", "x.mkv"] {
+            let path = Path::new("/media/tv").join(rel);
+            assert_eq!(show_dir(&path, Path::new("/media/tv")), episode(rel).show_dir, "{rel}");
+        }
+        assert_eq!(episode("Lantern Bay/x.mkv").show_dir, Some(PathBuf::from("/media/tv/Lantern Bay")));
     }
 
     #[test]
