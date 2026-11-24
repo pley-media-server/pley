@@ -176,6 +176,33 @@ async fn a_folder_moved_in_the_library_keeps_its_title_and_what_was_done_with_it
     assert_eq!(listed(&app, &admin, lib).await, ["Film One", "Film Two"]);
 }
 
+/// A library whose scans fail waits longer and longer between them: a
+/// change only where scans never look, which scans nothing, doesn't end the
+/// wait.
+#[tokio::test]
+async fn a_change_that_scans_nothing_leaves_a_failing_library_waiting() {
+    let (app, admin) = app().await;
+    app.media_file("movies/Film One (2001)/Film One (2001).mkv", 1024);
+    let lib = library(&app, &admin, "movies", "movies").await;
+    // A database that can't be written to where the scan ends.
+    let db = &app.state.db.write;
+    sqlx::query(
+        "CREATE TRIGGER scans_fail BEFORE UPDATE OF scanned_at ON libraries
+         BEGIN SELECT RAISE(ABORT, 'scans fail'); END",
+    )
+    .execute(db)
+    .await
+    .unwrap();
+    rescan(&app, &admin, lib).await;
+    assert!(app.state.scanner.backing_off(lib, 3600), "the scan failed");
+    changed(&app, lib, &["movies/Film One (2001)/@eaDir/Film One (2001).mkv/SYNOFILE_THUMB_M.jpg"]).await;
+    assert!(app.state.scanner.backing_off(lib, 3600), "nothing was scanned");
+    // A scan that works ends it.
+    sqlx::query("DROP TRIGGER scans_fail").execute(db).await.unwrap();
+    changed(&app, lib, &["movies/Film One (2001)/Film One (2001).mkv"]).await;
+    assert!(!app.state.scanner.backing_off(lib, 3600));
+}
+
 #[tokio::test]
 async fn a_library_folder_left_empty_keeps_its_titles() {
     let (app, admin) = app().await;

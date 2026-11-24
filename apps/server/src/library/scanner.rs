@@ -433,7 +433,11 @@ impl Scanner {
             let started = Instant::now();
             let result = self.scan(&req).await;
             let scanned = matches!(result, Ok(Some(_)));
-            self.failures.lock().record(req.library_id, result.is_ok(), now());
+            // A request that scanned nothing says nothing of a library whose
+            // scans fail: it waits on.
+            if scanned || result.is_err() {
+                self.failures.lock().record(req.library_id, scanned, now());
+            }
             match result {
                 Ok(Some((t, p))) => tracing::info!(
                     "library {} scanned{} in {}: {} added, {} updated, {} removed ({} folders, {} media files; \
