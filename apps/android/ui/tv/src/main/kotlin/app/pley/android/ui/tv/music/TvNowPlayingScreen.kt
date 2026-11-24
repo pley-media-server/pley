@@ -31,6 +31,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -190,13 +191,22 @@ private fun Status(now: NowPlaying, model: NowPlayingViewModel) {
     val sleep by model.sleep.collectAsStateWithLifecycle()
     val pausingIn = sleep.secondsLeft
     val nextIn = now.nextIn
+    // A track says it loads only once it has for a moment, as the phone's: most start sooner, and the line would blink
+    // at every change of track.
+    val slow by produceState(false, now.loading, now.itemId, now.index) {
+        value = false
+        if (now.loading) {
+            delay(LOADING_AFTER_MS)
+            value = true
+        }
+    }
     val text = when {
         now.error == MusicError.Offline -> stringResource(R.string.tv_music_error_offline)
         now.error == MusicError.SignedOut -> stringResource(R.string.tv_music_error_signed_out)
         now.error == MusicError.Stopped -> stringResource(R.string.tv_music_error_stopped)
         now.error != null && nextIn != null -> pluralStringResource(R.plurals.tv_music_error_unplayable_next, nextIn, nextIn)
         now.error != null -> stringResource(R.string.tv_music_error_unplayable)
-        now.loading -> stringResource(R.string.tv_music_loading)
+        now.loading && slow -> stringResource(R.string.tv_music_loading)
         pausingIn != null -> SleepTexts.notice(LocalResources.current, pausingIn)
         else -> ""
     }
@@ -290,6 +300,7 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) {
                 PleyIcons.Shuffle,
                 onClick = { model.setShuffle(!now.shuffle) },
                 onArt = true,
+                selected = now.shuffle,
             )
         }
         Box(Modifier.padding(top = BESIDE_PLAY)) { TvRoundButton(stringResource(R.string.tv_music_previous), PleyIcons.SkipBack, onClick = model::previous, onArt = true) }
@@ -308,6 +319,7 @@ private fun Controls(now: NowPlaying, model: NowPlayingViewModel) {
                 if (now.repeat == MusicRepeat.One) PleyIcons.Repeat1 else PleyIcons.Repeat,
                 onClick = { model.setRepeat(now.repeat.next) },
                 onArt = true,
+                selected = now.repeat != MusicRepeat.Off,
             )
         }
         Box(Modifier.padding(top = BESIDE_PLAY)) { SleepButton(model) }
@@ -489,3 +501,6 @@ internal const val TV_NOW_PLAYING_PAGE = "pley.tv.now_playing"
 internal const val TV_PLAY_PAUSE = "pley.tv.now_playing.play_pause"
 internal const val TV_QUEUE = "pley.tv.now_playing.queue"
 internal const val TV_MUSIC_SLEEP = "pley.tv.now_playing.sleep"
+
+/** How long a track loads before its status line says so (the phone's too). */
+private const val LOADING_AFTER_MS = 700L
