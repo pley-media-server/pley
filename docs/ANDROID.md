@@ -1109,7 +1109,12 @@ Playlists goes first in the artists' tab, which is then named Music.
   most), then those added last to each music library (Recently added, or
   Recently added in each library's name when there are several).
 - **Artists**: by name, with how many albums each has (with several music
-  libraries, the libraries first). An artist lists Shuffle, then their
+  libraries, the libraries first), and a picture: the artist's own when
+  the server has one (an `artist.jpg` or `folder.jpg` in their folder),
+  else the cover of their newest album, looked for only as the car shows
+  the row (so a list of hundreds asks the server for nothing more until
+  it is scrolled). It stays a list, read for a name. An artist lists
+  Shuffle, then their
   albums, newest first, each with its year and how many tracks it has
   (elsewhere an album says its artist); an album lists its tracks
   numbered, as its page on the phone does, with their lengths, under each

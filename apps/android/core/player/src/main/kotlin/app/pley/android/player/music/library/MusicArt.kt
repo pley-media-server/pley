@@ -46,6 +46,27 @@ object MusicArt {
      */
     fun placeholderUri(context: Context, seed: String): Uri = placeholderOf(context, PlaceholderCover.hue(seed))
 
+    /**
+     * The picture of artist [artistId], who has none of their own on the
+     * server: the cover of their newest album, looked for only when the car
+     * asks for it ([MusicLibrary.artistPicture]), so a list of hundreds of
+     * artists asks the server for nothing until its rows are shown. Else the
+     * placeholder of [seed], the artist's name, whose hue alone is in the
+     * address.
+     */
+    fun artistUri(context: Context, artistId: Long, seed: String): Uri = Uri.Builder().scheme("content").authority(authority(context))
+        .appendPath(ARTIST).appendPath(artistId.toString()).appendQueryParameter(HUE, PlaceholderCover.hue(seed).toString()).build()
+
+    /** The artist an [artistUri] names, a positive id of digits alone; `null` for any other address. */
+    internal fun artistOf(context: Context, uri: Uri): Long? {
+        if (uri.scheme != "content" || uri.authority != authority(context)) return null
+        val segments = uri.pathSegments
+        if (segments.size != 2 || segments[0] != ARTIST) return null
+        val id = segments[1]
+        if (id.isEmpty() || id.length > 19 || id.any { it !in '0'..'9' }) return null
+        return id.toLongOrNull()?.takeIf { it > 0 }
+    }
+
     /** The hue a [placeholderUri] names; `null` for any other address. */
     internal fun hueOf(context: Context, uri: Uri): Int? {
         if (uri.scheme != "content" || uri.authority != authority(context) || uri.pathSegments != listOf(PLACEHOLDER)) return null
@@ -54,7 +75,7 @@ object MusicArt {
 
     /** The placeholder shown in place of the picture [uri] names when it can't be had; `null` when it has no hue. */
     internal fun standIn(context: Context, uri: Uri): Uri? {
-        if (pathOf(context, uri) == null) return null
+        if (pathOf(context, uri) == null && artistOf(context, uri) == null) return null
         return hueIn(uri)?.let { placeholderOf(context, it) }
     }
 
@@ -75,6 +96,7 @@ object MusicArt {
     private const val PICTURE = "picture"
     private const val PATH = "p"
     private const val PLACEHOLDER = "placeholder"
+    private const val ARTIST = "artist"
     private const val HUE = "h"
     private const val MAX_PATH = 256
     private val PICTURE_PATH =
@@ -93,14 +115,19 @@ class MusicArtProvider : ContentProvider() {
         val context = context ?: throw FileNotFoundException()
         if (mode != "r") throw FileNotFoundException("Read only")
         MusicArt.hueOf(context, uri)?.let { hue -> return pipe { PlaceholderCover.png(context, hue) } }
-        val path = MusicArt.pathOf(context, uri) ?: throw FileNotFoundException()
+        val path = MusicArt.pathOf(context, uri)
+        val artist = if (path == null) MusicArt.artistOf(context, uri) ?: throw FileNotFoundException() else null
         val owner = context.applicationContext as? PlayerGraphOwner ?: throw FileNotFoundException()
         val standIn = MusicArt.standIn(context, uri)?.let { MusicArt.hueOf(context, it) }
         // One that can't be had in FETCH_MS is its placeholder, as the app shows it; without one, the pipe ends empty and
         // the car shows no cover.
         return pipe {
-            runBlocking { withTimeoutOrNull(FETCH_MS) { owner.playerGraph.musicLibrary?.picture(path) } }
-                ?: standIn?.let { PlaceholderCover.png(context, it) }
+            runBlocking {
+                withTimeoutOrNull(FETCH_MS) {
+                    val library = owner.playerGraph.musicLibrary
+                    if (artist != null) library?.artistPicture(artist) else path?.let { library?.picture(it) }
+                }
+            } ?: standIn?.let { PlaceholderCover.png(context, it) }
         }
     }
 

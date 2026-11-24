@@ -36,7 +36,13 @@ class MusicLibraryGraph(
     /** Live TV's tab and channels, when the radio can play them. */
     val live: LiveLibrary? = livePlayback?.let { LiveLibrary(RepositoryLiveSource(data), { liveLook() }, { path -> MusicArt.uri(app, path) }) }
 
-    val library = MusicLibrary(source, { look() }, { path, seed -> MusicArt.uri(app, path, seed) }, live) { seed -> MusicArt.placeholderUri(app, seed) }
+    val library = MusicLibrary(
+        source,
+        { look() },
+        { path, seed -> MusicArt.uri(app, path, seed) },
+        live,
+        artistArt = { id, seed -> MusicArt.artistUri(app, id, seed) },
+    ) { seed -> MusicArt.placeholderUri(app, seed) }
 
     /** The car's radio of Live TV's channels; `null` without Live TV here. */
     fun radio(): LiveRadio? {
@@ -72,6 +78,9 @@ class MusicLibraryGraph(
         val url = network.api(session.issuer, userId).url(path, ART_WIDTH)
         return pictures.get(network.pictures(session.issuer, userId), url)
     }
+
+    /** The picture of an artist who has none of their own ([MusicArt.artistUri]): their newest album's cover. */
+    suspend fun artistPicture(artistId: Long): ByteArray? = library.artistPicture(artistId, ::picture)
 
     /** The words in the language shown now. */
     private fun look(): MusicLibraryLook {

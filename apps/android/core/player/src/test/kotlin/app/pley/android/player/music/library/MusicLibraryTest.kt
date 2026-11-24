@@ -446,6 +446,48 @@ class MusicLibraryTest {
     }
 
     @Test
+    fun anArtistsAddressNamesTheArtistAloneByDigits() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val uri = MusicArt.artistUri(context, 40, "Harbour Lights")
+        assertEquals(40L, MusicArt.artistOf(context, uri))
+        // The name isn't in the address, its hue is: the placeholder when no cover can be had.
+        assertFalse(uri.toString().contains("Harbour"))
+        assertEquals(PlaceholderCover.hue("Harbour Lights"), MusicArt.hueOf(context, MusicArt.standIn(context, uri)!!))
+        // It is no server path: nothing of the API goes through it.
+        assertNull(MusicArt.pathOf(context, uri))
+        assertNull(MusicArt.hueOf(context, uri))
+        val authority = MusicArt.authority(context)
+        for (text in listOf("artist/0", "artist/-1", "artist/4x", "artist/+4", "artist/99999999999999999999", "artist/40/extra", "artist", "artist/%2E%2E")) {
+            assertNull(text, MusicArt.artistOf(context, Uri.parse("content://$authority/$text")))
+        }
+        assertNull(MusicArt.artistOf(context, Uri.parse("content://elsewhere/artist/40")))
+    }
+
+    @Test
+    fun anArtistWithoutAPictureOfTheirOwnHasTheirNewestAlbumsCover() = runTest {
+        val pictured = MusicLibrary(source, { Look }, { path, _ -> Uri.parse("content://art$path") }, artistArt = { id, seed -> Uri.parse("content://artist/$id/$seed") })
+        // The server has one of theirs: it is shown.
+        assertEquals("content://art/api/items/40/images/poster", pictured.children(MusicId.Artists, 0, 50).single().mediaMetadata.artworkUri.toString())
+
+        // None: the address of their picture, looked for only as the car asks for it.
+        source.artist = ARTIST
+        source.found = listOf(ARTIST)
+        assertEquals("content://artist/40/Harbour Lights", pictured.children(MusicId.Artists, 0, 50).single().mediaMetadata.artworkUri.toString())
+        assertEquals("content://artist/40/Harbour Lights", pictured.search("harbour").first { it.mediaId == "artist:40" }.mediaMetadata.artworkUri.toString())
+        // Asked for, the cover of their newest album that can be had.
+        val asked = mutableListOf<String>()
+        val bytes = pictured.artistPicture(40) { path ->
+            asked += path
+            if (path.startsWith("/api/items/55/")) null else byteArrayOf(5, 0)
+        }
+        assertEquals(listOf<Byte>(5, 0), bytes?.toList())
+        assertEquals(listOf("/api/items/55/images/poster?v=1", "/api/items/50/images/poster?v=1"), asked)
+        // No cover to be had: none, and the car is given their placeholder.
+        assertNull(pictured.artistPicture(40) { null })
+        assertNull(pictured.artistPicture(41) { byteArrayOf(1) })
+    }
+
+    @Test
     fun whatHasNoPictureHasItsTitlesPlaceholderAndWhatHasOneKeepsIt() = runTest {
         val covered = MusicLibrary(source, { Look }, { path, _ -> Uri.parse("content://art$path") }) { seed -> Uri.parse("content://placeholder/$seed") }
         val playlists = covered.children(MusicId.Playlists, 0, 50)
@@ -562,7 +604,7 @@ class MusicLibraryTest {
         val recent = mutableMapOf(3L to listOf(album(50, "Deep Water"), track(51, 50)))
         val artistPages = mutableListOf<Triple<Long, Int, Int>>()
         val played = mutableMapOf<Long, List<ItemSummary>>()
-        private val artist = ItemSummary(40, 3, ItemKind.Artist, "Harbour Lights", posterUrl = "/api/items/40/images/poster", childCount = 2)
+        var artist = ItemSummary(40, 3, ItemKind.Artist, "Harbour Lights", posterUrl = "/api/items/40/images/poster", childCount = 2)
         private val albums = listOf(album(50, "Deep Water", year = 2019).copy(leafCount = 2), album(55, "Second Tide", year = 2023))
 
         // Album 57, of no artist's here, is on two discs; a track of it without a disc is on the first.

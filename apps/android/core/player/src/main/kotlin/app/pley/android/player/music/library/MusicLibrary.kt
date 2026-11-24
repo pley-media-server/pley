@@ -147,6 +147,11 @@ class MusicLibrary(
     private val art: (path: String, seed: String?) -> Uri?,
     /** Live TV's tab and channels ([LiveLibrary]); `null` without them. */
     val live: LiveLibrary? = null,
+    /**
+     * The picture of an artist without one of their own, by id, with their name for its placeholder
+     * ([MusicArt.artistUri]): found as it is shown ([artistPicture]); `null` for their placeholder alone.
+     */
+    private val artistArt: (artistId: Long, seed: String) -> Uri? = { _, _ -> null },
     /** The cover for what has none, from its title ([MusicArt.placeholderUri]). */
     private val placeholder: (seed: String) -> Uri? = { null },
 ) {
@@ -361,6 +366,17 @@ class MusicLibrary(
         }.awaitAll().filterNotNull().maxByOrNull { it.second }
     }
 
+    /**
+     * The picture of artist [artistId], who has none of their own: the cover
+     * of their newest album that can be had ([picture] reads one), from the
+     * albums the phone has kept of theirs, a few at most; `null` when none
+     * can, and the car is given the artist's placeholder.
+     */
+    suspend fun artistPicture(artistId: Long, picture: suspend (path: String) -> ByteArray?): ByteArray? {
+        val albums = source.children(artistId).filter { it.kind == ItemKind.Album }.sortedWith(NEWEST_FIRST)
+        return albums.mapNotNull { it.posterUrl }.take(ARTIST_COVERS).firstNotNullOfOrNull { picture(it) }
+    }
+
     /** A queue's [track] as the session lists it: its art, album and artist. */
     fun queueItem(track: ItemSummary, mediaId: String = MusicId.Track(track.id).text): MediaItem = track(track, from = null).buildUpon().setMediaId(mediaId).build()
 
@@ -547,6 +563,12 @@ class MusicLibrary(
         )
     }
 
+    /**
+     * An artist's row, with their picture: their own when the server has one
+     * (an artist.jpg or folder.jpg in their folder), else their newest
+     * album's cover, looked for only as the car shows the row
+     * ([artistPicture]). The list stays a list: a driver scans it for a name.
+     */
     private fun artist(item: ItemSummary): MediaItem = node(
         MusicId.Artist(item.id),
         item.title,
@@ -555,6 +577,7 @@ class MusicLibrary(
         playable = false,
         artPath = item.posterUrl,
         seed = item.title,
+        picture = if (item.posterUrl == null) artistArt(item.id, item.title) else null,
         browsableStyle = GRID,
         playableStyle = LIST,
         mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
@@ -695,6 +718,8 @@ class MusicLibrary(
         artPath: String? = null,
         /** An item's title, for its placeholder when it has no picture; `null` for the tabs and groups. */
         seed: String? = null,
+        /** Its picture's address when it isn't the server's at [artPath] ([artistArt]). */
+        picture: Uri? = null,
         icon: Uri? = null,
         browsableStyle: Int? = null,
         playableStyle: Int? = null,
@@ -709,7 +734,7 @@ class MusicLibrary(
             .setDisplayTitle(title)
             .setSubtitle(subtitle)
             .setArtist(artist)
-            .setArtworkUri(icon ?: if (seed != null) cover(artPath, seed) else artPath?.let { art(it, null) })
+            .setArtworkUri(icon ?: picture ?: if (seed != null) cover(artPath, seed) else artPath?.let { art(it, null) })
             .setIsBrowsable(browsable)
             .setIsPlayable(playable)
             .setMediaType(mediaType)
@@ -746,6 +771,12 @@ class MusicLibrary(
 
         /** What a spoken request may play: an artist (shuffled), an album, a track or a book. */
         private val SPOKEN = setOf(ItemKind.Artist, ItemKind.Album, ItemKind.Track, ItemKind.Audiobook)
+
+        /**
+         * The albums whose covers are tried for an artist's picture: the server always names an album's, which it
+         * reads from its tracks when the folder has none, and a few albums without any don't leave the artist bare.
+         */
+        private const val ARTIST_COVERS = 3
 
         /** The most of each kind a search shows. */
         private const val SEARCH_EACH = 15
