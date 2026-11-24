@@ -14,7 +14,10 @@
 //! aren't worked out from a part of the library's sidecar files. Only what
 //! went from the library folder itself is noticed without its path, since
 //! the library folder is listed anyway: changes went unnoticed, and the
-//! whole library is scanned instead ([`Scope::missed`]).
+//! whole library is scanned instead ([`Scope::missed`]), as it is when a
+//! file may have moved between the part looked at and the rest (a title
+//! left without files, a new file that was a known one elsewhere), so that
+//! a file renamed or moved keeps its title what was done with it.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};

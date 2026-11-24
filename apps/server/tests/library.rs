@@ -1351,6 +1351,56 @@ async fn a_copy_found_to_be_a_version_brings_it_even_if_the_scan_stops() {
     assert_eq!(detail["user_state"]["position_ms"], json!(40_000));
 }
 
+/// And when one of the copy's files was renamed since: a file renamed takes
+/// what was done with its title to the title its new name makes, as a file
+/// found to be a version does. The copy goes into the movie once, whichever
+/// of its two files is written first.
+#[tokio::test]
+async fn a_copy_found_to_be_a_version_with_a_file_renamed_goes_into_the_movie_once() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    app.media_file("movies/Lantern Road.mkv", 1024);
+    app.media_file("movies/Lantern Road (Uncut).mkv", 2048);
+    // (Of its own size and bytes: a file renamed is known by them.)
+    std::fs::write(app.media.path().join("movies/Lantern Road (Uncut) 720p.mkv"), [3u8; 700]).unwrap();
+    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    app.state.store.fingerprint_pending().await;
+    let film = app.ids(lib, &token).await["Lantern Road"];
+    let db = &app.state.db.write;
+    let copy: i64 = sqlx::query_scalar(
+        "INSERT INTO items (id, library_id, kind, key, title, sort_title, added_at, updated_at)
+         VALUES ((SELECT last + 1 FROM item_ids), ?, 'movie', 'movie:lantern road uncut:0', 'Lantern Road (Uncut)',
+                 'lantern road (uncut)', 1, 1)
+         RETURNING id",
+    )
+    .bind(lib)
+    .fetch_one(db)
+    .await
+    .unwrap();
+    sqlx::query("UPDATE media_files SET item_id = ? WHERE path LIKE '%(Uncut)%'").bind(copy).execute(db).await.unwrap();
+    let progress = json!({"position_ms": 40_000, "duration_ms": 100_000, "state": "paused"});
+    assert!(app.post(&format!("/api/items/{copy}/progress"), &token, progress).await.status.is_success());
+    assert!(app.post(&format!("/api/items/{copy}/watched"), &token, json!({})).await.status.is_success());
+
+    app.media_file("movies/Lantern Road (Uncut).mkv", 3072);
+    let movies = app.media.path().join("movies");
+    std::fs::rename(movies.join("Lantern Road (Uncut) 720p.mkv"), movies.join("Lantern Road (Uncut) 480p.mkv"))
+        .unwrap();
+    rescan(&app, &token, lib).await;
+    assert_eq!(titles(&app.get(&format!("/api/libraries/{lib}/items"), &token).await.body["items"]), ["Lantern Road"]);
+    let detail = app.get(&format!("/api/items/{film}"), &token).await.body;
+    assert_eq!(detail["files"].as_array().unwrap().len(), 3, "{detail}");
+    assert_eq!(detail["user_state"]["watched"], json!(true));
+    assert_eq!(detail["user_state"]["play_count"], json!(1), "what was done with the copy came once");
+    assert_eq!(app.get(&format!("/api/items/{copy}"), &token).await.status, StatusCode::NOT_FOUND);
+    let pending: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM media_files WHERE moved_from IS NOT NULL")
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    let gone: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM gone_items").fetch_one(&app.state.db.read).await.unwrap();
+    assert_eq!((pending, gone), (0, 0));
+}
+
 #[tokio::test]
 async fn libraries_sort_by_bitrate_and_say_what_the_files_are_like() {
     let app = TestApp::new().await;

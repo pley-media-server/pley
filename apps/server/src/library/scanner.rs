@@ -552,7 +552,12 @@ impl Scanner {
         let whole = scope.is_none();
         let (totals, mut phases, processed, total) = match scope {
             Some(scope) if scope.is_empty() => (Totals::default(), Phases::default(), 0, 0),
-            _ if req.files => self.scan_files(&lib, force, scope).await?,
+            // All of the library, where the part that changed isn't enough.
+            mut scope if req.files => loop {
+                if let Some(scanned) = self.scan_files(&lib, force, scope.take()).await? {
+                    break scanned;
+                }
+            },
             _ => (Totals::default(), Phases::default(), 0, 0),
         };
 
@@ -617,13 +622,15 @@ impl Scanner {
     /// The files part of a scan: walks the folders, probes and writes what
     /// changed, sidecars and NFO files, counts, and the overrides over it.
     /// With a `scope`, only that part of the library. Gives the totals, the
-    /// phases' times, and the files probed of those to probe.
+    /// phases' times, and the files probed of those to probe; `None`, with
+    /// nothing written, when that part isn't enough: a file may have moved
+    /// to or from the rest of the library ([`half_a_move`]).
     async fn scan_files(
         &self,
         lib: &LibraryRow,
         force: bool,
         scope: Option<Scope>,
-    ) -> anyhow::Result<(Totals, Phases, u64, u64)> {
+    ) -> anyhow::Result<Option<(Totals, Phases, u64, u64)>> {
         let library_id = lib.id;
         let kind = lib.kind();
         let roots = lib.paths();
@@ -680,18 +687,16 @@ impl Scanner {
         };
 
         phase = Instant::now();
-        // Files outside what was walked are as they were, and a library
-        // folder with one still holds media.
+        // Files outside what was walked are as they were (none of them is
+        // taken for gone, renamed or moved), and a library folder with one
+        // still holds media.
         let mut holds_media: HashSet<&PathBuf> = walked.media.iter().map(|file| &file.root).collect();
+        let mut outside = Vec::new();
         if let Some(scope) = &scope {
-            existing.retain(|file| {
-                let path = Path::new(&file.path);
-                let looked_at = scope.holds(path);
-                if !looked_at {
-                    holds_media.extend(roots.iter().filter(|root| path.starts_with(root)));
-                }
-                looked_at
-            });
+            (existing, outside) = existing.into_iter().partition(|file| scope.holds(Path::new(&file.path)));
+            for file in &outside {
+                holds_media.extend(roots.iter().filter(|root| Path::new(&file.path).starts_with(root)));
+            }
         }
         let existing_by_path: HashMap<&str, &KnownFile> = existing.iter().map(|f| (f.path.as_str(), f)).collect();
 
@@ -734,6 +739,14 @@ impl Scanner {
         let new: Vec<&FoundFile> =
             to_process.iter().filter(|f| !existing_by_path.contains_key(path_str(&f.path).as_str())).collect();
         let moved = moved_files(&self.db, &vanished, &new).await?;
+        // A scan of part of the library may see one end of a move only: a
+        // title left without files, whose file came where no change named,
+        // or a new file that went from where none did. All of the library
+        // shows both, and the title keeps what was done with it.
+        if scope.is_some() && half_a_move(&existing, &outside, &vanished, &new, &moved).await? {
+            tracing::info!("library {library_id}: a file may have moved where no change named, scanning all of it");
+            return Ok(None);
+        }
         // Its bytes are the same: what probing found in it stands, unless
         // every file is to be probed again (read as its turn comes).
         let probed: HashSet<i64> = vanished.iter().filter(|f| f.probed).map(|f| f.id).collect();
@@ -1001,7 +1014,7 @@ impl Scanner {
         writing += phase.elapsed();
         self.events.send(ServerEvent::LibraryChanged { library_id });
         phases.write = writing;
-        Ok((totals, phases, processed, total))
+        Ok(Some((totals, phases, processed, total)))
     }
 
     /// Gives `books` what their first parts say of them: their titles,
@@ -1805,6 +1818,56 @@ async fn upsert_link(
     .execute(conn)
     .await?;
     Ok(())
+}
+
+/// Whether a scan of part of a library saw one end only of a file renamed
+/// or moved, the other being in the rest of the library:
+///
+/// - a `vanished` file that isn't among those `moved` within the part, was
+///   the last of its title (no file of it stays, in the part or `outside`
+///   it), and has no `new` file beside it where it was (a copy replaced is
+///   no title gone);
+/// - a `new` file the size of a known file `outside` the part that is no
+///   longer there. A few files of that size at most are looked for: files
+///   alike can't tell which went where.
+async fn half_a_move(
+    existing: &[KnownFile],
+    outside: &[KnownFile],
+    vanished: &[&KnownFile],
+    new: &[&FoundFile],
+    moved: &HashMap<String, i64>,
+) -> anyhow::Result<bool> {
+    const ALIKE: usize = 8;
+    let placed: HashSet<i64> = moved.values().copied().collect();
+    let gone: HashSet<i64> = vanished.iter().map(|file| file.id).collect();
+    let stays: HashSet<i64> =
+        existing.iter().filter(|file| !gone.contains(&file.id)).chain(outside).map(|file| file.item_id).collect();
+    let coming: HashSet<&Path> = new.iter().filter_map(|file| file.path.parent()).collect();
+    let last_of_its_title = |file: &&KnownFile| {
+        !placed.contains(&file.id)
+            && !stays.contains(&file.item_id)
+            && !Path::new(&file.path).parent().is_some_and(|dir| coming.contains(dir))
+    };
+    if vanished.iter().any(last_of_its_title) {
+        return Ok(true);
+    }
+    let sizes: HashSet<i64> = new
+        .iter()
+        .filter(|file| file.size > 0 && !moved.contains_key(path_str(&file.path).as_str()))
+        .map(|file| file.size)
+        .collect();
+    let alike: Vec<PathBuf> =
+        outside.iter().filter(|file| sizes.contains(&file.size)).take(ALIKE).map(|file| (&file.path).into()).collect();
+    if alike.is_empty() {
+        return Ok(false);
+    }
+    crate::util::blocking(move || {
+        let gone = |path: &PathBuf| {
+            std::fs::symlink_metadata(path).is_err_and(|err| err.kind() == std::io::ErrorKind::NotFound)
+        };
+        Ok(alike.iter().any(gone))
+    })
+    .await
 }
 
 /// Renamed and moved files: the new files whose size and fingerprint are a
