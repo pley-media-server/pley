@@ -114,6 +114,28 @@ class LiveLibraryTest {
     }
 
     @Test
+    fun groupsAndTheirChannelsAreNamedAsThePhoneListsThem() = runTest {
+        source.channels += listOf(
+            LiveChannel(4, name = "UK| Sky Sports 1", group = "UK| Sport"),
+            LiveChannel(5, name = "FR| TF1", group = "UK| Sport"),
+        )
+        source.groups = source.groups.copy(groups = source.groups.groups + LiveGroup("UK| Sport", "UK", "Sport", 2))
+        val lists = live.children(MusicId.LiveTv)!!.filter { it.mediaId.startsWith("live:") }
+        assertEquals(listOf("News", "Sport", "UK · Sport"), lists.map { it.mediaMetadata.title.toString() })
+        assertEquals("UK · Sport", live.item(MusicId.LiveList(LiveCategory.Group("UK| Sport")))?.mediaMetadata?.title.toString())
+
+        // In the group, a channel without the region the group says; one of another region keeps it.
+        val sport = live.children(MusicId.LiveList(LiveCategory.Group("UK| Sport")))!!
+        assertEquals(listOf("Sky Sports 1", "FR| TF1"), sport.map { it.mediaMetadata.title.toString() })
+        // Elsewhere (search, the favorites, Now Playing), its whole name, as the phone shows it there.
+        assertEquals(listOf("UK| Sky Sports 1"), live.search("sky").map { it.mediaMetadata.title.toString() })
+
+        // Said as a list shows it, or as the provider names it.
+        assertEquals(4L, live.named("sky sports 1")?.id)
+        assertEquals(4L, live.named("UK| Sky Sports 1")?.id)
+    }
+
+    @Test
     fun theMusicLibraryHasLiveTvAmongItsTabsAndSearchesItsChannels() = runTest {
         val music = SomeMusic()
         val library = MusicLibrary(music, { MusicLook }, { _, _ -> null }, live)
@@ -149,7 +171,7 @@ class LiveLibraryTest {
     private class FakeLiveSource : LiveSource {
         var shown = true
         var failing = false
-        val channels = listOf(
+        val channels = mutableListOf(
             LiveChannel(1, name = "News One", group = "News", logo = "/api/live/channels/1/logo", favorite = true, now = LiveProgram(1, NOW - 60, NOW + 600, "The Morning")),
             LiveChannel(2, name = "News Two", group = "News"),
             LiveChannel(3, name = "Sport 24", group = "Sport"),

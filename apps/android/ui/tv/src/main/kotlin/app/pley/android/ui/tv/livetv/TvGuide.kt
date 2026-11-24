@@ -92,6 +92,7 @@ import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.designsystem.tile.skeleton
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
+import app.pley.android.model.LiveNames
 import app.pley.android.model.LiveProgram
 import app.pley.android.screens.livetv.ChannelPages
 import app.pley.android.screens.livetv.GuideCursor
@@ -232,7 +233,7 @@ internal fun TvGuide(
     LaunchedEffect(fill) { fill.run { focus.row } }
 
     Column(modifier.testTag(TV_LIVE_GUIDE)) {
-        val name = remember(channel, category) { channel?.let { LiveTv.channelName(it, category) } }
+        val name = remember(channel, category) { channel?.let { LiveNames.channelName(it, category) } }
         Focused(channel, name, current, origin, now, clock, Modifier.padding(end = TvSafeArea.Horizontal).height(INFO_HEIGHT))
         GuideTimes(left, start, now, clock, pxPerSecond, x)
         Box(
@@ -360,7 +361,7 @@ internal fun TvGuide(
                     val cells = remember(list, left, now, focusAt, guide.loaded) { RowCells.of(list, start, left, now, focusAt, guide.loaded) }
                     GuideRow(
                         channel = c,
-                        name = remember(c, category) { LiveTv.channelName(c, category) },
+                        name = remember(c, category) { LiveNames.channelName(c, category) },
                         cells = cells,
                         origin = origin,
                         start = start,

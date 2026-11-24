@@ -12,6 +12,7 @@ import app.pley.android.data.LiveTvRepository
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveGroups
+import app.pley.android.model.LiveNames
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -81,7 +82,9 @@ class RepositoryLiveSource(private val data: DataGraph) : LiveSource {
  * profile Live TV is open to. It lists the favourites, then the channels
  * watched lately, each under its heading, then the provider's groups;
  * each channel with its logo and what is on. Search finds channels too,
- * and a spoken name plays its channel.
+ * and a spoken name plays its channel. Groups and channels are named as
+ * the phone's lists name them ([LiveNames]): "UK · Sport", and in it
+ * "Sky Sports 1" rather than the provider's "UK| Sky Sports 1".
  */
 @OptIn(markerClass = [UnstableApi::class])
 class LiveLibrary(
@@ -135,11 +138,16 @@ class LiveLibrary(
         return source.channel(id.id)?.let { listOf(it) to 0 }
     }
 
-    /** The channel a spoken request names exactly ("play BBC One on Pley"), or `null`. */
+    /**
+     * The channel a spoken request names exactly ("play BBC One on Pley"), or `null`: by its name, else by its name
+     * without the provider's region ("BBC One" for "UK| BBC One"), which is what a list shows and a driver reads.
+     */
     suspend fun named(query: String): LiveChannel? {
         val q = query.trim()
         if (q.isEmpty() || !runCatching { source.shown() }.getOrDefault(false)) return null
-        return source.channels(LiveCategory.All, q, SEARCH_LIMIT).firstOrNull { it.name.equals(q, ignoreCase = true) }
+        val found = source.channels(LiveCategory.All, q, SEARCH_LIMIT)
+        return found.firstOrNull { it.name.trim().equals(q, ignoreCase = true) }
+            ?: found.firstOrNull { LiveNames.splitRegion(it.name)?.second.equals(q, ignoreCase = true) }
     }
 
     /** The closest channel to [query], for a spoken request that matched no music. */
@@ -148,12 +156,16 @@ class LiveLibrary(
         return source.channels(LiveCategory.All, query.trim(), 1).firstOrNull()
     }
 
-    /** [channel] as the car shows it, playing or in a list: its name, what is on, and its logo. */
+    /**
+     * [channel] as the car shows it, playing or in a list: its name (in a group, without the region the group says),
+     * what is on, and its logo.
+     */
     fun channel(channel: LiveChannel, from: LiveCategory?): MediaItem {
         val on = channel.onAt(now())?.title
+        val name = LiveNames.channelName(channel, from)
         val metadata = MediaMetadata.Builder()
-            .setTitle(channel.name)
-            .setDisplayTitle(channel.name)
+            .setTitle(name)
+            .setDisplayTitle(name)
             .setSubtitle(on)
             .setArtist(on)
             .setArtworkUri(channel.logo?.let { art(logoPath(channel.id)) })
@@ -174,7 +186,7 @@ class LiveLibrary(
         val favored = if (shown.favorites > 0) favorites.await() else emptyList()
         val lately = if (shown.recent > 0) recent.await().filter { c -> favored.none { it.id == c.id } } else emptyList()
         val lists = if (shown.groups.size > 1) {
-            shown.groups.map { list(LiveCategory.Group(it.name), it.name, l.channelCount(it.count)).grouped(l.groups) }
+            shown.groups.map { list(LiveCategory.Group(it.name), LiveNames.groupName(it, it.name), l.channelCount(it.count)).grouped(l.groups) }
         } else {
             listOf(list(LiveCategory.All, l.allChannels, l.channelCount(shown.total)).grouped(l.groups))
         }
@@ -189,7 +201,8 @@ class LiveLibrary(
             LiveCategory.All -> l.allChannels
             LiveCategory.Favorites -> l.favorites
             LiveCategory.Recent -> l.watchedLately
-            is LiveCategory.Group -> category.name
+            // As the group is listed ([LiveNames.groupName]), from its name alone, as the phone's player titles it.
+            is LiveCategory.Group -> LiveNames.splitRegion(category.name)?.let { (region, label) -> "$region · $label" } ?: category.name
         }
     }
 

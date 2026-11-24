@@ -48,8 +48,8 @@ With Android Auto:
 - Tabs with nothing in them aren't shown; with five, Playlists goes into
   the artists' tab, named Music.
 - Live TV's channels play as radio: a Live TV tab with favorites,
-  channels watched lately and groups, channel search, and "Hey Google,
-  play … on Pley" by channel name.
+  channels watched lately and groups, named as the phone lists them,
+  channel search, and "Hey Google, play … on Pley" by channel name.
 - As the car connects, what played last waits in its Now Playing, paused
   where it was, and the car's Play plays it; with nothing kept on the
   phone, the book or album you heard last waits, or the album added last. "Hey

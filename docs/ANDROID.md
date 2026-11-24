@@ -1241,14 +1241,17 @@ one another app sends) only plays, pauses and skips.
 **Live TV**, while driving or parked, to a profile Live TV is open to:
 its tab lists the favorites, then the channels watched lately, each
 under its heading, then the provider's groups (or All channels, without
-groups); a list holds 500 channels at most, as cars don't page. A
+groups); a list holds 500 channels at most, as cars don't page. Groups
+and channels are named as the phone's Live TV lists them: a group of a
+region as "UK · Sport", and a channel in it without the region the
+group says ("Sky Sports 1", not "UK| Sky Sports 1"). A
 channel shows its logo and what is on. Picked, it plays its sound alone,
 as radio, watched through the server as the phone's Live TV player
 watches it; Next and Previous change channel through the list it was
 picked from, and Now Playing shows it live, with no position to seek to.
 Search finds channels by name and by what is on; "Hey Google, play …
-on Pley" plays a channel named exactly, else the music found, else the
-closest channel. The music pauses while the radio plays, and music played
+on Pley" plays a channel named exactly (with its region or without it),
+else the music found, else the closest channel. The music pauses while the radio plays, and music played
 again (from the car or the phone) stops the radio. Pause lets the
 channel's connection go, as does another app's sound taking over or the
 phone leaving the car; Play tunes it again. The channel played last is

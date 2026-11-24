@@ -89,13 +89,13 @@ import app.pley.android.designsystem.tile.skeleton
 import app.pley.android.model.BusyConnection
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
+import app.pley.android.model.LiveNames
 import app.pley.android.player.engine.VideoSurface
 import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LiveState
 import app.pley.android.player.live.LiveTrouble
 import app.pley.android.screens.livetv.ChannelDigits
 import app.pley.android.screens.livetv.LivePlayerViewModel
-import app.pley.android.screens.livetv.LiveTv
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleyTextButton
@@ -268,7 +268,7 @@ private fun Tuning(channel: LiveChannel, origin: String, now: Long) {
         Spacer(Modifier.height(20.dp))
         CircularProgressIndicator(Modifier.size(28.dp), color = PleyColors.Accent, trackColor = Color.Transparent, strokeWidth = 3.dp)
         Spacer(Modifier.height(16.dp))
-        Text(listOfNotNull(channel.number, LiveTv.channelName(channel, LocalCategory.current)).joinToString("  "), style = MaterialTheme.typography.titleMedium, color = PleyColors.Fg)
+        Text(listOfNotNull(channel.number, LiveNames.channelName(channel, LocalCategory.current)).joinToString("  "), style = MaterialTheme.typography.titleMedium, color = PleyColors.Fg)
         Text(
             channel.onAt(now)?.title ?: stringResource(R.string.live_player_tuning),
             style = MaterialTheme.typography.bodyMedium,
@@ -326,7 +326,7 @@ private fun Controls(
                 ChannelTile(channel, origin, Modifier.padding(start = 4.dp).size(width = 56.dp, height = 34.dp), well = Color.White.copy(alpha = 0.1f))
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Text(
-                        listOfNotNull(channel.number, LiveTv.channelName(channel, LocalCategory.current)).joinToString("  "),
+                        listOfNotNull(channel.number, LiveNames.channelName(channel, LocalCategory.current)).joinToString("  "),
                         style = MaterialTheme.typography.titleMedium,
                         color = PleyColors.Fg,
                         maxLines = 1,
@@ -796,7 +796,7 @@ private fun PanelChannels(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             channel.number?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = PleyColors.Subtle, modifier = Modifier.padding(end = 6.dp)) }
                             Text(
-                                LiveTv.channelName(channel, category),
+                                LiveNames.channelName(channel, category),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = if (isCurrent) PleyColors.AccentBright else PleyColors.Fg,
                                 maxLines = 1,
@@ -822,7 +822,7 @@ private fun categoryLabel(category: LiveCategory): String = when (category) {
     LiveCategory.All -> stringResource(R.string.livetv_category_all)
     LiveCategory.Favorites -> stringResource(R.string.livetv_category_favorites)
     LiveCategory.Recent -> stringResource(R.string.livetv_category_recent)
-    is LiveCategory.Group -> LiveTv.splitRegion(category.name)?.let { (region, label) -> "$region · $label" } ?: category.name
+    is LiveCategory.Group -> LiveNames.splitRegion(category.name)?.let { (region, label) -> "$region · $label" } ?: category.name
 }
 
 /** Controls hide after this long untouched while playing. */

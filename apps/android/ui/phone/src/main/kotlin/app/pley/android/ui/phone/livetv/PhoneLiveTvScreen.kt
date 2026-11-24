@@ -63,10 +63,10 @@ import app.pley.android.designsystem.tile.skeleton
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveGroup
+import app.pley.android.model.LiveNames
 import app.pley.android.model.LiveProgram
 import app.pley.android.screens.livetv.ChannelPages
 import app.pley.android.screens.livetv.LivePage
-import app.pley.android.screens.livetv.LiveTv
 import app.pley.android.screens.livetv.LiveTvEvent
 import app.pley.android.screens.livetv.LiveTvViewModel
 import app.pley.android.screens.livetv.LiveView
@@ -231,7 +231,7 @@ internal fun categoryName(category: LiveCategory, page: LivePage): String = when
     LiveCategory.All -> stringResource(R.string.livetv_category_all)
     LiveCategory.Favorites -> stringResource(R.string.livetv_category_favorites)
     LiveCategory.Recent -> stringResource(R.string.livetv_category_recent)
-    is LiveCategory.Group -> LiveTv.groupName(page.groups?.groups?.firstOrNull { it.name == category.name }, category.name)
+    is LiveCategory.Group -> LiveNames.groupName(page.groups?.groups?.firstOrNull { it.name == category.name }, category.name)
 }
 
 /**
@@ -318,7 +318,7 @@ private fun Filters(page: LivePage, onQuery: (String) -> Unit, onPick: () -> Uni
             ) {
                 Text(stringResource(R.string.livetv_found_groups).uppercase(), style = MaterialTheme.typography.labelSmall, color = PleyColors.Subtle)
                 for (g in page.found) {
-                    PleyChip("${LiveTv.groupName(g, g.name)}  ${formatCount(g.count)}", selected = false, onClick = { onGroup(g) })
+                    PleyChip("${LiveNames.groupName(g, g.name)}  ${formatCount(g.count)}", selected = false, onClick = { onGroup(g) })
                 }
             }
         }
@@ -372,7 +372,7 @@ private fun ChannelCards(
             } else {
                 ChannelCard(
                     channel,
-                    LiveTv.channelName(channel, page.listed),
+                    LiveNames.channelName(channel, page.listed),
                     page.origin,
                     now,
                     onWatch = { onWatch(channel) },

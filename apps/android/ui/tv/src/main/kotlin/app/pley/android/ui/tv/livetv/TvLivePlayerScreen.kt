@@ -85,13 +85,13 @@ import app.pley.android.designsystem.text.asString
 import app.pley.android.model.BusyConnection
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
+import app.pley.android.model.LiveNames
 import app.pley.android.player.engine.VideoSurface
 import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LiveState
 import app.pley.android.player.live.LiveTrouble
 import app.pley.android.screens.livetv.ChannelDigits
 import app.pley.android.screens.livetv.LivePlayerViewModel
-import app.pley.android.screens.livetv.LiveTv
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.TvPillButton
@@ -301,7 +301,7 @@ private fun Tuning(vm: LivePlayerViewModel, channel: LiveChannel, origin: String
         Spacer(Modifier.height(22.dp))
         Spinner()
         Spacer(Modifier.height(18.dp))
-        BasicText(listOfNotNull(channel.number, LiveTv.channelName(channel, category)).joinToString("  "), style = PleyType.Tv.Section.copy(color = PleyColors.Fg))
+        BasicText(listOfNotNull(channel.number, LiveNames.channelName(channel, category)).joinToString("  "), style = PleyType.Tv.Section.copy(color = PleyColors.Fg))
         BasicText(
             channel.onAt(now)?.title ?: stringResource(R.string.tv_live_player_tuning),
             style = PleyType.Tv.Body.copy(color = PleyColors.Muted),
@@ -357,7 +357,7 @@ private fun InfoBar(
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     channel.number?.let { BasicText(it, style = PleyType.Tv.Label.copy(color = PleyColors.Muted), modifier = Modifier.padding(end = 8.dp)) }
-                    BasicText(LiveTv.channelName(channel, category), style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 1)
+                    BasicText(LiveNames.channelName(channel, category), style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 1)
                     if (channel.favorite) Icon(PleyIcons.Star, contentDescription = null, size = 14.dp, tint = PleyColors.Accent, modifier = Modifier.padding(start = 6.dp))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
@@ -720,7 +720,7 @@ private fun CategoryChannels(
             }
             ChannelRow(
                 channel = channel,
-                label = listOfNotNull(channel.number, LiveTv.channelName(channel, category)).joinToString("  "),
+                label = listOfNotNull(channel.number, LiveNames.channelName(channel, category)).joinToString("  "),
                 // What's on, not the time: the clock's tick draws a row again only when its program changes.
                 on = channel.onAt(now)?.title,
                 origin = origin,
@@ -771,7 +771,7 @@ private fun categoryLabel(category: LiveCategory): String = when (category) {
     LiveCategory.All -> stringResource(R.string.tv_livetv_category_all)
     LiveCategory.Favorites -> stringResource(R.string.tv_livetv_category_favorites)
     LiveCategory.Recent -> stringResource(R.string.tv_livetv_category_recent)
-    is LiveCategory.Group -> LiveTv.splitRegion(category.name)?.let { (region, label) -> "$region · $label" } ?: category.name
+    is LiveCategory.Group -> LiveNames.splitRegion(category.name)?.let { (region, label) -> "$region · $label" } ?: category.name
 }
 
 /** What's on shows this long after tuning or a seek. */

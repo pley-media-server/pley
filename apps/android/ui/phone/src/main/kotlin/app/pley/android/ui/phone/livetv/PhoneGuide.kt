@@ -64,6 +64,7 @@ import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.designsystem.tile.skeleton
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
+import app.pley.android.model.LiveNames
 import app.pley.android.model.LiveProgram
 import app.pley.android.screens.livetv.ChannelPages
 import app.pley.android.screens.livetv.LiveTv
@@ -223,7 +224,7 @@ internal fun PhoneGuide(
                         }
                         GuideRow(
                             channel = channel,
-                            name = LiveTv.channelName(channel, category),
+                            name = LiveNames.channelName(channel, category),
                             programs = guide.byChannel[channel.id],
                             loaded = guide.loaded,
                             origin = origin,

@@ -6,6 +6,7 @@ import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveGroup
 import app.pley.android.model.LiveGroups
 import app.pley.android.model.LiveGuide
+import app.pley.android.model.LiveNames
 import app.pley.android.model.LiveProgram
 import app.pley.android.testing.Fixtures
 import java.time.LocalDate
@@ -14,7 +15,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Live TV's rules: categories, groups by region, names in a group, pages, the guide's chunks. */
+/** Live TV's rules: categories, groups by region, pages, the guide's chunks (names in a group: LiveNamesTest, in core:model). */
 class LiveTvTest {
     @Test
     fun `categories keep a key the player is given`() {
@@ -50,23 +51,9 @@ class LiveTvTest {
         val groups = Fixtures.decode<LiveGroups>("live/groups.json").groups
         // UK only gathers two: one region is no sections.
         assertEquals(GroupSections(emptyList(), groups), LiveTv.groupSections(groups))
-        assertEquals("UK · Sport", LiveTv.groupName(groups[2], groups[2].name))
-        assertEquals("News", LiveTv.groupName(groups[0], "News"))
-        assertEquals("Gone", LiveTv.groupName(null, "Gone"))
-    }
-
-    @Test
-    fun `names leave out the region their group already says`() {
-        assertEquals("UK" to "Sport", LiveTv.splitRegion("UK| Sport"))
-        assertEquals("UK" to "Sport", LiveTv.splitRegion("[UK] Sport"))
-        assertEquals("UK" to "Sport", LiveTv.splitRegion("UK: Sport"))
-        assertEquals("BEE" to "SOLO SPORT F1 HEVC", LiveTv.splitRegion("|BEE| SOLO SPORT F1 HEVC"))
-        assertNull(LiveTv.splitRegion("Sport 1080i"))
-        assertNull(LiveTv.splitRegion("Sky: News at Ten"))
-        val sky = LiveChannel(1, name = "UK| Sky Sports 1", group = "UK| Sport")
-        assertEquals("Sky Sports 1", LiveTv.channelName(sky, LiveCategory.Group("UK| Sport")))
-        assertEquals("UK| Sky Sports 1", LiveTv.channelName(sky, LiveCategory.All))
-        assertEquals("FR| TF1", LiveTv.channelName(LiveChannel(2, name = "FR| TF1", group = "UK| Sport"), LiveCategory.Group("UK| Sport")))
+        assertEquals("UK · Sport", LiveNames.groupName(groups[2], groups[2].name))
+        assertEquals("News", LiveNames.groupName(groups[0], "News"))
+        assertEquals("Gone", LiveNames.groupName(null, "Gone"))
     }
 
     @Test
@@ -112,12 +99,6 @@ class LiveTvTest {
         assertEquals(LiveTv.FOUND_GROUPS, LiveTv.foundGroups(groups, " sport ").size)
         assertEquals(listOf("News"), LiveTv.foundGroups(groups, "NEWS").map { it.name })
         assertEquals(emptyList<LiveGroup>(), LiveTv.foundGroups(groups, "  "))
-    }
-
-    @Test
-    fun `a group's region comes with it`() {
-        val g = LiveGroup("UK| News", "UK", "News", 21)
-        assertEquals("UK · News", LiveTv.groupName(g, g.name))
     }
 
     @Test
