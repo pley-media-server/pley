@@ -14,6 +14,9 @@ describes how they are made.
 - Pley's license gains a permission for app stores: Pley may be
   distributed through stores whose terms add restrictions of their own,
   as long as its source stays available.
+- A change in a library's folders scans again only the folder of the title
+  it's in, not the whole library, and so does a refresh from another tool
+  that names a folder.
 
 ### Fixed
 

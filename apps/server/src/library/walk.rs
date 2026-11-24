@@ -9,8 +9,12 @@
 //! Several folders are listed at once ([`WALK_THREADS`]): on a network share
 //! each listing waits for the server, which answers many at a time. What is
 //! found comes out in the same order whichever thread found it.
+//!
+//! A scan of what changed walks only some of the entries of each library
+//! folder ([`walk_part`]): the folders that changed, whole, and the files
+//! directly in the library folder when one of those changed.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fs::DirEntry;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -168,6 +172,43 @@ pub fn extra_of(path: &Path, root: &Path) -> Option<Extra> {
     Some(Extra { kind, owner_dir: path.parent()?.to_path_buf(), owner_stem: Some(owner.to_owned()) })
 }
 
+/// What a walk of part of a library folder lists of it ([`walk_part`]).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Part {
+    /// Folders directly in the library folder, walked whole.
+    pub folders: BTreeSet<String>,
+    /// The files directly in the library folder, and its subtitle folders,
+    /// whose subtitles are theirs.
+    pub top: bool,
+}
+
+impl Part {
+    pub fn is_empty(&self) -> bool {
+        self.folders.is_empty() && !self.top
+    }
+
+    /// Whether the entry `name` of the library folder, a folder (`dir`) or
+    /// a file, is walked.
+    pub fn takes(&self, name: &str, dir: bool) -> bool {
+        if dir { self.folders.contains(name) || (self.top && is_subtitle_folder(name)) } else { self.top }
+    }
+}
+
+/// Whether a folder named `name` holds subtitles for the videos next to it
+/// (`Subs`, `Subtitles`).
+pub fn is_subtitle_folder(name: &str) -> bool {
+    matches!(name.to_lowercase().as_str(), "subs" | "subtitles")
+}
+
+/// Whether a walk leaves out a folder named `name`, and all it holds: a
+/// hidden or system folder, or a release's samples outside music and books.
+pub fn left_out_folder(name: &str, kind: LibraryKind) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.starts_with('.')
+        || SKIP_DIRS.contains(&lower.as_str())
+        || (!kind.is_audio() && SAMPLE_DIRS.contains(&lower.as_str()))
+}
+
 #[derive(Debug, Default)]
 pub struct Walked {
     /// Media files by library folder (in the order given), then by path.
@@ -184,6 +225,13 @@ pub struct Walked {
     /// offline network share behind a symlink, a permission problem, an I/O
     /// error): files below them must not be treated as deleted either.
     pub unreadable: Vec<PathBuf>,
+    /// Library folders listed that hold nothing but hidden entries: an
+    /// unmounted drive's empty mount point, far more likely than every
+    /// title deleted.
+    pub empty_roots: Vec<PathBuf>,
+    /// Of each library folder walked in part ([`walk_part`]), every name in
+    /// it, read or not: what went from it is told by its absence.
+    pub listed: HashMap<PathBuf, HashSet<String>>,
     /// Folders listed.
     pub folders: usize,
 }
@@ -363,12 +411,21 @@ fn is_sample(path: &Path, size: u64) -> bool {
 }
 
 pub fn walk(roots: &[PathBuf], kind: LibraryKind) -> Walked {
-    walk_with(roots, kind, WALK_THREADS)
+    walk_with(roots, kind, None, WALK_THREADS)
 }
 
-/// [`walk`] with `threads` threads listing folders, the calling one included.
-fn walk_with(roots: &[PathBuf], kind: LibraryKind, threads: usize) -> Walked {
-    let walker = Walker::new(roots, kind);
+/// [`walk`] of part of each library folder: `parts[i]` says what of
+/// `roots[i]` (a library folder whose part is empty isn't listed at all).
+/// Every library folder walked is listed, so one that can't be read is
+/// offline as in a whole walk.
+pub fn walk_part(roots: &[PathBuf], kind: LibraryKind, parts: &[Part]) -> Walked {
+    walk_with(roots, kind, Some(parts), WALK_THREADS)
+}
+
+/// [`walk`] with `threads` threads listing folders, the calling one
+/// included, of the `parts` of the library folders when given.
+fn walk_with(roots: &[PathBuf], kind: LibraryKind, parts: Option<&[Part]>, threads: usize) -> Walked {
+    let walker = Walker::new(roots, kind, parts);
     let found = std::thread::scope(|scope| {
         let helpers: Vec<_> = (1..threads)
             .map_while(|_| {
@@ -405,6 +462,8 @@ struct Folder {
     trail: Arc<Trail>,
     /// Which of the library folders (roots) it is in.
     root: usize,
+    /// Of a library folder walked in part, what of it is.
+    part: Option<Arc<Part>>,
 }
 
 /// A folder and the folders it is in, up to its library folder. A link to a
@@ -453,6 +512,10 @@ struct Found {
     nfo_files: Vec<(PathBuf, i64, i64)>,
     offline: Vec<usize>,
     unreadable: Vec<PathBuf>,
+    /// Library folders that hold nothing but hidden entries.
+    empty: Vec<usize>,
+    /// Library folders walked in part, and every name in them.
+    listed: Vec<(usize, HashSet<String>)>,
     not_utf8_folders: Vec<PathBuf>,
     not_utf8_files: Vec<PathBuf>,
     folders: usize,
@@ -489,10 +552,15 @@ impl Drop for Listing<'_, '_> {
 }
 
 impl<'a> Walker<'a> {
-    fn new(roots: &'a [PathBuf], kind: LibraryKind) -> Self {
+    fn new(roots: &'a [PathBuf], kind: LibraryKind, parts: Option<&[Part]>) -> Self {
         // Taken from the end: the first library folder is listed first.
-        let folders =
-            roots.iter().enumerate().rev().map(|(root, path)| Folder { trail: Trail::new(path.clone(), None), root });
+        let folders = roots.iter().enumerate().rev().filter_map(|(root, path)| {
+            let part = match parts {
+                Some(parts) => Some(Arc::new(parts.get(root).filter(|part| !part.is_empty())?.clone())),
+                None => None,
+            };
+            Some(Folder { trail: Trail::new(path.clone(), None), root, part })
+        });
         Self { roots, kind, queue: Mutex::new(Queue { folders: folders.collect(), listing: 0 }), ready: Condvar::new() }
     }
 
@@ -534,15 +602,34 @@ impl<'a> Walker<'a> {
         };
         found.folders += 1;
         let mut sidecars = Vec::new();
+        let library_folder = folder.trail.up.is_none();
+        let mut visible = 0;
+        // Of a library folder walked in part, every name in it.
+        let mut names = folder.part.as_ref().map(|_| HashSet::new());
         for entry in entries {
             match entry {
-                Ok(entry) => self.entry(folder, &entry, found, subfolders, &mut sidecars),
+                Ok(entry) => {
+                    let name = entry.file_name();
+                    if library_folder && !name.to_string_lossy().starts_with('.') {
+                        visible += 1;
+                    }
+                    if let (Some(names), Some(name)) = (&mut names, name.to_str()) {
+                        names.insert(name.to_owned());
+                    }
+                    self.entry(folder, &entry, found, subfolders, &mut sidecars);
+                }
                 // The listing broke off: what it didn't get to is unknown.
                 Err(err) => {
                     found.cannot_read(path.clone(), &err);
                     break;
                 }
             }
+        }
+        if library_folder && visible == 0 {
+            found.empty.push(folder.root);
+        }
+        if let Some(names) = names {
+            found.listed.push((folder.root, names));
         }
         if !sidecars.is_empty() {
             found.sidecars.push((path.clone(), sidecars));
@@ -564,6 +651,13 @@ impl<'a> Walker<'a> {
         if lower.starts_with('.') {
             return;
         }
+        // Of a library folder walked in part, what isn't walked is left
+        // before anything is asked of it.
+        let part = folder.part.as_deref();
+        let taken = |dir: bool| part.is_none_or(|part| name.to_str().is_some_and(|name| part.takes(name, dir)));
+        if !taken(true) && !taken(false) {
+            return;
+        }
         let path = entry.path();
         // A link counts as what it leads to.
         let (file_type, target) = match entry.file_type() {
@@ -575,7 +669,7 @@ impl<'a> Walker<'a> {
             Err(err) => return found.cannot_read(path, &err),
         };
         if file_type.is_dir() {
-            if SKIP_DIRS.contains(&lower.as_str()) || (!self.kind.is_audio() && SAMPLE_DIRS.contains(&lower.as_str())) {
+            if !taken(true) || left_out_folder(&lower, self.kind) {
                 return;
             }
             if name.to_str().is_none() {
@@ -594,10 +688,10 @@ impl<'a> Walker<'a> {
                 }
             }
             let trail = Trail::new(path, Some(folder.trail.clone()));
-            subfolders.push(Folder { trail, root: folder.root });
+            subfolders.push(Folder { trail, root: folder.root, part: None });
             return;
         }
-        if !file_type.is_file() {
+        if !file_type.is_file() || !taken(false) {
             return;
         }
         let ext = extension(&path);
@@ -651,6 +745,7 @@ impl<'a> Walker<'a> {
         let mut out = Walked::default();
         let mut media = Vec::new();
         let mut offline = Vec::new();
+        let mut empty = Vec::new();
         let (mut not_utf8_folders, mut not_utf8_files) = (Vec::new(), Vec::new());
         for part in found {
             media.extend(part.media);
@@ -659,6 +754,10 @@ impl<'a> Walker<'a> {
             }
             out.nfo_files.extend(part.nfo_files.into_iter().map(|(path, size, mtime)| (path, (size, mtime))));
             offline.extend(part.offline);
+            empty.extend(part.empty);
+            for (root, names) in part.listed {
+                out.listed.insert(self.roots[root].clone(), names);
+            }
             out.unreadable.extend(part.unreadable);
             not_utf8_folders.extend(part.not_utf8_folders);
             not_utf8_files.extend(part.not_utf8_files);
@@ -673,6 +772,8 @@ impl<'a> Walker<'a> {
         }
         offline.sort_unstable();
         out.offline_roots = offline.into_iter().map(|root| self.roots[root].clone()).collect();
+        empty.sort_unstable();
+        out.empty_roots = empty.into_iter().map(|root| self.roots[root].clone()).collect();
         out.unreadable.sort_unstable();
         not_utf8_folders.sort_unstable();
         not_utf8_files.sort_unstable();
@@ -921,7 +1022,7 @@ mod tests {
             let expected = summary(&old, &roots);
             assert!(expected.media.len() >= 8 && expected.sidecars.len() >= 10, "{expected:?}");
             for threads in [1, 2, 16] {
-                let walked = walk_with(&roots, kind, threads);
+                let walked = walk_with(&roots, kind, None, threads);
                 assert_eq!(summary(&walked, &roots), expected, "{kind:?}, {threads} threads");
                 assert_eq!(walked.folders, old.folders, "{kind:?}, {threads} threads");
             }
@@ -954,6 +1055,77 @@ mod tests {
     }
 
     #[test]
+    fn a_walk_of_part_of_a_library_finds_what_a_whole_walk_finds_there() {
+        let dir = tempfile::tempdir().unwrap();
+        let (a, b) = (dir.path().join("a"), dir.path().join("b"));
+        library(&a);
+        library(&b);
+        file(&a, "Subs/Loose (2004).en.srt", 1);
+        let roots = [a.clone(), b.clone(), dir.path().join("missing")];
+        let folders = ["Film 00 (1980)", "Film 07 (1987)", "Show (2010)", "Band", "#recycle", "Gone (1999)"];
+        let part = Part { folders: folders.map(String::from).into(), top: true };
+        let some = Part { folders: ["Film 01 (1981)".to_owned()].into(), top: false };
+        // Whether the whole walk's `path`, in `root`, is in `part` of it.
+        let held = |path: &Path, root: &Path, part: &Part| {
+            let rel = path.strip_prefix(root).unwrap();
+            let first = rel.components().next().unwrap().as_os_str().to_str().unwrap();
+            part.takes(first, rel.components().count() > 1)
+        };
+        for kind in [LibraryKind::Movies, LibraryKind::Shows, LibraryKind::Music] {
+            for (parts, threads) in
+                [([part.clone(), some.clone(), Part::default()], 1), ([part.clone(), some.clone(), part.clone()], 16)]
+            {
+                let whole = walk_with(&roots, kind, None, threads);
+                let walked = walk_with(&roots, kind, Some(&parts), threads);
+                let expected: Vec<_> = whole
+                    .media
+                    .iter()
+                    .filter(|f| {
+                        roots.iter().zip(&parts).any(|(root, part)| &f.root == root && held(&f.path, root, part))
+                    })
+                    .map(|f| (f.path.clone(), f.size, f.extra.clone()))
+                    .collect();
+                let found: Vec<_> = walked.media.iter().map(|f| (f.path.clone(), f.size, f.extra.clone())).collect();
+                assert_eq!(found, expected, "{kind:?}");
+                assert!(found.len() >= 3, "{kind:?}: {found:?}");
+                let sidecars: BTreeMap<_, _> = whole
+                    .sidecars
+                    .iter()
+                    .filter(|(folder, _)| {
+                        roots.iter().zip(&parts).any(|(root, part)| {
+                            (folder.as_path() == root && part.top)
+                                || (folder.starts_with(root)
+                                    && folder.as_path() != root
+                                    && held(&folder.join("x"), root, part))
+                        })
+                    })
+                    .collect();
+                assert_eq!(walked.sidecars.iter().collect::<BTreeMap<_, _>>(), sidecars, "{kind:?}");
+                assert!(walked.sidecars.contains_key(&a.join("Subs")), "{kind:?}");
+                // Only the library folders walked can be offline.
+                let offline = if parts[2].is_empty() { Vec::new() } else { vec![dir.path().join("missing")] };
+                assert_eq!(walked.offline_roots, offline);
+            }
+        }
+    }
+
+    #[test]
+    fn a_library_folder_with_nothing_in_it_is_told_apart() {
+        let dir = tempfile::tempdir().unwrap();
+        let (empty, hidden, full) = (dir.path().join("empty"), dir.path().join("hidden"), dir.path().join("full"));
+        std::fs::create_dir_all(&empty).unwrap();
+        file(&hidden, ".DS_Store", 1);
+        file(&full, "notes.txt", 1);
+        let roots = [empty.clone(), hidden.clone(), full.clone()];
+        assert_eq!(walk(&roots, LibraryKind::Movies).empty_roots, [empty.clone(), hidden.clone()]);
+        let part = Part { folders: ["Film (2001)".to_owned()].into(), top: false };
+        assert_eq!(
+            walk_part(&roots, LibraryKind::Movies, &[part.clone(), part.clone(), part]).empty_roots,
+            [empty, hidden]
+        );
+    }
+
+    #[test]
     fn what_is_found_comes_in_the_same_order_every_time() {
         let dir = tempfile::tempdir().unwrap();
         let (first, second) = (dir.path().join("z-first"), dir.path().join("a-second"));
@@ -968,7 +1140,7 @@ mod tests {
             }
         }
         let roots = [first.clone(), second.clone()];
-        let walked = walk_with(&roots, LibraryKind::Movies, 8);
+        let walked = walk_with(&roots, LibraryKind::Movies, None, 8);
         let names = |walked: &Walked| -> Vec<String> {
             walked
                 .media
@@ -991,7 +1163,7 @@ mod tests {
         assert_eq!(names(&walked), expected);
         assert_eq!(walked.sidecars[&first.join("a")], ["Poster.png", "a.srt", "fanart.jpg"]);
         for threads in [1, 3, 16, 64] {
-            assert_eq!(names(&walk_with(&roots, LibraryKind::Movies, threads)), expected, "{threads} threads");
+            assert_eq!(names(&walk_with(&roots, LibraryKind::Movies, None, threads)), expected, "{threads} threads");
         }
     }
 
@@ -1263,7 +1435,7 @@ mod tests {
         file(root, "Locked (1999)/Inside/Inside (1998).mkv", 1);
         let Some(_locked) = Locked::new(&root.join("Locked (1999)")) else { return };
         for threads in [1, 16] {
-            let walked = walk_with(&[root.to_path_buf()], LibraryKind::Movies, threads);
+            let walked = walk_with(&[root.to_path_buf()], LibraryKind::Movies, None, threads);
             assert_eq!(walked.media.len(), 20, "{threads} threads");
             assert_eq!(walked.unreadable, [root.join("Locked (1999)")]);
             assert!(walked.maybe_unavailable(&root.join("Locked (1999)/Inside/Inside (1998).mkv")));
@@ -1459,7 +1631,7 @@ mod tests {
             let mut line = format!("round {round}: one folder at a time {:.2}s", started.elapsed().as_secs_f64());
             for threads in [1, 4, 8, 16, 32] {
                 let started = Instant::now();
-                let walked = walk_with(&roots, kind, threads);
+                let walked = walk_with(&roots, kind, None, threads);
                 line += &format!(", {threads} threads {:.2}s", started.elapsed().as_secs_f64());
                 assert_eq!(summary(&walked, &roots), summary(&old, &roots), "{threads} threads");
             }

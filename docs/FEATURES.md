@@ -5,7 +5,9 @@ Everything Pley does. The [README](../README.md) has the short version.
 ## Libraries
 
 - Movies, TV shows, music and audiobooks, scanned incrementally as files
-  change. A drive that goes offline isn't treated as deleted.
+  change: a change has only the folder of the title it's in scanned
+  again, and the periodic scan goes through the whole library. A drive
+  that goes offline isn't treated as deleted.
 - The usual naming schemes: `Movie (2019)`, release names, `{tmdb-123}`,
   editions, `S01E02`, `1x02`, date-based and anime episodes, extras, and
   looser episode names like `04 - Title` in a `Season 1` folder

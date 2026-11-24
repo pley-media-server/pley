@@ -5043,7 +5043,7 @@ interface Settings {
                                     // Turning it on where `transcoder.memory.available` is false: 400;
                                     // saved on before, it stays
   scan_interval_minutes: number;    // 0 disables periodic scans
-  watch_libraries: boolean;         // pick up file changes automatically
+  watch_libraries: boolean;         // pick up file changes automatically, scanning again only the folders they are in
   detect_markers: boolean;          // find intros and credits in the background (default true)
   seek_previews: boolean;           // make seek-bar thumbnails when an item is first opened (default true)
   previews_in_background: boolean;  // also for whole libraries after scans (default true)
