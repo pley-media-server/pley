@@ -105,6 +105,8 @@ class LivePlayerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         PlayerWindows.opened(this)
+        // Made anew while the car covers it (the process ended while driving, the driver back to Pley): covered still.
+        stoppedCovered = savedInstanceState?.getBoolean(STATE_COVERED) == true
         immersive()
         turnForScreen()
         ContextCompat.registerReceiver(
@@ -177,9 +179,15 @@ class LivePlayerActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Still covered by the car (the driver back from another of its apps): the channel waits to be parked again.
-        if (!stoppedCovered) vm.resume()
+        // Still covered by the car (the driver back from another of its apps): the channel waits to be parked again. One
+        // made anew behind the cover has tuned it as it opened: it goes.
+        if (stoppedCovered) vm.stop() else vm.resume()
         immersive()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_COVERED, stoppedCovered)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -344,6 +352,7 @@ class LivePlayerActivity : ComponentActivity() {
         /** Picture in picture's channel buttons ([PipActions.channel]). */
         internal const val ACTION_CHANNEL_UP = "app.pley.android.livetv.CHANNEL_UP"
         internal const val ACTION_CHANNEL_DOWN = "app.pley.android.livetv.CHANNEL_DOWN"
+        private const val STATE_COVERED = "pley.live.covered"
 
         fun intent(context: Context, channelId: Long, category: String, castFrom: CastFrom? = null): Intent =
             Intent(context, LivePlayerActivity::class.java)

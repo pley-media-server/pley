@@ -132,6 +132,8 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         settings = runCatching { graph.data.settings }.getOrNull()
 
         key = savedInstanceState?.getString(STATE_KEY) ?: intent.getStringExtra(EXTRA_PLAYBACK)
+        // Made anew while the car covers it (the process ended while driving, the driver back to Pley): covered still.
+        awayCovered = savedInstanceState?.getBoolean(STATE_COVERED) == true
         val found = key?.let(services::controller)
         val saved = SavedPlaybackState.fromBundle(savedInstanceState?.getBundle(STATE_SAVED))?.takeIf { it.itemId > 0 }
         when {
@@ -139,7 +141,14 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
             saved != null -> lifecycleScope.launch {
                 // After process death the sign-in is still being read from disk: the playback waits for it.
                 withTimeoutOrNull(SIGN_IN_WAIT_MS) { graph.data.session.state.first { it !is SessionState.Starting } }
-                restore(saved)?.let(::bind) ?: finish()
+                restore(saved)?.let { c ->
+                    // Still covered by the car: it opens paused and away, as after 90 s in the background (onStart).
+                    if (awayCovered) {
+                        c.pause()
+                        c.setAway(true)
+                    }
+                    bind(c)
+                } ?: finish()
             }
             else -> {
                 finish()
@@ -326,6 +335,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(STATE_KEY, key)
+        outState.putBoolean(STATE_COVERED, awayCovered)
         val saved = resumeLater ?: controller.value?.saveState()
         if (saved != null && saved.itemId > 0) outState.putBundle(STATE_SAVED, saved.toBundle())
     }
@@ -453,6 +463,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
 
         private const val STATE_KEY = "pley.player.key"
         private const val STATE_SAVED = "pley.player.saved"
+        private const val STATE_COVERED = "pley.player.covered"
         private const val PREFS = "phone_player"
         private const val PREF_FILL = "fill"
 
