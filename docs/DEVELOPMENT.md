@@ -43,14 +43,16 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
 - For the LG app's TV build, Linux with the webOS toolchain, or Docker
   ([LG.md](LG.md#the-tv-build)); its tests and simulator need only Rust.
 - FFmpeg and ffprobe on `PATH` or configured, version 9 recommended (6.1
-  or newer throttles transcodes). For hardware transcoding and GPU tone
-  mapping, use a build with NVENC, QSV, AMF or VAAPI and libplacebo:
-  gyan.dev's "full" build on Windows, the distribution's or jellyfin-ffmpeg
-  on Linux, Homebrew's `ffmpeg-full` on macOS
-  ([deploy/README.md](../deploy/README.md)). The Docker image's is
-  pley-ffmpeg, FFmpeg with patches for Intel GPUs, which
-  [deploy/ffmpeg](../deploy/ffmpeg/README.md) builds for Linux and for
-  Windows.
+  or newer throttles transcodes). Prefer pley-ffmpeg, the FFmpeg Pley
+  ships in the Docker image and the Windows installer: FFmpeg 9 with
+  libplacebo, the hardware encoders and patches for Intel GPUs, which
+  [deploy/ffmpeg](../deploy/ffmpeg/README.md) builds.
+  `scripts/pley-ffmpeg.ps1 -Platform windows -Destination <folder>` puts
+  its Windows build in a folder, whose `bin` goes on `PATH`; its Linux build
+  (`-Platform linux`) runs on Debian 13 only. Elsewhere, a build with
+  NVENC, QSV, AMF or VAAPI and libplacebo: jellyfin-ffmpeg or the
+  distribution's on Linux, Homebrew's `ffmpeg-full` on macOS
+  ([deploy/README.md](../deploy/README.md)).
 
 ## Running from source
 
@@ -106,9 +108,10 @@ says why in an `#[allow(clippy::disallowed_methods)]`.
 The transcoder's tests that run FFmpeg need `ffmpeg` and `ffprobe` on
 `PATH`, with libx264, libx265 and libass. Without one of them a test is
 skipped, saying so, unless `PLEY_TEST_FFMPEG=1`: then it fails, as in CI,
-which installs FFmpeg for them. What only some builds or versions have is
-skipped either way: libx265 with HDR10+ (Debian and Ubuntu build it
-without), and the `dovi_rpu` filter of FFmpeg 7.1 and later.
+which tests them with pley-ffmpeg ([RELEASING.md](RELEASING.md#ci)). What
+only some builds or versions have is skipped either way: libx265 with
+HDR10+ (Debian and Ubuntu build it without, pley-ffmpeg's Linux build
+among them), and the `dovi_rpu` filter of FFmpeg 7.1 and later.
 
 The code that reads what comes from outside (file and folder names, NFO
 files, Matroska, MP4 and MPEG-TS, Dolby Vision and HDR10+ metadata) is also

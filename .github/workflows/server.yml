@@ -159,26 +159,30 @@ jobs:
         with:
           name: web-dist
           path: apps/web/dist
-      # jellyfin-ffmpeg's portable FFmpeg 8 on Linux, one version on both
-      # runners (Ubuntu's is 8.0 on one, 6.1 on the other, older than the
-      # 7.1 Pley needs), Homebrew's ffmpeg-full on macOS (its ffmpeg has no
-      # libass), gyan.dev's build through Chocolatey on Windows.
+      # pley-ffmpeg, the FFmpeg Pley ships, where it has one: on Linux the
+      # Docker image's, which runs on Debian 13 only, so the transcoder's
+      # tests run in Debian 13 as the image runs them; on Windows the one the
+      # installers carry. Homebrew's ffmpeg-full on macOS (its ffmpeg has no
+      # libass).
       - name: FFmpeg (Linux)
         if: runner.os == 'Linux'
-        env:
-          VERSION: 8.1.3-2
-          ARCH: ${{ runner.arch == 'ARM64' && 'linuxarm64' || 'linux64' }}
-          SHA256: ${{ runner.arch == 'ARM64' && '6522585818059cc886363fb1dee86ac9b8579fec3b914337fb92974ef9eb9884' || '1df84d04c4322902dba81c290508cdf3d89524d210b9fe03154bea6c4e3bfbb6' }}
+        shell: pwsh
         run: |
-          file="jellyfin-ffmpeg_${VERSION}_portable_${ARCH}-gpl.tar.xz"
-          curl --proto '=https' --fail --silent --show-error --location --retry 5 -o "$RUNNER_TEMP/$file" \
-            "https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v${VERSION}/$file"
-          echo "$SHA256  $RUNNER_TEMP/$file" | sha256sum --check --strict
-          mkdir "$RUNNER_TEMP/ffmpeg"
-          tar -xJf "$RUNNER_TEMP/$file" -C "$RUNNER_TEMP/ffmpeg"
-          bin=$(dirname "$(find "$RUNNER_TEMP/ffmpeg" -type f -name ffmpeg | head -1)")
-          test -x "$bin/ffmpeg" && test -x "$bin/ffprobe"
-          echo "$bin" >> "$GITHUB_PATH"
+          $arch = if ($env:RUNNER_ARCH -eq 'ARM64') { 'arm64' } else { 'amd64' }
+          ./scripts/pley-ffmpeg.ps1 -Platform linux -Arch $arch -Destination "$env:RUNNER_TEMP/pley-ffmpeg"
+      - name: Debian 13 with pley-ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          docker build -t pley-tests -f - "$RUNNER_TEMP/pley-ffmpeg" <<'EOF'
+          FROM rust:1-trixie
+          COPY usr/ /usr/
+          COPY packages /tmp/packages
+          RUN apt-get update \
+              && apt-get install -y --no-install-recommends $(cat /tmp/packages) \
+              && rm -rf /var/lib/apt/lists/* \
+              && ldconfig \
+              && ffmpeg -hide_banner -version && ffprobe -hide_banner -version >/dev/null
+          EOF
       - name: FFmpeg (macOS)
         if: runner.os == 'macOS'
         env:
@@ -187,17 +191,14 @@ jobs:
         run: |
           brew install ffmpeg-full
           echo "$(brew --prefix ffmpeg-full)/bin" >> "$GITHUB_PATH"
-      # Chocolatey puts a shim of ffmpeg.exe on PATH: the tests start, and
-      # stop, FFmpeg itself.
       - name: FFmpeg (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          choco install ffmpeg --version=9.1.0 --no-progress -y
-          $ffmpeg = Get-ChildItem "$env:ChocolateyInstall\lib\ffmpeg" -Recurse -Filter ffmpeg.exe | Select-Object -First 1
-          if (-not $ffmpeg) { throw "Chocolatey's ffmpeg package has no ffmpeg.exe" }
-          $ffmpeg.DirectoryName | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          ./scripts/pley-ffmpeg.ps1 -Platform windows -Destination "$env:RUNNER_TEMP\pley-ffmpeg"
+          "$env:RUNNER_TEMP\pley-ffmpeg\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
       - name: FFmpeg's version
+        if: runner.os != 'Linux'
         run: ffmpeg -hide_banner -version
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
@@ -213,8 +214,17 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test
-        if: runner.os != 'Windows'
+        if: runner.os == 'macOS'
         run: cargo test --workspace --locked
+      - name: Test
+        if: runner.os == 'Linux'
+        run: |
+          cargo test --workspace --locked --exclude pley-transcoder
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e PLEY_TEST_FFMPEG \
+            -e CARGO_TARGET_DIR="$GITHUB_WORKSPACE/target/debian" \
+            -v "${CARGO_HOME:-$HOME/.cargo}/registry:/usr/local/cargo/registry" \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" \
+            pley-tests cargo test -p pley-transcoder --locked
       # Tests have frozen on Windows runners only (docs/RELEASING.md, CI).
       - name: Test
         if: runner.os == 'Windows'

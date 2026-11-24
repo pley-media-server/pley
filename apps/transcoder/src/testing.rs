@@ -117,6 +117,7 @@ fn ffmpeg_says_its_version_and_what_it_has() {
     let version = |line: &str| version_of(&format!("ffmpeg version {line} Copyright (c) 2000-2026"));
     assert_eq!(version("6.1.1-3ubuntu5"), Some((6, 1)));
     assert_eq!(version("n7.1"), Some((7, 1)));
+    assert_eq!(version("9.0.2-pley"), Some((9, 0)));
     assert_eq!(version("9.0.2-full_build-www.gyan.dev"), Some((9, 0)));
     assert_eq!(version("N-121212-g0123456789"), None);
     let encoders = "Encoders:\n V..... = Video\n ------\n V....D libx264              libx264 H.264\n A....D aac                  AAC";

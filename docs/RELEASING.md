@@ -175,11 +175,13 @@ passes `version.mjs check`, since they agree with each other, yet would take
 the release back. What waits for the next release, a higher version or
 entries under Unreleased, passes.
 
-Server's Rust jobs install FFmpeg before the tests: jellyfin-ffmpeg's
-portable build on Linux (Ubuntu's own differs between the runners, and one
-is older than Pley supports), checked against its SHA-256, Homebrew's `ffmpeg-full` on macOS, and on Windows
-gyan.dev's build through Chocolatey, each at the version the workflow names
-but Homebrew's. They set
+Server's Rust jobs test the transcoder with pley-ffmpeg, the FFmpeg Pley
+ships, where it has one: on Windows the build the installers carry, and on
+Linux the Docker image's, which runs on Debian 13 only, so the transcoder's
+tests run there in a Debian 13 container, as the image runs them; the rest
+of the tests run on the runner itself. `scripts/pley-ffmpeg.ps1` takes the
+build the branch's recipe names (master's while that isn't published yet).
+macOS, for which there is none, has Homebrew's `ffmpeg-full`. The jobs set
 `PLEY_TEST_FFMPEG=1`, so the transcoder's tests that run FFmpeg fail rather
 than skip when it, or an encoder or filter they need, is missing
 ([DEVELOPMENT.md](DEVELOPMENT.md#building-and-testing)).
