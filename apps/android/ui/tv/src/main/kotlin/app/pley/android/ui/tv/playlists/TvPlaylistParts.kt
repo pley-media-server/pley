@@ -45,6 +45,7 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 
 /**
  * A playlist's square cover on TV (the web's PlaylistArt): a 2 by 2
@@ -84,7 +85,14 @@ internal fun TvPlaylistArt(
                     }
                 }
             }
-            images.isNotEmpty() -> Artwork(images.first(), title, Modifier.fillMaxSize(), titleStyle = PleyType.Tv.Title.copy(color = PleyColors.Fg.copy(alpha = 0.7f)))
+            // Should the picture not come, Pley's mark: music's glyph for tracks, play for movies and episodes alike. The
+            // title isn't on it: the caption or the row's line beside the cover names it.
+            images.isNotEmpty() -> Artwork(
+                images.first(),
+                title,
+                Modifier.fillMaxSize(),
+                mark = if (video) MarkGlyph.Play else MarkGlyph.Music,
+            )
             else -> Box(
                 Modifier
                     .fillMaxSize()

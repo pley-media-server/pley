@@ -148,13 +148,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
-  text-align: center;
-  color: rgba(233, 235, 239, 0.7);
-  box-sizing: border-box;
 }
-/* A word wider than the tile breaks onto the next line, as Android's text does, rather than being cut. */
-.tile-placeholder > .t-title { max-width: 100%; min-width: 0; word-wrap: break-word; overflow-wrap: break-word; }
+/* Pley's mark on a picture that won't come: 40 % of the shorter side (the SVG keeps its square inside a 40 % by 40 % box), 120 px at most. */
+.tile-mark { width: 40%; height: 40%; max-width: 120px; max-height: 120px; flex: none; }
 .tile-img {
   position: absolute;
   left: 0;

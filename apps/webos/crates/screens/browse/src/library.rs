@@ -14,7 +14,7 @@
 
 use std::time::{Duration, Instant};
 
-use pley_base::{Icon, Point, Size, TextOpts};
+use pley_base::{Icon, MarkGlyph, Point, Size, TextOpts};
 use pley_core::model::{
     CollectionCategories, CollectionGroup, CollectionList, CollectionSummary, Hub, Hubs, Library, LibraryFilters,
     LibraryKind, LibraryQuery, LibrarySort, RangeFilter, ResolutionFilter, SortOrder, group_by_category,
@@ -1524,8 +1524,9 @@ impl CollectionsTab {
     }
 }
 
-/// A collection's tile: its title, its size and its picture, the size on the grid's well too.
+/// A collection's tile: its title, its size and its picture, the size on the grid's well too. A
+/// collection is no library's kind of title: its mark shows play.
 fn collection_tile(c: &CollectionCell, kind: TileKind) -> Tile<'_> {
-    let tile = Tile::new(kind, &c.collection.title).subtitle(&c.subtitle).art(&c.art);
+    let tile = Tile::new(kind, &c.collection.title).subtitle(&c.subtitle).art(&c.art).mark(Some(MarkGlyph::DEFAULT));
     if kind == TileKind::LibraryGrid { tile.count(&c.count) } else { tile }
 }

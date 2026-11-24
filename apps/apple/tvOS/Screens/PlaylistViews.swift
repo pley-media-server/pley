@@ -274,7 +274,7 @@ private struct EntryRow: View {
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 44, alignment: .trailing)
             let width: CGFloat = video ? 220 : 110
-            ServerImage(app: app, paths: row.tile.pictures, width: width, symbol: Metrics.symbol(row.item.kind))
+            ServerImage(app: app, paths: row.tile.pictures, width: width, title: row.title, kind: row.item.kind)
                 .frame(width: width, height: Metrics.pictureHeight(row.tile.shape, width: width))
                 .overlay(alignment: .bottom) {
                     if row.tile.progress > 0 { ProgressBar(fraction: row.tile.progress) }

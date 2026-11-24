@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -102,6 +103,9 @@ class ArtworkLoad {
      */
     internal var known: Boolean = false
 
+    /** Whether there is no picture at all, as [ArtworkBox] is given none. */
+    internal var none: Boolean = false
+
     /**
      * Whether the loaded picture has no transparency, so it hides whatever is
      * under it: a well drawn there would be a fill of the whole box that never
@@ -142,12 +146,16 @@ private fun SuccessResult.fadeMillis(): Int =
 /**
  * A picture filling its box: [image]'s first address that loads, at the
  * box's width. Until then, and when none does, the title's gradient
- * ([Placeholder]) with [title] centered on it in [titleStyle] (none for
- * backdrops: leave [titleStyle] null); a picture that has loaded before
- * comes back without it, and without fading in, as none does with reduced
- * motion. Nothing here recomposes when the picture arrives: the
- * placeholder is drawn behind it, in the draw phase. [load] tells whoever
- * passes it when the picture is in.
+ * ([Placeholder]). Once no picture will come (none, or none of its
+ * addresses loaded) Pley's mark is on it, with [mark]'s glyph: given where
+ * the picture's name is right by it, in a caption or the line beside it,
+ * and null for backdrops, people and art behind a page, which keep the
+ * gradient alone. A [titleStyle] puts [title] on the gradient, under the
+ * mark, for a picture nothing else names. A picture that has loaded
+ * before comes back without either, and without fading in, as none does
+ * with reduced motion. Nothing here recomposes when the picture arrives:
+ * the placeholder is drawn behind it, in the draw phase. [load] tells
+ * whoever passes it when the picture is in.
  */
 @Composable
 fun Artwork(
@@ -155,11 +163,12 @@ fun Artwork(
     title: String,
     modifier: Modifier = Modifier,
     titleStyle: TextStyle? = null,
+    mark: MarkGlyph? = null,
     contentScale: ContentScale = ContentScale.Crop,
     alignment: Alignment = Alignment.Center,
     load: ArtworkLoad = remember(image) { ArtworkLoad() },
 ) {
-    ArtworkBox(image, load, modifier.artworkPlaceholder(title, titleStyle, load), contentScale, alignment)
+    ArtworkBox(image, load, modifier.artworkPlaceholder(title, titleStyle, load, mark = mark), contentScale, alignment)
 }
 
 /**
@@ -175,6 +184,7 @@ internal fun ArtworkBox(
     contentScale: ContentScale = ContentScale.Crop,
     alignment: Alignment = Alignment.Center,
 ) {
+    load.none = image == null || image.isEmpty
     if (image == null || image.isEmpty) {
         Box(modifier)
         return
@@ -215,7 +225,8 @@ private val BoxSized = Modifier.layout { measurable, constraints ->
  * clipped to it only while there is a picture, fading in or in. A tile
  * shaped this way has no clip while its picture waits, which is every tile
  * a held key brings in: Modifier.clip would give each its own layer and
- * the GPU a clip pass.
+ * the GPU a clip pass. Given a [mark], Pley's mark with that glyph is on
+ * the placeholder once no picture will come ([Artwork]).
  */
 internal fun Modifier.artworkPlaceholder(
     title: String,
@@ -223,7 +234,8 @@ internal fun Modifier.artworkPlaceholder(
     load: ArtworkLoad,
     well: Color = Color.Unspecified,
     shape: Shape? = null,
-): Modifier = this then PlaceholderElement(title, titleStyle, load, well, shape)
+    mark: MarkGlyph? = null,
+): Modifier = this then PlaceholderElement(title, titleStyle, load, well, shape, mark)
 
 private data class PlaceholderElement(
     val title: String,
@@ -231,14 +243,16 @@ private data class PlaceholderElement(
     val load: ArtworkLoad,
     val well: Color,
     val shape: Shape?,
+    val mark: MarkGlyph?,
 ) : ModifierNodeElement<PlaceholderNode>() {
-    override fun create() = PlaceholderNode(title, titleStyle, load, well, shape)
+    override fun create() = PlaceholderNode(title, titleStyle, load, well, shape, mark)
 
-    override fun update(node: PlaceholderNode) = node.update(title, titleStyle, load, well, shape)
+    override fun update(node: PlaceholderNode) = node.update(title, titleStyle, load, well, shape, mark)
 
     override fun InspectorInfo.inspectableProperties() {
         name = "artworkPlaceholder"
         properties["title"] = title
+        properties["mark"] = mark
     }
 }
 
@@ -248,6 +262,7 @@ private class PlaceholderNode(
     var load: ArtworkLoad,
     var well: Color,
     var shape: Shape?,
+    var mark: MarkGlyph?,
 ) : Modifier.Node(), LayoutModifierNode, DrawModifierNode, CompositionLocalConsumerModifierNode {
     private var look: Placeholder.Look? = null
     private var layout: TextLayoutResult? = null
@@ -263,7 +278,7 @@ private class PlaceholderNode(
 
     override val shouldAutoInvalidate: Boolean get() = false
 
-    fun update(title: String, titleStyle: TextStyle?, load: ArtworkLoad, well: Color, shape: Shape?) {
+    fun update(title: String, titleStyle: TextStyle?, load: ArtworkLoad, well: Color, shape: Shape?, mark: MarkGlyph?) {
         val retitled = title != this.title || titleStyle != this.titleStyle
         if (retitled) {
             look = null
@@ -275,6 +290,7 @@ private class PlaceholderNode(
         this.load = load
         this.well = well
         this.shape = shape
+        this.mark = mark
         // A lazy list's item used again for another title keeps its constraints, so nothing measures it again by
         // itself: the new title is asked for as it's measured ahead of the screen, as a new item's is, not a frame
         // or two late as it's first drawn.
@@ -306,14 +322,21 @@ private class PlaceholderNode(
         } else if (!load.loaded) {
             with(Placeholder) { drawGradient(look ?: look(title).also { look = it }, outline) }
             askTitle(size)
-            layout?.let { text ->
+            val text = layout
+            val mark = mark
+            // No picture to come (none, or none of its addresses loaded): Pley's mark on the gradient, the title under
+            // it. Not while one loads: a page of tiles scrolling in would flash marks before their pictures. Nor while
+            // a title is still being laid out: the mark would show at its full size, then shrink above the title.
+            val titleComing = titleStyle != null && title.isNotEmpty() && text == null
+            val markSide = if (mark != null && (load.none || load.failed) && !titleComing) markSide(text) else 0f
+            val gap = if (markSide > 0f && text != null) PlaceholderMark.Gap.toPx() else 0f
+            val top = (size.height - markSide - gap - (text?.size?.height ?: 0)) / 2f
+            if (mark != null && markSide > 0f) drawMark(mark, Offset((size.width - markSide) / 2f, top), markSide)
+            text?.let {
                 drawText(
-                    text,
+                    it,
                     color = PleyColors.Fg.copy(alpha = 0.7f),
-                    topLeft = Offset(
-                        (size.width - text.size.width) / 2f,
-                        (size.height - text.size.height) / 2f,
-                    ),
+                    topLeft = Offset((size.width - it.size.width) / 2f, top + markSide + gap),
                 )
             }
         } else if (well.isSpecified && !load.opaque) {
@@ -327,6 +350,32 @@ private class PlaceholderNode(
             clipPath(path) { this@draw.drawContent() }
         } else {
             drawContent()
+        }
+    }
+
+    /**
+     * The mark's side: a share of the box, smaller over a title, and none
+     * where a title leaves it no room (a long one on a small tile).
+     */
+    private fun ContentDrawScope.markSide(text: TextLayoutResult?): Float {
+        val side = minOf(size.width, size.height) * (if (text == null) PlaceholderMark.SHARE else PlaceholderMark.SHARE_OVER_TITLE)
+        val room = size.height - (text?.size?.height ?: 0) - PlaceholderMark.Gap.toPx()
+        return if (text != null && side > room * 0.9f) 0f else side.coerceAtMost(PlaceholderMark.Max.toPx())
+    }
+
+    /**
+     * Pley's mark with [glyph] cut out of its front poster, [side] square,
+     * its top left at [at]: white posters, each lighter than the one behind.
+     * Its paths are the glyph's own, parsed once ([MarkGlyph.layers]).
+     */
+    private fun ContentDrawScope.drawMark(glyph: MarkGlyph, at: Offset, side: Float) {
+        val scale = side / PlaceholderMark.GRID
+        val layers = glyph.layers
+        withTransform({
+            translate(at.x, at.y)
+            scale(scale, scale, pivot = Offset.Zero)
+        }) {
+            for (layer in layers) drawPath(layer.path, layer.color)
         }
     }
 

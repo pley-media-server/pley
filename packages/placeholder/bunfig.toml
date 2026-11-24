@@ -1,0 +1,3 @@
+# Scripts run on Bun, the tools they call too (whatever their shebang says).
+[run]
+bun = true

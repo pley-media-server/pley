@@ -1,3 +1,5 @@
+import json
+import os
 import unittest
 
 import support  # noqa: F401
@@ -112,6 +114,14 @@ class WordsTest(unittest.TestCase):
         self.assertEqual(words.hue("ab"), 225)
         self.assertEqual(words.placeholder("ab"), "ph-15.png")
         self.assertEqual(words.placeholder(""), "ph-00.png")
+
+    def test_placeholders_hue_as_every_app(self):
+        # packages/placeholder's examples, a title beyond UTF-16's first plane among them.
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "packages", "placeholder", "placeholder.json")
+        with open(path, encoding="utf-8") as f:
+            examples = json.load(f)["examples"]
+        for example in examples:
+            self.assertEqual(words.hue(example["seed"]), example["hue"], example["seed"])
 
 
 # 2026-11-01 12:00 UTC: days are whole in any time zone near it.

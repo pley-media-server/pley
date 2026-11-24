@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Movies, shows and music without a picture show Pley's mark instead of
+  their title, which the line under it shows. The mark's glyph says the
+  kind of library: a clapperboard for movies, a TV for shows, notes for
+  music.
+
 ### Fixed
 
 - Up Next no longer comes during credits that something follows (an

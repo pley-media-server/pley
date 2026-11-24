@@ -63,6 +63,7 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.R as ScreensR
@@ -236,7 +237,9 @@ private fun BoxScope.NoticeCard(notice: TvNotice, rail: RailState, onClose: (ope
         Row(verticalAlignment = Alignment.CenterVertically) {
             val poster = notice.poster
             if (poster != null) {
-                Artwork(poster, "", Modifier.size(PosterWidth, PosterHeight).clip(PleyShape.TileTv).background(PleyColors.Surface3))
+                // Only Ready has a poster; the news beside it names the title.
+                val mark = (notice.notice as? RequestNotice.Ready)?.let { MarkGlyph.of(it.kind) }
+                Artwork(poster, "", Modifier.size(PosterWidth, PosterHeight).clip(PleyShape.TileTv).background(PleyColors.Surface3), mark = mark)
                 Spacer(Modifier.width(14.dp))
             }
             Row(Modifier.weight(1f)) {

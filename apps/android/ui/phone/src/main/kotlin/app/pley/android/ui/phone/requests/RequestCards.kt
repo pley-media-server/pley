@@ -61,6 +61,7 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.Approval
 import app.pley.android.model.MediaRequest
@@ -115,7 +116,7 @@ internal fun RequestCard(
             Artwork(
                 image = remember(request.posterUrl, origin) { ArtworkImage.of(request.posterUrl, origin) },
                 title = request.title,
-                titleStyle = MaterialTheme.typography.labelSmall,
+                mark = MarkGlyph.of(request.kind),
                 modifier = Modifier
                     .width(POSTER_WIDTH)
                     .aspectRatio(2f / 3f)

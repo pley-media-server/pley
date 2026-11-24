@@ -21,12 +21,12 @@ import kotlin.math.sin
 
 /**
  * The picture shown while artwork loads and when there is none, as the
- * web's `placeholderGradient` (apps/web/src/lib/images.ts): a 135° gradient
+ * other apps' (packages/placeholder/placeholder.json, PlaceholderTest): a 135° gradient
  * from hsl(h, 30 %, 22 %) to hsl(h + 40, 35 %, 12 %), where h comes from a
  * hash of the title. It is drawn, never decoded.
  */
 object Placeholder {
-    /** The web's hue for [seed]: `h = h * 31 + code` over UTF-16 units, unsigned 32-bit, mod 360. */
+    /** The hue for [seed], as every app's: `h = h * 31 + code` over UTF-16 units, unsigned 32-bit, mod 360. */
     fun hue(seed: String): Int {
         var h = 0L
         for (ch in seed) h = (h * 31 + ch.code) and 0xFFFF_FFFFL

@@ -1,6 +1,7 @@
 //! Requests and Discover (docs/API.md, "Requests"): what requests are for this sign-in, TMDB's
 //! lists and titles, the requests themselves, and a library title's place among them.
 
+use pley_base::MarkGlyph;
 use serde::{Deserialize, Serialize};
 
 use super::{nd, wire_enum};
@@ -12,6 +13,13 @@ wire_enum! {
         Show = "show",
         #[default]
         Unknown = "unknown",
+    }
+}
+
+impl TitleKind {
+    /// The glyph of Pley's mark on a placeholder of this kind: its library's, else play.
+    pub fn mark_glyph(self) -> MarkGlyph {
+        MarkGlyph::for_kind(self.as_str())
     }
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage, isApiError } from "../../api/client";
 import type { ItemSummary, Playlist, PlaylistEntry } from "../../api/types";
 import { cardSubtitle, episodeLabel, formatDuration, pluralize, seasonTitle } from "../../format/format";
@@ -74,6 +75,7 @@ export function PlaylistsScreen(p: { entry: Entry }) {
                 title={pl.title}
                 subtitle={playlistMeta(pl)}
                 candidates={pl.artwork}
+                mark={pl.kind === "audio" ? "music" : "play"}
                 fid={`playlist/${pl.id}`}
                 initial={i === start}
                 priority={place.priority}
@@ -484,7 +486,7 @@ function EntryRow(p: {
         >
           <div class="entry-number t-label">{p.index + 1}</div>
           <div class={`entry-still${p.video ? "" : " square"}`}>
-            <Art candidates={artCandidates(item, p.video ? "thumb" : "poster")} width={p.video ? 160 : 90} title={item.title} class="tile-clip" />
+            <Art candidates={artCandidates(item, p.video ? "thumb" : "poster")} width={p.video ? 160 : 90} title={item.title} mark={markGlyph(item.kind)} class="tile-clip" />
           </div>
           <div class="entry-text">
             <div class="t-title one-line">{title}</div>

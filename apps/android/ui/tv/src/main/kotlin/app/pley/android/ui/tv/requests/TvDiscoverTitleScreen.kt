@@ -60,10 +60,12 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.DiscoverDetail
 import app.pley.android.model.DiscoverSeason
+import app.pley.android.model.ItemKind
 import app.pley.android.model.SeasonState
 import app.pley.android.model.TitleKind
 import app.pley.android.screens.PleyKey
@@ -197,7 +199,12 @@ private fun TitlePage(page: TitleUiState.Ready, vm: DiscoverTitleViewModel, text
         if (backdrop == null && inHero) {
             val poster = remember(detail.posterUrl, page.origin) { ArtworkImage.of(detail.posterUrl, page.origin) }
             if (poster != null) {
-                Artwork(poster, detail.title, Modifier.offset(PosterX, HeroTop).size(PosterWidth, PosterHeight).background(PleyColors.Surface2, PleyShape.Control))
+                Artwork(
+                    poster,
+                    detail.title,
+                    Modifier.offset(PosterX, HeroTop).size(PosterWidth, PosterHeight).background(PleyColors.Surface2, PleyShape.Control),
+                    mark = MarkGlyph.of(detail.kind),
+                )
             }
         }
         TitleInfo(detail, texts, Modifier.graphicsLayer { alpha = infoAlpha })
@@ -417,6 +424,7 @@ private fun SeasonsRow(
                 progress = request?.takeIf { season.state == SeasonState.Requested }?.let(::downloadProgress) ?: 0f,
                 badges = listOfNotNull(badge),
                 description = listOfNotNull(name, badge, line).joinToString(", "),
+                mark = MarkGlyph.of(ItemKind.Season),
             )
         }
     }

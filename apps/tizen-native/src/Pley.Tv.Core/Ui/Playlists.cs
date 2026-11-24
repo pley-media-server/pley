@@ -33,6 +33,12 @@ public sealed record PlaylistCard(long Id, string Title, string Meta, bool Video
 {
     /// <summary>The caption's second line on TV: "12 items · 3h 12m · Smart".</summary>
     public string Caption => string.Join(" · ", new[] { Meta.Length > 0 ? Meta : null, Smart ? PlaylistText.SmartBadge : null }.Where(s => s != null));
+
+    /// <summary>
+    /// The glyph of Pley's mark on its cover's placeholder when the picture doesn't load: music's for
+    /// a playlist of tracks, the logo's play for one of video.
+    /// </summary>
+    public string MarkGlyph => Video ? Placeholder.DefaultGlyph : Placeholder.Glyph("track");
 }
 
 /// <summary>
