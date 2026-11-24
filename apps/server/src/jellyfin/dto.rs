@@ -738,7 +738,7 @@ pub fn build(jellyfin: &Jellyfin, row: &ItemRow, batch: &Batch) -> Item {
         item.has_subtitles = Some(streams.iter().any(|s| s.kind == StreamKind::Subtitle));
         if fields.media_sources {
             let sources: Vec<MediaSource> =
-                files.iter().map(|f| media_source(jellyfin, row, f, batch.token_id)).collect();
+                files.iter().map(|f| media_source(jellyfin, row, f, files, batch.token_id)).collect();
             item.media_streams = sources.first().map(|s| s.media_streams.clone());
             item.media_sources = Some(sources);
         }
@@ -1107,8 +1107,15 @@ pub fn stream(jellyfin: &Jellyfin, row: &ItemRow, source: &str, s: &Probed) -> S
 }
 
 /// A file of an item as a media source, played as it is unless a client's
-/// device profile says otherwise ([`super::playback`]).
-pub fn media_source(jellyfin: &Jellyfin, row: &ItemRow, file: &FileRow, token_id: i64) -> MediaSource {
+/// device profile says otherwise ([`super::playback`]). `versions` are the
+/// item's files, this one among them.
+pub fn media_source(
+    jellyfin: &Jellyfin,
+    row: &ItemRow,
+    file: &FileRow,
+    versions: &[FileRow],
+    token_id: i64,
+) -> MediaSource {
     let id = jellyfin.ids.source(file.id, token_id);
     let streams = file.streams();
     let default_audio = streams
@@ -1117,9 +1124,13 @@ pub fn media_source(jellyfin: &Jellyfin, row: &ItemRow, file: &FileRow, token_id
         .or_else(|| streams.iter().find(|s| s.kind == StreamKind::Audio))
         .map(|s| s.index);
     // Versions are named by their edition, as Jellyfin names them, else by
-    // their file.
+    // their file, and so are copies of one edition (in two qualities, say):
+    // a version is picked by its name.
     let path = std::path::Path::new(&file.path);
-    let name = crate::library::parse::edition(path, row.kind == "movie")
+    let edition =
+        |file: &FileRow| crate::library::parse::edition(std::path::Path::new(&file.path), row.kind == "movie");
+    let name = edition(file)
+        .filter(|name| !versions.iter().any(|other| other.id != file.id && edition(other).as_ref() == Some(name)))
         .or_else(|| path.file_stem().map(|n| n.to_string_lossy().into_owned()))
         .unwrap_or_else(|| row.title.clone());
     MediaSource {

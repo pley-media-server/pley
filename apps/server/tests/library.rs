@@ -1238,6 +1238,31 @@ async fn editions_named_in_words_are_versions_of_one_movie() {
     assert_eq!(editions(&app, &token, episode).await, [Value::Null]);
 }
 
+/// Two copies of one edition, in two qualities: where a version has only a
+/// name to be picked by (the Jellyfin-compatible API), their file names
+/// tell them apart, as before editions were read from words.
+#[tokio::test]
+async fn copies_of_one_edition_have_names_that_tell_them_apart() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    let copies = [
+        "Silent.Orchard.2011.EXTENDED.1080p.BluRay.x264-GRP",
+        "Silent.Orchard.2011.EXTENDED.2160p.UHD.BluRay.x265-GRP",
+    ];
+    for (copy, bytes) in copies.iter().zip([1024, 2048]) {
+        app.media_file(&format!("movies/Silent Orchard (2011)/{copy}.mkv"), bytes);
+    }
+    app.media_file("movies/Silent Orchard (2011)/Silent Orchard (2011) - Theatrical Cut.mkv", 512);
+    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let film = app.ids(lib, &token).await["Silent Orchard"];
+    assert_eq!(editions(&app, &token, film).await, [json!("Extended"), json!("Extended"), json!("Theatrical Cut")]);
+    let jellyfin = app.jf_json(&format!("/Items/{}", app.jf_item(film)), &token).await;
+    let mut versions: Vec<&str> =
+        jellyfin["MediaSources"].as_array().unwrap().iter().map(|s| s["Name"].as_str().unwrap()).collect();
+    versions.sort_unstable();
+    assert_eq!(versions, [copies[0], copies[1], "Theatrical Cut"]);
+}
+
 /// A copy an earlier Pley made a movie of its own, which its name now makes
 /// a version of another, goes into that movie once its file is scanned
 /// again, with what was done with it.
