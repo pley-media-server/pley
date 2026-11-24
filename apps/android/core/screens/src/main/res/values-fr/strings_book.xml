@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="book_kind">Livre audio</string>
-    <string name="book_group">Livres</string>
+    <string name="book_group">Livres audio</string>
     <string name="book_not_found">Livre introuvable</string>
     <string name="book_failed">Impossible de charger ce livre</string>
-    <string name="book_nothing_to_play">Rien à lire : ce livre n’a aucune partie.</string>
+    <string name="book_nothing_to_play">Rien à écouter : ce livre n’a aucune partie.</string>
     <string name="book_play">Écouter</string>
     <string name="book_by">De %1$s</string>
     <string name="book_read_by">Lu par %1$s</string>
@@ -19,7 +19,7 @@
     <string name="book_parts">Parties</string>
     <string name="book_chapters">Chapitres</string>
     <string name="book_chapter">Chapitre %1$d</string>
-    <string name="book_heard">Écouté</string>
+    <string name="book_heard">Terminée</string>
     <string name="book_up_to">Vous en êtes à %1$s</string>
     <string name="book_percent_heard">%1$s écouté</string>
     <string name="book_speed">Vitesse</string>

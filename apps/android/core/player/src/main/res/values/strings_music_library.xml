@@ -61,8 +61,8 @@
     <string name="music_library_unplayable">This track can\'t be played</string>
     <!-- A track that can't be played while the music plays on: the seconds before the next one plays by itself. -->
     <plurals name="music_library_unplayable_next">
-        <item quantity="one">This track can\'t be played. The next one plays in %1$d second</item>
-        <item quantity="other">This track can\'t be played. The next one plays in %1$d seconds</item>
+        <item quantity="one">This track can\'t be played. The next one plays in %1$d second.</item>
+        <item quantity="other">This track can\'t be played. The next one plays in %1$d seconds.</item>
     </plurals>
     <string name="music_library_stopped">The server stopped playback</string>
 </resources>

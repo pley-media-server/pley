@@ -2,8 +2,8 @@
 <resources>
     <string name="music_library_recent">Récents</string>
     <string name="music_library_recently_played">Écoutés récemment</string>
-    <string name="music_library_recently_added">Ajoutés récemment</string>
-    <string name="music_library_recently_added_in">Ajoutés récemment dans %1$s</string>
+    <string name="music_library_recently_added">Ajouts récents</string>
+    <string name="music_library_recently_added_in">Ajouts récents dans %1$s</string>
     <string name="music_library_artists">Artistes</string>
     <string name="music_library_playlists">Playlists</string>
     <string name="music_library_albums">Albums</string>
@@ -47,14 +47,14 @@
     <string name="music_library_signed_out">Une fois à l’arrêt, ouvrez Pley sur votre téléphone et connectez-vous</string>
     <string name="music_library_open_pley">Ouvrir Pley</string>
     <string name="music_library_offline">Impossible de joindre votre serveur Pley</string>
-    <string name="music_library_no_match">Pley n’a trouvé aucune musique pour « %1$s »</string>
+    <string name="music_library_no_match">Pley n’a trouvé aucune musique pour « %1$s »</string>
     <string name="music_library_failed">Une erreur s’est produite. Réessayez.</string>
     <!-- Why the track doesn't play, on the car's Now Playing. -->
     <string name="music_library_unplayable">Impossible de lire ce titre</string>
     <plurals name="music_library_unplayable_next">
-        <item quantity="one">Impossible de lire ce titre. Le suivant démarre dans %1$d seconde</item>
-        <item quantity="many">Impossible de lire ce titre. Le suivant démarre dans %1$d secondes</item>
-        <item quantity="other">Impossible de lire ce titre. Le suivant démarre dans %1$d secondes</item>
+        <item quantity="one">Impossible de lire ce titre. Le suivant démarre dans %1$d seconde.</item>
+        <item quantity="many">Impossible de lire ce titre. Le suivant démarre dans %1$d secondes.</item>
+        <item quantity="other">Impossible de lire ce titre. Le suivant démarre dans %1$d secondes.</item>
     </plurals>
     <string name="music_library_stopped">Le serveur a arrêté la lecture</string>
 </resources>

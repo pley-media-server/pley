@@ -4,7 +4,7 @@
     <string name="music_library_recent">最近</string>
     <string name="music_library_recently_played">最近播放</string>
     <string name="music_library_recently_added">最近新增</string>
-    <string name="music_library_recently_added_in">%1$s 中最近新增</string>
+    <string name="music_library_recently_added_in">最近新增到 %1$s</string>
     <string name="music_library_artists">藝人</string>
     <string name="music_library_playlists">播放清單</string>
     <string name="music_library_albums">專輯</string>
@@ -32,9 +32,9 @@
     </plurals>
     <string name="music_library_books">有聲書</string>
     <string name="music_library_continue_listening">繼續收聽</string>
-    <string name="music_library_all_books">全部有聲書</string>
+    <string name="music_library_all_books">所有有聲書</string>
     <string name="music_library_music">音樂</string>
-    <string name="music_library_back">倒退 15 秒</string>
+    <string name="music_library_back">倒轉 15 秒</string>
     <string name="music_library_forward">快轉 30 秒</string>
     <string name="music_library_speed">速度 %1$s</string>
     <string name="music_library_chapter">第 %1$d 章</string>
@@ -45,7 +45,7 @@
     <string name="music_library_failed">發生錯誤，請重試。</string>
     <string name="music_library_unplayable">此曲目無法播放</string>
     <plurals name="music_library_unplayable_next">
-        <item quantity="other">此曲目無法播放。%1$d 秒後播放下一首</item>
+        <item quantity="other">此曲目無法播放。%1$d 秒後播放下一首。</item>
     </plurals>
     <string name="music_library_stopped">伺服器已停止播放</string>
 </resources>

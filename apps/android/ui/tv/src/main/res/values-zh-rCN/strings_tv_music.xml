@@ -8,7 +8,7 @@
     <string name="tv_music_shuffle">随机播放</string>
     <string name="tv_music_shuffle_off">关闭随机播放</string>
     <string name="tv_music_repeat">重复播放</string>
-    <string name="tv_music_repeat_one">单曲重复</string>
+    <string name="tv_music_repeat_one">单曲循环</string>
     <string name="tv_music_repeat_off">关闭重复播放</string>
     <string name="tv_music_now_playing">正在播放</string>
     <string name="tv_music_disc">第 %1$d 张光盘</string>

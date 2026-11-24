@@ -2,7 +2,7 @@
 <resources>
     <!-- An audiobook's page (apps/web/src/pages/item/BookView.tsx), and a book's controls in Now Playing. -->
     <string name="book_kind">Audiobook</string>
-    <string name="book_group">Books</string>
+    <string name="book_group">Audiobooks</string>
     <string name="book_not_found">Book not found</string>
     <string name="book_failed">Couldn\'t load this book</string>
     <string name="book_nothing_to_play">Nothing to play: this book has no parts.</string>
@@ -21,7 +21,7 @@
     <string name="book_parts">Parts</string>
     <string name="book_chapters">Chapters</string>
     <string name="book_chapter">Chapter %1$d</string>
-    <string name="book_heard">Heard</string>
+    <string name="book_heard">Finished</string>
     <string name="book_up_to">Up to %1$s</string>
     <string name="book_percent_heard">%1$s heard</string>
     <string name="book_speed">Speed</string>
