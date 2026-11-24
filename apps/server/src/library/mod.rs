@@ -7,6 +7,7 @@ pub mod nfo;
 pub mod parse;
 pub mod scanner;
 pub mod scope;
+mod shows;
 pub mod sidecar;
 pub mod walk;
 pub mod watcher;

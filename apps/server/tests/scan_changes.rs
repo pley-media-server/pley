@@ -318,6 +318,60 @@ async fn a_folder_moved_in_the_library_keeps_its_title_and_what_was_done_with_it
     assert_eq!(listed(&app, &admin, lib).await, ["Film One", "Film Two"]);
 }
 
+/// A show whose seasons are in two of a library's folders: a new episode in
+/// one has only that folder scanned, the show still named after its own
+/// folder. Once `tvshow.nfo` files say the two folders are different shows,
+/// a change in one has all of the library scanned, which reads the other's
+/// too, and the two are told apart.
+#[tokio::test]
+async fn a_show_in_two_library_folders_is_placed_with_both() {
+    let (app, admin) = app().await;
+    app.media_file("tv-a/Harbor Watch/Season 01/Harbor Watch - S01E01.mkv", 1024);
+    app.media_file("tv-b/Harbor Watch/Season 02/Harbor Watch - S02E01.mkv", 1024);
+    app.media_file("tv-a/Glass Garden/Season 01/Glass Garden - S01E01.mkv", 1024);
+    let paths = [app.media_path("tv-a"), app.media_path("tv-b")];
+    let created = app.post("/api/libraries", &admin, json!({"name": "TV", "kind": "shows", "paths": paths})).await;
+    let lib = created.body["id"].as_i64().unwrap();
+    app.wait_for_scans().await;
+    let db = &app.state.db;
+    sqlx::query("UPDATE media_files SET probed = 1").execute(&db.write).await.unwrap();
+    sqlx::query("UPDATE libraries SET scanned_at = 1, walked_at = 1 WHERE id = ?")
+        .bind(lib)
+        .execute(&db.write)
+        .await
+        .unwrap();
+    let show = app.ids(lib, &admin).await["Harbor Watch"];
+    let path_of = |id: i64| async move {
+        sqlx::query_scalar::<_, String>("SELECT path FROM items WHERE id = ?")
+            .bind(id)
+            .fetch_one(&db.read)
+            .await
+            .unwrap()
+    };
+    let named_after = path_of(show).await;
+
+    app.media_file("tv-b/Harbor Watch/Season 02/Harbor Watch - S02E02.mkv", 1024);
+    changed(&app, lib, &["tv-b/Harbor Watch/Season 02/Harbor Watch - S02E02.mkv"]).await;
+    assert_eq!(scan_times(&app, lib).await.1, Some(1), "that folder only");
+    assert_eq!(listed(&app, &admin, lib).await, ["Glass Garden", "Harbor Watch"]);
+    let episodes: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE grandparent_id = ? AND kind = 'episode'")
+        .bind(show)
+        .fetch_one(&db.read)
+        .await
+        .unwrap();
+    assert_eq!(episodes, 3);
+    assert_eq!(path_of(show).await, named_after);
+
+    for (folder, tvdb) in [("tv-a/Harbor Watch", 900001), ("tv-b/Harbor Watch", 900002)] {
+        let nfo = format!(r#"<tvshow><uniqueid type="tvdb" default="true">{tvdb}</uniqueid></tvshow>"#);
+        std::fs::write(app.media.path().join(folder).join("tvshow.nfo"), nfo).unwrap();
+    }
+    changed(&app, lib, &["tv-b/Harbor Watch/tvshow.nfo"]).await;
+    assert!(scan_times(&app, lib).await.1 > Some(1), "all of the library");
+    assert_eq!(listed(&app, &admin, lib).await, ["Glass Garden", "Harbor Watch", "Harbor Watch"]);
+    assert_eq!(path_of(show).await, named_after);
+}
+
 /// Folders and a file renamed or moved while nothing watched (a share
 /// another computer wrote to), then a change elsewhere in the library:
 /// their titles aren't taken for deleted because where they were is gone,

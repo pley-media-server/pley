@@ -29,7 +29,7 @@ use sqlx::{Connection, SqliteConnection};
 use tokio::sync::mpsc;
 
 use super::nfo::{self, Nfo, NfoFields, NfoIds, NfoKind};
-use super::parse::{AudiobookName, EpisodeName, parse_audiobook, parse_episode, parse_movie, parse_track};
+use super::parse::{AudiobookName, EpisodeName, parse_audiobook, parse_episode, parse_movie, parse_track, show_dir};
 use super::scope::{MOST_PATHS, Scope};
 use super::sidecar::{ExternalSub, Sidecars};
 use super::walk::{Extra, ExtraKind, FoundFile, Walked, walk, walk_part};
@@ -151,14 +151,18 @@ pub struct Scanner {
     /// Home ticks them off until the last is done.
     first_done: Mutex<Vec<ScanStatus>>,
     failures: Mutex<ScanFailures>,
-    /// Movie libraries whose scans leave copies of a movie unmerged
-    /// ([`super::merge`]), while the Plex import holds the ids of their
-    /// titles (see [`MergesHeld`]).
+    /// Libraries whose scans leave copies of a movie unmerged
+    /// ([`super::merge`]) and show folders in their shows ([`super::shows`]),
+    /// while an import holds the ids of their titles (see [`MergesHeld`]).
     merges_held: Mutex<HashSet<i64>>,
+    /// The `tvshow.nfo` files the last scan of each library read
+    /// ([`super::shows::NfoCache`]).
+    show_nfos: Mutex<HashMap<i64, super::shows::NfoCache>>,
 }
 
-/// Holds off merging copies of a movie in libraries after their scans until
-/// dropped (see [`Scanner::hold_merges`]).
+/// Holds off merging copies of a movie, and moving show folders to other
+/// shows, in libraries after their scans until dropped (see
+/// [`Scanner::hold_merges`]).
 pub struct MergesHeld {
     scanner: Arc<Scanner>,
     libraries: Vec<i64>,
@@ -284,14 +288,15 @@ impl Scanner {
             first_done: Mutex::default(),
             failures: Mutex::default(),
             merges_held: Mutex::default(),
+            show_nfos: Mutex::default(),
         });
         tokio::spawn(scanner.clone().worker(rx));
         scanner
     }
 
-    /// Scans of `libraries` leave copies of a movie unmerged until the
-    /// answer is dropped: the Plex import's, while it brings what was done
-    /// with the titles it found by their ids.
+    /// Scans of `libraries` leave copies of a movie unmerged, and show
+    /// folders in their shows, until the answer is dropped: an import's,
+    /// while it brings what was done with the titles it found by their ids.
     pub fn hold_merges(self: &Arc<Self>, libraries: &[i64]) -> MergesHeld {
         self.merges_held.lock().extend(libraries);
         MergesHeld { scanner: self.clone(), libraries: libraries.to_vec() }
@@ -643,10 +648,18 @@ impl Scanner {
         self.set_status(lib, ScanPhase::Walking, 0, 0);
 
         let mut phase = Instant::now();
-        let mut existing: Vec<KnownFile> = sqlx::query_as(
-            "SELECT id, item_id, path, COALESCE(link_size, size) AS size, mtime, probed, external_subs
-                 FROM media_files WHERE library_id = ?",
-        )
+        // In a TV library, with the show each episode and bonus material is
+        // in (see `super::shows`).
+        let mut existing: Vec<KnownFile> = sqlx::query_as(if kind == LibraryKind::Shows {
+            "SELECT f.id, f.item_id, f.path, COALESCE(f.link_size, f.size) AS size, f.mtime, f.probed, f.external_subs,
+                    f.duration_ms, CASE i.kind WHEN 'episode' THEN i.grandparent_id WHEN 'extra' THEN i.parent_id END
+                    AS show_id
+                 FROM media_files f JOIN items i ON i.id = f.item_id WHERE f.library_id = ?"
+        } else {
+            "SELECT id, item_id, path, COALESCE(link_size, size) AS size, mtime, probed, external_subs, duration_ms,
+                    NULL AS show_id
+                 FROM media_files WHERE library_id = ?"
+        })
         .bind(library_id)
         .fetch_all(&self.db.read)
         .await?;
@@ -781,6 +794,70 @@ impl Scanner {
                 books.extend(parents);
             }
         }
+        // Which show each show folder of a TV library goes into, and the
+        // files of those that go to another show (see `super::shows`).
+        let mut placement = super::shows::Placement::default();
+        let mut moves = HashMap::new();
+        if kind == LibraryKind::Shows {
+            let tvshow_nfo = |path: &Path| path.file_stem().is_some_and(|stem| stem.eq_ignore_ascii_case("tvshow"));
+            let scan = super::shows::Scan {
+                library_id,
+                media: walked.media.iter().filter(|f| strm_files || !super::walk::is_strm(&f.path)).collect(),
+                known: existing.iter().filter_map(|f| Some((f.path.as_str(), (f.show_id?, f.duration_ms)))).collect(),
+                sidecars: sidecars.clone(),
+                read_nfo: self.metadata.read_nfo(),
+                listed: walked
+                    .nfo_files
+                    .iter()
+                    .filter(|(path, _)| tvshow_nfo(path))
+                    .map(|(p, v)| (p.clone(), *v))
+                    .collect(),
+                unavailable: walked.offline_roots.iter().chain(&walked.unreadable).cloned().collect(),
+                held: self.merges_held.lock().contains(&library_id),
+                // The shows with show folders outside a scan of part of the
+                // library (not just files directly in a library folder).
+                outside: scope.as_ref().map(|_| {
+                    let in_show_folder = |path: &Path| {
+                        let root = roots
+                            .iter()
+                            .filter(|root| path.starts_with(root))
+                            .max_by_key(|root| root.as_os_str().len());
+                        root.is_some_and(|root| show_dir(path, root).is_some())
+                    };
+                    let mut shows = HashSet::new();
+                    for file in &outside {
+                        if let Some(show) = file.show_id
+                            && !shows.contains(&show)
+                            && in_show_folder(Path::new(&file.path))
+                        {
+                            shows.insert(show);
+                        }
+                    }
+                    shows
+                }),
+            };
+            match super::shows::plan(&self.db, scan, &self.show_nfos).await? {
+                Some(planned) => (placement, moves) = planned,
+                None => {
+                    tracing::info!(
+                        "library {library_id}: a show's folders change where it has others, scanning all of it"
+                    );
+                    return Ok(None);
+                }
+            }
+        }
+        // Those that aren't read again anyway are written again as they are.
+        let mut as_they_are = HashSet::new();
+        if !moves.is_empty() {
+            let reading: HashSet<String> = to_process.iter().map(|f| path_str(&f.path)).collect();
+            for file in &walked.media {
+                let path = path_str(&file.path);
+                if moves.contains_key(&path) && !reading.contains(&path) {
+                    to_process.push(file.clone());
+                    as_they_are.insert(path);
+                }
+            }
+        }
 
         phases.diff = reading + phase.elapsed();
 
@@ -792,15 +869,31 @@ impl Scanner {
         phase = Instant::now();
         let mut writing = Duration::ZERO;
         // (Not for `.strm` files, which a scan doesn't probe, nor for files
-        // renamed or moved.)
+        // renamed or moved, or whose show folder went to another show.)
         let to_probe = to_process.iter().any(|file| {
-            !super::walk::is_strm(&file.path) && !probed_before.contains_key(path_str(&file.path).as_str())
+            let path = path_str(&file.path);
+            !super::walk::is_strm(&file.path)
+                && !probed_before.contains_key(path.as_str())
+                && !as_they_are.contains(&path)
         });
         if to_probe && !self.transcoder.is_available() {
             self.transcoder.wait_ready(Duration::from_secs(90)).await;
         }
 
-        let mut writer = Writer::new(lib, &sidecars, force, moved);
+        // Shows are named after the folders that stay theirs before the
+        // writes, so that the bonus material of a folder that leaves finds
+        // its new show.
+        let left: Vec<i64> = placement.leaving.iter().map(|(_, show)| *show).collect();
+        if !left.is_empty() || !placement.paths.is_empty() || !placement.keys_changed.is_empty() {
+            if !left.is_empty() {
+                tracing::info!("library {library_id}: {} show folders go to another show", left.len());
+            }
+            let mut tx = self.db.write.begin().await?;
+            super::shows::prepare(&mut tx, &placement).await?;
+            tx.commit().await?;
+        }
+        let mut writer = Writer::new(lib, &sidecars, force, moved, placement.keys);
+        let (as_they_are, moves) = (&as_they_are, &moves);
         let mut batch: Vec<(FoundFile, ProbeOutcome)> = Vec::with_capacity(WRITE_BATCH);
         let mut processed = 0u64;
         let mut last_emit = Instant::now();
@@ -815,6 +908,12 @@ impl Scanner {
                 let before = probed_before.get(path_str(&file.path).as_str()).copied();
                 let db = self.db.clone();
                 async move {
+                    if !as_they_are.is_empty() {
+                        let path = path_str(&file.path);
+                        if as_they_are.contains(&path) {
+                            return (file, ProbeOutcome::Moved(moves.get(&path).copied().flatten()));
+                        }
+                    }
                     // What a `.strm` file names isn't asked by a scan (see
                     // `crate::strm`): only the file is read.
                     if super::walk::is_strm(&file.path) {
@@ -850,7 +949,7 @@ impl Scanner {
                 processed += 1;
                 if batch.len() >= WRITE_BATCH || last_flush.elapsed() > Duration::from_millis(750) {
                     let flushing = Instant::now();
-                    self.flush(&mut writer, &mut batch, &existing_by_path, &mut totals).await?;
+                    self.flush(&mut writer, &mut batch, &existing_by_path, &mut totals, moves).await?;
                     writing += flushing.elapsed();
                     last_flush = Instant::now();
                 }
@@ -860,7 +959,7 @@ impl Scanner {
                 }
             }
             let flushing = Instant::now();
-            self.flush(&mut writer, &mut batch, &existing_by_path, &mut totals).await?;
+            self.flush(&mut writer, &mut batch, &existing_by_path, &mut totals, moves).await?;
             writing += flushing.elapsed();
         }
         self.set_status(lib, ScanPhase::Probing, processed, total);
@@ -901,6 +1000,11 @@ impl Scanner {
             containers.extend(went);
         }
         let mut tx = self.db.write.begin().await?;
+        // Seasons that folders left get a folder of theirs again, also after
+        // a scan that stopped before.
+        if kind == LibraryKind::Shows {
+            super::shows::season_folders(&mut tx, library_id, &roots).await?;
+        }
         // A movie whose files went to another, but for one that is gone,
         // goes into it now (unless a file of it renamed took what was done
         // with it to another above).
@@ -1023,44 +1127,9 @@ impl Scanner {
         Ok(Some((totals, phases, processed, total)))
     }
 
-    /// Gives `books` what their first parts say of them: their titles,
-    /// writers, series and the rest. A scan reads a book's files in any
-    /// order, and one file added later (untagged, say) must not decide it.
-    /// The tags are the ones stored when the files were read; like
-    /// artwork, this is worked out without the writer, and only changes are
-    /// written.
+    /// See [`read_books`].
     async fn read_books(&self, lib: &LibraryRow, books: HashSet<i64>) -> anyhow::Result<()> {
-        if books.is_empty() {
-            return Ok(());
-        }
-        let firsts: Vec<FirstPart> =
-            sqlx::query_as(FIRST_PARTS).bind(serde_json::to_string(&books)?).fetch_all(&self.db.read).await?;
-        let roots = lib.paths();
-        let names = crate::util::blocking(move || {
-            Ok(firsts
-                .into_iter()
-                .filter_map(|first| {
-                    let tags =
-                        first.media_info.as_deref().and_then(|info| serde_json::from_str::<StoredTags>(info).ok());
-                    let path = PathBuf::from(first.path);
-                    // The library's folder the file was found in, the deepest
-                    // when one is in another.
-                    let root =
-                        roots.iter().filter(|root| path.starts_with(root)).max_by_key(|root| root.as_os_str().len())?;
-                    Some((first.book, parse_audiobook(&path, root, &tags.map(|t| t.tags).unwrap_or_default())))
-                })
-                .collect::<Vec<_>>())
-        })
-        .await?;
-        let at = now();
-        for chunk in names.chunks(CHANGE_BATCH) {
-            let mut tx = self.db.write.begin().await?;
-            for (book, name) in chunk {
-                save_book(&mut tx, *book, name, at).await?;
-            }
-            tx.commit().await?;
-        }
-        Ok(())
+        read_books(&self.db, lib, books).await
     }
 
     /// Reads the NFO files of the library's movies, shows, seasons and
@@ -1109,45 +1178,70 @@ impl Scanner {
         Ok(())
     }
 
+    /// Writes `batch`. `moves` are the files that go to another show, with
+    /// their length.
     async fn flush(
         &self,
         writer: &mut Writer<'_>,
         batch: &mut Vec<(FoundFile, ProbeOutcome)>,
         existing: &HashMap<&str, &KnownFile>,
         totals: &mut Totals,
+        moves: &HashMap<String, Option<i64>>,
     ) -> anyhow::Result<()> {
         if batch.is_empty() {
             return Ok(());
         }
         let mut tx = self.db.write.begin().await?;
         for (file, outcome) in batch.drain(..) {
-            let known = existing.get(path_str(&file.path).as_str());
+            let path = path_str(&file.path);
+            let known = existing.get(path.as_str());
             // A forced rescan while the transcoder is down must not replace
-            // good probe data (and music tags) with nothing.
-            if matches!(outcome, ProbeOutcome::Unavailable)
-                && known.is_some_and(|k| k.size == file.size && k.mtime == file.mtime)
-            {
-                continue;
-            }
+            // good probe data (and music tags) with nothing. A file whose
+            // show changes still goes there, as it is.
+            let outcome = match outcome {
+                ProbeOutcome::Unavailable if known.is_some_and(|k| k.size == file.size && k.mtime == file.mtime) => {
+                    match moves.get(&path) {
+                        Some(duration) => ProbeOutcome::Moved(*duration),
+                        None => continue,
+                    }
+                }
+                outcome => outcome,
+            };
             // A file renamed or moved is a file changed.
-            let is_new = known.is_none() && !writer.moved.contains_key(path_str(&file.path).as_str());
+            let is_new = known.is_none() && !writer.moved.contains_key(path.as_str());
             match writer.write(&mut tx, &file, outcome).await {
                 Ok(_) if is_new => totals.added += 1,
                 Ok(item) => {
                     totals.updated += 1;
-                    // A movie whose every file now makes another (copies
-                    // their names once made a movie of their own, now read
-                    // as that one's editions) goes into it, with what was
-                    // done with it: as its last file does, since a scan that
-                    // stopped after would leave it without files, to be
-                    // removed by the next. One with a file left is seen
-                    // again once the files that went are removed.
-                    if writer.kind == LibraryKind::Movies
-                        && let (Some(known), Some(item)) = (known, item)
-                        && known.item_id != item
-                        && !super::merge::absorb(&mut tx, known.item_id, item).await?
-                    {
-                        writer.versions.push((known.item_id, item));
+                    let Some((known, item)) = known.zip(item).filter(|(known, item)| known.item_id != *item) else {
+                        continue;
+                    };
+                    match writer.kind {
+                        // A movie whose every file now makes another (copies
+                        // their names once made a movie of their own, now
+                        // read as that one's editions) goes into it, with
+                        // what was done with it: as its last file does, since
+                        // a scan that stopped after would leave it without
+                        // files, to be removed by the next. One with a file
+                        // left is seen again once the files that went are
+                        // removed.
+                        LibraryKind::Movies => {
+                            if !super::merge::absorb(&mut tx, known.item_id, item).await? {
+                                writer.versions.push((known.item_id, item));
+                            }
+                        }
+                        // An episode whose file went to another, as when its
+                        // show folder went to another show, gives it what was
+                        // done with it once it has no file left, as a file
+                        // renamed does (`relink`).
+                        LibraryKind::Shows => {
+                            sqlx::query("UPDATE media_files SET moved_from = COALESCE(moved_from, ?) WHERE id = ?")
+                                .bind(known.item_id)
+                                .bind(known.id)
+                                .execute(&mut *tx)
+                                .await?;
+                        }
+                        LibraryKind::Music | LibraryKind::Audiobooks => {}
                     }
                 }
                 Err(err) => tracing::warn!("could not save {}: {err:#}", file.path.display()),
@@ -1169,6 +1263,9 @@ struct KnownFile {
     mtime: i64,
     probed: bool,
     external_subs: String,
+    duration_ms: Option<i64>,
+    /// In a TV library, the show its episode or bonus material is in.
+    show_id: Option<i64>,
 }
 
 enum ProbeOutcome {
@@ -1182,6 +1279,9 @@ enum ProbeOutcome {
     /// ([`crate::strm::Target::key`]; `None`: it names nothing to play). Its
     /// media is looked at when it is first opened or played.
     Link(Option<String>),
+    /// An unchanged file whose folder went to another show: not read again,
+    /// with the length read from it before.
+    Moved(Option<i64>),
 }
 
 /// Writes items for scanned files, caching container ids for the scan.
@@ -1202,6 +1302,9 @@ struct Writer<'a> {
     versions: Vec<(i64, i64)>,
     /// The items files were written to.
     written: HashSet<i64>,
+    /// Show folder → the key of the show its episodes go into
+    /// ([`super::shows`]).
+    shows: HashMap<PathBuf, String>,
 }
 
 struct NewItem {
@@ -1222,6 +1325,7 @@ struct NewItem {
     genres: Option<String>,
     tmdb_id: Option<i64>,
     imdb_id: Option<String>,
+    tvdb_id: Option<i64>,
 }
 
 impl NewItem {
@@ -1243,12 +1347,19 @@ impl NewItem {
             genres: None,
             tmdb_id: None,
             imdb_id: None,
+            tvdb_id: None,
         }
     }
 }
 
 impl<'a> Writer<'a> {
-    fn new(lib: &LibraryRow, sidecars: &'a Sidecars, force: bool, moved: HashMap<String, i64>) -> Self {
+    fn new(
+        lib: &LibraryRow,
+        sidecars: &'a Sidecars,
+        force: bool,
+        moved: HashMap<String, i64>,
+        shows: HashMap<PathBuf, String>,
+    ) -> Self {
         Self {
             library_id: lib.id,
             kind: lib.kind(),
@@ -1259,6 +1370,7 @@ impl<'a> Writer<'a> {
             relinked: HashSet::new(),
             versions: Vec::new(),
             written: HashSet::new(),
+            shows,
         }
     }
 
@@ -1270,13 +1382,14 @@ impl<'a> Writer<'a> {
         file: &FoundFile,
         outcome: ProbeOutcome,
     ) -> anyhow::Result<Option<i64>> {
-        let (info, probed, link) = match outcome {
-            ProbeOutcome::Ok(info) => (Some(*info), true, None),
-            ProbeOutcome::Unavailable => (None, false, None),
-            ProbeOutcome::Failed => (None, true, None),
-            ProbeOutcome::Link(key) => (None, true, Some(key)),
+        let (info, probed, link, as_it_is) = match outcome {
+            ProbeOutcome::Ok(info) => (Some(*info), true, None, None),
+            ProbeOutcome::Unavailable => (None, false, None, None),
+            ProbeOutcome::Failed => (None, true, None, None),
+            ProbeOutcome::Link(key) => (None, true, Some(key), None),
+            ProbeOutcome::Moved(duration) => (None, true, None, Some(duration)),
         };
-        let duration = info.as_ref().and_then(|i| i.duration_ms);
+        let duration = as_it_is.unwrap_or_else(|| info.as_ref().and_then(|i| i.duration_ms));
         let item_id = match (&file.extra, self.kind) {
             (Some(extra), _) => match self.write_extra(conn, file, extra, duration).await? {
                 Some(id) => id,
@@ -1288,13 +1401,23 @@ impl<'a> Writer<'a> {
             (None, LibraryKind::Music) => self.write_track(conn, file, info.as_ref(), duration).await?,
             (None, LibraryKind::Audiobooks) => self.write_part(conn, file, info.as_ref(), duration).await?,
         };
+        let path = path_str(&file.path);
+        self.written.insert(item_id);
+        if as_it_is.is_some() {
+            // The file is as it was: only its episode changed.
+            sqlx::query("UPDATE media_files SET item_id = ? WHERE library_id = ? AND path = ?")
+                .bind(item_id)
+                .bind(self.library_id)
+                .bind(&path)
+                .execute(&mut *conn)
+                .await?;
+            return Ok(Some(item_id));
+        }
         let subs = if self.kind.is_audio() { Vec::new() } else { self.sidecars.subtitles(&file.path) };
         // A file renamed or moved keeps its row, and with it its id, the
         // subtitles people added to it and its markers. The item it was a
         // file of is noted until its new one has what people did with it
         // (`relink`), the next scan's if this one stops before.
-        let path = path_str(&file.path);
-        self.written.insert(item_id);
         let Some(id) = self.moved.remove(&path) else {
             match link {
                 Some(key) => {
@@ -1340,7 +1463,7 @@ impl<'a> Writer<'a> {
         extra: &Extra,
         duration: Option<i64>,
     ) -> anyhow::Result<Option<i64>> {
-        let Some(owner) = self.extra_owner(conn, extra).await? else {
+        let Some(owner) = self.extra_owner(conn, file, extra).await? else {
             tracing::debug!("no movie or show for the extra {}", file.path.display());
             return Ok(None);
         };
@@ -1359,8 +1482,34 @@ impl<'a> Writer<'a> {
 
     /// The movie or show bonus material belongs to: the movie whose file is
     /// in the owner folder (by name for `…-trailer` files, or the folder's
-    /// only movie), or the show of that folder (or of that season folder).
-    async fn extra_owner(&self, conn: &mut SqliteConnection, extra: &Extra) -> sqlx::Result<Option<i64>> {
+    /// only movie), or the show its show folder goes into
+    /// ([`super::shows`]), else the show of that folder (or of that season
+    /// folder).
+    async fn extra_owner(
+        &self,
+        conn: &mut SqliteConnection,
+        file: &FoundFile,
+        extra: &Extra,
+    ) -> sqlx::Result<Option<i64>> {
+        if self.kind == LibraryKind::Shows
+            && let Some(key) = show_dir(&file.path, &file.root)
+                .filter(|folder| extra.owner_dir.starts_with(folder))
+                .and_then(|folder| self.shows.get(&folder))
+        {
+            let show = match self.containers.get(key) {
+                Some(id) => Some(*id),
+                None => {
+                    sqlx::query_scalar("SELECT id FROM items WHERE library_id = ? AND key = ?")
+                        .bind(self.library_id)
+                        .bind(key)
+                        .fetch_optional(&mut *conn)
+                        .await?
+                }
+            };
+            if show.is_some() {
+                return Ok(show);
+            }
+        }
         let dir = path_str(&extra.owner_dir);
         match self.kind {
             LibraryKind::Movies => {
@@ -1418,13 +1567,17 @@ impl<'a> Writer<'a> {
         duration: Option<i64>,
     ) -> anyhow::Result<i64> {
         let name = parse_episode(&file.path, &file.root);
-        let show_key = match name.show_tmdb_id {
-            Some(id) => format!("show:tmdb:{id}"),
-            None => format!("show:{}:{}", normalize_key(&name.show), name.show_year.unwrap_or(0)),
+        // The show its folder goes into (see `super::shows`), else the one
+        // its name makes.
+        let show_key = match name.show_dir.as_ref().and_then(|dir| self.shows.get(dir)) {
+            Some(key) => key.clone(),
+            None => super::shows::name_key(&name.show, name.show_year, name.show_tmdb_id),
         };
         let mut show = NewItem::new("show", show_key, name.show.clone());
         show.year = name.show_year;
         show.tmdb_id = name.show_tmdb_id;
+        show.tvdb_id = name.show_tvdb_id;
+        show.imdb_id = name.show_imdb_id.clone();
         show.path = name.show_dir.as_deref().map(path_str);
         let show_id = self.container(conn, show).await?;
 
@@ -1573,6 +1726,76 @@ struct StoredTags {
     tags: BTreeMap<String, String>,
 }
 
+/// Gives `books` of library `lib` what their first parts say of them: their
+/// titles, writers, series and the rest. A scan reads a book's files in any
+/// order, and one file added later (untagged, say) must not decide it. The
+/// tags are the ones stored when the files were read; like artwork, this is
+/// worked out without the writer, and only changes are written.
+pub(crate) async fn read_books(db: &Db, lib: &LibraryRow, books: HashSet<i64>) -> anyhow::Result<()> {
+    if books.is_empty() {
+        return Ok(());
+    }
+    let firsts: Vec<FirstPart> =
+        sqlx::query_as(FIRST_PARTS).bind(serde_json::to_string(&books)?).fetch_all(&db.read).await?;
+    let roots = lib.paths();
+    let names = crate::util::blocking(move || {
+        Ok(firsts
+            .into_iter()
+            .filter_map(|first| {
+                let tags = first.media_info.as_deref().and_then(|info| serde_json::from_str::<StoredTags>(info).ok());
+                let path = PathBuf::from(first.path);
+                // The library's folder the file was found in, the deepest
+                // when one is in another.
+                let root =
+                    roots.iter().filter(|root| path.starts_with(root)).max_by_key(|root| root.as_os_str().len())?;
+                Some((first.book, parse_audiobook(&path, root, &tags.map(|t| t.tags).unwrap_or_default())))
+            })
+            .collect::<Vec<_>>())
+    })
+    .await?;
+    let at = now();
+    for chunk in names.chunks(CHANGE_BATCH) {
+        let mut tx = db.write.begin().await?;
+        for (book, name) in chunk {
+            save_book(&mut tx, *book, name, at).await?;
+        }
+        tx.commit().await?;
+    }
+    Ok(())
+}
+
+/// Book `id` is what its files say again, for the next refresh to fill in
+/// the rest: `clear`'s details go first (those the files don't give, such
+/// as a release date, would stay otherwise), then its first part is read
+/// again, and hand edits go back over it.
+pub(crate) async fn read_book_again(db: &Db, id: i64, clear: &[&str]) -> anyhow::Result<()> {
+    // The details a book's files or sources give; the title is always read again.
+    const CLEARED: &[&str] =
+        &["year", "summary", "genres", "release_date", "authors", "narrators", "series", "series_index"];
+    let mut tx = db.write.begin().await?;
+    for column in CLEARED.iter().filter(|c| clear.contains(c)) {
+        // `column` is one of CLEARED, so formatting it into SQL is safe.
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "UPDATE items SET {column} = NULL, metadata_at = NULL WHERE id = ? AND kind = 'audiobook'"
+        )))
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    let library: Option<i64> = sqlx::query_scalar("SELECT library_id FROM items WHERE id = ? AND kind = 'audiobook'")
+        .bind(id)
+        .fetch_optional(&db.read)
+        .await?;
+    if let Some(library) = library
+        && let Some(lib) = super::get_library(db, library).await?
+    {
+        read_books(db, &lib, HashSet::from([id])).await?;
+    }
+    crate::overrides::apply(db, &[id]).await?;
+    Ok(())
+}
+
 /// Writes what a book's first part says of it where that changed: its
 /// folder, and unless its details are locked, the rest. That takes away
 /// what an online source filled in, so the book is looked up again after
@@ -1675,8 +1898,8 @@ async fn upsert_item(conn: &mut SqliteConnection, library_id: i64, item: &NewIte
     // item; music tags keep them (MusicBrainz only fills in what they lack).
     sqlx::query_scalar(
         "INSERT INTO items (id, library_id, parent_id, grandparent_id, kind, key, title, sort_title, original_title, year, idx,
-                            disc, duration_ms, path, release_date, genres, tmdb_id, imdb_id, added_at, updated_at)
-         VALUES ((SELECT last + 1 FROM item_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            disc, duration_ms, path, release_date, genres, tmdb_id, imdb_id, tvdb_id, added_at, updated_at)
+         VALUES ((SELECT last + 1 FROM item_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(library_id, key) DO UPDATE SET
             parent_id = excluded.parent_id,
             grandparent_id = excluded.grandparent_id,
@@ -1688,11 +1911,15 @@ async fn upsert_item(conn: &mut SqliteConnection, library_id: i64, item: &NewIte
             idx = COALESCE(excluded.idx, items.idx),
             disc = excluded.disc,
             duration_ms = COALESCE(excluded.duration_ms, items.duration_ms),
-            path = COALESCE(excluded.path, items.path),
+            -- A show stays named after its first folder: the scan names it
+            -- after another when that one goes (see `shows::place`).
+            path = CASE WHEN items.kind = 'show' THEN COALESCE(items.path, excluded.path)
+                        ELSE COALESCE(excluded.path, items.path) END,
             release_date = COALESCE(excluded.release_date, items.release_date),
             genres = COALESCE(excluded.genres, items.genres),
             tmdb_id = COALESCE(items.tmdb_id, excluded.tmdb_id),
             imdb_id = COALESCE(items.imdb_id, excluded.imdb_id),
+            tvdb_id = COALESCE(items.tvdb_id, excluded.tvdb_id),
             updated_at = excluded.updated_at
          RETURNING id",
     )
@@ -1713,6 +1940,7 @@ async fn upsert_item(conn: &mut SqliteConnection, library_id: i64, item: &NewIte
     .bind(&item.genres)
     .bind(item.tmdb_id)
     .bind(&item.imdb_id)
+    .bind(item.tvdb_id)
     .bind(now)
     .bind(now)
     .fetch_one(conn)
@@ -1980,6 +2208,19 @@ async fn relink(conn: &mut SqliteConnection, library_id: i64) -> anyhow::Result<
                 .await?;
         let Some((into_parent, into_grandparent)) = found else { continue };
         super::merge::carry(conn, into, from).await?;
+        // The season and show an episode went to, a show it was told apart
+        // into say, were in the library since it came.
+        if kind == "episode" {
+            sqlx::query(
+                "UPDATE items SET added_at = (SELECT added_at FROM items WHERE id = ?1)
+                 WHERE id IN (?2, ?3) AND added_at > (SELECT added_at FROM items WHERE id = ?1)",
+            )
+            .bind(into)
+            .bind(into_parent)
+            .bind(into_grandparent)
+            .execute(&mut *conn)
+            .await?;
+        }
         if matches!(kind.as_str(), "episode" | "track" | "part") {
             for pair in [(parent, into_parent), (grandparent, into_grandparent)] {
                 if let (Some(was), Some(is)) = pair
@@ -2408,7 +2649,7 @@ fn nfo_ids_taken(kind: &str) -> [bool; 4] {
 
 impl ItemIds {
     /// The ids an item of `kind` takes from its NFO file.
-    fn of_nfo(kind: &str, nfo: &NfoIds) -> Self {
+    pub(super) fn of_nfo(kind: &str, nfo: &NfoIds) -> Self {
         let [tmdb, imdb, tvdb, tvmaze] = nfo_ids_taken(kind);
         Self {
             tmdb_id: nfo.tmdb.filter(|_| tmdb),
@@ -2419,7 +2660,7 @@ impl ItemIds {
     }
 
     /// Whether the two have an id in common: they name the same title.
-    fn shares_with(&self, other: &Self) -> bool {
+    pub(super) fn shares_with(&self, other: &Self) -> bool {
         fn same<T: PartialEq>(a: &Option<T>, b: &Option<T>) -> bool {
             matches!((a, b), (Some(a), Some(b)) if a == b)
         }
@@ -2431,7 +2672,7 @@ impl ItemIds {
 
     /// Whether the two have different ids of the same kind: they name
     /// different titles.
-    fn conflicts_with(&self, other: &Self) -> bool {
+    pub(super) fn conflicts_with(&self, other: &Self) -> bool {
         fn differs<T: PartialEq>(a: &Option<T>, b: &Option<T>) -> bool {
             matches!((a, b), (Some(a), Some(b)) if a != b)
         }
@@ -2776,8 +3017,7 @@ fn entry_for(row: &NfoRow, entries: Vec<Nfo>) -> Option<Nfo> {
     match row.kind.as_str() {
         "movie" => entries
             .find(|e| e.kind == NfoKind::Movie || (e.kind == NfoKind::Link && e.links_to != Some(NfoKind::TvShow))),
-        "show" => entries
-            .find(|e| e.kind == NfoKind::TvShow || (e.kind == NfoKind::Link && e.links_to != Some(NfoKind::Movie))),
+        "show" => entries.find(is_show_entry),
         "season" => entries.find(|e| e.kind == NfoKind::Season),
         "episode" => {
             let episodes: Vec<Nfo> = entries.filter(|e| e.kind == NfoKind::Episode).collect();
@@ -2788,6 +3028,12 @@ fn entry_for(row: &NfoRow, entries: Vec<Nfo>) -> Option<Nfo> {
         }
         _ => None,
     }
+}
+
+/// Whether an NFO file's entry describes a show: a show's, or a link to a
+/// page that isn't a movie's.
+pub(super) fn is_show_entry(entry: &Nfo) -> bool {
+    entry.kind == NfoKind::TvShow || (entry.kind == NfoKind::Link && entry.links_to != Some(NfoKind::Movie))
 }
 
 /// What an item's file and folder names say, before any source described it.
@@ -2815,7 +3061,12 @@ fn named(row: &NfoRow, files: &[String], roots: &[PathBuf]) -> Option<Named> {
         }
         "show" => {
             let name = parse_episode(file, root);
-            let ids = ItemIds { tmdb_id: name.show_tmdb_id, ..Default::default() };
+            let ids = ItemIds {
+                tmdb_id: name.show_tmdb_id,
+                imdb_id: name.show_imdb_id,
+                tvdb_id: name.show_tvdb_id,
+                tvmaze_id: None,
+            };
             Named { title: name.show, year: name.show_year.map(i64::from), release_date: None, ids }
         }
         "episode" => {

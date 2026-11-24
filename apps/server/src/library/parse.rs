@@ -35,7 +35,11 @@ pub struct EpisodeName {
     pub show: String,
     pub show_year: Option<i32>,
     pub show_dir: Option<PathBuf>,
+    /// Ids in the show folder's name: `{tmdb-1234}`, `{tvdb-123456}` (or
+    /// `[tvdbid-123456]`), `{imdb-tt1234567}`.
     pub show_tmdb_id: Option<i64>,
+    pub show_tvdb_id: Option<i64>,
+    pub show_imdb_id: Option<String>,
     pub season: i32,
     pub season_dir: Option<PathBuf>,
     /// `None` when the name gives none: such an episode is told apart by its
@@ -93,6 +97,7 @@ static JUNK: LazyLock<Regex> = LazyLock::new(|| {
 });
 static BRACKETS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[[^\]]*\]|\{[^}]*\}").unwrap());
 static TMDB_ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)[\[{(]tmdb(?:id)?[-= ](\d+)[\]})]").unwrap());
+static TVDB_ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)[\[{(]tvdb(?:id)?[-= ](\d+)[\]})]").unwrap());
 static IMDB_ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b(tt\d{7,9})\b").unwrap());
 /// Plex's edition tag: `Blade Runner (1982) {edition-Final Cut}`.
 static EDITION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\{edition-([^}]+)\}").unwrap());
@@ -277,6 +282,13 @@ fn extract_ids(s: &str) -> (Option<i64>, Option<String>) {
     (tmdb, imdb)
 }
 
+/// The ids in a show folder's name: TMDB, TheTVDB and IMDb.
+pub fn show_ids(folder: &str) -> (Option<i64>, Option<i64>, Option<String>) {
+    let (tmdb, imdb) = extract_ids(folder);
+    let tvdb = TVDB_ID.captures(folder).and_then(|c| c[1].parse().ok()).filter(|id| *id > 0);
+    (tmdb, tvdb, imdb)
+}
+
 /// The edition a file is tagged with (`{edition-Director's Cut}`), in its
 /// name or its folder's, else, of a `movie`'s, the one its name or its
 /// folder's gives in words (`Film (2010) - Director's Cut`, see
@@ -365,6 +377,14 @@ pub fn season_from_dir(name: &str) -> Option<i32> {
         return Some(0);
     }
     SEASON_DIR.captures(name.trim()).and_then(|c| c[1].parse().ok())
+}
+
+/// The show folder of an episode's file, as [`parse_episode`] finds it: the
+/// first folder below the library root, unless that is a season folder.
+pub fn show_dir(path: &Path, root: &Path) -> Option<PathBuf> {
+    let comps = rel_components(path, root);
+    let first = comps.first().filter(|_| comps.len() >= 2)?;
+    season_from_dir(first).is_none().then(|| root.join(first))
 }
 
 pub fn parse_episode(path: &Path, root: &Path) -> EpisodeName {
@@ -469,14 +489,14 @@ pub fn parse_episode(path: &Path, root: &Path) -> EpisodeName {
 
     let season = season.or(dir_season).unwrap_or(1);
 
-    let (show, show_year, show_tmdb_id) = match &show_folder {
+    let (show, show_year, (show_tmdb_id, show_tvdb_id, show_imdb_id)) = match &show_folder {
         Some(folder) => {
             let (title, year) = title_and_year(folder);
-            (title, year, extract_ids(folder).0)
+            (title, year, show_ids(folder))
         }
         None => {
             let (title, year) = title_and_year(&prefix);
-            (title, year, None)
+            (title, year, (None, None, None))
         }
     };
     let show = if show.is_empty() { "Unknown Show".to_owned() } else { show };
@@ -504,6 +524,8 @@ pub fn parse_episode(path: &Path, root: &Path) -> EpisodeName {
         show_year,
         show_dir: show_folder.map(|f| root.join(f)),
         show_tmdb_id,
+        show_tvdb_id,
+        show_imdb_id,
         season,
         season_dir,
         episode,
@@ -1057,6 +1079,36 @@ mod tests {
         assert_eq!(e.show, "Firefly");
         assert_eq!((e.season, e.episode), (1, Some(5)));
         assert_eq!(e.title.as_deref(), Some("Safe"));
+    }
+
+    #[test]
+    fn ids_in_a_show_folders_name() {
+        let ids = |rel: &str| {
+            let e = episode(rel);
+            (e.show, e.show_tmdb_id, e.show_tvdb_id, e.show_imdb_id)
+        };
+        assert_eq!(
+            ids("Lantern Bay {tvdb-900001}/Season 1/Lantern Bay - S01E01.mkv"),
+            ("Lantern Bay".into(), None, Some(900001), None)
+        );
+        assert_eq!(ids("Lantern Bay [tvdbid-900001]/Lantern Bay - S01E01.mkv").2, Some(900001));
+        assert_eq!(
+            ids("Lantern Bay (2004) {imdb-tt7000001}/Lantern Bay - S01E01.mkv"),
+            ("Lantern Bay".into(), None, None, Some("tt7000001".into()))
+        );
+        assert_eq!(ids("Lantern Bay {tmdb-80001}/Lantern Bay - S01E01.mkv").1, Some(80001));
+        assert_eq!(ids("Lantern Bay {tvdb-0}/Lantern Bay - S01E01.mkv").2, None);
+        // A file's own tags are a release's, not the show's.
+        assert_eq!(ids("Lantern Bay/Lantern Bay - S01E01 {tvdb-900001}.mkv"), ("Lantern Bay".into(), None, None, None));
+    }
+
+    #[test]
+    fn the_show_folder_of_an_episode() {
+        for rel in ["Lantern Bay/Season 1/Lantern Bay - S01E01.mkv", "Season 1/Lantern Bay - S01E01.mkv", "x.mkv"] {
+            let path = Path::new("/media/tv").join(rel);
+            assert_eq!(show_dir(&path, Path::new("/media/tv")), episode(rel).show_dir, "{rel}");
+        }
+        assert_eq!(episode("Lantern Bay/x.mkv").show_dir, Some(PathBuf::from("/media/tv/Lantern Bay")));
     }
 
     #[test]

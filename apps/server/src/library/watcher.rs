@@ -82,7 +82,9 @@ impl LibraryWatcher {
             libraries.iter().flat_map(|l| l.paths().into_iter().map(move |p| (p, l.id))).collect();
         *self.roots.lock() = roots.clone();
 
-        if !self.settings.get().watch_libraries {
+        // notify's watcher on Windows wakes ten times a second for as long
+        // as it lives: none without folders to watch.
+        if !self.settings.get().watch_libraries || roots.is_empty() {
             *self.watcher.lock() = None;
             return;
         }
@@ -124,7 +126,10 @@ impl LibraryWatcher {
                     let Some(notice) = notice else { break };
                     note(&mut pending, &self.roots.lock(), notice, Instant::now());
                 }
-                _ = tokio::time::sleep(Duration::from_secs(1)) => {}
+                // A look every second while a library waits for its quiet
+                // period; with none waiting, nothing to look at until a
+                // change comes.
+                _ = tokio::time::sleep(Duration::from_secs(1)), if !pending.is_empty() => {}
             }
             let due: Vec<i64> =
                 pending.iter().filter(|(_, (at, _))| at.elapsed() >= QUIET_PERIOD).map(|(id, _)| *id).collect();

@@ -817,6 +817,34 @@ impl MetadataAgent {
         Ok(())
     }
 
+    /// Audiobooks on Open Library or Audible for Fix Match: `title` (or an
+    /// ASIN) by `author`, after the book's own recording (`own_asin`).
+    pub async fn search_books(
+        &self,
+        title: &str,
+        author: Option<&str>,
+        own_asin: Option<&str>,
+    ) -> anyhow::Result<Vec<crate::providers::books::BookCandidate>> {
+        self.providers.search_books(title, author, own_asin).await
+    }
+
+    /// Match audiobook `item_id` to `chosen` and fetch it again; kept as an
+    /// override, as a movie's or show's match is.
+    pub async fn rematch_book(&self, item_id: i64, chosen: &crate::providers::books::BookMatch) -> anyhow::Result<()> {
+        self.providers.rematch_book(item_id, chosen).await
+    }
+
+    /// Fix Match undone for audiobook `item_id`: what its match filled in
+    /// goes, for the next refresh to find it again.
+    pub async fn forget_book_match(&self, item_id: i64) -> anyhow::Result<()> {
+        self.providers.forget_book_match(item_id).await
+    }
+
+    /// Covers Audible and Open Library have for audiobook `item_id`.
+    pub async fn book_covers(&self, item_id: i64) -> anyhow::Result<Vec<ArtworkCandidate>> {
+        self.providers.book_covers(item_id).await
+    }
+
     /// Posters, backdrops or episode stills TMDB has for an item.
     pub async fn artwork_candidates(&self, item_id: i64, kind: &str) -> anyhow::Result<Vec<ArtworkCandidate>> {
         #[allow(clippy::type_complexity)]
@@ -898,7 +926,7 @@ impl MetadataAgent {
     pub async fn download_artwork(&self, url: &str) -> anyhow::Result<Vec<u8>> {
         if !crate::store::allowed_image_url(url) {
             bail!(
-                "pictures are taken from TMDB, TheTVDB, TVmaze, the Cover Art Archive, fanart.tv, ThePosterDB and GitHub's raw files only"
+                "pictures are taken from TMDB, TheTVDB, TVmaze, the Cover Art Archive, Open Library, Audible, fanart.tv, ThePosterDB and GitHub's raw files only"
             );
         }
         self.store.download(url).await

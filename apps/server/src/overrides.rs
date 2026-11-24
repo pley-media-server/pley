@@ -30,12 +30,26 @@ pub const FIELDS: &[&str] = &[
     "poster",
     "backdrop",
     "thumb",
+    "authors",
+    "narrators",
+    "series",
+    "series_index",
 ];
 
-/// Not a field: Fix Match keeps the TMDB id chosen here, so that an NFO
-/// file's ids don't undo it. Dropping it (as a field is unlocked) hands the
-/// match back to the NFO file.
+/// The fields only audiobooks have: who wrote and reads a book, its series
+/// and its place in it.
+pub const BOOK_FIELDS: &[&str] = &["authors", "narrators", "series", "series_index"];
+
+/// Not a field: Fix Match keeps the match chosen here (a TMDB id, or a
+/// book's work or ASIN), so that an NFO file's ids, the search or a file's
+/// ASIN don't undo it. Dropping it (as a field is unlocked) hands the match
+/// back to them.
 pub const MATCH: &str = "match";
+
+/// Names an audiobook keeps, and the characters of a name or a series: as
+/// many as scans and metadata sources keep.
+const MAX_NAMES: usize = 50;
+const MAX_NAME: usize = 500;
 
 /// Item columns that are written here: the editable fields, an NFO file's
 /// rating, and the country and age that go with a content rating.
@@ -53,6 +67,10 @@ const COLUMNS: &[&str] = &[
     "poster",
     "backdrop",
     "thumb",
+    "authors",
+    "narrators",
+    "series",
+    "series_index",
     "rating",
     "content_rating_country",
     "rating_age",
@@ -80,6 +98,17 @@ pub fn validate(field: &str, value: Option<&str>) -> Result<(), AppError> {
         "release_date" if !looks_like_date(value) => Err(AppError::bad_request("dates look like 1999-03-31")),
         "genres" if serde_json::from_str::<Vec<String>>(value).is_err() => {
             Err(AppError::bad_request("genres must be a JSON list of names"))
+        }
+        "authors" | "narrators" => match serde_json::from_str::<Vec<String>>(value) {
+            Ok(names) if names.len() <= MAX_NAMES && names.iter().all(|n| n.chars().count() <= MAX_NAME) => Ok(()),
+            Ok(_) => Err(AppError::bad_request(format!("at most {MAX_NAMES} names of {MAX_NAME} characters"))),
+            Err(_) => Err(AppError::bad_request(format!("{field} must be a JSON list of names"))),
+        },
+        "series" if value.chars().count() > MAX_NAME => {
+            Err(AppError::bad_request(format!("a series' name has at most {MAX_NAME} characters")))
+        }
+        "series_index" if value.parse::<f64>().map_or(true, |n| !(0.0..=100_000.0).contains(&n)) => {
+            Err(AppError::bad_request("the place in the series must be a number like 2 or 2.5"))
         }
         _ => Ok(()),
     }
@@ -447,6 +476,19 @@ mod tests {
         // Fix Match's match can be dropped, not set, as a field.
         assert!(validate("match", None).is_ok());
         assert!(validate("match", Some("348")).is_err());
+        // A book's writers, readers and series.
+        assert!(validate("authors", Some(r#"["Ada Quill","June Ashby"]"#)).is_ok());
+        assert!(validate("narrators", Some("[]")).is_ok());
+        assert!(validate("authors", Some("Ada Quill")).is_err());
+        let many = serde_json::to_string(&vec!["A"; MAX_NAMES + 1]).unwrap();
+        assert!(validate("narrators", Some(&many)).is_err());
+        assert!(validate("authors", Some(&serde_json::to_string(&["x".repeat(MAX_NAME + 1)]).unwrap())).is_err());
+        assert!(validate("series", Some("Tidewardens")).is_ok());
+        assert!(validate("series", Some(&"x".repeat(MAX_NAME + 1))).is_err());
+        assert!(validate("series_index", Some("2.5")).is_ok());
+        for bad in ["-1", "NaN", "inf", "two"] {
+            assert!(validate("series_index", Some(bad)).is_err(), "{bad}");
+        }
     }
 
     #[test]

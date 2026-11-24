@@ -506,6 +506,11 @@ pub struct BookDetail {
     pub series: Option<String>,
     /// The book's place in its series: 2, or 2.5 between two books.
     pub series_index: Option<f64>,
+    /// The Open Library work and the Audible recording it is matched to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub openlibrary_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asin: Option<String>,
 }
 
 impl BookDetail {
@@ -517,12 +522,15 @@ impl BookDetail {
             narrators: Option<String>,
             series: Option<String>,
             series_index: Option<f64>,
+            openlibrary_id: Option<String>,
+            audible_asin: Option<String>,
         }
-        let row: Option<Row> =
-            sqlx::query_as("SELECT authors, narrators, series, series_index FROM items WHERE id = ?")
-                .bind(id)
-                .fetch_optional(&db.read)
-                .await?;
+        let row: Option<Row> = sqlx::query_as(
+            "SELECT authors, narrators, series, series_index, openlibrary_id, audible_asin FROM items WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(&db.read)
+        .await?;
         let names = |json: Option<String>| -> Vec<String> {
             json.and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default()
         };
@@ -531,6 +539,8 @@ impl BookDetail {
             narrators: names(r.narrators),
             series: r.series,
             series_index: r.series_index,
+            openlibrary_id: r.openlibrary_id,
+            asin: r.audible_asin,
         }))
     }
 }

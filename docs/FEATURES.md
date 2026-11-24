@@ -19,6 +19,9 @@ Everything Pley does. The [README](../README.md) has the short version.
   editions, `S01E02`, `1x02`, date-based and anime episodes, extras, and
   looser episode names like `04 - Title` in a `Season 1` folder
   ([example layout](../deploy/docker/media/README.md)).
+- A show spread over a library's folders, a season on each drive, is one
+  show. Different shows whose folders have the same name are told apart by
+  the ids in their folders' names (`{tvdb-123}`) or `tvshow.nfo` files.
 - Copies of a movie matched to the same TMDB title become one movie with
   several versions, even when their file names differ. Fix Match splits
   them again.
@@ -38,6 +41,9 @@ In the web and desktop apps only, for now.
   `Author/Series/Book` layouts.
 - Titles, authors, narrators and series come from tags first, then folder
   names, then Open Library and Audnexus.
+- Administrators can edit a book's details, authors, narrators and series,
+  fix its match (an Open Library work, or an Audible recording by its
+  ASIN) and choose its cover, as for movies and shows.
 - `.m4b` chapters, resume across parts, and Continue Listening on Home.
 - Skip back 15 s and forward 30 s, 0.75× to 3× speed, and a sleep timer.
 

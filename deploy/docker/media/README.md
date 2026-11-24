@@ -52,6 +52,12 @@ TV Shows/
 
 - One folder per show, `Season NN` folders, and `S01E02` (or `1x02`) in
   each file name. Inside a season folder, `02 - Title` is enough.
+- An id after the show's name fixes its match: `{tmdb-…}`, `{tvdb-…}` or
+  `{imdb-tt…}`.
+- A show whose seasons are spread over a library's folders (a drive each)
+  is one show, its folders named alike. Two shows of the same name are
+  told apart by their years, or by the ids in their folders' names or
+  `tvshow.nfo` files.
 - Date-based shows (`Show - 2024-03-01.mkv`) and anime numbering
   (`Show - 01.mkv`) work too.
 
