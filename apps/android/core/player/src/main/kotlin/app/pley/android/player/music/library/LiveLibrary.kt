@@ -98,9 +98,10 @@ private const val PARALLEL_PAGES = 4
  * profile Live TV is open to. It lists the favourites, then the channels
  * watched lately, each under its heading, then the provider's groups;
  * each channel with its logo and what is on. Search finds channels too,
- * and a spoken name plays its channel. Groups and channels are named as
- * the phone's lists name them ([LiveNames]): "UK · Sport", and in it
- * "Sky Sports 1" rather than the provider's "UK| Sky Sports 1".
+ * and a spoken name plays its channel. Groups are named as the phone's
+ * lists name them ([LiveNames]): "UK · Sport"; a channel by its name
+ * alone ([LiveNames.channelLines]), "Sky Sports 1" rather than the
+ * provider's "UK| Sky Sports 1 ᴴᴰ", its region beside what is on.
  */
 @OptIn(markerClass = [UnstableApi::class])
 class LiveLibrary(
@@ -128,7 +129,7 @@ class LiveLibrary(
     /** [id]'s children; `null` for one that isn't Live TV's. */
     suspend fun children(id: MusicId): List<MediaItem>? = when (id) {
         MusicId.LiveTv -> tabChildren()
-        is MusicId.LiveList -> source.channels(id.category).map { channel(it, id.category) }
+        is MusicId.LiveList -> channels(source.channels(id.category), id.category)
         else -> null
     }
 
@@ -136,7 +137,7 @@ class LiveLibrary(
     suspend fun search(query: String): List<MediaItem> {
         if (!runCatching { source.shown() }.getOrDefault(false)) return emptyList()
         val heading = look().channels
-        return source.channels(LiveCategory.All, query, SEARCH_LIMIT).map { channel(it, null).grouped(heading) }
+        return channels(source.channels(LiveCategory.All, query, SEARCH_LIMIT), null).map { it.grouped(heading) }
     }
 
     /**
@@ -158,15 +159,15 @@ class LiveLibrary(
     fun listName(from: LiveCategory?): String? = from?.let(::title)
 
     /**
-     * The channel a spoken request names exactly ("play BBC One on Pley"), or `null`: by its name, else by its name
-     * without the provider's region ("BBC One" for "UK| BBC One"), which is what a list shows and a driver reads.
+     * The channel a spoken request names exactly ("play BBC One on Pley"), or `null`: by its name, else by a name it
+     * goes by ([LiveNames.namesOf]: "BBC One" for "UK| BBC One ᴴᴰ"), which is what a list shows and a driver reads.
      */
     suspend fun named(query: String): LiveChannel? {
         val q = query.trim()
         if (q.isEmpty() || !runCatching { source.shown() }.getOrDefault(false)) return null
         val found = source.channels(LiveCategory.All, q, SEARCH_LIMIT)
         return found.firstOrNull { it.name.trim().equals(q, ignoreCase = true) }
-            ?: found.firstOrNull { LiveNames.splitRegion(it.name)?.second.equals(q, ignoreCase = true) }
+            ?: found.firstOrNull { c -> LiveNames.namesOf(c).any { it.equals(q, ignoreCase = true) } }
     }
 
     /** The closest channel to [query], for a spoken request that matched no music. */
@@ -175,18 +176,25 @@ class LiveLibrary(
         return source.channels(LiveCategory.All, query.trim(), 1).firstOrNull()
     }
 
+    /** [channel] as the car shows it playing, or alone: as [channels] has it. */
+    fun channel(channel: LiveChannel, from: LiveCategory?): MediaItem = channels(listOf(channel), from).single()
+
     /**
-     * [channel] as the car shows it, playing or in a list: its name (in a group, without the region the group says),
-     * what is on, and its logo.
+     * [list]'s channels as the car shows them, picked [from] a list: each named as the rows of one screen
+     * ([LiveNames.channelLines]), with its region and what is on under it ("US · Nightline"), and its logo.
      */
-    fun channel(channel: LiveChannel, from: LiveCategory?): MediaItem {
-        val on = channel.onAt(now())?.title
-        val name = LiveNames.channelName(channel, from)
+    private fun channels(list: List<LiveChannel>, from: LiveCategory?): List<MediaItem> {
+        val at = now()
+        return list.zip(LiveNames.channelLines(list, from)) { channel, line -> row(channel, line, from, at) }
+    }
+
+    private fun row(channel: LiveChannel, line: LiveNames.ChannelLine, from: LiveCategory?, now: Long): MediaItem {
+        val under = listOfNotNull(line.region, channel.onAt(now)?.title).joinToString(" · ").ifEmpty { null }
         val metadata = MediaMetadata.Builder()
-            .setTitle(name)
-            .setDisplayTitle(name)
-            .setSubtitle(on)
-            .setArtist(on)
+            .setTitle(line.title)
+            .setDisplayTitle(line.title)
+            .setSubtitle(under)
+            .setArtist(under)
             // The server's address, whose version changes with the provider's picture: a car keeps a logo by its address.
             .setArtworkUri(channel.logo?.let { art(it) ?: art(logoPath(channel.id)) })
             .setIsBrowsable(false)
@@ -210,8 +218,11 @@ class LiveLibrary(
         } else {
             listOf(list(LiveCategory.All, l.allChannels, l.channelCount(shown.total)).grouped(l.groups))
         }
-        favored.map { channel(it, LiveCategory.Favorites).grouped(l.favorites) } +
-            lately.map { channel(it, LiveCategory.Recent).grouped(l.watchedLately) } +
+        // Named as one screen's rows: a region every channel of both has is said by none.
+        val lines = LiveNames.channelLines(favored + lately, LiveCategory.Favorites)
+        val at = now()
+        favored.mapIndexed { i, c -> row(c, lines[i], LiveCategory.Favorites, at).grouped(l.favorites) } +
+            lately.mapIndexed { i, c -> row(c, lines[favored.size + i], LiveCategory.Recent, at).grouped(l.watchedLately) } +
             lists
     }
 

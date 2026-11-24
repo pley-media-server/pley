@@ -1312,9 +1312,20 @@ under its heading, then the provider's groups (or All channels, without
 groups); a list holds 500 channels at most, as cars don't page, read
 from the server a page of 100 at a time: the first, then the others
 four at once. Groups
-and channels are named as the phone's Live TV lists them: a group of a
-region as "UK · Sport", and a channel in it without the region the
-group says ("Sky Sports 1", not "UK| Sky Sports 1"). A
+are named as the phone's Live TV lists them, a group of a region as
+"UK · Sport". A channel is named by its name alone, without the
+provider's region ("Sky Sports 1", not "UK| Sky Sports 1") or the tags
+providers write after it in superscript or small capitals ("ᴴᴰ",
+"ᶠᴴᴰ", "ᴿᴬᵂ"; a plain "HD" stays, and nothing changes case), and the
+region goes under it with what is on ("UK · Football", or "UK" with
+nothing on). The region isn't said in a group of that region, nor in a
+list whose channels all share it (the favorites and the channels
+watched lately count as one list); two channels that would then read
+the same (a provider's HD and RAW feeds) keep the names the provider
+gave them. Favorites, channels watched lately, groups, search and Now
+Playing name channels so, the rule kept in the app's shared model
+(`LiveNames.channelLines`) for the phone's and the TV's Live TV to take
+up; they show the provider's names for now. A
 channel shows its logo and what is on. Picked, it plays its sound alone,
 as radio, watched through the server as the phone's Live TV player
 watches it; Next and Previous change channel through the list it was
@@ -1322,7 +1333,8 @@ picked from, which Now Playing names over its channels (a channel found
 by search or by voice plays alone, unnamed), and Now Playing shows it
 live, with no position to seek to.
 Search finds channels by name and by what is on; "Hey Google, play …
-on Pley" plays a channel named exactly (with its region or without it),
+on Pley" plays a channel named exactly (with its region and tags or
+without them),
 else the music found, else the closest channel. The music pauses while the radio plays, and music played
 again (from the car or the phone) stops the radio. Pause lets the
 channel's connection go, as does another app's sound taking over or the

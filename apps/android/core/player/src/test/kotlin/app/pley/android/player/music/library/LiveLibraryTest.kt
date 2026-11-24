@@ -128,15 +128,43 @@ class LiveLibraryTest {
         assertEquals(listOf("News", "Sport", "UK · Sport"), lists.map { it.mediaMetadata.title.toString() })
         assertEquals("UK · Sport", live.item(MusicId.LiveList(LiveCategory.Group("UK| Sport")))?.mediaMetadata?.title.toString())
 
-        // In the group, a channel without the region the group says; one of another region keeps it.
+        // A channel by its name alone, its region under it but where the group says it.
         val sport = live.children(MusicId.LiveList(LiveCategory.Group("UK| Sport")))!!
-        assertEquals(listOf("Sky Sports 1", "FR| TF1"), sport.map { it.mediaMetadata.title.toString() })
-        // Elsewhere (search, the favorites, Now Playing), its whole name, as the phone shows it there.
-        assertEquals(listOf("UK| Sky Sports 1"), live.search("sky").map { it.mediaMetadata.title.toString() })
+        assertEquals(listOf("Sky Sports 1", "TF1"), sport.map { it.mediaMetadata.title.toString() })
+        assertEquals(listOf(null, "FR"), sport.map { it.mediaMetadata.subtitle?.toString() })
+        // Found alone (search, Now Playing), with its region and what is on.
+        val found = live.search("sky").single().mediaMetadata
+        assertEquals("Sky Sports 1", found.title.toString())
+        assertEquals("UK", found.subtitle.toString())
+        source.channels[3] = source.channels[3].copy(now = LiveProgram(4, NOW - 60, NOW + 600, "Football"))
+        assertEquals("UK · Football", live.channel(source.channels[3], null).mediaMetadata.subtitle.toString())
+        assertEquals("UK · Football", live.channel(source.channels[3], null).mediaMetadata.artist.toString())
 
         // Said as a list shows it, or as the provider names it.
         assertEquals(4L, live.named("sky sports 1")?.id)
         assertEquals(4L, live.named("UK| Sky Sports 1")?.id)
+    }
+
+    @Test
+    fun channelsAreNamedTheSameEverywhereTheirTagsLeftOut() = runTest {
+        source.channels.clear()
+        source.channels += listOf(
+            LiveChannel(1, name = "US| ABC HD ᴿᴬᵂ", group = "News", favorite = true, now = LiveProgram(1, NOW - 60, NOW + 600, "Nightline")),
+            LiveChannel(2, name = "US| FOX ᶠᴴᴰ", group = "News", favorite = true),
+            LiveChannel(3, name = "US| NBC ᴴᴰ", group = "News"),
+            LiveChannel(5, name = "US| NBC ᴿᴬᵂ", group = "News"),
+        )
+        // The favorites and the channels watched lately are one screen: a region all of them have isn't said.
+        val tab = live.children(MusicId.LiveTv)!!.filter { it.mediaId.startsWith("channel:") }
+        assertEquals(listOf("ABC HD", "FOX", "NBC"), tab.map { it.mediaMetadata.title.toString() })
+        assertEquals(listOf("Nightline", null, null), tab.map { it.mediaMetadata.subtitle?.toString() })
+        // Two that would read the same keep the provider's names; found alone, the region is said.
+        val news = live.children(MusicId.LiveList(LiveCategory.Group("News")))!!
+        assertEquals(listOf("ABC HD", "FOX", "US| NBC ᴴᴰ", "US| NBC ᴿᴬᵂ"), news.map { it.mediaMetadata.title.toString() })
+        assertEquals("US · Nightline", live.search("abc").single().mediaMetadata.subtitle.toString())
+        // Said by the name a list shows.
+        assertEquals(2L, live.named("fox")?.id)
+        assertEquals(1L, live.named("ABC HD")?.id)
     }
 
     @Test
