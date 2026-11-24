@@ -31,8 +31,9 @@ describes how they are made.
 With Android Auto:
 
 - Pley plays music on the car's screen: Recent (what you played last,
-  then what was added), Artists and Playlists tabs with album covers
-  (Pley's mark on those without one; an album or playlist opens to its
+  kept up to date as you play, then what was added), Artists and
+  Playlists tabs with album covers (Pley's mark on those without one;
+  an album or playlist opens to its
   tracks, and plays at once only with a single one; an artist's albums
   say their year and track count, and an album numbers its tracks, by
   disc when it has several), search (the closest kind of match first),
@@ -42,8 +43,8 @@ With Android Auto:
   plays the album, artist or song asked for as such ("play the album …")
   and says so when it finds nothing. Signed out, the car says to open Pley on the phone.
 - Audiobooks play in the car: a Books tab (being heard, added last, every
-  book) with how far you are in each, the books being heard first in
-  Recent, search and "Hey Google, play … on Pley". A book goes on where
+  book) with how far you are in each, kept up to date as you listen,
+  the books being heard first in Recent, search and "Hey Google, play … on Pley". A book goes on where
   you left it on any device, with back 15 seconds, forward 30 seconds
   and a Speed button. Previous and Next go through the chapters of a
   book in one file, and the car shows the chapter playing.

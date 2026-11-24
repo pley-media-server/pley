@@ -59,9 +59,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -188,6 +191,17 @@ class MusicService : MediaLibraryService() {
                         tellCars(made, signedIn = profile != null)
                     }
                 }
+            }
+            // A car showing Recent or Books reads it again a moment after what they show changes ([heardKey]), the server
+            // having heard of the play, or of where the book is, meanwhile. Changes close together are told once.
+            launch {
+                combine(playback.queueState, playback.nowPlaying.map { it?.playing == true }.distinctUntilChanged()) { queue, playing -> heardKey(queue, playing) }
+                    .filterNotNull()
+                    .distinctUntilChanged()
+                    .collectLatest {
+                        delay(HEARD_WAIT_MS)
+                        tellCarsHeard(made)
+                    }
             }
             // Music playing again (from the phone, the car's own controls) takes the session back from the radio.
             launch {
@@ -501,6 +515,16 @@ class MusicService : MediaLibraryService() {
         // once that controller connects (onPostConnect), when it comes after the car.
         made.mediaNotificationControllerInfo?.let { made.setPlaybackException(it, if (signedIn) null else signedOutError()) }
         made.notifyChildrenChanged(MusicId.Root.text, 0, null)
+    }
+
+    /** Each car connected reads Recent and Books again, if it shows them; no other controller browses them. */
+    private fun tellCarsHeard(made: MediaLibrarySession) {
+        if (session !== made) return
+        for (car in made.connectedControllers) {
+            if (car.packageName != MusicCallers.ANDROID_AUTO || !isCar(car)) continue
+            made.notifyChildrenChanged(car, MusicId.Recent.text, 0, null)
+            made.notifyChildrenChanged(car, MusicId.Books.text, 0, null)
+        }
     }
 
     private fun signedOutError(): PlaybackException {
@@ -912,6 +936,9 @@ class MusicService : MediaLibraryService() {
         /** How long a car's request for the library or a search waits for the server before it is told it is out of reach. */
         const val ANSWER_MS = 8_000L
 
+        /** How long after what plays changes cars are told to read Recent and Books again ([heardKey]). */
+        const val HEARD_WAIT_MS = 2_000L
+
         /** Why a track doesn't play, as a car says it, in the language shown; and when the next plays, [nextIn] s from now. */
         fun wordsOf(context: Context, error: MusicError, nextIn: Int? = null): String {
             val words = AppLanguage.resources(context)
@@ -926,6 +953,21 @@ class MusicService : MediaLibraryService() {
             )
         }
     }
+}
+
+/**
+ * What a car's Recent and Books show of what plays, which changes when this
+ * does: the tracks of a queue once it plays (a new album or playlist goes
+ * into Recently played; skipping within it changes nothing), a book's part
+ * and whether it plays (where the profile is in it is sent as it pauses,
+ * and it is further on at its next part). `null` while music is paused,
+ * which changes nothing, and with nothing in the queue.
+ */
+internal fun heardKey(queue: MusicQueueState, playing: Boolean): Any? = when {
+    queue.tracks.isEmpty() -> null
+    queue.isBook -> Triple(queue.current?.parentId, queue.index, playing)
+    playing -> queue.tracks.mapTo(HashSet()) { it.id }
+    else -> null
 }
 
 /**

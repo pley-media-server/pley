@@ -1116,6 +1116,10 @@ Playlists goes first in the artists' tab, which is then named Music.
   how long is left of one being heard, and a bar under its cover of how
   far the profile is in it (a book heard to its end shows as such).
 
+Recent and Books follow what plays: 2 seconds after a new album or
+playlist starts, or a book pauses or goes on to its next part, a car
+showing either reads it again.
+
 An album or playlist opens to its tracks, wherever it is listed: a car
 plays what can be played rather than open it, so only one of a single
 track plays as it is picked (one whose tracks the server hasn't counted,
