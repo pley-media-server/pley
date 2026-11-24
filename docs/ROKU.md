@@ -343,7 +343,8 @@ the episode's "S1 E2 · Pilot", as on Android TV.
 - **Progress** goes to the server every 10 s while playing, every 30 s
   paused, and at once after a seek.
 - **Playback details** (Info) are asked for again every 2 s while they show;
-  only the figures that changed are drawn again.
+  only the figures that changed are drawn again. Up and Down scroll them, as
+  on Android TV, and they stay on the line at their top as rows come and go.
 
 The controls are Pley's own, as the Android TV player's
 (`components/shared/PlayerControls`); the Video node's are off

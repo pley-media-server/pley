@@ -10,8 +10,10 @@ describes how they are made.
 
 ### Fixed
 
-- While a conversion's figures change every 2 seconds, the player's
-  Playback details draw only the figures that changed: the whole panel was
+- The player's Playback details scroll with Up and Down, as on Android TV:
+  lines below the panel's foot couldn't be reached. While a conversion's
+  figures change every 2 seconds, they stay where they are scrolled to and
+  only the figures that changed are drawn again, where the whole panel was
   laid out anew each time.
 
 ## [0.1.13] - 2026-11-24

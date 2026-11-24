@@ -2630,7 +2630,9 @@ sub openDetails()
     m.menuText.visible = false
     m.menuFacts.visible = true
     m.menuHint.text = ""
-    m.keys.setFocus(true)
+    ' Up and Down scroll the sheet, as Android TV's Info panel; the other
+    ' keys go on to the player's.
+    m.menuFacts.setFocus(true)
     onDetailsTick()
     m.detailsTimer.control = "start"
 end sub
