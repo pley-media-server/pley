@@ -5,11 +5,12 @@ name: CodeQL
 # project isn't at the root, so this workflow replaces it. Kotlin and Swift
 # are read while they compile; the other languages from their sources.
 # Findings go to Security -> Code scanning; tests are left out
-# (.github/codeql/codeql-config.yml).
+# (.github/codeql/codeql-config.yml). It reads master, as each push leaves
+# it, and every week: an analysis of every pull request cost more than the
+# rest of CI together. Swift, which a Mac builds for 20 minutes or more, is
+# read only by the weekly run and by hand.
 on:
   push:
-    branches: [master]
-  pull_request:
     branches: [master]
   schedule:
     - cron: "17 4 * * 1"
@@ -19,9 +20,9 @@ permissions:
   contents: read
 
 concurrency:
-  # A new push to a pull request replaces its running analysis; master runs them all.
+  # A newer push to master replaces the running analysis: it reads what that one would have.
   group: codeql-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 # Actions are pinned to commits.
 jobs:
@@ -58,6 +59,7 @@ jobs:
           - language: swift
             build-mode: autobuild
             runner: macos-latest
+        exclude: ${{ github.event_name == 'push' && fromJSON('[{"language":"swift"}]') || fromJSON('[]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

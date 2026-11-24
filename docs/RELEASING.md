@@ -155,18 +155,18 @@ workflow's `on.paths` has the exact list.
 
 | Workflow | Runs for changes in |
 |---|---|
-| Server | `apps/server`, `apps/transcoder`, `packages/transcoder-api`, `apps/web`, `deploy/{docker,ffmpeg,windows,systemd,launchd}` (not their Markdown), `Cargo.*`, the root `package.json`, `LICENSING.md`, `docs/TRANSCODER.md`, the build, installer, license, test watchdog, pley-ffmpeg and source scripts |
+| Server | `apps/server`, `apps/transcoder`, `packages/transcoder-api`, `apps/web`, `deploy/{docker,ffmpeg,windows,systemd,launchd}` (not their Markdown), `Cargo.*`, the root `package.json`, `docs/TRANSCODER.md`, the build, installer, license, test watchdog, pley-ffmpeg and source scripts |
 | Desktop | `apps/desktop`, the root `package.json` |
 | Android | `apps/android`, `scripts/check-android.ps1` |
 | Samsung TV | `apps/tizen`, `packages/tv`, the root `package.json` and `bun.lock`, `scripts/commit.mjs` |
 | Samsung TV (native) | `apps/tizen-native`, `packages/tv/test/fixtures`, `scripts/check-nuget-licenses.mjs`, `scripts/commit.mjs` |
-| LG TV | `apps/webos`, `deny.toml`, `rustfmt.toml`, `LICENSE`, `LICENSING.md`, the license and version scripts |
+| LG TV | `apps/webos`, `deny.toml`, `rustfmt.toml`, the license and version scripts |
 | Kodi | `apps/kodi`, and the server's Rust code: its end-to-end test runs against a server built from the same commit |
 | Roku | `apps/roku`, the root `package.json` (Bun's version) |
 | FFmpeg | `deploy/ffmpeg` on master: publishes the Docker image's FFmpeg ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) |
 | Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, `README.md`, a unit's version (the first file in its "Version in"), any source file (its size, `scripts/check-file-sizes.mjs`) |
 | Release | A unit's version on master (the first file in its "Version in") |
-| CodeQL | Every push to master and pull request, and weekly: GitHub's code scanning of each language, Kotlin and Swift read as the Android and Apple apps compile |
+| CodeQL | Every push to master, and weekly: GitHub's code scanning of each language, Kotlin and Swift read as the Android and Apple apps compile (Swift weekly only) |
 
 Repository also fails a pull request whose merge would leave a unit's
 version below the one it had at the last release tag (`release.mjs check`).
@@ -180,11 +180,18 @@ ships, where it has one: on Windows the build the installers carry, and on
 Linux the Docker image's, which runs on Debian 13 only, so the transcoder's
 tests run there in a Debian 13 container, as the image runs them; the rest
 of the tests run on the runner itself. `scripts/pley-ffmpeg.ps1` takes the
-build the branch's recipe names (master's while that isn't published yet).
+build the branch's recipe names; while that isn't published yet, master's,
+or on master the one before.
 macOS, for which there is none, has Homebrew's `ffmpeg-full`. The jobs set
 `PLEY_TEST_FFMPEG=1`, so the transcoder's tests that run FFmpeg fail rather
 than skip when it, or an encoder or filter they need, is missing
 ([DEVELOPMENT.md](DEVELOPMENT.md#building-and-testing)).
+
+Server builds the Docker image for amd64 and arm64 on master. A pull request
+builds it for arm64 too only when it changes what only the image's build
+reads (`deploy/docker`, `deploy/ffmpeg`, `.dockerignore`, `Cargo.lock`, the
+workflow): the Rust jobs build its code on arm64 already. The web app is
+built beside its checks, so that the Rust jobs start sooner.
 
 Server's Windows job runs its tests under `scripts/test-watchdog.ps1`. A
 test program that runs over 5 minutes is stuck: the watchdog prints its
