@@ -662,6 +662,11 @@ async fn audiobooks_matched_by_hand() {
     app.seed_picture(&format!("{base}/olcovers/b/id/7-L.jpg")).await;
     app.seed_picture(&format!("{base}/olcovers/b/id/11-L.jpg")).await;
     let token = app.setup_admin().await;
+    // No scan reads the book's files again behind the test's back: one after
+    // its sources are turned off would take away what they fetched.
+    let (status, _) =
+        app.call(Method::PUT, "/api/settings", Some(&token), Some(json!({"watch_libraries": false}))).await;
+    assert_eq!(status, StatusCode::OK);
     app.media_file("books/Imogen Vale/Small Hours/01.mp3");
     let lib = app.library(&token, "audiobooks", "books").await;
     let found = app.single_item(&token, lib).await;
@@ -754,8 +759,7 @@ async fn audiobooks_matched_by_hand() {
     let mut book = book;
     for _ in 0..200 {
         book = app.get(&format!("/api/items/{id}"), &token).await;
-        // The refresh runs in the background, and a scan of the folder may
-        // read the book's files again before it.
+        // The refresh runs in the background.
         if book["book"]["openlibrary_id"] == "OL3W" && book["year"] == 1987 {
             break;
         }
