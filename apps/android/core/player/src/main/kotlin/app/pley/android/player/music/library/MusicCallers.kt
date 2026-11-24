@@ -2,6 +2,7 @@ package app.pley.android.player.music.library
 
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Process
 import androidx.core.content.pm.PackageInfoCompat
 
@@ -57,9 +58,17 @@ object MusicCallers {
     /** [isCar], with the keys each app may be signed with ([KEYS]; a test's own in tests). */
     internal fun isCar(packageManager: PackageManager, own: String, name: String, uid: Int, keys: Map<String, List<String>>): Boolean {
         if (name == own) return false
+        if (unknown(uid)) return allowed(packageManager, name, keys)
         val owner = runCatching { packageManager.getPackageUid(name, 0) }.getOrNull() ?: return false
         return appId(owner) == appId(uid) && allowed(packageManager, name, keys)
     }
+
+    /**
+     * Whether [uid] is none: below Android 9, a controller of the platform session (Android Auto's play, pause and
+     * skips, the Assistant's requests, a media key) reaches Media3 with no uid, under the name the system gives as the
+     * caller's, which an app can't choose. Its name is all there is to check.
+     */
+    fun unknown(uid: Int): Boolean = uid < 0 && Build.VERSION.SDK_INT < Build.VERSION_CODES.P
 
     /**
      * Whether the caller named [name], asking from [uid], is the system's own (its media controls, Bluetooth, the lock
@@ -69,7 +78,7 @@ object MusicCallers {
     fun isSystem(packageManager: PackageManager, name: String, uid: Int): Boolean {
         if (uid >= 0 && appId(uid) < Process.FIRST_APPLICATION_UID) return true
         val info = runCatching { packageManager.getApplicationInfo(name, 0) }.getOrNull() ?: return false
-        return appId(info.uid) == appId(uid) && systemFlags(info)
+        return (unknown(uid) || appId(info.uid) == appId(uid)) && systemFlags(info)
     }
 
     /** Whether [name] is installed as part of the system: no other app can take a system app's name. */

@@ -56,6 +56,27 @@ class MusicCallersTest {
     }
 
     @Test
+    @Config(sdk = [27])
+    fun belowAndroid9ThePlatformSessionsCallersComeWithNoUidAndAreCheckedByTheirName() {
+        // Android Auto's play, pause and skips reach Media3 through the platform session, with uid -1.
+        assertTrue(MusicCallers.isCar(packages, OWN, MusicCallers.ANDROID_AUTO, -1, keys))
+        assertFalse(MusicCallers.isCar(packages, OWN, OTHER, -1, keys))
+        install(MusicCallers.ANDROID_AUTO, AUTO_UID, Signature(byteArrayOf(5, 6)))
+        assertFalse(MusicCallers.isCar(packages, OWN, MusicCallers.ANDROID_AUTO, -1, keys))
+        // The system's controls under a system app's name; an app's name is not the system's.
+        assertTrue(MusicCallers.isSystem(packages, SYSTEM_UI, -1))
+        assertFalse(MusicCallers.isSystem(packages, NOTIFICATIONS, -1))
+        assertTrue(MusicCallers.unknown(-1))
+    }
+
+    @Test
+    fun fromAndroid9EveryCallerHasAUid() {
+        assertFalse(MusicCallers.unknown(-1))
+        assertFalse(MusicCallers.isSystem(packages, SYSTEM_UI, -1))
+        assertFalse(MusicCallers.isCar(packages, OWN, OTHER, -1, keys))
+    }
+
+    @Test
     fun anotherAppOrNoneIsNoCar() {
         assertFalse(MusicCallers.isCar(packages, OWN, OTHER, OTHER_UID, keys))
         assertFalse(MusicCallers.isCar(packages, OWN, "com.example.missing", OTHER_UID, keys))

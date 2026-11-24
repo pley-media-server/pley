@@ -394,7 +394,7 @@ class MusicService : MediaLibraryService() {
      * name and a hint the controller sends, which an app holding the session's token can send too.
      */
     private fun allowed(controller: MediaSession.ControllerInfo): Boolean =
-        (controller.packageName == packageName && controller.uid == Process.myUid()) ||
+        (controller.packageName == packageName && (controller.uid == Process.myUid() || MusicCallers.unknown(controller.uid))) ||
             (controller.isTrusted && MusicCallers.isSystem(packageManager, controller.packageName, controller.uid)) ||
             isCar(controller)
 
