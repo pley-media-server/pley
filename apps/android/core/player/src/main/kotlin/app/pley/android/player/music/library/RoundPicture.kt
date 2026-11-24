@@ -16,7 +16,9 @@ import java.io.ByteArrayOutputStream
  * corners transparent, as the phone and the web show artists, so a list
  * of artists reads apart from the square covers of albums. Drawn by
  * [MusicArtProvider] from the server's picture, or the artist's
- * placeholder when there is none ([MusicArt.artistUri]).
+ * placeholder when there is none, under addresses whose letters name this
+ * drawing ([MusicArt.artistUri]): they change whenever it is drawn
+ * otherwise, as Android Auto keeps each picture by its address.
  */
 internal object RoundPicture {
     /** [picture] (the server's PNG, JPEG or WebP), its middle square cut to a circle, a PNG [SIZE] px across; `null` for one that can't be read. */
@@ -66,12 +68,6 @@ internal object RoundPicture {
 
     /** As large as a car draws a row's picture, and then some. */
     const val SIZE = 256
-
-    /**
-     * Which drawing this is, named in every round address ([MusicArt.artistUri]): one higher whenever how it is
-     * drawn changes, as Android Auto keeps each picture by its address.
-     */
-    const val DRAWING = 1
 
     private const val KEPT = 24
 }

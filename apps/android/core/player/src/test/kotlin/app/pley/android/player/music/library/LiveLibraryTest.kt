@@ -118,6 +118,21 @@ class LiveLibraryTest {
     }
 
     @Test
+    fun everyListShowsItsRowsAsPinnedHere() = runTest {
+        val tab = live.tab()!!
+        val rows = live.children(MusicId.LiveTv)!!
+        val shown = linkedMapOf<String, String>()
+        for (row in rows) shown["live > ${row.mediaId.substringBefore(':')}"] = styleName(shownAs(tab, row))
+        val group = rows.first { it.mediaId.startsWith("live:") }
+        for (row in live.children(MusicId.parse(group.mediaId)!!)!!) shown["group > ${row.mediaId.substringBefore(':')}"] = styleName(shownAs(group, row))
+        for (row in live.search("news")) shown["search > ${row.mediaId.substringBefore(':')}"] = styleName(shownAs(null, row))
+        assertEquals(
+            mapOf("live > channel" to "list", "live > live" to "category list", "group > channel" to "list", "search > channel" to "list"),
+            shown,
+        )
+    }
+
+    @Test
     fun aChannelPlaysAmongTheListItWasPickedFrom() = runTest {
         assertEquals(listOf(1L, 2L) to 1, live.lineup(MusicId.Channel(2, LiveCategory.Group("News")))?.let { (l, at) -> l.map { it.id } to at })
         // Picked from a search, or gone from its list: alone.

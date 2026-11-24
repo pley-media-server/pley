@@ -86,16 +86,18 @@ class CarListSizeTest {
     }
 
     @Test
-    fun halfAsManyArtistsAgainAreSent() = runTest {
-        // Each with a picture of their own on the server, the longest address. 500 don't fit: what Media3 takes, the
-        // picture's address and the hint that an artist's albums are a grid leave a row some 660 bytes before its name.
+    fun nearlyTwiceAsManyArtistsAreSent() = runTest {
+        // Each with a picture of their own on the server, the longest address. 500 don't fit: what Media3 takes and the
+        // picture's address leave a row some 560 bytes before its name. Their albums are a grid by the root's default,
+        // not by a hint sent with each row.
         val pictured = library.children(MusicId.Artists, 0, ROWS)
         val kept = sent("artists with pictures", pictured)
-        assertTrue("$kept artists", kept >= 360)
+        assertTrue("$kept artists", kept >= 430)
         val before = keptForCar(pictured.map { it.asBefore() })
-        assertTrue("$before before", 2 * kept >= 3 * before)
+        println("artists before: $before sent")
+        assertTrue("$before before", 5 * kept >= 9 * before)
         source.pictured = false
-        assertTrue(sent("artists without", library.children(MusicId.Artists, 0, ROWS)) >= 360)
+        assertTrue(sent("artists without", library.children(MusicId.Artists, 0, ROWS)) >= 440)
     }
 
     private fun library(live: LiveLibrary) = MusicLibrary(source, { Look }, { _, _ -> null }, live)
@@ -112,12 +114,16 @@ class CarListSizeTest {
         return kept
     }
 
-    /** [this] row as it was sent before: whole, with the hint for its playable children that the root gives, and its address as a query. */
+    /**
+     * [this] row as it was sent before: whole, with the hints for its children (the root's for what plays, and a
+     * grid for what opens), and its address as a query.
+     */
     private fun MediaItem.asBefore(): MediaItem {
         val extras = Bundle(mediaMetadata.extras ?: Bundle()).apply {
             putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
+            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
         }
-        val path = mediaMetadata.artworkUri?.let { MusicArt.pathOf(context, it) }
+        val path = mediaMetadata.artworkUri?.let { MusicArt.pathOf(context, it) ?: MusicArt.roundOf(context, it)?.first }
         val art = path?.let { Uri.parse("content://${MusicArt.authority(context)}/picture").buildUpon().appendQueryParameter("p", it).appendQueryParameter("h", "123").build() }
         return buildUpon().setMediaMetadata(mediaMetadata.buildUpon().setExtras(extras).setArtworkUri(art ?: mediaMetadata.artworkUri).build()).build()
     }

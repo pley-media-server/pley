@@ -681,10 +681,10 @@ class MusicService : MediaLibraryService() {
         override fun onGetLibraryRoot(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, params: LibraryParams?): ListenableFuture<LibraryResult<MediaItem>> {
             if (!answers(browser)) return refused()
             val library = graph?.library ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED))
-            // Lists by default; the grids of albums and playlists say so themselves.
+            // Grids of what opens and lists of what plays, by default; the few nodes that differ say so themselves.
             val extras = Bundle().apply {
-                putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
-                putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
+                putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, MusicLibrary.ROOT_BROWSABLE)
+                putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, MusicLibrary.ROOT_PLAYABLE)
             }
             return Futures.immediateFuture(LibraryResult.ofItem(library.root(), LibraryParams.Builder().setExtras(extras).build()))
         }

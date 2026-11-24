@@ -1142,12 +1142,18 @@ A list goes to Android Auto in one parcel, which Media3 cuts where it
 passes 256 KiB, and the rows after the cut aren't shown. So each row is
 sent with only what the car reads (its id, two lines, picture, flags
 and Android's hints, not Media3's media type or a second copy of its
-title), a hint the root already gives (a list) isn't repeated, and a
-picture's address is a few short segments (`i/12/poster/1700000000`
-for `/api/items/12/images/poster?v=1700000000`). 500 album tracks of
+title), and a picture's address is a few short segments
+(`i/12/poster/1700000000` for `/api/items/12/images/poster?v=1700000000`).
+The root gives the hints most lists take, a grid for what opens (albums,
+playlists) and a list for what plays (tracks, channels), and only the
+few lists that differ say so themselves: the Artists tab and each
+library's artists (lists), Live TV's tab (its groups as category rows),
+Recent, Playlists and Books (what plays in them as tiles too), and
+search's artists and albums, each row a list of its own hint; a hint on
+each of hundreds of rows is sent with every list. 500 album tracks of
 long titles fit, and 500 channels of names and programs as long as
-most; 500 artists don't, each row's picture and the hint that their
-albums are a grid leaving room for some 360 to 380.
+most; 500 artists don't, each row's picture leaving room for some 430
+to 450.
 
 Android Auto keeps each picture it has read by its address, so every
 address changes with what it shows: the server's pictures and channel
@@ -1156,9 +1162,10 @@ album added is a newer cover), and a placeholder the version of its
 drawing, one higher whenever it is drawn otherwise. A channel's logo on
 its plate has an address of its own (`p/12/0a1b2c3d`, as short as the
 logo's, as a list of 500 channels is near the cut), whose letter
-changes whenever the plate is drawn otherwise; an artist's picture in
-its circle, the circle's drawing and then the picture's own address
-(`r/1/i/40/poster/1700000000`, `r/1/a/40/3`). A placeholder's
+changes whenever the plate is drawn otherwise, and so does an artist's
+picture in its circle (`o/40/poster/1700000000` for their own,
+`n/40/3` for their newest album's cover, where the square ones were
+`i/…` and `a/…`). A placeholder's
 address of another drawing isn't drawn.
 
 An album or playlist opens to its tracks, wherever it is listed: a car

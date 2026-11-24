@@ -70,7 +70,68 @@ class MusicLibraryTest {
         assertEquals(listOf("recent", "artists", "playlists"), tabs.map { it.mediaId })
         assertEquals(listOf("Recent", "Artists", "Playlists"), tabs.map { it.mediaMetadata.title.toString() })
         assertTrue(tabs.all { it.mediaMetadata.isBrowsable == true && it.mediaMetadata.isPlayable == false && it.mediaMetadata.artworkUri != null })
-        assertEquals(GRID, tabs[0].browsableStyle)
+        // What opens is a grid by the root's default: only the artists' tab says it lists them.
+        assertNull(tabs[0].browsableStyle)
+        assertEquals(MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM, tabs[1].browsableStyle)
+    }
+
+    @Test
+    fun everyListShowsItsRowsAsPinnedHere() = runTest {
+        // Something of every kind: books, an album and a playlist of one track (they play rather than open).
+        source.bookLibraries = listOf(BOOKS)
+        source.recent[3] = listOf(album(50, "Deep Water"), album(60, "One Song").copy(leafCount = 1))
+        source.albums = source.albums + album(61, "A Single", year = 2024).copy(leafCount = 1)
+        source.audioPlaylists = listOf(PlaylistSummary(7, "Night drive", PlaylistKind.Audio, itemCount = 2), PlaylistSummary(9, "One", PlaylistKind.Audio, itemCount = 1))
+        source.found = listOf(ARTIST, album(50, "Deep Water"), track(51, 50), LONG_BOOK)
+
+        val shown = linkedMapOf<String, String>()
+        fun kind(row: MediaItem): String {
+            val kind = row.mediaId.substringBefore(':')
+            return if (kind in setOf("album", "playlist") && row.mediaMetadata.isPlayable == true) "single $kind" else kind
+        }
+        fun note(where: String, parent: MediaItem?, rows: List<MediaItem>) {
+            for (row in rows) shown["$where > ${kind(row)}"] = styleName(shownAs(parent, row))
+        }
+        val tabs = library.children(MusicId.Root, 0, 10).associateBy { it.mediaId }
+        note("recent", tabs["recent"], library.children(MusicId.Recent, 0, 50))
+        val artists = library.children(MusicId.Artists, 0, 50)
+        note("artists", tabs["artists"], artists)
+        val artist = artists.first { it.mediaId == "artist:40" }
+        note("artist", artist, library.children(MusicId.Artist(40), 0, 50))
+        note("album", library.children(MusicId.Artist(40), 0, 50).first { it.mediaId == "album:50" }, library.children(MusicId.Album(50), 0, 50))
+        val playlists = library.children(MusicId.Playlists, 0, 50)
+        note("playlists", tabs["playlists"], playlists)
+        note("playlist", playlists.first(), library.children(MusicId.Playlist(7), 0, 50))
+        note("books", tabs["books"], library.children(MusicId.Books, 0, 50))
+        note("search", null, library.search("harbour"))
+        source.libraries += Library(4, "Live recordings", LibraryKind.Music)
+        val libraries = library.children(MusicId.Artists, 0, 50)
+        note("libraries", library.children(MusicId.Root, 0, 10).first { it.mediaId == "artists" }, libraries)
+        note("library", libraries.first(), library.children(MusicId.LibraryArtists(3), 0, 50))
+
+        assertEquals(
+            mapOf(
+                "recent > album" to "grid",
+                "recent > single album" to "grid",
+                "recent > book" to "grid",
+                "artists > artist" to "list",
+                "artist > shuffle" to "list",
+                "artist > album" to "grid",
+                "artist > single album" to "list",
+                "album > track" to "list",
+                "playlists > playlist" to "grid",
+                "playlists > single playlist" to "grid",
+                "playlist > track" to "list",
+                "books > book" to "grid",
+                "search > artist" to "list",
+                "search > album" to "list",
+                "search > track" to "list",
+                "search > book" to "list",
+                "libraries > artists" to "list",
+                "library > artist" to "list",
+            ),
+            shown,
+        )
     }
 
     @Test
@@ -516,22 +577,27 @@ class MusicLibraryTest {
         assertNull(MusicArt.hueOf(context, uri))
         val authority = MusicArt.authority(context)
         val hue = PlaceholderCover.hue("Harbour Lights")
-        // A circle, of its drawing: Android Auto kept the square pictures by addresses without it.
-        assertEquals("content://$authority/r/${RoundPicture.DRAWING}/a/40/3?h=$hue", uri.toString())
-        for (text in listOf("a/0", "a/-1", "a/4x", "a/+4", "a/99999999999999999999", "a/40/extra", "a/40/3/1", "a", "a/%2E%2E", "artist/40")) {
-            assertNull(text, MusicArt.artistOf(context, Uri.parse("content://$authority/$text")))
-            assertNull(text, MusicArt.roundOf(context, Uri.parse("content://$authority/r/1/$text")))
+        // A circle, by the letter of its drawing: Android Auto kept the square pictures by their addresses ("a/40/3").
+        assertEquals("content://$authority/n/40/3?h=$hue", uri.toString())
+        assertNull(MusicArt.artistOf(context, uri))
+        assertEquals(40L, MusicArt.artistOf(context, Uri.parse("content://$authority/a/40/3")))
+        for (text in listOf("0", "-1", "4x", "+4", "99999999999999999999", "40/extra", "40/3/1", "", "%2E%2E")) {
+            assertNull(text, MusicArt.artistOf(context, Uri.parse("content://$authority/a/$text")))
+            assertNull(text, MusicArt.roundOf(context, Uri.parse("content://$authority/n/$text")))
         }
+        assertNull(MusicArt.roundOf(context, Uri.parse("content://$authority/artist/40")))
         assertNull(MusicArt.artistOf(context, Uri.parse("content://elsewhere/a/40")))
-        assertNull(MusicArt.roundOf(context, Uri.parse("content://elsewhere/r/1/a/40")))
+        assertNull(MusicArt.roundOf(context, Uri.parse("content://elsewhere/n/40")))
 
         // Their own picture, by the server's short form, read back as strictly; one of an unusual form is passed over.
         val own = MusicArt.artistUri(context, 40, 3, "Harbour Lights", "/api/items/40/images/poster?v=17")
-        assertEquals("content://$authority/r/1/i/40/poster/17?h=$hue", own.toString())
+        assertEquals("content://$authority/o/40/poster/17?h=$hue", own.toString())
         assertEquals("/api/items/40/images/poster?v=17" to null, MusicArt.roundOf(context, own))
+        assertNull(MusicArt.pathOf(context, own))
         assertEquals(uri, MusicArt.artistUri(context, 40, 3, "Harbour Lights", "/api/items/40/images/poster?v=1&w=2"))
+        assertEquals(uri, MusicArt.artistUri(context, 40, 3, "Harbour Lights", "/api/collections/40/images/poster?v=1"))
         assertEquals(uri, MusicArt.artistUri(context, 40, 3, "Harbour Lights", "/api/auth/me"))
-        for (text in listOf("r/1", "r/1/i/40", "r/1/i/4x/poster", "r/1/i/40/Poster", "r/1/l/12", "r/1/picture?p=/api/items/1/images/poster", "r/1/h/2/12", "r/2/a/40", "r/x/a/40", "r/1/r/1/a/40")) {
+        for (text in listOf("o", "o/40", "o/4x/poster", "o/40/Poster", "o/40/poster/1/2", "o/40/poster/v1", "o/i/40/poster", "o/12/0a1b", "n/n/40", "r/1/a/40")) {
             assertNull(text, MusicArt.roundOf(context, Uri.parse("content://$authority/$text")))
         }
     }
@@ -710,7 +776,7 @@ class MusicLibraryTest {
         val artistPages = mutableListOf<Triple<Long, Int, Int>>()
         val played = mutableMapOf<Long, List<ItemSummary>>()
         var artist = ItemSummary(40, 3, ItemKind.Artist, "Harbour Lights", posterUrl = "/api/items/40/images/poster", childCount = 2)
-        private val albums = listOf(album(50, "Deep Water", year = 2019).copy(leafCount = 2), album(55, "Second Tide", year = 2023))
+        var albums = listOf(album(50, "Deep Water", year = 2019).copy(leafCount = 2), album(55, "Second Tide", year = 2023))
 
         // Album 57, of no artist's here, is on two discs; a track of it without a disc is on the first.
         private val tracks = mapOf(

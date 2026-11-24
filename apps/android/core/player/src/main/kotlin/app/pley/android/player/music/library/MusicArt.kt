@@ -99,21 +99,23 @@ object MusicArt {
 
     /**
      * The picture of artist [artistId], cut to a circle ([RoundPicture]):
-     * their own on the server at [picture] ("r/1/i/40/poster/1700000000"),
-     * else the cover of their newest album, looked for only when the car
-     * asks for it ([MusicLibrary.artistPicture]), so a list of hundreds of
-     * artists asks the server for nothing until its rows are shown
-     * ("r/1/a/40/3"). Else the placeholder of [seed], the artist's name,
-     * whose hue alone is in the address. Their count of [albums] goes in it
-     * too, and the circle's drawing: a car keeps a cover by its address,
-     * an album added is a newer cover, and the square pictures it kept
-     * before had addresses without the circle's.
+     * their own on the server at [picture] ("o/40/poster/1700000000", as
+     * "i/…" names it square), else the cover of their newest album, looked
+     * for only when the car asks for it ([MusicLibrary.artistPicture]), so a
+     * list of hundreds of artists asks the server for nothing until its rows
+     * are shown ("n/40/3", as "a/…" named it square). Else the placeholder of
+     * [seed], the artist's name, whose hue alone is in the address. Their
+     * count of [albums] goes in it too: a car keeps a cover by its address,
+     * and an album added is a newer cover. The letters name the circle's
+     * drawing, and change whenever it is drawn otherwise: in letters, not a
+     * number, as each artist's row is sent with it, and 500 artists don't
+     * fit a car's list.
      */
     fun artistUri(context: Context, artistId: Long, albums: Int?, seed: String, picture: String? = null): Uri {
-        // Their own picture in one of the server's usual forms; one in another is passed over for their albums' covers.
-        val own = picture?.takeIf(::servable)?.let(::shortOf)?.takeIf { it.startsWith("$ITEM/") || it.startsWith("$COLLECTION/") }
-        val shown = own ?: listOfNotNull(ARTIST, artistId, albums?.takeIf { it >= 0 }).joinToString("/")
-        return address(context, "$ROUND/${RoundPicture.DRAWING}/$shown?$HUE=${PlaceholderCover.hue(seed)}")
+        // Their own picture in the server's usual form; one in another is passed over for their albums' covers.
+        val own = picture?.takeIf(::servable)?.let(::shortOf)?.takeIf { it.startsWith("$ITEM/") }?.let { ROUND_OWN + it.removePrefix(ITEM) }
+        val shown = own ?: listOfNotNull(ROUND_NEWEST, artistId, albums?.takeIf { it >= 0 }).joinToString("/")
+        return address(context, "$shown?$HUE=${PlaceholderCover.hue(seed)}")
     }
 
     /** The artist an address of their newest album's cover names, a positive id of digits alone; `null` for any other address. */
@@ -126,15 +128,15 @@ object MusicArt {
 
     /**
      * What a round [artistUri] shows: the server's picture's path, or the artist whose newest album's cover it is,
-     * each read as strictly as alone; `null` for any other address, and for one of another drawing than
-     * [RoundPicture.DRAWING], which isn't drawn.
+     * each read as strictly as its square address; `null` for any other address.
      */
     internal fun roundOf(context: Context, uri: Uri): Pair<String?, Long?>? {
-        val segments = segmentsOf(context, uri) ?: return null
-        if (segments.size < 3 || segments[0] != ROUND || segments[1] != RoundPicture.DRAWING.toString()) return null
-        val shown = segments.drop(2)
-        itemPathIn(shown)?.let { return it to null }
-        return artistIn(shown)?.let { null to it }
+        val segments = segmentsOf(context, uri)?.takeIf { it.isNotEmpty() } ?: return null
+        return when (segments[0]) {
+            ROUND_OWN -> itemPathIn(listOf(ITEM) + segments.drop(1))?.let { it to null }
+            ROUND_NEWEST -> artistIn(listOf(ARTIST) + segments.drop(1))?.let { null to it }
+            else -> null
+        }
     }
 
     /** The hue of the placeholder an address carries for when its picture can't be had; `null` without one. */
@@ -200,8 +202,9 @@ object MusicArt {
     private const val ARTIST = "a"
     private const val PLACEHOLDER = "h"
 
-    /** A picture cut to a circle: the letter, the circle's drawing, then the picture's own address. */
-    private const val ROUND = "r"
+    /** An artist's own picture, and their newest album's cover, cut to a circle ([RoundPicture]): letters of this drawing. */
+    private const val ROUND_OWN = "o"
+    private const val ROUND_NEWEST = "n"
 
     /** A channel's logo on a plate: another letter, not a number, whenever the plate is drawn otherwise. */
     private const val PLATE = "p"

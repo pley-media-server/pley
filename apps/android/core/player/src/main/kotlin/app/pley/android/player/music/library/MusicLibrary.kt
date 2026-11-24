@@ -190,7 +190,7 @@ class MusicLibrary(
                     val artists = if (left > 0) source.artists(libraries[0].id, (start - first.size).coerceAtLeast(0), left) else emptyList()
                     return head + artists.map(::artist)
                 }
-                first + libraries.map { node(MusicId.LibraryArtists(it.id), it.name, browsable = true, playable = false) }
+                first + libraries.map { node(MusicId.LibraryArtists(it.id), it.name, browsable = true, playable = false, browsableStyle = LIST) }
             }
             MusicId.Books -> books()
             is MusicId.LibraryArtists -> return source.artists(id.libraryId, page * size, size).map(::artist)
@@ -233,8 +233,10 @@ class MusicLibrary(
         val found = source.search(query)
         val l = look()
         val groups = listOf<Pair<ItemKind, (ItemSummary) -> MediaItem>>(
-            ItemKind.Artist to { artist(it).grouped(l.artists) },
-            ItemKind.Album to { album(it).grouped(l.albums) },
+            // Rows, as the rest of the results: what opens would be a tile by the root's default, and a car may read
+            // search's results by it.
+            ItemKind.Artist to { artist(it).styled(LIST).grouped(l.artists) },
+            ItemKind.Album to { album(it).styled(LIST).grouped(l.albums) },
             ItemKind.Track to { track(it, from = null).grouped(l.songs) },
             ItemKind.Audiobook to { book(it, null).grouped(l.books) },
         )
@@ -444,8 +446,8 @@ class MusicLibrary(
         // Without music, Recent has only the books being heard.
         val heard = !hasMusic && bookLibraries.isNotEmpty() && shelves(bookLibraries).any { it.second.listening.isNotEmpty() }
         val all = listOfNotNull(
-            if (hasMusic || heard) node(MusicId.Recent, l.recent, browsable = true, playable = false, icon = l.recentIcon, browsableStyle = GRID, playableStyle = GRID) else null,
-            if (hasMusic) node(MusicId.Artists, l.artists, browsable = true, playable = false, icon = l.artistsIcon) else null,
+            if (hasMusic || heard) node(MusicId.Recent, l.recent, browsable = true, playable = false, icon = l.recentIcon, playableStyle = GRID) else null,
+            if (hasMusic) node(MusicId.Artists, l.artists, browsable = true, playable = false, icon = l.artistsIcon, browsableStyle = LIST) else null,
             if (hasPlaylists) playlistsNode(l) else null,
             if (bookLibraries.isNotEmpty()) booksNode(l) else null,
             liveTab.await(),
@@ -466,10 +468,10 @@ class MusicLibrary(
     // Grids for what plays as it is picked too (a book, an album or playlist of one track): a row of the root's list
     // in a grid of covers broke it in two.
     private fun playlistsNode(l: MusicLibraryLook): MediaItem =
-        node(MusicId.Playlists, l.playlists, browsable = true, playable = false, icon = l.playlistsIcon, browsableStyle = GRID, playableStyle = GRID)
+        node(MusicId.Playlists, l.playlists, browsable = true, playable = false, icon = l.playlistsIcon, playableStyle = GRID)
 
     private fun booksNode(l: MusicLibraryLook): MediaItem =
-        node(MusicId.Books, l.books, browsable = true, playable = false, icon = l.booksIcon, browsableStyle = GRID, playableStyle = GRID)
+        node(MusicId.Books, l.books, browsable = true, playable = false, icon = l.booksIcon, playableStyle = GRID)
 
     /**
      * The books' tab: those being heard (the one heard last first), those
@@ -592,7 +594,6 @@ class MusicLibrary(
         artPath = item.posterUrl,
         seed = item.title,
         picture = artistArt(item),
-        browsableStyle = GRID,
         mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
     )
 
@@ -757,6 +758,12 @@ class MusicLibrary(
     /** The picture at [path], else [seed]'s placeholder: also when the picture named can't be had. */
     private fun cover(path: String?, seed: String): Uri? = path?.let { art(it, seed) } ?: placeholder(seed)
 
+    /** The item shown as [style] wherever it is listed, whatever its list's hint. */
+    private fun MediaItem.styled(style: Int): MediaItem {
+        val extras = Bundle(mediaMetadata.extras ?: Bundle()).apply { putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_SINGLE_ITEM, style) }
+        return buildUpon().setMediaMetadata(mediaMetadata.buildUpon().setExtras(extras).build()).build()
+    }
+
     /** The item under [group]'s heading in its list (none: under the one before). */
     private fun MediaItem.grouped(group: String?): MediaItem {
         if (group == null) return this
@@ -765,8 +772,17 @@ class MusicLibrary(
     }
 
     companion object {
-        // Lists are the root's default (MusicService), so only a grid is said: each row's hint is sent with every list.
         private const val GRID = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
+        private const val LIST = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
+
+        /**
+         * How the children of a node that says nothing show (MusicService gives them as the root's): what opens as a
+         * grid, as albums and playlists are most of the library's, and what plays as a list, as tracks and channels
+         * are. Only a node whose children differ says so, a few: a hint on each of hundreds of rows (an artist's,
+         * that their albums are a grid) is sent with every list, and took some 100 bytes of each artist's row.
+         */
+        const val ROOT_BROWSABLE = GRID
+        const val ROOT_PLAYABLE = LIST
 
         /** The most children a page holds, whatever the car asks for. */
         const val MAX_PAGE = 500
