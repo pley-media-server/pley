@@ -159,9 +159,10 @@ jobs:
         with:
           name: web-dist
           path: apps/web/dist
-      # jellyfin-ffmpeg's portable FFmpeg 8 on Linux (Ubuntu's 6.1 is older
-      # than the 7.1 Pley needs), Homebrew's ffmpeg-full on macOS (its ffmpeg
-      # has no libass), gyan.dev's build through Chocolatey on Windows.
+      # jellyfin-ffmpeg's portable FFmpeg 8 on Linux, one version on both
+      # runners (Ubuntu's is 8.0 on one, 6.1 on the other, older than the
+      # 7.1 Pley needs), Homebrew's ffmpeg-full on macOS (its ffmpeg has no
+      # libass), gyan.dev's build through Chocolatey on Windows.
       - name: FFmpeg (Linux)
         if: runner.os == 'Linux'
         env:
