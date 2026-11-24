@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A TheTVDB or IMDb id in a show folder's name (`{tvdb-…}`, `{imdb-tt…}`)
+  finds the show, as a TMDB id (`{tmdb-…}`) does.
+
 ### Changed
 
 - Pley's license gains a permission for app stores: Pley may be

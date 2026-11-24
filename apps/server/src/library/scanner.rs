@@ -964,6 +964,7 @@ struct NewItem {
     genres: Option<String>,
     tmdb_id: Option<i64>,
     imdb_id: Option<String>,
+    tvdb_id: Option<i64>,
 }
 
 impl NewItem {
@@ -985,6 +986,7 @@ impl NewItem {
             genres: None,
             tmdb_id: None,
             imdb_id: None,
+            tvdb_id: None,
         }
     }
 }
@@ -1128,6 +1130,8 @@ impl<'a> Writer<'a> {
         let mut show = NewItem::new("show", show_key, name.show.clone());
         show.year = name.show_year;
         show.tmdb_id = name.show_tmdb_id;
+        show.tvdb_id = name.show_tvdb_id;
+        show.imdb_id = name.show_imdb_id.clone();
         show.path = name.show_dir.as_deref().map(path_str);
         let show_id = self.container(conn, show).await?;
 
@@ -1378,8 +1382,8 @@ async fn upsert_item(conn: &mut SqliteConnection, library_id: i64, item: &NewIte
     // item; music tags keep them (MusicBrainz only fills in what they lack).
     sqlx::query_scalar(
         "INSERT INTO items (id, library_id, parent_id, grandparent_id, kind, key, title, sort_title, original_title, year, idx,
-                            disc, duration_ms, path, release_date, genres, tmdb_id, imdb_id, added_at, updated_at)
-         VALUES ((SELECT last + 1 FROM item_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            disc, duration_ms, path, release_date, genres, tmdb_id, imdb_id, tvdb_id, added_at, updated_at)
+         VALUES ((SELECT last + 1 FROM item_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(library_id, key) DO UPDATE SET
             parent_id = excluded.parent_id,
             grandparent_id = excluded.grandparent_id,
@@ -1396,6 +1400,7 @@ async fn upsert_item(conn: &mut SqliteConnection, library_id: i64, item: &NewIte
             genres = COALESCE(excluded.genres, items.genres),
             tmdb_id = COALESCE(items.tmdb_id, excluded.tmdb_id),
             imdb_id = COALESCE(items.imdb_id, excluded.imdb_id),
+            tvdb_id = COALESCE(items.tvdb_id, excluded.tvdb_id),
             updated_at = excluded.updated_at
          RETURNING id",
     )
@@ -1416,6 +1421,7 @@ async fn upsert_item(conn: &mut SqliteConnection, library_id: i64, item: &NewIte
     .bind(&item.genres)
     .bind(item.tmdb_id)
     .bind(&item.imdb_id)
+    .bind(item.tvdb_id)
     .bind(now)
     .bind(now)
     .fetch_one(conn)
@@ -2282,7 +2288,12 @@ fn named(row: &NfoRow, files: &[String], roots: &[PathBuf]) -> Option<Named> {
         }
         "show" => {
             let name = parse_episode(file, root);
-            let ids = ItemIds { tmdb_id: name.show_tmdb_id, ..Default::default() };
+            let ids = ItemIds {
+                tmdb_id: name.show_tmdb_id,
+                imdb_id: name.show_imdb_id,
+                tvdb_id: name.show_tvdb_id,
+                tvmaze_id: None,
+            };
             Named { title: name.show, year: name.show_year.map(i64::from), release_date: None, ids }
         }
         "episode" => {
