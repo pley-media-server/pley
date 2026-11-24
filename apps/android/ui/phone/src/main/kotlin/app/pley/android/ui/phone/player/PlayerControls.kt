@@ -194,7 +194,7 @@ internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifie
         val (stepTarget, stepGlyph) = if (compact) CompactStepTarget to CompactStepGlyph else StepTarget to StepGlyph
         if (car) {
             GlyphButton(stringResource(R.string.player_skip_back, step), stepTarget, onClick = { state.seekBy(-PlayerScreenState.SEEK_STEP_MS) }) {
-                Icon(PleyIcons.RotateCcw, contentDescription = null, size = stepGlyph)
+                StepGlyph(PleyIcons.RotateCcw, step, stepGlyph)
             }
         }
         GlyphButton(stringResource(if (playing) R.string.player_pause else R.string.player_play), if (compact) CompactPlayTarget else PlayTarget, onClick = state::togglePlay) {
@@ -202,9 +202,18 @@ internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifie
         }
         if (car) {
             GlyphButton(stringResource(R.string.player_skip_forward, step), stepTarget, onClick = { state.seekBy(PlayerScreenState.SEEK_STEP_MS) }) {
-                Icon(PleyIcons.RotateCw, contentDescription = null, size = stepGlyph)
+                StepGlyph(PleyIcons.RotateCw, step, stepGlyph)
             }
         }
+    }
+}
+
+/** A 10 s button's arrow with its seconds inside it, as a book's back and forward show theirs. */
+@Composable
+private fun StepGlyph(icon: PleyIcon, seconds: Int, size: Dp) {
+    Box(contentAlignment = Alignment.Center) {
+        Icon(icon, contentDescription = null, size = size)
+        Text(seconds.toString(), style = MaterialTheme.typography.labelSmall, color = PleyColors.Fg, modifier = Modifier.padding(top = 2.dp))
     }
 }
 

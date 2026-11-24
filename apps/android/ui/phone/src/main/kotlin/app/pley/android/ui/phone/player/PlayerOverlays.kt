@@ -305,9 +305,11 @@ private fun UpNextContent(card: UpNextUi, state: PlayerScreenState) {
  */
 @Composable
 private fun PlayAndCancel(stacked: BooleanArray, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    // A car's two targets stand 24 dp apart, as its other controls do.
+    val between = if (LocalCarScreen.current) CarGap else 4.dp
     Layout(content, modifier) { measurables, constraints ->
         val (play, cancel) = measurables
-        val gap = 4.dp.roundToPx()
+        val gap = between.roundToPx()
         val width = constraints.maxWidth
         val fits = play.maxIntrinsicWidth(Constraints.Infinity) + gap + cancel.maxIntrinsicWidth(Constraints.Infinity) <= width
         if (!fits) stacked[0] = true
