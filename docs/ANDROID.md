@@ -743,6 +743,12 @@ car included. Previous and Next go from chapter to chapter in a file with
 chapters, then from part to part, and Now Playing and the bar of what
 plays are named for the chapter playing, the book under it.
 
+Now Playing moves from one track (or chapter) to the next, on phones and
+TVs alike: the cover stays until the next one has come and fades in over
+it, as does the faint copy behind the page, and the title and artist give
+way to the next track's, coming in from the side it is on in the queue.
+With reduced motion they change in place.
+
 ### Search
 
 Search asks the server for up to 200 titles, 200 people and 200 Live TV

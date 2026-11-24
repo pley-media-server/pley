@@ -41,6 +41,8 @@ import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.TrackArt
+import app.pley.android.designsystem.TrackChange
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.player.MusicPosition
 import app.pley.android.player.NowPlaying
@@ -48,8 +50,6 @@ import app.pley.android.screens.PleyKey
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.music.PlayPauseGlyph
-import app.pley.android.ui.phone.music.TrackArt
-import app.pley.android.ui.phone.music.TrackChange
 import app.pley.android.ui.phone.music.rememberMusicControl
 import app.pley.android.ui.phone.music.rememberMusicPosition
 import app.pley.android.ui.phone.music.trackKey

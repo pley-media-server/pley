@@ -43,6 +43,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.TrackArt
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.player.MusicPosition
@@ -113,12 +114,13 @@ internal fun TvTrackLine(
 /**
  * The album art over the whole page at [alpha] on [bg][PleyColors.Bg],
  * unblurred (design spec §4.10, §6), fading into the page to the left and
- * at the bottom so text stays on solid ground.
+ * at the bottom so text stays on solid ground. As the track changes on
+ * Now Playing, the last one stays until the next has come ([TrackArt]).
  */
 @Composable
 internal fun FaintArt(art: ArtworkImage?, title: String, alpha: Float = 0.2f) {
     if (art == null) return
-    Artwork(
+    TrackArt(
         art,
         title,
         Modifier
@@ -128,6 +130,7 @@ internal fun FaintArt(art: ArtworkImage?, title: String, alpha: Float = 0.2f) {
                 drawContent()
                 drawRect(Brush.verticalGradient(0.4f to Color.Transparent, 1f to PleyColors.Bg))
             },
+        placeholder = false,
     )
 }
 

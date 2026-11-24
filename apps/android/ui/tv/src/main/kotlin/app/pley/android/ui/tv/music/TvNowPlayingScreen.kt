@@ -81,8 +81,10 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
-import app.pley.android.designsystem.image.Artwork
+import app.pley.android.designsystem.TrackChange
+import app.pley.android.designsystem.TrackWords
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.TrackArt
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.player.BOOK_SPEEDS
@@ -114,6 +116,10 @@ import kotlinx.coroutines.flow.collectLatest
  * when the screen is left; after two minutes without a key it dims to
  * 30 % over 400 ms, to spare the screen, and the next key wakes it over
  * 200 ms (at once with reduced motion).
+ *
+ * A change of track moves, as on the phone: the cover stays until the
+ * next one fades in over it ([TrackArt]), and the title and artist give
+ * way to the next track's ([TrackChange]), in place with reduced motion.
  */
 @Composable
 internal fun TvNowPlayingScreen() {
@@ -163,18 +169,19 @@ internal fun TvNowPlayingScreen() {
             return@Box
         }
         Row(Modifier.fillMaxSize().padding(start = PleyTv.Gutter, top = 58.dp, end = TvSafeArea.Horizontal)) {
-            Box(Modifier.size(ART).clip(PleyShape.Dialog).background(PleyColors.Surface2)) {
-                Artwork(art, now.album ?: now.title, Modifier.matchParentSize())
+            // The tiles' corners, as an album's or a book's cover on its page; it stays until the next track's fades in.
+            Box(Modifier.size(ART).clip(PleyShape.TileTv).background(PleyColors.Surface2)) {
+                TrackArt(art, now.album ?: now.title, Modifier.matchParentSize())
             }
             Spacer(Modifier.width(32.dp))
             Column(Modifier.fillMaxSize().focusGroup()) {
-                // A book's part with chapters is named for the chapter playing, the book under it.
-                val chapter = now.currentChapter
-                val title = chapter?.let { it.title?.trim()?.takeIf { name -> name.isNotEmpty() } ?: stringResource(ScreensR.string.book_chapter, now.chapter + 1) } ?: now.title
-                val byline = if (chapter != null) now.album ?: now.title else now.byline
-                BasicText(title, style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(4.dp))
-                BasicText(byline, style = PleyType.Tv.BodyLarge.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                TrackChange(trackWords(now), Modifier.fillMaxWidth()) { words ->
+                    Column(Modifier.fillMaxWidth()) {
+                        BasicText(words.title, style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.height(4.dp))
+                        BasicText(words.byline, style = PleyType.Tv.BodyLarge.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
                 Status(now, model)
                 Spacer(Modifier.height(14.dp))
                 Scrubber(now, model)
@@ -185,6 +192,22 @@ internal fun TvNowPlayingScreen() {
         }
     }
 }
+
+/**
+ * What plays, in words, as on the phone: the track and "Artist · Album";
+ * a book's part with chapters is named for the chapter playing (its own
+ * name, else "Chapter 3"), the book under it, and its words change as the
+ * next chapter starts.
+ */
+@Composable
+private fun trackWords(now: NowPlaying): TrackWords {
+    val chapter = now.currentChapter ?: return TrackWords(now.itemId to now.index, now.index, now.title, now.byline)
+    val name = chapter.title?.trim()?.takeIf { it.isNotEmpty() } ?: stringResource(ScreensR.string.book_chapter, now.chapter + 1)
+    return TrackWords(Triple(now.itemId, now.index, now.chapter), now.index * CHAPTERS_PER_PART + now.chapter, name, now.album ?: now.title)
+}
+
+/** More than a file has (the server sends 1,000 at most): a chapter's place in the queue orders as a part's does. */
+private const val CHAPTERS_PER_PART = 10_000
 
 @Composable
 private fun Status(now: NowPlaying, model: NowPlayingViewModel) {

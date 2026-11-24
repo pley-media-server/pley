@@ -4,16 +4,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -36,18 +30,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -61,13 +49,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.pley.android.designsystem.PleyColors
-import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
+import app.pley.android.designsystem.TrackWords
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
-import app.pley.android.designsystem.image.Artwork
-import app.pley.android.designsystem.image.ArtworkImage
-import app.pley.android.designsystem.image.ArtworkLoad
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.player.MusicControl
 import app.pley.android.player.MusicPosition
@@ -77,7 +62,6 @@ import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.music.AlbumRow
 import app.pley.android.ui.phone.R
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 
 /**
  * Where the track is, refreshed every [everyMs] while [playing]. Paused,
@@ -138,75 +122,6 @@ internal class MusicPositionState(internal var read: () -> MusicPosition) : Stat
 internal const val POSITION_EVERY_MS = 500L
 
 /**
- * The cover of what plays, as the track changes: the cover before stays
- * until the next one has loaded, which then fades in over it, so the art
- * never blinks to an empty box between two tracks (tracks of one album
- * share a cover, and nothing changes at all). The first cover comes in as
- * any picture does. Without one, [title]'s placeholder shows when
- * [placeholder]. With reduced motion the next cover takes the place of
- * the last at once. [onCover] hears of each cover as its picture comes.
- */
-@Composable
-internal fun TrackArt(
-    image: ArtworkImage?,
-    title: String,
-    modifier: Modifier = Modifier,
-    placeholder: Boolean = true,
-    onCover: (ArtworkImage) -> Unit = {},
-) {
-    // The cover shown in full: under the one coming until that is in.
-    var under by remember { mutableStateOf<ArtworkImage?>(null) }
-    // A track without a cover shows its placeholder: the cover after it has none to fade in over.
-    LaunchedEffect(image) { if (image == null) under = null }
-    Box(modifier) {
-        if (image == null) {
-            if (placeholder) Artwork(null, title, Modifier.matchParentSize())
-            return@Box
-        }
-        val below = under.takeIf { it != image }
-        // Keyed, from one place: the cover that was on top is the same picture underneath, not one loaded again.
-        for (cover in listOfNotNull(below, image)) {
-            key(cover) {
-                TrackArtLayer(cover, title, over = cover == image && below != null, onShown = { if (cover == image) under = cover }, onCover = onCover)
-            }
-        }
-    }
-}
-
-/** One cover; [over] another, it is unseen until it has loaded and then fades in. [onCover] hears when its picture has come. */
-@Composable
-private fun TrackArtLayer(image: ArtworkImage, title: String, over: Boolean, onShown: () -> Unit, onCover: (ArtworkImage) -> Unit) {
-    val load = remember { ArtworkLoad() }
-    // Decided as it first shows: once it is the cover underneath, it stays as it is.
-    val fades = remember { over }
-    // The fade here is over the last cover whatever the picture came from, the memory included; Coil's own would add to it.
-    val model = remember { if (fades) image.copy(fade = false) else image }
-    val reduced = reducedMotion()
-    // In, or never coming: its placeholder then shows, not the cover of the track before.
-    val there = !fades || load.loaded || load.failed
-    val alpha by animateFloatAsState(if (there) 1f else 0f, if (reduced) snap() else tween(COVER_FADE_MS), label = "cover")
-    val shown by rememberUpdatedState(onShown)
-    val came by rememberUpdatedState(onCover)
-    Artwork(model, title, Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }, load = load)
-    LaunchedEffect(Unit) {
-        // As soon as the loader has it, before any fade: the memory cache holds it from then on.
-        snapshotFlow { load.settled }.first { it }
-        if (!load.failed) came(image)
-    }
-    LaunchedEffect(Unit) {
-        snapshotFlow { load.loaded || load.failed }.first { it }
-        if (fades && !reduced) delay(COVER_FADE_MS.toLong())
-        shown()
-    }
-}
-
-/** A cover fading in over the last one. */
-private const val COVER_FADE_MS = 300
-
-/** The words that change with the track: [key] says which track of the queue they are, [index] where it is. */
-internal data class TrackWords(val key: Any, val index: Int, val title: String, val byline: String)
-
-/**
  * What plays, in words: the track and "Artist · Album"; a book's part with
  * chapters is named for the chapter playing (its own name, else "Chapter
  * 3"), the book under it, and its words change as the next chapter starts.
@@ -220,42 +135,6 @@ internal fun trackWords(now: NowPlaying): TrackWords {
 
 /** More than a file has (the server sends 1,000 at most): a chapter's place in the queue orders as a part's does. */
 private const val CHAPTERS_PER_PART = 10_000
-
-/**
- * [words] drawn by [content], changing with the track: the next track's
- * come in from the side it is on in the queue (from the right going on,
- * from the left going back) as the last one's fade out, a short way, and
- * the block's height follows. With reduced motion they change in place.
- */
-@Composable
-internal fun TrackChange(words: TrackWords, modifier: Modifier = Modifier, alignment: Alignment = Alignment.TopStart, content: @Composable (TrackWords) -> Unit) {
-    val reduced = reducedMotion()
-    AnimatedContent(
-        targetState = words,
-        modifier = modifier,
-        contentKey = { it.key },
-        contentAlignment = alignment,
-        transitionSpec = {
-            if (reduced) {
-                ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
-            } else {
-                val forward = targetState.index >= initialState.index
-                val enter = fadeIn(tween(TRACK_IN_MS, delayMillis = TRACK_OUT_MS / 2)) +
-                    slideInHorizontally(tween(TRACK_IN_MS, easing = PleyMotion.EaseOut)) { width -> (if (forward) width else -width) / TRACK_SLIDE }
-                val exit = fadeOut(tween(TRACK_OUT_MS)) +
-                    slideOutHorizontally(tween(TRACK_OUT_MS, easing = PleyMotion.EaseIn)) { width -> (if (forward) -width else width) / TRACK_SLIDE }
-                (enter togetherWith exit).using(SizeTransform(clip = false))
-            }
-        },
-        label = "track",
-    ) { shown -> content(shown) }
-}
-
-private const val TRACK_IN_MS = 260
-private const val TRACK_OUT_MS = 140
-
-/** The words move this share of their width. */
-private const val TRACK_SLIDE = 10
 
 /** Play or Pause's glyph, one giving way to the other in place. */
 @Composable

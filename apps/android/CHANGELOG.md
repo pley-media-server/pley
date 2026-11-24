@@ -22,8 +22,8 @@ describes how they are made.
 - Music's notification and the phone's media controls have Shuffle and
   Repeat buttons, with a dot under the one that is on.
 - Now Playing moves from one track to the next: the cover stays until the
-  next one fades in, the title slides to the next track's, and the
-  scrubber glides.
+  next one fades in and the title slides to the next track's, on TVs
+  too, and the scrubber glides.
 - Music picks up where it was, shuffled as it was, when Android has ended
   the app meanwhile: Play on a headset, on a car's steering wheel over
   Bluetooth or in the phone's media controls plays the queue again.
