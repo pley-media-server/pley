@@ -1149,7 +1149,12 @@ hold back the music's results. Each
 search the car sends is asked of the server by itself, so one overtaken
 by the next letter typed still gets its answer. A list or search the server hasn't
 sent within 8 seconds shows as the server out of reach, as cars are to
-show what they ask for within 10 seconds. Picking a track plays on through
+show what they ask for within 10 seconds. A list the phone has seen
+before (an artist's albums, an album's or a playlist's tracks, the
+playlists, Recently added, Live TV's channels) shows as it was saved
+unless the server answers within 0.3 seconds (2.5 seconds for one
+never seen), and the server's answer is there the next time the car
+asks. Picking a track plays on through
 its album or playlist; a track found by search plays on through its
 album. Now Playing shows the whole queue, which the car can pick from,
 under the name of the album or book it is all of, else of the playlist

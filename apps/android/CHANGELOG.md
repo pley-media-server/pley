@@ -83,6 +83,7 @@ With Android Auto:
 With Android Auto:
 
 - Covers seen before show at once, kept on the phone for each profile.
+- Lists seen before open at once on a slow network, as they were last.
 
 ### Fixed
 

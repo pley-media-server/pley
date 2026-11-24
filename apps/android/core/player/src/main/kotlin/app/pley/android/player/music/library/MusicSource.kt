@@ -12,8 +12,13 @@ import app.pley.android.model.PlaylistSummary
 import app.pley.android.network.ApiException
 import app.pley.android.network.NetworkGraph
 import app.pley.android.network.PleyApi
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** No one is signed in: the car asks for Pley to be opened on the phone. */
@@ -100,8 +105,10 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
     // overtaken by its next one (a letter typed, its results read) was never answered, and the car went on waiting.
     override suspend fun search(query: String): List<ItemSummary> = signedInApi().search(query.trim(), SEARCH_LIMIT).items
 
-    // Books are read from the server itself: what the car shows of them (how far the profile is) is to be the latest.
-    override suspend fun bookLibraries(): List<Library> = signedInApi().libraries().filter { it.kind == LibraryKind.Audiobooks }
+    // The same libraries as the music's, read once for both. The books themselves are read from the server itself: what
+    // the car shows of them (how far the profile is) is to be the latest.
+    override suspend fun bookLibraries(): List<Library> =
+        data.libraries.libraries().settled().filter { it.kind == LibraryKind.Audiobooks }
 
     override suspend fun bookShelves(libraryId: Long): BookShelves {
         val hubs = signedInApi().libraryHubs(libraryId).hubs
@@ -146,18 +153,40 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
     }
 }
 
-/**
- * The server's answer, or after [FRESH_WAIT_MS] what was saved; a failure
- * with nothing saved throws it. Signed out, [SignedOutException].
- */
+/** [freshOrSaved], once the sign-in has been read back. Signed out, [SignedOutException]. */
 internal suspend fun <T> Flow<Loadable<T>>.settledIn(data: DataGraph): T {
     data.signInRead()
     if (data.session.session.value == null) throw SignedOutException()
+    return freshOrSaved()
+}
+
+/**
+ * The server's answer, or what was saved when the server is slow: after
+ * [SAVED_WAIT_MS] once something saved is there, which a car shows at
+ * once rather than wait on a slow network, else after [FRESH_WAIT_MS].
+ * The answer still comes in after, for the next time the car asks. A
+ * failure with nothing saved throws it.
+ */
+internal suspend fun <T> Flow<Loadable<T>>.freshOrSaved(): T {
     var saved: T? = null
     val fresh = withTimeoutOrNull(FRESH_WAIT_MS) {
-        first {
-            if (it is Loadable.Ready && !it.fresh) saved = it.value
-            (it is Loadable.Ready && it.fresh) || it is Loadable.Failed
+        coroutineScope {
+            val answer = CompletableDeferred<Loadable<T>?>()
+            launch {
+                answer.complete(
+                    first {
+                        if (it is Loadable.Ready && !it.fresh && saved == null) {
+                            saved = it.value
+                            this@coroutineScope.launch {
+                                delay(SAVED_WAIT_MS)
+                                answer.complete(null)
+                            }
+                        }
+                        (it is Loadable.Ready && it.fresh) || it is Loadable.Failed
+                    },
+                )
+            }
+            answer.await().also { coroutineContext.cancelChildren() }
         }
     }
     return when (fresh) {
@@ -171,8 +200,11 @@ internal suspend fun <T> Flow<Loadable<T>>.settledIn(data: DataGraph): T {
     }
 }
 
-/** How long the server's answer is waited for when something is saved. */
-private const val FRESH_WAIT_MS = 2_500L
+/** How long the server's answer is waited for when nothing is saved yet. */
+internal const val FRESH_WAIT_MS = 2_500L
+
+/** How long the server's answer is waited for once something saved is there to show. */
+internal const val SAVED_WAIT_MS = 300L
 
 /**
  * Waits, up to [SIGN_IN_WAIT_MS], for the sign-in to be read back from the device. A process Android starts again for
