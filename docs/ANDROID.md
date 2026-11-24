@@ -1131,6 +1131,16 @@ Recent and Books follow what plays: 2 seconds after a new album or
 playlist starts, or a book pauses or goes on to its next part, a car
 showing either reads it again.
 
+A list goes to Android Auto in one parcel, which Media3 cuts where it
+passes 256 KiB, and the rows after the cut aren't shown. So each row is
+sent with only what the car reads (its id, two lines, picture, flags
+and Android's hints, not Media3's media type or a second copy of its
+title), a hint the root already gives (a list) isn't repeated, and a
+picture's address is a few short segments (`i/12/poster/1700000000`
+for `/api/items/12/images/poster?v=1700000000`). 500 album tracks or
+channels of long names fit; 500 artists don't, each row's picture and
+the hint that their albums are a grid leaving room for some 360 to 380.
+
 An album or playlist opens to its tracks, wherever it is listed: a car
 plays what can be played rather than open it, so only one of a single
 track plays as it is picked (one whose tracks the server hasn't counted,

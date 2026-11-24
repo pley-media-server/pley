@@ -446,6 +446,33 @@ class MusicLibraryTest {
     }
 
     @Test
+    fun aPicturesAddressIsShortAndReadBackStrictly() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val authority = MusicArt.authority(context)
+        // The server's usual forms go as a few segments, read back to the same path.
+        val forms = mapOf(
+            "/api/items/50/images/poster?v=1763856000" to "i/50/poster/1763856000",
+            "/api/items/50/images/backdrop" to "i/50/backdrop",
+            "/api/collections/7/images/poster?v=-3" to "c/7/poster/-3",
+            "/api/live/channels/12/logo" to "l/12",
+        )
+        for ((path, short) in forms) {
+            val uri = MusicArt.uri(context, path, "Deep Water")!!
+            assertEquals("content://$authority/$short?h=${PlaceholderCover.hue("Deep Water")}", uri.toString())
+            assertEquals(path, MusicArt.pathOf(context, uri))
+        }
+        // Another query than the version still reads back, its path carried whole.
+        val unusual = MusicArt.uri(context, "/api/items/50/images/poster?v=1&w=2")!!
+        assertEquals("/api/items/50/images/poster?v=1&w=2", MusicArt.pathOf(context, unusual))
+        // Anything else is no picture of the server's.
+        for (text in listOf("i/50", "i/50/poster/1/2", "i/5x/poster", "i/50/Poster", "i/50/../poster", "i/%2F50/poster", "i/50/poster/1.5", "x/50/poster", "l/12/logo", "l/-1", "c/7", "i/50/poster/v1")) {
+            assertNull(text, MusicArt.pathOf(context, Uri.parse("content://$authority/$text")))
+        }
+        assertNull(MusicArt.pathOf(context, Uri.parse("content://elsewhere/i/50/poster")))
+        assertNull(MusicArt.pathOf(context, Uri.parse("file://$authority/i/50/poster")))
+    }
+
+    @Test
     fun anArtistsAddressNamesTheArtistAloneByDigits() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val uri = MusicArt.artistUri(context, 40, "Harbour Lights")
@@ -457,10 +484,11 @@ class MusicLibraryTest {
         assertNull(MusicArt.pathOf(context, uri))
         assertNull(MusicArt.hueOf(context, uri))
         val authority = MusicArt.authority(context)
-        for (text in listOf("artist/0", "artist/-1", "artist/4x", "artist/+4", "artist/99999999999999999999", "artist/40/extra", "artist", "artist/%2E%2E")) {
+        assertEquals("content://$authority/a/40?h=${PlaceholderCover.hue("Harbour Lights")}", uri.toString())
+        for (text in listOf("a/0", "a/-1", "a/4x", "a/+4", "a/99999999999999999999", "a/40/extra", "a", "a/%2E%2E", "artist/40")) {
             assertNull(text, MusicArt.artistOf(context, Uri.parse("content://$authority/$text")))
         }
-        assertNull(MusicArt.artistOf(context, Uri.parse("content://elsewhere/artist/40")))
+        assertNull(MusicArt.artistOf(context, Uri.parse("content://elsewhere/a/40")))
     }
 
     @Test
@@ -528,7 +556,9 @@ class MusicLibraryTest {
         assertEquals(PlaceholderCover.hue("Deep Water"), MusicArt.hueOf(context, uri))
         assertNull(MusicArt.pathOf(context, uri))
         assertNull(MusicArt.hueOf(context, MusicArt.uri(context, "/api/items/50/images/poster")!!))
-        assertNull(MusicArt.hueOf(context, Uri.parse("content://${MusicArt.authority(context)}/placeholder?h=400")))
+        for (text in listOf("h/400", "h/-1", "h/1x", "h", "h/12/3", "placeholder?h=12")) {
+            assertNull(text, MusicArt.hueOf(context, Uri.parse("content://${MusicArt.authority(context)}/$text")))
+        }
         // The web's hue for a title, which the app's placeholder draws too.
         assertEquals(0, PlaceholderCover.hue(""))
         assertEquals(97 % 360, PlaceholderCover.hue("a"))

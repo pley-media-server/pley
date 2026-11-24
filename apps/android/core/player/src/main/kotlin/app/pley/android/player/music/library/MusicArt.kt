@@ -6,6 +6,7 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import androidx.core.net.toUri
 import app.pley.android.player.PlayerGraphOwner
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -35,10 +36,30 @@ object MusicArt {
      */
     fun uri(context: Context, path: String, seed: String? = null): Uri? {
         if (!servable(path)) return null
-        return Uri.Builder().scheme("content").authority(authority(context)).appendPath(PICTURE).appendQueryParameter(PATH, path)
+        val hue = seed?.let { "?$HUE=${PlaceholderCover.hue(it)}" }.orEmpty()
+        val short = shortOf(path) ?: return Uri.Builder().scheme("content").authority(authority(context)).appendPath(PICTURE)
+            .appendQueryParameter(PATH, path)
             .apply { seed?.let { appendQueryParameter(HUE, PlaceholderCover.hue(it).toString()) } }
             .build()
+        return address(context, short + hue)
     }
+
+    /**
+     * [path] as the few segments of a short address ("i/12/poster/1700000000"), when it has one of the server's usual
+     * forms; `null` otherwise, and its address carries it whole. Cars are sent their lists in one parcel that Media3
+     * cuts at 256 KiB, and a row's address takes up much of a row: written out as a query, in its escaped form, it
+     * took twice the room.
+     */
+    private fun shortOf(path: String): String? {
+        ITEM_PICTURE.matchEntire(path)?.let { found ->
+            val (of, id, kind, version) = found.destructured
+            return listOf(if (of == "items") ITEM else COLLECTION, id, kind, version).filter { it.isNotEmpty() }.joinToString("/")
+        }
+        return CHANNEL_LOGO.matchEntire(path)?.let { "$LOGO/${it.groupValues[1]}" }
+    }
+
+    /** An address of [segments], already made of nothing but digits, lowercase letters, "/", "?", "=" and "-". */
+    private fun address(context: Context, segments: String): Uri = "content://${authority(context)}/$segments".toUri()
 
     /**
      * A cover for what has none, [seed] its title ([PlaceholderCover]): drawn
@@ -54,53 +75,74 @@ object MusicArt {
      * placeholder of [seed], the artist's name, whose hue alone is in the
      * address.
      */
-    fun artistUri(context: Context, artistId: Long, seed: String): Uri = Uri.Builder().scheme("content").authority(authority(context))
-        .appendPath(ARTIST).appendPath(artistId.toString()).appendQueryParameter(HUE, PlaceholderCover.hue(seed).toString()).build()
+    fun artistUri(context: Context, artistId: Long, seed: String): Uri = address(context, "$ARTIST/$artistId?$HUE=${PlaceholderCover.hue(seed)}")
 
     /** The artist an [artistUri] names, a positive id of digits alone; `null` for any other address. */
     internal fun artistOf(context: Context, uri: Uri): Long? {
-        if (uri.scheme != "content" || uri.authority != authority(context)) return null
-        val segments = uri.pathSegments
+        val segments = segmentsOf(context, uri) ?: return null
         if (segments.size != 2 || segments[0] != ARTIST) return null
-        val id = segments[1]
-        if (id.isEmpty() || id.length > 19 || id.any { it !in '0'..'9' }) return null
-        return id.toLongOrNull()?.takeIf { it > 0 }
+        return segments[1].takeIf { ID.matches(it) }?.toLongOrNull()?.takeIf { it > 0 }
     }
 
     /** The hue a [placeholderUri] names; `null` for any other address. */
     internal fun hueOf(context: Context, uri: Uri): Int? {
-        if (uri.scheme != "content" || uri.authority != authority(context) || uri.pathSegments != listOf(PLACEHOLDER)) return null
-        return hueIn(uri)
+        val segments = segmentsOf(context, uri) ?: return null
+        if (segments.size != 2 || segments[0] != PLACEHOLDER || !ID.matches(segments[1])) return null
+        return segments[1].toIntOrNull()?.takeIf { it in 0 until 360 }
     }
 
     /** The placeholder shown in place of the picture [uri] names when it can't be had; `null` when it has no hue. */
     internal fun standIn(context: Context, uri: Uri): Uri? {
         if (pathOf(context, uri) == null && artistOf(context, uri) == null) return null
-        return hueIn(uri)?.let { placeholderOf(context, it) }
+        return uri.getQueryParameter(HUE)?.takeIf { ID.matches(it) }?.toIntOrNull()?.takeIf { it in 0 until 360 }?.let { placeholderOf(context, it) }
     }
 
-    private fun placeholderOf(context: Context, hue: Int): Uri = Uri.Builder().scheme("content").authority(authority(context))
-        .appendPath(PLACEHOLDER).appendQueryParameter(HUE, hue.toString()).build()
+    private fun placeholderOf(context: Context, hue: Int): Uri = address(context, "$PLACEHOLDER/$hue")
 
-    private fun hueIn(uri: Uri): Int? = uri.getQueryParameter(HUE)?.toIntOrNull()?.takeIf { it in 0 until 360 }
-
-    /** The server path [uri] names, when it is one of these addresses. */
+    /** The server path [uri] names, when it is one of these addresses: a short one, or one carrying the path whole. */
     internal fun pathOf(context: Context, uri: Uri): String? {
-        if (uri.scheme != "content" || uri.authority != authority(context) || uri.pathSegments != listOf(PICTURE)) return null
-        return uri.getQueryParameter(PATH)?.takeIf(::servable)
+        val segments = segmentsOf(context, uri) ?: return null
+        val path = when {
+            segments == listOf(PICTURE) -> uri.getQueryParameter(PATH)
+            segments.size == 2 && segments[0] == LOGO && ID.matches(segments[1]) -> "/api/live/channels/${segments[1]}/logo"
+            (segments.size == 3 || segments.size == 4) && (segments[0] == ITEM || segments[0] == COLLECTION) -> {
+                val (_, id, kind) = segments
+                val version = segments.getOrNull(3)
+                if (!ID.matches(id) || !KIND.matches(kind) || (version != null && !VERSION.matches(version))) return null
+                val of = if (segments[0] == ITEM) "items" else "collections"
+                "/api/$of/$id/images/$kind" + (version?.let { "?v=$it" }.orEmpty())
+            }
+            else -> null
+        }
+        return path?.takeIf(::servable)
     }
+
+    /** [uri]'s path segments, when it is one of the provider's addresses. */
+    private fun segmentsOf(context: Context, uri: Uri): List<String>? =
+        if (uri.scheme != "content" || uri.authority != authority(context)) null else uri.pathSegments
 
     /** Only the server's item and collection pictures and Live TV's channel logos: no other route of the API goes through the provider. */
     internal fun servable(path: String): Boolean = path.length <= MAX_PATH && PICTURE_PATH.matches(path)
 
+    // What each kind of address starts with: a letter, as the address is sent with every row of a car's list.
+    private const val ITEM = "i"
+    private const val COLLECTION = "c"
+    private const val LOGO = "l"
+    private const val ARTIST = "a"
+    private const val PLACEHOLDER = "h"
+
+    /** The address that carries a server path whole, for one of an unusual form. */
     private const val PICTURE = "picture"
     private const val PATH = "p"
-    private const val PLACEHOLDER = "placeholder"
-    private const val ARTIST = "artist"
     private const val HUE = "h"
     private const val MAX_PATH = 256
     private val PICTURE_PATH =
         Regex("""(/api/(items|collections)/\d{1,19}/images/[a-z]{1,16}|/api/live/channels/\d{1,19}/logo)(\?[A-Za-z0-9=&._-]{0,128})?""")
+    private val ITEM_PICTURE = Regex("""/api/(items|collections)/(\d{1,19})/images/([a-z]{1,16})(?:\?v=(-?\d{1,19}))?""")
+    private val CHANNEL_LOGO = Regex("""/api/live/channels/(\d{1,19})/logo""")
+    private val ID = Regex("""\d{1,19}""")
+    private val KIND = Regex("""[a-z]{1,16}""")
+    private val VERSION = Regex("""-?\d{1,19}""")
 }
 
 /**

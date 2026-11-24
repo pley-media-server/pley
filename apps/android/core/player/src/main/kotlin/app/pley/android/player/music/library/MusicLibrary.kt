@@ -190,7 +190,7 @@ class MusicLibrary(
                     val artists = if (left > 0) source.artists(libraries[0].id, (start - first.size).coerceAtLeast(0), left) else emptyList()
                     return head + artists.map(::artist)
                 }
-                first + libraries.map { node(MusicId.LibraryArtists(it.id), it.name, browsable = true, playable = false, browsableStyle = LIST) }
+                first + libraries.map { node(MusicId.LibraryArtists(it.id), it.name, browsable = true, playable = false) }
             }
             MusicId.Books -> books()
             is MusicId.LibraryArtists -> return source.artists(id.libraryId, page * size, size).map(::artist)
@@ -445,7 +445,7 @@ class MusicLibrary(
         val heard = !hasMusic && bookLibraries.isNotEmpty() && shelves(bookLibraries).any { it.second.listening.isNotEmpty() }
         val all = listOfNotNull(
             if (hasMusic || heard) node(MusicId.Recent, l.recent, browsable = true, playable = false, icon = l.recentIcon, browsableStyle = GRID) else null,
-            if (hasMusic) node(MusicId.Artists, l.artists, browsable = true, playable = false, icon = l.artistsIcon, browsableStyle = LIST) else null,
+            if (hasMusic) node(MusicId.Artists, l.artists, browsable = true, playable = false, icon = l.artistsIcon) else null,
             if (hasPlaylists) playlistsNode(l) else null,
             if (bookLibraries.isNotEmpty()) booksNode(l) else null,
             liveTab.await(),
@@ -579,7 +579,6 @@ class MusicLibrary(
         seed = item.title,
         picture = if (item.posterUrl == null) artistArt(item.id, item.title) else null,
         browsableStyle = GRID,
-        playableStyle = LIST,
         mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
     )
 
@@ -598,7 +597,6 @@ class MusicLibrary(
         playable = item.leafCount == 1,
         artPath = item.posterUrl,
         seed = item.title,
-        playableStyle = LIST,
         mediaType = MediaMetadata.MEDIA_TYPE_ALBUM,
         artist = item.parentTitle,
     )
@@ -630,7 +628,6 @@ class MusicLibrary(
         playable = item.itemCount == 1,
         artPath = item.artwork.firstOrNull(),
         seed = item.title,
-        playableStyle = LIST,
         mediaType = MediaMetadata.MEDIA_TYPE_PLAYLIST,
     )
 
@@ -754,7 +751,7 @@ class MusicLibrary(
     }
 
     companion object {
-        private const val LIST = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
+        // Lists are the root's default (MusicService), so only a grid is said: each row's hint is sent with every list.
         private const val GRID = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
 
         /** The most children a page holds, whatever the car asks for. */

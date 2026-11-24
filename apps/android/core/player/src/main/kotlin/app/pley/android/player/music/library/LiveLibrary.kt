@@ -213,11 +213,8 @@ class LiveLibrary(
         node(MusicId.LiveList(category), title, subtitle = subtitle, mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_TV_CHANNELS)
 
     private fun node(id: MusicId, title: String, subtitle: String? = null, icon: Uri? = null, mediaType: Int): MediaItem {
-        // Channels list in rows: their logos are wide, and their names and what's on are what one reads.
-        val extras = Bundle().apply {
-            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
-            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
-        }
+        // Channels list in rows, the root's default for both kinds (MusicService), so no hint is sent with each: their logos
+        // are wide, and their names and what's on are what one reads.
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
             .setDisplayTitle(title)
@@ -226,7 +223,6 @@ class LiveLibrary(
             .setIsBrowsable(true)
             .setIsPlayable(false)
             .setMediaType(mediaType)
-            .setExtras(extras)
             .build()
         return MediaItem.Builder().setMediaId(id.text).setMediaMetadata(metadata).build()
     }

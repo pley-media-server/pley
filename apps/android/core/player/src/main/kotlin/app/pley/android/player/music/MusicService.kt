@@ -50,6 +50,7 @@ import app.pley.android.player.music.library.SavedLists
 import app.pley.android.player.music.library.SessionArt
 import app.pley.android.player.music.library.SignedOutException
 import app.pley.android.player.music.library.SpokenFocus
+import app.pley.android.player.music.library.forOlderBrowser
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -700,7 +701,7 @@ class MusicService : MediaLibraryService() {
             val saved = SavedAnswers()
             val children = withContext(saved) { library().children(id, page, pageSize) }
             if (isAndroidAuto(browser)) savedLists.shown(parentId, page, pageSize, children, saved)
-            LibraryResult.ofItemList(children, params)
+            LibraryResult.ofItemList(rowsFor(browser, children), params)
         }
 
         override fun onSearch(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, query: String, params: LibraryParams?): ListenableFuture<LibraryResult<Void>> =
@@ -729,7 +730,7 @@ class MusicService : MediaLibraryService() {
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!answers(browser)) refused() else answer {
             val found = searches[query] ?: library().search(query.take(MAX_QUERY))
             val size = pageSize.coerceIn(1, MusicLibrary.MAX_PAGE)
-            LibraryResult.ofItemList(found.drop(page * size).take(size), params)
+            LibraryResult.ofItemList(rowsFor(browser, found.drop(page * size).take(size)), params)
         }
 
         /**
@@ -892,6 +893,10 @@ class MusicService : MediaLibraryService() {
             item.requestMetadata.extras?.getString(MediaStore.EXTRA_MEDIA_PLAYLIST)?.trim()?.take(MAX_QUERY)?.takeIf { it.isNotEmpty() }
 
         private fun library(): MusicLibrary = graph?.library ?: throw UnsupportedOperationException()
+
+        /** [rows] as [browser] is sent them: only what each shows to a browser of the older protocol, as a car is ([forOlderBrowser]). */
+        private fun rowsFor(browser: MediaSession.ControllerInfo, rows: List<MediaItem>): List<MediaItem> =
+            if (browser.controllerVersion == MediaSession.ControllerInfo.LEGACY_CONTROLLER_VERSION) rows.map { it.forOlderBrowser() } else rows
 
         /**
          * [block]'s result, a failure as the car shows it: signed out,
