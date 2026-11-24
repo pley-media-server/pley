@@ -2623,13 +2623,16 @@ end sub
 sub openDetails()
     m.menuKind = "details"
     m.menuTitle.text = t("player.menu.details")
+    m.menuFacts.fromTop = true
     m.detailsShown = ""
     showDetails(invalid)
     m.menuList.visible = false
     m.menuText.visible = false
     m.menuFacts.visible = true
     m.menuHint.text = ""
-    m.keys.setFocus(true)
+    ' Up and Down scroll the sheet, as Android TV's Info panel; the other
+    ' keys go on to the player's.
+    m.menuFacts.setFocus(true)
     onDetailsTick()
     m.detailsTimer.control = "start"
 end sub
@@ -2655,7 +2658,13 @@ sub onDetails(event as object)
 end sub
 
 sub showDetails(live as dynamic)
-    if m.info = invalid then return
+    ' Nothing yet to say: not the last title's sheet.
+    if m.info = invalid
+        if m.detailsShown = "[]" then return
+        m.detailsShown = "[]"
+        m.menuFacts.lines = []
+        return
+    end if
     details = detPlayback(m.info, playingFile(), m.audioPlaying, live, m.positionMs)
     lines = detSheet(details)
     if m.pictureIndex >= 0 then lines.Push({ kind: "note", text: t("player.details.picturesDrawn") })

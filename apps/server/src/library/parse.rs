@@ -934,8 +934,169 @@ fn clean_track_title(raw: &str, artist: Option<&str>) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+    use crate::fuzz::{self, Rng};
+
+    /// What release names, folders and tags are made of, in any order.
+    const PIECES: &[&str] = &[
+        "Some",
+        "Film",
+        "Show",
+        "Title",
+        "Part",
+        "pt",
+        "Disc",
+        "CD",
+        "Season",
+        "Series",
+        "Staffel",
+        "Episode",
+        "Ep",
+        "e",
+        "s",
+        "Specials",
+        "Extras",
+        "Sample",
+        "Book",
+        "Vol",
+        "Chapter",
+        "Narrator",
+        "1999",
+        "2024",
+        "1900",
+        "2099",
+        "0",
+        "01",
+        "1",
+        "12",
+        "104",
+        "1012",
+        "9999",
+        "12345",
+        "S01E02",
+        "s1e2",
+        "S01E02-E03",
+        "S01E02E03",
+        "1x02",
+        "E05",
+        "2024-05-01",
+        "2024.05.01",
+        "v2",
+        "1080p",
+        "x264",
+        "HDR",
+        "DV",
+        "Remux",
+        "tt0000001",
+        "tmdb-123",
+        "tmdbid=9",
+        "{edition-Cut}",
+        "{tmdb-1}",
+        "(",
+        ")",
+        "[",
+        "]",
+        "{",
+        "}",
+        "-",
+        " - ",
+        ".",
+        "_",
+        " ",
+        ",",
+        ":",
+        "!",
+        "#",
+        "&",
+        ";",
+        "/",
+        "\\",
+        "–",
+        "'",
+        "0.5",
+        "-1",
+        "1e9",
+        "NaN",
+        "inf",
+    ];
+    const EXTENSIONS: &[&str] = &["mkv", "mp4", "m4b", "MP3", "flac", "strm", "nfo", "ts", "", "trailer.mkv", "x"];
+    const TAGS: &[&str] = &[
+        "artist",
+        "album_artist",
+        "albumartist",
+        "album artist",
+        "album",
+        "title",
+        "date",
+        "year",
+        "originaldate",
+        "track",
+        "tracknumber",
+        "disc",
+        "discnumber",
+        "disk",
+        "genre",
+        "author",
+        "narrator",
+        "composer",
+        "series",
+        "series-part",
+        "movementname",
+        "movement",
+        "mvnm",
+        "mvin",
+        "part",
+        "grouping",
+        "description",
+        "synopsis",
+        "comment",
+    ];
+
+    /// A file's path in a library folder, and the folder: folders and a name
+    /// made of [`PIECES`], with an extension, and its tags, some long.
+    pub(crate) fn arbitrary_file(rng: &mut Rng) -> (PathBuf, PathBuf, BTreeMap<String, String>) {
+        let root = PathBuf::from(*rng.pick(&["/media/library", "/", "", "C:\\Media", "media"]));
+        let mut path = root.clone();
+        for _ in 0..rng.len(6) {
+            path.push(rng.text(PIECES, 12));
+        }
+        let ext = rng.pick(EXTENSIONS);
+        path.push(format!("{}{}{ext}", rng.text(PIECES, 40), if ext.is_empty() { "" } else { "." }));
+        let mut tags = BTreeMap::new();
+        for _ in 0..rng.len(8) {
+            let long = if rng.one_in(10) { 4000 } else { 30 };
+            tags.insert(rng.pick(TAGS).to_string(), rng.text(PIECES, long));
+        }
+        (path, root, tags)
+    }
+
+    /// What reading a name may hold: some for the patterns' own caches, the
+    /// rest a few times the name's length.
+    pub(crate) fn name_limit((path, _, tags): &(PathBuf, PathBuf, BTreeMap<String, String>)) -> usize {
+        let len = path.as_os_str().len() + tags.iter().map(|(k, v)| k.len() + v.len()).sum::<usize>();
+        (16 << 20) + 64 * len
+    }
+
+    #[test]
+    fn any_name_reads() {
+        fuzz::check("file names", 2000, arbitrary_file, name_limit, |(path, root, tags)| {
+            parse_movie(path, root);
+            parse_episode(path, root);
+            parse_track(path, root, tags);
+            let book = parse_audiobook(path, root, tags);
+            assert!(book.authors.len() <= MAX_NAMES && book.narrators.len() <= MAX_NAMES);
+            assert!(book.summary.is_none_or(|s| s.chars().count() <= MAX_SUMMARY));
+            edition(path, true);
+            edition(path, false);
+            for name in path.iter().map(|c| c.to_string_lossy()) {
+                show_ids(&name);
+                title_and_year(&name);
+                season_from_dir(&name);
+                natural_key(&name);
+            }
+        });
+    }
 
     fn movie(rel: &str) -> MovieName {
         parse_movie(&Path::new("/media/movies").join(rel), Path::new("/media/movies"))

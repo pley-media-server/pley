@@ -31,6 +31,9 @@ const USER_AGENT: &str = concat!("pley v", env!("CARGO_PKG_VERSION"));
 const TOKEN_LIFE: Duration = Duration::from_secs(23 * 3600);
 /// Rate limits waited out at most this many times.
 const ATTEMPTS: u32 = 3;
+/// The most of an answer of the API read: far more than a page of search
+/// results takes.
+const MAX_ANSWER_BYTES: usize = 4 << 20;
 /// The prefix of the results' ids.
 const PROVIDER: &str = "opensubtitles";
 
@@ -511,7 +514,8 @@ impl OpenSubtitles {
             let resp = attempt.send().await.map_err(|e| anyhow!("OpenSubtitles: {e}"))?;
             let status = resp.status().as_u16();
             let wait = retry_after(&resp);
-            let body = resp.bytes().await.map_err(|e| anyhow!("OpenSubtitles: {e}"))?.to_vec();
+            let body =
+                crate::util::read_body(resp, MAX_ANSWER_BYTES).await.map_err(|e| anyhow!("OpenSubtitles: {e:#}"))?;
             match status {
                 200..=299 => return Ok(body),
                 401 | 403 => return Err(SearchError::Rejected("the API key")),

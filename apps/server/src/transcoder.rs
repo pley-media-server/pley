@@ -155,6 +155,25 @@ struct ManagedSpec {
 
 pub type TranscoderResult<T> = Result<T, TranscoderError>;
 
+// The transcoder is Pley's own, which the server starts, or which its
+// administrator set up with the token they share: its answers (segments,
+// subtitles, JSON) are read whole, by these three alone.
+
+#[allow(clippy::disallowed_methods)]
+async fn whole(resp: reqwest::Response) -> reqwest::Result<Bytes> {
+    resp.bytes().await
+}
+
+#[allow(clippy::disallowed_methods)]
+async fn whole_text(resp: reqwest::Response) -> reqwest::Result<String> {
+    resp.text().await
+}
+
+#[allow(clippy::disallowed_methods)]
+async fn whole_json<T: DeserializeOwned>(resp: reqwest::Response) -> reqwest::Result<T> {
+    resp.json().await
+}
+
 impl Transcoder {
     pub fn new(config: &Config) -> Arc<Self> {
         let http = reqwest::Client::builder()
@@ -291,7 +310,7 @@ impl Transcoder {
     pub async fn thumbnail(&self, req: &ThumbnailRequest) -> TranscoderResult<Bytes> {
         of_its_kind(&req.path).await?;
         let resp = self.post("/v1/thumbnail", req, Duration::from_secs(90)).await?;
-        Ok(resp.bytes().await?)
+        Ok(whole(resp).await?)
     }
 
     pub async fn cover(&self, path: &str) -> TranscoderResult<(Bytes, String)> {
@@ -303,7 +322,7 @@ impl Transcoder {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("image/jpeg")
             .to_owned();
-        Ok((resp.bytes().await?, content_type))
+        Ok((whole(resp).await?, content_type))
     }
 
     /// A subtitle track as WebVTT, whole: a subtitle file (`stream_index`
@@ -318,7 +337,7 @@ impl Transcoder {
         // A file's conversion ends within the 30 minutes the API gives a request.
         let wait = if stream_index.is_some() { Duration::from_secs(12 * 3600) } else { Duration::from_secs(25 * 60) };
         let resp = self.post("/v1/subtitles", &req, wait).await?;
-        Ok(resp.text().await?)
+        Ok(whole_text(resp).await?)
     }
 
     /// A subtitle track (`stream_index`, or the subtitle file at `path`)
@@ -329,7 +348,7 @@ impl Transcoder {
         of_its_kind(path).await?;
         let req = SubtitleRequest { path: path.to_owned(), stream_index, ..Default::default() };
         let resp = self.post("/v1/subtitles/mks", &req, Duration::from_secs(12 * 3600)).await?;
-        Ok(resp.bytes().await?.to_vec())
+        Ok(whole(resp).await?.to_vec())
     }
 
     /// Whether the transcoder copies subtitle tracks into files of their
@@ -376,7 +395,7 @@ impl Transcoder {
         let req = SubtitleRequest { path: path.to_owned(), stream_index, partial: true, from_ms, media, rest };
         let resp = self.post("/v1/subtitles/mks", &req, Duration::from_secs(90)).await?;
         let complete = resp.headers().get(SUBTITLES_COMPLETE_HEADER).is_none_or(|v| v.as_bytes() != b"0");
-        Ok((resp.bytes().await?, complete))
+        Ok((whole(resp).await?, complete))
     }
 
     /// An embedded track's subtitles as far as they have been pulled out of
@@ -396,7 +415,7 @@ impl Transcoder {
         let resp = self.post("/v1/subtitles", &req, Duration::from_secs(60)).await?;
         // A transcoder from before partial answers only answers when done.
         let complete = resp.headers().get(SUBTITLES_COMPLETE_HEADER).is_none_or(|v| v.as_bytes() != b"0");
-        Ok((resp.text().await?, complete))
+        Ok((whole_text(resp).await?, complete))
     }
 
     pub async fn request_keyframes(&self, path: &str) -> TranscoderResult<()> {
@@ -496,7 +515,7 @@ impl Transcoder {
         if !resp.status().is_success() {
             return Err(api_error(resp).await);
         }
-        Ok(resp.bytes().await?)
+        Ok(whole(resp).await?)
     }
 
     /// A new job. The transcoder may probe the file first, and pull a text
@@ -614,7 +633,7 @@ impl Transcoder {
         if !resp.status().is_success() {
             return Err(api_error(resp).await);
         }
-        Ok(resp.text().await?)
+        Ok(whole_text(resp).await?)
     }
 
     /// Streaming response of MPEG-TS segment `n` (the caller forwards the
@@ -692,7 +711,7 @@ impl Transcoder {
         if !resp.status().is_success() {
             return Err(api_error(resp).await);
         }
-        Ok(resp.text().await?)
+        Ok(whole_text(resp).await?)
     }
 
     /// Streaming response of a live channel's segment (`s12.ts`).
@@ -732,7 +751,7 @@ impl Transcoder {
         body: &B,
         timeout: Duration,
     ) -> TranscoderResult<T> {
-        Ok(self.post(path, body, timeout).await?.json().await?)
+        Ok(whole_json(self.post(path, body, timeout).await?).await?)
     }
 
     async fn get_json<T: DeserializeOwned>(&self, path: &str, timeout: Duration) -> TranscoderResult<T> {
@@ -741,7 +760,7 @@ impl Transcoder {
         if !resp.status().is_success() {
             return Err(api_error(resp).await);
         }
-        Ok(resp.json().await?)
+        Ok(whole_json(resp).await?)
     }
 
     async fn fetch_info(&self, base: &str) -> TranscoderResult<TranscoderInfo> {
@@ -750,7 +769,7 @@ impl Transcoder {
         if !resp.status().is_success() {
             return Err(api_error(resp).await);
         }
-        Ok(resp.json().await?)
+        Ok(whole_json(resp).await?)
     }
 
     fn set_available(&self, base: String, info: TranscoderInfo) {
@@ -1019,7 +1038,7 @@ fn last_words(said: &VecDeque<String>) -> String {
 
 async fn api_error(resp: reqwest::Response) -> TranscoderError {
     let status = resp.status().as_u16();
-    match resp.json::<ErrorBody>().await {
+    match whole_json::<ErrorBody>(resp).await {
         Ok(body) => TranscoderError::Api { status, code: body.code, message: body.message },
         Err(_) => {
             TranscoderError::Api { status, code: "http".into(), message: format!("transcoder returned HTTP {status}") }

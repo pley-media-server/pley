@@ -20,8 +20,6 @@ on:
       - package.json
       - bun.lock
       - bunfig.toml
-      - LICENSE
-      - LICENSING.md
       - pley.example.toml
       - docs/TRANSCODER.md
       - .dockerignore
@@ -38,6 +36,7 @@ on:
       - scripts/build-spk.sh
       - scripts/check-licenses.ps1
       - scripts/test-watchdog.ps1
+      - scripts/pley-ffmpeg.ps1
       - scripts/commit.mjs
       - scripts/commit.d.mts
       - .github/workflows/server.yml
@@ -57,8 +56,6 @@ on:
       - package.json
       - bun.lock
       - bunfig.toml
-      - LICENSE
-      - LICENSING.md
       - pley.example.toml
       - docs/TRANSCODER.md
       - .dockerignore
@@ -75,6 +72,7 @@ on:
       - scripts/build-spk.sh
       - scripts/check-licenses.ps1
       - scripts/test-watchdog.ps1
+      - scripts/pley-ffmpeg.ps1
       - scripts/commit.mjs
       - scripts/commit.d.mts
       - .github/workflows/server.yml
@@ -122,11 +120,25 @@ jobs:
       - run: bun scripts/version.mjs check server
       - run: bun install --frozen-lockfile
       - run: bun run --cwd packages/placeholder check
-      - run: bun run typecheck
       - run: bun run lint
       - run: bun run test
+
+  # The server embeds the UI: every Rust job below compiles against it. Built
+  # beside the web app's checks, so that the Rust jobs start sooner; the
+  # build checks its types.
+  web-dist:
+    name: Web app build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
       - run: bun run build
-      # The server embeds the UI: every Rust job below compiles against it.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: web-dist
@@ -136,7 +148,7 @@ jobs:
 
   rust:
     name: Rust (${{ matrix.name }})
-    needs: web
+    needs: web-dist
     strategy:
       fail-fast: false
       matrix:
@@ -147,6 +159,14 @@ jobs:
           - { name: macos-arm64, os: macos-latest }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    env:
+      # The transcoder's tests that run FFmpeg fail, rather than skip, when
+      # it or an encoder they need is missing (apps/transcoder/src/testing.rs).
+      PLEY_TEST_FFMPEG: "1"
+      # pley-ffmpeg whose recipe isn't published yet (the FFmpeg workflow
+      # publishes it from master) is replaced by the one this recipe names:
+      # master's, or on master the commit's before it.
+      FFMPEG_FALLBACK: ${{ github.event_name == 'push' && github.event.before || 'master' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -155,6 +175,47 @@ jobs:
         with:
           name: web-dist
           path: apps/web/dist
+      # pley-ffmpeg, the FFmpeg Pley ships, where it has one: on Linux the
+      # Docker image's, which runs on Debian 13 only, so the transcoder's
+      # tests run in Debian 13 as the image runs them; on Windows the one the
+      # installers carry. Homebrew's ffmpeg-full on macOS (its ffmpeg has no
+      # libass).
+      - name: FFmpeg (Linux)
+        if: runner.os == 'Linux'
+        shell: pwsh
+        run: |
+          $arch = if ($env:RUNNER_ARCH -eq 'ARM64') { 'arm64' } else { 'amd64' }
+          ./scripts/pley-ffmpeg.ps1 -Platform linux -Arch $arch -Destination "$env:RUNNER_TEMP/pley-ffmpeg" -Fallback $env:FFMPEG_FALLBACK
+      - name: Debian 13 with pley-ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          docker build -t pley-tests -f - "$RUNNER_TEMP/pley-ffmpeg" <<'EOF'
+          FROM rust:1-trixie
+          COPY usr/ /usr/
+          COPY packages /tmp/packages
+          RUN apt-get update \
+              && apt-get install -y --no-install-recommends $(cat /tmp/packages) \
+              && rm -rf /var/lib/apt/lists/* \
+              && ldconfig \
+              && ffmpeg -hide_banner -version && ffprobe -hide_banner -version >/dev/null
+          EOF
+      - name: FFmpeg (macOS)
+        if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          brew install ffmpeg-full
+          echo "$(brew --prefix ffmpeg-full)/bin" >> "$GITHUB_PATH"
+      - name: FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/pley-ffmpeg.ps1 -Platform windows -Destination "$env:RUNNER_TEMP\pley-ffmpeg" -Fallback $env:FFMPEG_FALLBACK
+          "$env:RUNNER_TEMP\pley-ffmpeg\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - name: FFmpeg's version
+        if: runner.os != 'Linux'
+        run: ffmpeg -hide_banner -version
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: stable
@@ -169,8 +230,20 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test
-        if: runner.os != 'Windows'
+        if: runner.os == 'macOS'
         run: cargo test --workspace --locked
+      - name: Test
+        if: runner.os == 'Linux'
+        run: |
+          cargo test --workspace --locked --exclude pley-transcoder
+          # The runner's user, with a home of its own: not the temporary
+          # folder, which the transcoder keeps its work out of.
+          mkdir -p target/debian/home
+          docker run --rm --user "$(id -u):$(id -g)" -e PLEY_TEST_FFMPEG \
+            -e HOME="$GITHUB_WORKSPACE/target/debian/home" -e CARGO_TARGET_DIR="$GITHUB_WORKSPACE/target/debian" \
+            -v "${CARGO_HOME:-$HOME/.cargo}/registry:/usr/local/cargo/registry" \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" \
+            pley-tests cargo test -p pley-transcoder --locked
       # Tests have frozen on Windows runners only (docs/RELEASING.md, CI).
       - name: Test
         if: runner.os == 'Windows'
@@ -187,7 +260,7 @@ jobs:
 
   msrv:
     name: Rust 1.95 (minimum supported)
-    needs: web
+    needs: web-dist
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -357,16 +430,43 @@ jobs:
         with:
           command: check licenses
 
+  # The architectures the image is built for below: both on master, and for
+  # a pull request that changes what only the image's build reads; amd64
+  # alone for the others, whose code the Rust jobs build on arm64 already.
+  docker-arches:
+    name: Docker architectures
+    if: ${{ !inputs.release }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      include: ${{ steps.arches.outputs.include }}
+    steps:
+      # The merge commit and its first parent, the base it merges into.
+      - if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - id: arches
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          include='[{"arch":"amd64","os":"ubuntu-latest"},{"arch":"arm64","os":"ubuntu-24.04-arm"}]'
+          if [ "$EVENT" = pull_request ] && ! git diff --name-only HEAD^1 HEAD |
+            grep -qE '^(deploy/(docker|ffmpeg)/|\.dockerignore$|Cargo\.lock$|\.github/workflows/server\.yml$)'; then
+            include='[{"arch":"amd64","os":"ubuntu-latest"}]'
+          fi
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+
   docker:
     name: Docker image${{ matrix.arch != 'amd64' && format(' ({0})', matrix.arch) || '' }}
     # A release builds and publishes the image itself (image, below).
     if: ${{ !inputs.release }}
+    needs: docker-arches
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { arch: amd64, os: ubuntu-latest }
-          - { arch: arm64, os: ubuntu-24.04-arm }
+        include: ${{ fromJSON(needs.docker-arches.outputs.include) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     permissions:
@@ -579,7 +679,7 @@ jobs:
   build:
     name: Build (${{ matrix.target }})
     if: inputs.release
-    needs: [web, rust, msrv, windows-installer, licenses]
+    needs: [web, web-dist, rust, msrv, windows-installer, licenses]
     strategy:
       fail-fast: false
       matrix:
@@ -729,7 +829,7 @@ jobs:
   image:
     name: Docker image (${{ matrix.arch }})
     if: inputs.release
-    needs: [web, rust, msrv, windows-installer, licenses, ffmpeg-published]
+    needs: [web, web-dist, rust, msrv, windows-installer, licenses, ffmpeg-published]
     environment: release
     strategy:
       fail-fast: false

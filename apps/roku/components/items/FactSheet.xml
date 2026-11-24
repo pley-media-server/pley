@@ -6,7 +6,10 @@
     <interface>
         <!-- [{ kind: "version" | "heading" | "fact" | "note", text, value }],
              set after the sizes. -->
-        <field id="lines" type="array" onChange="onLines" />
+        <field id="lines" type="array" onChange="onLines" alwaysNotify="true" />
+        <!-- Set before lines that open the sheet: they are read from the
+             top, not where the last ones were scrolled to. -->
+        <field id="fromTop" type="boolean" />
         <field id="width" type="float" value="1088" />
         <field id="height" type="float" value="870" />
         <!-- Where a fact's value starts. -->

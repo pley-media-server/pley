@@ -235,7 +235,7 @@ impl Tvmaze {
             let location = resp.headers().get(LOCATION).and_then(|v| v.to_str().ok()).unwrap_or_default();
             return Ok(location.trim_end_matches('/').rsplit('/').next().and_then(|n| n.parse().ok()));
         }
-        let bytes = resp.bytes().await.map_err(|e| anyhow::anyhow!("TVmaze: {e}"))?;
+        let bytes = self.api.read(resp).await?;
         Ok(serde_json::from_slice::<ShowId>(&bytes).ok().map(|s| s.id))
     }
 }

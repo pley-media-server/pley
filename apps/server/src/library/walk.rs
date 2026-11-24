@@ -779,6 +779,23 @@ mod tests {
     use walkdir::WalkDir;
 
     use super::*;
+    use crate::fuzz;
+    use crate::library::parse::tests::{arbitrary_file, name_limit};
+
+    #[test]
+    fn any_name_is_told_what_it_is() {
+        fuzz::check("names in a walk", 2000, arbitrary_file, name_limit, |(path, root, _)| {
+            for kind in [LibraryKind::Movies, LibraryKind::Shows, LibraryKind::Music, LibraryKind::Audiobooks] {
+                is_media_file(path, kind);
+            }
+            is_strm(path);
+            is_sample(path, 1);
+            file_kind(&extension(path));
+            if let Some(extra) = extra_of(path, root) {
+                assert!(path.starts_with(&extra.owner_dir), "{extra:?}");
+            }
+        });
+    }
 
     /// A name with a byte (Unix) or a code unit (Windows) that is not valid
     /// UTF-8, as Latin-1 names from old Samba shares are.

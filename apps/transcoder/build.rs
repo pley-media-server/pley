@@ -2,6 +2,10 @@
 //! and on Windows the icon and version information Explorer and Task Manager
 //! show.
 
+// clippy.toml's rules are the transcoder's: this script runs git once, at
+// build time.
+#![allow(clippy::disallowed_methods)]
+
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;

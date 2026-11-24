@@ -3,6 +3,10 @@
 //! The crate is organized as a library so integration tests can build the full
 //! application in-process; `main.rs` only parses the command line.
 
+// clippy.toml's rules hold for the program; Cargo.toml turns them off for
+// the tests, which fetch and read answers as they like.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
+
 pub mod access;
 pub mod accounts;
 pub mod airplay;
@@ -25,6 +29,8 @@ pub mod disks;
 pub mod error;
 pub mod events;
 pub mod folders;
+#[cfg(test)]
+mod fuzz;
 pub mod history;
 pub mod http;
 pub mod i18n;
@@ -484,7 +490,8 @@ async fn pley_answering(bind: SocketAddr) -> Option<String> {
     }
     let client = reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(2)).build().ok()?;
     let response = client.get(format!("http://{addr}/api/server")).send().await.ok()?;
-    let server: serde_json::Value = response.json().await.ok()?;
+    // Whatever answers on this port is read within bounds: Pley's answer is far smaller.
+    let server: serde_json::Value = serde_json::from_slice(&util::read_body(response, 64 << 10).await.ok()?).ok()?;
     server.get("setup_required").is_some().then(|| desktop::web_url(addr))
 }
 

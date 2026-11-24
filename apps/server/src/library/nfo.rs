@@ -709,9 +709,11 @@ fn content_ratings(text: &str) -> Vec<NfoRating> {
         for (i, _) in text.match_indices('/') {
             let after = &text[i + 1..];
             let spaced = text[..i].ends_with(' ') && after.starts_with(' ');
-            let country = after.trim_start().split_once(':').is_some_and(|(country, _)| {
-                (2..=3).contains(&country.len()) && country.chars().all(|c| c.is_ascii_alphabetic())
-            });
+            // Two or three letters and a colon: only the start of what
+            // follows is looked at, so a text of slashes reads at once.
+            let after = after.trim_start().as_bytes();
+            let letters = after.iter().take(4).take_while(|b| b.is_ascii_alphabetic()).count();
+            let country = (2..=3).contains(&letters) && after.get(letters) == Some(&b':');
             if spaced || country {
                 cut.push(&text[start..i]);
                 start = i + 1;
@@ -844,7 +846,206 @@ fn musicbrainz(text: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, Instant};
+
     use super::*;
+    use crate::fuzz::{self, Bytes, Rng};
+
+    const ROOTS: &[&str] = &["movie", "tvshow", "season", "episodedetails", "artist", "album", "musicvideo", "Movie"];
+    /// The elements read, and some that aren't.
+    const FIELDS: &[&str] = &[
+        "title",
+        "originaltitle",
+        "sorttitle",
+        "year",
+        "premiered",
+        "releasedate",
+        "aired",
+        "plot",
+        "outline",
+        "tagline",
+        "mpaa",
+        "certification",
+        "studio",
+        "rating",
+        "lockdata",
+        "season",
+        "seasonnumber",
+        "episode",
+        "id",
+        "musicbrainzartistid",
+        "musicbrainzreleasegroupid",
+        "genre",
+        "uniqueid",
+        "tmdbid",
+        "imdbid",
+        "tvdbid",
+        "tvmazeid",
+        "ratings",
+        "value",
+        "thumb",
+        "actor",
+        "name",
+    ];
+    /// What the elements' text and attributes are made of.
+    const TEXT: &[&str] = &[
+        "A",
+        "Film",
+        " ",
+        "/",
+        " / ",
+        "GB:15",
+        "US:PG-13",
+        "USA:R",
+        "Rated ",
+        "U/A 13+",
+        ":",
+        "|",
+        "1999",
+        "2020-01-31",
+        "2020-02-29T00:00:00Z",
+        "8.7",
+        "7,5",
+        "-1",
+        "0",
+        "10",
+        "tt0000001",
+        "603",
+        "true",
+        "&amp;",
+        "&#233;",
+        "&#x1F600;",
+        "&#0;",
+        "&nbsp;",
+        "&",
+        "<",
+        ">",
+        "<![CDATA[x]]>",
+        "<!--x-->",
+        "<?x?>",
+        "https://www.themoviedb.org/movie/603",
+        "https://imdb.com/title/tt0000001",
+        "https://thetvdb.com/?tab=series&id=81189",
+        "https://www.tvmaze.com/shows/1",
+        "\n",
+        "\r\n",
+        "\t",
+        "00000000-0000-0000-0000-000000000001",
+    ];
+    const ATTRIBUTES: &[&str] = &["type", "default", "max", "name", "aspect"];
+
+    /// An element of an entry: text, attributes, perhaps more elements.
+    fn element(rng: &mut Rng, xml: &mut String, depth: usize) {
+        let name = rng.pick(FIELDS);
+        xml.push('<');
+        xml.push_str(name);
+        for _ in 0..rng.len(3) {
+            let value = rng.text(TEXT, 4).replace('"', "'");
+            xml.push_str(&format!(" {}=\"{value}\"", rng.pick(ATTRIBUTES)));
+        }
+        xml.push('>');
+        for _ in 0..rng.len(4) {
+            if depth < 4 && rng.one_in(4) {
+                element(rng, xml, depth + 1);
+            } else {
+                xml.push_str(&rng.text(TEXT, 12));
+            }
+        }
+        // Sometimes left open, or closed as another.
+        if !rng.one_in(20) {
+            xml.push_str(&format!("</{}>", if rng.one_in(20) { rng.pick(FIELDS) } else { name }));
+        }
+    }
+
+    /// The text of an NFO file of one or more entries, perhaps with links
+    /// after them; or, now and then, one as big as is read, of one piece
+    /// over and over in one element (what makes slow code slow).
+    fn nfo_text(rng: &mut Rng) -> String {
+        let mut xml = String::new();
+        if rng.one_in(3) {
+            xml.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?>\n");
+        }
+        if rng.one_in(40) {
+            let (root, field, piece) = (rng.pick(ROOTS), rng.pick(FIELDS), rng.text(TEXT, 3));
+            let times = (MAX_BYTES as usize - 100) / piece.len().max(1);
+            return format!("{xml}<{root}><{field}>{}</{field}></{root}>", piece.repeat(times));
+        }
+        for _ in 0..1 + rng.len(3) {
+            let root = rng.pick(ROOTS);
+            xml.push_str(&format!("<{root}>"));
+            for _ in 0..rng.len(40) {
+                element(rng, &mut xml, 0);
+            }
+            if !rng.one_in(10) {
+                xml.push_str(&format!("</{root}>"));
+            }
+            xml.push_str(&rng.text(TEXT, 6));
+        }
+        xml
+    }
+
+    /// An NFO file: text as the writers of NFO files write it, in one of
+    /// the encodings read; a real one changed; or bytes.
+    fn nfo_file(rng: &mut Rng) -> Bytes {
+        const REAL: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<tvshow><title>A Show</title><year>2001</year><mpaa>GB:15 / US:TV-14</mpaa>
+<ratings><rating name="tvdb" max="10" default="true"><value>8.1</value></rating></ratings>
+<uniqueid type="tvdb" default="true">81189</uniqueid><uniqueid type="imdb">tt0000002</uniqueid>
+<genre>Drama / Crime</genre><premiered>2001-01-20</premiered><lockdata>true</lockdata></tvshow>
+https://www.themoviedb.org/tv/1"#;
+        Bytes(match rng.below(8) {
+            0 => rng.bytes(4096),
+            1 => rng.mutate(REAL.as_bytes()),
+            2 => {
+                let text = nfo_text(rng);
+                let little = rng.one_in(2);
+                let mut bytes = if little { vec![0xFF, 0xFE] } else { vec![0xFE, 0xFF] };
+                for unit in text.encode_utf16() {
+                    bytes.extend(if little { unit.to_le_bytes() } else { unit.to_be_bytes() });
+                }
+                bytes
+            }
+            3 => {
+                let mut bytes = b"\xEF\xBB\xBF".to_vec();
+                bytes.extend(nfo_text(rng).into_bytes());
+                bytes
+            }
+            4 => nfo_text(rng).chars().map(|c| u8::try_from(u32::from(c)).unwrap_or(b'?')).collect(),
+            _ => nfo_text(rng).into_bytes(),
+        })
+    }
+
+    #[test]
+    fn any_file_reads_within_its_bounds() {
+        let limit = |file: &Bytes| (16 << 20) + 64 * file.0.len();
+        fuzz::check("NFO files", 1500, nfo_file, limit, |file| {
+            let entries = parse(&file.0);
+            assert!(entries.len() <= MAX_ENTRIES);
+            for entry in entries {
+                let fields = &entry.fields;
+                for text in [&fields.title, &fields.original_title, &fields.sort_title, &fields.tagline, &fields.studio]
+                {
+                    assert!(text.as_ref().is_none_or(|t| t.chars().count() <= MAX_SHORT), "{text:?}");
+                }
+                assert!(fields.summary.as_ref().is_none_or(|t| t.chars().count() <= MAX_SUMMARY));
+                assert!(fields.genres.len() <= MAX_GENRES);
+                assert!(fields.rating.is_none_or(|r| r > 0.0 && r <= 10.0));
+                assert!(entry.ids.imdb.as_ref().is_none_or(|id| imdb(id).as_ref() == Some(id)));
+                fields.rating_in("GB");
+            }
+        });
+    }
+
+    /// A rating as long as a file may be, of slashes (each perhaps where
+    /// another country's rating starts) is read at once: every slash isn't
+    /// followed to the end of the text.
+    #[test]
+    fn a_rating_of_slashes_reads_at_once() {
+        let started = Instant::now();
+        let xml = format!("<movie><mpaa>{}</mpaa></movie>", "/x".repeat(MAX_BYTES as usize / 2 - 20));
+        assert_eq!(one(&xml).fields.content_rating.as_deref().map(str::len), Some(MAX_SHORT));
+        assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
+    }
 
     fn one(xml: &str) -> Nfo {
         one_of(xml.as_bytes())

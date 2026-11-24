@@ -498,9 +498,43 @@ where
     tokio::task::spawn_blocking(f).await.map_err(|e| anyhow::anyhow!("blocking task failed: {e}"))?
 }
 
+/// The body of another server's answer, refused once it is past `max`
+/// bytes whatever its headers say: what comes from outside is read within
+/// bounds. An error leaves the address out, which may carry a key.
+pub async fn read_body(mut response: reqwest::Response, max: usize) -> anyhow::Result<Vec<u8>> {
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(reqwest::Error::without_url)? {
+        anyhow::ensure!(body.len() + chunk.len() <= max, "the answer is larger than {max} bytes");
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An answer is refused once it passes the limit.
+    #[tokio::test]
+    async fn an_answer_is_read_to_its_limit() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            while let Ok((mut socket, _)) = listener.accept().await {
+                let mut request = [0; 1024];
+                let _ = socket.read(&mut request).await;
+                // No length said, a megabyte sent.
+                let head = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n";
+                let _ = socket.write_all(head.as_bytes()).await;
+                let _ = socket.write_all(&vec![b'x'; 1 << 20]).await;
+            }
+        });
+        let get = || async { reqwest::Client::builder().build().unwrap().get(format!("http://{addr}/")).send().await };
+        assert_eq!(read_body(get().await.unwrap(), 2 << 20).await.unwrap().len(), 1 << 20);
+        let refused = read_body(get().await.unwrap(), 64 << 10).await.unwrap_err();
+        assert_eq!(refused.to_string(), format!("the answer is larger than {} bytes", 64 << 10));
+    }
 
     #[test]
     fn time_left_is_told_from_the_pace_once_it_was_measured_long_enough() {
