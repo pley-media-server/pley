@@ -4,6 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.ui.res.pluralStringResource
@@ -75,6 +76,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.designsystem.PleyColors
@@ -97,6 +99,12 @@ import app.pley.android.player.MusicControl
 import app.pley.android.player.sleep.SleepState
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.ui.phone.player.CarGap
+import app.pley.android.ui.phone.player.CarScrubKnob
+import app.pley.android.ui.phone.player.CarScrubKnobDragged
+import app.pley.android.ui.phone.player.CarScrubTrack
+import app.pley.android.ui.phone.player.ScrubKnob
+import app.pley.android.ui.phone.player.ScrubKnobDragged
+import app.pley.android.ui.phone.player.ScrubTrack
 import app.pley.android.ui.phone.player.CarSized
 import app.pley.android.ui.phone.player.LocalCarScreen
 import app.pley.android.ui.phone.player.SleepNotice
@@ -441,10 +449,12 @@ private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel, inline: Boolea
         }
     }
     // The phone's scrubber (design spec §3.5): a 4 dp track, accent played, a 16 dp accent thumb that grows to 24 while
-    // dragged; on a car's screen, 6 dp, 21 and 27 (8, 28 and 36 there).
-    val trackHeight = if (car) 6.dp else 4.dp
-    val thumbSize = if (car) 21.dp else 16.dp
-    val thumbDragged = if (car) 27.dp else 24.dp
+    // dragged; on a car's screen, 6 dp, 21 and 27 (8, 28 and 36 there). The video's seek bar is the same.
+    val trackHeight = if (car) CarScrubTrack else ScrubTrack
+    val thumbSize = if (car) CarScrubKnob else ScrubKnob
+    val thumbDragged = if (car) CarScrubKnobDragged else ScrubKnobDragged
+    // The thumb grows under the finger as a press does, rather than in one frame; read while drawing only.
+    val grown = animateFloatAsState(if (dragging != null) 1f else 0f, PleyMotion.press(reduced), label = "thumb")
     val track = Modifier
         .semantics {
             contentDescription = scrubberLabel
@@ -488,7 +498,7 @@ private fun Scrubber(now: NowPlaying, model: NowPlayingViewModel, inline: Boolea
             // Under the finger while dragged, else where the thumb has glided to.
             val at = dragging ?: thumbAt.value
             drawRoundRect(if (enabled) PleyColors.Accent else PleyColors.Disabled, Offset(0f, y - h / 2f), Size(size.width * at, h), r)
-            val thumb = (if (dragging != null) thumbDragged else thumbSize).toPx() / 2f
+            val thumb = lerp(thumbSize, thumbDragged, grown.value).toPx() / 2f
             drawCircle(if (enabled) PleyColors.Accent else PleyColors.Disabled, thumb, Offset((size.width * at).coerceIn(thumb, size.width - thumb), y))
         }
     val elapsed = formatClockMs(shownMs)

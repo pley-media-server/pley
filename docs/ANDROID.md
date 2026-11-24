@@ -1302,7 +1302,8 @@ Playing's 34 and a page's 38), and the controls over the video keep
 24 dp from each other and from the screen's edges. Play sits between
 10 seconds back and 10 seconds forward, midway between the top row and
 the seek bar (and smaller on a screen too short for it, one split in
-two), the seek bar is taller, and the
+two), the seek bar is taller, its track and knob as thick as music's
+scrubber's there, and the
 bottom row keeps Subtitles, Audio, Fit and Next episode (Quality is in
 Settings, chapters show on the seek bar, and there is no Lock), with
 their icons alone where the names don't fit the width (a narrow screen,

@@ -105,16 +105,22 @@ internal fun TimesAndSeekBar(state: PlayerScreenState) {
  * accent knob that grows to 24 while dragged. Dragging shows the preview
  * at the knob and seeks on release. Everything moving is drawn, not composed,
  * the knob's growth too: the times beside the bar recompose as it is
- * dragged, and a bar that read the drag would recompose with them.
+ * dragged, and a bar that read the drag would recompose with them. On a
+ * car's screen it is music's there: a 6 dp track and a 21 dp knob that
+ * grows to 27 (8, 28 and 36 once scaled).
  */
 @Composable
 internal fun SeekBar(state: PlayerScreenState, modifier: Modifier = Modifier) {
     PlayerProbe.composed?.invoke("seekBar")
-    val knob = remember { Animatable(KNOB, Dp.VectorConverter) }
+    val car = LocalCarScreen.current
+    val track = if (car) CarScrubTrack else ScrubTrack
+    val resting = if (car) CarScrubKnob else ScrubKnob
+    val grown = if (car) CarScrubKnobDragged else ScrubKnobDragged
+    val knob = remember(car) { Animatable(resting, Dp.VectorConverter) }
     val reduced = reducedMotion()
-    LaunchedEffect(state, reduced) {
+    LaunchedEffect(state, reduced, knob) {
         snapshotFlow { state.scrubbing }.collectLatest { dragged ->
-            val size = if (dragged) KNOB_DRAGGED else KNOB
+            val size = if (dragged) grown else resting
             if (reduced) knob.snapTo(size) else knob.animateTo(size, spring(visibilityThreshold = Dp.VisibilityThreshold))
         }
     }
@@ -169,14 +175,14 @@ internal fun SeekBar(state: PlayerScreenState, modifier: Modifier = Modifier) {
                     .drawBehind {
                         val d = state.durationMs.toFloat()
                         val y = size.height / 2f
-                        val track = 4.dp.toPx()
+                        val height = track.toPx()
                         val gap = 2.dp.toPx()
                         val w = size.width
                         val pos = (state.scrubMs ?: state.playhead.longValue).toFloat()
                         val played = if (d > 0) (pos / d).coerceIn(0f, 1f) * w else 0f
                         val buffered = if (d > 0) (state.bufferedMs / d).coerceIn(0f, 1f) * w else 0f
                         val chapters = state.chapters
-                        val radius = CornerRadius(track / 2f)
+                        val radius = CornerRadius(height / 2f)
 
                         // Every chapter after the first cuts the track, read where it is: a frame allocates nothing.
                         fun segment(from: Float, to: Float, color: Color) {
@@ -186,11 +192,11 @@ internal fun SeekBar(state: PlayerScreenState, modifier: Modifier = Modifier) {
                                 for (i in 1 until chapters.size) {
                                     val cut = chapters[i].startMs / d * w
                                     if (cut <= start || cut >= to) continue
-                                    drawRoundRect(color, Offset(start, y - track / 2f), Size(cut - gap / 2f - start, track), radius)
+                                    drawRoundRect(color, Offset(start, y - height / 2f), Size(cut - gap / 2f - start, height), radius)
                                     start = cut + gap / 2f
                                 }
                             }
-                            drawRoundRect(color, Offset(start, y - track / 2f), Size(to - start, track), radius)
+                            drawRoundRect(color, Offset(start, y - height / 2f), Size(to - start, height), radius)
                         }
                         segment(0f, w, PleyColors.Fg.copy(alpha = 0.25f))
                         segment(0f, buffered, PleyColors.Fg.copy(alpha = 0.45f))
@@ -284,6 +290,14 @@ internal fun PreviewTile(image: Bitmap?, width: Dp, height: Dp, modifier: Modifi
 /** Previews are asked for at most once per this much of the video. */
 private const val PREVIEW_STEP_MS = 1_000L
 
-/** The knob, and the knob while dragged. */
-private val KNOB = 16.dp
-private val KNOB_DRAGGED = 24.dp
+/**
+ * A scrubber's track, its knob, and the knob while dragged (design spec
+ * §3.5): on a phone, then on a car's screen. The video's and music's are
+ * the same.
+ */
+internal val ScrubTrack = 4.dp
+internal val ScrubKnob = 16.dp
+internal val ScrubKnobDragged = 24.dp
+internal val CarScrubTrack = 6.dp
+internal val CarScrubKnob = 21.dp
+internal val CarScrubKnobDragged = 27.dp
