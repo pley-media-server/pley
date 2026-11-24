@@ -258,6 +258,15 @@ async fn a_library_folder_left_empty_keeps_its_titles() {
     }
     changed(&app, lib, &["movies/Film One (2001)"]).await;
     assert_eq!(listed(&app, &admin, lib).await, ["Film One", "Film Two"]);
+    // Or with something in it that is no media, as the whole library's scan
+    // takes it: a file that says the drive isn't there, a folder left
+    // behind. Every title's folder may be named as having gone.
+    std::fs::write(app.media.path().join("movies/not mounted.txt"), b"x").unwrap();
+    std::fs::create_dir_all(app.media.path().join("movies/Left Behind")).unwrap();
+    changed(&app, lib, &["movies/Film One (2001)", "movies/Film Two (2002)"]).await;
+    assert_eq!(listed(&app, &admin, lib).await, ["Film One", "Film Two"]);
+    rescan(&app, &admin, lib).await;
+    assert_eq!(listed(&app, &admin, lib).await, ["Film One", "Film Two"]);
     // Gone for real when the drive holds something else: both folders went
     // from the library folder, the one not named too.
     app.media_file("movies/Film Three (2003)/Film Three (2003).mkv", 1024);

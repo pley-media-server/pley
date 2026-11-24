@@ -667,9 +667,18 @@ impl Scanner {
         };
 
         phase = Instant::now();
-        // Files outside what was walked are as they were.
+        // Files outside what was walked are as they were, and a library
+        // folder with one still holds media.
+        let mut holds_media: HashSet<&PathBuf> = walked.media.iter().map(|file| &file.root).collect();
         if let Some(scope) = &scope {
-            existing.retain(|file| scope.holds(Path::new(&file.path)));
+            existing.retain(|file| {
+                let path = Path::new(&file.path);
+                let looked_at = scope.holds(path);
+                if !looked_at {
+                    holds_media.extend(roots.iter().filter(|root| path.starts_with(root)));
+                }
+                looked_at
+            });
         }
         let existing_by_path: HashMap<&str, &KnownFile> = existing.iter().map(|f| (f.path.as_str(), f)).collect();
 
@@ -690,18 +699,14 @@ impl Scanner {
         }
         // A root that suddenly holds no media at all is far more likely an
         // unmounted drive (the mount point exists but is empty) than a library
-        // whose every file was deleted: keep its items. A scan of part of it
-        // goes by the root holding nothing at all: a folder that went may
-        // well have held all the media of what was looked at.
-        for root in &roots {
-            let empty = match &scope {
-                None => !walked.media.iter().any(|f| &f.root == root),
-                Some(_) => walked.empty_roots.contains(root),
-            };
-            if empty
-                && !walked.offline_roots.contains(root)
-                && existing.iter().any(|f| Path::new(&f.path).starts_with(root))
-            {
+        // whose every file was deleted: keep its items. A scan of part of the
+        // library takes the files it left as they were to be there (a folder
+        // that went may well have held all the media of what was looked at),
+        // and says nothing of a library folder it didn't list.
+        let listed = |root: &PathBuf| scope.is_none() || walked.listed.contains_key(root);
+        let empty: Vec<&PathBuf> = roots.iter().filter(|root| !holds_media.contains(root) && listed(root)).collect();
+        for root in empty {
+            if !walked.offline_roots.contains(root) && existing.iter().any(|f| Path::new(&f.path).starts_with(root)) {
                 tracing::warn!("library folder {} is empty; assuming its drive is not mounted", root.display());
                 walked.offline_roots.push(root.clone());
             }

@@ -225,10 +225,6 @@ pub struct Walked {
     /// offline network share behind a symlink, a permission problem, an I/O
     /// error): files below them must not be treated as deleted either.
     pub unreadable: Vec<PathBuf>,
-    /// Library folders listed that hold nothing but hidden entries: an
-    /// unmounted drive's empty mount point, far more likely than every
-    /// title deleted.
-    pub empty_roots: Vec<PathBuf>,
     /// Of each library folder walked in part ([`walk_part`]), every name in
     /// it, read or not: what went from it is told by its absence.
     pub listed: HashMap<PathBuf, HashSet<String>>,
@@ -512,8 +508,6 @@ struct Found {
     nfo_files: Vec<(PathBuf, i64, i64)>,
     offline: Vec<usize>,
     unreadable: Vec<PathBuf>,
-    /// Library folders that hold nothing but hidden entries.
-    empty: Vec<usize>,
     /// Library folders walked in part, and every name in them.
     listed: Vec<(usize, HashSet<String>)>,
     not_utf8_folders: Vec<PathBuf>,
@@ -602,18 +596,12 @@ impl<'a> Walker<'a> {
         };
         found.folders += 1;
         let mut sidecars = Vec::new();
-        let library_folder = folder.trail.up.is_none();
-        let mut visible = 0;
         // Of a library folder walked in part, every name in it.
         let mut names = folder.part.as_ref().map(|_| HashSet::new());
         for entry in entries {
             match entry {
                 Ok(entry) => {
-                    let name = entry.file_name();
-                    if library_folder && !name.to_string_lossy().starts_with('.') {
-                        visible += 1;
-                    }
-                    if let (Some(names), Some(name)) = (&mut names, name.to_str()) {
+                    if let (Some(names), Some(name)) = (&mut names, entry.file_name().to_str()) {
                         names.insert(name.to_owned());
                     }
                     self.entry(folder, &entry, found, subfolders, &mut sidecars);
@@ -624,9 +612,6 @@ impl<'a> Walker<'a> {
                     break;
                 }
             }
-        }
-        if library_folder && visible == 0 {
-            found.empty.push(folder.root);
         }
         if let Some(names) = names {
             found.listed.push((folder.root, names));
@@ -745,7 +730,6 @@ impl<'a> Walker<'a> {
         let mut out = Walked::default();
         let mut media = Vec::new();
         let mut offline = Vec::new();
-        let mut empty = Vec::new();
         let (mut not_utf8_folders, mut not_utf8_files) = (Vec::new(), Vec::new());
         for part in found {
             media.extend(part.media);
@@ -754,7 +738,6 @@ impl<'a> Walker<'a> {
             }
             out.nfo_files.extend(part.nfo_files.into_iter().map(|(path, size, mtime)| (path, (size, mtime))));
             offline.extend(part.offline);
-            empty.extend(part.empty);
             for (root, names) in part.listed {
                 out.listed.insert(self.roots[root].clone(), names);
             }
@@ -772,8 +755,6 @@ impl<'a> Walker<'a> {
         }
         offline.sort_unstable();
         out.offline_roots = offline.into_iter().map(|root| self.roots[root].clone()).collect();
-        empty.sort_unstable();
-        out.empty_roots = empty.into_iter().map(|root| self.roots[root].clone()).collect();
         out.unreadable.sort_unstable();
         not_utf8_folders.sort_unstable();
         not_utf8_files.sort_unstable();
@@ -1107,22 +1088,6 @@ mod tests {
                 assert_eq!(walked.offline_roots, offline);
             }
         }
-    }
-
-    #[test]
-    fn a_library_folder_with_nothing_in_it_is_told_apart() {
-        let dir = tempfile::tempdir().unwrap();
-        let (empty, hidden, full) = (dir.path().join("empty"), dir.path().join("hidden"), dir.path().join("full"));
-        std::fs::create_dir_all(&empty).unwrap();
-        file(&hidden, ".DS_Store", 1);
-        file(&full, "notes.txt", 1);
-        let roots = [empty.clone(), hidden.clone(), full.clone()];
-        assert_eq!(walk(&roots, LibraryKind::Movies).empty_roots, [empty.clone(), hidden.clone()]);
-        let part = Part { folders: ["Film (2001)".to_owned()].into(), top: false };
-        assert_eq!(
-            walk_part(&roots, LibraryKind::Movies, &[part.clone(), part.clone(), part]).empty_roots,
-            [empty, hidden]
-        );
     }
 
     #[test]
