@@ -10,6 +10,8 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -509,17 +511,23 @@ internal const val RISES = "pley.rises"
 private fun Scene<NavKey>.rises(): Boolean = entries.lastOrNull()?.metadata?.get(RISES) == true
 
 /**
- * The shared axis on Y, for a screen opened from the bottom of the page: [up], it comes up a short way as it fades in
- * over the page under it, which fades out where it is; down, it sinks as it fades out and the page fades back in.
+ * For a screen opened from the bottom of the page (Now Playing, from the mini player): [up], it comes up a short way,
+ * slowing, as it fades in over the page under it, which stays as it is until covered, so no frame shows neither;
+ * down, the page is there at once under it, and it sinks, quickening, as it fades out on top of it (the back stack
+ * draws the screen leaving over the one it goes back to).
  */
 private fun rise(up: Boolean, reduced: Boolean): ContentTransform {
     if (reduced) return EnterTransition.None togetherWith ExitTransition.None
-    val move = tween<androidx.compose.ui.unit.IntOffset>(PleyMotion.SCREEN_MS, easing = FastOutSlowInEasing)
-    val out = PleyMotion.SCREEN_MS / 3
-    val appear = fadeIn(tween(PleyMotion.SCREEN_MS - out, delayMillis = out, easing = LinearEasing))
-    val leave = fadeOut(tween(out, easing = LinearEasing))
     val shift = { height: Int -> (height * RISE).toInt() }
-    return if (up) (slideInVertically(move, shift) + appear) togetherWith leave else appear togetherWith (slideOutVertically(move, shift) + leave)
+    return if (up) {
+        val move = tween<androidx.compose.ui.unit.IntOffset>(PleyMotion.SCREEN_MS, easing = LinearOutSlowInEasing)
+        // The page under "fades" to fully seen for as long as the rise: it stays as it is until it's covered.
+        (slideInVertically(move, shift) + fadeIn(tween(PleyMotion.REVEAL_MS, easing = LinearOutSlowInEasing))) togetherWith
+            fadeOut(tween(PleyMotion.SCREEN_MS), targetAlpha = 1f)
+    } else {
+        val move = tween<androidx.compose.ui.unit.IntOffset>(PleyMotion.OVERLAY_MS, easing = FastOutLinearInEasing)
+        EnterTransition.None togetherWith (slideOutVertically(move, shift) + fadeOut(tween(PleyMotion.REVEAL_MS, easing = FastOutLinearInEasing)))
+    }
 }
 
 /** How far a rising screen moves, as a share of the height. */
