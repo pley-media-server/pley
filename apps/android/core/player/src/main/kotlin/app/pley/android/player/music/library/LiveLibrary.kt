@@ -11,10 +11,14 @@ import app.pley.android.data.DataGraph
 import app.pley.android.data.LiveTvRepository
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
+import app.pley.android.model.LiveChannelPage
 import app.pley.android.model.LiveGroups
 import app.pley.android.model.LiveNames
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 /** The words and icon of Live TV's nodes, in the language the app is shown in. */
 interface LiveLook {
@@ -59,21 +63,33 @@ class RepositoryLiveSource(private val data: DataGraph) : LiveSource {
 
     override suspend fun groups(): LiveGroups = live.groups().settledIn(data)
 
-    override suspend fun channels(category: LiveCategory, query: String, limit: Int): List<LiveChannel> {
-        val found = mutableListOf<LiveChannel>()
-        var page = 0
-        while (found.size < limit) {
-            val got = live.page(category, query, page).settledIn(data)
-            found += got.channels
-            if (got.channels.isEmpty() || got.offset + got.channels.size >= got.total) break
-            page++
-        }
-        // Pages read one after another can overlap as the list changes between them (a channel watched meanwhile).
-        return found.distinctBy { it.id }.take(limit)
-    }
+    override suspend fun channels(category: LiveCategory, query: String, limit: Int): List<LiveChannel> =
+        pagedChannels(limit, LiveTvRepository.PAGE) { page -> live.page(category, query, page).settledIn(data) }
 
     override suspend fun channel(id: Long): LiveChannel? = live.channel(id).settledIn(data)
 }
+
+/**
+ * [limit] channels of a list read a page of [pageSize] at a time ([page]):
+ * the first, which says how many the list has, then the others it takes
+ * all at once, [PARALLEL_PAGES] at most on their way together, and put in
+ * order. One after another, the 500 channels a car's list holds took five
+ * of the server's round trips, each on a car's network.
+ */
+internal suspend fun pagedChannels(limit: Int, pageSize: Int, page: suspend (Int) -> LiveChannelPage): List<LiveChannel> {
+    val first = page(0)
+    val wanted = minOf(limit, first.total)
+    val pages = if (first.channels.isEmpty() || pageSize <= 0) 1 else (wanted + pageSize - 1) / pageSize
+    val rest = coroutineScope {
+        val turns = Semaphore(PARALLEL_PAGES)
+        (1 until pages).map { n -> async { turns.withPermit { page(n) } } }.awaitAll()
+    }
+    // Pages read apart can overlap as the list changes between them (a channel watched meanwhile).
+    return (listOf(first) + rest).flatMap { it.channels }.distinctBy { it.id }.take(limit)
+}
+
+/** The pages of a list asked of the server at once: a few, so a list's pages don't crowd out the covers. */
+private const val PARALLEL_PAGES = 4
 
 /**
  * Live TV in the car (Android Auto's media screens), its channels'

@@ -1302,7 +1302,9 @@ one another app sends) only plays, pauses and skips.
 **Live TV**, while driving or parked, to a profile Live TV is open to:
 its tab lists the favorites, then the channels watched lately, each
 under its heading, then the provider's groups (or All channels, without
-groups); a list holds 500 channels at most, as cars don't page. Groups
+groups); a list holds 500 channels at most, as cars don't page, read
+from the server a page of 100 at a time: the first, then the others
+four at once. Groups
 and channels are named as the phone's Live TV lists them: a group of a
 region as "UK · Sport", and a channel in it without the region the
 group says ("Sky Sports 1", not "UK| Sky Sports 1"). A

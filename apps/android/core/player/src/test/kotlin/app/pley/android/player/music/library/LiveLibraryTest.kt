@@ -9,12 +9,14 @@ import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
+import app.pley.android.model.LiveChannelPage
 import app.pley.android.model.LiveGroup
 import app.pley.android.model.LiveGroups
 import app.pley.android.model.LiveProgram
 import app.pley.android.model.PlaylistKind
 import app.pley.android.model.PlaylistSummary
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -173,6 +175,40 @@ class LiveLibraryTest {
         assertEquals(listOf("recent", "artists", "playlists", "books"), four.map { it.mediaId })
         assertEquals("Artists", four[1].mediaMetadata.title.toString())
         assertEquals(listOf("artist:40"), library.children(MusicId.Artists, 0, 50).map { it.mediaId })
+    }
+
+    @Test
+    fun aLongListsPagesAfterTheFirstAreAskedForTogetherAFewAtATime() = runTest {
+        // 950 channels in pages of 100, each page a second on its way.
+        var onTheirWay = 0
+        var most = 0
+        val asked = mutableListOf<Int>()
+        val read = pagedChannels(limit = 1_000, pageSize = 100) { page ->
+            asked += page
+            onTheirWay++
+            most = maxOf(most, onTheirWay)
+            delay(1_000)
+            onTheirWay--
+            val from = page * 100
+            LiveChannelPage(total = 950, offset = from, channels = (from until minOf(from + 100, 950)).map { LiveChannel(it + 1L, name = "Channel ${it + 1}") })
+        }
+        assertEquals((1L..950L).toList(), read.map { it.id })
+        assertEquals((0..9).toList(), asked.sorted())
+        assertEquals(0, asked.first())
+        assertEquals(4, most)
+        // The first, then the other nine four at a time: four seconds, not ten.
+        assertEquals(4_000L, currentTime)
+
+        // A list as long as a car's holds stops there, and a short one at its end; an empty one after its first page.
+        asked.clear()
+        assertEquals(500, pagedChannels(limit = 500, pageSize = 100) { page -> asked += page; LiveChannelPage(total = 950, offset = page * 100, channels = (1..100).map { LiveChannel(page * 100L + it, name = "") }) }.size)
+        assertEquals((0..4).toList(), asked.sorted())
+        asked.clear()
+        assertEquals(30, pagedChannels(limit = 500, pageSize = 100) { page -> asked += page; LiveChannelPage(total = 30, channels = (1..30L).map { LiveChannel(it, name = "") }) }.size)
+        assertEquals(emptyList<LiveChannel>(), pagedChannels(limit = 500, pageSize = 100) { LiveChannelPage(total = 400) })
+        // Pages that overlap, the list changing between them, list each channel once.
+        val overlapping = pagedChannels(limit = 500, pageSize = 2) { page -> LiveChannelPage(total = 4, offset = page * 2, channels = listOf(LiveChannel(page + 1L, name = ""), LiveChannel(page + 2L, name = ""))) }
+        assertEquals(listOf(1L, 2L, 3L), overlapping.map { it.id })
     }
 
     private val androidx.media3.common.MediaItem.group: String?
