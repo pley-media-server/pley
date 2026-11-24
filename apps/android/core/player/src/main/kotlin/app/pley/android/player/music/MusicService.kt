@@ -55,7 +55,6 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
-import java.net.SocketTimeoutException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -572,7 +571,10 @@ class MusicService : MediaLibraryService() {
         /** The lists a car was shown from what was saved: a car is told when the server's turn out different. */
         private val savedLists = SavedLists(
             scope,
-            { parentId, page, pageSize -> MusicId.parse(parentId)?.let { library().children(it, page, pageSize) }.orEmpty() },
+            { parentId, page, pageSize ->
+                // Off the main thread, as the list was made the first time ([LibraryAnswers]).
+                withContext(Dispatchers.Default) { MusicId.parse(parentId)?.let { library().children(it, page, pageSize) }.orEmpty() }
+            },
         ) { parentId -> session?.let { tellCarsChanged(it, parentId) } }
 
         /** What a car or the Assistant asked to play, still being looked up ([onSetMediaItems]): the latest only. */
@@ -700,7 +702,7 @@ class MusicService : MediaLibraryService() {
             val id = MusicId.parse(parentId) ?: return@answer LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             val saved = SavedAnswers()
             val children = withContext(saved) { library().children(id, page, pageSize) }
-            if (isAndroidAuto(browser)) savedLists.shown(parentId, page, pageSize, children, saved)
+            if (isAndroidAuto(browser)) onMain { savedLists.shown(parentId, page, pageSize, children, saved) }
             LibraryResult.ofItemList(rowsFor(browser, children), params)
         }
 
@@ -711,12 +713,14 @@ class MusicService : MediaLibraryService() {
                     library().search(query.take(MAX_QUERY))
                 } catch (e: Exception) {
                     // A car waits for this, failed too: an empty result.
-                    if (e !is CancellationException) session.notifySearchResultChanged(browser, query, 0, params)
+                    if (e !is CancellationException) onMain { session.notifySearchResultChanged(browser, query, 0, params) }
                     throw e
                 }
-                searches.clear()
-                searches[query] = found
-                session.notifySearchResultChanged(browser, query, found.size, params)
+                onMain {
+                    searches.clear()
+                    searches[query] = found
+                    session.notifySearchResultChanged(browser, query, found.size, params)
+                }
                 LibraryResult.ofVoid()
             }
 
@@ -728,7 +732,7 @@ class MusicService : MediaLibraryService() {
             pageSize: Int,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!answers(browser)) refused() else answer {
-            val found = searches[query] ?: library().search(query.take(MAX_QUERY))
+            val found = onMain { searches[query] } ?: library().search(query.take(MAX_QUERY))
             val size = pageSize.coerceIn(1, MusicLibrary.MAX_PAGE)
             LibraryResult.ofItemList(rowsFor(browser, found.drop(page * size).take(size)), params)
         }
@@ -898,35 +902,22 @@ class MusicService : MediaLibraryService() {
         private fun rowsFor(browser: MediaSession.ControllerInfo, rows: List<MediaItem>): List<MediaItem> =
             if (browser.controllerVersion == MediaSession.ControllerInfo.LEGACY_CONTROLLER_VERSION) rows.map { it.forOlderBrowser() } else rows
 
-        /**
-         * [block]'s result, a failure as the car shows it: signed out,
-         * offline, or anything else. A server that hasn't answered within
-         * [ANSWER_MS] is out of reach to the car, which is to show what it
-         * asked for within 10 s (Google's car app quality criterion DR-3);
-         * [slow] is told so first.
-         */
-        private fun <T : Any> answer(slow: () -> Unit = {}, block: suspend () -> LibraryResult<T>): ListenableFuture<LibraryResult<T>> {
-            val future = SettableFuture.create<LibraryResult<T>>()
-            scope.launch {
-                val result = try {
-                    withTimeoutOrNull(ANSWER_MS) { block() } ?: errorOf<T>(OfflineException(SocketTimeoutException())).also { slow() }
-                } catch (e: CancellationException) {
-                    future.cancel(false)
-                    throw e
-                } catch (e: Exception) {
-                    errorOf(e)
-                }
-                future.set(result)
-            }
-            return future
-        }
+        /** The library's answers, made off the main thread ([LibraryAnswers]). */
+        private val libraryAnswers = LibraryAnswers(scope, ::errorOf)
 
-        private fun <T : Any> errorOf(e: Exception): LibraryResult<T> {
+        /** [block]'s result, made off the main thread, a failure as the car shows it ([LibraryAnswers.answer]). */
+        private fun <T : Any> answer(slow: () -> Unit = {}, block: suspend () -> LibraryResult<T>): ListenableFuture<LibraryResult<T>> =
+            libraryAnswers.answer(slow, block)
+
+        /** [block] on the main thread, from an answer's work: what the session, and what it was told, are kept on. */
+        private suspend fun <R> onMain(block: () -> R): R = libraryAnswers.onMain(block)
+
+        private fun errorOf(e: Exception): SessionError {
             val res = AppLanguage.resources(this@MusicService)
             return when (e) {
-                is SignedOutException -> LibraryResult.ofError<T>(SessionError(SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED, res.getString(R.string.music_library_signed_out)))
-                is OfflineException -> LibraryResult.ofError<T>(SessionError(SessionError.ERROR_IO, res.getString(R.string.music_library_offline)))
-                else -> LibraryResult.ofError<T>(SessionError(SessionError.ERROR_UNKNOWN, res.getString(R.string.music_library_failed)))
+                is SignedOutException -> SessionError(SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED, res.getString(R.string.music_library_signed_out))
+                is OfflineException -> SessionError(SessionError.ERROR_IO, res.getString(R.string.music_library_offline))
+                else -> SessionError(SessionError.ERROR_UNKNOWN, res.getString(R.string.music_library_failed))
             }
         }
     }
@@ -967,9 +958,6 @@ class MusicService : MediaLibraryService() {
 
         /** How long a car waits for the library's suggestion when nothing was kept ([bringBack]): until then, it has nothing to show. */
         const val SUGGESTION_MS = 10_000L
-
-        /** How long a car's request for the library or a search waits for the server before it is told it is out of reach. */
-        const val ANSWER_MS = 8_000L
 
         /** How long after what plays changes cars are told to read Recent and Books again ([heardKey]). */
         const val HEARD_WAIT_MS = 2_000L
