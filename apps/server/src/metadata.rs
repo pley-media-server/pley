@@ -1127,7 +1127,7 @@ impl MetadataAgent {
                 content_rating_country = CASE WHEN {RATING_LOCKED} THEN content_rating_country ELSE ? END,
                 rating_age = CASE WHEN {RATING_LOCKED} THEN rating_age ELSE ? END,
                 genres = ?, studio = ?, release_date = ?, tmdb_id = ?, imdb_id = COALESCE(?, imdb_id),
-                poster = COALESCE(?, poster), backdrop = COALESCE(?, backdrop), metadata_at = ?, updated_at = ?
+                poster = COALESCE(?, poster), backdrop = COALESCE(?, backdrop), updated_at = ?
              WHERE id = ?"
         )))
         .bind(&title)
@@ -1148,7 +1148,6 @@ impl MetadataAgent {
         .bind(poster)
         .bind(backdrop)
         .bind(now())
-        .bind(now())
         .bind(item.id)
         .execute(&self.db.write)
         .await
@@ -1159,7 +1158,9 @@ impl MetadataAgent {
                 .map_err(|e| TmdbError::Other(e.into()))?;
         }
 
-        // Seasons and their episodes.
+        // Seasons and their episodes: those there now, so that an episode
+        // that comes while they are fetched is one added since.
+        let fetched_at = now();
         let seasons: Vec<(i64, i64, Option<String>)> = sqlx::query_as(
             "SELECT id, idx, poster FROM items WHERE parent_id = ? AND kind = 'season' AND metadata_locked = 0",
         )
@@ -1245,6 +1246,15 @@ impl MetadataAgent {
             }
             tx.commit().await.map_err(|e| TmdbError::Other(e.into()))?;
         }
+        // The show is fetched once its seasons are: one TMDB didn't answer
+        // for leaves it to be fetched again at the next scan, as a show
+        // TMDB didn't answer for is.
+        sqlx::query("UPDATE items SET metadata_at = ? WHERE id = ?")
+            .bind(fetched_at)
+            .bind(item.id)
+            .execute(&self.db.write)
+            .await
+            .map_err(|e| TmdbError::Other(e.into()))?;
         Ok(())
     }
 

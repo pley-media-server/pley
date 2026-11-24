@@ -32,6 +32,8 @@ struct Tmdb {
     added: Arc<AtomicBool>,
     /// Every request fails, as when TMDB is down.
     down: Arc<AtomicBool>,
+    /// Requests for a show's seasons fail, the others don't.
+    seasons_down: Arc<AtomicBool>,
 }
 
 impl Tmdb {
@@ -195,7 +197,7 @@ async fn tmdb(State(mock): State<Tmdb>, uri: Uri, Query(query): Query<Vec<(Strin
     if !query.iter().any(|(k, v)| k == "api_key" && v == KEY) {
         return (StatusCode::UNAUTHORIZED, axum::Json(json!({"status_code": 7}))).into_response();
     }
-    if mock.down.load(Ordering::SeqCst) {
+    if mock.down.load(Ordering::SeqCst) || (mock.seasons_down.load(Ordering::SeqCst) && path.contains("/season/")) {
         return StatusCode::SERVICE_UNAVAILABLE.into_response();
     }
     match answer(&path, &query, mock.added.load(Ordering::SeqCst)) {
@@ -867,6 +869,47 @@ async fn episodes_added_to_a_show_get_their_details() {
     hours_ago(&app, &format!("library_id = {tv}"), 26).await;
     rescan(&app, &admin, tv).await;
     assert_eq!(episodes().await, ["Arrival at Dusk", "Low Tide", "Fog Bank"]);
+}
+
+/// TMDB answers for a show but not for its seasons (an error, too many
+/// requests): the seasons weren't looked up, so the show is fetched again
+/// at the next scan, a new show and one that gained an episode alike.
+#[tokio::test]
+async fn a_show_whose_seasons_tmdb_did_not_answer_for_is_fetched_again() {
+    let (app, tmdb, admin, _) = world().await;
+    use_key(&app, &admin, KEY).await;
+    tmdb.seasons_down.store(true, Ordering::SeqCst);
+    app.media_file("tv/Harbor Lights (2019)/Season 01/Harbor Lights - S01E01.mkv", 1024);
+    let tv = app.library(&admin, "TV", "shows", "tv").await;
+    let show = app.ids(tv, &admin).await["Harbor Lights"];
+    let season = app.children(show, &admin).await["Season 1"];
+    let episodes = || async {
+        let listed = app.get(&format!("/api/items/{season}/children"), &admin).await.body;
+        titles(&listed["items"])
+    };
+    assert_eq!(episodes().await, ["Episode 1"]);
+    // (Added before the show was fetched, as a second can't tell here.)
+    let added_earlier = || async {
+        sqlx::query("UPDATE items SET added_at = added_at - 10 WHERE kind = 'episode'")
+            .execute(&app.state.db.write)
+            .await
+            .unwrap();
+    };
+    added_earlier().await;
+    tmdb.seasons_down.store(false, Ordering::SeqCst);
+    rescan(&app, &admin, tv).await;
+    assert_eq!(episodes().await, ["Arrival at Dusk"]);
+
+    // The same for an episode that comes later.
+    hours_ago(&app, &format!("library_id = {tv}"), 1).await;
+    tmdb.seasons_down.store(true, Ordering::SeqCst);
+    app.media_file("tv/Harbor Lights (2019)/Season 01/Harbor Lights - S01E03.mkv", 1024);
+    rescan(&app, &admin, tv).await;
+    assert_eq!(episodes().await, ["Arrival at Dusk", "Episode 3"]);
+    added_earlier().await;
+    tmdb.seasons_down.store(false, Ordering::SeqCst);
+    rescan(&app, &admin, tv).await;
+    assert_eq!(episodes().await, ["Arrival at Dusk", "Low Tide"]);
 }
 
 /// Copies of a film whose names give different years (TMDB corrected it

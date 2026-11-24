@@ -37,7 +37,8 @@ describes how they are made.
 ### Fixed
 
 - Episodes added to a show that already has its details get theirs at the
-  next scan.
+  next scan, and so do those of a show whose seasons TMDB didn't answer
+  for.
 - Home and a TV library's Recommended tab open at once after a big scan,
   also in a library of thousands of shows.
 - Music playing in the web app pauses once Play on… sends something to
