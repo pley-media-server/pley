@@ -36,9 +36,9 @@ internal object RoundPicture {
     /** Placeholders cut to a circle, by hue: a list of artists without pictures asks for the same few. */
     private val drawn = LruCache<Int, ByteArray>(KEPT)
 
-    /** [hue]'s placeholder ([PlaceholderCover]) cut to a circle. */
+    /** [hue]'s placeholder ([PlaceholderCover]), with a person on it, cut to a circle. */
     fun placeholder(context: Context, hue: Int): ByteArray = drawn.get(hue) ?: run {
-        val png = PlaceholderCover.png(context, hue)
+        val png = PlaceholderCover.png(context, hue, PlaceholderCover.Glyph.Artist)
         val image = BitmapFactory.decodeByteArray(png, 0, png.size)
         round(image).also {
             image.recycle()

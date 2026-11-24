@@ -35,8 +35,8 @@ With Android Auto:
   once), Artists and
   Playlists tabs with album covers, artists' pictures in circles and
   playlists' mosaics of their covers (an artist
-  without one shows their newest album's cover; Pley's mark on what has
-  no picture at all;
+  without one shows their newest album's cover; what has no picture at
+  all shows a disc, a person, a list or a book, or Pley's mark;
   an album or playlist opens to its
   tracks, and plays at once only with a single one; an artist's page
   is a grid of Shuffle and their albums by year, and an album numbers its tracks, by

@@ -677,9 +677,10 @@ class MusicLibraryTest {
 
     @Test
     fun whatHasNoPictureHasItsTitlesPlaceholderAndWhatHasOneKeepsIt() = runTest {
-        val covered = MusicLibrary(source, { Look }, { path, _ -> Uri.parse("content://art$path") }) { seed -> Uri.parse("content://placeholder/$seed") }
+        val covered = MusicLibrary(source, { Look }, { path, _ -> Uri.parse("content://art$path") }) { seed, kind -> Uri.parse("content://placeholder/$kind/$seed") }
         val playlists = covered.children(MusicId.Playlists, 0, 50)
-        assertEquals("content://placeholder/Night drive", playlists.single().mediaMetadata.artworkUri.toString())
+        // Of what it stands for: a playlist's shows a list on its gradient.
+        assertEquals("content://placeholder/Playlist/Night drive", playlists.single().mediaMetadata.artworkUri.toString())
         val albums = covered.children(MusicId.Artist(40), 0, 50).filter { it.mediaId.startsWith("album:") }
         assertTrue(albums.all { it.mediaMetadata.artworkUri.toString().startsWith("content://art/api/items/") })
         // A playlist with its entries' covers: their mosaic, else the first alone.
@@ -722,15 +723,26 @@ class MusicLibraryTest {
         assertEquals(PlaceholderCover.hue("Deep Water"), MusicArt.hueOf(context, uri))
         assertNull(MusicArt.pathOf(context, uri))
         assertNull(MusicArt.hueOf(context, MusicArt.uri(context, "/api/items/50/images/poster")!!))
-        for (text in listOf("h/2/400", "h/2/-1", "h/2/1x", "h", "h/12", "h/2", "h/2/12/3", "placeholder?h=12")) {
+        for (text in listOf("h/3/400", "h/3/-1", "h/3/1x", "h", "h/12", "h/3", "h/3/12/3", "h/3/12/x", "h/3/12/d/1", "placeholder?h=12")) {
             assertNull(text, MusicArt.hueOf(context, Uri.parse("content://${MusicArt.authority(context)}/$text")))
         }
         // The address names the drawing, so a car that kept another drawing by its address asks for this one; another
         // drawing's address isn't drawn.
         val hue = PlaceholderCover.hue("Deep Water")
         assertEquals("content://${MusicArt.authority(context)}/h/${PlaceholderCover.DRAWING}/$hue", uri.toString())
-        assertEquals(2, PlaceholderCover.DRAWING)
-        for (other in listOf(1, 3)) assertNull(MusicArt.hueOf(context, Uri.parse("content://${MusicArt.authority(context)}/h/$other/$hue")))
+        assertEquals(3, PlaceholderCover.DRAWING)
+        for (other in listOf(2, 4)) assertNull(MusicArt.hueOf(context, Uri.parse("content://${MusicArt.authority(context)}/h/$other/$hue")))
+        // An album's, an artist's, a playlist's and a book's show what they stand for; a track's, Pley's mark.
+        val authority = MusicArt.authority(context)
+        for ((kind, letter) in listOf(CoverKind.Album to "/d", CoverKind.Artist to "/p", CoverKind.Playlist to "/l", CoverKind.Book to "/b", CoverKind.Track to "")) {
+            val of = MusicArt.placeholderUri(context, "Deep Water", kind)
+            assertEquals("content://$authority/h/3/$hue$letter", of.toString())
+            assertEquals(hue, MusicArt.hueOf(context, of))
+        }
+        assertEquals(PlaceholderCover.Glyph.Album, MusicArt.glyphOf(context, MusicArt.placeholderUri(context, "Deep Water", CoverKind.Album)))
+        assertEquals(PlaceholderCover.Glyph.Mark, MusicArt.glyphOf(context, uri))
+        val glyphs = PlaceholderCover.Glyph.entries.map { PlaceholderCover.png(context, hue, it).toList() }
+        assertEquals(glyphs.size, glyphs.toSet().size)
         // The web's hue for a title, which the app's placeholder draws too.
         assertEquals(0, PlaceholderCover.hue(""))
         assertEquals(97 % 360, PlaceholderCover.hue("a"))

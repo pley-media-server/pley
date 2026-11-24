@@ -73,7 +73,18 @@ object MusicArt {
      * Auto keeps each cover it has read by its address, and showed the
      * placeholders as first drawn after they were drawn brighter.
      */
-    fun placeholderUri(context: Context, seed: String): Uri = placeholderOf(context, PlaceholderCover.hue(seed))
+    fun placeholderUri(context: Context, seed: String, kind: CoverKind = CoverKind.Track): Uri {
+        val letter = glyphOf(kind).letter?.let { "/$it" }.orEmpty()
+        return address(context, "$PLACEHOLDER/${PlaceholderCover.DRAWING}/${PlaceholderCover.hue(seed)}$letter")
+    }
+
+    private fun glyphOf(kind: CoverKind): PlaceholderCover.Glyph = when (kind) {
+        CoverKind.Track -> PlaceholderCover.Glyph.Mark
+        CoverKind.Album -> PlaceholderCover.Glyph.Album
+        CoverKind.Artist -> PlaceholderCover.Glyph.Artist
+        CoverKind.Playlist -> PlaceholderCover.Glyph.Playlist
+        CoverKind.Book -> PlaceholderCover.Glyph.Book
+    }
 
     /**
      * The tile of an artist's Shuffle, [seed] their name: their placeholder's gradient with the shuffle glyph on it
@@ -192,10 +203,17 @@ object MusicArt {
      * address it keeps for another, and asks for the lists' new addresses
      * the next time it reads them.
      */
-    internal fun hueOf(context: Context, uri: Uri): Int? {
+    internal fun hueOf(context: Context, uri: Uri): Int? = placeholderIn(context, uri)?.first
+
+    /** The glyph a [placeholderUri] is drawn with: the mark when it names none; `null` for any other address. */
+    internal fun glyphOf(context: Context, uri: Uri): PlaceholderCover.Glyph? = placeholderIn(context, uri)?.second
+
+    private fun placeholderIn(context: Context, uri: Uri): Pair<Int, PlaceholderCover.Glyph>? {
         val segments = segmentsOf(context, uri) ?: return null
-        if (segments.size != 3 || segments[0] != PLACEHOLDER || segments[1] != PlaceholderCover.DRAWING.toString() || !ID.matches(segments[2])) return null
-        return segments[2].toIntOrNull()?.takeIf { it in 0 until 360 }
+        if (segments.size !in 3..4 || segments[0] != PLACEHOLDER || segments[1] != PlaceholderCover.DRAWING.toString() || !ID.matches(segments[2])) return null
+        val glyph = segments.getOrNull(3)?.let { letter -> PlaceholderCover.Glyph.entries.firstOrNull { it.letter == letter } ?: return null }
+        val hue = segments[2].toIntOrNull()?.takeIf { it in 0 until 360 } ?: return null
+        return hue to (glyph ?: PlaceholderCover.Glyph.Mark)
     }
 
     /** The placeholder shown in place of the picture [uri] names when it can't be had; `null` when it has no hue. */
@@ -283,7 +301,10 @@ class MusicArtProvider : ContentProvider() {
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
         val context = context ?: throw FileNotFoundException()
         if (mode != "r") throw FileNotFoundException("Read only")
-        MusicArt.hueOf(context, uri)?.let { hue -> return pipe { PlaceholderCover.png(context, hue) } }
+        MusicArt.hueOf(context, uri)?.let { hue ->
+            val glyph = MusicArt.glyphOf(context, uri) ?: PlaceholderCover.Glyph.Mark
+            return pipe { PlaceholderCover.png(context, hue, glyph) }
+        }
         MusicArt.shuffleHueOf(context, uri)?.let { hue -> return pipe { PlaceholderCover.png(context, hue, PlaceholderCover.Glyph.Shuffle) } }
         MusicArt.roundOf(context, uri)?.let { (path, artist) -> return round(context, path, artist, MusicArt.hueIn(uri)) }
         MusicArt.mosaicOf(context, uri)?.let { paths -> return mosaic(context, paths, MusicArt.hueIn(uri)) }

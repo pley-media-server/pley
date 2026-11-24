@@ -51,7 +51,7 @@ class MusicLibraryGraph(
         artistArt = { artist -> MusicArt.artistUri(app, artist.id, artist.childCount, artist.title, artist.posterUrl) },
         shuffleArt = { seed -> MusicArt.shuffleUri(app, seed) },
         mosaicArt = { covers, seed -> MusicArt.mosaicUri(app, covers, seed) },
-    ) { seed -> MusicArt.placeholderUri(app, seed) }
+    ) { seed, kind -> MusicArt.placeholderUri(app, seed, kind) }
 
     /** The car's radio of Live TV's channels; `null` without Live TV here. */
     fun radio(): LiveRadio? {

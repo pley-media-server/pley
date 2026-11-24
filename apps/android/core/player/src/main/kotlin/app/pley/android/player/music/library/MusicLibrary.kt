@@ -67,6 +67,9 @@ interface MusicLibraryLook {
     val shuffleIcon: Uri?
 }
 
+/** What a cover stands for, whose glyph its placeholder shows ([MusicArt.placeholderUri]). */
+enum class CoverKind { Track, Album, Artist, Playlist, Book }
+
 /**
  * What playing a node of the library plays: [tracks] from [startIndex] ([startMs] into it), shuffled or not; [title] is
  * the playlist's or the artist's name it was picked as, for the queue's name (an album's or a book's is its tracks').
@@ -156,8 +159,8 @@ class MusicLibrary(
     private val shuffleArt: (seed: String) -> Uri? = { null },
     /** A playlist's mosaic of its first entries' covers, with its title ([MusicArt.mosaicUri]); `null` for its first cover alone. */
     private val mosaicArt: (covers: List<String>, seed: String) -> Uri? = { _, _ -> null },
-    /** The cover for what has none, from its title ([MusicArt.placeholderUri]). */
-    private val placeholder: (seed: String) -> Uri? = { null },
+    /** The cover for what has none, from its title and what it is ([MusicArt.placeholderUri]). */
+    private val placeholder: (seed: String, kind: CoverKind) -> Uri? = { _, _ -> null },
 ) {
     fun root(): MediaItem = node(MusicId.Root, title = "Pley", browsable = true, playable = false)
 
@@ -699,7 +702,7 @@ class MusicLibrary(
             .setDiscNumber(item.parentIndex)
             .setDurationMs(item.durationMs?.takeIf { it > 0 })
             // Its own cover, else its album's; without one (or one that can't be had), its album's placeholder, as the app shows it.
-            .setArtworkUri(if (inAlbum) null else cover(MusicPlayback.artPath(item), item.parentTitle ?: item.title))
+            .setArtworkUri(if (inAlbum) null else cover(MusicPlayback.artPath(item), item.parentTitle ?: item.title, if (part) CoverKind.Book else CoverKind.Track))
             .setIsBrowsable(false)
             .setIsPlayable(true)
             .setMediaType(if (part) MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER else MediaMetadata.MEDIA_TYPE_MUSIC)
@@ -736,7 +739,7 @@ class MusicLibrary(
             .setSubtitle((if (listening) left else null) ?: listOfNotNull(authors, left).joinToString(" · ").ifEmpty { item.year?.toString() })
             .setArtist(authors)
             .setDurationMs(item.durationMs?.takeIf { it > 0 })
-            .setArtworkUri(cover(item.posterUrl, item.title))
+            .setArtworkUri(cover(item.posterUrl, item.title, CoverKind.Book))
             .setIsBrowsable(false)
             .setIsPlayable(true)
             .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
@@ -776,7 +779,7 @@ class MusicLibrary(
             .setDisplayTitle(title)
             .setSubtitle(subtitle)
             .setArtist(artist)
-            .setArtworkUri(icon ?: picture ?: if (seed != null) cover(artPath, seed) else artPath?.let { art(it, null) })
+            .setArtworkUri(icon ?: picture ?: if (seed != null) cover(artPath, seed, kindOf(mediaType)) else artPath?.let { art(it, null) })
             .setIsBrowsable(browsable)
             .setIsPlayable(playable)
             .setMediaType(mediaType)
@@ -785,8 +788,15 @@ class MusicLibrary(
         return MediaItem.Builder().setMediaId(id.text).setMediaMetadata(metadata).build()
     }
 
-    /** The picture at [path], else [seed]'s placeholder: also when the picture named can't be had. */
-    private fun cover(path: String?, seed: String): Uri? = path?.let { art(it, seed) } ?: placeholder(seed)
+    /** The picture at [path], else [seed]'s placeholder of [kind]: also when the picture named can't be had (with the mark). */
+    private fun cover(path: String?, seed: String, kind: CoverKind): Uri? = path?.let { art(it, seed) } ?: placeholder(seed, kind)
+
+    private fun kindOf(mediaType: Int): CoverKind = when (mediaType) {
+        MediaMetadata.MEDIA_TYPE_ALBUM -> CoverKind.Album
+        MediaMetadata.MEDIA_TYPE_ARTIST -> CoverKind.Artist
+        MediaMetadata.MEDIA_TYPE_PLAYLIST -> CoverKind.Playlist
+        else -> CoverKind.Track
+    }
 
     /** The item shown as [style] wherever it is listed, whatever its list's hint. */
     private fun MediaItem.styled(style: Int): MediaItem {

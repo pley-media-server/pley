@@ -1324,9 +1324,13 @@ controls at once is fetched once. Music without
 a picture has the one the app shows, its title's gradient with Pley's
 mark, made lighter and the mark brighter so it reads on the car's gray
 lists: drawn on the phone from the title's hue alone, so no title goes
-into the address the car is given. So does a picture the server can't
-give: a track without a cover of its own is given its album's, which
-the album may not have either. Only Android Auto and the Google app,
+into the address the car is given. In place of the mark, an album's
+shows a disc, an artist's a person (in their circle), a playlist's a
+list and a book's a book, so a grid of them reads at a glance. A
+picture the server can't give is a placeholder too, with the mark, as
+its address doesn't say what it shows (an artist's, in their circle,
+shows the person): a track without a cover of its own is given its
+album's, which the album may not have either. Only Android Auto and the Google app,
 each checked by the certificate Google signs it with and as the app that
 asks, besides the system's own media controls, may browse Pley's music or
 pick what plays; a media button (a headset's, the steering wheel's, or

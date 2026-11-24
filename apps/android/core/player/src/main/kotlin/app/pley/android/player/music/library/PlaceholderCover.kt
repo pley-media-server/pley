@@ -32,12 +32,22 @@ internal object PlaceholderCover {
         return (h % 360).toInt()
     }
 
-    /** What a cover shows on its gradient: Pley's mark, or the glyph of what it stands for, at [share] of its side. */
-    enum class Glyph(@DrawableRes val drawable: Int, val share: Float) {
-        Mark(R.drawable.music_art_mark, MARK_SHARE),
+    /**
+     * What a cover shows on its gradient, at [share] of its side: Pley's mark (a track's, or a picture's that can't
+     * be had), or the glyph of what it stands for, so a grid's placeholders read as albums, playlists or books.
+     * [letter] names it in a placeholder's address ([MusicArt.placeholderUri]); the mark has none.
+     */
+    enum class Glyph(@DrawableRes val drawable: Int, val share: Float, val letter: String?) {
+        Mark(R.drawable.music_art_mark, MARK_SHARE, null),
 
         /** An artist's Shuffle, as the first tile of their page: the glyph is drawn at half its box. */
-        Shuffle(R.drawable.music_library_shuffle, 2 * MARK_SHARE),
+        Shuffle(R.drawable.music_library_shuffle, 2 * MARK_SHARE, null),
+        Album(R.drawable.music_art_disc, GLYPH_SHARE, "d"),
+
+        /** An artist's, in their circle ([RoundPicture.placeholder]). */
+        Artist(R.drawable.music_art_person, GLYPH_SHARE, "p"),
+        Playlist(R.drawable.music_library_playlists, GLYPH_SHARE, "l"),
+        Book(R.drawable.music_library_books, GLYPH_SHARE, "b"),
     }
 
     /** Covers drawn, by glyph and hue: an album's tracks, and the rows of a car's list, ask for the same few. */
@@ -77,17 +87,19 @@ internal object PlaceholderCover {
      * ([MusicArt.placeholderUri]): one higher whenever how it is drawn
      * changes. Android Auto keeps each cover it has read by its address, so
      * under the same address a car went on showing the drawing before (2 is
-     * the lighter one, its mark brighter).
+     * the lighter one, its mark brighter; 3 the one with the glyph of what
+     * it stands for).
      */
-    const val DRAWING = 2
+    const val DRAWING = 3
 
     /** The gradient's saturation, and its lightness at either end: the app's is 0.30 to 0.35, 0.22 to 0.12. */
     private const val SATURATION = 0.50f
     private const val LIGHT_FROM = 0.42f
     private const val LIGHT_TO = 0.28f
 
-    /** How much of the cover's side Pley's mark takes. */
+    /** How much of the cover's side Pley's mark takes, and a glyph's box (a glyph fills its box, the mark doesn't). */
     private const val MARK_SHARE = 0.42f
+    private const val GLYPH_SHARE = 0.36f
 
     private const val KEPT = 24
 }
