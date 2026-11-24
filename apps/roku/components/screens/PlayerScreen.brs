@@ -2623,6 +2623,8 @@ end sub
 sub openDetails()
     m.menuKind = "details"
     m.menuTitle.text = t("player.menu.details")
+    ' Hidden first: the panel opens at the top, not where it was left.
+    m.menuFacts.visible = false
     m.detailsShown = ""
     showDetails(invalid)
     m.menuList.visible = false

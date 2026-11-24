@@ -8,53 +8,113 @@ sub init()
     m.thumbTo = m.top.findNode("thumbTo")
     m.offset = 0
     m.total = 0
+    m.nodes = []
+    m.shape = ""
+    m.top.observeField("visible", "onVisible")
 end sub
 
-' The lines laid out once, top to bottom: a version's name in the accent,
-' a block's heading in bold, a fact's label in gray and its value in the
+' The lines laid out top to bottom: a version's name in the accent, a
+' block's heading in bold, a fact's label in gray and its value in the
 ' text color (on up to three lines) labelWidth along, a note in gray
-' across the width.
+' across the width. Lines that differ from those shown only in their
+' values and notes (a conversion's details, asked for again every 2 s)
+' change those words where they are, and the panel stays where it was
+' scrolled to; other lines are a new sheet, read from the top.
 sub onLines()
-    m.scroll.control = "stop"
+    lines = m.top.lines
+    shape = ""
+    for each line in lines
+        shape += line.kind + chr(10)
+        if line.kind <> "note" then shape += line.text + chr(10)
+    end for
+    if m.top.visible and shape = m.shape
+        for i = 0 to lines.Count() - 1
+            setText(m.nodes[i].label, lines[i].text)
+            if m.nodes[i].value <> invalid then setText(m.nodes[i].value, lines[i].value)
+        end for
+        place(true)
+        return
+    end if
+    m.shape = shape
     m.page.removeChildrenIndex(m.page.getChildCount(), 0)
+    width = m.top.width
+    valueX = m.top.labelWidth
+    m.nodes = []
+    for each line in lines
+        if line.kind = "note"
+            m.nodes.Push({ label: addLabel(line.text, "body", "0xA1A9B6FF", 0, width, 4), value: invalid })
+        else if line.kind = "fact"
+            m.nodes.Push({ label: addLabel(line.text, "body", "0xA1A9B6FF", 0, valueX - 24, 2), value: addLabel(line.value, "body", "0xEBEBEBFF", valueX, width - valueX, 3) })
+        else if line.kind = "version"
+            m.nodes.Push({ label: addLabel(line.text, "section", "0x7DD3FCFF", 0, width, 2), value: invalid })
+        else
+            m.nodes.Push({ label: addLabel(line.text, "title", "0xEBEBEBFF", 0, width, 2), value: invalid })
+        end if
+    end for
+    place(false)
+end sub
+
+' A sheet put away is read from the top when it shows again.
+sub onVisible()
+    if not m.top.visible then m.shape = ""
+end sub
+
+sub setText(label as object, text as string)
+    if label.text <> text then label.text = text
+end sub
+
+' Each line under the one before, by the heights its words take now; kept,
+' the panel stays at the same line's top, or the last it can scroll to.
+sub place(kept as boolean)
     width = m.top.width
     valueX = m.top.labelWidth
     y = 0
     ' Where each line starts and ends, for the panel to stop at whole lines.
     m.tops = []
     m.bottoms = []
-    for each line in m.top.lines
-        if line.kind = "note"
-            note = addLabel(line.text, "body", "0xA1A9B6FF", 0, y, width, 4)
-            keepLine(y, note.boundingRect().height)
-            y += note.boundingRect().height + 8
-        else if line.kind = "fact"
-            label = addLabel(line.text, "body", "0xA1A9B6FF", 0, y, valueX - 24, 2)
-            value = addLabel(line.value, "body", "0xEBEBEBFF", valueX, y, width - valueX, 3)
+    lines = m.top.lines
+    for i = 0 to m.nodes.Count() - 1
+        kind = lines[i].kind
+        label = m.nodes[i].label
+        if kind = "note"
+            moveTo(label, 0, y)
+            height = label.boundingRect().height
+            keepLine(y, height)
+            y += height + 8
+        else if kind = "fact"
+            value = m.nodes[i].value
+            moveTo(label, 0, y)
+            moveTo(value, valueX, y)
             height = label.boundingRect().height
             if value.boundingRect().height > height then height = value.boundingRect().height
             keepLine(y, height)
             y += height + 8
         else
-            style = "title"
-            color = "0xEBEBEBFF"
-            if line.kind = "version"
-                style = "section"
-                color = "0x7DD3FCFF"
-            end if
             if y > 0
                 y += 28
-                if line.kind = "version" then y += 24
+                if kind = "version" then y += 24
             end if
-            heading = addLabel(line.text, style, color, 0, y, width, 2)
-            keepLine(y, heading.boundingRect().height)
-            y += heading.boundingRect().height + 12
+            moveTo(label, 0, y)
+            height = label.boundingRect().height
+            keepLine(y, height)
+            y += height + 12
         end if
     end for
     m.total = y
-    m.offset = 0
-    m.page.translation = [0, 0]
-    clipAt(0)
+    offset = 0
+    if kept
+        last = lastTop()
+        for each top in m.tops
+            if top <= m.offset and top > offset then offset = top
+        end for
+        if last >= 0 and offset > last then offset = last
+    end if
+    if not kept or offset <> m.offset
+        m.scroll.control = "stop"
+        m.page.translation = [0, -offset]
+    end if
+    m.offset = offset
+    clipAt(offset)
     ' The bar: as tall as the part in view is of the whole.
     longer = m.total > m.top.height
     m.track.visible = longer
@@ -63,9 +123,35 @@ sub onLines()
         m.track.translation = [width + 16, 0]
         m.track.height = m.top.height
         m.thumb.height = Int(m.top.height * m.top.height / m.total)
-        m.thumb.translation = [width + 16, 0]
+        if m.scroll.state <> "running" then m.thumb.translation = [width + 16, thumbAt(offset)]
     end if
 end sub
+
+sub moveTo(label as object, x as integer, y as integer)
+    at = label.translation
+    if at[0] <> x or at[1] <> y then label.translation = [x, y]
+end sub
+
+' The first line's top from which the rest fits in the panel, -1 for none.
+function lastTop() as integer
+    limit = m.total - m.top.height
+    if limit < 0 then limit = 0
+    last = -1
+    for each top in m.tops
+        if top >= limit and (last < 0 or top < last) then last = top
+    end for
+    return last
+end function
+
+' Where the bar's thumb sits with the panel scrolled to offset. The last
+' whole line's top can be past where the rest just fits.
+function thumbAt(offset as integer) as integer
+    limit = m.total - m.top.height
+    if limit <= 0 then return 0
+    shownTo = offset
+    if shownTo > limit then shownTo = limit
+    return Int((m.top.height - m.thumb.height) * shownTo / limit)
+end function
 
 sub keepLine(top as integer, height as integer)
     m.tops.Push(top)
@@ -84,14 +170,14 @@ sub clipAt(offset as integer)
     m.top.clippingRect = [0, 0, m.top.width + 24, shown]
 end sub
 
-function addLabel(text as string, style as string, color as string, x as integer, y as integer, width as integer, lines as integer) as object
+function addLabel(text as string, style as string, color as string, x as integer, width as integer, lines as integer) as object
     label = m.page.createChild("Label")
     label.font = uiType(style)
     label.color = color
     label.width = width
     label.wrap = true
     label.maxLines = lines
-    label.translation = [x, y]
+    label.translation = [x, 0]
     label.text = text
     return label
 end function
@@ -100,17 +186,12 @@ end function
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
     if key <> "up" and key <> "down" then return false
-    limit = m.total - m.top.height
-    if limit < 0 then limit = 0
     stepBy = Int(m.top.height / 5)
     ' To a line's top, so none is cut at the panel's top: the furthest
     ' within the step, else the next one, and no further than the first
     ' from which the rest fits.
     if key = "down"
-        last = -1
-        for each top in m.tops
-            if top >= limit and (last < 0 or top < last) then last = top
-        end for
+        last = lastTop()
         offset = -1
         for each top in m.tops
             if top > m.offset and top <= m.offset + stepBy and top > offset then offset = top
@@ -139,12 +220,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     clipAt(offset)
     m.scroll.control = "stop"
     m.pageTo.keyValue = [m.page.translation, [0, -offset]]
-    thumbY = 0
-    ' The last whole line's top can be past where the rest just fits.
-    shownTo = offset
-    if shownTo > limit then shownTo = limit
-    if limit > 0 then thumbY = Int((m.top.height - m.thumb.height) * shownTo / limit)
-    m.thumbTo.keyValue = [m.thumb.translation, [m.top.width + 16, thumbY]]
+    m.thumbTo.keyValue = [m.thumb.translation, [m.top.width + 16, thumbAt(offset)]]
     m.scroll.control = "start"
     return true
 end function

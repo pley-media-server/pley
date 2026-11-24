@@ -148,6 +148,10 @@ describes how they are made.
 
 ### Fixed
 
+- The player's Playback details stay where they were scrolled to while a
+  conversion's figures change every 2 seconds, and only the figures that
+  changed are drawn again: the panel was laid out anew and went back to
+  the top each time.
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end instead.
   Without credits, it comes at the end too, rather than 30 s before it.
