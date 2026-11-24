@@ -284,6 +284,15 @@ class MusicLibraryTest {
     }
 
     @Test
+    fun searchPutsTheGroupOfTheClosestMatchFirst() = runTest {
+        // The server found a track closest, then an album, then the artist: the tracks lead, then the albums.
+        source.found = listOf(track(51, 50), album(55, "Second Tide"), ItemSummary(40, 3, ItemKind.Artist, "Harbour Lights"), track(52, 50))
+        val found = library.search("tide")
+        assertEquals(listOf("track:51", "track:52", "album:55", "artist:40"), found.map { it.mediaId })
+        assertEquals(listOf("Tracks", "Tracks", "Albums", "Artists"), found.map { it.group })
+    }
+
+    @Test
     fun aSearchOfBlanksListsTheAlbumsPlayedAndAddedLastWithoutAskingTheServer() = runTest {
         // Media3 answers an empty query itself; one of blanks reaches the library.
         source.found = emptyList()

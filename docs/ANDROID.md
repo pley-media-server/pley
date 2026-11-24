@@ -1138,7 +1138,10 @@ and its book pages follow, and the other way round.
 
 A server that doesn't give books (an older one) leaves the Books tab out.
 
-Search finds artists, albums, tracks and books, then channels. Each
+Search finds artists, albums, tracks and books, each kind under its
+heading, the kind of the server's closest match first, then channels:
+those found within a second and a half, so a slow IPTV provider doesn't
+hold back the music's results. Each
 search the car sends is asked of the server by itself, so one overtaken
 by the next letter typed still gets its answer. A list or search the server hasn't
 sent within 8 seconds shows as the server out of reach, as cars are to

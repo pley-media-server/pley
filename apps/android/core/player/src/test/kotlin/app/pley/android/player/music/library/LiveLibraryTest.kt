@@ -14,6 +14,7 @@ import app.pley.android.model.LiveGroups
 import app.pley.android.model.LiveProgram
 import app.pley.android.model.PlaylistKind
 import app.pley.android.model.PlaylistSummary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -158,6 +159,14 @@ class LiveLibraryTest {
         assertEquals(listOf("recent", "artists"), library.children(MusicId.Root, 0, 2).map { it.mediaId })
         assertEquals(listOf("books", "live"), library.children(MusicId.Root, 1, 2).map { it.mediaId })
 
+        // Channels slow to come don't hold the music's results: the search goes on without them.
+        source.slow = true
+        val withArtist = MusicLibrary(object : MusicSource by music {
+            override suspend fun search(query: String) = listOf(ItemSummary(41, 3, ItemKind.Artist, "Sport Relief"))
+        }, { MusicLook }, { _, _ -> null }, live)
+        assertEquals(listOf("artist:41"), withArtist.search("sport").map { it.mediaId })
+        source.slow = false
+
         source.shown = false
         val four = library.children(MusicId.Root, 0, 50)
         assertEquals(listOf("recent", "artists", "playlists", "books"), four.map { it.mediaId })
@@ -171,6 +180,9 @@ class LiveLibraryTest {
     private class FakeLiveSource : LiveSource {
         var shown = true
         var failing = false
+
+        /** Searches answer after a minute, as an IPTV provider's lineup can. */
+        var slow = false
         val channels = mutableListOf(
             LiveChannel(1, name = "News One", group = "News", logo = "/api/live/channels/1/logo", favorite = true, now = LiveProgram(1, NOW - 60, NOW + 600, "The Morning")),
             LiveChannel(2, name = "News Two", group = "News"),
@@ -187,6 +199,7 @@ class LiveLibraryTest {
         override suspend fun groups(): LiveGroups = groups
 
         override suspend fun channels(category: LiveCategory, query: String, limit: Int): List<LiveChannel> {
+            if (slow && query.isNotEmpty()) delay(60_000)
             val listed = when (category) {
                 LiveCategory.All -> channels
                 LiveCategory.Favorites -> channels.filter { it.favorite }

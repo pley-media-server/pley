@@ -159,22 +159,38 @@ class MusicLibrary(
     }
 
     /**
-     * Artists, then albums, tracks and books matching [query]: each a group
-     * of its own; then Live TV's channels. A query of blanks gets the albums
-     * played and added last, once each, as Recent has them (Media3 answers
-     * an empty one itself, before it gets here).
+     * Artists, albums, tracks and books matching [query], each a group of
+     * its own, the group of the server's closest match first (then as
+     * listed); then Live TV's channels, as many as are found within
+     * [LIVE_SEARCH_MS]. A query of blanks gets the albums played and added
+     * last, once each, as Recent has them (Media3 answers an empty one
+     * itself, before it gets here).
      */
     suspend fun search(query: String): List<MediaItem> = coroutineScope {
         if (query.isBlank()) return@coroutineScope recent().distinctBy { it.mediaId }.take(SEARCH_EACH)
-        // Channels not found (Live TV closed, the server's answer failing) leave the music's results as they are.
-        val channels = async { live?.let { runCatching { it.search(query) }.getOrNull() }.orEmpty() }
+        // Channels not found (Live TV closed, the server's answer failing) leave the music's results as they are, and
+        // so do channels slow to come: a provider's lineup is searched apart from the music, and the car waits for both.
+        val channels = async {
+            try {
+                withTimeoutOrNull(LIVE_SEARCH_MS) { live?.search(query) }.orEmpty()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
         val found = source.search(query)
         val l = look()
-        found.filter { it.kind == ItemKind.Artist }.take(SEARCH_EACH).map { artist(it).grouped(l.artists) } +
-            found.filter { it.kind == ItemKind.Album }.take(SEARCH_EACH).map { album(it).grouped(l.albums) } +
-            found.filter { it.kind == ItemKind.Track }.take(SEARCH_EACH).map { track(it, from = null).grouped(l.songs) } +
-            found.filter { it.kind == ItemKind.Audiobook }.take(SEARCH_EACH).map { book(it, null).grouped(l.books) } +
-            channels.await()
+        val groups = listOf<Pair<ItemKind, (ItemSummary) -> MediaItem>>(
+            ItemKind.Artist to { artist(it).grouped(l.artists) },
+            ItemKind.Album to { album(it).grouped(l.albums) },
+            ItemKind.Track to { track(it, from = null).grouped(l.songs) },
+            ItemKind.Audiobook to { book(it, null).grouped(l.books) },
+        )
+        // Sorted by where each kind's first match is: the one the server found closest leads ("Thriller" finds the
+        // album before an artist whose name only holds the word).
+        val closest = groups.sortedBy { (kind, _) -> found.indexOfFirst { it.kind == kind }.let { if (it < 0) Int.MAX_VALUE else it } }
+        closest.flatMap { (kind, row) -> found.filter { it.kind == kind }.take(SEARCH_EACH).map(row) } + channels.await()
     }
 
     /** What playing [id] plays; `null` for a node that doesn't play, or plays nothing. */
@@ -656,6 +672,9 @@ class MusicLibrary(
 
         /** The most of each kind a search shows. */
         private const val SEARCH_EACH = 15
+
+        /** The longest a search waits for Live TV's channels, searched beside the music. */
+        private const val LIVE_SEARCH_MS = 1_500L
 
         /** An artist's albums: the newest first, then by title. */
         private val NEWEST_FIRST = compareByDescending<ItemSummary> { it.year ?: 0 }.thenBy { it.sortTitle.ifEmpty { it.title }.lowercase() }
