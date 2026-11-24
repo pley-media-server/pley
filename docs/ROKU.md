@@ -208,7 +208,8 @@ nor their books on Home, in search or in history.
   tile's frame. Roku can tell a picture that failed from one that loads,
   so the mark never shows while one loads, nor on a frame still waiting
   for its title. A Live TV channel without its logo shows its name in the
-  frame instead, and a person without a photo the frame alone.
+  frame instead, and a person without a photo their initials in the
+  circle.
 - **Quality badges:** sorted by bitrate, or filtered by resolution or
   dynamic range, the posters say what sets their best file apart at their
   foot: "4K" (no other resolution), then "DV", "HDR+", "HDR" or "HLG".

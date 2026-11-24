@@ -65,8 +65,8 @@ end sub
 ' Bound again as the list scrolls: only a new title changes the tile. A
 ' title without a picture, or whose picture fails, shows Pley's mark in
 ' its frame (the poster's failed bitmap, drawn for its shape with its
-' library's glyph), and not its title: the line under it names it. No
-' observer per tile.
+' library's glyph), and not its title: the line under it names it. The
+' mark needs no observer of its own.
 sub onContent()
     item = m.top.itemContent
     if item = invalid then return
