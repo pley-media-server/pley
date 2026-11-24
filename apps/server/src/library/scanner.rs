@@ -616,19 +616,39 @@ impl Scanner {
         let roots = lib.paths();
         self.set_status(lib, ScanPhase::Walking, 0, 0);
 
+        let mut phase = Instant::now();
+        let mut existing: Vec<KnownFile> = sqlx::query_as(
+            "SELECT id, item_id, path, COALESCE(link_size, size) AS size, mtime, probed, external_subs
+                 FROM media_files WHERE library_id = ?",
+        )
+        .bind(library_id)
+        .fetch_all(&self.db.read)
+        .await?;
+        let reading = phase.elapsed();
+
         // Sidecar files are indexed once: matching them file by file against
         // the whole library made every scan quadratic in its size.
-        let mut phase = Instant::now();
-        let scope = scope.map(Arc::new);
-        let (mut walked, sidecars) = {
-            let (roots, scope) = (roots.clone(), scope.clone());
+        phase = Instant::now();
+        let (mut walked, sidecars, scope) = {
+            let roots = roots.clone();
+            let known: Vec<String> =
+                if scope.is_some() { existing.iter().map(|file| file.path.clone()).collect() } else { Vec::new() };
             crate::util::blocking(move || {
+                let mut scope = scope;
                 let mut walked = match &scope {
                     Some(scope) => walk_part(&roots, kind, scope.parts()),
                     None => walk(&roots, kind),
                 };
+                // A title's folder that went from a library folder without
+                // a change naming it may be anywhere in the library under
+                // another name: only all of it tells.
+                if scope.as_ref().is_some_and(|scope| scope.missed(&walked.listed, known.iter().map(String::as_str))) {
+                    tracing::info!("library {library_id}: changes went unnoticed, scanning all of it");
+                    scope = None;
+                    walked = walk(&roots, kind);
+                }
                 let sidecars = Sidecars::new(std::mem::take(&mut walked.sidecars));
-                Ok((walked, Arc::new(sidecars)))
+                Ok((walked, Arc::new(sidecars), scope.map(Arc::new)))
             })
             .await?
         };
@@ -647,21 +667,9 @@ impl Scanner {
         };
 
         phase = Instant::now();
-        let mut existing: Vec<KnownFile> = sqlx::query_as(
-            "SELECT id, item_id, path, COALESCE(link_size, size) AS size, mtime, probed, external_subs
-                 FROM media_files WHERE library_id = ?",
-        )
-        .bind(library_id)
-        .fetch_all(&self.db.read)
-        .await?;
-        // Files outside what was walked are as they were, but for those whose
-        // entry in a library folder went, which its listing tells: a title's
-        // folder a tool renamed, and named only as it is now.
+        // Files outside what was walked are as they were.
         if let Some(scope) = &scope {
-            existing.retain(|file| {
-                let path = Path::new(&file.path);
-                scope.holds(path) || super::scope::went(&walked.listed, path)
-            });
+            existing.retain(|file| scope.holds(Path::new(&file.path)));
         }
         let existing_by_path: HashMap<&str, &KnownFile> = existing.iter().map(|f| (f.path.as_str(), f)).collect();
 
@@ -724,7 +732,7 @@ impl Scanner {
             }
         }
 
-        phases.diff = phase.elapsed();
+        phases.diff = reading + phase.elapsed();
 
         let mut totals = Totals { removed: removed.len() as u64, ..Default::default() };
         let total = to_process.len() as u64;

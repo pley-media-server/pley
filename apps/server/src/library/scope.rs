@@ -13,7 +13,8 @@
 //! taken for deleted, and its items' artwork, subtitles and NFO files
 //! aren't worked out from a part of the library's sidecar files. Only what
 //! went from the library folder itself is noticed without its path, since
-//! the library folder is listed anyway (see the scanner).
+//! the library folder is listed anyway: changes went unnoticed, and the
+//! whole library is scanned instead ([`Scope::missed`]).
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
@@ -161,6 +162,22 @@ impl Scope {
             || self.find(dir, |part, first, _| part.takes(first, true))
     }
 
+    /// Whether changes went unnoticed: an entry holding one of the `known`
+    /// files went from a library folder (`listed` has the names in those
+    /// walked) and no changed path named it. Its files may be anywhere in
+    /// the library under another name (a title's folder renamed while
+    /// nothing watched, or by a tool that named only the new one), where
+    /// only a scan of the whole library finds them: taken for deleted,
+    /// their titles would go with what was done with them and come back
+    /// as new.
+    pub fn missed<'a>(
+        &self,
+        listed: &HashMap<PathBuf, HashSet<String>>,
+        mut known: impl Iterator<Item = &'a str>,
+    ) -> bool {
+        known.any(|path| !self.holds(Path::new(path)) && went(listed, Path::new(path)))
+    }
+
     /// Whether `decide` takes `path` in one of the library folders holding
     /// it: it is given the folder's part, the first name of `path` in it,
     /// and whether that is all of it.
@@ -180,7 +197,7 @@ impl Scope {
 
 /// Whether the entry of a library folder that `path` is in went from it, by
 /// `listed`, every name in the library folders listed.
-pub fn went(listed: &HashMap<PathBuf, HashSet<String>>, path: &Path) -> bool {
+fn went(listed: &HashMap<PathBuf, HashSet<String>>, path: &Path) -> bool {
     listed.iter().any(|(root, names)| {
         let Ok(rel) = path.strip_prefix(root) else { return false };
         match rel.components().next() {
@@ -280,6 +297,38 @@ mod tests {
         assert_eq!(changed(&[&more, &movies.join("Loose (2003).mkv")]), None);
         let many: Vec<PathBuf> = (0..=MOST_PATHS).map(|n| movies.join(format!("Film {n} (2001)"))).collect();
         assert_eq!(Scope::of(&roots, LibraryKind::Movies, &many), None);
+    }
+
+    /// An entry with known files in it that went from a library folder
+    /// without a changed path naming it: changes went unnoticed.
+    #[test]
+    fn what_went_unnamed_says_changes_were_missed() {
+        let movies = PathBuf::from("/m");
+        let known = [
+            "/m/Film One (2001)/Film One (2001).mkv",
+            "/m/Film Two (2002)/Film Two (2002).mkv",
+            "/m/Loose (2003).mkv",
+            "/more/Other (2004)/Other (2004).mkv",
+        ];
+        let scope = |folder: &str, top: bool| Scope {
+            roots: vec![movies.clone(), PathBuf::from("/more")],
+            parts: vec![Part { folders: [folder.to_owned()].into(), top }, Part::default()],
+        };
+        let missed = |scope: Scope, names: &[&str]| {
+            let listed = HashMap::from([(movies.clone(), names.iter().map(|name| name.to_string()).collect())]);
+            scope.missed(&listed, known.iter().copied())
+        };
+        // Nothing went, whatever came; a library folder not walked isn't
+        // listed, and nothing is known to have gone from it.
+        let all = ["Film One (2001)", "Film Two (2002)", "Loose (2003).mkv", "New (2005)"];
+        assert!(!missed(scope("Film Two (2002)", false), &all));
+        // What went was named: a folder, a file of the library folder.
+        assert!(!missed(scope("Film One (2001)", false), &all[1..]));
+        assert!(!missed(scope("Film Two (2002)", true), &all[..2]));
+        // It wasn't: a folder renamed, a file of the library folder gone.
+        assert!(missed(scope("Film Two (2002)", false), &["Film One (2001) [Remux]", "Film Two (2002)", all[2]]));
+        assert!(missed(scope("Film One (2001) [Remux]", false), &["Film One (2001) [Remux]", all[1], all[2]]));
+        assert!(missed(scope("Film Two (2002)", false), &all[..2]));
     }
 
     /// Windows and macOS find a folder by its name in any case: it is the

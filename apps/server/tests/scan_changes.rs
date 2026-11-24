@@ -95,21 +95,19 @@ async fn a_change_rescans_only_the_folder_it_is_in() {
         .unwrap();
 
     // Subtitles and a poster come for one film; unnoticed, another film's
-    // video is deleted, a third film comes, and a fourth's folder goes.
+    // video is deleted and a third film comes.
     let media = app.media.path();
     app.media_file("movies/Film One (2001)/Film One (2001).en.srt", 10);
     app.media_file("movies/Film One (2001)/poster.jpg", 10);
     std::fs::remove_file(media.join("movies/Film Two (2002)/Film Two (2002).mkv")).unwrap();
     app.media_file("movies/Film Two (2002)/poster.jpg", 10);
     app.media_file("movies/Film Three (2003)/Film Three (2003).mkv", 1024);
-    std::fs::remove_dir_all(media.join("movies/Film Four (2004)")).unwrap();
     changed(&app, lib, &["movies/Film One (2001)/Film One (2001).en.srt"]).await;
     let film = app.ids(lib, &admin).await["Film One"];
     assert_eq!(subtitles(&app, &admin, film).await, ["eng"]);
     assert!(app.get(&format!("/api/items/{film}"), &admin).await.body["poster_url"].is_string());
-    // What is in the other folders is as it was; a folder that went from
-    // the library folder, which is listed anyway, is seen to have gone.
-    assert_eq!(listed(&app, &admin, lib).await, ["Film One", "Film Two", "Loose"]);
+    // What is in the other folders is as it was.
+    assert_eq!(listed(&app, &admin, lib).await, ["Film Four", "Film One", "Film Two", "Loose"]);
     let (scanned, walked) = scan_times(&app, lib).await;
     assert!(scanned > Some(1));
     assert_eq!(walked, Some(1), "the periodic scan is still due");
@@ -119,17 +117,24 @@ async fn a_change_rescans_only_the_folder_it_is_in() {
     std::fs::remove_file(media.join("movies/Loose (2003).mkv")).unwrap();
     app.media_file("movies/Another (2004).mkv", 1024);
     changed(&app, lib, &["movies/Another (2004).mkv"]).await;
-    assert_eq!(listed(&app, &admin, lib).await, ["Another", "Film One", "Film Two"]);
+    assert_eq!(listed(&app, &admin, lib).await, ["Another", "Film Four", "Film One", "Film Two"]);
 
     // A video that went: its film goes.
     changed(&app, lib, &["movies/Film Two (2002)/Film Two (2002).mkv"]).await;
-    assert_eq!(listed(&app, &admin, lib).await, ["Another", "Film One"]);
+    assert_eq!(listed(&app, &admin, lib).await, ["Another", "Film Four", "Film One"]);
+    assert_eq!(scan_times(&app, lib).await.1, Some(1));
 
-    // The whole library at the next full scan.
-    rescan(&app, &admin, lib).await;
+    // A folder gone from the library folder, which is listed anyway, that
+    // no change named: changes went unnoticed, so the whole library is
+    // scanned, as at the next full scan.
+    std::fs::remove_dir_all(media.join("movies/Film Four (2004)")).unwrap();
+    changed(&app, lib, &["movies/Film One (2001)/Film One (2001).en.srt"]).await;
     assert_eq!(listed(&app, &admin, lib).await, ["Another", "Film One", "Film Three"]);
-    assert_eq!(subtitles(&app, &admin, film).await, ["eng"]);
     assert!(scan_times(&app, lib).await.1 > Some(1));
+    app.media_file("movies/Film Five (2005)/Film Five (2005).mkv", 1024);
+    rescan(&app, &admin, lib).await;
+    assert_eq!(listed(&app, &admin, lib).await, ["Another", "Film Five", "Film One", "Film Three"]);
+    assert_eq!(subtitles(&app, &admin, film).await, ["eng"]);
 }
 
 /// A change only where scans never look (a NAS's thumbnails) starts none.
@@ -174,6 +179,44 @@ async fn a_folder_moved_in_the_library_keeps_its_title_and_what_was_done_with_it
     assert_eq!(item["user_state"]["position_ms"], json!(50_000));
     assert_eq!(subtitles(&app, &admin, film).await, ["eng"]);
     assert_eq!(listed(&app, &admin, lib).await, ["Film One", "Film Two"]);
+}
+
+/// Folders and a file renamed or moved while nothing watched (a share
+/// another computer wrote to), then a change elsewhere in the library:
+/// their titles aren't taken for deleted because where they were is gone,
+/// they are found where they are now.
+#[tokio::test]
+async fn what_was_renamed_unnoticed_keeps_its_title_at_a_change_elsewhere() {
+    let (app, admin) = app().await;
+    app.media_file("movies/Film One (2001)/Film One (2001).mkv", 1024);
+    app.media_file("movies/Film Two (2002)/Film Two (2002).mkv", 1024);
+    app.media_file("movies/Film Three (2003)/Film Three (2003).mkv", 1024);
+    app.media_file("movies/Older/Film Four (2004)/Film Four (2004).mkv", 1024);
+    app.media_file("movies/Loose (2003).mkv", 1024);
+    let lib = library(&app, &admin, "movies", "movies").await;
+    let films = app.ids(lib, &admin).await;
+    let progress = json!({"position_ms": 50_000, "duration_ms": 100_000, "state": "paused"});
+    let moved = [
+        ("Film One", "Film One (2001)", "Film One (2001) [Remux]", "Film One (2001) [Remux]/Film One (2001).mkv"),
+        ("Film Three", "Film Three (2003)", "Older/Film Three (2003)", "Older/Film Three (2003)/Film Three (2003).mkv"),
+        ("Loose", "Loose (2003).mkv", "Loose (2003) [Remux].mkv", "Loose (2003) [Remux].mkv"),
+    ];
+    let media = app.media.path().join("movies");
+    for (film, from, to, _) in moved {
+        let film = films[film];
+        assert!(app.post(&format!("/api/items/{film}/progress"), &admin, progress.clone()).await.status.is_success());
+        rename(&media.join(from), &media.join(to)).await;
+    }
+    app.media_file("movies/Film Two (2002)/Film Two (2002).en.srt", 10);
+    changed(&app, lib, &["movies/Film Two (2002)/Film Two (2002).en.srt"]).await;
+    assert_eq!(app.ids(lib, &admin).await, films, "the same films");
+    for (film, _, _, now_at) in moved {
+        let item = app.get(&format!("/api/items/{}", films[film]), &admin).await.body;
+        assert_eq!(item["files"].as_array().unwrap().len(), 1, "{item}");
+        let path = item["files"][0]["path"].as_str().unwrap().replace('\\', "/");
+        assert!(path.ends_with(now_at), "{path}");
+        assert_eq!(item["user_state"]["position_ms"], json!(50_000), "{film}");
+    }
 }
 
 /// A library whose scans fail waits longer and longer between them: a
