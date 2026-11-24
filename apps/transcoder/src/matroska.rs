@@ -1661,8 +1661,17 @@ fn read_payload(r: &mut impl Read, size: u64) -> Option<Vec<u8>> {
     if size == UNKNOWN_SIZE || size > MAX_ELEMENT_READ {
         return None;
     }
-    let mut buf = vec![0u8; size as usize];
-    r.read_exact(&mut buf).ok()?;
+    let size = size as usize;
+    // Room for twice what the file has given so far at most: a few bytes
+    // claiming a big element don't get its size allocated.
+    let mut buf = Vec::new();
+    while buf.len() < size {
+        let next = size.min((buf.len() * 2).max(64 * 1024));
+        buf.reserve_exact(next - buf.len());
+        if r.by_ref().take((next - buf.len()) as u64).read_to_end(&mut buf).ok()? == 0 {
+            return None;
+        }
+    }
     Some(buf)
 }
 
@@ -1770,6 +1779,7 @@ fn cue_times(cues: &[u8], track: u64) -> Vec<(u64, Option<u64>)> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::fuzz::{self, Bytes, Rng};
     use pley_transcoder_api::MediaStream;
 
     /// Encode an element (id bytes as written, 8-byte size).
@@ -1829,6 +1839,78 @@ pub(crate) mod tests {
             pos = data + size;
         }
         println!("result: {:?}", cue_keyframes(Path::new(&path)).map(|t| t.into_iter().take(5).collect::<Vec<_>>()));
+    }
+
+    /// Files of every layout read here, changed: what they hold, or why
+    /// not, never a panic; within the read's bounds.
+    #[test]
+    fn any_file_is_read_or_refused() {
+        let (mut second, mut short, mut nowhere, mut unplaced) = (movie(), pictures_every_second(3), movie(), movie());
+        second.cues_listed = Listed::InSecondSeekHead;
+        short.short_clusters = true;
+        nowhere.cues_listed = Listed::Nowhere;
+        unplaced.no_relative = true;
+        let files = [movie(), pictures_every_second(3), second, short, nowhere, unplaced];
+        let mut seeds: Vec<Vec<u8>> = files.iter().map(TestFile::bytes).collect();
+        seeds.push(with_attachments(&[("a.ttf", "font/ttf", b"font"), ("b.jpg", "image/jpeg", b"picture")]));
+        let input = move |rng: &mut Rng| {
+            let seed = &seeds[rng.below(seeds.len())];
+            Bytes(if rng.one_in(8) { rng.bytes(1024) } else { rng.mutate(seed) })
+        };
+        let limit = |file: &Bytes| (16 << 20) + 64 * file.0.len();
+        let dir = tempfile::tempdir().unwrap();
+        fuzz::check("Matroska files", 500, input, limit, move |file| {
+            let path = dir.path().join("film.mkv");
+            std::fs::write(&path, &file.0).unwrap();
+            if let Some(times) = cue_keyframes(&path) {
+                assert!(times.len() >= 2 && times.is_sorted());
+            }
+            if let Some((cues, points)) = cue_index(&path) {
+                assert!(cues.end <= file.0.len() as u64 && points.is_sorted(), "{cues:?} {points:?}");
+            }
+            if let Ok(fonts) = attached_fonts(&path, 1 << 20) {
+                assert!(fonts.len() <= MAX_FONTS && fonts.iter().map(|f| f.data.len()).sum::<usize>() <= 1 << 20);
+            }
+            let budget = || Budget::new(16 << 20, Duration::from_secs(5));
+            let _ = text_tracks(&path, &movie_media(), &[2, 4], &budget());
+            let _ = picture_tracks(&path, &movie_media(), &[3], &budget(), (0, i64::MAX), &|_| {}, |_| Ok(()));
+            elements(&file.0, 0);
+        });
+
+        /// Every element's payload, three deep, through what reads one.
+        fn elements(data: &[u8], depth: usize) {
+            let budget = Budget::new(1 << 20, Duration::from_secs(5));
+            let _ = cue_entries(data, &[1, 4, 5], &budget);
+            let _ =
+                (block_counts(data, Some(b"mkvmerge v90"), &[104, 105]), cue_times(data, 1), first_video_track(data));
+            let _ = (seek_entries(data).count(), Track::parse(data), webm_cue_text(data), inflate(data, 1 << 20));
+            let _ = (parse_block(data, None, 0), block_group_at(data, 4, 1_500), simple_block_at(data, 5));
+            if depth < 3 {
+                children(data).for_each(|(_, payload)| elements(payload, depth + 1));
+            }
+        }
+    }
+
+    /// A file of a few bytes whose seek head says it is 60 MiB long: the
+    /// seek head is read as far as the file has it, and no further room is
+    /// taken for it.
+    #[test]
+    fn an_element_takes_room_only_as_the_file_has_it() {
+        let mut seek_head = vec![0x11, 0x4D, 0x9B, 0x74, 0x01];
+        seek_head.extend_from_slice(&(60u64 << 20).to_be_bytes()[1..]);
+        seek_head.extend_from_slice(&[0; 16]);
+        let file =
+            [el(&[0x1A, 0x45, 0xDF, 0xA3], &[0x42, 0x86, 0x81, 0x01]), el(&[0x18, 0x53, 0x80, 0x67], &seek_head)];
+        let file = file.concat();
+        let dir = tempfile::tempdir().unwrap();
+        let input = move |_: &mut Rng| Bytes(file.clone());
+        let read = move |file: &Bytes| {
+            let path = dir.path().join("short.mkv");
+            std::fs::write(&path, &file.0).unwrap();
+            assert_eq!(cue_keyframes(&path), None);
+            assert_eq!(attached_fonts(&path, u64::MAX), Err("not a Matroska file".into()));
+        };
+        fuzz::check("a short file's long element", 1, input, |_| 1 << 20, read);
     }
 
     #[test]

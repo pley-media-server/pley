@@ -43,14 +43,16 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
 - For the LG app's TV build, Linux with the webOS toolchain, or Docker
   ([LG.md](LG.md#the-tv-build)); its tests and simulator need only Rust.
 - FFmpeg and ffprobe on `PATH` or configured, version 9 recommended (6.1
-  or newer throttles transcodes). For hardware transcoding and GPU tone
-  mapping, use a build with NVENC, QSV, AMF or VAAPI and libplacebo:
-  gyan.dev's "full" build on Windows, the distribution's or jellyfin-ffmpeg
-  on Linux, Homebrew's `ffmpeg-full` on macOS
-  ([deploy/README.md](../deploy/README.md)). The Docker image's is
-  pley-ffmpeg, FFmpeg with patches for Intel GPUs, which
-  [deploy/ffmpeg](../deploy/ffmpeg/README.md) builds for Linux and for
-  Windows.
+  or newer throttles transcodes). Prefer pley-ffmpeg, the FFmpeg Pley
+  ships in the Docker image and the Windows installer: FFmpeg 9 with
+  libplacebo, the hardware encoders and patches for Intel GPUs, which
+  [deploy/ffmpeg](../deploy/ffmpeg/README.md) builds.
+  `scripts/pley-ffmpeg.ps1 -Platform windows -Destination <folder>` puts
+  its Windows build in a folder, whose `bin` goes on `PATH`; its Linux build
+  (`-Platform linux`) runs on Debian 13 only. Elsewhere, a build with
+  NVENC, QSV, AMF or VAAPI and libplacebo: jellyfin-ffmpeg or the
+  distribution's on Linux, Homebrew's `ffmpeg-full` on macOS
+  ([deploy/README.md](../deploy/README.md)).
 
 ## Running from source
 
@@ -90,6 +92,36 @@ files are still open when a test's `TempDir` is dropped, so its folder would
 stay behind in the temporary folder; these are removed once the test's
 thread ends. The LG app's tests do the same with
 `pley_core::device::scratch_dir()`, which `FakeDevice::new` uses too.
+
+`apps/server/clippy.toml` and `apps/transcoder/clippy.toml` name what the
+server and the transcoder mustn't call themselves, and why: an HTTP client
+with reqwest's defaults, no time limit and redirects followed anywhere
+(`reqwest::get`, `reqwest::Client::new`), rather than one built with its
+limits for what it fetches; an answer read whole however big
+(`reqwest::Response`'s `bytes`, `text` and `json`; `util::read_body` reads
+one to a limit); and a program the transcoder starts other than with
+`util::command`, which makes it die with the transcoder. Clippy fails on
+them in the programs' code, not in their tests; a place that must call one
+says why in an `#[allow(clippy::disallowed_methods)]`.
+
+The transcoder's tests that run FFmpeg need `ffmpeg` and `ffprobe` on
+`PATH`, with libx264, libx265 and libass. Without one of them a test is
+skipped, saying so, unless `PLEY_TEST_FFMPEG=1`: then it fails, as in CI,
+which tests them with pley-ffmpeg ([RELEASING.md](RELEASING.md#ci)). What
+only some builds or versions have is skipped either way: libx265 with
+HDR10+ (Debian and Ubuntu build it without, pley-ffmpeg's Linux build
+among them), and the `dovi_rpu` filter of FFmpeg 7.1 and later.
+
+The code that reads what comes from outside (file and folder names, NFO
+files, Matroska, MP4 and MPEG-TS, Dolby Vision and HDR10+ metadata) is also
+tested on arbitrary input, in the tests whose names start with `any_`. Each
+runs a few thousand inputs made from a fixed seed, valid ones changed and
+random ones (`fuzz::check`, in `src/fuzz.rs` of the server and of the
+transcoder), and fails on one that makes the code panic, run longer than
+10 seconds or hold more memory than its bounds allow, showing that input.
+`PLEY_FUZZ_CASES=<n>` runs `n` of them each, and `PLEY_FUZZ_SEED=<n>` others,
+to look further: `PLEY_FUZZ_CASES=50000 cargo test -p pley-transcoder any_`.
+An input that finds something becomes a test of its own beside the fix.
 
 The Android app builds with the Android SDK and JDK 17 or newer (on Windows,
 Android Studio's: `JAVA_HOME=C:\Program Files\Android\Android Studio\jbr`).

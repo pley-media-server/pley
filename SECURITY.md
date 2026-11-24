@@ -583,6 +583,11 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   streams do, up to 1 MB for a logo and 4 MB for a picture, and are kept
   only when they are JPEG, PNG, WebP or GIF.
 - A profile picture is decoded only up to 4096 pixels.
+- What the metadata services answer is read up to a limit, whatever its
+  headers say, and refused past it: 32 MiB from TMDB, 16 MiB from TheTVDB,
+  TVmaze, MusicBrainz and the audiobooks' sources, 4 MiB from
+  OpenSubtitles' API. So is the HLS playlist a Live TV channel's stream
+  comes as, at 2 MiB.
 - NFO files are read up to 1 MiB, as XML with no DTD and none but XML's
   own entities. What they say is bounded (500 characters for a title,
   20,000 for a summary, 50 genres, 100 entries a file) and ids are checked

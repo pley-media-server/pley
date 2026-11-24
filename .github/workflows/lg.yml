@@ -20,8 +20,6 @@ on:
       - apps/android/testing/fixtures/src/main/resources/app/pley/android/fixtures/media/**
       - rustfmt.toml
       - deny.toml
-      - LICENSE
-      - LICENSING.md
       - scripts/check-licenses.ps1
       - scripts/version.mjs
       - .github/workflows/lg.yml
@@ -34,8 +32,6 @@ on:
       - apps/android/testing/fixtures/src/main/resources/app/pley/android/fixtures/media/**
       - rustfmt.toml
       - deny.toml
-      - LICENSE
-      - LICENSING.md
       - scripts/check-licenses.ps1
       - scripts/version.mjs
       - .github/workflows/lg.yml

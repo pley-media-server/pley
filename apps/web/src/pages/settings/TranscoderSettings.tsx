@@ -47,12 +47,15 @@ const PRESETS: TranscodePreset[] = ["auto", "ultrafast", "superfast", "veryfast"
 const GYAN_BUILDS = "https://www.gyan.dev/ffmpeg/builds/";
 const JELLYFIN_FFMPEG = "https://github.com/jellyfin/jellyfin-ffmpeg/releases";
 
-/** FFmpeg builds with libplacebo for the transcoder's system (every one's, when it runs elsewhere). */
+/**
+ * FFmpeg builds with libplacebo for the transcoder's system (every one's, when it runs elsewhere):
+ * Pley's own first, where Pley ships one.
+ */
 function DolbyVisionBuilds({ os }: { os: string | null }) {
   const { t } = useTranslation("settings");
   const links = { gyan: <Link href={GYAN_BUILDS} />, jellyfin: <Link href={JELLYFIN_FFMPEG} /> };
   if (os === "windows") return <Trans t={t} i18nKey="transcoder.video.builds.windows" components={links} />;
-  if (os === "linux") return <Link href={JELLYFIN_FFMPEG}>jellyfin-ffmpeg</Link>;
+  if (os === "linux") return <Trans t={t} i18nKey="transcoder.video.builds.linux" components={links} />;
   if (os === "macos") return <>{t("transcoder.video.builds.macos")}</>;
   return <Trans t={t} i18nKey="transcoder.video.builds.any" components={links} />;
 }

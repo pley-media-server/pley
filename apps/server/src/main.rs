@@ -1,3 +1,6 @@
+// clippy.toml's rules hold for the program (src/lib.rs).
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
+
 use std::process::ExitCode;
 
 use clap::Parser;

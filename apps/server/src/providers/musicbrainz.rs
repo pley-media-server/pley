@@ -459,8 +459,7 @@ impl MusicBrainz {
             .genres
             .get_or_try_init(|| async {
                 let request = self.api.http.get(format!("{}/genre/all?fmt=txt", self.base));
-                let body =
-                    self.api.send(request).await?.text().await.map_err(|e| anyhow::anyhow!("MusicBrainz: {e}"))?;
+                let body = String::from_utf8_lossy(&self.api.body(request).await?).into_owned();
                 let list: HashSet<String> =
                     body.lines().map(|l| l.trim().to_lowercase()).filter(|l| !l.is_empty()).collect();
                 Ok::<_, ProviderError>(list)

@@ -1,0 +1,17 @@
+# What the server must not call itself (SECURITY.md, AGENTS.md). The rules
+# hold for the program, which src/lib.rs and src/main.rs hold to them; tests
+# fetch and read as they like.
+disallowed-methods = [
+    # A client is built for what it fetches: its time limits, and where it
+    # may connect and be redirected (a picture to the metadata services'
+    # hosts alone, a request to Radarr or Sonarr nowhere, an app's metadata
+    # document never into this network). reqwest's defaults have no time
+    # limit, and follow redirects anywhere, this network included.
+    { path = "reqwest::get", reason = "a client with reqwest's defaults: build one with reqwest::Client::builder() for what it fetches" },
+    { path = "reqwest::Client::new", reason = "a client with reqwest's defaults: build one with reqwest::Client::builder() for what it fetches" },
+    # What comes from outside is read within bounds, whatever the answer's
+    # headers say.
+    { path = "reqwest::Response::bytes", reason = "reads a whole answer, however big: read it up to a limit with util::read_body" },
+    { path = "reqwest::Response::text", reason = "reads a whole answer, however big: read it up to a limit with util::read_body" },
+    { path = "reqwest::Response::json", reason = "reads a whole answer, however big: read it up to a limit with util::read_body, then parse it" },
+]

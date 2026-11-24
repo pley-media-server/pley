@@ -18,10 +18,23 @@ describes how they are made.
   without a gap: it isn't shown as playing on the dashboard, to remotes
   or in Tautulli until it plays.
 
+### Changed
+
+- Where Dolby Vision needs another FFmpeg, the transcoder settings name
+  Pley's own first: the one its Windows installer and Docker image bring.
+
 ### Fixed
 
 - Live TV channels played as they are no longer stall every few seconds in the
   browser.
+- An NFO file with a very long content rating no longer holds a library
+  scan up.
+- A damaged Matroska file no longer makes the transcoder take memory for
+  more than the file holds.
+- What metadata services and IPTV providers answer is refused once it
+  passes a size limit, rather than read whole first.
+- With FFmpeg 7.1 or 8, a converted file whose subtitles end before the
+  credits do is kept, rather than thrown away as cut short.
 
 ## [0.1.16] - 2026-11-24
 

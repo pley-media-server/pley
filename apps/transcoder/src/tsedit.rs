@@ -377,6 +377,36 @@ fn hevc_pid(data: &[u8]) -> Option<u16> {
 mod tests {
     use super::*;
     use crate::dovi::tests::{p7_rpu, sei};
+    use crate::fuzz::{self, Bytes, Rng};
+
+    /// Segments changed packet by packet (each still 188 bytes, after its
+    /// sync byte), access units changed, or bytes: edited or refused, never
+    /// a panic, and what is written is MPEG-TS still.
+    #[test]
+    fn any_segment_is_edited_or_refused() {
+        let seeds = [segment(0), segment(400), access_unit(20)];
+        let input = move |rng: &mut Rng| {
+            let seed = &seeds[rng.below(seeds.len())];
+            let mut data = if rng.one_in(8) { rng.bytes(4 * PACKET) } else { rng.mutate(seed) };
+            if rng.below(4) > 0 {
+                data.truncate(data.len() / PACKET * PACKET);
+                data.iter_mut().step_by(PACKET).for_each(|sync| *sync = 0x47);
+            }
+            Bytes(data)
+        };
+        let limit = |data: &Bytes| (16 << 20) + 64 * data.0.len();
+        fuzz::check("MPEG-TS segments", 2000, input, limit, |data| {
+            let data = data.0.as_slice();
+            for edits in [(true, false), (false, true), (true, true)] {
+                let edits = Edits { to_81: edits.0, strip_hdr10plus: edits.1 };
+                if let Ok((Some(out), _)) = edit_ts(data, edits) {
+                    assert!(out.len().is_multiple_of(PACKET) && out.chunks(PACKET).all(|p| p[0] == 0x47));
+                }
+                edit_access_unit(data, edits, &mut Edited::default());
+            }
+            nal_units(data);
+        });
+    }
 
     const AUD: [u8; 3] = [0x46, 0x01, 0x50];
     const SLICE: [u8; 6] = [0x26, 0x01, 0xAF, 0x09, 0x40, 0xF3];

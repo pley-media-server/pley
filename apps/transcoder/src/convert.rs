@@ -383,8 +383,14 @@ impl Conversions {
             bail!("ffmpeg exited with {status}: {}", lines.join(" / "));
         }
         // FFmpeg ends a file cut short by a read error (a share that went
-        // away) as if it were whole: it must reach the media's end.
-        let reached = conversion.status.lock().progress;
+        // away) as if it were whole: it must reach the media's end. FFmpeg
+        // before 9 tells its progress by its slowest stream, a subtitle
+        // track whose last line ends long before the credits do among them,
+        // so a file it says is short is measured too.
+        let mut reached = conversion.status.lock().progress;
+        if reached < WHOLE {
+            reached = reached.max(share_made(&self.ff, &part, duration_ms).await);
+        }
         if reached < WHOLE {
             let _ = tokio::fs::remove_file(&part).await;
             bail!("the file stopped at {:.0} % of the media", reached * 100.0);
@@ -472,6 +478,22 @@ async fn read_progress(
     }
 }
 
+/// How much of the media, 0 to 1, the file at `path` holds, by the duration
+/// ffprobe reads in it (0 when it reads none).
+async fn share_made(ff: &Ffmpeg, path: &Path, duration_ms: i64) -> f64 {
+    let mut cmd = ff.probe_command();
+    cmd.args(["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1"])
+        .arg(path)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    let Ok(Ok(out)) = tokio::time::timeout(Duration::from_secs(60), cmd.output()).await else {
+        return 0.0;
+    };
+    let seconds = String::from_utf8_lossy(&out.stdout).trim().parse::<f64>().unwrap_or(0.0);
+    progress_of(seconds * 1_000_000.0, duration_ms)
+}
+
 /// `out_time_us` as a share of the media, 0 to 1.
 fn progress_of(out_time_us: f64, duration_ms: i64) -> f64 {
     if duration_ms <= 0 || out_time_us <= 0.0 {
@@ -527,16 +549,6 @@ mod tests {
         assert_ne!(conversion_id(&request(1080), 100, 6), id);
     }
 
-    fn has_ffmpeg() -> bool {
-        let ok =
-            |tool: &str| std::process::Command::new(tool).arg("-version").output().is_ok_and(|o| o.status.success());
-        let found = ok("ffmpeg") && ok("ffprobe");
-        if !found {
-            eprintln!("ffmpeg not found: skipped");
-        }
-        found
-    }
-
     /// An MP4 conversion, for players that open no Matroska (skipped without
     /// FFmpeg and its x265): HEVC copied and tagged hvc1, SubRip made MP4's
     /// own text, and the index ahead of the media, as QuickTime wants them.
@@ -545,7 +557,7 @@ mod tests {
         use pley_transcoder_api::{
             AudioCodec, AudioMode, AudioRequest, Capabilities, EncoderInfo, HwAccel, Limits, VideoCodec, VideoRequest,
         };
-        if !has_ffmpeg() {
+        if !crate::testing::has_encoder("libx265") {
             return;
         }
         let dir = tempfile::tempdir().unwrap();
@@ -564,10 +576,7 @@ mod tests {
             .arg(&source)
             .status()
             .unwrap();
-        if !made.success() {
-            eprintln!("no x265 here: skipped");
-            return;
-        }
+        assert!(made.success());
         let ff = Arc::new(Ffmpeg {
             ffmpeg: "ffmpeg".into(),
             ffprobe: "ffprobe".into(),
@@ -643,7 +652,7 @@ mod tests {
         use pley_transcoder_api::{
             AudioCodec, AudioMode, AudioRequest, Capabilities, EncoderInfo, HwAccel, Limits, VideoCodec, VideoRequest,
         };
-        if !has_ffmpeg() {
+        if !crate::testing::has_encoder("libx264") {
             return;
         }
         let dir = tempfile::tempdir().unwrap();
@@ -834,5 +843,42 @@ mod tests {
         assert_eq!(progress_of(90_000_000.0, 60_000), 1.0);
         assert_eq!(progress_of(-1.0, 60_000), 0.0);
         assert_eq!(progress_of(1.0, 0), 0.0);
+    }
+
+    /// A file is measured by its own duration, whatever its subtitles' last
+    /// line: a whole one reaches the media's end, one cut short doesn't.
+    #[tokio::test]
+    async fn a_file_made_is_measured_by_its_own_duration() {
+        if !crate::testing::has_encoder("libx264") {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let srt = dir.path().join("source.srt");
+        std::fs::write(&srt, "1\n00:00:01,000 --> 00:00:02,000\nHello\n").unwrap();
+        let make = |name: &str, seconds: &str| {
+            let made = std::process::Command::new("ffmpeg")
+                .args(["-hide_banner", "-loglevel", "error", "-y"])
+                .args(["-f", "lavfi", "-i", "testsrc2=duration=4:size=320x180:rate=24"])
+                .arg("-i")
+                .arg(&srt)
+                .args(["-map", "0", "-map", "1", "-c:v", "libx264", "-preset", "ultrafast", "-c:s", "srt"])
+                .args(["-t", seconds])
+                .arg(dir.path().join(name))
+                .status()
+                .unwrap();
+            assert!(made.success());
+            dir.path().join(name)
+        };
+        let ff = Ffmpeg {
+            ffmpeg: "ffmpeg".into(),
+            ffprobe: "ffprobe".into(),
+            caps: Default::default(),
+            segment_times_relative: true,
+        };
+        let whole = share_made(&ff, &make("whole.mkv", "4"), 4_000).await;
+        assert!(whole >= WHOLE, "{whole}");
+        let cut = share_made(&ff, &make("cut.mkv", "2"), 4_000).await;
+        assert!(cut < WHOLE, "{cut}");
+        assert_eq!(share_made(&ff, &dir.path().join("none.mkv"), 4_000).await, 0.0);
     }
 }
