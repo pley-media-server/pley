@@ -159,12 +159,25 @@ jobs:
         with:
           name: web-dist
           path: apps/web/dist
-      # The distribution's FFmpeg on Linux, Homebrew's ffmpeg-full on macOS
-      # (its ffmpeg has no libass), gyan.dev's build through Chocolatey on
-      # Windows.
+      # jellyfin-ffmpeg's portable FFmpeg 8 on Linux (Ubuntu's 6.1 is older
+      # than the 7.1 Pley needs), Homebrew's ffmpeg-full on macOS (its ffmpeg
+      # has no libass), gyan.dev's build through Chocolatey on Windows.
       - name: FFmpeg (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+        env:
+          VERSION: 8.1.3-2
+          ARCH: ${{ runner.arch == 'ARM64' && 'linuxarm64' || 'linux64' }}
+          SHA256: ${{ runner.arch == 'ARM64' && '6522585818059cc886363fb1dee86ac9b8579fec3b914337fb92974ef9eb9884' || '1df84d04c4322902dba81c290508cdf3d89524d210b9fe03154bea6c4e3bfbb6' }}
+        run: |
+          file="jellyfin-ffmpeg_${VERSION}_portable_${ARCH}-gpl.tar.xz"
+          curl --proto '=https' --fail --silent --show-error --location --retry 5 -o "$RUNNER_TEMP/$file" \
+            "https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v${VERSION}/$file"
+          echo "$SHA256  $RUNNER_TEMP/$file" | sha256sum --check --strict
+          mkdir "$RUNNER_TEMP/ffmpeg"
+          tar -xJf "$RUNNER_TEMP/$file" -C "$RUNNER_TEMP/ffmpeg"
+          bin=$(dirname "$(find "$RUNNER_TEMP/ffmpeg" -type f -name ffmpeg | head -1)")
+          test -x "$bin/ffmpeg" && test -x "$bin/ffprobe"
+          echo "$bin" >> "$GITHUB_PATH"
       - name: FFmpeg (macOS)
         if: runner.os == 'macOS'
         env:
