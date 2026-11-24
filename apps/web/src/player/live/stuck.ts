@@ -26,8 +26,8 @@ function bufferedEnd(video: HTMLMediaElement): number {
 
 /**
  * Watches `video` for standing still while its stream comes (`coming`: some
- * came in the last second), and tells `onStuck` once, with whether it played
- * at all while watched: returns what stops it.
+ * came just now), and tells `onStuck` once, with whether it played while
+ * watched: returns what stops it.
  */
 export function whenStuck(
   video: HTMLMediaElement,
@@ -37,6 +37,7 @@ export function whenStuck(
 ): () => void {
   let time = video.currentTime;
   let end = bufferedEnd(video);
+  let movedBefore = false;
   let played = false;
   let still = 0;
   let came = 0;
@@ -53,8 +54,13 @@ export function whenStuck(
     const more = e > end;
     time = t;
     end = e;
-    if (moved || more) {
-      played ||= moved;
+    // Played: on from one look to the next, not a jump (mpegts.js seeks
+    // to what's buffered as it starts).
+    played ||= moved && movedBefore;
+    movedBefore = moved;
+    // A page in the background that hasn't played isn't counted: the
+    // browser may not load its video until it's shown.
+    if (moved || more || (document.hidden && !played)) {
       still = 0;
       came = 0;
       return;

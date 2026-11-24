@@ -7,7 +7,7 @@ import type { Channel } from "@/api/livetv";
 import type { ServerEvent } from "@/api/types";
 import { isPlayingHere } from "@/lib/playingHere";
 import { makeReceiver } from "@/test/fixtures";
-import { LocationDisplay, mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
+import { apiError, LocationDisplay, mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
 import { LivePlayerPage } from "./LivePlayerPage";
 
 /** A stand-in for hls.js: records its calls, and fires events on demand. */
@@ -351,7 +351,11 @@ describe("LivePlayerPage, a channel played from its stream", () => {
   let ready = 0;
   let time = 0;
   let requests: FakeRequest[] = [];
+  // What the server says the channel is, asked as it tunes and again before its stream is read again.
+  const sentAsItIs = { video_codec: "h264", audio_codec: "aac", video: "copy", audio: "copy" };
+  let planAnswer: () => unknown = () => sentAsItIs;
   beforeEach(() => {
+    planAnswer = () => sentAsItIs;
     vi.useFakeTimers({ shouldAdvanceTime: true });
     hlsInstances.length = 0;
     mpegtsPlayers.length = 0;
@@ -372,7 +376,7 @@ describe("LivePlayerPage, a channel played from its stream", () => {
     requests = mockApi({
       "GET /api/live/channels/5": () => news,
       "POST /api/live/channels/5/watch": () => ({ session_id: "s1", url: "/api/live/sessions/s1/index.m3u8", kind: "hls", channel: news }),
-      "GET /api/live/sessions/s1/plan": () => ({ video_codec: "h264", audio_codec: "aac", video: "copy", audio: "copy" }),
+      "GET /api/live/sessions/s1/plan": () => planAnswer(),
       "DELETE /api/live/sessions/s1": () => undefined,
     });
   });
@@ -397,7 +401,7 @@ describe("LivePlayerPage, a channel played from its stream", () => {
     });
     const spinner = () => container.querySelector(".animate-spin");
     expect(spinner()).not.toBeInTheDocument();
-    return { video, spinner };
+    return { video, spinner, play };
   }
 
   /** It runs out: nothing left to play. */
@@ -456,37 +460,92 @@ describe("LivePlayerPage, a channel played from its stream", () => {
     }
   }
 
-  it("reads its stream again, on the same session, when it stands still while the stream comes", async () => {
-    const { video, spinner } = await playing();
-    // It plays a while…
-    time = 2;
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-    // …then stands still for good: the provider's clock started over, and what comes is never buffered.
-    stall(video);
+  /** It plays on for three seconds, the stream buffered ahead. */
+  function playsOn() {
+    for (let i = 0; i < 3; i++) {
+      time += 1;
+      ahead = time + 3;
+      ready = HTMLMediaElement.HAVE_ENOUGH_DATA;
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+    }
+  }
+
+  const plans = (r: FakeRequest[]) => r.filter((q) => q.method === "GET" && q.path === "/api/live/sessions/s1/plan");
+  const toHls = () =>
+    waitFor(() => expect(hlsInstances[0]?.calls).toContain("loadSource /api/live/sessions/s1/index.m3u8"));
+
+  /** It plays, then stands still for good (the provider's clock started over) while the stream comes: read again. */
+  async function readAgain() {
+    const shown = await playing();
+    playsOn();
+    stall(shown.video);
     comesForNothing(6);
     expect(mpegtsPlayers).toHaveLength(1);
     comesForNothing(4);
-    expect(mpegtsPlayers).toHaveLength(2);
+    await waitFor(() => expect(mpegtsPlayers).toHaveLength(2));
+    // The new player's video starts again at 0.
+    time = 0;
+    return shown;
+  }
+
+  it("reads its stream again, on the same session, when it stands still while the stream comes", async () => {
+    const { video, spinner, play } = await readAgain();
     expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
     expect(mpegtsPlayers[1]?.calls).toEqual(["attachMediaElement", "load"]);
+    // Its session seen first, so it stays while the stream is read again; nothing tuned again.
+    expect(plans(requests)).toHaveLength(2);
     expect(watches(requests)).toHaveLength(1);
     expect(hlsInstances).toHaveLength(0);
+    // The spinner stays while the new player fills its cushion…
+    play.mockClear();
+    ahead = 1;
+    ready = HTMLMediaElement.HAVE_ENOUGH_DATA;
+    act(() => {
+      video.dispatchEvent(new Event("canplay"));
+      vi.advanceTimersByTime(400);
+    });
     expect(spinner()).toBeInTheDocument();
-    // The new player stands still too, never having played: the transcoder's segments, then.
+    expect(play).not.toHaveBeenCalled();
+    // …and goes as it plays.
+    ahead = 2.5;
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(play).toHaveBeenCalled();
+    act(() => {
+      video.dispatchEvent(new Event("playing"));
+    });
+    expect(spinner()).not.toBeInTheDocument();
+  });
+
+  it("plays the transcoder's segments when the stream read again stands still without playing", async () => {
+    await readAgain();
     comesForNothing(10);
-    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("loadSource /api/live/sessions/s1/index.m3u8"));
+    await toHls();
+    expect(mpegtsPlayers).toHaveLength(2);
+    expect(mpegtsPlayers[1]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+  });
+
+  it("plays the transcoder's segments when it stands still again soon after it was read again", async () => {
+    const { video } = await readAgain();
+    ahead = 3;
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    playsOn();
+    // A provider whose clock starts over at every break: still again a minute later.
+    stall(video);
+    comesForNothing(10);
+    await toHls();
     expect(mpegtsPlayers).toHaveLength(2);
     expect(mpegtsPlayers[1]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
   });
 
   it("waits, without reading its stream again, while the stream doesn't come", async () => {
     const { video, spinner } = await playing();
-    time = 2;
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
+    playsOn();
     stall(video);
     act(() => {
       vi.advanceTimersByTime(30_000);
@@ -494,6 +553,49 @@ describe("LivePlayerPage, a channel played from its stream", () => {
     expect(mpegtsPlayers).toHaveLength(1);
     expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load"]);
     expect(spinner()).toBeInTheDocument();
+  });
+
+  it("doesn't read again a stream that came, then ended", async () => {
+    const { video } = await playing();
+    playsOn();
+    stall(video);
+    // The stream ends (the channel stopped on the server): the player says nothing more.
+    comesForNothing(3);
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(mpegtsPlayers).toHaveLength(1);
+    expect(plans(requests)).toHaveLength(1);
+    expect(hlsInstances).toHaveLength(0);
+  });
+
+  it("stops, and says why, when its session ended as its stream would be read again", async () => {
+    const { video } = await playing();
+    planAnswer = () => apiError(410, "session_stopped", "An administrator stopped this channel.");
+    playsOn();
+    stall(video);
+    comesForNothing(10);
+    expect(await screen.findByRole("alert")).toHaveTextContent("An administrator stopped this channel.");
+    expect(mpegtsPlayers).toHaveLength(1);
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+    expect(watches(requests)).toHaveLength(1);
+    expect(hlsInstances).toHaveLength(0);
+  });
+
+  it.each([
+    ["refuses sound", "NotAllowedError", true],
+    ["cuts a play short", "AbortError", false],
+  ])("starts muted only when the browser refuses sound: it %s", async (_, name, muted) => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockRejectedValueOnce(new DOMException("refused", name))
+      .mockResolvedValue();
+    ahead = 3;
+    ready = HTMLMediaElement.HAVE_ENOUGH_DATA;
+    const { container } = renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    await act(() => Promise.resolve());
+    expect(container.querySelector("video")!.muted).toBe(muted);
   });
 });
 

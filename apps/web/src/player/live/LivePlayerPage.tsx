@@ -64,6 +64,14 @@ const SPINNER_AFTER = 700;
 const BANNER_FOR = 5000;
 /** A stream that broke off waits this long to hear it was taken over before tuning again. */
 const TAKEN_OVER_GRACE = 1000;
+/**
+ * A channel played from its stream is read again once in this long at most,
+ * ms: one that stands still again sooner (a provider whose clock starts over
+ * at every break) plays from the transcoder's segments instead.
+ */
+const READ_AGAIN_ONCE_IN = 120_000;
+/** mpegts.js says how fast the stream came every 600 ms, and nothing once it ended: this long without, it isn't coming. */
+const COMING_WITHIN = 1500;
 /** Digits typed for a channel number wait this long for more. */
 const NUMBER_WAIT = 1400;
 /** The remote's commands Live TV obeys: channel up and down. It doesn't go back in a channel, so no pause or seek. */
@@ -338,8 +346,10 @@ function LivePlayer({
       directRef.current = null;
     };
     const start = () => {
-      video.play().catch(() => {
-        // Autoplay with sound refused: muted, then.
+      video.play().catch((err: unknown) => {
+        // Autoplay with sound refused: muted, then. Not a play the player
+        // cut short as it let the stream go (an AbortError).
+        if (cancelled || (err as { name?: string } | null)?.name !== "NotAllowedError") return;
         video.muted = true;
         setMuted(true);
         void video.play().catch(() => undefined);
@@ -375,19 +385,27 @@ function LivePlayer({
       let failed = false;
       // Played from its stream, as the server or the stream said it could be.
       let chosen = false;
-      // The stream came in the last second, as the player last said.
-      let coming = false;
-      // It broke off, or stood still before its first picture: the
-      // transcoder's segments from now, unless its connection was taken over
-      // (that's told as the stream ends, and tuning again would only find
-      // every connection in use).
+      // When the player last said the stream came.
+      let cameAt = -Infinity;
+      const coming = () => performance.now() - cameAt < COMING_WITHIN;
+      // When it was last read again.
+      let readAgainAt = -Infinity;
+      // It broke off, or stood still for good: the transcoder's segments
+      // from now, unless its connection was taken over (that's told as the
+      // stream ends, and tuning again would only find every connection in use).
       const toHls = () =>
         window.setTimeout(() => {
           if (cancelled || takenOver.current) return;
           void watch().then((w) => w && playHls(w.url));
         }, TAKEN_OVER_GRACE);
+      // The player that stood still let go, its picture kept while the next one starts.
+      const letGo = (player: { destroy: () => void }) => {
+        directRef.current = null;
+        keepPicture(video);
+        player.destroy();
+      };
       const read = () => {
-        coming = false;
+        cameAt = -Infinity;
         const player = mpegts.createPlayer(
           { type: "mpegts", isLive: true, url },
           {
@@ -405,7 +423,7 @@ function LivePlayer({
           },
         );
         player.on(mpegts.Events.STATISTICS_INFO, (info: { speed?: number }) => {
-          coming = (info.speed ?? 0) > 0;
+          if ((info.speed ?? 0) > 0) cameAt = performance.now();
         });
         player.on(mpegts.Events.ERROR, () => {
           failed = true;
@@ -425,34 +443,55 @@ function LivePlayer({
       // through; read again from its last keyframe, by a new player, once it
       // stands still for good while the stream comes.
       const keep = () => {
-        const stopCushion = keepCushion(video, start, (holding) => {
-          cushionHold.current = holding;
-          // Gone on after waiting its longest, it may still have nothing to play.
-          setBuffering(holding || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
-        });
-        const stopWatch = whenStuck(
+        // Held until the cushion starts it, as after a stall: a player that
+        // was read again keeps the spinner while it fills.
+        cushionHold.current = true;
+        const stopCushion = keepCushion(
           video,
-          () => coming,
-          (played) => {
-            stopKeeping();
-            const stuck = directRef.current;
-            if (cancelled || !stuck) return;
-            directRef.current = null;
-            // The picture it stood still on stays while the new player starts.
-            keepPicture(video);
-            stuck.destroy();
-            // One that never played, a new one wouldn't either.
-            if (!played) {
-              toHls();
-              return;
-            }
-            read();
-            keep();
+          () => {
+            cushionHold.current = false;
+            setBuffering(video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
+            start();
+          },
+          (holding) => {
+            cushionHold.current = holding;
+            // Gone on after waiting its longest, it may still have nothing to play.
+            setBuffering(holding || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
           },
         );
+        const stopWatch = whenStuck(video, coming, (played) => {
+          stopKeeping();
+          const stuck = directRef.current;
+          if (cancelled || !stuck) return;
+          // One that never played, a new one wouldn't either; nor one that
+          // stands still again soon after it was read again.
+          if (!played || performance.now() - readAgainAt < READ_AGAIN_ONCE_IN) {
+            letGo(stuck);
+            toHls();
+            return;
+          }
+          // Its watch session counts as there while its stream is read:
+          // seen now, it stays while the stream is read again. One that
+          // ended (the channel stopped from elsewhere) says why instead.
+          void livePlan(sessionId).then(
+            () => true,
+            (err: unknown) => {
+              if (!isApiError(err, 410)) return true;
+              fail(trouble(err, channel.name));
+              return false;
+            },
+          ).then((again) => {
+            if (!again || cancelled || directRef.current !== stuck) return;
+            readAgainAt = performance.now();
+            letGo(stuck);
+            read();
+            keep();
+          });
+        });
         stopKeeping = () => {
           stopCushion();
           stopWatch();
+          cushionHold.current = false;
         };
       };
       const player = read();
