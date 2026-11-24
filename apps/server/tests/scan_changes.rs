@@ -471,4 +471,9 @@ async fn a_refresh_naming_a_folder_scans_that_folder() {
     let item = app.get(&format!("/api/items/{film}"), &admin).await.body;
     assert_eq!(item["files"].as_array().unwrap().len(), 1, "{item}");
     assert_eq!(item["user_state"]["position_ms"], json!(30_000));
+
+    // A folder named by way of `..`: all of the library.
+    app.media_file("movies/Film Four (2004)/Film Four (2004).mkv", 1024);
+    refresh(app.media_path("movies/../movies/Film Four (2004)")).await;
+    assert_eq!(listed(&app, &admin, lib).await, ["Film Four", "Film One", "Film Three", "Film Two"]);
 }
