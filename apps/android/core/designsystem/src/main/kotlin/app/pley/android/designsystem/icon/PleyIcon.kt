@@ -137,7 +137,7 @@ object PleyMark {
 
     /**
      * The mark's three posters as paths on its 64 by 64 grid, back to front,
-     * with how much of a colour each is filled with: the placeholder of a
+     * with how much of a color each is filled with: the placeholder of a
      * picture that won't come draws it in white, each poster lighter than
      * the one before it ([Placeholder][app.pley.android.designsystem.image.Placeholder]).
      */

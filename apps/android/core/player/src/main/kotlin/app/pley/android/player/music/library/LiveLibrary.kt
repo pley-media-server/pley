@@ -24,7 +24,7 @@ import kotlinx.coroutines.sync.withPermit
 interface LiveLook {
     val liveTv: String
 
-    /** The tab's groups: the favourites, the channels watched lately, then the provider's groups. */
+    /** The tab's groups: the favorites, the channels watched lately, then the provider's groups. */
     val favorites: String
     val watchedLately: String
     val groups: String
@@ -95,7 +95,7 @@ private const val PARALLEL_PAGES = 4
  * Live TV in the car (Android Auto's media screens), its channels'
  * sound played as radio ([app.pley.android.player.music.LiveRadio]): a
  * tab of its own, the fourth (cars show four at most), shown only to a
- * profile Live TV is open to. It lists the favourites, then the channels
+ * profile Live TV is open to. It lists the favorites, then the channels
  * watched lately, each under its heading, then the provider's groups;
  * each channel with its logo and what is on. Search finds channels too,
  * and a spoken name plays its channel. Groups are named as the phone's
@@ -208,7 +208,7 @@ class LiveLibrary(
         return MediaItem.Builder().setMediaId(MusicId.Channel(channel.id, from).text).setMediaMetadata(metadata).build()
     }
 
-    /** The favourites, the channels watched lately (not again), and the groups, or every channel without them. */
+    /** The favorites, the channels watched lately (not again), and the groups, or every channel without them. */
     private suspend fun tabChildren(): List<MediaItem> = coroutineScope {
         val l = look()
         val groups = async { source.groups() }
@@ -273,7 +273,7 @@ class LiveLibrary(
         /** The most channels a list holds: cars don't page, and a provider can list tens of thousands. */
         const val MAX_CHANNELS = 500
 
-        /** The most favourites the tab lists. */
+        /** The most favorites the tab lists. */
         private const val TAB_EACH = 50
 
         /** The most channels watched lately the tab lists after them: a few, the groups under them. */

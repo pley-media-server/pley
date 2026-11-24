@@ -153,10 +153,11 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
         const val HISTORY_LIMIT = 100
 
         /**
-         * The most results asked of a search. The car shows 15 of each of four kinds (MusicLibrary.SEARCH_EACH), 60
-         * in all; the server keeps its closest titles of every kind under one limit, films and shows among them, so
-         * more than that is asked for to fill the music's groups. The limit holds for the people and channels it
-         * finds besides, which the car doesn't show here: 200 had it send up to 200 of each for every letter typed.
+         * The most results asked of a search. The car shows a few of each of four kinds (six of the closest kind,
+         * four of the others: MusicLibrary's search); the server keeps its closest titles of every kind under one
+         * limit, films and shows among them, so more than that is asked for to fill the music's groups. The limit
+         * holds for the people and channels it finds besides, which the car doesn't show here: 200 had it send up
+         * to 200 of each for every letter typed.
          */
         const val SEARCH_LIMIT = 100
     }

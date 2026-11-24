@@ -72,7 +72,7 @@ sealed interface MusicId {
         override val text get() = "book:$id"
     }
 
-    /** Live TV's tab: favourites, the channels watched lately, and the groups. */
+    /** Live TV's tab: favorites, the channels watched lately, and the groups. */
     data object LiveTv : MusicId {
         override val text = "live"
     }
