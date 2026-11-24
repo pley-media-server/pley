@@ -18,8 +18,6 @@
   "states": {
     "loading": "加载中…",
     "saved": "已保存。",
-    "on": "开",
-    "off": "关",
     "failed": "操作失败"
   },
   "errors": {

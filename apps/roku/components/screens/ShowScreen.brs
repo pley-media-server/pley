@@ -16,7 +16,9 @@ sub init()
     m.askedSeason = 0
     m.onDeck = invalid
     m.lastFocus = m.seasons
-    m.play.observeField("buttonSelected", "onPlay")
+    m.play.observeField("chosen", "onPlay")
+    m.top.findNode("title").font = uiType("pageTitle")
+    m.top.findNode("meta").font = uiType("label")
     m.seasons.observeField("itemFocused", "onSeasonFocused")
     m.seasons.observeField("itemSelected", "onSeasonSelected")
     m.episodes.observeField("itemSelected", "onEpisode")
@@ -159,7 +161,7 @@ sub onOnDeck(event as object)
         m.onDeck = contentTile(item, m.global.session.server, true)
         key = "titles.actions.playEpisode"
         if fmtResumable(m.onDeck.positionMs, m.onDeck.durationMs) then key = "titles.actions.resumeEpisode"
-        m.play.buttons = [t(key, { episode: fmtEpisode(item.parent_index, item.index) })]
+        m.play.chips = [{ label: t(key, { episode: fmtEpisode(item.parent_index, item.index) }), icon: "play", width: 0 }]
     end if
     hadFocus = m.play.isInFocusChain()
     m.play.visible = m.onDeck <> invalid

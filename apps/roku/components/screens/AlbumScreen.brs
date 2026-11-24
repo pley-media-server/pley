@@ -27,7 +27,8 @@ sub init()
     ' "nowPlaying".
     m.actions = []
     showButtons()
-    m.buttons.observeField("buttonSelected", "onButton")
+    m.buttons.observeField("chosen", "onButton")
+    m.labelsShown = ""
     m.tracks.observeField("itemSelected", "onTrack")
     m.tracks.observeField("itemFocused", "onTrackFocused")
     m.top.observeField("active", "onActive")
@@ -169,11 +170,12 @@ sub showButtons()
         labels.Push(t("titles.actions.nowPlaying"))
     end if
     m.actions = actions
-    if FormatJson(labels) <> FormatJson(m.buttons.buttons)
-        focused = m.buttons.buttonFocused
+    if FormatJson(labels) <> m.labelsShown
+        m.labelsShown = FormatJson(labels)
+        focused = m.buttons.focusIndex
         hadFocus = m.buttons.isInFocusChain()
-        m.buttons.buttons = labels
-        uiKeepButton(m.buttons, focused, hadFocus)
+        m.buttons.chips = contentActionChips(labels, actions)
+        contentKeepChip(m.buttons, focused, hadFocus)
     end if
 end sub
 

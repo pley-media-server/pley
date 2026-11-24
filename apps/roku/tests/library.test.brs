@@ -20,9 +20,8 @@ sub test_library_sorts_by_kind()
     tkEqual(ids(libSorts("music")), ["title", "added", "user_rating", "last_played"])
     tkEqual(libDefaultOrder("title"), "asc")
     tkEqual(libDefaultOrder("added"), "desc")
-    tkEqual(libSortLabel("title", "asc"), "Title, A to Z")
-    tkEqual(libSortLabel("year", "desc"), "Year, newest first")
-    tkEqual(libSortLabel("added", "asc"), "Date added, first added first")
+    tkEqual(libSortChip("title", "asc"), { label: "Title", icon: "arrow-up-narrow-wide", iconAfter: true, width: 0 })
+    tkEqual(libSortChip("year", "desc").icon, "arrow-down-wide-narrow")
 end sub
 
 sub test_library_query_and_filters()
@@ -135,12 +134,13 @@ sub test_library_views_kept_and_checked()
     view.order = "desc"
     view.genre = "Drama"
     libSaveView(section, key, view)
-    tkEqual(libLoadView(section, key, "movies"), view)
+    kept = libLoadView(section, key, "movies")
+    tkEqual(kept.tab, "recommended", "a library opens on Recommended")
+    view.tab = "recommended"
+    tkEqual(kept, view)
     shows = libLoadView(section, key, "shows")
     tkEqual(shows.sort, "title", "a sort the kind doesn't offer")
     tkEqual(shows.order, "desc", "the order kept")
-    music = libLoadView(section, key, "music")
-    tkEqual(music.tab, "library", "a tab the kind doesn't have")
     view.resolution = "4k"
     view.dynamic_range = "hdr10plus"
     libSaveView(section, key, view)
@@ -212,9 +212,8 @@ sub test_library_in_french()
     i18nUse("fr")
     nbsp = Chr(160)
     tkEqual(libTabLabel("recommended"), "Recommandés")
-    tkEqual(libSortLabel("title", "asc"), "Titre, de A à Z")
-    tkEqual(libSortLabel("added", "desc"), "Ajouts récents d’abord")
-    tkEqual(libSortLabel("nonsense", "desc"), "Titre, de Z à A", "a sort this version doesn't know")
+    tkEqual(libSortChip("title", "asc").label, "Titre")
+    tkEqual(libSortChip("nonsense", "desc").label, "Titre", "a sort this version doesn't know")
     tkEqual(libSorts("music")[2], { id: "user_rating", label: "Votre note" })
     view = libDefaultView()
     tkEqual(libFilterLabel(view), "Tous les titres")
@@ -237,7 +236,6 @@ end sub
 sub test_library_in_spanish()
     i18nUse("es")
     tkEqual(libTabLabel("collections"), "Colecciones")
-    tkEqual(libSortLabel("last_played", "desc"), "Recién reproducidos primero")
     tkEqual(libFilterRows(libDefaultView(), "music", invalid)[1].title, "Género: Todos")
     view = libDefaultView()
     view.watched = "true"
@@ -254,7 +252,6 @@ sub test_library_every_sort_has_its_words()
         for each sort in libSorts("movies")
             tkTrue(Left(sort.label, 7) <> "browse.", language + " " + sort.id)
             for each order in ["asc", "desc"]
-                tkTrue(Left(libSortLabel(sort.id, order), 7) <> "browse.", language + " " + sort.id + " " + order)
                 view = libDefaultView()
                 view.sort = sort.id
                 view.order = order

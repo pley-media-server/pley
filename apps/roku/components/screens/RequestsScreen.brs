@@ -23,6 +23,8 @@ sub init()
     m.problemButtons = m.top.findNode("problemButtons")
     m.panel = m.top.findNode("panel")
     m.panelTitle = m.top.findNode("panelTitle")
+    ' A side panel's title as the player's and Settings' (a section's).
+    m.panelTitle.font = uiType("section")
     m.choices = m.top.findNode("choices")
     m.menu = m.top.findNode("menu")
     m.busy = m.top.findNode("busy")
@@ -539,11 +541,10 @@ sub showChoices(kind as string, title as string, labels as object, values as obj
     m.choiceLabels = labels
     m.panelTitle.text = title
     items = []
-    for each label in labels
-        items.Push({ title: label })
+    for i = 0 to labels.Count() - 1
+        items.Push({ title: labels[i], checked: i = current })
     end for
     m.choices.content = nodesContent(items)
-    m.choices.checkedItem = current
     m.choices.jumpToItem = current
     m.menu.visible = false
     m.choices.visible = true
@@ -632,7 +633,7 @@ sub showProblem(problem as object)
     m.panel.visible = false
     m.count.text = ""
     m.problemTitle.text = problem.title
-    m.problemText.text = problem.text
+    uiProblemWords(m.top.findNode("problem"), m.problemText, problem.text)
     buttons = []
     if problem.signIn then buttons.Push(t("requests.buttons.signIn"))
     if problem.retry then buttons.Push(t("common.actions.tryAgain"))

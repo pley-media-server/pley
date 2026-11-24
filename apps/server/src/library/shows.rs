@@ -20,16 +20,20 @@
 //! read, the show is known by the ids that folder had. The folders that
 //! don't stay go to the show of their ids, else to the show of their name.
 //! A folder that leaves its show takes what was watched of its episodes
-//! along ([`carry_over`]).
+//! along, as files renamed do (the scanner's `relink`).
+//!
+//! A show's folders are placed together, so a scan of the part of a library
+//! that changed places them only when none of the shows it touches has a
+//! folder in the rest: else all of the library is scanned.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use parking_lot::Mutex;
 use sqlx::SqliteConnection;
 
-use super::merge::merge_items;
 use super::nfo::{self, NfoIds};
 use super::parse::{parse_episode, show_dir, show_ids};
 use super::scanner::{ItemIds, is_show_entry};
@@ -334,17 +338,20 @@ pub(super) struct Scan<'a> {
     pub unavailable: Vec<PathBuf>,
     /// Folders stay in their shows ([`place`]).
     pub held: bool,
+    /// In a scan of part of the library, the shows of the files outside it.
+    pub outside: Option<HashSet<i64>>,
 }
 
 /// Where the files of a TV library's show folders go ([`place`]), and the
 /// files that change shows, with their length: they are written again
-/// without being read again. `cache` is the `tvshow.nfo` files the last scan
-/// read, and what this one read is returned.
+/// without being read again. `None` when the scan is of part of the library
+/// and a show it touches has folders in the rest. `nfos` holds, by library,
+/// the `tvshow.nfo` files the last scans read.
 pub(super) async fn plan(
     db: &Db,
     scan: Scan<'_>,
-    cache: NfoCache,
-) -> anyhow::Result<(Placement, HashMap<String, Option<i64>>, NfoCache)> {
+    nfos: &Mutex<HashMap<i64, NfoCache>>,
+) -> anyhow::Result<Option<(Placement, HashMap<String, Option<i64>>)>> {
     let shows: Vec<KnownShow> = sqlx::query_as(
         "SELECT i.id, i.key, i.path, n.ids AS nfo_ids FROM items i LEFT JOIN item_nfo n ON n.item_id = i.id
          WHERE i.library_id = ? AND i.kind = 'show'",
@@ -385,6 +392,21 @@ pub(super) async fn plan(
             }
         })
         .collect();
+    // Of a scan of part of the library: the shows of its files, and those of
+    // its folders' names, have no folder in the rest.
+    if let Some(outside) = &scan.outside {
+        let names: HashSet<&str> = folders.iter().map(|f| f.key.as_str()).collect();
+        let mut touched = scan
+            .known
+            .values()
+            .map(|(show, _)| *show)
+            .chain(shows.iter().filter(|s| names.contains(name_key_of(&s.key))).map(|s| s.id));
+        if touched.any(|show| outside.contains(&show)) {
+            return Ok(None);
+        }
+    }
+    let (library_id, whole) = (scan.library_id, scan.outside.is_none());
+    let cache = nfos.lock().remove(&library_id).unwrap_or_default();
     let (placement, cache) = {
         let shows = shows.clone();
         let Scan { sidecars, read_nfo, listed, unavailable, held, .. } = scan;
@@ -403,10 +425,18 @@ pub(super) async fn plan(
                 ids
             };
             let placement = place(folders, &shows, &unavailable, held, nfo_ids);
+            // A scan of part of the library listed only its files: those of
+            // the rest are as they were.
+            if !whole {
+                let mut cache = cache;
+                cache.extend(read);
+                read = cache;
+            }
             Ok((placement, read))
         })
         .await?
     };
+    nfos.lock().insert(library_id, cache);
 
     let mut key_of: HashMap<i64, &str> = shows.iter().map(|s| (s.id, s.key.as_str())).collect();
     key_of.extend(placement.keys_changed.iter().map(|(id, key)| (*id, key.as_str())));
@@ -420,7 +450,7 @@ pub(super) async fn plan(
             moving.insert(path, *duration);
         }
     }
-    Ok((placement, moving, cache))
+    Ok(Some((placement, moving)))
 }
 
 /// Before the scan writes: shows take the keys and are named after the
@@ -481,74 +511,6 @@ pub(super) async fn season_folders(
             .bind(season)
             .execute(&mut *conn)
             .await?;
-    }
-    Ok(())
-}
-
-/// After files were written to another episode than theirs (`moved`: the
-/// episode before, the one after), as when their folder went to another
-/// show: an episode none of whose files are left (but those the scan
-/// removes, `gone`) goes into the episode most of them went to, with what
-/// people did with it ([`merge_items`]), and so does a season none of whose
-/// episodes are left. The show and season it went to were in the library
-/// since it came. An episode that keeps a file (a copy in a folder that
-/// stays) keeps what was done with it.
-pub(super) async fn carry_over(
-    conn: &mut SqliteConnection,
-    moved: &[(i64, i64)],
-    gone: &HashSet<i64>,
-) -> sqlx::Result<()> {
-    fn most(to: &BTreeMap<i64, usize>) -> Option<i64> {
-        to.iter().max_by_key(|&(id, n)| (*n, Reverse(*id))).map(|(id, _)| *id)
-    }
-    let mut went: BTreeMap<i64, BTreeMap<i64, usize>> = BTreeMap::new();
-    for &(from, to) in moved {
-        *went.entry(from).or_default().entry(to).or_default() += 1;
-    }
-    let mut seasons: BTreeMap<i64, BTreeMap<i64, usize>> = BTreeMap::new();
-    for (from, to) in went {
-        let Some(to) = most(&to) else { continue };
-        let row: Option<(Option<i64>, i64)> =
-            sqlx::query_as("SELECT parent_id, added_at FROM items WHERE id = ? AND kind = 'episode'")
-                .bind(from)
-                .fetch_optional(&mut *conn)
-                .await?;
-        let Some((from_season, added)) = row else { continue };
-        let files: Vec<i64> =
-            sqlx::query_scalar("SELECT id FROM media_files WHERE item_id = ?").bind(from).fetch_all(&mut *conn).await?;
-        if files.iter().any(|file| !gone.contains(file)) {
-            continue;
-        }
-        let row: Option<(Option<i64>, Option<i64>)> =
-            sqlx::query_as("SELECT parent_id, grandparent_id FROM items WHERE id = ? AND kind = 'episode'")
-                .bind(to)
-                .fetch_optional(&mut *conn)
-                .await?;
-        let Some((to_season, to_show)) = row else { continue };
-        merge_items(conn, to, from).await?;
-        sqlx::query("UPDATE items SET added_at = ?1 WHERE id IN (?2, ?3) AND added_at > ?1")
-            .bind(added)
-            .bind(to_season)
-            .bind(to_show)
-            .execute(&mut *conn)
-            .await?;
-        if let (Some(from), Some(to)) = (from_season, to_season)
-            && from != to
-        {
-            *seasons.entry(from).or_default().entry(to).or_default() += 1;
-        }
-    }
-    for (from, to) in seasons {
-        let Some(to) = most(&to) else { continue };
-        let empty: bool = sqlx::query_scalar(
-            "SELECT EXISTS (SELECT 1 FROM items WHERE id = ?1) AND NOT EXISTS (SELECT 1 FROM items WHERE parent_id = ?1)",
-        )
-        .bind(from)
-        .fetch_one(&mut *conn)
-        .await?;
-        if empty {
-            merge_items(conn, to, from).await?;
-        }
     }
     Ok(())
 }

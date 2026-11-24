@@ -114,7 +114,7 @@ sub showProfiles()
     shown = m.list.Count()
     if shown > 6 then shown = 6
     m.profiles.numColumns = shown
-    m.profiles.translation = [(1920 - shown * 220 - (shown - 1) * 48) / 2, 400]
+    m.profiles.translation = [(1920 - shown * 244 - (shown - 1) * 24) / 2, 388]
     m.profiles.content = nodesContent(m.list)
     for i = 0 to m.list.Count() - 1
         if m.list[i].current then m.profiles.jumpToItem = i

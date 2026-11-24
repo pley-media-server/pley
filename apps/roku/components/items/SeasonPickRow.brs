@@ -5,6 +5,9 @@ sub init()
     m.tick = m.top.findNode("tick")
     m.name = m.top.findNode("name")
     m.state = m.top.findNode("state")
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 sub onContent()

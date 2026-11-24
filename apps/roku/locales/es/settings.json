@@ -1,29 +1,32 @@
 {
   "title": "Ajustes",
-  "server": "Servidor",
-  "signedInAs": "Sesión iniciada como",
+  "categories": {
+    "profile": "Perfil",
+    "playback": "Reproducción",
+    "server": "Servidor",
+    "diagnostics": "Diagnóstico",
+    "about": "Acerca de"
+  },
+  "serverValue": "El servidor que usa este Roku",
   "thisRoku": "Este Roku",
-  "app": "Pley para Roku",
   "tmdb": "Este producto usa la API de TMDB, pero TMDB no lo respalda ni lo certifica.",
   "web": "Gestiona tu cuenta en la web",
   "webHint": "Nombre, foto, contraseña, PIN, inicio de sesión en dos pasos, dispositivos y aplicaciones, desde un teléfono o una computadora en la misma red.",
   "unreachable": "No se puede conectar con el servidor en este momento.",
   "rows": {
-    "language": "Idioma: {{value}}",
-    "quality": "Calidad: {{value}}",
-    "autoplay": "Siguiente episodio automático: {{value}}",
     "history": "Historial de reproducción",
     "switchProfile": "Cambiar de perfil",
-    "alwaysStartAs": "Empezar siempre como: {{value}}",
     "sortLibraries": "Ordenar bibliotecas",
     "switchServer": "Cambiar de servidor",
     "signOut": "Cerrar sesión"
   },
   "language": {
     "title": "Idioma",
-    "automatic": "Automático ({{language}})"
+    "automatic": "Automático ({{language}})",
+    "tooOld": "Actualiza Pley en el servidor para guardar {{language}} en la cuenta."
   },
   "quality": "Calidad",
+  "autoplay": "Siguiente episodio automático",
   "alwaysStartAs": "Empezar siempre como",
   "usedLast": "Último perfil usado",
   "signOut": {
@@ -35,7 +38,10 @@
   "changeOnWeb": "Cámbialos en la web, en {{address}}.",
   "readOnly": "Este servidor no permite que la aplicación los cambie: cámbialos en la web, en {{address}}.",
   "diagnostics": "Diagnóstico",
+  "openDiagnostics": "Abrir el diagnóstico",
+  "openDiagnosticsValue": "Lo que reproduce este Roku",
   "licences": "Licencias de código abierto",
+  "version": "Versión",
   "diagnosticsPage": {
     "app": "Pley para Roku {{version}}",
     "plays": "Lo que reproduce"

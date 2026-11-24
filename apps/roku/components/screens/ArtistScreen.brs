@@ -33,7 +33,8 @@ sub init()
     m.gathering = invalid
     m.asks = 0
     m.lastFocus = m.buttons
-    m.buttons.observeField("buttonSelected", "onButton")
+    m.buttons.observeField("chosen", "onButton")
+    m.labelsShown = ""
     m.albums.observeField("itemSelected", "onAlbum")
     m.top.observeField("active", "onActive")
 end sub
@@ -143,11 +144,12 @@ sub showButtons()
         labels.Push(t("titles.actions.nowPlaying"))
     end if
     m.actions = actions
-    if FormatJson(labels) <> FormatJson(m.buttons.buttons)
-        focused = m.buttons.buttonFocused
+    if FormatJson(labels) <> m.labelsShown
+        m.labelsShown = FormatJson(labels)
+        focused = m.buttons.focusIndex
         hadFocus = m.buttons.isInFocusChain()
-        m.buttons.buttons = labels
-        uiKeepButton(m.buttons, focused, hadFocus)
+        m.buttons.chips = contentActionChips(labels, actions)
+        contentKeepChip(m.buttons, focused, hadFocus)
     end if
     m.buttons.visible = labels.Count() > 0
 end sub

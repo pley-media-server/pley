@@ -464,9 +464,12 @@ function reqKey(kind as string, tmdbId as dynamic) as string
     return kind + ":" + urlValue(tmdbId)
 end function
 
-' A title as a tile: its poster, its name, year and kind, and its badge.
-' It opens the title's page (Nav.brs); key ("movie:603") finds it again.
-' words: reqTitleWords(), or invalid to look them up.
+' A title as a tile: its poster, its name, year and kind, and its badge;
+' for Discover's info block, TMDB's rating (score: a ContentNode's own
+' rating is a certificate), the start of its overview and its backdrop,
+' the hero's picture. It opens the title's page (Nav.brs); key
+' ("movie:603") finds it again. words: reqTitleWords(), or invalid to
+' look them up.
 function reqTitleTile(title as object, server as string, words = invalid as dynamic) as object
     if words = invalid then words = reqTitleWords()
     kind = httpString(title.kind)
@@ -496,7 +499,10 @@ function reqTitleTile(title as object, server as string, words = invalid as dyna
         libraryId: libraryId,
         badge: reqTitleBadge(status, libraryId, words),
         badgeColor: reqBadgeColor(status, libraryId),
-        key: reqKey(kind, tmdbId)
+        key: reqKey(kind, tmdbId),
+        score: httpNumber(title.rating, 0),
+        overview: httpClean(title.overview, 300, false),
+        backdrop: urlImage(server, title.backdrop_url, contentBackdropWidth())
     }
 end function
 
@@ -614,19 +620,24 @@ function reqHeroOf(lists as object) as dynamic
     return {}
 end function
 
-' Discover's hero (reqHeroOf's title): { title, line,
-' overview, backdrop, buttons, actions, note, tmdbKind, tmdbId,
-' libraryId }. Its main action, as far as a list's title tells it (its
+' Discover's hero (reqHeroOf's title): { title, line, parts (line's,
+' MetaRow's), overview, backdrop, buttons, actions, note, tmdbKind,
+' tmdbId, libraryId }. Its main action, as far as a list's title tells it (its
 ' page has the rest): actions "open" (the library's title), "request"
 ' (Request, or Request more seasons for a show partly there: the title's
 ' page, asking at once), "details". With nothing of its kind left to ask
 ' for, Request goes and note says so (Roku's buttons can't be disabled).
 function reqHero(title as object, summary as object, server as string, now as integer) as object
     tile = reqTitleTile(title, server)
-    parts = [tile.subtitle]
-    rating = httpNumber(title.rating, 0)
-    if rating > 0 then parts.Push("★ " + fmtOneDecimal(rating))
-    if tile.badge <> "" then parts.Push(tile.badge)
+    metaParts = reqMetaParts(tile.subtitle, tile.score, tile.badge)
+    parts = []
+    for each part in metaParts
+        if part.star = true
+            parts.Push("★ " + part.text)
+        else
+            parts.Push(part.text)
+        end if
+    end for
     remaining = summary.moviesLeft
     if tile.tmdbKind = "show" then remaining = summary.seasonsLeft
     buttons = []
@@ -652,14 +663,56 @@ function reqHero(title as object, summary as object, server as string, now as in
     return {
         title: tile.title,
         line: parts.Join(" · "),
+        parts: metaParts,
         note: note,
         overview: httpClean(title.overview, 400, false),
-        backdrop: urlImage(server, title.backdrop_url, contentBackdropWidth()),
+        backdrop: tile.backdrop,
         buttons: buttons,
         actions: actions,
         tmdbKind: tile.tmdbKind,
         tmdbId: tile.tmdbId,
         libraryId: tile.libraryId
+    }
+end function
+
+' The hero's buttons as a ChipRow's, as Android TV's: its main action a
+' pill with its icon (Open, Play's; Request, a plus), the rest round icons
+' named while focused (Details, Info's).
+function reqHeroChips(hero as object) as object
+    icons = { open: "play", request: "plus", details: "info" }
+    chips = []
+    for i = 0 to hero.actions.Count() - 1
+        icon = icons[hero.actions[i]]
+        if icon = invalid then icon = "info"
+        if i = 0
+            chips.Push({ label: hero.buttons[i], icon: icon, width: 0 })
+        else
+            chips.Push({ label: "", icon: icon, name: hero.buttons[i], width: 0 })
+        end if
+    end for
+    return chips
+end function
+
+' A title's line of facts as MetaRow draws it, the hero's and the info
+' block's: its year and kind (its tile's subtitle), TMDB's rating after a
+' star, its badge.
+function reqMetaParts(subtitle as string, score as dynamic, badge as string) as object
+    parts = []
+    if subtitle <> "" then parts.Push({ text: subtitle })
+    if httpNumber(score, 0) > 0 then parts.Push({ text: fmtOneDecimal(score), star: true })
+    if badge <> "" then parts.Push({ text: badge })
+    return parts
+end function
+
+' What Discover's info block says of the tile focus rests on (tile: the
+' fields it has): { title, parts (MetaRow's), overview, backdrop }. A
+' title's facts are the hero's; a request has its stage for them.
+function reqTileInfo(tile as object) as object
+    return {
+        title: httpString(tile.title),
+        parts: reqMetaParts(httpString(tile.subtitle), tile.score, httpString(tile.badge)),
+        overview: httpString(tile.overview),
+        backdrop: httpString(tile.backdrop)
     }
 end function
 
@@ -1296,8 +1349,8 @@ function reqSeasonNumbers(seasons as dynamic) as object
 end function
 
 ' A request as a tile (Discover's Your requests): its poster, its title
-' and its stage in the stage's color, the download's progress. It opens
-' the title's page.
+' and its stage in the stage's color, the download's progress, and its
+' backdrop for the info block. It opens the title's page.
 function reqRequestTile(request as object, server as string, manage as boolean, now as integer, zone as integer) as object
     kind = httpString(request.kind)
     tmdbId = httpNumber(request.tmdb_id, 0)
@@ -1320,7 +1373,8 @@ function reqRequestTile(request as object, server as string, manage as boolean, 
         libraryId: httpNumber(request.item_id, 0),
         badge: "",
         badgeColor: reqToneColor(stage.tone),
-        key: "request:" + urlValue(httpNumber(request.id, 0))
+        key: "request:" + urlValue(httpNumber(request.id, 0)),
+        backdrop: urlImage(server, request.backdrop_url, contentBackdropWidth())
     }
 end function
 

@@ -69,13 +69,26 @@ function uiHttpAgent(withToken = true as boolean) as object
     return agent
 end function
 
-' Puts a ButtonGroup's highlight back on index once its buttons changed.
-' On a Roku, focusButton gives the group the focus too: set where the group
-' had none (hadFocus, read before the buttons changed), it would take the
-' remote from the screen over it, or from another part of its own. There
-' the index waits until the group has the focus again, so coming back to a
-' page whose buttons changed meanwhile finds the button left.
+' A title page's backdrop under its rows while they have the focus: the
+' backdrop alone and faint, in place of the scrim and fade with a shade over
+' them all, three layers over the whole screen fewer to draw a frame (they
+' held a page of rows near 40 fps). screen has "backdrop", "scrim" and "fade".
+sub uiDimBackdrop(screen as object, faint as boolean)
+    backdrop = screen.findNode("backdrop")
+    if faint then backdrop.opacity = 0.18 else backdrop.opacity = 1
+    screen.findNode("scrim").visible = not faint
+    screen.findNode("fade").visible = not faint
+end sub
+
+' Puts a group of buttons' highlight (PillButtons) back on index once its
+' buttons changed, which starts them from the first. Where the group had
+' no focus (hadFocus, read before the buttons changed) the index waits
+' until it has the focus again, so coming back to a page whose buttons
+' changed meanwhile finds the button left. Changed buttons can take the
+' focus away with the old ones: a group that had it gets it back, on its
+' first button too.
 sub uiKeepButton(group as object, index as integer, hadFocus as boolean)
+    if hadFocus and not group.isInFocusChain() and group.buttons.Count() > 0 then group.setFocus(true)
     if index <= 0 or index >= group.buttons.Count() then return
     if hadFocus
         group.focusButton = index
@@ -107,6 +120,13 @@ end sub
 sub uiOpenTile(tile as dynamic)
     if tile = invalid then return
     nav = navForTile(tile)
+    if nav <> invalid then uiNavigate(nav)
+end sub
+
+' The remote's Play key on a tile (navPlayTile).
+sub uiPlayTile(tile as dynamic)
+    if tile = invalid then return
+    nav = navPlayTile(tile)
     if nav <> invalid then uiNavigate(nav)
 end sub
 
@@ -210,3 +230,17 @@ function uiChangesSince() as object
     return out
 end function
 
+' A problem page's words under its title (problem: the LayoutGroup of the
+' title, the words and the buttons): without any, the label leaves the
+' group, whose empty line held the buttons a line further down.
+sub uiProblemWords(problem as object, words as object, text as string)
+    words.text = text
+    inside = problem.getChildCount() = 3
+    if text = "" and inside
+        problem.removeChild(words)
+        problem.itemSpacings = [48]
+    else if text <> "" and not inside
+        problem.insertChild(words, 1)
+        problem.itemSpacings = [20, 48]
+    end if
+end sub

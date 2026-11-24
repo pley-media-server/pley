@@ -14,12 +14,206 @@ describes how they are made.
   their title, which the line under it shows. The mark's glyph says the
   kind of library: a clapperboard for movies, a TV for shows, notes for
   music.
+- Discover says what the poster in focus is: over its rows, the title's
+  name, its year, kind, rating and badge, and the start of its overview,
+  with its backdrop behind, as on Home. The hero went off the screen
+  there, and nothing said what a poster was.
+- Rows of posters scroll with less work: a tile lays itself out again
+  only when its size or shape changes, and a title's page only when its
+  words do. A title's page adds More Like This and its collections under
+  its rows as they come, without drawing the others again.
+- A title's page keeps the title, its line and two lines of the summary
+  at the top while the focus is in the rows under it, as Android TV's
+  info block does: on an episode, its name and its own summary. The
+  title's words went off the top of the screen.
+- Dialogs' and notices' buttons are the pages' pills: each inside its
+  edge, the focused one in the accent, where Roku's showed the others as
+  bare words (Which seasons?, subtitle sync, the sleep timer, Up next,
+  a title ready to watch, Can't reach the server, sign-in, Sort
+  libraries and the rest).
+- The side panels share one look: a title's menus and the language list
+  have the player's, a library's and Settings' rows and title.
+- The rail starts at the top of the screen and shows every entry,
+  Settings at the foot, its entries a little shorter when there are many.
+- The rail no longer has the requests: they open from Discover's button,
+  which shows what waits there.
+- A library opens on Recommended. The Library tab keeps the sort and
+  filters it was left with.
+- A library's sort shows as its name and its order's arrow ("Title" and
+  the rising bars) in place of "Title, A to Z", and the sort's panel
+  marks the current one with that arrow, without the line under it.
+- The backdrop of Home, Discover, a title's page and a collection fades
+  from one picture to the next: it went blank until the next one came.
+- The focus moves at once in every list, grid and row of posters, a menu
+  and a side panel alike: Roku's lists glided to each item, so a press
+  felt slow and the highlight went dark until it arrived. Holding a key
+  still scrolls.
+- The player's buttons keep their size when focused, and Previous,
+  Play/Pause and Next show no name under them, their icons saying it.
+- A focused button or tab keeps its size: Resume and the other buttons
+  on a page no longer grow.
+- The player has its own controls, drawn as Android TV's: the title, how
+  it plays and the clock at the top, a scrubber with the time played and
+  left, and a row of buttons (Chapters, Sleep timer, Previous, Play/Pause,
+  Next, Subtitles, Audio, Quality, Info) whose panels slide in at the right.
+  Left and Right seek 10 s a press, held they scrub, with the server's
+  seek previews over the scrubber; Down's menu is gone, and Options opens
+  Subtitles.
+- The app draws its player in Roboto, with Lucide's icons, as the Android
+  app does.
+- Home, the title pages and every tile look as on Android TV: an icon rail
+  that opens with the focus (the profile at its top), backdrops over the
+  whole screen with no hard edges, a line of facts with the rating and
+  quality in boxes, Play as a pill beside round icon buttons, and tiles
+  with round corners that grow with the accent's ring when focused. Every
+  screen's text is in Roboto.
+- The rail is at the left of every page, not only Home, as on Android TV:
+  Left opens it from a page's edge, and an entry chosen there switches
+  pages. Libraries show seven posters a row.
+- Settings looks as on Android TV: categories at the left (Profile,
+  Playback, Server, Diagnostics, About, Sign out) and the focused one's
+  rows at the right, with an icon and the current value under the label,
+  a switch for the next episode, and choices in a side panel. Profile has
+  your picture and name on top, and Manage your account on the web shows
+  where and what.
+- Discover's hero looks as Home's: its backdrop over the whole screen, its
+  facts in a line with the star, Request or Open as a pill and Details as
+  a round button. Rows of posters leave room under their titles, which are
+  in the bold of Android TV's sections.
+- A show's page has its episodes under its seasons, as on Android TV: the
+  season focus rests on shows its episodes, and OK on a season goes down
+  to the episode to watch.
+- A show's Episodes screen has the rail, and Play as a pill.
+- An album's, an artist's and a playlist's buttons are Android TV's: Play
+  a pill, Shuffle and the rest round icons, named while focused.
+- The focus in menus and side panels moves at once, the words clear of
+  its edges: it slid behind the remote, and Roku's lists put their words
+  against its left edge.
+- Now Playing's buttons are round icons, named while focused, and the
+  sleep timer running says what is left.
+- The remote's Play key plays the movie or episode in focus on Home, a
+  library, a collection or a title's rows, from where it was left, as on
+  Roku's own screens.
+- Lists' rows (episodes, tracks, requests, channels, profiles) are in
+  Roboto too: they kept Roku's own font.
+- Side panels hide the page behind them: a library's and the requests'
+  are the player's 720 px panel now, and none lets the page show through.
+- Search's rows run to the screen's edge, a music library's tiles show
+  both lines under them, Watch history's rows are as wide as the page, and
+  a request page's and a collection's words stay clear of their picture.
+- Round buttons are circles, as on Android TV, and Live TV's guide shows
+  its focus in the accent, its program's words on one line.
+- A collection's and a request page's buttons are the pill and round
+  icons the title pages have.
+- A title's rows start under its words and buttons rather than near the
+  screen's foot, and a person without a photo shows their initials.
+- An album's, a playlist's and a show's episodes page keep their line
+  and buttons right under the title, whether it takes one line or two.
+- Requests' rows leave room for the hint under them, and the mark of news
+  sits before a title instead of pushing it along.
+- The live player's banner and channel list, and the server list's hint,
+  end inside Roku's title-safe area.
+- Now Playing's buttons are under its scrubber, beside the cover, with Up
+  next below them; a button's name no longer runs past the screen's edge.
+- "Who's watching?" shows round profiles with the accent's ring, as the
+  rail's.
+- Media info and the player's Playback details lay out as Android TV's:
+  a bold heading over each block, each label in gray beside its value,
+  and Media info scrolls smoothly with a bar showing where.
+- Now Playing's "Up next" is a section's heading, as on the title pages.
+- A collection's page and a request's title page have the backdrop over
+  the whole screen with no hard edge, as the title pages.
+- A collection's posters start under its buttons, their names in view,
+  instead of at the screen's foot.
+- Playlists' New playlist is a pill with a plus, as a page's buttons are.
+- A title's page scrolls at 60 fps, its rows and its Media info alike (40
+  before): what a panel covers isn't drawn, and under the rows the
+  backdrop alone is dimmed.
+- Discover's rows scroll at 60 fps (35 before): under them the backdrop
+  alone is dimmed, as on a title's page.
+- The player panel's hint ends inside the title-safe area on two lines.
+- A movie or episode started and not finished says what is left on its
+  tile ("1 h 14 min left", "S1 E3 · 18 min left") instead of its year, as
+  on Android TV.
+- Now Playing is laid out as on Android TV: the rail at its left, a large
+  cover, and beside it the title over the artist and album, the scrubber,
+  the buttons, and Up next in rows of two lines, the track playing marked
+  with a waveform.
+- Live TV's guide ends at the right margin, and its list of categories
+  above the title-safe area's foot.
+- A collection's "Collection" has Android TV's layers before it, and its
+  badges are outlined as a title's rating is.
+- Menus are square: the side panels, the focus in their lists and in the
+  rail. Buttons, the player's controls and pictures keep round corners.
 
 ### Fixed
 
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end instead.
   Without credits, it comes at the end too, rather than 30 s before it.
+- A Discover or requests page that can't load, with nothing to say under
+  its title (TMDB isn't answering), has its button under the title: an
+  empty line held it further down.
+- A show's page opens on the next episode's season even when the
+  seasons come before the server says which episode is next, and a
+  season stays chosen as the page's rows come in.
+- Home chosen in the rail puts the focus back on what had it, shown: it
+  went to the page itself, and the next key only brought it back.
+- What is meant to be bold is: episode, request and channel titles, the
+  status pills, an artist's Albums and Search's recent searches heading
+  showed in Roboto's regular weight.
+- Media info and the player's Playback details end at a whole line, and
+  scroll a line at a time, where a line was cut in half at the foot.
+- Choosing a language the server is too old to keep says to update Pley
+  on the server, in place of the server's own message.
+- Chinese shows: Roboto and the Roku's own font have no Chinese
+  characters, so its words were empty boxes. The app draws Chinese in Noto
+  Sans SC and TC, and the language list shows 简体中文 and 繁體中文.
+- Spacing on several pages: a library's rows sit as far under its tabs as
+  its grid, the requests' list no longer touches its tabs, Live TV's guide
+  clears its hint and its categories sit on the pages' edge, a show's
+  Seasons row isn't cut at the foot of the screen, a TMDB title's rows
+  sit under its buttons, and Search's rows, the Playlists grid and a
+  collection's posters keep the other pages' gaps. Wide tiles are a
+  little smaller, so four fit whole in a row.
+- On Discover, the requests' button and TMDB's credit line up with the
+  page's name.
+- A focused poster's outline sits against its picture: it stood off it,
+  and on a wide tile reached the next one and was cut at the row's left.
+- The focused poster at the right end of a row keeps its whole outline:
+  the row reached the screen's edge, which cut it off.
+- In a library's Recommended and Collections rows, and on Discover, the
+  focused row stays at the top: below it, its highlight was cut off at
+  the foot of the screen.
+- Channel and program names with letters Roboto lacks ("ᴿᴬᵂ", "ʜᴅ") show
+  them as plain letters instead of empty boxes.
+- An artist's and a person's picture is round with no square corners
+  behind it: a mask cuts pictures, not the ground under them.
+- After the language changed, the rail marked Settings over Home, scrolled
+  to its foot.
+- A page chosen in the rail closes it on its own entry: Settings, under a
+  long list of libraries, left the rail showing its top with no entry
+  marked.
+- People's pictures in circles, and stills of another shape than their
+  tile, are cropped, not squeezed: Roku OS 16 drew them stretched.
+- Search's groups line up under their titles, a channel's cards as the
+  titles' tiles, the same room under each title.
+- Search's recent searches line up with their heading and with the
+  results' row titles.
+- On Roku OS 16, Search showed Discover's titles as Live TV channels, and
+  a channel chosen in Search, or the channel playing in the live player's
+  list, wasn't found: Roku's own ContentNode now has a channelId field,
+  which kept the app's channel numbers out.
+- Cast and crew, and the people Search finds, are circles with their names
+  and roles in view, as on Android TV: their tall pictures left the names
+  below the screen.
+- Request more seasons shows its words, not a picture left from another
+  tile.
+- Back from the player, a title's page has the focus on its buttons again:
+  it was left with none, and the remote did nothing there.
+- The first video played after the app starts plays as it should: its
+  stream failed at once, so a file that plays as it is was converted, and
+  a conversion flashed "Can't play this item" before it played.
 
 ## [0.1.12] - 2026-11-22
 

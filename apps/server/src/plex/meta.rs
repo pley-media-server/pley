@@ -362,7 +362,7 @@ pub fn item_node(
     node = node.opt("userRating", row.user_rating);
     // The edition of the version played by default, as Plex names it.
     if kind == "movie" {
-        let edition = files.first().and_then(|f| crate::library::parse::edition(std::path::Path::new(&f.path)));
+        let edition = files.first().and_then(|f| crate::library::parse::edition(std::path::Path::new(&f.path), true));
         node = node.opt("editionTitle", edition);
     }
     node = node

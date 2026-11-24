@@ -47,11 +47,16 @@ function contentDetailPosterWidth() as integer
 end function
 
 ' One tile of a row or a grid. wide: a 16:9 picture (Continue Watching,
-' episodes) instead of a poster.
+' episodes) instead of a poster. A video started and not finished says
+' what is left instead of its year, as on Android TV ("1 h 14 min left";
+' an episode "S1 E3 · 18 min left"); place is the line without it, for
+' lists that add their own.
 function contentTile(item as object, server as string, wide as boolean) as object
     kind = httpString(item.kind)
     title = httpSentence(item.title)
     subtitle = ""
+    code = ""
+    showTitle = ""
     if kind = "movie" or kind = "show"
         year = httpNumber(item.year, 0)
         if year > 0 then subtitle = Int(year).ToStr()
@@ -79,6 +84,7 @@ function contentTile(item as object, server as string, wide as boolean) as objec
             subtitle = code
         end if
     end if
+    placeLine = subtitle
     state = httpObject(item.user_state)
     position = 0
     watched = false
@@ -89,9 +95,17 @@ function contentTile(item as object, server as string, wide as boolean) as objec
     duration = httpNumber(item.duration_ms, 0)
     progress = 0.0
     if not watched then progress = fmtProgress(position, duration)
+    if progress > 0 and progress < 1 and (kind = "movie" or kind = "episode" or kind = "extra")
+        left = fmtLeft(position, duration)
+        if left <> ""
+            subtitle = left
+            if kind = "episode" and showTitle <> "" and code <> "" then subtitle = code + " · " + left
+        end if
+    end if
     return {
         title: title,
         subtitle: subtitle,
+        place: placeLine,
         image: contentTileImage(item, server, wide, 0),
         wide: wide,
         square: contentMusic(kind) and not wide,
@@ -219,12 +233,22 @@ function contentRowSquare(hub as object) as boolean
     return contentMusic(httpString(items[0].kind))
 end function
 
-' The size of a row's tiles, and the row's height, for its shape: a 16:9
-' picture, a square or a poster, and two lines of text under it.
+' The size of a row's tiles, and the row's height, for its shape, as the
+' Android TV app's (TileKind, doubled): a 16:9 picture 396 wide (Android
+' TV's 408 would leave a fourth cut by a few pixels at the row's end;
+' four whole fit, the fifth showing as the next), a square 264 or a
+' poster 216, two lines of text 28 px under it, 24 px at its left and 30
+' over it for the focused tile's growth and ring (Tile), and the row's
+' header.
+' A row of people, circles 192 px across, as Android TV's (TileKind.Person).
+function contentPersonRowSize() as object
+    return { size: [216, 320], height: 384 }
+end function
+
 function contentRowSize(wide as boolean, square as boolean) as object
-    if wide then return { size: [400, 300], height: 360 }
-    if square then return { size: [contentSquareWidth(), 340], height: 400 }
-    return { size: [220, 410], height: 470 }
+    if wide then return { size: [420, 349], height: 413 }
+    if square then return { size: [288, 390], height: 454 }
+    return { size: [240, 450], height: 514 }
 end function
 
 ' A short fingerprint of a hub as the server sent it.
@@ -369,6 +393,51 @@ function contentEpisodes(children as dynamic, server as string) as object
         end if
     end for
     return episodes
+end function
+
+' A page's buttons as a ChipRow's, as Android TV's: the first a pill with
+' its icon, the rest round icons named while focused. actions name the
+' icons (Play's, Shuffle's, a person for Go to artist, a note for Now
+' playing, a pencil for Rename or a reason, a cross for Delete or Decline,
+' a plus to ask for a title, a check to approve one).
+function contentActionChips(labels as object, actions as object) as object
+    icons = { play: "play", shuffle: "shuffle", artist: "user-round", nowPlaying: "music", rename: "pencil", delete: "x", collection: "layers", open: "play", request: "plus", pick: "plus", follow: "bookmark-plus", unfollow: "bookmark-check", approve: "check", decline: "x", declineReason: "pencil", retry: "rotate-ccw", withdraw: "x", cancel: "x", signIn: "user-round", create: "plus" }
+    chips = []
+    for i = 0 to labels.Count() - 1
+        icon = invalid
+        if i < actions.Count() then icon = icons[actions[i]]
+        if icon = invalid then icon = "info"
+        if i = 0
+            chips.Push({ label: labels[i], icon: icon, width: 0 })
+        else
+            chips.Push({ label: "", icon: icon, name: labels[i], width: 0 })
+        end if
+    end for
+    return chips
+end function
+
+' Keeps the focus on the chip it was on, once a ChipRow's chips change.
+sub contentKeepChip(row as object, at as integer, hadFocus as boolean)
+    count = row.chips.Count()
+    if count = 0 then return
+    if at < 0 then at = 0
+    if at > count - 1 then at = count - 1
+    row.focusIndex = at
+    if hadFocus then row.setFocus(true)
+end sub
+
+' Where a season's episodes ([{ progress, watched }], contentEpisodes')
+' start, as on Android TV: the first one begun and not finished, else the
+' first not watched, else the first.
+function contentEpisodeToWatch(episodes as object) as integer
+    for i = 0 to episodes.Count() - 1
+        episode = episodes[i]
+        if episode.progress > 0 and episode.watched <> true then return i
+    end for
+    for i = 0 to episodes.Count() - 1
+        if episodes[i].watched <> true then return i
+    end for
+    return 0
 end function
 
 ' A title's details screen (a movie, an episode, a show or an extra): what
@@ -778,7 +847,7 @@ end function
 function contentUpNext(item as object, server as string) as object
     tile = contentTile(item, server, true)
     ' A movie (a playlist's next): its year.
-    line = tile.subtitle
+    line = tile.place
     if tile.kind = "episode"
         line = fmtEpisode(item.parent_index, item.index)
         title = httpSentence(item.title)
@@ -788,4 +857,72 @@ function contentUpNext(item as object, server as string) as object
         end if
     end if
     return { itemId: tile.itemId, title: tile.title, line: line, image: tile.image, startMs: playerStartOf(tile.positionMs, tile.durationMs) }
+end function
+
+' A title's quality badges ("4K", "DV"): its media's, else its first file's.
+function contentItemBadges(item as object) as object
+    media = httpObject(item.media)
+    if media <> invalid then return contentQualityBadges(media)
+    files = httpArray(item.files)
+    if files.Count() = 0 then return []
+    file = httpObject(files[0])
+    if file = invalid then return []
+    range = invalid
+    for each stream in httpArray(file.streams)
+        if GetInterface(stream, "ifAssociativeArray") <> invalid and httpString(stream.kind) = "video" and range = invalid then range = stream.dynamic_range
+    end for
+    return contentQualityBadges({ width: file.width, height: file.height, dynamic_range: range })
+end function
+
+' The title page's line as MetaRow draws it, as Android TV's: [{ text,
+' boxed, star }], the content rating and the quality boxed, the score
+' after a star; an episode's "S1 E2" and title first.
+function contentDetailParts(detail as object) as object
+    kind = httpString(detail.kind)
+    parts = []
+    if kind = "episode"
+        code = fmtEpisode(detail.parent_index, detail.index)
+        if code <> "" then parts.Push({ text: code })
+        title = httpSentence(detail.title)
+        if httpSentence(detail.grandparent_title) <> "" and title <> "" then parts.Push({ text: title })
+    end if
+    year = httpNumber(detail.year, 0)
+    if year > 0 and kind <> "episode" then parts.Push({ text: urlValue(year) })
+    if kind = "show"
+        seasons = Int(httpNumber(detail.child_count, 0))
+        if seasons > 0 then parts.Push({ text: t("browse.counts.seasons", { count: seasons }) })
+    else
+        duration = fmtDuration(detail.duration_ms)
+        if duration <> "" then parts.Push({ text: duration })
+    end if
+    rating = httpSentence(detail.content_rating)
+    if rating <> "" then parts.Push({ text: rating, boxed: true })
+    score = httpNumber(detail.rating, 0)
+    if score > 0 then parts.Push({ text: fmtOneDecimal(score), star: true })
+    for each badge in contentItemBadges(detail)
+        parts.Push({ text: badge, boxed: true })
+    end for
+    return parts
+end function
+
+' The title page's buttons as chips (ChipRow), as Android TV's: the first,
+' what plays, a pill with its icon and words; the rest round icons, named
+' under them while focused.
+function contentDetailChips(labels as object, actions as object) as object
+    icons = {
+        resume: "play", start: "rotate-ccw", playNext: "play", episodes: "list-video", watched: "circle-check",
+        unwatched: "eye-off", tracks: "captions", listAdd: "bookmark-plus", listRemove: "bookmark-check",
+        trailer: "film", more: "ellipsis"
+    }
+    chips = []
+    for i = 0 to actions.Count() - 1
+        icon = icons[actions[i]]
+        if icon = invalid then icon = "ellipsis"
+        if i = 0 and (actions[i] = "resume" or actions[i] = "start" or actions[i] = "playNext")
+            chips.Push({ label: labels[i], icon: "play", width: 0 })
+        else
+            chips.Push({ label: "", icon: icon, name: labels[i], width: 0 })
+        end if
+    end for
+    return chips
 end function

@@ -99,9 +99,29 @@ async fn mergeable(conn: &mut SqliteConnection, library_id: i64, into: i64, from
     .await
 }
 
-/// Move everything of movie `from` to `into`, then delete `from`. What both
-/// have, `into`'s wins, except what adds up: plays, watched, the latest
-/// position.
+/// Movie `from` goes into `into`, both of one library, when a scan found its
+/// files all to be `into`'s versions (copies a name once made a movie of its
+/// own): what was done with it goes with them. Whether it went.
+pub(super) async fn absorb(conn: &mut SqliteConnection, from: i64, into: i64) -> sqlx::Result<bool> {
+    let left: bool = sqlx::query_scalar(
+        "SELECT ?1 != ?2
+            AND EXISTS (SELECT 1 FROM items a JOIN items b ON b.library_id = a.library_id
+                        WHERE a.id = ?1 AND b.id = ?2 AND a.kind = 'movie' AND b.kind = 'movie')
+            AND NOT EXISTS (SELECT 1 FROM media_files WHERE item_id = ?1)",
+    )
+    .bind(from)
+    .bind(into)
+    .fetch_one(&mut *conn)
+    .await?;
+    if left {
+        merge_into(conn, into, from).await?;
+        tracing::info!("movie {from}, whose files are versions of movie {into} now, went into it");
+    }
+    Ok(left)
+}
+
+/// Move everything of `from` to `into`, then delete `from`. What both have,
+/// `into`'s wins, except what adds up: plays, watched, the latest position.
 async fn merge_into(conn: &mut SqliteConnection, into: i64, from: i64) -> sqlx::Result<()> {
     let statements = [
         // Its files' keys now find `into`, and so do the keys of the movies
@@ -109,32 +129,22 @@ async fn merge_into(conn: &mut SqliteConnection, into: i64, from: i64) -> sqlx::
         "INSERT INTO item_aliases (library_id, key, item_id) SELECT library_id, key, ?1 FROM items WHERE id = ?2
          ON CONFLICT(library_id, key) DO UPDATE SET item_id = excluded.item_id",
         "UPDATE item_aliases SET item_id = ?1 WHERE item_id = ?2",
-        // What was kept apart from it is from `into` too.
-        "INSERT OR IGNORE INTO movies_apart (library_id, key, item_id) SELECT library_id, key, ?1 FROM movies_apart
-         WHERE item_id = ?2",
+        "UPDATE media_files SET item_id = ?1 WHERE item_id = ?2",
         "INSERT OR IGNORE INTO item_nfo (item_id, path, size, mtime, ids, fields, locked)
          SELECT ?1, path, size, mtime, ids, fields, locked FROM item_nfo WHERE item_id = ?2",
     ];
     for sql in statements {
         sqlx::query(sql).bind(into).bind(from).execute(&mut *conn).await?;
     }
-    merge_items(conn, into, from).await
+    carry(conn, into, from).await
 }
 
-/// Move the files and children of item `from`, and what people did with it,
-/// to `into`, then delete `from`: watched, ratings, My List, playlists,
-/// collections, labels, hand edits, track choices. What both have, `into`'s
-/// wins, except what adds up: plays, watched, the latest position.
-pub(super) async fn merge_items(conn: &mut SqliteConnection, into: i64, from: i64) -> sqlx::Result<()> {
-    let statements = [
-        "UPDATE media_files SET item_id = ?1 WHERE item_id = ?2",
-        // Its children: a movie's bonus material.
-        "UPDATE items SET parent_id = ?1 WHERE parent_id = ?2",
-        "INSERT INTO user_item_state (user_id, item_id, position_ms, watched, play_count, last_played_at, updated_at,
-                                      rating, rated_at)
-         SELECT user_id, ?1, position_ms, watched, play_count, last_played_at, updated_at, rating, rated_at
-         FROM user_item_state WHERE item_id = ?2
-         ON CONFLICT(user_id, item_id) DO UPDATE SET
+/// How a person's state of an item (`excluded`) joins their state of
+/// another: the latest position, watched if either is, plays added up, the
+/// latest play and rating.
+macro_rules! state_joined {
+    () => {
+        "ON CONFLICT(user_id, item_id) DO UPDATE SET
             position_ms = CASE WHEN excluded.updated_at > user_item_state.updated_at
                                THEN excluded.position_ms ELSE user_item_state.position_ms END,
             watched = MAX(user_item_state.watched, excluded.watched),
@@ -146,7 +156,45 @@ pub(super) async fn merge_items(conn: &mut SqliteConnection, into: i64, from: i6
                           THEN excluded.rating ELSE user_item_state.rating END,
             rated_at = CASE WHEN excluded.rated_at > COALESCE(user_item_state.rated_at, 0)
                             THEN excluded.rated_at ELSE user_item_state.rated_at END,
-            updated_at = MAX(user_item_state.updated_at, excluded.updated_at)",
+            updated_at = MAX(user_item_state.updated_at, excluded.updated_at)"
+    };
+}
+pub(super) use state_joined;
+
+/// Gives `into` what people did with `from` (watched, plays, ratings,
+/// history, My List, playlists, collections, labels, hand edits, Fix Match,
+/// track choices) and its bonus material, then deletes `from`. What both
+/// have, `into`'s wins, except what adds up ([`state_joined`]). `into` was
+/// in the library since `from` was.
+pub(super) async fn carry(conn: &mut SqliteConnection, into: i64, from: i64) -> sqlx::Result<()> {
+    let statements = [
+        // What was kept apart from it is from `into` too, and what was kept
+        // apart from others stays apart as `into`.
+        "INSERT OR IGNORE INTO movies_apart (library_id, key, item_id) SELECT library_id, key, ?1 FROM movies_apart
+         WHERE item_id = ?2",
+        "INSERT OR IGNORE INTO movies_apart (library_id, key, item_id)
+         SELECT p.library_id, i.key, p.item_id FROM movies_apart p JOIN items f ON f.id = ?2 JOIN items i ON i.id = ?1
+         WHERE p.library_id = f.library_id AND p.key = f.key AND p.item_id != ?1",
+        // A title matched by hand (Fix Match) is the title chosen, with the
+        // ids found for it, whatever `into`'s name finds, unless `into` was
+        // matched by hand too.
+        "UPDATE items SET tmdb_id = f.tmdb_id, imdb_id = f.imdb_id, tvdb_id = f.tvdb_id, tvmaze_id = f.tvmaze_id,
+                          metadata_at = NULL
+         FROM items f
+         WHERE items.id = ?1 AND f.id = ?2
+           AND EXISTS (SELECT 1 FROM item_overrides o WHERE o.item_id = ?2 AND o.field = ?4)
+           AND NOT EXISTS (SELECT 1 FROM item_overrides m WHERE m.item_id = ?1 AND m.field = ?4)
+           AND (items.tmdb_id IS NOT f.tmdb_id OR items.imdb_id IS NOT f.imdb_id OR items.tvdb_id IS NOT f.tvdb_id
+                OR items.tvmaze_id IS NOT f.tvmaze_id)",
+        // Bonus material.
+        "UPDATE items SET parent_id = ?1 WHERE parent_id = ?2",
+        concat!(
+            "INSERT INTO user_item_state (user_id, item_id, position_ms, watched, play_count, last_played_at,
+                                          updated_at, rating, rated_at)
+             SELECT user_id, ?1, position_ms, watched, play_count, last_played_at, updated_at, rating, rated_at
+             FROM user_item_state WHERE item_id = ?2 ",
+            state_joined!()
+        ),
         "UPDATE play_history SET item_id = ?1 WHERE item_id = ?2",
         "INSERT INTO watchlist (user_id, item_id, added_at) SELECT user_id, ?1, added_at FROM watchlist WHERE item_id = ?2
          ON CONFLICT(user_id, item_id) DO UPDATE SET added_at = MIN(watchlist.added_at, excluded.added_at)",
@@ -166,7 +214,6 @@ pub(super) async fn merge_items(conn: &mut SqliteConnection, into: i64, from: i6
         "INSERT OR IGNORE INTO item_overrides (item_id, field, value)
          SELECT ?1, field, value FROM item_overrides WHERE item_id = ?2",
         "UPDATE requests SET item_id = ?1 WHERE item_id = ?2",
-        // It was in the library since the first of them came.
         "UPDATE items SET added_at = MIN(added_at, (SELECT added_at FROM items WHERE id = ?2)), updated_at = ?3
          WHERE id = ?1",
         // Cast, genres and the rest of what is left of it go with it.
@@ -174,7 +221,7 @@ pub(super) async fn merge_items(conn: &mut SqliteConnection, into: i64, from: i6
     ];
     let now = now();
     for sql in statements {
-        sqlx::query(sql).bind(into).bind(from).bind(now).execute(&mut *conn).await?;
+        sqlx::query(sql).bind(into).bind(from).bind(now).bind(crate::overrides::MATCH).execute(&mut *conn).await?;
     }
     Ok(())
 }

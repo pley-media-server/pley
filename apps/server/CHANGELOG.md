@@ -13,6 +13,11 @@ describes how they are made.
 
 - A TheTVDB or IMDb id in a show folder's name (`{tvdb-…}`, `{imdb-tt…}`)
   finds the show, as a TMDB id (`{tmdb-…}`) does.
+- Editions named in a movie's file or folder name without the
+  `{edition-…}` tag, such as Director's Cut, Extended, Theatrical,
+  Unrated, Remastered or IMAX, are versions of one movie with their names.
+  Copies already listed as movies of their own join it once every file is
+  scanned again.
 
 ### Changed
 
@@ -24,6 +29,10 @@ describes how they are made.
 - Pley's license gains a permission for app stores: Pley may be
   distributed through stores whose terms add restrictions of their own,
   as long as its source stays available.
+- Files added or changed in a large library, or named in a refresh from
+  another tool, show up sooner.
+- A title a metadata source had nothing for gets its details once the
+  source adds them, without a Refresh.
 
 ### Fixed
 
@@ -32,6 +41,13 @@ describes how they are made.
   when the ids in their folders' names or `tvshow.nfo` files differ. A show
   already made of two is split at the next scan without losing what was
   watched.
+- Episodes added to a show that already has its details get theirs at the
+  next scan, and so do those of a show whose seasons TMDB didn't answer
+  for.
+- Renaming or moving files within a library no longer loses their
+  progress, watched state, ratings, history, My List, playlists or added
+  subtitles, and a movie or episode replaced by a copy named differently,
+  or deleted and added again within 180 days, gets its watch state back.
 - Home and a TV library's Recommended tab open at once after a big scan,
   also in a library of thousands of shows.
 - Music playing in the web app pauses once Play on… sends something to

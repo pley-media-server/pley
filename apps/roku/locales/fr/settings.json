@@ -1,29 +1,32 @@
 {
   "title": "Paramètres",
-  "server": "Serveur",
-  "signedInAs": "Connecté en tant que",
+  "categories": {
+    "profile": "Profil",
+    "playback": "Lecture",
+    "server": "Serveur",
+    "diagnostics": "Diagnostic",
+    "about": "À propos"
+  },
+  "serverValue": "Le serveur qu’utilise ce Roku",
   "thisRoku": "Ce Roku",
-  "app": "Pley pour Roku",
   "tmdb": "Ce produit utilise l’API de TMDB, mais n’est ni approuvé ni certifié par TMDB.",
   "web": "Gérer votre compte sur le web",
   "webHint": "Nom, photo, mot de passe, code PIN, connexion en deux étapes, appareils et applications, depuis un téléphone ou un ordinateur sur le même réseau.",
   "unreachable": "Le serveur est injoignable pour le moment.",
   "rows": {
-    "language": "Langue : {{value}}",
-    "quality": "Qualité : {{value}}",
-    "autoplay": "Épisode suivant automatique : {{value}}",
     "history": "Historique de visionnage",
     "switchProfile": "Changer de profil",
-    "alwaysStartAs": "Toujours démarrer avec : {{value}}",
     "sortLibraries": "Trier les bibliothèques",
     "switchServer": "Changer de serveur",
     "signOut": "Se déconnecter"
   },
   "language": {
     "title": "Langue",
-    "automatic": "Automatique ({{language}})"
+    "automatic": "Automatique ({{language}})",
+    "tooOld": "Mettez Pley à jour sur le serveur pour garder {{language}} pour le compte."
   },
   "quality": "Qualité",
+  "autoplay": "Épisode suivant automatique",
   "alwaysStartAs": "Toujours démarrer avec",
   "usedLast": "Dernier profil utilisé",
   "signOut": {
@@ -35,7 +38,10 @@
   "changeOnWeb": "Modifiez-les sur le web, à l’adresse {{address}}.",
   "readOnly": "Ce serveur ne permet pas à l’application de les modifier : modifiez-les sur le web, à l’adresse {{address}}.",
   "diagnostics": "Diagnostic",
+  "openDiagnostics": "Ouvrir le diagnostic",
+  "openDiagnosticsValue": "Ce que ce Roku lit",
   "licences": "Licences open source",
+  "version": "Version",
   "diagnosticsPage": {
     "app": "Pley pour Roku {{version}}",
     "plays": "Ce qu’il lit"

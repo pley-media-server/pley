@@ -18,8 +18,6 @@
   "states": {
     "loading": "Cargando…",
     "saved": "Guardado.",
-    "on": "Activado",
-    "off": "Desactivado",
     "failed": "No funcionó"
   },
   "errors": {

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The player's seek previews (PreviewTask.brs): the file's BIF fetched
+     once into cachefs:, then the frame for each position asked for cut out
+     into a JPEG of its own, for a Poster. -->
+<component name="PreviewTask" extends="Task">
+    <interface>
+        <!-- The BIF's address (the session's key opens it: no token), and
+             the User-Agent to fetch it with. -->
+        <field id="url" type="string" />
+        <field id="userAgent" type="string" />
+        <!-- A position (ms) whose frame is wanted. -->
+        <field id="want" type="integer" alwaysNotify="true" />
+        <!-- The frame cut out: { ms, uri }. -->
+        <field id="frame" type="assocarray" alwaysNotify="true" />
+        <!-- Whether the previews are there to show (false while fetching,
+             or for good when the server has none yet). -->
+        <field id="ready" type="boolean" />
+        <!-- Set to stop: the player left, or plays another stream. -->
+        <field id="quit" type="boolean" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/tasks/PreviewTask.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Previews.brs" />
+</component>

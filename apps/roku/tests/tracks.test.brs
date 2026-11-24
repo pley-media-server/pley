@@ -33,19 +33,19 @@ sub test_tracks_refusals_send_to_the_web()
 end sub
 
 sub test_tracks_settings_rows()
-    tkEqual(tracksRows(invalid, false), [{ kind: "audio", text: "Audio language" }, { kind: "mode", text: "Subtitles" }], "before the profile came")
+    tkEqual(tracksRows(invalid, false), [{ kind: "audio", label: "Audio language", value: "" }, { kind: "mode", label: "Subtitles", value: "" }], "before the profile came")
     tkEqual(tracksRows({ audio: "", subtitle: "", mode: "forced" }, false), [
-        { kind: "audio", text: "Audio language: The file's default" },
-        { kind: "mode", text: "Subtitles: Only for foreign dialogue" }
+        { kind: "audio", label: "Audio language", value: "The file's default" },
+        { kind: "mode", label: "Subtitles", value: "Only for foreign dialogue" }
     ])
     tkEqual(tracksRows({ audio: "jpn", subtitle: "", mode: "foreign" }, false), [
-        { kind: "audio", text: "Audio language: Japanese" },
-        { kind: "mode", text: "Subtitles: When the audio is in another language" },
-        { kind: "subtitle", text: "Subtitle language: Same as the audio language" }
+        { kind: "audio", label: "Audio language", value: "Japanese" },
+        { kind: "mode", label: "Subtitles", value: "When the audio is in another language" },
+        { kind: "subtitle", label: "Subtitle language", value: "Same as the audio language" }
     ], "the subtitle language for foreign")
     rows = tracksRows({ audio: "fr", subtitle: "eng", mode: "always" }, true)
-    tkEqual(rows[0].text, "Audio language: fr · change on the web", "a code not offered shows as it is")
-    tkEqual(rows[2].text, "Subtitle language: English · change on the web")
+    tkEqual(rows[0].value, "fr · change on the web", "a code not offered shows as it is")
+    tkEqual(rows[2].value, "English · change on the web")
     tkEqual(tracksRows({ audio: "", subtitle: "eng", mode: "off" }, false).Count(), 2, "no subtitle language when they stay off")
 end sub
 
@@ -76,19 +76,18 @@ end sub
 ' them to fit; the choices say it in full.
 sub test_tracks_settings_in_french_and_spanish()
     i18nUse("fr")
-    colon = Chr(160) + ": "
     tkEqual(tracksRows({ audio: "", subtitle: "", mode: "foreign" }, false), [
-        { kind: "audio", text: "Langue audio" + colon + "Celle du fichier" },
-        { kind: "mode", text: "Sous-titres" + colon + "Audio dans une autre langue" },
-        { kind: "subtitle", text: "Langue des sous-titres" + colon + "Celle de l’audio" }
+        { kind: "audio", label: "Langue audio", value: "Celle du fichier" },
+        { kind: "mode", label: "Sous-titres", value: "Audio dans une autre langue" },
+        { kind: "subtitle", label: "Langue des sous-titres", value: "Celle de l’audio" }
     ])
-    tkEqual(tracksRows({ audio: "jpn", subtitle: "", mode: "off" }, true)[0].text, "Langue audio" + colon + "Japonais · à modifier sur le web")
+    tkEqual(tracksRows({ audio: "jpn", subtitle: "", mode: "off" }, true)[0].value, "Japonais · à modifier sur le web")
     modes = tracksChoices("mode", { audio: "", subtitle: "", mode: "forced" })
     tkEqual(modes.title, "Sous-titres")
     tkEqual(modes.labels[1], "Seulement pour les dialogues étrangers")
     tkEqual(tracksChoices("audio", { audio: "", subtitle: "", mode: "off" }).labels[0], "Celle du fichier par défaut")
     i18nUse("es")
-    tkEqual(tracksRows({ audio: "", subtitle: "", mode: "forced" }, false)[1].text, "Subtítulos: Solo diálogos en otro idioma")
+    tkEqual(tracksRows({ audio: "", subtitle: "", mode: "forced" }, false)[1].value, "Solo diálogos en otro idioma")
     subtitles = tracksChoices("subtitle", { audio: "", subtitle: "ger", mode: "always" })
     tkEqual(subtitles.title, "Idioma de los subtítulos")
     tkEqual(subtitles.labels[0], "El mismo que el del audio")
