@@ -233,8 +233,10 @@ fn status_line(state: &AppState) -> String {
     if state.stopping.is_cancelled() {
         return t("stopping");
     }
-    let playing = state.sessions.listed().len();
-    let transcoding = state.sessions.active_transcodes();
+    // Both of the sessions listed: a next track asked for ahead isn't playing yet, nor converted for anyone to see.
+    let listed = state.sessions.listed();
+    let playing = listed.len();
+    let transcoding = listed.iter().filter(|s| s.transcode.is_some()).count();
     let mut parts = Vec::new();
     if playing > 0 {
         parts.push(i18n::t_count(language, "tray.status.streams", playing as u64, &[]));
