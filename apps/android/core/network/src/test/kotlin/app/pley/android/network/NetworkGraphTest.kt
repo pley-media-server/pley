@@ -2,6 +2,7 @@ package app.pley.android.network
 
 import app.pley.android.auth.Tokens
 import app.pley.android.common.Tier
+import app.pley.android.common.sha1Hex
 import app.pley.android.testing.network.MockPley
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
@@ -157,6 +158,36 @@ class NetworkGraphTest {
     }
 
     @Test
+    fun aProfilesPicturesComeFromItsOwnCacheOnceRead() = runTest {
+        MockPley.server().use { server ->
+            val issuer = MockPley.issuerOf(server)
+            val graph = testGraph(folder.root, { testTokens(it, access = "pley_at_pictures") })
+            val cover = MockPley.url(server, "/api/items/50/images/poster?v=1&w=512")
+            repeat(2) {
+                server.enqueue(MockResponse.Builder().setHeader("Cache-Control", "private, max-age=31536000, immutable").body("jpeg").build())
+            }
+
+            // Read twice: the second time from the device, the server not asked.
+            assertEquals("jpeg", read(graph.pictures(issuer, 2), cover))
+            assertEquals("jpeg", read(graph.pictures("$issuer/", 2), cover))
+            assertEquals(1, server.requestCount)
+            assertEquals("Bearer pley_at_pictures", server.takeRequest().headers["Authorization"])
+            // In the server's folder, which signing out deletes, apart for each profile: another asks the server itself.
+            assertEquals(folder.root.resolve("http/${sha1Hex(issuer)}/pictures/2"), graph.pictures(issuer, 2).cache?.directory)
+            assertEquals("jpeg", read(graph.pictures(issuer, 3), cover))
+            assertEquals(2, server.requestCount)
+            // With the pictures' own limits, and no cache before the profile is known.
+            assertSame(graph.images.dispatcher, graph.pictures(issuer, 2).dispatcher)
+            assertSame(graph.images, graph.pictures(issuer, null))
+
+            // Signed out: the next client opens its cache again.
+            val before = graph.pictures(issuer, 2)
+            graph.forget(issuer)
+            assertTrue(graph.pictures(issuer, 2) !== before)
+        }
+    }
+
+    @Test
     fun mediaCarriesTheToken() = runTest {
         MockPley.server().use { server ->
             val issuer = MockPley.issuerOf(server)
@@ -181,4 +212,8 @@ class NetworkGraphTest {
     private fun fetch(client: OkHttpClient, url: String) {
         client.newCall(Request.Builder().url(url).build()).execute().close()
     }
+
+    /** [url]'s body, read to its end (a response is cached once read). */
+    private fun read(client: OkHttpClient, url: String): String =
+        client.newCall(Request.Builder().url(url).build()).execute().use { it.body.string() }
 }

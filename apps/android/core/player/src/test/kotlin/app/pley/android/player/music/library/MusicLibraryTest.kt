@@ -609,8 +609,6 @@ class MusicLibraryTest {
             searched += query
             return found
         }
-
-        override fun pictureUrl(path: String, width: Int) = "http://server$path"
     }
 
     private companion object {

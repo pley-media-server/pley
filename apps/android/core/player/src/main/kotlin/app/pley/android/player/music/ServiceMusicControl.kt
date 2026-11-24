@@ -183,7 +183,7 @@ class ServiceMusicControl(
                 clientId = { clientId() + MUSIC_SUFFIX },
                 reporter = reporter,
                 output = {
-                    val artwork: (suspend (String) -> ByteArray?)? = if (libraryCovers) null else { url -> fetchPicture(network, url) }
+                    val artwork: (suspend (String) -> ByteArray?)? = if (libraryCovers) null else { url -> fetchPicture(network.images, url) }
                     EngineMusicOutput(engines.create(app, profile, music = true), main, artwork)
                 },
                 events = data.liveUpdates.events,

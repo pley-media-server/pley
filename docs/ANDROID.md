@@ -1241,7 +1241,10 @@ out, the car says to open Pley on the phone and sign in when it is safe,
 with a button that opens it. The car reads the covers from the app, as the server's
 pictures need the profile's token: the app grants Android Auto, the
 Google app and the phone's own media controls reading them and nothing
-else. Music without
+else. The covers it reads are kept on the phone, for each profile apart
+and until it signs out, so a list seen before shows them without asking
+the server again, and a cover asked for by the car and the media
+controls at once is fetched once. Music without
 a picture has the one the app shows, its title's gradient with Pley's
 mark, made lighter and the mark brighter so it reads on the car's gray
 lists: drawn on the phone from the title's hue alone, so no title goes

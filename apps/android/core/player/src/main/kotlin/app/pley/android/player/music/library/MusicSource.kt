@@ -61,9 +61,6 @@ interface MusicSource {
 
     /** The part of [bookId] to go on with ([parts]'s): the one heard last part way, else the next to hear. */
     suspend fun onDeck(bookId: Long): ItemSummary?
-
-    /** The server address of a picture's path ([PleyApi.url]), [width] pixels wide. */
-    fun pictureUrl(path: String, width: Int): String
 }
 
 /** An audiobook library's rows: the books being heard, the one heard last first, and those added last. */
@@ -120,8 +117,6 @@ class RepositoryMusicSource(private val data: DataGraph, private val network: Ne
     override suspend fun parts(bookId: Long): List<ItemSummary> = signedInApi().children(bookId).items
 
     override suspend fun onDeck(bookId: Long): ItemSummary? = signedInApi().onDeck(bookId).item
-
-    override fun pictureUrl(path: String, width: Int): String = api().url(path, width)
 
     /** [api], once the sign-in has been read back ([signInRead]). */
     private suspend fun signedInApi(): PleyApi {

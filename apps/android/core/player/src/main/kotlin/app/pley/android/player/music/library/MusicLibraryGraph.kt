@@ -13,8 +13,10 @@ import app.pley.android.network.NetworkGraph
 import app.pley.android.player.R
 import app.pley.android.player.live.LivePlayback
 import app.pley.android.player.music.LiveRadio
-import app.pley.android.player.music.fetchPicture
+import app.pley.android.player.music.SharedPictures
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -23,13 +25,13 @@ import kotlinx.coroutines.flow.map
 class MusicLibraryGraph(
     context: Context,
     private val data: DataGraph,
-    network: NetworkGraph,
+    private val network: NetworkGraph,
     /** A playback of Live TV's sound for the radio ([LivePlayback.create] with `radio`), in a scope. */
     private val livePlayback: ((CoroutineScope) -> LivePlayback)? = null,
 ) {
     private val app = context.applicationContext
     private val source = RepositoryMusicSource(data, network)
-    private val fetch: suspend (String) -> ByteArray? = { url -> fetchPicture(network, url) }
+    private val pictures = SharedPictures(CoroutineScope(SupervisorJob() + Dispatchers.IO))
 
     /** Live TV's tab and channels, when the radio can play them. */
     val live: LiveLibrary? = livePlayback?.let { LiveLibrary(RepositoryLiveSource(data), { liveLook() }, { path -> MusicArt.uri(app, path) }) }
@@ -57,16 +59,18 @@ class MusicLibraryGraph(
 
     private val sessions = data.session.session
 
-    /** The bytes of the server's picture at [path] (a [MusicArt] path); `null` when it can't be had. */
+    /**
+     * The bytes of the server's picture at [path] (a [MusicArt] path); `null` when it can't be had. Through the
+     * profile's own cache of pictures, the server's address and the cache read from the same sign-in; one asked for
+     * again while it is on its way (the session's cover and the car's) is fetched once.
+     */
     suspend fun picture(path: String): ByteArray? {
         if (!MusicArt.servable(path)) return null
         data.signInRead()
-        val url = try {
-            source.pictureUrl(path, ART_WIDTH)
-        } catch (_: SignedOutException) {
-            return null
-        }
-        return fetch(url)
+        val session = sessions.value ?: return null
+        val userId = session.me?.id
+        val url = network.api(session.issuer, userId).url(path, ART_WIDTH)
+        return pictures.get(network.pictures(session.issuer, userId), url)
     }
 
     /** The words in the language shown now. */

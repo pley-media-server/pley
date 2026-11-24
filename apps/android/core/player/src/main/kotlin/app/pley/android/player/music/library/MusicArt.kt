@@ -142,7 +142,10 @@ class MusicArtProvider : ContentProvider() {
     private companion object {
         const val FETCH_MS = 10_000L
 
-        /** The pictures fetched at once, and the most that wait their turn. */
-        val FETCHES: ExecutorService = ThreadPoolExecutor(4, 4, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(128))
+        /**
+         * The pictures fetched at once, and the most that wait their turn. Six, as the pictures' client takes at once
+         * from a server on the slowest devices: a grid read before mostly comes from the cache, and a new one fills sooner.
+         */
+        val FETCHES: ExecutorService = ThreadPoolExecutor(6, 6, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(128))
     }
 }

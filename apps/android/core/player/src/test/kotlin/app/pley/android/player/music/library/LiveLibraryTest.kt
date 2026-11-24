@@ -287,8 +287,6 @@ class LiveLibraryTest {
         override suspend fun playlist(playlistId: Long): app.pley.android.model.PlaylistDetail = error("none")
 
         override suspend fun search(query: String) = emptyList<app.pley.android.model.ItemSummary>()
-
-        override fun pictureUrl(path: String, width: Int) = path
     }
 
     private companion object {

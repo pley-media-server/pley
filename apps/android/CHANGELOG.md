@@ -80,6 +80,10 @@ With Android Auto:
 - Changing tabs fades from one to the next, Now Playing comes up from
   the bar of what plays, and that bar rises in as music starts.
 
+With Android Auto:
+
+- Covers seen before show at once, kept on the phone for each profile.
+
 ### Fixed
 
 - Pause pressed while a track is starting now keeps it paused once it
