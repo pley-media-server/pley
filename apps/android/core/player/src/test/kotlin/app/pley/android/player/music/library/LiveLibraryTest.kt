@@ -217,7 +217,10 @@ class LiveLibraryTest {
         val tabs = library.children(MusicId.Root, 0, 50)
         assertEquals(listOf("recent", "artists", "books", "live"), tabs.map { it.mediaId })
         assertEquals("Music", tabs[1].mediaMetadata.title.toString())
-        assertEquals(listOf("playlists", "artist:40"), library.children(MusicId.Artists, 0, 50).map { it.mediaId })
+        val folded = library.children(MusicId.Artists, 0, 50)
+        assertEquals(listOf("playlists", "artist:40"), folded.map { it.mediaId })
+        // A row among the artists, its icon at an icon's size.
+        assertEquals("category list", styleName(shownAs(tabs[1], folded[0])))
         assertEquals("playlists", library.item(MusicId.Playlists)?.mediaId)
         // Paged, Playlists and the artists are one list, and no page holds more than asked for (Media3 refuses it).
         assertEquals(listOf("playlists"), library.children(MusicId.Artists, 0, 1).map { it.mediaId })

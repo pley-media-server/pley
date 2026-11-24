@@ -1102,7 +1102,8 @@ no Playlists without a music playlist, no Books without a book, no Recent
 with nothing played, added or being heard, no Live TV (below) without
 channels. A tab whose contents the server can't say now (out of reach) is
 shown all the same. Cars show four tabs at most: with all five,
-Playlists goes first in the artists' tab, which is then named Music.
+Playlists goes first in the artists' tab, which is then named Music,
+as a row with its icon at an icon's size.
 
 - **Recent**: as grids of covers (a book, and an album of a single track,
   are tiles too), the books being heard (Continue listening, three at
@@ -1129,7 +1130,10 @@ Playlists goes first in the artists' tab, which is then named Music.
   numbered, as its page on the phone does, with their lengths, under each
   disc's heading when it has several. Now Playing and the queue name a
   track by its title alone.
-- **Playlists**: the profile's music playlists.
+- **Playlists**: the profile's music playlists, each with a mosaic of
+  its first four entries' covers (the first again in the empty quarters
+  when it has two or three), else its first entry's cover, else its
+  title's placeholder.
 - **Books**: as a grid of covers, the books being heard (Continue
   listening, the one heard last first), those added last to each
   audiobook library, then every book by title. Each says its authors,

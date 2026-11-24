@@ -154,6 +154,8 @@ class MusicLibrary(
     private val artistArt: (artist: ItemSummary) -> Uri? = { null },
     /** The tile of an artist's Shuffle, from their name ([MusicArt.shuffleUri]); `null` for the shuffle icon. */
     private val shuffleArt: (seed: String) -> Uri? = { null },
+    /** A playlist's mosaic of its first entries' covers, with its title ([MusicArt.mosaicUri]); `null` for its first cover alone. */
+    private val mosaicArt: (covers: List<String>, seed: String) -> Uri? = { _, _ -> null },
     /** The cover for what has none, from its title ([MusicArt.placeholderUri]). */
     private val placeholder: (seed: String) -> Uri? = { null },
 ) {
@@ -182,7 +184,8 @@ class MusicLibrary(
             MusicId.Root -> tabs()
             MusicId.Recent -> recent()
             MusicId.Artists -> {
-                val first = if (playlistsInArtists) listOf(playlistsNode(look())) else emptyList()
+                // A row among the artists, its icon at an icon's size rather than a picture's.
+                val first = if (playlistsInArtists) listOf(playlistsNode(look()).styled(CATEGORY_LIST)) else emptyList()
                 val libraries = source.libraries()
                 if (libraries.size == 1) {
                     // Playlists, then the artists, paged as one list: a page holds no more than it was asked for.
@@ -644,7 +647,10 @@ class MusicLibrary(
         }
     }
 
-    /** A playlist opens to its tracks as an album does; one of a single track just plays. */
+    /**
+     * A playlist opens to its tracks as an album does; one of a single track just plays. Its cover is a mosaic of its
+     * first entries' ([mosaicArt]), else its first entry's, else its title's placeholder.
+     */
     private fun playlist(item: PlaylistSummary): MediaItem = node(
         MusicId.Playlist(item.id),
         item.title,
@@ -653,6 +659,7 @@ class MusicLibrary(
         playable = item.itemCount == 1,
         artPath = item.artwork.firstOrNull(),
         seed = item.title,
+        picture = mosaicArt(item.artwork, item.title),
         mediaType = MediaMetadata.MEDIA_TYPE_PLAYLIST,
     )
 
@@ -784,6 +791,7 @@ class MusicLibrary(
     companion object {
         private const val GRID = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
         private const val LIST = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
+        private const val CATEGORY_LIST = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_CATEGORY_LIST_ITEM
 
         /**
          * How the children of a node that says nothing show (MusicService gives them as the root's): what opens as a

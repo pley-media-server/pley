@@ -15,6 +15,8 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -131,6 +133,34 @@ object MusicArt {
         return address(context, "$shown?$HUE=${PlaceholderCover.hue(seed)}")
     }
 
+    /**
+     * A playlist's mosaic of the covers at [paths] ([MosaicCover]): of the
+     * server's items' covers in their usual form, the first four, as their
+     * ids and versions ("m/1/50/1700000000/55/1700000001"), the mosaic's
+     * drawing first; [seed], the playlist's title, for its placeholder's hue.
+     * `null` with fewer than two such covers: one alone is shown as it is.
+     */
+    fun mosaicUri(context: Context, paths: List<String>, seed: String): Uri? {
+        val covers = paths.mapNotNull { path -> POSTER.matchEntire(path)?.takeIf { servable(path) }?.let { "${it.groupValues[1]}/${it.groupValues[2]}" } }
+            .distinct()
+            .take(MosaicCover.MOST)
+        if (covers.size < 2) return null
+        val segments = covers.joinToString("/")
+        return address(context, "$MOSAIC/${MosaicCover.DRAWING}/$segments?$HUE=${PlaceholderCover.hue(seed)}")
+    }
+
+    /** The server paths of the covers a [mosaicUri] names; `null` for any other address, and for one of another drawing. */
+    internal fun mosaicOf(context: Context, uri: Uri): List<String>? {
+        val segments = segmentsOf(context, uri) ?: return null
+        if (segments.size < 2 || segments[0] != MOSAIC || segments[1] != MosaicCover.DRAWING.toString()) return null
+        val covers = segments.drop(2)
+        if (covers.size !in 4..2 * MosaicCover.MOST || covers.size % 2 != 0) return null
+        return covers.chunked(2).map { (id, version) ->
+            if (!ID.matches(id) || id.toLongOrNull()?.takeIf { it > 0 } == null || !VERSION.matches(version)) return null
+            "/api/items/$id/images/poster?v=$version".takeIf(::servable) ?: return null
+        }
+    }
+
     /** The artist an address of their newest album's cover names, a positive id of digits alone; `null` for any other address. */
     internal fun artistOf(context: Context, uri: Uri): Long? = segmentsOf(context, uri)?.let(::artistIn)
 
@@ -215,6 +245,7 @@ object MusicArt {
     private const val ARTIST = "a"
     private const val PLACEHOLDER = "h"
     private const val SHUFFLE = "s"
+    private const val MOSAIC = "m"
 
     /** An artist's own picture, and their newest album's cover, cut to a circle ([RoundPicture]): letters of this drawing. */
     private const val ROUND_OWN = "o"
@@ -231,6 +262,7 @@ object MusicArt {
     private val PICTURE_PATH =
         Regex("""(/api/(items|collections)/\d{1,19}/images/[a-z]{1,16}|/api/live/channels/\d{1,19}/logo)(\?[A-Za-z0-9=&._-]{0,128})?""")
     private val ITEM_PICTURE = Regex("""/api/(items|collections)/(\d{1,19})/images/([a-z]{1,16})(?:\?v=(-?\d{1,19}))?""")
+    private val POSTER = Regex("""/api/items/(\d{1,19})/images/poster\?v=(-?\d{1,19})""")
     private val CHANNEL_LOGO = Regex("""/api/live/channels/(\d{1,19})/logo(?:\?v=([0-9a-f]{1,16}))?""")
     private val ID = Regex("""\d{1,19}""")
     private val KIND = Regex("""[a-z]{1,16}""")
@@ -254,6 +286,7 @@ class MusicArtProvider : ContentProvider() {
         MusicArt.hueOf(context, uri)?.let { hue -> return pipe { PlaceholderCover.png(context, hue) } }
         MusicArt.shuffleHueOf(context, uri)?.let { hue -> return pipe { PlaceholderCover.png(context, hue, PlaceholderCover.Glyph.Shuffle) } }
         MusicArt.roundOf(context, uri)?.let { (path, artist) -> return round(context, path, artist, MusicArt.hueIn(uri)) }
+        MusicArt.mosaicOf(context, uri)?.let { paths -> return mosaic(context, paths, MusicArt.hueIn(uri)) }
         val logo = MusicArt.logoOf(context, uri)
         val path = logo?.first ?: MusicArt.pathOf(context, uri)
         val artist = if (path == null) MusicArt.artistOf(context, uri) ?: throw FileNotFoundException() else null
@@ -292,6 +325,21 @@ class MusicArtProvider : ContentProvider() {
                 }
             }
             bytes?.let(RoundPicture::png) ?: hue?.let { RoundPicture.placeholder(context, it) }
+        }
+    }
+
+    /**
+     * A playlist's mosaic of the covers at [paths], fetched together: those that can be had in [FETCH_MS]; with none,
+     * the placeholder of [hue], without one the pipe ends empty.
+     */
+    private fun mosaic(context: Context, paths: List<String>, hue: Int?): ParcelFileDescriptor {
+        val owner = context.applicationContext as? PlayerGraphOwner ?: throw FileNotFoundException()
+        return pipe {
+            val covers = runBlocking {
+                val library = owner.playerGraph.musicLibrary
+                withTimeoutOrNull(FETCH_MS) { paths.map { async { library?.picture(it) } }.awaitAll() }
+            }
+            MosaicCover.png(covers.orEmpty().filterNotNull()) ?: hue?.let { PlaceholderCover.png(context, it) }
         }
     }
 

@@ -665,6 +665,12 @@ class MusicLibraryTest {
         assertEquals("content://placeholder/Night drive", playlists.single().mediaMetadata.artworkUri.toString())
         val albums = covered.children(MusicId.Artist(40), 0, 50).filter { it.mediaId.startsWith("album:") }
         assertTrue(albums.all { it.mediaMetadata.artworkUri.toString().startsWith("content://art/api/items/") })
+        // A playlist with its entries' covers: their mosaic, else the first alone.
+        source.audioPlaylists = listOf(PlaylistSummary(7, "Night drive", PlaylistKind.Audio, itemCount = 2, artwork = listOf("/a", "/b")))
+        val mosaic = MusicLibrary(source, { Look }, { path, _ -> Uri.parse("content://art$path") }, mosaicArt = { covers, seed -> Uri.parse("content://mosaic/${covers.size}/$seed") })
+        assertEquals("content://mosaic/2/Night drive", mosaic.children(MusicId.Playlists, 0, 50).single().mediaMetadata.artworkUri.toString())
+        assertEquals("content://art/a", covered.children(MusicId.Playlists, 0, 50).single().mediaMetadata.artworkUri.toString())
+        source.audioPlaylists = listOf(PlaylistSummary(7, "Night drive", PlaylistKind.Audio, itemCount = 2))
         // The tabs keep their icons, and the library without placeholders shows none for what has no picture.
         assertTrue(covered.children(MusicId.Root, 0, 50).none { it.mediaMetadata.artworkUri.toString().startsWith("content://placeholder") })
         assertNull(library.children(MusicId.Playlists, 0, 50).single().mediaMetadata.artworkUri)
