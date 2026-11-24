@@ -169,10 +169,5 @@ export class ImageLoader {
   }
 }
 
-/** The 135° gradient a picture's place shows until it loads (the web's placeholderGradient). */
-export function placeholderGradient(title: string): string {
-  let h = 0;
-  for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0;
-  h %= 360;
-  return `linear-gradient(135deg, hsl(${h}, 30%, 22%), hsl(${(h + 40) % 360}, 35%, 12%))`;
-}
+/** A title's own gradient for its picture's place until it loads (packages/placeholder, as every app draws it). */
+export { placeholderGradient } from "pley-placeholder";

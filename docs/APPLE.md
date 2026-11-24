@@ -168,11 +168,18 @@ behind it.
   reads it as one ("Arrival, 2016", "watched"). Tiles grow with the text
   size, up to 1.6 times. Pictures are fetched at the width they show,
   rounded up to a multiple of 64 pixels, and fade in except under Reduce
-  Motion. At most 6 are fetched at once, the newest asked for first, and
-  one scrolled away before it comes isn't fetched. They are kept in memory
-  up to 32 MB on a device with 3 GB of memory or less (otherwise 64 MB on
-  Apple TV and 96 MB elsewhere), half of that when the app goes to the
-  background, and none after a memory warning. While loading, still gray
+  Motion. A tile, an item page's poster, or a playlist's or history's
+  row without a picture, or whose picture doesn't load, shows its
+  title's gradient (every app's) with Pley's mark on it, the glyph of its
+  library cut out of the front poster: a clapperboard for movies, a TV for
+  shows, notes for music, the logo's play for extras. The mark is a copy
+  of `packages/placeholder/placeholder.json`, which a test holds it to.
+  While a picture loads, the gradient shows alone. At most 6 pictures are
+  fetched at once, the newest asked for first, and one scrolled away
+  before it comes isn't fetched. They are kept in memory up to 32 MB on a
+  device with 3 GB of memory or less (otherwise 64 MB on Apple TV and 96
+  MB elsewhere), half of that when the app goes to the background, and
+  none after a memory warning. While loading, still gray
   rows show; a load that fails says why with Try again. With no rows,
   Home says why: no library this profile may open, the libraries being
   scanned, or nothing in them yet. Home's rows after Continue Watching
@@ -978,10 +985,17 @@ skipped by itself.
 
 **Up Next** follows an episode with the next one
 (`GET /api/items/{id}/next`, looked up at 90 % of the episode, or when its
-credits begin). Entering the credits brings up a card, once per segment
-(seeking back out of them hides it, and coming back into the same credits
-doesn't bring it again); the end of the episode brings it up too, also
-after it was canceled. The card shows the next episode's picture, "Up
+card comes). Entering credits that run to the end of the file brings up a
+card, once per segment (seeking back out of them hides it, and coming back
+into the same credits doesn't bring it again); the end of the episode
+brings it up too, also after it was canceled. Credits run to the end when
+they end 15 seconds or less before it (a studio's logo or a channel's
+promo may follow), by the file's length from the server, else the
+player's; with no length known, they don't. Credits that something else
+follows (an after-credits scene, the last minutes of a show whose music
+every episode shares) only offer Skip Credits, and the card waits for the
+end, so its countdown doesn't skip what follows.
+The card shows the next episode's picture, "Up
 next · S1 E2", its title, and counts 10 seconds down while it plays (the
 countdown waits while paused), then plays it; Play Next plays it at once,
 Cancel hides the card. With Play the next episode automatically off
@@ -2395,8 +2409,9 @@ activity, the session's status and the item:
 - MKVs with Opus and with FLAC are repackaged with their audio made AAC,
   and an MP4 with Opus plays as it is, with its sound;
 - the show's first episode, its markers asked for and made from its
-  chapters: Skip Intro lands past the intro, entering the credits brings
-  up Up Next for the second episode, and Play Next (past 90 %) marks the
+  chapters: Skip Intro lands past the intro, entering the credits (which
+  run to the end of the file) brings up Up Next for the second episode,
+  and Play Next (past 90 %) marks the
   first watched, ends its session and plays the second;
 - the MP4 with two audio tracks switches to its AC-3 track in the same
   session, and the server keeps the choice (`selected_audio`,

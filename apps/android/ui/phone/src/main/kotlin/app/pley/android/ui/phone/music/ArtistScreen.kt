@@ -49,6 +49,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonTile
@@ -229,6 +230,7 @@ internal fun MusicHeader(
     playOn: CastTarget? = null,
     extra: @Composable () -> Unit = {},
     buttons: (@Composable FlowRowScope.() -> Unit)? = null,
+    mark: MarkGlyph = MarkGlyph.Music,
 ) {
     val wide = LocalPhoneMetrics.current.widthClass != WidthClass.Compact
     val short = wide && shortWindow()
@@ -239,7 +241,8 @@ internal fun MusicHeader(
                 .clip(if (round) PleyShape.Circle else PleyShape.Card)
                 .background(PleyColors.Surface2),
         ) {
-            Artwork(art, title, Modifier.matchParentSize())
+            // An album's or an artist's: music's glyph; a book's, the book's.
+            Artwork(art, title, Modifier.matchParentSize(), mark = mark)
         }
     }
     val words = @Composable { centred: Boolean ->

@@ -2,6 +2,7 @@
 
 use std::ops::Deref;
 
+use pley_base::MarkGlyph;
 use serde::{Deserialize, Serialize};
 
 use super::{nd, wire_enum};
@@ -37,6 +38,11 @@ impl ItemKind {
     /// A video the player plays: a movie, an episode or an extra.
     pub fn playable_video(self) -> bool {
         matches!(self, ItemKind::Movie | ItemKind::Episode | ItemKind::Extra)
+    }
+
+    /// The glyph of Pley's mark on a placeholder of this kind: its library's, else play.
+    pub fn mark_glyph(self) -> MarkGlyph {
+        MarkGlyph::for_kind(self.as_str())
     }
 }
 

@@ -5,12 +5,15 @@ sub init()
     m.picture = m.top.findNode("picture")
     m.name = m.top.findNode("name")
     m.needs = m.top.findNode("needs")
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 sub onContent()
     profile = m.top.itemContent
     if profile = invalid then return
-    m.face.color = profile.color
+    m.face.blendColor = profile.color
     m.initial.text = profile.initial
     m.name.text = profile.title
     m.needs.text = profile.subtitle

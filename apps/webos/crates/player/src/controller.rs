@@ -180,6 +180,8 @@ pub struct ChapterMark {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UpNextCard {
     pub item_id: i64,
+    /// What it is: its still's placeholder shows its kind's mark.
+    pub kind: ItemKind,
     pub title: String,
     /// "Up next · S1 · E2".
     pub heading: String,
@@ -1995,7 +1997,7 @@ impl PlaybackController {
                 self.changed();
             }
             if let Some(m) = marker
-                && self.credits.enter(&m)
+                && self.credits.enter(&m, self.file_duration(m.file_id))
             {
                 self.on_credits();
             }
@@ -2800,6 +2802,14 @@ impl PlaybackController {
 
     // ---------------------------------------------------------------- Up Next
 
+    /// The length of file `file_id` (0 when not known): the item's, else the player's for the file playing.
+    fn file_duration(&self, file_id: i64) -> i64 {
+        let listed = self.item.as_ref().and_then(|d| d.files.iter().find(|f| f.id == file_id)?.duration_ms);
+        let session = self.info.as_ref().map(|i| i.duration_ms);
+        let engine = self.view.duration_ms.map(|d| d as i64);
+        [listed, session, engine].into_iter().flatten().find(|d| *d > 0).unwrap_or(0)
+    }
+
     fn on_credits(&mut self) {
         let has = self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue.as_ref()));
         if !has || self.state.up_next.is_some() {
@@ -2851,6 +2861,7 @@ impl PlaybackController {
         let image = found.thumb_url.as_deref().or(found.backdrop_url.as_deref());
         self.state.up_next = Some(UpNextCard {
             item_id: found.id,
+            kind: found.kind,
             title: found.title.clone(),
             heading: details::up_next(label_of(&found).as_deref()),
             image_url: image.map(|i| self.env.server.url(&with_width(i, UP_NEXT_IMAGE_WIDTH))),

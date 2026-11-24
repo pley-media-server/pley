@@ -92,6 +92,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.image.TrackArt
 import app.pley.android.designsystem.icon.PlayPauseGlyph
 import app.pley.android.designsystem.TrackChange
@@ -267,7 +268,7 @@ private fun TallNowPlaying(now: NowPlaying, art: ArtworkImage?, cover: ShownCove
                     .clip(PleyShape.Card)
                     .background(PleyColors.Surface2),
             ) {
-                CoverArt(art, now.album ?: now.title, cover)
+                CoverArt(art, now.album ?: now.title, now.book, cover)
             }
             TrackTitle(now, onAlbum, Modifier.fillMaxWidth(), centred = true)
             Scrubber(now, model)
@@ -299,7 +300,7 @@ private fun WideNowPlaying(now: NowPlaying, art: ArtworkImage?, cover: ShownCove
                     .clip(PleyShape.Card)
                     .background(PleyColors.Surface2),
             ) {
-                CoverArt(art, now.album ?: now.title, cover)
+                CoverArt(art, now.album ?: now.title, now.book, cover)
             }
             Spacer(Modifier.width(24.dp))
             TrackTitle(now, onAlbum, Modifier.weight(1f), centred = false)
@@ -372,11 +373,12 @@ private class ShownCover {
 
 /** The cover in its box ([TrackArt]), telling [cover] what it shows, and how large, for the [Backdrop]. */
 @Composable
-private fun BoxScope.CoverArt(art: ArtworkImage?, title: String, cover: ShownCover) {
+private fun BoxScope.CoverArt(art: ArtworkImage?, title: String, book: Boolean, cover: ShownCover) {
     TrackArt(
         art,
         title,
         Modifier.matchParentSize().onSizeChanged { cover.size = it },
+        mark = if (book) MarkGlyph.Audiobooks else MarkGlyph.Music,
         onCover = { cover.image = it },
     )
 }
@@ -753,7 +755,7 @@ private fun QueueLine(row: QueueRow, origin: String, playing: Boolean, onClick: 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(44.dp).clip(PleyShape.Badge).background(PleyColors.Surface3)) {
-            Artwork(art, row.title, Modifier.matchParentSize())
+            Artwork(art, row.title, Modifier.matchParentSize(), mark = MarkGlyph.Music)
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {

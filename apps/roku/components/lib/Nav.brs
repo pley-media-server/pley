@@ -63,6 +63,27 @@ end function
 ' TMDB's results for its words, or its collections (one's page, or the
 ' merged page of several); a library row's See all is its screen's to
 ' open: invalid here.
+' Where the remote's Play key goes from a tile, as Roku's own screens do: a
+' movie or an episode plays, from its place when it has one; anything else
+' opens as OK would.
+function navPlayTile(tile as object) as dynamic
+    kind = httpString(tile.kind)
+    itemId = httpNumber(tile.itemId, 0)
+    if (kind = "movie" or kind = "episode") and itemId > 0 then return { to: "player", params: { itemId: itemId, startMs: navStartOf(tile.positionMs, tile.durationMs) } }
+    return navForTile(tile)
+end function
+
+' Where a title plays from, as playerStartOf says (fmtResumable): its place
+' past a second and short of 90 %, else its start. Here too, for the screens
+' that know no player.
+function navStartOf(positionMs as dynamic, durationMs as dynamic) as integer
+    position = httpNumber(positionMs, 0)
+    if position < 1000 then return 0
+    duration = httpNumber(durationMs, 0)
+    if duration > 0 and position >= duration * 0.9 then return 0
+    return Int(position)
+end function
+
 function navForTile(tile as object) as dynamic
     kind = httpString(tile.kind)
     if kind = "discover" or kind = "askMore"

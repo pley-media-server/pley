@@ -271,7 +271,7 @@ function Preview({
   if (target === "automatic" && c.artwork !== "automatic") {
     // TMDB's poster isn't one the web app has: a blank in its place, the
     // hint naming it, rather than the poster chosen now.
-    if (c.automatic) return <Artwork candidates={[]} width={256} alt={c.title} title={c.title} className="aspect-[2/3] w-full rounded-md ring-1 ring-white/10" />;
+    if (c.automatic) return <Artwork candidates={[]} width={256} alt={c.title} title={c.title} titled className="aspect-[2/3] w-full rounded-md ring-1 ring-white/10" />;
     // With no posters at all, the server draws its library's icon on slate.
     if (!c.items.some((i) => i.poster_url)) return <DrawnPreview collection={c} icon={emptyIcon} color={EMPTY_COLLECTION_COLOR} alone />;
     return <DrawnPreview collection={c} />;
@@ -282,6 +282,7 @@ function Preview({
       width={256}
       alt={c.title}
       title={c.title}
+      titled
       className="aspect-[2/3] w-full rounded-md ring-1 ring-white/10"
     />
   );
@@ -314,6 +315,7 @@ function DrawnPreview({
         width={256}
         alt={c.title}
         title={c.title}
+        titled
         className="aspect-[2/3] w-full rounded-md ring-1 ring-white/10"
       />
     );
@@ -342,6 +344,7 @@ function DrawnPreview({
               width={cells.length === 1 ? 256 : 128}
               alt=""
               title={item.title}
+              titled
               className={cn("size-full", cells.length === 3 && n === 0 && "row-span-2")}
             />
           ))}

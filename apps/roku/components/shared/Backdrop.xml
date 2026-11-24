@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A page's backdrop over the whole screen that changes by fading: the
+     next picture loads over the shown one, out of sight, and fades in once
+     it is ready, the old one let go after. A Poster given a new uri drops
+     its picture at once and shows nothing until the next loads, a flash on
+     every title the focus rests on. With no picture, the shown one fades
+     out. -->
+<component name="Backdrop" extends="Group">
+    <interface>
+        <field id="uri" type="string" onChange="onUri" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/shared/Backdrop.brs" />
+    <children>
+        <Poster id="a" width="1920" height="1080" loadWidth="960" loadHeight="540" loadDisplayMode="scaleToZoom" opacity="0" />
+        <Poster id="b" width="1920" height="1080" loadWidth="960" loadHeight="540" loadDisplayMode="scaleToZoom" opacity="0" />
+        <Animation id="fade" duration="0.35" easeFunction="inOutQuad">
+            <FloatFieldInterpolator id="fader" key="[0, 1]" keyValue="[0, 1]" />
+        </Animation>
+    </children>
+</component>

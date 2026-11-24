@@ -110,8 +110,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   person picks a track. Switched by the engine in direct play; a new
  *   session when a stream needs other audio or subtitles burned in; choices
  *   are saved with PUT /api/items/{id}/streams, the audio only when picked.
- * - **Markers and Up Next.** Skip Intro and Skip Credits; entering credits,
- *   or the end, brings up what plays next with a 10 s countdown.
+ * - **Markers and Up Next.** Skip Intro and Skip Credits; entering credits
+ *   that run to the end of their file, or the end, brings up what plays next
+ *   with a 10 s countdown ([CreditsGate]).
  * - **Subtitles.** The server's WebVTT for streams and files beside the
  *   media, and pictures side-loaded beside a stream (its .mks), drawn at
  *   the playhead moved by the subtitle offset; a file's own text tracks
@@ -1211,7 +1212,8 @@ class SessionPlaybackController(
                     skipLabel = marker?.let { m -> if (m.kind == MarkerKind.Intro) texts.skipIntro else texts.skipCredits },
                 )
             }
-            credits.entered(marker)?.let { onCredits() }
+            // Only credits that run to the end bring up Up Next: its countdown would skip what follows the others.
+            credits.entered(marker, marker?.let(::fileDurationMs))?.let { onCredits() }
         }
         // The next session is on its way, ready within PREPARE_MAX_MS: this one's stalls and drops no longer count.
         if (preparing != null) {
@@ -2039,6 +2041,12 @@ class SessionPlaybackController(
     }
 
     // ---------------------------------------------------------------- Up Next
+
+    /** How long [marker]'s file is: as the item's files say, else as the player says of the file playing. */
+    private fun fileDurationMs(marker: Marker): Long? =
+        item?.files?.firstOrNull { it.id == marker.fileId }?.durationMs?.takeIf { it > 0 }
+            ?: session?.info?.durationMs?.takeIf { it > 0 }
+            ?: link?.durationMs?.takeIf { it > 0 }
 
     private fun onCredits() {
         val detail = item ?: return

@@ -1,10 +1,12 @@
 //! Libraries: folders of movies, shows, music or audiobooks that are scanned
 //! into items.
 
+pub mod gone;
 pub mod merge;
 pub mod nfo;
 pub mod parse;
 pub mod scanner;
+pub mod scope;
 pub mod sidecar;
 pub mod walk;
 pub mod watcher;
@@ -81,7 +83,10 @@ pub struct LibraryRow {
     pub kind: String,
     pub paths: String,
     pub created_at: i64,
+    /// When it was last scanned, whole or where it changed.
     pub scanned_at: Option<i64>,
+    /// When it was last scanned whole, which the periodic scan goes by.
+    pub walked_at: Option<i64>,
     /// A Plex import is bringing Plex's labels to its titles: a profile with
     /// labels it never sees doesn't see it until then (`crate::access`).
     pub labels_pending: bool,
@@ -102,7 +107,7 @@ impl LibraryRow {
 
 pub async fn get_library(db: &Db, id: i64) -> sqlx::Result<Option<LibraryRow>> {
     sqlx::query_as(
-        "SELECT id, name, kind, paths, created_at, scanned_at, labels_pending, tmdb_collections FROM libraries
+        "SELECT id, name, kind, paths, created_at, scanned_at, walked_at, labels_pending, tmdb_collections FROM libraries
          WHERE id = ?",
     )
     .bind(id)
@@ -121,7 +126,7 @@ pub async fn home_positions(db: &Db) -> sqlx::Result<Vec<(i64, i64)>> {
 /// Every library, in the order administrators chose (see [`set_order`]).
 pub async fn list_libraries(db: &Db) -> sqlx::Result<Vec<LibraryRow>> {
     sqlx::query_as(
-        "SELECT id, name, kind, paths, created_at, scanned_at, labels_pending, tmdb_collections FROM libraries
+        "SELECT id, name, kind, paths, created_at, scanned_at, walked_at, labels_pending, tmdb_collections FROM libraries
          ORDER BY position, name COLLATE NOCASE, id",
     )
     .fetch_all(&db.read)

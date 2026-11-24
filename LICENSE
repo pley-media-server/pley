@@ -1,3 +1,43 @@
+Pley
+Copyright (C) 2026 the Pley authors
+
+Pley is free software: you can redistribute it and/or modify it under the
+terms of the GNU Affero General Public License, version 3 only, as published
+by the Free Software Foundation, with the additional permission below. The
+license's full text follows it. The Kodi add-on (apps/kodi) has its own
+license, in its LICENSE.txt, and third-party code keeps its own licenses.
+
+
+       Additional permission under GNU AGPL version 3 section 7:
+                              app stores
+
+If you convey Pley, or a work based on it, through an app store or a
+similar service that distributes software to users or their devices (for
+example Apple's App Store, Google Play, the Amazon Appstore, Samsung's and
+LG's TV app stores or the Roku Channel Store), the copyright holders of Pley
+give you permission to do so even where the service's terms of use, usage
+rules, digital rights management, code signing or other technical measures
+impose restrictions on recipients that the GNU Affero General Public License
+would not otherwise allow, provided that:
+
+  a) the Corresponding Source of what you convey is available to its
+     recipients, free of charge, under the GNU Affero General Public
+     License, in one of the ways its section 6 allows; and
+
+  b) the listing on the service, or the program itself, says where to get
+     that Corresponding Source; and
+
+  c) you impose no restriction of your own on the rights the license
+     grants, beyond those the service imposes.
+
+This permission covers only the restrictions the service imposes. It grants
+no right to use Pley's name or logos. As section 7 of the license provides,
+you may remove this permission from your copies of Pley and from works
+based on it, which are then under the GNU Affero General Public License
+alone.
+
+------------------------------------------------------------------------------
+
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 

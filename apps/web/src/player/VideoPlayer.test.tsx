@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useServerEvents } from "@/api/events";
 import type { ItemDetail, PlaybackInfo, ServerEvent } from "@/api/types";
-import { makeItem, makeStream } from "@/test/fixtures";
+import { makeItem, makeMarker, makeStream } from "@/test/fixtures";
 import { pgsMks } from "@/test/pictures";
 import { LocationDisplay, mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
 import { isPlayingHere } from "@/lib/playingHere";
@@ -891,6 +891,40 @@ describe("VideoPlayer speed", () => {
     fireEvent.keyDown(document.body, { key: "<" });
     expect(video.playbackRate).toBe(1.25);
     window.localStorage.removeItem("pley.quality");
+  });
+});
+
+describe("VideoPlayer at the credits", () => {
+  /** An episode of 1,400 s played at 1,250 s, in credits from 1,200 s to `creditsEndMs`. */
+  async function atCredits(creditsEndMs: number) {
+    const episode = detail({ id: 8, kind: "episode", title: "Pilot", duration_ms: 1_400_000 });
+    episode.files[0]!.duration_ms = 1_400_000;
+    episode.markers = [makeMarker({ file_id: 3, kind: "credits", start_ms: 1_200_000, end_ms: creditsEndMs })];
+    const requests = serve([session("s1", { duration_ms: 1_400_000 })], {
+      "POST /api/items/8/progress": () => undefined,
+      "GET /api/items/8/next": () => ({ item: makeItem({ id: 9, kind: "episode", title: "Second" }) }),
+    });
+    const { container } = renderWithProviders(<VideoPlayer item={episode} startMs={1_250_000} fileId={null} audio={null} sub={null} />);
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+    const video = container.querySelector("video")!;
+    Object.defineProperty(video, "readyState", { configurable: true, get: () => 4 });
+    Object.defineProperty(video, "currentTime", { configurable: true, get: () => 1_250, set: () => undefined });
+    act(() => {
+      video.dispatchEvent(new Event("timeupdate"));
+    });
+    return requests;
+  }
+
+  it("brings up Up Next at credits that run to the end of the file", async () => {
+    await atCredits(1_400_000);
+    expect(await screen.findByRole("button", { name: /Play now/ })).toBeInTheDocument();
+  });
+
+  it("only offers Skip Credits at credits that something follows, and leaves Up Next for the end", async () => {
+    const requests = await atCredits(1_340_000);
+    expect(await screen.findByRole("button", { name: /Skip Credits/ })).toBeInTheDocument();
+    expect(requests.some((r) => r.path === "/api/items/8/next")).toBe(false);
+    expect(screen.queryByRole("button", { name: /Play now/ })).not.toBeInTheDocument();
   });
 });
 

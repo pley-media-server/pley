@@ -9,13 +9,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.semantics.Role
@@ -126,26 +124,9 @@ object PleyMark {
         return builder.build()
     }
 
-    /** The side of the grid the mark is drawn on. */
-    internal const val GRID = 64f
-
     /** The mark on its rounded `brandTile` square, as app icons and the web's header show it. */
     val Tile: ImageVector by lazy { build("pley-mark-tile", tile = true) }
 
     /** The mark alone, for dark surfaces. */
     val Glyph: ImageVector by lazy { build("pley-mark", tile = false) }
-
-    /**
-     * The mark's three posters as paths on its 64 by 64 grid, back to front,
-     * with how much of a color each is filled with: the placeholder of a
-     * picture that won't come draws it in white, each poster lighter than
-     * the one before it ([Placeholder][app.pley.android.designsystem.image.Placeholder]).
-     */
-    internal val Layers: List<Pair<Path, Float>> by lazy {
-        listOf(
-            PathParser().parsePathString(BACK).toPath() to 0.16f,
-            PathParser().parsePathString(MIDDLE).toPath() to 0.24f,
-            PathParser().parsePathString(FRONT).toPath().apply { fillType = PathFillType.EvenOdd } to 0.36f,
-        )
-    }
 }

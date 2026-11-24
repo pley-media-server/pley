@@ -5,12 +5,14 @@
 ' the player leaves and says so; otherwise it starts again where it was,
 ' with a new session and the current token (a token that ran out answers
 ' 401 to the Video node). Skip Intro and Skip Credits follow the web
-' player: an episode's credits bring up Up Next instead. Down brings up
-' Pley's menu: the file's subtitles and audio (every track, pictures too),
-' Quality, subtitle sync for a file with text subtitles or pictures drawn
-' here (SubtitleSync.brs), the file's chapters, the sleep timer
-' (Sleep.brs) and the playback's details (Details.brs). Subtitles (or
-' audio) the person picks in Roku's options are remembered on the server
+' player: an episode's credits bring up Up Next instead. The controls are
+' Pley's own, as the Android TV player's (PlayerControls; the Video node's
+' are off): the scrubber, which Left and Right seek with (Seeker.brs), and
+' the buttons, whose panels have the file's subtitles (every track,
+' pictures too, with subtitle sync for text ones or pictures drawn here,
+' SubtitleSync.brs, and Find subtitles…), its audio, Quality, its
+' chapters, the sleep timer (Sleep.brs) and the playback's details
+' (Details.brs). Subtitles (or audio) the person picks are remembered on the server
 ' for the show or the movie (Tracks.brs), so the next episode starts with
 ' matching ones; the user's remote, on another device, picks them as the
 ' menu does. The quality is the one chosen in Settings or the menu (the
@@ -22,10 +24,13 @@
 ' server burns them in only where it can't make those.
 
 sub init()
+    ' What holds the focus while nothing else does: the player's keys come
+    ' to it (onKeyEvent). The screen itself can't take the focus back from
+    ' a part of it that has it.
+    m.keys = m.top.findNode("keys")
     m.video = m.top.findNode("video")
     m.skip = m.top.findNode("skip")
-    m.loading = m.top.findNode("loading")
-    m.loading.text = t("common.states.loading")
+    m.controls = m.top.findNode("controls")
     m.upNext = m.top.findNode("upNext")
     m.nextImage = m.top.findNode("nextImage")
     m.nextTitle = m.top.findNode("nextTitle")
@@ -41,25 +46,30 @@ sub init()
     m.syncValue = m.top.findNode("syncValue")
     m.syncButtons = m.top.findNode("syncButtons")
     m.menu = m.top.findNode("menu")
+    m.menuSlide = m.top.findNode("menuSlide")
     m.menuTitle = m.top.findNode("menuTitle")
     m.menuList = m.top.findNode("menuList")
-    m.menuChoices = m.top.findNode("menuChoices")
     m.menuText = m.top.findNode("menuText")
+    m.menuFacts = m.top.findNode("menuFacts")
+    m.detailsShown = ""
     m.menuHint = m.top.findNode("menuHint")
-    ' What the menu shows ("menu", "quality", "chapters", "details"), the
-    ' actions of its entries, and the values of a list of choices.
+    m.menuTitle.font = uiType("section")
+    m.menuText.font = uiType("body")
+    m.menuHint.font = uiType("caption")
+    ' What the panel shows ("subtitles", "audio", "quality", "chapters",
+    ' "sleep", "details", "finding", "found"…), the button that opened it
+    ' (focused again as it closes), and the values of its rows: a choice's,
+    ' or the action of a row that isn't one ("sync", "find").
     m.menuKind = ""
-    m.menuActions = []
+    m.menuButton = ""
     m.menuValues = []
     ' Find subtitles…: the language looked in ("": the person's subtitle
     ' language), and the results listed ([{ id, label, hint }]) after the
     ' Language entry.
     m.findLanguage = ""
     m.found = []
-    m.menuList.observeField("itemSelected", "onMenuEntry")
-    m.menuList.observeField("itemFocused", "onMenuEntryFocused")
-    m.menuChoices.observeField("itemSelected", "onMenuChoice")
-    m.menuChoices.observeField("itemFocused", "onMenuChoiceFocused")
+    m.menuList.observeField("itemSelected", "onMenuChoice")
+    m.menuList.observeField("itemFocused", "onMenuChoiceFocused")
     m.clock = CreateObject("roTimespan")
     m.started = false
     ' Which opening the answers belong to: answers for an earlier one are dropped.
@@ -80,9 +90,8 @@ sub init()
     ' track or a quality picked, a cast naming tracks), which hears of it as
     ' it plays.
     m.reportAtPlay = false
-    ' Whether the Video node's own controls are off for a pause of the
-    ' user's remote, which brings them up as any pause does: on again as
-    ' the video plays, or at the person's own key.
+    ' Whether the pause is the user's remote's, which never brings up the
+    ' controls: the person's own key, or the video playing again, ends it.
     m.remoteQuiet = false
     ' The audio a cast named for its title (-1: the server's pick by the
     ' user's choices); its subtitles are in the item's file
@@ -90,6 +99,10 @@ sub init()
     m.playAudio = -1
     ' Whether this opening's video has played yet (errors before are the file's).
     m.played = false
+    ' Whether this opening's stream was given again after failing at once
+    ' (broken()), and whether that try is still to play or fail.
+    m.givenAgain = false
+    m.againPending = false
     m.next = invalid
     m.upNextAt = -1
     m.upNextShown = false
@@ -147,10 +160,10 @@ sub init()
     m.sleepButtons.buttons = [keepWatching]
     ' Longer words ("Continuer à regarder") make the button wider than its
     ' least, and the notice behind it with it.
-    button = textWidth(keepWatching, "font:MediumBoldSystemFont") + 64
+    button = textWidth(keepWatching, uiType("label")) + 64
     if button < m.sleepButtons.minWidth then button = m.sleepButtons.minWidth
     back = m.top.findNode("sleepBack")
-    width = m.sleepButtons.translation[0] + button + 40
+    width = m.sleepButtons.translation[0] + button + 8
     if width > back.width then back.width = width
     m.sleepButtons.observeField("buttonSelected", "onKeepWatching")
     m.sleepTimer = m.top.findNode("sleepTimer")
@@ -246,6 +259,20 @@ sub init()
     m.top.observeField("active", "onActive")
     m.top.observeField("serverStopped", "onServerStopped")
     m.top.observeField("playerCommand", "onPlayerCommand")
+    setupControls()
+    styleOverlays()
+end sub
+
+' The player's notices in Pley's type (Ui.brs's uiType), as the controls.
+sub styleOverlays()
+    fonts = {
+        bannerTitle: "title", bannerLine: "label", upNextTitle: "caption", nextTitle: "section", nextLine: "label",
+        countdown: "caption", syncTitle: "caption", syncValue: "section", syncHint: "caption", noticeTitle: "pageTitle",
+        noticeText: "bodyLarge", sleepText: "label", toastText: "label"
+    }
+    for each id in fonts
+        m.top.findNode(id).font = uiType(fonts[id])
+    end for
 end sub
 
 ' Paused, the progress goes on being told, so the session stays the
@@ -291,10 +318,10 @@ sub onPlayerCommand(event as object)
     if action.act = "play"
         m.video.control = "resume"
     else if action.act = "pause"
-        ' Paused, the Video node shows its title, clock and bar, whoever
-        ' paused it: off until the video plays or the person presses a key.
+        ' Its pause doesn't bring up the controls, as the person's does, and
+        ' puts away any that were up.
         m.remoteQuiet = true
-        m.video.enableUI = false
+        hideControls()
         m.video.control = "pause"
     else if action.act = "report"
         ' As it is already: said again, so a remote a little behind settles.
@@ -303,6 +330,7 @@ sub onPlayerCommand(event as object)
         ' As the rewind key does: left up, Up Next's countdown would play
         ' the next episode over the place the remote asked for.
         if m.upNext.visible then cancelUpNext()
+        endSeeking()
         seekTo(action.positionMs)
         ' Told now, not as the next reading finds the playhead moved.
         m.seenMs = m.positionMs
@@ -319,11 +347,9 @@ sub remoteSays(text as string)
     if text <> "" then showToast(text, remoteNoticeSeconds())
 end sub
 
-' The Video node's own controls back after the remote's pause.
+' The remote's pause is over: the next pause is the person's own.
 sub endQuiet()
-    if not m.remoteQuiet then return
     m.remoteQuiet = false
-    m.video.enableUI = true
 end sub
 
 ' The remote's audio or subtitles (Remote.brs's remoteTrackAction), on the
@@ -436,6 +462,8 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     m.sessionId = ""
     m.paused = false
     m.played = false
+    m.givenAgain = false
+    m.againPending = false
     m.next = invalid
     m.upNextShown = false
     m.upNextCancelled = false
@@ -456,8 +484,11 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     hideSkip()
     hideUpNext()
     m.notice.visible = false
-    m.loading.visible = true
-    m.top.setFocus(true)
+    endSeeking()
+    hideControls()
+    stopPreviews()
+    setLoading(true)
+    m.keys.setFocus(true)
     if m.item = invalid
         uiRequest({ method: "GET", path: "/api/items/" + urlValue(itemId), attempt: m.attempt }, "onItem")
         return
@@ -648,7 +679,7 @@ sub begin()
     m.stillSince = m.clock.TotalMilliseconds()
     m.stallTimer.control = "start"
     m.durationMs = httpNumber(m.info.duration_ms, 0)
-    m.markers = playerFileMarkers(m.item, m.info.file_id)
+    m.markers = playerFileMarkers(m.item, m.info.file_id, m.durationMs)
     m.upNextAt = playerUpNextAt(m.durationMs, m.markers)
     ' The sync remembered for this file moves every text track.
     m.syncKey = syncKey(m.global.session.server, m.info.file_id)
@@ -661,13 +692,14 @@ sub begin()
     m.audioPlaying = tracksAudioPlaying(m.info, contentFile(m.item, m.info.file_id))
     m.tracksFrom = -1
     showStream(stream, syncTrackUrl(stream.subtitle, m.syncMs))
+    fillControls()
     if stream.subtitle <> ""
         captionsOn()
     else
         captionsBack()
     end if
     m.video.control = "play"
-    m.video.setFocus(true)
+    m.keys.setFocus(true)
     m.lastReportAt = m.clock.TotalMilliseconds()
     watchPlayback()
     startPictures()
@@ -814,6 +846,22 @@ end sub
 ' than the remote's word of what it did.
 sub showToast(text as string, seconds = 4 as integer)
     m.toastText.text = text
+    ' As wide as its words (840 at most, then on more lines), its right edge
+    ' at the safe area's; under the clock while the controls show.
+    width = textWidth(text, uiType("label"))
+    if width > 760 then width = 760
+    m.toastText.width = width
+    lines = Int(m.toastText.boundingRect().height / 36)
+    if lines < 1 then lines = 1
+    height = 40 + lines * 36
+    if height < 76 then height = 76
+    m.toastText.height = height
+    back = m.top.findNode("toastBack")
+    back.width = width + 80
+    back.height = height
+    top = 54
+    if m.controls.shown then top = 158
+    m.toast.translation = [1824 - width - 80, top]
     m.toast.visible = true
     m.toastTimer.control = "stop"
     m.toastTimer.duration = seconds
@@ -826,7 +874,7 @@ end sub
 
 ' How wide text is in font on one line, as a Label draws it (one kept
 ' unseen for measuring).
-function textWidth(text as string, font as string) as integer
+function textWidth(text as string, font as object) as integer
     if m.measure = invalid
         m.measure = m.top.createChild("Label")
         m.measure.opacity = 0
@@ -841,7 +889,7 @@ end function
 sub showBanner()
     m.bannerDue = false
     banner = playerBanner(m.item)
-    if banner.title = "" then return
+    if banner.title = "" or m.controls.shown then return
     m.bannerTitle.text = banner.title
     m.bannerLine.text = banner.line
     m.banner.visible = true
@@ -864,26 +912,17 @@ sub showStream(stream as object, subtitle as string)
     content.playStart = stream.playStart
     content.subtitleTracks = syncTracks(stream.subtitleTracks, m.syncMs)
     m.streamSyncMs = m.syncMs
-    if stream.previews <> ""
-        content.SDBifUrl = stream.previews
-        content.HDBifUrl = stream.previews
-        content.FHDBifUrl = stream.previews
-    end if
     if LCase(Left(stream.url, 8)) = "https://" then nodesFill(content, { HttpCertificatesFile: "common:/certs/ca-bundle.crt" })
     m.video.setHttpAgent(uiHttpAgent())
     m.video.content = content
     if subtitle <> "" then m.video.subtitleTrack = subtitle
+    ' The seek previews are the controls' to show.
+    startPreviews(stream.previews)
 end sub
 
 ' Where subtitle sync is remembered on this Roku.
 function syncSection() as object
     return CreateObject("roRegistrySection", "subtitleSync")
-end function
-
-' Pley's menu is offered while a stream plays; subtitle sync in it for a
-' file with text subtitles, or picture ones drawn here.
-function menuOffered() as boolean
-    return m.info <> invalid and not m.notice.visible and not m.upNext.visible and not m.sync.visible
 end function
 
 sub openSync()
@@ -916,7 +955,7 @@ end sub
 sub closeSync()
     if not m.sync.visible then return
     m.sync.visible = false
-    m.video.setFocus(true)
+    m.keys.setFocus(true)
     if m.syncMs = m.syncWas then return
     syncRemember(syncSection(), m.syncKey, m.syncMs)
     if m.pictureIndex < 0 then reopen()
@@ -933,7 +972,7 @@ sub reopen(subtitle = "" as string)
     if showing = "" then showing = syncBaseUrl(httpString(m.video.currentSubtitleTrack))
     if showing = "" then showing = syncBaseUrl(httpString(m.video.subtitleTrack))
     m.positionMs = position
-    m.loading.visible = true
+    setLoading(true)
     ' The tracks as the stream opens again are pley's doing.
     m.tracksFrom = -1
     showStream(contentStream(m.info, m.item, m.global.session.server, position), syncTrackUrl(showing, m.syncMs))
@@ -1044,13 +1083,17 @@ sub onState(event as object)
     m.seenAt = m.clock.TotalMilliseconds()
     if state <> "paused" then m.pausedTimer.control = "stop"
     if state <> "playing" then hideBanner()
+    m.controls.playing = state <> "paused"
+    m.controls.paused = state = "paused"
+    if state = "buffering" then setLoading(true)
     if state = "playing"
+        m.againPending = false
         m.played = true
         m.everPlayed = true
         ' Played again, by anyone: the remote's pause is over.
         endQuiet()
         endReconnect()
-        m.loading.visible = false
+        setLoading(false)
         if m.bannerDue then showBanner()
         ' Played again after the sleep timer's pause: the player stays.
         if m.sleepPausedAt >= 0
@@ -1058,6 +1101,7 @@ sub onState(event as object)
             if m.sleep.minutes = 0 then m.sleepTimer.control = "stop"
         end if
         if m.tracksFrom < 0 then m.tracksFrom = m.clock.TotalMilliseconds() + tracksSettleMs()
+        restartHide()
         if m.paused or m.reportAtPlay
             m.paused = false
             m.reportAtPlay = false
@@ -1072,7 +1116,17 @@ sub onState(event as object)
         m.paused = true
         report("paused")
         m.pausedTimer.control = "start"
+        setLoading(false)
+        ' The person's pause shows where it is, and when it would end; the
+        ' remote's and the sleep timer's don't.
+        if not m.remoteQuiet and m.sleepPausedAt < 0
+            focus = m.focusKey
+            if not m.controls.shown or focus = "" then focus = "scrubber"
+            showControls(focus)
+        end if
     else if state = "finished"
+        ' The failed stream's end, as it is given again (broken()).
+        if m.againPending then return
         ' Media that falls short of the title (resumed past the end of what
         ' the file or stream holds) isn't its end.
         if playerEndedShort(m.positionMs, m.startMs, m.durationMs)
@@ -1107,6 +1161,7 @@ sub onPosition(event as object)
     else if playerShouldReport(m.video.state, now - m.lastReportAt)
         report("playing")
     end if
+    if m.controls.shown then m.controls.positionMs = m.positionMs
     if m.next <> invalid and not m.upNextShown and m.upNextAt > 0 and m.positionMs >= m.upNextAt and not sleepEndsWith(m.sleep, urlValue(m.itemId)) then showUpNext()
     updateSkip()
     followPictures()
@@ -1129,15 +1184,23 @@ sub updateSkip()
     if shown = m.skip.visible then return
     if shown
         m.skip.visible = true
-        m.skip.setFocus(true)
+        ' The controls keep the focus while they show.
+        if not m.controls.shown and not m.sleepButtons.isInFocusChain() then m.skip.setFocus(true)
     else
         hideSkip()
     end if
 end sub
 
 sub hideSkip()
-    if m.skip.hasFocus() then m.video.setFocus(true)
+    if m.skip.hasFocus() then focusKeys()
     m.skip.visible = false
+end sub
+
+' The focus back on the player's keys; with the controls up and nothing in
+' them focused (Skip had it), on the scrubber.
+sub focusKeys()
+    m.keys.setFocus(true)
+    if m.controls.shown and m.focusKey = "" then focusControl("scrubber")
 end sub
 
 sub onSkip()
@@ -1184,6 +1247,7 @@ sub seekTo(targetMs as integer)
     if last > 0 and target > last then target = last
     if target < 0 then target = 0
     m.positionMs = target
+    m.controls.positionMs = target
     m.video.seek = target / 1000
 end sub
 
@@ -1232,12 +1296,16 @@ sub ended()
         uiNavigate({ back: true })
         return
     end if
-    if not m.upNextCancelled and playerAutoplay(playbackSection())
+    ' Up Next was counting down over credits that ran to the end: the next
+    ' one plays now.
+    if m.upNextShown and not m.upNextCancelled and playerAutoplay(playbackSection())
         playNext()
         return
     end if
-    ' Up Next waits at the end, as on the other apps: counting down again
-    ' after a Cancel when the next plays by itself, for Play now when not.
+    ' Up Next waits at the end, as on the other apps, counting down when the
+    ' next plays by itself: where no credits ran to the end (a scene can
+    ' play in the last seconds), and again after a Cancel. For Play now when
+    ' it doesn't.
     m.ended = true
     m.upNextCancelled = false
     showUpNext()
@@ -1283,6 +1351,12 @@ sub finish()
     m.toastTimer.control = "stop"
     m.toast.visible = false
     stopPictures()
+    stopPreviews()
+    hideControls()
+    m.holdKey = ""
+    m.holdTimer.control = "stop"
+    m.settleTimer.control = "stop"
+    setLoading(false)
     if m.sessionId <> ""
         report("stopped")
         endSession()
@@ -1309,6 +1383,22 @@ sub stopped(data as dynamic)
 end sub
 
 sub broken()
+    ' The first stream after the app starts can fail at once with a reader
+    ' error, and play when given again as it is (a Roku Ultra on OS 16):
+    ' before anything played, a stream that fails is given once more before
+    ' it counts as broken. One that fails again goes on as below.
+    m.againPending = false
+    if not m.played and not m.givenAgain and m.video.content <> invalid
+        m.givenAgain = true
+        m.againPending = true
+        content = m.video.content
+        subtitle = httpString(m.video.subtitleTrack)
+        m.video.content = invalid
+        m.video.content = content
+        if subtitle <> "" then m.video.subtitleTrack = subtitle
+        m.video.control = "play"
+        return
+    end if
     if playerErrorKind(m.video.errorCode, m.video.errorInfo, m.played) = "media"
         ' The original doesn't play on this Roku after all: converted, once.
         if m.info <> invalid and httpString(m.info.method) <> "transcode" and m.mode <> "transcode"
@@ -1329,7 +1419,7 @@ sub broken()
         return
     end if
     ' What became of the session says what to do.
-    m.loading.visible = true
+    setLoading(true)
     uiRequest({ method: "GET", path: "/api/playback/" + urlEncode(m.sessionId), session: m.sessionId }, "onSessionState")
 end sub
 
@@ -1360,8 +1450,8 @@ sub reconnect()
         return
     end if
     hideBanner()
-    m.loading.text = t("player.reconnecting")
-    m.loading.visible = true
+    m.controls.bufferingText = t("player.reconnecting")
+    setLoading(true)
     m.reconnectTimer.control = "start"
 end sub
 
@@ -1379,7 +1469,7 @@ end sub
 sub endReconnect()
     m.reconnectFrom = -1
     m.reconnectTimer.control = "stop"
-    m.loading.text = t("common.states.loading")
+    m.controls.bufferingText = ""
 end sub
 
 ' --- Stalls ---
@@ -1463,8 +1553,11 @@ sub notice(title as string, text as string, actions as object)
     endReconnect()
     hideBanner()
     m.stallTimer.control = "stop"
-    m.loading.visible = false
+    setLoading(false)
+    m.menuButton = ""
     closeMenu()
+    endSeeking()
+    hideControls()
     hideSkip()
     hideUpNext()
     m.noticeTitle.text = title
@@ -1479,6 +1572,8 @@ sub notice(title as string, text as string, actions as object)
         end if
     end for
     m.noticeButtons.buttons = buttons
+    ' The buttons centered under the words.
+    m.noticeButtons.translation = [960 - Int(m.noticeButtons.boundingRect().width / 2), 700]
     m.notice.visible = true
     m.noticeButtons.setFocus(true)
 end sub
@@ -1502,7 +1597,10 @@ end sub
 
 sub showUpNext()
     closeSync()
+    m.menuButton = ""
     closeMenu()
+    endSeeking()
+    hideControls()
     hideSkip()
     m.upNextShown = true
     m.nextTitle.text = m.next.title
@@ -1551,7 +1649,7 @@ sub cancelUpNext()
         uiNavigate({ back: true })
         return
     end if
-    m.video.setFocus(true)
+    m.keys.setFocus(true)
     updateSkip()
 end sub
 
@@ -1578,51 +1676,43 @@ sub playNext(finished = true as boolean)
     open(nextEpisode.itemId, nextEpisode.startMs, invalid, "auto")
 end sub
 
-' While subtitle sync shows: left and right (rewind and fast forward too)
-' move the subtitles, Back closes it. While Pley's menu shows: Back goes
-' back in it, then closes it. While Up Next counts down: Back cancels it,
-' and play, fast forward and rewind cancel it and act on the video.
-' Otherwise Down brings up the menu, and Back leaves the player (the
-' scene), which closes the session.
+' The keys, as the Android TV player's (TvPlayerKeys.kt). While the sleep
+' timer's Keep watching, a panel, subtitle sync or Up Next shows, they are
+' theirs: Back closes them, and play, fast forward and rewind act on the
+' video. Otherwise:
+' - Controls hidden: OK, Up and Left or Right bring them up on the
+'   scrubber (Left and Right seeking from there), Down on Play/Pause, and
+'   Back leaves the player (the scene), which closes the session.
+' - Controls shown: Left and Right seek on the scrubber and move along the
+'   row; Up and Down go between them (Up from the scrubber to Skip); OK
+'   plays or pauses on the scrubber, or confirms a seek coming, and presses
+'   a button; Back lets a seek coming go, then hides them. They hide 5 s
+'   after the last key while it plays.
+' - Whatever shows: play plays or pauses, fast forward and rewind jump
+'   30 s (the controls show where to), replay goes back 10 s, and Options
+'   (*) opens the subtitles.
+' A Roku tells a key's press and release: Left or Right not let go within
+' 0.4 s is held, and scrubs until it is.
 function onKeyEvent(key as string, press as boolean) as boolean
-    if not press then return false
-    ' The person's own key after the remote's pause gives the Video node
-    ' its controls back. Without them it left this press to the screen:
-    ' Play plays on, as it would there, and its other keys are its own
-    ' again from the next press.
-    if m.remoteQuiet
-        endQuiet()
-        if m.video.hasFocus()
-            if key = "play"
-                m.video.control = "resume"
-                return true
-            end if
-            if key = "OK" or key = "left" or key = "right" or key = "fastforward" or key = "rewind" or key = "replay" then return true
-        end if
-    end if
-    ' The sleep timer's Keep watching: Back leaves it to count down, the
-    ' video's own keys go on as ever.
-    if m.sleepButtons.isInFocusChain()
-        if key = "back"
-            m.video.setFocus(true)
-            return true
-        end if
-        if key = "play" or key = "fastforward" or key = "rewind"
-            playerKey(key)
-            return true
-        end if
+    if not press
+        if key = m.holdKey then endHold()
         return false
+    end if
+    ' Any key of the person's own: the remote's pause is theirs now.
+    if m.remoteQuiet then endQuiet()
+    if m.holdKey <> "" and key <> m.holdKey then endHold()
+    ' The sleep timer's Keep watching takes OK; Back leaves it to count
+    ' down, and the other keys do as they would without it.
+    if m.sleepButtons.isInFocusChain()
+        if key = "OK" then return false
+        focusKeys()
+        if key = "back" then return true
     end if
     if m.menu.visible
         if key = "back" or key = "left"
-            if m.menuKind = "menu"
-                closeMenu()
-            else
-                openMenu()
-            end if
+            menuBack()
             return true
         end if
-        ' The video's own keys go on as ever.
         if key = "play" or key = "fastforward" or key = "rewind"
             playerKey(key)
             return true
@@ -1661,68 +1751,567 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
         return false
     end if
-    if key = "down" and menuOffered()
-        openMenu()
+    if m.notice.visible or m.info = invalid then return false
+    if key = "play"
+        togglePlay()
         return true
     end if
-    return false
+    if key = "fastforward" or key = "rewind"
+        direction = 1
+        if key = "rewind" then direction = -1
+        showControls("scrubber")
+        stepSeek(direction, skrJumpMs(), skrSettleMs())
+        return true
+    end if
+    if key = "replay"
+        if not m.controls.shown then m.controls.badgeForward = false
+        stepSeek(-1, skrStepMs(), skrSettleMs())
+        return true
+    end if
+    if key = "options"
+        openPanel("subtitles", "subtitles")
+        return true
+    end if
+    if not m.controls.shown
+        if key = "OK"
+            if not confirmSeek() then showControls("scrubber")
+            return true
+        end if
+        if key = "left" or key = "right"
+            showControls("scrubber")
+            pressSeek(key)
+            return true
+        end if
+        if key = "up"
+            showControls("scrubber")
+            return true
+        end if
+        if key = "down"
+            showControls("playPause")
+            return true
+        end if
+        return false
+    end if
+    ' Shown: any key keeps them up a while longer.
+    restartHide()
+    if key = "back"
+        if m.seek.target >= 0
+            skrCancel(m.seek)
+            m.settleTimer.control = "stop"
+            showTarget()
+            restartHide()
+        else
+            hideControls()
+        end if
+        return true
+    end if
+    if m.skip.hasFocus()
+        ' Up on the scrubber went to Skip: Down comes back.
+        if key = "down"
+            focusControl("scrubber")
+            return true
+        end if
+        return false
+    end if
+    if m.focusKey = "scrubber"
+        if key = "left" or key = "right"
+            pressSeek(key)
+        else if key = "OK"
+            if not confirmSeek() then togglePlay()
+        else if key = "up"
+            if m.skip.visible
+                m.focusKey = ""
+                m.controls.focusKey = ""
+                m.skip.setFocus(true)
+            end if
+        else if key = "down"
+            focusControl("playPause")
+        end if
+        return true
+    end if
+    if key = "up"
+        focusControl("scrubber")
+    else if key = "left" or key = "right"
+        moveAlongRow(key)
+    else if key = "OK"
+        pressButton(m.focusKey)
+    else if key = "down" and m.focusKey = ""
+        focusControl("playPause")
+    end if
+    return true
 end function
 
-' --- Pley's menu ---
+' --- The controls ---
 
-' Its entries: Subtitles and Audio for a file with them, Quality, Subtitle
-' sync for a file with text subtitles or pictures drawn here, Chapters for
-' a file with two or more, Sleep timer, Find subtitles…, Playback details.
-sub openMenu()
-    hideSkip()
-    m.menuKind = "menu"
-    m.menuTitle.text = t("player.menu.title")
-    items = []
-    m.menuActions = []
-    ' Every track of the file, pictures too, as on the other apps' panels:
-    ' Roku's options list only text subtitles, and a conversion's one audio.
-    tracks = mediaTracks(playingFile())
-    if tracks.subtitles.labels.Count() > 0
-        items.Push({ title: t("player.menu.subtitlesNow", { track: tracks.subtitles.labels[tracks.subtitles.current] }) })
-        m.menuActions.Push("subtitles")
-    end if
-    if tracks.audio.labels.Count() > 0
-        items.Push({ title: t("player.menu.audioNow", { track: tracks.audio.labels[tracks.audio.current] }) })
-        m.menuActions.Push("audio")
-    end if
-    items.Push({ title: t("player.menu.qualityNow", { quality: qualityShown() }) })
-    m.menuActions.Push("quality")
-    if m.textTracks > 0 or m.pictureIndex >= 0
-        items.Push({ title: t("player.menu.syncNow", { offset: syncLabel(m.syncMs) }) })
-        m.menuActions.Push("sync")
-    end if
-    if detChapters(playingFile()).Count() > 1
-        items.Push({ title: t("player.menu.chapters") })
-        m.menuActions.Push("chapters")
-    end if
-    items.Push({ title: t("player.sleep.titleNow", { state: sleepLabel(m.sleep, sleepNow(), playingKind()) }) })
-    m.menuActions.Push("sleep")
-    items.Push({ title: t("player.menu.find") })
-    m.menuActions.Push("find")
-    items.Push({ title: t("player.menu.details") })
-    m.menuActions.Push("details")
-    at = m.menuList.itemFocused
-    m.menuList.content = nodesContent(items)
-    if at > 0 and at < items.Count() then m.menuList.jumpToItem = at
-    m.menuChoices.visible = false
-    m.menuText.visible = false
-    m.menuList.visible = true
-    m.menuHint.text = t("player.menu.backCloses")
-    m.menu.visible = true
-    m.menuList.setFocus(true)
+sub setupControls()
+    m.seek = skrNew()
+    ' What has the focus in them: "scrubber" or a button's id.
+    m.focusKey = "scrubber"
+    m.buttonIds = []
+    ' Left or Right held (or waiting to be called held), and which way.
+    m.holdKey = ""
+    m.holdDirection = 0
+    m.hideTimer = m.top.findNode("hideTimer")
+    m.hideTimer.observeField("fire", "onHideTimer")
+    m.settleTimer = m.top.findNode("settleTimer")
+    m.settleTimer.observeField("fire", "onSettle")
+    m.badgeTimer = m.top.findNode("badgeTimer")
+    m.badgeTimer.observeField("fire", "onBadgeTimer")
+    m.holdTimer = m.top.findNode("holdTimer")
+    m.holdTimer.observeField("fire", "onHoldTimer")
+    m.confirmTimer = m.top.findNode("confirmTimer")
+    m.confirmTimer.observeField("fire", "onConfirmTimer")
+    m.bufferingTimer = m.top.findNode("bufferingTimer")
+    m.bufferingTimer.observeField("fire", "onBufferingTimer")
+    ' The seek previews: the task cutting them out of the BIF, the BIF it
+    ' fetched, the file's chapters for the preview's name.
+    m.previewTask = invalid
+    m.previewUrl = ""
+    m.chapterList = []
 end sub
 
+' What the controls say of what plays, as it begins: its title, how it
+' plays, its length, chapters and markers, and the buttons it has.
+sub fillControls()
+    banner = playerBanner(m.item)
+    m.controls.title = banner.title
+    m.controls.line = banner.line
+    m.controls.method = detMethod(m.info)
+    m.controls.methodKind = httpString(m.info.method)
+    m.controls.durationMs = m.durationMs
+    m.controls.positionMs = m.positionMs
+    m.chapterList = detChapters(playingFile())
+    starts = []
+    if m.chapterList.Count() > 1
+        for each chapter in m.chapterList
+            starts.Push(chapter.startMs)
+        end for
+    end if
+    m.controls.chapters = starts
+    markers = []
+    for each marker in m.markers
+        label = t("player.controls.intro")
+        if marker.kind = "credits" then label = t("player.controls.credits")
+        markers.Push({ startMs: marker.startMs, endMs: marker.endMs, label: label })
+    end for
+    m.controls.markers = markers
+    m.controls.buttons = controlButtons()
+end sub
+
+' The row, as the Android TV player's: Chapters (for two or more) and the
+' sleep timer at the left; Previous, Play/Pause and Next in the middle
+' (Previous and Next for an episode, a queue or chapters); Subtitles,
+' Audio (for a file with tracks), Quality and Info at the right.
+function controlButtons() as object
+    buttons = []
+    if m.chapterList.Count() > 1 then buttons.Push({ id: "chapters", icon: "list-video", label: t("player.menu.chapters"), group: "left" })
+    buttons.Push({ id: "sleep", icon: "moon", label: t("player.sleep.title"), group: "left" })
+    previousNext = m.chapterList.Count() > 1 or m.queue <> invalid or httpString(m.item.kind) = "episode"
+    if previousNext then buttons.Push({ id: "previous", icon: "skip-back", label: t("player.controls.previous"), group: "center" })
+    buttons.Push({ id: "playPause", icon: "pause", label: t("player.controls.pause"), group: "center" })
+    if previousNext then buttons.Push({ id: "next", icon: "skip-forward", label: t("player.controls.next"), group: "center" })
+    tracks = mediaTracks(playingFile())
+    buttons.Push({ id: "subtitles", icon: "captions", label: t("player.menu.subtitles"), group: "right" })
+    if tracks.audio.labels.Count() > 0 then buttons.Push({ id: "audio", icon: "audio-lines", label: t("player.menu.audio"), group: "right" })
+    buttons.Push({ id: "quality", icon: "gauge", label: t("player.menu.quality"), group: "right" })
+    buttons.Push({ id: "info", icon: "info", label: t("player.controls.info"), group: "right" })
+    m.buttonIds = []
+    for each group in ["left", "center", "right"]
+        for each button in buttons
+            if button.group = group then m.buttonIds.Push(button.id)
+        end for
+    end for
+    return buttons
+end function
+
+' Up on the scrubber or Down on Play/Pause brings them up there; they
+' hide 5 s after the last key while it plays.
+sub showControls(focus as string)
+    if m.info = invalid or m.notice.visible or m.upNext.visible or m.menu.visible then return
+    m.controls.positionMs = m.positionMs
+    m.controls.playing = m.video.state <> "paused"
+    m.controls.paused = m.video.state = "paused"
+    focusControl(focus)
+    m.controls.shown = true
+    if m.skip.hasFocus() or m.sleepButtons.isInFocusChain() then m.keys.setFocus(true)
+    hideBanner()
+    restartHide()
+    placeSkip()
+    placeSleepNotice()
+end sub
+
+sub hideControls()
+    m.hideTimer.control = "stop"
+    if not m.controls.shown then return
+    m.controls.shown = false
+    if m.seek.target >= 0
+        skrCancel(m.seek)
+        m.settleTimer.control = "stop"
+        showTarget()
+    end if
+    placeSkip()
+    placeSleepNotice()
+    updateSkip()
+    if m.skip.visible and not m.sleepButtons.isInFocusChain() then m.skip.setFocus(true)
+end sub
+
+' Whatever seek is on its way ends: a held key, the presses waiting, the
+' badge (a new opening, Up Next, a notice).
+sub endSeeking()
+    m.holdKey = ""
+    m.holdTimer.control = "stop"
+    m.settleTimer.control = "stop"
+    m.confirmTimer.control = "stop"
+    m.badgeTimer.control = "stop"
+    m.controls.badge = ""
+    skrCancel(m.seek)
+    showTarget()
+end sub
+
+sub focusControl(key as string)
+    m.focusKey = key
+    m.controls.focusKey = key
+    if m.skip.hasFocus() then m.keys.setFocus(true)
+end sub
+
+sub restartHide()
+    m.hideTimer.control = "stop"
+    if m.controls.shown and m.video.state = "playing" and m.seek.target < 0 then m.hideTimer.control = "start"
+end sub
+
+sub onHideTimer()
+    if m.video.state <> "playing" or m.seek.target >= 0 or m.holdKey <> "" then return
+    hideControls()
+end sub
+
+' Skip's right edge at the safe area's, its bottom at y 978, or over the
+' scrubber while the controls show (Android TV's).
+sub placeSkip()
+    if m.controls.shown
+        m.skip.translation = [1544, 650]
+    else
+        m.skip.translation = [1544, 918]
+    end if
+end sub
+
+' The sleep timer's notice at the bottom left, above the controls while
+' they show.
+sub placeSleepNotice()
+    if m.controls.shown
+        m.sleepNotice.translation = [96, 672]
+    else
+        m.sleepNotice.translation = [96, 890]
+    end if
+end sub
+
+' Left and Right along the row, stopping at its ends.
+sub moveAlongRow(key as string)
+    at = -1
+    for i = 0 to m.buttonIds.Count() - 1
+        if m.buttonIds[i] = m.focusKey then at = i
+    end for
+    if at < 0 then return
+    if key = "left" then at = at - 1 else at = at + 1
+    if at < 0 or at >= m.buttonIds.Count() then return
+    focusControl(m.buttonIds[at])
+end sub
+
+sub pressButton(id as string)
+    if id = "playPause"
+        togglePlay()
+    else if id = "previous"
+        previousPlace()
+    else if id = "next"
+        nextPlace()
+    else if id <> ""
+        openPanel(id, id)
+    end if
+end sub
+
+' Play or pause; the person's pause brings up the controls, with when it
+' ends.
+sub togglePlay()
+    if m.video.state = "paused"
+        m.video.control = "resume"
+    else
+        m.video.control = "pause"
+    end if
+end sub
+
+' Previous: the chapter's start, or the one before within its first 3 s;
+' the start without chapters.
+sub previousPlace()
+    at = skrAt(m.seek, m.positionMs)
+    target = 0
+    if m.chapterList.Count() > 1
+        current = detChapterAt(m.chapterList, at)
+        target = m.chapterList[current].startMs
+        if at - target <= 3000 and current > 0 then target = m.chapterList[current - 1].startMs
+    end if
+    seekNow(target)
+end sub
+
+' Next: the next episode or the queue's next, else the next chapter.
+sub nextPlace()
+    if m.next <> invalid
+        skrCancel(m.seek)
+        playNext(false)
+        return
+    end if
+    at = skrAt(m.seek, m.positionMs)
+    for each chapter in m.chapterList
+        if chapter.startMs > at + 1000
+            seekNow(chapter.startMs)
+            return
+        end if
+    end for
+end sub
+
+' A seek of its own (Previous, Next, a chapter): one coming gives way.
+sub seekNow(targetMs as integer)
+    skrCancel(m.seek)
+    m.settleTimer.control = "stop"
+    if m.upNext.visible then cancelUpNext()
+    seekTo(targetMs)
+    showTarget()
+    m.confirmTimer.control = "stop"
+end sub
+
+' --- Seeking (Seeker.brs) ---
+
+' Left or Right: a step of 10 s, waiting for OK (5 s at most), and the
+' key watched for being held.
+sub pressSeek(key as string)
+    direction = 1
+    if key = "left" then direction = -1
+    stepSeek(direction, skrStepMs(), skrWaitMs())
+    m.holdKey = key
+    m.holdDirection = direction
+    m.holdTimer.control = "stop"
+    m.holdTimer.duration = skrHoldAfterMs() / 1000
+    m.holdTimer.control = "start"
+end sub
+
+sub stepSeek(direction as integer, stepMs as integer, waitMs as integer)
+    skrPress(m.seek, direction, stepMs, waitMs, m.positionMs, m.durationMs)
+    m.hideTimer.control = "stop"
+    m.settleTimer.control = "stop"
+    m.settleTimer.duration = m.seek.waitMs / 1000
+    m.settleTimer.control = "start"
+    if not m.controls.shown
+        m.controls.badgeForward = direction > 0
+        m.controls.badge = skrBadgeText(m.seek.badgeMs)
+        m.badgeTimer.control = "stop"
+        m.badgeTimer.control = "start"
+    end if
+    showTarget()
+end sub
+
+' The hold timer: first, the key is held; then each tick moves the target
+' on. A release lost on the way (some Rokus lose one) ends it after 30 s.
+sub onHoldTimer()
+    if m.holdKey = ""
+        m.holdTimer.control = "stop"
+        return
+    end if
+    now = m.clock.TotalMilliseconds()
+    if not m.seek.holding
+        skrHoldStart(m.seek, now, m.positionMs)
+        m.settleTimer.control = "stop"
+        m.holdTimer.control = "stop"
+        m.holdTimer.duration = 0.1
+        m.holdTimer.control = "start"
+        return
+    end if
+    if now - m.seek.holdStart > 30000
+        m.holdKey = ""
+        m.holdTimer.control = "stop"
+        skrCancel(m.seek)
+        showTarget()
+        return
+    end if
+    skrHoldTick(m.seek, m.holdDirection, now, m.durationMs)
+    showTarget()
+end sub
+
+' The key let go: a scrub waits where it got to for OK, as presses do.
+sub endHold()
+    m.holdKey = ""
+    m.holdTimer.control = "stop"
+    if skrRelease(m.seek)
+        m.settleTimer.control = "stop"
+        m.settleTimer.duration = m.seek.waitMs / 1000
+        m.settleTimer.control = "start"
+    end if
+end sub
+
+' The presses settled: the seek goes.
+sub onSettle()
+    target = skrSettle(m.seek, m.seek.presses)
+    if target < 0 then return
+    if m.upNext.visible then cancelUpNext()
+    seekTo(target)
+    m.confirmTimer.control = "stop"
+    m.confirmTimer.control = "start"
+    showTarget()
+    restartHide()
+end sub
+
+' OK while a seek is coming, or just after one, goes there and plays on.
+function confirmSeek() as boolean
+    result = skrConfirm(m.seek)
+    if result.seekMs >= 0
+        m.settleTimer.control = "stop"
+        if m.upNext.visible then cancelUpNext()
+        seekTo(result.seekMs)
+        showTarget()
+    end if
+    if not result.confirmed then return false
+    if m.video.state = "paused" then m.video.control = "resume"
+    restartHide()
+    return true
+end function
+
+sub onConfirmTimer()
+    skrSettled(m.seek)
+end sub
+
+sub onBadgeTimer()
+    m.controls.badge = ""
+end sub
+
+' Where the scrubber stands and its preview: the frame for the target
+' asked for, and the chapter it is in.
+sub showTarget()
+    target = m.seek.target
+    m.controls.targetMs = target
+    ' Gone, its picture goes: the next seek shows none until its own comes.
+    if target < 0
+        m.controls.previewUri = ""
+        return
+    end if
+    if m.previewTask <> invalid and m.previewTask.ready then m.previewTask.want = target
+    m.controls.previewChapter = chapterName(target)
+end sub
+
+' "Chapter 3 · The Heist" for the chapter at ms, or its own name where it
+' says it is a chapter; "" without chapters.
+function chapterName(ms as integer) as string
+    if m.chapterList.Count() < 2 then return ""
+    at = detChapterAt(m.chapterList, ms)
+    name = m.chapterList[at].name
+    word = t("player.controls.chapterWord")
+    if name = "" then return t("player.controls.chapter", { number: at + 1 })
+    if LCase(Left(name, 7)) = "chapter" or LCase(Left(name, Len(word))) = LCase(word) then return name
+    return t("player.controls.chapterNamed", { number: at + 1, name: name })
+end function
+
+' --- Seek previews (PreviewTask) ---
+
+' The stream's previews, fetched once for its BIF: the same address
+' opened again keeps the task it has.
+sub startPreviews(url as string)
+    if url = m.previewUrl and m.previewTask <> invalid then return
+    stopPreviews()
+    if url = "" then return
+    m.previewUrl = url
+    m.previewTask = CreateObject("roSGNode", "PreviewTask")
+    m.previewTask.url = url
+    m.previewTask.userAgent = m.global.session.userAgent
+    m.previewTask.observeField("ready", "onPreviewsReady")
+    m.previewTask.observeField("frame", "onPreviewFrame")
+    m.previewTask.control = "run"
+end sub
+
+sub stopPreviews()
+    if m.previewTask <> invalid
+        m.previewTask.unobserveField("ready")
+        m.previewTask.unobserveField("frame")
+        m.previewTask.quit = true
+    end if
+    m.previewTask = invalid
+    m.previewUrl = ""
+    m.controls.previewsReady = false
+    m.controls.previewUri = ""
+end sub
+
+sub onPreviewsReady()
+    m.controls.previewsReady = m.previewTask <> invalid and m.previewTask.ready
+    if m.seek.target >= 0 then showTarget()
+end sub
+
+sub onPreviewFrame(event as object)
+    frame = event.getData()
+    if frame <> invalid then m.controls.previewUri = frame.uri
+end sub
+
+' --- Loading ---
+
+' The ring shows half a second into a wait, as on Android TV.
+sub setLoading(on as boolean)
+    if on
+        if not m.controls.buffering and m.bufferingTimer.control <> "start" then m.bufferingTimer.control = "start"
+    else
+        m.bufferingTimer.control = "stop"
+        m.controls.buffering = false
+    end if
+end sub
+
+sub onBufferingTimer()
+    m.controls.buffering = true
+end sub
+
+' --- The side panels ---
+
+' A button's panel, as the Android TV player's: the controls give way to
+' it, and come back on the button as it closes.
+sub openPanel(kind as string, button as string)
+    if m.info = invalid then return
+    m.menuButton = button
+    ' Shown first, so the skip button stays away as the controls hide.
+    m.menu.visible = true
+    hideSkip()
+    hideControls()
+    m.menuSlide.control = "start"
+    if kind = "subtitles" or kind = "audio"
+        openTracks(kind)
+    else if kind = "quality"
+        openQualities()
+    else if kind = "chapters"
+        openChapters()
+    else if kind = "sleep"
+        openSleep()
+    else
+        openDetails()
+    end if
+end sub
+
+' Back in a panel: from Find subtitles' steps to Subtitles, else closed.
+sub menuBack()
+    kind = m.menuKind
+    if kind = "finding" or kind = "found" or kind = "adding"
+        openTracks("subtitles")
+    else if kind = "findLanguage"
+        findSubtitles()
+    else
+        closeMenu()
+    end if
+end sub
+
+' The panel goes; the controls come back on the button that opened it.
 sub closeMenu()
     if not m.menu.visible then return
     m.menu.visible = false
     m.menuKind = ""
-    m.video.setFocus(true)
-    updateSkip()
+    m.detailsTimer.control = "stop"
+    m.keys.setFocus(true)
+    button = m.menuButton
+    m.menuButton = ""
+    if button <> "" and m.info <> invalid and not m.notice.visible and not m.upNext.visible
+        showControls(button)
+    else
+        updateSkip()
+    end if
 end sub
 
 ' The file playing: the session's, else the item's first.
@@ -1733,7 +2322,7 @@ function playingFile() as dynamic
     return contentFile(m.item, fileId)
 end function
 
-' The quality as the menu says it: "Automatic · 8 Mbps 1080p" while
+' The quality as the panel says it: "Automatic · 8 Mbps 1080p" while
 ' Automatic plays, else the one chosen, named for the file.
 function qualityShown() as string
     choice = aqChoice(playbackSection())
@@ -1755,36 +2344,9 @@ function qualityShown() as string
     return aqLabel(choice)
 end function
 
-sub onMenuEntry(event as object)
-    if m.menuKind = "found"
-        if event.getData() = 0
-            openFindLanguages()
-        else
-            addSubtitles(event.getData() - 1)
-        end if
-        return
-    end if
-    action = m.menuActions[event.getData()]
-    if action = "find"
-        findSubtitles()
-    else if action = "subtitles" or action = "audio"
-        openTracks(action)
-    else if action = "quality"
-        openQualities()
-    else if action = "sync"
-        closeMenu()
-        openSync()
-    else if action = "chapters"
-        openChapters()
-    else if action = "sleep"
-        openSleep()
-    else
-        openDetails()
-    end if
-end sub
-
 ' The file's subtitles (Off first) or audio (Automatic first), as on the
-' title's page, the one playing checked.
+' title's page, the one playing checked. Subtitles end with Subtitle sync
+' (for text subtitles, or pictures drawn here) and Find subtitles….
 sub openTracks(kind as string)
     tracks = mediaTracks(playingFile())
     m.menuKind = kind
@@ -1796,15 +2358,28 @@ sub openTracks(kind as string)
         list = tracks.subtitles
     end if
     items = []
-    for each label in list.labels
-        items.Push({ title: label })
+    values = []
+    for i = 0 to list.labels.Count() - 1
+        items.Push({ title: list.labels[i] })
+        values.Push(list.values[i])
     end for
-    m.menuValues = list.values
-    m.trackCurrent = list.values[list.current]
-    showMenuChoices(items, list.current)
+    current = list.current
+    if list.labels.Count() = 0 then current = -1
+    m.trackCurrent = invalid
+    if current >= 0 then m.trackCurrent = list.values[current]
+    if kind = "subtitles"
+        if m.textTracks > 0 or m.pictureIndex >= 0
+            items.Push({ title: t("player.menu.syncNow", { offset: syncLabel(m.syncMs) }) })
+            values.Push("sync")
+        end if
+        items.Push({ title: t("player.menu.find") })
+        values.Push("find")
+    end if
+    m.menuValues = values
+    showMenuChoices(items, current)
 end sub
 
-' A track picked in the menu, or by the user's remote, is saved for the
+' A track picked in the panel, or by the user's remote, is saved for the
 ' show or movie, as on the title's page (PUT /api/items/{id}/streams):
 ' audio picked goes with the subtitles shown, subtitles with the audio as
 ' it was picked. The stream then opens again where it was with them,
@@ -1824,7 +2399,7 @@ sub pickTrack(kind as string, index as integer)
     ' The person's pick takes over from a cast's audio.
     m.playAudio = -1
     body = tracksStreamsBody(file.id, audio, subtitle)
-    m.loading.visible = true
+    setLoading(true)
     uiRequest({ method: "PUT", path: "/api/items/" + urlValue(m.itemId) + "/streams", jsonText: FormatJson(body), attempt: m.attempt }, "onTrackPicked")
 end sub
 
@@ -1842,7 +2417,8 @@ sub onTrackPicked(event as object)
     open(m.itemId, position, invalid, m.mode)
 end sub
 
-' The qualities this file is offered, the one chosen checked.
+' The qualities this file is offered, the one chosen checked, each with
+' what it means under it.
 sub openQualities()
     m.menuKind = "quality"
     m.menuTitle.text = t("player.menu.quality")
@@ -1853,10 +2429,11 @@ sub openQualities()
     current = 0
     for each quality in aqMenuFor(playingFile(), m.originalOnly)
         if quality.id = choice then current = items.Count()
-        items.Push({ title: quality.label })
+        items.Push({ title: quality.label, description: aqHint(quality.id) })
         m.menuValues.Push(quality.id)
     end for
     showMenuChoices(items, current)
+    m.menuHint.text = t("player.menu.qualityNow", { quality: qualityShown() })
 end sub
 
 sub openChapters()
@@ -1885,34 +2462,56 @@ sub openSleep()
         m.menuValues.Push(choice.minutes)
     end for
     showMenuChoices(items, current)
+    if m.sleep.minutes <> 0 then m.menuHint.text = sleepLabel(m.sleep, sleepNow(), playingKind())
 end sub
 
+' The panel's rows, the choice made (current, -1 for none) checked and
+' focused.
 sub showMenuChoices(items as object, current as integer)
-    m.menuChoices.content = nodesContent(items)
-    m.menuChoices.checkedItem = current
-    m.menuChoices.jumpToItem = current
-    m.menuList.visible = false
+    for i = 0 to items.Count() - 1
+        items[i].checked = i = current
+    end for
+    m.menuList.content = nodesContent(items)
+    at = current
+    if at < 0 then at = 0
+    m.menuList.jumpToItem = at
     m.menuText.visible = false
-    m.menuChoices.visible = true
+    m.menuFacts.visible = false
+    m.menuList.visible = true
     m.menuHint.text = ""
-    onMenuChoiceFocused()
-    m.menuChoices.setFocus(true)
+    m.menuList.setFocus(true)
 end sub
 
 sub onMenuChoiceFocused()
-    if m.menuKind <> "quality" then return
-    at = m.menuChoices.itemFocused
-    if at >= 0 and at < m.menuValues.Count() then m.menuHint.text = aqHint(m.menuValues[at])
 end sub
 
-' A quality is kept as the Roku's (Settings shows it) and the title opens
-' again at it where it was; a chapter is gone to.
+' A row chosen: a track, a quality (kept as the Roku's: Settings shows it,
+' and the title opens again at it where it was), a chapter gone to, the
+' sleep timer set; Subtitle sync and Find subtitles… go on from there.
 sub onMenuChoice(event as object)
     at = event.getData()
+    kind = m.menuKind
+    if kind = "found"
+        if at = 0
+            openFindLanguages()
+        else
+            addSubtitles(at - 1)
+        end if
+        return
+    end if
     if at < 0 or at >= m.menuValues.Count() then return
     value = m.menuValues[at]
-    kind = m.menuKind
-    ' A language to look in: the menu stays, and looks there.
+    if kind = "subtitles" and GetInterface(value, "ifString") <> invalid
+        if value = "sync"
+            m.menuButton = ""
+            closeMenu()
+            openSync()
+        else
+            findSubtitles()
+        end if
+        return
+    end if
+    ' A language to look in: the panel stays, and looks there.
     if kind = "findLanguage"
         m.findLanguage = value
         findSubtitles()
@@ -1920,11 +2519,11 @@ sub onMenuChoice(event as object)
     end if
     closeMenu()
     if kind = "chapters"
-        seekTo(value)
+        seekNow(value)
         return
     end if
     if kind = "subtitles" or kind = "audio"
-        if value <> m.trackCurrent then pickTrack(kind, value)
+        if m.trackCurrent = invalid or value <> m.trackCurrent then pickTrack(kind, value)
         return
     end if
     if kind = "sleep"
@@ -2003,12 +2602,12 @@ sub onSleepTick()
     if not m.sleepNotice.visible
         m.sleepNotice.visible = true
         ' The button takes the focus while nothing else is up.
-        if m.video.hasFocus() or m.skip.hasFocus() then m.sleepButtons.setFocus(true)
+        if ((m.keys.hasFocus() or m.top.hasFocus()) and not m.controls.shown) or m.skip.hasFocus() then m.sleepButtons.setFocus(true)
     end if
 end sub
 
 sub hideSleepNotice()
-    if m.sleepButtons.isInFocusChain() then m.video.setFocus(true)
+    if m.sleepButtons.isInFocusChain() then focusKeys()
     m.sleepNotice.visible = false
 end sub
 
@@ -2024,12 +2623,13 @@ end sub
 sub openDetails()
     m.menuKind = "details"
     m.menuTitle.text = t("player.menu.details")
+    m.detailsShown = ""
     showDetails(invalid)
     m.menuList.visible = false
-    m.menuChoices.visible = false
-    m.menuText.visible = true
+    m.menuText.visible = false
+    m.menuFacts.visible = true
     m.menuHint.text = ""
-    m.top.setFocus(true)
+    m.keys.setFocus(true)
     onDetailsTick()
     m.detailsTimer.control = "start"
 end sub
@@ -2057,15 +2657,14 @@ end sub
 sub showDetails(live as dynamic)
     if m.info = invalid then return
     details = detPlayback(m.info, playingFile(), m.audioPlaying, live, m.positionMs)
-    lines = [details.method]
-    if details.why <> "" then lines.Push(details.why)
-    lines.Push("")
-    for each row in details.rows
-        lines.Push(detLine(row))
-    end for
-    if m.pictureIndex >= 0 then lines.Push(t("player.details.picturesDrawn"))
-    if m.watch <> invalid and aqLowered(m.watch) then lines.Push(t("player.details.qualityLowered", { quality: qualityShown() }))
-    m.menuText.text = lines.Join(Chr(10))
+    lines = detSheet(details)
+    if m.pictureIndex >= 0 then lines.Push({ kind: "note", text: t("player.details.picturesDrawn") })
+    if m.watch <> invalid and aqLowered(m.watch) then lines.Push({ kind: "note", text: t("player.details.qualityLowered", { quality: qualityShown() }) })
+    ' Asked again every 2 s: laid out again only when something changed.
+    shown = FormatJson(lines)
+    if shown = m.detailsShown then return
+    m.detailsShown = shown
+    m.menuFacts.lines = lines
 end sub
 
 ' --- Picture subtitles drawn here (Pictures.brs) ---
@@ -2113,7 +2712,14 @@ end sub
 ' a time, the next a few seconds after the last answer while the track
 ' isn't whole.
 sub askPictures()
-    if m.pictureIndex < 0 or m.pictureWaiting or m.sessionId = "" then return
+    if m.pictureIndex < 0 then return
+    ' A request still out, or the session between two (a stream given
+    ' again): a look later, not none, or the track stopped at its first
+    ' answer.
+    if m.pictureWaiting or m.sessionId = ""
+        m.picturesTimer.control = "start"
+        return
+    end if
     m.picturesTimer.control = "stop"
     m.pictureWaiting = true
     path = picListPath(m.pictureFolder, m.pictureIndex, m.positionMs)
@@ -2237,7 +2843,7 @@ sub findSubtitles()
     m.menuTitle.text = t("player.find.title")
     m.found = []
     showMenuText(t("player.find.searching"))
-    m.top.setFocus(true)
+    m.keys.setFocus(true)
     fileId = 0
     if m.info <> invalid then fileId = m.info.file_id
     uiRequest({ method: "GET", path: ssSearchPath(m.itemId, fileId, m.findLanguage), timeoutMs: 30000, session: m.sessionId }, "onSubtitlesFound")
@@ -2259,7 +2865,7 @@ end sub
 sub showMenuText(text as string)
     m.menuText.text = text
     m.menuList.visible = false
-    m.menuChoices.visible = false
+    m.menuFacts.visible = false
     m.menuText.visible = true
     m.menuHint.text = t("player.menu.backGoesBack")
 end sub
@@ -2273,34 +2879,24 @@ sub onSubtitlesFound(event as object)
     end if
     m.found = ssResults(answer.data)
     m.menuKind = "found"
-    items = [{ title: ssLanguageEntry(m.findLanguage) }]
+    ' The Language row first, then the results, each with what it is under
+    ' it; the first result in focus.
+    items = [{ title: ssLanguageEntry(m.findLanguage), description: t("player.find.languageHint") }]
     for each result in m.found
-        items.Push({ title: result.label })
+        items.Push({ title: result.label, description: result.hint })
     end for
     m.menuList.content = nodesContent(items)
-    ' The first result in focus, the Language entry above it.
     if m.found.Count() > 0
         m.menuList.jumpToItem = 1
+        m.menuHint.text = ""
     else
         m.menuList.jumpToItem = 0
+        m.menuHint.text = ssNothingFound(m.findLanguage)
     end if
     m.menuText.visible = false
-    m.menuChoices.visible = false
+    m.menuFacts.visible = false
     m.menuList.visible = true
-    onMenuEntryFocused()
     m.menuList.setFocus(true)
-end sub
-
-sub onMenuEntryFocused()
-    if m.menuKind <> "found" then return
-    at = m.menuList.itemFocused - 1
-    if at >= 0 and at < m.found.Count()
-        m.menuHint.text = m.found[at].hint
-    else if m.found.Count() = 0
-        m.menuHint.text = ssNothingFound(m.findLanguage)
-    else
-        m.menuHint.text = t("player.find.languageHint")
-    end if
 end sub
 
 ' The result picked is added on the server, then shown.
@@ -2308,7 +2904,7 @@ sub addSubtitles(at as integer)
     if at < 0 or at >= m.found.Count() or m.info = invalid then return
     m.menuKind = "adding"
     showMenuText(t("player.find.adding", { name: m.found[at].label }))
-    m.top.setFocus(true)
+    m.keys.setFocus(true)
     body = { result: m.found[at].id }
     fileId = httpNumber(m.info.file_id, 0)
     if fileId > 0 then body.file_id = fileId

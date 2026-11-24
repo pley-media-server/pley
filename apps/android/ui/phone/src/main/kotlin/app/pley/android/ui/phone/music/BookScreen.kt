@@ -48,6 +48,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.music.BookPage
@@ -138,6 +139,7 @@ internal fun BookScreen(bookId: Long) {
                                 onPlay = model::play,
                                 onShuffle = {},
                                 extra = { BookProgressLine(page) },
+                                mark = MarkGlyph.Audiobooks,
                                 buttons = {
                                     val playingThis = s.current != null
                                     PrimaryButton(

@@ -158,9 +158,16 @@ rates as the decoder gives them, the same in every language.
 ### Phones and tablets
 
 - **Pictures**, here and on TVs: a title without one, or whose picture
-  doesn't load, shows its title's gradient (the web's) with Pley's mark
-  on it; while a picture loads, the gradient alone. A tile's name is in
-  its caption, not on its picture.
+  doesn't load, shows its title's gradient (every app's) with Pley's mark
+  on it, a glyph cut out of its front poster for the title's kind of
+  library (a clapperboard for movies, a TV for shows, notes for music,
+  a book for audiobooks, play for the rest); while a picture loads, the
+  gradient alone. A tile's name is in its caption, not on its picture. The mark shows only
+  where the title's name is by its picture (a caption, the line beside
+  it): backdrops, people, Live TV's programs and a playlist's mosaic
+  keep the gradient alone, and the player's Up Next card too, as it
+  doesn't know its title's kind. The gradient and the mark are
+  `packages/placeholder`'s, which unit tests hold the app's copies to.
 - **The tabs** are a bar under the page on a phone held upright, with
   their names, and a rail beside it on a phone on its side, a tablet or
   a car's screen: icons alone, centered on its height and read out by
@@ -756,6 +763,20 @@ channels (`GET /api/search?limit=200`), the most it gives, and shows every
 one: a row per group (Movies, Shows, Seasons, Episodes, Artists, Albums,
 Tracks, Live TV, People) on phones and TVs, each scrolling sideways, with
 no See all. TMDB's Discover row comes after them ([Requests](#requests)).
+
+### Up Next
+
+Skip Intro and Skip Credits show while an intro or the credits play, until
+a second before they end; nothing is skipped by itself. Up Next, what
+plays next with a 10 s countdown (none with Play the next episode by
+itself off), comes as credits that run to the end of their file begin,
+and otherwise at the end of the file. Credits run to the end when they end
+at most 15 s before it, by the file's length as the server lists it, else
+as the player has it; with no length known, they don't. Credits that
+something follows, an after-credits scene or a show's last minutes, offer
+only Skip Credits, so the countdown never skips what comes after them. An
+episode goes on to the next one, and a title played from a playlist or a
+collection to the next title there, the same on phones and TVs.
 
 ### Audio and subtitles
 
@@ -1744,8 +1765,8 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
   further ahead of the grid than the rows on the screen.
 - A tile is few nodes, and costs little to make: its caption is one node
   drawing its two lines with the platform's paint, and its picture draws
-  in its own box. While a key holds pictures back, their requests are set aside off
-  the main thread, and go on there when the key comes up.
+  in its own box. While a key holds pictures back, their requests are set
+  aside off the main thread, and go on there when the key comes up.
 - A held Up or Down on a page of rows moves focus to the next row's
   tile itself (the one nearest across, or the tile that row comes back
   to), and stays at the page's ends and below a hero. Compose's own
@@ -1754,7 +1775,8 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
 - A tile is drawn in its rounded shape, not clipped to it (a clip is a
   pass of its own for a TV's GPU, for each tile), on a layer of its own
   that scrolling moves rather than draws again, and its placeholder's
-  gradient is one draw of one small picture shared by every title.
+  gradient is one draw of one small picture shared by every title; Pley's
+  mark on it is three paths, parsed once for each glyph.
 
 On an emulator, frame times (the benchmarks', the counter's or
 `dumpsys gfxinfo`'s) say little about drawing: the emulator's GPU takes

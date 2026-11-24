@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use pley_transcoder_api::{MediaStream, StreamKind, is_text_subtitle_codec};
 use serde::{Deserialize, Serialize};
 
-use super::walk::{IMAGE_EXTENSIONS, NFO_EXTENSIONS, SUBTITLE_EXTENSIONS};
+use super::walk::{IMAGE_EXTENSIONS, NFO_EXTENSIONS, SUBTITLE_EXTENSIONS, is_subtitle_folder};
 
 /// External subtitle streams get indexes from this value up, below
 /// [`crate::subtitles::ADDED_INDEX_BASE`].
@@ -93,7 +93,7 @@ pub struct Sidecars {
 }
 
 fn is_subs_folder(dir: &Path) -> bool {
-    dir.file_name().is_some_and(|name| matches!(name.to_string_lossy().to_lowercase().as_str(), "subs" | "subtitles"))
+    dir.file_name().is_some_and(|name| is_subtitle_folder(&name.to_string_lossy()))
 }
 
 impl Sidecars {

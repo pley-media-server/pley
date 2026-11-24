@@ -523,10 +523,10 @@ function mediaStreamFacts(stream as object) as object
     return facts
 end function
 
-' A title's media info as text, for a panel that scrolls: each file (in
-' capitals, by its edition, or "Version 2" when there are several) and its
-' blocks, "Label: value" under each block's title, a line between blocks.
-function mediaInfoText(item as object) as string
+' A title's media info as a FactSheet's lines: each file by its edition,
+' or "Version 2" when there are several, then its blocks, each a heading
+' over its facts.
+function mediaInfoSheet(item as object) as object
     files = []
     for each file in httpArray(item.files)
         if httpObject(file) <> invalid then files.Push(file)
@@ -535,19 +535,13 @@ function mediaInfoText(item as object) as string
     for i = 0 to files.Count() - 1
         title = httpSentence(files[i].edition)
         if title = "" and files.Count() > 1 then title = t("player.tracks.version", { number: i + 1 })
-        if title <> ""
-            if lines.Count() > 0 then lines.Push("")
-            lines.Push(UCase(title))
-        end if
-        under = title <> ""
+        if title <> "" then lines.Push({ kind: "version", text: title })
         for each block in mediaFacts(files[i])
-            if lines.Count() > 0 and not under then lines.Push("")
-            under = false
-            lines.Push(block.title)
+            lines.Push({ kind: "heading", text: block.title })
             for each fact in block.facts
-                lines.Push(t("player.media.fact", { label: fact.label, value: fact.value }))
+                lines.Push({ kind: "fact", text: fact.label, value: fact.value })
             end for
         end for
     end for
-    return lines.Join(Chr(10))
+    return lines
 end function

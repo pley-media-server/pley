@@ -84,6 +84,7 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.TrackChange
 import app.pley.android.designsystem.TrackWords
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.image.TrackArt
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.model.format.formatClockMs
@@ -171,7 +172,7 @@ internal fun TvNowPlayingScreen() {
         Row(Modifier.fillMaxSize().padding(start = PleyTv.Gutter, top = 58.dp, end = TvSafeArea.Horizontal)) {
             // The tiles' corners, as an album's or a book's cover on its page; it stays until the next track's fades in.
             Box(Modifier.size(ART).clip(PleyShape.TileTv).background(PleyColors.Surface2)) {
-                TrackArt(art, now.album ?: now.title, Modifier.matchParentSize())
+                TrackArt(art, now.album ?: now.title, Modifier.matchParentSize(), mark = if (now.book) MarkGlyph.Audiobooks else MarkGlyph.Music)
             }
             Spacer(Modifier.width(32.dp))
             Column(Modifier.fillMaxSize().focusGroup()) {

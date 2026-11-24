@@ -134,6 +134,24 @@ function i18nChoices(automatic as string, current as string) as object
     return choice
 end function
 
+' The family of type a language is drawn in (Type.brs): Roboto, or for
+' Chinese Noto Sans SC or TC, which have its characters.
+function i18nFontFamily(language as dynamic) as string
+    if language = "zh-CN" then return "noto-sc"
+    if language = "zh-TW" then return "noto-tc"
+    return "roboto"
+end function
+
+' Whether text has a Chinese, Japanese or Korean character (U+2E80 on),
+' which Roboto lacks.
+function i18nHasCjk(text as dynamic) as boolean
+    if GetInterface(text, "ifString") = invalid then return false
+    for i = 1 to Len(text)
+        if Asc(Mid(text, i, 1)) >= &h2E80 then return true
+    end for
+    return false
+end function
+
 ' A language's name in itself: "English", "Français", "Español",
 ' "简体中文", "繁體中文". The Chinese keys need quotes: a hyphen in a
 ' BrightScript name would read as a minus.

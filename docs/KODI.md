@@ -78,6 +78,13 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   apps' size, so beside Live TV it lists four libraries.
 - **The profile's menu** has Discover and Your requests where the server
   takes requests; they open in Kodi's lists ([Requests](#requests)).
+- **Pictures:** a tile shows its title's gradient with Pley's mark on it
+  until its picture covers it; the caption under the tile names it. The
+  glyph on the mark's front poster is the title's kind of library: a
+  clapperboard for movies, a TV for shows, notes for music, play for the
+  rest. Kodi doesn't tell the window whether a picture loads or won't
+  come, so the mark is there while one loads too, where the other apps
+  show the gradient alone.
 - **The menu key** on a tile: mark watched, My List, add to a playlist,
   remove from Continue Watching, go to the show. In a playlist it also
   moves and removes entries.
@@ -170,6 +177,17 @@ Kodi's part (`autoquality.py`):
 - Kodi reads a full buffer only as fast as it plays, so it rarely measures
   a way up; a stream that can't go higher raises where the next title
   starts instead.
+
+### Skip and Up Next
+
+While the video is on screen, Skip Intro and Skip Credits show from a
+marker's start until a second before its end, for 10 seconds at most. An
+episode's credits that run to the end of the file (ending 15 seconds or
+less before it) bring Up Next instead: the next episode plays after a
+10-second countdown unless canceled, which leaves Skip Credits. Credits
+that something follows (an after-credits scene, a show's last minutes)
+keep Skip Credits, and Up Next comes when the file ends, as it does for an
+episode without credits.
 
 ### Live TV
 

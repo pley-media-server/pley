@@ -699,7 +699,8 @@ impl FileRow {
         streams
     }
 
-    pub fn to_dto(&self) -> MediaFileDto {
+    /// The file as the API gives it, of a `movie` or another item.
+    pub fn to_dto(&self, movie: bool) -> MediaFileDto {
         // Parse the stored media info once.
         let (streams, chapters) = self.media_info().map(|m| (m.streams, m.chapters)).unwrap_or_default();
         MediaFileDto {
@@ -714,7 +715,7 @@ impl FileRow {
             video_codec: self.video_codec.clone(),
             audio_codec: self.audio_codec.clone(),
             streams: self.streams_of(streams),
-            edition: crate::library::parse::edition(std::path::Path::new(&self.path)),
+            edition: crate::library::parse::edition(std::path::Path::new(&self.path), movie),
             selected_audio: None,
             audio_picked: false,
             selected_subtitle: None,
@@ -1187,7 +1188,7 @@ pub async fn item_detail(db: &Db, row: ItemRow) -> sqlx::Result<ItemDetail> {
         content_rating_country: detail.content_rating_country,
         tmdb_id: detail.tmdb_id,
         imdb_id: detail.imdb_id,
-        files: files.iter().map(FileRow::to_dto).collect(),
+        files: files.iter().map(|file| file.to_dto(row.kind == "movie")).collect(),
         markers,
         locked_fields: Vec::new(),
         nfo_fields: Vec::new(),

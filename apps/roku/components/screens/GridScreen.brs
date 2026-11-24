@@ -17,8 +17,9 @@ sub init()
     m.shown = -1
     m.newKind = ""
     m.lastFocus = m.grid
-    m.buttons.buttons = [t("browse.playlists.new")]
-    m.buttons.observeField("buttonSelected", "onNew")
+    m.buttons.chips = contentActionChips([t("browse.playlists.new")], ["create"])
+    m.buttons.translation = [1824 - m.buttons.rowWidth, 52]
+    m.buttons.observeField("chosen", "onNew")
     m.grid.observeField("itemSelected", "onSelected")
     m.top.observeField("active", "onActive")
 end sub
@@ -140,6 +141,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if key = "down" and m.buttons.isInFocusChain() and m.shown > 0
         m.grid.setFocus(true)
+        return true
+    end if
+    if key = "play" and m.grid.isInFocusChain() and m.grid.content <> invalid
+        uiPlayTile(m.grid.content.getChild(m.grid.itemFocused))
         return true
     end if
     if key = "options" and m.grid.isInFocusChain() and m.shown > 0

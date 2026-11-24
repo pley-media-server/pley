@@ -39,6 +39,7 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
@@ -137,7 +138,7 @@ private fun ArtistContent(
     Column(Modifier.fillMaxSize().padding(top = TOP)) {
         Row(Modifier.padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(PICTURE).clip(PleyShape.Circle).background(PleyColors.Surface2)) {
-                Artwork(picture, page.title, Modifier.matchParentSize())
+                Artwork(picture, page.title, Modifier.matchParentSize(), mark = MarkGlyph.Music)
             }
             Spacer(Modifier.width(28.dp))
             Column(Modifier.widthIn(max = 520.dp)) {

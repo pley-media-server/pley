@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A MarkupGrid whose focus moves at once on the arrows (QuickKeys.brs). -->
+<component name="QuickGrid" extends="MarkupGrid">
+    <script type="text/brightscript" uri="pkg:/components/shared/QuickGrid.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/QuickKeys.brs" />
+</component>

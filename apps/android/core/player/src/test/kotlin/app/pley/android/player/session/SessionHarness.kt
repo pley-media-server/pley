@@ -184,6 +184,9 @@ class SessionHarness(
     /** Downloads, for playbacks started from now on. */
     var local: LocalMedia = LocalMedia.None
 
+    /** Changes the server's item details for playbacks started from now on (a file's length, say). */
+    var editDetail: (ItemDetail) -> ItemDetail = { it }
+
     init {
         server.start()
         val token = server.accessToken()
@@ -201,7 +204,7 @@ class SessionHarness(
         api = api,
         capabilities = FakeDeviceCapabilities(probe = caps),
         policy = DefaultPlaybackCapsPolicy,
-        details = ItemDetails.of(api),
+        details = editDetail.let { edit -> ItemDetails { edit(api.item(it)) } },
         engines = { engine },
         texts = ResourcePlayerTexts(RuntimeEnvironment.getApplication()),
         clientId = { CLIENT_ID },

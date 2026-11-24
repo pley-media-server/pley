@@ -110,42 +110,59 @@ function playerStoppedMessage(body as dynamic) as string
     return text
 end function
 
+' Credits ending this close to the end of their file run to it, as the
+' server's Marker::reaches_end says: what is left is a studio's logo or
+' black, not a scene.
+function playerCreditsTailMs() as integer
+    return 15000
+end function
+
 ' The intro and credits of the file being played (the item's first file
-' when the session doesn't say), as { kind, startMs, endMs, key }: markers
-' belong to a file, since versions can be different cuts.
-function playerFileMarkers(item as dynamic, fileId as dynamic) as object
+' when the session doesn't say), as { kind, startMs, endMs, key,
+' reachesEnd }: markers belong to a file, since versions can be different
+' cuts. reachesEnd is true for credits that run to the end of the file,
+' by its length in the item's files, else durationMs (the session's); a
+' file of unknown length has none.
+function playerFileMarkers(item as dynamic, fileId as dynamic, durationMs = 0 as dynamic) as object
     found = []
     data = httpObject(item)
     if data = invalid then return found
+    files = httpArray(data.files)
     wanted = httpNumber(fileId, -1)
     if wanted = -1
-        files = httpArray(data.files)
         if files.Count() > 0 and GetInterface(files[0], "ifAssociativeArray") <> invalid then wanted = httpNumber(files[0].id, -1)
     end if
+    duration = Int(httpNumber(durationMs, 0))
+    for each file in files
+        if GetInterface(file, "ifAssociativeArray") <> invalid and httpNumber(file.id, -2) = wanted and httpNumber(file.duration_ms, 0) > 0 then duration = Int(file.duration_ms)
+    end for
     for each marker in httpArray(data.markers)
         if GetInterface(marker, "ifAssociativeArray") <> invalid and httpNumber(marker.file_id, -2) = wanted
             kind = httpString(marker.kind)
             startMs = Int(httpNumber(marker.start_ms, -1))
             endMs = Int(httpNumber(marker.end_ms, -1))
             if (kind = "intro" or kind = "credits") and startMs >= 0 and endMs > startMs
-                found.Push({ kind: kind, startMs: startMs, endMs: endMs, key: kind + ":" + startMs.ToStr() })
+                reachesEnd = kind = "credits" and duration > 0 and duration - endMs <= playerCreditsTailMs()
+                found.Push({ kind: kind, startMs: startMs, endMs: endMs, key: kind + ":" + startMs.ToStr(), reachesEnd: reachesEnd })
             end if
         end if
     end for
     return found
 end function
 
-' When Up Next shows, in ms into the file: where its credits start, else
-' 30 s before the end; -1 for a file too short for it. markers are the
-' file's (playerFileMarkers).
+' When Up Next shows, in ms into the file: where its credits start when
+' they run to the end of the file; -1 otherwise, for Up Next at the end
+' (the player's ended). Credits that something follows (an after-credits
+' scene, a show's last minutes) only bring Skip Credits, so the countdown
+' doesn't skip what comes after them, and a file without credits can end
+' on a scene too. markers are the file's (playerFileMarkers).
 function playerUpNextAt(durationMs as dynamic, markers as object) as integer
     duration = Int(httpNumber(durationMs, 0))
     credits = -1
     for each marker in markers
-        if marker.kind = "credits" and marker.startMs > 0 and (credits = -1 or marker.startMs < credits) then credits = marker.startMs
+        if marker.kind = "credits" and marker.reachesEnd and marker.startMs > 0 and (credits = -1 or marker.startMs < credits) then credits = marker.startMs
     end for
     if credits > 0 and (duration <= 0 or credits < duration) then return credits
-    if duration > 60000 then return duration - 30000
     return -1
 end function
 
@@ -164,12 +181,14 @@ function playerActiveMarker(markers as object, positionMs as integer) as dynamic
     return invalid
 end function
 
-' The marker whose button shows at positionMs, or invalid: credits leave
-' the screen to Up Next when an episode has a next one to offer.
+' The marker whose button shows at positionMs, or invalid: credits that
+' run to the end leave the screen to Up Next when there is a next one to
+' offer. Credits that something follows keep Skip Credits: Up Next waits
+' for the end.
 function playerSkipFor(markers as object, positionMs as integer, upNextComing as boolean) as dynamic
     marker = playerActiveMarker(markers, positionMs)
     if marker = invalid then return invalid
-    if marker.kind = "credits" and upNextComing then return invalid
+    if marker.kind = "credits" and marker.reachesEnd and upNextComing then return invalid
     return marker
 end function
 

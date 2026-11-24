@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ItemDetail, Marker, MediaFile } from "@/api/types";
 import { makeItem, makeMarker } from "@/test/fixtures";
-import { activeMarker, fileMarkers, SkipButton, skipTarget, useSkipMarkers } from "./SkipButton";
+import { activeMarker, fileMarkers, reachesEnd, SkipButton, skipTarget, useSkipMarkers } from "./SkipButton";
 
 const intro = makeMarker({ kind: "intro", start_ms: 10_000, end_ms: 70_000 });
 const credits = makeMarker({ kind: "credits", start_ms: 1_200_000, end_ms: 1_300_000 });
@@ -49,14 +49,28 @@ describe("skipTarget", () => {
   });
 });
 
+describe("reachesEnd", () => {
+  it("takes credits ending within 15 s of the end of their file as running to it", () => {
+    expect(reachesEnd(credits, 1_300_000)).toBe(true);
+    expect(reachesEnd(credits, 1_315_000)).toBe(true);
+    expect(reachesEnd(credits, 1_315_001)).toBe(false);
+  });
+
+  it("leaves out intros and files of unknown length", () => {
+    expect(reachesEnd(makeMarker({ kind: "intro", start_ms: 0, end_ms: 60_000 }), 60_000)).toBe(false);
+    expect(reachesEnd(credits, 0)).toBe(false);
+  });
+});
+
 describe("useSkipMarkers", () => {
-  type Props = { seconds: number; enabled?: boolean; markers?: Marker[] };
+  // The file ends with the credits unless a test says otherwise.
+  type Props = { seconds: number; enabled?: boolean; markers?: Marker[]; durationMs?: number };
 
   function setup(initial: Props) {
     const onCredits = vi.fn();
     const hook = renderHook(
-      ({ seconds, enabled = true, markers = [intro, credits] }: Props) =>
-        useSkipMarkers({ markers, seconds, enabled, onCredits }),
+      ({ seconds, enabled = true, markers = [intro, credits], durationMs = credits.end_ms }: Props) =>
+        useSkipMarkers({ markers, seconds, durationMs, enabled, onCredits }),
       { initialProps: initial },
     );
     return { ...hook, onCredits };
@@ -79,6 +93,33 @@ describe("useSkipMarkers", () => {
 
     rerender({ seconds: 1_000 });
     rerender({ seconds: 1_210 });
+    expect(onCredits).toHaveBeenCalledTimes(1);
+  });
+
+  it("announces credits ending 10 s before the end of the file", () => {
+    const { result, onCredits } = setup({ seconds: 1_201, durationMs: 1_310_000 });
+    expect(result.current).toBe(credits);
+    expect(onCredits).toHaveBeenCalledWith(credits);
+  });
+
+  it("only offers to skip credits that something follows, 60 s before the end", () => {
+    const { result, onCredits } = setup({ seconds: 1_201, durationMs: 1_360_000 });
+    expect(result.current).toBe(credits);
+    expect(onCredits).not.toHaveBeenCalled();
+  });
+
+  it("only offers to skip credits in a file of unknown length", () => {
+    const { result, onCredits } = setup({ seconds: 1_201, durationMs: 0 });
+    expect(result.current).toBe(credits);
+    expect(onCredits).not.toHaveBeenCalled();
+  });
+
+  it("announces the credits once the file's length becomes known inside them", () => {
+    const { rerender, onCredits } = setup({ seconds: 1_201, durationMs: 0 });
+    expect(onCredits).not.toHaveBeenCalled();
+    rerender({ seconds: 1_203, durationMs: credits.end_ms });
+    expect(onCredits).toHaveBeenCalledTimes(1);
+    rerender({ seconds: 1_205, durationMs: credits.end_ms });
     expect(onCredits).toHaveBeenCalledTimes(1);
   });
 

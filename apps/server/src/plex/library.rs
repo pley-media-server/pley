@@ -260,9 +260,24 @@ pub async fn refresh(
     params: Params,
 ) -> PlexResult<Node> {
     let (lib, _) = library_for(&state, &admin, &id).await?;
-    state.scanner.enqueue(lib.id, params.flag("force"));
+    // Tools that put a title in its folder name it: only there is scanned
+    // again, unless every file is. A path the library's folders don't hold
+    // (as the tool sees the disk, not as Pley does), or that goes up a
+    // folder with `..`, scans all of it.
+    let path = params
+        .get("path")
+        .filter(|path| path.len() <= MAX_PATH)
+        .map(std::path::PathBuf::from)
+        .filter(|path| !path.components().any(|part| part == std::path::Component::ParentDir));
+    match path.filter(|path| lib.paths().iter().any(|root| path.starts_with(root))) {
+        Some(path) if !params.flag("force") => state.scanner.enqueue_changes(lib.id, vec![path]),
+        _ => state.scanner.enqueue(lib.id, params.flag("force")),
+    }
     Ok(Node::container().attr("size", 0))
 }
+
+/// The longest folder a refresh names that is scanned alone.
+const MAX_PATH: usize = 4096;
 
 /// `/library/metadata/{key}/refresh`: an item's metadata is fetched again.
 /// Collections and playlists have none to fetch: they answer once found.

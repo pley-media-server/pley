@@ -155,6 +155,12 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Movies, shows and music without a picture, or whose picture doesn't
+  load, show their title's colors with Pley's mark, as the other apps do,
+  in place of a gray box, on tiles, an item's page, playlists and
+  history, where their name is beside or under the picture. The mark
+  shows what they are: a clapperboard for movies, a TV for shows, notes
+  for music.
 - English words are spelled the American way: color, favorite, program.
 - A library's Recommended tab no longer ends with a row of every collection.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
@@ -170,6 +176,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Music playing here pauses once Play on… sends something to another
   device, rather than playing in both places.
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end
+  instead.
 - Traditional Chinese uses the words people use in Taiwan, such as 影集 for
   a show, 單集 for an episode, 藝人 for an artist, 類型 for a genre, 項目
   for an item and 設定檔 for a Dolby Vision profile, and quotes with 「」.

@@ -58,9 +58,14 @@
              Language row is this Roku's while it is the one in use, though
              Settings closes. -->
         <field id="languageRefused" type="string" />
+        <!-- Home's libraries and whether the server has Live TV, as it loads
+             them: the rail's entries. -->
+        <field id="railLibraries" type="array" />
+        <field id="railLive" type="boolean" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
@@ -75,8 +80,12 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Music.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Live.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Home.brs" />
     <children>
         <Group id="screens" />
+        <!-- The rail at the left of the browsing pages (Rail.xml). -->
+        <Rail id="rail" visible="false" />
         <!-- Ready-to-watch news, at the bottom right over the pages. -->
         <RequestNotice id="notice" translation="[1104, 702]" visible="false" />
         <!-- "Playing from …" as a cast starts, over the screen on top, as

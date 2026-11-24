@@ -4,6 +4,9 @@ sub init()
     m.lineTop = m.top.findNode("lineTop")
     m.lineBottom = m.top.findNode("lineBottom")
     m.lineLeft = m.top.findNode("lineLeft")
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 ' The words, and the button wide enough for them: 280, or more for longer

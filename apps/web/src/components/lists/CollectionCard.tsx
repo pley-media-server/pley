@@ -34,6 +34,7 @@ export function CollectionCard({
           width={width}
           alt=""
           title={collection.title}
+          mark="play"
           className="aspect-[2/3] w-full"
           imgClassName="transition-transform duration-300 motion-safe:group-hover/card:scale-[1.04]"
         />

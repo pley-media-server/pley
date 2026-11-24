@@ -177,7 +177,7 @@ impl ArtistScreen {
             + summary.as_ref().map_or(0.0, |s| 8.0 + s.size.h);
         let header = column.max(PICTURE);
         let picture = Rect::new(theme::GUTTER, TOP + (header - PICTURE) / 2.0, PICTURE, PICTURE);
-        art_well(ui, picture, &art.picture, &detail.title, PICTURE / 2.0);
+        art_well(ui, picture, &art.picture, &detail.title, detail.kind.mark_glyph(), PICTURE / 2.0);
         let mut y = TOP + (header - column) / 2.0;
         y += ui
             .text(Point::new(x, y), t!("music.pages.artist"), &theme::CAPTION, &TextOpts::line(width), theme::MUTED)
@@ -255,6 +255,7 @@ impl ArtistScreen {
                     Tile::new(TileKind::Square, &a.title)
                         .subtitle(&years[slot.index])
                         .art(art_of(slot.index))
+                        .mark(Some(a.kind.mark_glyph()))
                         .paint(ui, slot);
                 },
             );

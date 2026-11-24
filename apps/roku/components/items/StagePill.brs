@@ -3,6 +3,9 @@ sub init()
     m.label = m.top.findNode("label")
     m.track = m.top.findNode("track")
     m.fill = m.top.findNode("fill")
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 sub onLook()

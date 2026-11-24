@@ -40,6 +40,9 @@ describes how they are made.
 
 ### Changed
 
+- Movies, shows and music without a picture show Pley's mark on their
+  placeholder instead of their title, which the caption under it shows,
+  with a clapperboard, a TV or notes in it for their kind of library.
 - English words are spelled the American way: color, favorite, program.
 - Recommended no longer ends with a row of every collection: it shows
   the rows administrators chose.
@@ -189,6 +192,8 @@ describes how they are made.
 
 ### Fixed
 
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end instead.
 - A video whose audio the TV can't decode plays with the audio converted
   by the server, or another track, instead of failing after a transcode.
 - A collection's page shows its titles under Play and Shuffle, where they

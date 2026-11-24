@@ -196,13 +196,20 @@ function detPlayback(info as object, file as dynamic, audioIndex as integer, liv
     return { method: detMethod(info), why: why, rows: rows }
 end function
 
-' A row of the playback's details as a line: "Video: HEVC 4K", "Vidéo :
-' HEVC 4K".
-function detLine(row as object) as string
-    return t("titles.playback.line", { label: row.label, value: row.value })
+' The playback's details as a FactSheet's lines: the method as a heading,
+' why under it, then each row. Roboto, the panel's type, has no arrow:
+' what plays goes to what is sent with "›" instead ("HEVC 4K › H.264").
+function detSheet(details as object) as object
+    lines = [{ kind: "heading", text: details.method }]
+    if details.why <> "" then lines.Push({ kind: "note", text: details.why })
+    for each row in details.rows
+        lines.Push({ kind: "fact", text: row.label, value: row.value.Replace(" → ", " › ") })
+    end for
+    return lines
 end function
 
-' A file's chapters, by start: [{ label ("1. Opening · 0:00"), startMs }].
+' A file's chapters, by start: [{ label ("1. Opening · 0:00"), name
+' ("Opening", "" for none), startMs }].
 function detChapters(file as dynamic) as object
     out = []
     if file = invalid then return out
@@ -211,9 +218,10 @@ function detChapters(file as dynamic) as object
             startMs = Int(httpNumber(chapter.start_ms, -1))
             if startMs >= 0
                 number = out.Count() + 1
-                title = httpSentence(chapter.title)
+                name = httpSentence(chapter.title)
+                title = name
                 if title = "" then title = t("titles.playback.chapter", { number: number })
-                out.Push({ label: urlValue(number) + ". " + title + " · " + fmtClock(startMs), startMs: startMs })
+                out.Push({ label: urlValue(number) + ". " + title + " · " + fmtClock(startMs), name: name, startMs: startMs })
             end if
         end if
     end for

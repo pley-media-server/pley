@@ -362,7 +362,7 @@ pub fn item_node(
     node = node.opt("userRating", row.user_rating);
     // The edition of the version played by default, as Plex names it.
     if kind == "movie" {
-        let edition = files.first().and_then(|f| crate::library::parse::edition(std::path::Path::new(&f.path)));
+        let edition = files.first().and_then(|f| crate::library::parse::edition(std::path::Path::new(&f.path), true));
         node = node.opt("editionTitle", edition);
     }
     node = node
@@ -515,14 +515,16 @@ pub fn item_node(
     // Intro and credits of the first version, as Plex marks them.
     if detail.markers && is_leaf(kind) {
         for marker in extras.map(|e| e.markers.as_slice()).unwrap_or_default() {
+            let duration = files.iter().find(|f| f.id == marker.file_id).and_then(|f| f.duration_ms).unwrap_or(0);
             node.push(
                 Node::new("Marker")
                     .attr("id", marker_id(marker))
                     .attr("type", &marker.kind)
                     .attr("startTimeOffset", marker.start_ms)
                     .attr("endTimeOffset", marker.end_ms)
-                    // pley's credits run to the end: the last marker.
-                    .opt("final", (marker.kind == "credits").then_some(1)),
+                    // Credits running to the end of the file: Plex apps offer
+                    // the next episode there, and not at credits a scene follows.
+                    .opt("final", marker.reaches_end(duration).then_some(1)),
             );
         }
     }

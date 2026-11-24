@@ -50,6 +50,7 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.R as ScreensR
@@ -149,7 +150,7 @@ private fun BookContent(
                 .focusGroup(),
         ) {
             Box(Modifier.size(ART).clip(PleyShape.TileTv).background(PleyColors.Surface2)) {
-                Artwork(art, page.title, Modifier.matchParentSize())
+                Artwork(art, page.title, Modifier.matchParentSize(), mark = MarkGlyph.Audiobooks)
             }
             Spacer(Modifier.height(12.dp))
             BasicText(page.kicker.asString(), style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)

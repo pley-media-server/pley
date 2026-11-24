@@ -86,8 +86,11 @@ With Android Auto:
   tabs' icons alone, in a column centered on its height.
 - A track that can't be played says so for 5 seconds, then the next one
   plays by itself; Play tries it again.
-- Music, movies and shows without a picture show Pley's mark on their
-  placeholder; their title is in the caption under it.
+- Movies, shows, music and audiobooks without a picture show Pley's mark
+  on their placeholder instead of their title, which the caption under it
+  shows. The mark has a glyph for the title's kind of library: a
+  clapperboard for movies, a TV for shows, notes for music, a book for
+  audiobooks.
 - Changing tabs fades from one to the next, Now Playing comes up from
   the bar of what plays, and that bar rises in as music starts.
 - Now Playing's sleep timer opens its choices in a sheet, as the queue
@@ -115,6 +118,9 @@ With Android Auto:
   the title and every control in view.
 - Music playing on the phone pauses once Play on… sends something to
   another device.
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end
+  instead, so its countdown no longer skips them.
 
 ## [0.1.17] - 2026-11-22
 

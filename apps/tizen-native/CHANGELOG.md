@@ -8,6 +8,18 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Movies, shows and music without a picture show Pley's mark on their
+  placeholder instead of their title, which the caption under it shows.
+  The mark has a glyph for the title's library: a clapperboard for movies,
+  a TV for shows, notes for music, and the logo's play for the rest.
+
+### Fixed
+
+- Up Next no longer comes during credits that something follows (an
+  after-credits scene, a show's last minutes); it comes at the end instead.
+
 ## [0.1.13] - 2026-11-22
 
 ### Fixed

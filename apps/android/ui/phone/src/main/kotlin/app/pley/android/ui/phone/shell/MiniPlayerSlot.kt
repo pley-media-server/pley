@@ -41,6 +41,7 @@ import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.image.TrackArt
 import app.pley.android.designsystem.icon.PlayPauseGlyph
 import app.pley.android.designsystem.TrackChange
@@ -127,7 +128,7 @@ private fun MiniPlayer(nowPlaying: NowPlaying, modifier: Modifier = Modifier) {
         Box(Modifier.size(56.dp).clip(PleyShape.TilePhone).background(PleyColors.Surface3), contentAlignment = Alignment.Center) {
             // Without a cover, the placeholder Now Playing and the queue show for the same track: its title's colors and
             // Pley's mark, not a note of its own.
-            TrackArt(art, nowPlaying.album ?: nowPlaying.title, Modifier.matchParentSize())
+            TrackArt(art, nowPlaying.album ?: nowPlaying.title, Modifier.matchParentSize(), mark = if (nowPlaying.book) MarkGlyph.Audiobooks else MarkGlyph.Music)
         }
         Spacer(Modifier.width(12.dp))
         TrackChange(trackWords(nowPlaying), Modifier.weight(1f), Alignment.CenterStart) { words ->

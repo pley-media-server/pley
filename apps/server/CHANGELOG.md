@@ -17,13 +17,50 @@ describes how they are made.
 - A player can ask for the next track ahead (`ahead`), to play it
   without a gap: it isn't shown as playing on the dashboard, to remotes
   or in Tautulli until it plays.
+- Editions named in a movie's file or folder name without the
+  `{edition-…}` tag, such as Director's Cut, Extended, Theatrical,
+  Unrated, Remastered or IMAX, are versions of one movie with their names.
+  Copies already listed as movies of their own join it once every file is
+  scanned again.
+
+### Changed
+
+- Movies, shows, music and audiobooks without a picture show Pley's mark
+  on their placeholder instead of their title, which the caption under
+  it shows, with a clapperboard, a TV, notes or a book in it for their
+  kind of library. Where nothing beside a picture names it, the title
+  stays.
+- Pley's license gains a permission for app stores: Pley may be
+  distributed through stores whose terms add restrictions of their own,
+  as long as its source stays available.
+- Files added or changed in a large library, or named in a refresh from
+  another tool, show up sooner.
+- A title a metadata source had nothing for gets its details once the
+  source adds them, without a Refresh.
 
 ### Fixed
 
+- Episodes added to a show that already has its details get theirs at the
+  next scan, and so do those of a show whose seasons TMDB didn't answer
+  for.
+- Renaming or moving files within a library no longer loses their
+  progress, watched state, ratings, history, My List, playlists or added
+  subtitles, and a movie or episode replaced by a copy named differently,
+  or deleted and added again within 180 days, gets its watch state back.
 - Home and a TV library's Recommended tab open at once after a big scan,
   also in a library of thousands of shows.
 - Music playing in the web app pauses once Play on… sends something to
   another device, rather than playing in both places.
+- Credits that something follows no longer bring up Up Next: a game
+  show's thinking music shared by every episode, music two episodes share
+  in a scene, or credits with an after-credits scene. Those credits only
+  offer Skip Credits, and Up Next comes at the end. The pictures decide
+  where credits end, shared music in a scene no longer gets Skip Credits,
+  credits found from the pictures no longer begin in a dark scene before
+  them, credits no one speaks after (by the subtitles) still bring Up Next,
+  chapters of more credits after the credits (Fan Club Credits) count with
+  them, and Plex apps get the same last credits. Libraries are analyzed
+  again in the background.
 
 ## [0.1.15] - 2026-11-22
 

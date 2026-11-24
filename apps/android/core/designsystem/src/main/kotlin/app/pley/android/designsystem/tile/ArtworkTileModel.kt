@@ -3,6 +3,7 @@ package app.pley.android.designsystem.tile
 import androidx.compose.runtime.Immutable
 import app.pley.android.designsystem.image.ArtworkCandidates
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.format.FormatWords
@@ -40,6 +41,12 @@ data class ArtworkTileModel(
     val badges: List<String> = emptyList(),
     /** What a screen reader says: "Glasshouse, Season 2 Episode 5, 26 minutes left". */
     val description: String = title,
+    /**
+     * The glyph of Pley's mark on the placeholder once no picture will
+     * come: the item's kind's ([MarkGlyph.of]). Null for people, whose
+     * circle keeps its gradient alone.
+     */
+    val mark: MarkGlyph? = null,
 ) {
     companion object {
         /**
@@ -85,6 +92,7 @@ data class ArtworkTileModel(
                 unwatched = unwatched,
                 badges = if (badges) qualityBadges(item.media) else emptyList(),
                 description = tileDescription(item, words, locale),
+                mark = MarkGlyph.of(item.kind),
             )
         }
     }

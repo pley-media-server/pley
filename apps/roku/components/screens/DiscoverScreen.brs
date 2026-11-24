@@ -1,22 +1,28 @@
 ' Discover (GET /api/discover/{list}): a hero, TMDB's lists as rows of
 ' posters loaded as they come into view, and Your requests (GET
-' /api/requests?mine=1). A request changed elsewhere changes the badge of
-' its title where it shows (the scene's requestNote), never the lists.
+' /api/requests?mine=1). In the rows, an info block about the title focus
+' rests on takes the page's place, and the backdrop follows it, as on
+' Home. A request changed elsewhere changes the badge of its title where
+' it shows (the scene's requestNote), never the lists.
 
 sub init()
     ' Whether Your requests showed: a poll that fails then leaves them be.
     m.requestsShown = false
     m.backdrop = m.top.findNode("backdrop")
-    m.shade = m.top.findNode("shade")
     m.page = m.top.findNode("page")
     m.chips = m.top.findNode("chips")
     m.credit = m.top.findNode("credit")
     m.hero = m.top.findNode("hero")
     m.heroName = m.top.findNode("heroName")
-    m.heroLine = m.top.findNode("heroLine")
+    m.heroMeta = m.top.findNode("heroMeta")
     m.heroOverview = m.top.findNode("heroOverview")
     m.heroButtons = m.top.findNode("heroButtons")
     m.heroNote = m.top.findNode("heroNote")
+    m.info = m.top.findNode("info")
+    m.infoName = m.top.findNode("infoName")
+    m.infoMeta = m.top.findNode("infoMeta")
+    m.infoOverview = m.top.findNode("infoOverview")
+    m.rest = m.top.findNode("rest")
     m.rows = m.top.findNode("rows")
     m.problem = m.top.findNode("problem")
     m.problemTitle = m.top.findNode("problemTitle")
@@ -24,6 +30,14 @@ sub init()
     m.problemButtons = m.top.findNode("problemButtons")
     m.busy = m.top.findNode("busy")
     m.top.findNode("heading").text = t("requests.names.discover")
+    ' Android TV's type: the page's title, the hero's, its overview; the
+    ' info block's as Home's.
+    m.top.findNode("heading").font = uiType("pageTitle")
+    m.heroName.font = uiType("heroTitle")
+    m.heroOverview.font = uiType("bodyLarge")
+    m.heroNote.font = uiType("label")
+    m.infoName.font = uiType("heroTitle")
+    m.infoOverview.font = uiType("bodyLarge")
     m.credit.text = t("requests.credit")
     m.started = false
     ' The rows in order: { key (a list's, or "requests"), title, state
@@ -43,15 +57,20 @@ sub init()
     ' whether the page shows only Sign in.
     m.problemShown = invalid
     m.signInOnly = false
-    ' How far the page slides up to the rows, and where the focus was when
-    ' covered.
-    m.slide = 560
+    ' Whether the rows have the page (laid out for them, under the info
+    ' block) and whether it has a hero; what the info block says
+    ' (reqTileInfo, as JSON), to draw it only when that changes; and
+    ' where the focus was when covered.
+    m.inRows = false
+    m.withHero = true
+    m.infoSaid = ""
     m.lastFocus = ""
-    m.heroButtons.observeField("buttonSelected", "onHeroButton")
+    m.heroButtons.observeField("chosen", "onHeroButton")
     m.problemButtons.observeField("buttonSelected", "onProblemButton")
     m.chips.observeField("chosen", "onChip")
     m.rows.observeField("rowItemSelected", "onTile")
     m.rows.observeField("rowItemFocused", "onRowFocused")
+    m.rest.observeField("fire", "onRested")
     m.busy.observeField("fire", "reloadRequests")
     m.top.observeField("active", "onActive")
     m.top.observeField("requestSummary", "onSummary")
@@ -92,8 +111,7 @@ sub showPage()
     m.backdrop.uri = ""
     m.problem.visible = false
     m.problemShown = invalid
-    m.page.translation = [0, 0]
-    m.shade.width = 1260
+    leaveRows()
     m.signInOnly = summary.signInAgain = "requests"
     if m.signInOnly
         showProblem(reqSignInAgain())
@@ -131,16 +149,18 @@ sub showChips(summary as object)
     if not m.chips.visible and m.chips.isInFocusChain() then focusRows(false)
 end sub
 
-' The rows under the hero, or at the top of the page without one.
+' The rows under the hero, or at the top of the page without one; with
+' the focus, under the info block, the focused row's header at y 344 as
+' Home's.
 sub placeRows(withHero as boolean)
-    if withHero
-        m.rows.translation = [96, 700]
-        m.slide = 560
+    m.withHero = withHero
+    if m.inRows
+        m.rows.translation = [168, 344]
+    else if withHero
+        m.rows.translation = [168, 700]
     else
-        m.rows.translation = [96, 196]
-        m.slide = 56
+        m.rows.translation = [168, 196]
     end if
-    if m.rows.isInFocusChain() then m.page.translation = [0, -m.slide]
 end sub
 
 ' --- The rows ---
@@ -152,10 +172,14 @@ sub ensureRows(upto as integer)
     end for
 end sub
 
-' The row after the one focused comes into view: it loads.
+' The row after the one focused comes into view: it loads. Once the focus
+' rests 0.4 s on a tile, the info block and the backdrop follow it, as
+' Home's: a held key draws neither on its way.
 sub onRowFocused()
     position = m.rows.rowItemFocused
     if position <> invalid and position.Count() = 2 then ensureRows(position[0] + 1)
+    m.rest.control = "stop"
+    if m.inRows then m.rest.control = "start"
 end sub
 
 sub askRow(index as integer)
@@ -300,12 +324,16 @@ sub setRow(index as integer, tiles as object, extra as dynamic)
     if extra <> invalid then nodesAppend(row, [extra])
     focus = m.rows.rowItemFocused
     content.replaceChild(row, index)
-    if focus <> invalid and focus.Count() = 2 and focus[0] = index and m.rows.isInFocusChain()
+    if focus = invalid or focus.Count() <> 2 or focus[0] <> index then return
+    if m.rows.isInFocusChain()
         column = focus[1]
         if column >= row.getChildCount() then column = row.getChildCount() - 1
         if column < 0 then column = 0
         m.rows.jumpToRowItem = [index, column]
     end if
+    ' Other tiles under the focus: the info block says what its title is
+    ' now.
+    if m.inRows then followFocus()
 end sub
 
 ' A tile opens its title or its list; a row's Try again loads it again.
@@ -330,6 +358,7 @@ end sub
 sub onRequestNote()
     note = m.top.requestNote
     uiPatchRequestTiles(m.rows.content, note)
+    if m.inRows then drawInfo(false)
     if m.heroTitle <> invalid and reqKey(httpString(m.heroTitle.kind), m.heroTitle.tmdb_id) = note.key
         m.heroTitle.status = note.status
         m.heroTitle.item_id = note.libraryId
@@ -364,16 +393,17 @@ sub drawHero()
     if m.heroTitle = invalid then return
     m.heroShown = reqHero(m.heroTitle, reqSummaryOf(m.top.requestSummary), m.global.session.server, CreateObject("roDateTime").AsSeconds())
     m.heroName.text = m.heroShown.title
-    m.heroLine.text = m.heroShown.line
+    m.heroMeta.parts = m.heroShown.parts
     m.heroOverview.text = m.heroShown.overview
     m.heroNote.text = m.heroShown.note
-    if FormatJson(m.heroButtons.buttons) <> FormatJson(m.heroShown.buttons) then m.heroButtons.buttons = m.heroShown.buttons
-    if m.backdrop.uri <> m.heroShown.backdrop
-        m.backdrop.setHttpAgent(m.top.getScene().getHttpAgent())
+    chips = reqHeroChips(m.heroShown)
+    if FormatJson(m.heroButtons.chips) <> FormatJson(chips) then m.heroButtons.chips = chips
+    ' In the rows the backdrop is their title's, and the hero out of sight.
+    if not m.inRows and m.backdrop.uri <> m.heroShown.backdrop
         m.backdrop.uri = m.heroShown.backdrop
     end if
     m.hero.visible = true
-    if m.top.hasFocus() then m.heroButtons.setFocus(true)
+    if m.top.hasFocus() and not m.inRows then m.heroButtons.setFocus(true)
 end sub
 
 ' Open: the library's title; Request and Details: the title's page,
@@ -393,6 +423,63 @@ sub onChip()
     uiNavigate({ to: "requests" })
 end sub
 
+' --- The info block ---
+
+' The focus rested on a tile.
+sub onRested()
+    if m.inRows then drawInfo(true)
+end sub
+
+' The rows took the focus, or other tiles came under it: the info block
+' says what its title is at once; the backdrop waits for the focus to
+' rest.
+sub followFocus()
+    drawInfo(false)
+    m.rest.control = "stop"
+    m.rest.control = "start"
+end sub
+
+' What the tile under the focus is, over the rows: a title's name, its
+' facts as the hero's and the start of its overview; a request's name and
+' its stage. rested: the backdrop is the title's too, or none without
+' one. Nothing for another tile (a row loading, See all, what a row says
+' in place of titles). The words are set only when they change: a
+' MetaRow makes its labels anew.
+sub drawInfo(rested as boolean)
+    tile = focusedTitle()
+    if tile = invalid
+        m.info.visible = false
+        return
+    end if
+    fields = {}
+    for each name in ["title", "subtitle", "badge", "score", "overview", "backdrop"]
+        if tile.hasField(name) then fields[name] = tile.getField(name)
+    end for
+    info = reqTileInfo(fields)
+    said = FormatJson(info)
+    if said <> m.infoSaid
+        m.infoSaid = said
+        m.infoName.text = info.title
+        m.infoMeta.parts = info.parts
+        m.infoOverview.text = info.overview
+    end if
+    m.info.visible = true
+    if rested and m.backdrop.uri <> info.backdrop then m.backdrop.uri = info.backdrop
+end sub
+
+' The tile under the rows' focus where it is a title or a request, or
+' invalid.
+function focusedTitle() as dynamic
+    content = m.rows.content
+    position = m.rows.rowItemFocused
+    if content = invalid or position = invalid or position.Count() <> 2 then return invalid
+    row = content.getChild(position[0])
+    if row = invalid then return invalid
+    tile = row.getChild(position[1])
+    if tile = invalid or not tile.hasField("kind") or tile.kind <> "discover" then return invalid
+    return tile
+end function
+
 ' --- What stops Discover ---
 
 ' In place of the page, why it can't be used: with Sign in, Try
@@ -405,10 +492,9 @@ sub showProblem(problem as object)
     m.chips.visible = false
     m.credit.visible = false
     m.backdrop.uri = ""
-    m.page.translation = [0, 0]
-    m.shade.width = 1260
+    leaveRows()
     m.problemTitle.text = problem.title
-    m.problemText.text = problem.text
+    uiProblemWords(m.top.findNode("problem"), m.problemText, problem.text)
     buttons = []
     if problem.signIn then buttons.Push(t("requests.buttons.signIn"))
     if problem.retry then buttons.Push(t("common.actions.tryAgain"))
@@ -466,16 +552,23 @@ end sub
 
 ' --- The remote ---
 
-' The page slides up to the rows as they take the focus, the backdrop
-' shaded under them all, and back down.
+' The rows come up under the info block as they take the focus, the
+' backdrop faint under them and the page out of sight (its hero would
+' show cut over them); and back down, the backdrop the hero's again.
 sub focusRows(onRows as boolean)
     if onRows
-        m.page.translation = [0, -m.slide]
-        m.shade.width = 1920
+        m.inRows = true
+        m.page.opacity = 0
+        placeRows(m.withHero)
+        uiDimBackdrop(m.top, true)
         m.rows.setFocus(true)
+        followFocus()
     else
-        m.page.translation = [0, 0]
-        m.shade.width = 1260
+        leaveRows()
+        placeRows(m.withHero)
+        backdrop = ""
+        if m.heroShown <> invalid then backdrop = m.heroShown.backdrop
+        if m.backdrop.uri <> backdrop then m.backdrop.uri = backdrop
         if m.hero.visible
             m.heroButtons.setFocus(true)
         else if m.chips.visible
@@ -484,6 +577,15 @@ sub focusRows(onRows as boolean)
             m.top.setFocus(true)
         end if
     end if
+end sub
+
+' Out of the rows: the page shows again, without the info block.
+sub leaveRows()
+    m.inRows = false
+    m.rest.control = "stop"
+    m.info.visible = false
+    m.page.opacity = 1
+    uiDimBackdrop(m.top, false)
 end sub
 
 sub restoreFocus()
@@ -522,7 +624,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             return true
         end if
     else if key = "up"
-        if m.rows.isInFocusChain()
+        if m.inRows
             focusRows(false)
             return true
         end if

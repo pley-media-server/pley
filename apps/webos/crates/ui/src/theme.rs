@@ -130,7 +130,7 @@ fn utf16_hash(s: &str) -> u32 {
     s.encode_utf16().fold(0u32, |h, c| h.wrapping_mul(31).wrapping_add(c as u32))
 }
 
-/// The placeholder's hue for a title, in degrees: the web's `placeholderGradient` hash, mod 360
+/// The placeholder's hue for a title, in degrees, as every app's (packages/placeholder): the hash, mod 360
 /// (`designsystem/image/Placeholder.kt`).
 pub fn placeholder_hue(seed: &str) -> u32 {
     utf16_hash(seed) % 360
@@ -640,6 +640,28 @@ mod tests {
         assert_eq!(s.last().unwrap().color, BG);
         assert_eq!(RAIL_FADE.at(40.0), BG);
         assert_eq!(RAIL_FADE.at(64.0).a, 128);
+    }
+
+    /// packages/placeholder's examples, which every app's gradient is held to: each title's hue,
+    /// and its two colors as CSS makes them, within a step of a byte.
+    #[test]
+    fn placeholder_colors_are_the_placeholder_files() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../../packages/placeholder/placeholder.json");
+        let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
+        let file: serde_json::Value = serde_json::from_str(&text).unwrap();
+        // The tiles draw CSS's 135° (`kit::placeholder`): another angle needs them drawn again.
+        assert_eq!(file["gradient"]["angle"].as_u64(), Some(135));
+        let examples = file["examples"].as_array().unwrap();
+        assert!(!examples.is_empty());
+        let hex = |v: &serde_json::Value| Color::rgb(u32::from_str_radix(&v.as_str().unwrap()[1..], 16).unwrap());
+        let near =
+            |a: Color, b: Color| [a.r.abs_diff(b.r), a.g.abs_diff(b.g), a.b.abs_diff(b.b)].iter().all(|d| *d <= 1);
+        for e in examples {
+            let seed = e["seed"].as_str().unwrap();
+            assert_eq!(Some(placeholder_hue(seed) as u64), e["hue"].as_u64(), "{seed}");
+            let (from, to) = placeholder_colors(seed);
+            assert!(near(from, hex(&e["from"])) && near(to, hex(&e["to"])), "{seed}: {from:?} {to:?}");
+        }
     }
 
     #[test]

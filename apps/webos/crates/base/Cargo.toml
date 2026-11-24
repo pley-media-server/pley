@@ -8,3 +8,7 @@ license = "AGPL-3.0-only"
 publish = false
 
 [dependencies]
+
+[dev-dependencies]
+# Reads packages/placeholder/placeholder.json, which the mark's copy here is held to.
+serde_json = "1.0.154"

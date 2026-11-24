@@ -16,6 +16,7 @@ on:
     paths:
       - apps/webos/**
       - packages/tv/test/fixtures/**
+      - packages/placeholder/**
       - apps/android/testing/fixtures/src/main/resources/app/pley/android/fixtures/media/**
       - rustfmt.toml
       - deny.toml
@@ -29,6 +30,7 @@ on:
     paths:
       - apps/webos/**
       - packages/tv/test/fixtures/**
+      - packages/placeholder/**
       - apps/android/testing/fixtures/src/main/resources/app/pley/android/fixtures/media/**
       - rustfmt.toml
       - deny.toml

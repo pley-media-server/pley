@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A RowList whose focus moves at once along a row (QuickKeys.brs); Up
+     and Down are the RowList's own, each row keeping where it was. -->
+<component name="QuickRowList" extends="RowList">
+    <script type="text/brightscript" uri="pkg:/components/shared/QuickRowList.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/QuickKeys.brs" />
+</component>

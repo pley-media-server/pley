@@ -2,7 +2,7 @@
 // a fake pley server on 127.0.0.1 (scripts/fixture-server.mjs), and walks
 // it with the remote: sign in with the TV code and its QR code on a server
 // that requires two-step sign-in, Home, a title's details, the player and
-// subtitles picked in its menu, the Options key, a library's grid, its A
+// subtitles picked in its controls' panels, the Options key, a library's grid, its A
 // to Z and the pages a jump passes over, a sort by bitrate and a filter
 // by resolution with their quality badges, filters saved as a smart
 // playlist, a library's collections by category and filtered by one,
@@ -193,14 +193,13 @@ function pageTextDrawn() {
   return false;
 }
 
-// Whether Now Playing's sleep timer button, focused (in the accent), says
-// more than "Sleep timer": it is the last of the buttons, which start at
-// 96, 560 (NowPlayingScreen.brs: the five before it take 1100), and only
-// a longer label reaches past 1500.
+// Whether Now Playing's sleep timer button, focused, is a pill saying what
+// is left: the accent past where its round button ends (x 1388, the buttons
+// from 856 under the scrubber, in the column right of the cover).
 function sleepButtonLong() {
   if (!frame) return false;
-  for (let y = 566; y < 610; y += 4) {
-    for (let x = 1500; x < 1580; x += 4) {
+  for (let y = 440; y < 488; y += 4) {
+    for (let x = 1406; x < 1486; x += 4) {
       const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
       if (frame.data[at] < 120 && frame.data[at + 1] > 150 && frame.data[at + 2] > 200) return true;
     }
@@ -208,13 +207,13 @@ function sleepButtonLong() {
   return false;
 }
 
-// The A to Z's mark on a letter (LibraryScreen.xml's column from 1812, 212,
+// The A to Z's mark on a letter (LibraryScreen.xml's column from 1764, 212,
 // 30 pixels a letter), left of the letter: the accent while the letters have
 // the focus, else the lighter ground behind the letter of the title the
 // grid's focus is on.
 function letterMarked(index, focused) {
   if (!frame) return false;
-  const x = Math.round(1815 * (frame.width / 1920));
+  const x = Math.round(1767 * (frame.width / 1920));
   const y = Math.round((212 + index * 30 + 15) * (frame.height / 1080));
   const at = (y * frame.width + x) * 4;
   const [r, g, b] = [frame.data[at], frame.data[at + 1], frame.data[at + 2]];
@@ -309,15 +308,15 @@ async function waitFor(pattern, since, what, { ms = 30000, settles = true } = {}
   throw new Error(`no request for ${what}`);
 }
 
-// brs-node drops a key now and then: menu entries are reached from the
-// top of the menu (twelve entries at most, Settings the last, which 11
-// reaches whatever the menu holds) and checked by the request they lead
-// to.
+// brs-node drops a key now and then: the rail's entries are reached from
+// its top (the profile, then eleven entries at most, Settings the last,
+// which 11 reaches whatever the rail holds) and checked by the request
+// they lead to.
 async function openFromMenu(index, pattern, what, then = async () => {}) {
   for (let attempt = 0; attempt < 3; attempt++) {
     await press("left", 3);
-    await press("up", 11);
-    await press("down", index);
+    await press("up", 12);
+    await press("down", index + 1);
     const since = mark();
     await press("select");
     await then();
@@ -332,12 +331,11 @@ async function openFromMenu(index, pattern, what, then = async () => {}) {
 }
 
 // From Settings: Sign out, and Sign out again in the dialog. Sign out is
-// the last of eleven buttons, Subtitle language showing once subtitles
-// come on always.
+// the last category, and OK on it asks.
 async function signOut() {
   for (let attempt = 0; attempt < 3; attempt++) {
     const since = mark();
-    await press("down", 10);
+    await press("down", 20);
     await press("select");
     await sleep(800);
     await press("select");
@@ -359,7 +357,15 @@ const live = { busy: false };
 const sync = { label: false };
 // The picture subtitles the app draws: one of their PNGs loaded.
 const pictures = { loaded: false };
-// Subtitles picked in the player's own menu.
+// The player's row of buttons with the focus on its index-th: Down brings
+// the controls up (on Play/Pause) or leaves the row as it is, and Left
+// goes no further than its first.
+async function rowButton(index) {
+  await press("down");
+  await press("left", 8);
+  await press("right", index);
+}
+// Subtitles picked in the player's own panel.
 const menuTracks = { picked: false };
 // Within ms, whether a picture subtitle's PNG was fetched.
 async function loadedWithin(ms) {
@@ -429,7 +435,7 @@ async function walk() {
   // More…, after Resume, Play from start, the watched mark and Audio and
   // subtitles: Go to season, its episodes; Back to the episode's page, up
   // to Resume.
-  await press("down", 4);
+  await press("right", 4);
   await press("select"); // Rate, Go to show, Go to season, Media info, Add to playlist
   await sleep(500);
   shoot("episode-more");
@@ -441,7 +447,7 @@ async function walk() {
   since = mark();
   await press("back");
   await waitFor(/^GET \/api\/items\/103$/, since, "the episode's page again");
-  await press("up", 4);
+  await press("left", 4);
   // Back while the player starts: the session that comes after is closed.
   since = mark();
   fixture.playbackDelayMs = 2500;
@@ -477,49 +483,56 @@ async function walk() {
   if (fixture.playbacks.length < sessionsBefore + 2) throw new Error("no request for a session with the picture subtitles burned in");
   await settle();
   shoot("player");
-  // pley's menu (Down), and its subtitle sync: right moves the subtitles
-  // later, and Back closes it, the stream opening again with its text
-  // track moved.
+  // The controls (Down: on Play/Pause), as the Android TV player's: the row
+  // is Chapters, Sleep timer, Previous, Play/Pause, Next, Subtitles,
+  // Quality and Info (rowButton). Subtitles' panel ends with Subtitle sync
+  // and Find subtitles…; sync's right moves the subtitles later, and Back
+  // closes it, the stream opening again with its text track moved.
   await press("down");
   await sleep(300);
-  shoot("player-menu");
-  await press("down", 2); // past Subtitles and Quality: Subtitle sync
+  shoot("player-controls");
+  await rowButton(5); // Subtitles
+  await press("select");
+  await sleep(300);
+  shoot("player-subtitles");
+  await press("down", 10); // Find subtitles…, the last
+  await press("up"); // Subtitle sync
   await press("select");
   await press("right", 3);
   sync.label = await drawnWithin(2500, syncDrawn);
   shoot("player-sync");
   await press("back");
-  // The menu again: the first chapter gone to, then the playback's details,
-  // what the server makes of the conversion asked for.
-  await press("down");
-  await press("down"); // Chapters
+  // Chapters: the first chapter gone to.
+  await rowButton(0);
   await press("select");
-  await press("up");
+  await press("up", 10);
   await press("select");
-  // The sleep timer, after Chapters: 15 minutes, which the menu then
-  // counts down.
-  await press("down");
-  await press("down"); // Sleep timer
+  // The sleep timer: 15 minutes, which its panel then counts down.
+  await rowButton(1);
   await press("select");
   await sleep(300);
   shoot("player-sleep");
   await press("down"); // 15 min
   await press("select");
-  await press("down");
+  await rowButton(1);
+  await press("select");
   await sleep(300);
-  shoot("player-menu-sleep");
+  shoot("player-sleep-set");
+  await press("back");
+  // Info: what the server makes of the conversion asked for.
   since = mark();
-  await press("down", 2); // past Find subtitles…, Playback details
+  await rowButton(7);
   await press("select");
   await waitFor(/^GET \/api\/playback\/s\d+$/, since, "the conversion's details");
   shoot("player-details");
-  await press("back", 2);
+  await press("back");
   // Find subtitles…: the server's results listed, the first added, saved
   // as the pick, and the stream opened again with it (a new session, as
   // the server drew the picture subtitles onto this one).
   since = mark();
-  await press("down");
-  await press("up"); // Find subtitles…
+  await rowButton(5);
+  await press("select");
+  await press("down", 10); // Find subtitles…
   await press("select");
   await waitFor(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103$/, since, "the subtitles found for the file");
   shoot("player-find-subtitles");
@@ -537,17 +550,16 @@ async function walk() {
   await waitFor(/^PUT \/api\/items\/103\/streams$/, since, "the added subtitles saved as the pick");
   await waitFor(/^POST \/api\/playback$/, since, "a session without the picture subtitles drawn");
   await settle();
-  // The menu's Subtitles, at its top: the file's every track, English
-  // (SRT) picked, saved as the pick, and the stream opened again with it.
+  // Subtitles' panel: the file's every track, English (SRT) picked, saved
+  // as the pick, and the stream opened again with it.
   since = mark();
   const streamsBefore = fixture.streams.length;
-  await press("down");
-  await press("up", 8);
+  await rowButton(5);
   await press("select");
-  await press("up", 3); // Off
+  await press("up", 10); // Off
   await press("down"); // English (SRT)
   await press("select");
-  await waitFor(/^PUT \/api\/items\/103\/streams$/, since, "the subtitles picked in the player's menu, saved");
+  await waitFor(/^PUT \/api\/items\/103\/streams$/, since, "the subtitles picked in the player's panel, saved");
   await waitFor(/^POST \/api\/playback$/, since, "the stream opened again with the subtitles picked");
   menuTracks.picked = fixture.streams.slice(streamsBefore).some((s) => s.item === 103 && s.subtitle_index === 3);
   since = mark();
@@ -564,11 +576,21 @@ async function walk() {
   shoot("home-options");
   await press("select");
   await waitFor(/^POST \/api\/items\/103\/watched$/, since, "a title marked watched");
+  // Home asks for its rows again and lays them out anew: keys pressed
+  // meanwhile can be lost, so the walk waits for them.
+  await waitFor(/^GET \/api\/hubs\/home$/, since, "Home's rows after the watched mark");
+  await settle();
+  await sleep(1500);
   // See all at the end of Recently Added in Music: the library's Library
   // tab, newest added first, for this visit only; Back to Home.
-  await settle();
   since = mark();
-  await press("down", 4); // past Continue Watching, My List, Movies and TV Shows
+  // Past Continue Watching, My List, Movies and TV Shows, a row at a time:
+  // brs-node's RowList drops a press that comes while it still scrolls,
+  // and each row's backdrop is asked for as the focus comes to it.
+  for (let row = 0; row < 4; row++) {
+    await press("down");
+    await settle();
+  }
   await press("right"); // See all, after the album
   await press("select");
   await waitFor(/^GET \/api\/libraries\/3\/items\?.*sort=added/, since, "Recently Added's See all");
@@ -586,7 +608,7 @@ async function walk() {
   await settle();
   shoot("collection-merged");
   since = mark();
-  await press("down", 2); // Movies only
+  await press("right", 2); // Movies only, after Play and Shuffle
   await press("select");
   await waitFor(/^GET \/api\/collections\/4$/, since, "a library's own collection, from the merged page");
   await press("back");
@@ -601,7 +623,7 @@ async function walk() {
   // listed there, then a channel whose
   // source has no connection left; Back leaves to the guide at that
   // channel, then the Channels tab.
-  await openFromMenu(4, /^GET \/api\/live\/guide\?/, "Live TV's guide");
+  await openFromMenu(3, /^GET \/api\/live\/guide\?/, "Live TV's guide");
   await sleep(1500);
   shoot("live-guide");
   await press("right"); // the guide
@@ -666,12 +688,21 @@ async function walk() {
   await press("back"); // Home
   await settle();
   since = mark();
-  await openFromMenu(5, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies");
+  // A library opens on Recommended, the focus in its rows: Up to the tabs,
+  // Right to Library, OK, and Down into its grid.
+  await openFromMenu(4, /^GET \/api\/libraries\/1\/hubs$/, "Movies");
+  await settle();
+  await press("up");
+  await press("right");
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=0/, since, "Movies' Library tab");
   // Sorted by title: the A to Z, once every title's letter came, right of
   // the grid's last column (a right press more than needed, which the
   // letters take). Down from "#" to W, whose first title is on the third
   // page: OK asks for that page and the grid goes there.
   await waitFor(/^GET \/api\/libraries\/1\/items\?.*limit=1000/, since, "the library's letters");
+  await press("down");
+  await settle();
   shoot("library");
   await press("right", 8);
   await press("down", 23);
@@ -694,9 +725,14 @@ async function walk() {
   // Resolution and Dynamic range once the server says the movies differ in
   // them, and Resolution's 4K: the grid lists 4K titles only, and the chip
   // says so.
-  await openFromMenu(5, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies again");
+  await openFromMenu(4, /^GET \/api\/libraries\/1\/hubs$/, "Movies again");
   await settle();
-  await press("up"); // the tabs, on Library
+  since = mark();
+  await press("up"); // the tabs, on Recommended
+  await press("right"); // Library
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=0/, since, "Movies' Library tab again");
+  await settle();
   await press("right", 2); // past Collections to the sort
   await press("select");
   await sleep(500);
@@ -726,18 +762,16 @@ async function walk() {
   await settle();
   shoot("library-4k");
   await press("back");
-  await openFromMenu(6, /^GET \/api\/libraries\/2\/items/, "TV Shows");
-  // Its tabs: Recommended, Collections, then Library again, sorted by year.
-  since = mark();
-  await press("up"); // the tabs, on Library
-  await press("left"); // Recommended
-  await press("select");
-  await waitFor(/^GET \/api\/libraries\/2\/hubs$/, since, "a library's recommendations");
+  // Its tabs: Recommended, where it opens, Collections, then Library
+  // again, sorted by year.
+  await openFromMenu(5, /^GET \/api\/libraries\/2\/hubs$/, "TV Shows");
+  await settle();
   shoot("library-recommended");
   // See all after Recently Added's one show: the Library tab, newest added
   // first.
   since = mark();
-  await press("down"); // the rows
+  await press("up"); // the tabs
+  await press("down"); // the rows, on the first
   await press("right"); // See all
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/items\?.*sort=added/, since, "a library row's See all");
@@ -821,7 +855,7 @@ async function walk() {
   await waitFor(/^GET \/api\/items\/99\/on-deck$/, since, "the show's next episode");
   shoot("show-details");
   since = mark();
-  await press("down"); // Episodes
+  await press("right"); // Episodes, after Play
   await press("select");
   await waitFor(/^GET \/api\/items\/100\/children$/, since, "a season's episodes");
   shoot("show");
@@ -833,7 +867,7 @@ async function walk() {
   // More…, its last button: 4 stars from the rating's choices, saved at
   // once; Back from More to the buttons.
   since = mark();
-  await press("down", 3); // from Episodes, past the watched mark and My List
+  await press("right", 3); // from Episodes, past the watched mark and My List
   await press("select");
   await sleep(500);
   shoot("show-more");
@@ -843,10 +877,10 @@ async function walk() {
   await press("select"); // 4 stars, then More again
   await waitFor(/^PUT \/api\/items\/99\/rating$/, since, "the show rated");
   await press("back");
-  // Down from More… to its rows, the seasons then cast and crew, whose
-  // first opens a person's page.
+  // Down from More… to its rows, the seasons, a season's episodes, then
+  // cast and crew, whose first opens a person's page.
   since = mark();
-  await press("down", 2);
+  await press("down", 3);
   shoot("show-rows");
   await press("select");
   await waitFor(/^GET \/api\/people\/7$/, since, "a person's page");
@@ -857,22 +891,27 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/items\/1000$/, since, "a title of a person's Directing row");
   person.opened = true;
+  await settle();
   await press("back");
   await settle();
   // Back on the show's page, its last row: the collections it is part of,
   // whose first, of five movies, plays them in its order. Down past its
   // buttons slides its page up to its posters, Up back to the buttons.
+  // Showing again, the page asks for its rows again: Down waits for the
+  // collections' row, the last to come, or would stop at More like this.
+  const backOnShow = mark();
   await press("back");
+  for (let i = 0; i < 50 && !seen(/^GET \/api\/items\/99\/collections$/, backOnShow); i++) await sleep(100);
   await settle();
   await press("down", 2); // past More like this to Collections
   since = mark();
   await press("select");
   await waitFor(/^GET \/api\/collections\/1$/, since, "a collection of movies");
   shoot("collection");
-  await press("down", 2); // past Shuffle
+  await press("down"); // the posters
   await sleep(500);
   shoot("collection-titles");
-  await press("up", 2); // Shuffle, then Play
+  await press("up"); // the buttons, on Play
   since = mark();
   await press("select"); // Play
   await waitFor(/^POST \/api\/playback$/, since, "the collection played");
@@ -893,7 +932,15 @@ async function walk() {
   // shuffling, the album's order again (Previous plays the one before), and
   // the sleep timer's button. Now Playing stopped; then the album's second
   // disc played from its list and stopped, and Back to Home.
-  await openFromMenu(7, /^GET \/api\/libraries\/3\/items\?.*offset=0/, "Music");
+  await openFromMenu(6, /^GET \/api\/libraries\/3\/hubs$/, "Music");
+  await settle();
+  since = mark();
+  await press("up"); // the tabs, on Recommended
+  await press("right"); // Library
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/3\/items\?.*offset=0/, since, "Music's Library tab");
+  await settle();
+  await press("down"); // the artists
   shoot("music");
   since = mark();
   await press("select"); // the artist
@@ -910,7 +957,7 @@ async function walk() {
   await press("right", 2); // Stop: back to the artist
   await press("select");
   await waitFor(/^DELETE \/api\/playback\//, since, "the artist's track's session closed");
-  await press("right"); // the albums, the newest first
+  await press("right", 2); // past Shuffle to the albums, the newest first
   await press("right"); // the older one
   since = mark();
   await press("select");
@@ -949,6 +996,7 @@ async function walk() {
   music.sleepEnd = await drawnWithin(2000, sleepButtonLong);
   await press("select"); // Off
   music.sleepCycled = await drawnWithin(2000, () => !sleepButtonLong());
+  if (!(music.sleepOff && music.sleepSet && music.sleepEnd && music.sleepCycled)) console.log(`sleep timer's button: off ${music.sleepOff}, set ${music.sleepSet}, at the track's end ${music.sleepEnd}, off again ${music.sleepCycled}`);
   since = mark();
   await press("left"); // Stop
   await press("select");
@@ -957,7 +1005,7 @@ async function walk() {
   // focus passes over; OK on the second disc's track plays that one, and
   // stopped, the album shows again.
   await settle();
-  await press("right"); // the tracks, on the first under "Disc 1"
+  await press("right", 3); // past Shuffle and Go to artist to the tracks, on the first under "Disc 1"
   await press("down", 2); // the second, then past "Disc 2" to its track
   shoot("album-discs");
   music.disc = await playedBy("a track of the album's second disc");
@@ -1009,8 +1057,12 @@ async function walk() {
   const age = Date.now() - loads[loads.length - 1].at;
   await press("back");
   await settle();
+  // Rows a minute old are asked for as Home shows, which a slow run can
+  // see after its settling: up to five seconds more for them.
+  if (age > 65000) for (let i = 0; i < 50 && !seen(/^GET \/api\/hubs\/home$/, since); i++) await sleep(100);
   const asked = seen(/^GET \/api\/hubs\/home$/, since);
   home.kept = age < 55000 ? !asked : age > 65000 ? asked : true;
+  if (!home.kept) console.log(`Home's rows were ${Math.round(age / 1000)} s old, and Home ${asked ? "asked" : "didn't ask"} for them again`);
   // Search again: before anything is typed, the recent searches, "mo"
   // first since one of its results was opened; OK on it searches it again
   // at once. Back to Home.
@@ -1028,14 +1080,14 @@ async function walk() {
   // key's Move, then taken out, and the playlist played from the top. Then
   // New playlist, for Movies & TV, named on the keyboard: it opens, made.
   // Back to Home.
-  await openFromMenu(8, /^GET \/api\/playlists$/, "Playlists");
+  await openFromMenu(7, /^GET \/api\/playlists$/, "Playlists");
   shoot("playlists");
   since = mark();
   await press("select"); // the first playlist
   await waitFor(/^GET \/api\/playlists\/1$/, since, "a playlist");
   shoot("playlist");
   since = mark();
-  await press("right"); // the entries
+  await press("right", 4); // past Shuffle, Rename and Delete to the entries
   await press("options");
   await sleep(500);
   await press("select"); // Move
@@ -1095,7 +1147,11 @@ async function walk() {
   await press("select"); // Request
   await waitFor(/^POST \/api\/requests$/, since, "a movie asked for");
   shoot("discover-asked");
-  await press("select"); // OK: its page, saying how it stands
+  // OK: its page, saying how it stands, asked for again as it shows; Back
+  // waits for it, or would come before the page had the focus again.
+  const okOnAsked = mark();
+  await press("select");
+  for (let i = 0; i < 50 && !seen(/^GET \/api\/discover\/movie\/7001$/, okOnAsked); i++) await sleep(100);
   await settle();
   shoot("discover-title");
   await press("back"); // Discover, on the hero
@@ -1123,8 +1179,13 @@ async function walk() {
   // oldest, Approve. Meanwhile Anna's download came into a library, which
   // no event told of: the summary asked after Approve has news, whose
   // notice waits while the requests show. Then Yours, the last tab, which
-  // marks Anna's news seen.
-  await openFromMenu(3, /^GET \/api\/requests\?.*attention=1/, "Requests");
+  // marks Anna's news seen. The requests open from Discover's button,
+  // over its hero.
+  await openFromMenu(2, /^GET \/api\/requests\?.*attention=1/, "Requests", async () => {
+    await sleep(1500);
+    await press("up"); // the requests' button
+    await press("select");
+  });
   shoot("requests");
   since = mark();
   await press("options");
@@ -1136,9 +1197,12 @@ async function walk() {
   await waitFor(/^GET \/api\/requests\?.*unseen=1/, since, "the requests with news");
   notice.waited = !(await drawnWithin(2500, readyNoticeDrawn));
   shoot("requests-approved");
-  for (let attempt = 0; attempt < 3 && !seen(/^GET \/api\/requests\?.*mine=1/, since); attempt++) {
+  // Yours asks for 50 at a time; Discover's row of them, under the
+  // requests, asks for 20 as they change.
+  for (let attempt = 0; attempt < 3 && !seen(/^GET \/api\/requests\?(?=.*mine=1)(?=.*limit=50)/, since); attempt++) {
     await press("up"); // the tabs
-    await press("left", 8);
+    await press("left", 8); // the first, then the rail
+    await press("right"); // the rail closed, on the first tab
     await press("right", 7); // Yours
     await press("select");
     await sleep(1500);
@@ -1161,7 +1225,7 @@ async function walk() {
   // the French picked here; then the Director's Cut, which Play plays.
   await settle();
   let pickedSince = mark();
-  await press("down", 2);
+  await press("right", 2);
   await press("select"); // Version, Audio: Automatic (English), Subtitles: English (SRT)
   await sleep(500);
   shoot("movie-tracks");
@@ -1171,12 +1235,16 @@ async function walk() {
   shoot("movie-audio");
   await press("select"); // French (AC3 5.1), then the menu again
   await waitFor(/^PUT \/api\/items\/1011\/streams$/, pickedSince, "the audio picked, saved");
+  // Saved, the menu is made again with the choice in it: a press meanwhile
+  // can land before its focus is back on Audio.
+  await sleep(800);
   pickedSince = mark();
   await press("down");
   await press("select"); // Subtitles' choices, English (SRT) checked
   await press("up");
   await press("select"); // Off
   await waitFor(/^PUT \/api\/items\/1011\/streams$/, pickedSince, "the subtitles turned off, saved");
+  await sleep(800);
   await press("up", 2);
   await press("select"); // Version's choices, the first checked
   await press("down");
@@ -1184,7 +1252,7 @@ async function walk() {
   await press("select"); // the Director's Cut, then the menu: its subtitles
   await sleep(500);
   await press("back"); // the buttons, on Audio and subtitles
-  await press("up", 2);
+  await press("left", 2);
   pickedSince = mark();
   await press("select"); // Play
   await waitFor(/^POST \/api\/playback$/, pickedSince, "the version chosen played");
@@ -1197,14 +1265,14 @@ async function walk() {
   await settle();
   shoot("movie-details");
   pickedSince = mark();
-  await press("down", 4);
+  await press("right", 4);
   await press("select"); // Trailer
   await waitFor(/^POST \/api\/playback$/, pickedSince, "the trailer played");
   pickedSince = mark();
   await press("back");
   await waitFor(/^DELETE \/api\/playback\//, pickedSince, "the trailer's session closed");
   await settle();
-  await press("down");
+  await press("right");
   await press("select"); // Rate, Media info, Add to playlist
   await sleep(500);
   await press("down");
@@ -1217,38 +1285,49 @@ async function walk() {
   await settle();
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   shoot("settings");
-  // Diagnostics and the licenses, at the right; Left back to the settings.
-  await press("right");
-  await press("select"); // Diagnostics
+  // The categories at the left (Profile, Playback, Server, Diagnostics,
+  // About, Sign out), OK going into one's rows at the right. Diagnostics'
+  // first row opens its page; About's second, the licenses.
+  await press("down", 3);
+  await press("select"); // Diagnostics' rows
+  await press("select"); // Open diagnostics
   pages.diagnostics = await drawnWithin(3000, pageTextDrawn);
   shoot("diagnostics");
   await press("back");
   await settle();
+  await press("left"); // the categories
+  await press("down");
+  await press("select"); // About's rows
   await press("down");
   await press("select"); // Open-source licenses
   pages.licences = await drawnWithin(3000, pageTextDrawn);
   shoot("licences");
   await press("back");
   await settle();
+  // Playback's Quality: Automatic checked, then 8 Mbps 1080p chosen, kept
+  // on the Roku.
   await press("left");
-  // Quality, after Language, Audio language and Subtitles: Automatic
-  // checked, then 8 Mbps 1080p chosen, kept on the Roku.
-  await press("down", 3);
-  await press("select");
+  await press("up", 3);
+  await press("select"); // Playback's rows
+  await press("select"); // Quality
   await sleep(500);
   shoot("settings-quality");
   await press("down", 5);
   await press("select");
   await settle();
-  // Watch history, two rows down: its plays; Back to Settings.
+  // Profile's Watch history, after Switch profile, Audio language,
+  // Subtitles and Language: its plays; Back to Settings.
+  await press("left");
+  await press("up");
+  await press("select"); // Profile's rows
   since = mark();
-  await press("down", 2);
+  await press("down", 4);
   await press("select");
   await waitFor(/^GET \/api\/history\?/, since, "the watch history");
   shoot("history");
   await press("back");
   await settle();
-  // Always start as, after Switch profile (a household of two): Anna
+  // Always start as, after Sort libraries (a household of two): Anna
   // chosen, kept on the Roku.
   await press("down", 2);
   await press("select");
@@ -1257,11 +1336,11 @@ async function walk() {
   shoot("settings-start-as");
   await press("select");
   await settle();
-  // Sort libraries, next: Movies lifted and put after TV Shows, saved at
-  // once; then the server's order again, which the rest of the walk
+  // Sort libraries, before it: Movies lifted and put after TV Shows, saved
+  // at once; then the server's order again, which the rest of the walk
   // expects.
   since = mark();
-  await press("down");
+  await press("up");
   await press("select"); // Sort libraries
   await waitFor(/^GET \/api\/libraries$/, since, "the libraries to sort");
   await press("select"); // lifts Movies
@@ -1273,16 +1352,19 @@ async function walk() {
   await press("select"); // Use the server's order
   await waitFor(/^DELETE \/api\/me\/libraries\/order$/, since, "the server's order again");
   await press("back"); // Settings
+  await press("back"); // its categories
   since = mark();
   await press("back"); // Home, which asks for its libraries again
   await waitFor(/^GET \/api\/libraries$/, since, "Home's libraries after sorting");
   await press("right"); // the rows, where the next steps start
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
-  // Language, the first row: Español for the account, the screen in
-  // Spanish once the server has it, and Home asked for again in it, its
-  // rows' titles being the server's; then Automatic again, which the rest
-  // of the walk expects.
+  // Profile's Language, its fourth row: Español for the account, the
+  // screen in Spanish once the server has it, and Home asked for again in
+  // it, its rows' titles being the server's; then Automatic again, which
+  // the rest of the walk expects.
   await settle();
+  await press("select"); // Profile's rows
+  await press("down", 3);
   since = mark();
   await press("select"); // Language: its choices, Automatic checked
   await sleep(500);
@@ -1290,6 +1372,7 @@ async function walk() {
   await press("select");
   await waitFor(/^PUT \/api\/me\/language$/, since, "the account's language saved");
   shoot("settings-language");
+  await press("back"); // the categories
   since = mark();
   await press("back"); // Home, made again in Spanish
   await waitFor(/^GET \/api\/hubs\/home$/, since, "Home in Spanish");
@@ -1298,6 +1381,8 @@ async function walk() {
   await press("right");
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   await settle();
+  await press("select"); // Profile's rows
+  await press("down", 3);
   since = mark();
   await press("select"); // Language, Español checked
   await sleep(500);
@@ -1317,6 +1402,7 @@ async function walk() {
   await press("select");
   await waitFor(/^PUT \/api\/me\/language$/, since, "Français answered 404");
   await settle();
+  await press("back"); // the categories
   since = mark();
   await press("back"); // Home, made again in French
   await waitFor(/^GET \/api\/hubs\/home$/, since, "Home in French");
@@ -1324,17 +1410,20 @@ async function walk() {
   await press("right");
   await openFromMenu(11, /^GET \/api\/auth\/me$/, "Settings");
   await settle();
+  await press("select"); // Profile's rows
+  await press("down", 3);
   await press("select"); // Language, Français checked
   await sleep(500);
   await press("up", 2); // Automatic
   await press("select");
   await settle();
   fixture.languageRoute = true;
-  // Subtitles: from "Only for foreign dialogue" to "Always", saved at once
-  // with the languages left as they were; Subtitle language shows then.
+  // Subtitles, above Language: from "Only for foreign dialogue" to
+  // "Always", saved at once with the languages left as they were; Subtitle
+  // language shows then.
   await settle();
   since = mark();
-  await press("down", 2);
+  await press("up");
   await press("select"); // Subtitles: its choices, Forced focused
   await sleep(500);
   await press("down", 2);
@@ -1344,10 +1433,10 @@ async function walk() {
   language.afterRefused = fixture.requests.slice(since).find((r) => r.path === "/api/me/track-defaults")?.language ?? "";
   await settle();
   shoot("settings-saved");
-  // Switch profile, five rows down: "Who's watching?", Ben chosen, and
-  // Home again as Ben, the old tokens stopped.
+  // Switch profile, Profile's first row: "Who's watching?", Ben chosen,
+  // and Home again as Ben, the old tokens stopped.
   since = mark();
-  await press("down", 5);
+  await press("up", 2);
   await press("select");
   await waitFor(/^GET \/api\/oauth\/profiles$/, since, "the household's profiles");
   shoot("profiles");
@@ -1360,14 +1449,14 @@ async function walk() {
   fixture.down = true;
   await press("left", 3);
   await press("up", 11);
-  await press("down", 5); // Movies, after Search, Home, Discover, Your requests and Live TV
+  await press("down", 5); // Movies, after the profile, Search, Home, Discover and Live TV
   await press("select");
   await sleep(3000);
   shoot("unreachable");
   fixture.down = false;
   since = mark();
   await press("select"); // Try again
-  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=0/, since, "the library after Try again");
+  await waitFor(/^GET \/api\/libraries\/1\/hubs$/, since, "the library after Try again");
   shoot("retried");
   // Signed out, and in again with a server that has no QR codes yet, nor
   // requests, and doesn't say whether it requires two-step sign-in: the
@@ -1390,14 +1479,14 @@ async function walk() {
   await waitFor(/^GET \/api\/hubs\/home$/, since, "Home after signing in again");
   // Nor has it categories (404) or collections in one: a library's
   // Collections tab is the grid, as before them, and opens the first.
-  // TV Shows is the fifth entry, the menu without Discover and requests.
+  // TV Shows is the fifth entry, the menu without Discover.
   fixture.categories = false;
   await settle();
   await openFromMenu(4, /^GET \/api\/libraries\/2\//, "TV Shows on a server without categories");
   await settle();
   since = mark();
-  await press("up"); // the tabs, on Library
-  await press("right"); // Collections
+  await press("up"); // the tabs, on Recommended
+  await press("right", 2); // past Library to Collections
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/collections$/, since, "a library's collections without categories");
   await waitFor(/^GET \/api\/collection-categories$/, since, "the categories, answered 404");
@@ -1485,7 +1574,7 @@ const checks = [
   ["found subtitles from the player's menu and added the first", fixture.subtitlesAdded.some((a) => a.item === 103 && a.result === "opensubtitles:1" && a.file_id === 7103)],
   ["looked for subtitles in a language picked above the results", asked(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103&language=ara$/)],
   ["saved the added subtitles as the pick", fixture.streams.some((s) => s.item === 103 && s.subtitle_index === 10001)],
-  ["picked subtitles in the player's own menu, saved and played", menuTracks.picked],
+  ["picked subtitles in the player's own panel, saved and played", menuTracks.picked],
   ["asked the server what it knows of the network before playing in Automatic", asked(/^GET \/api\/playback\/network\?client_id=/)],
   ["ran a speed test of 8 MiB where the server asked for one", fixture.speedTests.length > 0 && fixture.speedTests.every((n) => n === 8388608)],
   ["told the server what the speed test measured", fixture.networkTold.some((t) => t.probe_kbps > 0 && t.probe_complete === false && t.client_id)],

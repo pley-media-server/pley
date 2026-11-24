@@ -1,0 +1,19 @@
+{
+  "name": "pley-placeholder",
+  "private": true,
+  "description": "Pley's placeholder for a picture that hasn't come: the title's gradient, and the mark with a glyph for its kind of library. What every app draws it from.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./placeholder.json": "./placeholder.json"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "tsc -p tsconfig.json && vitest run"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

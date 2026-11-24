@@ -121,10 +121,11 @@ public struct PlaybackEnvironment {
 /// - **Resume, skips, chapters.** It starts where the profile left off
 ///   (exactly), offers Skip Intro and Skip Credits while the playhead is in
 ///   one (`Markers`; nothing skips by itself), and jumps to chapters.
-/// - **Up Next.** An episode looks up the next one at 90 %; entering its
-///   credits (once per segment, `CreditsGate`) or its end brings up a card
-///   that counts 10 s down, then plays it on the same player: this
-///   session ends (`stopped`, then `DELETE`), the next starts where it resumes.
+/// - **Up Next.** An episode looks up the next one at 90 %; entering
+///   credits that run to the end of the file (once per segment,
+///   `CreditsGate`) or its end brings up a card that counts 10 s down, then
+///   plays it on the same player: this session ends (`stopped`, then
+///   `DELETE`), the next starts where it resumes.
 /// - **Audio.** The server says which track plays; another one picked is
 ///   saved for the movie or show (`PUT …/streams`) and switched by AVPlayer
 ///   in a file played as it is, else played by a new session beside this
@@ -1370,7 +1371,9 @@ public final class PlaybackController: ObservableObject {
         let marker = state.isFailed ? nil : Markers.active(markers, positionMs: position)
         let label = marker.map(Markers.label)
         if state.skipLabel != label { state.skipLabel = label }
-        if credits.entered(marker) != nil { onCredits() }
+        // Only credits that run to the end bring up Up Next: its countdown
+        // would skip what follows other credits, which only offer Skip Credits.
+        if let marker, reachesEnd(marker), credits.entered(marker) != nil { onCredits() }
         if !nextAsked, let item, NextUp.hasNext(item.kind, queue: request.queue), state.durationMs > 0,
            Double(position) >= Double(state.durationMs) * NextUp.lookAheadShare {
             lookUpNext { _ in }
@@ -1386,7 +1389,14 @@ public final class PlaybackController: ObservableObject {
         state.chapters = state.chapters.map { var c = $0; c.current = c.index == current; return c }
     }
 
-    /// The credits began: what comes next shows, counting down.
+    /// Whether `marker` is credits that run to the end of their file, by
+    /// the file's length from the server, else the player's.
+    private func reachesEnd(_ marker: Marker) -> Bool {
+        let known = item?.files.first { $0.id == marker.fileId }?.durationMs
+        return Markers.reachesEnd(marker, durationMs: known.flatMap { $0 > 0 ? $0 : nil } ?? state.durationMs)
+    }
+
+    /// Credits that run to the end began: what comes next shows, counting down.
     private func onCredits() {
         guard let item, NextUp.hasNext(item.kind, queue: request.queue), state.upNext == nil else { return }
         lookUpNext { [weak self] found in
@@ -1396,10 +1406,11 @@ public final class PlaybackController: ObservableObject {
         }
     }
 
-    /// A seek or a jump to `position`, out of the credits before the end: the card goes.
+    /// A seek or a jump to `position`, out of the credits that brought the
+    /// card, before the end: the card goes.
     private func leftCredits(at position: Int) {
         guard state.upNext != nil, !ended else { return }
-        if Markers.active(markers, positionMs: position)?.kind == .credits { return }
+        if let marker = Markers.active(markers, positionMs: position), reachesEnd(marker) { return }
         hideUpNext()
     }
 

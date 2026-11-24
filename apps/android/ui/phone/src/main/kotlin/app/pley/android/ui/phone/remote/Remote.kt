@@ -90,6 +90,7 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkCandidates
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.designsystem.tile.ChannelLogo
@@ -700,6 +701,7 @@ private fun Header(session: RemoteSession, origin: String?, modifier: Modifier =
                 poster,
                 item.title,
                 Modifier.width(56.dp).aspectRatio(if (item.kind == ItemKind.Track) 1f else 2f / 3f).clip(PleyShape.TilePhone),
+                mark = MarkGlyph.of(item.kind),
             )
         }
         Spacer(Modifier.width(14.dp))

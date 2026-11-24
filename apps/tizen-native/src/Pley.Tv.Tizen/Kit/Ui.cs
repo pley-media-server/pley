@@ -95,7 +95,7 @@ static class PleyType
     public static readonly TextStyle PageTitle = new TextStyle(28, 34, Bold, -0.25f);
     /// <summary>Row headers.</summary>
     public static readonly TextStyle Section = new TextStyle(18, 24, Bold);
-    /// <summary>Episode titles in info blocks; panel and dialog titles; placeholder titles on tiles.</summary>
+    /// <summary>Episode titles in info blocks; panel and dialog titles; the title on a playlist cover's placeholder.</summary>
     public static readonly TextStyle Title = new TextStyle(16, 22, Bold);
     /// <summary>Summaries on the hero and the item page.</summary>
     public static readonly TextStyle BodyLarge = new TextStyle(15, 22, Regular);

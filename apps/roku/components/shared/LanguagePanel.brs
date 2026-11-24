@@ -1,5 +1,7 @@
 sub init()
     m.title = m.top.findNode("title")
+    ' A side panel's title as the player's and Settings' (a section's).
+    m.title.font = uiType("section")
     m.choices = m.top.findNode("choices")
     m.values = []
     m.top.visible = false
@@ -13,12 +15,11 @@ sub onOpen()
     choice = i18nChoices(m.top.automatic, i18nSupported(m.top.current))
     m.values = choice.values
     items = []
-    for each label in choice.labels
-        items.Push({ title: label })
+    for i = 0 to choice.labels.Count() - 1
+        items.Push({ title: choice.labels[i], checked: i = choice.current })
     end for
     m.title.text = t("signin.language.choose")
     m.choices.content = nodesContent(items)
-    m.choices.checkedItem = choice.current
     m.choices.jumpToItem = choice.current
     m.top.visible = true
     m.choices.setFocus(true)

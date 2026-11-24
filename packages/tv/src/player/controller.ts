@@ -1044,7 +1044,8 @@ export class PlaybackController {
       });
       const label = marker ? skipLabel(marker) : null;
       if (label !== this.state.value.skipLabel) this.update({ skipLabel: label });
-      if (marker && this.credits.enter(marker)) this.onCredits();
+      // The markers are this file's: its length, else the player's.
+      if (marker && this.credits.enter(marker, this.file?.duration_ms || this.clock.value.durationMs)) this.onCredits();
     }
     // Reconnecting: the stall ladder and the frame counts wait; the engine moving on by itself ends it.
     const outage = this.outage;

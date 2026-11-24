@@ -1,3 +1,4 @@
+import { markGlyph, type MarkGlyph } from "pley-placeholder";
 import type { ItemSummary } from "../../api/types";
 import { cardSubtitle, episodeLabel, formatRuntime, formatTimeLeft, isInProgress, progressFraction, summaryBadges, unwatchedCount } from "../../format/format";
 import { t } from "../../i18n";
@@ -101,7 +102,7 @@ function TileView(p: TileProps) {
             candidates={p.candidates ?? artCandidates(p.item, spec.art)}
             width={spec.w}
             title={p.item.title}
-            showTitle={!spec.round}
+            mark={markGlyph(p.item.kind)}
             class="tile-clip"
             priority={p.priority}
           />
@@ -214,6 +215,8 @@ function ArtTileView(p: {
   candidates: string[];
   /** A count on the art's corner ("12"). */
   badge?: string | null;
+  /** Pley's mark on a picture that won't come: collections and playlists, not people. */
+  mark?: MarkGlyph;
   fid?: string;
   initial?: boolean;
   onSelect?: () => void;
@@ -237,7 +240,7 @@ function ArtTileView(p: {
     >
       <div class={`tile-well${spec.round ? " round" : ""}`} style={`width:${spec.w}px;height:${spec.h}px`}>
         <div class="tile-clip">
-          <Art candidates={p.candidates} width={spec.w} title={p.title} showTitle={!spec.round} class="tile-clip" priority={p.priority} />
+          <Art candidates={p.candidates} width={spec.w} title={p.title} mark={p.mark} class="tile-clip" priority={p.priority} />
           {!spec.round && <div class="tile-hairline" />}
           {p.badge && <div class="tile-corner-badge t-badge">{p.badge}</div>}
         </div>

@@ -84,10 +84,14 @@ claimed as checked.
 ## Rules that must hold
 
 **Licensing** ([LICENSING.md](LICENSING.md)). Pley is under the GNU
-AGPL, version 3 only (`AGPL-3.0-only`, the root [LICENSE](LICENSE)); only
-the Kodi add-on is GPL-2.0-or-later. Contributions come under the same
-licenses ([CONTRIBUTING.md](CONTRIBUTING.md)).
+AGPL, version 3 only (`AGPL-3.0-only`, the root [LICENSE](LICENSE)), with
+an additional permission for app stores; only the Kodi add-on is
+GPL-2.0-or-later. Contributions come under the same licenses and the
+Contributor License Agreement ([CONTRIBUTING.md](CONTRIBUTING.md),
+[CLA.md](CLA.md)).
 
+- `LICENSE` holds the AGPL's text unchanged, below the app store
+  permission. Never edit the AGPL's text; a permission goes above it.
 - Add no dependency that is only available under a copyleft license (GPL,
   LGPL, AGPL and the like) to the server, the transcoder or any app other
   than the Kodi add-on. `scripts/check-licenses.ps1` and `deny.toml` enforce

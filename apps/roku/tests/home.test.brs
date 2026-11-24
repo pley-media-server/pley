@@ -40,6 +40,7 @@ sub test_home_info_from_details_has_the_rating_and_badges()
     tkEqual(info.title, "Dune")
     tkEqual(info.context, "")
     tkEqual(info.meta, "2021 · 2 h 35 min · PG-13 · ★ 7.9 · 4K · DV")
+    tkEqual(info.metaParts, [{ text: "2021" }, { text: "2 h 35 min" }, { text: "PG-13", boxed: true }, { text: "7.9", star: true }, { text: "4K", boxed: true }, { text: "DV", boxed: true }], "boxed and starred, as Android TV draws them")
     tkEqual(info.summary, "Paul goes to Arrakis.")
     tkEqual(info.timeLeft, "", "watched: not in progress")
     tkTrue(info.watched)
@@ -78,13 +79,13 @@ sub test_home_in_french_and_spanish()
     tkEqual(homeHeroButtons(homeInfo(homeTestEpisode(), "http://s", false)).labels, ["Reprendre", "Depuis le début", "Infos", "Marquer comme vu"])
     tkEqual(homeEmpty([]), { title: "Aucune bibliothèque pour l’instant", text: "Demandez au propriétaire du serveur d’ajouter une bibliothèque." })
     titles = []
-    for each entry in homeMenu([{ id: 1, name: "Movies", kind: "movies" }], true, [], true)
+    for each entry in homeMenu([{ id: 1, name: "Movies", kind: "movies" }], true, false, true)
         titles.Push(entry.title)
     end for
     tkEqual(titles, ["Recherche", "Accueil", "TV en direct", "Movies", "Playlists", "Collections", "En lecture", "Paramètres"], "a library keeps the server's name")
     i18nUse("es")
     titles = []
-    for each entry in homeMenu([{ id: 1, name: "Movies", kind: "movies" }], false, [], false)
+    for each entry in homeMenu([{ id: 1, name: "Movies", kind: "movies" }], false, false, false)
         titles.Push(entry.title)
     end for
     tkEqual(titles, ["Buscar", "Inicio", "Movies", "Listas", "Colecciones", "Ajustes"])
@@ -95,15 +96,41 @@ end sub
 sub test_home_menu_follows_the_other_tvs_rail()
     movies = { id: 1, name: "Movies", kind: "movies" }
     music = { id: 3, name: "Music", kind: "music" }
-    requests = [{ title: "Discover", action: "discover" }, { title: "Requests", action: "requests", count: 2, danger: false }]
     actions = []
-    for each entry in homeMenu([movies, music], true, requests, true)
+    for each entry in homeMenu([movies, music], true, true, true)
         actions.Push(entry.action)
     end for
-    tkEqual(actions, ["search", "home", "discover", "requests", "live", "library", "library", "playlists", "collections", "nowPlaying", "settings"])
+    tkEqual(actions, ["search", "home", "discover", "live", "library", "library", "playlists", "collections", "nowPlaying", "settings"])
     actions = []
-    for each entry in homeMenu([music], false, [], false)
+    for each entry in homeMenu([music], false, false, false)
         actions.Push(entry.action)
     end for
     tkEqual(actions, ["search", "home", "library", "playlists", "settings"], "no Collections without movies or shows")
+end sub
+
+sub test_home_menu_icons_as_android_tv()
+    tkEqual(homeMenuIcon({ action: "search" }), "search")
+    tkEqual(homeMenuIcon({ action: "home" }), "house")
+    tkEqual(homeMenuIcon({ action: "live" }), "tv-minimal")
+    tkEqual(homeMenuIcon({ action: "library", library: { kind: "movies" } }), "clapperboard")
+    tkEqual(homeMenuIcon({ action: "library", library: { kind: "shows" } }), "tv")
+    tkEqual(homeMenuIcon({ action: "library", library: { kind: "music" } }), "music")
+    tkEqual(homeMenuIcon({ action: "library", library: { kind: "photos" } }), "film")
+    tkEqual(homeMenuIcon({ action: "nowPlaying" }), "audio-lines")
+end sub
+
+sub test_home_hero_chips_as_android_tv()
+    chips = homeHeroChips({ labels: ["Resume", "From start", "Info", "Mark as watched"], actions: ["resume", "start", "info", "watched"] })
+    tkEqual(chips[0], { label: "Resume", icon: "play", width: 0 }, "a pill with its words")
+    tkEqual(chips[1], { label: "", icon: "rotate-ccw", name: "From start", width: 0 }, "round, named while focused")
+    tkEqual(chips[3].icon, "circle-check")
+    tkEqual(homeHeroChips({ labels: ["Play"], actions: ["start"] })[0].icon, "play")
+    tkEqual(homeHeroChips({ labels: ["Open"], actions: ["info"] })[0].icon, "arrow-right")
+end sub
+
+sub test_home_meta_parts_with_the_context()
+    info = { context: "S1 E2 · Pilot", metaParts: [{ text: "2021" }] }
+    tkEqual(homeMetaParts(info, true), [{ text: "S1 E2 · Pilot" }, { text: "2021" }])
+    tkEqual(homeMetaParts(info, false), [{ text: "2021" }])
+    tkEqual(homeMetaParts({ context: "", meta: "2019 · 2 h" }, true), [{ text: "2019 · 2 h" }], "a tile's words until its details come")
 end sub
