@@ -21,8 +21,12 @@ export const CUSHION: Cushion = { start: 2, again: 4, wait: 6000 };
 /** Seconds of the picture buffered past what plays. */
 export function bufferedAhead(video: HTMLMediaElement): number {
   const b = video.buffered;
+  if (!b.length) return 0;
+  // Before anything buffered (a stream's first picture comes a moment after
+  // its start), from where it starts playing.
+  const at = Math.max(video.currentTime, b.start(0));
   for (let i = 0; i < b.length; i++) {
-    if (b.start(i) <= video.currentTime + 0.1 && video.currentTime <= b.end(i)) return b.end(i) - video.currentTime;
+    if (b.start(i) <= at + 0.1 && at <= b.end(i)) return b.end(i) - at;
   }
   return 0;
 }

@@ -27,6 +27,27 @@ describe("bufferedAhead", () => {
     at(6);
     expect(bufferedAhead(video)).toBe(0);
   });
+
+  it("counts from where it starts before anything buffered: a stream's first picture comes a moment after 0", () => {
+    const { video, buffer } = fakeVideo();
+    buffer([0.125, 3]);
+    expect(bufferedAhead(video)).toBe(2.875);
+  });
+});
+
+describe("keepCushion, a stream whose first picture comes a moment after 0", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("starts once 2 s are buffered from it", () => {
+    const { video, buffer } = fakeVideo();
+    const play = vi.fn();
+    const stop = keepCushion(video, play);
+    buffer([0.125, 2.2]);
+    vi.advanceTimersByTime(200);
+    expect(play).toHaveBeenCalledTimes(1);
+    stop();
+  });
 });
 
 describe("keepCushion", () => {
