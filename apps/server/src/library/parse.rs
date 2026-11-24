@@ -1087,8 +1087,10 @@ pub(crate) mod tests {
             let book = parse_audiobook(path, root, tags);
             assert!(book.authors.len() <= MAX_NAMES && book.narrators.len() <= MAX_NAMES);
             assert!(book.summary.is_none_or(|s| s.chars().count() <= MAX_SUMMARY));
-            edition(path);
+            edition(path, true);
+            edition(path, false);
             for name in path.iter().map(|c| c.to_string_lossy()) {
+                show_ids(&name);
                 title_and_year(&name);
                 season_from_dir(&name);
                 natural_key(&name);
