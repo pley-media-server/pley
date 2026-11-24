@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { markGlyph } from "pley-placeholder";
 import type { DiscoverTitle, ItemSummary, LiveChannel, PersonSummary } from "../../api/types";
 import { cardSubtitle, episodeLabel } from "../../format/format";
 import { t } from "../../i18n";
@@ -353,6 +354,7 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
                 name={title.title}
                 subtitle={titleSubtitle(title, true)}
                 poster={title.poster_url}
+                mark={markGlyph(title.kind)}
                 badge={titleBadge(title)}
                 tone={titleTone(title)}
                 fid={`tmdb/${titleKey(title)}`}

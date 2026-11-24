@@ -13,7 +13,7 @@
 
 use std::rc::Rc;
 
-use pley_base::{Icon, ImageRequest, Point, Rect, TextOpts};
+use pley_base::{Icon, ImageRequest, MarkGlyph, Point, Rect, TextOpts};
 use pley_core::http::sentence;
 use pley_core::model::{
     CollectionDetail, CollectionList, CollectionSort, CollectionSummary, ItemKind, ItemSummary, Library, LibraryKind,
@@ -235,7 +235,9 @@ impl Screen for CollectionsScreen {
                     |k| tiles[k].id as u64,
                     |ui, slot| {
                         let t = &tiles[slot.index];
-                        Tile::new(TileKind::Poster, &t.title).subtitle(&t.subtitle).art(&t.art).paint(ui, slot);
+                        // A collection is no library's kind of title: its mark shows play.
+                        let tile = Tile::new(TileKind::Poster, &t.title).subtitle(&t.subtitle).art(&t.art);
+                        tile.mark(Some(MarkGlyph::DEFAULT)).paint(ui, slot);
                     },
                 );
                 if let Some(k) = r.activated {

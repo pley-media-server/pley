@@ -38,7 +38,7 @@ static class RequestKit
         var badge = RequestRules.BadgeOf(title) is { } b ? RequestText.Badge(b) : null;
         var said = string.Join(", ", new[] { title.Title, title.Year?.ToString(CultureInfo.InvariantCulture), RequestText.Kind(title.Kind), badge }.Where(s => s != null));
         return new TileModel(TileId(title), title.Title, TitleLine(title.Year, title.Kind), Picture(title.PosterUrl, origin), 0f, false, 0,
-            badge == null ? Array.Empty<string>() : new[] { badge }, said);
+            badge == null ? Array.Empty<string>() : new[] { badge }, said, title.Kind);
     }
 
     /// <summary><paramref name="request"/> as a wide tile: its backdrop (or poster), the download's progress on it, its stage under it.</summary>
@@ -46,7 +46,7 @@ static class RequestKit
     {
         var stage = Text.Pill(RequestRules.Pill(request, manage));
         var art = new[] { request.BackdropUrl, request.PosterUrl }.Where(u => !string.IsNullOrEmpty(u)).Select(u => Artwork.Absolute(u!, origin)).ToList();
-        return new TileModel(request.Id, request.Title, stage, art, RequestRules.DownloadProgress(request) ?? 0f, false, 0, Array.Empty<string>(), $"{request.Title}, {stage}");
+        return new TileModel(request.Id, request.Title, stage, art, RequestRules.DownloadProgress(request) ?? 0f, false, 0, Array.Empty<string>(), $"{request.Title}, {stage}", request.Kind);
     }
 
     /// <summary>A list title's facts, before its page is read: its year and kind, TMDB's rating.</summary>

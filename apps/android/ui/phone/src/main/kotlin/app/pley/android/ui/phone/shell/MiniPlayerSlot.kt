@@ -32,6 +32,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.player.MusicPosition
 import app.pley.android.player.NowPlaying
 import app.pley.android.screens.PleyKey
@@ -77,7 +78,7 @@ internal fun MiniPlayerSlot(nowPlaying: NowPlaying?, modifier: Modifier = Modifi
     ) {
         Box(Modifier.size(56.dp).clip(PleyShape.TilePhone).background(PleyColors.Surface3), contentAlignment = Alignment.Center) {
             if (art != null) {
-                Artwork(art, nowPlaying.album ?: nowPlaying.title, Modifier.matchParentSize())
+                Artwork(art, nowPlaying.album ?: nowPlaying.title, Modifier.matchParentSize(), mark = MarkGlyph.Music)
             } else {
                 Icon(PleyIcons.Music, contentDescription = null, tint = PleyColors.Muted)
             }

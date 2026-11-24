@@ -6,6 +6,7 @@
     "apps/web",
     "apps/desktop",
     "packages/picture-subtitles",
+    "packages/placeholder",
     "packages/tv",
     "apps/tizen"
   ],
@@ -15,9 +16,9 @@
     "typecheck": "bun run --cwd apps/web typecheck",
     "lint": "bun run --cwd apps/web lint",
     "test": "bun run --cwd apps/web test",
-    "check": "bun run --cwd packages/picture-subtitles check && bun run --cwd apps/web check && bun run --cwd apps/desktop check",
+    "check": "bun run --cwd packages/picture-subtitles check && bun run --cwd packages/placeholder check && bun run --cwd apps/web check && bun run --cwd apps/desktop check",
     "desktop": "bun run --cwd apps/desktop dev",
-    "tv:check": "bun run --cwd packages/picture-subtitles check && bun run --cwd packages/tv check && bun run --cwd apps/tizen check",
+    "tv:check": "bun run --cwd packages/picture-subtitles check && bun run --cwd packages/placeholder check && bun run --cwd packages/tv check && bun run --cwd apps/tizen check",
     "tizen": "bun run --cwd apps/tizen package",
     "tizen-native": "bun apps/tizen-native/scripts/package.mjs"
   },

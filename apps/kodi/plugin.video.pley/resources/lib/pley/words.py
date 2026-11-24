@@ -299,7 +299,8 @@ def rating(value) -> str:
 
 
 def hue(seed: str) -> int:
-    """The web's placeholder hue: h = h * 31 + code over UTF-16 units,
+    """The placeholder's hue, as every app's (packages/placeholder):
+    h = h * 31 + code over UTF-16 units,
     unsigned 32-bit, mod 360."""
     h = 0
     data = seed.encode("utf-16-le")

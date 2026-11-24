@@ -52,6 +52,7 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.ArtworkInterceptor
 import app.pley.android.designsystem.image.ArtworkPolicy
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.QualityBadge
 import app.pley.android.designsystem.tile.TileKind
@@ -164,7 +165,7 @@ private object DemoData {
         ArtworkTileModel(15, "Violet Hour", "2021", poster("violet-hour")),
         ArtworkTileModel(16, "The Quiet Harbor", "2023", poster("quiet-harbor")),
         ArtworkTileModel(17, "Glass Meridian", "2022", poster("glass-meridian")),
-        ArtworkTileModel(18, "A Film With No Poster Yet", "2018", null),
+        ArtworkTileModel(18, "A Film With No Poster Yet", "2018", null, mark = MarkGlyph.Movies),
     )
 
     val shows = listOf(

@@ -1,6 +1,7 @@
 package app.pley.android.designsystem.gallery
 
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.model.DynamicRange
 import app.pley.android.model.ItemKind
@@ -41,6 +42,7 @@ internal object GallerySamples {
         subtitle = "2018",
         image = ArtworkImage(listOf("gallery://missing/a-film")),
         description = "A Film With No Poster Yet, 2018",
+        mark = MarkGlyph.Movies,
     )
 
     val movies = listOf(lowOrbit, halcyon, northernLights, copperSky, violetHour, quietHarbor, glassMeridian, noPoster)
@@ -68,6 +70,7 @@ internal object GallerySamples {
         image = still(name),
         progress = positionMs.toFloat() / durationMs,
         description = title,
+        mark = MarkGlyph.Movies,
     )
 
     private fun continueEpisode(id: Long, name: String, show: String, season: Int, episode: Int, title: String, positionMs: Long, durationMs: Long) =
@@ -114,6 +117,7 @@ internal object GallerySamples {
             title = listOf("Night Swim", "Copper", "Meridian", "Halcyon Days", "Salt", "Orbit")[i],
             subtitle = listOf("The Glass Coast · 2021", "Dune Radio · 2019", "Meridian · 2022", "Halcyon · 2024", "Saltwind · 2018", "Low · 2023")[i],
             image = ArtworkImage(listOf("gallery://square/$name")),
+            mark = MarkGlyph.Music,
         )
     }
 

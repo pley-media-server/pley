@@ -116,7 +116,6 @@ export function HomeBanner({ featured }: { featured: Featured[] }) {
             width={1920}
             alt=""
             title={f.item.title}
-            bare
             eager
             className={cn(
               "size-full transition-transform duration-[20s] ease-out will-change-transform motion-reduce:scale-100 motion-reduce:transition-none",

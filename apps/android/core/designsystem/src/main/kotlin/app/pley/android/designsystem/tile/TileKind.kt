@@ -77,8 +77,6 @@ enum class TileStyle(
     /** Quality badges on art. */
     val badgeText: TextStyle,
     val badgeHeight: Dp,
-    /** The placeholder's title. */
-    val placeholderText: TextStyle,
     /** Caption lines under the art. */
     val captionTitle: TextStyle,
     val captionSubtitle: TextStyle,
@@ -94,7 +92,6 @@ enum class TileStyle(
         progressHeight = 4.dp,
         badgeText = PleyType.Tv.Badge,
         badgeHeight = 18.dp,
-        placeholderText = PleyType.Tv.Title,
         captionTitle = PleyType.Tv.Caption,
         captionSubtitle = PleyType.Tv.Caption,
         captionGap = PleyTv.TilesToCaption,
@@ -108,7 +105,6 @@ enum class TileStyle(
         progressHeight = 4.dp,
         badgeText = PleyType.Phone.LabelSmall,
         badgeHeight = 18.dp,
-        placeholderText = PleyType.Phone.TitleSmall,
         captionTitle = PleyType.Phone.TitleSmall,
         captionSubtitle = PleyType.Phone.BodySmall,
         captionGap = 8.dp,

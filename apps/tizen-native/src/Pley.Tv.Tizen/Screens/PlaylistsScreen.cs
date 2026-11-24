@@ -288,8 +288,9 @@ sealed class PlaylistsScreen : ShellPage
 /// <summary>
 /// A playlist's square art (the Android app's TvPlaylistArt; the web's PlaylistArt): a 2 by 2
 /// mosaic of its first four entries' pictures, or its first entry's picture over the title's own
-/// gradient, or, empty, its kind's glyph (list-video or list-music) on a Surface3 to Surface2
-/// gradient; with the tile's 1 dp hairline.
+/// gradient (Pley's mark on it if the picture doesn't load, music's glyph or the logo's play cut out
+/// of it; the caption or the row beside the cover names it), or, empty, its kind's glyph
+/// (list-video or list-music) on a Surface3 to Surface2 gradient; with the tile's 1 dp hairline.
 /// </summary>
 sealed class PlaylistArtView : View
 {
@@ -310,16 +311,8 @@ sealed class PlaylistArtView : View
         {
             var (from, to) = Placeholder.Colors(card.Title);
             var well = new View { Size = new Size(w, w), Background = Gradients.Diagonal(AvatarView.Rgb(from), AvatarView.Rgb(to)) };
-            if (size >= 80)
-            {
-                var name = Text.Label(card.Title, PleyType.Title, new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, 0.7f), maxLines: 4);
-                name.Size = new Size(w - Ui.Dp(24), w - Ui.Dp(24));
-                name.Position = new Position(Ui.Dp(12), Ui.Dp(12));
-                name.HorizontalAlignment = HorizontalAlignment.Center;
-                well.Add(name);
-            }
             Add(well);
-            Add(Picture(images, art[0], size, 0, 0));
+            Add(Picture(images, art[0], size, 0, 0, failed: () => Mark(well, size, card.MarkGlyph)));
         }
         else
         {
@@ -340,8 +333,19 @@ sealed class PlaylistArtView : View
         });
     }
 
-    /// <summary>One picture, <paramref name="size"/> square at (x, y), fading in once it has loaded.</summary>
-    ImageView Picture(Images images, string url, float size, float x, float y)
+    /// <summary>Pley's mark on the cover's placeholder once its picture didn't load, <paramref name="glyph"/> cut out of it.</summary>
+    static void Mark(View well, float size, string glyph)
+    {
+        var spot = Placeholder.Layout(size, size, missing: true, glyph);
+        if (spot.Glyph == null) return;
+        well.Add(Icons.PlaceholderMark(spot.Glyph, spot.MarkSide, (size - spot.MarkSide) / 2, spot.MarkTop));
+    }
+
+    /// <summary>
+    /// One picture, <paramref name="size"/> square at (x, y), fading in once it has loaded;
+    /// <paramref name="failed"/> hears that it didn't.
+    /// </summary>
+    ImageView Picture(Images images, string url, float size, float x, float y, Action? failed = null)
     {
         var px = Ui.Dp(size);
         var picture = new ImageView
@@ -355,7 +359,12 @@ sealed class PlaylistArtView : View
         };
         images.Load(new[] { url }, size, file =>
         {
-            if (file == null || Disposed) return;
+            if (Disposed) return;
+            if (file == null)
+            {
+                failed?.Invoke();
+                return;
+            }
             picture.ResourceUrl = file;
             var fade = new Animation(PleyMotion.ImageFadeMs);
             fade.AnimateTo(picture, "Opacity", 1f);

@@ -3,6 +3,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Link, useParams, useSearchParams } from "react-router";
 import { Ban, Bell, Check, Clock, Play, Plus, UserMinus } from "lucide-react";
+import { markGlyph } from "pley-placeholder";
 import { isApiError } from "@/api/client";
 import {
   useAskRequest,
@@ -57,7 +58,6 @@ function Backdrop({ title }: { title: DiscoverDetail }) {
         width={1280}
         alt=""
         title={title.title}
-        bare
         eager
         className="size-full opacity-70"
         imgClassName="object-cover object-[center_20%]"
@@ -280,7 +280,7 @@ function SeasonRow({ season, title, manage }: { season: DiscoverSeason; title: D
         width={40}
         alt=""
         title=""
-        bare
+        mark="shows"
         className="aspect-[2/3] w-10 shrink-0 rounded ring-1 ring-white/5"
       />
       <div className="min-w-0 flex-1">
@@ -374,6 +374,7 @@ function TitleView({ title, picking, setPicking }: { title: DiscoverDetail; pick
               width={256}
               alt={title.title}
               title={title.title}
+              mark={markGlyph(title.kind)}
               eager
               className="aspect-[2/3] w-full rounded-lg shadow-2xl shadow-black/60 ring-1 ring-white/10"
             />

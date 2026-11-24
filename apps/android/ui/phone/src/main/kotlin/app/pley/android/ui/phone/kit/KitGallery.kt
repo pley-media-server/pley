@@ -28,15 +28,16 @@ import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyPhone
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 
 /**
- * Every part of the phone kit on one page, with made-up titles drawn on
- * their placeholders: for looking at in debug builds (the placeholders
- * open it) and for screenshots against the design's mockups.
+ * Every part of the phone kit on one page, with made-up titles whose
+ * placeholders show Pley's mark: for looking at in debug builds (the
+ * placeholders open it) and for screenshots against the design's mockups.
  */
 @Composable
 internal fun KitGallery(onBack: () -> Unit) {
@@ -150,9 +151,9 @@ private fun Section(title: String, margin: androidx.compose.ui.unit.Dp) {
 }
 
 private val continueWatching = listOf(
-    ArtworkTileModel(1, "Driftline", "S2 · E5 · 26 min left", progress = 0.55f),
-    ArtworkTileModel(2, "Ashfall", "1h 12m left", progress = 0.4f),
-    ArtworkTileModel(3, "Halcyon", "48 min left", progress = 0.7f),
+    ArtworkTileModel(1, "Driftline", "S2 · E5 · 26 min left", progress = 0.55f, mark = MarkGlyph.Shows),
+    ArtworkTileModel(2, "Ashfall", "1h 12m left", progress = 0.4f, mark = MarkGlyph.Movies),
+    ArtworkTileModel(3, "Halcyon", "48 min left", progress = 0.7f, mark = MarkGlyph.Movies),
 )
 
 private val movies = listOf(
@@ -165,4 +166,4 @@ private val movies = listOf(
     ArtworkTileModel(17, "Copper Sky", "2020"),
     ArtworkTileModel(18, "The Fen", "2019"),
     ArtworkTileModel(19, "Overgrowth", "2024"),
-)
+).map { it.copy(mark = MarkGlyph.Movies) }

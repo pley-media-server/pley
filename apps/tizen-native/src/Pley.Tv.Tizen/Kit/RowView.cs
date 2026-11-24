@@ -128,7 +128,8 @@ sealed class RowView : View
     /// <summary>Whether two tiles look the same: their lists compared by what they hold, not by which list they are.</summary>
     static bool Same(TileModel a, TileModel b) =>
         ReferenceEquals(a, b) || (a.Id == b.Id && a.Title == b.Title && a.Subtitle == b.Subtitle && a.Progress == b.Progress && a.Watched == b.Watched
-            && a.Unwatched == b.Unwatched && a.Description == b.Description && a.Images.SequenceEqual(b.Images) && a.Badges.SequenceEqual(b.Badges));
+            && a.Unwatched == b.Unwatched && a.Description == b.Description && a.ItemKind == b.ItemKind && a.Images.SequenceEqual(b.Images)
+            && a.Badges.SequenceEqual(b.Badges));
 
     /// <summary>
     /// The row's tiles are now <paramref name="next"/>: those it has take their new look (the progress

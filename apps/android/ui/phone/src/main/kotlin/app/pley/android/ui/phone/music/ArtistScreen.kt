@@ -43,6 +43,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonTile
@@ -221,7 +222,8 @@ internal fun MusicHeader(
                 .clip(if (round) PleyShape.Circle else PleyShape.Card)
                 .background(PleyColors.Surface2),
         ) {
-            Artwork(art, title, Modifier.matchParentSize())
+            // An album's or an artist's: music's glyph.
+            Artwork(art, title, Modifier.matchParentSize(), mark = MarkGlyph.Music)
         }
         Spacer(Modifier.height(20.dp))
         Text(kind, style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)

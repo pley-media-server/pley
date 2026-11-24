@@ -177,16 +177,19 @@ add(
   `<defs><radialGradient id="g" cx="480" cy="270" r="288" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0284c7" stop-opacity="0.18"/><stop offset="1" stop-color="#0284c7" stop-opacity="0"/></radialGradient></defs><rect width="480" height="270" fill="url(#g)"/>`,
 );
 
-// Placeholders, as the web's placeholderGradient: 135° from hsl(h, 30 %,
-// 22 %) to hsl(h + 40, 35 %, 12 %), h from a hash of the title. Kodi gets
-// 24 of them, h every 15°, and the add-on picks the nearest.
+// Placeholders, as every app draws them (packages/placeholder): a gradient
+// from the title's hue to one further round, h from a hash of the title.
+// Kodi gets 24 of them, h every 15°, and the add-on picks the nearest.
+const { gradient } = JSON.parse(readFileSync(join(root, "packages/placeholder/placeholder.json"), "utf8"));
 for (let i = 0; i < 24; i++) {
   const h = i * 15;
+  const from = hsl(h, gradient.from.saturation, gradient.from.lightness);
+  const to = hsl((h + gradient.to.hueShift) % 360, gradient.to.saturation, gradient.to.lightness);
   add(
     `ph-${String(i).padStart(2, "0")}.png`,
     96,
     96,
-    `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${hsl(h, 0.3, 0.22)}"/><stop offset="1" stop-color="${hsl((h + 40) % 360, 0.35, 0.12)}"/></linearGradient></defs><rect width="96" height="96" fill="url(#g)"/>`,
+    `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="96" height="96" fill="url(#g)"/>`,
   );
 }
 

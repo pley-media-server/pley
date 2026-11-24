@@ -67,6 +67,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.player.MusicError
 import app.pley.android.player.NowPlaying
@@ -155,7 +156,7 @@ internal fun NowPlayingScreen() {
                         .clip(PleyShape.Card)
                         .background(PleyColors.Surface2),
                 ) {
-                    Artwork(art, now.album ?: now.title, Modifier.matchParentSize())
+                    Artwork(art, now.album ?: now.title, Modifier.matchParentSize(), mark = MarkGlyph.Music)
                 }
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
@@ -328,7 +329,7 @@ private fun QueueLine(row: QueueRow, origin: String, playing: Boolean, onClick: 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(44.dp).clip(PleyShape.Badge).background(PleyColors.Surface3)) {
-            Artwork(art, row.title, Modifier.matchParentSize())
+            Artwork(art, row.title, Modifier.matchParentSize(), mark = MarkGlyph.Music)
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {

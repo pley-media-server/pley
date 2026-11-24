@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { BookmarkCheck, BookmarkPlus, Check, Eye, EyeOff, Star, Tag } from "lucide-react";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage } from "@/api/client";
 import { useSetInWatchlist, useSetWatched } from "@/api/hooks";
 import type { ItemDetail, ItemSummary, MediaFile } from "@/api/types";
@@ -43,7 +44,6 @@ export function Backdrop({ item }: { item: ItemSummary }) {
         width={1920}
         alt=""
         title={item.grandparent_title ?? item.parent_title ?? item.title}
-        bare
         eager
         className="size-full opacity-70"
         imgClassName="object-cover object-[center_20%]"
@@ -72,6 +72,7 @@ export function ItemArt({
       width={width}
       alt={item.title}
       title={item.title}
+      mark={markGlyph(item.kind)}
       eager
       className={cn(
         ASPECT_CLASS[aspect],

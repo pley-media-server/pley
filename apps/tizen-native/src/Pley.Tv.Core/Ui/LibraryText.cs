@@ -354,7 +354,8 @@ public static class LibraryText
             false,
             0,
             Array.Empty<string>(),
-            $"{collection.Title}, {count}");
+            $"{collection.Title}, {count}",
+            "collection");
     }
 
     // ---- the Library tab
