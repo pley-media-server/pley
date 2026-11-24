@@ -1200,9 +1200,12 @@ and its book pages follow, and the other way round.
 A server that doesn't give books (an older one) leaves the Books tab out.
 
 Search finds artists, albums, tracks and books, each kind under its
-heading, the kind of the server's closest match first, then channels:
-those found within a second and a half, so a slow IPTV provider doesn't
-hold back the music's results. Each
+heading, the kind of the server's closest match first (six of it, four
+of each other kind, so the results are a screen or two), then up to five
+channels: those found within a second and a half, so a slow IPTV
+provider doesn't hold back the music's results. A result is read without
+the page it is on: an album says its artist and year ("Harbour Lights ·
+2023"), a track its artist and album. Each
 search the car sends is asked of the server by itself, so one overtaken
 by the next letter typed still gets its answer, and the results of the
 last three are kept for a minute, so one asked again (a letter taken

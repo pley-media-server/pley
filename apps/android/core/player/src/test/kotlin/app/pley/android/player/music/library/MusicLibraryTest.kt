@@ -299,8 +299,9 @@ class MusicLibraryTest {
         assertEquals("14 tracks", shuffle.subtitle.toString())
         // Its tile is of the artist's hue, from their name.
         assertEquals("content://shuffle/Harbour Lights", shuffle.artworkUri.toString())
-        // Elsewhere an album says its artist.
-        assertEquals("Harbour Lights", library.search("deep").first { it.mediaId == "album:50" }.mediaMetadata.subtitle.toString())
+        // Elsewhere an album says its artist, and in search its year too.
+        assertEquals("Harbour Lights", library.children(MusicId.Recent, 0, 50).first { it.mediaId == "album:50" }.mediaMetadata.subtitle.toString())
+        assertEquals("Harbour Lights · 2019", library.search("deep").first { it.mediaId == "album:50" }.mediaMetadata.subtitle.toString())
     }
 
     @Test
@@ -396,6 +397,19 @@ class MusicLibraryTest {
         val found = library.search("tide")
         assertEquals(listOf("track:51", "track:52", "album:55", "artist:40"), found.map { it.mediaId })
         assertEquals(listOf("Tracks", "Tracks", "Albums", "Artists"), found.map { it.group })
+    }
+
+    @Test
+    fun searchShowsAFewOfEachKindItsResultsReadAlone() = runTest {
+        // Ten tracks found closest, then ten albums: six tracks, four albums.
+        source.found = (1..10L).map { track(100 + it, 50) } + (1..10L).map { album(200 + it, "Album $it", year = 2023) }
+        val found = library.search("deep")
+        assertEquals(6, found.count { it.mediaId.startsWith("track:") })
+        assertEquals(4, found.count { it.mediaId.startsWith("album:") })
+        // A track says its artist and album, an album its artist and year; the queue's track its artist alone.
+        assertEquals("Harbour Lights · Deep Water", found.first().mediaMetadata.subtitle.toString())
+        assertEquals("Harbour Lights · 2023", found.first { it.mediaId.startsWith("album:") }.mediaMetadata.subtitle.toString())
+        assertEquals("Harbour Lights", library.queueItem(track(101, 50)).mediaMetadata.subtitle.toString())
     }
 
     @Test

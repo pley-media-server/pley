@@ -141,7 +141,7 @@ class LiveLibrary(
     suspend fun search(query: String): List<MediaItem> {
         if (!runCatching { source.shown() }.getOrDefault(false)) return emptyList()
         val heading = look().channels
-        return channels(source.channels(LiveCategory.All, query, SEARCH_LIMIT), null).map { it.grouped(heading) }
+        return channels(source.channels(LiveCategory.All, query, SEARCH_SHOWN), null).map { it.grouped(heading) }
     }
 
     /**
@@ -284,7 +284,10 @@ class LiveLibrary(
         /** The most rows of the tab whose groups have their icon: as many as fit a car's list, names as long as most (CarListSizeTest). */
         private const val ICONED_ROWS = 350
 
-        /** The most channels a search shows. */
+        /** The most channels a search shows, after the music's few of each kind. */
+        private const val SEARCH_SHOWN = 5
+
+        /** The most channels a spoken name is looked for among. */
         private const val SEARCH_LIMIT = 15
 
         /** A channel's logo on the server, as [MusicArt] serves it. */

@@ -40,7 +40,7 @@ With Android Auto:
   an album or playlist opens to its
   tracks, and plays at once only with a single one; an artist's page
   is a grid of Shuffle and their albums by year, and an album numbers its tracks, by
-  disc when it has several), search (the closest kind of match first),
+  disc when it has several), search (the closest kind of match first, a few of each),
   the whole queue under the album's, playlist's or artist's name, Shuffle
   and Repeat on Now Playing, and "Hey Google, play … on
   Pley", which finds music playlists by name ("my … playlist" too),

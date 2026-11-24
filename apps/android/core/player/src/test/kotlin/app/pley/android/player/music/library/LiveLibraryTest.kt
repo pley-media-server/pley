@@ -150,6 +150,11 @@ class LiveLibraryTest {
         // A spoken name plays its channel only when it is the channel's name.
         assertNull(live.named("sport"))
         assertEquals(3L, live.closest("sport")?.id)
+
+        // Five at most, after the music's results; a spoken name is still looked for among more.
+        source.channels += (10..29L).map { LiveChannel(it, name = "Sport $it", group = "Sport") }
+        assertEquals(5, live.search("sport").size)
+        assertEquals(20L, live.named("sport 20")?.id)
     }
 
     @Test

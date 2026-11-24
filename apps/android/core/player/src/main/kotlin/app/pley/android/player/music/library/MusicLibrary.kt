@@ -217,13 +217,16 @@ class MusicLibrary(
     /**
      * Artists, albums, tracks and books matching [query], each a group of
      * its own, the group of the server's closest match first (then as
-     * listed); then Live TV's channels, as many as are found within
-     * [LIVE_SEARCH_MS]. A query of blanks gets the albums played and added
-     * last, once each, as Recent has them (Media3 answers an empty one
-     * itself, before it gets here).
+     * listed), [SEARCH_CLOSEST] of it and [SEARCH_EACH] of each other, so
+     * the groups are a screen or two of a car's; then Live TV's channels,
+     * as many as are found within [LIVE_SEARCH_MS]. An album says its
+     * artist and year, a track its artist and album: a result is read
+     * without the page it is on. A query of blanks gets the albums played
+     * and added last, once each, as Recent has them (Media3 answers an
+     * empty one itself, before it gets here).
      */
     suspend fun search(query: String): List<MediaItem> = coroutineScope {
-        if (query.isBlank()) return@coroutineScope recent().distinctBy { it.mediaId }.take(SEARCH_EACH)
+        if (query.isBlank()) return@coroutineScope recent().distinctBy { it.mediaId }.take(SEARCH_BLANK)
         // Channels not found (Live TV closed, the server's answer failing) leave the music's results as they are, and
         // so do channels slow to come: a provider's lineup is searched apart from the music, and the car waits for both.
         val channels = async {
@@ -241,14 +244,21 @@ class MusicLibrary(
             // Rows, as the rest of the results: what opens would be a tile by the root's default, and a car may read
             // search's results by it.
             ItemKind.Artist to { artist(it).styled(LIST).grouped(l.artists) },
-            ItemKind.Album to { album(it).styled(LIST).grouped(l.albums) },
-            ItemKind.Track to { track(it, from = null).grouped(l.songs) },
+            ItemKind.Album to { album(it).styled(LIST).subtitled(it.parentTitle, it.year?.toString()).grouped(l.albums) },
+            // Here alone: the queue's rows are tracks' rows too (queueItem), and Now Playing names their album apart.
+            ItemKind.Track to { track(it, from = null).subtitled(it.grandparentTitle, it.parentTitle).grouped(l.songs) },
             ItemKind.Audiobook to { book(it, null).grouped(l.books) },
         )
         // Sorted by where each kind's first match is: the one the server found closest leads ("Thriller" finds the
         // album before an artist whose name only holds the word).
         val closest = groups.sortedBy { (kind, _) -> found.indexOfFirst { it.kind == kind }.let { if (it < 0) Int.MAX_VALUE else it } }
-        closest.flatMap { (kind, row) -> found.filter { it.kind == kind }.take(SEARCH_EACH).map(row) } + channels.await()
+        closest.flatMapIndexed { i, (kind, row) -> found.filter { it.kind == kind }.take(if (i == 0) SEARCH_CLOSEST else SEARCH_EACH).map(row) } + channels.await()
+    }
+
+    /** The item with [parts] under its title, those known, as "Harbour Lights · 2023"; as it was with none. */
+    private fun MediaItem.subtitled(vararg parts: String?): MediaItem {
+        val line = parts.filterNotNull().filter { it.isNotBlank() }.joinToString(" · ").ifEmpty { return this }
+        return buildUpon().setMediaMetadata(mediaMetadata.buildUpon().setSubtitle(line).build()).build()
     }
 
     /** What playing [id] plays; `null` for a node that doesn't play, or plays nothing. */
@@ -832,8 +842,12 @@ class MusicLibrary(
          */
         private const val ARTIST_COVERS = 3
 
-        /** The most of each kind a search shows. */
-        private const val SEARCH_EACH = 15
+        /** The most a search shows of the kind of its closest match, and of each other kind. */
+        private const val SEARCH_CLOSEST = 6
+        private const val SEARCH_EACH = 4
+
+        /** The most albums a search of blanks shows. */
+        private const val SEARCH_BLANK = 15
 
         /** The longest a search waits for Live TV's channels, searched beside the music. */
         private const val LIVE_SEARCH_MS = 1_500L
