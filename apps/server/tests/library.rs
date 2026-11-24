@@ -1247,9 +1247,10 @@ async fn a_copy_found_to_be_a_version_brings_what_was_done_with_it() {
     let token = app.setup_admin().await;
     app.media_file("movies/Lantern Road.mkv", 1024);
     app.media_file("movies/Lantern Road (Uncut).mkv", 2048);
+    app.media_file("movies/Lantern Road (Uncut) 720p.mkv", 512);
     let lib = app.library(&token, "Movies", "movies", "movies").await;
     let film = app.ids(lib, &token).await["Lantern Road"];
-    // As it was: the uncut copy a movie of its own, watched part way.
+    // As it was: the uncut copies a movie of their own, watched part way.
     let db = &app.state.db.write;
     let copy: i64 = sqlx::query_scalar(
         "INSERT INTO items (id, library_id, kind, key, title, sort_title, added_at, updated_at)
@@ -1265,14 +1266,63 @@ async fn a_copy_found_to_be_a_version_brings_what_was_done_with_it() {
     let progress = json!({"position_ms": 40_000, "duration_ms": 100_000, "state": "paused"});
     assert!(app.post(&format!("/api/items/{copy}/progress"), &token, progress).await.status.is_success());
 
-    // A scan that reads its file again (no transcoder here: one that changed).
+    // A scan that reads its file again (no transcoder here: one that
+    // changed), its other file gone meanwhile.
     app.media_file("movies/Lantern Road (Uncut).mkv", 3072);
+    std::fs::remove_file(app.media.path().join("movies/Lantern Road (Uncut) 720p.mkv")).unwrap();
     rescan(&app, &token, lib).await;
     assert_eq!(titles(&app.get(&format!("/api/libraries/{lib}/items"), &token).await.body["items"]), ["Lantern Road"]);
     let detail = app.get(&format!("/api/items/{film}"), &token).await.body;
     assert_eq!(detail["files"].as_array().unwrap().len(), 2);
     assert_eq!(detail["user_state"]["position_ms"], json!(40_000));
     assert_eq!(app.get(&format!("/api/items/{copy}"), &token).await.status, StatusCode::NOT_FOUND);
+}
+
+/// The same when the scan that reads the copy's file again stops part way
+/// (the server is restarted, the disk fills): the copy went into the movie
+/// as its file did, not at the end of a scan that never got there.
+#[tokio::test]
+async fn a_copy_found_to_be_a_version_brings_it_even_if_the_scan_stops() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    app.media_file("movies/Lantern Road.mkv", 1024);
+    app.media_file("movies/Lantern Road (Uncut).mkv", 2048);
+    app.media_file("movies/Silent Orchard (2011).mkv", 1024);
+    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let film = app.ids(lib, &token).await["Lantern Road"];
+    let db = &app.state.db.write;
+    let copy: i64 = sqlx::query_scalar(
+        "INSERT INTO items (id, library_id, kind, key, title, sort_title, added_at, updated_at)
+         VALUES ((SELECT last + 1 FROM item_ids), ?, 'movie', 'movie:lantern road uncut:0', 'Lantern Road (Uncut)',
+                 'lantern road (uncut)', 1, 1)
+         RETURNING id",
+    )
+    .bind(lib)
+    .fetch_one(db)
+    .await
+    .unwrap();
+    sqlx::query("UPDATE media_files SET item_id = ? WHERE path LIKE '%(Uncut)%'").bind(copy).execute(db).await.unwrap();
+    let progress = json!({"position_ms": 40_000, "duration_ms": 100_000, "state": "paused"});
+    assert!(app.post(&format!("/api/items/{copy}/progress"), &token, progress).await.status.is_success());
+
+    // The scan writes the copy's changed file, then fails where it removes
+    // the file of a film that went.
+    app.media_file("movies/Lantern Road (Uncut).mkv", 3072);
+    std::fs::remove_file(app.media.path().join("movies/Silent Orchard (2011).mkv")).unwrap();
+    sqlx::query("CREATE TRIGGER scan_stops BEFORE DELETE ON media_files BEGIN SELECT RAISE(ABORT, 'scan stops'); END")
+        .execute(db)
+        .await
+        .unwrap();
+    rescan(&app, &token, lib).await;
+    let listed = || async { titles(&app.get(&format!("/api/libraries/{lib}/items"), &token).await.body["items"]) };
+    assert!(listed().await.contains(&"Silent Orchard".to_owned()), "the scan stopped");
+
+    sqlx::query("DROP TRIGGER scan_stops").execute(db).await.unwrap();
+    rescan(&app, &token, lib).await;
+    assert_eq!(listed().await, ["Lantern Road"]);
+    let detail = app.get(&format!("/api/items/{film}"), &token).await.body;
+    assert_eq!(detail["files"].as_array().unwrap().len(), 2);
+    assert_eq!(detail["user_state"]["position_ms"], json!(40_000));
 }
 
 #[tokio::test]

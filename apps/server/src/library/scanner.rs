@@ -822,15 +822,10 @@ impl Scanner {
             tx.commit().await?;
         }
         let mut tx = self.db.write.begin().await?;
-        // A movie whose every file now makes another (copies its names once
-        // made a movie of their own, now read as that one's editions) goes
-        // into it, with what was done with it.
-        if kind == LibraryKind::Movies {
-            for &(from, into) in &writer.moved {
-                if super::merge::absorb(&mut tx, from, into).await? {
-                    tracing::info!("movie {from}, whose files are versions of movie {into} now, went into it");
-                }
-            }
+        // A movie whose files went to another, but for one that is gone,
+        // goes into it now.
+        for &(from, into) in &writer.moved {
+            super::merge::absorb(&mut tx, from, into).await?;
         }
         cleanup_orphans(&mut tx, library_id).await?;
         tx.commit().await?;
@@ -1059,8 +1054,17 @@ impl Scanner {
                 Ok(_) if is_new => totals.added += 1,
                 Ok(item) => {
                     totals.updated += 1;
-                    if let (Some(known), Some(item)) = (known, item)
+                    // A movie whose every file now makes another (copies
+                    // their names once made a movie of their own, now read
+                    // as that one's editions) goes into it, with what was
+                    // done with it: as its last file does, since a scan that
+                    // stopped after would leave it without files, to be
+                    // removed by the next. One with a file left is seen
+                    // again once the files that went are removed.
+                    if writer.kind == LibraryKind::Movies
+                        && let (Some(known), Some(item)) = (known, item)
                         && known.item_id != item
+                        && !super::merge::absorb(&mut tx, known.item_id, item).await?
                     {
                         writer.moved.push((known.item_id, item));
                     }
@@ -1107,8 +1111,8 @@ struct Writer<'a> {
     containers: HashMap<String, i64>,
     /// A scan of every file again, changed or not.
     force: bool,
-    /// Known files that went to another item: the item each was in, and
-    /// the one it is in now.
+    /// Known files that went to another movie, which kept other files: the
+    /// movie each was in, and the one it is in now.
     moved: Vec<(i64, i64)>,
     /// The items files were written to.
     written: HashSet<i64>,

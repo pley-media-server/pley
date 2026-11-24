@@ -115,6 +115,7 @@ pub(super) async fn absorb(conn: &mut SqliteConnection, from: i64, into: i64) ->
     .await?;
     if left {
         merge_into(conn, into, from).await?;
+        tracing::info!("movie {from}, whose files are versions of movie {into} now, went into it");
     }
     Ok(left)
 }
