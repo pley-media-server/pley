@@ -30,8 +30,9 @@ use tokio::sync::mpsc;
 
 use super::nfo::{self, Nfo, NfoFields, NfoIds, NfoKind};
 use super::parse::{AudiobookName, EpisodeName, parse_audiobook, parse_episode, parse_movie, parse_track};
+use super::scope::{MOST_PATHS, Scope};
 use super::sidecar::{ExternalSub, Sidecars};
-use super::walk::{Extra, ExtraKind, FoundFile, Walked, walk};
+use super::walk::{Extra, ExtraKind, FoundFile, Walked, walk, walk_part};
 use super::{LibraryKind, LibraryRow, get_library, list_libraries};
 use crate::db::Db;
 use crate::events::{EventBus, ScanPhase, ServerEvent};
@@ -83,13 +84,19 @@ impl ScanStatus {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct ScanRequest {
     library_id: i64,
     /// Probe every file again, changed or not.
     force: bool,
     /// Walk the folders and write what changed.
     files: bool,
+    /// Only where these paths changed ([`Scope`]); `None`: the whole
+    /// library.
+    changed: Option<Vec<PathBuf>>,
+    /// Nothing but a scan of where paths changed was asked: none is needed
+    /// when they changed only where scans never look.
+    changes_only: bool,
     /// Then fetch metadata for the titles that have none.
     metadata: bool,
     /// Fetch every title's metadata again, not only what has none. Apart
@@ -99,8 +106,29 @@ struct ScanRequest {
 }
 
 impl ScanRequest {
-    /// Two requests for one library as one: what either asked for.
+    fn new(library_id: i64, force: bool, files: bool, metadata: bool, refetch: bool) -> Self {
+        Self { library_id, force, files, changed: None, changes_only: false, metadata, refetch }
+    }
+
+    /// Two requests for one library as one: what either asked for. Files
+    /// walked where either changed are walked where both did (all of them
+    /// past [`MOST_PATHS`]), and a walk of the whole library takes in any
+    /// other.
     fn merge(&mut self, other: ScanRequest) {
+        self.changed = match (self.files, other.files) {
+            (true, true) => match (self.changed.take(), other.changed) {
+                (Some(mut mine), Some(theirs)) => {
+                    mine.extend(theirs);
+                    mine.sort();
+                    mine.dedup();
+                    (mine.len() <= MOST_PATHS).then_some(mine)
+                }
+                _ => None,
+            },
+            (false, true) => other.changed,
+            (_, false) => self.changed.take(),
+        };
+        self.changes_only &= other.changes_only;
         self.force |= other.force;
         self.files |= other.files;
         self.metadata |= other.metadata;
@@ -158,6 +186,9 @@ struct Totals {
 /// log: a slow scan says where its time went.
 #[derive(Debug, Default)]
 struct Phases {
+    /// Of a scan of what changed, the folders (and library folders' files)
+    /// it looked at.
+    changed: Option<usize>,
     folders: usize,
     files: usize,
     /// Listing the folders, and indexing the sidecar files found.
@@ -173,6 +204,10 @@ struct Phases {
     metadata: Duration,
 }
 
+/// Whether a scan walked a folder with all it holds, its sidecar files
+/// included: a scan of what changed walks only part of the library.
+type Covers = Arc<dyn Fn(&Path) -> bool + Send + Sync>;
+
 /// A duration for the log: `35ms`, `1.2s`.
 fn took(duration: Duration) -> String {
     if duration < Duration::from_secs(1) {
@@ -182,7 +217,7 @@ fn took(duration: Duration) -> String {
     }
 }
 
-/// Libraries whose last scan failed. `scanned_at` only moves when a scan
+/// Libraries whose last scan failed. `walked_at` only moves when a scan
 /// succeeds, so without this a library that cannot be scanned (a full disk, a
 /// read-only or damaged database) would be walked and probed again every
 /// minute.
@@ -214,11 +249,13 @@ impl ScanFailures {
         self.failed.get(&library_id).is_some_and(|&(at, n)| now - at < Self::retry_delay(n, interval))
     }
 
-    /// Whether the periodic scan of `lib`, every `interval` seconds, is due.
+    /// Whether the periodic scan of `lib`, every `interval` seconds since it
+    /// was last scanned whole (since its last scan, where that isn't
+    /// known), is due.
     pub fn due(&self, lib: &LibraryRow, interval: i64, now: i64) -> bool {
         match self.failed.get(&lib.id) {
             Some(&(at, n)) => now - at >= Self::retry_delay(n, interval),
-            None => lib.scanned_at.is_none_or(|t| now - t >= interval),
+            None => lib.walked_at.or(lib.scanned_at).is_none_or(|t| now - t >= interval),
         }
     }
 }
@@ -272,31 +309,42 @@ impl Scanner {
 
     /// Scans a library: its files, then metadata for what has none.
     pub fn enqueue(&self, library_id: i64, force: bool) {
-        self.request(ScanRequest { library_id, force, files: true, metadata: true, refetch: force }, false);
+        self.request(ScanRequest::new(library_id, force, true, true, force), false);
+    }
+
+    /// Scans where `paths` changed in a library ([`Scope`]), then fetches
+    /// metadata for what has none. A library never scanned is scanned whole.
+    pub fn enqueue_changes(&self, library_id: i64, paths: Vec<PathBuf>) {
+        let request = ScanRequest {
+            changed: (paths.len() <= MOST_PATHS).then_some(paths),
+            changes_only: true,
+            ..ScanRequest::new(library_id, false, true, true, false)
+        };
+        self.request(request, false);
     }
 
     /// Scans a library just added: a first scan from the moment it's
     /// queued, so Home lists it while it waits behind another.
     pub fn enqueue_new(&self, library_id: i64) {
-        self.request(ScanRequest { library_id, force: false, files: true, metadata: true, refetch: false }, true);
+        self.request(ScanRequest::new(library_id, false, true, true, false), true);
     }
 
     /// Scans a library's files only, leaving metadata for later: the Plex
     /// import brings Plex's matches first, so the fetch finds their ids.
     pub fn enqueue_files(&self, library_id: i64) {
-        self.request(ScanRequest { library_id, force: false, files: true, metadata: false, refetch: false }, false);
+        self.request(ScanRequest::new(library_id, false, true, false, false), false);
     }
 
     /// Fetches every title's metadata in a library again, without scanning
     /// its files: what TMDB says of them, their collections included.
     pub fn enqueue_refresh(&self, library_id: i64) {
-        self.request(ScanRequest { library_id, force: false, files: false, metadata: true, refetch: true }, false);
+        self.request(ScanRequest::new(library_id, false, false, true, true), false);
     }
 
     /// Fetches metadata for a library's titles that have none, without
     /// walking its folders again.
     pub fn enqueue_metadata(&self, library_id: i64) {
-        self.request(ScanRequest { library_id, force: false, files: false, metadata: true, refetch: false }, false);
+        self.request(ScanRequest::new(library_id, false, false, true, false), false);
     }
 
     /// Queues `req`; `first` when it's the library's first scan.
@@ -322,10 +370,7 @@ impl Scanner {
 
     pub async fn enqueue_all(&self, force: bool) -> sqlx::Result<()> {
         for lib in list_libraries(&self.db).await? {
-            self.request(
-                ScanRequest { library_id: lib.id, force, files: true, metadata: true, refetch: force },
-                lib.scanned_at.is_none(),
-            );
+            self.request(ScanRequest::new(lib.id, force, true, true, force), lib.scanned_at.is_none());
         }
         Ok(())
     }
@@ -391,14 +436,21 @@ impl Scanner {
                 hold = None;
             }
             let started = Instant::now();
-            let result = self.scan(req).await;
+            let result = self.scan(&req).await;
             let scanned = matches!(result, Ok(Some(_)));
-            self.failures.lock().record(req.library_id, result.is_ok(), now());
+            // A request that scanned nothing, or only where paths changed,
+            // says nothing of a library whose scans of all of it fail: it
+            // waits on.
+            let in_part = matches!(&result, Ok(Some((_, phases))) if phases.changed.is_some());
+            if (scanned && !in_part) || result.is_err() {
+                self.failures.lock().record(req.library_id, scanned, now());
+            }
             match result {
                 Ok(Some((t, p))) => tracing::info!(
-                    "library {} scanned in {}: {} added, {} updated ({} moved), {} removed ({} folders, {} media files; \
+                    "library {} scanned{} in {}: {} added, {} updated ({} moved), {} removed ({} folders, {} media files; \
                      walk {}, diff {}, probe {}, write {}, sidecars {}, metadata {})",
                     req.library_id,
+                    p.changed.map(|n| format!(" where {n} folders changed")).unwrap_or_default(),
                     took(started.elapsed()),
                     t.added,
                     t.updated,
@@ -473,8 +525,8 @@ impl Scanner {
         self.events.send(ServerEvent::ScanProgress { library_id: lib.id, phase, processed, total });
     }
 
-    async fn scan(&self, req: ScanRequest) -> anyhow::Result<Option<(Totals, Phases)>> {
-        let ScanRequest { library_id, force, refetch, .. } = req;
+    async fn scan(&self, req: &ScanRequest) -> anyhow::Result<Option<(Totals, Phases)>> {
+        let &ScanRequest { library_id, force, refetch, .. } = req;
         let Some(lib) = get_library(&self.db, library_id).await? else {
             return Ok(None);
         };
@@ -484,15 +536,45 @@ impl Scanner {
         {
             status.first = true;
         }
+        // Where paths changed: the part of the library they're in, unless
+        // it was never scanned or every file is probed again.
+        let scope = match &req.changed {
+            Some(paths) if req.files && !force && lib.scanned_at.is_some() => {
+                let (roots, kind, paths) = (lib.paths(), lib.kind(), paths.clone());
+                crate::util::blocking(move || Ok(Scope::of(&roots, kind, &paths))).await?
+            }
+            _ => None,
+        };
+        // Changes only where scans never look (a NAS's thumbnails, a recycle
+        // bin) change nothing.
+        if scope.as_ref().is_some_and(Scope::is_empty) && req.changes_only {
+            return Ok(None);
+        }
         self.events.send(ServerEvent::ScanStarted { library_id });
-        let (totals, mut phases, processed, total) =
-            if req.files { self.scan_files(&lib, force).await? } else { (Totals::default(), Phases::default(), 0, 0) };
+        let (totals, mut phases, processed, total) = match scope {
+            Some(scope) if scope.is_empty() => {
+                (Totals::default(), Phases { changed: Some(0), ..Default::default() }, 0, 0)
+            }
+            // All of the library, where the part that changed isn't enough.
+            mut scope if req.files => loop {
+                if let Some(scanned) = self.scan_files(&lib, force, scope.take()).await? {
+                    break scanned;
+                }
+            },
+            _ => (Totals::default(), Phases::default(), 0, 0),
+        };
+        // Whether the whole library was walked: as asked, or because the
+        // part that changed wasn't enough.
+        let whole = phases.changed.is_none();
 
         let mut phase = Instant::now();
         if req.metadata && self.metadata.enabled_for(lib.kind()) {
             self.set_status(&lib, ScanPhase::Metadata, 0, 0);
             let progress = |done: u64, total: u64| self.set_status(&lib, ScanPhase::Metadata, done, total);
-            if let Err(err) = self.metadata.refresh_library(&lib, refetch, &progress).await {
+            // Titles found nothing for are looked up again as the whole
+            // library is scanned, not as each change in it is: some sources
+            // answer a request a second.
+            if let Err(err) = self.metadata.refresh_library(&lib, refetch, whole, &progress).await {
                 tracing::warn!("metadata refresh for library {} failed: {err:#}", lib.id);
             }
             self.events.send(ServerEvent::LibraryChanged { library_id });
@@ -545,37 +627,83 @@ impl Scanner {
 
     /// The files part of a scan: walks the folders, probes and writes what
     /// changed, sidecars and NFO files, counts, and the overrides over it.
-    /// Gives the totals, the phases' times, and the files probed of those
-    /// to probe.
-    async fn scan_files(&self, lib: &LibraryRow, force: bool) -> anyhow::Result<(Totals, Phases, u64, u64)> {
+    /// With a `scope`, only that part of the library. Gives the totals, the
+    /// phases' times, and the files probed of those to probe; `None`, with
+    /// nothing written, when that part isn't enough: a file may have moved
+    /// to or from the rest of the library ([`half_a_move`]).
+    async fn scan_files(
+        &self,
+        lib: &LibraryRow,
+        force: bool,
+        scope: Option<Scope>,
+    ) -> anyhow::Result<Option<(Totals, Phases, u64, u64)>> {
         let library_id = lib.id;
         let kind = lib.kind();
         let roots = lib.paths();
         self.set_status(lib, ScanPhase::Walking, 0, 0);
 
-        // Sidecar files are indexed once: matching them file by file against
-        // the whole library made every scan quadratic in its size.
         let mut phase = Instant::now();
-        let (mut walked, sidecars) = {
-            let roots = roots.clone();
-            crate::util::blocking(move || {
-                let mut walked = walk(&roots, kind);
-                let sidecars = Sidecars::new(std::mem::take(&mut walked.sidecars));
-                Ok((walked, Arc::new(sidecars)))
-            })
-            .await?
-        };
-        let mut phases =
-            Phases { folders: walked.folders, files: walked.media.len(), walk: phase.elapsed(), ..Default::default() };
-
-        phase = Instant::now();
-        let existing: Vec<KnownFile> = sqlx::query_as(
-            "SELECT id, path, COALESCE(link_size, size) AS size, mtime, probed, external_subs
+        let mut existing: Vec<KnownFile> = sqlx::query_as(
+            "SELECT id, item_id, path, COALESCE(link_size, size) AS size, mtime, probed, external_subs
                  FROM media_files WHERE library_id = ?",
         )
         .bind(library_id)
         .fetch_all(&self.db.read)
         .await?;
+        let reading = phase.elapsed();
+
+        // Sidecar files are indexed once: matching them file by file against
+        // the whole library made every scan quadratic in its size.
+        phase = Instant::now();
+        let (mut walked, sidecars, scope) = {
+            let roots = roots.clone();
+            let known: Vec<String> =
+                if scope.is_some() { existing.iter().map(|file| file.path.clone()).collect() } else { Vec::new() };
+            crate::util::blocking(move || {
+                let mut scope = scope;
+                let mut walked = match &scope {
+                    Some(scope) => walk_part(&roots, kind, scope.parts()),
+                    None => walk(&roots, kind),
+                };
+                // A title's folder that went from a library folder without
+                // a change naming it may be anywhere in the library under
+                // another name: only all of it tells.
+                if scope.as_ref().is_some_and(|scope| scope.missed(&walked.listed, known.iter().map(String::as_str))) {
+                    tracing::info!("library {library_id}: changes went unnoticed, scanning all of it");
+                    scope = None;
+                    walked = walk(&roots, kind);
+                }
+                let sidecars = Sidecars::new(std::mem::take(&mut walked.sidecars));
+                Ok((walked, Arc::new(sidecars), scope.map(Arc::new)))
+            })
+            .await?
+        };
+        let mut phases = Phases {
+            changed: scope.as_ref().map(|scope| scope.len()),
+            folders: walked.folders,
+            files: walked.media.len(),
+            walk: phase.elapsed(),
+            ..Default::default()
+        };
+        // Whether a folder's files and sidecar files were all walked: always
+        // in a scan of the whole library.
+        let covers: Covers = {
+            let scope = scope.clone();
+            Arc::new(move |dir: &Path| scope.as_ref().is_none_or(|scope| scope.covers(dir)))
+        };
+
+        phase = Instant::now();
+        // Files outside what was walked are as they were (none of them is
+        // taken for gone, renamed or moved), and a library folder with one
+        // still holds media.
+        let mut holds_media: HashSet<&PathBuf> = walked.media.iter().map(|file| &file.root).collect();
+        let mut outside = Vec::new();
+        if let Some(scope) = &scope {
+            (existing, outside) = existing.into_iter().partition(|file| scope.holds(Path::new(&file.path)));
+            for file in &outside {
+                holds_media.extend(roots.iter().filter(|root| Path::new(&file.path).starts_with(root)));
+            }
+        }
         let existing_by_path: HashMap<&str, &KnownFile> = existing.iter().map(|f| (f.path.as_str(), f)).collect();
 
         let mut to_process = Vec::new();
@@ -595,13 +723,14 @@ impl Scanner {
         }
         // A root that suddenly holds no media at all is far more likely an
         // unmounted drive (the mount point exists but is empty) than a library
-        // whose every file was deleted: keep its items.
-        for root in &roots {
-            let empty = !walked.media.iter().any(|f| &f.root == root);
-            if empty
-                && !walked.offline_roots.contains(root)
-                && existing.iter().any(|f| Path::new(&f.path).starts_with(root))
-            {
+        // whose every file was deleted: keep its items. A scan of part of the
+        // library takes the files it left as they were to be there (a folder
+        // that went may well have held all the media of what was looked at),
+        // and says nothing of a library folder it didn't list.
+        let listed = |root: &PathBuf| scope.is_none() || walked.listed.contains_key(root);
+        let empty: Vec<&PathBuf> = roots.iter().filter(|root| !holds_media.contains(root) && listed(root)).collect();
+        for root in empty {
+            if !walked.offline_roots.contains(root) && existing.iter().any(|f| Path::new(&f.path).starts_with(root)) {
                 tracing::warn!("library folder {} is empty; assuming its drive is not mounted", root.display());
                 walked.offline_roots.push(root.clone());
             }
@@ -616,6 +745,14 @@ impl Scanner {
         let new: Vec<&FoundFile> =
             to_process.iter().filter(|f| !existing_by_path.contains_key(path_str(&f.path).as_str())).collect();
         let moved = moved_files(&self.db, &vanished, &new).await?;
+        // A scan of part of the library may see one end of a move only: a
+        // title left without files, whose file came where no change named,
+        // or a new file that went from where none did. All of the library
+        // shows both, and the title keeps what was done with it.
+        if scope.is_some() && half_a_move(&existing, &outside, &vanished, &new, &moved).await? {
+            tracing::info!("library {library_id}: a file may have moved where no change named, scanning all of it");
+            return Ok(None);
+        }
         // Its bytes are the same: what probing found in it stands, unless
         // every file is to be probed again (read as its turn comes).
         let probed: HashSet<i64> = vanished.iter().filter(|f| f.probed).map(|f| f.id).collect();
@@ -645,7 +782,7 @@ impl Scanner {
             }
         }
 
-        phases.diff = phase.elapsed();
+        phases.diff = reading + phase.elapsed();
 
         let mut totals = Totals { removed: removed.len() as u64, ..Default::default() };
         let total = to_process.len() as u64;
@@ -764,6 +901,12 @@ impl Scanner {
             containers.extend(went);
         }
         let mut tx = self.db.write.begin().await?;
+        // A movie whose files went to another, but for one that is gone,
+        // goes into it now (unless a file of it renamed took what was done
+        // with it to another above).
+        for &(from, into) in &writer.versions {
+            super::merge::absorb(&mut tx, from, into).await?;
+        }
         cleanup_orphans(&mut tx, library_id, &containers).await?;
         tx.commit().await?;
         if kind == LibraryKind::Audiobooks {
@@ -786,15 +929,40 @@ impl Scanner {
         // Sidecar subtitles and local artwork can change without their video
         // changing. What changed is worked out from the index, off the async
         // workers and without the writer; only that is written.
+        // A scan of part of the library leaves the items it didn't walk all
+        // of as they are, and looks only at those of the files it walked,
+        // with their seasons and shows, albums and artists.
         phase = Instant::now();
-        let rows: Vec<ArtworkRow> = sqlx::query_as(ARTWORK_ROWS).bind(library_id).fetch_all(&self.db.read).await?;
+        let touched = match &scope {
+            None => None,
+            Some(_) => {
+                let mut ids: HashSet<i64> =
+                    existing.iter().map(|file| file.item_id).chain(writer.written.iter().copied()).collect();
+                let above: Vec<(Option<i64>, Option<i64>)> = sqlx::query_as(
+                    "SELECT parent_id, grandparent_id FROM items WHERE id IN (SELECT value FROM json_each(?))",
+                )
+                .bind(serde_json::to_string(&ids)?)
+                .fetch_all(&self.db.read)
+                .await?;
+                ids.extend(above.into_iter().flat_map(|(parent, grandparent)| [parent, grandparent]).flatten());
+                Some(serde_json::to_string(&ids)?)
+            }
+        };
+        let rows: Vec<ArtworkRow> =
+            sqlx::query_as(ARTWORK_ROWS).bind(library_id).bind(&touched).fetch_all(&self.db.read).await?;
         let (subtitles, artwork) = {
             let sidecars = sidecars.clone();
+            let covers = covers.clone();
             crate::util::blocking(move || {
                 // Music and audiobooks have no subtitles (scans don't look
                 // for them).
-                let subtitles = if kind.is_audio() { Vec::new() } else { subtitle_changes(unchanged, &sidecars) };
-                Ok((subtitles, artwork_changes(rows, &sidecars)))
+                let subtitles = if kind.is_audio() {
+                    Vec::new()
+                } else {
+                    let unchanged = unchanged.into_iter().filter(|(_, path, _)| path.parent().is_some_and(&*covers));
+                    subtitle_changes(unchanged.collect(), &sidecars)
+                };
+                Ok((subtitles, artwork_changes(rows, &sidecars, &*covers)))
             })
             .await?
         };
@@ -828,18 +996,23 @@ impl Scanner {
         }
         // NFO files too, before what they set is applied below.
         if !kind.is_audio() {
-            self.read_nfos(lib, &sidecars, &mut walked).await?;
+            self.read_nfos(lib, &sidecars, &mut walked, covers, touched.as_deref()).await?;
         }
         phases.sidecars = phase.elapsed();
 
         phase = Instant::now();
         let mut tx = self.db.write.begin().await?;
         update_counts(&mut tx, library_id).await?;
-        sqlx::query("UPDATE libraries SET scanned_at = ? WHERE id = ?")
-            .bind(now())
-            .bind(library_id)
-            .execute(&mut *tx)
-            .await?;
+        // The periodic scan, of the whole library, is due on time however
+        // often parts of it change.
+        sqlx::query(
+            "UPDATE libraries SET scanned_at = ?1, walked_at = CASE WHEN ?2 THEN ?1 ELSE walked_at END WHERE id = ?3",
+        )
+        .bind(now())
+        .bind(scope.is_none())
+        .bind(library_id)
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         // Scanning rewrites titles of unmatched items and local artwork; NFO
         // files win, and hand edits over them.
@@ -847,7 +1020,7 @@ impl Scanner {
         writing += phase.elapsed();
         self.events.send(ServerEvent::LibraryChanged { library_id });
         phases.write = writing;
-        Ok((totals, phases, processed, total))
+        Ok(Some((totals, phases, processed, total)))
     }
 
     /// Gives `books` what their first parts say of them: their titles,
@@ -894,19 +1067,29 @@ impl Scanner {
     /// episodes that appeared or changed, and lets go of those that went
     /// (all of them when NFO files aren't read). Like artwork, what changed
     /// is worked out off the async workers and without the writer, and only
-    /// that is written.
-    async fn read_nfos(&self, lib: &LibraryRow, sidecars: &Arc<Sidecars>, walked: &mut Walked) -> anyhow::Result<()> {
-        let rows: Vec<NfoRow> = sqlx::query_as(NFO_ROWS).bind(lib.id).fetch_all(&self.db.read).await?;
+    /// that is written. Of the `touched` items only (a JSON array), when
+    /// given.
+    async fn read_nfos(
+        &self,
+        lib: &LibraryRow,
+        sidecars: &Arc<Sidecars>,
+        walked: &mut Walked,
+        covers: Covers,
+        touched: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let rows: Vec<NfoRow> = sqlx::query_as(NFO_ROWS).bind(lib.id).bind(touched).fetch_all(&self.db.read).await?;
         if rows.is_empty() {
             return Ok(());
         }
-        let files: Vec<(i64, String)> = sqlx::query_as(NFO_FILES).bind(lib.id).fetch_all(&self.db.read).await?;
+        let files: Vec<(i64, String)> =
+            sqlx::query_as(NFO_FILES).bind(lib.id).bind(touched).fetch_all(&self.db.read).await?;
         let context = NfoContext {
             read: self.metadata.read_nfo(),
             roots: lib.paths(),
             unavailable: walked.offline_roots.iter().chain(&walked.unreadable).cloned().collect(),
             listed: std::mem::take(&mut walked.nfo_files),
             region: crate::ratings::region(&self.db).await?,
+            covers,
         };
         let changes = {
             let sidecars = sidecars.clone();
@@ -949,8 +1132,24 @@ impl Scanner {
             // A file renamed or moved is a file changed.
             let is_new = known.is_none() && !writer.moved.contains_key(path_str(&file.path).as_str());
             match writer.write(&mut tx, &file, outcome).await {
-                Ok(()) if is_new => totals.added += 1,
-                Ok(()) => totals.updated += 1,
+                Ok(_) if is_new => totals.added += 1,
+                Ok(item) => {
+                    totals.updated += 1;
+                    // A movie whose every file now makes another (copies
+                    // their names once made a movie of their own, now read
+                    // as that one's editions) goes into it, with what was
+                    // done with it: as its last file does, since a scan that
+                    // stopped after would leave it without files, to be
+                    // removed by the next. One with a file left is seen
+                    // again once the files that went are removed.
+                    if writer.kind == LibraryKind::Movies
+                        && let (Some(known), Some(item)) = (known, item)
+                        && known.item_id != item
+                        && !super::merge::absorb(&mut tx, known.item_id, item).await?
+                    {
+                        writer.versions.push((known.item_id, item));
+                    }
+                }
                 Err(err) => tracing::warn!("could not save {}: {err:#}", file.path.display()),
             }
         }
@@ -963,6 +1162,7 @@ impl Scanner {
 #[derive(sqlx::FromRow)]
 struct KnownFile {
     id: i64,
+    item_id: i64,
     path: String,
     /// The file's own size: a `.strm` file's, not its media's.
     size: i64,
@@ -997,6 +1197,11 @@ struct Writer<'a> {
     moved: HashMap<String, i64>,
     /// The ids of those written.
     relinked: HashSet<i64>,
+    /// Known files, where they were, that now make another movie, which
+    /// kept other files: the movie each was in, and the one it is in now.
+    versions: Vec<(i64, i64)>,
+    /// The items files were written to.
+    written: HashSet<i64>,
 }
 
 struct NewItem {
@@ -1052,15 +1257,19 @@ impl<'a> Writer<'a> {
             force,
             moved,
             relinked: HashSet::new(),
+            versions: Vec::new(),
+            written: HashSet::new(),
         }
     }
 
+    /// Writes `file` and the item it is in, whose id it gives (none for
+    /// bonus material whose movie or show isn't in the library yet).
     async fn write(
         &mut self,
         conn: &mut SqliteConnection,
         file: &FoundFile,
         outcome: ProbeOutcome,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Option<i64>> {
         let (info, probed, link) = match outcome {
             ProbeOutcome::Ok(info) => (Some(*info), true, None),
             ProbeOutcome::Unavailable => (None, false, None),
@@ -1072,7 +1281,7 @@ impl<'a> Writer<'a> {
             (Some(extra), _) => match self.write_extra(conn, file, extra, duration).await? {
                 Some(id) => id,
                 // Its movie or show is not in the library (yet): next scan.
-                None => return Ok(()),
+                None => return Ok(None),
             },
             (None, LibraryKind::Movies) => self.write_movie(conn, file, duration).await?,
             (None, LibraryKind::Shows) => self.write_episode(conn, file, duration).await?,
@@ -1085,11 +1294,15 @@ impl<'a> Writer<'a> {
         // file of is noted until its new one has what people did with it
         // (`relink`), the next scan's if this one stops before.
         let path = path_str(&file.path);
+        self.written.insert(item_id);
         let Some(id) = self.moved.remove(&path) else {
-            return match link {
-                Some(key) => upsert_link(conn, self.library_id, item_id, file, key.as_deref(), &subs, self.force).await,
-                None => upsert_file(conn, self.library_id, item_id, file, info.as_ref(), &subs, probed).await,
-            };
+            match link {
+                Some(key) => {
+                    upsert_link(conn, self.library_id, item_id, file, key.as_deref(), &subs, self.force).await?
+                }
+                None => upsert_file(conn, self.library_id, item_id, file, info.as_ref(), &subs, probed).await?,
+            }
+            return Ok(Some(item_id));
         };
         // Renamed and written together, or neither (a savepoint).
         let mut both = conn.begin().await?;
@@ -1106,7 +1319,7 @@ impl<'a> Writer<'a> {
         }
         both.commit().await?;
         self.relinked.insert(id);
-        Ok(())
+        Ok(Some(item_id))
     }
 
     async fn container(&mut self, conn: &mut SqliteConnection, item: NewItem) -> anyhow::Result<i64> {
@@ -1613,6 +1826,56 @@ async fn upsert_link(
     Ok(())
 }
 
+/// Whether a scan of part of a library saw one end only of a file renamed
+/// or moved, the other being in the rest of the library:
+///
+/// - a `vanished` file that isn't among those `moved` within the part, was
+///   the last of its title (no file of it stays, in the part or `outside`
+///   it), and has no `new` file beside it where it was (a copy replaced is
+///   no title gone);
+/// - a `new` file the size of a known file `outside` the part that is no
+///   longer there. A few files of that size at most are looked for: files
+///   alike can't tell which went where.
+async fn half_a_move(
+    existing: &[KnownFile],
+    outside: &[KnownFile],
+    vanished: &[&KnownFile],
+    new: &[&FoundFile],
+    moved: &HashMap<String, i64>,
+) -> anyhow::Result<bool> {
+    const ALIKE: usize = 8;
+    let placed: HashSet<i64> = moved.values().copied().collect();
+    let gone: HashSet<i64> = vanished.iter().map(|file| file.id).collect();
+    let stays: HashSet<i64> =
+        existing.iter().filter(|file| !gone.contains(&file.id)).chain(outside).map(|file| file.item_id).collect();
+    let coming: HashSet<&Path> = new.iter().filter_map(|file| file.path.parent()).collect();
+    let last_of_its_title = |file: &&KnownFile| {
+        !placed.contains(&file.id)
+            && !stays.contains(&file.item_id)
+            && !Path::new(&file.path).parent().is_some_and(|dir| coming.contains(dir))
+    };
+    if vanished.iter().any(last_of_its_title) {
+        return Ok(true);
+    }
+    let sizes: HashSet<i64> = new
+        .iter()
+        .filter(|file| file.size > 0 && !moved.contains_key(path_str(&file.path).as_str()))
+        .map(|file| file.size)
+        .collect();
+    let alike: Vec<PathBuf> =
+        outside.iter().filter(|file| sizes.contains(&file.size)).take(ALIKE).map(|file| (&file.path).into()).collect();
+    if alike.is_empty() {
+        return Ok(false);
+    }
+    crate::util::blocking(move || {
+        let gone = |path: &PathBuf| {
+            std::fs::symlink_metadata(path).is_err_and(|err| err.kind() == std::io::ErrorKind::NotFound)
+        };
+        Ok(alike.iter().any(gone))
+    })
+    .await
+}
+
 /// Renamed and moved files: the new files whose size and fingerprint are a
 /// vanished file's, by their paths, with that file's id. Only the new files
 /// of a vanished file's size are read (their ends, for the fingerprint), so
@@ -1851,7 +2114,8 @@ fn subtitle_changes(files: Vec<(i64, PathBuf, String)>, sidecars: &Sidecars) -> 
         .collect()
 }
 
-/// Items and the files their local artwork is looked for next to.
+/// Items and the files their local artwork is looked for next to, of
+/// library `?1` (of those in the JSON array `?2` only, unless it's null).
 /// An audiobook's file is its first part's.
 const ARTWORK_ROWS: &str = concat!(
     "SELECT i.id, i.kind, i.path, i.idx, i.poster, i.backdrop, i.thumb, p.path AS parent_path,
@@ -1862,7 +2126,8 @@ const ARTWORK_ROWS: &str = concat!(
     " LIMIT 1)
              ELSE (SELECT f.path FROM media_files f WHERE f.item_id = i.id ORDER BY f.id LIMIT 1) END AS file_path
      FROM items i LEFT JOIN items p ON p.id = i.parent_id
-     WHERE i.library_id = ? AND i.kind IN ('movie', 'show', 'season', 'episode', 'artist', 'album', 'audiobook')"
+     WHERE i.library_id = ?1 AND i.kind IN ('movie', 'show', 'season', 'episode', 'artist', 'album', 'audiobook')
+       AND (?2 IS NULL OR i.id IN (SELECT value FROM json_each(?2)))"
 );
 
 #[derive(sqlx::FromRow)]
@@ -1912,8 +2177,9 @@ impl ArtworkChange {
 
 /// Local artwork (poster.jpg, fanart.jpg, season01-poster.jpg, …) that is
 /// not what the items have. Local files win over downloaded artwork;
-/// vanished local files are cleared.
-fn artwork_changes(rows: Vec<ArtworkRow>, sidecars: &Sidecars) -> Vec<ArtworkChange> {
+/// vanished local files are cleared. Only of items whose folders were all
+/// walked (`covers`): the others' artwork isn't in `sidecars`.
+fn artwork_changes(rows: Vec<ArtworkRow>, sidecars: &Sidecars, covers: &dyn Fn(&Path) -> bool) -> Vec<ArtworkChange> {
     let lookup = |dir: &str, bases: &[String]| -> Option<String> {
         sidecars.image(Path::new(dir), bases).map(|path| path_str(&path))
     };
@@ -1930,6 +2196,14 @@ fn artwork_changes(rows: Vec<ArtworkRow>, sidecars: &Sidecars) -> Vec<ArtworkCha
     }
     let mut changes = Vec::new();
     for row in rows {
+        // The folders its pictures are looked for in: its file's, its own
+        // and, for a season, its show's.
+        let file_dir = row.file_path.as_deref().and_then(|p| Path::new(p).parent()).map(path_str);
+        let show_dir = row.parent_path.as_deref().filter(|_| row.kind == "season");
+        if ![file_dir.as_deref(), row.path.as_deref(), show_dir].into_iter().flatten().all(|dir| covers(Path::new(dir)))
+        {
+            continue;
+        }
         let file_stem_bases = |suffixes: &[&str]| -> Vec<String> {
             let stem = row
                 .file_path
@@ -1939,7 +2213,6 @@ fn artwork_changes(rows: Vec<ArtworkRow>, sidecars: &Sidecars) -> Vec<ArtworkCha
                 .unwrap_or_default();
             suffixes.iter().map(|s| format!("{stem}{s}")).collect()
         };
-        let file_dir = row.file_path.as_deref().and_then(|p| Path::new(p).parent()).map(path_str);
         let (poster, backdrop, thumb) = match row.kind.as_str() {
             "movie" => {
                 let dir = file_dir.clone().unwrap_or_default();
@@ -2035,8 +2308,9 @@ fn artwork_changes(rows: Vec<ArtworkRow>, sidecars: &Sidecars) -> Vec<ArtworkCha
     changes
 }
 
-/// Movies, shows, seasons and episodes of a library, with the NFO file each
-/// had at the last scan.
+/// Movies, shows, seasons and episodes of library `?1` (of those in the
+/// JSON array `?2` only, unless it's null), with the NFO file each had at
+/// the last scan.
 const NFO_ROWS: &str = "SELECT i.id, i.kind, i.path, i.idx, i.parent_id, i.grandparent_id, s.idx AS season, i.title,
         i.tmdb_id, i.imdb_id, i.tvdb_id, i.tvmaze_id, i.metadata_locked,
         EXISTS (SELECT 1 FROM item_overrides o WHERE o.item_id = i.id AND o.field = 'match') AS rematched,
@@ -2044,12 +2318,15 @@ const NFO_ROWS: &str = "SELECT i.id, i.kind, i.path, i.idx, i.parent_id, i.grand
         n.locked AS nfo_locked
      FROM items i LEFT JOIN items s ON s.id = i.parent_id AND i.kind = 'episode'
      LEFT JOIN item_nfo n ON n.item_id = i.id
-     WHERE i.library_id = ? AND i.kind IN ('movie', 'show', 'season', 'episode')";
+     WHERE i.library_id = ?1 AND i.kind IN ('movie', 'show', 'season', 'episode')
+       AND (?2 IS NULL OR i.id IN (SELECT value FROM json_each(?2)))";
 
-/// The files of a library's movies and episodes, which NFO files are found
-/// next to.
+/// The files of library `?1`'s movies and episodes (of those in the JSON
+/// array `?2` only, unless it's null), which NFO files are found next to.
 const NFO_FILES: &str = "SELECT f.item_id, f.path FROM media_files f JOIN items i ON i.id = f.item_id
-     WHERE f.library_id = ? AND i.kind IN ('movie', 'episode') ORDER BY f.id";
+     WHERE f.library_id = ?1 AND i.kind IN ('movie', 'episode')
+       AND (?2 IS NULL OR f.item_id IN (SELECT value FROM json_each(?2)))
+     ORDER BY f.id";
 
 #[derive(sqlx::FromRow)]
 struct NfoRow {
@@ -2236,6 +2513,9 @@ struct NfoContext {
     listed: HashMap<PathBuf, (i64, i64)>,
     /// The server's country, whose rating is taken of several countries'.
     region: String,
+    /// Whether a folder was walked with its sidecar files: only items
+    /// whose files' and own folders all were are looked at.
+    covers: Covers,
 }
 
 /// An item whose NFO file appeared, changed or went.
@@ -2374,8 +2654,16 @@ fn nfo_changes(rows: Vec<NfoRow>, files: Vec<(i64, String)>, sidecars: &Sidecars
 
     let mut changes = Vec::new();
     for row in rows {
-        let before = row.stored();
         let files = files_of.get(&row.id).unwrap_or(&no_files);
+        // A movie's or an episode's file's folders, a show's or a season's own.
+        let walked = match row.kind.as_str() {
+            "movie" | "episode" => files.iter().all(|file| Path::new(file).parent().is_some_and(&*cx.covers)),
+            _ => row.path.as_deref().is_none_or(|path| (cx.covers)(Path::new(path))),
+        };
+        if !walked {
+            continue;
+        }
+        let before = row.stored();
         let found = if cx.read { find_nfo(&row, files, sidecars, &movies_in) } else { None };
         let found = found.and_then(|path| {
             let (size, mtime) = match cx.listed.get(&path) {
@@ -2703,6 +2991,7 @@ mod tests {
             paths: "[]".into(),
             created_at: 0,
             scanned_at,
+            walked_at: scanned_at,
             labels_pending: false,
             tmdb_collections: true,
         }
@@ -2718,20 +3007,44 @@ mod tests {
 
     #[test]
     fn requests_for_one_library_merge_into_what_either_asked() {
-        let files = ScanRequest { library_id: 1, force: false, files: true, metadata: false, refetch: false };
-        let refresh = ScanRequest { library_id: 1, force: false, files: false, metadata: true, refetch: true };
-        let mut merged = files;
-        merged.merge(refresh);
+        let files = ScanRequest::new(1, false, true, false, false);
+        let refresh = ScanRequest::new(1, false, false, true, true);
+        let mut merged = files.clone();
+        merged.merge(refresh.clone());
         assert!(merged.files && merged.metadata && merged.refetch);
         assert!(!merged.force, "a refresh doesn't make a waiting scan probe every file");
-        let mut alone = refresh;
-        alone.merge(refresh);
+        let mut alone = refresh.clone();
+        alone.merge(refresh.clone());
         assert!(!alone.files && alone.metadata);
         // A forced rescan stays one, whatever joins it.
-        let forced = ScanRequest { library_id: 1, force: true, files: true, metadata: true, refetch: true };
+        let forced = ScanRequest::new(1, true, true, true, true);
         let mut kept = forced;
-        kept.merge(files);
+        kept.merge(files.clone());
         assert!(kept.force && kept.refetch);
+    }
+
+    #[test]
+    fn changes_merge_into_one_scan_of_where_either_changed() {
+        let changed = |paths: &[&str]| ScanRequest {
+            changed: Some(paths.iter().map(PathBuf::from).collect()),
+            ..ScanRequest::new(1, false, true, true, false)
+        };
+        let mut merged = changed(&["/m/B", "/m/A"]);
+        merged.merge(changed(&["/m/A", "/m/C"]));
+        assert_eq!(merged.changed, Some(["/m/A", "/m/B", "/m/C"].map(PathBuf::from).to_vec()));
+        // A refresh of metadata walks no files: what changed stays all of it.
+        merged.merge(ScanRequest::new(1, false, false, true, true));
+        assert_eq!(merged.changed.as_ref().map(Vec::len), Some(3));
+        let mut refresh = ScanRequest::new(1, false, false, true, true);
+        refresh.merge(changed(&["/m/A"]));
+        assert_eq!(refresh.changed, Some(vec![PathBuf::from("/m/A")]));
+        assert!(refresh.files && refresh.refetch);
+        // A scan of the whole library takes in what changed, either way.
+        let mut whole = ScanRequest::new(1, false, true, true, false);
+        whole.merge(changed(&["/m/A"]));
+        assert_eq!(whole.changed, None);
+        merged.merge(ScanRequest::new(1, false, true, false, false));
+        assert_eq!(merged.changed, None);
     }
 
     #[test]

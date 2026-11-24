@@ -229,8 +229,9 @@ for movie in server.library.section('Movies').search(unwatched=True):
 
 A tool works when it takes a server's address and a token, as these do:
 Kometa, `python-plexapi` scripts, poster and artwork tools, refresh
-triggers in the manner of Autoscan (a refresh's `?path=` is ignored: the
-whole library is scanned again), and Maintainerr's collections.
+triggers in the manner of Autoscan (a refresh's `?path=` has only the
+folder of the title it names scanned again, or the whole library when
+the library's folders don't hold it), and Maintainerr's collections.
 
 Kometa takes Pley's address and a token under `plex` in its `config.yml`
 (`url: http://pley.local:7539`, `token: …`). The token may Manage
@@ -329,8 +330,9 @@ them.
   the file names is never given. `container` and `size` are the media's
   once it has been opened or played (`strm` and 0 before).
 - **Editions.** Movies whose versions are tagged with an edition
-  (`{edition-Director's Cut}` in the file or folder name) carry the default
-  version's `editionTitle`.
+  (`{edition-Director's Cut}` in the file or folder name), or name one in
+  words (`Film (2010) - Director's Cut`), carry the default version's
+  `editionTitle`.
 - **Watch state.** `viewCount` is the play count of watched items and 0 once
   an item is marked unplayed. `viewOffset` is the resume position.
   `/:/progress` and `/:/timeline` count as Pley's own progress reports (90 %
@@ -395,7 +397,7 @@ them.
 | Area | Endpoints |
 |---|---|
 | Server | `/`, `/identity`, `/servers`, `/accounts` (listed, never changed), `/myplex/account`, `/system`, `/prefs`, `/:/prefs` (`PUT` answers `403`: no token changes the server's settings), `/media/providers`, `/:/websockets/notifications`; `/clients`, `/devices`, `/activities`, `/butler` and `/updater/status` answer empty containers |
-| Sections | `/library`, `/library/sections` (`allowSync="1"` for a token with `manage`: Kometa takes a section without it for a read-only token), `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/prefs` (no settings; `PUT` answers `403`), `…/refresh` and `/library/sections/all/refresh` (`manage`); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
+| Sections | `/library`, `/library/sections` (`allowSync="1"` for a token with `manage`: Kometa takes a section without it for a read-only token), `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/prefs` (no settings; `PUT` answers `403`), `…/refresh` and `/library/sections/all/refresh` (`manage`; a section's `?path=` scans only that title's folder, see [Which tools work](#which-tools-work)); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
 | Items | `/library/metadata/{id}` (up to 5,000 comma-separated ids, more than 500 by pages with `X-Plex-Container-Start` and `-Size`; a collection's or playlist's key answers as `/library/collections/{key}` or `/playlists/{key}` does, and `…/children`, its pictures and `…/refresh` reach it too), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/posters` and `…/arts` (the picture shown, a `Photo` named `upload://…` when it was set by hand and `metadata://…` when it is the metadata agent's), `…/file?url=` (the picture a `Photo` names), `…/themes`, `…/clearLogos` and `…/squareArts` (none), `…/refresh` (`manage`) |
 | Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/sections/{id}/manage` (see [Hubs](#hubs)), `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
 | Collections | `/library/sections/{id}/collections` (also `…/all?type=18`), `/library/collections/{id}` (`includePreferences=1`), `…/children`, `…/{thumb,art,composite}[/{version}]`, `PUT …/prefs`, `PUT …/items/{item}/move?after=`, `PUT …/refresh` (changes nothing: a collection has no metadata of its own to fetch); changes under [Editing](#editing). Pley's own four collections in each library (Recently Added and the like) aren't listed: they stand for Plex's built-in rows |

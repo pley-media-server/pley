@@ -5,7 +5,9 @@ Everything Pley does. The [README](../README.md) has the short version.
 ## Libraries
 
 - Movies, TV shows, music and audiobooks, scanned incrementally as files
-  change. A drive that goes offline isn't treated as deleted.
+  change: a change has only the folder of the title it's in scanned
+  again, and the periodic scan goes through the whole library. A drive
+  that goes offline isn't treated as deleted.
 - Files renamed or moved within a library, folders and all, keep what
   people did with their titles: progress, watched, ratings, history, My
   List, playlists, collections and added subtitles. A movie or episode

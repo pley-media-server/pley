@@ -259,16 +259,17 @@ impl Providers {
     }
 
     /// Fetch metadata for the books of an audiobook library that have none
-    /// yet (or all, when `force`).
+    /// yet (or all, when `force`), and `again` for some found nothing for.
     pub async fn refresh_book_library(
         &self,
         lib: &LibraryRow,
         force: bool,
+        again: bool,
         progress: &(dyn Fn(u64, u64) + Sync),
     ) -> anyhow::Result<()> {
         match &self.books {
             Some(books) if self.settings.get().book_metadata => {
-                books.refresh_library(lib, force, &self.country(), progress).await
+                books.refresh_library(lib, force, again, &self.country(), progress).await
             }
             _ => Ok(()),
         }
@@ -315,15 +316,17 @@ impl Providers {
     }
 
     /// Fetch MusicBrainz metadata for the artists and albums of a music
-    /// library that have none yet (or all, when `force`).
+    /// library that have none yet (or all, when `force`), and `again` for
+    /// some found nothing for.
     pub async fn refresh_music_library(
         &self,
         lib: &LibraryRow,
         force: bool,
+        again: bool,
         progress: &(dyn Fn(u64, u64) + Sync),
     ) -> anyhow::Result<()> {
         match &self.musicbrainz {
-            Some(mb) if self.settings.get().music_metadata => mb.refresh_library(lib, force, progress).await,
+            Some(mb) if self.settings.get().music_metadata => mb.refresh_library(lib, force, again, progress).await,
             _ => Ok(()),
         }
     }

@@ -382,7 +382,8 @@ interface MediaFile {
   video_codec: string | null;       // ffprobe codec name: "h264", "hevc", "av1", ...
   audio_codec: string | null;       // codec of the default audio stream
   streams: MediaStream[];
-  edition: string | null;           // from `{edition-Final Cut}` in the file's or its folder's name
+  edition: string | null;           // from `{edition-Final Cut}` in the file's or its folder's name, or of a
+                                    // movie's, its words there (`Film (2010) - Director's Cut`)
   selected_audio: number | null;    // track to start with for this user (their choice, else their
                                     // defaults); null = the file's default. Not player-specific:
                                     // a play request picks that language's best track for its
@@ -5043,7 +5044,7 @@ interface Settings {
                                     // Turning it on where `transcoder.memory.available` is false: 400;
                                     // saved on before, it stays
   scan_interval_minutes: number;    // 0 disables periodic scans
-  watch_libraries: boolean;         // pick up file changes automatically
+  watch_libraries: boolean;         // pick up file changes automatically, scanning again only the folders they are in
   detect_markers: boolean;          // find intros and credits in the background (default true)
   seek_previews: boolean;           // make seek-bar thumbnails when an item is first opened (default true)
   previews_in_background: boolean;  // also for whole libraries after scans (default true)
