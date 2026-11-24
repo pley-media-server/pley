@@ -108,6 +108,9 @@ class MusicService : MediaLibraryService() {
 
     /** What played last being read back ([bringBack]): the latest only. */
     private var bringingBack: Job? = null
+
+    /** A book brought back, waiting for where the profile is in it on the server ([cueBook]). */
+    private var catchingUp: Job? = null
     private val owner: PlayerGraphOwner? get() = application as? PlayerGraphOwner
 
     // The notification's words, Media3's included, and the car's, in the language shown.
@@ -228,7 +231,9 @@ class MusicService : MediaLibraryService() {
      * Android ended the app, or the radio's channel when that was what a
      * car played last. A car connecting is then shown it, with Play ready
      * (a session with nothing in it shows a car nothing to play), and the
-     * car's own Play, pressed or sent as it starts, plays it. With nothing
+     * car's own Play, pressed or sent as it starts, plays it. A book kept
+     * waits at once as the device kept it, and moves to where the profile
+     * is in it on the server once that is known ([cueBook]). With nothing
      * kept, a car is shown what the library suggests (the book or the album
      * heard last, else the album added last). Nothing is played here: only a car
      * or a person starts the sound.
@@ -258,14 +263,17 @@ class MusicService : MediaLibraryService() {
             if (lineup != null && channel != null && graph != null && runCatching { playRadio(made, playback, graph, lineup, channel) }.isSuccess) return@launch
             if (playback.active) return@launch
             val saved = resume.saved()
-            // A book kept goes on where the profile is in it now: it may have been heard elsewhere since (the web app).
-            val book = saved?.tracks?.firstOrNull()?.takeIf { it.kind == ItemKind.Part }?.parentId
-            val heard = if (book != null) whereIn(graph, book) else null
             // Nothing kept: a car is still shown something to play, never Android Auto's "open the app" with nothing in it.
             val suggested = if (saved == null && car) suggestion(graph) else null
             if (busy() || playback.active) return@launch
+            // A book kept goes on where the profile is in it now: it may have been heard elsewhere since (the web app).
+            // It waits as the device kept it while the server is asked, rather than leave the car with nothing.
+            val book = saved?.tracks?.firstOrNull()?.takeIf { it.kind == ItemKind.Part }?.parentId
             when {
-                heard != null -> playback.cue(heard.tracks, heard.startIndex, startMs = heard.startMs)
+                saved != null && book != null -> {
+                    catchingUp?.cancel()
+                    catchingUp = scope.launch { playback.cueBook(saved, { whereIn(graph, book) }) { !busy() } }
+                }
                 saved != null -> playback.cue(saved)
                 suggested != null -> playback.cue(suggested.tracks, suggested.startIndex, suggested.shuffle, suggested.startMs, suggested = true)
             }
@@ -379,6 +387,8 @@ class MusicService : MediaLibraryService() {
         following = null
         bringingBack?.cancel()
         bringingBack = null
+        catchingUp?.cancel()
+        catchingUp = null
         session = null
         player = null
         made.release()
@@ -749,6 +759,7 @@ class MusicService : MediaLibraryService() {
             // as a car connects, gives way too.
             picking?.cancel()
             bringingBack?.cancel()
+            catchingUp?.cancel()
             picking = scope.launch {
                 try {
                     val live = graph.live

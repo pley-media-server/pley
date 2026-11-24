@@ -6,7 +6,9 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.PleyJson
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
+import app.pley.android.player.music.library.MusicSelection
 import kotlin.coroutines.CoroutineContext
+import kotlin.math.abs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +32,32 @@ fun MusicPlayback.cue(saved: SavedMusic) {
     setRepeat(saved.repeat)
     cue(saved.tracks, saved.index, startMs = saved.positionMs, given = saved.given)
 }
+
+/**
+ * Makes [saved], a book kept on the device, the queue that waits, at once,
+ * then moves it to where the profile is in the book on the server
+ * ([place]: it may have been heard elsewhere since, on the web app) once
+ * that is known, if it is elsewhere. A car connecting on a weak network
+ * shows the book in its Now Playing from the start rather than nothing
+ * while the server is asked. Not when anything has happened since: the
+ * book played or moved, another queue, or [still] no longer holding (the
+ * session gone, the radio playing).
+ */
+internal suspend fun MusicPlayback.cueBook(saved: SavedMusic, place: suspend () -> MusicSelection?, still: () -> Boolean = { true }) {
+    cue(saved)
+    val cued = queueState.value
+    val at = position().positionMs
+    val heard = place() ?: return
+    if (!still() || queueState.value != cued || position().positionMs != at || nowPlaying.value?.wantsPlay == true) return
+    val part = heard.tracks.getOrNull(heard.startIndex) ?: return
+    when {
+        part.id != cued.current?.id || heard.tracks.map { it.id } != cued.tracks.map { it.id } -> cue(heard.tracks, heard.startIndex, startMs = heard.startMs)
+        abs(heard.startMs - at) >= SAME_PLACE_MS -> seekTo(heard.startMs)
+    }
+}
+
+/** Places in a part this close are the same: what the device kept and what it last told the server differ by a report's lag. */
+private const val SAME_PLACE_MS = 2_000L
 
 /**
  * What music was playing, kept on the device so Play brings it back when

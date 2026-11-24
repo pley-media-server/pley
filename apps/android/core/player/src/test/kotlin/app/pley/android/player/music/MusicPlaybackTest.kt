@@ -22,6 +22,7 @@ import app.pley.android.network.PleyApi
 import app.pley.android.player.EngineSource
 import app.pley.android.player.MusicError
 import app.pley.android.player.MusicRepeat
+import app.pley.android.player.music.library.MusicSelection
 import app.pley.android.player.session.SessionReporter
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.testing.network.FakePleyApi
@@ -1401,6 +1402,65 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun aBookKeptWaitsAtOnceWhileTheServerIsAskedWhereTheProfileIsInIt() = runTest {
+        val music = music()
+        val saved = SavedMusic(book, index = 0, positionMs = 60_000)
+        // A server that never answers: the book waits as the device kept it from the start, for a car's Now Playing.
+        val asking = backgroundScope.launch { music.cueBook(saved, { CompletableDeferred<MusicSelection?>().await() }) }
+        runCurrent()
+        assertTrue(asking.isActive)
+        assertEquals(listOf(11L, 12L, 13L), music.queueState.value.tracks.map { it.id })
+        assertEquals(11L, music.queueState.value.current?.id)
+        assertEquals(60_000L, music.position().positionMs)
+        assertFalse(music.nowPlaying.value!!.wantsPlay)
+        assertEquals(emptyList<PlaybackRequest>(), starts())
+    }
+
+    @Test
+    fun aBookKeptMovesToWhereTheServerHasItWhenThatIsElsewhere() = runTest {
+        val music = music()
+        val saved = SavedMusic(book, index = 0, positionMs = 60_000)
+        // Heard elsewhere since: the next part, where it was left there.
+        music.cueBook(saved, { MusicSelection(book, 1, startMs = 30_000) })
+        assertEquals(12L, music.queueState.value.current?.id)
+        assertEquals(30_000L, music.position().positionMs)
+
+        // Further on in the same part: there. About where the device kept it: left as it is.
+        val other = music()
+        other.cueBook(saved, { MusicSelection(book, 0, startMs = 600_000) })
+        assertEquals(11L, other.queueState.value.current?.id)
+        assertEquals(600_000L, other.position().positionMs)
+        val same = music()
+        same.cueBook(saved, { MusicSelection(book, 0, startMs = 61_000) })
+        assertEquals(60_000L, same.position().positionMs)
+        assertEquals(0, same.nowPlaying.value?.seeks)
+        assertEquals(emptyList<PlaybackRequest>(), starts())
+    }
+
+    @Test
+    fun aBookKeptThatPlaysBeforeTheServerAnswersPlaysOnWhereItWas() = runTest {
+        val music = music()
+        val answer = CompletableDeferred<MusicSelection?>()
+        backgroundScope.launch { music.cueBook(SavedMusic(book, index = 0, positionMs = 60_000), { answer.await() }) }
+        runCurrent()
+        music.play()
+        runCurrent()
+        answer.complete(MusicSelection(book, 2, startMs = 30_000))
+        runCurrent()
+        assertEquals(11L, music.queueState.value.current?.id)
+        assertEquals(listOf(60_000L), starts().map { it.startMs })
+
+        // Something else picked meanwhile, or the session gone: the same.
+        val other = music()
+        val late = CompletableDeferred<MusicSelection?>()
+        backgroundScope.launch { other.cueBook(SavedMusic(book, index = 0, positionMs = 60_000), { late.await() }) { false } }
+        runCurrent()
+        late.complete(MusicSelection(book, 2, startMs = 30_000))
+        runCurrent()
+        assertEquals(11L, other.queueState.value.current?.id)
+    }
+
+    @Test
     fun aQueueThatWaitsStartsWhereItIsSoughtToAndNextPlaysTheNextTrack() = runTest {
         val music = music()
         music.cue(album, startIndex = 0, startMs = 5_000)
@@ -1509,6 +1569,9 @@ class MusicPlaybackTest {
         PlaybackInfo(sessionId = id, method = PlaybackMethod.Direct, url = "/api/files/$fileId/stream", hls = false, fileId = fileId, durationMs = 180_000)
 
     private fun transcodeInfo() = PlaybackInfo(sessionId = "t1", method = PlaybackMethod.Transcode, url = "/api/playback/t1/index.m3u8", hls = true, fileId = 601, durationMs = 180_000)
+
+    /** A book's three parts, an hour each. */
+    private val book = (11..13L).map { track(it).copy(kind = ItemKind.Part, parentId = 70, durationMs = 3_600_000) }
 
     private fun track(id: Long) = ItemSummary(
         id = id,

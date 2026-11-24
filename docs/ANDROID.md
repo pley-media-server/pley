@@ -1247,7 +1247,10 @@ switch is kept for the profile signed in. As a car connects, what
 played last waits in its Now Playing, paused where it was (the music, or
 the radio's channel when that played last), so the car has something to
 play, and its Play plays it, pressed or sent by a car set to start media
-by itself; Pley never starts the sound itself. With nothing kept (the
+by itself; Pley never starts the sound itself. A book waits at once
+where the phone left it, also on a weak network, then moves to where
+the profile is in it on any device once the server says (within 10
+seconds), unless it has played or moved meanwhile. With nothing kept (the
 music was stopped, or none has played on this phone), whichever the
 profile heard last on any device waits instead: the book it is part way
 through, where it is in it, or the album it played last, from the track
