@@ -258,17 +258,54 @@ impl Providers {
         }
     }
 
+    fn books(&self) -> anyhow::Result<&books::Books> {
+        match &self.books {
+            Some(books) if self.settings.get().book_metadata => Ok(books),
+            _ => Err(anyhow!("turn on Open Library and Audnexus in Settings → Server to look audiobooks up")),
+        }
+    }
+
+    /// Books for Fix Match (see [`books::Books::search`]).
+    pub async fn search_books(
+        &self,
+        title: &str,
+        author: Option<&str>,
+        own_asin: Option<&str>,
+    ) -> anyhow::Result<Vec<books::BookCandidate>> {
+        Ok(self.books()?.search(title, author, own_asin, &self.country()).await?)
+    }
+
+    /// Fix Match for book `id`.
+    pub async fn rematch_book(&self, id: i64, chosen: &books::BookMatch) -> anyhow::Result<()> {
+        self.books()?.rematch(id, chosen, &self.country()).await
+    }
+
+    /// Fix Match undone for book `id`: what its match filled in goes, to be
+    /// fetched again. Done whether or not the sources are on.
+    pub async fn forget_book_match(&self, id: i64) -> anyhow::Result<()> {
+        match &self.books {
+            Some(books) => books.forget_match(id).await,
+            None => Ok(()),
+        }
+    }
+
+    /// Covers to choose from for book `id`.
+    pub async fn book_covers(&self, id: i64) -> anyhow::Result<Vec<crate::metadata::ArtworkCandidate>> {
+        Ok(self.books()?.covers(id, &self.country()).await?)
+    }
+
     /// Fetch metadata for the books of an audiobook library that have none
-    /// yet (or all, when `force`).
+    /// yet (or all, when `force`), and `again` for some found nothing for.
     pub async fn refresh_book_library(
         &self,
         lib: &LibraryRow,
         force: bool,
+        again: bool,
         progress: &(dyn Fn(u64, u64) + Sync),
     ) -> anyhow::Result<()> {
         match &self.books {
             Some(books) if self.settings.get().book_metadata => {
-                books.refresh_library(lib, force, &self.country(), progress).await
+                books.refresh_library(lib, force, again, &self.country(), progress).await
             }
             _ => Ok(()),
         }
@@ -315,15 +352,17 @@ impl Providers {
     }
 
     /// Fetch MusicBrainz metadata for the artists and albums of a music
-    /// library that have none yet (or all, when `force`).
+    /// library that have none yet (or all, when `force`), and `again` for
+    /// some found nothing for.
     pub async fn refresh_music_library(
         &self,
         lib: &LibraryRow,
         force: bool,
+        again: bool,
         progress: &(dyn Fn(u64, u64) + Sync),
     ) -> anyhow::Result<()> {
         match &self.musicbrainz {
-            Some(mb) if self.settings.get().music_metadata => mb.refresh_library(lib, force, progress).await,
+            Some(mb) if self.settings.get().music_metadata => mb.refresh_library(lib, force, again, progress).await,
             _ => Ok(()),
         }
     }

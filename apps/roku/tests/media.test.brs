@@ -194,17 +194,24 @@ sub test_media_info_of_every_stream()
     tkEqual(sdr[2], { label: "HDR", value: "SDR" })
 end sub
 
-sub test_media_info_as_text()
+sub test_media_info_as_a_sheet()
     one = { files: [{ id: 1, path: "a.mkv", size: 1536, container: "mkv", streams: [{ index: 0, kind: "audio", codec: "aac", channels: 2 }] }] }
-    tkEqual(mediaInfoText(one), "File" + Chr(10) + "Name: a.mkv" + Chr(10) + "Container: MKV" + Chr(10) + "Size: 1.5 KB" + Chr(10) + Chr(10) + "Audio" + Chr(10) + "Codec: AAC" + Chr(10) + "Channels: Stereo")
+    tkEqual(mediaInfoSheet(one), [
+        { kind: "heading", text: "File" },
+        { kind: "fact", text: "Name", value: "a.mkv" },
+        { kind: "fact", text: "Container", value: "MKV" },
+        { kind: "fact", text: "Size", value: "1.5 KB" },
+        { kind: "heading", text: "Audio" },
+        { kind: "fact", text: "Codec", value: "AAC" },
+        { kind: "fact", text: "Channels", value: "Stereo" }
+    ])
     two = { files: [one.files[0], { id: 2, path: "b.mkv", edition: "Final Cut", streams: [] }] }
-    lines = mediaInfoText(two).Split(Chr(10))
-    tkEqual(lines[0], "VERSION 1", "each file under its name when there are several")
-    tkEqual(lines[1], "File")
-    tkTrue(lines.Count() > 11)
-    tkEqual(lines[9], "")
-    tkEqual(lines[10], "FINAL CUT", "an edition by its name")
-    tkEqual(lines[11], "File")
+    lines = mediaInfoSheet(two)
+    tkEqual(lines[0], { kind: "version", text: "Version 1" }, "each file under its name when there are several")
+    tkEqual(lines[1], { kind: "heading", text: "File" })
+    tkEqual(lines.Count(), 11)
+    tkEqual(lines[8], { kind: "version", text: "Final Cut" }, "an edition by its name")
+    tkEqual(lines[9], { kind: "heading", text: "File" })
 end sub
 
 sub test_media_words_in_french_and_spanish()
@@ -223,8 +230,11 @@ sub test_media_words_in_french_and_spanish()
     tkEqual(mediaLevel("hevc", 153), "5.1", "a level is a name, with a point")
     tkEqual(mediaDolbyVision({ dv_profile: 8, dv_bl_compat: 1, dv_level: 6 }), "Profil 8.1 · Niveau 6 · couche de base compatible HDR10")
     one = { files: [{ id: 1, path: "a.mkv", size: 1536, container: "mkv", streams: [{ index: 0, kind: "audio", codec: "aac", channels: 2 }] }] }
-    colon = Chr(160) + ": "
-    tkEqual(mediaInfoText(one).Split(Chr(10)), ["Fichier", "Nom" + colon + "a.mkv", "Conteneur" + colon + "MKV", "Taille" + colon + "1,5 Ko", "", "Audio", "Codec" + colon + "AAC", "Canaux" + colon + "Stéréo"])
+    words = []
+    for each line in mediaInfoSheet(one)
+        if line.kind = "fact" then words.Push(line.text + " " + line.value) else words.Push(line.text)
+    end for
+    tkEqual(words, ["Fichier", "Nom a.mkv", "Conteneur MKV", "Taille 1,5 Ko", "Audio", "Codec AAC", "Canaux Stéréo"])
     i18nUse("es")
     tkEqual(mediaTrackLabel(file.streams[2]), "Francés (AC3 5.1)")
     tkEqual(mediaAutomaticLabel(file), "Automática (Inglés)")

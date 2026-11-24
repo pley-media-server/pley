@@ -24,39 +24,44 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Live.brs" />
     <children>
-        <!-- The categories. -->
-        <Rectangle width="528" height="1080" color="0x1E222AFF" />
-        <Label id="title" translation="[48, 40]" width="440" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-        <ChipRow id="tabs" translation="[48, 132]" />
+        <!-- The categories, on the page's dark as Android TV's. -->
+        <Label id="title" translation="[192, 54]" width="396" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <ChipRow id="tabs" translation="[192, 132]" />
         <!-- Search, pinned above the categories: it never scrolls away. -->
-        <MarkupList id="searchRow" translation="[24, 212]" itemComponentName="LiveRailItem" itemSize="[480, 56]" numRows="1" drawFocusFeedback="false" />
-        <Rectangle translation="[48, 274]" width="432" height="2" color="0x2E3440FF" />
-        <MarkupList id="rail" translation="[24, 284]" itemComponentName="LiveRailItem" itemSize="[480, 56]" itemSpacing="[0, 4]" numRows="13" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <QuickList id="searchRow" translation="[168, 224]" itemComponentName="LiveRailItem" itemSize="[420, 56]" numRows="1" drawFocusFeedback="false" />
+        <Rectangle translation="[192, 286]" width="372" height="2" color="0x2E3440FF" />
+        <QuickList id="rail" translation="[168, 296]" itemComponentName="LiveRailItem" itemSize="[420, 56]" itemSpacing="[0, 4]" numRows="12" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <!-- The category's channels. -->
-        <Label id="category" translation="[576, 44]" width="1280" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-        <Label id="count" translation="[576, 104]" width="1280" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+        <Label id="category" translation="[624, 54]" width="1200" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+        <Label id="count" translation="[624, 112]" width="1200" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <!-- The program in focus, above the guide. -->
-        <Group id="info" translation="[576, 160]" visible="false">
-            <Rectangle translation="[1064, 0]" width="216" height="108" color="0x262B35FF" />
-            <Poster id="infoLogo" translation="[1072, 6]" width="200" height="96" loadWidth="200" loadHeight="96" loadDisplayMode="scaleToFit" />
-            <Label id="infoChannel" width="1020" color="0x8B95A5FF" font="font:SmallestBoldSystemFont" />
-            <Label id="infoTitle" translation="[0, 30]" width="1020" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <Label id="infoMeta" translation="[0, 86]" width="1020" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-            <Label id="infoText" translation="[0, 120]" width="1280" wrap="true" maxLines="2" lineSpacing="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+        <Group id="info" translation="[624, 160]" visible="false">
+            <Rectangle translation="[984, 0]" width="216" height="108" color="0x262B35FF" />
+            <Poster id="infoLogo" translation="[992, 6]" width="200" height="96" loadWidth="200" loadHeight="96" loadDisplayMode="scaleToFit" />
+            <Label id="infoChannel" width="1020" color="0x8B95A5FF">
+                <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
+            </Label>
+            <Label id="infoTitle" translation="[0, 30]" width="940" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="infoMeta" translation="[0, 86]" width="940" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+            <Label id="infoText" translation="[0, 120]" width="1200" wrap="true" maxLines="1" lineSpacing="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         </Group>
         <!-- Rewind, fast forward and Replay are the screen's (Replay opens
-             Search): it pages the guide through time itself. -->
-        <TimeGrid id="guide" translation="[576, 376]" width="1280" height="648" numRows="7" duration="7200" maxDays="2" channelInfoWidth="260" infoGridGap="8" ignoreTrickPlayKeys="true"
-            focusBitmapUri="pkg:/images/button-focus.9.png" programBackgroundBitmapUri="pkg:/images/guide-cell.9.png"
+             Search): it pages the guide through time itself. Cut at the
+             right margin (x 1824), as the pages' content is: a TimeGrid
+             runs to the screen's edge. -->
+        <Group clippingRect="[0, 0, 1824, 1080]">
+        <TimeGrid id="guide" translation="[624, 376]" numRows="6" duration="7200" maxDays="2" channelInfoWidth="260" infoGridGap="8" ignoreTrickPlayKeys="true"
+            focusBitmapUri="pkg:/images/ui/square-accent.9.png" programBackgroundBitmapUri="pkg:/images/guide-cell.9.png"
             channelInfoBackgroundBitmapUri="pkg:/images/guide-cell.9.png" channelInfoTextColor="0xEBEBEBFF" channelInfoFont="font:SmallestBoldSystemFont"
             programTitleColor="0xEBEBEBFF" programTitleFocusedColor="0x16191EFF" programTitleFont="font:SmallestSystemFont"
             timeLabelColor="0xA1A9B6FF" timeLabelFont="font:SmallestSystemFont" timeBarHeight="48"
             nowBarBlendColor="0x38BDF8FF" pastTimeScreenBitmapUri="pkg:/images/guide-past.9.png" visible="false" />
-        <MarkupGrid id="cards" translation="[576, 168]" itemComponentName="LiveCard" numColumns="4" numRows="3" itemSize="[296, 270]" itemSpacing="[32, 32]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
-        <Label id="message" translation="[576, 480]" width="1280" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
+        </Group>
+        <QuickGrid id="cards" translation="[624, 168]" itemComponentName="LiveCard" numColumns="4" numRows="3" itemSize="[282, 270]" itemSpacing="[24, 32]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+        <Label id="message" translation="[624, 480]" width="1200" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- Under what failed with nothing to show. -->
-        <ButtonGroup id="retry" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[1056, 640]" minWidth="320" visible="false" />
-        <Label id="hint" translation="[576, 1036]" width="1280" horizAlign="right" color="0x8B95A5FF" font="font:TinySystemFont" />
+        <PillButtons id="retry" translation="[1064, 640]" minWidth="320" visible="false" />
+        <Label id="hint" translation="[624, 980]" width="1200" horizAlign="right" color="0x8B95A5FF" font="font:TinySystemFont" />
         <!-- What's on moves on. -->
         <Timer id="clock" duration="15" repeat="true" />
     </children>

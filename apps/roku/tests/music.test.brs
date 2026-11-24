@@ -156,11 +156,11 @@ sub test_music_up_next_lists_the_queue_the_track_playing_marked()
     tracks[3].album = ""
     rows = musicUpNextRows(tracks, 0, 4, 1)
     tkEqual(rows.Count(), 4, "what played before too")
-    tkEqual(rows[2], { title: "3. Song 3", subtitle: "The Fixtures · Blue", duration: "3:20", current: false }, "numbered by its place in the queue")
+    tkEqual(rows[2], { number: "3", title: "Song 3", subtitle: "The Fixtures · Blue", duration: "3:20", current: false }, "numbered by its place in the queue")
     tkTrue(rows[1].current, "the track playing")
     tkEqual(rows[3].subtitle, "The Fixtures", "without an album")
     rows = musicUpNextRows(tracks, 2, 4, 3)
-    tkEqual(rows[0].title, "3. Song 3", "a part of the queue keeps the numbers of its places")
+    tkEqual(rows[0].number, "3", "a part of the queue keeps the numbers of its places")
     tkTrue(rows[1].current)
 end sub
 

@@ -14,22 +14,28 @@
 //!
 //! As with music, the files' tags win: what is fetched fills in what the
 //! book lacks.
+//!
+//! An administrator can choose a book's match by hand (Fix Match): an Open
+//! Library work, or a recording by its ASIN. The choice is kept as the
+//! book's match override ([`crate::overrides::MATCH`]) and wins over the
+//! search and the files' ASIN until it is undone.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::bail;
 use reqwest::header::ACCEPT;
-use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 use super::{
     Api, ProviderError, Throttle, artwork, full_date, loose_id, loose_text, nullable, strip_html, title_score, year_of,
 };
 use crate::db::Db;
 use crate::library::LibraryRow;
-use crate::store::Store;
+use crate::metadata::ArtworkCandidate;
+use crate::store::{self, Store};
 use crate::util::{normalize_key, now};
 
 pub const AUDNEXUS: &str = "https://api.audnex.us";
@@ -49,6 +55,11 @@ const MAX_FAILURES: u32 = 5;
 const UNKNOWN_AUTHOR: &str = "Unknown Author";
 /// Audnexus's region where a country has none of its own.
 const DEFAULT_REGION: &str = "us";
+/// Works shown for Fix Match, and covers to choose from.
+const MAX_CANDIDATES: usize = 12;
+const MAX_COVERS: usize = 30;
+/// What Open Library's search is asked to answer with.
+const WORK_FIELDS: &str = "key,title,subtitle,author_name,first_publish_year,cover_i,edition_count";
 
 pub struct Books {
     audnexus: Api,
@@ -132,6 +143,9 @@ struct WorkDoc {
 #[serde(default)]
 struct Work {
     description: Option<serde_json::Value>,
+    /// Cover ids of its editions; -1 for one removed.
+    #[serde(deserialize_with = "nullable")]
+    covers: Vec<serde_json::Value>,
 }
 
 impl Work {
@@ -171,6 +185,54 @@ impl Book {
             row.authors.as_deref().and_then(|j| serde_json::from_str(j).ok()).unwrap_or_default();
         Self { title: row.title.clone(), authors: authors.into_iter().filter(|a| a != UNKNOWN_AUTHOR).collect() }
     }
+}
+
+/// A book's match chosen by hand: a recording by its ASIN, or an Open
+/// Library work. Kept as the match override's value: "asin:B08G9PRS1K",
+/// "openlibrary:OL21745884W".
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BookMatch {
+    Asin(String),
+    Work(String),
+}
+
+impl BookMatch {
+    /// From Fix Match's answer: an ASIN (any case) or a work id.
+    pub fn new(asin: Option<&str>, work: Option<&str>) -> Option<Self> {
+        match (asin.map(|a| a.trim().to_ascii_uppercase()), work.map(str::trim)) {
+            (Some(asin), None) if is_asin(&asin) => Some(Self::Asin(asin)),
+            (None, Some(work)) if is_work_id(work) => Some(Self::Work(work.to_owned())),
+            _ => None,
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.split_once(':')? {
+            ("asin", asin) if is_asin(asin) => Some(Self::Asin(asin.to_owned())),
+            ("openlibrary", work) if is_work_id(work) => Some(Self::Work(work.to_owned())),
+            _ => None,
+        }
+    }
+
+    pub fn stored(&self) -> String {
+        match self {
+            Self::Asin(asin) => format!("asin:{asin}"),
+            Self::Work(work) => format!("openlibrary:{work}"),
+        }
+    }
+}
+
+/// A book Fix Match offers: an Open Library work, or a recording on
+/// Audible (by the ASIN asked for, or the book's own).
+#[derive(Debug, Clone, Serialize)]
+pub struct BookCandidate {
+    pub openlibrary_id: Option<String>,
+    pub asin: Option<String>,
+    pub title: String,
+    pub authors: Vec<String>,
+    pub narrators: Vec<String>,
+    pub year: Option<i64>,
+    pub poster_url: Option<String>,
 }
 
 /// What a part's probe says about the book (`media_files.media_info`).
@@ -214,15 +276,18 @@ impl Books {
     }
 
     /// Look up the books of a library that have no metadata yet (all of
-    /// them when `force`). `country` is the server's (ISO 3166-1, "GB").
+    /// them when `force`), and `again` a few of those found nothing for a
+    /// while ago ([`crate::metadata::looked_up_again`]). `country` is the
+    /// server's (ISO 3166-1, "GB").
     pub async fn refresh_library(
         &self,
         lib: &LibraryRow,
         force: bool,
+        again: bool,
         country: &str,
         progress: &(dyn Fn(u64, u64) + Sync),
     ) -> anyhow::Result<()> {
-        let books: Vec<i64> = sqlx::query_scalar(
+        let mut books: Vec<i64> = sqlx::query_scalar(
             "SELECT id FROM items WHERE library_id = ? AND kind = 'audiobook' AND metadata_locked = 0
                AND (? OR metadata_at IS NULL) ORDER BY added_at DESC",
         )
@@ -230,6 +295,19 @@ impl Books {
         .bind(force)
         .fetch_all(&self.db.read)
         .await?;
+        if again && !force {
+            let due: Vec<i64> = sqlx::query_scalar(concat!(
+                "SELECT id FROM items WHERE library_id = ? AND kind = 'audiobook' AND metadata_locked = 0
+                   AND metadata_at < 0 AND ",
+                crate::metadata::looked_up_again!("(-metadata_at)", "added_at"),
+                " ORDER BY ABS(metadata_at) LIMIT ?"
+            ))
+            .bind(lib.id)
+            .bind(crate::metadata::LOOKED_UP_AGAIN)
+            .fetch_all(&self.db.read)
+            .await?;
+            books.extend(due);
+        }
         let total = books.len() as u64;
         if total == 0 {
             return Ok(());
@@ -292,24 +370,17 @@ impl Books {
     /// Audnexus for a book with an ASIN; Open Library for the rest, for a
     /// book Audnexus doesn't know, and while Audnexus can't be reached. In
     /// that last case the answer is Audnexus's error, and the book stays to
-    /// be fetched: Audnexus is asked again after the next scan.
+    /// be fetched: Audnexus is asked again after the next scan. A match
+    /// chosen by hand is the only one asked.
     async fn refresh_book(&self, id: i64, country: &str) -> Result<Option<ProviderError>, ProviderError> {
-        let row: BookRow = sqlx::query_as(
-            "SELECT title, authors, poster, audible_asin, openlibrary_id FROM items WHERE id = ? AND kind = 'audiobook'",
-        )
-        .bind(id)
-        .fetch_optional(&self.db.read)
-        .await?
-        .ok_or(ProviderError::NotFound)?;
+        let row = self.book_row(id).await?;
         let book = Book::from_row(&row);
         if normalize_key(&book.title).is_empty() {
             return Err(ProviderError::NotFound);
         }
         let files = self.file_facts(id).await?;
-
-        // The files' ASIN: it is the recording they hold. The one kept from
-        // before stands in only while none of them has been read.
-        let asin = if files.read { files.asin.clone() } else { row.audible_asin.clone().filter(|a| is_asin(a)) };
+        let chosen = self.chosen(id).await?;
+        let asin = self.asin(&row, &files, chosen.as_ref());
         let audnexus_error = match &asin {
             None => None,
             Some(asin) => match self.audnexus_book(asin, country).await {
@@ -321,7 +392,13 @@ impl Books {
                 }
             },
         };
-        match self.openlibrary_work(&book, row.openlibrary_id.as_deref()).await {
+        let work = match &chosen {
+            // The recording chosen, or nothing.
+            Some(BookMatch::Asin(_)) => return Err(audnexus_error.unwrap_or(ProviderError::NotFound)),
+            Some(BookMatch::Work(key)) => self.openlibrary_chosen(key).await,
+            None => self.openlibrary_work(&book, row.openlibrary_id.as_deref()).await,
+        };
+        match work {
             Ok(Some((doc, description))) => {
                 let done = audnexus_error.is_none();
                 self.write_openlibrary(id, asin.as_deref(), &row, &files, doc, description, done).await?;
@@ -331,6 +408,212 @@ impl Books {
             Ok(None) => Err(audnexus_error.unwrap_or(ProviderError::NotFound)),
             Err(err) => Err(audnexus_error.unwrap_or(err)),
         }
+    }
+
+    async fn book_row(&self, id: i64) -> Result<BookRow, ProviderError> {
+        sqlx::query_as(
+            "SELECT title, authors, poster, audible_asin, openlibrary_id FROM items WHERE id = ? AND kind = 'audiobook'",
+        )
+        .bind(id)
+        .fetch_optional(&self.db.read)
+        .await?
+        .ok_or(ProviderError::NotFound)
+    }
+
+    /// The match chosen for book `id` by hand, if any.
+    async fn chosen(&self, id: i64) -> sqlx::Result<Option<BookMatch>> {
+        let value: Option<String> =
+            sqlx::query_scalar("SELECT value FROM item_overrides WHERE item_id = ? AND field = ?")
+                .bind(id)
+                .bind(crate::overrides::MATCH)
+                .fetch_optional(&self.db.read)
+                .await?;
+        Ok(value.as_deref().and_then(BookMatch::parse))
+    }
+
+    /// The recording Audnexus is asked for: the one chosen by hand, else the
+    /// files' ASIN, the recording they hold. The one kept from before stands
+    /// in only while none of them has been read.
+    fn asin(&self, row: &BookRow, files: &FileFacts, chosen: Option<&BookMatch>) -> Option<String> {
+        match chosen {
+            Some(BookMatch::Asin(asin)) => Some(asin.clone()),
+            Some(BookMatch::Work(_)) => None,
+            None if files.read => files.asin.clone(),
+            None => row.audible_asin.clone().filter(|a| is_asin(a)),
+        }
+    }
+
+    // -------------------------------------------------------------- Fix Match
+
+    /// Books for Fix Match: the recording of an ASIN typed as the title,
+    /// else Open Library's works of that title (by `author`, when given),
+    /// after the book's own recording (`own_asin`).
+    pub async fn search(
+        &self,
+        title: &str,
+        author: Option<&str>,
+        own_asin: Option<&str>,
+        country: &str,
+    ) -> Result<Vec<BookCandidate>, ProviderError> {
+        if let Some(asin) = typed_asin(title) {
+            return Ok(self.audible_candidate(&asin, country).await?.into_iter().collect());
+        }
+        let mut out = Vec::new();
+        if let Some(asin) = own_asin.filter(|a| is_asin(a)) {
+            // The works are worth showing even when Audnexus doesn't answer.
+            match self.audible_candidate(asin, country).await {
+                Ok(found) => out.extend(found),
+                Err(err) => tracing::debug!("Audnexus: {err:#}"),
+            }
+        }
+        let title = clean_title(title);
+        let mut query = vec![("title", title.as_str()), ("limit", "12"), ("fields", WORK_FIELDS)];
+        if let Some(author) = author.map(str::trim).filter(|a| !a.is_empty() && *a != UNKNOWN_AUTHOR) {
+            query.push(("author", author));
+        }
+        let found: WorkSearch = self.ol_get("/search.json", &query).await?;
+        out.extend(found.docs.into_iter().filter_map(|doc| self.work_candidate(doc)).take(MAX_CANDIDATES));
+        Ok(out)
+    }
+
+    async fn audible_candidate(&self, asin: &str, country: &str) -> Result<Option<BookCandidate>, ProviderError> {
+        let Some(found) = self.audnexus_book(asin, country).await? else { return Ok(None) };
+        let names = |people: &[Person]| {
+            people.iter().map(|p| cut(&p.name, MAX_TEXT)).filter(|n| !n.is_empty()).take(MAX_NAMES).collect()
+        };
+        Ok(Some(BookCandidate {
+            openlibrary_id: None,
+            asin: Some(asin.to_owned()),
+            title: cut(found.title.as_deref().unwrap_or_default(), MAX_TEXT),
+            authors: names(&found.authors),
+            narrators: names(&found.narrators),
+            year: year_of(release_day(found.release_date.as_deref())),
+            poster_url: found.image.filter(|url| store::allowed_image_url(url)).map(|url| audible_preview(&url)),
+        }))
+    }
+
+    fn work_candidate(&self, doc: WorkDoc) -> Option<BookCandidate> {
+        let key = doc.key.strip_prefix("/works/").filter(|k| is_work_id(k))?.to_owned();
+        let title = match doc.subtitle.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            Some(subtitle) => format!("{}: {subtitle}", doc.title.trim()),
+            None => doc.title.trim().to_owned(),
+        };
+        Some(BookCandidate {
+            openlibrary_id: Some(key),
+            asin: None,
+            title: cut(&title, MAX_TEXT),
+            authors: doc
+                .author_name
+                .iter()
+                .map(|a| cut(a, MAX_TEXT))
+                .filter(|a| !a.is_empty())
+                .take(MAX_NAMES)
+                .collect(),
+            narrators: Vec::new(),
+            year: doc.first_publish_year.filter(|y| (1..=9999).contains(y)),
+            poster_url: doc.cover_i.filter(|c| *c > 0).map(|c| format!("{}/b/id/{c}-M.jpg", self.covers)),
+        })
+    }
+
+    /// Fix Match: book `id` is `chosen` from now on, and fetched again. What
+    /// the earlier match filled in goes first ([`Self::forget_match`]).
+    pub async fn rematch(&self, id: i64, chosen: &BookMatch, country: &str) -> anyhow::Result<()> {
+        let mut tx = self.db.write.begin().await?;
+        sqlx::query(
+            "INSERT INTO item_overrides (item_id, field, value) VALUES (?, ?, ?)
+             ON CONFLICT(item_id, field) DO UPDATE SET value = excluded.value",
+        )
+        .bind(id)
+        .bind(crate::overrides::MATCH)
+        .bind(chosen.stored())
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        self.forget_match(id).await?;
+        let result = self.refresh_book(id, country).await;
+        // Hand edits win.
+        crate::overrides::apply(&self.db, &[id]).await?;
+        match result {
+            Ok(None) => Ok(()),
+            Ok(Some(err)) | Err(err) => match err {
+                ProviderError::NotFound => bail!("Audnexus and Open Library don't have that book"),
+                err => Err(err.into()),
+            },
+        }
+    }
+
+    /// Book `id` loses what its match filled in, to be fetched again: its
+    /// details are what its files say again, with no ids or release date
+    /// (which files don't give), and a cover that came from a source goes.
+    /// A cover in the files, next to them or chosen by hand stays.
+    pub async fn forget_match(&self, id: i64) -> anyhow::Result<()> {
+        let row = self.book_row(id).await.map_err(|e| anyhow::anyhow!("{e}"))?;
+        let files = self.file_facts(id).await?;
+        let fetched_cover = !files.cover && row.poster.as_deref().is_some_and(store::is_blob);
+        sqlx::query(
+            "UPDATE items SET audible_asin = NULL, openlibrary_id = NULL, metadata_at = NULL,
+                poster = CASE WHEN ? THEN NULL ELSE poster END, updated_at = ?
+             WHERE id = ?",
+        )
+        .bind(fetched_cover)
+        .bind(now())
+        .bind(id)
+        .execute(&self.db.write)
+        .await?;
+        crate::library::scanner::read_book_again(&self.db, id, &["release_date"]).await
+    }
+
+    /// Covers to choose from for book `id`: its recording's, then those of
+    /// its work's editions.
+    pub async fn covers(&self, id: i64, country: &str) -> Result<Vec<ArtworkCandidate>, ProviderError> {
+        let row = self.book_row(id).await?;
+        let files = self.file_facts(id).await?;
+        let chosen = self.chosen(id).await?;
+        let mut out = Vec::new();
+        let cover = |url: String, preview_url: String| ArtworkCandidate {
+            url,
+            preview_url,
+            width: 0,
+            height: 0,
+            language: None,
+            votes: 0.0,
+        };
+        if let Some(asin) = self.asin(&row, &files, chosen.as_ref()) {
+            // Open Library's covers are worth showing even when Audnexus
+            // doesn't answer.
+            let found = self.audnexus_book(&asin, country).await.unwrap_or_else(|err| {
+                tracing::debug!("Audnexus: {err:#}");
+                None
+            });
+            if let Some(image) = found.and_then(|b| b.image).filter(|url| store::allowed_image_url(url)) {
+                let preview = audible_preview(&image);
+                out.push(cover(image, preview));
+            }
+        }
+        let work = match &chosen {
+            Some(BookMatch::Work(key)) => Some(key.clone()),
+            Some(BookMatch::Asin(_)) => None,
+            None => row.openlibrary_id.clone().filter(|k| is_work_id(k)),
+        };
+        if let Some(key) = work {
+            let work: Work = match self.ol_get(&format!("/works/{key}.json"), &[]).await {
+                Err(ProviderError::NotFound) => Work::default(),
+                other => other?,
+            };
+            let mut seen = HashSet::new();
+            for id in work.covers.iter().filter_map(|c| c.as_i64()).filter(|c| *c > 0) {
+                if out.len() >= MAX_COVERS {
+                    break;
+                }
+                if seen.insert(id) {
+                    out.push(cover(
+                        format!("{}/b/id/{id}-L.jpg", self.covers),
+                        format!("{}/b/id/{id}-M.jpg", self.covers),
+                    ));
+                }
+            }
+        }
+        Ok(out)
     }
 
     // -------------------------------------------------------------- Audnexus
@@ -434,16 +717,26 @@ impl Books {
         known: Option<&str>,
     ) -> Result<Option<(WorkDoc, Option<String>)>, ProviderError> {
         let title = clean_title(&book.title);
-        let mut query = vec![
-            ("title", title.as_str()),
-            ("limit", "10"),
-            ("fields", "key,title,subtitle,author_name,first_publish_year,cover_i,edition_count"),
-        ];
+        let mut query = vec![("title", title.as_str()), ("limit", "10"), ("fields", WORK_FIELDS)];
         if let Some(author) = book.authors.first() {
             query.push(("author", author.as_str()));
         }
         let found: WorkSearch = self.ol_get("/search.json", &query).await?;
         let Some(doc) = best_work(found.docs, book, known) else { return Ok(None) };
+        self.with_description(doc).await
+    }
+
+    /// The work chosen by hand (`key`, "OL21745884W"), with its description.
+    async fn openlibrary_chosen(&self, key: &str) -> Result<Option<(WorkDoc, Option<String>)>, ProviderError> {
+        let query = format!("key:/works/{key}");
+        let found: WorkSearch =
+            self.ol_get("/search.json", &[("q", query.as_str()), ("limit", "1"), ("fields", WORK_FIELDS)]).await?;
+        let wanted = format!("/works/{key}");
+        let Some(doc) = found.docs.into_iter().find(|d| d.key == wanted) else { return Ok(None) };
+        self.with_description(doc).await
+    }
+
+    async fn with_description(&self, doc: WorkDoc) -> Result<Option<(WorkDoc, Option<String>)>, ProviderError> {
         let Some(key) = doc.key.strip_prefix("/works/").filter(|k| is_work_id(k)) else { return Ok(None) };
         let work: Work = match self.ol_get(&format!("/works/{key}.json"), &[]).await {
             Err(ProviderError::NotFound) => return Ok(None),
@@ -717,6 +1010,24 @@ fn is_asin(value: &str) -> bool {
     value.len() == 10 && value.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit())
 }
 
+/// A smaller copy of an Audible cover, which is often 2400 pixels wide:
+/// Amazon's image servers scale one asked for with `._SL300_`.
+fn audible_preview(url: &str) -> String {
+    match url.strip_prefix("https://m.media-amazon.com/images/I/").and_then(|name| name.strip_suffix(".jpg")) {
+        Some(name) if !name.is_empty() && !name.contains(['.', '/', '?', '#']) => {
+            format!("https://m.media-amazon.com/images/I/{name}._SL300_.jpg")
+        }
+        _ => url.to_owned(),
+    }
+}
+
+/// An ASIN typed in Fix Match's search, in any case. Ten letters without a
+/// digit are a title ("Foundation").
+fn typed_asin(text: &str) -> Option<String> {
+    let text = text.trim().to_ascii_uppercase();
+    (is_asin(&text) && text.bytes().any(|b| b.is_ascii_digit())).then_some(text)
+}
+
 /// An Open Library work id: "OL21745884W".
 fn is_work_id(value: &str) -> bool {
     value.len() > 3
@@ -751,6 +1062,36 @@ mod tests {
         assert_eq!(asin_tag(&tags("cdek", "B08G9PRS1K")).as_deref(), Some("B08G9PRS1K"));
         assert_eq!(asin_tag(&tags("asin", "9780593135204")), None);
         assert_eq!(asin_tag(&tags("comment", "B08G9PRS1K")), None);
+    }
+
+    #[test]
+    fn matches_chosen_by_hand() {
+        let asin = BookMatch::new(Some(" b08g9prs1k "), None).unwrap();
+        assert_eq!(asin, BookMatch::Asin("B08G9PRS1K".into()));
+        assert_eq!(BookMatch::parse(&asin.stored()), Some(asin));
+        let work = BookMatch::new(None, Some("OL21745884W")).unwrap();
+        assert_eq!(work.stored(), "openlibrary:OL21745884W");
+        assert_eq!(BookMatch::parse(&work.stored()), Some(work));
+        // One of them, and only ids of their shape.
+        assert_eq!(BookMatch::new(Some("B08G9PRS1K"), Some("OL21745884W")), None);
+        assert_eq!(BookMatch::new(None, None), None);
+        assert_eq!(BookMatch::new(None, Some("OL21745884M")), None);
+        assert_eq!(BookMatch::new(Some("../etc/pas"), None), None);
+        assert_eq!(BookMatch::parse("348"), None);
+        assert_eq!(BookMatch::parse("asin:b08g9prs1k"), None);
+        assert_eq!(BookMatch::parse("openlibrary:/works/OL1W"), None);
+        // An ASIN typed in the search, not a title of ten letters.
+        assert_eq!(typed_asin(" b0lantern1 ").as_deref(), Some("B0LANTERN1"));
+        assert_eq!(typed_asin("Foundation"), None);
+        assert_eq!(typed_asin("Small Hours"), None);
+        // Audible's covers previewed smaller; others as they are.
+        assert_eq!(
+            audible_preview("https://m.media-amazon.com/images/I/81Nzlrfud+L.jpg"),
+            "https://m.media-amazon.com/images/I/81Nzlrfud+L._SL300_.jpg"
+        );
+        for kept in ["https://m.media-amazon.com/images/I/91qW00x+vWL._SL1024_.jpg", "http://127.0.0.1/x.jpg"] {
+            assert_eq!(audible_preview(kept), kept);
+        }
     }
 
     #[test]

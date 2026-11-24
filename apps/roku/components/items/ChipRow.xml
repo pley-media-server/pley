@@ -1,15 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A row of chips, left and right between them, OK choosing one: a
-     library's tabs, and its sort and filters. The current one (a tab
-     shown) stands out; the focused one is in the accent while the row has
-     the focus. A chip may end with a number (the requests' tabs). -->
+<!-- A row of chips, left and right between them, OK choosing one, as the
+     Android TV app draws them: a page's buttons (pills, or round ones of an
+     icon alone), a library's sort and filters (chips) and its tabs. The
+     current one (a tab shown) stands out; the focused one fills with the
+     accent while the row has the focus. A chip may lead with an icon and
+     end with a number (the requests' tabs). -->
 <component name="ChipRow" extends="Group">
     <interface>
-        <!-- [{ label, width, count, accent, danger }]: a chip's width in
-             pixels; 0, as wide as its words. count (optional): its
+        <!-- [{ label, icon, name, width, count, accent, danger }]: icon
+             (optional) a Lucide icon's name in images/ui; with no label, a
+             round button, its name (optional) under it while focused. A chip's width in pixels; 0, as wide as its icon and
+             words. count (optional): its
              number's words, "" for none; accent or danger: the number in
              that color, as the menu's. -->
         <field id="chips" type="array" onChange="onChips" />
+        <!-- "tabs" (words alone, the current tab on surface3), "chips"
+             (surface3) or "buttons" (pills inside the control's edge). -->
+        <field id="look" type="string" value="tabs" />
         <!-- The room either side of a chip's words, both sides together,
              for chips of width 0. -->
         <field id="pad" type="integer" value="64" />
@@ -22,4 +29,5 @@
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/ChipRow.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
 </component>

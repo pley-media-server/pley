@@ -73,3 +73,9 @@ sub test_nav_tiles_open_details_or_their_show()
     tkInvalid(navForTile({ kind: "season", itemId: 100, parentId: 0 }))
     tkInvalid(navForTile({ kind: "movie" }))
 end sub
+
+sub test_nav_play_key()
+    tkEqual(navPlayTile({ kind: "movie", itemId: 12, positionMs: 600000, durationMs: 6000000 }), { to: "player", params: { itemId: 12, startMs: 600000 } }, "a movie plays from its place")
+    tkEqual(navPlayTile({ kind: "episode", itemId: 13, positionMs: 0, durationMs: 3000000 }), { to: "player", params: { itemId: 13, startMs: 0 } }, "an episode not begun from its start")
+    tkEqual(navPlayTile({ kind: "show", itemId: 14 }), navForTile({ kind: "show", itemId: 14 }), "a show opens")
+end sub

@@ -27,8 +27,8 @@ sub init()
     m.lastFocus = m.buttons
     ' What the buttons do, in their order.
     m.actions = ["play", "shuffle", "rename", "delete"]
-    m.buttons.buttons = [t("common.actions.play"), t("titles.actions.shuffle"), t("titles.actions.rename"), t("common.actions.delete")]
-    m.buttons.observeField("buttonSelected", "onButton")
+    m.buttons.chips = contentActionChips([t("common.actions.play"), t("titles.actions.shuffle"), t("titles.actions.rename"), t("common.actions.delete")], m.actions)
+    m.buttons.observeField("chosen", "onButton")
     m.entries.observeField("itemSelected", "onEntry")
     m.entries.observeField("itemFocused", "onEntryFocused")
     m.top.observeField("active", "onActive")
@@ -323,6 +323,8 @@ function onKeyEvent(key as string, press as boolean) as boolean
         return true
     end if
     if key = "left" and m.entries.isInFocusChain()
+        ' Back on Play, not on the button last passed (Delete).
+        m.buttons.focusIndex = 0
         m.buttons.setFocus(true)
         return true
     end if

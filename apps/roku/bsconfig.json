@@ -6,7 +6,8 @@
         "components/**/*",
         "images/**/*",
         "locales/**/*",
-        "licenses/**/*"
+        "licenses/**/*",
+        "fonts/**/*"
     ],
     "stagingDir": "out/staging",
     "outFile": "out/pley-roku.zip",

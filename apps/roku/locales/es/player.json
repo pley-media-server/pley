@@ -14,11 +14,8 @@
     "reset": "Restablecer"
   },
   "menu": {
-    "title": "Reproducción",
     "subtitles": "Subtítulos",
-    "subtitlesNow": "Subtítulos: {{track}}",
     "audio": "Audio",
-    "audioNow": "Audio: {{track}}",
     "quality": "Calidad",
     "qualityNow": "Calidad: {{quality}}",
     "sync": "Desfase de subtítulos",
@@ -26,7 +23,6 @@
     "chapters": "Capítulos",
     "find": "Buscar subtítulos…",
     "details": "Detalles de reproducción",
-    "backCloses": "Atrás para cerrar.",
     "backGoesBack": "Atrás para volver."
   },
   "details": {
@@ -42,7 +38,7 @@
     "subtitlesOff": "Subtítulos desactivados",
     "quality": "Calidad: {{quality}}",
     "qualityLowered": "Calidad reducida a {{quality}}",
-    "slowServer": "El servidor no da abasto con este video. Prueba una calidad más baja: Abajo y luego Calidad.",
+    "slowServer": "El servidor no da abasto con este video. Prueba una calidad más baja: Abajo y luego el botón Calidad.",
     "notSaved": "No se pudo guardar esta elección para la próxima vez.",
     "subtitlesAdded": "Subtítulos añadidos: {{track}}"
   },
@@ -125,7 +121,6 @@
     "mono": "Mono",
     "stereo": "Estéreo",
     "channelCount": "{{n}} canales",
-    "fact": "{{label}}: {{value}}",
     "file": "Archivo",
     "video": "Video",
     "audio": "Audio",
@@ -182,7 +177,6 @@
     "streams": "Flujos: HLS, en varios tamaños"
   },
   "nowPlaying": {
-    "title": "Reproduciendo ahora",
     "position": "Pista {{at, number}} de {{total, number}}",
     "shuffle": "Aleatorio",
     "stopShuffling": "Quitar aleatorio",
@@ -206,9 +200,6 @@
     "fileDefault": "El predeterminado del archivo",
     "sameAsAudio": "El mismo que el del audio",
     "rows": {
-      "audio": "Idioma del audio: {{language}}",
-      "mode": "Subtítulos: {{mode}}",
-      "subtitle": "Idioma de los subtítulos: {{language}}",
       "fileDefault": "El del archivo",
       "sameAsAudio": "El del audio",
       "readOnly": "{{row}} · cámbialo en la web"
@@ -235,5 +226,21 @@
         "hint": "Los subtítulos en tu idioma aparecen siempre que los haya."
       }
     }
+  },
+  "controls": {
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "info": "Información",
+    "endsAt": "Termina a las {{time}}",
+    "remaining": "−{{time}}",
+    "intro": "Intro",
+    "credits": "Créditos",
+    "seekBack": "−{{seconds}} s",
+    "seekForward": "+{{seconds}} s",
+    "chapter": "Capítulo {{number}}",
+    "chapterNamed": "Capítulo {{number}} · {{name}}",
+    "chapterWord": "Capítulo"
   }
 }

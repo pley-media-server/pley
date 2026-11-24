@@ -6,6 +6,9 @@
 
 mod common;
 
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
+
 use axum::http::{Method, StatusCode};
 use serde_json::{Value, json};
 
@@ -333,7 +336,8 @@ async fn folders_that_go_offline_keep_their_items() {
     std::fs::remove_dir_all(app.media.path().join("nas")).unwrap();
     std::fs::remove_file(app.media.path().join("usb/Brazil (1985).mkv")).unwrap();
     assert_eq!(rescan().await, ["Alien", "Brazil", "Casablanca"]);
-    app.media_file("local/Dune (2021).mkv", 1024);
+    // (Of another size: a file of the same bytes would be the other renamed.)
+    app.media_file("local/Dune (2021).mkv", 2048);
     std::fs::remove_file(app.media.path().join("local/Casablanca (1942).mkv")).unwrap();
     assert_eq!(rescan().await, ["Alien", "Brazil", "Dune"]);
 }
@@ -1203,6 +1207,203 @@ async fn editions_are_versions_of_one_movie_with_their_names() {
     assert_eq!(versions, editions);
 }
 
+/// An edition named in words, without the tag, is a version of the movie
+/// too, its year or not; a title that merely has such words in it is a film
+/// of its own, and an episode's title is no edition.
+#[tokio::test]
+async fn editions_named_in_words_are_versions_of_one_movie() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    app.media_file("movies/Silent Orchard (2011)/Silent Orchard (2011).mkv", 1024);
+    app.media_file("movies/Silent Orchard (2011)/Silent Orchard (2011) - Director's Cut.mkv", 2048);
+    app.media_file("movies/Lantern Road.mkv", 1024);
+    app.media_file("movies/Lantern Road (Uncut).mkv", 2048);
+    app.media_file("movies/The Final Cut Society (2009).mkv", 1024);
+    app.media_file("tv/Night Rounds/Season 1/Night Rounds - S01E03 - Final Cut.mkv", 1024);
+    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let movies = app.ids(lib, &token).await;
+    let mut listed: Vec<&str> = movies.keys().map(String::as_str).collect();
+    listed.sort_unstable();
+    assert_eq!(listed, ["Lantern Road", "Silent Orchard", "The Final Cut Society"]);
+    assert_eq!(editions(&app, &token, movies["Silent Orchard"]).await, [json!("Director's Cut"), Value::Null]);
+    assert_eq!(editions(&app, &token, movies["Lantern Road"]).await, [json!("Uncut"), Value::Null]);
+    assert_eq!(editions(&app, &token, movies["The Final Cut Society"]).await, [Value::Null]);
+
+    let jellyfin = app.jf_json(&format!("/Items/{}", app.jf_item(movies["Silent Orchard"])), &token).await;
+    let mut versions: Vec<&str> =
+        jellyfin["MediaSources"].as_array().unwrap().iter().map(|s| s["Name"].as_str().unwrap()).collect();
+    versions.sort_unstable();
+    assert_eq!(versions, ["Director's Cut", "Silent Orchard (2011)"]);
+
+    let tv = app.library(&token, "TV", "shows", "tv").await;
+    let show = app.ids(tv, &token).await["Night Rounds"];
+    let season = app.children(show, &token).await["Season 1"];
+    let episode = app.children(season, &token).await["Final Cut"];
+    assert_eq!(editions(&app, &token, episode).await, [Value::Null]);
+}
+
+/// Two copies of one edition, in two qualities: where a version has only a
+/// name to be picked by (the Jellyfin-compatible API), their file names
+/// tell them apart, as before editions were read from words.
+#[tokio::test]
+async fn copies_of_one_edition_have_names_that_tell_them_apart() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    let copies = [
+        "Silent.Orchard.2011.EXTENDED.1080p.BluRay.x264-GRP",
+        "Silent.Orchard.2011.EXTENDED.2160p.UHD.BluRay.x265-GRP",
+    ];
+    for (copy, bytes) in copies.iter().zip([1024, 2048]) {
+        app.media_file(&format!("movies/Silent Orchard (2011)/{copy}.mkv"), bytes);
+    }
+    app.media_file("movies/Silent Orchard (2011)/Silent Orchard (2011) - Theatrical Cut.mkv", 512);
+    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let film = app.ids(lib, &token).await["Silent Orchard"];
+    assert_eq!(editions(&app, &token, film).await, [json!("Extended"), json!("Extended"), json!("Theatrical Cut")]);
+    let jellyfin = app.jf_json(&format!("/Items/{}", app.jf_item(film)), &token).await;
+    let mut versions: Vec<&str> =
+        jellyfin["MediaSources"].as_array().unwrap().iter().map(|s| s["Name"].as_str().unwrap()).collect();
+    versions.sort_unstable();
+    assert_eq!(versions, [copies[0], copies[1], "Theatrical Cut"]);
+}
+
+/// A copy an earlier Pley made a movie of its own, which its name now makes
+/// a version of another, goes into that movie once its file is scanned
+/// again, with what was done with it.
+#[tokio::test]
+async fn a_copy_found_to_be_a_version_brings_what_was_done_with_it() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    app.media_file("movies/Lantern Road.mkv", 1024);
+    app.media_file("movies/Lantern Road (Uncut).mkv", 2048);
+    app.media_file("movies/Lantern Road (Uncut) 720p.mkv", 512);
+    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let film = app.ids(lib, &token).await["Lantern Road"];
+    // As it was: the uncut copies a movie of their own, watched part way.
+    let db = &app.state.db.write;
+    let copy: i64 = sqlx::query_scalar(
+        "INSERT INTO items (id, library_id, kind, key, title, sort_title, added_at, updated_at)
+         VALUES ((SELECT last + 1 FROM item_ids), ?, 'movie', 'movie:lantern road uncut:0', 'Lantern Road (Uncut)',
+                 'lantern road (uncut)', 1, 1)
+         RETURNING id",
+    )
+    .bind(lib)
+    .fetch_one(db)
+    .await
+    .unwrap();
+    sqlx::query("UPDATE media_files SET item_id = ? WHERE path LIKE '%(Uncut)%'").bind(copy).execute(db).await.unwrap();
+    let progress = json!({"position_ms": 40_000, "duration_ms": 100_000, "state": "paused"});
+    assert!(app.post(&format!("/api/items/{copy}/progress"), &token, progress).await.status.is_success());
+
+    // A scan that reads its file again (no transcoder here: one that
+    // changed), its other file gone meanwhile.
+    app.media_file("movies/Lantern Road (Uncut).mkv", 3072);
+    std::fs::remove_file(app.media.path().join("movies/Lantern Road (Uncut) 720p.mkv")).unwrap();
+    rescan(&app, &token, lib).await;
+    assert_eq!(titles(&app.get(&format!("/api/libraries/{lib}/items"), &token).await.body["items"]), ["Lantern Road"]);
+    let detail = app.get(&format!("/api/items/{film}"), &token).await.body;
+    assert_eq!(detail["files"].as_array().unwrap().len(), 2);
+    assert_eq!(detail["user_state"]["position_ms"], json!(40_000));
+    assert_eq!(app.get(&format!("/api/items/{copy}"), &token).await.status, StatusCode::NOT_FOUND);
+}
+
+/// The same when the scan that reads the copy's file again stops part way
+/// (the server is restarted, the disk fills): the copy went into the movie
+/// as its file did, not at the end of a scan that never got there.
+#[tokio::test]
+async fn a_copy_found_to_be_a_version_brings_it_even_if_the_scan_stops() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    app.media_file("movies/Lantern Road.mkv", 1024);
+    app.media_file("movies/Lantern Road (Uncut).mkv", 2048);
+    app.media_file("movies/Silent Orchard (2011).mkv", 1024);
+    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let film = app.ids(lib, &token).await["Lantern Road"];
+    let db = &app.state.db.write;
+    let copy: i64 = sqlx::query_scalar(
+        "INSERT INTO items (id, library_id, kind, key, title, sort_title, added_at, updated_at)
+         VALUES ((SELECT last + 1 FROM item_ids), ?, 'movie', 'movie:lantern road uncut:0', 'Lantern Road (Uncut)',
+                 'lantern road (uncut)', 1, 1)
+         RETURNING id",
+    )
+    .bind(lib)
+    .fetch_one(db)
+    .await
+    .unwrap();
+    sqlx::query("UPDATE media_files SET item_id = ? WHERE path LIKE '%(Uncut)%'").bind(copy).execute(db).await.unwrap();
+    let progress = json!({"position_ms": 40_000, "duration_ms": 100_000, "state": "paused"});
+    assert!(app.post(&format!("/api/items/{copy}/progress"), &token, progress).await.status.is_success());
+
+    // The scan writes the copy's changed file, then fails where it removes
+    // the file of a film that went.
+    app.media_file("movies/Lantern Road (Uncut).mkv", 3072);
+    std::fs::remove_file(app.media.path().join("movies/Silent Orchard (2011).mkv")).unwrap();
+    sqlx::query("CREATE TRIGGER scan_stops BEFORE DELETE ON media_files BEGIN SELECT RAISE(ABORT, 'scan stops'); END")
+        .execute(db)
+        .await
+        .unwrap();
+    rescan(&app, &token, lib).await;
+    let listed = || async { titles(&app.get(&format!("/api/libraries/{lib}/items"), &token).await.body["items"]) };
+    assert!(listed().await.contains(&"Silent Orchard".to_owned()), "the scan stopped");
+
+    sqlx::query("DROP TRIGGER scan_stops").execute(db).await.unwrap();
+    rescan(&app, &token, lib).await;
+    assert_eq!(listed().await, ["Lantern Road"]);
+    let detail = app.get(&format!("/api/items/{film}"), &token).await.body;
+    assert_eq!(detail["files"].as_array().unwrap().len(), 2);
+    assert_eq!(detail["user_state"]["position_ms"], json!(40_000));
+}
+
+/// And when one of the copy's files was renamed since: a file renamed takes
+/// what was done with its title to the title its new name makes, as a file
+/// found to be a version does. The copy goes into the movie once, whichever
+/// of its two files is written first.
+#[tokio::test]
+async fn a_copy_found_to_be_a_version_with_a_file_renamed_goes_into_the_movie_once() {
+    let app = TestApp::new().await;
+    let token = app.setup_admin().await;
+    app.media_file("movies/Lantern Road.mkv", 1024);
+    app.media_file("movies/Lantern Road (Uncut).mkv", 2048);
+    // (Of its own size and bytes: a file renamed is known by them.)
+    std::fs::write(app.media.path().join("movies/Lantern Road (Uncut) 720p.mkv"), [3u8; 700]).unwrap();
+    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    app.state.store.fingerprint_pending().await;
+    let film = app.ids(lib, &token).await["Lantern Road"];
+    let db = &app.state.db.write;
+    let copy: i64 = sqlx::query_scalar(
+        "INSERT INTO items (id, library_id, kind, key, title, sort_title, added_at, updated_at)
+         VALUES ((SELECT last + 1 FROM item_ids), ?, 'movie', 'movie:lantern road uncut:0', 'Lantern Road (Uncut)',
+                 'lantern road (uncut)', 1, 1)
+         RETURNING id",
+    )
+    .bind(lib)
+    .fetch_one(db)
+    .await
+    .unwrap();
+    sqlx::query("UPDATE media_files SET item_id = ? WHERE path LIKE '%(Uncut)%'").bind(copy).execute(db).await.unwrap();
+    let progress = json!({"position_ms": 40_000, "duration_ms": 100_000, "state": "paused"});
+    assert!(app.post(&format!("/api/items/{copy}/progress"), &token, progress).await.status.is_success());
+    assert!(app.post(&format!("/api/items/{copy}/watched"), &token, json!({})).await.status.is_success());
+
+    app.media_file("movies/Lantern Road (Uncut).mkv", 3072);
+    let movies = app.media.path().join("movies");
+    std::fs::rename(movies.join("Lantern Road (Uncut) 720p.mkv"), movies.join("Lantern Road (Uncut) 480p.mkv"))
+        .unwrap();
+    rescan(&app, &token, lib).await;
+    assert_eq!(titles(&app.get(&format!("/api/libraries/{lib}/items"), &token).await.body["items"]), ["Lantern Road"]);
+    let detail = app.get(&format!("/api/items/{film}"), &token).await.body;
+    assert_eq!(detail["files"].as_array().unwrap().len(), 3, "{detail}");
+    assert_eq!(detail["user_state"]["watched"], json!(true));
+    assert_eq!(detail["user_state"]["play_count"], json!(1), "what was done with the copy came once");
+    assert_eq!(app.get(&format!("/api/items/{copy}"), &token).await.status, StatusCode::NOT_FOUND);
+    let pending: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM media_files WHERE moved_from IS NOT NULL")
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    let gone: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM gone_items").fetch_one(&app.state.db.read).await.unwrap();
+    assert_eq!((pending, gone), (0, 0));
+}
+
 #[tokio::test]
 async fn libraries_sort_by_bitrate_and_say_what_the_files_are_like() {
     let app = TestApp::new().await;
@@ -1584,4 +1785,310 @@ async fn movies_with_the_same_tmdb_id_merge_with_what_was_done_with_them() {
         .await
         .unwrap();
     assert_eq!(files, 2);
+}
+
+/// Folders (`tv-a/Show`, below the media folder) as a set, for comparing.
+fn folders(list: &[&str]) -> BTreeSet<String> {
+    list.iter().map(|f| (*f).to_owned()).collect()
+}
+
+/// The show folders of each show of the library, from its episodes' files.
+async fn shows_by_folder(app: &TestApp) -> BTreeMap<i64, BTreeSet<String>> {
+    let rows: Vec<(i64, String)> = sqlx::query_as(
+        "SELECT e.grandparent_id, f.path FROM media_files f JOIN items e ON e.id = f.item_id WHERE e.kind = 'episode'",
+    )
+    .fetch_all(&app.state.db.read)
+    .await
+    .unwrap();
+    let mut shows: BTreeMap<i64, BTreeSet<String>> = BTreeMap::new();
+    for (show, path) in rows {
+        let rel = Path::new(&path).strip_prefix(app.media.path()).unwrap();
+        let folder: Vec<String> =
+            rel.components().take(2).map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
+        shows.entry(show).or_default().insert(folder.join("/"));
+    }
+    shows
+}
+
+fn tvshow_nfo(app: &TestApp, folder: &str, tvdb: i64) {
+    let path = app.media.path().join(folder).join("tvshow.nfo");
+    std::fs::write(path, format!(r#"<tvshow><uniqueid type="tvdb" default="true">{tvdb}</uniqueid></tvshow>"#))
+        .unwrap();
+}
+
+/// A path below the media folder as the scan writes it: `rel`'s folders
+/// joined with the system's separator.
+fn scanned(app: &TestApp, rel: &str) -> String {
+    rel.split('/').fold(app.media.path().to_path_buf(), |path, part| path.join(part)).to_string_lossy().into_owned()
+}
+
+/// Shows of the same name without a year are told apart by the ids in
+/// their folders' names or `tvshow.nfo` files: in two of a library's
+/// folders, or in one, named alike but for their punctuation. A show spread
+/// over the library's folders, a season in each, stays one show.
+#[tokio::test]
+async fn shows_of_the_same_name_stay_apart_when_their_ids_differ() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    for file in [
+        "tv-a/Harbor Watch/Season 01/Harbor Watch - S01E01.mkv",
+        "tv-a/Harbor Watch/Season 01/Harbor Watch - S01E02.mkv",
+        "tv-b/Harbor Watch/Season 01/Harbor Watch - S01E01.mkv",
+        "tv-b/Harbor Watch/Season 02/Harbor Watch - S02E01.mkv",
+        "tv-a/Glass Garden {tvdb-900011}/Season 01/Glass Garden - S01E01.mkv",
+        "tv-b/Glass Garden {tvdb-900012}/Season 01/Glass Garden - S01E01.mkv",
+        "tv-a/Paper Moons/Season 01/Paper Moons - S01E01.mkv",
+        "tv-a/Paper.Moons/Season 01/Paper.Moons.S01E01.mkv",
+        // One show over both folders: ids in one folder's NFO file only, or
+        // the same in both.
+        "tv-a/Night Ferry/Season 01/Night Ferry - S01E01.mkv",
+        "tv-b/Night.Ferry/Season 02/Night.Ferry.S02E01.mkv",
+        "tv-a/Tin Roof/Season 01/Tin Roof - S01E01.mkv",
+        "tv-b/Tin Roof/Season 02/Tin Roof - S02E01.mkv",
+    ] {
+        app.media_file(file, 1024);
+    }
+    for (folder, tvdb) in [
+        ("tv-a/Harbor Watch", 900001),
+        ("tv-b/Harbor Watch", 900002),
+        ("tv-a/Paper Moons", 900021),
+        ("tv-a/Paper.Moons", 900022),
+        ("tv-a/Night Ferry", 900031),
+        ("tv-a/Tin Roof", 900041),
+        ("tv-b/Tin Roof", 900041),
+    ] {
+        tvshow_nfo(&app, folder, tvdb);
+    }
+    let paths = [app.media_path("tv-a"), app.media_path("tv-b")];
+    let created = app.post("/api/libraries", &admin, json!({"name": "TV", "kind": "shows", "paths": paths})).await;
+    let lib = created.body["id"].as_i64().unwrap();
+    app.wait_for_scans().await;
+
+    let expected: BTreeSet<BTreeSet<String>> = [
+        folders(&["tv-a/Harbor Watch"]),
+        folders(&["tv-b/Harbor Watch"]),
+        folders(&["tv-a/Glass Garden {tvdb-900011}"]),
+        folders(&["tv-b/Glass Garden {tvdb-900012}"]),
+        folders(&["tv-a/Paper Moons"]),
+        folders(&["tv-a/Paper.Moons"]),
+        folders(&["tv-a/Night Ferry", "tv-b/Night.Ferry"]),
+        folders(&["tv-a/Tin Roof", "tv-b/Tin Roof"]),
+    ]
+    .into_iter()
+    .collect();
+    let shows = shows_by_folder(&app).await;
+    assert_eq!(shows.values().cloned().collect::<BTreeSet<_>>(), expected);
+    let items = app.get(&format!("/api/libraries/{lib}/items"), &admin).await.body["items"].clone();
+    let mut listed = titles(&items);
+    listed.sort();
+    assert_eq!(
+        listed,
+        [
+            "Glass Garden",
+            "Glass Garden",
+            "Harbor Watch",
+            "Harbor Watch",
+            "Night Ferry",
+            "Paper Moons",
+            "Paper Moons",
+            "Tin Roof"
+        ]
+    );
+    // Each show has the TheTVDB id of its folders, from their NFO files or
+    // their names.
+    let ids: BTreeMap<i64, Option<i64>> = sqlx::query_as("SELECT id, tvdb_id FROM items WHERE kind = 'show'")
+        .fetch_all(&app.state.db.read)
+        .await
+        .unwrap()
+        .into_iter()
+        .collect();
+    let tvdb = |folder: &str| ids[shows.iter().find(|(_, f)| f.contains(folder)).unwrap().0];
+    assert_eq!(tvdb("tv-a/Harbor Watch"), Some(900001));
+    assert_eq!(tvdb("tv-b/Harbor Watch"), Some(900002));
+    assert_eq!(tvdb("tv-a/Glass Garden {tvdb-900011}"), Some(900011));
+    assert_eq!(tvdb("tv-b/Glass Garden {tvdb-900012}"), Some(900012));
+    assert_eq!(tvdb("tv-a/Paper.Moons"), Some(900022));
+    assert_eq!(tvdb("tv-b/Tin Roof"), Some(900041));
+
+    // Scanning again changes nothing.
+    sqlx::query("UPDATE media_files SET probed = 1").execute(&app.state.db.write).await.unwrap();
+    rescan(&app, &admin, lib).await;
+    assert_eq!(shows_by_folder(&app).await, shows);
+}
+
+/// What a scan made when shows of the same name were one show: once the
+/// `tvshow.nfo` files of its folders tell them apart, the next scan splits
+/// it without reading the files again, and each episode keeps what was
+/// watched of it, its edits and when it came. A folder that joins the other
+/// show later brings what was watched into the episodes that show has.
+#[tokio::test]
+async fn a_show_of_two_shows_splits_with_what_was_watched() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    for file in [
+        "tv-a/Harbor Watch/Season 01/Harbor Watch - S01E01.mkv",
+        "tv-a/Harbor Watch/Season 01/Harbor Watch - S01E02.mkv",
+        "tv-b/Harbor Watch/Season 01/Harbor Watch - S01E01.mkv",
+        "tv-b/Harbor Watch/Season 01/Harbor Watch - S01E03.mkv",
+        "tv-b/Harbor Watch/Season 02/Harbor Watch - S02E01.mkv",
+    ] {
+        app.media_file(file, 1024);
+    }
+    let paths = [app.media_path("tv-a"), app.media_path("tv-b")];
+    let created = app.post("/api/libraries", &admin, json!({"name": "TV", "kind": "shows", "paths": paths})).await;
+    let lib = created.body["id"].as_i64().unwrap();
+    app.wait_for_scans().await;
+    let db = &app.state.db.write;
+    let read = &app.state.db.read;
+    // One show, named after the first folder, its files read.
+    let shows = shows_by_folder(&app).await;
+    assert_eq!(shows.len(), 1, "{shows:?}");
+    let show = *shows.keys().next().unwrap();
+    sqlx::query("UPDATE items SET path = ? WHERE id = ?")
+        .bind(scanned(&app, "tv-a/Harbor Watch"))
+        .bind(show)
+        .execute(db)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE media_files SET probed = 1").execute(db).await.unwrap();
+    let episode = |rel: &'static str| {
+        let app = &app;
+        async move {
+            sqlx::query_scalar::<_, i64>("SELECT item_id FROM media_files WHERE path = ?")
+                .bind(scanned(app, &format!("{rel}.mkv")))
+                .fetch_one(&app.state.db.read)
+                .await
+                .unwrap()
+        }
+    };
+    let path_of = |id: i64| {
+        let app = &app;
+        async move {
+            sqlx::query_scalar::<_, String>("SELECT path FROM items WHERE id = ?")
+                .bind(id)
+                .fetch_one(&app.state.db.read)
+                .await
+                .unwrap()
+        }
+    };
+    let shared = episode("tv-a/Harbor Watch/Season 01/Harbor Watch - S01E01").await;
+    assert_eq!(episode("tv-b/Harbor Watch/Season 01/Harbor Watch - S01E01").await, shared, "one episode, two copies");
+    let second = episode("tv-a/Harbor Watch/Season 01/Harbor Watch - S01E02").await;
+    let third = episode("tv-b/Harbor Watch/Season 01/Harbor Watch - S01E03").await;
+    let next = episode("tv-b/Harbor Watch/Season 02/Harbor Watch - S02E01").await;
+    for id in [shared, second, third] {
+        let watched = app.post(&format!("/api/items/{id}/watched"), &admin, json!({})).await;
+        assert!(watched.status.is_success(), "{:?}", watched.body);
+    }
+    let halfway = app.post(&format!("/api/items/{next}/progress"), &admin, json!({"position_ms": 60_000})).await;
+    assert!(halfway.status.is_success(), "{:?}", halfway.body);
+    let edited = app.patch(&format!("/api/items/{third}"), &admin, json!({"title": "Lantern Night"})).await;
+    assert!(edited.status.is_success(), "{:?}", edited.body);
+    assert!(app.put(&format!("/api/watchlist/{show}"), &admin, json!({})).await.status.is_success());
+    let added: i64 =
+        sqlx::query_scalar("SELECT added_at FROM items WHERE id = ?").bind(third).fetch_one(read).await.unwrap();
+
+    tvshow_nfo(&app, "tv-a/Harbor Watch", 900001);
+    tvshow_nfo(&app, "tv-b/Harbor Watch", 900002);
+    // And bonus material the second folder's show never had: the show was
+    // named after the first.
+    app.media_file("tv-b/Harbor Watch/Featurettes/Making Of.mkv", 1024);
+    rescan(&app, &admin, lib).await;
+
+    let shows = shows_by_folder(&app).await;
+    assert_eq!(shows.len(), 2, "{shows:?}");
+    // The show keeps the folder it is named after, and with it My List.
+    assert_eq!(shows[&show], folders(&["tv-a/Harbor Watch"]));
+    let other = *shows.keys().find(|id| **id != show).unwrap();
+    assert_eq!(shows[&other], folders(&["tv-b/Harbor Watch"]));
+    assert_eq!(path_of(other).await, scanned(&app, "tv-b/Harbor Watch"));
+    let listed: Vec<i64> = sqlx::query_scalar("SELECT item_id FROM watchlist").fetch_all(read).await.unwrap();
+    assert_eq!(listed, [show]);
+
+    // Each episode with what was watched of it. Of an episode's two copies,
+    // which was watched isn't known: the show that keeps the episode keeps
+    // that.
+    let state = |rel: &'static str| {
+        let (app, admin) = (&app, &admin);
+        async move {
+            let id = episode(rel).await;
+            let item = app.get(&format!("/api/items/{id}"), admin).await.body;
+            (
+                item["grandparent_id"].as_i64().unwrap(),
+                item["user_state"]["watched"].clone(),
+                item["user_state"]["position_ms"].clone(),
+            )
+        }
+    };
+    assert_eq!(state("tv-a/Harbor Watch/Season 01/Harbor Watch - S01E01").await, (show, json!(true), json!(0)));
+    assert_eq!(state("tv-a/Harbor Watch/Season 01/Harbor Watch - S01E02").await, (show, json!(true), json!(0)));
+    assert_eq!(state("tv-b/Harbor Watch/Season 01/Harbor Watch - S01E01").await, (other, json!(false), json!(0)));
+    assert_eq!(state("tv-b/Harbor Watch/Season 01/Harbor Watch - S01E03").await, (other, json!(true), json!(0)));
+    assert_eq!(state("tv-b/Harbor Watch/Season 02/Harbor Watch - S02E01").await, (other, json!(false), json!(60_000)));
+    let moved = episode("tv-b/Harbor Watch/Season 01/Harbor Watch - S01E03").await;
+    let (title, added_after): (String, i64) =
+        sqlx::query_as("SELECT title, added_at FROM items WHERE id = ?").bind(moved).fetch_one(read).await.unwrap();
+    assert_eq!((title.as_str(), added_after), ("Lantern Night", added), "its edit, and when it came");
+    // Nothing lost, nothing twice, nothing read again but the new bonus
+    // material.
+    let counts: (i64, i64, i64, i64) = sqlx::query_as(
+        "SELECT (SELECT COUNT(*) FROM items WHERE kind = 'episode'), (SELECT COUNT(*) FROM items WHERE kind = 'season'),
+                (SELECT COUNT(*) FROM media_files WHERE probed = 0), (SELECT COUNT(*) FROM user_item_state)",
+    )
+    .fetch_one(read)
+    .await
+    .unwrap();
+    assert_eq!(counts, (5, 3, 1, 4), "episodes, seasons, unread files, states");
+    // Seasons are named after folders of their own shows, and the bonus
+    // material of a folder is its show's.
+    let seasons: Vec<(String, String)> =
+        sqlx::query_as("SELECT s.path, p.path FROM items s JOIN items p ON p.id = s.parent_id WHERE s.kind = 'season'")
+            .fetch_all(read)
+            .await
+            .unwrap();
+    assert!(seasons.iter().all(|(season, show)| Path::new(season).starts_with(show)), "{seasons:?}");
+    let extras: Vec<i64> =
+        sqlx::query_scalar("SELECT parent_id FROM items WHERE kind = 'extra'").fetch_all(read).await.unwrap();
+    assert_eq!(extras, [other]);
+
+    // A third folder, without ids, joins the show of its name, which stays
+    // named after its own folder; then its NFO file names the other show.
+    // Its files were never read (no transcoder): they go all the same.
+    app.media_file("tv-c/Harbor Watch/Season 01/Harbor Watch - S01E03.mkv", 1024);
+    app.media_file("tv-c/Harbor Watch/Season 03/Harbor Watch - S03E01.mkv", 1024);
+    let paths = [app.media_path("tv-a"), app.media_path("tv-b"), app.media_path("tv-c")];
+    assert!(app.patch(&format!("/api/libraries/{lib}"), &admin, json!({"paths": paths})).await.status.is_success());
+    app.wait_for_scans().await;
+    assert_eq!(shows_by_folder(&app).await[&show], folders(&["tv-a/Harbor Watch", "tv-c/Harbor Watch"]));
+    assert_eq!(path_of(show).await, scanned(&app, "tv-a/Harbor Watch"));
+    let late = episode("tv-c/Harbor Watch/Season 03/Harbor Watch - S03E01").await;
+    assert!(app.post(&format!("/api/items/{late}/watched"), &admin, json!({})).await.status.is_success());
+    // Its copy of the third episode is watched; the other show's isn't.
+    let copy = episode("tv-c/Harbor Watch/Season 01/Harbor Watch - S01E03").await;
+    assert!(app.post(&format!("/api/items/{copy}/watched"), &admin, json!({})).await.status.is_success());
+    let third = episode("tv-b/Harbor Watch/Season 01/Harbor Watch - S01E03").await;
+    assert!(app.post(&format!("/api/items/{third}/unwatched"), &admin, json!({})).await.status.is_success());
+
+    tvshow_nfo(&app, "tv-c/Harbor Watch", 900002);
+    rescan(&app, &admin, lib).await;
+    let shows = shows_by_folder(&app).await;
+    assert_eq!(shows[&show], folders(&["tv-a/Harbor Watch"]));
+    assert_eq!(shows[&other], folders(&["tv-b/Harbor Watch", "tv-c/Harbor Watch"]));
+    assert_eq!(path_of(show).await, scanned(&app, "tv-a/Harbor Watch"));
+    assert_eq!(state("tv-c/Harbor Watch/Season 03/Harbor Watch - S03E01").await, (other, json!(true), json!(0)));
+    // Its copy of the third episode is a copy of the other show's episode
+    // now, watched as it was.
+    assert_eq!(episode("tv-c/Harbor Watch/Season 01/Harbor Watch - S01E03").await, third);
+    let (shown, watched, _) = state("tv-c/Harbor Watch/Season 01/Harbor Watch - S01E03").await;
+    assert_eq!((shown, watched), (other, json!(true)));
+    let gone: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE id = ?").bind(copy).fetch_one(read).await.unwrap();
+    assert_eq!(gone, 0);
+    let seasons: Vec<(i64, Option<i64>)> =
+        sqlx::query_as("SELECT parent_id, idx FROM items WHERE kind = 'season' ORDER BY parent_id = ?, idx")
+            .bind(other)
+            .fetch_all(read)
+            .await
+            .unwrap();
+    assert_eq!(seasons, [(show, Some(1)), (other, Some(1)), (other, Some(2)), (other, Some(3))]);
 }

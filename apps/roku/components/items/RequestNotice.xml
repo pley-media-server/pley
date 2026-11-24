@@ -20,6 +20,7 @@
         <field id="hide" type="boolean" alwaysNotify="true" onChange="onHide" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/RequestNotice.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle width="720" height="276" color="0x191D24F5" />
@@ -30,7 +31,7 @@
              good news. -->
         <Poster id="tick" translation="[32, 72]" width="40" height="40" uri="pkg:/images/watched.png" visible="false" />
         <Label id="text" translation="[140, 32]" width="548" height="120" wrap="true" maxLines="3" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
-        <ButtonGroup id="buttons" translation="[308, 180]" layoutDirection="horiz" itemSpacings="[20]" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="180" maxWidth="180" buttonHeight="64" />
+        <PillButtons id="buttons" translation="[308, 180]" layoutDirection="horiz" itemSpacings="[20]" minWidth="180" maxWidth="180" buttonHeight="64" />
         <!-- Untouched this long, it goes by itself. -->
         <Timer id="untouched" duration="10" />
     </children>

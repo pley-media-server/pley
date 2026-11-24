@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A title's line of facts, as the Android TV app draws it over a
+     backdrop: "2024 · [PG-13] · 1 h 28 min · ★ 7.4 · [4K] [DV]", the
+     content rating and the quality in outlined boxes (side by side when
+     they follow each other), the score after a star, the rest in muted
+     words with dots between. As tall as its words, for a LayoutGroup. -->
+<component name="MetaRow" extends="Group">
+    <interface>
+        <!-- [{ text, boxed, star }] (Home.brs's homeInfo metaParts). -->
+        <field id="parts" type="array" onChange="onParts" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/shared/MetaRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
+</component>

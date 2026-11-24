@@ -6,6 +6,9 @@ sub init()
     m.inner = false
     m.current = false
     m.heading = false
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 sub onContent()
@@ -17,11 +20,11 @@ sub onContent()
     if m.heading
         ' "REGIONS", "MORE GROUPS": a section's title, set at the bottom.
         m.title.text = UCase(item.title)
-        m.title.font = "font:SmallestBoldSystemFont"
+        m.title.font = uiFont("bold", 26)
         m.title.vertAlign = "bottom"
     else
         m.title.text = item.title
-        m.title.font = "font:SmallestSystemFont"
+        m.title.font = uiSystemFont(27)
         m.title.vertAlign = "center"
     end if
     m.count.text = item.countText
@@ -36,8 +39,9 @@ sub onLayout()
     if w <= 0 or h <= 0 then return
     m.back.width = w
     m.back.height = h
-    x = 16
-    if m.inner then x = 48
+    ' The words on the pages' gutter (x 192, the list at 168).
+    x = 24
+    if m.inner then x = 56
     m.mark.translation = [x - 8, 0]
     m.mark.height = h
     textX = x + 28

@@ -13,6 +13,7 @@
     <script type="text/brightscript" uri="pkg:/components/screens/NowPlayingScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
@@ -23,30 +24,40 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Music.brs" />
     <children>
         <Poster id="backdrop" width="1920" height="1080" loadWidth="320" loadHeight="320" loadDisplayMode="scaleToZoom" opacity="0.12" />
-        <Rectangle id="coverFrame" translation="[96, 96]" width="400" height="400" color="0x262B35FF" />
-        <Poster id="cover" translation="[96, 96]" width="400" height="400" loadWidth="400" loadHeight="400" loadDisplayMode="scaleToZoom" />
+        <!-- Laid out as Android TV's: the rail at the left, the cover beside
+             it, and the rest in a column at its right. -->
+        <Rectangle id="coverFrame" translation="[192, 116]" width="600" height="600" color="0x262B35FF" />
+        <Poster id="cover" translation="[192, 116]" width="600" height="600" loadWidth="600" loadHeight="600" loadDisplayMode="scaleToZoom" />
         <!-- The track's lines, each under the one before, so a title of
              one line or two leaves no gap. -->
-        <LayoutGroup translation="[560, 104]" layoutDirection="vert" itemSpacings="[8, 20, 8, 20]">
-            <Label id="heading" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
-            <Label id="title" width="1264" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-            <Label id="artist" width="1264" color="0xEBEBEBFF" font="font:MediumSystemFont" />
-            <Label id="album" width="1264" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-            <!-- The sleep timer's countdown, or what went wrong with a track. -->
-            <Label id="message" width="1264" color="0xEB6B70FF" font="font:SmallestSystemFont" />
+        <LayoutGroup translation="[856, 116]" layoutDirection="vert" itemSpacings="[16, 8]">
+            <Label id="title" width="968" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+            <!-- "Artist · Album". -->
+            <Label id="line" width="968" color="0xA1A9B6FF" font="font:MediumSystemFont" />
+            <!-- The sleep timer's countdown, or what went wrong with a track:
+                 its line kept, so nothing moves when it shows. -->
+            <Label id="message" width="968" height="36" color="0xEB6B70FF" font="font:SmallestSystemFont" />
         </LayoutGroup>
-        <!-- The scrubber: Up from the buttons, then Left and Right move
-             10 s, as on Android TV. -->
-        <Poster id="scrubFocus" translation="[540, 436]" width="1304" height="48" uri="pkg:/images/button-footprint.9.png" visible="false" />
-        <Group id="scrubber" focusable="true" />
-        <Rectangle id="track" translation="[560, 456]" width="1264" height="8" color="0x2E3440FF" />
-        <Rectangle id="fill" translation="[560, 456]" width="0" height="8" color="0x38BDF8FF" />
-        <Label id="elapsed" translation="[560, 476]" width="300" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-        <Label id="queue" translation="[860, 476]" width="664" horizAlign="center" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="left" translation="[1524, 476]" width="300" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-        <ChipRow id="buttons" translation="[96, 560]" />
-        <!-- Up next: the queue, the track playing marked, OK playing one. -->
-        <Label id="upNextTitle" translation="[96, 652]" color="0xA1A9B6FF" font="font:SmallerBoldSystemFont" visible="false" />
-        <MarkupList id="upNext" translation="[96, 700]" itemComponentName="QueueRow" itemSize="[1728, 56]" itemSpacing="[0, 8]" numRows="5" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+        <!-- Under the track's lines, however many its title takes (placed
+             by placeControls): the scrubber, the buttons, Up next. -->
+        <Group id="lower">
+            <!-- The scrubber: Up from the buttons, then Left and Right move
+                 10 s, as on Android TV. -->
+            <Poster id="scrubFocus" translation="[836, 310]" width="1008" height="48" uri="pkg:/images/button-footprint.9.png" visible="false" />
+            <Group id="scrubber" focusable="true" />
+            <Rectangle id="track" translation="[856, 330]" width="968" height="8" color="0x2E3440FF" />
+            <Rectangle id="fill" translation="[856, 330]" width="0" height="8" color="0x38BDF8FF" />
+            <Label id="elapsed" translation="[856, 352]" width="240" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+            <Label id="queue" translation="[1096, 352]" width="488" horizAlign="center" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <Label id="left" translation="[1584, 352]" width="240" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+            <!-- Shuffle, Previous, Play/Pause, Next, Stop and the sleep
+                 timer: round icons named while focused, as Android TV's,
+                 under the scrubber they go with. -->
+            <ChipRow id="buttons" translation="[856, 424]" look="buttons" />
+            <!-- Up next under them, in the column: the queue, the track
+                 playing marked, OK playing one. -->
+            <Label id="upNextTitle" translation="[880, 576]" color="0xA1A9B6FF" visible="false" />
+            <QuickList id="upNext" translation="[856, 620]" itemComponentName="QueueRow" itemSize="[968, 96]" itemSpacing="[0, 6]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+        </Group>
     </children>
 </component>

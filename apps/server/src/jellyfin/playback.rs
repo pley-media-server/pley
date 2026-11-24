@@ -150,7 +150,7 @@ async fn playback_info(
         if dto::is_video(&row.kind) {
             state.trickplay.request(file);
         }
-        let mut out = dto::media_source(&jellyfin, &row, file, token_id);
+        let mut out = dto::media_source(&jellyfin, &row, file, &files, token_id);
         let streams = file.streams();
         let info = file.media_info();
         let req = PlaybackRequest {

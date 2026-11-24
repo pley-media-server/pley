@@ -117,7 +117,9 @@ async fn serve(State(mock): State<Mock>, uri: Uri, Query(query): Query<Vec<(Stri
     }
     match path.as_str() {
         // TVmaze answers a lookup with a redirect to the show.
-        "/tvmaze/lookup/shows" if query.iter().any(|(k, v)| k == "thetvdb" && v == "290001") => {
+        "/tvmaze/lookup/shows"
+            if query.iter().any(|(k, v)| (k == "thetvdb" && v == "290001") || (k == "imdb" && v == "tt4000001")) =>
+        {
             (StatusCode::MOVED_PERMANENTLY, [(header::LOCATION, "https://api.tvmaze.com/shows/4242")]).into_response()
         }
         "/tvmaze/search/shows" if query.iter().any(|(k, v)| k == "q" && v == "Harbour") => {
@@ -262,6 +264,27 @@ async fn a_show_is_matched_by_its_nfo_files_thetvdb_id_on_tvmaze() {
     assert_eq!(season["nfo_fields"], json!(["summary", "title"]));
     let episodes = app.children(seasons["The Storm"], &admin).await;
     assert!(episodes.contains_key("Landfall"), "{episodes:?}");
+}
+
+/// A TheTVDB id in a show folder's name finds the show, as an NFO file's
+/// would; so does an IMDb id.
+#[tokio::test]
+async fn a_show_is_matched_by_the_id_in_its_folders_name() {
+    let (app, mock, admin) = world().await;
+    app.media_file("tv/Harbour {tvdb-290001}/Season 01/Harbour - S01E01.mkv", 1024);
+    let lib = app.library(&admin, "TV", "shows", "tv").await;
+    let show = only(&app, &admin, lib).await;
+    assert_eq!(item(&app, &admin, show).await["title"], json!("Harbour Lights"));
+    assert_eq!(tvmaze_id(&app, show).await, Some(4242));
+    assert!(mock.requested("/tvmaze/search/shows").is_empty(), "found by its id, not its folder's name");
+
+    let (app, mock, admin) = world().await;
+    app.media_file("tv/Harbour [imdbid-tt4000001]/Season 01/Harbour - S01E01.mkv", 1024);
+    let lib = app.library(&admin, "TV", "shows", "tv").await;
+    let show = only(&app, &admin, lib).await;
+    assert_eq!(item(&app, &admin, show).await["title"], json!("Harbour Lights"));
+    assert_eq!(mock.requested("/tvmaze/lookup/shows?imdb=tt4000001").len(), 1);
+    assert!(mock.requested("/tvmaze/search/shows").is_empty());
 }
 
 #[tokio::test]

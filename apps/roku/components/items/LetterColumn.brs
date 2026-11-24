@@ -4,6 +4,9 @@ sub init()
     m.labels = []
     m.bold = -1
     m.top.observeField("focusedChild", "onLook")
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 ' A label a letter, 30 pixels apart.
@@ -16,7 +19,7 @@ sub onLetters()
     y = 0
     for each letter in m.top.letters
         label = m.top.createChild("Label")
-        label.font = "font:TinySystemFont"
+        label.font = uiSystemFont(24)
         label.text = letter
         label.translation = [0, y]
         label.width = 40
@@ -44,8 +47,8 @@ sub onLook()
     if focused then marked = m.top.focusIndex
     ' Only the marked letter is bold: one font changes as the mark moves.
     if m.bold <> marked
-        if m.bold >= 0 and m.bold < m.labels.Count() then m.labels[m.bold].font = "font:TinySystemFont"
-        if marked >= 0 and marked < m.labels.Count() then m.labels[marked].font = "font:TinyBoldSystemFont"
+        if m.bold >= 0 and m.bold < m.labels.Count() then m.labels[m.bold].font = uiSystemFont(24)
+        if marked >= 0 and marked < m.labels.Count() then m.labels[marked].font = uiFont("bold", 22)
         m.bold = marked
     end if
     for i = 0 to m.labels.Count() - 1

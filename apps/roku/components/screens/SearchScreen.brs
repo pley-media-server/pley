@@ -347,13 +347,13 @@ sub showRows()
     m.rows.rowHeights = heights
     m.rows.content = content
     if noneHere
-        m.message.translation = [780, 170]
+        m.message.translation = [876, 170]
         m.message.text = line
         m.message.visible = true
-        m.rows.translation = [780, 240]
+        m.rows.translation = [852, 240]
     else
         m.message.visible = false
-        m.rows.translation = [780, 170]
+        m.rows.translation = [852, 170]
     end if
     m.rows.visible = true
     for i = 0 to m.rowKeys.Count() - 1
@@ -379,8 +379,8 @@ sub onRowTile(event as object)
         askTmdb()
         return
     end if
-    if tile.hasField("channelId")
-        watch(tile.channelId)
+    if tile.hasField("liveId")
+        watch(tile.liveId)
         return
     end if
     remember()
@@ -397,7 +397,7 @@ sub hideResults()
 end sub
 
 sub showMessage(text as string)
-    m.message.translation = [780, 200]
+    m.message.translation = [876, 200]
     m.message.text = text
     m.message.visible = true
 end sub

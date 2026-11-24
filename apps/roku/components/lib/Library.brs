@@ -1,8 +1,8 @@
 ' A library's page as the web app has it (apps/web/src/pages/LibraryPage.tsx):
 ' its tabs (Recommended, Library, and Collections for movies and shows),
-' and the Library tab's sort and filters. Which tab, sort and filters a
-' library was left on is kept on the Roku for each server, profile and
-' library, and it opens on them again.
+' and the Library tab's sort and filters. A library opens on Recommended;
+' the sort and filters it was left with are kept on the Roku for each
+' server, profile and library, and the Library tab shows them again.
 
 ' The tabs of a library of kind, in order.
 function libTabs(kind as string) as object
@@ -42,20 +42,20 @@ function libDefaultOrder(sort as string) as string
     return "desc"
 end function
 
-' How the Library tab is sorted, in words: "Title, A to Z", "Year, newest
-' first".
-function libSortLabel(sort as string, order as string) as string
-    direction = "asc"
-    if order = "desc" then direction = "desc"
-    return t("browse.library.sortOrders." + libSortKey(sort) + "." + direction)
+' The Library tab's sort as its chip: the sort's name, then its order's
+' arrow (Android TV's, rising bars up, falling bars down).
+function libSortChip(sort as string, order as string) as object
+    icon = "arrow-down-wide-narrow"
+    if order = "asc" then icon = "arrow-up-narrow-wide"
+    return { label: t("browse.library.sorts." + libSortKey(sort)), icon: icon, iconAfter: true, width: 0 }
 end function
 
-' The view of a library a fresh Roku opens on: the Library tab by title,
+' The view a library opens on: Recommended, the Library tab by title,
 ' nothing filtered. watched: "" for every title, "false" unwatched only,
 ' "true" watched only; genre "" and year 0 for any; resolution and
 ' dynamic_range a token of fmtResolutions and fmtDynamicRanges, "" for any.
 function libDefaultView() as object
-    return { tab: "library", sort: "title", order: "asc", watched: "", genre: "", year: 0, resolution: "", dynamic_range: "" }
+    return { tab: "recommended", sort: "title", order: "asc", watched: "", genre: "", year: 0, resolution: "", dynamic_range: "" }
 end function
 
 ' The view a row's See all opens a library on: the Library tab in the
@@ -63,6 +63,7 @@ end function
 ' doesn't offer is Title. It isn't kept until the person changes it.
 function libSeeAllView(sort as string, kind as string) as object
     view = libDefaultView()
+    view.tab = "library"
     for each known in libSorts(kind)
         if known.id = sort then view.sort = sort
     end for
@@ -274,16 +275,12 @@ function libViewKey(server as string, profileId as dynamic, libraryId as dynamic
 end function
 
 ' The view kept for key, checked against what a library of kind offers;
-' the default for anything else. Music has no resolutions or dynamic
-' ranges to filter by.
+' the default for anything else, and on Recommended whatever tab was
+' left. Music has no resolutions or dynamic ranges to filter by.
 function libLoadView(section as object, key as string, kind as string) as object
     view = libDefaultView()
     kept = httpObject(httpJson(section.Read(key)))
     if kept = invalid then return view
-    shownTab = httpString(kept.tab)
-    for each known in libTabs(kind)
-        if known = shownTab then view.tab = shownTab
-    end for
     sort = httpString(kept.sort)
     for each known in libSorts(kind)
         if known.id = sort then view.sort = sort

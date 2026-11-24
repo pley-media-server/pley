@@ -99,46 +99,7 @@
       "lastPlayed": "Last played",
       "bitrate": "Bitrate"
     },
-    "sortOrders": {
-      "title": {
-        "asc": "Title, A to Z",
-        "desc": "Title, Z to A"
-      },
-      "year": {
-        "asc": "Year, oldest first",
-        "desc": "Year, newest first"
-      },
-      "added": {
-        "asc": "Date added, first added first",
-        "desc": "Date added, recently added first"
-      },
-      "rating": {
-        "asc": "Rating, lowest rated first",
-        "desc": "Rating, best rated first"
-      },
-      "userRating": {
-        "asc": "Your rating, lowest rated first",
-        "desc": "Your rating, best rated first"
-      },
-      "release": {
-        "asc": "Release date, earliest first",
-        "desc": "Release date, latest first"
-      },
-      "duration": {
-        "asc": "Duration, shortest first",
-        "desc": "Duration, longest first"
-      },
-      "lastPlayed": {
-        "asc": "Last played, least recent first",
-        "desc": "Last played, most recent first"
-      },
-      "bitrate": {
-        "asc": "Bitrate, lowest first",
-        "desc": "Bitrate, highest first"
-      }
-    },
     "sortBy": "Sort by",
-    "sortHint": "OK on the one checked turns the order around.",
     "filter": "Filter",
     "show": "Show",
     "genre": "Genre",

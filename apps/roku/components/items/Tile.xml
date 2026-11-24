@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A title in a RowList row or a MarkupGrid: its poster (a 16:9 picture
-     for Continue Watching, a square for music), how far along it is or a
-     mark once watched, a badge (a TMDB title's "In library", "Requested"),
-     a library's quality badges ("4K", "DV") at the poster's foot, and two
-     lines under it. -->
+<!-- A title in a RowList row or a MarkupGrid, as the Android TV app's tile
+     (TvTile, ArtworkTile): its artwork in a well with round corners (Roku
+     OS 16's Effect; square before), a faint line along its inner edge, how
+     far along it is or a tick once watched, a badge (a TMDB title's "In
+     library", "Requested"), a library's quality badges ("4K", "DV") at the
+     artwork's foot, and two lines under it; a person's picture is a circle.
+     Focused, it grows to 1.08 with
+     the accent's ring around it and its title goes bold; the list's
+     focusPercent drives the growth and the ring, so a move animates with no
+     BrightScript a frame. The well and the artwork grow by their size: a
+     scale undoes the Effect's corners. 24 px at the artwork's left and 30
+     over it leave the list room for the growth and the ring. -->
 <component name="Tile" extends="Group">
     <interface>
         <field id="itemContent" type="node" onChange="onContent" />
@@ -14,27 +21,59 @@
         <field id="rowHasFocus" type="boolean" value="true" onChange="onFocus" />
         <field id="rowListHasFocus" type="boolean" value="true" onChange="onFocus" />
         <field id="gridHasFocus" type="boolean" value="true" onChange="onFocus" />
+        <field id="focusPercent" type="float" alias="growth.fraction,wellWidth.fraction,wellHeight.fraction,wellPlace.fraction,posterWidth.fraction,posterHeight.fraction,posterPlace.fraction,maskSizer.fraction,maskPlace.fraction,ringFade.fraction" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/Tile.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Mark.brs" />
     <children>
-        <Rectangle id="frame" color="0x262B35FF" />
-        <Label id="fallback" color="0xA1A9B6FF" horizAlign="center" vertAlign="center" wrap="true" maxLines="4" font="font:SmallestBoldSystemFont" />
-        <Poster id="poster" loadDisplayMode="scaleToZoom" />
-        <Rectangle id="track" color="0x16191ECC" visible="false" />
-        <Rectangle id="fill" color="0x38BDF8FF" visible="false" />
-        <Poster id="watched" uri="pkg:/images/watched.png" width="40" height="40" visible="false" />
-        <Rectangle id="badgeBack" height="34" visible="false" />
-        <Label id="badge" height="34" vertAlign="center" color="0x16191EFF" font="font:TinySystemFont" visible="false" />
-        <!-- A title has two quality badges at most: "4K" and its dynamic
-             range. Dark under light words, as the other apps draw them on
-             pictures. -->
-        <Rectangle id="qualityBack0" height="34" color="0x0B0D10CC" visible="false" />
-        <Label id="quality0" height="34" vertAlign="center" color="0xEBEBEBFF" font="font:TinySystemFont" visible="false" />
-        <Rectangle id="qualityBack1" height="34" color="0x0B0D10CC" visible="false" />
-        <Label id="quality1" height="34" vertAlign="center" color="0xEBEBEBFF" font="font:TinySystemFont" visible="false" />
-        <Label id="title" color="0xEBEBEBFF" font="font:SmallestBoldSystemFont" />
-        <Label id="subtitle" color="0xA1A9B6FF" font="font:TinySystemFont" />
+        <Group translation="[24, 30]">
+            <Rectangle id="well" color="0x262B35FF" />
+            <Label id="fallback" color="0xA1A9B6FF" horizAlign="center" vertAlign="center" wrap="true" maxLines="4" />
+            <!-- A person's picture is cut round by a mask: OS 16's Effect draws
+                 a picture stretched to its Poster, where a mask leaves the
+                 picture zoomed and cropped. The mask is off for the others. -->
+            <MaskGroup id="mask">
+                <Poster id="poster" loadDisplayMode="scaleToZoom" />
+            </MaskGroup>
+            <!-- What is on the artwork grows with it, as a group, from its
+                 middle: "grow" sits there and "art" back at the corner
+                 (onLayout), so scaling "grow" needs no scaleRotateCenter,
+                 which brs-node doesn't draw. -->
+            <Group id="grow">
+                <Group id="art">
+                    <Poster id="hairline" uri="pkg:/images/ui/hairline.9.png" />
+                    <Rectangle id="track" color="0x16191E99" visible="false" />
+                    <Rectangle id="fill" color="0x38BDF8FF" visible="false" />
+                    <Poster id="watched" uri="pkg:/images/ui/tick.png" width="40" height="40" visible="false" />
+                    <Poster id="badgeBack" uri="pkg:/images/ui/r4.9.png" height="36" visible="false" />
+                    <Label id="badge" height="36" vertAlign="center" color="0x16191EFF" visible="false" />
+                    <!-- Two quality badges at most: "4K" and the dynamic range,
+                         dark under light words, as the other apps draw them on
+                         pictures. -->
+                    <Poster id="qualityBack0" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="36" visible="false" />
+                    <Label id="quality0" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
+                    <Poster id="qualityBack1" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="36" visible="false" />
+                    <Label id="quality1" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
+                    <!-- The accent's ring, against the well all round. -->
+                    <Poster id="ring" uri="pkg:/images/ui/ring.9.png" opacity="0" />
+                </Group>
+            </Group>
+            <Label id="title" color="0xEBEBEBFF" maxLines="1" />
+            <Label id="subtitle" color="0xA1A9B6FF" maxLines="1" />
+        </Group>
+        <Vector2DFieldInterpolator id="growth" key="[0, 1]" keyValue="[[1, 1], [1.08, 1.08]]" fieldToInterp="grow.scale" />
+        <!-- The well's and the artwork's sizes and places, grown 4 % each
+             way from the middle (onLayout fills them in). -->
+        <FloatFieldInterpolator id="wellWidth" key="[0, 1]" keyValue="[0, 0]" fieldToInterp="well.width" />
+        <FloatFieldInterpolator id="wellHeight" key="[0, 1]" keyValue="[0, 0]" fieldToInterp="well.height" />
+        <Vector2DFieldInterpolator id="wellPlace" key="[0, 1]" keyValue="[[0, 0], [0, 0]]" fieldToInterp="well.translation" />
+        <FloatFieldInterpolator id="posterWidth" key="[0, 1]" keyValue="[0, 0]" fieldToInterp="poster.width" />
+        <FloatFieldInterpolator id="posterHeight" key="[0, 1]" keyValue="[0, 0]" fieldToInterp="poster.height" />
+        <Vector2DFieldInterpolator id="posterPlace" key="[0, 1]" keyValue="[[0, 0], [0, 0]]" fieldToInterp="poster.translation" />
+        <Vector2DFieldInterpolator id="maskSizer" key="[0, 1]" keyValue="[[0, 0], [0, 0]]" fieldToInterp="mask.maskSize" />
+        <Vector2DFieldInterpolator id="maskPlace" key="[0, 1]" keyValue="[[0, 0], [0, 0]]" fieldToInterp="mask.maskOffset" />
+        <FloatFieldInterpolator id="ringFade" key="[0, 1]" keyValue="[0, 1]" fieldToInterp="ring.opacity" />
     </children>
 </component>

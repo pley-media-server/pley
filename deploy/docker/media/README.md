@@ -26,7 +26,12 @@ Movies/
 
 - `Title (Year)`, as a file or a folder. The year makes the match certain.
 - Release names (`Title.2019.2160p.WEB-DL.mkv`) work too.
-- `{edition-...}` marks an edition of the same movie.
+- `{edition-...}` marks an edition of the same movie, and so do the usual
+  words after the title and year: `Director's Cut`, `Extended`,
+  `Theatrical`, `Unrated`, `Uncut`, `Remastered`, `Special Edition`,
+  `IMAX` and the like (`Film (2010) - Director's Cut.mkv`). Without a
+  year, they are taken as an edition when set apart from the title
+  (`Film - Director's Cut.mkv`, `Film (Uncut).mkv`).
 - Extras go in a folder such as `Trailers`, `Featurettes` or
   `Behind The Scenes` next to the movie.
 
@@ -47,6 +52,12 @@ TV Shows/
 
 - One folder per show, `Season NN` folders, and `S01E02` (or `1x02`) in
   each file name. Inside a season folder, `02 - Title` is enough.
+- An id after the show's name fixes its match: `{tmdb-…}`, `{tvdb-…}` or
+  `{imdb-tt…}`.
+- A show whose seasons are spread over a library's folders (a drive each)
+  is one show, its folders named alike. Two shows of the same name are
+  told apart by their years, or by the ids in their folders' names or
+  `tvshow.nfo` files.
 - Date-based shows (`Show - 2024-03-01.mkv`) and anime numbering
   (`Show - 01.mkv`) work too.
 

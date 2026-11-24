@@ -108,46 +108,7 @@
       "lastPlayed": "Dernière lecture",
       "bitrate": "Débit"
     },
-    "sortOrders": {
-      "title": {
-        "asc": "Titre, de A à Z",
-        "desc": "Titre, de Z à A"
-      },
-      "year": {
-        "asc": "Année, plus anciens d’abord",
-        "desc": "Année, plus récents d’abord"
-      },
-      "added": {
-        "asc": "Ajouts anciens d’abord",
-        "desc": "Ajouts récents d’abord"
-      },
-      "rating": {
-        "asc": "Les moins bien notés d’abord",
-        "desc": "Les mieux notés d’abord"
-      },
-      "userRating": {
-        "asc": "Vos moins bien notés d’abord",
-        "desc": "Vos mieux notés d’abord"
-      },
-      "release": {
-        "asc": "Sorties anciennes d’abord",
-        "desc": "Sorties récentes d’abord"
-      },
-      "duration": {
-        "asc": "Les plus courts d’abord",
-        "desc": "Les plus longs d’abord"
-      },
-      "lastPlayed": {
-        "asc": "Lus il y a longtemps d’abord",
-        "desc": "Lus récemment d’abord"
-      },
-      "bitrate": {
-        "asc": "Débit le plus faible d’abord",
-        "desc": "Débit le plus élevé d’abord"
-      }
-    },
     "sortBy": "Trier par",
-    "sortHint": "Appuyez sur OK sur le tri coché pour inverser l’ordre.",
     "filter": "Filtres",
     "show": "Afficher",
     "genre": "Genre",

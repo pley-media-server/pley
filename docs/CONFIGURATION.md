@@ -94,6 +94,16 @@ its console window, or signing out.
 
 - *Automatic* uses TMDB for TV when it has a key, then TheTVDB, else TVmaze.
   Changing the source fetches every show again.
+- A title a source finds nothing for is looked up again a day later, then
+  less and less often, up to once a month: one the source adds later gets
+  its details by itself, and Refresh looks it up at once. A source that
+  doesn't answer isn't taken to know nothing: what it didn't look up is
+  looked up at the next scan. Titles are looked up again as the whole
+  library is scanned, at most 50 of a kind each time, those waiting
+  longest first.
+- An episode added to a show is looked up with its show at the scan that
+  finds it, and one the source doesn't have yet is looked up again as
+  titles it found nothing for are.
 - Without a TMDB key, movies keep their file names and local artwork, or
   what their [NFO files](#nfo-files) say: no keyless source has movie
   artwork.
@@ -139,7 +149,10 @@ TV libraries, at each scan:
   on one of those sites, as in Kodi's NFO files that hold only a link. A
   movie or show with ids is looked up by them instead of searched for by
   name: they win over a match found by name, or an id in the names
-  (`{tmdb-603}`), unless that match has one of them.
+  (`{tmdb-603}`), unless that match has one of them. Show folders of the
+  same name in a library are one show, whose `tvshow.nfo` is the one in the
+  folder the show was first found in, unless their `tvshow.nfo` files name
+  different shows.
 - **Fields**: title, original title, sort title, year, release date
   (`premiered`, `releasedate` or `aired`), summary (`plot`, else
   `outline`), tagline, content rating (`mpaa` or `certification`), genres,

@@ -42,7 +42,7 @@
             </Group>
         </Group>
         <Label id="status" translation="[96, 812]" width="1248" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:MediumSystemFont" />
-        <ButtonGroup id="actions" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 900]" layoutDirection="horiz" minWidth="380" />
+        <PillButtons id="actions" translation="[96, 900]" layoutDirection="horiz" minWidth="380" />
         <Timer id="leave" duration="1.2" />
         <!-- Its letters end at the screen's right margin, centered on the
              logo's line. -->

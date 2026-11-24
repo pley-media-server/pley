@@ -13,6 +13,7 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use parking_lot::Mutex;
 use pley_transcoder_api::{
     BitrateChanged, BitrateRequest, ConversionStatus, CoverRequest, FileContainer, Fingerprint, FingerprintRequest,
     Frames, FramesRequest, HoldRequest, JobCreated, JobRequest, JobStatus, KeyframesRequest, MediaInfo,
@@ -50,9 +51,17 @@ pub struct AppState {
     pub token: Option<String>,
     pub started: Instant,
     pub work_dir: PathBuf,
-    /// Size of the work directory, refreshed in the background.
+    /// Size of the work directory, as last measured ([`Self::work_dir_bytes`]).
     work_dir_bytes: AtomicU64,
+    /// When it was last measured, and whether it is being measured now.
+    work_dir_measured: Mutex<(Option<Instant>, bool)>,
 }
+
+/// How long the work directory's size as measured stands: asked for after
+/// that, it is measured again.
+const WORK_DIR_MEASURED_FOR: Duration = Duration::from_secs(5);
+/// How long the metrics wait for the work directory to be measured again.
+const WORK_DIR_WAIT: Duration = Duration::from_secs(2);
 
 impl AppState {
     #[allow(clippy::too_many_arguments)]
@@ -87,27 +96,47 @@ impl AppState {
             started: Instant::now(),
             work_dir,
             work_dir_bytes: AtomicU64::new(0),
+            work_dir_measured: Mutex::new((None, false)),
         }
     }
 
-    /// Walk the work directory every few seconds on the blocking pool.
-    pub fn spawn_disk_usage(self: &Arc<Self>) {
-        let weak = Arc::downgrade(self);
-        tokio::spawn(async move {
-            let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
-            loop {
-                tick.tick().await;
-                let Some(state) = weak.upgrade() else { break };
-                let dir = state.work_dir.clone();
-                if let Ok(bytes) = tokio::task::spawn_blocking(move || dir_size(&dir)).await {
-                    state.work_dir_bytes.store(bytes, Ordering::Relaxed);
-                }
+    /// Measures the work directory on the blocking pool, unless it is being
+    /// measured already: a walk over every file in it, thousands once the
+    /// caches fill. The walk, to wait for if need be.
+    pub fn measure_work_dir(self: &Arc<Self>) -> Option<tokio::task::JoinHandle<()>> {
+        {
+            let mut measured = self.work_dir_measured.lock();
+            if measured.1 {
+                return None;
             }
-        });
+            measured.1 = true;
+        }
+        let state = self.clone();
+        Some(tokio::spawn(async move {
+            let dir = state.work_dir.clone();
+            if let Ok(bytes) = tokio::task::spawn_blocking(move || dir_size(&dir)).await {
+                state.work_dir_bytes.store(bytes, Ordering::Relaxed);
+            }
+            *state.work_dir_measured.lock() = (Some(Instant::now()), false);
+        }))
     }
 
-    fn status(&self) -> TranscoderStatus {
+    /// Measures the work directory again when it was measured
+    /// [`WORK_DIR_MEASURED_FOR`] ago or more: only while someone asks (the
+    /// server's dashboard, the metrics), so an idle transcoder doesn't walk
+    /// its caches every few seconds for no one.
+    fn remeasure_work_dir(self: &Arc<Self>) -> Option<tokio::task::JoinHandle<()>> {
+        let stale = self.work_dir_measured.lock().0.is_none_or(|at| at.elapsed() >= WORK_DIR_MEASURED_FOR);
+        if stale { self.measure_work_dir() } else { None }
+    }
+
+    /// The status, with the work directory's size as last measured: the
+    /// server asks often (its dashboard every few seconds, library work
+    /// before each file) and doesn't wait for a walk; the next answer has
+    /// its size.
+    fn status(self: &Arc<Self>) -> TranscoderStatus {
         let (running, hw) = self.jobs.slots.counts();
+        let _ = self.remeasure_work_dir();
         let work_dir_bytes = self.work_dir_bytes.load(Ordering::Relaxed);
         TranscoderStatus {
             version: self.info.version.clone(),
@@ -241,6 +270,11 @@ async fn status(State(state): Shared) -> Json<TranscoderStatus> {
 }
 
 async fn metrics(State(state): Shared) -> impl IntoResponse {
+    // A scrape comes half a minute or more after the one before: the size
+    // as last measured would be that old.
+    if let Some(walk) = state.remeasure_work_dir() {
+        let _ = tokio::time::timeout(WORK_DIR_WAIT, walk).await;
+    }
     let body = render_prometheus(&state.status());
     ([(header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")], body)
 }
@@ -843,6 +877,44 @@ mod tests {
         assert!(metrics.body.contains("# TYPE pley_transcoder_jobs_created_total counter\n"), "{}", metrics.body);
         assert!(metrics.body.contains("pley_transcoder_max_jobs 3\n"), "{}", metrics.body);
         assert!(metrics.body.contains("# TYPE pley_transcoder_trickplay_running gauge\n"), "{}", metrics.body);
+    }
+
+    #[tokio::test]
+    async fn the_work_directory_is_measured_as_it_is_asked_for() {
+        let dir = crate::testing::tempdir();
+        std::fs::write(dir.path().join("segment.ts"), vec![0u8; 1234]).unwrap();
+        let addr = serve(dir.path(), None).await;
+        let asked = || async move {
+            let answer = request(addr, "GET", "/v1/status", None, None).await;
+            serde_json::from_str::<TranscoderStatus>(&answer.body).unwrap().work_dir_bytes
+        };
+        // Nothing measures it until someone asks; the answers after the
+        // walk that asking starts have its size.
+        let mut measured = asked().await;
+        for _ in 0..250 {
+            if measured > 0 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            measured = asked().await;
+        }
+        assert!(measured >= 1234, "{measured}");
+    }
+
+    #[tokio::test]
+    async fn the_metrics_wait_for_the_work_directory_to_be_measured() {
+        let dir = crate::testing::tempdir();
+        std::fs::write(dir.path().join("segment.ts"), vec![0u8; 1234]).unwrap();
+        let addr = serve(dir.path(), None).await;
+        let metrics = request(addr, "GET", "/metrics", None, None).await;
+        assert!(
+            metrics.body.contains(
+                "pley_transcoder_work_dir_bytes 1234
+"
+            ),
+            "{}",
+            metrics.body
+        );
     }
 
     #[tokio::test]

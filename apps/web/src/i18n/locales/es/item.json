@@ -124,6 +124,7 @@
       "match": "Corregir coincidencia…",
       "thumb": "Elegir miniatura…",
       "poster": "Elegir póster…",
+      "cover": "Elegir portada…",
       "backdrop": "Elegir fondo…"
     },
     "details": {
@@ -131,6 +132,7 @@
       "hint": "Los campos editados se bloquean <lock/> para que las actualizaciones de metadatos los conserven. Desbloquea un campo para que la próxima actualización vuelva a rellenarlo.",
       "nfoHint": "Los campos del archivo NFO que está a su lado prevalecen sobre la fuente de metadatos; una edición aquí prevalece sobre ellos.",
       "genresPlaceholder": "Drama, Suspense",
+      "namesPlaceholder": "Un nombre por línea",
       "locked": "Bloqueado: haz clic para desbloquear",
       "willUnlock": "Se desbloqueará",
       "ratingCountry": "País: {{country}}",
@@ -141,6 +143,10 @@
         "title": "Título",
         "sort_title": "Título para ordenar",
         "original_title": "Título original",
+        "authors": "Autores",
+        "narrators": "Narradores",
+        "series": "Serie",
+        "series_index": "Libro de la serie",
         "year": "Año",
         "release_date": "Fecha de estreno",
         "content_rating": "Clasificación",
@@ -156,15 +162,22 @@
     "match": {
       "title": "Corregir coincidencia",
       "byHand": "Asociado aquí a mano. Un archivo NFO a su lado no cambia esta coincidencia hasta que la deshagas.",
+      "bookByHand": "Asociado aquí a mano. Las actualizaciones y los archivos del libro no cambian esta coincidencia hasta que la deshagas.",
       "undo": "Deshacer la corrección",
       "undone": "Corrección de la coincidencia deshecha",
       "matched": "Asociado a “{{title}}”",
       "noMatches": "No hay coincidencias. Prueba con otro título o sin año.",
-      "current": "Actual"
+      "current": "Actual",
+      "bookTitle": "Título, o un ASIN de Audible",
+      "author": "Autor",
+      "noBookMatches": "No hay coincidencias. Prueba con otro título, sin autor o con el ASIN del libro.",
+      "audible": "Audible · {{asin}}",
+      "openLibrary": "Open Library · {{id}}"
     },
     "artwork": {
       "titles": {
         "poster": "Elegir póster",
+        "cover": "Elegir portada",
         "backdrop": "Elegir fondo",
         "thumb": "Elegir miniatura"
       },
@@ -174,7 +187,8 @@
       "upload": "Subir una imagen…",
       "uploading": "Subiendo…",
       "loadError": "{{error}} Aún puedes subir una imagen.",
-      "none": "TMDB no tiene otras ilustraciones para este elemento."
+      "none": "TMDB no tiene otras ilustraciones para este elemento.",
+      "noCovers": "Open Library y Audible no tienen portadas para este libro. Si está asociado al libro equivocado, corrige primero la coincidencia."
     }
   },
   "request": {
