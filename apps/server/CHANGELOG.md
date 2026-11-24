@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Live TV channels played as they are no longer stall every few seconds in the
+  browser.
+
 ## [0.1.16] - 2026-11-24
 
 ### Added
