@@ -317,6 +317,13 @@ class Media3EngineTest {
     }
 
     @Test
+    fun onlyAVideoIsWokenEverySecondToCountItsFrames() {
+        assertFalse(engine(music = true).samplesFrames)
+        assertTrue(engine().samplesFrames)
+        assertTrue(engine(profile = tv).samplesFrames)
+    }
+
+    @Test
     fun musicFetchesNoCoverOfItsOwnWhenTheSessionReadsThemFromTheLibrary() {
         codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
         val asked = mutableListOf<String>()

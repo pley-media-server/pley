@@ -264,12 +264,20 @@ class Media3Engine(
      */
     private var snapToKeyFrame = false
 
-    private val tick = object : Runnable {
+    /**
+     * Counts the video's frames each second while it plays ([sample]); none
+     * for music, which has no video decoder to count: its player would wake
+     * the main thread every second for nothing, the screen off too.
+     */
+    private val tick: Runnable? = if (music) null else object : Runnable {
         override fun run() {
             sample()
             main.postDelayed(this, TICK_MS)
         }
     }
+
+    /** Whether it counts the video's frames while it plays. */
+    internal val samplesFrames: Boolean get() = tick != null
 
     init {
         player.addListener(Listener())
@@ -413,7 +421,7 @@ class Media3Engine(
         released = true
         detachWindow()
         scope.cancel()
-        main.removeCallbacks(tick)
+        tick?.let(main::removeCallbacks)
         main.removeCallbacks(reconnectCheck)
         hdmi?.stop()
         focus?.release()
@@ -578,6 +586,7 @@ class Media3Engine(
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             Log.i(TAG, if (isPlaying) "playing" else "not playing")
+            val tick = tick ?: return
             main.removeCallbacks(tick)
             if (isPlaying) main.postDelayed(tick, TICK_MS)
         }
