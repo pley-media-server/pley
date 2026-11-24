@@ -834,6 +834,11 @@ class MusicPlayback(
                 if (e is ApiException) aheadFailed = true
                 return@launch
             }
+            // Let go while it was asked for (Shuffle, a seek, Next): the server's session goes, and the output isn't told.
+            if (ahead !== asked) {
+                started.discard()
+                return@launch
+            }
             asked.session = started
             out?.setNext(sourceOf(started, server), trackInfo(next, server))
         }
