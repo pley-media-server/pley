@@ -229,8 +229,8 @@ pub fn check<T: fmt::Debug + 'static>(
 }
 
 /// What the thread running a case holds, counted by [`Counting`] from the
-/// case's start. Only that thread's allocations count: what threads it
-/// starts take isn't, and freeing what they took doesn't make room for more.
+/// case's start. Only that thread's allocations count, not those of threads
+/// it starts; and what it frees of theirs hides at most what it holds.
 struct Held;
 
 thread_local! {
