@@ -2657,7 +2657,12 @@ sub onDetails(event as object)
 end sub
 
 sub showDetails(live as dynamic)
-    if m.info = invalid then return
+    ' Nothing yet to say: not the last title's sheet.
+    if m.info = invalid
+        m.detailsShown = ""
+        m.menuFacts.lines = []
+        return
+    end if
     details = detPlayback(m.info, playingFile(), m.audioPlaying, live, m.positionMs)
     lines = detSheet(details)
     if m.pictureIndex >= 0 then lines.Push({ kind: "note", text: t("player.details.picturesDrawn") })
