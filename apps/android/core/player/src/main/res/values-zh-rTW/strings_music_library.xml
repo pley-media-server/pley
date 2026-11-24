@@ -20,6 +20,7 @@
     <plurals name="music_library_albums_count">
         <item quantity="other">%1$,d 張專輯</item>
     </plurals>
+    <string name="music_library_disc">第 %1$d 張碟</string>
     <string name="music_library_live_tv">直播電視</string>
     <string name="music_library_live_favorites">收藏</string>
     <string name="music_library_live_watched_lately">最近觀看</string>

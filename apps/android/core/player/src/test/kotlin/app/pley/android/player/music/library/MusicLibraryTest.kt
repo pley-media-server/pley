@@ -191,6 +191,10 @@ class MusicLibraryTest {
         assertEquals("Shuffle", children[0].mediaMetadata.title.toString())
         assertTrue(children[0].mediaMetadata.isPlayable == true)
         assertFalse(children[0].mediaMetadata.isBrowsable == true)
+        // The page names the artist: each album says its year and how many tracks it has, as far as they are known.
+        assertEquals(listOf("2023", "2019 · 2 tracks"), children.drop(1).map { it.mediaMetadata.subtitle.toString() })
+        // Elsewhere an album says its artist.
+        assertEquals("Harbour Lights", library.search("deep").first { it.mediaId == "album:50" }.mediaMetadata.subtitle.toString())
     }
 
     @Test
@@ -204,11 +208,27 @@ class MusicLibraryTest {
         val inPlaylist = library.children(MusicId.Playlist(7), 0, 50)
         assertEquals("Harbour Lights", inPlaylist[0].mediaMetadata.subtitle.toString())
         assertEquals("content://art/api/items/50/images/poster", inPlaylist[0].mediaMetadata.artworkUri.toString())
+        // Numbered in its album's list, as the album's page lists it; by its title alone elsewhere and in the queue.
+        assertEquals(listOf("1. Track 51", "2. Track 52"), tracks.map { it.mediaMetadata.displayTitle.toString() })
+        assertEquals("Track 51", tracks[0].mediaMetadata.title.toString())
+        assertEquals("1. Track 51", library.item(MusicId.Track(51, MusicId.Album(50)))?.mediaMetadata?.displayTitle.toString())
+        assertEquals("Track 52", inPlaylist[0].mediaMetadata.displayTitle.toString())
+        assertEquals("Track 51", library.queueItem(track(51, 50)).mediaMetadata.displayTitle.toString())
+        // One disc: no headings.
+        assertTrue(tracks.all { it.group == null })
 
         val selection = library.selection(MusicId.parse(tracks[1].mediaId)!!)!!
         assertEquals(listOf(51L, 52L), selection.tracks.map { it.id })
         assertEquals(1, selection.startIndex)
         assertFalse(selection.shuffle)
+    }
+
+    @Test
+    fun anAlbumOfSeveralDiscsListsEachUnderItsHeading() = runTest {
+        val tracks = library.children(MusicId.Album(57), 0, 50)
+        assertEquals(listOf("Disc 1", "Disc 1", "Disc 2"), tracks.map { it.group })
+        // Numbered on each disc, as the album's page numbers them; one without a number has its title alone.
+        assertEquals(listOf("1. Track 58", "Track 59", "1. Track 60"), tracks.map { it.mediaMetadata.displayTitle.toString() })
     }
 
     @Test
@@ -437,6 +457,8 @@ class MusicLibraryTest {
 
         override fun albums(count: Int) = "$count albums"
 
+        override fun disc(number: Int) = "Disc $number"
+
         override val books = "Books"
         override val continueListening = "Continue listening"
         override val allBooks = "All books"
@@ -475,8 +497,14 @@ class MusicLibraryTest {
         val artistPages = mutableListOf<Triple<Long, Int, Int>>()
         val played = mutableMapOf<Long, List<ItemSummary>>()
         private val artist = ItemSummary(40, 3, ItemKind.Artist, "Harbour Lights", posterUrl = "/api/items/40/images/poster", childCount = 2)
-        private val albums = listOf(album(50, "Deep Water", year = 2019), album(55, "Second Tide", year = 2023))
-        private val tracks = mapOf(50L to listOf(track(51, 50), track(52, 50)), 55L to listOf(track(56, 55)))
+        private val albums = listOf(album(50, "Deep Water", year = 2019).copy(leafCount = 2), album(55, "Second Tide", year = 2023))
+
+        // Album 57, of no artist's here, is on two discs; a track of it without a disc is on the first.
+        private val tracks = mapOf(
+            50L to listOf(track(51, 50), track(52, 50)),
+            55L to listOf(track(56, 55)),
+            57L to listOf(track(58, 57).copy(index = 1), track(59, 57).copy(index = null, parentIndex = 1), track(60, 57).copy(index = 1, parentIndex = 2)),
+        )
         var found: List<ItemSummary> = listOf(artist, albums[0], albums[1], track(51, 50))
 
         override suspend fun libraries() = libraries.filter { it.kind == LibraryKind.Music }

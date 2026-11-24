@@ -43,6 +43,9 @@ interface MusicLibraryLook {
     /** "4 albums". */
     fun albums(count: Int): String
 
+    /** An album's disc, heading its tracks when it has several: "Disc 2". */
+    fun disc(number: Int): String
+
     /** The audiobooks' tab, its headings (with Recently added) and search's group. */
     val books: String
     val continueListening: String
@@ -104,7 +107,7 @@ class MusicLibrary(
         MusicId.LiveTv, is MusicId.LiveList, is MusicId.Channel -> live?.item(id)
         is MusicId.Artist -> source.item(id.id)?.takeIf { it.kind == ItemKind.Artist }?.let(::artist)
         is MusicId.Album -> source.item(id.id)?.takeIf { it.kind == ItemKind.Album }?.let(::album)
-        is MusicId.Track -> source.item(id.id)?.takeIf { it.kind == ItemKind.Track || it.kind == ItemKind.Part }?.let { track(it, id.from) }
+        is MusicId.Track -> source.item(id.id)?.takeIf { it.kind == ItemKind.Track || it.kind == ItemKind.Part }?.let { track(it, id.from, numbered = id.from is MusicId.Album) }
         is MusicId.Playlist -> musicPlaylists().firstOrNull { it.id == id.id }?.let(::playlist)
         is MusicId.LibraryArtists, is MusicId.ShuffleArtist -> null
     }
@@ -134,9 +137,10 @@ class MusicLibrary(
             is MusicId.Artist -> {
                 val albums = source.children(id.id).filter { it.kind == ItemKind.Album }.sortedWith(NEWEST_FIRST)
                 val l = look()
-                listOf(node(MusicId.ShuffleArtist(id.id), l.shuffle, browsable = false, playable = true, icon = l.shuffleIcon)) + albums.map { album(it) }
+                listOf(node(MusicId.ShuffleArtist(id.id), l.shuffle, browsable = false, playable = true, icon = l.shuffleIcon)) +
+                    albums.map { album(it, onArtist = true) }
             }
-            is MusicId.Album -> source.children(id.id).filter { it.kind == ItemKind.Track }.map { track(it, from = id) }
+            is MusicId.Album -> albumTracks(id)
             is MusicId.Playlist -> source.playlist(id.id).entries.map { it.item }.filter { it.kind == ItemKind.Track }.map { track(it, from = id) }
             MusicId.LiveTv, is MusicId.LiveList -> live?.children(id).orEmpty()
             is MusicId.ShuffleArtist, is MusicId.Track, is MusicId.Channel, is MusicId.Book -> emptyList()
@@ -455,11 +459,14 @@ class MusicLibrary(
     /**
      * An album opens to its tracks, as a car plays what can play rather than
      * open it; one of a single track (as far as the server counts) just plays.
+     * Under it, its artist; on the artist's own page ([onArtist]), which
+     * names the artist already, its year and how many tracks it has
+     * ("2023 · 14 tracks"), each as far as the server knows it.
      */
-    private fun album(item: ItemSummary): MediaItem = node(
+    private fun album(item: ItemSummary, onArtist: Boolean = false): MediaItem = node(
         MusicId.Album(item.id),
         item.title,
-        subtitle = item.parentTitle ?: item.year?.toString(),
+        subtitle = if (onArtist) yearAndTracks(item) else item.parentTitle ?: item.year?.toString(),
         browsable = item.leafCount != 1,
         playable = item.leafCount == 1,
         artPath = item.posterUrl,
@@ -468,6 +475,24 @@ class MusicLibrary(
         mediaType = MediaMetadata.MEDIA_TYPE_ALBUM,
         artist = item.parentTitle,
     )
+
+    private fun yearAndTracks(album: ItemSummary): String? =
+        listOfNotNull(album.year?.toString(), album.leafCount?.takeIf { it > 0 }?.let { look().tracks(it) }).joinToString(" · ").ifEmpty { null }
+
+    /**
+     * An album's tracks, each with its number as the album's page shows it;
+     * of an album of several discs, each disc's under its heading, as the
+     * album's page has them (a track without a disc is on the first).
+     */
+    private suspend fun albumTracks(album: MusicId.Album): List<MediaItem> {
+        val tracks = tracksOf(album.id)
+        val discs = tracks.mapTo(HashSet()) { it.parentIndex ?: 1 }.size > 1
+        val l = look()
+        return tracks.map { track ->
+            val row = track(track, from = album, numbered = true)
+            if (discs) row.grouped(l.disc(track.parentIndex ?: 1)) else row
+        }
+    }
 
     /** A playlist opens to its tracks as an album does; one of a single track just plays. */
     private fun playlist(item: PlaylistSummary): MediaItem = node(
@@ -484,18 +509,23 @@ class MusicLibrary(
 
     /**
      * A track's row. In its album's list, each row would show the same
-     * cover and artist: it shows the track's length instead, and no cover.
-     * Elsewhere (a playlist, search, the queue), its artist and cover.
+     * cover and artist: it shows the track's length instead, and no cover,
+     * and [numbered], its number before its title ("1. Make Them Cry") when
+     * it has one, as the album's page lists it. Elsewhere (a playlist,
+     * search, the queue), its artist and cover, and its title alone: what
+     * plays is named by its title.
      */
-    private fun track(item: ItemSummary, from: MusicId?): MediaItem {
+    private fun track(item: ItemSummary, from: MusicId?, numbered: Boolean = false): MediaItem {
         // A book's part, in the queue: under its book's title.
         val part = item.kind == ItemKind.Part
         val artist = if (part) item.parentTitle else item.grandparentTitle
         val inAlbum = from is MusicId.Album
         val subtitle = if (inAlbum) item.durationMs?.takeIf { it > 0 }?.let(::formatClockMs) else artist
+        val number = item.index?.takeIf { numbered && it > 0 }
         val metadata = MediaMetadata.Builder()
+            // A car shows the display title, the title kept as the track's own.
             .setTitle(item.title)
-            .setDisplayTitle(item.title)
+            .setDisplayTitle(if (number != null) "$number. ${item.title}" else item.title)
             .setArtist(artist)
             .setSubtitle(subtitle)
             .setAlbumTitle(item.parentTitle)

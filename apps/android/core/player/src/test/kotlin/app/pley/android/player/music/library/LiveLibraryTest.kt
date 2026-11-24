@@ -205,6 +205,8 @@ class LiveLibraryTest {
         override fun tracks(count: Int) = "$count tracks"
 
         override fun albums(count: Int) = "$count albums"
+
+        override fun disc(number: Int) = "Disc $number"
         override val books = "Books"
         override val continueListening = "Continue listening"
         override val allBooks = "All books"

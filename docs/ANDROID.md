@@ -1104,7 +1104,11 @@ Playlists goes first in the artists' tab, which is then named Music.
   Recently added in each library's name when there are several).
 - **Artists**: by name, with how many albums each has (with several music
   libraries, the libraries first). An artist lists Shuffle, then their
-  albums, newest first; an album lists its tracks with their lengths.
+  albums, newest first, each with its year and how many tracks it has
+  (elsewhere an album says its artist); an album lists its tracks
+  numbered, as its page on the phone does, with their lengths, under each
+  disc's heading when it has several. Now Playing and the queue name a
+  track by its title alone.
 - **Playlists**: the profile's music playlists.
 - **Books**: as a grid of covers, the books being heard (Continue
   listening, the one heard last first), those added last to each

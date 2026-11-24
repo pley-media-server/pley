@@ -26,6 +26,8 @@
         <item quantity="one">%1$,d album</item>
         <item quantity="other">%1$,d albums</item>
     </plurals>
+    <!-- An album's disc, heading its tracks in the car when it has several. -->
+    <string name="music_library_disc">Disc %1$d</string>
     <!-- Live TV in the car: its tab, the tab's headings, a group's channel count ("120 channels"), search's group. -->
     <string name="music_library_live_tv">Live TV</string>
     <string name="music_library_live_favorites">Favorites</string>

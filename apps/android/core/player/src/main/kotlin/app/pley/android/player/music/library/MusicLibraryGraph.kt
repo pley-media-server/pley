@@ -88,6 +88,8 @@ class MusicLibraryGraph(
 
             override fun albums(count: Int): String = res.getQuantityString(R.plurals.music_library_albums_count, count, count)
 
+            override fun disc(number: Int): String = res.getString(R.string.music_library_disc, number)
+
             override val books = res.getString(R.string.music_library_books)
             override val continueListening = res.getString(R.string.music_library_continue_listening)
             override val allBooks = res.getString(R.string.music_library_all_books)

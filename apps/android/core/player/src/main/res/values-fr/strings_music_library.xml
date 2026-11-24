@@ -24,6 +24,7 @@
         <item quantity="many">%1$,d d’albums</item>
         <item quantity="other">%1$,d albums</item>
     </plurals>
+    <string name="music_library_disc">Disque %1$d</string>
     <string name="music_library_live_tv">TV en direct</string>
     <string name="music_library_live_favorites">Favoris</string>
     <string name="music_library_live_watched_lately">Regardées récemment</string>
