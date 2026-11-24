@@ -28,7 +28,9 @@ import kotlinx.coroutines.flow.first
  * share a cover, and nothing changes at all). The first cover comes in as
  * any picture does. Without one, [title]'s placeholder shows when
  * [placeholder]. With reduced motion the next cover takes the place of
- * the last at once. [onCover] hears of each cover as its picture comes.
+ * the last at once. [onCover] hears of each cover as its picture comes,
+ * and of `null` when the cover now shown has none that will come (its
+ * placeholder shows): what follows the cover doesn't keep the last one.
  */
 @Composable
 fun TrackArt(
@@ -36,7 +38,7 @@ fun TrackArt(
     title: String,
     modifier: Modifier = Modifier,
     placeholder: Boolean = true,
-    onCover: (ArtworkImage) -> Unit = {},
+    onCover: (ArtworkImage?) -> Unit = {},
 ) {
     // The cover shown in full: under the one coming until that is in.
     var under by remember { mutableStateOf<ArtworkImage?>(null) }
@@ -51,15 +53,25 @@ fun TrackArt(
         // Keyed, from one place: the cover that was on top is the same picture underneath, not one loaded again.
         for (cover in listOfNotNull(below, image)) {
             key(cover) {
-                TrackArtLayer(cover, title, over = cover == image && below != null, onShown = { if (cover == image) under = cover }, onCover = onCover)
+                TrackArtLayer(
+                    cover,
+                    title,
+                    over = cover == image && below != null,
+                    top = cover == image,
+                    onShown = { if (cover == image) under = cover },
+                    onCover = onCover,
+                )
             }
         }
     }
 }
 
-/** One cover; [over] another, it is unseen until it has loaded and then fades in. [onCover] hears when its picture has come. */
+/**
+ * One cover; [over] another, it is unseen until it has loaded and then fades in. [onCover] hears when its picture has
+ * come, and, while it is the cover shown ([top]), of `null` when its picture won't.
+ */
 @Composable
-private fun TrackArtLayer(image: ArtworkImage, title: String, over: Boolean, onShown: () -> Unit, onCover: (ArtworkImage) -> Unit) {
+private fun TrackArtLayer(image: ArtworkImage, title: String, over: Boolean, top: Boolean, onShown: () -> Unit, onCover: (ArtworkImage?) -> Unit) {
     val load = remember { ArtworkLoad() }
     // Decided as it first shows: once it is the cover underneath, it stays as it is.
     val fades = remember { over }
@@ -71,11 +83,12 @@ private fun TrackArtLayer(image: ArtworkImage, title: String, over: Boolean, onS
     val alpha by animateFloatAsState(if (there) 1f else 0f, if (reduced) snap() else tween(COVER_FADE_MS), label = "cover")
     val shown by rememberUpdatedState(onShown)
     val came by rememberUpdatedState(onCover)
+    val shownNow by rememberUpdatedState(top)
     Artwork(model, title, Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }, load = load)
     LaunchedEffect(Unit) {
         // As soon as the loader has it, before any fade: the memory cache holds it from then on.
         snapshotFlow { load.settled }.first { it }
-        if (!load.failed) came(image)
+        if (!load.failed) came(image) else if (shownNow) came(null)
     }
     LaunchedEffect(Unit) {
         snapshotFlow { load.loaded || load.failed }.first { it }
