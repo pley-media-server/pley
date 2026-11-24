@@ -169,8 +169,8 @@ async fn posters_are_uploaded() {
     assert_eq!(w.app.plex(Method::PUT, &elsewhere, &w.admin, &[]).await.status, StatusCode::BAD_REQUEST);
 }
 
-/// Audiobooks, which this API doesn't show, aren't edited through it either:
-/// not their fields or their pictures.
+/// Audiobooks, which this API doesn't show, aren't changed through it
+/// either: not their fields, pictures, metadata, rating or played state.
 #[tokio::test]
 async fn audiobooks_are_not_edited() {
     let w = world().await;
@@ -193,12 +193,21 @@ async fn audiobooks_are_not_edited() {
         .unwrap();
     let posters = format!("/library/metadata/{book}/posters");
     assert_eq!(w.app.plex_upload(Method::POST, &posters, &w.admin, png).await.status, StatusCode::NOT_FOUND);
-    let chosen = format!("/library/metadata/{book}/poster?url=upload%3A%2F%2Fposters%2F1");
-    assert_eq!(w.app.plex(Method::PUT, &chosen, &w.admin, &[]).await.status, StatusCode::NOT_FOUND);
+    // Nor fetched again, rated or marked played.
+    let library = "identifier=com.plexapp.plugins.library";
+    for (method, uri) in [
+        (Method::PUT, format!("/library/metadata/{book}/refresh")),
+        (Method::PUT, format!("/:/rate?key={book}&{library}&rating=8")),
+        (Method::GET, format!("/:/scrobble?key={book}&{library}")),
+        (Method::GET, format!("/:/unscrobble?key={book}&{library}")),
+    ] {
+        assert_eq!(w.app.plex(method, &uri, &w.admin, &[]).await.status, StatusCode::NOT_FOUND, "{uri}");
+    }
 
     let edited = w.app.get(&format!("/api/items/{book}"), &w.admin).await.body;
     assert_ne!(edited["summary"], json!("Edited"), "{edited}");
     assert_eq!(edited["locked_fields"], json!([]), "{edited}");
+    assert_eq!((&edited["user_state"]["watched"], &edited["rating"]), (&json!(false), &Value::Null), "{edited}");
     assert_ne!(w.app.get(&format!("/api/items/{}", w.alien), &w.admin).await.body["summary"], json!("Edited"));
 }
 

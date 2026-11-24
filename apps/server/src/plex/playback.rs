@@ -360,6 +360,7 @@ pub async fn progress(
 pub async fn rate(State(state): State<AppState>, PlexUser(user): PlexUser, params: Params) -> PlexResult<Node> {
     let id = rating_key(&params)?;
     let row = catalog::item(&state.db, user.id, id).await?.ok_or(PlexError::NotFound)?;
+    super::reachable(&state, &user, row.library_id).await?;
     let value = params.parse::<f64>("rating").ok_or_else(|| PlexError::BadRequest("rating is required".into()))?;
     let rating = if value < 0.0 {
         None
@@ -374,6 +375,7 @@ pub async fn rate(State(state): State<AppState>, PlexUser(user): PlexUser, param
 async fn set_watched(state: &AppState, user: &AuthUser, params: &Params, watched: bool) -> PlexResult<Node> {
     let id = rating_key(params)?;
     let row = catalog::item(&state.db, user.id, id).await?.ok_or(PlexError::NotFound)?;
+    super::reachable(state, user, row.library_id).await?;
     if catalog::set_watched(&state.db, &state.events, user.id, id, &row.kind, watched).await? {
         state.events.send(ServerEvent::WatchlistChanged { user_id: user.id });
     }

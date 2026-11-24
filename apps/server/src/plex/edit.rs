@@ -366,7 +366,7 @@ async fn apply(
         if section.is_some_and(|s| s != library_id) {
             return Err(PlexError::NotFound);
         }
-        reachable(state, user, library_id).await?;
+        super::reachable(state, user, library_id).await?;
         rows.push((id, library_id, kind, genres));
     }
     let mut libraries = Vec::new();
@@ -510,16 +510,8 @@ async fn picture_target(state: &AppState, user: &AuthUser, key: i64) -> PlexResu
             ));
         }
     };
-    reachable(state, user, library_id).await?;
+    super::reachable(state, user, library_id).await?;
     Ok(Target { key: target, library_id, episode })
-}
-
-/// `404` for an item in a library this request doesn't get, as the rest of
-/// this API answers for it: an audiobook library, which other apps don't
-/// see ([`AuthUser::audiobooks`]). Collections are only in movie and TV
-/// libraries.
-async fn reachable(state: &AppState, user: &AuthUser, library_id: i64) -> PlexResult<()> {
-    if crate::access::withholds(&state.db, user, library_id).await? { Err(PlexError::NotFound) } else { Ok(()) }
 }
 
 /// `POST /library/metadata/{key}/posters` (or `/arts`): the body as the

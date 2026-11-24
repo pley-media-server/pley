@@ -298,6 +298,7 @@ pub async fn refresh_item(
         }
     };
     let row = catalog::item(&state.db, admin.id, id).await?.ok_or(PlexError::NotFound)?;
+    super::reachable(&state, &admin, row.library_id).await?;
     if state.metadata.enabled() {
         let metadata = state.metadata.clone();
         let events = state.events.clone();

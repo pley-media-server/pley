@@ -449,6 +449,14 @@ pub enum PlexError {
 
 pub type PlexResult<T> = Result<T, PlexError>;
 
+/// `404` for an item in a library this request doesn't get, as reading it
+/// answers: an audiobook library, which other apps don't see
+/// ([`crate::auth::AuthUser::audiobooks`]). Nothing here changes such an
+/// item either. Collections are only in movie and TV libraries.
+pub(crate) async fn reachable(state: &AppState, user: &AuthUser, library_id: i64) -> PlexResult<()> {
+    if crate::access::withholds(&state.db, user, library_id).await? { Err(PlexError::NotFound) } else { Ok(()) }
+}
+
 impl From<AppError> for PlexError {
     fn from(err: AppError) -> Self {
         match err {
