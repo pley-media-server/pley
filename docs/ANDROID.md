@@ -1164,8 +1164,11 @@ show what they ask for within 10 seconds. A list the phone has seen
 before (an artist's albums, an album's or a playlist's tracks, the
 playlists, Recently added, Live TV's channels) shows as it was saved
 unless the server answers within 0.3 seconds (2.5 seconds for one
-never seen), and the server's answer is there the next time the car
-asks. Picking a track plays on through
+never seen). When the server's answer comes in after it and differs
+from what the car shows (other rows, or rows named, described or
+pictured otherwise), Android Auto is told to read the list again, and
+gets the server's at once; an answer the same as what was shown, or
+none within 30 seconds, changes nothing. Picking a track plays on through
 its album or playlist; a track found by search plays on through its
 album. Now Playing shows the whole queue, which the car can pick from,
 under the name of the album or book it is all of, else of the playlist

@@ -12,9 +12,13 @@ import app.pley.android.model.PlaylistSummary
 import app.pley.android.network.ApiException
 import app.pley.android.network.NetworkGraph
 import app.pley.android.network.PleyApi
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -164,8 +168,9 @@ internal suspend fun <T> Flow<Loadable<T>>.settledIn(data: DataGraph): T {
  * The server's answer, or what was saved when the server is slow: after
  * [SAVED_WAIT_MS] once something saved is there, which a car shows at
  * once rather than wait on a slow network, else after [FRESH_WAIT_MS].
- * The answer still comes in after, for the next time the car asks. A
- * failure with nothing saved throws it.
+ * The answer still comes in after, for the next time the car asks, and
+ * the [SavedAnswers] in the caller's context hear of it. A failure with
+ * nothing saved throws it.
  */
 internal suspend fun <T> Flow<Loadable<T>>.freshOrSaved(): T {
     var saved: T? = null
@@ -192,12 +197,39 @@ internal suspend fun <T> Flow<Loadable<T>>.freshOrSaved(): T {
     return when (fresh) {
         is Loadable.Ready -> fresh.value
         is Loadable.Failed -> fresh.stale ?: saved ?: throw fresh.error
-        else -> saved ?: when (val late = first { it !is Loadable.Loading }) {
+        else -> saved?.also { savedFor(currentCoroutineContext()[SavedAnswers]) } ?: when (val late = first { it !is Loadable.Loading }) {
             is Loadable.Ready -> late.value
             is Loadable.Failed -> late.stale ?: throw late.error
             Loadable.Loading -> error("Still loading")
         }
     }
+}
+
+/** [answers] hear when the server's answer comes in after what was saved was given: whether it came, or failed. */
+private fun <T> Flow<Loadable<T>>.savedFor(answers: SavedAnswers?) {
+    answers?.add { first { it is Loadable.Failed || (it is Loadable.Ready && it.fresh) } is Loadable.Ready }
+}
+
+/**
+ * The answers a car's list was made from that were what was saved, the
+ * server slow ([freshOrSaved]). In the context of what reads a list, it
+ * says whether the list was made from them, and waits for the server's
+ * own answers, which [SavedLists] then reads the list again from.
+ */
+class SavedAnswers : AbstractCoroutineContextElement(SavedAnswers) {
+    private val waits = ConcurrentLinkedQueue<suspend () -> Boolean>()
+
+    /** Whether any of the list was what was saved. */
+    val any: Boolean get() = waits.isNotEmpty()
+
+    internal fun add(fresh: suspend () -> Boolean) {
+        waits += fresh
+    }
+
+    /** Waits for the server's answer to each; whether every one came (a failure leaves what was shown as it is). */
+    suspend fun fresh(): Boolean = waits.all { it() }
+
+    companion object Key : CoroutineContext.Key<SavedAnswers>
 }
 
 /** How long the server's answer is waited for when nothing is saved yet. */

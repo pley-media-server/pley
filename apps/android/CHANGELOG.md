@@ -60,7 +60,8 @@ With Android Auto:
   phone, the book or album you heard last waits, or the album added last. "Hey
   Google, stop" pauses and keeps the queue for the next drive.
 - Lists and covers seen before show at once, also on a slow network:
-  they're kept on the phone for each profile.
+  they're kept on the phone for each profile, and a list updates once the
+  server answers with something different.
 - Parked, the sideloaded app plays videos and Live TV on the car's screen
   (Android 15 and later, in cars that allow video apps), every page and
   control sized for the car, titles larger than the words under them,

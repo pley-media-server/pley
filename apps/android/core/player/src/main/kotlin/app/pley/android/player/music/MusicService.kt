@@ -45,6 +45,8 @@ import app.pley.android.player.music.library.MusicId
 import app.pley.android.player.music.library.MusicLibrary
 import app.pley.android.player.music.library.MusicLibraryGraph
 import app.pley.android.player.music.library.MusicSelection
+import app.pley.android.player.music.library.SavedAnswers
+import app.pley.android.player.music.library.SavedLists
 import app.pley.android.player.music.library.SessionArt
 import app.pley.android.player.music.library.SignedOutException
 import app.pley.android.player.music.library.SpokenFocus
@@ -67,6 +69,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -519,13 +522,20 @@ class MusicService : MediaLibraryService() {
 
     /** Each car connected reads Recent and Books again, if it shows them; no other controller browses them. */
     private fun tellCarsHeard(made: MediaLibrarySession) {
+        tellCarsChanged(made, MusicId.Recent.text)
+        tellCarsChanged(made, MusicId.Books.text)
+    }
+
+    /** Each car connected reads [parentId]'s list again, if it shows it. */
+    private fun tellCarsChanged(made: MediaLibrarySession, parentId: String) {
         if (session !== made) return
         for (car in made.connectedControllers) {
-            if (car.packageName != MusicCallers.ANDROID_AUTO || !isCar(car)) continue
-            made.notifyChildrenChanged(car, MusicId.Recent.text, 0, null)
-            made.notifyChildrenChanged(car, MusicId.Books.text, 0, null)
+            if (isAndroidAuto(car)) made.notifyChildrenChanged(car, parentId, 0, null)
         }
     }
+
+    /** Whether [controller] is Android Auto itself, a car's screen, as the app that asks. */
+    private fun isAndroidAuto(controller: MediaSession.ControllerInfo): Boolean = controller.packageName == MusicCallers.ANDROID_AUTO && isCar(controller)
 
     private fun signedOutError(): PlaybackException {
         val res = AppLanguage.resources(this)
@@ -547,6 +557,12 @@ class MusicService : MediaLibraryService() {
             if (live?.active == true) live.player.pause() else playback.pause()
         }
         private val searches = HashMap<String, List<MediaItem>>()
+
+        /** The lists a car was shown from what was saved: a car is told when the server's turn out different. */
+        private val savedLists = SavedLists(
+            scope,
+            { parentId, page, pageSize -> MusicId.parse(parentId)?.let { library().children(it, page, pageSize) }.orEmpty() },
+        ) { parentId -> session?.let { tellCarsChanged(it, parentId) } }
 
         /** What a car or the Assistant asked to play, still being looked up ([onSetMediaItems]): the latest only. */
         private var picking: Job? = null
@@ -671,7 +687,10 @@ class MusicService : MediaLibraryService() {
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!answers(browser)) refused() else answer {
             val id = MusicId.parse(parentId) ?: return@answer LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
-            LibraryResult.ofItemList(library().children(id, page, pageSize), params)
+            val saved = SavedAnswers()
+            val children = withContext(saved) { library().children(id, page, pageSize) }
+            if (isAndroidAuto(browser)) savedLists.shown(parentId, page, pageSize, children, saved)
+            LibraryResult.ofItemList(children, params)
         }
 
         override fun onSearch(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, query: String, params: LibraryParams?): ListenableFuture<LibraryResult<Void>> =
