@@ -195,15 +195,16 @@ pub fn check<T: fmt::Debug + 'static>(
             .expect("a thread for the cases")
     };
     let mut case = None;
-    let failure = loop {
+    let (failure, stuck) = loop {
         match cases_started.recv_timeout(CASE_TIME) {
             Ok(next) => case = Some(next),
-            Err(mpsc::RecvTimeoutError::Timeout) => break format!("it was still running after {CASE_TIME:?}"),
+            Err(mpsc::RecvTimeoutError::Timeout) => break (format!("it was still running after {CASE_TIME:?}"), true),
             Err(mpsc::RecvTimeoutError::Disconnected) => match worker.join() {
                 Ok(()) => return,
                 Err(panic) => {
                     let message = panic.downcast_ref::<String>().map(String::as_str);
-                    break message.or(panic.downcast_ref::<&str>().copied()).unwrap_or("it panicked").to_owned();
+                    let message = message.or(panic.downcast_ref::<&str>().copied()).unwrap_or("it panicked");
+                    break (message.to_owned(), false);
                 }
             },
         }
@@ -215,14 +216,23 @@ pub fn check<T: fmt::Debug + 'static>(
         shown.truncate(end);
         shown.push('…');
     }
-    panic!(
+    let report = format!(
         "{name}, case {case} of {cases} (PLEY_FUZZ_SEED={seed}): {failure}\ninput: {shown}\n\
          Fix the code it found, then add the input to the module's tests."
     );
+    if stuck {
+        // The stuck case keeps running, and may take the test program down
+        // (out of memory) before the test harness shows what it captured:
+        // the case is told at once, past the capture.
+        use std::io::Write;
+        let _ = writeln!(std::io::stderr(), "{report}");
+    }
+    panic!("{report}");
 }
 
 /// What the thread running a case holds, counted by [`Counting`] from the
-/// case's start.
+/// case's start. Only that thread's allocations count: what threads it
+/// starts take isn't, and freeing what they took doesn't make room for more.
 struct Held;
 
 thread_local! {
@@ -253,7 +263,9 @@ impl Held {
         // Never fails for a value without a destructor.
         let _ = HELD.try_with(|(on, now, most)| {
             if on.get() {
-                now.set(now.get() + by);
+                // Never below none: memory another thread allocated, freed
+                // here, would hide as much allocated after it.
+                now.set((now.get() + by).max(0));
                 most.set(most.get().max(now.get()));
             }
         });
@@ -339,6 +351,17 @@ mod tests {
         drop(std::hint::black_box(vec![0u8; 2 << 20]));
         let most = Held::most();
         assert!((3 << 20..4 << 20).contains(&most), "{most}");
+        drop(kept);
+    }
+
+    #[test]
+    fn freeing_another_threads_memory_makes_no_room() {
+        let theirs = std::thread::spawn(|| std::hint::black_box(vec![0u8; 2 << 20])).join().unwrap();
+        Held::count();
+        drop(theirs);
+        let kept = std::hint::black_box(vec![0u8; 1 << 20]);
+        let most = Held::most();
+        assert!((1 << 20..2 << 20).contains(&most), "{most}");
         drop(kept);
     }
 
