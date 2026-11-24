@@ -130,6 +130,11 @@ class LiveLibraryTest {
         assertEquals("Music", tabs[1].mediaMetadata.title.toString())
         assertEquals(listOf("playlists", "artist:40"), library.children(MusicId.Artists, 0, 50).map { it.mediaId })
         assertEquals("playlists", library.item(MusicId.Playlists)?.mediaId)
+        // Paged, Playlists and the artists are one list, and no page holds more than asked for (Media3 refuses it).
+        assertEquals(listOf("playlists"), library.children(MusicId.Artists, 0, 1).map { it.mediaId })
+        assertEquals(listOf("artist:40"), library.children(MusicId.Artists, 1, 1).map { it.mediaId })
+        assertEquals(listOf("recent", "artists"), library.children(MusicId.Root, 0, 2).map { it.mediaId })
+        assertEquals(listOf("books", "live"), library.children(MusicId.Root, 1, 2).map { it.mediaId })
 
         source.shown = false
         val four = library.children(MusicId.Root, 0, 50)
@@ -219,7 +224,8 @@ class LiveLibraryTest {
 
         override suspend fun libraries() = if (full) listOf(Library(3, "Music", LibraryKind.Music, itemCount = 1)) else emptyList()
 
-        override suspend fun artists(libraryId: Long, offset: Int, limit: Int) = listOf(ItemSummary(40, 3, ItemKind.Artist, "Harbour Lights"))
+        override suspend fun artists(libraryId: Long, offset: Int, limit: Int) =
+            listOf(ItemSummary(40, 3, ItemKind.Artist, "Harbour Lights")).drop(offset).take(limit)
 
         override suspend fun playlists() = if (full) listOf(PlaylistSummary(7, "Night drive", PlaylistKind.Audio, itemCount = 2)) else emptyList()
 

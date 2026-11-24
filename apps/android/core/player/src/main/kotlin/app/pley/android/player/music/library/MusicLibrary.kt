@@ -113,12 +113,19 @@ class MusicLibrary(
     suspend fun children(id: MusicId, page: Int, pageSize: Int): List<MediaItem> {
         val size = pageSize.coerceIn(1, MAX_PAGE)
         val all: List<MediaItem> = when (id) {
-            MusicId.Root -> return if (page == 0) tabs() else emptyList()
+            MusicId.Root -> tabs()
             MusicId.Recent -> recent()
             MusicId.Artists -> {
                 val first = if (playlistsInArtists) listOf(playlistsNode(look())) else emptyList()
                 val libraries = source.libraries()
-                if (libraries.size == 1) return (if (page == 0) first else emptyList()) + source.artists(libraries[0].id, page * size, size).map(::artist)
+                if (libraries.size == 1) {
+                    // Playlists, then the artists, paged as one list: a page holds no more than it was asked for.
+                    val start = page * size
+                    val head = first.drop(start).take(size)
+                    val left = size - head.size
+                    val artists = if (left > 0) source.artists(libraries[0].id, (start - first.size).coerceAtLeast(0), left) else emptyList()
+                    return head + artists.map(::artist)
+                }
                 first + libraries.map { node(MusicId.LibraryArtists(it.id), it.name, browsable = true, playable = false, browsableStyle = LIST) }
             }
             MusicId.Books -> books()
