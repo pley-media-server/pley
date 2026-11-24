@@ -157,7 +157,7 @@ sub place(anchor as integer)
     moving = anchor >= 0 and m.scroll.state = "running"
     if not moving
         m.scroll.control = "stop"
-        if anchor < 0 or offset <> m.offset then m.page.translation = [0, -offset]
+        m.page.translation = [0, -offset]
     end if
     m.offset = offset
     clipAt(offset)

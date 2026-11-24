@@ -2658,7 +2658,8 @@ end sub
 sub showDetails(live as dynamic)
     ' Nothing yet to say: not the last title's sheet.
     if m.info = invalid
-        m.detailsShown = ""
+        if m.detailsShown = "[]" then return
+        m.detailsShown = "[]"
         m.menuFacts.lines = []
         return
     end if
