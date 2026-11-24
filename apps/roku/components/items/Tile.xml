@@ -26,6 +26,7 @@
     <script type="text/brightscript" uri="pkg:/components/items/Tile.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Mark.brs" />
     <children>
         <Group translation="[24, 30]">
             <Rectangle id="well" color="0x262B35FF" />

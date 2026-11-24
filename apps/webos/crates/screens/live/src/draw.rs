@@ -51,7 +51,7 @@ pub fn channel_tile(ui: &mut Ui, cx: &AppCx, rect: Rect, channel: &LiveChannel, 
     let shown = request.as_ref().map(|r| ui.image_state(r, pley_base::Priority::Visible));
     let failed = shown.is_none_or(|s| matches!(s.state, ImageState::Failed));
     if failed {
-        placeholder(ui, rect, &channel.name, "", well.radius);
+        placeholder(ui, rect, &channel.name, "", None, well.radius);
         let label = if well.name {
             channel.name.clone()
         } else {

@@ -194,6 +194,7 @@ impl Cell {
         Tile::new(kind, &self.title)
             .subtitle(&self.subtitle)
             .art(&self.art)
+            .mark(Some(self.item.kind.mark_glyph()))
             .progress(self.progress)
             .unwatched(self.unwatched)
             .watched(self.watched)

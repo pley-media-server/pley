@@ -62,7 +62,11 @@ sub init()
     m.shownFocused = false
 end sub
 
-' Bound again as the list scrolls: only a new title changes the tile.
+' Bound again as the list scrolls: only a new title changes the tile. A
+' title without a picture, or whose picture fails, shows Pley's mark in
+' its frame (the poster's failed bitmap, drawn for its shape with its
+' library's glyph), and not its title: the line under it names it. No
+' observer per tile.
 sub onContent()
     item = m.top.itemContent
     if item = invalid then return
@@ -78,13 +82,19 @@ sub onContent()
     m.title.text = item.title
     ' See all, a row's Try again or note, a grid's Look further and Request
     ' more seasons: their words in the well only.
-    if item.hasField("kind") and (item.kind = "more" or item.kind = "retry" or item.kind = "note" or item.kind = "further" or item.kind = "askMore") then m.title.text = ""
+    words = item.hasField("kind") and (item.kind = "more" or item.kind = "retry" or item.kind = "note" or item.kind = "further" or item.kind = "askMore")
+    if words then m.title.text = ""
     m.subtitle.text = item.subtitle
     m.subtitle.color = "0xA1A9B6FF"
     if item.hasField("subtitleColor") then m.subtitle.color = item.subtitleColor
-    m.fallback.text = item.title
-    ' A person without a photo: their initials in the circle, their name
-    ' being under it already.
+    ' A Live TV channel without its logo shows its name in the well, as the
+    ' other apps do, and no mark; a person without a photo, their initials
+    ' in the circle, their name being under it already.
+    kind = ""
+    if item.hasField("kind") then kind = item.kind
+    named = words or kind = "channel"
+    m.fallback.text = ""
+    if named then m.fallback.text = item.title
     if m.person
         m.fallback.text = tileInitials(item.title)
         m.fallback.font = uiType("section")
@@ -112,15 +122,30 @@ sub onContent()
         m.poster.observeField("loadStatus", "onLoaded")
     end if
     onLayout()
-    ' A tile of words alone (Request more seasons, See all), bound where a
-    ' picture was, shows none: a Poster keeps its last bitmap when its uri
-    ' becomes "".
+    ' A frame without a title is one that loads (a row's skeleton, a
+    ' library's place a jump passed over): it stays empty. A tile of words
+    ' alone (Request more seasons, See all), bound where a picture was,
+    ' shows none: a Poster keeps its last bitmap when its uri becomes "".
+    placeholder = ""
+    if not named and not m.person and item.title <> "" then placeholder = placeholderUri(item)
+    m.poster.failedBitmapUri = placeholder
     image = ""
     if item.hasField("image") and item.image <> invalid then image = item.image
+    if image = "" then image = placeholder
     m.poster.visible = image <> ""
     m.poster.uri = image
     onFocus()
 end sub
+
+' Pley's mark for this tile's kind and shape (lib/Mark.brs).
+function placeholderUri(item as object) as string
+    kind = ""
+    if item.hasField("kind") then kind = item.kind
+    detail = ""
+    if item.hasField("tmdbKind") then detail = item.tmdbKind
+    if item.hasField("playlistKind") then detail = item.playlistKind
+    return markPlaceholderUri(markTileGlyph(kind, detail), m.wide, m.square)
+end function
 
 ' The tile's item is 24 px wider than its artwork and 30 px taller: room
 ' at the left and top for the focused one's growth and ring, which a list

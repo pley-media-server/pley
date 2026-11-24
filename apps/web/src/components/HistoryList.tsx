@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage } from "@/api/client";
 import { useDeleteHistory, useHistory, type HistoryScope } from "@/api/hooks";
 import type { HistoryEntry } from "@/api/types";
@@ -49,7 +50,7 @@ function HistoryRow({
           width={40}
           alt=""
           title=""
-          bare
+          mark={markGlyph(item.kind)}
           className={cn("w-10 rounded", item.kind === "track" ? "aspect-square" : "aspect-[2/3]")}
         />
       </Link>

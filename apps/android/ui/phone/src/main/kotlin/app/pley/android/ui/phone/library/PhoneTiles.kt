@@ -16,6 +16,7 @@ import app.pley.android.common.resolve
 import app.pley.android.data.GridDensity
 import app.pley.android.designsystem.PleyPhone
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.CollectionSummary
@@ -64,6 +65,8 @@ internal class PhoneTiles(private val resources: () -> Resources) : TileFactory<
             subtitle = count,
             image = ArtworkImage.of(collection.posterUrl, origin),
             description = "${collection.title}, $count",
+            // Not a kind of library's: the logo's play.
+            mark = MarkGlyph.Play,
         )
     }
 }

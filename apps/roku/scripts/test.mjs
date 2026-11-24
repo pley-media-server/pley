@@ -67,6 +67,12 @@ const fixtures = join(root, "../../packages/tv/test/fixtures");
 for (const name of ["remote.json", "language.json"]) {
   files.set(`fixtures/${name}`, new Blob([readFileSync(join(fixtures, name))]));
 }
+// Pley's placeholder mark as every app draws it, and the pictures of it
+// this app ships (pkg:/images/placeholder-<shape>-<glyph>.png).
+files.set("placeholder/placeholder.json", new Blob([readFileSync(join(root, "../../packages/placeholder/placeholder.json"))]));
+for (const name of readdirSync(join(root, "images")).filter((n) => n.startsWith("placeholder-"))) {
+  files.set(`images/${name}`, new Blob([readFileSync(join(root, "images", name))]));
+}
 // The words, as the package has them (pkg:/locales/<language>/<area>.json).
 for (const language of readdirSync(join(root, "locales"))) {
   for (const name of readdirSync(join(root, "locales", language)).filter((n) => n.endsWith(".json"))) {

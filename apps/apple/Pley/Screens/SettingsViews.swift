@@ -333,7 +333,7 @@ private struct HistoryRowView: View {
     var body: some View {
         Button(action: open) {
             HStack(spacing: 12) {
-                ServerImage(app: app, paths: row.pictures, width: min(width, 70), symbol: Metrics.symbol(row.kind))
+                ServerImage(app: app, paths: row.pictures, width: min(width, 70), title: row.title, kind: row.kind)
                     .frame(width: min(width, 70), height: min(width, 70) * (row.square ? 1 : 1.5))
                     .clipShape(RoundedRectangle(cornerRadius: 4))
                 VStack(alignment: .leading, spacing: 2) {

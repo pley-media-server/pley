@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Changed
 
+- Movies, shows and music without a picture show Pley's mark instead of
+  their title, which the line under it shows. The mark's glyph says the
+  kind of library: a clapperboard for movies, a TV for shows, notes for
+  music.
 - Discover says what the poster in focus is: over its rows, the title's
   name, its year, kind, rating and badge, and the start of its overview,
   with its backdrop behind, as on Home. The hero went off the screen

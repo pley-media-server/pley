@@ -48,6 +48,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.asString
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.music.AlbumPage
@@ -155,7 +156,7 @@ private fun AlbumContent(
                 .focusGroup(),
         ) {
             Box(Modifier.size(ART).clip(PleyShape.TileTv).background(PleyColors.Surface2)) {
-                Artwork(art, page.title, Modifier.matchParentSize())
+                Artwork(art, page.title, Modifier.matchParentSize(), mark = MarkGlyph.Music)
             }
             Spacer(Modifier.height(12.dp))
             BasicText(page.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)

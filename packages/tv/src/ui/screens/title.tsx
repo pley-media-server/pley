@@ -1,5 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { markGlyph } from "pley-placeholder";
 import { unreachable } from "../../api/client";
 import type { DiscoverDetail, DiscoverSeason, RequestSummary, TitleKind } from "../../api/types";
 import { t } from "../../i18n";
@@ -286,7 +287,7 @@ function TitlePage(p: { entry: Entry; detail: DiscoverDetail; pick: boolean }) {
       {/* No backdrop on TMDB: the poster stands at the right instead. */}
       {!d.backdrop_url && d.poster_url && !showInfo && (
         <div class="title-poster" aria-hidden="true">
-          <Art candidates={[d.poster_url]} width={200} title={d.title} class="tile-clip" />
+          <Art candidates={[d.poster_url]} width={200} title={d.title} mark={markGlyph(d.kind)} class="tile-clip" />
         </div>
       )}
       {showInfo && <TitleInfo detail={d} />}
@@ -395,7 +396,7 @@ function SeasonTileView(p: {
     <F class="tile" style={`width:${spec.w}px`} fid={p.fid} label={[p.name, p.badge, p.line].filter(Boolean).join(", ")} onSelect={p.onSelect} onFocus={p.onFocus}>
       <div class="tile-well" style={`width:${spec.w}px;height:${spec.h}px`}>
         <div class="tile-clip">
-          <Art candidates={p.art} width={spec.w} title={p.name} showTitle class="tile-clip" priority={p.priority} />
+          <Art candidates={p.art} width={spec.w} title={p.name} mark="shows" class="tile-clip" priority={p.priority} />
           <div class="tile-hairline" />
           {p.progress !== null && (
             <div class="tile-progress">
