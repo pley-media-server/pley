@@ -18,6 +18,13 @@ internal class KeptSearches(
     /** By query, the one used last at the end. */
     private val kept = LinkedHashMap<String, Pair<Long, List<MediaItem>>>(most + 1, 0.75f, true)
 
+    /** Counted up by [clear]: a search started before it (another profile's) isn't kept for after it. */
+    private var generation = 0
+
+    /** What a search started now passes to [put]. */
+    @Synchronized
+    fun generation(): Int = generation
+
     /** [query]'s results, when they were kept and are still new enough. */
     @Synchronized
     fun get(query: String): List<MediaItem>? {
@@ -27,15 +34,20 @@ internal class KeptSearches(
         return null
     }
 
+    /** Keeps [results] for [query], unless the searches were forgotten since the search started ([generation]). */
     @Synchronized
-    fun put(query: String, results: List<MediaItem>) {
+    fun put(query: String, results: List<MediaItem>, generation: Int) {
+        if (generation != this.generation) return
         kept[query] = clock() to results
         while (kept.size > most) kept.remove(kept.keys.first())
     }
 
     /** Forgets every search: another profile's aren't this one's. */
     @Synchronized
-    fun clear() = kept.clear()
+    fun clear() {
+        kept.clear()
+        generation++
+    }
 
     private companion object {
         /** The searches kept: the one typed, and the two before it. */

@@ -713,6 +713,8 @@ class MusicService : MediaLibraryService() {
         override fun onSearch(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, query: String, params: LibraryParams?): ListenableFuture<LibraryResult<Void>> =
             // Media3 answers a MediaBrowserCompat car's search only once its results are said to have changed.
             if (!answers(browser)) refused() else answer(slow = { session.notifySearchResultChanged(browser, query, 0, params) }) {
+                // Read as the search starts: a profile changed meanwhile has forgotten it, and its results aren't kept.
+                val generation = searches.generation()
                 val found = searches.get(query) ?: try {
                     library().search(query.take(MAX_QUERY))
                 } catch (e: Exception) {
@@ -733,7 +735,8 @@ class MusicService : MediaLibraryService() {
             pageSize: Int,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!answers(browser)) refused() else answer {
-            val found = searches.get(query) ?: library().search(query.take(MAX_QUERY)).also { searches.put(query, it) }
+            val generation = searches.generation()
+            val found = searches.get(query) ?: library().search(query.take(MAX_QUERY)).also { searches.put(query, it, generation) }
             val size = pageSize.coerceIn(1, MusicLibrary.MAX_PAGE)
             LibraryResult.ofItemList(rowsFor(browser, found.drop(page * size).take(size)), params)
         }
