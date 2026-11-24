@@ -50,6 +50,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -361,10 +366,11 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
     val iconsAlone = rail || LocalCarScreen.current
     val tab = navigation.tab
     val itemColors = ShortNavigationBarItemDefaults.colors(
-        selectedIconColor = PleyColors.AccentBright,
+        selectedIconColor = if (rail) PleyColors.Accent else PleyColors.AccentBright,
         selectedTextColor = PleyColors.Fg,
-        // No pill behind the chosen tab: its accent icon and bright label say it.
-        selectedIndicatorColor = Color.Transparent,
+        // Under the page, no pill behind the chosen tab: its accent icon and bright label say it. In the rail, where
+        // there's no label, the web's sidebar mark: a faint fill behind it and an accent bar on its edge (railMark).
+        selectedIndicatorColor = if (rail) RailFill else Color.Transparent,
         unselectedIconColor = PleyColors.Muted,
         unselectedTextColor = PleyColors.Muted,
     )
@@ -385,7 +391,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                     },
                     label = if (iconsAlone) null else ({ FittedLabel(name) }),
                     colors = itemColors,
-                    modifier = Modifier.testTag(TAB_TAG + item.name),
+                    modifier = Modifier.testTag(TAB_TAG + item.name).then(if (rail && item == tab) Modifier.railMark() else Modifier),
                 )
             }
         },
@@ -538,6 +544,32 @@ private fun fadeThrough(reduced: Boolean): ContentTransform {
     if (reduced) return EnterTransition.None togetherWith ExitTransition.None
     val out = PleyMotion.SCREEN_MS / 3
     return fadeIn(tween(PleyMotion.SCREEN_MS - out, delayMillis = out, easing = LinearEasing)) togetherWith fadeOut(tween(out, easing = LinearEasing))
+}
+
+/** The chosen tab's fill in the rail: white at 7 %, the web sidebar's. */
+private val RailFill = Color.White.copy(alpha = 0.07f)
+
+/**
+ * The chosen tab's bar in the rail, as the web's sidebar marks its link: 3 dp of accent on the edge toward the
+ * screen's, 6 dp short of the item's top and bottom, its outer corners square.
+ */
+private fun Modifier.railMark(): Modifier = drawBehind {
+    val width = 3.dp.toPx()
+    val inset = 6.dp.toPx()
+    val radius = CornerRadius(width, width)
+    val left = layoutDirection == LayoutDirection.Ltr
+    val path = Path().apply {
+        addRoundRect(
+            RoundRect(
+                rect = Rect(if (left) 0f else size.width - width, inset, if (left) width else size.width, size.height - inset),
+                topLeft = if (left) CornerRadius.Zero else radius,
+                bottomLeft = if (left) CornerRadius.Zero else radius,
+                topRight = if (left) radius else CornerRadius.Zero,
+                bottomRight = if (left) radius else CornerRadius.Zero,
+            ),
+        )
+    }
+    drawPath(path, PleyColors.Accent)
 }
 
 /** The test tag of each tab's item in the bar or rail: this and the tab's name. */

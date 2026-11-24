@@ -164,7 +164,9 @@ rates as the decoder gives them, the same in every language.
 - **The tabs** are a bar under the page on a phone held upright, with
   their names, and a rail beside it on a phone on its side, a tablet or
   a car's screen: icons alone, centered on its height and read out by
-  name. A narrow car screen has the bar, its icons alone.
+  name, the chosen one in the accent on a faint fill with an accent bar
+  on its edge, as the web's sidebar marks it. A narrow car screen has
+  the bar, its icons alone.
 - **The player** shows its controls, the title with them, for 3 s as
   playback starts and as each later item begins (the next episode, a
   queue's next), where TVs show the title alone at the top; a tap shows
