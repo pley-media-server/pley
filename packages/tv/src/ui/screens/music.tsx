@@ -102,7 +102,7 @@ export function ArtistScreen(p: { entry: Entry; id: number }) {
       <Backdrop candidates={artist.backdrop_url ? [artist.backdrop_url] : []} title={artist.title} scrim="item" />
       <div class="artist-header">
         <div class="artist-picture">
-          <Art candidates={artist.poster_url ? [artist.poster_url] : []} width={120} title={artist.title} class="tile-clip" />
+          <Art candidates={artist.poster_url ? [artist.poster_url] : []} width={120} title={artist.title} mark="music" class="tile-clip" />
         </div>
         <div style="margin-left:28px;max-width:520px">
           <div class="t-caption c-muted">{t("browse.music.artist")}</div>
@@ -223,7 +223,7 @@ export function AlbumScreen(p: { entry: Entry; id: number; trackId?: number }) {
       <FaintArt path={album.poster_url} title={album.title} alpha={0.14} />
       <G kind="col" restore class="album-left">
         <div class="album-art">
-          <Art candidates={album.poster_url ? [album.poster_url] : []} width={220} title={album.title} class="tile-clip" />
+          <Art candidates={album.poster_url ? [album.poster_url] : []} width={220} title={album.title} mark="music" class="tile-clip" />
         </div>
         <div class="t-title c-fg lines-2" style="margin-top:12px">
           {album.title}
@@ -383,7 +383,7 @@ export function NowPlayingScreen() {
     <div class="music-page">
       <FaintArt path={art} title={track.title} alpha={0.2} />
       <div class="now-art">
-        <Art candidates={art ? [art] : []} width={300} title={track.parent_title ?? track.title} class="tile-clip" />
+        <Art candidates={art ? [art] : []} width={300} title={track.parent_title ?? track.title} mark="music" class="tile-clip" />
       </div>
       <G kind="col" class="now-column">
         <div class="t-page c-fg lines-2">{track.title}</div>

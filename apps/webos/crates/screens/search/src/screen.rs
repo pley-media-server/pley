@@ -954,7 +954,8 @@ fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Disc
 
 /// A TMDB title's poster, with its badge at the upper left in the badge's color.
 fn paint_tmdb_tile(ui: &mut Ui, slot: &TileSlot, t: &TmdbTile) {
-    let tile = Tile::new(TileKind::Poster, &t.title).subtitle(&t.subtitle).art(&t.art);
+    let mark = t.kind.mark_glyph();
+    let tile = Tile::new(TileKind::Poster, &t.title).subtitle(&t.subtitle).art(&t.art).mark(Some(mark));
     let Some(badge) = t.badge.filter(|_| slot.mode == SlotMode::Draw) else {
         tile.paint(ui, slot);
         return;
@@ -966,7 +967,7 @@ fn paint_tmdb_tile(ui: &mut Ui, slot: &TileSlot, t: &TmdbTile) {
         if shown.is_some_and(|s| s.opaque()) {
             ui.fill(rect, theme::SURFACE2, r);
         } else {
-            placeholder(ui, rect, &t.title, &t.title, r);
+            placeholder(ui, rect, &t.title, "", shown.is_none().then_some(mark), r);
         }
         if let Some(s) = shown {
             ui.draw_image(rect, &s, &ImageOpts::cover().rounded(r));
@@ -1002,6 +1003,7 @@ fn tile_row(
             Tile::new(kind, &t.title)
                 .subtitle(&t.subtitle)
                 .art(&t.art)
+                .mark(t.mark)
                 .progress(t.progress)
                 .watched(t.watched)
                 .unwatched(t.unwatched)
@@ -1058,7 +1060,7 @@ fn channel_tile(ui: &mut Ui, slot: &TileSlot, found: &ChannelResult, now: i64) {
     let well = |ui: &mut Ui, rect: Rect| {
         let shown = found.logo.as_ref().map(|logo| ui.image_state(logo, priority));
         if shown.is_none_or(|s| matches!(s.state, ImageState::Failed)) {
-            placeholder(ui, rect, &channel.name, &channel.name, radius::TILE);
+            placeholder(ui, rect, &channel.name, &channel.name, None, radius::TILE);
         } else {
             ui.fill(rect, theme::SURFACE3, radius::TILE);
             if let Some(s) = shown {

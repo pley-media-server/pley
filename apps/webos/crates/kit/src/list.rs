@@ -176,7 +176,7 @@ impl<'a> ListRow<'a> {
             let r = Rect::new(x, rect.y + (rect.h - ART_SIZE) / 2.0, ART_SIZE, ART_SIZE);
             let shown = first_art(ui, art, Priority::Visible);
             if !shown.is_some_and(|s| s.opaque()) {
-                placeholder(ui, r, seed, "", radius::TILE);
+                placeholder(ui, r, seed, "", None, radius::TILE);
             }
             if let Some(s) = shown {
                 ui.draw_image(r, &s, &ImageOpts::cover().rounded(radius::TILE));

@@ -7,7 +7,7 @@
 
 use std::hash::{Hash, Hasher};
 
-use pley_base::{Icon, ImageRequest, Key, Point, Rect, Size, TextOpts};
+use pley_base::{Icon, ImageRequest, Key, MarkGlyph, Point, Rect, Size, TextOpts};
 use pley_core::format::format_clock;
 use pley_core::model::{ImageKind, ItemSummary};
 use pley_i18n::t;
@@ -69,6 +69,8 @@ struct TrackArt {
     byline: String,
     /// What picks the placeholder's gradient: the album, else the title.
     seed: String,
+    /// The glyph of the mark on the placeholder: the track's kind's.
+    mark: MarkGlyph,
 }
 
 impl TrackArt {
@@ -87,6 +89,7 @@ impl TrackArt {
             title: track.title.clone(),
             byline: pages::byline(track),
             seed: track.parent_title.clone().unwrap_or_else(|| track.title.clone()),
+            mark: track.kind.mark_glyph(),
         }
     }
 }
@@ -188,7 +191,7 @@ impl Screen for NowPlayingScreen {
         let Some(art) = self.art.take() else { return };
 
         faint_art(ui, &art.faint, &art.title, FAINT);
-        art_well(ui, ART, &art.cover, &art.seed, radius::DIALOG);
+        art_well(ui, ART, &art.cover, &art.seed, art.mark, radius::DIALOG);
 
         // The title, the byline and the status line.
         let x = COLUMN_X;

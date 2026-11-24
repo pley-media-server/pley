@@ -696,6 +696,7 @@ fn paint_mine(ui: &mut Ui, slot: &TileSlot, mine: &[MineTile], manage: bool, tim
         tone: Some(w.tone),
         lines: 1,
         art: &t.art,
+        mark: t.request.kind.mark_glyph(),
         progress: w.progress,
         badge: None,
         news: t.request.unseen,

@@ -559,7 +559,7 @@ function pagePlaylistTile(playlist as object, server as string) as object
     image = ""
     artwork = httpArray(playlist.artwork)
     if artwork.Count() > 0 then image = urlImage(server, artwork[0], contentPosterWidth())
-    return { title: httpSentence(playlist.title), subtitle: pagePlaylistLine(playlist), image: image, wide: false, progress: 0.0, watched: false, itemId: httpNumber(playlist.id, 0), kind: "playlist" }
+    return { title: httpSentence(playlist.title), subtitle: pagePlaylistLine(playlist), image: image, wide: false, progress: 0.0, watched: false, itemId: httpNumber(playlist.id, 0), kind: "playlist", playlistKind: httpString(playlist.kind) }
 end function
 
 function pagePlaylistTiles(playlists as dynamic, server as string) as object

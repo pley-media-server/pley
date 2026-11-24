@@ -910,6 +910,7 @@ function CollectionsTab(p: { entry: Entry; library: Library; initial: boolean; f
               title={c.title}
               subtitle={collectionCount(c, lib.kind)}
               candidates={[c.poster_url]}
+              mark="play"
               fid={`collections/${c.id}`}
               initial={p.initial && gi === 0 && i === 0}
               priority={place.priority}
@@ -953,6 +954,7 @@ function CollectionsTab(p: { entry: Entry; library: Library; initial: boolean; f
               title={c.title}
               subtitle={collectionCount(c, lib.kind)}
               candidates={[c.poster_url]}
+              mark="play"
               badge={formatNumber(c.item_count)}
               fid={`collections/${c.id}`}
               initial={p.initial && i === 0}

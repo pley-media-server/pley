@@ -8,12 +8,14 @@ on:
     branches: [master]
     paths:
       - apps/android/**
+      - packages/placeholder/**
       - scripts/check-android.ps1
       - .github/workflows/android.yml
       - "!**/CHANGELOG.md"
   pull_request:
     paths:
       - apps/android/**
+      - packages/placeholder/**
       - scripts/check-android.ps1
       - .github/workflows/android.yml
       - "!**/CHANGELOG.md"

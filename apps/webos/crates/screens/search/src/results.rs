@@ -3,7 +3,7 @@
 //! `ArtworkCandidates`), and where a result opens (`SearchViewModel.opens`); then what TMDB has for
 //! the words that the libraries lack, as the Discover row after them shows it (`search.tsx`).
 
-use pley_base::ImageRequest;
+use pley_base::{ImageRequest, MarkGlyph};
 use pley_core::ApiError;
 use pley_core::format::{
     card_subtitle, episode_label, format_time_left, is_in_progress, progress_fraction, season_title, unwatched_count,
@@ -103,6 +103,8 @@ pub struct ResultTile {
     pub subtitle: String,
     /// The pictures to try, first choice first.
     pub art: Vec<ImageRequest>,
+    /// The glyph of the mark on a title's placeholder; a person has none.
+    pub mark: Option<MarkGlyph>,
     /// How far it was played, when in progress.
     pub progress: Option<f32>,
     pub watched: bool,
@@ -222,6 +224,7 @@ pub fn person_tile(person: &PersonSummary, resolve: Resolve) -> ResultTile {
         title: person.name.clone(),
         subtitle: String::new(),
         art: art.into_iter().collect(),
+        mark: None,
         progress: None,
         watched: false,
         unwatched: 0,
@@ -268,6 +271,7 @@ pub fn item_tile(item: &ItemSummary, kind: TileKind, resolve: Resolve) -> Result
         title,
         subtitle,
         art: paths.iter().filter_map(|p| resolve(p, kind)).collect(),
+        mark: Some(item.kind.mark_glyph()),
         progress: in_progress.then(|| progress_fraction(item.user_state.position_ms, item.duration_ms)),
         watched: item.user_state.watched && unwatched == 0,
         unwatched: unwatched.clamp(0, i64::from(u32::MAX)) as u32,

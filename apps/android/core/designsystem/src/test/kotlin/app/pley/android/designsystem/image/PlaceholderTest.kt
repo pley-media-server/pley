@@ -1,22 +1,43 @@
 package app.pley.android.designsystem.image
 
 import androidx.compose.ui.graphics.Color
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.roundToInt
 
 class PlaceholderTest {
-    /** Hues from apps/web/src/lib/images.ts's placeholderGradient, run in Node for these titles. */
+    /**
+     * packages/placeholder's examples, which every app's gradient is held
+     * to: each title's hue, and its two colors as CSS makes them.
+     */
     @Test
-    fun huesAreTheWebsForTheSameTitles() {
-        val web = mapOf(
-            "Heat" to 176, "Alien" to 159, "" to 0, "Glasshouse" to 124, "Northern Lights" to 121,
-            "Ashfall" to 265, "A Film With No Poster Yet" to 71, "Amélie" to 331, "千と千尋の神隠し" to 156,
-            "The Quiet Harbor" to 303,
-        )
-        for ((title, hue) in web) assertEquals(title, hue, Placeholder.hue(title))
+    fun eachExampleIsThePlaceholderFiles() {
+        val examples = placeholderFile.getValue("examples").jsonArray.map { it.jsonObject }
+        assertTrue(examples.isNotEmpty())
+        for (example in examples) {
+            val seed = example.getValue("seed").jsonPrimitive.content
+            assertEquals(seed, example.getValue("hue").jsonPrimitive.int, Placeholder.hue(seed))
+            val (from, to) = Placeholder.colors(seed)
+            assertNear(seed, hex(example.getValue("from").jsonPrimitive.content), bytes(from))
+            assertNear(seed, hex(example.getValue("to").jsonPrimitive.content), bytes(to))
+        }
+        // The brush draws CSS's 135deg: another angle in the file needs it drawn again.
+        assertEquals(135, placeholderFile.getValue("gradient").jsonObject.getValue("angle").jsonPrimitive.int)
     }
+
+    /** Within a step of a byte each, as the apps round colors their own ways. */
+    private fun assertNear(seed: String, expected: Triple<Int, Int, Int>, actual: Triple<Int, Int, Int>) {
+        val off = listOf(expected.first - actual.first, expected.second - actual.second, expected.third - actual.third)
+        assertTrue("$seed: $actual, not $expected", off.all { it in -1..1 })
+    }
+
+    private fun hex(color: String) = Triple(color.substring(1, 3).toInt(16), color.substring(3, 5).toInt(16), color.substring(5, 7).toInt(16))
 
     @Test
     fun colorsAreTheWebsHsl() {

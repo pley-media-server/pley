@@ -37,6 +37,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.model.DiscoverTitle
@@ -92,6 +93,7 @@ internal fun titleTile(title: DiscoverTitle, origin: String, texts: RequestTexts
         image = ArtworkImage.of(title.posterUrl, origin),
         badges = listOfNotNull(badge),
         description = listOfNotNull(title.title, title.year?.toString(), texts.kind(title.kind), badge).joinToString(", "),
+        mark = MarkGlyph.of(title.kind),
     )
 }
 
@@ -105,6 +107,7 @@ internal fun requestTile(request: MediaRequest, origin: String, texts: RequestTe
         image = ArtworkImage.of(request.posterUrl, origin),
         progress = downloadProgress(request) ?: 0f,
         description = "${request.title}, $stage",
+        mark = MarkGlyph.of(request.kind),
     )
 }
 

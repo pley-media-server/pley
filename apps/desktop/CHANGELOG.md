@@ -8,6 +8,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Movies, shows, music and audiobooks without a picture show Pley's mark
+  on their placeholder instead of their title, which the caption under
+  it shows, with a clapperboard, a TV, notes or a book in it for their
+  kind of library. Where nothing beside a picture names it, the title
+  stays.
+
 ### Fixed
 
 - Music playing in the app pauses once Play on… sends something to

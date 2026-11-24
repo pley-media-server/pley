@@ -16,8 +16,10 @@ sub init()
     m.progress = 0.0
 end sub
 
-' The title under the poster shows until a picture covers it, or when
-' there is none: no observer per tile.
+' A title without a picture, or whose picture fails, shows Pley's mark
+' in its frame (the poster's failed bitmap, drawn for its shape with its
+' library's glyph), and not its title: the line under it names it. No
+' observer per tile.
 sub onContent()
     item = m.top.itemContent
     if item = invalid then return
@@ -31,11 +33,19 @@ sub onContent()
     m.title.text = item.title
     ' See all, a row's Try again or note, a grid's Look further and Request
     ' more seasons: their words in the frame only.
-    if item.hasField("kind") and (item.kind = "more" or item.kind = "retry" or item.kind = "note" or item.kind = "further" or item.kind = "askMore") then m.title.text = ""
+    words = item.hasField("kind") and (item.kind = "more" or item.kind = "retry" or item.kind = "note" or item.kind = "further" or item.kind = "askMore")
+    if words then m.title.text = ""
     m.subtitle.text = item.subtitle
     m.subtitle.color = "0xA1A9B6FF"
     if item.hasField("subtitleColor") then m.subtitle.color = item.subtitleColor
-    m.fallback.text = item.title
+    ' A Live TV channel without its logo shows its name in the frame, as the
+    ' other apps do, and no mark; a person without a photo (a library's or
+    ' TMDB's cast), the frame alone.
+    kind = ""
+    if item.hasField("kind") then kind = item.kind
+    named = words or kind = "channel"
+    m.fallback.text = ""
+    if named then m.fallback.text = item.title
     badge = ""
     if item.hasField("badge") then badge = item.badge
     m.badge.text = badge
@@ -54,9 +64,26 @@ sub onContent()
     ' The scene's agent carries the token; it changes with each refresh.
     m.poster.setHttpAgent(m.top.getScene().getHttpAgent())
     onLayout()
-    m.poster.uri = item.image
+    ' A frame without a title is one that loads (a row's skeleton, a
+    ' library's place a jump passed over): it stays empty.
+    placeholder = ""
+    if not named and kind <> "person" and kind <> "cast" and item.title <> "" then placeholder = placeholderUri(item)
+    m.poster.failedBitmapUri = placeholder
+    image = item.image
+    if image = invalid or image = "" then image = placeholder
+    m.poster.uri = image
     onFocus()
 end sub
+
+' Pley's mark for this tile's kind and shape (lib/Mark.brs).
+function placeholderUri(item as object) as string
+    kind = ""
+    if item.hasField("kind") then kind = item.kind
+    detail = ""
+    if item.hasField("tmdbKind") then detail = item.tmdbKind
+    if item.hasField("playlistKind") then detail = item.playlistKind
+    return markPlaceholderUri(markTileGlyph(kind, detail), m.wide, m.square)
+end function
 
 sub onLayout()
     w = m.top.width
@@ -130,7 +157,7 @@ sub onFocus()
     ' gridHasFocus false on its tiles, which only a MarkupGrid's mean.
     gridHasFocus = m.top.gridHasFocus or inRowList()
     focused = m.top.itemHasFocus and m.top.rowHasFocus and m.top.rowListHasFocus and gridHasFocus
-    ' Words in the frame (See all, a title without a picture) stay legible
+    ' Words in the frame (See all, Try again) stay legible
     ' on the accent.
     if focused
         m.frame.color = "0x38BDF8FF"

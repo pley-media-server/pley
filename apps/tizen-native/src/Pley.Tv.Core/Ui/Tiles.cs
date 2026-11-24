@@ -141,6 +141,9 @@ public static class Artwork
 /// <summary>
 /// Everything a tile shows, worked out once when a screen builds its state (the Android app's
 /// ArtworkTileModel): the picture's addresses, the caption, the overlays and what a screen reader says.
+/// <see cref="ItemKind"/> is the item's kind as the API names it ("movie", "episode", "album"),
+/// which picks the glyph of Pley's mark on a placeholder whose picture won't come; people have
+/// none, and no mark.
 /// </summary>
 public sealed record TileModel(
     long Id,
@@ -151,8 +154,12 @@ public sealed record TileModel(
     bool Watched,
     int Unwatched,
     IReadOnlyList<string> Badges,
-    string Description)
+    string Description,
+    string? ItemKind = null)
 {
+    /// <summary>The glyph of Pley's mark on the tile's placeholder (<see cref="Placeholder.Glyph"/>); null for no mark.</summary>
+    public string? MarkGlyph => ItemKind is { } kind ? Placeholder.Glyph(kind) : null;
+
     /// <summary>The model of <paramref name="item"/> drawn as <paramref name="kind"/>, its pictures on the server at <paramref name="origin"/>.</summary>
     public static TileModel Of(ItemSummary item, TileKind kind, string origin, bool badges = false)
     {
@@ -185,6 +192,7 @@ public sealed record TileModel(
             item.UserState.Watched && unwatched == 0,
             unwatched,
             badges ? Format.QualityBadges(item.Media) : Array.Empty<string>(),
-            Format.TileDescription(item));
+            Format.TileDescription(item),
+            item.Kind);
     }
 }

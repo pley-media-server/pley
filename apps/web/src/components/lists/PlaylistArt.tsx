@@ -21,11 +21,11 @@ export function PlaylistArt({
       {art.length >= 4 ? (
         <div className="grid size-full grid-cols-2 grid-rows-2">
           {art.slice(0, 4).map((url) => (
-            <Artwork key={url} candidates={[url]} width={width / 2} alt="" title="" bare className="size-full" />
+            <Artwork key={url} candidates={[url]} width={width / 2} alt="" title="" className="size-full" />
           ))}
         </div>
       ) : cover ? (
-        <Artwork candidates={[cover]} width={width} alt="" title={playlist.title} className="size-full" />
+        <Artwork candidates={[cover]} width={width} alt="" title={playlist.title} mark={playlist.kind === "audio" ? "music" : "play"} className="size-full" />
       ) : (
         <div className="flex size-full items-center justify-center bg-linear-to-br from-surface-3 to-surface-2 text-subtle">
           <Icon className="size-1/3" strokeWidth={1.5} />

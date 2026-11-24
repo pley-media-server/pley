@@ -453,7 +453,7 @@ With Bun, from the repository root (`bun install` first). A `bunfig.toml`
 in each package has Bun run the tools (TypeScript, Vitest).
 
 ```sh
-bun run tv:check                     # type checks and tests: picture-subtitles, packages/tv, the Samsung app
+bun run tv:check                     # type checks and tests: picture-subtitles, placeholder, packages/tv, the Samsung app
 bun run tizen                        # apps/tizen/out/pley.wgt, signed
 bun run --cwd apps/tizen build       # only the app's dist/; --dev keeps it readable
 ```

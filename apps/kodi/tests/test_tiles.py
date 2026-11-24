@@ -1,7 +1,14 @@
+import json
+import os
 import unittest
 
 import support  # noqa: F401
 from pley import tiles, words
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+MEDIA = os.path.join(HERE, "..", "plugin.video.pley", "resources", "skins", "default", "media")
+# Pley's placeholder mark, as every app draws it.
+MARKS = os.path.join(HERE, "..", "..", "..", "packages", "placeholder", "placeholder.json")
 
 BASE = "http://127.0.0.1:5000/s"
 EPISODE = {
@@ -64,6 +71,23 @@ class TilesTest(unittest.TestCase):
         counted = tiles.tile(BASE, show, "poster")
         self.assertEqual((counted.properties["count"], counted.properties["countsize"]), ("117", "3"))
         self.assertTrue(counted.properties["ph"].startswith("ph-"))
+
+    def test_the_marks_glyph_is_the_librarys_as_the_placeholder_file_has_it(self):
+        with open(MARKS, encoding="utf-8") as f:
+            marks = json.load(f)
+        self.assertEqual(tiles.GLYPHS, marks["kinds"])
+        self.assertEqual(tiles.DEFAULT_GLYPH, marks["default"])
+        # The skin draws the picture the property names: one for each glyph.
+        media = set(os.listdir(MEDIA))
+        for glyph in marks["glyphs"]:
+            self.assertIn("mark-%s.png" % glyph, media)
+        self.assertEqual(tiles.tile(BASE, MOVIE, "poster").properties["mark"], "mark-movies.png")
+        self.assertEqual(tiles.tile(BASE, EPISODE, "landscape").properties["mark"], "mark-shows.png")
+        self.assertEqual(tiles.tile(BASE, dict(MOVIE, kind="extra"), "landscape").properties["mark"], "mark-play.png")
+        self.assertEqual(tiles.discover(BASE, {"title": "Saltwind", "kind": "show"}, "").properties["mark"], "mark-shows.png")
+        self.assertNotIn("mark", tiles.person(BASE, {"id": 7, "name": "Ada"}).properties)
+        # See all keeps its words, without a mark.
+        self.assertNotIn("mark", tiles.see_all("See all").properties)
 
     def test_quality_badges_and_the_bitrate_line(self):
         media = {"bitrate": 42_000_000, "size": 25_125_558_682, "width": 3840, "height": 2160, "dynamic_range": "hdr10plus"}
