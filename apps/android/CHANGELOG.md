@@ -36,7 +36,8 @@ With Android Auto:
   tracks, and plays at once only with a single one; an artist's albums
   say their year and track count, and an album numbers its tracks, by
   disc when it has several), search, the whole
-  queue, Shuffle and Repeat on Now Playing, and "Hey Google, play … on
+  queue under the album's, playlist's or artist's name, Shuffle and
+  Repeat on Now Playing, and "Hey Google, play … on
   Pley", which finds music playlists by name ("my … playlist" too) and
   says so when it finds nothing. Signed out, the car says to open Pley on the phone.
 - Audiobooks play in the car: a Books tab (being heard, added last, every

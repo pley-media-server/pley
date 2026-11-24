@@ -4,6 +4,7 @@ import android.os.Looper
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.SimpleBasePlayer
@@ -51,6 +52,9 @@ class LiveRadio(
     private var channels: List<LiveChannel> = emptyList()
     private var index = 0
 
+    /** The name of the list the channel was picked from ([cue]): Now Playing shows it over the channels. */
+    private var listName: String? = null
+
     /** The channel was picked and not tuned yet ([cue]): what the playback says is of the one before. */
     private var waits = false
 
@@ -73,12 +77,14 @@ class LiveRadio(
      * Makes [list]'s channel at [at] the radio's without tuning it: it
      * waits, and Play tunes it. The channel played when the car was last
      * connected, or one a car or the Assistant asked to have ready before
-     * it asks to play. A channel playing meanwhile is let go.
+     * it asks to play. A channel playing meanwhile is let go. [name] is
+     * the list's, `null` for a channel found alone.
      */
-    fun cue(list: List<LiveChannel>, at: Int) {
+    fun cue(list: List<LiveChannel>, at: Int, name: String? = null) {
         if (list.isEmpty()) return
         channels = list
         index = at.coerceIn(list.indices)
+        listName = name
         waits = true
         playback?.stop()
         player.changed()
@@ -106,6 +112,7 @@ class LiveRadio(
         playbackScope = null
         channels = emptyList()
         index = 0
+        listName = null
         waits = false
         player.changed()
     }
@@ -160,6 +167,7 @@ class LiveRadio(
                 .setPlaybackState(playbackState)
                 .setPlayerError(error)
                 .setPlaylist(channels.mapIndexed(::itemData))
+                .setPlaylistMetadata(listName?.let { MediaMetadata.Builder().setTitle(it).build() } ?: MediaMetadata.EMPTY)
                 .setCurrentMediaItemIndex(if (channels.isEmpty()) C.INDEX_UNSET else index)
                 .setContentPositionMs(0)
                 .build()

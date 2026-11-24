@@ -1145,6 +1145,9 @@ sent within 8 seconds shows as the server out of reach, as cars are to
 show what they ask for within 10 seconds. Picking a track plays on through
 its album or playlist; a track found by search plays on through its
 album. Now Playing shows the whole queue, which the car can pick from,
+under the name of the album or book it is all of, else of the playlist
+or the artist it was picked as in the car or by the Assistant (a queue
+of several albums played from the phone has none),
 a Shuffle button and a Repeat button, which repeats the queue, then the
 track playing, then nothing; a dot under each says it is on, and each
 is as bright off as on, so it doesn't look as if it can't be pressed (the
@@ -1248,7 +1251,9 @@ group says ("Sky Sports 1", not "UK| Sky Sports 1"). A
 channel shows its logo and what is on. Picked, it plays its sound alone,
 as radio, watched through the server as the phone's Live TV player
 watches it; Next and Previous change channel through the list it was
-picked from, and Now Playing shows it live, with no position to seek to.
+picked from, which Now Playing names over its channels (a channel found
+by search or by voice plays alone, unnamed), and Now Playing shows it
+live, with no position to seek to.
 Search finds channels by name and by what is on; "Hey Google, play …
 on Pley" plays a channel named exactly (with its region or without it),
 else the music found, else the closest channel. The music pauses while the radio plays, and music played

@@ -64,6 +64,20 @@ class LiveRadioTest {
     }
 
     @Test
+    fun theChannelsAreNamedForTheListTheyWerePickedFrom() {
+        radio.cue(channels, 1, "Favorites")
+        settle()
+        assertEquals("Favorites", radio.player.playlistMetadata.title.toString())
+        // Tuned, it keeps the name; found alone, it has none.
+        radio.resume()
+        settle()
+        assertEquals("Favorites", radio.player.playlistMetadata.title.toString())
+        radio.cue(channels.take(1), 0)
+        settle()
+        assertEquals(null, radio.player.playlistMetadata.title)
+    }
+
+    @Test
     fun nextAndPreviousChangeChannelThroughTheList() {
         val player = playing()
         player.seekToNext()

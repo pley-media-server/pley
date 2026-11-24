@@ -330,7 +330,7 @@ class MusicService : MediaLibraryService() {
         } ?: throw UnsupportedOperationException("No Live TV")
         playback.pauseForVideo()
         val (channels, at) = lineup
-        live.cue(channels, at)
+        live.cue(channels, at, graph.live?.listName(picked.from))
         MusicHub.resume?.keepRadio(picked.text)
         made.player = live.player
         // Shuffle and Repeat are the music's: the radio has neither.
@@ -757,6 +757,7 @@ class MusicService : MediaLibraryService() {
                     // voice, and the request to play that came after started the track a second time.
                     playback.cue(selection.tracks, selection.startIndex, selection.shuffle, selection.startMs)
                     val queue = playback.queueState.value
+                    player?.named(queue.tracks, selection.title)
                     val items = queue.tracks.map { library().queueItem(it) }
                     future.set(MediaSession.MediaItemsWithStartPosition(items, queue.index, C.TIME_UNSET))
                 } catch (e: CancellationException) {

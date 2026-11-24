@@ -10,6 +10,7 @@ import androidx.media3.session.MediaConstants
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
+import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.PlaylistKind
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.model.PlaylistSummary
@@ -65,8 +66,17 @@ interface MusicLibraryLook {
     val shuffleIcon: Uri?
 }
 
-/** What playing a node of the library plays: [tracks] from [startIndex] ([startMs] into it), shuffled or not. */
-data class MusicSelection(val tracks: List<ItemSummary>, val startIndex: Int = 0, val shuffle: Boolean = false, val startMs: Long = 0)
+/**
+ * What playing a node of the library plays: [tracks] from [startIndex] ([startMs] into it), shuffled or not; [title] is
+ * the playlist's or the artist's name it was picked as, for the queue's name (an album's or a book's is its tracks').
+ */
+data class MusicSelection(
+    val tracks: List<ItemSummary>,
+    val startIndex: Int = 0,
+    val shuffle: Boolean = false,
+    val startMs: Long = 0,
+    val title: String? = null,
+)
 
 /**
  * Pley's music as cars and voice assistants browse it (Android Auto, a
@@ -170,8 +180,10 @@ class MusicLibrary(
     /** What playing [id] plays; `null` for a node that doesn't play, or plays nothing. */
     suspend fun selection(id: MusicId): MusicSelection? = when (id) {
         is MusicId.Album -> tracksOf(id.id).takeIf { it.isNotEmpty() }?.let { MusicSelection(it) }
-        is MusicId.Playlist -> playlistTracks(id.id).takeIf { it.isNotEmpty() }?.let { MusicSelection(it) }
-        is MusicId.ShuffleArtist -> artistTracks(id.id).takeIf { it.isNotEmpty() }?.let { MusicSelection(it, 0, shuffle = true) }
+        is MusicId.Playlist -> source.playlist(id.id).let { playlist ->
+            tracksIn(playlist).takeIf { it.isNotEmpty() }?.let { MusicSelection(it, title = playlist.title) }
+        }
+        is MusicId.ShuffleArtist -> artistTracks(id.id).takeIf { it.isNotEmpty() }?.let { MusicSelection(it, 0, shuffle = true, title = it.first().grandparentTitle) }
         is MusicId.Track -> trackSelection(id)
         is MusicId.Book -> bookSelection(id.id)
         else -> null
@@ -260,14 +272,14 @@ class MusicLibrary(
     fun queueItem(track: ItemSummary, mediaId: String = MusicId.Track(track.id).text): MediaItem = track(track, from = null).buildUpon().setMediaId(mediaId).build()
 
     private suspend fun trackSelection(id: MusicId.Track): MusicSelection? {
-        val tracks = when (val from = id.from) {
-            is MusicId.Album -> tracksOf(from.id)
-            is MusicId.Playlist -> playlistTracks(from.id)
-            else -> null
+        val (tracks, title) = when (val from = id.from) {
+            is MusicId.Album -> tracksOf(from.id) to null
+            is MusicId.Playlist -> source.playlist(from.id).let { tracksIn(it) to it.title }
+            else -> null to null
         }
         if (tracks != null) {
             val at = tracks.indexOfFirst { it.id == id.id }
-            if (at >= 0) return MusicSelection(tracks, at)
+            if (at >= 0) return MusicSelection(tracks, at, title = title)
         }
         // A search's track, or one no longer where it was: its album plays on from it; a book's part, its book.
         val track = source.item(id.id)?.takeIf { it.kind == ItemKind.Track || it.kind == ItemKind.Part } ?: return null
@@ -296,8 +308,7 @@ class MusicLibrary(
 
     private suspend fun tracksOf(albumId: Long): List<ItemSummary> = source.children(albumId).filter { it.kind == ItemKind.Track }
 
-    private suspend fun playlistTracks(playlistId: Long): List<ItemSummary> =
-        source.playlist(playlistId).entries.map { it.item }.filter { it.kind == ItemKind.Track }
+    private fun tracksIn(playlist: PlaylistDetail): List<ItemSummary> = playlist.entries.map { it.item }.filter { it.kind == ItemKind.Track }
 
     private suspend fun artistTracks(artistId: Long): List<ItemSummary> = coroutineScope {
         val albums = source.children(artistId).filter { it.kind == ItemKind.Album }.sortedWith(NEWEST_FIRST)

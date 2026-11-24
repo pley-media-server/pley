@@ -42,7 +42,9 @@ import kotlin.math.abs
  * away and put back, and the queue's entries don't change as one loads,
  * so the car isn't sent the whole queue again at each skip. A queue that
  * waits for Play (brought back as a car connects, or asked to be ready)
- * shows paused on its track, where it will start.
+ * shows paused on its track, where it will start. The queue is named
+ * for the album or book its tracks are all of, else for what it was picked
+ * as ([named]): a car shows the name over it.
  * [words] says why a track doesn't play, in the language shown. Call
  * [queueChanged] when [playback]'s queue changes.
  */
@@ -57,6 +59,25 @@ internal class QueuePlayer(
 ) : ForwardingSimpleBasePlayer(player) {
     /** Shows [playback]'s queue as it is now. */
     fun queueChanged() = invalidateState()
+
+    /**
+     * Names the queue of [tracks] [title] (the playlist or the artist it was
+     * picked as) for as long as it is those tracks, in any order: the queue
+     * itself doesn't say where it came from. `null` names it for its album
+     * or book alone.
+     */
+    fun named(tracks: List<ItemSummary>, title: String?) {
+        picked = title?.let { tracks.mapTo(HashSet()) { t -> t.id } to it }
+        titledTracks = null
+        invalidateState()
+    }
+
+    /** What [named] named, by its tracks' ids. */
+    private var picked: Pair<Set<Long>, String>? = null
+
+    /** The tracks [title] was found for, as they were. */
+    private var titledTracks: List<ItemSummary>? = null
+    private var title: MediaMetadata = MediaMetadata.EMPTY
 
     /**
      * This player as the media session is given it: Next on a book's part
@@ -106,7 +127,7 @@ internal class QueuePlayer(
         } else {
             listed
         }
-        state.setPlaylist(playlist).setCurrentMediaItemIndex(queue.index.coerceIn(0, playlist.lastIndex))
+        state.setPlaylist(playlist).setCurrentMediaItemIndex(queue.index.coerceIn(0, playlist.lastIndex)).setPlaylistMetadata(titleOf(queue.tracks))
         val now = playback.nowPlaying.value ?: return state.build()
         val failed = now.error
         if (failed != null) {
@@ -153,6 +174,20 @@ internal class QueuePlayer(
                 .build()
         }
         return entries
+    }
+
+    /**
+     * The queue's name: what it was [named], while it is the tracks it was named for, else the album or book all of its
+     * tracks are of. Found again only when the tracks change, as [entriesOf] describes them.
+     */
+    private fun titleOf(tracks: List<ItemSummary>): MediaMetadata {
+        if (tracks == titledTracks) return title
+        titledTracks = tracks
+        val named = picked?.takeIf { (ids, _) -> ids == tracks.mapTo(HashSet()) { it.id } }?.second
+        val parent = tracks.firstOrNull()?.parentId
+        val own = if (parent != null && tracks.all { it.parentId == parent }) tracks.first().parentTitle?.takeIf { it.isNotBlank() } else null
+        title = (named ?: own)?.let { MediaMetadata.Builder().setTitle(it).build() } ?: MediaMetadata.EMPTY
+        return title
     }
 
     /**

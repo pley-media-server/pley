@@ -255,12 +255,17 @@ class MusicLibraryTest {
         assertEquals("2 tracks", playlists[0].mediaMetadata.subtitle.toString())
         assertEquals(listOf("track:52@playlist:7", "track:51@playlist:7"), library.children(MusicId.Playlist(7), 0, 50).map { it.mediaId })
         assertEquals(listOf(52L, 51L), library.selection(MusicId.Playlist(7))!!.tracks.map { it.id })
+        // The queue is named for the playlist, picked whole or from one of its tracks.
+        assertEquals("Night drive", library.selection(MusicId.Playlist(7))!!.title)
+        assertEquals("Night drive", library.selection(MusicId.Track(51, MusicId.Playlist(7)))!!.title)
+        assertNull(library.selection(MusicId.Track(51, MusicId.Album(50)))!!.title)
     }
 
     @Test
     fun shuffleAnArtistPlaysAllTheirTracksShuffled() = runTest {
         val selection = library.selection(MusicId.ShuffleArtist(40))!!
         assertTrue(selection.shuffle)
+        assertEquals("Harbour Lights", selection.title)
         assertEquals(setOf(51L, 52L, 56L), selection.tracks.map { it.id }.toSet())
     }
 

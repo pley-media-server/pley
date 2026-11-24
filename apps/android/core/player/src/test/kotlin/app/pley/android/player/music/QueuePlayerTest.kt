@@ -101,6 +101,32 @@ class QueuePlayerTest {
     }
 
     @Test
+    fun theQueueIsNamedForItsAlbumElseForWhatItWasPickedAs() {
+        // An album's tracks: the album.
+        playback.cue(album)
+        player.queueChanged()
+        idle()
+        assertEquals("Deep Water", player.playlistMetadata.title.toString())
+
+        // Tracks of several albums: what they were picked as, while the queue is those tracks, shuffled too.
+        val mixed = album + track(9).copy(parentId = 51, parentTitle = "Second Tide")
+        playback.cue(mixed)
+        player.named(mixed, "Night drive")
+        idle()
+        assertEquals("Night drive", player.playlistMetadata.title.toString())
+        playback.setShuffle(true)
+        player.queueChanged()
+        idle()
+        assertEquals("Night drive", player.playlistMetadata.title.toString())
+
+        // Another queue of several albums, played from elsewhere: no name.
+        playback.cue(mixed.drop(1))
+        player.queueChanged()
+        idle()
+        assertNull(player.playlistMetadata.title)
+    }
+
+    @Test
     fun aQueueThatWaitsShowsPausedOnItsTrackWhereItWillStartAndPlayStartsIt() {
         // What played last, brought back as a car connects: the car is shown the track with Play, not nothing to play.
         playback.cue(album, startIndex = 1, startMs = 61_000)

@@ -138,6 +138,9 @@ class LiveLibrary(
         return source.channel(id.id)?.let { listOf(it) to 0 }
     }
 
+    /** The name of the list a channel was picked [from], as the car lists it; `null` for one found alone (search, voice). */
+    fun listName(from: LiveCategory?): String? = from?.let(::title)
+
     /**
      * The channel a spoken request names exactly ("play BBC One on Pley"), or `null`: by its name, else by its name
      * without the provider's region ("BBC One" for "UK| BBC One"), which is what a list shows and a driver reads.
