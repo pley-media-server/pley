@@ -1195,7 +1195,8 @@ session it doesn't hear from, so the one asked ahead is let go too after
 half a minute paused or a seek a minute or more from the end, and asked
 again once the music plays near the end. When the server refuses it (no
 conversion free beside the track playing), the next track is asked for
-as the one playing ends, after a short wait. One the player can't read
+as the one playing ends, after a short wait; when the server is out of
+reach for a moment, it is asked again 10 seconds later. One the player can't read
 fails once the track before has played, as any track does.
 
 "Hey Google, play … on Pley" plays the music playlist named so (by the

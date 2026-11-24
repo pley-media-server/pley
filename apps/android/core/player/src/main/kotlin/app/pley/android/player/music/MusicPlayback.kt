@@ -788,7 +788,8 @@ class MusicPlayback(
      * in the output, which plays on to it without a gap ([MusicOutput.setNext]).
      * Only while this track plays, held by the output, and with a track
      * to come; not when the sleep timer ends with this track (the next one
-     * waits), nor again for this track once it failed. What was asked
+     * waits), nor again for this track once the server refused it (out of
+     * its reach, it is asked again at the next report). What was asked
      * ahead is let go when the track to come changes (Shuffle, Repeat),
      * the timer is to end with this track, or a seek takes it back more
      * than [KEEP_AHEAD_MS] from its end: the server forgets a session it
@@ -815,10 +816,12 @@ class MusicPlayback(
                 ServerPlaybackSession.start(server, requestFor(next, 0, PlaybackMode.Auto, ahead = true), env.reporter) to server
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                // No transcode free beside this one, or the server out of reach: the next track is asked for as it comes.
+            } catch (e: Exception) {
                 if (ahead === asked) ahead = null
-                aheadFailed = true
+                // Refused (no transcode free beside this one): the next track is asked for as it comes. Out of reach for a
+                // moment (a tunnel, a change of network) it is asked again at the next report, so the music still goes on
+                // without a gap once the network is back.
+                if (e is ApiException) aheadFailed = true
                 return@launch
             }
             asked.session = started

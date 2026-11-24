@@ -721,6 +721,32 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun aNextTrackAskedAheadOutOfTheServersReachIsAskedAgainAtTheNextReport() = runTest {
+        val music = music()
+        output.takes = true
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        // A tunnel as the next track is asked for ahead: nothing waits after the track playing.
+        api.fail("startPlayback", OfflineException(IOException("tunnel")))
+        output.position = 160_000
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertEquals(listOf(1L, 2L), starts().map { it.itemId })
+        assertNull(output.next)
+
+        // Back in reach: asked again at the next report, and it waits after the track playing, to play on without a gap.
+        api.reset()
+        api.answer("startPlayback", nextInfo())
+        output.position = 170_000
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertEquals(listOf(2L), starts().map { it.itemId })
+        assertEquals(true, starts().single().ahead)
+        assertEquals("http://127.0.0.1:7539/api/files/602/stream", output.next?.url)
+    }
+
+    @Test
     fun theLastTrackAsksForNothingAheadUntilTheQueueRepeats() = runTest {
         val music = music()
         output.takes = true
