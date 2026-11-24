@@ -92,6 +92,10 @@ internal fun onCarScreen(): Boolean {
  * screen as the car goes.
  */
 internal fun Activity.turnForScreen() {
+    // In picture in picture or split screen the configuration is the window's, not the screen's: a tablet's small window
+    // would pass for a phone's, and the tablet would turn as it leaves. Asked again once the window is whole. Another
+    // screen's window (a car's, whatever its windowing) is never turned.
+    if (isInPictureInPictureMode || (isInMultiWindowMode && !OtherScreen.shows(this))) return
     val phone = resources.configuration.smallestScreenWidthDp < TABLET_DP && !OtherScreen.shows(this)
     val wanted = if (phone) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     if (requestedOrientation != wanted) requestedOrientation = wanted
