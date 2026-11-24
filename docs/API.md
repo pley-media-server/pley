@@ -2028,7 +2028,8 @@ library's hubs) holds the audiobooks the user is part way through, the
 one heard last first: a part started, or one finished and another still
 to hear. Its items are the books; `on-deck` says where each goes on. A
 finished book leaves it. Audiobooks are never in Continue Watching, and an
-app's token gets no Continue Listening ([Audiobooks](#libraries)).
+app's token gets no Continue Listening unless its request has
+`X-Pley-Features: audiobooks` ([Audiobooks](#libraries)).
 
 **`DELETE /api/continue-watching/{id}`** takes a movie, or for an episode
 (in progress or next up) its whole show, out of the user's Continue
@@ -3306,8 +3307,8 @@ is not a play.
 `item_id` (the item, or the episodes or tracks under it), `library_id`,
 `since` (unix seconds); administrators also `user_id=<id>` or `all=1`.
 Your own plays unless asked otherwise; entries of items you can't see are
-left out, and for an app's token those of audiobooks
-([Audiobooks](#libraries)).
+left out, and for an app's token those of audiobooks, unless its request
+has `X-Pley-Features: audiobooks` ([Audiobooks](#libraries)).
 
 ```ts
 interface HistoryEntry {

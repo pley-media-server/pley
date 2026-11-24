@@ -13,7 +13,7 @@ describes how they are made.
 
 - Audiobooks in apps that show them: an app's request with
   `X-Pley-Features: audiobooks` gets audiobook libraries as the web app
-  does. Pley for Android's car library asks for them.
+  does. Pley for Android asks for them.
 - A player can ask for the next track ahead (`ahead`), to play it
   without a gap: it isn't shown as playing on the dashboard, to remotes
   or in Tautulli until it plays.
@@ -55,6 +55,7 @@ describes how they are made.
   stream again: their requests not to copy the video or the audio
   (`AllowVideoStreamCopy`, `AllowAudioStreamCopy`) are kept, and the sound
   is never made again in the codec that failed.
+
 ## [0.1.14] - 2026-11-20
 
 ### Added

@@ -178,7 +178,7 @@ impl AuthUser {
     /// Whether this request gets audiobook libraries: Pley's own sign-in
     /// (the web app, the desktop app's window), whose pages show books, and
     /// an app's request that says it shows them ([`AuthUser::shows_audiobooks`]:
-    /// the Android app's car library). Other apps would show a book as a film
+    /// the Android app). Other apps would show a book as a film
     /// or an album, and the compatibility APIs have no books to give their
     /// clients, so these get neither the libraries nor their books in lists,
     /// hubs, search and history ([`crate::access::library_ids`]). What the

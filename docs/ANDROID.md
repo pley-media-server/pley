@@ -1716,8 +1716,8 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
   app.
 - No Watch Next row on phones or Fire TV.
 - Android Auto's videos are in the sideloaded build only. Its Artists tab
-  lists the first 500 artists of a library by name (search finds the
-  others), and its music has no downloads: a car out of signal browses
+  lists the first 500 artists of a library by name and its Books tab the
+  first 500 books by title (search finds the others), and its music has no downloads: a car out of signal browses
   the albums, playlists and Recently added it saw last (Artists,
   Recently played and search need the server) and plays nothing new.
 - The TV's display mode isn't matched for live channels.

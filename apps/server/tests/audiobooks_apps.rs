@@ -214,7 +214,7 @@ async fn apps_get_no_audiobooks() {
 }
 
 /// An app's request that says it shows audiobooks (`X-Pley-Features`, the
-/// Android app's car library) gets them as Pley's own sign-in does: the
+/// Android app) gets them as Pley's own sign-in does: the
 /// library, its books and hubs, a book being heard on Home, books in search.
 /// The same token's other requests still get none, and the account's own
 /// libraries are all it gets either way.
