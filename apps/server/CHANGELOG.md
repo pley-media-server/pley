@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Where Dolby Vision needs another FFmpeg, the transcoder settings name
+  Pley's own first: the one its Windows installer and Docker image bring.
+
 ### Fixed
 
 - Live TV channels played as they are no longer stall every few seconds in the

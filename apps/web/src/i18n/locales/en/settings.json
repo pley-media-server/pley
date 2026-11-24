@@ -193,9 +193,10 @@
       "tonemapInstead": "{{reason}}: {{fallback}}",
       "tonemapWithAnother": "{{reason}}: transcodes tone map with another instead.",
       "builds": {
-        "windows": "<gyan>gyan.dev's full build</gyan> or <jellyfin>jellyfin-ffmpeg</jellyfin>",
+        "windows": "the one Pley's Windows installer brings, <gyan>gyan.dev's full build</gyan> or <jellyfin>jellyfin-ffmpeg</jellyfin>",
+        "linux": "the one Pley's Docker image brings, or <jellyfin>jellyfin-ffmpeg</jellyfin>",
         "macos": "Homebrew's ffmpeg-full",
-        "any": "<gyan>gyan.dev's full build</gyan> on Windows, <jellyfin>jellyfin-ffmpeg</jellyfin> on Windows and Linux, or Homebrew's ffmpeg-full on a Mac"
+        "any": "the one Pley's Docker image or Windows installer brings, <gyan>gyan.dev's full build</gyan> on Windows, <jellyfin>jellyfin-ffmpeg</jellyfin> on Windows and Linux, or Homebrew's ffmpeg-full on a Mac"
       }
     },
     "load": {
