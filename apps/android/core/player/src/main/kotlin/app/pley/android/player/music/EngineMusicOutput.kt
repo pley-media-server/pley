@@ -23,14 +23,17 @@ import kotlinx.coroutines.launch
  * with the screen off. Each track's title, artist, album and art go on the
  * player's item, which the media session shows in the notification and on
  * the lock screen; the art is fetched by [artwork] (the server's pictures
- * need its token) and added once it arrives. The next track can wait
- * after the one loaded ([setNext]), and plays on from it without a gap.
+ * need its token) and added once it arrives. Without [artwork] none is
+ * fetched: the app's session names each track's cover by address, which
+ * it reads itself (SessionArt), and would never show the output's. The
+ * next track can wait after the one loaded ([setNext]), and plays on from
+ * it without a gap.
  */
 @OptIn(markerClass = [UnstableApi::class])
 class EngineMusicOutput(
     private val engine: PlayerEngine,
     private val scope: CoroutineScope,
-    private val artwork: suspend (url: String) -> ByteArray?,
+    private val artwork: (suspend (url: String) -> ByteArray?)? = null,
 ) : MusicOutput {
     val player: Player get() = engine.player
 
@@ -113,10 +116,11 @@ class EngineMusicOutput(
 
     /** Fetches [d]'s cover and shows it on its item, wherever that is by then. */
     private fun fetchArt(d: Described): Job? {
+        val fetch = artwork ?: return null
         val url = d.info.artUrl ?: return null
         return scope.launch {
             val bytes = try {
-                artwork(url)
+                fetch(url)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {

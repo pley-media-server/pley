@@ -99,7 +99,10 @@ interface PlayerGraph {
                         ) { caps.capabilities.snapshot.value }
                     }
                 },
-            ) { ServiceMusicControl.create(context, data, network, caps, profile, engines) }
+            ) {
+                // The library above names every track's cover for the session, which reads it itself.
+                ServiceMusicControl.create(context, data, network, caps, profile, engines, libraryCovers = true)
+            }
         }
     }
 }

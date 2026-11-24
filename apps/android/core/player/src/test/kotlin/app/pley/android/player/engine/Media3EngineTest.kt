@@ -310,6 +310,28 @@ class Media3EngineTest {
     }
 
     @Test
+    fun musicFetchesNoCoverOfItsOwnWhenTheSessionReadsThemFromTheLibrary() {
+        codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
+        val asked = mutableListOf<String>()
+        val one = TrackInfo("One", null, null, "http://192.0.2.1/api/items/1/images/poster?w=480", id = 1)
+        val two = TrackInfo("Two", null, null, "http://192.0.2.1/api/items/2/images/poster?w=480", id = 2)
+
+        // The app's: the session names each cover by address (the music library), and the output asks for none.
+        val app = EngineMusicOutput(engine(music = true), MainScope())
+        app.load(EngineSource(file(), hls = false), startMs = 0, play = false, info = one)
+        app.setNext(EngineSource(file(), hls = false), two)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertNull(app.player.mediaMetadata.artworkData)
+
+        // Without a library: each track's cover, and the next one's, is fetched for the session.
+        val alone = EngineMusicOutput(engine(music = true), MainScope()) { url -> asked += url; null }
+        alone.load(EngineSource(file(), hls = false), startMs = 0, play = false, info = one)
+        alone.setNext(EngineSource(file(), hls = false), two)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(listOf(one.artUrl, two.artUrl), asked)
+    }
+
+    @Test
     fun aNextTrackThatCantBeReadFailsAsItselfOnceTheTrackBeforeHasPlayed() {
         codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
         val server = MockWebServer()

@@ -156,7 +156,10 @@ class ServiceMusicControl(
          * The app's music: the engine's audio-only players ([engines]), the
          * server and profile signed in to now, this device's caps, reports
          * from the app's scope. Its [MusicPlayback] goes to [MusicHub] for
-         * the service.
+         * the service. With [libraryCovers] (the graph has the music
+         * library), the session names each track's cover by address and
+         * reads it itself: the output fetches none of its own, which nothing
+         * would show.
          */
         fun create(
             context: Context,
@@ -165,6 +168,7 @@ class ServiceMusicControl(
             caps: CapsGraph,
             profile: DeviceProfile,
             engines: PlayerEngine.Factory,
+            libraryCovers: Boolean,
         ): ServiceMusicControl {
             val app = context.applicationContext
             val main = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -179,9 +183,8 @@ class ServiceMusicControl(
                 clientId = { clientId() + MUSIC_SUFFIX },
                 reporter = reporter,
                 output = {
-                    EngineMusicOutput(engines.create(app, profile, music = true), main) { url ->
-                        fetchPicture(network, url)
-                    }
+                    val artwork: (suspend (String) -> ByteArray?)? = if (libraryCovers) null else { url -> fetchPicture(network, url) }
+                    EngineMusicOutput(engines.create(app, profile, music = true), main, artwork)
                 },
                 events = data.liveUpdates.events,
                 playing = data.liveUpdates::playing,
