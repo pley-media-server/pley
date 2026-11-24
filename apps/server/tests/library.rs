@@ -333,7 +333,8 @@ async fn folders_that_go_offline_keep_their_items() {
     std::fs::remove_dir_all(app.media.path().join("nas")).unwrap();
     std::fs::remove_file(app.media.path().join("usb/Brazil (1985).mkv")).unwrap();
     assert_eq!(rescan().await, ["Alien", "Brazil", "Casablanca"]);
-    app.media_file("local/Dune (2021).mkv", 1024);
+    // (Of another size: a file of the same bytes would be the other renamed.)
+    app.media_file("local/Dune (2021).mkv", 2048);
     std::fs::remove_file(app.media.path().join("local/Casablanca (1942).mkv")).unwrap();
     assert_eq!(rescan().await, ["Alien", "Brazil", "Dune"]);
 }

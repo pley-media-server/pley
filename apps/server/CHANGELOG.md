@@ -17,6 +17,10 @@ describes how they are made.
 
 ### Fixed
 
+- Renaming or moving files within a library no longer loses their
+  progress, watched state, ratings, history, My List, playlists or added
+  subtitles, and a movie or episode replaced by a copy named differently,
+  or deleted and added again within 180 days, gets its watch state back.
 - Home and a TV library's Recommended tab open at once after a big scan,
   also in a library of thousands of shows.
 - Music playing in the web app pauses once Play on… sends something to

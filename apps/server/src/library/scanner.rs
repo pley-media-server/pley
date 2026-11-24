@@ -4,10 +4,13 @@
 //! the library folders, diffs the files against the database (size + mtime),
 //! probes new/changed files through the transcoder with bounded concurrency,
 //! writes items in short transactions, removes vanished files (unless their
-//! drive is offline), gives the audiobooks it touched what their first parts
-//! say, refreshes sidecar artwork, subtitles and NFO files (whose
-//! ids decide a title's match, and whose fields win over the online source's),
-//! recomputes counts and finally lets the metadata agent enrich new items.
+//! drive is offline; a file renamed or moved keeps its row, and its new title
+//! what people did with the old one), gives the audiobooks it touched what
+//! their first parts say, refreshes sidecar artwork, subtitles and NFO files
+//! (whose ids decide a title's match, and whose fields win over the online
+//! source's), recomputes counts and finally lets the metadata agent enrich
+//! new items. Titles that went leave what people watched of them for those
+//! that come back ([`super::gone`]).
 //!
 //! The database has a single writer, which progress reports, logins and
 //! edits wait for: whatever takes time (matching sidecar files, deciding
@@ -22,7 +25,7 @@ use futures::StreamExt;
 use parking_lot::Mutex;
 use pley_transcoder_api::{MediaInfo, StreamKind};
 use serde::{Deserialize, Serialize};
-use sqlx::SqliteConnection;
+use sqlx::{Connection, SqliteConnection};
 use tokio::sync::mpsc;
 
 use super::nfo::{self, Nfo, NfoFields, NfoIds, NfoKind};
@@ -145,8 +148,10 @@ impl Drop for MergesHeld {
 #[derive(Debug, Default, Clone, Copy)]
 struct Totals {
     added: u64,
+    /// Files changed, and files renamed or moved ([`Totals::moved`]).
     updated: u64,
     removed: u64,
+    moved: u64,
 }
 
 /// What a scan went through and how long each of its phases took, for the
@@ -391,12 +396,13 @@ impl Scanner {
             self.failures.lock().record(req.library_id, result.is_ok(), now());
             match result {
                 Ok(Some((t, p))) => tracing::info!(
-                    "library {} scanned in {}: {} added, {} updated, {} removed ({} folders, {} media files; \
+                    "library {} scanned in {}: {} added, {} updated ({} moved), {} removed ({} folders, {} media files; \
                      walk {}, diff {}, probe {}, write {}, sidecars {}, metadata {})",
                     req.library_id,
                     took(started.elapsed()),
                     t.added,
                     t.updated,
+                    t.moved,
                     t.removed,
                     p.folders,
                     p.files,
@@ -500,7 +506,14 @@ impl Scanner {
                 Err(err) => tracing::warn!("merging copies of the same movie in library {library_id} failed: {err}"),
             }
         }
-        if totals.removed > 0 {
+        // Now that new titles are matched, those that came back get what
+        // people watched of them before they went.
+        match super::gone::give_back(&self.db, library_id).await {
+            Ok(given) if given > 0 => self.events.send(ServerEvent::LibraryChanged { library_id }),
+            Ok(_) => {}
+            Err(err) => tracing::warn!("giving titles of library {library_id} their watch state back failed: {err}"),
+        }
+        if totals.removed > 0 || totals.moved > 0 {
             self.metadata.prune_people().await;
         }
         phases.metadata = phase.elapsed();
@@ -593,11 +606,24 @@ impl Scanner {
                 walked.offline_roots.push(root.clone());
             }
         }
-        let removed: Vec<i64> = existing
+        let vanished: Vec<&KnownFile> = existing
             .iter()
             .filter(|f| !seen.contains(&f.path) && !walked.maybe_unavailable(Path::new(&f.path)))
-            .map(|f| f.id)
             .collect();
+        let removed: Vec<i64> = vanished.iter().map(|f| f.id).collect();
+        // A new file that is a vanished one renamed or moved keeps its row
+        // and its title's state (see `Writer::write` and `relink`).
+        let new: Vec<&FoundFile> =
+            to_process.iter().filter(|f| !existing_by_path.contains_key(path_str(&f.path).as_str())).collect();
+        let moved = moved_files(&self.db, &vanished, &new).await?;
+        // Its bytes are the same: what probing found in it stands, unless
+        // every file is to be probed again (read as its turn comes).
+        let probed: HashSet<i64> = vanished.iter().filter(|f| f.probed).map(|f| f.id).collect();
+        let probed_before: HashMap<String, i64> = if force {
+            HashMap::new()
+        } else {
+            moved.iter().filter(|(_, id)| probed.contains(id)).map(|(path, id)| (path.clone(), *id)).collect()
+        };
         // A book whose files go or change may begin with another part after
         // the scan, or with none: it is read again (see `read_books`).
         let mut books = HashSet::new();
@@ -628,13 +654,16 @@ impl Scanner {
         // of the probing time.
         phase = Instant::now();
         let mut writing = Duration::ZERO;
-        // (Not for `.strm` files, which a scan doesn't probe.)
-        let to_probe = to_process.iter().any(|file| !super::walk::is_strm(&file.path));
+        // (Not for `.strm` files, which a scan doesn't probe, nor for files
+        // renamed or moved.)
+        let to_probe = to_process.iter().any(|file| {
+            !super::walk::is_strm(&file.path) && !probed_before.contains_key(path_str(&file.path).as_str())
+        });
         if to_probe && !self.transcoder.is_available() {
             self.transcoder.wait_ready(Duration::from_secs(90)).await;
         }
 
-        let mut writer = Writer::new(lib, &sidecars, force);
+        let mut writer = Writer::new(lib, &sidecars, force, moved);
         let mut batch: Vec<(FoundFile, ProbeOutcome)> = Vec::with_capacity(WRITE_BATCH);
         let mut processed = 0u64;
         let mut last_emit = Instant::now();
@@ -646,6 +675,8 @@ impl Scanner {
         for files in [regular, extras] {
             let mut results = futures::stream::iter(files.into_iter().map(|file| {
                 let transcoder = transcoder.clone();
+                let before = probed_before.get(path_str(&file.path).as_str()).copied();
+                let db = self.db.clone();
                 async move {
                     // What a `.strm` file names isn't asked by a scan (see
                     // `crate::strm`): only the file is read.
@@ -653,6 +684,11 @@ impl Scanner {
                         let path = file.path.clone();
                         let key = crate::util::blocking(move || Ok(crate::strm::key_of(&path))).await.ok().flatten();
                         return (file, ProbeOutcome::Link(key));
+                    }
+                    if let Some(id) = before
+                        && let Some(info) = probe_found(&db, id).await
+                    {
+                        return (file, ProbeOutcome::Ok(info));
                     }
                     let outcome = match transcoder.probe(&path_str(&file.path)).await {
                         Ok(info) => ProbeOutcome::Ok(Box::new(info)),
@@ -693,8 +729,12 @@ impl Scanner {
         self.set_status(lib, ScanPhase::Probing, processed, total);
         phases.probe = phase.elapsed().saturating_sub(writing);
 
-        // Vanished files go, with the items they leave empty.
+        // Vanished files go (not those renamed or moved), and so do the items
+        // they leave empty.
         phase = Instant::now();
+        let removed: Vec<i64> = removed.into_iter().filter(|id| !writer.relinked.contains(id)).collect();
+        totals.removed = removed.len() as u64;
+        totals.moved = writer.relinked.len() as u64;
         for chunk in removed.chunks(CHANGE_BATCH) {
             let placeholders = vec!["?"; chunk.len()].join(",");
             let sql = format!("DELETE FROM media_files WHERE id IN ({placeholders})");
@@ -716,8 +756,15 @@ impl Scanner {
             }
             tx.commit().await?;
         }
+        let mut containers = Vec::new();
+        loop {
+            let mut tx = self.db.write.begin().await?;
+            let Some(went) = relink(&mut tx, library_id).await? else { break };
+            tx.commit().await?;
+            containers.extend(went);
+        }
         let mut tx = self.db.write.begin().await?;
-        cleanup_orphans(&mut tx, library_id).await?;
+        cleanup_orphans(&mut tx, library_id, &containers).await?;
         tx.commit().await?;
         if kind == LibraryKind::Audiobooks {
             books.extend(writer.containers.values());
@@ -899,7 +946,8 @@ impl Scanner {
             {
                 continue;
             }
-            let is_new = known.is_none();
+            // A file renamed or moved is a file changed.
+            let is_new = known.is_none() && !writer.moved.contains_key(path_str(&file.path).as_str());
             match writer.write(&mut tx, &file, outcome).await {
                 Ok(()) if is_new => totals.added += 1,
                 Ok(()) => totals.updated += 1,
@@ -944,6 +992,11 @@ struct Writer<'a> {
     containers: HashMap<String, i64>,
     /// A scan of every file again, changed or not.
     force: bool,
+    /// New files that are vanished ones renamed or moved, by their paths,
+    /// with the vanished files' ids ([`moved_files`]), until written.
+    moved: HashMap<String, i64>,
+    /// The ids of those written.
+    relinked: HashSet<i64>,
 }
 
 struct NewItem {
@@ -990,8 +1043,16 @@ impl NewItem {
 }
 
 impl<'a> Writer<'a> {
-    fn new(lib: &LibraryRow, sidecars: &'a Sidecars, force: bool) -> Self {
-        Self { library_id: lib.id, kind: lib.kind(), sidecars, containers: HashMap::new(), force }
+    fn new(lib: &LibraryRow, sidecars: &'a Sidecars, force: bool, moved: HashMap<String, i64>) -> Self {
+        Self {
+            library_id: lib.id,
+            kind: lib.kind(),
+            sidecars,
+            containers: HashMap::new(),
+            force,
+            moved,
+            relinked: HashSet::new(),
+        }
     }
 
     async fn write(
@@ -1019,10 +1080,33 @@ impl<'a> Writer<'a> {
             (None, LibraryKind::Audiobooks) => self.write_part(conn, file, info.as_ref(), duration).await?,
         };
         let subs = if self.kind.is_audio() { Vec::new() } else { self.sidecars.subtitles(&file.path) };
+        // A file renamed or moved keeps its row, and with it its id, the
+        // subtitles people added to it and its markers. The item it was a
+        // file of is noted until its new one has what people did with it
+        // (`relink`), the next scan's if this one stops before.
+        let path = path_str(&file.path);
+        let Some(id) = self.moved.remove(&path) else {
+            return match link {
+                Some(key) => upsert_link(conn, self.library_id, item_id, file, key.as_deref(), &subs, self.force).await,
+                None => upsert_file(conn, self.library_id, item_id, file, info.as_ref(), &subs, probed).await,
+            };
+        };
+        // Renamed and written together, or neither (a savepoint).
+        let mut both = conn.begin().await?;
+        sqlx::query("UPDATE media_files SET path = ?, moved_from = COALESCE(moved_from, item_id) WHERE id = ?")
+            .bind(&path)
+            .bind(id)
+            .execute(&mut *both)
+            .await?;
         match link {
-            Some(key) => upsert_link(conn, self.library_id, item_id, file, key.as_deref(), &subs, self.force).await,
-            None => upsert_file(conn, self.library_id, item_id, file, info.as_ref(), &subs, probed).await,
+            Some(key) => {
+                upsert_link(&mut both, self.library_id, item_id, file, key.as_deref(), &subs, self.force).await?
+            }
+            None => upsert_file(&mut both, self.library_id, item_id, file, info.as_ref(), &subs, probed).await?,
         }
+        both.commit().await?;
+        self.relinked.insert(id);
+        Ok(())
     }
 
     async fn container(&mut self, conn: &mut SqliteConnection, item: NewItem) -> anyhow::Result<i64> {
@@ -1529,15 +1613,176 @@ async fn upsert_link(
     Ok(())
 }
 
-async fn cleanup_orphans(conn: &mut SqliteConnection, library_id: i64) -> sqlx::Result<()> {
-    sqlx::query(
-        "DELETE FROM items WHERE library_id = ? AND kind IN ('movie', 'episode', 'track', 'part', 'extra')
+/// Renamed and moved files: the new files whose size and fingerprint are a
+/// vanished file's, by their paths, with that file's id. Only the new files
+/// of a vanished file's size are read (their ends, for the fingerprint), so
+/// a scan where no file went reads none; a vanished file not fingerprinted
+/// yet is matched by none.
+async fn moved_files(db: &Db, vanished: &[&KnownFile], new: &[&FoundFile]) -> anyhow::Result<HashMap<String, i64>> {
+    let sizes: HashSet<i64> = vanished.iter().map(|f| f.size).filter(|&size| size > 0).collect();
+    let new: Vec<(PathBuf, i64)> =
+        new.iter().filter(|f| sizes.contains(&f.size)).map(|f| (f.path.clone(), f.size)).collect();
+    if new.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let new_sizes: HashSet<i64> = new.iter().map(|(_, size)| *size).collect();
+    let ids: Vec<i64> = vanished.iter().filter(|f| new_sizes.contains(&f.size)).map(|f| f.id).collect();
+    let fingerprints: Vec<(i64, String)> = sqlx::query_as(
+        "SELECT id, fingerprint FROM media_files
+         WHERE id IN (SELECT value FROM json_each(?)) AND length(fingerprint) = 16 ORDER BY id",
+    )
+    .bind(serde_json::to_string(&ids)?)
+    .fetch_all(&db.read)
+    .await?;
+    if fingerprints.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let size_of: HashMap<i64, i64> = vanished.iter().map(|f| (f.id, f.size)).collect();
+    let mut gone: HashMap<(i64, String), Vec<i64>> = HashMap::new();
+    for (id, fingerprint) in fingerprints {
+        gone.entry((size_of[&id], fingerprint)).or_default().push(id);
+    }
+    // Read a few at a time, as files are probed: a library whose folder was
+    // mounted elsewhere has every file to read.
+    let mut found: HashMap<(i64, String), Vec<PathBuf>> = HashMap::new();
+    let mut reads = futures::stream::iter(new.into_iter().map(|(path, size)| async move {
+        let read = path.clone();
+        let fingerprint = crate::util::blocking(move || Ok(crate::store::fingerprint(&read)?)).await.ok();
+        (path, size, fingerprint)
+    }))
+    .buffer_unordered(PROBE_CONCURRENCY);
+    while let Some((path, size, fingerprint)) = reads.next().await {
+        if let Some(fingerprint) = fingerprint {
+            found.entry((size, fingerprint)).or_default().push(path);
+        }
+    }
+    // Copies alike (files of silence, placeholders) can't tell which went
+    // where: only a file that is the one of its kind both before and after
+    // counts.
+    let mut moved = HashMap::new();
+    for (key, paths) in found {
+        if let ([path], Some([id])) = (paths.as_slice(), gone.get(&key).map(Vec::as_slice)) {
+            moved.insert(path_str(path), *id);
+        }
+    }
+    Ok(moved)
+}
+
+/// What probing found in the media file `id`, when it was probed.
+async fn probe_found(db: &Db, id: i64) -> Option<Box<MediaInfo>> {
+    let info: Option<String> =
+        sqlx::query_scalar("SELECT media_info FROM media_files WHERE id = ? AND probed = 1 AND media_info IS NOT NULL")
+            .bind(id)
+            .fetch_optional(&db.read)
+            .await
+            .ok()
+            .flatten();
+    serde_json::from_str(&info?).ok()
+}
+
+/// Gives the titles renamed and moved files make now what people did with
+/// those they made before, which have no file left ([`super::merge::carry`]):
+/// a movie renamed, an episode moved to another show's folder. A batch at a
+/// time: returns the containers (seasons, shows, albums, artists, books) the
+/// titles of the batch were in, each with the one its title went to, or
+/// `None` once none is left.
+async fn relink(conn: &mut SqliteConnection, library_id: i64) -> anyhow::Result<Option<Vec<(i64, i64)>>> {
+    let moved: Vec<(i64, i64, i64)> = sqlx::query_as(
+        "SELECT id, moved_from, item_id FROM media_files WHERE library_id = ? AND moved_from IS NOT NULL
+         ORDER BY id LIMIT ?",
+    )
+    .bind(library_id)
+    .bind(CHANGE_BATCH as i64)
+    .fetch_all(&mut *conn)
+    .await?;
+    if moved.is_empty() {
+        return Ok(None);
+    }
+    let mut containers = Vec::new();
+    for &(_, from, into) in moved.iter().filter(|(_, from, into)| from != into) {
+        let found: Option<(String, Option<i64>, Option<i64>)> = sqlx::query_as(
+            "SELECT kind, parent_id, grandparent_id FROM items
+             WHERE id = ? AND NOT EXISTS (SELECT 1 FROM media_files f WHERE f.item_id = items.id)",
+        )
+        .bind(from)
+        .fetch_optional(&mut *conn)
+        .await?;
+        let Some((kind, parent, grandparent)) = found else { continue };
+        // A film that became bonus material, say, is another thing.
+        let found: Option<(Option<i64>, Option<i64>)> =
+            sqlx::query_as("SELECT parent_id, grandparent_id FROM items WHERE id = ? AND kind = ?")
+                .bind(into)
+                .bind(&kind)
+                .fetch_optional(&mut *conn)
+                .await?;
+        let Some((into_parent, into_grandparent)) = found else { continue };
+        super::merge::carry(conn, into, from).await?;
+        if matches!(kind.as_str(), "episode" | "track" | "part") {
+            for pair in [(parent, into_parent), (grandparent, into_grandparent)] {
+                if let (Some(was), Some(is)) = pair
+                    && was != is
+                {
+                    containers.push((was, is));
+                }
+            }
+        }
+    }
+    let files: Vec<i64> = moved.iter().map(|(file, ..)| *file).collect();
+    sqlx::query("UPDATE media_files SET moved_from = NULL WHERE id IN (SELECT value FROM json_each(?))")
+        .bind(serde_json::to_string(&files)?)
+        .execute(&mut *conn)
+        .await?;
+    Ok(Some(containers))
+}
+
+/// Removes the items left without files: titles, then the containers left
+/// empty. What people watched of the movies and episodes that go is kept a
+/// while ([`super::gone`]). A container whose titles were all renamed or
+/// moved into one other container (`containers`, from [`relink`]) gives
+/// that one what people did with it before it goes: a show's folder renamed
+/// keeps the show on My List.
+async fn cleanup_orphans(
+    conn: &mut SqliteConnection,
+    library_id: i64,
+    containers: &[(i64, i64)],
+) -> anyhow::Result<()> {
+    let orphans: Vec<i64> = sqlx::query_scalar(
+        "SELECT id FROM items WHERE library_id = ? AND kind IN ('movie', 'episode', 'track', 'part', 'extra')
          AND NOT EXISTS (SELECT 1 FROM media_files f WHERE f.item_id = items.id)",
     )
     .bind(library_id)
-    .execute(&mut *conn)
+    .fetch_all(&mut *conn)
     .await?;
+    if !orphans.is_empty() {
+        let orphans = serde_json::to_string(&orphans)?;
+        super::gone::keep(conn, &orphans, now()).await?;
+        sqlx::query("DELETE FROM items WHERE id IN (SELECT value FROM json_each(?))")
+            .bind(&orphans)
+            .execute(&mut *conn)
+            .await?;
+    }
+    // Each container with the one its titles went to, unless they went to
+    // several.
+    let mut went: BTreeMap<i64, Option<i64>> = BTreeMap::new();
+    for &(from, into) in containers {
+        went.entry(from).and_modify(|to| *to = to.filter(|t| *t == into)).or_insert(Some(into));
+    }
     for kinds in ["('season', 'album', 'audiobook')", "('show', 'artist')"] {
+        for (&from, &into) in &went {
+            let Some(into) = into else { continue };
+            let left: bool = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                "SELECT EXISTS (SELECT 1 FROM items WHERE id = ? AND kind IN {kinds}
+                     AND NOT EXISTS (SELECT 1 FROM items c WHERE c.parent_id = items.id AND c.kind != 'extra'))
+                    AND EXISTS (SELECT 1 FROM items WHERE id = ?)"
+            )))
+            .bind(from)
+            .bind(into)
+            .fetch_one(&mut *conn)
+            .await?;
+            if left {
+                super::merge::carry(conn, into, from).await?;
+            }
+        }
         sqlx::query(sqlx::AssertSqlSafe(format!(
             "DELETE FROM items WHERE library_id = ? AND kind IN {kinds}
              AND NOT EXISTS (SELECT 1 FROM items c WHERE c.parent_id = items.id AND c.kind != 'extra')"

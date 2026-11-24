@@ -6,6 +6,13 @@ Everything Pley does. The [README](../README.md) has the short version.
 
 - Movies, TV shows, music and audiobooks, scanned incrementally as files
   change. A drive that goes offline isn't treated as deleted.
+- Files renamed or moved within a library, folders and all, keep what
+  people did with their titles: progress, watched, ratings, history, My
+  List, playlists, collections and added subtitles. A movie or episode
+  replaced by a copy named differently, or deleted and added again within
+  180 days, gets its progress, watched state, ratings and history back
+  once it's matched to the same title; until then they're kept out of
+  sight.
 - The usual naming schemes: `Movie (2019)`, release names, `{tmdb-123}`,
   editions, `S01E02`, `1x02`, date-based and anime episodes, extras, and
   looser episode names like `04 - Title` in a `Season 1` folder
