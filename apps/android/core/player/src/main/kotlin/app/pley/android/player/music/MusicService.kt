@@ -816,7 +816,8 @@ class MusicService : MediaLibraryService() {
                         val saved = if (playback.active) null else MusicHub.resume?.saved()
                         if (playback.active || saved != null) {
                             showMusic(made, playback, graph.library)
-                            if (saved != null) playback.cue(saved)
+                            // Played meanwhile from somewhere else (the phone, as what was kept was read): that plays on.
+                            if (saved != null && !playback.active) playback.cue(saved)
                             val queue = playback.queueState.value
                             future.set(MediaSession.MediaItemsWithStartPosition(queue.tracks.map { library().queueItem(it) }, queue.index, playback.position().positionMs))
                             return@launch
