@@ -17,7 +17,7 @@
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24"><img src="https://img.shields.io/badge/Samsung-0.1.14-0284C7" alt="Samsung 0.1.14"></a>
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-25"><img src="https://img.shields.io/badge/LG-0.1.15-0284C7" alt="LG 0.1.15"></a>
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24"><img src="https://img.shields.io/badge/Kodi-0.1.12-0284C7" alt="Kodi 0.1.12"></a>
-<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24"><img src="https://img.shields.io/badge/Roku-0.1.13-0284C7" alt="Roku 0.1.13"></a>
+<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-25"><img src="https://img.shields.io/badge/Roku-0.1.14-0284C7" alt="Roku 0.1.14"></a>
 <!-- /latest releases -->
 </p>
 
