@@ -57,6 +57,13 @@ interface PlayerEngine {
      */
     val state: StateFlow<EngineState> get() = IdleEngineState.flow
 
+    /**
+     * The bytes servers sent the engine so far: more of them from one look
+     * to the next, and the media still comes (a live channel's provider
+     * hasn't gone quiet). 0 where nothing counts them.
+     */
+    val received: Long get() = 0
+
     /** Loads [source] at [startMs]; plays at once when [playWhenReady]. */
     fun prepare(source: EngineSource, startMs: Long, playWhenReady: Boolean)
 

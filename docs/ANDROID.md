@@ -882,6 +882,17 @@ the player ends the session, unless it goes into picture in picture
 the channel is tuned again twice, after 1 s and then 3 s, before the player
 says why; not when the server refused it (every connection in use, the
 channel stopped, gone or not allowed). Try again starts the count again.
+A provider's stream can start its clock over, as the server connects to it
+again after the stream ended or dropped, and Media3 then neither plays the
+MPEG-TS on nor fails. So the player looks at a channel it plays from
+`stream.ts` once a second: when its position stands still and nothing more
+is buffered for 8 s, while the stream came for 5 of them and still comes,
+it asks for the session's `plan` (which keeps the session, and whose `410`
+says why the channel stopped) and reads `stream.ts` again, which the
+server starts at its last keyframe. A channel that never played, or that
+stands still again within 2 minutes of being read again, plays the
+server's HLS instead. A provider that sends nothing isn't read again: the
+player waits for it.
 Live TV has no pause, so another app's sound, a call's included, quiets
 the channel instead: its sound comes back once the other app is done, or,
 after music or a video, which take the sound for good, with the next

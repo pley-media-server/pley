@@ -164,6 +164,8 @@ class Media3Engine(
     private val trackSelector = DefaultTrackSelector(app, sizeSwitching())
     private val loading = MediaLoading(app, mediaClient, now)
 
+    override val received: Long get() = loading.received
+
     override val player: ExoPlayer = ExoPlayer.Builder(app)
         .setRenderersFactory(
             PleyRenderersFactory(

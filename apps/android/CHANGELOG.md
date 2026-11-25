@@ -111,6 +111,8 @@ With Android Auto:
 - Play and Shuffle on an artist's or album's page are the same height.
 - Now Playing fits a phone turned on its side, with the cover beside
   the title and every control in view.
+- A Live TV channel played as it is plays on after a few seconds when its
+  provider's stream starts over.
 
 ## [0.1.18] - 2026-11-24
 

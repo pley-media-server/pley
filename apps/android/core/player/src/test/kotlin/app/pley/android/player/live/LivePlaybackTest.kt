@@ -59,6 +59,7 @@ class LivePlaybackTest {
         events = events,
         playing = { _, playing -> held += playing },
         here = { _, id -> here += id },
+        now = { scheduler.currentTime },
     )
 
     @After
@@ -75,6 +76,23 @@ class LivePlaybackTest {
     }
 
     private fun engine() = engines.single()
+
+    /** Channel 1, sent as it is, playing from its `stream.ts`. */
+    private fun playStream() {
+        live.plan = Fixtures.decode<LivePlan>("live/plan.json")
+        playback.tune(1)
+        settle()
+        engine().player.ready()
+        settle()
+    }
+
+    /** [seconds] go by, a look of the watch in each: the stream comes or not, and plays on or stands where it is. */
+    private fun pass(seconds: Int, coming: Boolean, playing: Boolean = false) = repeat(seconds) {
+        if (coming) engine().receive()
+        if (playing) engine().player.advanceTo(engine().player.currentPosition + 1_000)
+        scheduler.advanceTimeBy(LivePlayback.STUCK_LOOK_MS)
+        settle()
+    }
 
     @Test
     fun `a channel is watched with this device's id and plays its HLS from the live edge`() {
@@ -285,6 +303,188 @@ class LivePlaybackTest {
         assertEquals(why, failed.trouble.text.inEnglish())
         // Gone at the server already: not left, not watched again.
         assertEquals(listOf("watch 1 android-1"), live.sent)
+    }
+
+    @Test
+    fun `a stream ts that stands still while it comes is read again, on the same session`() {
+        playStream()
+        pass(10, coming = true, playing = true)
+        // The provider's clock started over: nothing more plays or is buffered, and the stream comes on.
+        pass(LivePlayback.STUCK_AFTER - 1, coming = true)
+        assertEquals(1, engine().prepared.size)
+        assertEquals(listOf("live-1"), live.plansAsked)
+        pass(1, coming = true)
+
+        // Its plan asked for, so the session counts as seen, then the same stream.ts, playing at once.
+        assertEquals(listOf("live-1", "live-1"), live.plansAsked)
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+        assertEquals(2, engine().prepared.size)
+        val again = engine().prepared.last()
+        assertEquals("http://127.0.0.1:7539/api/live/channels/1/stream.ts?client_id=android-1-stream", again.source.url)
+        assertTrue(!again.source.hls && again.source.live && again.source.mimeType == MimeTypes.VIDEO_MP2T && again.playWhenReady)
+        // The spinner stays until it plays.
+        assertEquals(LivePhase.Playing, playback.state.value.phase)
+        assertTrue(playback.state.value.buffering)
+        engine().player.ready()
+        settle()
+        assertFalse(playback.state.value.buffering)
+
+        // It plays on, watched as before: nothing more is asked.
+        pass(30, coming = true, playing = true)
+        assertEquals(2, engine().prepared.size)
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+    }
+
+    @Test
+    fun `a stream ts that stands still again soon after it was read again is watched as HLS`() {
+        playStream()
+        pass(10, coming = true, playing = true)
+        pass(LivePlayback.STUCK_AFTER, coming = true)
+        engine().player.ready()
+        settle()
+        // A provider whose clock starts over at every break: the transcoder's segments take the jump.
+        pass(60, coming = true, playing = true)
+        pass(LivePlayback.STUCK_AFTER, coming = true)
+        assertEquals(listOf("watch 1 android-1", "leave live-1", "watch 1 android-1"), live.sent)
+        assertEquals(listOf(false, false, true), engine().prepared.map { it.source.hls })
+        assertTrue(engine().prepared.last().playWhenReady)
+
+        // The HLS isn't watched for standing still: Media3 says when it fails.
+        pass(30, coming = true)
+        assertEquals(3, engine().prepared.size)
+    }
+
+    @Test
+    fun `a stream ts is read again a second time two minutes on`() {
+        playStream()
+        pass(10, coming = true, playing = true)
+        pass(LivePlayback.STUCK_AFTER, coming = true)
+        engine().player.ready()
+        settle()
+        pass((LivePlayback.READ_AGAIN_ONCE_IN_MS / 1_000).toInt(), coming = true, playing = true)
+        pass(LivePlayback.STUCK_AFTER, coming = true)
+        assertEquals(listOf(false, false, false), engine().prepared.map { it.source.hls })
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+
+        // Tuned anew, the channel counts from nothing.
+        playback.tune(1)
+        settle()
+        engine().player.ready()
+        settle()
+        pass(10, coming = true, playing = true)
+        pass(LivePlayback.STUCK_AFTER, coming = true)
+        assertEquals(listOf(false, false, false, false, false), engine().prepared.map { it.source.hls })
+    }
+
+    @Test
+    fun `a stream ts that stands still without ever playing is watched as HLS`() {
+        playStream()
+        // One look further is where it started, not playing.
+        pass(1, coming = true, playing = true)
+        pass(LivePlayback.STUCK_AFTER, coming = true)
+        assertEquals(listOf("watch 1 android-1", "leave live-1", "watch 1 android-1"), live.sent)
+        assertEquals(listOf(false, true), engine().prepared.map { it.source.hls })
+    }
+
+    @Test
+    fun `a provider gone quiet isn't read again`() {
+        playStream()
+        pass(10, coming = true, playing = true)
+        // Nothing comes: the stall's spinner, and the wait for the provider.
+        pass(60, coming = false)
+        assertEquals(1, engine().prepared.size)
+        assertEquals(listOf("live-1"), live.plansAsked)
+
+        // Nor one whose stream came on too few of the seconds it stood still.
+        pass(1, coming = true, playing = true)
+        pass(LivePlayback.STUCK_COMING - 2, coming = true)
+        pass(LivePlayback.STUCK_AFTER - LivePlayback.STUCK_COMING + 1, coming = false)
+        pass(1, coming = true)
+        assertEquals(1, engine().prepared.size)
+        // One more of them, and it stands still for good after all.
+        pass(1, coming = true)
+        assertEquals(2, engine().prepared.size)
+    }
+
+    @Test
+    fun `a stream ts that came and then ended isn't read again`() {
+        playStream()
+        pass(10, coming = true, playing = true)
+        // Its last seconds come, then nothing: its end is the player's to tell.
+        pass(LivePlayback.STUCK_COMING, coming = true)
+        pass(60, coming = false)
+        assertEquals(1, engine().prepared.size)
+        assertEquals(listOf("live-1"), live.plansAsked)
+    }
+
+    @Test
+    fun `a stream ts that buffers on, or plays on, isn't standing still`() {
+        playStream()
+        pass(10, coming = true, playing = true)
+        repeat(30) { second ->
+            engine().player.bufferTo(20_000 + second * 1_000L)
+            pass(1, coming = true)
+        }
+        // Standing still starts over each time it moves.
+        repeat(5) {
+            pass(LivePlayback.STUCK_AFTER - 1, coming = true)
+            pass(1, coming = true, playing = true)
+        }
+        assertEquals(1, engine().prepared.size)
+        assertEquals(listOf("live-1"), live.plansAsked)
+    }
+
+    @Test
+    fun `a stream ts that stands still on a session the server ended says why`() {
+        playStream()
+        pass(10, coming = true, playing = true)
+        val why = "Bob started watching Film Four on this connection."
+        live.planFails = ApiException(410, "session_stopped", why)
+        pass(LivePlayback.STUCK_AFTER, coming = true)
+        val failed = playback.state.value.phase as LivePhase.Failed
+        assertEquals(LiveTrouble.Kind.Stopped, failed.trouble.kind)
+        assertEquals(why, failed.trouble.text.inEnglish())
+        // Gone at the server already: not left, not read or watched again.
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+        assertEquals(1, engine().prepared.size)
+        live.planFails = null
+        pass(30, coming = true)
+        assertEquals(1, engine().prepared.size)
+    }
+
+    @Test
+    fun `a stream ts is read again though its session's plan couldn't be asked for`() {
+        playStream()
+        pass(10, coming = true, playing = true)
+        // Only the server saying the session ended stops it.
+        live.planFails = OfflineException(IOException("down"))
+        pass(LivePlayback.STUCK_AFTER, coming = true)
+        assertEquals(LivePhase.Playing, playback.state.value.phase)
+        assertEquals(listOf(false, false), engine().prepared.map { it.source.hls })
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+    }
+
+    @Test
+    fun `a channel changed or left is no longer watched for standing still`() {
+        playStream()
+        pass(10, coming = true, playing = true)
+        pass(LivePlayback.STUCK_AFTER - 1, coming = true)
+        // Its HLS, which says by itself when it fails.
+        live.plan = null
+        playback.tune(2)
+        settle()
+        engine().player.ready()
+        settle()
+        pass(30, coming = true)
+        assertEquals(listOf(false, false, true), engine().prepared.map { it.source.hls })
+
+        playStream()
+        pass(10, coming = true, playing = true)
+        playback.stop()
+        settle()
+        pass(30, coming = true)
+        assertEquals(listOf("live-1", "live-2", "live-1"), live.plansAsked)
+        assertEquals(1, engines.size)
     }
 
     @Test

@@ -201,10 +201,13 @@ class Media3EngineTest {
                 .addInterceptor { chain -> chain.proceed(chain.request().newBuilder().header("Authorization", "Bearer secret").build()) }
                 .build()
             val engine = engine(client = client)
+            assertEquals(0L, engine.received)
             engine.prepare(EngineSource(server.url("/api/files/1/stream").toString(), hls = false), startMs = 5_000, playWhenReady = false)
             TestPlayerRunHelper.run(engine.player).untilState(Player.STATE_READY)
             // A resume starts at the key frame before its place (the clip's are 2 s apart).
             assertEquals(4_000L, engine.player.currentPosition)
+            // What the server sent is counted: how a live channel is known to come still (LivePlayback).
+            assertTrue(engine.received > 0)
             // The header, then from the 5 s point on.
             assertEquals(null, server.takeRequest().headers["Range"])
             assertTrue(server.takeRequest().headers["Range"]!!.startsWith("bytes="))
