@@ -30,6 +30,8 @@ describes how they are made.
   up to `faster`. Several transcodes at once leave room for each other.
 - A playback or a seek starts sooner while other transcodes run: those
   well ahead of their players pause for that moment.
+- A skip forward to just past what a transcode has made starts at once,
+  rather than waiting for the transcode to get there.
 
 ### Fixed
 

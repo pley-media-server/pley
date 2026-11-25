@@ -623,11 +623,14 @@ A segment that exists is served from disk or memory. Otherwise:
 - **Wait** when a running FFmpeg process is about to make it: at most 12 s
   of segments ahead of the process, never behind it. A segment not ready in
   45 s is `504 timeout`.
-- **Restart instead** when the process is held to the read rate
-  ([Throttling](#throttling)) and the wait (counted from halfway through the
-  segment being made) is longer than this job's last start-to-first-segment
-  time plus stopping the old process. Not while another request waits for a
-  segment the old process is about to make.
+- **Restart instead** when the wait (counted from halfway through the
+  segment being made, at the process's speed over its last seconds) is
+  longer than this job's last start-to-first-segment time for a waiting
+  request plus stopping the old process. A restart skips the segments
+  before the one asked for (a skip forward), and starts at a quick preset
+  on the automatic one; for the segment being made, only a process held to
+  the read rate ([Throttling](#throttling)) is restarted. Not while another
+  request waits for a segment the old process is about to make.
 - **Else start a new process** at that segment, with `-ss`,
   `-output_ts_offset`, `-segment_times` and `-segment_start_number`, so
   timestamps stay on the absolute timeline (`avoid_negative_ts` disabled).

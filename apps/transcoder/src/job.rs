@@ -523,8 +523,9 @@ struct Runtime {
     /// What the latest process does on the GPU, when libplacebo tone maps
     /// (see [`crate::share`]).
     share: Option<Share>,
-    /// What a restart costs this job: from starting FFmpeg to its first
-    /// segment (the latest process's), and stopping the one before.
+    /// What a restart for a waiting request costs this job: from starting
+    /// FFmpeg to its first segment (the latest such process's), and
+    /// stopping the one before.
     start_cost: Option<Duration>,
     stop_cost: Option<Duration>,
 }
@@ -1118,11 +1119,11 @@ impl JobManager {
             // A segment the player waits for: a paused process goes on at once.
             p.set_paused(false);
             if p.will_produce(n) {
-                match job.throttled_wait(p, n) {
+                match job.restart_wait(p, n) {
                     None => return Ok(()),
                     Some(wait) => tracing::debug!(
                         job = %job.id,
-                        "segment {n}: restarting rather than waiting {:.1} s for the throttled process",
+                        "segment {n}: restarting rather than waiting {:.1} s for the process",
                         wait.as_secs_f64()
                     ),
                 }
@@ -1717,7 +1718,8 @@ impl JobManager {
         // A player waits for its first segment (Play, a seek), or it starts
         // ahead of the player (another preset): processes far ahead of their
         // players pause only for the first (see `Job::yields`).
-        let starting = match job.lead_secs(start) <= 0.0 {
+        let awaited = job.lead_secs(start) <= 0.0;
+        let starting = match awaited {
             true => self.background.start_waited(),
             false => self.background.start(),
         };
@@ -1764,6 +1766,7 @@ impl JobManager {
             place,
             next: next.clone(),
             spawned,
+            awaited,
             starting: Some(starting),
             metrics: self.metrics.clone(),
             pause: pause_tx.clone(),
@@ -2223,24 +2226,27 @@ impl Job {
     }
 
     /// The wait for segment `n` from process `p`, which will produce it, when
-    /// restarting at `n` is quicker, so the request doesn't wait. That is when
-    /// the process is held back by the read rate: past its burst, going at
+    /// restarting at `n` is quicker, so the request doesn't wait. A restart
+    /// skips the segments before `n` (a skip forward), and starts quick on
+    /// the automatic preset; for the segment being made, it is quicker only
+    /// when the read rate holds the process back: past its burst, going at
     /// that rate (the encoder isn't what limits it), so slower than a new
-    /// process with a burst of its own. And when the wait is longer than a
-    /// restart costs this job, and no other request waits for a segment the
-    /// process is about to make (players that fetch several at once).
-    fn throttled_wait(&self, p: &Proc, n: u32) -> Option<Duration> {
+    /// process with a burst of its own. And only when the wait is longer
+    /// than a restart costs this job, and no other request waits for a
+    /// segment the process is about to make (players that fetch several at
+    /// once).
+    fn restart_wait(&self, p: &Proc, n: u32) -> Option<Duration> {
         let bounds = &self.plan.boundaries;
         let next = p.next.load(Relaxed) as usize;
         let n = n as usize;
-        if !self.plan.throttle || n < next || n + 1 >= bounds.len() || next + 1 >= bounds.len() {
-            return None;
-        }
-        if bounds[next] - bounds[p.start as usize] < READRATE_BURST_MS {
+        if n < next || n + 1 >= bounds.len() || next + 1 >= bounds.len() {
             return None;
         }
         let speed = p.pace.lock().speed()?;
-        if (speed - READRATE).abs() > READRATE * 0.1 {
+        let held = self.plan.throttle
+            && bounds[next] - bounds[p.start as usize] >= READRATE_BURST_MS
+            && (speed - READRATE).abs() <= READRATE * 0.1;
+        if n == next && !held {
             return None;
         }
         // Up to the end of `n`, from halfway through the one being made.
@@ -2829,6 +2835,8 @@ struct SegmentsMade {
     place: Place,
     next: Arc<AtomicU32>,
     spawned: Instant,
+    /// Whether it was started for a request waiting for its first segment.
+    awaited: bool,
     /// Held until it made [`STARTED_AFTER`] segments.
     starting: Option<Starting>,
     metrics: Arc<Metrics>,
@@ -2841,7 +2849,9 @@ impl SegmentsMade {
     fn segment(&mut self, n: u32) {
         let job = &self.job;
         tracing::trace!(job = %job.id, "segment {n} ready");
-        if self.count == 0 {
+        // What a restart for a waiting request costs (see
+        // `Job::restart_wait`): not one ahead of the player, at another preset.
+        if self.count == 0 && self.awaited {
             job.runtime.lock().start_cost = Some(self.spawned.elapsed());
         }
         segment_written(job, &self.next, n, self.place);
@@ -3557,7 +3567,7 @@ mod tests {
     }
 
     #[test]
-    fn seeks_just_past_a_throttled_process_restart_it() {
+    fn seeks_just_past_a_process_restart_it_where_that_is_quicker() {
         let dir = crate::testing::tempdir();
         let mut job = job(dir.path(), (0..=100).map(|i| i * 2_000).collect());
         job.plan.segment_seconds = 2.0;
@@ -3583,38 +3593,46 @@ mod tests {
             pace.record(at + Duration::from_secs(3), 140_000 + (3_000.0 * speed) as i64);
         };
         going(1.0);
-        assert_eq!(job.throttled_wait(&p, 72), None, "no restart measured yet");
+        assert_eq!(job.restart_wait(&p, 72), None, "no restart measured yet");
         job.runtime.lock().start_cost = Some(Duration::from_millis(1_100));
         job.runtime.lock().stop_cost = Some(Duration::from_millis(100));
 
         // Two segments past the one being made: 2.5 segments of 2 s at real
         // time, against 1.2 s to restart.
-        let wait = job.throttled_wait(&p, 72).unwrap();
+        let wait = job.restart_wait(&p, 72).unwrap();
         assert!((wait.as_secs_f64() - 5.0).abs() < 0.001, "{wait:?}");
-        assert_eq!(job.throttled_wait(&p, 70), None, "half a segment: no quicker to restart");
-        // (a) Still in its burst (100 s made of 120).
+        // The one being made: half a segment, 1 s, at the read rate.
+        assert_eq!(job.restart_wait(&p, 70), None, "no quicker to restart");
+        job.runtime.lock().start_cost = Some(Duration::from_millis(500));
+        assert!(job.restart_wait(&p, 70).is_some(), "a quick start beats the read rate");
+        job.runtime.lock().start_cost = Some(Duration::from_millis(1_100));
+        // Where the encoder is what limits it, in its burst (100 s made of
+        // 120) or slower than the read rate: a restart skips the segments
+        // before, and is quicker only past the one being made.
         p.next.store(50, Relaxed);
-        assert_eq!(job.throttled_wait(&p, 52), None);
+        assert!(job.restart_wait(&p, 52).is_some());
         p.next.store(70, Relaxed);
-        // (b) Slower than the read rate: the encoder is what limits it.
         going(0.7);
-        assert_eq!(job.throttled_wait(&p, 72), None);
+        assert!(job.restart_wait(&p, 72).is_some());
+        assert_eq!(job.restart_wait(&p, 70), None);
+        going(8.0);
+        assert_eq!(job.restart_wait(&p, 72), None, "0.6 s to wait at 8× real time");
         going(1.05);
-        assert!(job.throttled_wait(&p, 72).is_some());
         // (c) A restart costing more than the wait.
         job.runtime.lock().start_cost = Some(Duration::from_secs(6));
-        assert_eq!(job.throttled_wait(&p, 72), None);
+        assert_eq!(job.restart_wait(&p, 72), None);
         job.runtime.lock().start_cost = Some(Duration::from_millis(1_100));
         // (d) Another request waits for a segment the process is about to make.
         let other = Waiting::register(&job, 71);
-        assert_eq!(job.throttled_wait(&p, 72), None);
+        assert_eq!(job.restart_wait(&p, 72), None);
         drop(other);
         let this = Waiting::register(&job, 72);
-        assert!(job.throttled_wait(&p, 72).is_some(), "the request itself doesn't count");
+        assert!(job.restart_wait(&p, 72).is_some(), "the request itself doesn't count");
         drop(this);
-        // Not throttled at all.
+        // Not throttled: the same past the one being made.
         job.plan.throttle = false;
-        assert_eq!(job.throttled_wait(&p, 72), None);
+        assert!(job.restart_wait(&p, 72).is_some());
+        assert_eq!(job.restart_wait(&p, 70), None);
     }
 
     #[test]
@@ -5531,6 +5549,7 @@ mod tests {
                 place: Place::Disk,
                 next: Arc::new(AtomicU32::new(start)),
                 spawned: Instant::now(),
+                awaited: false,
                 starting: Some(background.start()),
                 metrics: Arc::default(),
                 pause: Arc::new(watch::channel(false).0),
