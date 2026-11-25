@@ -249,6 +249,29 @@ class LiveLibraryTest {
     }
 
     @Test
+    fun playlistsStaysWhereTheCarWasShownItWhenATabsNodeIsReadAlone() = runTest {
+        val library = MusicLibrary(SomeMusic().apply { full = true }, { MusicLook }, { _, _ -> null }, live)
+        // Five tabs: the car is given four, Playlists first in the artists' tab.
+        assertEquals(listOf("recent", "artists", "books", "live"), library.children(MusicId.Root, 0, 50).map { it.mediaId })
+        // A tab's node read alone while Live TV is out of reach for a moment: the car still shows those four.
+        source.failing = true
+        assertEquals("artists", library.item(MusicId.Artists)?.mediaId)
+        source.failing = false
+        assertEquals(listOf("playlists", "artist:40"), library.children(MusicId.Artists, 0, 50).map { it.mediaId })
+
+        // The other way round: given Playlists as a tab of its own, then a node read once Live TV is back.
+        source.failing = true
+        assertEquals(listOf("recent", "artists", "playlists", "books"), library.children(MusicId.Root, 0, 50).map { it.mediaId })
+        source.failing = false
+        assertEquals("recent", library.item(MusicId.Recent)?.mediaId)
+        assertEquals(listOf("artist:40"), library.children(MusicId.Artists, 0, 50).map { it.mediaId })
+
+        // The car reads its tabs again: Playlists is where those put it.
+        assertEquals(listOf("recent", "artists", "books", "live"), library.children(MusicId.Root, 0, 50).map { it.mediaId })
+        assertEquals(listOf("playlists", "artist:40"), library.children(MusicId.Artists, 0, 50).map { it.mediaId })
+    }
+
+    @Test
     fun aLongListsPagesAfterTheFirstAreAskedForTogetherAFewAtATime() = runTest {
         // 950 channels in pages of 100, each page a second on its way.
         var onTheirWay = 0
