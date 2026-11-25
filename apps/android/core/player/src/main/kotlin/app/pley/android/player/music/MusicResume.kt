@@ -29,8 +29,10 @@ data class SavedMusic(
 
 /** Makes [saved] the queue that waits for Play, as it was: in the order it played, shuffled or not, with what repeats. */
 fun MusicPlayback.cue(saved: SavedMusic) {
-    setRepeat(saved.repeat)
+    // The queue first: what repeats, set on the empty queue before it, read as a queue stopped, and what was kept was
+    // written empty a moment before it was written again.
     cue(saved.tracks, saved.index, startMs = saved.positionMs, given = saved.given)
+    setRepeat(saved.repeat)
 }
 
 /**
