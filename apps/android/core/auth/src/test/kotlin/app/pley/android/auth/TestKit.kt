@@ -3,6 +3,7 @@ package app.pley.android.auth
 import app.pley.android.common.Addresses
 import app.pley.android.common.UiText
 import app.pley.android.common.UserFacing
+import java.util.concurrent.TimeUnit
 import javax.crypto.KeyGenerator
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
@@ -41,6 +42,14 @@ fun endpointsClient(base: OkHttpClient = OkHttpClient()): OkHttpClient = AuthHtt
 
 /** The address of [server] as the app writes it (its issuer). */
 fun issuerOf(server: MockWebServer): String = Addresses.origin(server.url("/").toString())!!
+
+/**
+ * The next request [this] got, in the order they came. One that never comes
+ * fails the test: waited for without end, as [MockWebServer.takeRequest]
+ * waits, it would hold up every test after it.
+ */
+fun MockWebServer.asked(): RecordedRequest =
+    takeRequest(5, TimeUnit.SECONDS) ?: throw AssertionError("the server got no further request within 5 s ($requestCount in all)")
 
 /** The form parameters of [request]. */
 fun formOf(request: RecordedRequest): Map<String, String> = request.body.clone().readUtf8().split('&').filter { it.isNotEmpty() }.associate {

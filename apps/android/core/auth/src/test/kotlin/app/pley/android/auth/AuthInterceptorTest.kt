@@ -94,17 +94,17 @@ class AuthInterceptorTest {
         store.save(savedTokens(issuer))
         val client = client()
         get(client, home.url("/api/libraries").toString()).close()
-        val sent = home.takeRequest()
+        val sent = home.asked()
         assertEquals("Bearer pley_at_one", sent.getHeader("Authorization"))
         assertEquals("pleyTest/1", sent.getHeader("User-Agent"))
         assertNull("never a token in the address", sent.requestUrl?.query)
 
         // Another port of the same host is another server.
         get(client, other.url("/x").toString()).close()
-        assertNull(other.takeRequest().getHeader("Authorization"))
+        assertNull(other.asked().getHeader("Authorization"))
         // Even when the caller adds one by hand.
         client.newCall(Request.Builder().url(other.url("/y")).header("Authorization", "Bearer pley_at_one").build()).execute().close()
-        assertNull(other.takeRequest().getHeader("Authorization"))
+        assertNull(other.asked().getHeader("Authorization"))
     }
 
     @Test
@@ -112,8 +112,8 @@ class AuthInterceptorTest {
         store.save(savedTokens(issuer))
         api["/api/media/1"] = { MockResponse().setResponseCode(302).setHeader("Location", other.url("/file").toString()) }
         get(client(), home.url("/api/media/1").toString()).close()
-        assertEquals("Bearer pley_at_one", home.takeRequest().getHeader("Authorization"))
-        val followed = other.takeRequest()
+        assertEquals("Bearer pley_at_one", home.asked().getHeader("Authorization"))
+        val followed = other.asked()
         assertEquals("/file", followed.path)
         assertNull(followed.getHeader("Authorization"))
     }
@@ -139,7 +139,7 @@ class AuthInterceptorTest {
             val response = get(client, secure.url("/api/items/1").toString())
             response.close()
             assertEquals(302, response.code)
-            assertEquals("Bearer pley_at_one", secure.takeRequest().getHeader("Authorization"))
+            assertEquals("Bearer pley_at_one", secure.asked().getHeader("Authorization"))
             assertEquals(0, other.requestCount)
         } finally {
             secure.shutdown()
@@ -154,10 +154,10 @@ class AuthInterceptorTest {
         response.close()
         assertEquals(200, response.code)
         assertEquals(1, refreshes.get())
-        val first = home.takeRequest()
+        val first = home.asked()
         assertEquals("Bearer pley_at_one", first.getHeader("Authorization"))
-        assertEquals("/api/oauth/token", home.takeRequest().path)
-        assertEquals("Bearer pley_at_fresh1", home.takeRequest().getHeader("Authorization"))
+        assertEquals("/api/oauth/token", home.asked().path)
+        assertEquals("Bearer pley_at_fresh1", home.asked().getHeader("Authorization"))
         assertEquals("pley_rt_fresh1", store.load(issuer)!!.refreshToken)
     }
 
@@ -278,12 +278,12 @@ class AuthInterceptorTest {
         val response = get(client(), home.url("/api/search?q=a|b").toString())
         response.close()
         assertEquals(200, response.code)
-        assertEquals("Bearer pley_at_one", home.takeRequest().getHeader("Authorization"))
+        assertEquals("Bearer pley_at_one", home.asked().getHeader("Authorization"))
         assertEquals(1, refreshes.get())
-        home.takeRequest()
-        assertEquals("Bearer pley_at_fresh1", home.takeRequest().getHeader("Authorization"))
+        home.asked()
+        assertEquals("Bearer pley_at_fresh1", home.asked().getHeader("Authorization"))
         get(client(), home.url("/api/items/a[1]/b").toString()).close()
-        assertEquals("Bearer pley_at_fresh1", home.takeRequest().getHeader("Authorization"))
+        assertEquals("Bearer pley_at_fresh1", home.asked().getHeader("Authorization"))
     }
 
     @Test

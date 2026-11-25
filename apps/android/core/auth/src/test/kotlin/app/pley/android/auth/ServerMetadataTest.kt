@@ -81,7 +81,7 @@ class ServerMetadataTest {
             val e = runCatching { ServerMetadata.fetch(http, server.url("/").toString()) }.exceptionOrNull()
             assertEquals(TOO_OLD, textOf(e))
         }
-        assertEquals("/.well-known/oauth-authorization-server", server.takeRequest().path)
+        assertEquals("/.well-known/oauth-authorization-server", server.asked().path)
     }
 
     @Test
@@ -95,7 +95,7 @@ class ServerMetadataTest {
         server.enqueue(MockResponse().setBody(metadata(issuer)).setHeader("Content-Type", "application/json"))
         val m = ServerMetadata.fetch(endpointsClient(), issuer)
         assertEquals(issuer, m.issuer)
-        val request = server.takeRequest().let { server.takeRequest() }
+        val request = server.asked().let { server.asked() }
         assertEquals("pleyTest/1", request.getHeader("User-Agent"))
         assertNull("no cookies, no tokens", request.getHeader("Cookie") ?: request.getHeader("Authorization"))
     }

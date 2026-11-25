@@ -4,6 +4,7 @@ import app.pley.android.auth.Tokens
 import app.pley.android.common.Tier
 import app.pley.android.common.sha1Hex
 import app.pley.android.testing.network.MockPley
+import app.pley.android.testing.network.asked
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -74,16 +75,16 @@ class NetworkGraphTest {
             val root = HttpRoot.create(TEST_AGENT, language = { language })
             server.enqueue(MockResponse.Builder().body("ok").build())
             root.newCall(Request.Builder().url(MockPley.url(server, "/api/hubs/home")).build()).execute().close()
-            assertEquals("fr-CA", server.takeRequest().headers["Accept-Language"])
+            assertEquals("fr-CA", server.asked().headers["Accept-Language"])
             // Shown in another language now: the next request asks for it.
             language = "es"
             server.enqueue(MockResponse.Builder().body("ok").build())
             root.newCall(Request.Builder().url(MockPley.url(server, "/api/hubs/home")).build()).execute().close()
-            assertEquals("es", server.takeRequest().headers["Accept-Language"])
+            assertEquals("es", server.asked().headers["Accept-Language"])
             language = null
             server.enqueue(MockResponse.Builder().body("ok").build())
             root.newCall(Request.Builder().url(MockPley.url(server, "/api/hubs/home")).build()).execute().close()
-            assertNull(server.takeRequest().headers["Accept-Language"])
+            assertNull(server.asked().headers["Accept-Language"])
         }
     }
 
@@ -93,7 +94,7 @@ class NetworkGraphTest {
             server.enqueue(MockResponse.Builder().body("ok").build())
             val root = HttpRoot.create(TEST_AGENT)
             root.newCall(Request.Builder().url(MockPley.url(server, "/api/health")).header("User-Agent", "okhttp/5").build()).execute().close()
-            assertEquals(TEST_AGENT, server.takeRequest().headers["User-Agent"])
+            assertEquals(TEST_AGENT, server.asked().headers["User-Agent"])
         }
     }
 
@@ -151,8 +152,8 @@ class NetworkGraphTest {
                 fetch(graph.images, MockPley.url(signedIn, "/api/items/101/images/poster?w=320"))
                 fetch(graph.images, MockPley.url(other, "/api/items/101/images/poster?w=320"))
 
-                assertEquals("Bearer pley_at_pictures", signedIn.takeRequest().headers["Authorization"])
-                assertNull(other.takeRequest().headers["Authorization"])
+                assertEquals("Bearer pley_at_pictures", signedIn.asked().headers["Authorization"])
+                assertNull(other.asked().headers["Authorization"])
             }
         }
     }
@@ -171,7 +172,7 @@ class NetworkGraphTest {
             assertEquals("jpeg", read(graph.pictures(issuer, 2), cover))
             assertEquals("jpeg", read(graph.pictures("$issuer/", 2), cover))
             assertEquals(1, server.requestCount)
-            assertEquals("Bearer pley_at_pictures", server.takeRequest().headers["Authorization"])
+            assertEquals("Bearer pley_at_pictures", server.asked().headers["Authorization"])
             // In the server's folder, which signing out deletes, apart for each profile: another asks the server itself.
             assertEquals(folder.root.resolve("http/${sha1Hex(issuer)}/pictures/2"), graph.pictures(issuer, 2).cache?.directory)
             assertEquals("jpeg", read(graph.pictures(issuer, 3), cover))
@@ -195,7 +196,7 @@ class NetworkGraphTest {
             val graph = testGraph(folder.root, { tokens })
             server.enqueue(MockResponse.Builder().body("#EXTM3U").build())
             fetch(graph.media(issuer), "$issuer/api/playback/abc/index.m3u8")
-            assertEquals("Bearer pley_at_media", server.takeRequest().headers["Authorization"])
+            assertEquals("Bearer pley_at_media", server.asked().headers["Authorization"])
         }
     }
 

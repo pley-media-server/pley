@@ -33,6 +33,7 @@ import app.pley.android.player.music.EngineMusicOutput
 import app.pley.android.player.music.MusicOutput
 import app.pley.android.player.music.OutputError
 import app.pley.android.player.music.TrackInfo
+import app.pley.android.testing.network.asked
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockResponseBody
@@ -145,9 +146,6 @@ class Media3EngineTest {
 
     @After
     fun releaseAll() = engines.forEach { it.release() }
-
-    /** The next request the server got. One that never comes fails the test: waited for without end, it would hold up every test after it. */
-    private fun MockWebServer.asked(): RecordedRequest = takeRequest(5, TimeUnit.SECONDS) ?: throw AssertionError("the server got no further request")
 
     private fun file(): String {
         val f = File.createTempFile("clip", ".mp4").apply { deleteOnExit() }

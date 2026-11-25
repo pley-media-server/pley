@@ -5,6 +5,7 @@ import app.pley.android.common.R as CommonR
 import app.pley.android.common.UiText
 import app.pley.android.common.sha1Hex
 import app.pley.android.testing.network.MockPley
+import app.pley.android.testing.network.asked
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -129,10 +130,10 @@ class HttpPleyApiErrorsTest {
 
         api.me()
 
-        assertEquals("Bearer pley_at_one", server.takeRequest().headers["Authorization"])
-        val refresh = server.takeRequest()
+        assertEquals("Bearer pley_at_one", server.asked().headers["Authorization"])
+        val refresh = server.asked()
         assertEquals("POST /api/oauth/token HTTP/1.1", refresh.requestLine)
-        val again = server.takeRequest()
+        val again = server.asked()
         assertEquals("GET /api/auth/me HTTP/1.1", again.requestLine)
         assertEquals("Bearer pley_at_two", again.headers["Authorization"])
     }
@@ -182,8 +183,8 @@ class HttpPleyApiErrorsTest {
         val second = api.libraryItems(1, limit = 200)
 
         assertEquals(first, second)
-        assertNull(server.takeRequest().headers["If-None-Match"])
-        val revalidation = server.takeRequest()
+        assertNull(server.asked().headers["If-None-Match"])
+        val revalidation = server.asked()
         assertEquals(etag, revalidation.headers["If-None-Match"])
         assertEquals("Bearer pley_at_one", revalidation.headers["Authorization"])
         assertTrue(graph.cacheDirOf(issuer, 2).isDirectory)

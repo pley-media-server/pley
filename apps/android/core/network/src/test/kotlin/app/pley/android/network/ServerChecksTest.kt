@@ -5,6 +5,7 @@ import app.pley.android.common.FoundServer
 import app.pley.android.common.Tier
 import app.pley.android.model.ServerInfo
 import app.pley.android.testing.network.MockPley
+import app.pley.android.testing.network.asked
 import java.io.IOException
 import java.net.ConnectException
 import java.net.Inet4Address
@@ -79,7 +80,7 @@ class ServerChecksTest {
 
         assertEquals(listOf(FoundServer(MockPley.issuerOf(home), "Living Room", id = null, version = "0.42.0")), found)
         assertTrue("took ${(System.nanoTime() - started) / 1_000_000} ms", System.nanoTime() - started < 5_000_000_000)
-        assertEquals(TEST_AGENT, home.takeRequest().headers["User-Agent"])
+        assertEquals(TEST_AGENT, home.asked().headers["User-Agent"])
     }
 
     @Test
@@ -245,7 +246,7 @@ class ServerChecksTest {
         val home = pley()
         val typed = "127.0.0.1:${home.port}"
         assertEquals(ProbeResult.Pley(MockPley.issuerOf(home), ServerInfo("Living Room", "0.42.0")), graph.probe.probe(typed))
-        val asked = home.takeRequest()
+        val asked = home.asked()
         assertEquals(null, asked.headers["Authorization"])
         assertEquals(TEST_AGENT, asked.headers["User-Agent"])
 
