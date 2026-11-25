@@ -1354,6 +1354,27 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun aTrackTheQueueHasTwiceWaitsAtTheOnePicked() = runTest {
+        val music = music()
+        // A playlist with a track twice: the second of the two picked in a car, then the first, the queue the same.
+        val twice = listOf(album[1], album[0], album[1], album[2])
+        music.cue(twice, startIndex = 2)
+        assertEquals(2, music.queueState.value.index)
+        music.cue(twice, startIndex = 0)
+        assertEquals(0, music.queueState.value.index)
+        // Made ready, then asked to play (as a car asks): it plays from the one picked, and goes on from there.
+        music.cue(twice, startIndex = 2)
+        music.cue(twice, startIndex = 2)
+        music.play()
+        runCurrent()
+        assertEquals(2L, starts().single().itemId)
+        assertEquals(2, music.nowPlaying.value?.index)
+        music.next()
+        runCurrent()
+        assertEquals(3L, starts().last().itemId)
+    }
+
+    @Test
     fun aTrackPlayedFromWhereItWaitedReadsAsThereWhileItLoads() = runTest {
         val music = music()
         music.cue(album, startIndex = 2, startMs = 61_000)

@@ -54,6 +54,8 @@ class MusicLibraryTest {
             MusicId.Track(51, MusicId.Album(50)),
             MusicId.Track(51, MusicId.Playlist(7)),
             MusicId.Track(51, MusicId.Playlist(7), at = 2),
+            MusicId.Track(51, MusicId.Playlist(7), at = 0),
+            MusicId.Track(51, MusicId.Playlist(7), at = 999_999),
         )
         for (id in ids) assertEquals(id, MusicId.parse(id.text))
     }
@@ -65,6 +67,10 @@ class MusicLibraryTest {
         }
         // A place is a playlist's track's alone, and a number.
         for (text in listOf("track:1@album:2#1", "track:1#1", "track:1@playlist:2#", "track:1@playlist:2#x", "track:1@playlist:2#-1", "track:1@playlist:2#1234567")) {
+            assertNull(text, MusicId.parse(text))
+        }
+        // It comes last, once: not twice, signed or spaced, before the playlist, or with anything after it.
+        for (text in listOf("track:1@playlist:2#3#4", "track:1@playlist:2#+3", "track:1@playlist:2# 3", "track:1#3@playlist:2", "track:1@playlist:2#3@album:4")) {
             assertNull(text, MusicId.parse(text))
         }
     }
@@ -410,6 +416,21 @@ class MusicLibraryTest {
         // The playlist changed since the car listed it, and the track is elsewhere in it: from where it comes first.
         source.playlistTracks = listOf(51L, 52L)
         assertEquals(1, library.selection(MusicId.parse(rows[2])!!)!!.startIndex)
+    }
+
+    @Test
+    fun aRepeatedTracksPlaceIsItsPlaceInTheWholePlaylistAndOnlyItsRowsCarryIt() = runTest {
+        source.playlistTracks = listOf(52L, 51L, 52L, 52L)
+        // Paged, a row says where it is in the playlist, not on its page: each of the three has an id of its own.
+        val later = library.children(MusicId.Playlist(7), 1, 2).map { it.mediaId }
+        assertEquals(listOf("track:52@playlist:7#2", "track:52@playlist:7#3"), later)
+        val last = library.selection(MusicId.parse(later[1])!!)!!
+        assertEquals(3, last.startIndex)
+        assertEquals("Night drive", last.title)
+        // The queue's rows name the track alone, as search's do: which of the three plays is its place in the queue.
+        assertEquals(listOf("track:52", "track:51", "track:52", "track:52"), last.tracks.map { library.queueItem(it).mediaId })
+        source.found = listOf(track(52, 50))
+        assertEquals(listOf("track:52"), library.search("track").map { it.mediaId })
     }
 
     @Test
