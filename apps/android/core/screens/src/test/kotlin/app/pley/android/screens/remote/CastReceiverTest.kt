@@ -5,9 +5,11 @@ package app.pley.android.screens.remote
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemList
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.MaybeItem
 import app.pley.android.model.Me
 import app.pley.android.model.PlaylistKind
 import app.pley.android.model.ServerEvent
+import app.pley.android.model.UserState
 import app.pley.android.network.LiveEvent
 import app.pley.android.player.CastFrom
 import app.pley.android.player.MusicControl
@@ -170,6 +172,29 @@ class CastReceiverTest {
         assertEquals(Triple(tracks.map { it.id }, 0, false), music.played.last())
         cast(data, ServerEvent.Cast(id, itemId = 500, shuffle = true))
         assertEquals(true, music.played.last().third)
+    }
+
+    @Test
+    fun `a book goes on where the profile is in it, its parts in order whatever the remote asks`() = runTest {
+        val parts = listOf(
+            ItemSummary(701, 5, ItemKind.Part, "Part 1", parentId = 700, userState = UserState(watched = true)),
+            ItemSummary(702, 5, ItemKind.Part, "Part 2", parentId = 700, userState = UserState(positionMs = 600_000)),
+            ItemSummary(703, 5, ItemKind.Part, "Part 3", parentId = 700),
+        )
+        val (data, id) = receiving {
+            api.answer("item", Fixtures.decode<app.pley.android.model.ItemDetail>("items/track_detail.json").copy(id = 700, kind = ItemKind.Audiobook))
+            api.answer("children", ItemList(parts))
+            api.answer("onDeck", MaybeItem(parts[1]))
+        }
+        // As the book's own Play: the part being heard, where it was left, the others after it in their order.
+        cast(data, ServerEvent.Cast(id, itemId = 700, from = "Kitchen phone"))
+        assertEquals(listOf(Triple(parts.map { it.id }, 1, 600_000L)), music.playedFrom)
+        // Shuffle is for music: a book's parts aren't shuffled, nor started over.
+        cast(data, ServerEvent.Cast(id, itemId = 700, shuffle = true))
+        assertEquals(Triple(parts.map { it.id }, 1, 600_000L), music.playedFrom.last())
+        assertEquals(2, music.playedFrom.size)
+        assertTrue(music.played.isEmpty())
+        assertTrue(launcher.played.isEmpty())
     }
 
     @Test
@@ -381,14 +406,22 @@ class CastReceiverTest {
         }
     }
 
-    /** The music player: what it was asked to play (the tracks' ids, where from, shuffled) and where to go. */
+    /**
+     * The music player: what it was asked to play (the tracks' ids, where from, shuffled), what it was asked to play
+     * from a place (the ids, where from, how far into that one), and where to go.
+     */
     private class Music : MusicControl {
         override val nowPlaying = MutableStateFlow<NowPlaying?>(null)
         val played = mutableListOf<Triple<List<Long>, Int, Boolean>>()
+        val playedFrom = mutableListOf<Triple<List<Long>, Int, Long>>()
         val seeks = mutableListOf<Long>()
 
         override fun play(tracks: List<ItemSummary>, startIndex: Int, shuffle: Boolean) {
             played += Triple(tracks.map { it.id }, startIndex, shuffle)
+        }
+
+        override fun playFrom(tracks: List<ItemSummary>, startIndex: Int, startMs: Long) {
+            playedFrom += Triple(tracks.map { it.id }, startIndex, startMs)
         }
 
         override fun seekTo(positionMs: Long) {
