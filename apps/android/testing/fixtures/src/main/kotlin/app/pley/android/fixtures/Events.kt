@@ -58,6 +58,14 @@ internal class EventHub(private val state: State) {
     private var scheduler: ScheduledExecutorService? = null
     private var scans = 0
 
+    /**
+     * Whether the server listens. While it doesn't, a stream ends as it
+     * starts: asked for just before [drop], it starts after it, when
+     * nothing else would end it.
+     */
+    @Volatile
+    private var listening = true
+
     fun start() {
         val every = state.options.scanEveryMs
         if (every <= 0) return
@@ -73,9 +81,15 @@ internal class EventHub(private val state: State) {
         drop()
     }
 
-    /** Ends every stream: the server stops listening. */
+    /** Ends every stream, and those asked for until then as they start: the server stops listening. */
     fun drop() {
+        listening = false
         streams.forEach { it.offer(END) }
+    }
+
+    /** Streams stay open again: the server listens. */
+    fun listen() {
+        listening = true
     }
 
     /** Open streams: tests wait for one before sending. */
@@ -245,6 +259,8 @@ internal class EventHub(private val state: State) {
             override fun writeTo(sink: BufferedSink) {
                 owners[queue] = caller.profile.id
                 streams += queue
+                // Asked for as the server stopped listening: the streams were ended before this one was among them.
+                if (!listening) queue.offer(END)
                 val counted = receiver != null && openReceiver(caller.profile.id, receiver)
                 try {
                     // The headers go out with the first comment.
