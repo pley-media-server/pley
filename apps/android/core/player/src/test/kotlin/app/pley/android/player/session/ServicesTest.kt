@@ -51,7 +51,17 @@ class ServicesTest {
         h.settle()
         assertNull(services.controller(first))
         assertNotNull(services.controller(second))
-        assertEquals(listOf("start", "progress stopped", "delete", "start"), h.timeline())
+        // The one before ends ("stopped", then DELETE) while the next one starts, neither waiting for the other: the next
+        // one doesn't keep the one before, so the server ends that one as it starts, whichever request comes first.
+        val timeline = h.timeline()
+        assertEquals("start", timeline.first())
+        assertEquals(listOf("progress stopped", "delete"), timeline.filter { it != "start" })
+        val stopped = h.progress(FixtureIds.SAMPLE_1080P).single().second
+        assertEquals(stopped.sessionId, h.deletes().single())
+        val requests = h.playbackRequests()
+        assertEquals(listOf(FixtureIds.SAMPLE_1080P, FixtureIds.SAMPLE_HDR10), requests.map { it.itemId })
+        assertEquals(listOf(SessionHarness.CLIENT_ID, SessionHarness.CLIENT_ID), requests.map { it.clientId })
+        assertNull(requests.last().keepPrevious)
         assertTrue(controller.state.value.phase !is PlayerPhase.Error)
 
         services.controller(second)!!.close()
