@@ -184,7 +184,7 @@ class MusicLibrary(
     suspend fun children(id: MusicId, page: Int, pageSize: Int): List<MediaItem> {
         val size = pageSize.coerceIn(1, MAX_PAGE)
         val all: List<MediaItem> = when (id) {
-            MusicId.Root -> tabs()
+            MusicId.Root -> tabs(given = true)
             MusicId.Recent -> recent()
             MusicId.Artists -> {
                 // A row among the artists, its icon at an icon's size rather than a picture's.
@@ -451,8 +451,11 @@ class MusicLibrary(
      * heard. What can't be read now (the server out of reach) is shown, but
      * books, which a server may not give the car at all. Cars show four
      * tabs: with five, Playlists goes first in the artists' tab, named Music.
+     * [given] to a car as its tabs, they say where Playlists is listed from
+     * then on ([playlistsInArtists]); read for one tab's node alone, they
+     * leave that as the car was last shown it.
      */
-    private suspend fun tabs(): List<MediaItem> = coroutineScope {
+    private suspend fun tabs(given: Boolean = false): List<MediaItem> = coroutineScope {
         val l = look()
         val music = async { known { source.libraries() } }
         val playlists = async { known { musicPlaylists() } }
@@ -471,7 +474,7 @@ class MusicLibrary(
             liveTab.await(),
         )
         val fold = all.size > MAX_TABS && hasMusic && hasPlaylists
-        playlistsInArtists = fold
+        if (given) playlistsInArtists = fold
         if (!fold) return@coroutineScope all
         all.filter { it.mediaId != MusicId.Playlists.text }.map { tab ->
             if (tab.mediaId != MusicId.Artists.text) return@map tab
