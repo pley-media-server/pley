@@ -754,6 +754,14 @@ between nothing and 0.6 dB over `faster`, the most on the 1080p60 clip, for
 1.3 to 1.6 times the processor's time. x265 on the film gained 0.1 dB.
 Both presets can still be set by hand.
 
+Its `ultrafast` (H.264) keeps the B-frames and 8×8 transforms x264's own
+leaves out (`-x264-params bframes=3:8x8dct=1`), so every rung makes a High
+profile stream with two frames between decoding and showing. A move between
+rungs, such as a start's hand-over, is then no change of profile and no jump
+back in decoding times, which players such as hls.js take for overlapping
+segments. On a 1080p film it took a sixth more time than x264's own and was
+0.1 to 1.5 dB better at 8 and 4 Mbps. `ultrafast` set by hand is x264's own.
+
 The rule: the software encodes together take at most half the computer's
 time. One encode alone uses the slowest preset that makes twice real time;
 N of them use the slowest that makes 2 N times real time alone.
@@ -781,7 +789,7 @@ N of them use the slowest that makes 2 N times real time alone.
     too, and its next seek starts as before anything was measured.
   - A speed under 0.1 × tells nothing: the input stopped coming.
 - **Estimating.** The other presets are estimated from the nearest one
-  measured: `superfast` makes 0.55 of what `ultrafast` does, `veryfast`
+  measured: `superfast` makes 0.65 of what `ultrafast` does, `veryfast`
   and `faster` 0.7 of the preset before, however many steps away.
   Estimated from `ultrafast`, `faster` made as little as 0.6 of that on the
   computers measured: one expected at twice real time still keeps ahead,

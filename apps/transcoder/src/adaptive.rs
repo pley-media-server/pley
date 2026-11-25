@@ -49,12 +49,14 @@ pub const AUTO: &str = "auto";
 /// A preset's speed as a share of the one a step faster (the one before it
 /// in [`LADDER`]), about the middle of what was measured: x264 on 2 to 24
 /// threads of a 12-core Ryzen, 1080p at 24 and 60 frames a second and 720p,
-/// made 0.43 to 0.64 for superfast, 0.62 to 0.88 for veryfast, 0.60 to 0.87
-/// for faster. Estimated from `ultrafast`, `faster` made as little as 0.6
-/// of what these say: a preset expected at twice real time ([`COMFORT`])
-/// still makes more than [`TOO_SLOW`], and is measured as soon as a job is
-/// on it.
-const STEP: [f64; LADDER.len()] = [1.0, 0.55, 0.7, 0.7];
+/// made 0.43 to 0.64 for superfast against x264's own ultrafast, 0.62 to
+/// 0.88 for veryfast, 0.60 to 0.87 for faster. The ladder's ultrafast keeps
+/// B-frames and 8×8 transforms (see `plan.rs`), which took a sixth more
+/// time on a 1080p film: superfast makes about 0.65 of what it does.
+/// Estimated from `ultrafast`, `faster` made as little as 0.6 of what these
+/// say: a preset expected at twice real time ([`COMFORT`]) still makes more
+/// than [`TOO_SLOW`], and is measured as soon as a job is on it.
+const STEP: [f64; LADDER.len()] = [1.0, 0.65, 0.7, 0.7];
 
 /// The speed (× real time) a preset must be expected to make to be moved
 /// to: the encode then takes half the computer's time, which leaves room
@@ -485,7 +487,8 @@ mod tests {
     /// What each preset made flat out on a Ryzen 9 5900X held to 8, 4 and 2
     /// threads: a 1080p film at 24 frames a second, a 1080p video at 60,
     /// and 4K HDR10 tone mapped on the CPU, which the tone mapping holds
-    /// back more than the encoder.
+    /// back more than the encoder. Ultrafast is x264's own, a sixth quicker
+    /// than the ladder's.
     const FILM_8: [f64; 4] = [15.58, 9.52, 7.29, 5.2];
     const FILM_4: [f64; 4] = [7.65, 4.07, 3.57, 2.13];
     const FILM_2: [f64; 4] = [3.75, 2.4, 1.88, 1.29];
@@ -573,10 +576,10 @@ mod tests {
         // A start, then straight to it once measured: 8 threads make 9.5 ×
         // at superfast, and faster is estimated at 4.7 (it makes 5.2).
         assert_eq!(settles(&FILM_8, load(1, 8, HD)), [SF, FASTER]);
-        // 4 threads make 7.7 × at ultrafast: faster is estimated at 2.06.
+        // 4 threads make 7.7 × at ultrafast: faster is estimated at 2.4.
         assert_eq!(settles(&FILM_4, load(1, 4, HD)), [UF, FASTER]);
-        // 2 threads make 3.8 × at ultrafast: superfast is estimated at 2.06,
-        // veryfast at 1.4.
+        // 2 threads make 3.8 × at ultrafast: superfast is estimated at 2.4,
+        // veryfast at 1.7.
         assert_eq!(settles(&FILM_2, load(1, 2, HD)), [UF, SF]);
     }
 
@@ -592,7 +595,7 @@ mod tests {
             assert_eq!(decide(&speeds, going(UF, 1.7, lead, 1), now), None, "{lead} s ahead");
         }
         // As many steps past what was measured as are expected to make it.
-        let speeds = knowing(&[(UF, 7.0)], now);
+        let speeds = knowing(&[(UF, 6.0)], now);
         assert_eq!(speeds.choose(1, Need::Steady, now), Some(VF), "faster is estimated at 1.9");
     }
 
@@ -698,7 +701,7 @@ mod tests {
     fn a_quick_start_hands_over_to_the_steady_preset_once_ahead() {
         let now = Instant::now();
         let soon = Duration::from_secs(3);
-        // Measured at ultrafast on 4 threads: faster is estimated at 2.06.
+        // Measured at ultrafast on 4 threads: faster is estimated at 2.4.
         let speeds = knowing(&[(UF, FILM_4[UF])], now);
         assert_eq!(hand_over(&speeds, load(1, 4, HD), UF, soon, 9.0, now), None, "not far enough ahead");
         assert_eq!(hand_over(&speeds, load(1, 4, HD), UF, soon, 12.0, now), Some(FASTER));
