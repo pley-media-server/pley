@@ -175,7 +175,7 @@ class MusicLibrary(
         MusicId.LiveTv, is MusicId.LiveList, is MusicId.Channel -> live?.item(id)
         is MusicId.Artist -> source.item(id.id)?.takeIf { it.kind == ItemKind.Artist }?.let(::artist)
         is MusicId.Album -> source.item(id.id)?.takeIf { it.kind == ItemKind.Album }?.let(::album)
-        is MusicId.Track -> source.item(id.id)?.takeIf { it.kind == ItemKind.Track || it.kind == ItemKind.Part }?.let { track(it, id.from, numbered = id.from is MusicId.Album) }
+        is MusicId.Track -> source.item(id.id)?.takeIf { it.kind == ItemKind.Track || it.kind == ItemKind.Part }?.let { track(it, id.from, numbered = id.from is MusicId.Album, at = id.at) }
         is MusicId.Playlist -> musicPlaylists().firstOrNull { it.id == id.id }?.let(::playlist)
         is MusicId.LibraryArtists, is MusicId.ShuffleArtist -> null
     }
@@ -210,7 +210,11 @@ class MusicLibrary(
                 listOf(shuffle(id, albums).styled(GRID)) + albums.map { album(it, onArtist = true).let { row -> if (row.mediaMetadata.isPlayable == true) row.styled(GRID) else row } }
             }
             is MusicId.Album -> albumTracks(id)
-            is MusicId.Playlist -> source.playlist(id.id).entries.map { it.item }.filter { it.kind == ItemKind.Track }.map { track(it, from = id) }
+            is MusicId.Playlist -> {
+                // A track the playlist has again says where it is: picked, the playlist plays on from there.
+                val seen = HashSet<Long>()
+                tracksIn(source.playlist(id.id)).mapIndexed { at, it -> track(it, from = id, at = if (seen.add(it.id)) null else at) }
+            }
             MusicId.LiveTv, is MusicId.LiveList -> live?.children(id).orEmpty()
             is MusicId.ShuffleArtist, is MusicId.Track, is MusicId.Channel, is MusicId.Book -> emptyList()
         }
@@ -407,7 +411,8 @@ class MusicLibrary(
             else -> null to null
         }
         if (tracks != null) {
-            val at = tracks.indexOfFirst { it.id == id.id }
+            // Where the row picked said it is, while it is still there: a playlist may have the track before that too.
+            val at = id.at?.takeIf { tracks.getOrNull(it)?.id == id.id } ?: tracks.indexOfFirst { it.id == id.id }
             if (at >= 0) return MusicSelection(tracks, at, title = title)
         }
         // A search's track, or one no longer where it was: its album plays on from it; a book's part, its book.
@@ -704,9 +709,10 @@ class MusicLibrary(
      * and [numbered], its number before its title ("1. Make Them Cry") when
      * it has one, as the album's page lists it. Elsewhere (a playlist,
      * search, the queue), its artist and cover, and its title alone: what
-     * plays is named by its title.
+     * plays is named by its title. [at] is where it is in a playlist that
+     * has it more than once ([MusicId.Track.at]).
      */
-    private fun track(item: ItemSummary, from: MusicId?, numbered: Boolean = false): MediaItem {
+    private fun track(item: ItemSummary, from: MusicId?, numbered: Boolean = false, at: Int? = null): MediaItem {
         // A book's part, in the queue: under its book's title.
         val part = item.kind == ItemKind.Part
         val artist = if (part) item.parentTitle else item.grandparentTitle
@@ -729,7 +735,7 @@ class MusicLibrary(
             .setIsPlayable(true)
             .setMediaType(if (part) MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER else MediaMetadata.MEDIA_TYPE_MUSIC)
             .build()
-        return MediaItem.Builder().setMediaId(MusicId.Track(item.id, from).text).setMediaMetadata(metadata).build()
+        return MediaItem.Builder().setMediaId(MusicId.Track(item.id, from, at).text).setMediaMetadata(metadata).build()
     }
 
     /**

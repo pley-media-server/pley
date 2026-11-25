@@ -53,6 +53,7 @@ class MusicLibraryTest {
             MusicId.Track(51),
             MusicId.Track(51, MusicId.Album(50)),
             MusicId.Track(51, MusicId.Playlist(7)),
+            MusicId.Track(51, MusicId.Playlist(7), at = 2),
         )
         for (id in ids) assertEquals(id, MusicId.parse(id.text))
     }
@@ -60,6 +61,10 @@ class MusicLibraryTest {
     @Test
     fun idsFromElsewhereAreRefused() {
         for (text in listOf("", "album", "album:", "album:-1", "album:0", "album:1x", "album:99999999999999999999", "track:1@artist:2", "track:1@track:2", "movie:3", "track:1@")) {
+            assertNull(text, MusicId.parse(text))
+        }
+        // A place is a playlist's track's alone, and a number.
+        for (text in listOf("track:1@album:2#1", "track:1#1", "track:1@playlist:2#", "track:1@playlist:2#x", "track:1@playlist:2#-1", "track:1@playlist:2#1234567")) {
             assertNull(text, MusicId.parse(text))
         }
     }
@@ -389,6 +394,22 @@ class MusicLibraryTest {
         assertEquals("Night drive", library.selection(MusicId.Playlist(7))!!.title)
         assertEquals("Night drive", library.selection(MusicId.Track(51, MusicId.Playlist(7)))!!.title)
         assertNull(library.selection(MusicId.Track(51, MusicId.Album(50)))!!.title)
+    }
+
+    @Test
+    fun aTrackAPlaylistHasTwicePlaysOnFromTheOnePicked() = runTest {
+        source.playlistTracks = listOf(52L, 51L, 52L, 56L)
+        val rows = library.children(MusicId.Playlist(7), 0, 50).map { it.mediaId }
+        // Each row has an id of its own: the track's again says where it is.
+        assertEquals(listOf("track:52@playlist:7", "track:51@playlist:7", "track:52@playlist:7#2", "track:56@playlist:7"), rows)
+        assertEquals(0, library.selection(MusicId.parse(rows[0])!!)!!.startIndex)
+        val again = library.selection(MusicId.parse(rows[2])!!)!!
+        assertEquals(listOf(52L, 51L, 52L, 56L), again.tracks.map { it.id })
+        assertEquals(2, again.startIndex)
+        assertEquals(rows[2], library.item(MusicId.parse(rows[2])!!)?.mediaId)
+        // The playlist changed since the car listed it, and the track is elsewhere in it: from where it comes first.
+        source.playlistTracks = listOf(51L, 52L)
+        assertEquals(1, library.selection(MusicId.parse(rows[2])!!)!!.startIndex)
     }
 
     @Test
@@ -894,8 +915,11 @@ class MusicLibraryTest {
             id = playlistId,
             title = "Night drive",
             kind = PlaylistKind.Audio,
-            entries = listOf(PlaylistEntry(1, track(52, 50)), PlaylistEntry(2, track(51, 50))),
+            entries = playlistTracks.mapIndexed { at, id -> PlaylistEntry(at + 1L, tracks.values.flatten().first { it.id == id }) },
         )
+
+        /** The playlist's tracks, in its order. */
+        var playlistTracks = listOf(52L, 51L)
 
         val searched = mutableListOf<String>()
 
