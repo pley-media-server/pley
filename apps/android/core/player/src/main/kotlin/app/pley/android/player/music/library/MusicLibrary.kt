@@ -458,7 +458,8 @@ class MusicLibrary(
      * tabs: with five, Playlists goes first in the artists' tab, named Music.
      * [given] to a car as its tabs, they say where Playlists is listed from
      * then on ([playlistsInArtists]); read for one tab's node alone, they
-     * leave that as the car was last shown it.
+     * leave that as the car was last shown it, and name the artists' tab
+     * as it was shown then.
      */
     private suspend fun tabs(given: Boolean = false): List<MediaItem> = coroutineScope {
         val l = look()
@@ -480,7 +481,8 @@ class MusicLibrary(
         )
         val fold = all.size > MAX_TABS && hasMusic && hasPlaylists
         if (given) playlistsInArtists = fold
-        if (!fold) return@coroutineScope all
+        // A tab's node read alone is the tab as the car was last given it: named Music while Playlists is in it.
+        if (!(if (given) fold else playlistsInArtists)) return@coroutineScope all
         all.filter { it.mediaId != MusicId.Playlists.text }.map { tab ->
             if (tab.mediaId != MusicId.Artists.text) return@map tab
             tab.buildUpon().setMediaMetadata(tab.mediaMetadata.buildUpon().setTitle(l.music).setDisplayTitle(l.music).build()).build()

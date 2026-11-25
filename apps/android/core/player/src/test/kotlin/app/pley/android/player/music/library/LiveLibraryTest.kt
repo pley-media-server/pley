@@ -255,7 +255,10 @@ class LiveLibraryTest {
         assertEquals(listOf("recent", "artists", "books", "live"), library.children(MusicId.Root, 0, 50).map { it.mediaId })
         // A tab's node read alone while Live TV is out of reach for a moment: the car still shows those four.
         source.failing = true
-        assertEquals("artists", library.item(MusicId.Artists)?.mediaId)
+        val folded = library.item(MusicId.Artists)
+        assertEquals("artists", folded?.mediaId)
+        // Named as the car shows it, Music, while Playlists is listed in it.
+        assertEquals("Music", folded?.mediaMetadata?.title.toString())
         source.failing = false
         assertEquals(listOf("playlists", "artist:40"), library.children(MusicId.Artists, 0, 50).map { it.mediaId })
 
@@ -264,6 +267,8 @@ class LiveLibraryTest {
         assertEquals(listOf("recent", "artists", "playlists", "books"), library.children(MusicId.Root, 0, 50).map { it.mediaId })
         source.failing = false
         assertEquals("recent", library.item(MusicId.Recent)?.mediaId)
+        // The artists' tab keeps its own name while Playlists is a tab beside it.
+        assertEquals("Artists", library.item(MusicId.Artists)?.mediaMetadata?.title.toString())
         assertEquals(listOf("artist:40"), library.children(MusicId.Artists, 0, 50).map { it.mediaId })
 
         // The car reads its tabs again: Playlists is where those put it.
