@@ -396,6 +396,12 @@ class FormatTest {
             "Severance, 2 seasons, 6 unwatched",
             tileDescription(item(ItemKind.Show, "Severance", childCount = 2, leafCount = 19, viewedLeafCount = 13), FormatWords.English, us),
         )
+        // A book is listened to: heard to its end it is finished, as its page says, and so is a part of it.
+        val book = item(ItemKind.Audiobook, "Harbor Lights", userState = UserState(watched = true)).copy(authors = listOf("Ilse Brandt"))
+        assertEquals("Harbor Lights, Ilse Brandt, finished", tileDescription(book, FormatWords.English, us))
+        assertEquals("Harbor Lights, Ilse Brandt", tileDescription(book.copy(userState = UserState()), FormatWords.English, us))
+        val part = item(ItemKind.Part, "Part 1", parentTitle = "Harbor Lights", userState = UserState(watched = true))
+        assertEquals("Part 1, Harbor Lights, finished", tileDescription(part, FormatWords.English, us))
     }
 
     @Test

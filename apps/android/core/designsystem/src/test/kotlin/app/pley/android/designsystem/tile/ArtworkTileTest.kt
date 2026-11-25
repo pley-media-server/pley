@@ -608,6 +608,16 @@ class ArtworkTileTest {
         // The mark a show's or an episode's tile shows without a picture: the TV of shows.
         assertEquals(MarkGlyph.Shows, poster.mark)
         assertEquals(MarkGlyph.Shows, row.mark)
+        // A book heard to its end has the tick, and is finished where a video is watched.
+        val book = ItemSummary(
+            id = 70, libraryId = 5, kind = ItemKind.Audiobook, title = "Harbor Lights", authors = listOf("Ilse Brandt"),
+            leafCount = 4, viewedLeafCount = 4, userState = UserState(watched = true),
+        )
+        val cover = ArtworkTileModel.of(book, TileKind.Square, origin, FormatWords.English, locale = java.util.Locale.US)
+        assertEquals("Ilse Brandt", cover.subtitle)
+        assertTrue(cover.watched)
+        assertEquals("Harbor Lights, Ilse Brandt, finished", cover.description)
+        assertEquals(MarkGlyph.Audiobooks, cover.mark)
     }
 
     @Test
@@ -628,6 +638,12 @@ class ArtworkTileTest {
         val spanish = ArtworkTileModel.of(show, TileKind.Poster, origin, wordsIn("es"))
         assertEquals("2 temporadas", spanish.subtitle)
         assertEquals("Severance, 2 temporadas, 6 sin ver", spanish.description)
+        val book = ItemSummary(
+            id = 70, libraryId = 5, kind = ItemKind.Audiobook, title = "Harbor Lights", authors = listOf("Ilse Brandt"),
+            userState = UserState(watched = true),
+        )
+        assertEquals("Harbor Lights, Ilse Brandt, terminé", ArtworkTileModel.of(book, TileKind.Square, origin, wordsIn("fr")).description)
+        assertEquals("Harbor Lights, Ilse Brandt, 已听完", ArtworkTileModel.of(book, TileKind.Square, origin, wordsIn("zh-CN")).description)
         // In English, the words the format functions write without any.
         assertEquals(
             ArtworkTileModel.of(episode, TileKind.Landscape, origin, FormatWords.English),

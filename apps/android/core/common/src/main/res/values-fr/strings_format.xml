@@ -141,6 +141,7 @@
         <item quantity="many">%1$d non vus</item>
         <item quantity="other">%1$d non vus</item>
     </plurals>
+    <string name="format_finished">terminé</string>
 
     <string name="format_unknown">Inconnu</string>
     <string name="format_stereo">Stéréo</string>

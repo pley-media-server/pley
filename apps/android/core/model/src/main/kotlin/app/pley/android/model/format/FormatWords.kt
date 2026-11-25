@@ -69,9 +69,10 @@ interface FormatWords {
     /** "3 seasons", "1 episode", "12,345 albums": [n] of [what], written [number]. */
     fun count(what: Counted, n: Int, number: String): String
 
-    /** A tile's state for screen readers: "watched", "6 unwatched". */
+    /** A tile's state for screen readers: "watched", "6 unwatched"; a book heard to its end is "finished". */
     val watched: String
     fun unwatched(n: Int): String
+    val finished: String
 
     /** A track with neither a language nor a title: "Unknown". */
     val unknown: String
@@ -201,6 +202,7 @@ private object EnglishWords : FormatWords {
 
     override val watched = "watched"
     override fun unwatched(n: Int) = "$n unwatched"
+    override val finished = "finished"
 
     override val unknown = "Unknown"
     override val stereo = "Stereo"

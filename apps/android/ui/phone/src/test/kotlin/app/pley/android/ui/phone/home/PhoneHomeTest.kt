@@ -21,11 +21,14 @@ import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.test.performTouchInput
 import app.pley.android.common.TestTags
 import app.pley.android.data.Loadable
+import app.pley.android.model.Hub
 import app.pley.android.model.Hubs
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
+import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
+import app.pley.android.model.UserState
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
@@ -169,6 +172,17 @@ class PhoneHomeTest {
         home()
         compose.onNodeWithTag(BANNER_TAG).assertDoesNotExist()
         compose.onNodeWithText("Continue Watching").assertExists()
+    }
+
+    @Test
+    fun aBookHeardToItsEndIsSaidFinishedNotWatched() {
+        val book = ItemSummary(
+            id = 70, libraryId = 5, kind = ItemKind.Audiobook, title = "Harbor Lights", authors = listOf("Ilse Brandt"),
+            leafCount = 1, viewedLeafCount = 1, userState = UserState(watched = true),
+        )
+        sources.home.value = Loadable.Ready(Hubs(listOf(Hub("recently_added:5", "Recently Added Books", 5, listOf(book)))), fresh = false)
+        home()
+        compose.onNodeWithContentDescription("Harbor Lights, Ilse Brandt, finished").assertExists()
     }
 
     @Test

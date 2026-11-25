@@ -93,6 +93,8 @@ import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.TileStyle
 import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.designsystem.tile.skeleton
+import app.pley.android.model.ItemKind
+import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.home.HomeInfo
 import app.pley.android.screens.home.HomeMessage
 import app.pley.android.screens.home.HomeMeta
@@ -122,8 +124,8 @@ import kotlin.math.roundToInt
  * server has it), an episode's "S2 · E5 · The Long Night", the metadata
  * line, progress, three lines of summary, then Resume (or Play) and the
  * round buttons From start, Info, and My List for movies and shows (Watched
- * for the rest). A missing piece closes its gap. Resume ([resume]) is the
- * page's initial focus.
+ * for the rest, Finished for a book). A missing piece closes its gap. Resume
+ * ([resume]) is the page's initial focus.
  *
  * The label is level with the dashes at the top right. The title and
  * the summary have more room than the text column
@@ -306,8 +308,16 @@ internal fun TvHomeHero(
                     compact = true,
                 )
             } else {
+                // A book is finished, not watched, as its page says.
+                val book = hero.item.kind == ItemKind.Audiobook
                 TvRoundButton(
-                    stringResource(if (hero.watched) R.string.tv_home_mark_unwatched else R.string.tv_home_mark_watched),
+                    stringResource(
+                        when {
+                            book -> if (hero.watched) ScreensR.string.book_mark_unfinished else ScreensR.string.book_mark_finished
+                            hero.watched -> R.string.tv_home_mark_unwatched
+                            else -> R.string.tv_home_mark_watched
+                        },
+                    ),
                     PleyIcons.CircleCheck,
                     onClick = onWatched,
                     modifier = last,

@@ -141,6 +141,7 @@
         <item quantity="many">%1$d sin ver</item>
         <item quantity="other">%1$d sin ver</item>
     </plurals>
+    <string name="format_finished">terminado</string>
 
     <string name="format_unknown">Desconocido</string>
     <string name="format_stereo">Estéreo</string>
