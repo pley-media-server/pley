@@ -1802,7 +1802,8 @@ impl JobManager {
             let waited = loop {
                 // While another player waits for a start, it pauses too
                 // when far enough ahead of its own (see `Job::yields`).
-                let yields = background.waited() && job_ref.yields(next_ref.load(Relaxed));
+                let someone_waits = background.waited();
+                let yields = someone_waits && job_ref.yields(next_ref.load(Relaxed));
                 let on = far_ahead || yields;
                 // Between polls of `wait`: the pid is still the child's.
                 if on != suspended && background::pause(&child, on) {
@@ -1825,9 +1826,9 @@ impl JobManager {
                     _ = &mut kill_rx => break None,
                     Ok(()) = pause_rx.changed() => far_ahead = *pause_rx.borrow_and_update(),
                     Ok(()) = changes.changed() => {}
-                    // A start lasts a while at most, and its own player
-                    // may come closer.
-                    () = tokio::time::sleep(YIELD_LOOK), if yields => {}
+                    // A start lasts a while at most, its own player may come
+                    // closer, and one bursting ahead gets far enough to yield.
+                    () = tokio::time::sleep(YIELD_LOOK), if someone_waits => {}
                 }
             };
             let (status, killed) = match waited {
