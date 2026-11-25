@@ -672,7 +672,11 @@ pub fn build(jellyfin: &Jellyfin, row: &ItemRow, batch: &Batch) -> Item {
     let own_tag = tag(row.updated_at);
     match kind {
         "episode" => {
-            item.image_tags.insert("Primary", own_tag.clone());
+            // A spoiler-safe episode's Primary is its show's backdrop
+            // (`api::items::resolve_artwork`), under another tag so an app
+            // doesn't show the still it kept.
+            let primary = if row.spoiler_safe { format!("{own_tag}ns") } else { own_tag.clone() };
+            item.image_tags.insert("Primary", primary);
             if row.grandparent_has_poster {
                 item.series_primary_image_tag = Some(tag(row.grandparent_updated_at.unwrap_or(0)));
             }

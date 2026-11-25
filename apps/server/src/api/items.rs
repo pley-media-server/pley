@@ -29,6 +29,8 @@ pub async fn get(State(state): State<AppState>, user: AuthUser, Path(id): Path<i
     }
     let scope = streams::scope(&row);
     let resume = resume_ms(&row);
+    // Seek previews and chapter pictures would show a spoiler-safe episode's frames.
+    let spoiler_safe = row.spoiler_safe;
     let mut detail = catalog::item_detail(&state.db, row).await?;
     detail.locked_fields = crate::overrides::locked_fields(&state.db, id).await?;
     detail.nfo_fields = crate::overrides::nfo_fields(&state.db, id).await?;
@@ -54,12 +56,14 @@ pub async fn get(State(state): State<AppState>, user: AuthUser, Path(id): Path<i
     // keyframes so playback can remux, and to read ahead where Play starts.
     if matches!(detail.summary.kind.as_str(), "movie" | "episode") {
         for file in catalog::files_for_item(&state.db, detail.summary.id).await? {
-            state.trickplay.request(&file);
+            if !spoiler_safe {
+                state.trickplay.request(&file);
+            }
             if file.video_codec.is_some() && !file.is_strm() {
                 state.transcoder.prefetch_soon(&file.path, resume);
             }
             let Some(dto) = detail.files.iter_mut().find(|f| f.id == file.id) else { continue };
-            if dto.chapters.len() > 1 && state.trickplay.has_chapter_images(&file) {
+            if !spoiler_safe && dto.chapters.len() > 1 && state.trickplay.has_chapter_images(&file) {
                 let version = file.fingerprint.as_deref().unwrap_or_default();
                 for chapter in &mut dto.chapters {
                     let n = chapter.probed_index;
@@ -477,6 +481,10 @@ pub(crate) async fn artwork(
 /// Path of the artwork file, generating it (frame grab, embedded cover) or
 /// falling back to the parent's artwork when the item has none.
 pub(crate) async fn resolve_artwork(state: &AppState, id: i64, kind: &str) -> ApiResult<PathBuf> {
+    // A spoiler-safe episode's still, at whatever address an app asks for it
+    // (Plex and Jellyfin apps make their own), is its show's backdrop, and no
+    // frame is grabbed for it.
+    let kind = if kind == "thumb" && catalog::spoiler_safe(&state.db, id).await? { "backdrop" } else { kind };
     let mut current = id;
     for _ in 0..3 {
         let row: ArtworkPaths =

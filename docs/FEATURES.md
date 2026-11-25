@@ -28,6 +28,10 @@ Everything Pley does. The [README](../README.md) has the short version.
 - `.strm` files, as in Kodi, Jellyfin and Emby. Off by default
   ([.strm files](CONFIGURATION.md#strm-files)).
 - Filter movies and shows by resolution and HDR type, on every app.
+- Spoiler protection: a show labeled `no-spoilers` hides its episodes'
+  titles, descriptions and stills, for competition shows whose episodes
+  give away who won, in every app and in Plex and Jellyfin apps
+  ([API.md](API.md#items)).
 - Each profile can reorder its libraries.
 - Import from Plex: libraries, Home users, labels, dates added and watch
   history ([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)).
