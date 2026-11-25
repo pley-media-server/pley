@@ -35,12 +35,14 @@ import app.pley.android.player.music.OutputError
 import app.pley.android.player.music.TrackInfo
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
+import mockwebserver3.MockResponseBody
 import mockwebserver3.MockWebServer
 import mockwebserver3.RecordedRequest
 import mockwebserver3.SocketEffect
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okio.Buffer
+import okio.BufferedSink
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -54,7 +56,10 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import java.io.File
+import java.nio.ByteBuffer
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.runBlocking
@@ -141,6 +146,9 @@ class Media3EngineTest {
     @After
     fun releaseAll() = engines.forEach { it.release() }
 
+    /** The next request the server got. One that never comes fails the test: waited for without end, it would hold up every test after it. */
+    private fun MockWebServer.asked(): RecordedRequest = takeRequest(5, TimeUnit.SECONDS) ?: throw AssertionError("the server got no further request")
+
     private fun file(): String {
         val f = File.createTempFile("clip", ".mp4").apply { deleteOnExit() }
         f.writeBytes(clip)
@@ -194,7 +202,7 @@ class Media3EngineTest {
     fun theMediaClientCarriesTheTokenAndTheFileArrivesInRanges() {
         codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
         val server = MockWebServer()
-        server.dispatcher = RangeDispatcher(clip, token = "Bearer secret")
+        server.dispatcher = RangeDispatcher(clip, token = "Bearer secret", mediaTrickles = true)
         server.start()
         try {
             val client = OkHttpClient.Builder()
@@ -209,8 +217,8 @@ class Media3EngineTest {
             // What the server sent is counted: how a live channel is known to come still (LivePlayback).
             assertTrue(engine.received > 0)
             // The header, then from the 5 s point on.
-            assertEquals(null, server.takeRequest().headers["Range"])
-            assertTrue(server.takeRequest().headers["Range"]!!.startsWith("bytes="))
+            assertEquals(null, server.asked().headers["Range"])
+            assertTrue(server.asked().headers["Range"]!!.startsWith("bytes="))
         } finally {
             server.close()
         }
@@ -560,11 +568,21 @@ class Media3EngineTest {
         assertEquals(false, runBlocking { engine.dolbyVisionShown(dolbyVisionFilm, twoHours) })
     }
 
-    /** Serves [body] with ranges, as the server's /stream does, to requests carrying [token] only. */
-    private class RangeDispatcher(private val body: ByteArray, private val token: String) : Dispatcher() {
+    /**
+     * Serves [body] with ranges, as the server's /stream does, to requests carrying [token] only.
+     *
+     * With [mediaTrickles], the answer to a request for the whole file sends the file's index at once and its media a
+     * byte at a time until a range is asked for, as a film's media is still on its way when its player goes to where
+     * it resumes. The clip is small enough to come whole before a busy machine's player gets there, which then finds
+     * its place in what it has and asks for nothing more.
+     */
+    private class RangeDispatcher(private val body: ByteArray, private val token: String, private val mediaTrickles: Boolean = false) : Dispatcher() {
+        private val rangeAsked = CountDownLatch(1)
+
         override fun dispatch(request: RecordedRequest): MockResponse {
             if (request.headers["Authorization"] != token) return MockResponse.Builder().code(401).build()
             val range = request.headers["Range"]?.removePrefix("bytes=")?.split('-')
+            if (range != null) rangeAsked.countDown()
             val start = range?.getOrNull(0)?.toLongOrNull() ?: 0L
             val end = range?.getOrNull(1)?.toLongOrNull() ?: (body.size - 1L)
             val slice = body.copyOfRange(start.toInt(), end.toInt() + 1)
@@ -576,8 +594,39 @@ class Media3EngineTest {
             return MockResponse.Builder()
                 .code(if (range != null) 206 else 200)
                 .headers(headers)
-                .body(Buffer().write(slice))
+                .apply { if (range == null && mediaTrickles) body(trickling()) else body(Buffer().write(slice)) }
                 .build()
+        }
+
+        /** The whole file: its index, then a byte every [TRICKLE_MS] until a range is asked for, then the rest. */
+        private fun trickling() = object : MockResponseBody {
+            override val contentLength = body.size.toLong()
+
+            override fun writeTo(sink: BufferedSink) {
+                var sent = indexEnd()
+                sink.write(body, 0, sent).flush()
+                // Each byte ends a read the player has given up, so it asks for its range without waiting for the
+                // read's own limit. A player that never asks is trickled to until its connection closes.
+                while (sent < body.size && !rangeAsked.await(TRICKLE_MS, TimeUnit.MILLISECONDS)) {
+                    sink.writeByte(body[sent++].toInt()).flush()
+                }
+                sink.write(body, sent, body.size - sent)
+            }
+        }
+
+        /** Where the file's index ends: its `moov` box, which comes before the media. */
+        private fun indexEnd(): Int {
+            var at = 0
+            var type: String
+            do {
+                type = String(body, at + 4, 4, Charsets.US_ASCII)
+                at += ByteBuffer.wrap(body, at, 4).int
+            } while (type != "moov")
+            return at
+        }
+
+        private companion object {
+            const val TRICKLE_MS = 50L
         }
     }
 }
