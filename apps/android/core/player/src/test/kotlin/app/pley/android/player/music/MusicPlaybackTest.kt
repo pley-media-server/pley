@@ -1312,6 +1312,27 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun aSeekWhileATrackIsStillAskedForChangesNothingAndOneAskedForAtAPlaceStartsThere() = runTest {
+        val music = music()
+        // Sought as soon as it is asked to play, the server not having answered: the output doesn't hold the track
+        // yet, and it starts at its start.
+        music.play(album)
+        music.seekTo(30_000)
+        settle()
+        assertEquals(listOf<Long?>(null), starts().map { it.startMs })
+        assertEquals(listOf(0L), output.startPositions)
+        assertEquals(emptyList<Long>(), output.seeks)
+        assertEquals(0L, music.position().positionMs)
+
+        // Asked for at the place, as a cast that says where its track starts asks: it starts there.
+        music.play(album, startMs = 30_000)
+        settle()
+        assertEquals(30_000L, starts().last().startMs)
+        assertEquals(30_000L, output.startPositions.last())
+        assertEquals(emptyList<Long>(), output.seeks)
+    }
+
+    @Test
     fun aQueueMadeReadyWaitsWhereItWasAndPlayStartsItThere() = runTest {
         val music = music()
         music.cue(album, startIndex = 2, startMs = 61_000)

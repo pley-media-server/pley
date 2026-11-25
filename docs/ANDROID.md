@@ -633,7 +633,8 @@ audio and subtitles cast (`audio_index`, `subtitle_index`, `-1` for none)
 in place of the profile's saved choices for that play, not saved, a track
 the file it plays doesn't have leaving the choice to them; a show or a
 season its next episode; a track, an album or an artist in the
-music player, shuffled with `shuffle`; a playlist from its first entry
+music player, shuffled with `shuffle`, else a track from `start_ms` when
+given; a playlist from its first entry
 (a random one with `shuffle`), video as a queue in the player and music
 in the music player; a channel in the live player, tuned as Watch on that
 channel would, on a phone or a TV, Fire TV included. What plays makes way,

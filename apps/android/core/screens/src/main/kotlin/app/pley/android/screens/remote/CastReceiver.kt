@@ -88,7 +88,8 @@ interface CastReceiver {
  * the audio and subtitles the remote picked when it says (for this play
  * only: the profile's saved choices stay as they are); a
  * show or a season its next episode; a track, an album or an artist in
- * the music player, shuffled with `shuffle`; a playlist in order from its
+ * the music player, shuffled with `shuffle`, else a track from `start_ms`
+ * when given; a playlist in order from its
  * first entry (a random one with `shuffle`), video as a queue in the
  * player, music in the music player; a channel in the live player. A
  * newer cast replaces one still being looked up.
@@ -221,8 +222,15 @@ internal class ServerCastReceiver(
                 // A book's parts play in their order, from where the profile is in the book.
                 val shuffle = cast.shuffle && target.tracks.none { it.kind == ItemKind.Part }
                 val start = if (shuffle) random.nextInt(target.tracks.size) else target.startIndex
-                playMusic(target.tracks, start, shuffle, from, startMs = if (shuffle) 0 else target.startMs)
-                if (item.kind == ItemKind.Track) cast.startMs?.let { musicControl().seekTo(it) }
+                // A track cast itself starts where the remote says, and is asked for there: the music drops a seek
+                // made while it still asks the server for the track. Shuffled, whichever track comes first starts at
+                // its start.
+                val startMs = when {
+                    shuffle -> 0L
+                    item.kind == ItemKind.Track -> cast.startMs ?: target.startMs
+                    else -> target.startMs
+                }
+                playMusic(target.tracks, start, shuffle, from, startMs)
             }
             PlayTarget.NothingToPlay -> Unit
         }
