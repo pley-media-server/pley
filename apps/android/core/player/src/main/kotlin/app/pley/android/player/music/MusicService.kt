@@ -587,10 +587,22 @@ class MusicService : MediaLibraryService() {
 
         /**
          * Whether [controller] is answered. Once the notification is connected, Media3 lets a controller named System UI
-         * in as it does the notification, without asking [onConnect]; one that only takes the name is refused here.
+         * in as it does the notification, without asking [onConnect]; one that comes here under that name is held to
+         * the system's uid. Mostly it doesn't: Media3 hands it to these answers as the notification's own ([browses]).
          */
         private fun answers(controller: MediaSession.ControllerInfo): Boolean =
             controller.packageName != SYSTEM_UI || allowed(controller)
+
+        /**
+         * Whether [controller] reads the library and picks what plays. A controller named System UI comes as the
+         * notification's own (the app's name and uid), with all the notification may do, and the name is whatever the
+         * controller says it is: an app holding the session's token, as one with access to notifications does, can
+         * take it. Neither the notification nor the system's media controls browse or pick (Media3 answers the
+         * system's "what played last" itself), so what comes as the notification's is refused: such an app plays,
+         * pauses, skips and seeks, as [onConnect] lets it under its own name.
+         */
+        private fun browses(session: MediaSession, controller: MediaSession.ControllerInfo): Boolean =
+            answers(controller) && !session.isMediaNotificationController(controller)
 
         private fun <T : Any> refused(): ListenableFuture<LibraryResult<T>> =
             Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED))
@@ -689,7 +701,7 @@ class MusicService : MediaLibraryService() {
             stop.handle(intent) || super.onMediaButtonEvent(session, controllerInfo, intent)
 
         override fun onGetLibraryRoot(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, params: LibraryParams?): ListenableFuture<LibraryResult<MediaItem>> {
-            if (!answers(browser)) return refused()
+            if (!browses(session, browser)) return refused()
             val library = graph?.library ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED))
             // Grids of what opens and lists of what plays, by default; the few nodes that differ say so themselves.
             val extras = Bundle().apply {
@@ -700,7 +712,7 @@ class MusicService : MediaLibraryService() {
         }
 
         override fun onGetItem(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, mediaId: String): ListenableFuture<LibraryResult<MediaItem>> =
-            if (!answers(browser)) refused() else answer {
+            if (!browses(session, browser)) refused() else answer {
                 val id = MusicId.parse(mediaId) ?: return@answer LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
                 library().item(id)?.let { LibraryResult.ofItem(it, null) } ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             }
@@ -712,7 +724,7 @@ class MusicService : MediaLibraryService() {
             page: Int,
             pageSize: Int,
             params: LibraryParams?,
-        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!answers(browser)) refused() else answer {
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!browses(session, browser)) refused() else answer {
             val id = MusicId.parse(parentId) ?: return@answer LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             val saved = SavedAnswers()
             val children = withContext(saved) { library().children(id, page, pageSize) }
@@ -722,7 +734,7 @@ class MusicService : MediaLibraryService() {
 
         override fun onSearch(session: MediaLibrarySession, browser: MediaSession.ControllerInfo, query: String, params: LibraryParams?): ListenableFuture<LibraryResult<Void>> =
             // Media3 answers a MediaBrowserCompat car's search only once its results are said to have changed.
-            if (!answers(browser)) refused() else answer(slow = { session.notifySearchResultChanged(browser, query, 0, params) }) {
+            if (!browses(session, browser)) refused() else answer(slow = { session.notifySearchResultChanged(browser, query, 0, params) }) {
                 // Read as the search starts: a profile changed meanwhile has forgotten it, and its results aren't kept.
                 val generation = searches.generation()
                 val found = searches.get(query) ?: try {
@@ -744,7 +756,7 @@ class MusicService : MediaLibraryService() {
             page: Int,
             pageSize: Int,
             params: LibraryParams?,
-        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!answers(browser)) refused() else answer {
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = if (!browses(session, browser)) refused() else answer {
             val generation = searches.generation()
             val found = searches.get(query) ?: library().search(query.take(MAX_QUERY)).also { searches.put(query, it, generation) }
             val size = pageSize.coerceIn(1, MusicLibrary.MAX_PAGE)
@@ -770,7 +782,7 @@ class MusicService : MediaLibraryService() {
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
             val picked = mediaItems.getOrNull(startIndex.coerceAtLeast(0)) ?: mediaItems.firstOrNull()
             val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
-            if (picked == null || graph == null || !answers(controller)) return Futures.immediateFailedFuture(UnsupportedOperationException())
+            if (picked == null || graph == null || !browses(mediaSession, controller)) return Futures.immediateFailedFuture(UnsupportedOperationException())
             val made = mediaSession as MediaLibrarySession
             // The latest request is what plays. Media3 doesn't wait for one from a car or the Assistant to be answered
             // before the next (a request to have it ready, then one to play it; a second album tapped), and one looked up

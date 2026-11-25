@@ -750,7 +750,10 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   uid's). They browse the music and pick what plays; a media button, from a
   headset or another app, only plays, pauses and skips, as do apps given
   access to notifications (a watch's companion), which Android lets control
-  any media session. Their covers come
+  any media session. Such an app can pass for the system's media controls,
+  which Media3 knows by name alone, and then does what they do (Shuffle,
+  Repeat, a book's speed and a place in the queue too): it still reads
+  nothing of the library and picks nothing to play. Their covers come
   through a content provider that isn't exported: each of them is granted
   reading it alone, and it fetches only the server's item and collection
   pictures and Live TV's channel logos. What music played last is kept on
