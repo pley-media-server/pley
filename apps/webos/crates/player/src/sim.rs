@@ -2,10 +2,10 @@
 //! no picture (the screen draws a dark frame); its clock runs
 //! while it plays, and it honors seeks, the rate, buffering and ends, so
 //! everything above the engine behaves as on the TV. A [`SimHandle`] lets a
-//! test (or the simulator's key script) make it wait, fail, end, drop frames
-//! or report its buffer. In the simulator (on the app's clock) it reads a
-//! live channel's stream.ts from the app's relay as the TV's player would,
-//! and throws it away.
+//! test (or the simulator's key script) make it wait, stand still without a
+//! word, fail, end, drop frames or report its buffer. In the simulator (on
+//! the app's clock) it reads a live channel's stream.ts from the app's relay
+//! as the TV's player would, and throws it away.
 
 use std::collections::VecDeque;
 use std::io::{Read, Write};
@@ -77,6 +77,10 @@ struct Sim {
     want_play: bool,
     waiting: bool,
     wait_until: Option<i64>,
+    /// It stands still without a word, whatever it loads.
+    still: bool,
+    /// It says where it is ([`PlayerEngine::reported_ms`]).
+    reports: bool,
     ended: bool,
     events: VecDeque<EngineEvent>,
     tracks: Vec<AudioTrack>,
@@ -92,7 +96,7 @@ impl Sim {
         if !self.open {
             return self.base_ms;
         }
-        let moving = self.playing && !self.waiting && !self.ended;
+        let moving = self.playing && !self.waiting && !self.still && !self.ended;
         let at = if moving { self.base_ms + (now - self.base_at) as f64 * self.rate as f64 } else { self.base_ms };
         match self.duration_ms {
             Some(d) => at.min(d as f64),
@@ -180,6 +184,8 @@ impl SimEngine {
             want_play: false,
             waiting: false,
             wait_until: None,
+            still: false,
+            reports: true,
             ended: false,
             events: VecDeque::new(),
             tracks: Vec::new(),
@@ -357,6 +363,12 @@ impl PlayerEngine for SimEngine {
         self.sim().position(now).max(0.0) as u64
     }
 
+    fn reported_ms(&self) -> Option<u64> {
+        let now = self.clock.now();
+        let s = self.sim();
+        s.reports.then(|| s.position(now).max(0.0) as u64)
+    }
+
     fn stats(&self) -> EngineStats {
         let s = self.sim();
         let video = s.source.as_ref().and_then(|r| r.video.clone());
@@ -463,6 +475,21 @@ impl SimHandle {
         self.wait(true);
         let now = self.clock.now();
         self.sim().wait_until = Some(now + ms);
+    }
+
+    /// Stands still (`true`) without saying it waits, fails or ends, as a pipeline that stalls
+    /// and says nothing, whatever it loads from then on; or plays on (`false`).
+    pub fn stand_still(&self, still: bool) {
+        let now = self.clock.now();
+        let mut s = self.sim();
+        s.rebase(now);
+        s.still = still;
+    }
+
+    /// Whether it says where it is, whatever it loads from then on: a pipeline may play and
+    /// never say.
+    pub fn set_reports(&self, reports: bool) {
+        self.sim().reports = reports;
     }
 
     /// Says how far ahead of the position it has loaded.

@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A Live TV channel played as it is plays on after a few seconds when its
+  provider's stream starts over.
+
 ## [0.1.14] - 2026-11-24
 
 ### Changed

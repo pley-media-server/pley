@@ -16,6 +16,10 @@
 //! - Otherwise, or when it fails, the server's HLS from its live edge, once
 //!   its playlist has come: before the stream.ts played at once; while it
 //!   played, once the server has said watching didn't end there.
+//! - A stream.ts that stands still while it goes on coming (its provider's
+//!   stream started its clock over, and the TV's player says nothing) is read
+//!   again on the same session, from the server's last keyframe
+//!   ([`crate::live::stuck`], the web app's rules).
 //!
 //! The owner calls [`LiveSession::tick`] each frame with the app's clock in ms.
 
@@ -34,6 +38,7 @@ use pley_i18n::t;
 use crate::controller::engine_error;
 use crate::env::PlayerEnv;
 use crate::live::relay::{Opener, StreamRelay};
+use crate::live::stuck::{Coming, StuckWatch, Unstick, unstick};
 use crate::recovery::EngineError;
 use crate::remote::{Command, RemoteAction, RemotePlayer, live_controls, remote_action};
 use crate::reporter::Reporter;
@@ -209,6 +214,8 @@ enum Asked {
     Failure(EngineError, Box<LiveChannel>),
     /// The stream.ts broke off after it played: watched as HLS unless watching ended.
     Direct(Box<LiveChannel>),
+    /// The stream.ts stands still while it comes: read again unless watching ended.
+    Again,
 }
 
 /// What the TV's player opens.
@@ -269,6 +276,15 @@ pub struct LiveSession {
     no_relay: bool,
     /// What plays is the channel's stream.ts: failing, it is watched again as HLS.
     direct: bool,
+    /// Reads the stream.ts of the channel tuned, under this TV's stream id: again when it
+    /// stands still.
+    opener: Option<Opener>,
+    /// Watches the stream.ts for standing still, from its first picture until it says so.
+    stuck: Option<StuckWatch>,
+    /// Whether the stream.ts comes, from what the relay counts of it.
+    coming: Coming,
+    /// When the stream.ts was last read again, since the channel was tuned.
+    read_again_at: Option<i64>,
 }
 
 /// Why a session ended, from its plan: the server's words for a `410` (empty when it gave none, not
@@ -317,6 +333,10 @@ impl LiveSession {
             relay: None,
             no_relay: false,
             direct: false,
+            opener: None,
+            stuck: None,
+            coming: Coming::from(0),
+            read_again_at: None,
         }
     }
 
@@ -352,6 +372,12 @@ impl LiveSession {
         !self.jobs.is_empty() || !self.reporter.idle()
     }
 
+    /// Bytes of stream.ts that have come for the TV's player since the first channel was tuned
+    /// (tests wait for them).
+    pub fn stream_came(&self) -> u64 {
+        self.relay.as_ref().map_or(0, |r| r.came())
+    }
+
     /// What the engine says of itself, for Info.
     pub fn engine_stats(&self) -> EngineStats {
         self.engine.stats()
@@ -370,6 +396,7 @@ impl LiveSession {
             self.retry_at.as_ref().map(|r| r.0),
             self.stall_check_at,
             self.stall_give_up_at,
+            self.stuck.as_ref().map(StuckWatch::next),
         ]
         .into_iter()
         .flatten()
@@ -506,6 +533,7 @@ impl LiveSession {
 
     fn stop_stream(&mut self) {
         self.direct = false;
+        self.stuck = None;
         if let Some(r) = &self.relay {
             r.stop();
         }
@@ -531,6 +559,8 @@ impl LiveSession {
             let (server, id, client) = (self.server.clone(), channel.id, format!("{}{STREAM_CLIENT}", self.client_id));
             Arc::new(move |cancel: &Cancel| server.live_stream(id, &client, cancel.clone()))
         };
+        self.opener = Some(opener.clone());
+        self.read_again_at = None;
         let mut stream = match (&relay, take_over) {
             (Some(r), None) => r.serve(opener.clone()),
             _ => None,
@@ -664,6 +694,11 @@ impl LiveSession {
         for event in self.engine.events() {
             self.on_engine(event);
         }
+        if self.direct
+            && let Some(r) = &self.relay
+        {
+            self.coming.saw(self.now, r.came(), r.offering());
+        }
         self.timers();
         self.collect();
         self.version != before
@@ -716,8 +751,8 @@ impl LiveSession {
         }
         if self.stall_check_at.is_some_and(|t| now >= t) {
             self.stall_check_at = None;
-            // Not of a stream.ts, as Android asks nothing of a stall: its HLS session, unread,
-            // goes after 45 s, and would say watching ended when it hadn't.
+            // Not of a stream.ts, as Android asks nothing of a stall: the server is asked once
+            // it breaks off or stands still.
             if self.state.phase == LivePhase::Buffering
                 && !self.direct
                 && let Some(session) = self.session.clone()
@@ -736,6 +771,70 @@ impl LiveSession {
                 self.on_engine_error(EngineError::Other { detail: t!("livetv.engine.stalled").into() });
             }
         }
+        if self.stuck.as_ref().is_some_and(|w| now >= w.next()) {
+            // Where the pipeline last said it is, not the position run on past it: one that
+            // stops saying, or says the same again, stands still here, and one that never says
+            // isn't judged.
+            let position = self.engine.reported_ms();
+            let coming = self.coming.now(now);
+            // A stall the pipeline says has the 20 s above; the watch holds through it.
+            let buffering = self.state.phase == LivePhase::Buffering;
+            let stuck = self.stuck.as_mut().and_then(|w| w.look(now, position, coming, buffering));
+            if let Some(played) = stuck {
+                self.stuck = None;
+                self.stands_still(played);
+            }
+        }
+    }
+
+    /// The stream.ts stands still while it goes on coming, with no word from the TV's player
+    /// (the web app's `whenStuck`): read again where that may help, its HLS otherwise.
+    fn stands_still(&mut self, played: bool) {
+        let session =
+            self.session.clone().filter(|_| unstick(played, self.read_again_at, self.now) == Unstick::ReadAgain);
+        let Some(session) = session else {
+            let why = if played { "stands still again, soon after it was read again" } else { "never played" };
+            return self.direct_failed(why);
+        };
+        log::info!("live: the channel's stream.ts stands still while it comes: read again");
+        // Waiting, for the person, from now until what is read again plays.
+        self.clear_stall();
+        if self.state.phase != LivePhase::Buffering {
+            self.state.phase = LivePhase::Buffering;
+            self.changed();
+        }
+        // The plan first: asking marks the watch session seen, so it stays while no stream is
+        // read for it, and one that ended (stopped from elsewhere) says why instead.
+        let (server, g) = (self.server.clone(), self.current());
+        self.jobs.push(self.tasks.spawn(move || Done::Why {
+            g,
+            asked: Box::new(Asked::Again),
+            why: why_ended(server.as_ref(), &session),
+        }));
+    }
+
+    /// Opens the stream.ts again, on the same session and stream id: the server starts a new
+    /// reader at its last keyframe, and the TV's player starts over on it. Waiting shows until
+    /// it plays.
+    fn read_again(&mut self) {
+        self.engine.unload();
+        // Served anew: the reading that stood still closes, and no player of it is left.
+        let served = match (&self.relay, &self.opener) {
+            (Some(relay), Some(opener)) if self.direct => relay.serve(opener.clone()),
+            _ => None,
+        };
+        let Some(stream) = served else { return self.direct_failed("can't be read again") };
+        self.clear_timers();
+        self.read_again_at = Some(self.now);
+        self.stuck = None;
+        self.coming = Coming::from(self.stream_came());
+        self.state.shown = false;
+        self.state.phase = LivePhase::Buffering;
+        self.changed();
+        let mut req = LoadRequest::new(stream.url().to_string(), MediaKind::LiveTs);
+        req.autoplay = true;
+        self.engine.load(req);
+        self.start_deadline = Some(self.now + DIRECT_WAIT_MS);
     }
 
     fn on_done(&mut self, done: Done) {
@@ -771,6 +870,7 @@ impl LiveSession {
                         // reference nor uMediaServer's lists one), so the stream starts as the
                         // TV's own player buffers it, not at the Samsung app's 0.5 s.
                         self.direct = true;
+                        self.coming = Coming::from(self.stream_came());
                         let mut req = LoadRequest::new(url, MediaKind::LiveTs);
                         req.autoplay = true;
                         self.engine.load(req);
@@ -820,6 +920,14 @@ impl LiveSession {
                             self.fail(stopped_trouble(Some(&why)));
                         }
                         None => self.start_with(*channel, None, false),
+                    },
+                    Asked::Again => match why {
+                        Some(why) => {
+                            // Already gone at the server: nothing to leave.
+                            self.session = None;
+                            self.fail(stopped_trouble(Some(&why)));
+                        }
+                        None => self.read_again(),
                     },
                 }
             }
@@ -889,6 +997,8 @@ impl LiveSession {
         self.state.shown = true;
         self.state.phase = LivePhase::Playing;
         self.picture_at = Some(self.now + PICTURE_CHECK_MS);
+        // From its first picture: until then the stream has its 10 s to start.
+        self.stuck = self.direct.then(|| StuckWatch::new(self.now, self.engine.reported_ms()));
         self.changed();
     }
 
@@ -904,7 +1014,7 @@ impl LiveSession {
             return;
         }
         if self.direct {
-            return self.direct_failed();
+            return self.direct_failed(if self.state.shown { "broke off" } else { "didn't play" });
         }
         let channel = self.state.channel.clone();
         let g = self.next_generation();
@@ -924,11 +1034,12 @@ impl LiveSession {
     /// The stream.ts failed or ended (Android's `onPlayerError` and `brokeOff`). Before it played,
     /// the channel is watched again as HLS at once. While it played, the server is asked first
     /// whether watching ended there (its connection taken over, the channel stopped); if not, it
-    /// broke off, and is watched again as HLS.
-    fn direct_failed(&mut self) {
+    /// broke off, and is watched again as HLS. So is one that stands still where reading it
+    /// again wouldn't help. `what`: what it did, for the log.
+    fn direct_failed(&mut self, what: &str) {
         let played = self.state.shown;
         self.stop_stream();
-        log::info!("live: the channel's stream.ts {}: its HLS now", if played { "broke off" } else { "didn't play" });
+        log::info!("live: the channel's stream.ts {what}: its HLS now");
         let channel = self.state.channel.clone();
         if !played {
             return self.start_with(channel, None, false);
