@@ -21,6 +21,8 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.test.core.app.ApplicationProvider
+import app.pley.android.model.Hub
+import app.pley.android.model.Hubs
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemList
 import app.pley.android.model.ItemSummary
@@ -78,6 +80,9 @@ import org.robolectric.shadows.ShadowBinder
  *
  * The car and Bluetooth browse through the older protocol on a device; a
  * Media3 browser stands for each here, checked by the same name and uid.
+ *
+ * What the car is answered when it names nothing ("play music") is here
+ * too: music started on the phone as something was looked up plays on.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = MusicServiceCallersTest.App::class, shadows = [MusicServiceCallersTest.SignedPackages::class])
@@ -99,6 +104,9 @@ class MusicServiceCallersTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val api = FakePleyApi()
     private val album = (1..3L).map { track(it) }
+
+    /** The album of [album], as the music library's Recently added row has it. */
+    private val addedLast = ItemSummary(id = ALBUM, libraryId = 3, kind = ItemKind.Album, title = "Deep Water", parentTitle = "Harbour Lights")
     private val playback = MusicPlayback(
         MusicEnvironment(
             api = { api },
@@ -246,10 +254,7 @@ class MusicServiceCallersTest {
 
     @Test
     fun androidAutoStillReadsTheLibraryAndPicksWhatPlays() {
-        install(MusicCallers.ANDROID_AUTO, carUid)
-        signedByGoogle += MusicCallers.ANDROID_AUTO
-        // Android Auto has access to notifications, which Media3 trusts it for.
-        listensToNotifications(MusicCallers.ANDROID_AUTO)
+        installAndroidAuto()
         val car = browser(MusicCallers.ANDROID_AUTO, carUid)
 
         assertEquals(MusicId.Root.text, done(car.getLibraryRoot(null)).value?.mediaId)
@@ -257,6 +262,34 @@ class MusicServiceCallersTest {
 
         car.setMediaItem(MediaItem.Builder().setMediaId(MusicId.Album(ALBUM).text).build())
         await { queued().isNotEmpty() }
+        assertEquals(album.map { it.id }, queued())
+    }
+
+    @Test
+    fun aRequestThatNamesNothingLeavesMusicStartedMeanwhilePlaying() {
+        // "Play music" from the car, with nothing playing and nothing kept: something new is looked up, the album
+        // added last, on a server slow to answer.
+        api.answer("libraryHubs", Hubs(listOf(Hub(key = "recently_added:3", title = "Recently added", items = listOf(addedLast)))))
+        installAndroidAuto()
+        val car = browser(MusicCallers.ANDROID_AUTO, carUid)
+        api.hold()
+        car.setMediaItem(MediaItem.Builder().setRequestMetadata(MediaItem.RequestMetadata.Builder().setSearchQuery("").build()).build())
+        await { api.calls("libraries").isNotEmpty() }
+        assertEquals(1, api.calls("libraries").size)
+
+        // Meanwhile an album is started on the phone; then the server answers, down to the tracks of the album found.
+        val onThePhone = (7..8L).map { track(it) }
+        playback.play(onThePhone)
+        api.release()
+        await { api.calls("children").isNotEmpty() }
+        settle()
+
+        assertEquals(onThePhone.map { it.id }, queued())
+        assertEquals(true, playback.nowPlaying.value?.wantsPlay)
+
+        // What the car picks by name still replaces what plays.
+        car.setMediaItem(MediaItem.Builder().setMediaId(MusicId.Album(ALBUM).text).build())
+        await { queued() == album.map { it.id } }
         assertEquals(album.map { it.id }, queued())
     }
 
@@ -275,9 +308,7 @@ class MusicServiceCallersTest {
 
     @Test
     fun anAppThatTakesAndroidAutosNameIsNoCar() {
-        install(MusicCallers.ANDROID_AUTO, carUid)
-        signedByGoogle += MusicCallers.ANDROID_AUTO
-        listensToNotifications(MusicCallers.ANDROID_AUTO)
+        installAndroidAuto()
         // Media3 trusts the name, for the access to notifications the real one has; the name isn't the asking uid's.
         val impostor = browser(MusicCallers.ANDROID_AUTO, strangerUid)
 
@@ -356,6 +387,13 @@ class MusicServiceCallersTest {
             signingInfo = SigningInfo()
         }
         shadowOf(app.packageManager).installPackage(info)
+    }
+
+    /** Android Auto as a phone has it: signed by Google, with the access to notifications Media3 trusts it for. */
+    private fun installAndroidAuto() {
+        install(MusicCallers.ANDROID_AUTO, carUid)
+        signedByGoogle += MusicCallers.ANDROID_AUTO
+        listensToNotifications(MusicCallers.ANDROID_AUTO)
     }
 
     /** [name] has access to notifications, as the system's settings list it. */

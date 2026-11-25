@@ -814,18 +814,25 @@ class MusicService : MediaLibraryService() {
                     // "Play music" with nothing named: the queue that waits plays on, or the one kept from before the
                     // app left memory; only with neither, something new (the album added last). The session's Play
                     // that follows starts it.
-                    if (query != null && query.isBlank() && playlist == null && focus.isEmpty) {
+                    val nothingNamed = query != null && query.isBlank() && playlist == null && focus.isEmpty
+                    if (nothingNamed) {
                         val saved = if (playback.active) null else MusicHub.resume?.saved()
                         if (playback.active || saved != null) {
                             showMusic(made, playback, graph.library)
                             // Played meanwhile from somewhere else (the phone, as what was kept was read): that plays on.
                             if (saved != null && !playback.active) playback.cue(saved)
-                            val queue = playback.queueState.value
-                            future.set(MediaSession.MediaItemsWithStartPosition(queue.tracks.map { library().queueItem(it) }, queue.index, playback.position().positionMs))
+                            future.set(queueThere())
                             return@launch
                         }
                     }
                     val selection = selectionFor(picked)
+                    // Played meanwhile from somewhere else, as something new was looked up on the server: that plays
+                    // on, rather than what was found.
+                    if (nothingNamed && playback.active) {
+                        showMusic(made, playback, graph.library)
+                        future.set(queueThere())
+                        return@launch
+                    }
                     if (selection == null && query != null && !music) {
                         val closest = live?.let { runCatching { it.closest(query) }.getOrNull() }
                         if (closest != null) {
@@ -912,6 +919,12 @@ class MusicService : MediaLibraryService() {
         // A queue isn't added to from outside: what a car picks replaces it (onSetMediaItems).
         override fun onAddMediaItems(mediaSession: MediaSession, controller: MediaSession.ControllerInfo, mediaItems: MutableList<MediaItem>): ListenableFuture<MutableList<MediaItem>> =
             Futures.immediateFailedFuture(UnsupportedOperationException())
+
+        /** The music's queue, where it is, as the session is told it. */
+        private fun queueThere(): MediaSession.MediaItemsWithStartPosition {
+            val queue = playback.queueState.value
+            return MediaSession.MediaItemsWithStartPosition(queue.tracks.map { library().queueItem(it) }, queue.index, playback.position().positionMs)
+        }
 
         private suspend fun selectionFor(item: MediaItem): MusicSelection? {
             val query = item.requestMetadata.searchQuery
