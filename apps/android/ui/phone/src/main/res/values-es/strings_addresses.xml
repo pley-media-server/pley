@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="account_addresses">Direcciones</string>
+    <string name="account_addresses_home">En casa · %1$s</string>
+    <string name="account_addresses_away">Fuera de casa · %1$s</string>
+
+    <string name="addresses_hint">Pley elige la mejor por sí solo.</string>
+    <string name="addresses_too_old">Actualiza Pley en tu servidor para usar más de una dirección.</string>
+    <string name="addresses_group_home">En casa</string>
+    <string name="addresses_group_away">Fuera de casa</string>
+    <string name="addresses_in_use">En uso</string>
+    <string name="addresses_ready">Lista</string>
+    <string name="addresses_other_device">Responde otro dispositivo</string>
+    <string name="addresses_needs_wifi">Necesita Wi-Fi</string>
+    <string name="addresses_one">Añade otra para reproducir en casa y fuera.</string>
+    <string name="addresses_add">Añadir una dirección</string>
+    <string name="addresses_add_confirm">Añadir</string>
+    <string name="addresses_remove">Quitar</string>
+    <string name="addresses_remove_title">¿Quitar %1$s?</string>
+    <string name="addresses_problem_internet">Las direcciones de Internet se añaden en el servidor.</string>
+    <string name="addresses_problem_known">Ya está en la lista.</string>
+</resources>

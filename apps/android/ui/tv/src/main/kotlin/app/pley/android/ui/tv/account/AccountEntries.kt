@@ -12,15 +12,17 @@ import app.pley.android.ui.tv.settings.TvSettingsScreen
 import app.pley.android.ui.tv.shell.Placeholder
 
 /**
- * The TV's screens for your profile, history, settings and diagnostics
- * (Me, History, Settings, Diagnostics), added to the app's back stack.
- * The TV has no Me page of its own: Me is Settings opened on Profile.
+ * The TV's screens for your profile, history, settings, diagnostics and
+ * the server's addresses (Me, History, Settings, Diagnostics, Addresses),
+ * added to the app's back stack. The TV has no Me page of its own: Me is
+ * Settings opened on Profile.
  */
 fun EntryProviderScope<NavKey>.accountEntries() {
     entry<PleyKey.Settings> { key -> WithGraph(key) { TvSettingsScreen() } }
     entry<PleyKey.Me> { key -> WithGraph(key) { TvSettingsScreen(start = Category.Profile) } }
     entry<PleyKey.History> { key -> WithGraph(key) { TvHistoryScreen() } }
     entry<PleyKey.Diagnostics> { key -> WithGraph(key) { TvDiagnosticsScreen() } }
+    entry<PleyKey.Addresses> { key -> WithGraph(key) { TvAddressesScreen() } }
 }
 
 /**

@@ -36,6 +36,7 @@ class FakePleyApiTest {
     fun everyMethodAnswersFromTheFixtures() = runTest {
         assertEquals("ok", api.health().status)
         assertEquals("Living Room", api.server().name)
+        assertEquals(listOf("https://pley.example.com", "http://192.168.1.20:7539"), api.serverAddresses().addresses.map { it.url })
         assertEquals(2L, api.me().id)
         assertEquals("fr", api.setLanguage("fr").language)
         assertEquals(3, api.libraries().size)

@@ -9,9 +9,12 @@ import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.URI
 import java.net.URISyntaxException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import okhttp3.Authenticator
+import okhttp3.Call
+import okhttp3.EventListener
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
@@ -71,23 +74,21 @@ object Transport {
 }
 
 /**
- * Adds `Authorization: Bearer` to requests for the server's own address
- * ([Tokens.issuer]: scheme, host and port), on every hop: a redirect or a
- * playlist pointing elsewhere gets no token. A network interceptor, so it
- * also sees redirects. Tokens never go in a URL.
+ * Adds `Authorization: Bearer` to requests for the server's own addresses
+ * (the sign-in address, and the others it gave or that were added here:
+ * scheme, host and port), on every hop, once the server there has proved
+ * itself: a redirect or a playlist pointing elsewhere gets no token. A
+ * network interceptor, so it also sees redirects. Tokens never go in a URL.
  */
 class AuthInterceptor(private val tokens: Tokens) : Interceptor {
-    private val issuer = tokens.issuer.toHttpUrlOrNull()
-
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        if (!onServer(request.url, issuer)) {
-            // Not the server: no token, whoever added one.
-            return chain.proceed(request.newBuilder().removeHeader("Authorization").build())
-        }
+        // Not the server: no token, whoever added one.
+        val address = tokens.addressOf(request.url)
+            ?: return chain.proceed(request.newBuilder().removeHeader("Authorization").build())
         Transport.checkConnection(chain)
         val token = try {
-            runBlocking { tokens.accessToken() }
+            runBlocking { tokens.accessToken(address) }
         } catch (e: IOException) {
             throw e
         } catch (e: Exception) {
@@ -100,20 +101,150 @@ class AuthInterceptor(private val tokens: Tokens) : Interceptor {
 }
 
 /**
- * A request to the server that gets no answer (no network, nothing at the
- * address, no answer in time): the device may be on another network now,
- * so what answers there next proves it is the server before a token goes
- * ([Tokens.doubtServer]). An application interceptor: a connection that
- * fails never reaches the network interceptors.
+ * Sends the requests for the server's sign-in address to the address in
+ * use ([Tokens.route]), and hands their answers back as the sign-in
+ * address's: what reads them (a playlist, whose segments are named
+ * relative to it; the HTTP cache) keeps to the sign-in address, whichever
+ * answered.
+ *
+ * A request that gets no answer (no network, nothing at the address, no
+ * answer in time) tells the server's addresses ([Tokens.unanswered]): the
+ * address proves itself again before its next token, and when the request
+ * couldn't reach it, the next requests go to another while it waits. The
+ * request itself goes once to the address chosen next, when that is safe:
+ * nothing of it was sent, or it only reads.
+ *
+ * The first application interceptor: the others see the address the
+ * request goes to (HttpRoot's home connect limit among them), and a
+ * connection that fails never reaches the network interceptors.
  */
-class DoubtWhenUnanswered(private val tokens: Tokens) : Interceptor {
+class RouteInterceptor(private val tokens: Tokens) : Interceptor {
     private val issuer = tokens.issuer.toHttpUrlOrNull()
 
-    override fun intercept(chain: Interceptor.Chain): Response = try {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        val issuer = issuer
+        if (issuer == null || !onServer(request.url, issuer)) return passedOn(chain)
+        var address = try {
+            route()
+        } catch (e: IOException) {
+            // No address proves itself: a read goes on to the one in use all the
+            // same, for what the HTTP cache keeps (a car's covers); no token goes
+            // there before it proves itself (AuthInterceptor).
+            if (e is AuthException || request.method != "GET") throw e
+            tokens.addressInUse
+        }
+        var again = false
+        while (true) {
+            val to = if (address == tokens.issuer) issuer else address.toHttpUrlOrNull() ?: issuer
+            RequestsSent.forget(chain.call())
+            try {
+                val response = chain.proceed(routed(request, to, tokens.issuer))
+                return if (to == issuer) response else relabeled(response, from = to, to = issuer)
+            } catch (e: IOException) {
+                if (chain.call().isCanceled() || e is AuthException) throw e
+                val sent = RequestsSent.began(chain.call())
+                // Its own proof failing told the addresses already.
+                if (e !is NotYourServerException) tokens.unanswered(address, sent)
+                val replayable = !sent || request.method == "GET" || request.method == "HEAD"
+                if (again || !replayable) throw e
+                val next = try {
+                    route()
+                } catch (_: IOException) {
+                    throw e
+                }
+                if (next == address) throw e
+                address = next
+                again = true
+            }
+        }
+    }
+
+    /** A request that isn't for the sign-in address: as it is, telling the addresses when it is for another of them. */
+    private fun passedOn(chain: Interceptor.Chain): Response = try {
         chain.proceed(chain.request())
     } catch (e: IOException) {
-        if (onServer(chain.request().url, issuer) && !chain.call().isCanceled()) tokens.doubtServer()
+        if (!chain.call().isCanceled() && e !is AuthException && e !is NotYourServerException) {
+            tokens.addressOf(chain.request().url)?.let { tokens.unanswered(it, RequestsSent.began(chain.call())) }
+        }
         throw e
+    }
+
+    private fun route(): String = try {
+        runBlocking { tokens.route() }
+    } catch (e: IOException) {
+        throw e
+    } catch (e: Exception) {
+        // The tokens couldn't be read (storage, the Keystore): as AuthInterceptor says.
+        throw IOException("the sign-in couldn't be read on this device", e)
+    }
+
+    companion object {
+        /**
+         * [request] at [to], marked as [issuer]'s ([RoutedFrom]); the HTTP
+         * cache keeps a read under the address it was asked for, so it is
+         * the same at every address.
+         */
+        internal fun routed(request: Request, to: HttpUrl, issuer: String): Request {
+            if (onServer(request.url, to)) return request
+            val url = request.url.newBuilder().scheme(to.scheme).host(to.host).port(to.port).build()
+            return request.newBuilder()
+                .url(url)
+                .tag(RoutedFrom::class.java, RoutedFrom(issuer))
+                .apply { if (request.method == "GET") cacheUrlOverride(request.cacheUrlOverride ?: request.url) }
+                .build()
+        }
+
+        /** [response] from [from], as if from [to]: the request's address, a redirect's included, is [to]'s. */
+        internal fun relabeled(response: Response, from: HttpUrl, to: HttpUrl): Response {
+            val url = response.request.url
+            if (!onServer(url, from)) return response
+            val shown = url.newBuilder().scheme(to.scheme).host(to.host).port(to.port).build()
+            return response.newBuilder().request(response.request.newBuilder().url(shown).build()).build()
+        }
+    }
+}
+
+/**
+ * The server a request was sent on for, to another of its addresses: says
+ * whose tokens a client shared by every server uses. Only whose: the
+ * server's rules still check the address the request goes to, a
+ * redirect's included.
+ */
+class RoutedFrom(val issuer: String)
+
+/**
+ * Which calls began to send their request, for [RouteInterceptor]: one that
+ * didn't can go to another address, whatever it does. Clients with routes
+ * use it as their EventListener.Factory.
+ */
+object RequestsSent : EventListener.Factory {
+    private val began = ConcurrentHashMap<Call, Boolean>()
+
+    override fun create(call: Call): EventListener = object : EventListener() {
+        override fun requestHeadersStart(call: Call) {
+            began[call] = true
+        }
+
+        override fun callEnd(call: Call) {
+            began.remove(call)
+        }
+
+        override fun callFailed(call: Call, ioe: IOException) {
+            began.remove(call)
+        }
+
+        override fun canceled(call: Call) {
+            began.remove(call)
+        }
+    }
+
+    /** Whether [call] began to send its request since [forget]. */
+    fun began(call: Call): Boolean = began[call] == true
+
+    /** [call] goes out again: what it sent before doesn't count. */
+    fun forget(call: Call) {
+        began.remove(call)
     }
 }
 
@@ -134,10 +265,8 @@ internal fun onServer(url: HttpUrl, issuer: HttpUrl?): Boolean =
  * insufficient_scope among them, is the answer.
  */
 class TokenAuthenticator(private val tokens: Tokens) : Authenticator {
-    private val issuer = tokens.issuer.toHttpUrlOrNull()
-
     override fun authenticate(route: Route?, response: Response): Request? {
-        if (!onServer(response.request.url, issuer)) return null
+        if (tokens.addressOf(response.request.url) == null) return null
         val challenge = response.headers("WWW-Authenticate").any { invalidToken(it) }
         if (!challenge) return null
         // The token the server refused, as the interceptor sent it.
@@ -198,15 +327,16 @@ object AuthHttp {
         .build()
 
     /**
-     * For the server's API, images and streams: [tokens] on its own
-     * address only, once the server there has proved itself, a refresh on
-     * an expired token, redirects within a scheme but never from https
-     * down to http.
+     * For the server's API, images and streams: to the address in use
+     * ([RouteInterceptor]), [tokens] on the server's own addresses only,
+     * once the server there has proved itself, a refresh on an expired
+     * token, redirects within a scheme but never from https down to http.
      */
     fun api(base: OkHttpClient, tokens: Tokens): OkHttpClient = base.newBuilder()
         .followRedirects(true)
         .followSslRedirects(false)
-        .addInterceptor(DoubtWhenUnanswered(tokens))
+        .apply { interceptors().add(0, RouteInterceptor(tokens)) }
+        .eventListenerFactory(RequestsSent)
         .addNetworkInterceptor(AuthInterceptor(tokens))
         .authenticator(TokenAuthenticator(tokens))
         .build()

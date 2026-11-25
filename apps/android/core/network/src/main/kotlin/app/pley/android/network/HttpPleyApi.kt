@@ -22,6 +22,7 @@ import app.pley.android.model.RequestList
 import app.pley.android.model.RequestOptions
 import app.pley.android.model.RequestQuery
 import app.pley.android.model.RequestSummary
+import app.pley.android.model.ServerAddressList
 import app.pley.android.model.TitleKind
 import app.pley.android.model.CollectionList
 import app.pley.android.model.EntryIds
@@ -140,6 +141,8 @@ class HttpPleyApi(
     override suspend fun health(): Health = get(Health.serializer(), "api", "health")
 
     override suspend fun server(): ServerInfo = get(ServerInfo.serializer(), "api", "server")
+
+    override suspend fun serverAddresses(): ServerAddressList = get(ServerAddressList.serializer(), "api", "server", "addresses")
 
     override suspend fun me(): Me = get(Me.serializer(), "api", "auth", "me")
 

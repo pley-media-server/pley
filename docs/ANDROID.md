@@ -42,14 +42,59 @@ sign-in, the sign-in screen says so, and whoever hasn't set it up yet does
 it on that page as they sign in (for a code, on the device that approves
 it).
 
-Before its token goes to the server's address, the app has the server
-prove it is the one signed in to, at that address
+Before its token goes to the server's address, or another of its
+addresses ([Home and away](#home-and-away)), the app has the server prove
+it is the one signed in to, at that address
 ([API.md](API.md#telling-servers-apart)): for the access token, a proof
 made within the half hour on the same networks (joining or leaving the
 default network, or any Wi-Fi or Ethernet, asks for a new one, and so does
 a request there that got no answer); for the refresh token and a profile's
 PIN, one made then. What can't prove itself gets no token: the app shows
 what it saved and says "Another device answers there."
+
+### Home and away
+
+A server can answer at more than one address: at home at its home
+network's (`http://192.168.1.20:7539`), elsewhere at an internet one
+(`https://pley.example.com`) or a Tailscale one. The app uses the best
+that answers and moves between them by itself, without signing in again.
+Me → Addresses (on TVs, Settings → Server → Addresses) shows them, the one
+in use, and what the app knows of the others; it can add one, and remove
+one added there.
+
+- **The addresses**: the one signed in at; the server's own list
+  ([`GET /api/server/addresses`](API.md#a-servers-addresses): its
+  administrator's, then the home addresses it found); and the ones added
+  on this device, a home network's or a VPN's. An internet address comes
+  only from the server's list, which its administrator keeps: one anybody
+  could name would be a step from a token. They're kept with the sign-in
+  and forgotten with it.
+- **The sign-in address stays the server's name** on the device: its
+  tokens, HTTP caches, snapshots, downloads, and the addresses the player
+  and a car read are all under it. Requests for it go to the address in
+  use, and their answers come back as from the sign-in address, so a
+  playlist read at home keeps its next segments on whichever address
+  answers.
+- **Each address proves itself** with the sign-in's key before its token
+  goes there, as above: something else at a home address on another
+  network gets nothing, and plain http beyond the home network is never
+  tried.
+- **Which one**: home addresses first (last without Wi-Fi or Ethernet, as
+  a VPN may still reach them), then Tailscale's, then the internet's,
+  encrypted first within each. They all prove themselves at once, and the
+  best that does is used; a better one that hasn't answered is waited for
+  300 ms, and one that proves itself later takes over. Requests that come
+  meanwhile wait for the same choice. The app chooses again when the proof
+  of the one in use is half an hour old, when the device joins or leaves a
+  network, and after a request that couldn't reach it; an address that
+  failed waits 5 s, 15 s, a minute, then five, until the networks change.
+- **A request without an answer** goes once more to the next address when
+  nothing of it was sent or it only reads; a refresh token and a cast never
+  go twice. With no address answering, what the HTTP cache keeps still
+  shows (a car's covers).
+- **Playback goes on**: the player's next requests go to the address in
+  use, and its buffers follow it (home or away).
+- A server from before proofs is reached only at the address signed in at.
 
 ### Profiles
 

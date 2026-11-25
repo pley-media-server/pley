@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tv_settings_addresses">Direcciones</string>
+    <string name="tv_settings_addresses_home">En casa · %1$s</string>
+    <string name="tv_settings_addresses_away">Fuera de casa · %1$s</string>
+
+    <string name="tv_addresses_hint">Pley elige la mejor por sí solo.</string>
+    <string name="tv_addresses_too_old">Actualiza Pley en tu servidor para usar más de una dirección.</string>
+    <string name="tv_addresses_group_home">En casa</string>
+    <string name="tv_addresses_group_away">Fuera de casa</string>
+    <string name="tv_addresses_in_use">En uso</string>
+    <string name="tv_addresses_ready">Lista</string>
+    <string name="tv_addresses_other_device">Responde otro dispositivo</string>
+    <string name="tv_addresses_needs_network">Necesita Wi-Fi o Ethernet</string>
+    <string name="tv_addresses_one">Añade otra para reproducir en casa y fuera.</string>
+    <string name="tv_addresses_add">Añadir una dirección</string>
+    <string name="tv_addresses_add_confirm">Añadir</string>
+    <string name="tv_addresses_remove">Quitar</string>
+    <string name="tv_addresses_remove_title">¿Quitar %1$s?</string>
+    <string name="tv_addresses_problem_internet">Las direcciones de Internet se añaden en el servidor.</string>
+    <string name="tv_addresses_problem_known">Ya está en la lista.</string>
+</resources>

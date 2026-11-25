@@ -32,7 +32,11 @@ import java.security.MessageDigest
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
 import mockwebserver3.MockResponse
 
 /**
@@ -48,6 +52,7 @@ internal class BrowseRoutes(private val s: State) {
     fun routes(): List<Route> = listOf(
         public("GET", "/api/health") { _, _ -> Reply.json(Health.serializer(), Health("ok")) },
         public("GET", "/api/server") { call, _ -> server(call) },
+        route("GET", "/api/server/addresses", Need.AnyApp) { call, _, _ -> addresses(call) },
         route("GET", "/api/auth/me", Need.AnyApp) { _, c, _ -> Reply.json(Me.serializer(), views.me(c.profile, c.scope)) },
         route("GET", "/api/users/*/avatar", Need.AnyApp, free = true) { call, _, v ->
             val profile = v[0].toLongOrNull()?.let(s::profile)
@@ -424,9 +429,27 @@ internal class BrowseRoutes(private val s: State) {
         return Reply.json(JsonObject(answer).toString(), headers = mapOf("Cache-Control" to "no-store"))
     }
 
+    /**
+     * Where the server answers (docs/API.md, "A server's addresses"): an internet
+     * address its administrator gave, which leads nowhere here, and the one
+     * it is reached at by name on this device, as a server finds its home
+     * addresses. Both prove themselves as the address the app signed in at.
+     */
+    private fun addresses(call: Call): MockResponse {
+        val port = call.url.port
+        val list = buildJsonArray {
+            add(buildJsonObject { put("url", INTERNET_ADDRESS); put("source", "set") })
+            add(buildJsonObject { put("url", "http://localhost:$port"); put("source", "found") })
+        }
+        return Reply.json(buildJsonObject { put("id", s.oauth.serverId); put("addresses", list) }.toString())
+    }
+
     companion object {
         const val NAME = "Fixture Server"
         const val VERSION = "0.1.0-fixtures"
+
+        /** The internet address the fixture server lists: an example's, which no device reaches. */
+        const val INTERNET_ADDRESS = "https://pley.example.com"
 
         /** A scope no app has: the route is the web app's only. */
         const val WEB_ONLY = "web"

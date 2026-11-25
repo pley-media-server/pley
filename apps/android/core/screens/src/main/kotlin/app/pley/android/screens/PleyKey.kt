@@ -136,6 +136,10 @@ sealed interface PleyKey : NavKey {
     @Serializable
     data object Diagnostics : PleyKey
 
+    /** Where the server answers, at home and away, and which address is in use. */
+    @Serializable
+    data object Addresses : PleyKey
+
     /** Managing the server, for an administrator's phone allowed to: its parts, as Settings in the web app. */
     @Serializable
     data object ManageServer : PleyKey

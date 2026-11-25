@@ -37,9 +37,8 @@ import kotlinx.coroutines.flow.drop
 
 /**
  * Typing a server's address (design spec §2.11; tv-addendum §4.4): a field
- * and Connect under it. The TV's keyboard opens with the screen, so a name
- * or a whole https address types as easily as an IP; once it is closed,
- * the remote's digit keys type too. Port 7539 is used by default.
+ * and Connect under it, on the sign-in screens' glow. Port 7539 is used by
+ * default.
  */
 @Composable
 internal fun TvAddressEntry(
@@ -47,28 +46,55 @@ internal fun TvAddressEntry(
     onConnect: (String) -> Unit,
     onEdited: () -> Unit,
 ) {
-    val field = rememberTextFieldState()
+    TvAddressEntry(
+        title = stringResource(R.string.tv_onboarding_address_title),
+        action = stringResource(if (state.checkingAddress) R.string.tv_onboarding_checking else R.string.tv_onboarding_connect),
+        onSubmit = onConnect,
+        onEdited = onEdited,
+        modifier = Modifier.brandGlow().testTag(ADDRESS_ENTRY_TAG),
+        hint = stringResource(R.string.tv_onboarding_address_hint),
+        problem = state.addressProblem?.let { problemText(it) },
+    )
+}
+
+/**
+ * An address typed on TV, wherever one is asked for (choosing a server,
+ * adding one in Addresses): [title], the field and [action] under it, then
+ * [hint] and what went wrong ([problem]). The TV's keyboard opens with it,
+ * so a name or a whole https address types as easily as an IP; once it is
+ * closed, the remote's digit keys type too. [onSubmit] gets what [field]
+ * holds, trimmed; [onEdited] hears every change to it.
+ */
+@Composable
+internal fun TvAddressEntry(
+    title: String,
+    action: String,
+    onSubmit: (String) -> Unit,
+    onEdited: () -> Unit,
+    modifier: Modifier = Modifier,
+    hint: String? = null,
+    problem: String? = null,
+    field: TextFieldState = rememberTextFieldState(),
+) {
     LaunchedEffect(field) {
         snapshotFlow { field.text.toString() }.drop(1).collect { onEdited() }
     }
-    val connect = { if (field.text.isNotBlank()) onConnect(field.text.toString().trim()) }
+    val submit = { if (field.text.isNotBlank()) onSubmit(field.text.toString().trim()) }
     Box(
-        Modifier
+        modifier
             .fillMaxSize()
-            .brandGlow()
             .digitKeys(
                 onDigit = { d -> field.type(d.toString()) },
                 onDelete = { field.deleteLast() },
                 onDot = { field.type(".") },
                 onText = { c -> field.type(c.toString()) },
-            )
-            .testTag(ADDRESS_ENTRY_TAG),
+            ),
     ) {
         Column(
             Modifier.fillMaxWidth().padding(top = 27.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            BasicText(stringResource(R.string.tv_onboarding_address_title), style = PleyType.Tv.Title.copy(color = PleyColors.Fg))
+            BasicText(title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg))
             Spacer(Modifier.height(8.dp))
             TvTextField(
                 state = field,
@@ -76,13 +102,13 @@ internal fun TvAddressEntry(
                 modifier = Modifier.width(FieldWidth).testTag(ADDRESS_FIELD_TAG),
                 keyboardType = KeyboardType.Uri,
                 imeAction = ImeAction.Go,
-                onAction = connect,
+                onAction = submit,
                 typeNow = true,
             )
             Spacer(Modifier.height(14.dp))
             TvPillButton(
-                label = stringResource(if (state.checkingAddress) R.string.tv_onboarding_checking else R.string.tv_onboarding_connect),
-                onClick = connect,
+                label = action,
+                onClick = submit,
                 modifier = Modifier.testTag(CONNECT_TAG),
             )
             Spacer(Modifier.height(24.dp))
@@ -92,13 +118,12 @@ internal fun TvAddressEntry(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                BasicText(
-                    stringResource(R.string.tv_onboarding_address_hint),
-                    style = PleyType.Tv.Caption.copy(color = PleyColors.Muted, textAlign = TextAlign.Center),
-                )
-                state.addressProblem?.let {
+                if (hint != null) {
+                    BasicText(hint, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted, textAlign = TextAlign.Center))
+                }
+                if (problem != null) {
                     BasicText(
-                        problemText(it),
+                        problem,
                         style = PleyType.Tv.Body.copy(color = PleyColors.DangerText, textAlign = TextAlign.Center),
                         modifier = Modifier.testTag(ADDRESS_PROBLEM_TAG),
                     )

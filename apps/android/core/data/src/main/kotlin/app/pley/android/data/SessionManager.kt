@@ -163,7 +163,24 @@ internal class SessionManager(
         }
         coroutineScope {
             launch { fetchServer(active) }
+            launch { fetchAddresses(active) }
             fetchMe(active)
+        }
+    }
+
+    /**
+     * Where the server answers (GET /api/server/addresses), which the app
+     * moves between at home and away: kept with the sign-in, so the next
+     * start reaches the server wherever the device is.
+     */
+    private suspend fun fetchAddresses(active: String) {
+        try {
+            val list = meApi(active).serverAddresses()
+            if (origin == active) auth.tokens(active).serverAddresses(list.addresses.map { it.url })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Out of reach, or a server before addresses: the ones kept stay.
         }
     }
 
@@ -230,6 +247,7 @@ internal class SessionManager(
         if (state.value !is SessionState.SignedIn) return
         coroutineScope {
             launch { fetchServer(active) }
+            launch { fetchAddresses(active) }
             fetchMe(active)
         }
     }

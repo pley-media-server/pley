@@ -18,6 +18,7 @@ import app.pley.android.model.RequestList
 import app.pley.android.model.RequestOptions
 import app.pley.android.model.RequestQuery
 import app.pley.android.model.RequestSummary
+import app.pley.android.model.ServerAddressList
 import app.pley.android.model.TitleKind
 import app.pley.android.model.CollectionList
 import app.pley.android.model.EntryIds
@@ -114,6 +115,13 @@ interface PleyApi {
 
     /** GET /api/server: the server's name, version and language. No token needed. */
     suspend fun server(): ServerInfo
+
+    /**
+     * GET /api/server/addresses: where the server answers, for moving
+     * between them at home and away. Any app token; servers before it
+     * answer 404.
+     */
+    suspend fun serverAddresses(): ServerAddressList
 
     /** GET /api/auth/me: the profile the app acts as, and what it was allowed. Any app token. */
     suspend fun me(): Me

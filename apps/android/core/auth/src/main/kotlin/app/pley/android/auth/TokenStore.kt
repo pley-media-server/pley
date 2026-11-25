@@ -13,6 +13,7 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -160,6 +161,28 @@ data class StoredTokens(
 }
 
 /**
+ * A server's addresses besides the one signed in at (ServerAddresses): the
+ * ones its own list gives, in its order, and the ones added on this device.
+ */
+data class StoredAddresses(val server: List<String> = emptyList(), val added: List<String> = emptyList()) {
+    fun toJson(): JSONObject = JSONObject().put("server", JSONArray(server)).put("added", JSONArray(added))
+
+    companion object {
+        /** The addresses in [text]; `null` when it isn't what [toJson] writes. */
+        fun parse(text: String): StoredAddresses? = try {
+            val o = JSONObject(text)
+            fun list(name: String): List<String> {
+                val a = o.optJSONArray(name) ?: return emptyList()
+                return (0 until a.length()).mapNotNull { a.opt(it) as? String }
+            }
+            StoredAddresses(list("server"), list("added"))
+        } catch (_: JSONException) {
+            null
+        }
+    }
+}
+
+/**
  * The tokens of each server, sealed by the [vault] and kept on the [shelf]
  * under the server's address. Nothing here reads or keeps the web view's
  * cookie: the app holds app tokens only. [unreadable] hears of a server
@@ -209,10 +232,25 @@ class TokenStore(
         known[tokens.issuer] = tokens
     }
 
+    /** Forgets [issuer]'s tokens, and its addresses with them. */
     @Synchronized
     fun wipe(issuer: String) {
         shelf.remove(TOKENS + issuer)
+        shelf.remove(ADDRESSES + issuer)
         known[issuer] = null
+    }
+
+    /**
+     * [issuer]'s other addresses, kept while signed in there. Not sealed:
+     * they say no more than the saved servers' addresses, and are read
+     * before the Keystore is opened.
+     */
+    @Synchronized
+    fun addresses(issuer: String): StoredAddresses? = shelf.get(ADDRESSES + issuer)?.let(StoredAddresses::parse)
+
+    @Synchronized
+    fun saveAddresses(issuer: String, addresses: StoredAddresses) {
+        shelf.put(ADDRESSES + issuer, addresses.toJson().toString())
     }
 
     /** The sign-in waiting for the browser for [server], kept across process death. */
@@ -282,6 +320,7 @@ class TokenStore(
 
     companion object {
         private const val TOKENS = "tokens:"
+        private const val ADDRESSES = "addresses:"
         private const val FLOW = "flow:"
         private const val FLOW_SERVERS = "flows"
     }

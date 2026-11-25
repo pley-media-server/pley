@@ -40,6 +40,24 @@ data class ServerInfo(
     val language: String? = null,
 )
 
+/**
+ * GET /api/server/addresses: where the server answers besides the address
+ * the app signed in at, the administrator's addresses first, in their
+ * order, then the ones it found on its own networks.
+ */
+@Serializable
+data class ServerAddressList(
+    val id: String? = null,
+    val addresses: List<ListedAddress> = emptyList(),
+)
+
+/** One address of [ServerAddressList]: its origin, and `set` (the administrator's) or `found`. */
+@Serializable
+data class ListedAddress(
+    val url: String,
+    val source: String? = null,
+)
+
 /** GET /api/health: `{ "status": "ok" }` while the server runs. */
 @Serializable
 data class Health(

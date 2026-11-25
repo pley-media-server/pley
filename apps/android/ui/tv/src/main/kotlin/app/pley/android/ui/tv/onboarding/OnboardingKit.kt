@@ -153,16 +153,16 @@ private const val QUIET = 4
 /**
  * A dialog (design spec §2.10): a [surface2][PleyColors.Surface2] card,
  * radius 16, at most 560 wide, centered over a [scrim][PleyColors.Scrim];
- * [title] in tvTitle, [body] in tvBody muted, and its buttons
- * right-aligned. Back calls [onDismiss]. The buttons say where focus
- * starts (the safe choice). Focus stays on the buttons while it is open,
- * never reaching the page behind the scrim, and goes to [returnTo] (what
- * opened it) once it has closed.
+ * [title] in tvTitle, [body] (when the question needs one) in tvBody
+ * muted, and its buttons right-aligned. Back calls [onDismiss]. The
+ * buttons say where focus starts (the safe choice). Focus stays on the
+ * buttons while it is open, never reaching the page behind the scrim, and
+ * goes to [returnTo] (what opened it) once it has closed.
  */
 @Composable
 internal fun TvDialog(
     title: String,
-    body: String,
+    body: String?,
     onDismiss: () -> Unit,
     returnTo: FocusRequester? = null,
     buttons: @Composable () -> Unit,
@@ -180,7 +180,7 @@ internal fun TvDialog(
         ) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 BasicText(title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg))
-                BasicText(body, style = PleyType.Tv.Body.copy(color = PleyColors.Muted))
+                if (body != null) BasicText(body, style = PleyType.Tv.Body.copy(color = PleyColors.Muted))
                 Row(
                     Modifier.fillMaxWidth().padding(top = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),

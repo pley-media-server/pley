@@ -22,6 +22,7 @@ import app.pley.android.model.RequestQuery
 import app.pley.android.model.RequestStage
 import app.pley.android.model.RequestStatus
 import app.pley.android.model.RequestSummary
+import app.pley.android.model.ServerAddressList
 import app.pley.android.model.TitleKind
 import app.pley.android.model.TitleStatus
 import app.pley.android.model.CollectionList
@@ -155,6 +156,8 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
     override suspend fun health(): Health = respond("health") { fixture("server/health.json") }
 
     override suspend fun server(): ServerInfo = respond("server") { fixture("server/info.json") }
+
+    override suspend fun serverAddresses(): ServerAddressList = respond("serverAddresses") { fixture("server/addresses.json") }
 
     override suspend fun me(): Me = respond("me") { fixture("me/app_token.json") }
 
