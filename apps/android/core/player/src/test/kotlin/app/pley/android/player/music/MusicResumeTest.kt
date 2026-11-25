@@ -6,17 +6,26 @@ import app.pley.android.data.ProfileScope
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PleyJson
+import app.pley.android.model.caps.ClientCaps
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
+import app.pley.android.player.session.SessionReporter
+import app.pley.android.testing.network.FakePleyApi
 import kotlin.random.Random
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -169,6 +178,54 @@ class MusicResumeTest {
         assertEquals(4, saved.index)
         assertEquals(61_000L, saved.positionMs)
         assertEquals(MusicRepeat.All, saved.repeat)
+    }
+
+    @Test
+    fun aQueueKeptWithRepeatOnIsNeverWrittenEmptyAsItComesBack() = runTest {
+        resume().keep(MusicQueueState(album, index = 4, repeat = MusicRepeat.All), positionMs = 61_000)
+        runCurrent()
+
+        // Another process: the music, and what keeps it as the app wires them (ServiceMusicControl), the queue kept as it
+        // changes, on the main thread there and then, and written from there.
+        val main = UnconfinedTestDispatcher(testScheduler)
+        val queues = mutableListOf<Int>()
+        val again = MusicResume(
+            profile = { signedIn },
+            read = { whose, key -> snapshotsOf(whose)[key]?.takeIf { it.isNotEmpty() } },
+            write = { whose, key, bytes ->
+                if (key == MusicResume.QUEUE) queues += bytes.size
+                snapshotsOf(whose)[key] = bytes
+            },
+            scope = backgroundScope + main,
+            work = offMain(),
+        )
+        val server = FakePleyApi()
+        val music = MusicPlayback(
+            MusicEnvironment(
+                api = { server },
+                caps = { ClientCaps() },
+                clientId = { "android-test-music" },
+                reporter = SessionReporter(backgroundScope),
+                output = { error("Nothing plays here") },
+            ),
+            backgroundScope,
+        )
+        val keep = { if (!music.suggested) again.keep(music.queueState.value, music.position().positionMs) }
+        backgroundScope.launch(main) { music.queueState.drop(1).collect { keep() } }
+        backgroundScope.launch(main) {
+            music.nowPlaying.map { now -> now?.let { Triple(it.wantsPlay, it.seeks, it.ended) } }.distinctUntilChanged().drop(1).collect { keep() }
+        }
+
+        music.cue(again.saved()!!)
+        runCurrent()
+        assertEquals(MusicRepeat.All, music.queueState.value.repeat)
+        // Android may end the app at any moment: the queue is in the store at each, never written as none.
+        assertTrue("The queue's writes, by their size: $queues", queues.isNotEmpty() && queues.none { it == 0 })
+        val back = resume().saved()!!
+        assertEquals(album, back.tracks)
+        assertEquals(4, back.index)
+        assertEquals(61_000L, back.positionMs)
+        assertEquals(MusicRepeat.All, back.repeat)
     }
 
     @Test
