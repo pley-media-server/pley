@@ -218,8 +218,10 @@ internal class ServerCastReceiver(
                 )
             }
             is PlayTarget.Music -> {
-                val start = if (cast.shuffle) random.nextInt(target.tracks.size) else target.startIndex
-                playMusic(target.tracks, start, cast.shuffle, from)
+                // A book's parts play in their order, from where the profile is in the book.
+                val shuffle = cast.shuffle && target.tracks.none { it.kind == ItemKind.Part }
+                val start = if (shuffle) random.nextInt(target.tracks.size) else target.startIndex
+                playMusic(target.tracks, start, shuffle, from, startMs = if (shuffle) 0 else target.startMs)
                 if (item.kind == ItemKind.Track) cast.startMs?.let { musicControl().seekTo(it) }
             }
             PlayTarget.NothingToPlay -> Unit
@@ -238,10 +240,10 @@ internal class ServerCastReceiver(
         }
     }
 
-    private fun playMusic(tracks: List<ItemSummary>, start: Int, shuffle: Boolean, from: CastFrom) {
+    private fun playMusic(tracks: List<ItemSummary>, start: Int, shuffle: Boolean, from: CastFrom, startMs: Long = 0) {
         // A video or a channel playing here makes way, as it would for the music player's own Play.
         closePlayers()
-        musicControl().play(tracks, start, shuffle)
+        if (startMs > 0) musicControl().playFrom(tracks, start, startMs) else musicControl().play(tracks, start, shuffle)
         heard.tryEmit(CastMusic(from))
     }
 
