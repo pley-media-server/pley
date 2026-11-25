@@ -1,6 +1,7 @@
 package app.pley.android.buildlogic
 
 import com.android.build.api.dsl.CommonExtension
+import java.time.Duration
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.artifacts.VersionCatalog
@@ -16,6 +17,14 @@ object Sdk {
     /** Robolectric's newest SDK: unit tests run on it rather than on the target. */
     const val ROBOLECTRIC = 36
 }
+
+/**
+ * How long a module's unit tests may run. Every module's together take 4 to
+ * 20 minutes, so a healthy run never reaches it. A test that waits for ever
+ * fails its task at it; without it, it holds CI until the job's own limit,
+ * which ends the job canceled, with no report.
+ */
+internal val UNIT_TESTS_LIMIT: Duration = Duration.ofMinutes(30)
 
 /** The version catalog, gradle/libs.versions.toml. */
 val Project.libs: VersionCatalog
@@ -42,6 +51,7 @@ internal fun Project.configureAndroid(android: CommonExtension) {
             "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
             "--add-opens=java.base/java.io=ALL-UNNAMED",
         )
+        it.timeout.set(UNIT_TESTS_LIMIT)
     }
     // robolectric.properties (sdk=36) for every module's unit tests.
     android.sourceSets.findByName("test")?.resources?.srcDir(

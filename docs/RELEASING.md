@@ -208,6 +208,12 @@ minidump of it with its program and symbols as the `stuck-test-windows`
 artifact, and ends it, so the job fails at once and names the program
 instead of waiting for its time limit.
 
+Android's unit tests have 30 minutes for each module (`UNIT_TESTS_LIMIT`
+in `apps/android/build-logic`), where all of them together take 4 to 20.
+A test that waits for ever fails its module's test task at that limit, so
+the job fails and names the module instead of being canceled at its own
+time limit.
+
 A CHANGELOG change alone runs only Repository. Prepare release and Audit
 (known vulnerabilities in the lock files) run only by hand.
 
