@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shuffle in the media session (a car's Now Playing, the system's media controls), on: the dot under it says so. Lucide `shuffle`, as the app draws it, centered on the box as the car's Previous and Next are, and small enough that the dot fits under it, in one color the car tints. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:scaleX="0.66"
+        android:scaleY="0.66">
+        <path
+            android:pathData="m18 14 4 4-4 4"
+            android:strokeWidth="2.6"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="m18 2 4 4-4 4"
+            android:strokeWidth="2.6"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22"
+            android:strokeWidth="2.6"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M2 6h1.972a4 4 0 0 1 3.6 2.2"
+            android:strokeWidth="2.6"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"
+            android:strokeWidth="2.6"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12 20.2a1.4 1.4 0 1 1 0 2.8a1.4 1.4 0 1 1 0-2.8z" />
+</vector>

@@ -98,6 +98,7 @@
       "match": "修正比對…",
       "thumb": "選擇縮圖…",
       "poster": "選擇海報…",
+      "cover": "選擇封面…",
       "backdrop": "選擇背景圖…"
     },
     "details": {
@@ -105,6 +106,7 @@
       "hint": "編輯過的欄位會被鎖定 <lock/>，這樣重新整理中介資料時會保留它們。解鎖某個欄位後，下次重新整理會重新填充它。",
       "nfoHint": "旁邊的 NFO 檔案中的欄位優先於中介資料源；而此處的編輯優先於它們。",
       "genresPlaceholder": "劇情、驚悚",
+      "namesPlaceholder": "每行一個名字",
       "locked": "已鎖定：點選解鎖",
       "willUnlock": "將被解鎖",
       "ratingCountry": "國家：{{country}}",
@@ -115,6 +117,10 @@
         "title": "標題",
         "sort_title": "排序標題",
         "original_title": "原始標題",
+        "authors": "作者",
+        "narrators": "朗讀者",
+        "series": "系列",
+        "series_index": "系列中的第幾本",
         "year": "年份",
         "release_date": "發行日期",
         "content_rating": "分級",
@@ -130,15 +136,22 @@
     "match": {
       "title": "修正比對",
       "byHand": "此處為手動比對。旁邊的 NFO 檔案不會改變此比對，除非你撤銷它。",
+      "bookByHand": "此處為手動比對。重新整理和書的檔案不會改變此比對，除非你撤銷它。",
       "undo": "撤銷修正比對",
       "undone": "已撤銷修正比對",
       "matched": "已比對到「{{title}}」",
       "noMatches": "沒有相符的結果。試試其他標題或不填年份。",
-      "current": "目前"
+      "current": "目前",
+      "bookTitle": "標題，或 Audible ASIN",
+      "author": "作者",
+      "noBookMatches": "沒有相符的結果。試試其他標題、不填作者，或書的 ASIN。",
+      "audible": "Audible · {{asin}}",
+      "openLibrary": "Open Library · {{id}}"
     },
     "artwork": {
       "titles": {
         "poster": "選擇海報",
+        "cover": "選擇封面",
         "backdrop": "選擇背景圖",
         "thumb": "選擇縮圖"
       },
@@ -148,7 +161,8 @@
       "upload": "上傳圖片…",
       "uploading": "正在上傳…",
       "loadError": "{{error}} 你仍然可以上傳圖片。",
-      "none": "TMDB 沒有此項目的其他封面。"
+      "none": "TMDB 沒有此項目的其他封面。",
+      "noCovers": "Open Library 和 Audible 沒有這本書的封面。如果它比對到錯誤的書，請先修正比對。"
     }
   },
   "request": {

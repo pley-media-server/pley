@@ -90,6 +90,7 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkCandidates
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.designsystem.tile.ChannelLogo
@@ -118,6 +119,7 @@ import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleySheet
 import app.pley.android.ui.phone.livetv.rememberClock
+import app.pley.android.ui.phone.player.CarSizedWindow
 import java.text.NumberFormat
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
@@ -699,6 +701,7 @@ private fun Header(session: RemoteSession, origin: String?, modifier: Modifier =
                 poster,
                 item.title,
                 Modifier.width(56.dp).aspectRatio(if (item.kind == ItemKind.Track) 1f else 2f / 3f).clip(PleyShape.TilePhone),
+                mark = MarkGlyph.of(item.kind),
             )
         }
         Spacer(Modifier.width(14.dp))
@@ -1118,19 +1121,21 @@ private fun <T> ChoiceMenu(
             }
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = PleyColors.Surface3) {
-            choices.forEach { (key, text) ->
-                val ticked = key == current
-                DropdownMenuItem(
-                    // A long track name takes two lines, with room above and below as a one-line row has.
-                    text = { Text(text, style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                    onClick = {
-                        open = false
-                        onPick(key)
-                    },
-                    trailingIcon = if (ticked) ({ Icon(PleyIcons.Check, contentDescription = null, size = 20.dp, tint = PleyColors.AccentBright) }) else null,
-                    modifier = Modifier.heightIn(min = 48.dp).semantics { selected = ticked },
-                )
+            CarSizedWindow {
+                choices.forEach { (key, text) ->
+                    val ticked = key == current
+                    DropdownMenuItem(
+                        // A long track name takes two lines, with room above and below as a one-line row has.
+                        text = { Text(text, style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        onClick = {
+                            open = false
+                            onPick(key)
+                        },
+                        trailingIcon = if (ticked) ({ Icon(PleyIcons.Check, contentDescription = null, size = 20.dp, tint = PleyColors.AccentBright) }) else null,
+                        modifier = Modifier.heightIn(min = 48.dp).semantics { selected = ticked },
+                    )
+                }
             }
         }
     }

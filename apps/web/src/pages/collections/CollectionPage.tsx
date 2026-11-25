@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router";
 import { ArrowUpDown, ChevronDown, ChevronUp, GripVertical, ImageUp, Layers, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
+import { markGlyph } from "pley-placeholder";
 import { errorMessage, isApiError } from "@/api/client";
 import { useLibraries } from "@/api/hooks";
 import {
@@ -89,7 +90,6 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
           width={1920}
           alt=""
           title={c.title}
-          bare
           eager
           className="size-full opacity-70"
           imgClassName="object-cover object-[center_20%]"
@@ -106,6 +106,7 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
               width={256}
               alt={c.title}
               title={c.title}
+              mark="play"
               eager
               className="aspect-[2/3] w-full rounded-lg shadow-2xl shadow-black/60 ring-1 ring-white/10"
             />
@@ -283,7 +284,7 @@ function ManageItems({ collection: c }: { collection: CollectionDetail }) {
             >
               <GripVertical className="size-4 shrink-0 cursor-grab text-subtle" aria-hidden />
               <span className="w-6 shrink-0 text-right text-sm tabular-nums text-subtle">{i + 1}</span>
-              <Artwork candidates={posterCandidates(item)} width={40} alt="" title={item.title} className="aspect-[2/3] w-10 shrink-0 rounded" />
+              <Artwork candidates={posterCandidates(item)} width={40} alt="" title={item.title} mark={markGlyph(item.kind)} className="aspect-[2/3] w-10 shrink-0 rounded" />
               <div className="min-w-0 flex-1">
                 <Link to={itemUrl(item.id)} draggable={false} className="block truncate text-sm font-medium text-fg hover:text-accent">
                   {item.title}

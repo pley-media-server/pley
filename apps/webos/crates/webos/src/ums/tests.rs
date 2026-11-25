@@ -288,6 +288,27 @@ fn the_position_runs_on_between_reports_at_the_rate_and_no_further_than_a_second
 }
 
 #[test]
+fn what_the_pipeline_last_said_is_kept_as_it_said_it() {
+    let t0 = Instant::now();
+    let mut m = machine(PlaneKind::Exported, false);
+    assert_eq!(m.reported_ms(), None);
+    let serial = loaded(&mut m, movie(), t0);
+    msg(&mut m, serial, json!({ "playing": {} }), t0);
+    // Playing, and the position runs on, but the pipeline hasn't said where it is.
+    assert_eq!(m.reported_ms(), None);
+    msg(&mut m, serial, json!({ "currentTime": 100_000 }), t0);
+    assert_eq!(m.position_ms(t0 + Duration::from_millis(600)), 100_600);
+    assert_eq!(m.reported_ms(), Some(100_000));
+    // The same again, as a pipeline that stands still may say: nothing run on.
+    msg(&mut m, serial, json!({ "currentTime": 100_000 }), t0 + Duration::from_millis(700));
+    assert_eq!(m.reported_ms(), Some(100_000));
+    msg(&mut m, serial, json!({ "currentTime": { "currentTime": 100_900 } }), t0 + Duration::from_millis(900));
+    assert_eq!(m.reported_ms(), Some(100_900));
+    m.unload();
+    assert_eq!(m.reported_ms(), None);
+}
+
+#[test]
 fn a_tv_that_never_says_playing_still_moves_its_clock() {
     let t0 = Instant::now();
     let mut m = machine(PlaneKind::Exported, false);

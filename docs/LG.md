@@ -301,6 +301,24 @@ and goes with `live_channels_changed`. On LG:
   at once; one that breaks off later does once the server has said
   watching didn't end there. Where the app can't listen on the loopback
   address, every channel plays its HLS.
+- **A stream that stands still:** a provider's stream that starts its
+  clock over, as the server connects to it again, can leave the TV's
+  pipeline on the picture it had, with no error and no word that it
+  buffers. While a `stream.ts` plays, the app looks once a second at
+  where the pipeline last said it is (its `currentTime`, not the position
+  the app runs on between reports; a pipeline that never says isn't
+  judged). When it has stood still for 8 s, the stream coming for 5 of
+  them and still coming, the app asks the session's plan, which keeps the
+  watch session (a `410` stops with the server's words), then opens
+  `stream.ts` again on the same session, from a new address of the relay:
+  the server starts a new reader at its last keyframe, and the buffering
+  ring shows until it plays. A stream that never played, or that stands
+  still again within 2 minutes of being read again, plays its HLS
+  instead. The stream comes while the relay reads more bytes of it, or
+  waits on the pipeline to take them, so a provider gone quiet is waited
+  for. A stall the pipeline says is its own (a failure after 20 s,
+  below): the watch holds through it. These are the web app's rules
+  (`crates/player/src/live/stuck.rs`).
 - **The guide:** ◀◀ and ▶▶, Previous and Next, move it two hours back
   or on, a press at a time, as in the Android TV app. While the guide has
   focus these keys are its own even when music plays; elsewhere on the
@@ -315,8 +333,8 @@ and goes with `live_channels_changed`. On LG:
   The pipeline says nothing of a playlist gone (`410`), so a failure, or a
   stall of 5 s, asks the server why watching ended
   (`GET /api/live/sessions/{id}/plan`) and shows its words (not a stall
-  while the `stream.ts` plays: its HLS session, unread, would say watching
-  ended); a stall of 20 s is a failure.
+  while the `stream.ts` plays, as on Android: it is asked once that
+  breaks off or stands still); a stall of 20 s is a failure.
 - **Taken over:** the server's `live_taken_over` event for the channel
   playing stops the player at once, before its stream breaks off, so it
   isn't tuned again into a connection that is gone. The card says "Live TV

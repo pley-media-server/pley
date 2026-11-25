@@ -58,7 +58,8 @@ class CollectionsViewModel<T : Any>(
             @Suppress("UNCHECKED_CAST")
             return@flatMapLatest flowOf(loadable as Loadable<List<CollectionShelf<T>>>)
         }
-        val shown = libraries.filter { it.kind != LibraryKind.Music && (only == null || it.id == only) }
+        // Music and books have no collections: their libraries aren't asked.
+        val shown = libraries.filter { !it.kind.audio && (only == null || it.id == only) }
         if (shown.isEmpty()) return@flatMapLatest flowOf(Loadable.Ready(emptyList(), fresh = true))
         origin.flatMapLatest { origin ->
             combine(shown.map { library -> shelf(library, origin) }) { shelves -> Loadable.Ready(shelves.toList(), fresh = true) }

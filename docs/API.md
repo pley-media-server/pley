@@ -337,6 +337,8 @@ interface Book {                    // from its first part's tags, else its fold
   narrators: string[];              // may be empty
   series: string | null;            // "Series X"
   series_index: number | null;      // the book's place in its series: 2, or 2.5 between two books
+  openlibrary_id?: string;          // the Open Library work it is matched to: "OL21745884W"
+  asin?: string;                    // the Audible recording it is matched to: "B08G9PRS1K"
 }
 
 interface Credit {
@@ -382,7 +384,8 @@ interface MediaFile {
   video_codec: string | null;       // ffprobe codec name: "h264", "hevc", "av1", ...
   audio_codec: string | null;       // codec of the default audio stream
   streams: MediaStream[];
-  edition: string | null;           // from `{edition-Final Cut}` in the file's or its folder's name
+  edition: string | null;           // from `{edition-Final Cut}` in the file's or its folder's name, or of a
+                                    // movie's, its words there (`Film (2010) - Director's Cut`)
   selected_audio: number | null;    // track to start with for this user (their choice, else their
                                     // defaults); null = the file's default. Not player-specific:
                                     // a play request picks that language's best track for its
@@ -1720,9 +1723,17 @@ open only some libraries see those, in that order.
   when `ids` aren't the libraries the user may open. It and `DELETE` send
   `libraries_changed` to the user's event streams.
 
-**Audiobooks** are for Pley's own sign-in: the web app and the desktop
-app's window, which show them. A request with an app's token, an
-administrator's included, gets no audiobook library: none in
+**Audiobooks** are for Pley's own sign-in (the web app and the desktop
+app's window, which show them) and for an app's request that says it
+shows them with `X-Pley-Features: audiobooks` (comma-separated features,
+`audiobooks` the only one yet; the Android app sends it with every API
+request and on its event stream, not with pictures, which don't depend
+on it). Such a request gets them as Pley's own
+sign-in does, from the libraries the account may open; an app that sends
+it with some requests only keeps their answers apart from the others' (an
+HTTP cache of their own), as they differ. Any other
+request with an app's token, an administrator's included, gets no
+audiobook library: none in
 `/api/libraries` or among Home's rows, `404` from a library's own routes,
 no `continue_listening` on Home, no book or part in search or history,
 and no scan or change of an audiobook library in `/api/events`, one
@@ -1783,10 +1794,10 @@ user's watch state and their access are unchanged.
 | POST | `/api/items/{id}/unwatched` | `play` | `204` |
 | PUT | `/api/items/{id}/rating` | `play` | `{ rating: number \| null }` → `204`: the user's own rating (`user_state.rating`); `400` outside 0-10 |
 | PUT | `/api/items/{id}/streams` | `play` | `{ file_id?, audio_index?, subtitle_index? }` → `204`: remembers track choices |
-| PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, match?, labels? }` → `ItemDetail` |
-| GET | `/api/items/{id}/matches?title=&year=` | `admin` | TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` for movies and shows (needs a TMDB key) |
-| POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed; a movie other copies were merged into lets them go first, each matched again on its own and kept apart from it; a movie matched to another copy's title goes into it, and the answer is that movie |
-| GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]` |
+| PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, authors?, narrators?, series?, series_index?, match?, labels? }` → `ItemDetail` |
+| GET | `/api/items/{id}/matches?title=&year=&author=` | `admin` | Movies and shows: TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` (needs a TMDB key). Audiobooks: `{ openlibrary_id, asin, title, authors, narrators, year, poster_url }[]` |
+| POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` (movies, shows), `{ openlibrary_id }` or `{ asin }` (audiobooks) → `ItemDetail`, re-matched and refreshed; a movie other copies were merged into lets them go first, each matched again on its own and kept apart from it; a movie matched to another copy's title goes into it, and the answer is that movie |
+| GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]`; an audiobook's covers (`poster`) from Audible and Open Library, with `width` and `height` 0 |
 | PUT | `/api/items/{id}/artwork/{kind}` | `admin` | `{ url }` (a TMDB image, or one on another host Pley takes pictures from: [COMPATIBILITY.md](COMPATIBILITY.md#editing)) → `ItemDetail`; downloaded and locked |
 | POST | `/api/items/{id}/artwork/{kind}/upload` | `admin` | raw image bytes (≤ 25 MB) → `ItemDetail`; stored as JPEG, without the file's metadata but Kometa's overlay mark, and locked |
 | DELETE | `/api/items/{id}/artwork/{kind}` | `admin` | `204`; back to local or downloaded artwork |
@@ -1852,15 +1863,32 @@ user's watch state and their access are unchanged.
   Fix Match: the NFO file's ids decide the match again (any other value:
   `400`). `labels` replaces the labels of a movie, show, season, episode,
   artist or album (at most 100, of at most 120 characters); labels aren't
-  metadata, so they aren't locked and no refresh changes them.
+  metadata, so they aren't locked and no refresh changes them. `authors`
+  and `narrators` (lists of at most 50 names of at most 500 characters),
+  `series` and `series_index` (a number from 0) are an audiobook's only
+  (another kind: `400`).
 - **`match`**: a show whose TV source is TVmaze or TheTVDB is found there by
   the chosen entry's IMDb and TheTVDB ids. The choice wins over the NFO
   file's ids, and `locked_fields` then lists `"match"`. When none of the
   NFO file's ids is the chosen entry's, its fields and lockdata stop
   applying and `nfo_fields` is empty, until Fix Match is undone or the
   file names that entry.
+- **Audiobooks' `matches` and `match`** need Open Library and Audnexus on
+  (Settings → Server; else `400`). `matches` searches Open Library by
+  `title` (the book's own when left out) and `author` (with its own title,
+  the book's first writer when `author` is left out; empty asks for no
+  writer), with the book's own recording first when it
+  has an ASIN; a `title` that is an ASIN (ten letters and digits, with a
+  digit) looks that recording up on Audnexus instead. `match` takes one
+  of `openlibrary_id` and `asin`: what the earlier match filled in goes
+  (the book's details are its files' again, and a cover that came from a
+  source), and the chosen work or recording is fetched. It wins over the
+  search and over the ASIN in the book's files until Fix Match is undone,
+  which forgets it the same way and finds the book again. `400` when the
+  chosen book can't be fetched; the choice is kept, for the next refresh.
 - **`refresh`** sources: movies, TMDB; shows, seasons and episodes, the TV
-  source; artists, albums and tracks, MusicBrainz. `400` when that source
+  source; artists, albums and tracks, MusicBrainz; audiobooks, Audnexus
+  and Open Library. `400` when that source
   is off or lacks its key. An item its NFO file locks (`<lockdata>`) is
   never fetched, by `refresh` (still `202`) or by `match` to the title the
   file names.
@@ -1954,8 +1982,9 @@ WebVTT file named `.srt` is taken as WebVTT). Its language is kept as ISO
 | GET | `/api/search?q=&limit=` | `library` | `{ items: ItemSummary[], people: PersonSummary[], channels: LiveChannel[] }`: `items`, `people` and `channels` each up to `limit` (default 40, 1 to 200): titles, people, and Live TV channels by name, number or what's on, for those Live TV is open to. The apps ask for 200 |
 
 - **Home** hubs, empty ones left out: `continue_watching` (in progress and
-  next up), then `continue_listening` (audiobooks part way through; never
-  for an app's token, see [Audiobooks](#libraries)), then
+  next up), then `continue_listening` (audiobooks part way through; for
+  an app's token only with `X-Pley-Features: audiobooks`, see
+  [Audiobooks](#libraries)), then
   `my_list` ("My List", its 20 newest), then the rows administrators put
   on Home ([Rows](#rows)): collections, and each music and audiobook
   library's `recently_added:<library_id>`.
@@ -2021,7 +2050,8 @@ library's hubs) holds the audiobooks the user is part way through, the
 one heard last first: a part started, or one finished and another still
 to hear. Its items are the books; `on-deck` says where each goes on. A
 finished book leaves it. Audiobooks are never in Continue Watching, and an
-app's token gets no Continue Listening ([Audiobooks](#libraries)).
+app's token gets no Continue Listening unless its request has
+`X-Pley-Features: audiobooks` ([Audiobooks](#libraries)).
 
 **`DELETE /api/continue-watching/{id}`** takes a movie, or for an episode
 (in progress or next up) its whole show, out of the user's Continue
@@ -2445,6 +2475,9 @@ one of an audiobook library is refused (`400`).
   client_id?: string;             // identifies the player (browser tab, device)
   keep_previous?: boolean;        // the client's last session plays on: don't end it (the player ends it
                                   // as it moves over)
+  ahead?: boolean;                // with keep_previous: asked for ahead, to play once what plays ends (music's
+                                  // next track, without a gap): not listed as playing (the dashboard, remotes,
+                                  // the Plex and Jellyfin APIs) until its first progress report
   keyed_urls?: boolean;           // the player can't send the Authorization header: its addresses carry a
                                   // key (Keyed URLs)
   controls?: Control[];           // the remote's commands this player obeys (Remote control); left out: none.
@@ -3341,8 +3374,8 @@ is not a play.
 `item_id` (the item, or the episodes or tracks under it), `library_id`,
 `since` (unix seconds); administrators also `user_id=<id>` or `all=1`.
 Your own plays unless asked otherwise; entries of items you can't see are
-left out, and for an app's token those of audiobooks
-([Audiobooks](#libraries)).
+left out, and for an app's token those of audiobooks, unless its request
+has `X-Pley-Features: audiobooks` ([Audiobooks](#libraries)).
 
 ```ts
 interface HistoryEntry {
@@ -4899,6 +4932,12 @@ on another administrator's account, but for the `GET`s
     its own adapters, loopback aside); `pley_out`: what Pley sent its
     clients, response bodies on every port (the web app's, Plex's and
     Jellyfin's);
+  - `pley_cpu`, `pley_memory`, `net_in` and `net_out` are read with every
+    sample for 30 s after someone asks, and for 30 s after one of Pley's
+    processes began or ended; otherwise every 10 s, and the samples in
+    between take the averages over those 10 s (and Pley's memory at their
+    end). A sample still waiting for them isn't answered: it comes with a
+    later answer, once they are read;
   - `clients`: who Pley is sending to now, the busiest first (50 at most),
     `sent` in bytes a second over the last 10 seconds. `user` and `device`
     are the account and device a request signed in as ("Chrome on
@@ -5044,7 +5083,7 @@ interface Settings {
                                     // Turning it on where `transcoder.memory.available` is false: 400;
                                     // saved on before, it stays
   scan_interval_minutes: number;    // 0 disables periodic scans
-  watch_libraries: boolean;         // pick up file changes automatically
+  watch_libraries: boolean;         // pick up file changes automatically, scanning again only the folders they are in
   detect_markers: boolean;          // find intros and credits in the background (default true)
   seek_previews: boolean;           // make seek-bar thumbnails when an item is first opened (default true)
   previews_in_background: boolean;  // also for whole libraries after scans (default true)

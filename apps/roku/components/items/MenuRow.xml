@@ -9,11 +9,14 @@
         <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/MenuRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Poster id="focus" width="300" height="72" uri="pkg:/images/button-focus.9.png" visible="false" />
         <Label id="name" translation="[24, 0]" width="252" height="72" vertAlign="center" color="0xEBEBEBFF" font="font:MediumSystemFont" />
         <Rectangle id="countBack" translation="[0, 16]" height="40" visible="false" />
-        <Label id="count" translation="[0, 16]" height="40" horizAlign="center" vertAlign="center" color="0x16191EFF" font="font:SmallestBoldSystemFont" visible="false" />
+        <Label id="count" translation="[0, 16]" height="40" horizAlign="center" vertAlign="center" color="0x16191EFF" visible="false">
+            <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
+        </Label>
     </children>
 </component>

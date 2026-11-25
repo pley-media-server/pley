@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -19,15 +20,17 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyElevation
@@ -35,6 +38,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.ui.phone.R
+import app.pley.android.ui.phone.player.CarSizedWindow
 
 /**
  * A bottom sheet (design spec §3.4, elevation level 2): [surface2][PleyColors.Surface2]
@@ -75,16 +79,19 @@ internal fun PleySheet(
         tonalElevation = 0.dp,
         dragHandle = { SheetHandle() },
     ) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 8.dp)) {
-            if (title != null) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = PleyColors.Fg,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                )
+        // Opened from a page on a car's screen, car-sized as it is.
+        CarSizedWindow {
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 8.dp)) {
+                if (title != null) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = PleyColors.Fg,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                    )
+                }
+                content()
             }
-            content()
         }
     }
 }
@@ -153,7 +160,7 @@ fun ConfirmDialog(
     /** What not doing it is called ("Keep them"); Cancel by default. */
     dismissLabel: String? = null,
 ) {
-    AlertDialog(
+    PleyAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(
@@ -173,5 +180,39 @@ fun ConfirmDialog(
         titleContentColor = PleyColors.Fg,
         textContentColor = PleyColors.Muted,
         tonalElevation = 0.dp,
+    )
+}
+
+/**
+ * Material's [AlertDialog], its title, text and buttons car-sized when a
+ * page on a car's screen opens it ([CarSizedWindow]): a dialog's window
+ * starts again from the screen's own density.
+ */
+@Composable
+internal fun PleyAlertDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissButton: (@Composable () -> Unit)? = null,
+    title: (@Composable () -> Unit)? = null,
+    text: (@Composable () -> Unit)? = null,
+    shape: Shape = PleyShape.Dialog,
+    containerColor: Color = PleyColors.Surface2,
+    titleContentColor: Color = PleyColors.Fg,
+    textContentColor: Color = PleyColors.Muted,
+    tonalElevation: Dp = 0.dp,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = { CarSizedWindow(confirmButton) },
+        modifier = modifier,
+        dismissButton = dismissButton?.let { button -> { CarSizedWindow(button) } },
+        title = title?.let { words -> { CarSizedWindow(words) } },
+        text = text?.let { words -> { CarSizedWindow(words) } },
+        shape = shape,
+        containerColor = containerColor,
+        titleContentColor = titleContentColor,
+        textContentColor = textContentColor,
+        tonalElevation = tonalElevation,
     )
 }

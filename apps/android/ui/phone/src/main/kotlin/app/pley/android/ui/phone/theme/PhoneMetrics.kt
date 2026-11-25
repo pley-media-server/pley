@@ -78,8 +78,8 @@ data class PhoneMetrics(
     val rail: Boolean get() = widthClass != WidthClass.Compact
 
     companion object {
-        /** The collapsed navigation rail (WideNavigationRailCollapsed). */
-        val RailWidth = 96.dp
+        /** The navigation rail (NavigationRail), its icons alone. */
+        val RailWidth = 80.dp
 
         /**
          * A window [windowWidth] wide whose safe area stops [safeStart] and

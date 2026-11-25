@@ -101,4 +101,12 @@
     <string name="tv_collection_failed">Couldn\'t load this collection</string>
     <string name="tv_collection_nothing_to_play">Nothing to play: this show has no episodes yet</string>
     <string name="tv_collection_from">From</string>
+    <plurals name="tv_library_count_books">
+        <item quantity="one">%s book</item>
+        <item quantity="other">%s books</item>
+    </plurals>
+    <plurals name="tv_library_count_of_books">
+        <item quantity="one">%1$s of %2$s book</item>
+        <item quantity="other">%1$s of %2$s books</item>
+    </plurals>
 </resources>

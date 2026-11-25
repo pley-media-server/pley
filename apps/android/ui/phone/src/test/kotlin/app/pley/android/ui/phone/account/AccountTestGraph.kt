@@ -44,10 +44,12 @@ import app.pley.android.model.TrackDefaults
 import app.pley.android.player.MusicControl
 import app.pley.android.player.MusicPosition
 import app.pley.android.player.MusicQueueState
+import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
 import app.pley.android.player.PlaybackServices
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerGraph
+import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.ScreensGraph
@@ -192,6 +194,8 @@ class AccountTestGraph : ScreensGraph {
         val played = mutableListOf<Pair<List<Long>, Int>>()
         var toggles = 0
         var nexts = 0
+        val repeats = mutableListOf<MusicRepeat>()
+        val seeks = mutableListOf<Long>()
         override val nowPlaying: StateFlow<NowPlaying?> = now
         override val queue: StateFlow<MusicQueueState> = MutableStateFlow(MusicQueueState(TRACKS, 0))
         override fun position(): MusicPosition = MusicPosition(60_000, 185_000, 90_000)
@@ -203,6 +207,16 @@ class AccountTestGraph : ScreensGraph {
         }
         override fun next() {
             nexts++
+        }
+        override fun setRepeat(repeat: MusicRepeat) {
+            repeats += repeat
+        }
+        override fun seekTo(positionMs: Long) {
+            seeks += positionMs
+        }
+        val sleeps = mutableListOf<SleepChoice>()
+        override fun setSleep(choice: SleepChoice) {
+            sleeps += choice
         }
         override fun pauseForVideo() = Unit
     }

@@ -220,3 +220,14 @@ sub test_i18n_errors_and_sign_in_speak_the_language_shown()
     tkEqual(authDeviceRefusal(429, ""), "Hay demasiados inicios de sesión esperando en este servidor: vuelve a intentarlo en unos minutos.")
     tkEqual(profStartAsLabel([], 3), "Último perfil usado")
 end sub
+
+sub test_i18n_chinese_has_a_family_of_type_of_its_own()
+    tkEqual(i18nFontFamily("zh-CN"), "noto-sc")
+    tkEqual(i18nFontFamily("zh-TW"), "noto-tc")
+    tkEqual(i18nFontFamily("fr"), "roboto")
+    tkEqual(i18nFontFamily(invalid), "roboto")
+    tkTrue(i18nHasCjk("简体中文"))
+    tkTrue(i18nHasCjk("Movies 電影"), "among Latin letters")
+    tkFalse(i18nHasCjk("Español"), "Latin-1 isn't")
+    tkFalse(i18nHasCjk(invalid))
+end sub

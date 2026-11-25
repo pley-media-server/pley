@@ -13,6 +13,7 @@ import android.view.Window
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -155,11 +156,15 @@ class Media3Engine(
         profile7BaseLayer = { profile7BaseLayer },
     )
 
-    private val loadControl = PleyLoadControl(BufferPlan.of(profile))
+    /** How much it buffers: music's own plan for the music's player, the device's for video. */
+    internal val bufferPlan = BufferPlan.of(profile, music)
+    private val loadControl = PleyLoadControl(bufferPlan)
     private val audioDelay = AudioDelay()
     private val audioDecoding = AudioDecoding()
     private val trackSelector = DefaultTrackSelector(app, sizeSwitching())
     private val loading = MediaLoading(app, mediaClient, now)
+
+    override val received: Long get() = loading.received
 
     override val player: ExoPlayer = ExoPlayer.Builder(app)
         .setRenderersFactory(
@@ -222,6 +227,9 @@ class Media3Engine(
     private var window: Window? = null
     private var frameRate: FrameRateController? = null
     private var loaded: EngineSource? = null
+
+    /** What [setNext] put after the media playing: [loaded] once it plays. */
+    private var next: EngineSource? = null
     private var matchJob: Job? = null
     private var matchPending = false
     private var request: MatchRequest? = null
@@ -258,12 +266,20 @@ class Media3Engine(
      */
     private var snapToKeyFrame = false
 
-    private val tick = object : Runnable {
+    /**
+     * Counts the video's frames each second while it plays ([sample]); none
+     * for music, which has no video decoder to count: its player would wake
+     * the main thread every second for nothing, the screen off too.
+     */
+    private val tick: Runnable? = if (music) null else object : Runnable {
         override fun run() {
             sample()
             main.postDelayed(this, TICK_MS)
         }
     }
+
+    /** Whether it counts the video's frames while it plays. */
+    internal val samplesFrames: Boolean get() = tick != null
 
     init {
         player.addListener(Listener())
@@ -290,6 +306,7 @@ class Media3Engine(
         val asked = matchRequest(source)
         request = asked
         loaded = source
+        next = null
         dolbyVisionShown = source.dolbyVision ?: details?.let { ModeChoice.dolbyVisionShown(it, asked, sdk) }
         profile7BaseLayer = source.profile7BaseLayer
         matchPending = asked != null
@@ -305,6 +322,15 @@ class Media3Engine(
         if (source.live && playWhenReady) focus?.beforePlay()
         player.prepare()
         if (matchPending && window != null) startMatch()
+    }
+
+    override fun setNext(source: EngineSource?) {
+        if (released) return
+        val after = player.currentMediaItemIndex + 1
+        if (player.mediaItemCount > after) player.removeMediaItems(after, player.mediaItemCount)
+        // Only after media loaded: alone, it would be the media playing.
+        next = source?.takeIf { player.mediaItemCount > 0 }
+        next?.let { player.addMediaSource(loading.mediaSource(it)) }
     }
 
     /**
@@ -397,7 +423,7 @@ class Media3Engine(
         released = true
         detachWindow()
         scope.cancel()
-        main.removeCallbacks(tick)
+        tick?.let(main::removeCallbacks)
         main.removeCallbacks(reconnectCheck)
         hdmi?.stop()
         focus?.release()
@@ -562,8 +588,17 @@ class Media3Engine(
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             Log.i(TAG, if (isPlaying) "playing" else "not playing")
+            val tick = tick ?: return
             main.removeCallbacks(tick)
             if (isPlaying) main.postDelayed(tick, TICK_MS)
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) return
+            // What setNext put after the media that ended plays now: the media loaded, and the one before is let go.
+            next?.let { loaded = it }
+            next = null
+            if (player.currentMediaItemIndex > 0) player.removeMediaItems(0, player.currentMediaItemIndex)
         }
 
         override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {

@@ -96,7 +96,7 @@ export const UNITS = {
     about: "the server, its transcoder and the web app it embeds; the Docker image and the Windows installer are its packages",
     changelog: "apps/server/CHANGELOG.md",
     // What its changes are drafted from (scripts/release.mjs).
-    paths: ["apps/server", "apps/transcoder", "packages/transcoder-api", "apps/web", "packages/picture-subtitles", "deploy/docker", "deploy/windows", "deploy/systemd", "deploy/launchd"],
+    paths: ["apps/server", "apps/transcoder", "packages/transcoder-api", "apps/web", "packages/picture-subtitles", "packages/placeholder", "deploy/docker", "deploy/windows", "deploy/systemd", "deploy/launchd"],
     manifests: [
       cargoPackage("apps/server/Cargo.toml"),
       cargoPackage("apps/transcoder/Cargo.toml"),
@@ -136,7 +136,7 @@ export const UNITS = {
     short: "Samsung (web)",
     about: "the Samsung TV app (Tizen), built with packages/tv",
     changelog: "apps/tizen/CHANGELOG.md",
-    paths: ["apps/tizen", "packages/tv", "packages/picture-subtitles"],
+    paths: ["apps/tizen", "packages/tv", "packages/picture-subtitles", "packages/placeholder"],
     manifests: [json("apps/tizen/package.json"), bunLock("apps/tizen"), xmlAttribute("apps/tizen/config.xml", "widget")],
   },
   "samsung-native": {

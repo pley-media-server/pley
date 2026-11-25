@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="book_kind">有聲書</string>
+    <string name="book_group">有聲書</string>
+    <string name="book_not_found">找不到這本書</string>
+    <string name="book_failed">無法載入這本書</string>
+    <string name="book_nothing_to_play">無法播放：這本書沒有任何分段。</string>
+    <string name="book_play">播放</string>
+    <string name="book_by">作者：%1$s</string>
+    <string name="book_read_by">朗讀：%1$s</string>
+    <string name="book_series_place">%1$s，第 %2$s 冊</string>
+    <string name="book_and">和</string>
+    <string name="book_resume">繼續</string>
+    <string name="book_listen_again">再聽一次</string>
+    <string name="book_pause">暫停</string>
+    <string name="book_from_start">從頭開始</string>
+    <string name="book_mark_finished">標記為已聽完</string>
+    <string name="book_mark_unfinished">標記為未聽完</string>
+    <string name="book_parts">分段</string>
+    <string name="book_chapters">章節</string>
+    <string name="book_chapter">第 %1$d 章</string>
+    <string name="book_heard">已聽完</string>
+    <string name="book_up_to">聽到 %1$s</string>
+    <string name="book_percent_heard">已聽 %1$s</string>
+    <string name="book_speed">速度</string>
+    <string name="book_speed_value">速度 %1$s</string>
+    <string name="book_back">倒轉 15 秒</string>
+    <string name="book_forward">快轉 30 秒</string>
+    <plurals name="book_count_parts">
+        <item quantity="other">%1$,d 個分段</item>
+    </plurals>
+    <plurals name="library_entry_books">
+        <item quantity="other">%1$,d 本書</item>
+    </plurals>
+</resources>

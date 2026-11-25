@@ -59,6 +59,11 @@ pub struct AuthUser {
     /// The compatibility token of the request (the compatibility API's
     /// callers); `None`: a session or an app.
     pub compatibility: Option<CompatibilityAccess>,
+    /// An app's request that says it shows audiobooks (`X-Pley-Features:
+    /// audiobooks`), which it then gets ([`AuthUser::audiobooks`]); never
+    /// set for Pley's own sign-in, which always gets them, nor a
+    /// compatibility token.
+    pub shows_audiobooks: bool,
 }
 
 /// What a compatibility token allows (see [`compatibility`]).
@@ -101,6 +106,7 @@ impl AuthUser {
             max_age: if is_admin { None } else { max_age },
             app: None,
             compatibility: None,
+            shows_audiobooks: false,
         }))
     }
 
@@ -170,13 +176,15 @@ impl AuthUser {
     }
 
     /// Whether this request gets audiobook libraries: Pley's own sign-in
-    /// (the web app, the desktop app's window), whose pages show books.
-    /// Other apps would show a book as a film or an album, and the
-    /// compatibility APIs have no books to give their clients, so these get
-    /// neither the libraries nor their books in lists, hubs, search and
-    /// history ([`crate::access::library_ids`]).
+    /// (the web app, the desktop app's window), whose pages show books, and
+    /// an app's request that says it shows them ([`AuthUser::shows_audiobooks`]:
+    /// the Android app). Other apps would show a book as a film
+    /// or an album, and the compatibility APIs have no books to give their
+    /// clients, so these get neither the libraries nor their books in lists,
+    /// hubs, search and history ([`crate::access::library_ids`]). What the
+    /// account may open is the same either way.
     pub fn audiobooks(&self) -> bool {
-        self.app.is_none() && self.compatibility.is_none()
+        self.compatibility.is_none() && (self.app.is_none() || self.shows_audiobooks)
     }
 
     /// Whether this request may use what `scope` allows: pley's own sign-in
@@ -713,6 +721,7 @@ impl AuthService {
             max_age: if is_admin { None } else { max_age },
             app: None,
             compatibility: None,
+            shows_audiobooks: false,
         };
         let mut touched_at = last_seen_at;
         if now - last_seen_at > TOUCH_INTERVAL_SECS {
@@ -840,6 +849,7 @@ impl AuthService {
                 by_cast: row.by_cast,
             })),
             compatibility: None,
+            shows_audiobooks: false,
         };
         self.remember_app(key, CachedApp { user: user.clone(), expires_at, cached_at: Instant::now() }, epoch);
         Some(user)
@@ -1000,6 +1010,7 @@ impl AuthService {
             max_age: if row.role_admin { None } else { row.max_age },
             app: None,
             compatibility: Some(CompatibilityAccess { token_id: row.id, scopes }),
+            shows_audiobooks: false,
         };
         Some((user, compatibility::Origins::from_stored(row.allowed_from.as_deref())))
     }
@@ -1386,7 +1397,8 @@ impl FromRequestParts<AppState> for AuthUser {
         let user = match parts.extensions.get::<Authenticated>() {
             Some(Authenticated(user)) => user.clone(),
             None => {
-                let user = authenticate(parts, state).await?;
+                let mut user = authenticate(parts, state).await?;
+                user.shows_audiobooks = user.app.is_some() && shows_audiobooks(parts);
                 parts.extensions.insert(Authenticated(user.clone()));
                 if let Some(slot) = parts.extensions.get::<Arc<crate::traffic::Slot>>() {
                     let agent = crate::api::remote::user_agent(&parts.headers);
@@ -1491,6 +1503,23 @@ pub(crate) fn origin_is_host(parts: &Parts) -> bool {
         && origin.host() == host.host()
         && origin.port_or_known_default() == host.port_or_known_default()
 }
+
+/// Whether the request says its app shows audiobooks: `audiobooks` among
+/// the comma-separated features of `X-Pley-Features`, whose other features
+/// are none yet. A client keeps the answers to such requests apart from
+/// others' (in an HTTP cache of their own): the server answers them by it.
+fn shows_audiobooks(parts: &Parts) -> bool {
+    parts
+        .headers
+        .get_all(FEATURES)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(','))
+        .any(|feature| feature.trim().eq_ignore_ascii_case("audiobooks"))
+}
+
+/// The header an app's request names what it shows by ([`shows_audiobooks`]).
+const FEATURES: &str = "x-pley-features";
 
 /// Whether the app's token opens the route of this request.
 fn app_may_use(parts: &Parts, app: &AppAccess) -> Result<(), AppError> {
@@ -1746,7 +1775,8 @@ mod tests {
                 all_libraries: false,
                 max_age: Some(12),
                 app: None,
-                compatibility: None
+                compatibility: None,
+                shows_audiobooks: false,
             }
         );
         let admin = auth.create_session(2, None, None).await.unwrap();

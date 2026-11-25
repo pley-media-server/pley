@@ -1,7 +1,11 @@
 package app.pley.android.player.music
 
+import android.os.Bundle
+import android.util.Log
 import androidx.annotation.OptIn
+import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.ParserException
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -19,19 +23,33 @@ import kotlinx.coroutines.launch
  * with the screen off. Each track's title, artist, album and art go on the
  * player's item, which the media session shows in the notification and on
  * the lock screen; the art is fetched by [artwork] (the server's pictures
- * need its token) and added once it arrives.
+ * need its token) and added once it arrives. Without [artwork] none is
+ * fetched: the app's session names each track's cover by address, which
+ * it reads itself (SessionArt), and would never show the output's. The
+ * next track can wait after the one loaded ([setNext]), and plays on from
+ * it without a gap.
  */
 @OptIn(markerClass = [UnstableApi::class])
 class EngineMusicOutput(
     private val engine: PlayerEngine,
     private val scope: CoroutineScope,
-    private val artwork: suspend (url: String) -> ByteArray?,
+    private val artwork: (suspend (url: String) -> ByteArray?)? = null,
 ) : MusicOutput {
     val player: Player get() = engine.player
 
     private var listener: MusicOutput.Listener? = null
     private var artJob: Job? = null
+    private var nextArtJob: Job? = null
     private var buffering = false
+
+    /** The track loaded, and the one [setNext] put after it: what each item shows. */
+    private var current: Described? = null
+    private var next: Described? = null
+
+    /** A track's [info], and its cover once fetched. */
+    private class Described(val info: TrackInfo) {
+        var art: ByteArray? = null
+    }
 
     init {
         engine.player.addListener(
@@ -53,9 +71,20 @@ class EngineMusicOutput(
                     if (playbackState == Player.STATE_ENDED) listener?.onEnded()
                 }
 
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) return
+                    current = next ?: return
+                    next = null
+                    listener?.onNext()
+                }
+
                 override fun onPlayerError(error: PlaybackException) {
                     // The engine prepares again after a failed audio output itself.
                     if (error.errorCode in ENGINE_RESTARTS) return
+                    // Release builds log no stack traces: why a track didn't play, without its address.
+                    Log.w(TAG, "track failed: ${describeFailure(error)}")
+                    // The next track failing as it is read ahead is said once the player has gone on to it (onNext):
+                    // it fails as that track, as any does.
                     listener?.onError(kindOf(error))
                 }
             },
@@ -64,25 +93,61 @@ class EngineMusicOutput(
 
     override fun load(source: EngineSource, startMs: Long, play: Boolean, info: TrackInfo) {
         artJob?.cancel()
+        nextArtJob?.cancel()
+        next = null
         engine.prepare(source, startMs, play)
-        describe(info, art = null)
-        val url = info.artUrl ?: return
-        artJob = scope.launch {
+        val d = Described(info)
+        current = d
+        describe(d)
+        artJob = fetchArt(d)
+    }
+
+    override val takesNext: Boolean get() = true
+
+    override fun setNext(source: EngineSource?, info: TrackInfo?) {
+        nextArtJob?.cancel()
+        engine.setNext(source)
+        val d = if (source != null && info != null) Described(info) else null
+        next = d
+        if (d == null) return
+        describe(d)
+        nextArtJob = fetchArt(d)
+    }
+
+    /** Fetches [d]'s cover and shows it on its item, wherever that is by then. */
+    private fun fetchArt(d: Described): Job? {
+        val fetch = artwork ?: return null
+        val url = d.info.artUrl ?: return null
+        return scope.launch {
             val bytes = try {
-                artwork(url)
+                fetch(url)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 null
             }
-            if (bytes != null) describe(info, bytes)
+            if (bytes != null) {
+                d.art = bytes
+                describe(d)
+            }
         }
     }
 
-    /** Puts [info] on the item playing; the same address and type, so the player only updates what it shows. */
-    private fun describe(info: TrackInfo, art: ByteArray?) {
+    /**
+     * Puts [d]'s info on its item, the one playing or the one after it:
+     * the same address and type, so the player only updates what it shows.
+     */
+    private fun describe(d: Described) {
         val p = engine.player
-        val item = p.currentMediaItem ?: return
+        val index = when {
+            d === current -> p.currentMediaItemIndex
+            d === next -> p.currentMediaItemIndex + 1
+            else -> return
+        }
+        if (index !in 0 until p.mediaItemCount) return
+        val item = p.getMediaItemAt(index)
+        val info = d.info
+        val art = d.art
         val metadata = MediaMetadata.Builder()
             .setTitle(info.title)
             .setArtist(info.artist)
@@ -92,8 +157,9 @@ class EngineMusicOutput(
             .setIsPlayable(true)
             .setIsBrowsable(false)
             .apply { if (art != null) setArtworkData(art, MediaMetadata.PICTURE_TYPE_FRONT_COVER) }
+            .apply { info.id?.let { setExtras(Bundle().apply { putLong(TRACK_ID, it) }) } }
             .build()
-        p.replaceMediaItem(p.currentMediaItemIndex, item.buildUpon().setMediaMetadata(metadata).build())
+        p.replaceMediaItem(index, item.buildUpon().setMediaMetadata(metadata).build())
     }
 
     override fun play() {
@@ -106,13 +172,19 @@ class EngineMusicOutput(
 
     override fun seekTo(positionMs: Long) = engine.player.seekTo(positionMs)
 
+    override fun setSpeed(speed: Float) {
+        if (engine.player.playbackParameters.speed != speed) engine.player.setPlaybackSpeed(speed)
+    }
+
     override fun stop() {
         artJob?.cancel()
+        if (next != null) setNext(null, null)
         engine.player.stop()
     }
 
     override fun release() {
         artJob?.cancel()
+        nextArtJob?.cancel()
         listener = null
         engine.release()
     }
@@ -130,11 +202,36 @@ class EngineMusicOutput(
     }
 
     companion object {
+        private const val TAG = "pley.music"
+
+        /** The most causes, and characters of a parser's message, a failure's log line holds. */
+        private const val MAX_CAUSES = 6
+        private const val MAX_MESSAGE = 120
+
+        /** An address in a parser's message (`https://…`, a relative one's scheme-less part stays): left out of the log. */
+        private val ADDRESS = Regex("""[A-Za-z][A-Za-z0-9+.-]*://\S+""")
+
+        /** The extra of the player's item's metadata that holds the track's id. */
+        const val TRACK_ID = "pley.track"
+
         /** Errors the engine recovers from by preparing again (AudioRestarts). */
         private val ENGINE_RESTARTS = setOf(
             PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
             PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED,
         )
+
+        /** [error]'s code and causes, for the log: their kinds, an HTTP status, a parser's words; never an address. */
+        internal fun describeFailure(error: PlaybackException): String {
+            val causes = generateSequence(error.cause) { it.cause }.take(MAX_CAUSES).map { cause ->
+                when (cause) {
+                    is HttpDataSource.InvalidResponseCodeException -> "HTTP ${cause.responseCode}"
+                    // A parser quotes the line it couldn't read, which can be a playlist's address.
+                    is ParserException -> "${cause.javaClass.simpleName}: ${cause.message?.replace(ADDRESS, "<address>")?.take(MAX_MESSAGE)}"
+                    else -> cause.javaClass.simpleName
+                }
+            }
+            return (sequenceOf(error.errorCodeName) + causes).joinToString(" < ")
+        }
 
         /** What [error] means for the queue. */
         fun kindOf(error: PlaybackException): OutputError {

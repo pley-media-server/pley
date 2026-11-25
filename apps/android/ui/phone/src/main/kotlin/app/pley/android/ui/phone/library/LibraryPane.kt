@@ -128,7 +128,7 @@ internal fun Scrolling(content: @Composable () -> Unit) {
 private fun Toolbar(state: LibraryUiState<ArtworkTileModel>, vm: LibraryViewModel<ArtworkTileModel>, total: Int?, onSheet: (LibrarySheet) -> Unit) {
     val metrics = LocalPhoneMetrics.current
     val params = state.params
-    val music = state.kind == LibraryKind.Music
+    val music = state.kind?.audio == true
     val resources = LocalResources.current
     val counted = total?.let { n ->
         val of = state.library?.itemCount?.takeIf { params.filtered && it >= n }

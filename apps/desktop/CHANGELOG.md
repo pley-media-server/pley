@@ -8,6 +8,26 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Where Dolby Vision needs another FFmpeg, the transcoder settings name
+  Pley's own first: the one its Windows installer and Docker image bring.
+
+### Fixed
+
+- Live TV channels played as they are no longer stall every few seconds, and
+  play on after a few seconds when their provider's stream starts over.
+
+## [0.1.8] - 2026-11-24
+
+### Changed
+
+- Movies, shows, music and audiobooks without a picture show Pley's mark
+  on their placeholder instead of their title, which the caption under
+  it shows, with a clapperboard, a TV, notes or a book in it for their
+  kind of library. Where nothing beside a picture names it, the title
+  stays.
+
 ### Fixed
 
 - Music playing in the app pauses once Play on… sends something to
@@ -117,7 +137,8 @@ On a Mac:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[0.1.8]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14

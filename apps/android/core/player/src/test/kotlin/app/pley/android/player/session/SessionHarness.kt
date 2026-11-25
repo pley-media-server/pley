@@ -239,11 +239,13 @@ class SessionHarness(
     val tracksChosen = mutableListOf<Pair<Long, StreamChoice>>()
 
     /** Starts playing [request] and lets the server answer. */
-    fun play(request: PlayRequest): SessionPlaybackController {
+    fun play(request: PlayRequest): SessionPlaybackController = starting(request).also { settle() }
+
+    /** Starts playing [request], before the server answers. */
+    fun starting(request: PlayRequest): SessionPlaybackController {
         val controller = SessionPlaybackController(request, environment(), CoroutineScope(dispatcher + SupervisorJob()))
         controllers += controller
         controller.start()
-        settle()
         return controller
     }
 

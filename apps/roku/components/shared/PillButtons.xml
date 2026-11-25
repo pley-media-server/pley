@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A dialog's or a notice's buttons, in the pills of the app's pages
+     (ChipRow's "buttons"): each inside the control's edge, the focused one
+     filled with the accent while they have the focus. It takes a
+     ButtonGroup's fields, in a column or a row: Roku's ButtonGroup draws
+     only the focused button, the others bare words. -->
+<component name="PillButtons" extends="Group">
+    <interface>
+        <!-- Their words. -->
+        <field id="buttons" type="array" onChange="onButtons" />
+        <!-- The one OK was pressed on, and the one with the focus. -->
+        <field id="buttonSelected" type="integer" alwaysNotify="true" />
+        <field id="buttonFocused" type="integer" />
+        <!-- Puts the focus on a button. -->
+        <field id="focusButton" type="integer" alwaysNotify="true" onChange="onFocusButton" />
+        <!-- "vert" (a column, as wide as the widest) or "horiz" (a row). -->
+        <field id="layoutDirection" type="string" value="vert" onChange="onButtons" />
+        <!-- The room between them; the first is taken. -->
+        <field id="itemSpacings" type="floatarray" onChange="onButtons" />
+        <field id="minWidth" type="float" onChange="onButtons" />
+        <field id="maxWidth" type="float" onChange="onButtons" />
+        <field id="buttonHeight" type="float" value="72" onChange="onButtons" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/shared/PillButtons.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
+</component>

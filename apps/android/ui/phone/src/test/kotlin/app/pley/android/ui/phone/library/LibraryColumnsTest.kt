@@ -31,11 +31,11 @@ class LibraryColumnsTest {
 
     @Test
     fun widerWindowsGetMoreColumns() {
-        // A medium-width tablet beside its 96 dp rail, 24 dp margins.
-        val tablet = columns(GridDensity.Medium, 800 - 96, margin = 24)
-        assertEquals(5, tablet)
+        // A medium-width tablet beside its 80 dp rail, 24 dp margins.
+        val tablet = columns(GridDensity.Medium, 800 - 80, margin = 24)
+        assertEquals(6, tablet)
         for (density in GridDensity.entries) {
-            assertTrue(columns(density, 1200 - 96, margin = 32) > columns(density, 412))
+            assertTrue(columns(density, 1200 - 80, margin = 32) > columns(density, 412))
         }
     }
 

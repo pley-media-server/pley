@@ -7,6 +7,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.unit.dp
 import app.pley.android.common.TestTags
 import app.pley.android.model.ItemDetail
 import app.pley.android.screens.Navigator
@@ -17,6 +18,8 @@ import app.pley.android.screens.item.ItemUiState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import app.pley.android.ui.phone.player.CarScreenChecks
+import app.pley.android.ui.phone.player.CarSized
 import app.pley.android.ui.phone.theme.PhoneTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -75,7 +78,7 @@ class ItemPageTest {
     private val downloadsAsked = mutableListOf<List<Long>>()
     private val downloads = ItemDownloads(downloadsByItem, download = { downloadsAsked += it }, retry = {}, remove = {}, play = {})
 
-    private fun show(detail: ItemDetail, devices: List<OtherDevice> = emptyList(), withDownloads: Boolean = false): ItemData {
+    private fun show(detail: ItemDetail, devices: List<OtherDevice> = emptyList(), withDownloads: Boolean = false, car: Boolean = false): ItemData {
         val data = ItemData(detail)
         val model = ItemViewModel(data, data.launcher, FakeCapsGraph(), detail.id, compute = Dispatchers.Main.immediate)
         val host = object : PlayOnHost {
@@ -89,7 +92,10 @@ class ItemPageTest {
             PhoneTheme {
                 CompositionLocalProvider(LocalPlayOn provides host) {
                     val state by model.state.collectAsState()
-                    (state as? ItemUiState.Ready)?.let { ItemPageContent(it.page, model, navigator, downloads.takeIf { withDownloads }) }
+                    // On a car's screen the whole app is car-sized, as PhoneApp has it.
+                    CarSized(car) {
+                        (state as? ItemUiState.Ready)?.let { ItemPageContent(it.page, model, navigator, downloads.takeIf { withDownloads }) }
+                    }
                 }
             }
         }
@@ -264,6 +270,45 @@ class ItemPageTest {
         assertTrue(top("Trailer") > top("Watched"))
         assertEquals(top("Download"), top("Trailer"))
     }
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.SMALL)
+    fun onACarsScreenTheActionsTakeMoreRowsRatherThanDrawTheirLabelsSmaller() {
+        carItem("small")
+        assertTrue(top("Trailer") > top("From start"))
+    }
+
+    /** On a car's [screen]: Resume in view and a car's 64 dp, and no action's label under 24 sp. */
+    private fun carItem(screen: String) {
+        show(withTrailer(movie(positionMs = 3_480_000)), withDownloads = true, car = true)
+        CarScreenChecks.controls(compose, screen, listOf("Resume"))
+        // No text on a car's screen is under 24 sp: a label of that size has a line 32 dp tall, in the screen's own dp.
+        for (label in listOf("From start", "Watched", "Playlist", "Download", "Trailer")) {
+            val bounds = compose.onNodeWithText(label).getUnclippedBoundsInRoot()
+            val height = bounds.bottom - bounds.top
+            assertTrue("$screen: $label is $height tall", height >= 31.dp)
+        }
+    }
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.WIDE)
+    fun onAWideCarScreenResumeIsInViewAndNoLabelIsSmall() = carItem("wide")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.PORTRAIT)
+    fun onAPortraitCarScreenResumeIsInViewAndNoLabelIsSmall() = carItem("portrait")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.TALL_SPLIT)
+    fun onASplitCarScreenResumeIsInViewAndNoLabelIsSmall() = carItem("tall-split")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.ULTRAWIDE)
+    fun onAWideLowCarScreenResumeIsInViewAndNoLabelIsSmall() = carItem("ultrawide")
+
+    @Test
+    @Config(qualifiers = CarScreenChecks.NARROW)
+    fun onANarrowCarScreenResumeIsInViewAndNoLabelIsSmall() = carItem("narrow")
 
     @Test
     @Config(qualifiers = "fr-w360dp-h780dp-xxhdpi")

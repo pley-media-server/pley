@@ -34,6 +34,7 @@ import app.pley.android.screens.collection.CategoryChoice
 import app.pley.android.screens.collection.CollectionsView
 import app.pley.android.screens.collection.tile
 import app.pley.android.screens.home.collectionOf
+import app.pley.android.screens.home.pageOf
 import app.pley.android.screens.home.seeAllView
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -172,8 +173,12 @@ data class LibraryUiState<T : Any>(
 
     private fun <C> offered(choices: List<C>, chosen: C?): List<C> = if (chosen == null || chosen in choices) choices else choices + chosen
 
-    /** Where a tile of the grid goes: an artist's page in music, else the item's. */
-    fun opens(itemId: Long): PleyKey = if (kind == LibraryKind.Music) PleyKey.Artist(itemId) else PleyKey.Item(itemId)
+    /** Where a tile of the grid goes: an artist's page in music, a book's in audiobooks, else the item's. */
+    fun opens(itemId: Long): PleyKey = when (kind) {
+        LibraryKind.Music -> PleyKey.Artist(itemId)
+        LibraryKind.Audiobooks -> PleyKey.Book(itemId)
+        else -> PleyKey.Item(itemId)
+    }
 }
 
 /**
@@ -257,7 +262,7 @@ class LibraryViewModel<T : Any>(
     private val filters: Flow<LibraryFilters> = opened(LibraryTab.Library).flatMapLatest { open ->
         if (!open) return@flatMapLatest flowOf(LibraryFilters())
         kind.flatMapLatest { kind ->
-            if (kind == LibraryKind.Music) flowOf(LibraryFilters()) else deps.items.filters(libraryId).map { it.valueOrNull ?: LibraryFilters() }
+            if (kind.audio) flowOf(LibraryFilters()) else deps.items.filters(libraryId).map { it.valueOrNull ?: LibraryFilters() }
         }.onStart { emit(LibraryFilters()) }
     }.distinctUntilChanged()
 
@@ -265,7 +270,7 @@ class LibraryViewModel<T : Any>(
 
     private val collectionTiles: Flow<Loadable<List<CollectionTile<T>>>> = combine(library, origin) { lib, o -> lib to o }
         .flatMapLatest { (lib, origin) ->
-            if (lib == null || lib.kind == LibraryKind.Music) return@flatMapLatest flowOf(Loadable.Ready(emptyList(), fresh = true))
+            if (lib == null || lib.kind.audio) return@flatMapLatest flowOf(Loadable.Ready(emptyList(), fresh = true))
             deps.collections.collections(libraryId).map { loadable ->
                 loadable.map { list -> list.map { it.tile(tiles.collection(it, lib.kind, origin)) } }
             }
@@ -424,7 +429,7 @@ class LibraryViewModel<T : Any>(
     private fun row(hub: Hub, kind: LibraryKind, origin: String): TileRow<T> {
         val look = when {
             hub.key.startsWith("continue_watching") -> TileLook.Landscape
-            kind == LibraryKind.Music -> TileLook.Square
+            kind.audio -> TileLook.Square
             else -> TileLook.Poster
         }
         return TileRow(
@@ -441,7 +446,7 @@ class LibraryViewModel<T : Any>(
     private data class GridKey(val kind: LibraryKind, val params: LibraryParams, val origin: String) {
         val look: TileLook
             get() = when {
-                kind == LibraryKind.Music -> TileLook.Square
+                kind.audio -> TileLook.Square
                 params.sort == LibrarySort.Bitrate -> TileLook.Bitrate
                 params.badges -> TileLook.Badged
                 else -> TileLook.Poster
@@ -455,11 +460,7 @@ class LibraryViewModel<T : Any>(
         /** How long a page waits for the view its library was left in. */
         const val VIEW_READ_MS = 500L
 
-        /** Where opening [item] goes: artists and albums have pages of their own. */
-        fun opens(item: ItemSummary): PleyKey = when (item.kind) {
-            ItemKind.Artist -> PleyKey.Artist(item.id)
-            ItemKind.Album -> PleyKey.Album(item.id)
-            else -> PleyKey.Item(item.id)
-        }
+        /** Where opening [item] goes: artists, albums and books have pages of their own. */
+        fun opens(item: ItemSummary): PleyKey = pageOf(item)
     }
 }

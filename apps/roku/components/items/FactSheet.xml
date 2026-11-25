@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Facts to read in a panel, as Android TV's media info: a heading over
+     each block, each fact's label at the left and its value beside it.
+     Focused, Up and Down scroll it; a bar at the right shows where. -->
+<component name="FactSheet" extends="Group">
+    <interface>
+        <!-- [{ kind: "version" | "heading" | "fact" | "note", text, value }],
+             set after the sizes. -->
+        <field id="lines" type="array" onChange="onLines" alwaysNotify="true" />
+        <!-- Set before lines that open the sheet: they are read from the
+             top, not where the last ones were scrolled to. -->
+        <field id="fromTop" type="boolean" />
+        <field id="width" type="float" value="1088" />
+        <field id="height" type="float" value="870" />
+        <!-- Where a fact's value starts. -->
+        <field id="labelWidth" type="integer" value="320" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/items/FactSheet.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <children>
+        <Group id="page" />
+        <Rectangle id="track" width="4" color="0x2E3440FF" visible="false" />
+        <Rectangle id="thumb" width="4" color="0x8B95A5FF" visible="false" />
+        <Animation id="scroll" duration="0.18" easeFunction="outQuad">
+            <Vector2DFieldInterpolator id="pageTo" key="[0, 1]" fieldToInterp="page.translation" />
+            <Vector2DFieldInterpolator id="thumbTo" key="[0, 1]" fieldToInterp="thumb.translation" />
+        </Animation>
+    </children>
+</component>

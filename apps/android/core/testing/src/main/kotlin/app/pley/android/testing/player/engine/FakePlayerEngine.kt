@@ -34,6 +34,11 @@ class FakePlayerEngine(looper: Looper = Looper.getMainLooper()) : PlayerEngine {
     data class Prepared(val source: EngineSource, val startMs: Long, val playWhenReady: Boolean)
 
     val prepared = mutableListOf<Prepared>()
+
+    /** What servers sent so far, as the test says ([receive]). */
+    override var received: Long = 0
+        private set
+
     var window: Window? = null
         private set
     var released = false
@@ -56,6 +61,11 @@ class FakePlayerEngine(looper: Looper = Looper.getMainLooper()) : PlayerEngine {
     override fun release() {
         released = true
         player.release()
+    }
+
+    /** More of the media came from its server. */
+    fun receive(bytes: Long = 188) {
+        received += bytes
     }
 
     /** Changes the engine's state as a real one would. */
@@ -143,6 +153,12 @@ class FakeVideoPlayer(looper: Looper) : SimpleBasePlayer(looper) {
     /** The position moved to [positionMs] (time passed while playing). */
     fun advanceTo(positionMs: Long) {
         current = current.buildUpon().setContentPositionMs(positionMs).build()
+        invalidateState()
+    }
+
+    /** The media is buffered up to [positionMs], the position standing where it is. */
+    fun bufferTo(positionMs: Long) {
+        current = current.buildUpon().setContentBufferedPositionMs { positionMs }.build()
         invalidateState()
     }
 

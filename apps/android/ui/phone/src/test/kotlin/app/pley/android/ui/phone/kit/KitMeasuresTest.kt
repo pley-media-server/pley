@@ -64,7 +64,8 @@ class KitMeasuresTest {
         val tablet = PhoneMetrics.of(800.dp)
         assertEquals(24.dp, tablet.margin)
         assertTrue(tablet.rail)
-        assertEquals(704.dp, tablet.contentWidth)
+        // Beside the 80 dp rail.
+        assertEquals(720.dp, tablet.contentWidth)
         assertEquals(32.dp, PhoneMetrics.of(1280.dp).margin)
     }
 

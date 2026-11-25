@@ -29,7 +29,6 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.maxLength
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -66,6 +65,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.HistoryPage
@@ -96,6 +96,7 @@ import app.pley.android.ui.phone.admin.adminWidth
 import app.pley.android.ui.phone.kit.Avatar
 import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.DelayedSpinner
+import app.pley.android.ui.phone.kit.PleyAlertDialog
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.TonalButton
@@ -358,7 +359,7 @@ internal fun SessionCard(
                     .background(PleyColors.Surface2)
                     .clickable(role = Role.Button, onClick = onOpen),
             ) {
-                Artwork(art, item.title, Modifier.matchParentSize())
+                Artwork(art, item.title, Modifier.matchParentSize(), mark = MarkGlyph.of(item.kind))
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -498,7 +499,7 @@ private fun sizeWords(): (Int, Int) -> String {
 internal fun StopDialog(session: DashboardSession, onStop: (String) -> Unit, onDismiss: () -> Unit) {
     val words = formatWords()
     val state = rememberTextFieldState()
-    AlertDialog(
+    PleyAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(
@@ -620,7 +621,7 @@ private fun PlayLine(play: DashboardPlay, origin: String, removing: Boolean, onO
                 .clip(PleyShape.Badge)
                 .background(PleyColors.Surface2),
         ) {
-            Artwork(art, row.title, Modifier.matchParentSize())
+            Artwork(art, row.title, Modifier.matchParentSize(), mark = MarkGlyph.of(row.kind))
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {

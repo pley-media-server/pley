@@ -102,4 +102,14 @@
     <string name="tv_collection_failed">No se pudo cargar esta colección</string>
     <string name="tv_collection_nothing_to_play">No hay nada que reproducir: esta serie aún no tiene episodios</string>
     <string name="tv_collection_from">En</string>
+    <plurals name="tv_library_count_books">
+        <item quantity="one">%s libro</item>
+        <item quantity="many">%s libros</item>
+        <item quantity="other">%s libros</item>
+    </plurals>
+    <plurals name="tv_library_count_of_books">
+        <item quantity="one">%1$s de %2$s libro</item>
+        <item quantity="many">%1$s de %2$s libros</item>
+        <item quantity="other">%1$s de %2$s libros</item>
+    </plurals>
 </resources>

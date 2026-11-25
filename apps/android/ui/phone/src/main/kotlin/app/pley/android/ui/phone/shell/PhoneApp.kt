@@ -4,18 +4,24 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.ReportDrawn
 import androidx.activity.compose.ReportDrawnWhen
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,7 +33,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ShortNavigationBarItemDefaults
-import androidx.compose.material3.WideNavigationRailDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
@@ -45,6 +50,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -96,9 +106,12 @@ import app.pley.android.ui.phone.kit.LocalPhoneDeviceTier
 import app.pley.android.ui.phone.kit.OfflineAction
 import app.pley.android.ui.phone.kit.ToastHost
 import app.pley.android.ui.phone.library.libraryEntries
+import app.pley.android.ui.phone.livetv.liveTvEntries
 import app.pley.android.ui.phone.music.musicEntries
 import app.pley.android.ui.phone.onboarding.onboardingEntries
-import app.pley.android.ui.phone.livetv.liveTvEntries
+import app.pley.android.ui.phone.player.CarSized
+import app.pley.android.ui.phone.player.LocalCarScreen
+import app.pley.android.ui.phone.player.onCarScreen
 import app.pley.android.ui.phone.playlists.playlistsEntries
 import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.CastsSent
@@ -147,9 +160,13 @@ fun PhoneApp(
     graph: () -> ScreensGraph,
 ) {
     PhoneTheme {
-        Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.testTag(TestTags.PHONE_ROOT)) {
-            val known by produceState(start) { if (value == null) value = awaitStart() }
-            known?.let { PhoneShell(it, graph) }
+        // On a car's screen (Android Auto, parked), every page is car-sized, as Google's car criteria ask of a parked
+        // app: 64 dp buttons, no text under 24 sp.
+        CarSized(onCarScreen()) {
+            Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.testTag(TestTags.PHONE_ROOT)) {
+                val known by produceState(start) { if (value == null) value = awaitStart() }
+                known?.let { PhoneShell(it, graph) }
+            }
         }
     }
 }
@@ -346,39 +363,47 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
     }
     val metrics = LocalPhoneMetrics.current
     val rail = metrics.rail
+    val iconsAlone = rail || LocalCarScreen.current
     val tab = navigation.tab
     val itemColors = ShortNavigationBarItemDefaults.colors(
-        selectedIconColor = PleyColors.AccentBright,
+        selectedIconColor = if (rail) PleyColors.Accent else PleyColors.AccentBright,
         selectedTextColor = PleyColors.Fg,
-        // No pill behind the chosen tab: its accent icon and bright label say it.
-        selectedIndicatorColor = Color.Transparent,
+        // Under the page, no pill behind the chosen tab: its accent icon and bright label say it. In the rail, where
+        // there's no label, the web's sidebar mark: a faint fill behind it and an accent bar on its edge (railMark).
+        selectedIndicatorColor = if (rail) RailFill else Color.Transparent,
         unselectedIconColor = PleyColors.Muted,
         unselectedTextColor = PleyColors.Muted,
     )
     NavigationSuiteScaffold(
         navigationItems = {
             PhoneTab.entries.forEach { item ->
+                val name = stringResource(item.label)
                 NavigationSuiteItem(
                     selected = item == tab,
                     onClick = { navigation.select(item) },
                     icon = {
-                        val icon = @Composable { Icon(item.icon, contentDescription = null, tint = LocalContentColor.current) }
+                        // The rail beside the page (a phone on its side, a tablet, a car's screen) shows icons alone,
+                        // read out by name, in a column, as Android Auto's own rail has them; centred labels of
+                        // different lengths left its icons out of line. The bar under a phone's page keeps its labels;
+                        // under a car's narrow page it has icons alone too, as five labels of 24 sp ran into each other.
+                        val icon = @Composable { Icon(item.icon, contentDescription = if (iconsAlone) name else null, tint = LocalContentColor.current) }
                         if (item == PhoneTab.Me) RequestsTabIcon(shell.requests, icon) else icon()
                     },
-                    label = { FittedLabel(stringResource(item.label)) },
+                    label = if (iconsAlone) null else ({ FittedLabel(name) }),
                     colors = itemColors,
-                    modifier = Modifier.testTag(TAB_TAG + item.name),
+                    modifier = Modifier.testTag(TAB_TAG + item.name).then(if (rail && item == tab) Modifier.railMark() else Modifier),
                 )
             }
         },
-        navigationSuiteType = if (rail) NavigationSuiteType.WideNavigationRailCollapsed else NavigationSuiteType.ShortNavigationBarCompact,
+        // The compact rail, its tabs centred on its height: on a car's short screen (800 × 480, a third larger) the wide
+        // rail's top padding and gaps put its last tab under the bottom edge.
+        navigationSuiteType = if (rail) NavigationSuiteType.NavigationRail else NavigationSuiteType.ShortNavigationBarCompact,
+        navigationItemVerticalArrangement = if (rail) Arrangement.Center else NavigationSuiteDefaults.verticalArrangement,
         navigationSuiteColors = NavigationSuiteDefaults.colors(
             shortNavigationBarContainerColor = PleyColors.Bg,
             shortNavigationBarContentColor = PleyColors.Muted,
-            wideNavigationRailColors = WideNavigationRailDefaults.colors(
-                containerColor = PleyColors.Bg,
-                contentColor = PleyColors.Muted,
-            ),
+            navigationRailContainerColor = PleyColors.Bg,
+            navigationRailContentColor = PleyColors.Muted,
         ),
         // The window's background shows through (PhoneApp).
         containerColor = Color.Transparent,
@@ -388,6 +413,7 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
         Column(
             Modifier
                 .fillMaxSize()
+                .testTag(TABS_PAGE)
                 .drawWithContent {
                     drawContent()
                     // The 1 dp hairline between the page and the bar (or the rail).
@@ -401,8 +427,15 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                 },
         ) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                key(tab) {
-                    Screens(entries = decorated.getValue(tab), onBack = navigation::back)
+                // One tab fades out, then the next in (Material's fade through): they used to swap in one frame.
+                val reduced = reducedMotion()
+                AnimatedContent(
+                    targetState = tab,
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = { fadeThrough(reduced) },
+                    label = "tab",
+                ) { shown ->
+                    Screens(entries = decorated.getValue(shown), onBack = navigation::back)
                 }
                 ToastHost(
                     shell.toasts,
@@ -445,8 +478,9 @@ private fun rememberDecorators() = listOf(
 /**
  * One back stack's screens: sheets over the screen under them, dialogs as
  * dialogs, and Material's shared-axis X between screens (design spec §5.1),
- * following the finger on a predictive back. With reduced motion screens
- * swap in place.
+ * following the finger on a predictive back. A screen marked [RISES] (Now
+ * Playing, opened from the bar at the bottom) comes up from there and goes
+ * back down. With reduced motion screens swap in place.
  */
 @Composable
 private fun Screens(entries: List<NavEntry<NavKey>>, onBack: () -> Unit) {
@@ -456,9 +490,9 @@ private fun Screens(entries: List<NavEntry<NavKey>>, onBack: () -> Unit) {
         entries = entries,
         modifier = Modifier.fillMaxSize(),
         sceneStrategies = strategies,
-        transitionSpec = { sharedAxis(forward = true, reduced) },
-        popTransitionSpec = { sharedAxis(forward = false, reduced) },
-        predictivePopTransitionSpec = { sharedAxis(forward = false, reduced) },
+        transitionSpec = { if (targetState.rises()) rise(up = true, reduced) else sharedAxis(forward = true, reduced) },
+        popTransitionSpec = { if (initialState.rises()) rise(up = false, reduced) else sharedAxis(forward = false, reduced) },
+        predictivePopTransitionSpec = { if (initialState.rises()) rise(up = false, reduced) else sharedAxis(forward = false, reduced) },
         onBack = onBack,
     )
 }
@@ -477,5 +511,69 @@ private fun AnimatedContentTransitionScope<Scene<NavKey>>.sharedAxis(forward: Bo
 /** 30 dp of a 412 dp phone, as a share of the width, so it needs no density here. */
 private const val SHIFT = 0.073f
 
+/** An entry's metadata saying its screen comes up from the bottom and goes back down ([rise]). */
+internal const val RISES = "pley.rises"
+
+private fun Scene<NavKey>.rises(): Boolean = entries.lastOrNull()?.metadata?.get(RISES) == true
+
+/**
+ * For a screen opened from the bottom of the page (Now Playing, from the mini player): [up], it comes up a short way,
+ * slowing, as it fades in over the page under it, which stays as it is until covered, so no frame shows neither;
+ * down, the page is there at once under it, and it sinks, quickening, as it fades out on top of it (the back stack
+ * draws the screen leaving over the one it goes back to).
+ */
+private fun rise(up: Boolean, reduced: Boolean): ContentTransform {
+    if (reduced) return EnterTransition.None togetherWith ExitTransition.None
+    val shift = { height: Int -> (height * RISE).toInt() }
+    return if (up) {
+        val move = tween<androidx.compose.ui.unit.IntOffset>(PleyMotion.SCREEN_MS, easing = LinearOutSlowInEasing)
+        // The page under "fades" to fully seen for as long as the rise: it stays as it is until it's covered.
+        (slideInVertically(move, shift) + fadeIn(tween(PleyMotion.REVEAL_MS, easing = LinearOutSlowInEasing))) togetherWith
+            fadeOut(tween(PleyMotion.SCREEN_MS), targetAlpha = 1f)
+    } else {
+        val move = tween<androidx.compose.ui.unit.IntOffset>(PleyMotion.OVERLAY_MS, easing = FastOutLinearInEasing)
+        EnterTransition.None togetherWith (slideOutVertically(move, shift) + fadeOut(tween(PleyMotion.REVEAL_MS, easing = FastOutLinearInEasing)))
+    }
+}
+
+/** How far a rising screen moves, as a share of the height. */
+private const val RISE = 0.06f
+
+/** Between tabs: the one left fades out over the first third of pley's 220 ms, the one chosen in after it. */
+private fun fadeThrough(reduced: Boolean): ContentTransform {
+    if (reduced) return EnterTransition.None togetherWith ExitTransition.None
+    val out = PleyMotion.SCREEN_MS / 3
+    return fadeIn(tween(PleyMotion.SCREEN_MS - out, delayMillis = out, easing = LinearEasing)) togetherWith fadeOut(tween(out, easing = LinearEasing))
+}
+
+/** The chosen tab's fill in the rail: white at 7 %, the web sidebar's. */
+private val RailFill = Color.White.copy(alpha = 0.07f)
+
+/**
+ * The chosen tab's bar in the rail, as the web's sidebar marks its link: 3 dp of accent on the edge toward the
+ * screen's, 6 dp short of the item's top and bottom, its outer corners square.
+ */
+private fun Modifier.railMark(): Modifier = drawBehind {
+    val width = 3.dp.toPx()
+    val inset = 6.dp.toPx()
+    val radius = CornerRadius(width, width)
+    val left = layoutDirection == LayoutDirection.Ltr
+    val path = Path().apply {
+        addRoundRect(
+            RoundRect(
+                rect = Rect(if (left) 0f else size.width - width, inset, if (left) width else size.width, size.height - inset),
+                topLeft = if (left) CornerRadius.Zero else radius,
+                bottomLeft = if (left) CornerRadius.Zero else radius,
+                topRight = if (left) radius else CornerRadius.Zero,
+                bottomRight = if (left) radius else CornerRadius.Zero,
+            ),
+        )
+    }
+    drawPath(path, PleyColors.Accent)
+}
+
 /** The test tag of each tab's item in the bar or rail: this and the tab's name. */
 internal const val TAB_TAG = "pley.phone.tab."
+
+/** What shows beside the rail, or over the bar: the tab's pages, the remote's bar and the mini player. */
+internal const val TABS_PAGE = "pley.phone.tabs.page"

@@ -6,6 +6,10 @@
     <string name="tv_music_pause">Pause</string>
     <string name="tv_music_shuffle">Aléatoire</string>
     <string name="tv_music_shuffle_off">Arrêter la lecture aléatoire</string>
+    <!-- Repeat's button, named for what Select does: the queue repeats, then the track, then nothing. -->
+    <string name="tv_music_repeat">Répéter</string>
+    <string name="tv_music_repeat_one">Répéter ce titre</string>
+    <string name="tv_music_repeat_off">Ne plus répéter</string>
     <string name="tv_music_now_playing">En cours de lecture</string>
     <string name="tv_music_disc">Disque %1$d</string>
     <string name="tv_music_no_albums">Aucun album trouvé.</string>
@@ -31,4 +35,9 @@
     <string name="tv_music_error_signed_out">Reconnectez-vous pour lire.</string>
     <string name="tv_music_error_stopped">Le serveur a arrêté la lecture.</string>
     <string name="tv_music_error_unplayable">Impossible de lire ce titre.</string>
+    <plurals name="tv_music_error_unplayable_next">
+        <item quantity="one">Impossible de lire ce titre. Le suivant démarre dans %1$d seconde.</item>
+        <item quantity="many">Impossible de lire ce titre. Le suivant démarre dans %1$d secondes.</item>
+        <item quantity="other">Impossible de lire ce titre. Le suivant démarre dans %1$d secondes.</item>
+    </plurals>
 </resources>

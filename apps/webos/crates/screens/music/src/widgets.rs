@@ -1,7 +1,7 @@
 //! The pieces the music pages share (`TvMusicKit.kt`): the art wells, the faint
 //! art behind a page, the rating's stars and the page-sized message.
 
-use pley_base::{Icon, ImageRequest, Point, Priority, Rect, TextOpts};
+use pley_base::{Icon, ImageRequest, MarkGlyph, Point, Priority, Rect, TextOpts};
 use pley_core::ApiError;
 use pley_core::model::ItemList;
 use pley_kit::{Button, first_art, is_inert, placeholder};
@@ -41,13 +41,14 @@ fn inert_response(id: Id) -> Response {
 
 /// A picture well: the first of `art` that loads, cropped to fill `rect`, over the gradient
 /// `seed` picks until it covers it (`Artwork` over a Surface2 box; the music pages give it no
-/// title style, so no title is written on the gradient).
-pub fn art_well(ui: &mut Ui, rect: Rect, art: &[ImageRequest], seed: &str, corner: f32) {
+/// title style, so no title is written on the gradient), and Pley's mark with `glyph` on it once no
+/// picture will come: the page names what it shows beside it.
+pub fn art_well(ui: &mut Ui, rect: Rect, art: &[ImageRequest], seed: &str, glyph: MarkGlyph, corner: f32) {
     let shown = first_art(ui, art, Priority::Visible);
     if shown.is_some_and(|s| s.opaque()) {
         ui.fill(rect, theme::SURFACE2, corner);
     } else {
-        placeholder(ui, rect, seed, "", corner);
+        placeholder(ui, rect, seed, "", shown.is_none().then_some(glyph), corner);
     }
     if let Some(s) = shown {
         ui.draw_image(rect, &s, &ImageOpts::cover().rounded(corner));
@@ -60,7 +61,7 @@ pub const FAINT_ART_PX: u32 = 960;
 
 /// The album art over the whole page at `alpha` (14 % on an album, 20 % on Now Playing),
 /// unblurred, fading into Bg from 40 % of the height down (`FaintArt`): the gradient `seed` picks
-/// until the picture covers it, and nothing at all without a picture to show.
+/// until the picture covers it, never with the mark, and nothing at all without a picture to show.
 pub fn faint_art(ui: &mut Ui, art: &[ImageRequest], seed: &str, alpha: f32) {
     if art.is_empty() {
         return;
@@ -69,7 +70,7 @@ pub fn faint_art(ui: &mut Ui, art: &[ImageRequest], seed: &str, alpha: f32) {
     let shown = first_art(ui, art, Priority::Visible);
     ui.opacity(alpha, |ui| {
         if !shown.as_ref().is_some_and(|s| s.opaque()) {
-            placeholder(ui, full, seed, "", 0.0);
+            placeholder(ui, full, seed, "", None, 0.0);
         }
         if let Some(s) = &shown {
             ui.draw_image(full, s, &ImageOpts::cover());

@@ -304,6 +304,10 @@ export interface Book {
   series: string | null;
   /** The book's place in its series: 2, or 2.5 between two books. */
   series_index: number | null;
+  /** The Open Library work it is matched to ("OL21745884W"). */
+  openlibrary_id?: string;
+  /** The Audible recording it is matched to ("B08G9PRS1K"). */
+  asin?: string;
 }
 
 export type CreditRole = "actor" | "creator" | "director" | "writer" | "producer";

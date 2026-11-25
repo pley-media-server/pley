@@ -3722,10 +3722,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn starting_jobs_hold_background_work() {
         use pley_transcoder_api::{VideoMode, VideoRequest};
-        let ok =
-            |tool: &str| std::process::Command::new(tool).arg("-version").output().is_ok_and(|o| o.status.success());
-        if !(ok("ffmpeg") && ok("ffprobe")) {
-            eprintln!("ffmpeg not found: skipped");
+        if !crate::testing::has_encoder("libx264") {
             return;
         }
         let dir = crate::testing::tempdir();
@@ -3796,10 +3793,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn a_hardware_encoder_that_fails_hands_the_job_to_software() {
         use pley_transcoder_api::{EncoderInfo, HwAccel, VideoRequest};
-        let ok =
-            |tool: &str| std::process::Command::new(tool).arg("-version").output().is_ok_and(|o| o.status.success());
-        if !(ok("ffmpeg") && ok("ffprobe")) {
-            eprintln!("ffmpeg not found: skipped");
+        if !crate::testing::has_encoder("libx264") {
             return;
         }
         let dir = crate::testing::tempdir();
@@ -3892,10 +3886,7 @@ mod tests {
     /// (`None` without FFmpeg).
     fn with_ffmpeg(dir: &Path, size: &str) -> Option<(PathBuf, Arc<JobManager>)> {
         use pley_transcoder_api::{EncoderInfo, HwAccel};
-        let ok =
-            |tool: &str| std::process::Command::new(tool).arg("-version").output().is_ok_and(|o| o.status.success());
-        if !(ok("ffmpeg") && ok("ffprobe")) {
-            eprintln!("ffmpeg not found: skipped");
+        if !crate::testing::has_encoder("libx264") {
             return None;
         }
         let input = dir.join("clip.mkv");

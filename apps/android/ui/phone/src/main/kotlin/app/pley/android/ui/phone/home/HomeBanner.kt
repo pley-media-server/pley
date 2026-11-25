@@ -9,6 +9,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import app.pley.android.ui.phone.player.CarGap
+import app.pley.android.ui.phone.player.LocalCarScreen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -58,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.isFinite
 import androidx.compose.ui.unit.sp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.Icon
@@ -84,6 +92,7 @@ import kotlinx.coroutines.launch
  * Swiped between; it turns to the next by itself every [TURN_MS], the dash
  * under it filling as the time runs, except while a finger is on it, the
  * page is scrolled away from it, or the system asks for less motion.
+ * It is no taller than [page], the height Home has between the bars.
  */
 @Composable
 internal fun HomeBanner(
@@ -94,13 +103,16 @@ internal fun HomeBanner(
     onInfo: (HomeInfo) -> Unit,
     onList: (HomeInfo) -> Unit,
     modifier: Modifier = Modifier,
+    page: Dp = Dp.Infinity,
 ) {
     val count = featured.size
     val pager = rememberPagerState { count }
     val dragged by pager.interactionSource.collectIsDraggedAsState()
     val calm = reducedMotion()
     val turn = remember { Animatable(0f) }
-    val height = bannerHeight()
+    val height = bannerHeight(page)
+    // Short (a car's screen, a phone on its side, the bar of what plays below): the plot gives way to Play.
+    val summary = height >= SummaryFrom
     val label = stringResource(R.string.home_banner_label)
     val scope = rememberCoroutineScope()
 
@@ -131,7 +143,7 @@ internal fun HomeBanner(
             beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize().testTag(BANNER_TAG),
         ) { page ->
-            Slide(featured[page], origin, onPlay, onInfo, onList)
+            Slide(featured[page], origin, summary, onPlay, onInfo, onList)
         }
         if (count > 1) {
             Turns(
@@ -151,6 +163,7 @@ internal fun HomeBanner(
 private fun Slide(
     featured: Featured,
     origin: String,
+    summary: Boolean,
     onPlay: (HomeInfo) -> Unit,
     onInfo: (HomeInfo) -> Unit,
     onList: (HomeInfo) -> Unit,
@@ -159,6 +172,8 @@ private fun Slide(
     val tier = LocalPhoneDeviceTier.current
     val metrics = LocalPhoneMetrics.current
     val backdrop = remember(info.item, origin, tier) { ArtworkCandidates.backdrop(info.item, origin, tier) }
+    // Where the words start, from the banner's top: the scrim under them is dark enough by then, on a short screen too.
+    var wordsTop by remember { mutableFloatStateOf(-1f) }
     Box(Modifier.fillMaxSize()) {
         Artwork(
             image = backdrop,
@@ -167,13 +182,7 @@ private fun Slide(
             modifier = Modifier.fillMaxSize().clearAndSetSemantics { }.drawWithCache {
                 // The top keeps the bar's icons readable; the bottom melts into the page under the words.
                 val top = Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent, endY = size.height * 0.22f)
-                val bottom = Brush.verticalGradient(
-                    0f to Color.Transparent,
-                    0.45f to PleyColors.Bg.copy(alpha = 0.75f),
-                    0.85f to PleyColors.Bg,
-                    startY = size.height * 0.3f,
-                    endY = size.height,
-                )
+                val bottom = Brush.verticalGradient(*scrimStops(wordsTop / size.height), startY = 0f, endY = size.height)
                 onDrawWithContent {
                     drawContent()
                     drawRect(Color.Black.copy(alpha = 0.18f))
@@ -186,7 +195,8 @@ private fun Slide(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(start = metrics.marginStart, end = metrics.marginEnd, bottom = WordsBottom),
+                .padding(start = metrics.marginStart, end = metrics.marginEnd, bottom = WordsBottom)
+                .onGloballyPositioned { wordsTop = it.positionInParent().y },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
@@ -216,7 +226,7 @@ private fun Slide(
                     maxLines = 2,
                 )
             }
-            if (info.summary.isNotEmpty()) {
+            if (summary && info.summary.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     info.summary,
@@ -229,7 +239,13 @@ private fun Slide(
                 )
             }
             Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            // A car's targets stand 24 dp apart; where three don't fit across (a narrow car screen), the last goes under.
+            val gap = if (LocalCarScreen.current) CarGap else 10.dp
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(gap),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
                 PrimaryButton(
                     text = stringResource(if (info.inProgress) R.string.item_resume else R.string.item_play),
                     onClick = { onPlay(info) },
@@ -245,6 +261,20 @@ private fun Slide(
             }
         }
     }
+}
+
+/**
+ * The bottom scrim's stops over the banner's height: clear from 30 %, 75 %
+ * of the page's color by 61 %, the page's color at 90 %, as a phone's tall
+ * banner has it; but 75 % by the words' top at the latest ([wordsTop], a
+ * share of the height), where a short screen's words start higher up.
+ */
+internal fun scrimStops(wordsTop: Float): Array<Pair<Float, Color>> {
+    val start = 0.3f
+    val dark = if (wordsTop > 0f) minOf(start + 0.45f * (1f - start), wordsTop) else start + 0.45f * (1f - start)
+    val clear = minOf(start, dark - 0.15f).coerceAtLeast(0f)
+    val full = maxOf(clear + 0.85f * (1f - clear), dark + 0.1f).coerceAtMost(1f)
+    return arrayOf(clear to Color.Transparent, dark to PleyColors.Bg.copy(alpha = 0.75f), full to PleyColors.Bg)
 }
 
 /** My List: a ring with + to put the title on it, ✓ once it is. */
@@ -338,17 +368,23 @@ private fun titleStyle(title: String) = when {
     else -> MaterialTheme.typography.displaySmall
 }.copy(fontWeight = FontWeight.ExtraBold, lineHeight = 1.05.em, shadow = TitleShadow)
 
-/** The banner's height: about three quarters of a portrait phone, never under 440 dp. */
+/** The banner's height: about three quarters of a portrait phone, never under 440 dp, nor over the [page]. */
 @Composable
-private fun bannerHeight(): Dp {
+private fun bannerHeight(page: Dp): Dp {
     val window = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
-    return if (window > 0.dp) maxOf(window * 0.72f, MinHeight).coerceAtMost(MaxHeight) else MinHeight
+    // No taller than the page: on a short one (a car's screen, a phone on its side, either over the bar of what
+    // plays) its title and Play stay in view.
+    val fits = if (page.isFinite && page > 0.dp) minOf(window, page) else window
+    return if (fits > 0.dp) maxOf(window * 0.72f, MinHeight).coerceAtMost(MaxHeight).coerceAtMost(fits) else MinHeight
 }
 
 private val TitleShadow = Shadow(Color.Black.copy(alpha = 0.45f), Offset(0f, 2f), blurRadius = 24f)
 private val SoftShadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, 1f), blurRadius = 8f)
 
 private val MinHeight = 440.dp
+
+/** A banner as tall as this has room for the plot above its buttons. */
+private val SummaryFrom = 360.dp
 private val MaxHeight = 720.dp
 
 /** The words sit above the dashes, which sit above where the first row starts. */

@@ -12,10 +12,13 @@
         <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/LiveRailItem.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="back" color="0x16191E00" />
-        <Label id="mark" width="32" horizAlign="center" vertAlign="center" color="0x8B95A5FF" font="font:SmallestBoldSystemFont" />
+        <Label id="mark" width="32" horizAlign="center" vertAlign="center" color="0x8B95A5FF">
+            <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
+        </Label>
         <Label id="title" vertAlign="center" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <Label id="count" horizAlign="right" vertAlign="center" color="0x8B95A5FF" font="font:TinySystemFont" />
     </children>

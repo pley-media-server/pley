@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.Tier
 import app.pley.android.player.MusicQueueState
+import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
@@ -178,8 +179,8 @@ class TvMusicFocusTest {
         graph.music.now.value = NowPlaying(501, "Song 1", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 0)
         show { TvNowPlayingScreen() }
         waitFor("Harbour Lights · Deep Water")
-        // Play/Pause, Next, then the timer.
-        compose.press(Key.DirectionRight, times = 2)
+        // Play/Pause, Next, Repeat, then the timer.
+        compose.press(Key.DirectionRight, times = 3)
         compose.press(Key.DirectionCenter)
         assertEquals(0 to 0, graph.music.toggles to graph.music.nexts)
         assertEquals(SleepChoice.Minutes(15), graph.music.sleepState.value.choice)
@@ -191,6 +192,34 @@ class TvMusicFocusTest {
         compose.press(Key.DirectionCenter)
         assertEquals(1, graph.music.keeps)
         assertEquals(SleepChoice.Minutes(30), graph.music.sleepState.value.choice)
+    }
+
+    @Test
+    fun repeatStepsFromTheQueueToTheTrackToNothingNamedForWhatSelectDoes() {
+        val now = NowPlaying(512, "Song 12", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 11)
+        graph.music.now.value = now
+        show { TvNowPlayingScreen() }
+        waitFor("Harbour Lights · Deep Water")
+        // Play/Pause, then Repeat: Next has nowhere to go on the last track of a queue that doesn't repeat.
+        compose.press(Key.DirectionRight)
+        compose.focused().assert(hasContentDescription("Repeat"))
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf(MusicRepeat.All), graph.music.repeats)
+
+        // The page's state is made off the main thread: the label follows a moment later.
+        graph.music.now.value = now.copy(repeat = MusicRepeat.All)
+        waitForLabel("Repeat this track")
+        compose.focused().assert(hasContentDescription("Repeat this track"))
+        compose.press(Key.DirectionCenter)
+        graph.music.now.value = now.copy(repeat = MusicRepeat.One)
+        waitForLabel("Stop repeating")
+        compose.focused().assert(hasContentDescription("Stop repeating"))
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf(MusicRepeat.All, MusicRepeat.One, MusicRepeat.Off), graph.music.repeats)
+    }
+
+    private fun waitForLabel(label: String) {
+        compose.waitUntil(5_000) { compose.onAllNodes(hasContentDescription(label)).fetchSemanticsNodes().isNotEmpty() }
     }
 
     private companion object {

@@ -6,6 +6,8 @@
 
     <string name="player_play">Lire</string>
     <string name="player_pause">Pause</string>
+    <string name="player_skip_back">Reculer de %1$d secondes</string>
+    <string name="player_skip_forward">Avancer de %1$d secondes</string>
     <string name="player_loading">Chargement</string>
     <string name="player_reconnecting">Reconnexion…</string>
     <string name="player_seek_forward">+%1$d s</string>

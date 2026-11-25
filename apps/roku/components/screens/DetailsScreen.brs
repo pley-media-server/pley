@@ -1,6 +1,5 @@
 sub init()
     m.backdrop = m.top.findNode("backdrop")
-    m.shade = m.top.findNode("shade")
     m.page = m.top.findNode("page")
     m.poster = m.top.findNode("poster")
     m.column = m.top.findNode("column")
@@ -20,10 +19,32 @@ sub init()
     m.requestPoll = m.top.findNode("requestPoll")
     m.panel = m.top.findNode("panel")
     m.panelTitle = m.top.findNode("panelTitle")
+    ' A side panel's title as the player's and Settings' (a section's).
+    m.panelTitle.font = uiType("section")
     m.menu = m.top.findNode("menu")
     m.choices = m.top.findNode("choices")
     m.info = m.top.findNode("info")
+    m.facts = m.top.findNode("facts")
+    m.under = m.top.findNode("under")
+    m.panel.observeField("visible", "onPanel")
     m.message.text = t("common.states.loading")
+    ' Pley's type, as Android TV's title page.
+    fonts = { heading: "heroTitle", genres: "label", credits: "label", tagline: "title", summary: "bodyLarge", note: "label", message: "bodyLarge", panelTitle: "section" }
+    for each id in fonts
+        m.top.findNode(id).font = uiType(fonts[id])
+    end for
+    m.rows.rowLabelFont = uiType("section")
+    m.infoBlock = m.top.findNode("infoBlock")
+    m.infoTitle = m.top.findNode("infoTitle")
+    m.infoLine = m.top.findNode("infoLine")
+    m.infoName = m.top.findNode("infoName")
+    m.infoSummary = m.top.findNode("infoSummary")
+    m.infoTitle.font = uiType("heroTitle")
+    m.infoName.font = uiType("title")
+    m.infoSummary.font = uiType("bodyLarge")
+    ' The episode the info block shows (invalid for the title's own).
+    m.infoTile = invalid
+    m.chipsShown = ""
     m.column.visible = false
     ' What the panel shows: "" (closed), a menu ("more", "tracks"), the
     ' choices of one of its entries ("rating", "version", "audio",
@@ -57,10 +78,19 @@ sub init()
     ' shown, in order.
     m.rowNodes = {}
     m.rowKeys = []
-    m.buttons.observeField("buttonSelected", "onButton")
+    m.buttons.observeField("chosen", "onButton")
     m.menu.observeField("itemSelected", "onMenu")
     m.choices.observeField("itemSelected", "onChoice")
     m.rows.observeField("rowItemSelected", "onTile")
+    m.rows.observeField("rowItemFocused", "onRowFocused")
+    ' A show's episodes under its seasons, as Android TV's page: the
+    ' season shown, the one asked for, the season focus rests on, and
+    ' whether the focus goes into them once they come.
+    m.episodesSeason = invalid
+    m.episodesAsked = invalid
+    m.restSeason = invalid
+    m.seasonRest = m.top.findNode("seasonRest")
+    m.seasonRest.observeField("fire", "onSeasonRest")
     m.requestPoll.observeField("fire", "askItemRequest")
     m.top.observeField("active", "onActive")
     m.top.observeField("requestSummary", "onSummary")
@@ -126,6 +156,8 @@ sub onOnDeck(event as object)
     if answer.ok and answer.data <> invalid then m.onDeck = httpObject(answer.data.item)
     m.onDeckKnown = true
     showDetail()
+    ' The seasons came first: the page opens on the next episode's now.
+    if m.rowNodes.DoesExist("seasons") then firstSeason(m.rowNodes.seasons.node)
 end sub
 
 sub showDetail()
@@ -133,38 +165,46 @@ sub showDetail()
     m.detail = contentDetail(m.item, m.global.session.server, m.onDeck)
     m.message.visible = false
     m.heading.text = m.detail.heading
-    m.line.text = m.detail.line
+    ' Each answer (the on-deck one, a reload, a rating) draws the line and
+    ' lays the words out again only when they changed.
+    parts = contentDetailParts(m.item)
+    if FormatJson(parts) <> FormatJson(m.line.parts) then m.line.parts = parts
     m.genres.text = m.detail.genres
     m.credits.text = m.detail.credits
     m.tagline.text = m.detail.tagline
-    ' Seven buttons take a line from the summary (three, as on Android TV),
-    ' and so does the credits line: under a heading of two lines they would
-    ' reach the rows' title. More's Details has the whole of it.
-    m.summary.maxLines = 4
-    if m.detail.buttons.Count() > 6 then m.summary.maxLines = 3
-    if m.detail.credits <> "" then m.summary.maxLines = m.summary.maxLines - 1
+    ' Three lines of summary, as on Android TV; two under a credits line, so
+    ' a heading of two lines keeps clear of the rows' title. More's Details
+    ' has the whole of it.
+    m.summary.maxLines = 3
+    if m.detail.credits <> "" then m.summary.maxLines = 2
     m.summary.text = m.detail.summary
     m.note.text = m.detail.note
     layoutText()
     agent = m.top.getScene().getHttpAgent()
     if m.backdrop.uri <> m.detail.backdrop
-        m.backdrop.setHttpAgent(agent)
         m.backdrop.uri = m.detail.backdrop
     end if
-    if m.poster.uri <> m.detail.poster
+    ' The poster at the right only for a title without a backdrop.
+    m.poster.visible = m.detail.backdrop = ""
+    if m.poster.visible and m.poster.uri <> m.detail.poster
         m.poster.setHttpAgent(agent)
         m.poster.uri = m.detail.poster
     end if
     ' A show's buttons wait for its next episode, which comes first.
     hasButtons = m.detail.buttons.Count() > 0 and (m.detail.kind <> "show" or m.onDeckKnown)
+    ' The row keeps the focus and the button it is on as its chips change.
     if hasButtons
-        focused = m.buttons.buttonFocused
-        hadFocus = m.buttons.isInFocusChain()
-        if FormatJson(m.buttons.buttons) <> FormatJson(m.detail.buttons) then m.buttons.buttons = m.detail.buttons
-        uiKeepButton(m.buttons, focused, hadFocus)
+        chips = contentDetailChips(m.detail.buttons, m.detail.actions)
+        shown = FormatJson(chips)
+        if shown <> m.chipsShown
+            m.chipsShown = shown
+            m.buttons.chips = chips
+        end if
     end if
     m.buttons.visible = hasButtons
     m.column.visible = true
+    if m.rows.visible then placeRows()
+    if m.infoBlock.visible then fillInfo(focusedTile())
     ' A menu of the panel says its entries as they are now.
     if m.panelKind = "more"
         openMore()
@@ -186,12 +226,23 @@ end sub
 sub layoutText()
     shown = [m.heading]
     spacings = []
-    for each part in [{ label: m.line, gap: 20 }, { label: m.genres, gap: 8 }, { label: m.credits, gap: 8 }, { label: m.tagline, gap: 28 }, { label: m.summary, gap: 20 }, { label: m.note, gap: 28 }]
-        if part.label.text <> ""
+    for each part in [{ label: m.line, gap: 20 }, { label: m.genres, gap: 12 }, { label: m.credits, gap: 8 }, { label: m.tagline, gap: 28 }, { label: m.summary, gap: 20 }, { label: m.note, gap: 28 }]
+        shows = false
+        if part.label.hasField("parts")
+            shows = part.label.parts <> invalid and part.label.parts.Count() > 0
+        else
+            shows = part.label.text <> ""
+        end if
+        if shows
             spacings.Push(part.gap)
             shown.Push(part.label)
         end if
     end for
+    same = m.text.getChildCount() = shown.Count()
+    for i = 0 to shown.Count() - 1
+        if same and not m.text.getChild(i).isSameNode(shown[i]) then same = false
+    end for
+    if same then return
     m.text.removeChildrenIndex(m.text.getChildCount(), 0)
     m.text.appendChildren(shown)
     m.text.itemSpacings = spacings
@@ -227,57 +278,207 @@ sub onRow(event as object)
     row.title = request.spec.title
     row.appendChildren(request.content.getChildren(-1, 0))
     keepRow(request.spec.row, row, false)
-    if request.spec.row = "seasons" then placeAskTile()
+    if request.spec.row = "seasons"
+        placeAskTile()
+        showRows()
+        firstSeason(row)
+        return
+    end if
     showRows()
+end sub
+
+' --- A show's episodes ---
+
+' The season the page opens on: the next episode's, else the first; for
+' a show, once the server said which episode is next, whichever answer
+' comes last.
+sub firstSeason(row as object)
+    if m.episodesAsked <> invalid then return
+    if m.item <> invalid and httpString(m.item.kind) = "show" and not m.onDeckKnown then return
+    wanted = 0
+    if m.onDeck <> invalid then wanted = httpNumber(m.onDeck.parent_id, 0)
+    first = invalid
+    for each tile in row.getChildren(-1, 0)
+        if tile.kind = "season"
+            if first = invalid then first = tile
+            if wanted > 0 and tile.itemId = wanted then first = tile
+        end if
+    end for
+    if first <> invalid then askEpisodes(first, false)
+end sub
+
+' Focus resting on a season shows its episodes; on an episode, the info
+' block says it. Only the person's focus: the list says it is on the
+' first tile as its content comes, which isn't a season chosen. A row
+' the content doesn't have yet (it is being rebuilt) is none.
+sub onRowFocused()
+    if m.infoBlock.visible then infoFor(focusedTile(), false)
+    if not m.rows.isInFocusChain() then return
+    position = m.rows.rowItemFocused
+    if position = invalid or position.Count() <> 2 or position[0] < 0 or position[0] >= m.rowKeys.Count() then return
+    if m.rowKeys[position[0]] <> "seasons" then return
+    tile = focusedTile()
+    m.seasonRest.control = "stop"
+    if tile = invalid or tile.kind <> "season" or tile.itemId = m.episodesAsked then return
+    m.restSeason = tile
+    m.seasonRest.control = "start"
+end sub
+
+sub onSeasonRest()
+    if m.restSeason <> invalid then askEpisodes(m.restSeason, false)
+end sub
+
+' A season's episodes, the row named by it; with focus, the focus goes
+' down into them once they come.
+sub askEpisodes(season as object, focus as boolean)
+    m.episodesAsked = season.itemId
+    uiRequest({ method: "GET", path: "/api/items/" + urlValue(season.itemId) + "/children", build: "episodes", seasonId: season.itemId, title: season.title, focus: focus }, "onSeasonEpisodes")
+end sub
+
+sub onSeasonEpisodes(event as object)
+    request = event.getRoSGNode()
+    spec = request.spec
+    if spec.seasonId <> m.episodesAsked then return
+    answer = event.getData()
+    if not answer.ok or request.content = invalid or request.content.getChildCount() = 0 then return
+    row = CreateObject("roSGNode", "ContentNode")
+    row.title = spec.title
+    row.appendChildren(request.content.getChildren(-1, 0))
+    m.episodesSeason = spec.seasonId
+    at = -1
+    for i = 0 to m.rowKeys.Count() - 1
+        if m.rowKeys[i] = "episodes" then at = i
+    end for
+    keepRow("episodes", row, true)
+    if at >= 0
+        ' Only the row changes: the focus stays where it is.
+        m.rows.content.replaceChild(row, at)
+    else
+        showRows()
+    end if
+    if spec.focus = true then focusEpisodes()
+end sub
+
+' The focus on the episodes, at the one to watch.
+sub focusEpisodes()
+    for i = 0 to m.rowKeys.Count() - 1
+        if m.rowKeys[i] = "episodes"
+            episodes = []
+            for each tile in m.rowNodes.episodes.node.getChildren(-1, 0)
+                episodes.Push({ progress: tile.progress, watched: tile.watched })
+            end for
+            if not m.rows.isInFocusChain() then focusRows(true)
+            m.rows.jumpToRowItem = [i, contentEpisodeToWatch(episodes)]
+        end if
+    end for
 end sub
 
 sub keepRow(key as string, row as object, wide as boolean)
     m.rowNodes[key] = { node: row, wide: wide }
 end sub
 
-' The rows there are, in their order; the focus stays on its row.
+' The rows there are, in their order; the focus stays on its row while
+' the person is in them. Rows that come after the others (More Like
+' This, the collections) join the end of the content the list shows, so
+' the rows there keep their tiles; a row that comes above others (the
+' seasons, a season's episodes) makes a new content, as each row's size
+' goes with its place.
 sub showRows()
     keys = []
-    for each key in ["seasons", "credits", "extras", "related", "collections"]
+    for each key in ["seasons", "episodes", "credits", "extras", "related", "collections"]
         if m.rowNodes.DoesExist(key) then keys.Push(key)
     end for
     if keys.Count() = 0 or FormatJson(keys) = FormatJson(m.rowKeys) then return
+    ' Only the person's focus: the list says it is on its first tile as
+    ' content comes, and the page opens on the first row.
     focusedKey = ""
     position = m.rows.rowItemFocused
-    if position <> invalid and position.Count() = 2 and position[0] >= 0 and position[0] < m.rowKeys.Count() then focusedKey = m.rowKeys[position[0]]
-    content = CreateObject("roSGNode", "ContentNode")
+    if m.rows.isInFocusChain() and position <> invalid and position.Count() = 2 and position[0] >= 0 and position[0] < m.rowKeys.Count() then focusedKey = m.rowKeys[position[0]]
     sizes = []
     heights = []
     for each key in keys
-        row = m.rowNodes[key]
-        content.appendChild(row.node)
-        if row.wide
-            sizes.Push([400, 300])
-        else
-            sizes.Push([220, 410])
-        end if
-        heights.Push(sizes.Peek()[1] + 60)
+        shape = contentRowSize(m.rowNodes[key].wide, false)
+        if key = "credits" then shape = contentPersonRowSize()
+        sizes.Push(shape.size)
+        heights.Push(shape.height)
     end for
+    content = m.rows.content
+    rebuilt = not rowsInPlace(content, keys)
+    if not rebuilt
+        ' The sizes first: the list draws a row as it joins with its own.
+        m.rows.rowItemSize = sizes
+        m.rows.rowHeights = heights
+        for i = m.rowKeys.Count() to keys.Count() - 1
+            content.appendChild(m.rowNodes[keys[i]].node)
+        end for
+    else
+        content = CreateObject("roSGNode", "ContentNode")
+        for each key in keys
+            content.appendChild(m.rowNodes[key].node)
+        end for
+        m.rows.rowItemSize = sizes
+        m.rows.rowHeights = heights
+        m.rows.content = content
+    end if
+    ' After the content: the keys say what the list shows.
     m.rowKeys = keys
-    m.rows.rowItemSize = sizes
-    m.rows.rowHeights = heights
-    m.rows.content = content
+    ' A new content starts on its first row: the focus goes back to its
+    ' row and tile.
     for i = 0 to keys.Count() - 1
-        if keys[i] = focusedKey then m.rows.jumpToRowItem = [i, position[1]]
+        if keys[i] = focusedKey and rebuilt then m.rows.jumpToRowItem = [i, position[1]]
     end for
     m.rows.visible = true
+    placeRows()
+end sub
+
+' Whether the new rows (keys) only follow those the list shows, its
+' content still the rows kept for them in order, so they can join its end.
+function rowsInPlace(content as dynamic, keys as object) as boolean
+    shown = m.rowKeys.Count()
+    if content = invalid or shown = 0 or content.getChildCount() <> shown or keys.Count() <= shown then return false
+    for i = 0 to shown - 1
+        if keys[i] <> m.rowKeys[i] then return false
+        if not content.getChild(i).isSameNode(m.rowNodes[keys[i]].node) then return false
+    end for
+    return true
+end function
+
+' The rows 64 px under the title's words and buttons, not at a fixed
+' place: a short summary left a third of the screen empty above them.
+' Between 560 and 940; the page slides by as much to bring them to 360,
+' under the info block.
+sub placeRows()
+    rect = m.column.boundingRect()
+    if rect.height <= 0 then return
+    y = Int(rect.y + rect.height + 64)
+    if y < 560 then y = 560
+    if y > 940 then y = 940
+    if m.rows.translation[1] <> y then m.rows.translation = [168, y]
+    ' In the rows, the page keeps their top under the info block.
+    if m.infoBlock.visible then m.page.translation = [0, -(y - 360)]
 end sub
 
 ' The page slides up to the rows as they take the focus, the backdrop
-' shaded under them all, and back down.
+' shaded under them all, and back down. Over the rows the info block
+' takes the place of the title's words and buttons, which would show cut
+' at the top; the rows' top comes under it.
 sub focusRows(onRows as boolean)
+    shown = 1.0
+    if onRows then shown = 0.0
+    for each node in [m.column, m.poster, m.stage, m.stageLine]
+        node.opacity = shown
+    end for
+    m.infoBlock.visible = onRows
     if onRows
-        m.page.translation = [0, -820]
-        m.shade.width = 1920
+        placeRows()
+        m.page.translation = [0, -(m.rows.translation[1] - 360)]
+        uiDimBackdrop(m.top, true)
+        m.infoTile = invalid
+        fillInfo(focusedTile())
         m.rows.setFocus(true)
     else
         m.page.translation = [0, 0]
-        m.shade.width = 1260
+        uiDimBackdrop(m.top, false)
         if m.buttons.visible
             m.buttons.setFocus(true)
         else
@@ -286,10 +487,67 @@ sub focusRows(onRows as boolean)
     end if
 end sub
 
+' The info block: the title and its line as the page has them, then the
+' episode focus is on (tile), or the title's own summary.
+sub fillInfo(tile as dynamic)
+    if m.detail = invalid then return
+    m.infoTitle.text = m.detail.heading
+    m.infoLine.parts = m.line.parts
+    m.infoTile = invalid
+    infoFor(tile, true)
+end sub
+
+' What the info block says under the line, as focus moves through the
+' rows: only when it goes to another episode, or off the episodes.
+sub infoFor(tile as dynamic, force as boolean)
+    if tile <> invalid and not (tile.hasField("kind") and tile.kind = "episode") then tile = invalid
+    if not force
+        if tile = invalid and m.infoTile = invalid then return
+        if tile <> invalid and m.infoTile <> invalid and tile.isSameNode(m.infoTile) then return
+    end if
+    m.infoTile = tile
+    if tile = invalid
+        m.infoName.visible = false
+        m.infoSummary.translation = [0, 164]
+        m.infoSummary.text = m.detail.summary
+        return
+    end if
+    name = tile.title
+    if tile.subtitle <> invalid and tile.subtitle <> "" then name = name + " · " + tile.subtitle
+    m.infoName.text = name
+    m.infoName.visible = true
+    m.infoSummary.translation = [0, 212]
+    summary = ""
+    if tile.hasField("summary") and tile.summary <> invalid then summary = tile.summary
+    m.infoSummary.text = summary
+end sub
+
+' The tile focus is on in the rows, invalid for none.
+function focusedTile() as dynamic
+    position = m.rows.rowItemFocused
+    if position = invalid or position.Count() <> 2 or m.rows.content = invalid then return invalid
+    row = m.rows.content.getChild(position[0])
+    if row = invalid or position[1] < 0 then return invalid
+    return row.getChild(position[1])
+end function
+
+' A season chosen goes down into its episodes, as on Android TV: the page
+' has them, or asks for them; any other tile opens.
 sub onTile(event as object)
     position = event.getData()
     row = m.rows.content.getChild(position[0])
-    if row <> invalid then uiOpenTile(row.getChild(position[1]))
+    if row = invalid then return
+    tile = row.getChild(position[1])
+    if tile <> invalid and tile.kind = "season" and m.rowKeys[position[0]] = "seasons"
+        m.seasonRest.control = "stop"
+        if tile.itemId = m.episodesSeason
+            focusEpisodes()
+        else
+            askEpisodes(tile, true)
+        end if
+        return
+    end if
+    uiOpenTile(tile)
 end sub
 
 ' --- Requests ---
@@ -438,6 +696,7 @@ sub showMenu(kind as string, title as string, labels as object)
     if at > 0 and at < items.Count() then m.menu.jumpToItem = at
     m.choices.visible = false
     m.info.visible = false
+    m.facts.visible = false
     m.menu.visible = true
     m.panel.visible = true
     m.menu.setFocus(true)
@@ -447,40 +706,37 @@ end sub
 ' goes to the menu named back ("" closes the panel).
 sub showChoices(kind as string, title as string, labels as object, values as object, current as integer, back as string)
     items = []
-    for each label in labels
-        items.Push({ title: label })
+    for i = 0 to labels.Count() - 1
+        items.Push({ title: labels[i], checked: i = current })
     end for
     m.panelKind = kind
     m.panelBack = back
     m.panelValues = values
     m.panelTitle.text = title
-    ' A version's line is long: smaller letters keep it whole.
-    size = "Medium"
-    if kind = "version" then size = "Small"
-    m.choices.font = "font:" + size + "SystemFont"
-    m.choices.focusedFont = "font:" + size + "BoldSystemFont"
     m.choices.content = nodesContent(items)
-    m.choices.checkedItem = current
     if current > 0 then m.choices.jumpToItem = current
     m.menu.visible = false
     m.info.visible = false
+    m.facts.visible = false
     m.choices.visible = true
     m.panel.visible = true
     m.choices.setFocus(true)
 end sub
 
 ' Media info: each file and every stream in full (Media.brs), as on the
-' other TVs, in text that Up and Down scroll; Back goes back to More.
+' other TVs, in a sheet that Up and Down scroll; Back goes back to More.
 sub showInfo()
     m.panelKind = "info"
     m.panelBack = "more"
     m.panelTitle.text = t("titles.page.mediaInfo")
-    m.info.text = mediaInfoText(m.item)
+    m.facts.fromTop = true
+    m.facts.lines = mediaInfoSheet(m.item)
     m.menu.visible = false
     m.choices.visible = false
-    m.info.visible = true
+    m.info.visible = false
+    m.facts.visible = true
     m.panel.visible = true
-    m.info.setFocus(true)
+    m.facts.setFocus(true)
 end sub
 
 ' Details: the whole summary, then who made the title, its original
@@ -493,9 +749,21 @@ sub showAbout()
     m.info.text = contentAbout(m.item, CreateObject("roDateTime").AsSeconds(), fmtZoneSeconds())
     m.menu.visible = false
     m.choices.visible = false
+    m.facts.visible = false
     m.info.visible = true
     m.panel.visible = true
     m.info.setFocus(true)
+end sub
+
+' The page under the panel is drawn only where the panel leaves it, at
+' its left: the panel is opaque, and drawing the whole page beneath it
+' too held its scrolling near 40 fps.
+sub onPanel()
+    if m.panel.visible
+        m.under.clippingRect = [0, 0, 720, 1080]
+    else
+        m.under.clippingRect = [0, 0, 0, 0]
+    end if
 end sub
 
 sub closePanel()
@@ -701,6 +969,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if (key = "up" or key = "back") and m.rows.isInFocusChain()
         focusRows(false)
+        return true
+    end if
+    ' Play on the buttons does what the first does (Resume, Play).
+    if key = "play" and m.buttons.isInFocusChain() and m.buttons.visible
+        m.buttons.chosen = 0
+        return true
+    end if
+    if key = "play" and m.rows.isInFocusChain()
+        position = m.rows.rowItemFocused
+        row = m.rows.content.getChild(position[0])
+        if row <> invalid then uiPlayTile(row.getChild(position[1]))
         return true
     end if
     if key = "options" and m.rows.isInFocusChain()

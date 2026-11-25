@@ -7,7 +7,7 @@ import type { Channel } from "@/api/livetv";
 import type { ServerEvent } from "@/api/types";
 import { isPlayingHere } from "@/lib/playingHere";
 import { makeReceiver } from "@/test/fixtures";
-import { LocationDisplay, mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
+import { apiError, LocationDisplay, mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
 import { LivePlayerPage } from "./LivePlayerPage";
 
 /** A stand-in for hls.js: records its calls, and fires events on demand. */
@@ -52,19 +52,23 @@ const { FakeHls, hlsInstances } = vi.hoisted(() => {
  * A stand-in for mpegts.js's player, as Chrome's goes with a channel whose
  * audio it can't play (AC-3): it fails as it loads (or, with `failsAsItLoads`
  * off, when `fail` says), and throws when let go twice, as the real one does.
+ * `comes` reports the stream coming, as the real one does every 600 ms.
  */
 const { FakeMpegts, mpegtsPlayers, mpegtsLoader } = vi.hoisted(() => {
   const mpegtsPlayers: FakeMpegtsPlayer[] = [];
   class FakeMpegtsPlayer {
     static failsAsItLoads = true;
     readonly calls: string[] = [];
-    private readonly handlers = new Map<string, () => void>();
+    private readonly handlers = new Map<string, (info?: unknown) => void>();
     private engine: object | null = {};
     constructor() {
       mpegtsPlayers.push(this);
     }
-    on(event: string, handler: () => void) {
+    on(event: string, handler: (info?: unknown) => void) {
       this.handlers.set(event, handler);
+    }
+    comes(kbps: number) {
+      this.handlers.get("statistics_info")?.({ speed: kbps });
     }
     attachMediaElement() {
       this.calls.push("attachMediaElement");
@@ -85,7 +89,7 @@ const { FakeMpegts, mpegtsPlayers, mpegtsLoader } = vi.hoisted(() => {
   const FakeMpegts = {
     Player: FakeMpegtsPlayer,
     isSupported: () => true,
-    Events: { ERROR: "error" },
+    Events: { ERROR: "error", STATISTICS_INFO: "statistics_info" },
     createPlayer: () => new FakeMpegtsPlayer(),
   };
   // No MPEG-TS player unless a test gives one: every channel plays from the transcoder's HLS.
@@ -250,6 +254,37 @@ describe("LivePlayerPage, its connection taken over", () => {
   });
 });
 
+describe("LivePlayerPage, a channel played from the transcoder's segments", () => {
+  beforeEach(() => {
+    hlsInstances.length = 0;
+    vi.stubGlobal("EventSource", FakeEventSource);
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("plays on, with its sound, after a media error it recovers from", async () => {
+    // hls.js loads the video again as it recovers, which cuts short the play under way.
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockRejectedValueOnce(new DOMException("cut short", "AbortError"))
+      .mockResolvedValue();
+    serve();
+    const { container } = renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+    act(() => hlsInstances[0]?.emit("hlsManifestParsed", {}));
+    expect(play).toHaveBeenCalledTimes(1);
+    act(() => hlsInstances[0]?.emit("hlsError", { fatal: true, type: "mediaError", details: "bufferAppendError" }));
+    expect(hlsInstances[0]?.calls).toContain("recoverMediaError");
+    expect(play).toHaveBeenCalledTimes(2);
+    await act(() => Promise.resolve());
+    expect(container.querySelector("video")!.muted).toBe(false);
+  });
+});
+
 describe("LivePlayerPage, a channel the browser can't play as sent", () => {
   beforeEach(() => {
     hlsInstances.length = 0;
@@ -286,6 +321,12 @@ describe("LivePlayerPage, a channel the browser can't play as sent", () => {
     mpegtsLoader.load = () => Promise.resolve(FakeMpegts);
     FakeMpegts.Player.failsAsItLoads = false;
     const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    // The stream's first seconds come: playback starts once they're buffered.
+    vi.spyOn(HTMLMediaElement.prototype, "buffered", "get").mockReturnValue({
+      length: 1,
+      start: () => 0,
+      end: () => 3,
+    });
     let n = 0;
     const requests = mockApi({
       "GET /api/live/channels/5": () => news,
@@ -332,6 +373,275 @@ describe("LivePlayerPage, a channel the browser can't play as sent", () => {
     expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
     expect(hlsInstances).toHaveLength(0);
     expect(screen.getByRole("alert")).toHaveTextContent("Someone else needed");
+  });
+});
+
+describe("LivePlayerPage, a channel played from its stream", () => {
+  // Where what's buffered ends, how ready the video says it is, and where it plays.
+  let ahead = 0;
+  let ready = 0;
+  let time = 0;
+  let requests: FakeRequest[] = [];
+  // What the server says the channel is, asked as it tunes and again before its stream is read again.
+  const sentAsItIs = { video_codec: "h264", audio_codec: "aac", video: "copy", audio: "copy" };
+  let planAnswer: () => unknown = () => sentAsItIs;
+  beforeEach(() => {
+    planAnswer = () => sentAsItIs;
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    hlsInstances.length = 0;
+    mpegtsPlayers.length = 0;
+    time = 0;
+    mpegtsLoader.load = () => Promise.resolve(FakeMpegts);
+    FakeMpegts.Player.failsAsItLoads = false;
+    vi.stubGlobal("EventSource", FakeEventSource);
+    vi.stubGlobal("MediaSource", class {});
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "buffered", "get").mockImplementation(() => ({
+      length: 1,
+      start: () => 0,
+      end: () => ahead,
+    }));
+    vi.spyOn(HTMLMediaElement.prototype, "readyState", "get").mockImplementation(() => ready);
+    vi.spyOn(HTMLMediaElement.prototype, "currentTime", "get").mockImplementation(() => time);
+    requests = mockApi({
+      "GET /api/live/channels/5": () => news,
+      "POST /api/live/channels/5/watch": () => ({ session_id: "s1", url: "/api/live/sessions/s1/index.m3u8", kind: "hls", channel: news }),
+      "GET /api/live/sessions/s1/plan": () => planAnswer(),
+      "DELETE /api/live/sessions/s1": () => undefined,
+    });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    mpegtsLoader.load = () => Promise.reject(new Error("not here"));
+    FakeMpegts.Player.failsAsItLoads = true;
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** Plays the channel with its first seconds buffered; the video and the stall spinner. */
+  async function playing() {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    ahead = 3;
+    ready = HTMLMediaElement.HAVE_ENOUGH_DATA;
+    const { container } = renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    const video = container.querySelector("video")!;
+    act(() => {
+      video.dispatchEvent(new Event("playing"));
+    });
+    const spinner = () => container.querySelector(".animate-spin");
+    expect(spinner()).not.toBeInTheDocument();
+    return { video, spinner, play };
+  }
+
+  /** It runs out: nothing left to play. */
+  function stall(video: HTMLVideoElement) {
+    ahead = 0;
+    ready = HTMLMediaElement.HAVE_CURRENT_DATA;
+    act(() => {
+      video.dispatchEvent(new Event("waiting"));
+    });
+  }
+
+  it("shows no spinner when the cushion comes back at once", async () => {
+    const { video, spinner } = await playing();
+    stall(video);
+    expect(video.playbackRate).toBe(0);
+    // The provider's next burst, more than the cushion, before the spinner was due.
+    ahead = 5;
+    ready = HTMLMediaElement.HAVE_ENOUGH_DATA;
+    act(() => {
+      video.dispatchEvent(new Event("playing"));
+      vi.advanceTimersByTime(300);
+    });
+    expect(video.playbackRate).toBe(1);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(spinner()).not.toBeInTheDocument();
+  });
+
+  it("keeps the spinner while nothing comes, after waiting its longest too", async () => {
+    const { video, spinner } = await playing();
+    stall(video);
+    expect(spinner()).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(6500);
+    });
+    // Gone on, with nothing to play yet.
+    expect(video.playbackRate).toBe(1);
+    expect(spinner()).toBeInTheDocument();
+    // Then something comes, and it plays.
+    ahead = 1;
+    ready = HTMLMediaElement.HAVE_ENOUGH_DATA;
+    act(() => {
+      video.dispatchEvent(new Event("canplay"));
+    });
+    expect(spinner()).not.toBeInTheDocument();
+  });
+
+  /** The stream comes for `seconds`, as the player says every 600 ms, and none of it is buffered. */
+  function comesForNothing(seconds: number) {
+    for (let ms = 0; ms < seconds * 1000; ms += 600) {
+      act(() => {
+        mpegtsPlayers.at(-1)?.comes(320);
+        vi.advanceTimersByTime(600);
+      });
+    }
+  }
+
+  /** It plays on for three seconds, the stream buffered ahead. */
+  function playsOn() {
+    for (let i = 0; i < 3; i++) {
+      time += 1;
+      ahead = time + 3;
+      ready = HTMLMediaElement.HAVE_ENOUGH_DATA;
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+    }
+  }
+
+  const plans = (r: FakeRequest[]) => r.filter((q) => q.method === "GET" && q.path === "/api/live/sessions/s1/plan");
+  const toHls = () =>
+    waitFor(() => expect(hlsInstances[0]?.calls).toContain("loadSource /api/live/sessions/s1/index.m3u8"));
+
+  /** It plays, then stands still for good (the provider's clock started over) while the stream comes: read again. */
+  async function readAgain() {
+    const shown = await playing();
+    playsOn();
+    stall(shown.video);
+    comesForNothing(6);
+    expect(mpegtsPlayers).toHaveLength(1);
+    comesForNothing(4);
+    await waitFor(() => expect(mpegtsPlayers).toHaveLength(2));
+    // The new player's video starts again at 0.
+    time = 0;
+    return shown;
+  }
+
+  it("reads its stream again, on the same session, when it stands still while the stream comes", async () => {
+    const { video, spinner, play } = await readAgain();
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+    expect(mpegtsPlayers[1]?.calls).toEqual(["attachMediaElement", "load"]);
+    // Its session seen first, so it stays while the stream is read again; nothing tuned again.
+    expect(plans(requests)).toHaveLength(2);
+    expect(watches(requests)).toHaveLength(1);
+    expect(hlsInstances).toHaveLength(0);
+    // The spinner stays while the new player fills its cushion…
+    play.mockClear();
+    ahead = 1;
+    ready = HTMLMediaElement.HAVE_ENOUGH_DATA;
+    act(() => {
+      video.dispatchEvent(new Event("canplay"));
+      vi.advanceTimersByTime(400);
+    });
+    expect(spinner()).toBeInTheDocument();
+    expect(play).not.toHaveBeenCalled();
+    // …and goes as it plays.
+    ahead = 2.5;
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(play).toHaveBeenCalled();
+    act(() => {
+      video.dispatchEvent(new Event("playing"));
+    });
+    expect(spinner()).not.toBeInTheDocument();
+  });
+
+  it("plays the transcoder's segments when the stream read again stands still without playing", async () => {
+    await readAgain();
+    comesForNothing(10);
+    await toHls();
+    expect(mpegtsPlayers).toHaveLength(2);
+    expect(mpegtsPlayers[1]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+  });
+
+  it("plays the transcoder's segments when it stands still again soon after it was read again", async () => {
+    const { video } = await readAgain();
+    ahead = 3;
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    playsOn();
+    // A provider whose clock starts over at every break: still again a minute later.
+    stall(video);
+    comesForNothing(10);
+    await toHls();
+    expect(mpegtsPlayers).toHaveLength(2);
+    expect(mpegtsPlayers[1]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+  });
+
+  it("reads its stream again once more when it stands still again, two minutes on", async () => {
+    const { video } = await readAgain();
+    ahead = 3;
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    // A provider whose clock starts over now and then, not at every break.
+    for (let i = 0; i < 41; i++) playsOn();
+    stall(video);
+    comesForNothing(10);
+    await waitFor(() => expect(mpegtsPlayers).toHaveLength(3));
+    expect(plans(requests)).toHaveLength(3);
+    expect(hlsInstances).toHaveLength(0);
+  });
+
+  it("waits, without reading its stream again, while the stream doesn't come", async () => {
+    const { video, spinner } = await playing();
+    playsOn();
+    stall(video);
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(mpegtsPlayers).toHaveLength(1);
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load"]);
+    expect(spinner()).toBeInTheDocument();
+  });
+
+  it("doesn't read again a stream that came, then ended", async () => {
+    const { video } = await playing();
+    playsOn();
+    stall(video);
+    // The stream ends (the channel stopped on the server): the player says nothing more.
+    comesForNothing(3);
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(mpegtsPlayers).toHaveLength(1);
+    expect(plans(requests)).toHaveLength(1);
+    expect(hlsInstances).toHaveLength(0);
+  });
+
+  it("stops, and says why, when its session ended as its stream would be read again", async () => {
+    const { video } = await playing();
+    planAnswer = () => apiError(410, "session_stopped", "An administrator stopped this channel.");
+    playsOn();
+    stall(video);
+    comesForNothing(10);
+    expect(await screen.findByRole("alert")).toHaveTextContent("An administrator stopped this channel.");
+    expect(mpegtsPlayers).toHaveLength(1);
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+    expect(watches(requests)).toHaveLength(1);
+    expect(hlsInstances).toHaveLength(0);
+  });
+
+  it.each([
+    ["refuses sound", "NotAllowedError", true],
+    ["cuts a play short", "AbortError", false],
+  ])("starts muted only when the browser refuses sound: it %s", async (_, name, muted) => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockRejectedValueOnce(new DOMException("refused", name))
+      .mockResolvedValue();
+    ahead = 3;
+    ready = HTMLMediaElement.HAVE_ENOUGH_DATA;
+    const { container } = renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    await act(() => Promise.resolve());
+    expect(container.querySelector("video")!.muted).toBe(muted);
   });
 });
 

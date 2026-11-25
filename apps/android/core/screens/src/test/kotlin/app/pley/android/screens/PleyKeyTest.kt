@@ -27,6 +27,7 @@ class PleyKeyTest {
         PleyKey.Person(89),
         PleyKey.Artist(700),
         PleyKey.Album(701),
+        PleyKey.Book(801),
         PleyKey.Search("blade runner"),
         PleyKey.Playlists,
         PleyKey.Playlist(5),

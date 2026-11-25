@@ -144,7 +144,7 @@ struct ItemView: View {
     }
 
     private func poster(_ page: ItemPage, width: CGFloat) -> some View {
-        ServerImage(app: app, paths: page.posters, width: width, symbol: Metrics.symbol(page.kind))
+        ServerImage(app: app, paths: page.posters, width: width, title: page.title, kind: page.kind)
             .frame(width: width, height: width * 3 / 2)
             .clipShape(RoundedRectangle(cornerRadius: Metrics.corner))
             .shadow(radius: 6, y: 2)

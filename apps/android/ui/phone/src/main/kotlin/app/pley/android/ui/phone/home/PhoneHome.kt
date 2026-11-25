@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
@@ -207,39 +208,44 @@ private fun HomeRows(
 ) {
     val skeleton = rememberSkeleton(animated = true)
     val featured = (model.state as? HomeState.Ready)?.featured.orEmpty()
-    LazyColumn(
-        state = list,
-        contentPadding = PaddingValues(top = if (featured.isEmpty()) 4.dp else 0.dp, bottom = PleyPhone.SectionGap),
-        verticalArrangement = Arrangement.spacedBy(SectionGap),
-        modifier = Modifier.fillMaxSize().testTag(TestTags.HOME_ROWS),
-    ) {
-        if (featured.isNotEmpty()) {
-            item(BANNER_TAG, contentType = BANNER_TAG) {
-                HomeBanner(
-                    featured = featured,
-                    origin = (model.state as HomeState.Ready).origin,
-                    visible = { list.firstVisibleItemIndex == 0 },
-                    onPlay = { vm.play(it.item, fromStart = false, navigator) },
-                    onInfo = { navigator.open(pageOf(it.item)) },
-                    onList = { vm.setInList(it.item, !it.inList) },
-                    modifier = Modifier.onSizeChanged { onBannerHeight(it.height) },
+    // The page's height between the bars, the bar of what plays included: the banner fits it.
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val page = maxHeight
+        LazyColumn(
+            state = list,
+            contentPadding = PaddingValues(top = if (featured.isEmpty()) 4.dp else 0.dp, bottom = PleyPhone.SectionGap),
+            verticalArrangement = Arrangement.spacedBy(SectionGap),
+            modifier = Modifier.fillMaxSize().testTag(TestTags.HOME_ROWS),
+        ) {
+            if (featured.isNotEmpty()) {
+                item(BANNER_TAG, contentType = BANNER_TAG) {
+                    HomeBanner(
+                        featured = featured,
+                        origin = (model.state as HomeState.Ready).origin,
+                        visible = { list.firstVisibleItemIndex == 0 },
+                        onPlay = { vm.play(it.item, fromStart = false, navigator) },
+                        onInfo = { navigator.open(pageOf(it.item)) },
+                        onList = { vm.setInList(it.item, !it.inList) },
+                        modifier = Modifier.onSizeChanged { onBannerHeight(it.height) },
+                        page = page,
+                    )
+                }
+            }
+            items(model.rows, key = { it.model.key }, contentType = { it.model.kind }) { row ->
+                val rowState = rememberHubRowState()
+                // Home told again what it shows leaves its rows alone: the press's prefetch is kept while the
+                // row's items are, and the handlers read the row (compared by value), never a new key.
+                val prefetch = remember(rowState, row.items) { Modifier.prefetchOnPress(rowState, row.items, vm::prefetch) }
+                HubRow(
+                    row = row.model,
+                    skeleton = skeleton,
+                    state = rowState,
+                    onOpen = { tile -> row.itemOf(tile)?.let { navigator.open(pageOf(it)) } },
+                    onLongPress = { tile -> navigator.open(PleyKey.ItemActions(tile.id, continueWatching = HubKeys.isContinueWatching(row.model.key))) },
+                    onTitleClick = if (row.seeAll == null) null else { { row.seeAll?.let(navigator::open) } },
+                    modifier = prefetch,
                 )
             }
-        }
-        items(model.rows, key = { it.model.key }, contentType = { it.model.kind }) { row ->
-            val rowState = rememberHubRowState()
-            // Home told again what it shows leaves its rows alone: the press's prefetch is kept while the
-            // row's items are, and the handlers read the row (compared by value), never a new key.
-            val prefetch = remember(rowState, row.items) { Modifier.prefetchOnPress(rowState, row.items, vm::prefetch) }
-            HubRow(
-                row = row.model,
-                skeleton = skeleton,
-                state = rowState,
-                onOpen = { tile -> row.itemOf(tile)?.let { navigator.open(pageOf(it)) } },
-                onLongPress = { tile -> navigator.open(PleyKey.ItemActions(tile.id, continueWatching = HubKeys.isContinueWatching(row.model.key))) },
-                onTitleClick = if (row.seeAll == null) null else { { row.seeAll?.let(navigator::open) } },
-                modifier = prefetch,
-            )
         }
     }
 }

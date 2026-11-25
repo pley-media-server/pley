@@ -9,18 +9,23 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.hasScrollAction
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.perf.FrameRate
@@ -29,6 +34,7 @@ import app.pley.android.data.TrackDefaultsUnsupported
 import app.pley.android.model.SubtitleMode
 import app.pley.android.network.ApiException
 import app.pley.android.player.NowPlaying
+import app.pley.android.player.MusicRepeat
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
 import app.pley.android.testing.data.FakeServerAdmin
@@ -37,6 +43,7 @@ import app.pley.android.ui.phone.diagnostics.DIAGNOSTICS_FRAME_RATE
 import app.pley.android.ui.phone.diagnostics.DiagnosticsScreen
 import app.pley.android.ui.phone.kit.LocalOffline
 import app.pley.android.ui.phone.music.AlbumScreen
+import app.pley.android.ui.phone.music.NowPlayingScreen
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.MiniPlayerSlot
@@ -53,6 +60,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /**
  * The phone's Me, history, album page and mini player over a graph of
@@ -111,6 +119,11 @@ class AccountScreensTest {
     /** Work done off the main thread shows [text] in a moment. */
     private fun waitFor(text: String) {
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    /** A control renamed by work done off the main thread (Repeat's next press) reads [description] in a moment. */
+    private fun waitForDescription(description: String) {
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription(description).fetchSemanticsNodes().isNotEmpty() }
     }
 
     @Test
@@ -277,5 +290,73 @@ class AccountScreensTest {
         compose.onAllNodesWithContentDescription("Next")[0].performClick()
         assertEquals(1, graph.music.toggles)
         assertEquals(1, graph.music.nexts)
+    }
+
+    @Test
+    fun nowPlayingRepeatsTheQueueThenTheTrackThenNothingAndShowsTheNextTrackAsItChanges() {
+        val now = NowPlaying(503, "Song 3", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 11, durationMs = 180_000)
+        graph.music.now.value = now
+        show { NowPlayingScreen() }
+        waitFor("Song 3")
+        // The last track of a queue that doesn't repeat has no next one.
+        compose.onNodeWithContentDescription("Next").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Repeat").performClick()
+        assertEquals(listOf(MusicRepeat.All), graph.music.repeats)
+
+        graph.music.now.value = now.copy(repeat = MusicRepeat.All)
+        waitForDescription("Repeat this track")
+        compose.onNodeWithContentDescription("Repeat this track").performClick()
+        compose.onNodeWithContentDescription("Next").assertIsEnabled()
+        graph.music.now.value = now.copy(repeat = MusicRepeat.One)
+        waitForDescription("Stop repeating")
+        compose.onNodeWithContentDescription("Stop repeating").performClick()
+        assertEquals(listOf(MusicRepeat.All, MusicRepeat.One, MusicRepeat.Off), graph.music.repeats)
+
+        // The next track: its words take the place of the last one's, which leave.
+        graph.music.now.value = now.copy(itemId = 504, title = "Song 4", index = 0, playing = false, loading = true, wantsPlay = true)
+        waitFor("Song 4")
+        compose.waitForIdle()
+        compose.onNodeWithText("Song 3").assertDoesNotExist()
+        // Still starting, it will play: Pause, and no "Loading…" for a track that starts at once.
+        compose.onNodeWithContentDescription("Pause").assertExists()
+        compose.onNodeWithText("Loading…").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w800dp-h360dp-land")
+    fun nowPlayingInAShortWideWindowPutsTheArtBesideTheTitleAndShowsEveryControl() {
+        val now = NowPlaying(503, "Song 3", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 2, durationMs = 180_000)
+        graph.music.now.value = now
+        show { NowPlayingScreen() }
+        waitFor("Song 3")
+        val window = compose.onRoot().getBoundsInRoot()
+        val title = compose.onNodeWithText("Song 3").getBoundsInRoot()
+        // Beside the art, not under it: the title starts a fifth of the way across, in the top half.
+        assertTrue("title: $title", title.left > window.right / 5 && title.bottom < window.bottom / 2)
+        // A phone's portrait layout put the scrubber and the controls below the window's bottom.
+        for (control in listOf("Position in the track", "Shuffle", "Previous", "Pause", "Next", "Repeat", "Queue")) {
+            val bounds = compose.onAllNodesWithContentDescription(control)[0].getBoundsInRoot()
+            assertTrue("$control: $bounds in $window", bounds.bottom <= window.bottom && bounds.top >= window.top)
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w800dp-h360dp-land")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun anAlbumInAShortWideWindowPutsItsCoverBesideItsTitleWithPlayInView() {
+        show { AlbumScreen(AccountTestGraph.ALBUM, trackId = null) }
+        waitFor("Deep Water")
+        val window = compose.onRoot().getBoundsInRoot()
+        val title = compose.onNode(hasText("Deep Water") and isHeading()).getBoundsInRoot()
+        // Beside the cover, as an item's poster: a phone's layout stacked them, Play under the window's bottom.
+        assertTrue("title: $title", title.left > window.right / 5)
+        for (button in listOf("Play", "Shuffle")) {
+            val bounds = compose.onNode(hasText(button) and hasClickAction()).getBoundsInRoot()
+            assertTrue("$button: $bounds in $window", bounds.bottom <= window.bottom)
+        }
+        // Side by side, as tall as each other.
+        val play = compose.onNode(hasText("Play") and hasClickAction()).getBoundsInRoot()
+        val shuffle = compose.onNode(hasText("Shuffle") and hasClickAction()).getBoundsInRoot()
+        assertEquals((play.bottom - play.top).value, (shuffle.bottom - shuffle.top).value, 0.5f)
     }
 }

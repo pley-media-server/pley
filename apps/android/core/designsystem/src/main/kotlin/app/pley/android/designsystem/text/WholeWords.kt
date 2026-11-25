@@ -31,6 +31,10 @@ import androidx.compose.ui.unit.sp
  * sp: at 200 % a 9 sp floor draws about 18 dp, too big for "Playlist" in
  * a fifth of a small phone. Measured and drawn in one layout, so a
  * navigation bar can ask for its intrinsic size.
+ *
+ * With [shrinks] off it stays at its own size whatever its slot: where
+ * text has a smallest size it may be read at (a car's screen), a word too
+ * wide for the slot is cut short rather than drawn smaller.
  */
 @Composable
 fun WholeWordsText(
@@ -38,6 +42,7 @@ fun WholeWordsText(
     style: TextStyle,
     modifier: Modifier = Modifier,
     maxLines: Int = 2,
+    shrinks: Boolean = true,
 ) {
     val measurer = rememberTextMeasurer()
     val laid = remember { arrayOfNulls<TextLayoutResult>(1) }
@@ -46,7 +51,7 @@ fun WholeWordsText(
             .semantics { this.text = AnnotatedString(text) }
             .drawBehind { laid[0]?.let { drawText(it) } },
     ) { _, constraints ->
-        val fitted = fitted(measurer, text, style, constraints.maxWidth, this)
+        val fitted = if (shrinks) fitted(measurer, text, style, constraints.maxWidth, this) else style
         val result = measurer.measure(
             breakable(text),
             fitted,

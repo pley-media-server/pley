@@ -14,8 +14,11 @@ import app.pley.android.common.perf.StartupSignals
 import app.pley.android.designsystem.PleyImageLoader
 import app.pley.android.downloads.AppDownloads
 import app.pley.android.downloads.DownloadsOwner
+import app.pley.android.player.PlayerGraph
+import app.pley.android.player.PlayerGraphOwner
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.ScreensGraph
+import app.pley.android.ui.phone.player.OtherScreen
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -36,7 +39,7 @@ import kotlinx.coroutines.launch
  * beside it, and returns (15 ms at most). Before that, the language the
  * app is shown in is set (AppLanguage); LanguageSync keeps it.
  */
-class PleyApplication : Application(), PleyGraphOwner, DownloadsOwner, SingletonImageLoader.Factory {
+class PleyApplication : Application(), PleyGraphOwner, PlayerGraphOwner, DownloadsOwner, SingletonImageLoader.Factory {
     val graph: AppGraph by lazy { AppGraph(this) }
 
     /** What the latest window's first screen was chosen by (StartupRead): read as the process starts, then by [startupFor]. */
@@ -44,6 +47,9 @@ class PleyApplication : Application(), PleyGraphOwner, DownloadsOwner, Singleton
     private lateinit var startup: Deferred<StartupState>
 
     private val windows = AtomicInteger()
+
+    /** The screen the app was last shown on: the players open there. */
+    val shownScreen = ShownScreen()
 
     private lateinit var language: LanguageSync
 
@@ -53,6 +59,10 @@ class PleyApplication : Application(), PleyGraphOwner, DownloadsOwner, Singleton
 
     override val screensGraph: ScreensGraph
         get() = graph
+
+    /** For the music service and its pictures, which Android starts by themselves. */
+    override val playerGraph: PlayerGraph
+        get() = graph.player
 
     override val appDownloads: AppDownloads
         get() = graph.appDownloads
@@ -66,6 +76,12 @@ class PleyApplication : Application(), PleyGraphOwner, DownloadsOwner, Singleton
             if (BuildConfig.DEBUG) watchForSlowCalls()
             // The frame-rate counter's switch, read in the background; off, it only follows the activities.
             FrameRate.watch(this, shells = setOf(TvActivity::class.java, MainActivity::class.java))
+            // Players open where the app is shown: a car's screen with Android Auto.
+            registerActivityLifecycleCallbacks(shownScreen)
+            // Whether Android Auto projects: the players are car-sized on its screen alone. Only the sideloaded build
+            // opens on a car's screen (its CAR_LAUNCHER); the store build never does, and doesn't ask Android Auto at
+            // each start, its windows on another screen (a monitor, DeX) never car-sized.
+            if (BuildConfig.FLAVOR == "direct") OtherScreen.follow(this) else OtherScreen.neverACar()
             startup = StartupRead.start(this)
             restartDemoServer()
             warmGraph()

@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Music in the background: a Media3 media session service, in the
+  Music in the background: a Media3 media library service, in the
   foreground with type mediaPlayback while it plays (Android 17 plays
   background audio only from a foreground service). Its notification is a
-  media session's, which needs no POST_NOTIFICATIONS.
+  media session's, which needs no POST_NOTIFICATIONS. Android Auto and the
+  Google app's Assistant browse and play the music through it.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -13,16 +14,66 @@
     <!-- The music player keeps the CPU and Wi-Fi awake while it streams with the screen off. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- The two Google apps the music service lets in, checked by their signatures (MusicCallers). -->
+    <queries>
+        <package android:name="com.google.android.projection.gearhead" />
+        <package android:name="com.google.android.googlequicksearchbox" />
+        <!-- The system's media controls, granted the covers the session names. -->
+        <package android:name="com.android.systemui" />
+    </queries>
+
     <application>
-        <!-- Exported for the system's media controllers; the session refuses other apps (onConnect). -->
+        <!--
+          Exported for the system's media controllers, Android Auto and the
+          Assistant; the session refuses other apps (onConnect).
+        -->
         <service
             android:name="app.pley.android.player.music.MusicService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback"
             tools:ignore="ExportedService">
             <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService" />
                 <action android:name="androidx.media3.session.MediaSessionService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
+
+        <!--
+          Play from a headset, a car's steering wheel over Bluetooth or the
+          phone's media controls once the service has ended: Media3 starts
+          it again and asks what to resume (onPlaybackResumption), which it
+          does only for an app that declares this receiver. Not exported:
+          the system reaches it all the same, and no other app can.
+        -->
+        <receiver
+            android:name="androidx.media3.session.MediaButtonReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          The library's pictures for the car: not exported, read only by the
+          apps the music service grants them to, Android Auto, the Google app
+          and the system's media controls (MusicArt).
+        -->
+        <provider
+            android:name="app.pley.android.player.music.library.MusicArtProvider"
+            android:authorities="${applicationId}.music.art"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
+        <!--
+          Android Auto: a media app, its cards marked with Pley's mark (the
+          notification's), its controls in Pley's accent (the app's theme).
+        -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+        <meta-data
+            android:name="androidx.car.app.TintableAttributionIcon"
+            android:resource="@drawable/media3_notification_small_icon" />
     </application>
 </manifest>

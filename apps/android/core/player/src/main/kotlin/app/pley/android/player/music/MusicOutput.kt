@@ -9,6 +9,8 @@ data class TrackInfo(
     val album: String?,
     /** The album art's full address, sized for the notification; `null` without one. */
     val artUrl: String?,
+    /** The track's id, on the player's item ([EngineMusicOutput.TRACK_ID]): the media session tells which queue entry it is. */
+    val id: Long? = null,
 )
 
 /**
@@ -20,11 +22,25 @@ interface MusicOutput {
     /** Loads [source] at [startMs] with [info] for the notification, and plays it when [play]. */
     fun load(source: EngineSource, startMs: Long, play: Boolean, info: TrackInfo)
 
+    /** Whether it takes the next track ahead ([setNext]). */
+    val takesNext: Boolean get() = false
+
+    /**
+     * Puts [source], with [info], after the track loaded, in place of any
+     * put there before (`null`: nothing): as that track ends, the output
+     * goes on to it without a gap and says so ([Listener.onNext]), rather
+     * than ending. A [load] takes it back.
+     */
+    fun setNext(source: EngineSource?, info: TrackInfo?) {}
+
     fun play()
 
     fun pause()
 
     fun seekTo(positionMs: Long)
+
+    /** Plays at [speed] (1 is as recorded), this track and the next, until told otherwise. */
+    fun setSpeed(speed: Float) {}
 
     /** Stops and lets go of the track, keeping the player for the next. */
     fun stop()
@@ -57,6 +73,12 @@ interface MusicOutput {
 
         /** The track played to its end. */
         fun onEnded()
+
+        /**
+         * The track played to its end, and the one [setNext] put after it
+         * plays now. Should that one fail, it is said after this ([onError]).
+         */
+        fun onNext() {}
 
         fun onError(error: OutputError)
     }

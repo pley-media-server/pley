@@ -286,7 +286,7 @@ internal fun TvLibraryPanel(
                     val on = params.watched == watched
                     PanelRow(stringResource(label), checked = on, onClick = { vm.watched(watched) }, modifier = Modifier.chosenIf(on))
                 }
-                if (state.kind != LibraryKind.Music) {
+                if (state.kind?.audio != true) {
                     item(key = "genre", contentType = PANEL_ROW) {
                         PanelRow(
                             stringResource(R.string.tv_library_genre),

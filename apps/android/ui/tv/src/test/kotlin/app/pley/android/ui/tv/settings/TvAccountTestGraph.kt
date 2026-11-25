@@ -43,6 +43,7 @@ import app.pley.android.model.TrackDefaults
 import app.pley.android.player.MusicControl
 import app.pley.android.player.MusicPosition
 import app.pley.android.player.MusicQueueState
+import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
@@ -190,6 +191,7 @@ class TvAccountTestGraph : ScreensGraph {
         var toggles = 0
         var nexts = 0
         val jumps = mutableListOf<Int>()
+        val repeats = mutableListOf<MusicRepeat>()
         override val nowPlaying: StateFlow<NowPlaying?> = now
         val queueState = MutableStateFlow(MusicQueueState(TRACKS, 0))
         override val queue: StateFlow<MusicQueueState> = queueState
@@ -205,6 +207,9 @@ class TvAccountTestGraph : ScreensGraph {
         }
         override fun jumpTo(index: Int) {
             jumps += index
+        }
+        override fun setRepeat(repeat: MusicRepeat) {
+            repeats += repeat
         }
         override fun pauseForVideo() = Unit
 

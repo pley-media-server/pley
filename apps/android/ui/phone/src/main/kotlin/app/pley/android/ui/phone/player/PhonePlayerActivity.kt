@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.media.AudioManager
@@ -70,7 +69,11 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   pause; never while paused;
  * - leaving otherwise pauses, reports and lets go of the decoders, and
  *   the remote isn't obeyed meanwhile; back within 90 s it carries on with
- *   the same server session, later with a new one at the same place.
+ *   the same server session, later with a new one at the same place;
+ * - on a car's screen (Android Auto, parked: [OtherScreen]) it isn't
+ *   turned and doesn't shrink; covered as the car moves off, it pauses and
+ *   its media session goes, so the car's and the steering wheel's buttons
+ *   can't play it while driving; Play starts it again once parked.
  */
 class PhonePlayerActivity : ComponentActivity(), PlayerHost {
     private lateinit var services: PlaybackServices
@@ -84,6 +87,19 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
     private var mediaSession: VideoMediaSession? = null
     private var pipKey: Any? = null
     private var screenOn = false
+
+    /** On a car's screen, or another display: asked each time, as the window can move to the phone's when the car goes. */
+    private val onOtherScreen: Boolean get() = OtherScreen.shows(this)
+
+    /** On a car's screen (Android Auto): car-sized, and paused as the car moves off and covers it. */
+    private val onCar: Boolean get() = OtherScreen.isCar(this)
+
+    /**
+     * Paused and away by [onPause] as a car covered it, not yet back in front ([onResume]), on whichever screen it comes
+     * back to. Started again meanwhile (the driver back from another of the car's apps, the cover still up), it stays
+     * paused, away and without its media session.
+     */
+    private var awayCovered = false
 
     /** Decoders let go in onStop; prepared again in onStart. */
     private var decodersReleased = false
@@ -110,14 +126,14 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         PlayerWindows.opened(this)
 
         immersive()
-        if (resources.configuration.smallestScreenWidthDp < TABLET_DP) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        }
+        turnForScreen()
         val graph = (application as PleyGraphOwner).screensGraph
         services = graph.player.services
         settings = runCatching { graph.data.settings }.getOrNull()
 
         key = savedInstanceState?.getString(STATE_KEY) ?: intent.getStringExtra(EXTRA_PLAYBACK)
+        // Made anew while the car covers it (the process ended while driving, the driver back to Pley): covered still.
+        awayCovered = savedInstanceState?.getBoolean(STATE_COVERED) == true
         val found = key?.let(services::controller)
         val saved = SavedPlaybackState.fromBundle(savedInstanceState?.getBundle(STATE_SAVED))?.takeIf { it.itemId > 0 }
         when {
@@ -125,7 +141,14 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
             saved != null -> lifecycleScope.launch {
                 // After process death the sign-in is still being read from disk: the playback waits for it.
                 withTimeoutOrNull(SIGN_IN_WAIT_MS) { graph.data.session.state.first { it !is SessionState.Starting } }
-                restore(saved)?.let(::bind) ?: finish()
+                restore(saved)?.let { c ->
+                    // Still covered by the car: it opens paused and away, as after 90 s in the background (onStart).
+                    if (awayCovered) {
+                        c.pause()
+                        c.setAway(true)
+                    }
+                    bind(c)
+                } ?: finish()
             }
             else -> {
                 finish()
@@ -138,22 +161,25 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         val settingsFlow: Flow<Settings> = settings?.settings ?: flowOf(Settings())
         setContent {
             PhoneTheme {
-                val current = controller.value
-                val chosen by settingsFlow.collectAsStateWithLifecycle(Settings())
-                if (current == null) {
-                    Box(Modifier.fillMaxSize().background(Color.Black))
-                } else {
-                    key(current) {
-                        PhonePlayerScreen(
-                            controller = current,
-                            host = this@PhonePlayerActivity,
-                            picture = picture,
-                            captions = PlayerLook.captionLook(chosen),
-                            style = PlayerLook.subtitleChoice(chosen),
-                            onStyle = ::chooseStyle,
-                            inPip = inPip.value,
-                            showDetails = chosen.showPlaybackDetails,
-                        )
+                // Asked as it is drawn: the window moves to the phone's screen, and is phone-sized again, as the car goes.
+                CarSized(onCarScreen()) {
+                    val current = controller.value
+                    val chosen by settingsFlow.collectAsStateWithLifecycle(Settings())
+                    if (current == null) {
+                        Box(Modifier.fillMaxSize().background(Color.Black))
+                    } else {
+                        key(current) {
+                            PhonePlayerScreen(
+                                controller = current,
+                                host = this@PhonePlayerActivity,
+                                picture = picture,
+                                captions = PlayerLook.captionLook(chosen),
+                                style = PlayerLook.subtitleChoice(chosen),
+                                onStyle = ::chooseStyle,
+                                inPip = inPip.value,
+                                showDetails = chosen.showPlaybackDetails,
+                            )
+                        }
                     }
                 }
             }
@@ -207,14 +233,14 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    /** The engine, once there is one: this window for it, and the media session while started. */
+    /** The engine, once there is one: this window for it, and the media session while started, unless the car covers it. */
     private fun attachEngine() {
         val engine = controller.value?.engine ?: return
         if (attached === engine) return
         detachEngine()
         attached = engine
         engine.attachWindow(window)
-        mediaSession = VideoMediaSession(this, engine.player).also { it.start() }
+        if (!awayCovered) mediaSession = VideoMediaSession(this, engine.player).also { it.start() }
     }
 
     private fun detachEngine() {
@@ -231,15 +257,49 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         val later = resumeLater
         if (later != null) {
             resumeLater = null
-            restore(later)?.let(::bind)
+            restore(later)?.let { c ->
+                // Still covered by the car: it opens paused and away, and waits to be parked again.
+                if (awayCovered) {
+                    c.pause()
+                    c.setAway(true)
+                }
+                bind(c)
+            }
         } else if (decodersReleased) {
             // Within 90 s: the same session, at the same place, still paused.
             controller.value?.engine?.player?.prepare()
         }
-        controller.value?.setAway(false)
+        if (!awayCovered) controller.value?.setAway(false)
         decodersReleased = false
         attachEngine()
         immersive()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Parked again, or moved to the phone's screen as the car went: the media session comes back, paused, and the
+        // remote is obeyed again.
+        if (awayCovered) controller.value?.setAway(false)
+        awayCovered = false
+        val engine = attached
+        if (engine != null && mediaSession == null) mediaSession = VideoMediaSession(this, engine.player).also { it.start() }
+    }
+
+    /**
+     * On a car's screen, covered as the car moves off: the video pauses at
+     * once, its media session goes, and it is away, so nothing plays it
+     * while driving: not the car's buttons, nor the profile's remote.
+     */
+    override fun onPause() {
+        super.onPause()
+        if (!onCar || isFinishing) return
+        controller.value?.let {
+            it.pause()
+            it.setAway(true)
+        }
+        awayCovered = true
+        mediaSession?.stop()
+        mediaSession = null
     }
 
     override fun onStop() {
@@ -266,9 +326,16 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Moved to the phone's screen as the car went (the window isn't made anew): turned as a phone's player is.
+        turnForScreen()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(STATE_KEY, key)
+        outState.putBoolean(STATE_COVERED, awayCovered)
         val saved = resumeLater ?: controller.value?.saveState()
         if (saved != null && saved.itemId > 0) outState.putBundle(STATE_SAVED, saved.toBundle())
     }
@@ -286,7 +353,9 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
 
     // ---------------------------------------------------------------- picture in picture
 
-    override val pipSupported: Boolean by lazy { PictureInPicture.allowed(this) }
+    override val pipSupported: Boolean get() = !onOtherScreen && pipAllowed
+
+    private val pipAllowed: Boolean by lazy { PictureInPicture.allowed(this) }
 
     override fun enterPip() {
         if (!pipSupported) return
@@ -353,6 +422,8 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
         return (system / 255f).coerceIn(0f, 1f)
     }
 
+    override val levelsDraggable: Boolean get() = !onOtherScreen
+
     /** This window's brightness only: the system's setting is left alone, and comes back on leaving. */
     override fun setBrightness(level: Float) {
         window.attributes = window.attributes.apply { screenBrightness = level.coerceIn(MIN_BRIGHTNESS, 1f) }
@@ -392,9 +463,9 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
 
         private const val STATE_KEY = "pley.player.key"
         private const val STATE_SAVED = "pley.player.saved"
+        private const val STATE_COVERED = "pley.player.covered"
         private const val PREFS = "phone_player"
         private const val PREF_FILL = "fill"
-        private const val TABLET_DP = 600
 
         /** The longest a playback restored after process death waits for the sign-in to be read. */
         private const val SIGN_IN_WAIT_MS = 5_000L

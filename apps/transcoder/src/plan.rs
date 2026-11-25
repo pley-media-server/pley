@@ -5026,13 +5026,9 @@ mod tests {
         assert!(!seeks_back(&m), "no B-frames, no back-off");
     }
 
-    /// FFmpeg, when it is on the PATH (it isn't in CI).
+    /// FFmpeg with libx264, as the tests that make clips need it.
     fn real_ffmpeg() -> bool {
-        let found = std::process::Command::new("ffmpeg").arg("-version").output().is_ok_and(|o| o.status.success());
-        if !found {
-            eprintln!("ffmpeg not found: skipped");
-        }
-        found
+        crate::testing::has_encoder("libx264")
     }
 
     /// First packet time of each stream kind (`v`, `a`) in an MPEG-TS file.
@@ -5167,12 +5163,7 @@ mod tests {
     /// FFmpeg finds the fonts in a folder whose name needs escaping.
     #[test]
     fn ffmpeg_reads_fonts_from_an_escaped_folder() {
-        if !real_ffmpeg() {
-            return;
-        }
-        let filters = std::process::Command::new("ffmpeg").args(["-hide_banner", "-filters"]).output().unwrap();
-        if !String::from_utf8_lossy(&filters.stdout).contains(" subtitles ") {
-            eprintln!("ffmpeg without libass: skipped");
+        if !crate::testing::has_filter("subtitles") {
             return;
         }
         let dir = tempfile::tempdir().unwrap();

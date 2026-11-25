@@ -73,7 +73,7 @@ private struct HistoryCard: View {
     var body: some View {
         Button(action: open) {
             HStack(spacing: 32) {
-                ServerImage(app: app, paths: row.pictures, width: 100, symbol: Metrics.symbol(row.kind))
+                ServerImage(app: app, paths: row.pictures, width: 100, title: row.title, kind: row.kind)
                     .frame(width: 100, height: row.square ? 100 : 150)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 VStack(alignment: .leading, spacing: 6) {

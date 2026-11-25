@@ -106,6 +106,7 @@ import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveGroup
 import app.pley.android.model.LiveGroups
+import app.pley.android.model.LiveNames
 import app.pley.android.model.LiveProgram
 import app.pley.android.screens.livetv.ChannelPages
 import app.pley.android.ui.tv.search.TvSearchField
@@ -433,7 +434,7 @@ internal fun CategoryColumn(
         if (found.isNotEmpty()) {
             item(key = "found", contentType = HEADING) { SectionHeading(stringResource(R.string.tv_livetv_found_groups)) }
             items(found, key = { "found:${it.name}" }, contentType = { CATEGORY }) { g ->
-                CategoryRow(null, LiveTv.groupName(g, g.name), g.count, selected = false, indent = GROUP_INSET) { onSelect(LiveCategory.Group(g.name)) }
+                CategoryRow(null, LiveNames.groupName(g, g.name), g.count, selected = false, indent = GROUP_INSET) { onSelect(LiveCategory.Group(g.name)) }
             }
         }
         item(key = "favorites", contentType = CATEGORY) {
@@ -640,7 +641,7 @@ private fun ChannelTiles(
             } else {
                 ChannelTileCard(
                     channel,
-                    LiveTv.channelName(channel, page.listed),
+                    LiveNames.channelName(channel, page.listed),
                     page.origin,
                     now,
                     Modifier.rememberedFocus(memory, "channel/${channel.id}", initial = takeFocus && index == initial),

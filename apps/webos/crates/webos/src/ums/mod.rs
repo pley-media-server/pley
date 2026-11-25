@@ -347,6 +347,10 @@ impl PlayerEngine for UmsEngine {
         self.machine.position_ms(Instant::now())
     }
 
+    fn reported_ms(&self) -> Option<u64> {
+        self.machine.reported_ms()
+    }
+
     fn stats(&self) -> EngineStats {
         self.machine.stats()
     }

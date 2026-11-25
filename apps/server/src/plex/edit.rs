@@ -366,6 +366,7 @@ async fn apply(
         if section.is_some_and(|s| s != library_id) {
             return Err(PlexError::NotFound);
         }
+        super::reachable(state, user, library_id).await?;
         rows.push((id, library_id, kind, genres));
     }
     let mut libraries = Vec::new();
@@ -509,6 +510,7 @@ async fn picture_target(state: &AppState, user: &AuthUser, key: i64) -> PlexResu
             ));
         }
     };
+    super::reachable(state, user, library_id).await?;
     Ok(Target { key: target, library_id, episode })
 }
 

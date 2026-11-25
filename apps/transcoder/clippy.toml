@@ -1,0 +1,6 @@
+# What the transcoder must not call itself (docs/TRANSCODER.md). The rules
+# hold for the program: its tests run FFmpeg as they like (src/main.rs).
+disallowed-methods = [
+    { path = "std::process::Command::new", reason = "a program the transcoder starts must die with it and open no window: start it with util::command" },
+    { path = "tokio::process::Command::new", reason = "a program the transcoder starts must die with it and open no window: start it with util::command" },
+]

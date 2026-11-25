@@ -79,7 +79,7 @@ sub init()
     m.refreshedAt = -1
     m.retry.buttons = [t("common.actions.tryAgain")]
     m.retry.observeField("buttonSelected", "onRetry")
-    m.tabs.chips = [{ label: t("livetv.tabs.guide"), width: 208 }, { label: t("livetv.tabs.channels"), width: 208 }]
+    m.tabs.chips = [{ label: t("livetv.tabs.guide"), width: 196 }, { label: t("livetv.tabs.channels"), width: 196 }]
     m.tabs.observeField("chosen", "onTabChosen")
     m.rail.observeField("itemSelected", "onRailSelected")
     m.rail.observeField("itemFocused", "onRailFocused")

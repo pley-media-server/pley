@@ -102,6 +102,7 @@ import app.pley.android.ui.phone.downloads.DownloadIconButton
 import app.pley.android.ui.phone.downloads.DownloadMenu
 import app.pley.android.ui.phone.kit.HubRowModel
 import app.pley.android.ui.phone.kit.PleyIconButton
+import app.pley.android.ui.phone.player.CarSizedWindow
 
 /** What the page's parts can do: the page's model and the navigation. */
 @Stable
@@ -291,20 +292,22 @@ private fun Select(
             onDismissRequest = { open = false },
             containerColor = PleyColors.Surface2,
         ) {
-            options.forEach { (id, text) ->
-                DropdownMenuItem(
-                    text = { Text(text, style = MaterialTheme.typography.bodyLarge) },
-                    onClick = {
-                        open = false
-                        onSelect(id)
-                    },
-                    leadingIcon = {
-                        Box(Modifier.size(20.dp)) {
-                            if (id == selected) Icon(PleyIcons.Check, contentDescription = null, size = 20.dp, tint = PleyColors.Accent)
-                        }
-                    },
-                    colors = MenuDefaults.itemColors(textColor = PleyColors.Fg),
-                )
+            CarSizedWindow {
+                options.forEach { (id, text) ->
+                    DropdownMenuItem(
+                        text = { Text(text, style = MaterialTheme.typography.bodyLarge) },
+                        onClick = {
+                            open = false
+                            onSelect(id)
+                        },
+                        leadingIcon = {
+                            Box(Modifier.size(20.dp)) {
+                                if (id == selected) Icon(PleyIcons.Check, contentDescription = null, size = 20.dp, tint = PleyColors.Accent)
+                            }
+                        },
+                        colors = MenuDefaults.itemColors(textColor = PleyColors.Fg),
+                    )
+                }
             }
         }
     }
@@ -402,21 +405,23 @@ internal fun SeasonPicker(seasons: SeasonsSection, actions: PageActions, modifie
                     Icon(PleyIcons.ChevronDown, contentDescription = choose, size = 20.dp, tint = PleyColors.Fg)
                 }
                 ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = PleyColors.Surface2) {
-                    seasons.seasons.forEach { season ->
-                        DropdownMenuItem(
-                            text = { Text(season.title, style = MaterialTheme.typography.bodyLarge) },
-                            trailingIcon = season.episodes?.let { { Text(it.asString(), style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted) } },
-                            leadingIcon = {
-                                Box(Modifier.size(20.dp)) {
-                                    if (season.id == seasons.selected) Icon(PleyIcons.Check, contentDescription = null, size = 20.dp, tint = PleyColors.Accent)
-                                }
-                            },
-                            onClick = {
-                                open = false
-                                actions.selectSeason(season.id)
-                            },
-                            colors = MenuDefaults.itemColors(textColor = PleyColors.Fg),
-                        )
+                    CarSizedWindow {
+                        seasons.seasons.forEach { season ->
+                            DropdownMenuItem(
+                                text = { Text(season.title, style = MaterialTheme.typography.bodyLarge) },
+                                trailingIcon = season.episodes?.let { { Text(it.asString(), style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted) } },
+                                leadingIcon = {
+                                    Box(Modifier.size(20.dp)) {
+                                        if (season.id == seasons.selected) Icon(PleyIcons.Check, contentDescription = null, size = 20.dp, tint = PleyColors.Accent)
+                                    }
+                                },
+                                onClick = {
+                                    open = false
+                                    actions.selectSeason(season.id)
+                                },
+                                colors = MenuDefaults.itemColors(textColor = PleyColors.Fg),
+                            )
+                        }
                     }
                 }
             }

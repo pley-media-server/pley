@@ -8,6 +8,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,7 +28,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -96,6 +97,7 @@ import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.EmptyState
 import app.pley.android.ui.phone.kit.ErrorState
+import app.pley.android.ui.phone.kit.PleyAlertDialog
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.PrimaryButton
@@ -109,6 +111,7 @@ import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.ReportLoad
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
+import app.pley.android.ui.phone.theme.WidthClass
 
 /**
  * A playlist's page on the phone (design spec §4.9; the web's
@@ -313,11 +316,14 @@ private fun Entries(
     }
 }
 
-/** The cover, what it plays, the title, its facts, and the buttons. */
+/**
+ * The cover, what it plays, the title, its facts, and the buttons; from
+ * 600 dp wide the cover stands beside the rest, as an item's poster does.
+ */
 @Composable
 private fun Header(page: PlaylistPage<ArtworkTileModel>, actions: PlaylistActions, onRename: () -> Unit, onDelete: () -> Unit) {
     val metrics = LocalPhoneMetrics.current
-    Column(Modifier.fillMaxWidth().padding(start = metrics.marginStart, end = metrics.marginEnd, top = 8.dp, bottom = 20.dp)) {
+    val cover = @Composable {
         PlaylistArt(
             artwork = page.artwork,
             origin = page.origin,
@@ -327,7 +333,28 @@ private fun Header(page: PlaylistPage<ArtworkTileModel>, actions: PlaylistAction
             shape = PleyShape.Card,
             glyph = 56.dp,
         )
-        Spacer(Modifier.height(20.dp))
+    }
+    val padding = Modifier.fillMaxWidth().padding(start = metrics.marginStart, end = metrics.marginEnd, top = 8.dp, bottom = 20.dp)
+    if (metrics.widthClass != WidthClass.Compact) {
+        Row(padding, verticalAlignment = Alignment.CenterVertically) {
+            cover()
+            Spacer(Modifier.width(24.dp))
+            Column(Modifier.weight(1f)) { HeaderWords(page, actions, onRename, onDelete) }
+        }
+    } else {
+        Column(padding) {
+            cover()
+            Spacer(Modifier.height(20.dp))
+            HeaderWords(page, actions, onRename, onDelete)
+        }
+    }
+}
+
+/** The playlist's header beside or under its cover: what it plays, the title, its facts, and the buttons. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun HeaderWords(page: PlaylistPage<ArtworkTileModel>, actions: PlaylistActions, onRename: () -> Unit, onDelete: () -> Unit) {
+    Column {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(if (page.video) PleyIcons.ListVideo else PleyIcons.ListMusic, contentDescription = null, size = 16.dp, tint = PleyColors.Muted)
             Text(
@@ -350,20 +377,25 @@ private fun Header(page: PlaylistPage<ArtworkTileModel>, actions: PlaylistAction
             Text(facts, style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)
         }
         Spacer(Modifier.height(20.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Play takes the room left; what doesn't fit beside it (beside the cover, a car's larger text) goes under it.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
             PrimaryButton(
                 stringResource(R.string.playlist_play),
                 onClick = { actions.play(0, false) },
                 icon = PleyIcons.Play,
                 enabled = page.canPlay,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).fillMaxRowHeight(),
             )
             TonalButton(
                 stringResource(R.string.playlist_shuffle),
                 onClick = { actions.play(0, true) },
                 icon = PleyIcons.Shuffle,
                 enabled = page.canShuffle,
-                modifier = Modifier.height(48.dp),
+                modifier = Modifier.heightIn(min = 48.dp).fillMaxRowHeight(),
             )
             if (page.editable) {
                 RoundAction(PleyIcons.Pencil, stringResource(R.string.playlist_rename), onRename)
@@ -510,7 +542,7 @@ private fun RenameDialog(current: String, onSave: (String) -> Unit, onDismiss: (
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val ok = Playlists.check(text) == null
-    AlertDialog(
+    PleyAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(

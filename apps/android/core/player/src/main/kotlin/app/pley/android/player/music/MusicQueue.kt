@@ -2,6 +2,7 @@ package app.pley.android.player.music
 
 import app.pley.android.model.ItemSummary
 import app.pley.android.player.MusicQueueState
+import app.pley.android.player.MusicRepeat
 import kotlin.random.Random
 
 /**
@@ -10,6 +11,13 @@ import kotlin.random.Random
  * Fisher-Yates permutation of it that starts with the current track, and
  * unshuffled it goes back to the order given, at the same track. The same
  * track may be in it twice: positions, not ids, say which one plays.
+ *
+ * With [repeat] on the queue, the track after the last is the first, in
+ * the order it has (a shuffled queue plays the same shuffle again), and
+ * Previous on the first goes to the last. With [repeat] on the track, it
+ * plays again once it ends ([advance]); Next and Previous still move, and
+ * stop at the queue's ends as without Repeat, as Media3 has it for the
+ * car, the notification and Bluetooth.
  */
 class MusicQueue(private val random: Random = Random.Default) {
     private var given: List<ItemSummary> = emptyList()
@@ -33,9 +41,13 @@ class MusicQueue(private val random: Random = Random.Default) {
 
     val current: ItemSummary? get() = order.getOrNull(index)?.let { given[it] }
 
-    val hasNext: Boolean get() = index + 1 < order.size
+    /** What plays after the queue's end, or the track's; kept as the queue is started over. */
+    var repeat: MusicRepeat = MusicRepeat.Off
 
-    val state: MusicQueueState get() = MusicQueueState(tracks, index, shuffle)
+    /** Whether [next] has a track to go to. */
+    val hasNext: Boolean get() = index + 1 < order.size || (repeat == MusicRepeat.All && order.isNotEmpty())
+
+    val state: MusicQueueState get() = MusicQueueState(tracks, index, shuffle, repeat, if (shuffle) order.toList() else emptyList())
 
     /**
      * Starts over with [tracks] at [startIndex]; with [shuffle], in a
@@ -48,6 +60,23 @@ class MusicQueue(private val random: Random = Random.Default) {
         index = start
         this.shuffle = false
         if (shuffle) setShuffle(true)
+    }
+
+    /**
+     * Starts over with [tracks] as they played, shuffled, at [startIndex]:
+     * [given] is where each was in the order the queue was given, which
+     * Shuffle off goes back to. `false`, and nothing changed, when [given]
+     * doesn't place each track once.
+     */
+    fun restore(tracks: List<ItemSummary>, given: List<Int>, startIndex: Int): Boolean {
+        if (tracks.isEmpty() || given.size != tracks.size || given.toSet() != tracks.indices.toSet()) return false
+        val inOrder = tracks.toMutableList()
+        tracks.forEachIndexed { i, track -> inOrder[given[i]] = track }
+        this.given = inOrder
+        order = given.toIntArray()
+        index = startIndex.coerceIn(0, tracks.lastIndex)
+        shuffle = true
+        return true
     }
 
     /** Forgets every track. */
@@ -75,21 +104,45 @@ class MusicQueue(private val random: Random = Random.Default) {
         shuffle = on
     }
 
-    /** Moves to the next track; `false` at the end. */
+    /** Moves to the next track, with [repeat] on to the first after the last; `false` at the end. */
     fun next(): Boolean {
         if (!hasNext) return false
-        index++
+        index = if (index + 1 < order.size) index + 1 else 0
         return true
     }
 
     /**
+     * The track that plays by itself once the current one has ended: the
+     * same one with [repeat] on the track, else as [next]; `false` at the end.
+     */
+    fun advance(): Boolean {
+        index = upcoming ?: return false
+        return true
+    }
+
+    /** Where in the play order [advance] goes; `null` at the end. */
+    val upcoming: Int?
+        get() = when {
+            order.isEmpty() -> null
+            repeat == MusicRepeat.One -> index
+            index + 1 < order.size -> index + 1
+            repeat == MusicRepeat.All -> 0
+            else -> null
+        }
+
+    /** The track at [position] of the play order. */
+    fun trackAt(position: Int): ItemSummary? = order.getOrNull(position)?.let { given[it] }
+
+    /**
      * What Previous does (the web's rule): after [RESTART_AFTER_MS] of the
      * track, or on the first track, it starts again; otherwise the track
-     * before plays.
+     * before plays. On the first track of a queue that repeats, that is
+     * the last.
      */
     fun previous(positionMs: Long): Previous {
-        if (positionMs > RESTART_AFTER_MS || index == 0) return Previous.Restart
-        index--
+        val wraps = repeat == MusicRepeat.All && order.size > 1
+        if (positionMs > RESTART_AFTER_MS || (index == 0 && !wraps)) return Previous.Restart
+        index = if (index == 0) order.lastIndex else index - 1
         return Previous.Moved
     }
 

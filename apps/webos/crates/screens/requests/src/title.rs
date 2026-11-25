@@ -478,6 +478,8 @@ impl TitleScreen {
                                 tone,
                                 lines: 2,
                                 art: seasons_art.get(slot.index).map_or(&[][..], Vec::as_slice),
+                                // A show's seasons take its glyph.
+                                mark: d.title.kind.mark_glyph(),
                                 progress: stage.as_ref().and_then(|w| w.progress),
                                 badge: season_badge(x),
                                 news: false,

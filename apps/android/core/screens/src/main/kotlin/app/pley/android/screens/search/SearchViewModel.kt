@@ -121,6 +121,7 @@ enum class SearchGroupKind(val look: TileLook, internal val kind: ItemKind?) {
     Artists(TileLook.Square, ItemKind.Artist),
     Albums(TileLook.Square, ItemKind.Album),
     Tracks(TileLook.Square, ItemKind.Track),
+    Books(TileLook.Square, ItemKind.Audiobook),
     People(TileLook.Poster, null),
 }
 

@@ -10,6 +10,20 @@ describes how they are made.
 
 ### Fixed
 
+- A Live TV channel played as it is plays on after a few seconds when its
+  provider's stream starts over.
+
+## [0.1.14] - 2026-11-24
+
+### Changed
+
+- Movies, shows and music without a picture show Pley's mark on their
+  placeholder instead of their title, which the caption under it shows.
+  The mark carries a sign of the title's kind of library: a clapperboard
+  for movies, a TV for shows, notes for music, play for anything else.
+
+### Fixed
+
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end instead.
 
@@ -509,7 +523,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18

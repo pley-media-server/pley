@@ -29,14 +29,20 @@ import app.pley.android.model.StreamKind
 import app.pley.android.model.caps.ClientCaps
 import app.pley.android.model.caps.DolbyVisionCaps
 import app.pley.android.player.EngineSource
+import app.pley.android.player.music.EngineMusicOutput
+import app.pley.android.player.music.MusicOutput
+import app.pley.android.player.music.OutputError
+import app.pley.android.player.music.TrackInfo
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
+import mockwebserver3.MockResponseBody
 import mockwebserver3.MockWebServer
 import mockwebserver3.RecordedRequest
 import mockwebserver3.SocketEffect
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okio.Buffer
+import okio.BufferedSink
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -50,8 +56,12 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import java.io.File
+import java.nio.ByteBuffer
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.runBlocking
 
 @RunWith(RobolectricTestRunner::class)
@@ -136,6 +146,9 @@ class Media3EngineTest {
     @After
     fun releaseAll() = engines.forEach { it.release() }
 
+    /** The next request the server got. One that never comes fails the test: waited for without end, it would hold up every test after it. */
+    private fun MockWebServer.asked(): RecordedRequest = takeRequest(5, TimeUnit.SECONDS) ?: throw AssertionError("the server got no further request")
+
     private fun file(): String {
         val f = File.createTempFile("clip", ".mp4").apply { deleteOnExit() }
         f.writeBytes(clip)
@@ -189,20 +202,23 @@ class Media3EngineTest {
     fun theMediaClientCarriesTheTokenAndTheFileArrivesInRanges() {
         codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
         val server = MockWebServer()
-        server.dispatcher = RangeDispatcher(clip, token = "Bearer secret")
+        server.dispatcher = RangeDispatcher(clip, token = "Bearer secret", mediaTrickles = true)
         server.start()
         try {
             val client = OkHttpClient.Builder()
                 .addInterceptor { chain -> chain.proceed(chain.request().newBuilder().header("Authorization", "Bearer secret").build()) }
                 .build()
             val engine = engine(client = client)
+            assertEquals(0L, engine.received)
             engine.prepare(EngineSource(server.url("/api/files/1/stream").toString(), hls = false), startMs = 5_000, playWhenReady = false)
             TestPlayerRunHelper.run(engine.player).untilState(Player.STATE_READY)
             // A resume starts at the key frame before its place (the clip's are 2 s apart).
             assertEquals(4_000L, engine.player.currentPosition)
+            // What the server sent is counted: how a live channel is known to come still (LivePlayback).
+            assertTrue(engine.received > 0)
             // The header, then from the 5 s point on.
-            assertEquals(null, server.takeRequest().headers["Range"])
-            assertTrue(server.takeRequest().headers["Range"]!!.startsWith("bytes="))
+            assertEquals(null, server.asked().headers["Range"])
+            assertTrue(server.asked().headers["Range"]!!.startsWith("bytes="))
         } finally {
             server.close()
         }
@@ -260,6 +276,107 @@ class Media3EngineTest {
             TestPlayerRunHelper.run(engine.player).ignoringNonFatalErrors().untilState(Player.STATE_READY)
             RobolectricUtil.runMainLooperUntil { !engine.state.value.reconnecting }
             assertEquals(8, server.requestCount)
+        } finally {
+            server.close()
+        }
+    }
+
+    /** What music's output told its listener, in order. */
+    private class Told : MusicOutput.Listener {
+        val said = mutableListOf<String>()
+
+        override fun onPlayingChanged(playing: Boolean) = Unit
+
+        override fun onEnded() {
+            said += "ended"
+        }
+
+        override fun onNext() {
+            said += "next"
+        }
+
+        override fun onError(error: OutputError) {
+            said += "error $error"
+        }
+    }
+
+    @Test
+    fun musicPlaysOnToTheTrackPutAfterItAndLetsGoOfTheOneBefore() {
+        codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
+        val engine = engine(music = true)
+        val output = EngineMusicOutput(engine, MainScope()) { null }
+        val told = Told()
+        output.setListener(told)
+        output.load(EngineSource(file(), hls = false), startMs = 15_000, play = true, info = TrackInfo("One", null, null, null, id = 1))
+        output.setNext(EngineSource(file(), hls = false), TrackInfo("Two", null, null, null, id = 2))
+        assertEquals(2, engine.player.mediaItemCount)
+
+        RobolectricUtil.runMainLooperUntil { "next" in told.said }
+        // The track before is let go; the one playing is described as the next one was.
+        assertEquals(1, engine.player.mediaItemCount)
+        assertEquals("Two", engine.player.mediaMetadata.title)
+        assertEquals(2L, engine.player.currentMediaItem?.mediaMetadata?.extras?.getLong(EngineMusicOutput.TRACK_ID))
+        RobolectricUtil.runMainLooperUntil { "ended" in told.said }
+        assertEquals(listOf("next", "ended"), told.said)
+    }
+
+    @Test
+    fun theMusicsPlayerBuffersAsMusicAndVideosAsTheDevice() {
+        assertEquals(BufferPlan.of(phone, music = true), engine(music = true).bufferPlan)
+        assertEquals(BufferPlan.PHONE, engine().bufferPlan)
+        assertEquals(BufferPlan.of(tv), engine(profile = tv).bufferPlan)
+    }
+
+    @Test
+    fun onlyAVideoIsWokenEverySecondToCountItsFrames() {
+        assertFalse(engine(music = true).samplesFrames)
+        assertTrue(engine().samplesFrames)
+        assertTrue(engine(profile = tv).samplesFrames)
+    }
+
+    @Test
+    fun musicFetchesNoCoverOfItsOwnWhenTheSessionReadsThemFromTheLibrary() {
+        codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
+        val asked = mutableListOf<String>()
+        val one = TrackInfo("One", null, null, "http://192.0.2.1/api/items/1/images/poster?w=480", id = 1)
+        val two = TrackInfo("Two", null, null, "http://192.0.2.1/api/items/2/images/poster?w=480", id = 2)
+
+        // The app's: the session names each cover by address (the music library), and the output asks for none.
+        val app = EngineMusicOutput(engine(music = true), MainScope())
+        app.load(EngineSource(file(), hls = false), startMs = 0, play = false, info = one)
+        app.setNext(EngineSource(file(), hls = false), two)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertNull(app.player.mediaMetadata.artworkData)
+
+        // Without a library: each track's cover, and the next one's, is fetched for the session.
+        val alone = EngineMusicOutput(engine(music = true), MainScope()) { url -> asked += url; null }
+        alone.load(EngineSource(file(), hls = false), startMs = 0, play = false, info = one)
+        alone.setNext(EngineSource(file(), hls = false), two)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(listOf(one.artUrl, two.artUrl), asked)
+    }
+
+    @Test
+    fun aNextTrackThatCantBeReadFailsAsItselfOnceTheTrackBeforeHasPlayed() {
+        codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
+        val server = MockWebServer()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest) = MockResponse.Builder().code(404).build()
+        }
+        server.start()
+        try {
+            val engine = engine(music = true)
+            val output = EngineMusicOutput(engine, MainScope()) { null }
+            val told = Told()
+            output.setListener(told)
+            output.load(EngineSource(file(), hls = false), startMs = 15_000, play = true, info = TrackInfo("One", null, null, null, id = 1))
+            output.setNext(EngineSource(server.url("/api/files/602/stream").toString(), hls = false), TrackInfo("Two", null, null, null, id = 2))
+
+            RobolectricUtil.runMainLooperUntil { told.said.any { it.startsWith("error") } }
+            // Media3 holds the next item's failure until it plays it: the track playing plays to its end, and the music
+            // takes the failure as the next track's, as for any track asked for as it comes.
+            assertEquals(listOf("next", "error Gone"), told.said)
+            assertEquals(2L, engine.player.currentMediaItem?.mediaMetadata?.extras?.getLong(EngineMusicOutput.TRACK_ID))
         } finally {
             server.close()
         }
@@ -451,11 +568,21 @@ class Media3EngineTest {
         assertEquals(false, runBlocking { engine.dolbyVisionShown(dolbyVisionFilm, twoHours) })
     }
 
-    /** Serves [body] with ranges, as the server's /stream does, to requests carrying [token] only. */
-    private class RangeDispatcher(private val body: ByteArray, private val token: String) : Dispatcher() {
+    /**
+     * Serves [body] with ranges, as the server's /stream does, to requests carrying [token] only.
+     *
+     * With [mediaTrickles], the answer to a request for the whole file sends the file's index at once and its media a
+     * byte at a time until a range is asked for, as a film's media is still on its way when its player goes to where
+     * it resumes. The clip is small enough to come whole before a busy machine's player gets there, which then finds
+     * its place in what it has and asks for nothing more.
+     */
+    private class RangeDispatcher(private val body: ByteArray, private val token: String, private val mediaTrickles: Boolean = false) : Dispatcher() {
+        private val rangeAsked = CountDownLatch(1)
+
         override fun dispatch(request: RecordedRequest): MockResponse {
             if (request.headers["Authorization"] != token) return MockResponse.Builder().code(401).build()
             val range = request.headers["Range"]?.removePrefix("bytes=")?.split('-')
+            if (range != null) rangeAsked.countDown()
             val start = range?.getOrNull(0)?.toLongOrNull() ?: 0L
             val end = range?.getOrNull(1)?.toLongOrNull() ?: (body.size - 1L)
             val slice = body.copyOfRange(start.toInt(), end.toInt() + 1)
@@ -467,8 +594,39 @@ class Media3EngineTest {
             return MockResponse.Builder()
                 .code(if (range != null) 206 else 200)
                 .headers(headers)
-                .body(Buffer().write(slice))
+                .apply { if (range == null && mediaTrickles) body(trickling()) else body(Buffer().write(slice)) }
                 .build()
+        }
+
+        /** The whole file: its index, then a byte every [TRICKLE_MS] until a range is asked for, then the rest. */
+        private fun trickling() = object : MockResponseBody {
+            override val contentLength = body.size.toLong()
+
+            override fun writeTo(sink: BufferedSink) {
+                var sent = indexEnd()
+                sink.write(body, 0, sent).flush()
+                // Each byte ends a read the player has given up, so it asks for its range without waiting for the
+                // read's own limit. A player that never asks is trickled to until its connection closes.
+                while (sent < body.size && !rangeAsked.await(TRICKLE_MS, TimeUnit.MILLISECONDS)) {
+                    sink.writeByte(body[sent++].toInt()).flush()
+                }
+                sink.write(body, sent, body.size - sent)
+            }
+        }
+
+        /** Where the file's index ends: its `moov` box, which comes before the media. */
+        private fun indexEnd(): Int {
+            var at = 0
+            var type: String
+            do {
+                type = String(body, at + 4, 4, Charsets.US_ASCII)
+                at += ByteBuffer.wrap(body, at, 4).int
+            } while (type != "moov")
+            return at
+        }
+
+        private companion object {
+            const val TRICKLE_MS = 50L
         }
     }
 }

@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The player: the Video node with its own controls, the picture
-     subtitles the app draws, the title as each item begins, Skip Intro and
-     Skip Credits, Up Next before the end of an episode (and at its end),
-     Pley's menu (Down: Subtitles, Audio, Quality, Subtitle sync,
-     Chapters, Sleep timer, Find subtitles…, Playback details), the sleep
+<!-- The player: the Video node with Pley's own controls over it (as the
+     Android TV player's: PlayerControls), the picture subtitles the app
+     draws, the title as each item begins, Skip Intro and Skip Credits, Up
+     Next before the end of an episode (and at its end), the side panels
+     the controls' buttons open (Subtitles with Subtitle sync and Find
+     subtitles…, Audio, Quality, Chapters, Sleep timer, Info), the sleep
      timer's notice, Automatic's notice of a lower quality and the user's
-     remote's of what it did, "Reconnecting…"
-     while the server is out of reach, and what went wrong when it did. -->
+     remote's of what it did, "Reconnecting…" while the server is out of
+     reach, and what went wrong when it did. -->
 <component name="PlayerScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -24,6 +25,7 @@
     <script type="text/brightscript" uri="pkg:/components/screens/PlayerScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
@@ -40,74 +42,112 @@
     <script type="text/brightscript" uri="pkg:/components/lib/SubtitleSearch.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Sleep.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pictures.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Seeker.brs" />
     <children>
         <Rectangle width="1920" height="1080" color="0x000000FF" />
-        <Video id="video" width="1920" height="1080">
+        <!-- The focus while nothing on the player has it (PlayerScreen.brs). -->
+        <Group id="keys" />
+        <Video id="video" width="1920" height="1080" enableUI="false">
             <!-- Picture subtitles (Pictures.brs): the one showing, and the
                  next loading in the other frame. Under the skip button and
-                 the player's panels, as captions are. -->
+                 the player's controls and panels, as captions are. -->
             <Group id="pictures">
                 <Poster id="pictureA" opacity="0" loadDisplayMode="scaleToFit" />
                 <Poster id="pictureB" opacity="0" loadDisplayMode="scaleToFit" />
             </Group>
-            <SkipButton id="skip" translation="[1544, 924]" visible="false" />
+            <!-- In the Video node, as Roku's own controls are: drawn
+                 elsewhere, some Rokus put them under the picture. -->
+            <PlayerControls id="controls" />
+            <SkipButton id="skip" translation="[1544, 918]" visible="false" />
         </Video>
-        <!-- The title for 4 s as each item begins, at the top. -->
+        <!-- The title for 4 s as each item begins, where the controls put
+             it, over a band of black fading to clear (Android TV's title
+             banner). -->
         <Group id="banner" visible="false">
-            <Rectangle width="1920" height="200" color="0x000000A6" />
-            <Label id="bannerTitle" translation="[96, 56]" width="1500" maxLines="1" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <Label id="bannerLine" translation="[96, 116]" width="1500" maxLines="1" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+            <Poster width="1920" height="240" uri="pkg:/images/ui/band-top.png" />
+            <Label id="bannerTitle" translation="[96, 54]" width="1500" maxLines="1" color="0xEBEBEBFF" />
+            <Label id="bannerLine" translation="[96, 106]" width="1500" maxLines="1" color="0xA1A9B6FF" />
         </Group>
-        <!-- "Loading…", or "Reconnecting…" while the server is out of reach. -->
-        <Label id="loading" translation="[0, 500]" width="1920" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
-        <Group id="upNext" translation="[0, 700]" visible="false">
-            <Rectangle width="1920" height="380" color="0x16191EE6" />
-            <Poster id="nextImage" translation="[96, 60]" width="400" height="225" loadWidth="400" loadHeight="225" loadDisplayMode="scaleToZoom" />
-            <Label id="upNextTitle" translation="[540, 56]" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
-            <Label id="nextTitle" translation="[540, 100]" width="880" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <Label id="nextLine" translation="[540, 156]" width="880" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
-            <Label id="countdown" translation="[540, 214]" width="880" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-            <ButtonGroup id="nextButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[1460, 60]" minWidth="360" />
+        <!-- Up Next, as the Android TV player's card: 600 wide, its right
+             edge at the safe area's and its bottom at y 978, the next one's
+             still, its title, then Play now and Cancel. -->
+        <Group id="upNext" translation="[1224, 330]" visible="false">
+            <Poster width="600" height="648" uri="pkg:/images/ui/r12.9.png" blendColor="0x262B35F5" />
+            <Poster id="nextImage" width="600" height="338" loadWidth="600" loadHeight="338" loadDisplayMode="scaleToZoom" />
+            <Label id="upNextTitle" translation="[32, 362]" width="536" maxLines="1" color="0x38BDF8FF" />
+            <Label id="nextTitle" translation="[32, 400]" width="536" maxLines="1" color="0xEBEBEBFF" />
+            <Label id="nextLine" translation="[32, 448]" width="536" maxLines="1" color="0xA1A9B6FF" />
+            <Label id="countdown" translation="[32, 488]" width="536" maxLines="1" color="0xA1A9B6FF" />
+            <PillButtons id="nextButtons" layoutDirection="horiz" itemSpacings="[24]" translation="[32, 544]" minWidth="256" maxWidth="256" buttonHeight="72" />
         </Group>
         <!-- At the top, clear of the subtitles it moves. -->
         <Group id="sync" translation="[560, 72]" visible="false">
-            <Rectangle width="800" height="236" color="0x16191EE6" />
-            <Label id="syncTitle" translation="[48, 40]" width="380" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
-            <Label id="syncValue" translation="[48, 84]" width="340" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <Label id="syncHint" translation="[48, 150]" width="360" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-            <ButtonGroup id="syncButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[440, 48]" minWidth="312" />
+            <Poster width="800" height="236" uri="pkg:/images/ui/r12.9.png" blendColor="0x262B35F5" />
+            <Label id="syncTitle" translation="[48, 40]" width="380" color="0x38BDF8FF" />
+            <Label id="syncValue" translation="[48, 84]" width="340" color="0xEBEBEBFF" />
+            <Label id="syncHint" translation="[48, 150]" width="360" wrap="true" maxLines="2" color="0xA1A9B6FF" />
+            <PillButtons id="syncButtons" translation="[440, 48]" minWidth="312" />
         </Group>
-        <!-- Pley's menu, at the right over the video: its entries, a
-             quality's or a chapter's choices, or the playback's details. -->
+        <!-- The side panel the controls' buttons open, as the Android TV
+             player's: 720 wide from the right edge, square as menus are,
+             over the picture dimmed behind it. Its choices (the current one
+             checked), or the playback's details as text. -->
         <Group id="menu" visible="false">
-            <Rectangle translation="[1240, 0]" width="680" height="1080" color="0x16191EF2" />
-            <Label id="menuTitle" translation="[1296, 72]" width="568" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <LabelList id="menuList" translation="[1296, 168]" itemSize="[568, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:SmallSystemFont" focusedFont="font:SmallBoldSystemFont" />
-            <RadioButtonList id="menuChoices" translation="[1296, 168]" itemSize="[568, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:SmallSystemFont" focusedFont="font:SmallBoldSystemFont" visible="false" />
-            <Label id="menuText" translation="[1296, 168]" width="568" wrap="true" maxLines="18" lineSpacing="8" color="0xEBEBEBFF" font="font:SmallerSystemFont" visible="false" />
-            <Label id="menuHint" translation="[1296, 940]" width="568" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+            <Rectangle id="menuScrim" width="1920" height="1080" color="0x16191E80" />
+            <!-- It slides in from the right over 200 ms, as Android TV's. -->
+            <Group id="menuPanel">
+                <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFA" />
+                <Label id="menuTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xEBEBEBFF" />
+                <QuickList id="menuList" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+                <Label id="menuText" translation="[1256, 152]" width="608" wrap="true" maxLines="20" lineSpacing="8" color="0xEBEBEBFF" visible="false" />
+                <!-- The playback's details: each row's label and value. -->
+                <FactSheet id="menuFacts" translation="[1256, 152]" width="608" height="780" labelWidth="200" visible="false" />
+                <Label id="menuHint" translation="[1256, 936]" width="608" wrap="true" maxLines="2" color="0xA1A9B6FF" />
+            </Group>
         </Group>
+        <Animation id="menuSlide" duration="0.2" easeFunction="outCubic">
+            <Vector2DFieldInterpolator key="[0, 1]" keyValue="[[720, 0], [0, 0]]" fieldToInterp="menuPanel.translation" />
+            <FloatFieldInterpolator key="[0, 1]" keyValue="[0, 1]" fieldToInterp="menuScrim.opacity" />
+        </Animation>
+        <!-- A playback that stopped, centered on the screen's color, as the
+             Android TV player says it: what happened, why, Try again where it
+             may help, and Back. -->
         <Group id="notice" visible="false">
-            <Rectangle width="1920" height="1080" color="0x16191EF2" />
-            <Label id="noticeTitle" translation="[96, 340]" width="1728" wrap="true" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-            <Label id="noticeText" translation="[96, 430]" width="1500" wrap="true" maxLines="6" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-            <ButtonGroup id="noticeButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 700]" minWidth="400" />
+            <Rectangle width="1920" height="1080" color="0x16191EFF" />
+            <Label id="noticeTitle" translation="[240, 360]" width="1440" horizAlign="center" wrap="true" maxLines="2" color="0xEBEBEBFF" />
+            <Label id="noticeText" translation="[240, 450]" width="1440" horizAlign="center" wrap="true" maxLines="6" color="0xA1A9B6FF" />
+            <PillButtons id="noticeButtons" layoutDirection="horiz" itemSpacings="[24]" translation="[0, 700]" minWidth="320" buttonHeight="72" />
         </Group>
-        <!-- The sleep timer's last 30 s, at the bottom left: Keep watching
-             adds the same time again. -->
-        <Group id="sleepNotice" translation="[96, 916]" visible="false">
-            <Rectangle id="sleepBack" width="840" height="112" color="0x16191EE6" />
-            <Label id="sleepText" translation="[40, 0]" width="420" height="112" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
-            <ButtonGroup id="sleepButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[480, 20]" minWidth="320" />
+        <!-- The sleep timer's last 30 s, at the bottom left on surface3, the
+             moon before its count: Keep watching adds the same time again. -->
+        <Group id="sleepNotice" translation="[96, 890]" visible="false">
+            <Poster id="sleepBack" width="840" height="88" uri="pkg:/images/ui/r12.9.png" blendColor="0x2E3440FF" />
+            <Poster translation="[40, 24]" width="40" height="40" uri="pkg:/images/ui/icon-moon-40.png" blendColor="0xA1A9B6FF" />
+            <Label id="sleepText" translation="[100, 0]" width="360" height="88" vertAlign="center" color="0xEBEBEBFF" />
+            <PillButtons id="sleepButtons" translation="[480, 8]" minWidth="320" buttonHeight="72" />
         </Group>
-        <!-- Brief notices at the top: Automatic saying it went down, and
-             what the user's remote did ("Paused", "+30 s"). -->
+        <!-- Brief notices at the top right on surface3, as the Android TV
+             player's toasts: Automatic saying it went down, and what the
+             user's remote did ("Paused", "+30 s"). Under the clock while the
+             controls show. -->
         <Group id="toast" visible="false">
-            <Rectangle translation="[460, 72]" width="1000" height="96" color="0x16191EE6" />
-            <Label id="toastText" translation="[460, 72]" width="1000" height="96" horizAlign="center" vertAlign="center" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:SmallSystemFont" />
+            <Poster id="toastBack" height="76" uri="pkg:/images/ui/r12.9.png" blendColor="0x2E3440FF" />
+            <Label id="toastText" translation="[40, 0]" height="76" vertAlign="center" wrap="true" maxLines="3" color="0xEBEBEBFF" />
         </Group>
         <Timer id="countdownTimer" duration="1" repeat="true" />
         <Timer id="toastTimer" duration="4" />
+        <!-- The controls hide 5 s after the last key while it plays. -->
+        <Timer id="hideTimer" duration="5" />
+        <!-- A seek coming goes once its presses settle (Seeker.brs). -->
+        <Timer id="settleTimer" />
+        <!-- The seek badge, 0.6 s after the last press. -->
+        <Timer id="badgeTimer" duration="0.6" />
+        <!-- A key held: once it is (0.4 s), then the scrub's steps. -->
+        <Timer id="holdTimer" repeat="true" />
+        <!-- OK just after a seek confirms it, for 2 s. -->
+        <Timer id="confirmTimer" duration="2" />
+        <!-- The loading ring, 0.5 s into a wait. -->
+        <Timer id="bufferingTimer" duration="0.5" />
         <!-- Progress told while paused (Player.brs). -->
         <Timer id="pausedTimer" repeat="true" />
         <!-- The sleep timer's look, once a second while it is set. -->

@@ -6,6 +6,8 @@
 
     <string name="player_play">Reproducir</string>
     <string name="player_pause">Pausar</string>
+    <string name="player_skip_back">Retroceder %1$d segundos</string>
+    <string name="player_skip_forward">Avanzar %1$d segundos</string>
     <string name="player_loading">Cargando</string>
     <string name="player_reconnecting">Reconectando…</string>
     <string name="player_seek_forward">+%1$d s</string>

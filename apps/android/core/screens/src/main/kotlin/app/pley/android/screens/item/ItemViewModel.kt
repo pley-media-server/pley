@@ -172,6 +172,8 @@ class ItemViewModel(
                 s.kind == ItemKind.Artist -> flowOf(ItemUiState.Elsewhere(PleyKey.Artist(itemId)))
                 s.kind == ItemKind.Album -> flowOf(ItemUiState.Elsewhere(PleyKey.Album(itemId)))
                 s.kind == ItemKind.Track -> flowOf(if (s.parentId != null) ItemUiState.Elsewhere(PleyKey.Album(s.parentId)) else ItemUiState.NotFound)
+                s.kind == ItemKind.Audiobook -> flowOf(ItemUiState.Elsewhere(PleyKey.Book(itemId)))
+                s.kind == ItemKind.Part -> flowOf(if (s.parentId != null) ItemUiState.Elsewhere(PleyKey.Book(s.parentId)) else ItemUiState.NotFound)
                 s.kind == ItemKind.Extra -> flowOf(if (s.parentId != null) ItemUiState.Elsewhere(PleyKey.Item(s.parentId)) else ItemUiState.NotFound)
                 s.kind == ItemKind.Unknown -> flowOf(ItemUiState.NotFound)
                 else -> pages(detail, s)

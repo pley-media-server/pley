@@ -21,6 +21,8 @@ metricsPerformance = "1.0.0"
 # Only until the native app replaces the web view.
 # Pinned: PlayerSurface and the Compose state holders are @UnstableApi.
 media3 = "1.11.1"
+# CarConnection: whether the phone shows on Android Auto (the players on the car's screen).
+carApp = "1.7.0"
 # Above the 4.12.0 that media3-datasource-okhttp brings.
 okhttp = "5.5.0"
 serialization = "1.11.0"
@@ -76,6 +78,7 @@ androidx-compose-material3-navigation-suite = { group = "androidx.compose.materi
 androidx-tv-material = { group = "androidx.tv", name = "tv-material", version.ref = "tvMaterial" }
 
 # Media3
+androidx-car-app = { group = "androidx.car.app", name = "app", version.ref = "carApp" }
 androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 androidx-media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls", version.ref = "media3" }
 androidx-media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3" }

@@ -8,8 +8,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -23,12 +26,14 @@ import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Where the engine's bytes come from: the media client of the server each
  * request goes to (NetworkGraph.media, which sends the Bearer token to that
  * server's own origin only), through Media3's OkHttp data source. Local
- * files and app assets (tests) are read directly.
+ * files and app assets (tests) are read directly. What servers send is
+ * counted ([received]).
  */
 @OptIn(markerClass = [UnstableApi::class])
 class MediaLoading(
@@ -43,7 +48,25 @@ class MediaLoading(
         mediaClient(Addresses.origin(url) ?: url).newCall(request)
     }
 
-    val http: HttpDataSource.Factory = OkHttpDataSource.Factory(calls)
+    private val counted = AtomicLong()
+
+    /** The bytes servers sent so far: more of them from one look to the next, and the media still comes. */
+    val received: Long get() = counted.get()
+
+    val http: HttpDataSource.Factory = OkHttpDataSource.Factory(calls).setTransferListener(
+        // Told on Media3's loading threads, as the bytes are read.
+        object : TransferListener {
+            override fun onTransferInitializing(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) = Unit
+
+            override fun onTransferStart(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) = Unit
+
+            override fun onBytesTransferred(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean, bytesTransferred: Int) {
+                counted.addAndGet(bytesTransferred.toLong())
+            }
+
+            override fun onTransferEnd(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) = Unit
+        },
+    )
 
     private val dataSources = DefaultDataSource.Factory(context.applicationContext, http)
 

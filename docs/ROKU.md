@@ -47,20 +47,37 @@ password is signed in to with a code, choosing it in the browser.
 
 ### Home
 
-Home's menu, at the left, is in the order of the other TVs' rail: Search,
-Home, Discover and the requests (where the server has them), Live TV, the
-libraries, Playlists, Collections (every library's collections, a row
-each), Now Playing while music plays, and Settings.
+The rail, at the left of Home and every page browsed from it, is the
+Android TV app's: the profile's initial (OK switches profiles), then
+Search, Home, Discover and the requests (where the server has them), Live
+TV, the libraries, Playlists, Collections (every library's collections, a
+row each), Now Playing while music plays, and Settings, each with its icon
+(a library's by its kind). Every entry is in view, Settings at the
+foot: up to eleven 80 px tall, thirteen at 72 and fourteen at 64, past
+which the list scrolls. Collapsed, it shows the icons alone, the
+current page's with an accent mark; Left at a page's edge, or Back on
+Home, opens it over the page, their names beside them, and Right or Back
+closes it, the focus back where it was. An entry chosen there switches
+pages, closing the pages opened over Home, as Android TV's rail does; Back
+on Home's rail leaves the app. The pages start at Android TV's gutter,
+right of the collapsed rail, and libraries show seven posters a row, as
+its grid does. The players, Now Playing, signing in and text pages have
+the screen to themselves.
 
 Beside it, as on Android TV and the native Samsung app, a hero shows the
 first of Continue Watching, else the newest title in the rows: its
 backdrop, its title (a show's name over an episode's "S2 E5 · Title"),
 year, length, content rating, stars and quality ("4K", "DV"), the time
-left, its summary, then Resume (or Play), From start, Info and Mark as
-watched. Resume has the focus as Home first shows. Down goes to the
+left, its summary, then Resume (or Play), a pill, and From start, Info and
+Mark as watched as round icons, named while focused. Resume has the focus
+as Home first shows. The backdrop covers the screen, fading to the
+background at the left and the bottom, as on Android TV. Down goes to the
 server's rows: there an info block about the title focus rests on (0.4 s)
 takes the hero's place, and the backdrop follows it. Up from the first row
-goes back to the hero; Left or Back, to the menu, the hero shown again.
+goes back to the hero; Back, to the hero, then to the rail; Left, to the
+rail.
+Tiles are the Android TV app's: their pictures' corners round (Roku OS
+16), focused they grow and take the accent's ring, against the picture.
 The hero's summary, content rating and quality come with its details
 (`GET /api/items/{id}`, which the API task reduces to what Home says), as
 do the info block's. With nothing to show, Home says why: No libraries
@@ -74,8 +91,10 @@ yet, Scanning your libraries…, or Nothing here yet.
 | Options (\*) | Watch history | Removes it |
 | Options (\*) | A playlist entry | Move (Up and Down carry it, OK puts it there, Back puts it back), Remove from playlist, Go to its title's page |
 | Options (\*) | A request | What can be done with it (Approve, Decline, Withdraw…) |
-| Down | The player | Pley's menu: Subtitles, Audio, Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
-| Options (\*) | The player | Roku's own options: subtitles and audio tracks |
+| OK, Up, Left, Right | The player | The controls, on the scrubber (Left and Right seek from there) |
+| Down | The player | The controls, on Play/Pause |
+| Options (\*) | The player | The Subtitles panel |
+| Replay | The player | Back 10 s |
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
 | Options (\*) | Live TV | A program's details (a card's: what's on), Watch, Add to or remove from favorites |
 | Options (\*) | The live player | Add to or remove from favorites |
@@ -83,14 +102,26 @@ yet, Scanning your libraries…, or Nothing here yet.
 
 ### A title's page
 
-A movie's, an episode's or a show's page has its buttons in a column at
-the left, Play (or Resume and Play from start) first, then Mark as
-watched, Audio and subtitles, My List, Trailer (where its extras have
-one: it plays from its start) and More…. Audio and subtitles and More
+A movie's, an episode's or a show's page is laid out as Android TV's: the
+backdrop over the screen, the title, a line of facts with the content
+rating and the quality in boxes, then its buttons in a row, Play (or
+Resume) a pill, then round icons named while focused: Play from start,
+Mark as watched, Audio and subtitles, My List, Trailer (where its extras
+have one: it plays from its start) and More…. A title without a backdrop
+shows its poster at the right. Audio and subtitles and More
 open a panel at the right; Back closes it, and Down from the buttons goes
-to the rows under them. Over the summary, as on Android TV, a line says
+to the rows under them. In the rows, as on Android TV, an info block
+stays at the top over them: the title on one line, its line of facts and
+two lines of the summary, or, on an episode, its name, its time and two
+lines of its own summary. Over the summary, as on Android TV, a line says
 who made it and who is in it ("Directed by Grace Hopper · Starring Ada
-Lovelace, Alan Turing"; a show's "Created by").
+Lovelace, Alan Turing"; a show's "Created by"). A show's seasons are
+followed by the episodes of one, as on Android TV: the next episode's
+season as the page opens, then the season focus rests on (0.3 s), in
+16:9 tiles captioned "5. Glasshouse" and the time left; OK on a season
+goes down into its episodes, on the one to watch. In the rows under it, Cast
+& crew are circles with their names and roles under them, as on Android
+TV, and so are the people Search finds.
 
 - **Audio and subtitles** (a movie or an episode with several files, or
   whose file has two audio tracks or more, or subtitles):
@@ -158,14 +189,27 @@ it. A playlist's entries move with the Options key's Move.
 ### Libraries
 
 A library has the tabs Recommended, Library and Collections (a music
-library has no Collections), and opens on the tab, sort and filters it was
-left on, kept on the Roku for each server, profile and library. Audiobook
+library has no Collections), and opens on Recommended. The Library tab
+shows the sort and filters it was left with, kept on the Roku for each
+server, profile and library. The sort's chip shows its name and its
+order's arrow ("Title" and the rising bars), and its panel marks the
+current sort with that arrow; OK on it turns the order around. Audiobook
 libraries are in the web and desktop apps: the server gives this app none,
 nor their books on Home, in search or in history.
 
 - **Library** is a grid of posters, 70 at a time as the focus comes near
   the next ones; places a jump passes over show empty frames until their
   titles come.
+- **Pictures:** a title without one, or whose picture fails, shows Pley's
+  mark in its frame, as the other apps do on their placeholder; the line
+  under it names it. The glyph on the mark's front poster is the title's
+  kind of library: a clapperboard for movies, a TV for shows, notes for
+  music, play for the rest. There is no gradient behind it, only the
+  tile's frame. Roku can tell a picture that failed from one that loads,
+  so the mark never shows while one loads, nor on a frame still waiting
+  for its title. A Live TV channel without its logo shows its name in the
+  frame instead, and a person without a photo their initials in the
+  circle.
 - **Quality badges:** sorted by bitrate, or filtered by resolution or
   dynamic range, the posters say what sets their best file apart at their
   foot: "4K" (no other resolution), then "DV", "HDR+", "HDR" or "HLG".
@@ -230,7 +274,7 @@ forgets them.
 
 ### Music
 
-Music plays on while other screens show, and Home's menu has Now Playing
+Music plays on while other screens show, and the rail has Now Playing
 while it does. An album's page lists its tracks under "Disc 1", "Disc 2"
 when they are on several discs (the tracks' `parent_index`), each
 numbered on its disc; the focus passes over the headings. An album or a
@@ -287,21 +331,66 @@ the episode's "S1 E2 · Pilot", as on Android TV.
   and below real time says "The server can't keep up with this video"
   (Automatic goes lower by itself); otherwise the stream opens again where
   it was.
+- **A stream that fails before anything played** is given to the Video
+  node once more, as it is, before it counts as broken: the first stream
+  after the app starts can fail at once with a reader error and play when
+  given again (seen on a Roku Ultra, Roku OS 16). One that fails again is
+  converted, or the player says it can't play it, as below.
 - **Media that ends short** (moments after it started, a minute or more
   before the title's end, as a file resumed past what it holds) isn't the
   end: a file played as it is is converted, and a stream opened again;
   falling short again within the minute, the player says so.
 - **Progress** goes to the server every 10 s while playing, every 30 s
-  paused, and at once after a seek, in Roku's own bar too.
-- **Playback details** are asked for again every 2 s while they show.
-- **Chapters** are in the menu for a file with two or more.
+  paused, and at once after a seek.
+- **Playback details** (Info) are asked for again every 2 s while they show;
+  only the figures that changed are drawn again. Up and Down scroll them, as
+  on Android TV, and they stay on the line at their top as rows come and go.
 
-Fast forward and rewind show seek previews in Roku's own bar: the server's
-previews of the file as a BIF file, which the Video node fetches beside the
-media (`previews.bif`). While the server is still making them, the bar
-shows the time alone.
+The controls are Pley's own, as the Android TV player's
+(`components/shared/PlayerControls`); the Video node's are off
+(`enableUI`). They draw in the Video node, as Roku's own do. At the top,
+the title (a show's name over "S1 E2 · Pilot"), how it plays ("Direct
+play", "Direct stream", "Transcoding"), the clock and, while paused, when
+it ends; at the bottom the scrubber, the time played and the time left,
+the chapters as gaps in it and "Intro" or "Credits" under the marker
+playing, then a row of buttons: Chapters (for a file with two or more) and
+Sleep timer at the left, Previous, Play/Pause and Next in the middle
+(Previous and Next for an episode, a queue or chapters), Subtitles, Audio
+(where the file has tracks), Quality and Info at the right. The focused
+button fills with the accent and says its name.
 
-The sleep timer (Down, then Sleep timer) pauses after 15 to 90 minutes
+- **Showing them:** OK, Up, Left or Right bring them up on the scrubber,
+  Down on Play/Pause; the person's pause brings them up too. They hide 5 s
+  after the last key while it plays, not while paused or while a seek
+  waits. Back lets a seek waiting go, then hides them.
+- **Seeking** (`components/lib/Seeker.brs`), timed as the Android TV
+  player and YouTube's TV app do: Left and Right on the scrubber move where
+  it goes, 10 s a press, adding up ("+30 s"); it goes there on OK, or by
+  itself 5 s after the last press. Held (not let go within 0.4 s), the key
+  scrubs, faster the longer it's held, and nothing seeks until it's let
+  go. Fast forward and rewind jump 30 s, going 0.4 s after the last press,
+  and bring up the controls to show where; Replay goes back 10 s with only
+  a badge ("−10 s"). OK just after a seek confirms it and plays on.
+- **Previous and Next:** Previous goes to the chapter's start (the one
+  before within its first 3 s), Next to the next episode or entry, else the
+  next chapter.
+- **Seek previews** show over the scrubber while a seek waits: the
+  server's previews of the file as a BIF file (`previews.bif`, which the
+  session's key opens), fetched once into `cachefs:` (which doesn't count
+  against the app's memory as `tmp:` does) by a task
+  (`components/tasks/PreviewTask`), which cuts out each frame shown
+  (`components/lib/Previews.brs`); with the chapter's name under it. While
+  the server is still making them, the time shows alone.
+- **The panels** each button opens slide in at the right, as on Android
+  TV: Subtitles (every track, then Subtitle sync and Find subtitles…),
+  Audio, Quality (each with what it means under it), Chapters, Sleep timer
+  and Info (the playback's details). The choice made is checked; choosing
+  closes the panel, and Back does too, the controls coming back on the
+  button.
+- **Waiting** shows a turning ring half a second in, "Reconnecting…" under
+  it while the server is out of reach.
+
+The sleep timer (its button) pauses after 15 to 90 minutes
 or at the end of what plays, as on the other apps. In its last
 30 s it says "Pausing in 12 s" with Keep watching, which adds the same time
 again (or lets this title play to its end). Paused by it for 10 minutes,
@@ -332,20 +421,21 @@ next.
   video (a film cropped to 1920×800) keeps its own, fitted to the screen.
   The file says only how its video is stored, so a video of 576 lines or
   fewer is taken to show as 16:9. A picture shows while the video plays,
-  under the skip button and the player's panels; paused or seeking, Roku's
-  bar has the bottom of the screen. The next picture loads in a second
+  under the skip button and the player's controls and panels; paused, it
+  goes. The next picture loads in a second
   frame while one shows, and one that fails to load loads again 3 s later.
   The Video node tells its position every 0.2 s while pictures are drawn,
   else every second.
-- Roku's options list only text tracks, and a conversion's one audio.
-  Pley's menu (Down) lists every track of the file, as the title's page
-  does: Subtitles (Off, then each, PGS too) and Audio (Automatic, then
-  each). A pick there is saved for the show or movie, and the stream opens
-  again where it was with it. The remote on the profile's other devices
-  picks them the same way ([Remote control](#remote-control)).
-  A text track picked in the options takes the place of the pictures, and
-  captions turned off there turn them off; captions turned on without a
-  text track leave them be.
+- The Subtitles and Audio panels list every track of the file, as the
+  title's page does (Roku's own options list only text tracks, and a
+  conversion's one audio): Subtitles (Off, then each, PGS too) and Audio
+  (Automatic, then each). A pick there is saved for the show or movie, and
+  the stream opens again where it was with it. The remote on the profile's
+  other devices picks them the same way ([Remote control](#remote-control)).
+  Options (\*) opens the Subtitles panel: the controls hold the focus, so
+  Roku's own options don't slide in. Captions turned off in the Roku's
+  settings turn the pictures off; turned on without a text track, they
+  leave them be.
 - A server that can't make the pictures has them burned in: the stream
   reopens where it was with `subtitle_index`, and caps without PGS in
   `subtitle_codecs` or `picture_subtitles_sideload` (to the server, a
@@ -369,7 +459,8 @@ next.
 - The server picks the audio this Roku plays best in the profile's
   language. Any audio but the file's default makes the file a stream with
   its video copied.
-- Picks in Roku's options are saved for the show or movie, so the next
+- Tracks the Roku itself changes (its caption setting turned off, say)
+  are saved for the show or movie as a pick in the panels is, so the next
   episode starts with the same tracks. Roku's audio tracks are matched to
   the file's only when their count and languages agree.
 
@@ -476,7 +567,7 @@ remotes offer only Stop. They obey:
   entry). Next moves on without counting the title as watched; next with
   nothing after it does nothing; a video has no previous. The audio and
   subtitles, where the file has them (`audio`, `subtitles`), change as a
-  pick in Pley's menu changes them: saved for the show or movie, and the
+  pick in the player's panels changes them: saved for the show or movie, and the
   stream opened again where it was with them. The quality (`quality`), one
   of those the player's Quality menu offers for the file, changes as a
   pick there does: kept as the Roku's, and the title opened again where it
@@ -520,15 +611,10 @@ puts Up Next away, as Rewind does. The rule is
 pinned by `packages/tv/test/fixtures/remote.json`, which the tests read
 (the tracks and the quality by cases of their own).
 
-A command never brings up the player's controls. Paused, the Video node
-shows its title, clock and bar whoever paused it, so for the remote's
-pause the player turns them off (`enableUI`) until the video plays again,
-from either side, or the person presses a key: Play plays on, and the
-Video node's other keys are its own again from the next press. That
-first OK, left, right or skip only brings its controls back, where the
-other TVs act on it at once: the Video node hasn't had its controls to
-take it. What the
-remote did shows instead for 2 s in the player's notice at the top:
+A command never brings up the player's controls: the remote's pause
+doesn't, where the person's own does, and a key of the person's after it
+makes the pause theirs. What the remote did shows instead for 2 s in a
+notice at the top right, as the Android TV player's toasts:
 "Paused", "Playing", the skip asked for ("+30 s", "−10 s"), where a seek
 went ("Jumped to 12:34"), and the audio, subtitles ("Subtitles off") or
 quality picked, named as the player's menus name them
@@ -541,7 +627,7 @@ Down do. Music shows nothing of a command: Now Playing is its controls.
 the commands), the Roku is one of the devices the profile's remotes play
 things on ([API.md](API.md#casting)): the stream names it a receiver by
 the `client_id` its players send, a TV with the name its players give,
-taking titles and playlists (`casts=item`) and channels while Home's menu
+taking titles and playlists (`casts=item`) and channels while the rail
 has Live TV (`live`), and switching to the profile of a remote of another
 profile that casts to it (`switch`), and opens again when Live TV comes or goes. What a
 remote sends plays as the Roku's own Play would, in place of what plays:
@@ -595,12 +681,13 @@ Where an administrator has turned requests on, people ask for movies and
 shows found on TMDB, administrators approve them, and Radarr and Sonarr
 fetch them ([API.md](API.md#requests)). An administrator's Roku manages
 them (a manager, below) once its sign-in allows `approvals`; one signed in
-before is offered Sign in again. The menu shows what the profile may do;
+before is offered Sign in again. The rail shows what the profile may do;
 its number counts what waits: a manager's pending and failed requests
 (red while some failed) and their own news, anyone else's news.
 
-- **Discover**, for those who may ask: a hero for the first trending title
-  (its main action and Details; once nothing of its kind is left to ask
+- **Discover**, for those who may ask: a hero for the first trending title,
+  drawn as Home's (its backdrop over the screen, its facts in a line, its
+  main action a pill and Details a round button; once nothing of its kind is left to ask
   for, the limit's line in place of Request); when trending has nothing
   the profile may ask for, every row loads at once and the hero is the
   first title of the next one with any. Then rows of posters with their
@@ -610,8 +697,17 @@ its number counts what waits: a manager's pending and failed requests
   all (a grid, a page at a time; after five pages in a row that leave
   it short of a screenful, as an age limit can, Look further asks for
   more, and after a page that failed, a tile says so, Select asking for
-  it again); then Your requests, from the first one asked for. At the top,
-  the way to the requests, with the menu's number of what waits there.
+  it again); then Your requests, from the first one asked for. In the
+  rows, an info block takes the place of the page over them, as on Home:
+  the name of the title focus rests on, its facts as the hero's (year and
+  kind, TMDB's rating, its badge) and two lines of its overview, and the
+  backdrop becomes that title's, faint under the rows; a request has its
+  name and its stage. The block shows as the rows take the focus, then
+  follows once the focus has rested 0.4 s, so a held key draws nothing
+  on its way; See all, a row still loading and a row's notice have no
+  block. At the top,
+  the way to the requests, with the number of what waits there: they are
+  a page of their own reached from Discover, not an entry of the rail.
   TMDB is searched from Search. A poster opens the title's page, or,
   when a library the account can open has the title whole, the
   library's title, where it plays (a show partly there opens its page,
@@ -670,14 +766,34 @@ decline, and the requests' settings (the web).
 
 ### Settings
 
-Settings has Language ([Language](#language)), the audio and subtitle
-defaults, Quality, Play the next episode by itself (Up Next counts down only while it is on), Watch
-history, Switch profile, Always start as, Sort libraries, Switch server
-and Sign out. It says where the account is managed on the web (the
-server's address and `/account`), and carries TMDB's notice. Right of the
-settings, Diagnostics shows this Roku and what it tells the server it
-plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licenses
-shows Pley's license and the notices of what the package bundles.
+Settings is in two panes, as the Android TV app's and the Roku's own: the
+categories at the left, the focused one's rows at the right. Right or OK
+on a category goes into its rows, Left or Back comes out again.
+
+- **Profile:** the profile's picture or initial, its name and the
+  server's address on top; then Switch profile, the audio and subtitle
+  defaults, Language ([Language](#language)), Watch history, Sort
+  libraries, Always start as, and Manage your account on the web, whose
+  address (the server's, and `/account`) OK shows with what is managed
+  there.
+- **Playback:** Quality, and Play the next episode by itself (a switch;
+  Up Next counts down only while it is on).
+- **Server:** the server's name and address, and Switch server.
+- **Diagnostics:** the page that shows this Roku and what it tells the
+  server it plays (`capsLines` in `components/lib/Caps.brs`), with the
+  Roku's name under it.
+- **About:** the app's version, Open-source licenses (Pley's license and
+  the notices of what the package bundles), and TMDB's notice.
+- **Sign out:** OK asks first.
+
+Android TV's Audio and Subtitles & display are the Roku's own settings,
+so the Roku has no such categories. Rows are as the Android TV app's: an
+icon, the label and the current value under it, a chevron on a row that
+opens something, the accent filling the focused one, square as menus
+are; the category whose rows have the focus keeps a muted fill. A row's
+choices open in a side panel at the right, the current one checked. Each
+category's rows are a list of their own, filled when what they show
+changes, so moving between categories only shows another list.
 
 Always start as, for a household of several profiles, names the profile
 the app starts as, or Profile used last. As on the other TVs, the app
@@ -818,13 +934,13 @@ Rules the code keeps:
   requests learns it from the summary (`sign_in_again`), on Discover and
   the requests.
 - **Requests' summary** (`GET /api/requests/summary`;
-  `components/lib/Requests.brs`) decides the menu, its number and what the
-  screens offer. It is asked with each profile, when the event stream
-  connects, a second after request events (once for those that come
-  together), after the person acts on a request, and each minute without
-  the event stream. An older server's `404`, or a `403` from one built
-  before apps could ask, turns requests off until the stream connects
-  again or the app starts.
+  `components/lib/Requests.brs`) decides whether the rail has Discover,
+  the number on Discover's button and what the screens offer. It is asked
+  with each profile, when the event stream connects, a second after
+  request events (once for those that come together), after the person
+  acts on a request, and each minute without the event stream. An older
+  server's `404`, or a `403` from one built before apps could ask, turns
+  requests off until the stream connects again or the app starts.
 - **Request changes:** request events give every tile of their titles, on
   covered screens too, its new badge: the title's status for the profile
   (`GET /api/discover/{kind}/{tmdb_id}`, once a title for events that come
@@ -911,8 +1027,33 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   tests), one fetch at a time, the odd dropped key, and no measure of a
   Roku's speed.
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
-  standard library). The home screen icons and splash screens come from
-  `bun scripts/render-icons.mjs` at the repository root.
+  standard library). The pictures of the Android TV look (`images/ui`:
+  Lucide's icons from the Android app's set, rounded boxes as nine-patch
+  pictures, the scrubber's parts, the player's scrim) come from
+  `bun scripts/render-roku-images.mjs` at the repository root, through a
+  headless Chrome or Edge, as the Kodi skin's do. The home screen icons and
+  splash screens come from `bun scripts/render-icons.mjs` there too.
+- **Type:** Roboto, the Android app's static files (`fonts/`), in the
+  Android TV app's sizes doubled (`components/shared/Type.brs`); Chinese
+  in Noto Sans SC or TC, which Roboto and the Roku's own font lack, cut to
+  the app's characters by `scripts/subset-roku-cjk.py` (run again when the
+  Chinese words change). A language's name in Chinese, as in the language
+  list, takes Noto in any language. The scene gives every screen it makes
+  Pley's type wherever the screen's markup still names a system font
+  (`uiRestyle`, by size: the Roku doesn't say which are bold).
+- **Tiles** (`components/items/Tile`) grow by their size, not a scale:
+  scaled, Roku OS 16's Effect draws square corners again. Their items are
+  24 px wider and 30 px taller than the picture, room the lists would
+  otherwise cut the focused tile's ring at; the lists sit 24 px further
+  left to match.
+- **Lists** are `QuickList`, `QuickGrid` and `QuickRowList`
+  (`components/shared/Quick*`), Roku's MarkupList, MarkupGrid and RowList
+  that move the focus themselves: Roku's own glide to each item, which an
+  app can't make shorter, made every press feel slow and left no highlight
+  until it ended. They jump the focus at once (`jumpToItem`,
+  `jumpToRowItem`), repeat a held key after 0.4 s and then every 0.09 s,
+  and leave a key that moves nothing, and a RowList's Up and Down, to the
+  list's own handling.
 
 ## Releases
 
@@ -932,6 +1073,9 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
   stopped from another device stops at its next report (within 10 s while
   playing, 30 s while paused), a channel when its stream breaks off.
 - Audio other than the file's default isn't played as it is.
+- Text subtitles stay where the Roku draws them, under the player's
+  controls while those show: moving them would change the caption style of
+  the whole Roku. Picture subtitles, which Pley draws, go while paused.
 - Live TV has no channel numbers to type: Roku remotes have no number keys.
 - Not yet: an editable music queue.
 

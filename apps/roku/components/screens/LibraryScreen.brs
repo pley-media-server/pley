@@ -22,6 +22,8 @@ sub init()
     m.message.text = t("common.states.loading")
     m.panel = m.top.findNode("panel")
     m.panelTitle = m.top.findNode("panelTitle")
+    ' A side panel's title as the player's and Settings' (a section's).
+    m.panelTitle.font = uiType("section")
     m.choices = m.top.findNode("choices")
     m.menu = m.top.findNode("menu")
     m.panelHint = m.top.findNode("panelHint")
@@ -118,7 +120,7 @@ sub onActive()
         m.tabList = libTabs(m.library.kind)
         ' A music library's artists are square.
         if m.library.kind = "music"
-            m.grid.itemSize = [220, 300]
+            m.grid.itemSize = [220, 320]
             m.grid.numRows = 3
         end if
         chips = []
@@ -154,15 +156,11 @@ function viewSection() as object
     return CreateObject("roRegistrySection", "libraryViews")
 end function
 
-' Keeps the view on the Roku. In a See all's order only the tab is kept:
-' the sort and filters kept before stay until the person changes them.
+' Keeps the view on the Roku. A See all's order isn't kept: the sort and
+' filters kept before stay until the person changes them.
 sub keepView()
-    kept = m.view
-    if m.seeAll
-        kept = libLoadView(viewSection(), m.viewKey, m.library.kind)
-        kept.tab = m.view.tab
-    end if
-    libSaveView(viewSection(), m.viewKey, kept)
+    if m.seeAll then return
+    libSaveView(viewSection(), m.viewKey, m.view)
 end sub
 
 sub onTitleChanged(change as object)
@@ -482,12 +480,12 @@ sub showViewChips()
         if m.viewChips.visible then showCollectionChips()
         return
     end if
-    ' As wide as their words, the filters' at most 420 pixels, so that a
-    ' long sort ("Date added, recently added first") clears the tabs.
+    ' As wide as their words, the filters' at most 420 pixels, so that many
+    ' filters clear the tabs.
     filterLabel = libFilterLabel(m.view)
     filterWidth = 0
     if Len(filterLabel) > 20 then filterWidth = 420
-    m.viewChips.chips = [{ label: libSortLabel(m.view.sort, m.view.order), width: 0 }, { label: filterLabel, width: filterWidth }]
+    m.viewChips.chips = [libSortChip(m.view.sort, m.view.order), { label: filterLabel, width: filterWidth }]
     m.viewChips.current = -1
     if libFiltered(m.view) then m.viewChips.current = 1
     m.viewChips.translation = [1824 - m.viewChips.rowWidth, 132]
@@ -651,7 +649,11 @@ sub openSort()
         labels.Push(sort.label)
         values.Push(sort.id)
     end for
-    showChoices("sort", t("browse.library.sortBy"), labels, values, current, t("browse.library.sortHint"))
+    ' The order shows as the current sort's arrow, up rising, down falling;
+    ' OK on it turns it around (onChoice).
+    arrow = "down"
+    if m.view.order = "asc" then arrow = "up"
+    showChoices("sort", t("browse.library.sortBy"), labels, values, current, arrow)
 end sub
 
 ' The filters, each with what it keeps; OK opens its choices. Once some
@@ -799,18 +801,21 @@ sub openFilter(kind as string)
     end if
 end sub
 
-sub showChoices(kind as string, title as string, labels as object, values as object, current as integer, hint as string)
+' The current choice checked, or, given an arrow ("up", "down"), marked
+' with it.
+sub showChoices(kind as string, title as string, labels as object, values as object, current as integer, arrow as string)
     m.panelKind = kind
     m.values = values
     m.panelTitle.text = title
     items = []
-    for each label in labels
-        items.Push({ title: label })
+    for i = 0 to labels.Count() - 1
+        mark = ""
+        if i = current then mark = arrow
+        items.Push({ title: labels[i], checked: i = current and arrow = "", arrow: mark })
     end for
     m.choices.content = nodesContent(items)
-    m.choices.checkedItem = current
     m.choices.jumpToItem = current
-    m.panelHint.text = hint
+    m.panelHint.text = ""
     m.menu.visible = false
     m.choices.visible = true
     m.panel.visible = true
@@ -904,6 +909,19 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if key = "left" and m.viewChips.isInFocusChain()
         m.tabs.setFocus(true)
+        return true
+    end if
+    ' Play plays the title in focus, as on Roku's own screens.
+    if key = "play" and m.grid.isInFocusChain() and m.grid.content <> invalid
+        uiPlayTile(m.grid.content.getChild(m.grid.itemFocused))
+        return true
+    end if
+    if key = "play" and (m.rows.isInFocusChain() or m.groups.isInFocusChain())
+        list = m.rows
+        if m.groups.isInFocusChain() then list = m.groups
+        position = list.rowItemFocused
+        row = list.content.getChild(position[0])
+        if row <> invalid then uiPlayTile(row.getChild(position[1]))
         return true
     end if
     if key = "options" and m.grid.isInFocusChain() and m.grid.content <> invalid

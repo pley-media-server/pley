@@ -80,6 +80,25 @@ class PlayItemTest {
     }
 
     @Test
+    fun `a book goes on from its on-deck part where it was left, a part picked from it`() = runTest {
+        val parts = listOf(item(71, ItemKind.Part, watched = true, parent = 70), item(72, ItemKind.Part, 600_000, parent = 70), item(73, ItemKind.Part, parent = 70))
+        val data = signedIn(folder.newFolder()) {
+            api.answer("children", ItemList(parts))
+            api.answer("onDeck", MaybeItem(parts[1]))
+        }
+        val ids = parts.map { it.id }
+        assertEquals(PlayTarget.Music(ids, 1, parts, 600_000), data.graph.playItem.resolve(item(70, ItemKind.Audiobook), false))
+        assertEquals(PlayTarget.Music(ids, 0, parts, 0), data.graph.playItem.resolve(item(70, ItemKind.Audiobook), fromStart = true))
+        // A part picked: the book from it, where it was left in it; one heard to its end from its start.
+        assertEquals(PlayTarget.Music(ids, 1, parts, 600_000), data.graph.playItem.resolve(parts[1], false))
+        assertEquals(PlayTarget.Music(ids, 0, parts, 0), data.graph.playItem.resolve(parts[0], false))
+
+        // Where it goes on can't be read: the first part not heard to its end.
+        data.api.fail("onDeck", OfflineException(IOException("down")))
+        assertEquals(PlayTarget.Music(ids, 1, parts, 600_000), data.graph.playItem.resolve(item(70, ItemKind.Audiobook), false))
+    }
+
+    @Test
     fun `an empty album has nothing to play, a track alone plays alone`() = runTest {
         val data = signedIn(folder.newFolder()) { api.answer("children", ItemList(emptyList())) }
         assertEquals(PlayTarget.NothingToPlay, data.graph.playItem.resolve(item(400, ItemKind.Album), false))

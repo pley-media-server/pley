@@ -188,16 +188,19 @@ impl MusicBrainz {
     }
 
     /// Look up the albums, then the artists, of a library that have no
-    /// MusicBrainz metadata yet (all of them when `force`). Albums go first:
-    /// the artists they credit save searching for the artists.
+    /// MusicBrainz metadata yet (all of them when `force`), and `again` a
+    /// few of those it found nothing for a while ago
+    /// ([`crate::metadata::looked_up_again`]). Albums go first: the artists
+    /// they credit save searching for the artists.
     pub async fn refresh_library(
         &self,
         lib: &LibraryRow,
         force: bool,
+        again: bool,
         progress: &(dyn Fn(u64, u64) + Sync),
     ) -> anyhow::Result<()> {
-        let pending = |kind: &'static str| {
-            sqlx::query_scalar::<_, i64>(
+        let pending = |kind: &'static str| async move {
+            let mut ids = sqlx::query_scalar::<_, i64>(
                 "SELECT id FROM items WHERE library_id = ? AND kind = ? AND metadata_locked = 0
                    AND (? OR metadata_at IS NULL) ORDER BY added_at DESC",
             )
@@ -205,6 +208,22 @@ impl MusicBrainz {
             .bind(kind)
             .bind(force)
             .fetch_all(&self.db.read)
+            .await?;
+            if again && !force {
+                let due = sqlx::query_scalar::<_, i64>(concat!(
+                    "SELECT id FROM items WHERE library_id = ? AND kind = ? AND metadata_locked = 0
+                       AND metadata_at < 0 AND ",
+                    crate::metadata::looked_up_again!("(-metadata_at)", "added_at"),
+                    " ORDER BY ABS(metadata_at) LIMIT ?"
+                ))
+                .bind(lib.id)
+                .bind(kind)
+                .bind(crate::metadata::LOOKED_UP_AGAIN)
+                .fetch_all(&self.db.read)
+                .await?;
+                ids.extend(due);
+            }
+            Ok::<_, sqlx::Error>(ids)
         };
         let albums = pending("album").await?;
         let artists = pending("artist").await?;
@@ -440,8 +459,7 @@ impl MusicBrainz {
             .genres
             .get_or_try_init(|| async {
                 let request = self.api.http.get(format!("{}/genre/all?fmt=txt", self.base));
-                let body =
-                    self.api.send(request).await?.text().await.map_err(|e| anyhow::anyhow!("MusicBrainz: {e}"))?;
+                let body = String::from_utf8_lossy(&self.api.body(request).await?).into_owned();
                 let list: HashSet<String> =
                     body.lines().map(|l| l.trim().to_lowercase()).filter(|l| !l.is_empty()).collect();
                 Ok::<_, ProviderError>(list)

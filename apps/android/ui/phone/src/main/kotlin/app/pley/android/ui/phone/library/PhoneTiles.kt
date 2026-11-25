@@ -16,6 +16,7 @@ import app.pley.android.common.resolve
 import app.pley.android.data.GridDensity
 import app.pley.android.designsystem.PleyPhone
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.CollectionSummary
@@ -64,6 +65,8 @@ internal class PhoneTiles(private val resources: () -> Resources) : TileFactory<
             subtitle = count,
             image = ArtworkImage.of(collection.posterUrl, origin),
             description = "${collection.title}, $count",
+            // Not a kind of library's: the logo's play.
+            mark = MarkGlyph.Play,
         )
     }
 }
@@ -101,14 +104,16 @@ internal fun List<UiText>.joined(resources: Resources, separator: String = " · 
 internal fun itemsOfPlural(kind: LibraryKind?): Int = when (kind) {
     LibraryKind.Shows -> R.plurals.library_count_of_shows
     LibraryKind.Music -> R.plurals.library_count_of_artists
+    LibraryKind.Audiobooks -> R.plurals.library_count_of_books
     else -> R.plurals.library_count_of_movies
 }
 
-/** The listing's noun for a library of [kind]: "movies", "shows", "artists". */
+/** The listing's noun for a library of [kind]: "movies", "shows", "artists", "books". */
 @PluralsRes
 internal fun itemsPlural(kind: LibraryKind?): Int = when (kind) {
     LibraryKind.Shows -> R.plurals.library_count_shows
     LibraryKind.Music -> R.plurals.library_count_artists
+    LibraryKind.Audiobooks -> R.plurals.library_count_books
     else -> R.plurals.library_count_movies
 }
 

@@ -1,6 +1,7 @@
 package app.pley.android.player.live
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MimeTypes
@@ -28,6 +29,7 @@ import app.pley.android.player.R
 import app.pley.android.player.session.clientIdOf
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -161,6 +163,9 @@ data class LiveState(
  * - it is watched as it airs, as the web's: no pausing, no going back;
  * - a player failure tunes the channel again twice, after 1 s and 3 s
  *   (Samsung's), before it says why, unless the server said no ([RETRIES]);
+ * - a `stream.ts` that stands still for good while it comes (a provider
+ *   whose stream starts its clock over) is read again, or watched as HLS
+ *   if that didn't help (the web's);
  * - someone taking the channel's connection over (the server's
  *   `live_taken_over`, for the channel rather than the session:
  *   `stream.ts` has none of its own) stops it at once and says why, the
@@ -193,6 +198,14 @@ class LivePlayback(
     private val here: (player: Any, sessionId: String?) -> Unit = { _, _ -> },
     /** What this device plays, for the sound the server converts ([playsAsSent]); `null` until probed. */
     private val caps: () -> CapsSnapshot? = { null },
+    /**
+     * A pause lets the channel go, as [stop], where a player on screen plays
+     * on: the car's radio, whose Pause, another app's sound taking over, or
+     * headphones pulled out stop it until Play ([resume]).
+     */
+    private val pausable: Boolean = false,
+    /** A clock that only goes forward, in ms: how long ago `stream.ts` was read again. */
+    private val now: () -> Long = SystemClock::elapsedRealtime,
 ) {
     private val mutableState = MutableStateFlow(LiveState())
     val state: StateFlow<LiveState> = mutableState.asStateFlow()
@@ -234,6 +247,12 @@ class LivePlayback(
 
     /** The times the channel was tuned again after a player failure, since it was tuned or retried. */
     private var retries = 0
+
+    /** The watch for a `stream.ts` that stands still while it comes ([watchForStandstill]). */
+    private var standstill: Job? = null
+
+    /** When `stream.ts` was last read again ([now]'s time); `null`: not since the channel was tuned. */
+    private var readAgainAt: Long? = null
 
     init {
         scope.launch {
@@ -301,9 +320,11 @@ class LivePlayback(
         if (closed) return
         tuning?.cancel()
         stall?.cancel()
+        standstill?.cancel()
         direct = false
         holding = false
         streamFailed = false
+        readAgainAt = null
         letSessionGo()
         mutableEngine.value?.player?.let {
             it.stop()
@@ -343,6 +364,7 @@ class LivePlayback(
             if (!streamFailed && plan != null && playsAsSent(plan, caps())) {
                 engine.player.play()
                 if (engine.player.playbackState == Player.STATE_READY) playing()
+                watchForStandstill(channelId)
             } else {
                 // Made into something else, or not known in time: its HLS.
                 direct = false
@@ -362,9 +384,11 @@ class LivePlayback(
         val stream = quietly { live.streamUrl(channelId, clientId() + STREAM_CLIENT) } ?: return null
         direct = true
         holding = true
-        engine().prepare(EngineSource(url = stream, hls = false, mimeType = MimeTypes.VIDEO_MP2T, live = true), startMs = 0, playWhenReady = false)
+        engine().prepare(streamSource(stream), startMs = 0, playWhenReady = false)
         return stream
     }
+
+    private fun streamSource(url: String) = EngineSource(url = url, hls = false, mimeType = MimeTypes.VIDEO_MP2T, live = true)
 
     /**
      * stream.ts stopped while it played. The server ended watching (its
@@ -376,28 +400,128 @@ class LivePlayback(
         direct = false
         holding = false
         stall?.cancel()
+        standstill?.cancel()
         val asked = session
         tuning?.cancel()
         tuning = scope.launch {
-            val ended = asked?.let { s ->
-                try {
-                    live.plan(s)
-                    null
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: ApiException) {
-                    e.takeIf { it.status == 410 }
-                } catch (_: Exception) {
-                    null
+            if (!goesOn(asked)) return@launch
+            tune(channelId, allowDirect = false)
+        }
+    }
+
+    /**
+     * Whether the server still has [asked], the session watched: asked for
+     * its plan, which also counts it as seen. Ended there (its `410`), the
+     * channel stops and says why; any other answer, or none, and it goes on.
+     */
+    private suspend fun goesOn(asked: String?): Boolean {
+        val ended = try {
+            asked?.let { live.plan(it) }
+            null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: ApiException) {
+            e.takeIf { it.status == 410 }
+        } catch (_: Exception) {
+            null
+        } ?: return true
+        // Already gone at the server: nothing to let go.
+        if (session == asked) session = null
+        fail(LiveTrouble.of(ended))
+        return false
+    }
+
+    /**
+     * Watches the `stream.ts` that plays for standing still for good while
+     * it comes, as the web's `whenStuck` does. A provider whose stream
+     * starts its clock over (the server connected to it again, after it
+     * ended or dropped the stream) sends sound and pictures timed before
+     * what played: Media3 neither plays them nor fails, and would wait there
+     * for its own ten minutes.
+     *
+     * Looked at every [STUCK_LOOK_MS]: its position no further and nothing
+     * more buffered on [STUCK_AFTER] looks in a row, the stream having come
+     * on [STUCK_COMING] of them and coming still, it is [stoodStill]. A
+     * provider gone quiet or a stream that ended sends nothing, and is left
+     * to the stall and to [brokeOff].
+     *
+     * Whether it comes is the bytes the engine [received][PlayerEngine.received]
+     * since the last look, the web's own sign. Media3 reads on at the
+     * stream's full rate while it stands still so (nothing it reads counts
+     * as buffered ahead, so its buffer never fills), and says `isLoading`
+     * for a provider gone quiet too: only the bytes tell the two apart.
+     */
+    private fun watchForStandstill(channelId: Long) {
+        standstill?.cancel()
+        val engine = engine()
+        val player = engine.player
+        standstill = scope.launch {
+            var position = player.currentPosition
+            var buffered = player.bufferedPosition
+            var received = engine.received
+            var movedBefore = false
+            var played = false
+            var still = 0
+            var came = 0
+            while (true) {
+                delay(STUCK_LOOK_MS)
+                val positionNow = player.currentPosition
+                val bufferedNow = player.bufferedPosition
+                val receivedNow = engine.received
+                // Forward only: a stream read again starts at 0.
+                val moved = positionNow > position
+                val more = bufferedNow > buffered
+                val coming = receivedNow > received
+                position = positionNow
+                buffered = bufferedNow
+                received = receivedNow
+                // Played: on from one look to the next, not the jump to where a stream starts.
+                played = played || (moved && movedBefore)
+                movedBefore = moved
+                if (moved || more) {
+                    still = 0
+                    came = 0
+                    continue
                 }
+                still++
+                if (coming) came++
+                if (still >= STUCK_AFTER && came >= STUCK_COMING && coming) break
             }
-            if (ended != null) {
-                // Already gone at the server: nothing to let go.
-                if (session == asked) session = null
-                fail(LiveTrouble.of(ended))
-            } else {
+            stoodStill(channelId, played)
+        }
+    }
+
+    /**
+     * `stream.ts` stands still for good while it comes. One that [played]
+     * is read again, on the same session: the server starts the new reader
+     * at its last keyframe, and its clock starts with it. One that never
+     * played wouldn't then either, and one that stands still again within
+     * [READ_AGAIN_ONCE_IN_MS] (a provider whose clock starts over at every
+     * break) keeps doing so: those are watched as HLS, as one that
+     * [brokeOff], which the transcoder plays through the jump.
+     */
+    private fun stoodStill(channelId: Long, played: Boolean) {
+        val last = readAgainAt
+        if (!played || (last != null && now() - last < READ_AGAIN_ONCE_IN_MS)) {
+            brokeOff(channelId)
+            return
+        }
+        stall?.cancel()
+        // The spinner, until it plays again.
+        mutableState.update { it.copy(buffering = true) }
+        val asked = session
+        tuning?.cancel()
+        tuning = scope.launch {
+            // The session counts as watched while its stream is read: seen now, it stays while the stream is read again.
+            if (!goesOn(asked)) return@launch
+            val stream = quietly { live.streamUrl(channelId, clientId() + STREAM_CLIENT) }
+            if (stream == null) {
                 tune(channelId, allowDirect = false)
+                return@launch
             }
+            readAgainAt = now()
+            engine().prepare(streamSource(stream), startMs = 0, playWhenReady = true)
+            watchForStandstill(channelId)
         }
     }
 
@@ -459,6 +583,7 @@ class LivePlayback(
     fun stop() {
         tuning?.cancel()
         stall?.cancel()
+        standstill?.cancel()
         direct = false
         holding = false
         letSessionGo()
@@ -487,6 +612,7 @@ class LivePlayback(
 
     private fun fail(trouble: LiveTrouble) {
         stall?.cancel()
+        standstill?.cancel()
         letSessionGo()
         mutableEngine.value?.player?.stop()
         mutableState.update { it.copy(phase = LivePhase.Failed(trouble), buffering = false) }
@@ -511,8 +637,16 @@ class LivePlayback(
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (playWhenReady || holding) return
+            // The radio lets the channel go: playing on would take the sound back from whatever took it. Not
+            // inside the engine's own callback, which stop() releases: posted, as the scope's own dispatcher (the main
+            // thread's, immediate) would run it here.
+            if (pausable) {
+                scope.launch(Dispatchers.Main) { if (!closed) stop() }
+                return
+            }
             // Live has no pause (headphones pulled out, a stray media key): it plays on, as a browser's does.
-            if (!playWhenReady && !holding) mutableEngine.value?.player?.play()
+            mutableEngine.value?.player?.play()
         }
 
         override fun onTracksChanged(tracks: Tracks) {
@@ -577,6 +711,18 @@ class LivePlayback(
         /** …the next after this. */
         const val NEXT_RETRY_MS = 3_000L
 
+        /** A `stream.ts` that plays is looked at this often (the web's)… */
+        const val STUCK_LOOK_MS = 1_000L
+
+        /** …and stands still for good on this many looks in a row… */
+        const val STUCK_AFTER = 8
+
+        /** …the stream having come on this many of them: not a provider gone quiet. */
+        const val STUCK_COMING = 5
+
+        /** `stream.ts` is read again once in this long at most (the web's 2 minutes): standing still again sooner, it is watched as HLS. */
+        const val READ_AGAIN_ONCE_IN_MS = 120_000L
+
         /**
          * Whether this device plays [plan]'s channel from `stream.ts` as the
          * provider sends it: its picture sent as it is (or none), and its
@@ -620,10 +766,12 @@ class LivePlayback(
             events: Flow<ServerEvent> = emptyFlow(),
             playing: (player: Any, playing: Boolean) -> Unit = { _, _ -> },
             here: (player: Any, sessionId: String?) -> Unit = { _, _ -> },
+            /** The car's radio: the sound alone, on the music's engine (no video decoders, the audio focus its own), and [pausable]. */
+            radio: Boolean = false,
             caps: () -> CapsSnapshot? = { null },
         ): LivePlayback {
             val app = context.applicationContext
-            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope, events, playing, here, caps)
+            return LivePlayback(live, { engines.create(app, profile, music = radio) }, clientIdOf(app), scope, events, playing, here, caps, pausable = radio)
         }
     }
 }

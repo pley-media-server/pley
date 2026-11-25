@@ -185,6 +185,12 @@ pub trait PlayerEngine: Send {
     fn events(&mut self) -> Vec<EngineEvent>;
     /// Where playing is, in ms of the file's time.
     fn position_ms(&self) -> u64;
+    /// Where the player itself last said it is, in ms, with nothing run on past it; none until
+    /// it says. Whoever watches for a player that stands still asks this:
+    /// [`PlayerEngine::position_ms`] may run on between a pipeline's reports.
+    fn reported_ms(&self) -> Option<u64> {
+        Some(self.position_ms())
+    }
     /// What Playback details shows, but the network's speed.
     fn stats(&self) -> EngineStats;
     /// How fast the TV's whole network receives ([`EngineStats::network_bps`]), for Info and the

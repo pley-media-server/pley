@@ -145,6 +145,9 @@ class PleyJsonTest {
         // Asked for only beside a session playing: left out otherwise.
         val beside = PleyJson.parseToJsonElement(PleyJson.encodeToString(PlaybackRequest.serializer(), request.copy(keepPrevious = true))).jsonObject
         assertEquals("true", beside["keep_previous"].toString())
+        assertEquals(null, beside["ahead"])
+        val ahead = PleyJson.parseToJsonElement(PleyJson.encodeToString(PlaybackRequest.serializer(), request.copy(keepPrevious = true, ahead = true))).jsonObject
+        assertEquals("true", ahead["ahead"].toString())
     }
 
     @Test

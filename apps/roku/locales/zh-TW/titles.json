@@ -188,7 +188,6 @@
     "toneMapped": "SDR（透過 {{method}} 色調對映）",
     "realTime": "{{speed}}× 即時",
     "realTimeReady": "{{speed}}× 即時 · 已準備 {{seconds, number}} 秒",
-    "chapter": "第 {{number}} 章",
-    "line": "{{label}}：{{value}}"
+    "chapter": "第 {{number}} 章"
   }
 }

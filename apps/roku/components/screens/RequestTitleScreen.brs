@@ -12,7 +12,6 @@
 
 sub init()
     m.backdrop = m.top.findNode("backdrop")
-    m.shade = m.top.findNode("shade")
     m.page = m.top.findNode("page")
     m.poster = m.top.findNode("poster")
     m.credit = m.top.findNode("credit")
@@ -49,7 +48,8 @@ sub init()
     ' the new badge.
     m.badge = ""
     m.problemShown = invalid
-    m.buttons.observeField("buttonSelected", "onButton")
+    m.buttons.observeField("chosen", "onButton")
+    m.labelsShown = ""
     m.rows.observeField("rowItemSelected", "onTile")
     m.problemButtons.observeField("buttonSelected", "onProblemButton")
     m.poll.observeField("fire", "load")
@@ -169,7 +169,6 @@ sub showDetail()
     layoutText()
     agent = m.top.getScene().getHttpAgent()
     if m.backdrop.uri <> m.shown.backdrop
-        m.backdrop.setHttpAgent(agent)
         m.backdrop.uri = m.shown.backdrop
     end if
     if m.poster.uri <> m.shown.poster
@@ -178,16 +177,20 @@ sub showDetail()
     end if
     hasButtons = m.shown.buttons.Count() > 0
     if hasButtons
-        focused = m.buttons.buttonFocused
-        hadFocus = m.buttons.isInFocusChain()
-        if FormatJson(m.buttons.buttons) <> FormatJson(m.shown.buttons) then m.buttons.buttons = m.shown.buttons
-        uiKeepButton(m.buttons, focused, hadFocus)
+        if FormatJson(m.shown.buttons) <> m.labelsShown
+            m.labelsShown = FormatJson(m.shown.buttons)
+            focused = m.buttons.focusIndex
+            hadFocus = m.buttons.isInFocusChain()
+            m.buttons.chips = contentActionChips(m.shown.buttons, m.shown.actions)
+            contentKeepChip(m.buttons, focused, hadFocus)
+        end if
     else if m.buttons.isInFocusChain()
         m.top.setFocus(true)
     end if
     m.buttons.visible = hasButtons
     m.column.visible = true
     m.credit.visible = true
+    placeRows()
     ' Only while this screen has the focus: a dialog over it keeps it.
     if m.top.isInFocusChain() and not m.rows.isInFocusChain()
         if hasButtons
@@ -247,8 +250,11 @@ sub showRows(content as dynamic)
     sizes = []
     heights = []
     for i = 0 to content.getChildCount() - 1
-        sizes.Push([220, 410])
-        heights.Push(470)
+        shape = contentRowSize(false, false)
+        first = content.getChild(i).getChild(0)
+        if first <> invalid and first.kind = "cast" then shape = contentPersonRowSize()
+        sizes.Push(shape.size)
+        heights.Push(shape.height)
     end for
     m.rows.rowItemSize = sizes
     m.rows.rowHeights = heights
@@ -277,16 +283,30 @@ function tileChanged(tile as object, fresh as object) as boolean
     return false
 end function
 
+' The rows 64 px under the words and buttons, and under the poster's
+' credit, their top showing as the page rests (as a title's page has
+' them, DetailsScreen.brs).
+sub placeRows()
+    y = 560
+    for each node in [m.column, m.credit]
+        rect = node.boundingRect()
+        if rect.height > 0 and Int(rect.y + rect.height + 64) > y then y = Int(rect.y + rect.height + 64)
+    end for
+    if y > 940 then y = 940
+    if m.rows.translation[1] <> y then m.rows.translation = [168, y]
+end sub
+
 ' The page slides up to the rows as they take the focus, the backdrop
 ' shaded under them all, and back down.
 sub focusRows(onRows as boolean)
     if onRows
-        m.page.translation = [0, -820]
-        m.shade.width = 1920
+        placeRows()
+        m.page.translation = [0, -(m.rows.translation[1] - 120)]
+        uiDimBackdrop(m.top, true)
         m.rows.setFocus(true)
     else
         m.page.translation = [0, 0]
-        m.shade.width = 1260
+        uiDimBackdrop(m.top, false)
         if m.buttons.visible
             m.buttons.setFocus(true)
         else
@@ -423,7 +443,7 @@ sub showProblem(problem as object)
     m.credit.visible = false
     m.rows.visible = false
     m.problemTitle.text = problem.title
-    m.problemText.text = problem.text
+    uiProblemWords(m.top.findNode("problem"), m.problemText, problem.text)
     buttons = []
     if problem.signIn then buttons.Push(t("requests.buttons.signIn"))
     if problem.retry then buttons.Push(t("common.actions.tryAgain"))

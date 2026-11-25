@@ -198,7 +198,6 @@
     "toneMapped": "SDR (mappage tonal avec {{method}})",
     "realTime": "{{speed}}× temps réel",
     "realTimeReady": "{{speed}}× temps réel · {{seconds, number}} s d’avance",
-    "chapter": "Chapitre {{number}}",
-    "line": "{{label}} : {{value}}"
+    "chapter": "Chapitre {{number}}"
   }
 }

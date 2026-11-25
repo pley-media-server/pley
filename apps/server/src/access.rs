@@ -16,7 +16,9 @@
 //! Apps that can't show audiobooks don't get audiobook libraries, nor
 //! their books where several libraries' titles are listed (Home, search,
 //! history): see [`library_ids`]. That is what they show, not who may see
-//! what: a book asked for by its id is answered.
+//! what: Pley's own API answers for a book asked for by its id. The Plex-
+//! and Jellyfin-compatible APIs, whose clients have no books, answer `404`
+//! for one, and change none ([`withholds`]).
 
 use std::collections::HashMap;
 

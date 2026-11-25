@@ -124,6 +124,7 @@
       "match": "Corriger la correspondance…",
       "thumb": "Choisir la miniature…",
       "poster": "Choisir l’affiche…",
+      "cover": "Choisir la couverture…",
       "backdrop": "Choisir l’arrière-plan…"
     },
     "details": {
@@ -131,6 +132,7 @@
       "hint": "Les champs modifiés sont verrouillés <lock/> pour que les actualisations des métadonnées les conservent. Déverrouillez un champ pour que la prochaine actualisation le remplisse à nouveau.",
       "nfoHint": "Les champs venus du fichier NFO placé à côté l’emportent sur la source de métadonnées ; une modification ici l’emporte sur eux.",
       "genresPlaceholder": "Drame, Thriller",
+      "namesPlaceholder": "Un nom par ligne",
       "locked": "Verrouillé : cliquez pour déverrouiller",
       "willUnlock": "Sera déverrouillé",
       "ratingCountry": "Pays : {{country}}",
@@ -141,6 +143,10 @@
         "title": "Titre",
         "sort_title": "Titre de tri",
         "original_title": "Titre original",
+        "authors": "Auteurs",
+        "narrators": "Narrateurs",
+        "series": "Série",
+        "series_index": "Tome",
         "year": "Année",
         "release_date": "Date de sortie",
         "content_rating": "Classification",
@@ -156,15 +162,22 @@
     "match": {
       "title": "Corriger la correspondance",
       "byHand": "Associé ici à la main. Un fichier NFO placé à côté ne change pas cette correspondance tant que vous ne l’annulez pas.",
+      "bookByHand": "Associé ici à la main. Les actualisations et les fichiers du livre ne changent pas cette correspondance tant que vous ne l’annulez pas.",
       "undo": "Annuler la correction",
       "undone": "Correction de la correspondance annulée",
       "matched": "Associé à « {{title}} »",
       "noMatches": "Aucune correspondance. Essayez un autre titre, ou sans année.",
-      "current": "Actuel"
+      "current": "Actuel",
+      "bookTitle": "Titre, ou un ASIN Audible",
+      "author": "Auteur",
+      "noBookMatches": "Aucun résultat. Essayez un autre titre, sans auteur, ou l’ASIN du livre.",
+      "audible": "Audible · {{asin}}",
+      "openLibrary": "Open Library · {{id}}"
     },
     "artwork": {
       "titles": {
         "poster": "Choisir l’affiche",
+        "cover": "Choisir la couverture",
         "backdrop": "Choisir l’arrière-plan",
         "thumb": "Choisir la miniature"
       },
@@ -174,7 +187,8 @@
       "upload": "Envoyer une image…",
       "uploading": "Envoi…",
       "loadError": "{{error}} Vous pouvez quand même envoyer une image.",
-      "none": "TMDB n’a pas d’autre illustration pour cet élément."
+      "none": "TMDB n’a pas d’autre illustration pour cet élément.",
+      "noCovers": "Open Library et Audible n’ont pas de couverture pour ce livre. S’il est associé au mauvais livre, corrigez d’abord la correspondance."
     }
   },
   "request": {

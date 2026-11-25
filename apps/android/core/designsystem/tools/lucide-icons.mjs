@@ -48,7 +48,7 @@ const icons = [
   ["Usb", "usb"], ["FilePlay", "file-play"], ["CornerLeftUp", "corner-left-up"],
   // Live TV
   ["TvMinimal", "tv-minimal"], ["CalendarDays", "calendar-days"], ["LayoutGrid", "layout-grid"], ["Radio", "radio"],
-  ["Clock", "clock"], ["StarOutline", "star"],
+  ["Clock", "clock"], ["StarOutline", "star"], ["BookHeadphones", "book-headphones"],
 ];
 
 const n = (v) => Number(v);

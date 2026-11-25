@@ -9,3 +9,7 @@ publish = false
 
 [dependencies]
 pley-base = { path = "../base" }
+
+[dev-dependencies]
+# Reads packages/placeholder/placeholder.json, which the placeholder's gradient is held to.
+serde_json = "1.0.154"

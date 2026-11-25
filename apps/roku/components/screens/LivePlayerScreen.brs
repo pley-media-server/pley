@@ -272,7 +272,7 @@ sub markCurrent()
     if content = invalid then return
     for i = 0 to content.getChildCount() - 1
         item = content.getChild(i)
-        shown = m.channel <> invalid and item.channelId = m.channel.id
+        shown = m.channel <> invalid and item.liveId = m.channel.id
         if item.current <> shown then item.current = shown
     end for
 end sub

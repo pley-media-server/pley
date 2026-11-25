@@ -76,6 +76,10 @@ sealed interface PleyKey : NavKey {
     @Serializable
     data class Album(val itemId: Long, val trackId: Long? = null) : PleyKey
 
+    /** An audiobook: its cover, who wrote and reads it, Play where it was left, its parts or chapters. */
+    @Serializable
+    data class Book(val itemId: Long) : PleyKey
+
     @Serializable
     data class Search(val query: String = "") : PleyKey
 

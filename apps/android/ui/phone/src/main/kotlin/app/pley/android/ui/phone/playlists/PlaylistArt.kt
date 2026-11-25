@@ -24,6 +24,7 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 
 /**
  * A playlist's square cover (the web's PlaylistArt): a 2 by 2 mosaic of
@@ -66,7 +67,8 @@ internal fun PlaylistArt(
                     }
                 }
             }
-            images.isNotEmpty() -> Artwork(images.first(), title, Modifier.fillMaxSize())
+            // Should the picture not come, Pley's mark: music's glyph for tracks, play for movies and episodes alike.
+            images.isNotEmpty() -> Artwork(images.first(), title, Modifier.fillMaxSize(), mark = if (video) MarkGlyph.Play else MarkGlyph.Music)
             else -> Box(
                 Modifier
                     .fillMaxSize()

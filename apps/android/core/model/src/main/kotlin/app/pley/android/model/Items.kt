@@ -15,6 +15,12 @@ enum class ItemKind(override val wire: String) : WireEnum {
 
     /** Bonus material of a movie or a show (trailers first): [ItemSummary.extraType] says which. */
     Extra("extra"),
+
+    /** A book of an audiobook library, its files its [Part]s (the app asks for them: X-Pley-Features). */
+    Audiobook("audiobook"),
+
+    /** A file of an [Audiobook], in the order it plays. */
+    Part("part"),
     Unknown("unknown"),
     ;
 
@@ -137,12 +143,14 @@ data class ItemSummary(
     /** Episode stills and video frame grabs (16:9). */
     val thumbUrl: String? = null,
     val userState: UserState = UserState(),
-    /** Shows and seasons: episodes; artists and albums: tracks. */
+    /** Shows and seasons: episodes; artists and albums: tracks; audiobooks: parts. */
     val leafCount: Int? = null,
-    /** Shows and seasons: watched episodes. */
+    /** Shows and seasons: watched episodes; audiobooks: parts heard to the end. */
     val viewedLeafCount: Int? = null,
     /** Shows: seasons; artists: albums. */
     val childCount: Int? = null,
+    /** An audiobook's authors. */
+    val authors: List<String> = emptyList(),
     /** In listings only for episodes; always in [ItemDetail]. */
     val summary: String? = null,
     /** "YYYY-MM-DD". */
@@ -183,6 +191,7 @@ data class ItemDetail(
     val leafCount: Int? = null,
     val viewedLeafCount: Int? = null,
     val childCount: Int? = null,
+    val authors: List<String> = emptyList(),
     val summary: String? = null,
     val releaseDate: String? = null,
     val extraType: ExtraType? = null,
@@ -210,6 +219,8 @@ data class ItemDetail(
     val crew: List<Credit> = emptyList(),
     /** In the profile's My List (movies and shows). */
     val inWatchlist: Boolean = false,
+    /** Audiobooks only: who wrote and reads it, its series. */
+    val book: Book? = null,
 ) {
     fun toSummary(): ItemSummary = ItemSummary(
         id = id,
@@ -238,8 +249,20 @@ data class ItemDetail(
         releaseDate = releaseDate,
         extraType = extraType,
         media = media,
+        authors = authors.ifEmpty { book?.authors.orEmpty() },
     )
 }
+
+/** An audiobook's people and series, from its first part's tags, else its folders (apps/server/src/catalog.rs, `Book`). */
+@Serializable
+data class Book(
+    /** "Unknown Author" when nothing says. */
+    val authors: List<String> = emptyList(),
+    val narrators: List<String> = emptyList(),
+    val series: String? = null,
+    /** The book's place in its series: 2, or 2.5 between two books. */
+    val seriesIndex: Double? = null,
+)
 
 /**
  * `{ items }`: GET /api/items/{id}/children (seasons of a show, episodes of

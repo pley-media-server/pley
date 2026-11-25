@@ -272,7 +272,7 @@ function musicUpNextRows(queue as object, first as integer, last as integer, at 
         parts = []
         if track.artist <> "" then parts.Push(track.artist)
         if track.album <> "" then parts.Push(track.album)
-        rows.Push({ title: urlValue(i + 1) + ". " + track.title, subtitle: parts.Join(" · "), duration: fmtClock(track.durationMs), current: i = at })
+        rows.Push({ number: urlValue(i + 1), title: track.title, subtitle: parts.Join(" · "), duration: fmtClock(track.durationMs), current: i = at })
     end for
     return rows
 end function

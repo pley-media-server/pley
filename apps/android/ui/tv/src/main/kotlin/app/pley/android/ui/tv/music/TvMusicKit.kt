@@ -33,6 +33,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
@@ -40,6 +43,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.TrackArt
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.player.MusicPosition
@@ -110,12 +114,13 @@ internal fun TvTrackLine(
 /**
  * The album art over the whole page at [alpha] on [bg][PleyColors.Bg],
  * unblurred (design spec §4.10, §6), fading into the page to the left and
- * at the bottom so text stays on solid ground.
+ * at the bottom so text stays on solid ground. As the track changes on
+ * Now Playing, the last one stays until the next has come ([TrackArt]).
  */
 @Composable
 internal fun FaintArt(art: ArtworkImage?, title: String, alpha: Float = 0.2f) {
     if (art == null) return
-    Artwork(
+    TrackArt(
         art,
         title,
         Modifier
@@ -125,22 +130,43 @@ internal fun FaintArt(art: ArtworkImage?, title: String, alpha: Float = 0.2f) {
                 drawContent()
                 drawRect(Brush.verticalGradient(0.4f to Color.Transparent, 1f to PleyColors.Bg))
             },
+        placeholder = false,
     )
 }
 
-/** Where the track is, refreshed every [everyMs] while [playing], once otherwise. */
+/**
+ * Where the track is, refreshed every [everyMs] while [playing]. Paused,
+ * it is read until it has stood still for a moment (what is buffered goes
+ * on growing after a seek), then no more until [key] changes: the track,
+ * or a seek made from anywhere ([NowPlaying.seeks]). Only while the
+ * page is started: the music plays on with the TV showing another app,
+ * and nothing then reads where it is; back, it is read again at once.
+ */
 @Composable
 internal fun rememberPosition(position: () -> MusicPosition, playing: Boolean, key: Any?, everyMs: Long = 500): State<MusicPosition> {
     val state = remember { mutableStateOf(position()) }
-    LaunchedEffect(playing, key) {
-        state.value = position()
-        while (playing) {
-            delay(everyMs)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(playing, key, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             state.value = position()
+            while (playing) {
+                delay(everyMs)
+                state.value = position()
+            }
+            var still = 0
+            while (still < SETTLED_READS) {
+                delay(everyMs)
+                val before = state.value
+                state.value = position()
+                still = if (state.value == before) still + 1 else 0
+            }
         }
     }
     return state
 }
+
+/** A paused track's position has settled once this many readings in a row are the same. */
+private const val SETTLED_READS = 3
 
 /** A small art well for lists. */
 @Composable

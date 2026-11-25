@@ -451,7 +451,7 @@ function pagePerson(person as object, server as string) as object
             if roles.Count() > 0
                 tile = contentTile(credit.item, server, false)
                 parts = []
-                if tile.subtitle <> "" then parts.Push(tile.subtitle)
+                if tile.place <> "" then parts.Push(tile.place)
                 parts.Push(pageRoleText(roles))
                 tile.subtitle = parts.Join(" · ")
                 tiles.Push(tile)
@@ -559,7 +559,7 @@ function pagePlaylistTile(playlist as object, server as string) as object
     image = ""
     artwork = httpArray(playlist.artwork)
     if artwork.Count() > 0 then image = urlImage(server, artwork[0], contentPosterWidth())
-    return { title: httpSentence(playlist.title), subtitle: pagePlaylistLine(playlist), image: image, wide: false, progress: 0.0, watched: false, itemId: httpNumber(playlist.id, 0), kind: "playlist" }
+    return { title: httpSentence(playlist.title), subtitle: pagePlaylistLine(playlist), image: image, wide: false, progress: 0.0, watched: false, itemId: httpNumber(playlist.id, 0), kind: "playlist", playlistKind: httpString(playlist.kind) }
 end function
 
 function pagePlaylistTiles(playlists as dynamic, server as string) as object
@@ -599,7 +599,7 @@ function pagePlaylistEntries(entries as dynamic, server as string) as object
         if item <> invalid
             tile = contentTile(item, server, true)
             parts = []
-            if tile.subtitle <> "" then parts.Push(tile.subtitle)
+            if tile.place <> "" then parts.Push(tile.place)
             duration = fmtDuration(tile.durationMs)
             if tile.progress > 0
                 parts.Push(fmtLeft(tile.positionMs, tile.durationMs))
@@ -675,7 +675,7 @@ function pageHistoryRows(entries as dynamic, server as string, now as integer) a
         if item <> invalid and contentShown(httpString(item.kind))
             tile = contentTile(item, server, true)
             parts = []
-            if tile.subtitle <> "" then parts.Push(tile.subtitle)
+            if tile.place <> "" then parts.Push(tile.place)
             if httpString(item.kind) = "track"
                 album = httpSentence(item.parent_title)
                 if album <> "" then parts.Push(album)

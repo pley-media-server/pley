@@ -157,6 +157,23 @@ rates as the decoder gives them, the same in every language.
 
 ### Phones and tablets
 
+- **Pictures**, here and on TVs: a title without one, or whose picture
+  doesn't load, shows its title's gradient (every app's) with Pley's mark
+  on it, a glyph cut out of its front poster for the title's kind of
+  library (a clapperboard for movies, a TV for shows, notes for music,
+  a book for audiobooks, play for the rest); while a picture loads, the
+  gradient alone. A tile's name is in its caption, not on its picture. The mark shows only
+  where the title's name is by its picture (a caption, the line beside
+  it): backdrops, people, Live TV's programs and a playlist's mosaic
+  keep the gradient alone, and the player's Up Next card too, as it
+  doesn't know its title's kind. The gradient and the mark are
+  `packages/placeholder`'s, which unit tests hold the app's copies to.
+- **The tabs** are a bar under the page on a phone held upright, with
+  their names, and a rail beside it on a phone on its side, a tablet or
+  a car's screen: icons alone, centered on its height and read out by
+  name, the chosen one in the accent on a faint fill with an accent bar
+  on its edge, as the web's sidebar marks it. A narrow car screen has
+  the bar, its icons alone.
 - **The player** shows its controls, the title with them, for 3 s as
   playback starts and as each later item begins (the next episode, a
   queue's next), where TVs show the title alone at the top; a tap shows
@@ -701,9 +718,43 @@ A Pley from before categories has none to give
 collection in one grid, as it did, and Recommended the server's own
 rows, with no row of collections after them.
 
-Audiobook libraries are in the web and desktop apps: the server gives this
-app none, nor their books on Home, in search or in history
-([API.md](API.md#libraries)).
+Audiobook libraries are listed with the others, with a book icon; the
+app asks the server for them (`X-Pley-Features: audiobooks`, with every
+request), and an older server gives it none
+([API.md](API.md#libraries)). As on the web, a book library has
+Recommended (Continue Listening, Recently Added) and Library tabs, its
+books as square covers by title, year or date added, with no filters
+and no collections. Home has Continue Listening, the books being heard,
+as square covers; search finds books in a group of their own; history
+lists the parts heard under their book.
+
+A book's page (BookView.tsx) has its cover, its series and place in it,
+who wrote and reads it, its year, length and parts, and how far the
+profile is in it (a bar, the share heard, the time left, and the part it
+goes on from). **Play** goes on where the profile is in the book on any
+device (the server's on-deck part, from where it stopped; **Resume**
+once started, **Listen again** once finished), or plays and pauses the
+book while it is in the player; **From the start** and **Mark as
+finished** are beside it. Under it are the parts, each with its length,
+a bar of how far it is heard and a check once heard to its end, or, for a
+book in one file, its chapters, each from where it starts; the one
+playing is marked, and picking one plays the book from it. A TV opens Now
+Playing as the book plays.
+
+Books play in the app's music, as tracks do, at the books' own speed. Now
+Playing (phone, TV and the notification) has back 15 seconds and forward
+30 seconds in place of Shuffle and Repeat, and Speed (1 to 2 times, and
+0.8): a list on the phone, each Select the next speed on a TV, as the
+car's button does; the speed is kept on the device for every book, the
+car included. Previous and Next go from chapter to chapter in a file with
+chapters, then from part to part, and Now Playing and the bar of what
+plays are named for the chapter playing, the book under it.
+
+Now Playing moves from one track (or chapter) to the next, on phones and
+TVs alike: the cover stays until the next one has come and fades in over
+it, as does the faint copy behind the page, and the title and artist give
+way to the next track's, coming in from the side it is on in the queue.
+With reduced motion they change in place.
 
 ### Search
 
@@ -831,6 +882,17 @@ the player ends the session, unless it goes into picture in picture
 the channel is tuned again twice, after 1 s and then 3 s, before the player
 says why; not when the server refused it (every connection in use, the
 channel stopped, gone or not allowed). Try again starts the count again.
+A provider's stream can start its clock over, as the server connects to it
+again after the stream ended or dropped, and Media3 then neither plays the
+MPEG-TS on nor fails. So the player looks at a channel it plays from
+`stream.ts` once a second: when its position stands still and nothing more
+is buffered for 8 s, while the stream came for 5 of them and still comes,
+it asks for the session's `plan` (which keeps the session, and whose `410`
+says why the channel stopped) and reads `stream.ts` again, which the
+server starts at its last keyframe. A channel that never played, or that
+stands still again within 2 minutes of being read again, plays the
+server's HLS instead. A provider that sends nothing isn't read again: the
+player waits for it.
 Live TV has no pause, so another app's sound, a call's included, quiets
 the channel instead: its sound comes back once the other app is done, or,
 after music or a video, which take the sound for good, with the next
@@ -1058,6 +1120,377 @@ to the home server still goes over the Wi-Fi (`LocalRoute`).
   ([API.md](API.md#downloads)). Downloads wait for Wi-Fi or Ethernet
   unless Settings → Downloads allows mobile data. Progress made offline is
   sent when the server is back.
+
+### Android Auto
+
+On a phone connected to a car with Android Auto, Pley is a music app on
+the car's screen, plays Live TV's channels there as radio, and plays
+videos there while the car is parked.
+
+**Music and audiobooks**, while driving or parked. The car's screen has
+up to five tabs, each with a white icon the car tints, and shows only
+those with something in them: no Artists without music in the libraries,
+no Playlists without a music playlist, no Books without a book, no Recent
+with nothing played, added or being heard, no Live TV (below) without
+channels. A tab whose contents the server can't say now (out of reach) is
+shown all the same. Cars show four tabs at most: with all five,
+Playlists goes first in the artists' tab, which is then named Music,
+as a row with its icon at an icon's size.
+
+- **Recent**: as grids of covers (a book, and an album of a single track,
+  are tiles too), the books being heard (Continue listening, three at
+  most), then the albums played last (Recently played, twelve at most),
+  then those added last to each music library (Recently added, twelve of
+  each library at most, or Recently added in each library's name when
+  there are several), an album played not listed again as added. When a
+  track was heard after the books' last part, the albums played come
+  before the books, as the album or book waiting in Now Playing is
+  chosen (below).
+- **Artists**: by name, with how many albums each has (with several music
+  libraries, the libraries first), and a picture cut to a circle with
+  transparent corners, as the phone shows artists: the artist's own when
+  the server has one (an `artist.jpg` or `folder.jpg` in their folder),
+  else the cover of their newest album, looked for only as the car shows
+  the row (so a list of hundreds asks the server for nothing more until
+  it is scrolled), else their placeholder, round too. It stays a list,
+  read for a name. An artist's page is
+  one grid: Shuffle first, a tile of the artist's placeholder color with
+  the shuffle glyph, saying how many tracks it plays when the server has
+  counted each album's, then their albums, newest first, each with its
+  year (elsewhere an album says its artist), an album of a single track a
+  tile too; an album lists its tracks
+  numbered, as its page on the phone does, with their lengths, under each
+  disc's heading when it has several. Now Playing and the queue name a
+  track by its title alone.
+- **Playlists**: the profile's music playlists, each with a mosaic of
+  its first four entries' covers (the first again in the empty quarters
+  when it has two or three), else its first entry's cover, else its
+  title's placeholder.
+- **Books**: as a grid of covers, the books being heard (Continue
+  listening, the one heard last first), those added last to each
+  audiobook library, then every book by title. Each says its authors
+  and how long is left of one being heard (under Continue listening, how
+  long is left alone), and a bar under its cover of how far the profile
+  is in it (a book heard to its end shows as such; one not started says
+  nothing, rather than be marked as not played).
+
+Recent and Books follow what plays: 2 seconds after a new album or
+playlist starts, or a book pauses or goes on to its next part, a car
+showing either reads it again.
+
+A list goes to Android Auto in one parcel, which Media3 cuts where it
+passes 256 KiB, and the rows after the cut aren't shown. So each row is
+sent with only what the car reads (its id, two lines, picture, flags
+and Android's hints, not Media3's media type or a second copy of its
+title), and a picture's address is a few short segments
+(`i/12/poster/1700000000` for `/api/items/12/images/poster?v=1700000000`).
+The root gives the hints most lists take, a grid for what opens (albums,
+playlists) and a list for what plays (tracks, channels), and only the
+few lists that differ say so themselves: the Artists tab and each
+library's artists (lists), Live TV's tab (its groups as category rows),
+Recent, Playlists and Books (what plays in them as tiles too), and
+search's artists and albums, each row a list of its own hint; a hint on
+each of hundreds of rows is sent with every list. 500 album tracks of
+long titles fit, and 500 channels of names and programs as long as
+most; 500 artists don't, each row's picture leaving room for some 430
+to 450, nor do 500 books of long titles, how far each is heard taking
+room too (some 320).
+
+Android Auto keeps each picture it has read by its address, so every
+address changes with what it shows: the server's pictures and channel
+logos carry their version, an artist's the count of their albums (an
+album added is a newer cover), and a placeholder the version of its
+drawing, one higher whenever it is drawn otherwise. A channel's logo on
+its plate has an address of its own (`p/12/0a1b2c3d`, as short as the
+logo's, as a list of 500 channels is near the cut), whose letter
+changes whenever the plate is drawn otherwise, and so does an artist's
+picture in its circle (`o/40/poster/1700000000` for their own,
+`n/40/3` for their newest album's cover, where the square ones were
+`i/…` and `a/…`). A placeholder's
+address of another drawing isn't drawn.
+
+An album or playlist opens to its tracks, wherever it is listed: a car
+plays what can be played rather than open it, so only one of a single
+track plays as it is picked (one whose tracks the server hasn't counted,
+as Recently played's, opens).
+
+A book plays as it is picked, where the profile is in it on any device:
+the part it listened to last part way, from where it stopped, else the
+first part it hasn't heard to its end (a book heard to its end starts
+over). Its parts are Now Playing's queue, under the book's title, and
+Previous and Next go from part to part; in a part with chapters (an
+`.m4b`'s, read from its file), from chapter to chapter, Previous going
+back to the start of the chapter after its first 3 seconds, and Now
+Playing is named for the chapter playing. In place of Shuffle and Repeat,
+a book has back 15 seconds, forward 30 seconds, and Speed, which goes
+through 1, 1.2, 1.5, 1.8, 2 and 0.8 times and shows the speed it plays at;
+the speed is the books' alone (music always plays as recorded) and is
+kept on the phone for the next drive. Where the profile is in each part
+goes to the server as for a track, so the web app's Continue Listening
+and its book pages follow, and the other way round.
+
+A server that doesn't give books (an older one) leaves the Books tab out.
+
+Search finds artists, albums, tracks and books, each kind under its
+heading, the kind of the server's closest match first (six of it, four
+of each other kind, so the results are a screen or two), then up to five
+channels: those found within a second and a half, so a slow IPTV
+provider doesn't hold back the music's results. A result is read without
+the page it is on: an album says its artist and year ("Harbour Lights ·
+2023"), a track its artist and album. Each
+search the car sends is asked of the server by itself, so one overtaken
+by the next letter typed still gets its answer, and the results of the
+last three are kept for a minute, so one asked again (a letter taken
+back) shows at once. A list or search the server hasn't
+sent within 8 seconds shows as the server out of reach, as cars are to
+show what they ask for within 10 seconds. A list the phone has seen
+before (an artist's albums, an album's or a playlist's tracks, the
+playlists, Recently added, Live TV's channels) shows as it was saved
+unless the server answers within 0.3 seconds (2.5 seconds for one
+never seen). When the server's answer comes in after it and differs
+from what the car shows (other rows, or rows named, described or
+pictured otherwise), Android Auto is told to read the list again, and
+gets the server's at once; an answer the same as what was shown, or
+none within 30 seconds, changes nothing. Picking a track plays on through
+its album or playlist; a track found by search plays on through its
+album. Now Playing shows the whole queue, which the car can pick from,
+under the name of the album or book it is all of, else of the playlist
+or the artist it was picked as in the car or by the Assistant (a queue
+of several albums played from the phone has none),
+a Shuffle button and a Repeat button, which repeats the queue, then the
+track playing, then nothing; a dot under each says it is on, and each
+is as bright off as on, so it doesn't look as if it can't be pressed (the
+phone's media controls have both, as do Now Playing on the phone and on
+a TV). A queue that repeats plays again from its start once it ends, in
+the order it has, and Next on its last track and Previous on its first go
+round; a track that repeats plays again by itself, and Next and Previous
+still move, stopping at the queue's ends as they do without Repeat (on
+the phone as in the car). Repeat stays as another album plays, until the
+music stops.
+
+A track is one entry of the car's Now Playing from the moment it is the
+queue's: its title, artist, cover and length as the library has them,
+while the server is asked for it, while it loads and while it plays, so
+skipping shows the next track once and not three times over. The covers
+of what plays and of the tracks either side are kept, so a track comes
+with its cover, and the tracks of an album change nothing but the title.
+A track that can't play says why on the car's screen (the server out of
+reach, the session ended by the server, a file it can't play), and Play
+tries it again. One the server can't play, while the music plays on,
+counts down 5 seconds there, on the phone and on the TV, and the next
+track plays by itself, as a driver can't look for Next; Pause stops it.
+It doesn't when the server is out of reach (the next track would fail
+the same way), at the queue's end, or once every track of the queue has
+failed in a row.
+
+Tracks play one into the next without a gap or a wait to load, in the
+car as on the phone and the TV. Music reads up to 3 minutes ahead of
+where it plays, within 16 MiB (8 MiB on a device short of memory),
+where a video reads less than a minute: it plays on through a tunnel,
+and little is fetched for music skipped on mobile data. 30 seconds before a track ends, the one
+that plays by itself after it (the next, the first again when the queue
+repeats, the same one when the track does) is asked of the server beside
+it (`keep_previous`, and `ahead`, so the server doesn't list it as
+playing yet) and waits after it in the player, which goes on to it as
+the track ends: it says it plays, and the session of the track that
+ended then ends, as at any end. Shuffle and Repeat ask again for the
+track that now comes next; the sleep timer set to the end of the track,
+Next, Previous and a pick from the queue let it go. The server forgets a
+session it doesn't hear from, so the one asked ahead is let go too after
+half a minute paused or a seek a minute or more from the end, and asked
+again once the music plays near the end. When the server refuses it (no
+conversion free beside the track playing), the next track is asked for
+as the one playing ends, after a short wait; when the server is out of
+reach for a moment, it is asked again 10 seconds later. One the player can't read
+fails once the track before has played, as any track does. A server
+older than `ahead` lists the track asked ahead as playing from when it
+is asked, so its dashboard shows two of the phone's sessions for the
+last half minute of each track.
+
+"Hey Google, play … on Pley" plays the music playlist named so (by the
+name the Assistant heard, or said with a word for a playlist, as in "my
+Night Drive playlist", in English, French and Spanish), else the closest
+artist (shuffled), album, track or book (where the profile is in it).
+Asked for as an artist, an album or a song ("play the album Night Drive
+by …"), as the Assistant tells apps, it plays the closest of that kind,
+by the artist named first, before a playlist or a channel of that name;
+with none of that kind, the other music found, never a channel. "Play music
+on Pley" plays on what
+was playing, else the album added last. A request that finds nothing
+says so on the car's screen for a moment ("Pley found no music for …"),
+and what was playing plays on. The Assistant asks for what it heard to be
+ready before it speaks, then for it to play: Pley makes it ready without
+a sound, and starts it once, when asked to play.
+
+Music picks up where it was after Android has ended the app (one paused
+a while, say): the queue, the place in it, its Shuffle (Shuffle off then
+plays it in its own order again) and what repeats are kept on the
+device with the profile's saved things, for that profile alone and
+until it signs out or the music is stopped. Music that plays on after a
+switch of profile is kept for neither: the profile that played it keeps
+what it had, and the other is never shown it; music started after the
+switch is kept for the profile signed in. As a car connects, what
+played last waits in its Now Playing, paused where it was (the music, or
+the radio's channel when that played last), so the car has something to
+play, and its Play plays it, pressed or sent by a car set to start media
+by itself; Pley never starts the sound itself. A book waits at once
+where the phone left it, also on a weak network, then moves to where
+the profile is in it on any device once the server says (within 10
+seconds), unless it has played or moved meanwhile. With nothing kept (the
+music was stopped, or none has played on this phone), whichever the
+profile heard last on any device waits instead: the book it is part way
+through, where it is in it, or the album it played last, from the track
+played; else the album added last, rather than Android Auto's prompt to open
+the app. Play on a headset, on the car's steering wheel over Bluetooth
+or in the phone's media controls brings the music back the same way
+once the app has left memory; the radio is the car's, so its channel
+waits for Android Auto. Stop from the
+car or the Assistant ("Hey Google, stop") pauses, so the queue is there
+for the next drive; music stopped from its notification is forgotten. A
+long queue keeps the 500 tracks around the one that played. Signed
+out, the car says to open Pley on the phone and sign in when it is safe,
+with a button that opens it. The car reads the covers from the app, as the server's
+pictures need the profile's token: the app grants Android Auto, the
+Google app and the phone's own media controls reading them and nothing
+else. The covers it reads are kept on the phone, for each profile apart
+and until it signs out, so a list seen before shows them without asking
+the server again, and a cover asked for by the car and the media
+controls at once is fetched once. Music without
+a picture has the one the app shows, its title's gradient with Pley's
+mark, made lighter and the mark brighter so it reads on the car's gray
+lists: drawn on the phone from the title's hue alone, so no title goes
+into the address the car is given. In place of the mark, an album's
+shows a disc, an artist's a person (in their circle), a playlist's a
+list and a book's a book, so a grid of them reads at a glance. A
+picture the server can't give is a placeholder too, with the mark, as
+its address doesn't say what it shows (an artist's, in their circle,
+shows the person): a track without a cover of its own is given its
+album's, which the album may not have either. Only Android Auto and the Google app,
+each checked by the certificate Google signs it with and as the app that
+asks, besides the system's own media controls, may browse Pley's music or
+pick what plays; a media button (a headset's, the steering wheel's, or
+one another app sends) only plays, pauses and skips.
+
+**Live TV**, while driving or parked, to a profile Live TV is open to:
+its tab lists the favorites, then the channels watched lately (eight at
+most), each under its heading, then the provider's groups (or All
+channels, without groups) as category rows, each with the tab's TV icon
+(a tab of more than 350 rows has its groups without, so that all of them
+fit the list a car is sent); a list holds 500 channels at most, as cars don't page, read
+from the server a page of 100 at a time: the first, then the others
+four at once. Groups
+are named as the phone's Live TV lists them, a group of a region as
+"UK · Sport". A channel is named by its name alone, without the
+provider's region ("Sky Sports 1", not "UK| Sky Sports 1") or the tags
+providers write after it in superscript or small capitals ("ᴴᴰ",
+"ᶠᴴᴰ", "ᴿᴬᵂ"; a plain "HD" stays, and nothing changes case), and the
+region goes under it with what is on ("UK · Football", or "UK" with
+nothing on). The region isn't said in a group of that region, nor in a
+list whose channels all share it (the favorites and the channels
+watched lately count as one list); two channels that would then read
+the same (a provider's HD and RAW feeds) keep the names the provider
+gave them. Favorites, channels watched lately, groups, search and Now
+Playing name channels so, the rule kept in the app's shared model
+(`LiveNames.channelLines`); the phone's and the TV's Live TV lists
+show the names the provider gives. A
+channel shows its logo, fitted at three quarters of a square plate with
+rounded corners, as the phone fits it in its well: the plate is light
+under a dark logo and dark under a light one, from the logo's mean
+luminance, each pixel weighed by its opacity. A channel without a logo,
+or whose logo can't be had, shows a placeholder, so the rows line up.
+Picked, it plays its sound alone,
+as radio, watched through the server as the phone's Live TV player
+watches it; Next and Previous change channel through the list it was
+picked from, which Now Playing names over its channels (a channel found
+by search or by voice plays alone, unnamed), and Now Playing shows it
+live, with no position to seek to.
+Search finds channels by name and by what is on; "Hey Google, play …
+on Pley" plays a channel named exactly (with its region and tags or
+without them),
+else the music found, else the closest channel. The music pauses while the radio plays, and music played
+again (from the car or the phone) stops the radio. Pause lets the
+channel's connection go, as does another app's sound taking over or the
+phone leaving the car; Play tunes it again. The channel played last is
+kept on the device until music plays again: it is what waits, not tuned,
+when a car next connects, and Play tunes it. The app reads the channel's
+stream as the server sends it, picture and all, and plays only its
+sound.
+
+**Videos**, while parked, on phones with Android 15 or later where the
+car allows video apps (Google brings them to Android Auto with Android 17
+phones, car by car). Pley opens on the car's screen as on a tablet, and
+movies, episodes and Live TV play there, not on the phone. On the car's
+screen the player keeps the screen's orientation, has no picture in
+picture, and its volume and brightness drags are off (the car has its
+own). It draws a third larger there, as Google's car app quality
+criteria ask: buttons of 64 dp at least and no text under 24 sp, its
+sheets, menus, dialogs and messages too (body text and labels at 24 sp,
+and titles a step larger each: a list's titles 27 sp, a section's 30, Now
+Playing's 34 and a page's 38), and the controls over the video keep
+24 dp from each other and from the screen's edges. Play sits between
+10 seconds back and 10 seconds forward, midway between the top row and
+the seek bar (and smaller on a screen too short for it, one split in
+two), the seek bar is taller, its track and knob as thick as music's
+scrubber's there, and the
+bottom row keeps Subtitles, Audio, Fit and Next episode (Quality is in
+Settings, chapters show on the seek bar, and there is no Lock), with
+their icons alone where the names don't fit the width (a narrow screen,
+longer words): a car's row doesn't scroll. Every
+page of the app is car-sized the same way, its dialogs too. The rail
+shows icons alone, centered on its height, as Android Auto's own does
+(all five tabs fit the smallest screen), and so does the bar under a
+narrow portrait page, where five names of 24 sp don't fit;
+tiles' captions and badges are
+24 sp, a title taking two lines rather than being cut; the home page's
+banner is no taller than the room above the bar of what plays; and an
+artist's, album's or playlist's cover stands beside its title, as an
+item's poster does, so Play is in view; in a short window (a small or
+split car screen, a phone on its side) an artist's or album's cover is
+smaller and what it is isn't said, so Play and Shuffle stay side by side
+above the bar of what plays. Music's Now Playing and the bar
+of what plays are car-sized too, their controls 24 dp apart as the
+player's are (Play no larger than the others on a narrow portrait
+screen); Now Playing puts the cover beside the
+title, over the scrubber and the controls, as in any short, wide window
+(a phone on its side too). These layouts hold on every screen Android Auto
+gives parked apps, as Google's Desktop Head Unit configurations test
+them: a small landscape screen (800 × 480), the wide strip of a wide
+screen (1920 × 484) and a portrait one (1042 × 1080), denser screens,
+what a car's tall screen gives the app (1042 × 991 at
+185 dpi, and half that height when the car splits its screen), a wide,
+low screen across the dashboard (1920 × 720), a full HD one, and tall
+and narrow portrait ones (1080 × 1920, 480 × 800). Tests draw the video
+and Live TV players, music's Now Playing and its bar, an album's page
+and the tabs on each of them, and an item's page and a dialog on six,
+and check their controls' sizes and room. Now Playing's cover is as large
+as the title, the scrubber and the controls under it leave room for,
+with air between it and the title. Moving about is eased, on phones as
+on a car's screen: a tab fades out and the next one in, Now Playing
+comes up from the bar of what plays and goes back down to it, and that
+bar rises from the bottom edge as music starts (all in place with
+reduced motion). Whether a screen is a car's comes from
+Android Auto (`CarConnection`, as Google tells parked apps to check):
+another screen the phone drives, such as a monitor, keeps the phone's
+sizes. A window opened there as the app starts, before Android Auto has
+answered, is car-sized until it does; one moved to the phone's screen as
+the car goes is the phone's again, a player turned to landscape. The
+store build, which a car's screen never opens, doesn't ask Android Auto:
+its windows keep the phone's sizes on every screen. A
+debuggable build counts the displays the developer options simulate as
+cars' too, so these layouts can be tried on an emulator, where Android
+Auto itself doesn't run. As the car moves off, Android Auto covers the
+window: the video pauses at once and its media session goes, so neither
+the car's buttons nor the steering wheel's can play it while driving; a
+channel is let go. It stays so while the car covers it, even shown again
+behind the cover after another of the car's apps. Parked again, Play
+carries on (a channel plays again by itself).
+
+Google Play takes video apps for Android Auto only from its early access
+partners, so only the sideloaded build (`direct`) lists Pley among the
+car's parked apps; the store build has music only. Android Auto shows a
+sideloaded app once its developer settings allow unknown sources (tap
+Version ten times in Android Auto's settings, then ⋮ → Developer
+settings → Unknown sources).
 
 ### Videos on a USB drive
 
@@ -1342,10 +1775,9 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
   Each held glide stays a step and a quarter long, so focus never runs
   further ahead of the grid than the rows on the screen.
 - A tile is few nodes, and costs little to make: its caption is one node
-  drawing its two lines with the platform's paint, its picture draws in
-  its own box, and its placeholder's title is laid out on a thread of its
-  own. While a key holds pictures back, their requests are set aside off
-  the main thread, and go on there when the key comes up.
+  drawing its two lines with the platform's paint, and its picture draws
+  in its own box. While a key holds pictures back, their requests are set
+  aside off the main thread, and go on there when the key comes up.
 - A held Up or Down on a page of rows moves focus to the next row's
   tile itself (the one nearest across, or the tile that row comes back
   to), and stays at the page's ends and below a hero. Compose's own
@@ -1354,7 +1786,8 @@ every 45 ms, and a frame has 16.7 ms. What keeps it smooth:
 - A tile is drawn in its rounded shape, not clipped to it (a clip is a
   pass of its own for a TV's GPU, for each tile), on a layer of its own
   that scrolling moves rather than draws again, and its placeholder's
-  gradient is one draw of one small picture shared by every title.
+  gradient is one draw of one small picture shared by every title; Pley's
+  mark on it is three paths, parsed once for each glyph.
 
 On an emulator, frame times (the benchmarks', the counter's or
 `dumpsys gfxinfo`'s) say little about drawing: the emulator's GPU takes
@@ -1454,6 +1887,13 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
   server's settings, network, transcoder, requests and Live TV to the web
   app.
 - No Watch Next row on phones or Fire TV.
+- Android Auto's videos are in the sideloaded build only. Its Artists tab
+  lists the first 500 artists of a library by name and its Books tab the
+  first 500 books by title, of which the car shows those that fit the
+  256 KiB of a list (some 430 artists and 320 books of long names; search
+  finds the others), and its music has no downloads: a car out of signal browses
+  the albums, playlists and Recently added it saw last (Artists,
+  Recently played and search need the server) and plays nothing new.
 - The TV's display mode isn't matched for live channels.
 - Videos on a USB drive are on TVs only. Their display mode isn't
   matched, as their frame rate is known only once they play; HDR10+ shows

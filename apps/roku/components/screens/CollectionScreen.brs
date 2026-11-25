@@ -10,7 +10,6 @@
 
 sub init()
     m.backdrop = m.top.findNode("backdrop")
-    m.shade = m.top.findNode("shade")
     m.page = m.top.findNode("page")
     m.column = m.top.findNode("column")
     m.text = m.top.findNode("text")
@@ -40,7 +39,8 @@ sub init()
     m.opens = []
     ' A show's next episode is being asked for: the buttons wait.
     m.picking = false
-    m.buttons.observeField("buttonSelected", "onButton")
+    m.buttons.observeField("chosen", "onButton")
+    m.labelsShown = ""
     m.grid.observeField("itemSelected", "onTile")
     m.top.observeField("active", "onActive")
 end sub
@@ -103,7 +103,6 @@ sub onCollection(event as object)
     showBadges()
     showFacts()
     if m.backdrop.uri <> collection.backdrop
-        m.backdrop.setHttpAgent(m.top.getScene().getHttpAgent())
         m.backdrop.uri = collection.backdrop
     end if
     showButtons()
@@ -111,7 +110,8 @@ sub onCollection(event as object)
     m.grid.content = event.getRoSGNode().content
     if focused > 0 and focused < collection.shown then m.grid.jumpToItem = focused
     m.grid.visible = collection.shown > 0
-    m.column.visible = true
+    m.column.visible = not m.grid.isInFocusChain()
+    placeGrid()
     if m.grid.isInFocusChain() and not m.grid.visible then focusGrid(false)
     ' Only while this screen has the focus: a dialog over it keeps it.
     if m.top.hasFocus() and m.buttons.visible then m.buttons.setFocus(true)
@@ -134,7 +134,7 @@ sub showBadges()
     category.width = 0
     category.text = m.collection.category
     if category.boundingRect().width > 532 then category.width = 532
-    x = m.kindLabel.boundingRect().width + 16
+    x = 48 + m.kindLabel.boundingRect().width + 16
     for each name in ["tmdb", "smart", "category"]
         badge = m.top.findNode(name)
         badge.visible = (name = "tmdb" and m.collection.automatic) or (name = "smart" and m.collection.smart) or (name = "category" and m.collection.category <> "")
@@ -207,7 +207,12 @@ sub showButtons()
             labels.Push(t("titles.collection.onlyLibrary", { library: library.name }))
         end for
     end if
-    if FormatJson(labels) <> FormatJson(m.buttons.buttons) then m.buttons.buttons = labels
+    if FormatJson(labels) <> m.labelsShown
+        m.labelsShown = FormatJson(labels)
+        hadFocus = m.buttons.isInFocusChain()
+        m.buttons.chips = contentActionChips(labels, actions)
+        contentKeepChip(m.buttons, m.buttons.focusIndex, hadFocus)
+    end if
     m.actions = actions
     m.opens = opens
     m.buttons.visible = labels.Count() > 0
@@ -269,16 +274,32 @@ sub onTile(event as object)
     uiOpenTile(m.grid.content.getChild(event.getData()))
 end sub
 
+' The posters under the words and buttons, as a title page's rows: a short
+' summary left their names below the screen. Between 480 and 720 (their
+' tiles' art starts 30 px down).
+sub placeGrid()
+    rect = m.column.boundingRect()
+    if rect.height <= 0 then return
+    y = Int(rect.y + rect.height + 66)
+    if y < 400 then y = 400
+    if y > 720 then y = 720
+    if m.grid.translation[1] <> y then m.grid.translation = [168, y]
+end sub
+
 ' The page slides up to the posters as they take the focus, the backdrop
 ' shaded under them all, and back down.
 sub focusGrid(onGrid as boolean)
     if onGrid
-        m.page.translation = [0, -624]
-        m.shade.width = 1920
+        placeGrid()
+        m.page.translation = [0, -(m.grid.translation[1] - 96)]
+        ' Slid up, the buttons' foot would show over the posters.
+        m.column.visible = false
+        uiDimBackdrop(m.top, true)
         m.grid.setFocus(true)
     else
         m.page.translation = [0, 0]
-        m.shade.width = 1260
+        m.column.visible = true
+        uiDimBackdrop(m.top, false)
         if m.buttons.visible
             m.buttons.setFocus(true)
         else
@@ -298,6 +319,10 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if (key = "up" or key = "back") and m.grid.isInFocusChain()
         focusGrid(false)
+        return true
+    end if
+    if key = "play" and m.grid.isInFocusChain() and m.grid.content <> invalid
+        uiPlayTile(m.grid.content.getChild(m.grid.itemFocused))
         return true
     end if
     if key = "options" and m.grid.isInFocusChain()

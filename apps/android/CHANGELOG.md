@@ -8,6 +8,121 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Audiobooks on phones and TVs: book libraries, Continue Listening on
+  Home, books in search and history, and a page for each book with who
+  wrote and reads it, how far you are, Play where you left off on any
+  device, and its parts or chapters. Now Playing has back 15 seconds,
+  forward 30 seconds and Speed for a book, and Previous and Next go
+  through the chapters of a book in one file.
+- Music repeats: Repeat in Now Playing, on phones and TVs, and in the
+  phone's media controls repeats the queue, then the track playing, then
+  nothing.
+- Music's notification and the phone's media controls have Shuffle and
+  Repeat buttons, with a dot under the one that is on.
+- Now Playing moves from one track to the next: the cover stays until the
+  next one fades in and the title slides to the next track's, on TVs
+  too, and the scrubber glides.
+- Music picks up where it was, shuffled as it was, when Android has ended
+  the app meanwhile: Play on a headset, on a car's steering wheel over
+  Bluetooth or in the phone's media controls plays the queue again.
+
+With Android Auto:
+
+- Pley plays music on the car's screen: Recent (what you heard last
+  first, kept up to date as you play, then what was added, each album
+  once), Artists and
+  Playlists tabs with album covers, artists' pictures in circles and
+  playlists' mosaics of their covers (an artist
+  without one shows their newest album's cover; what has no picture at
+  all shows a disc, a person, a list or a book, or Pley's mark;
+  an album or playlist opens to its
+  tracks, and plays at once only with a single one; an artist's page
+  is a grid of Shuffle and their albums by year, and an album numbers its tracks, by
+  disc when it has several), search (the closest kind of match first, a few of each),
+  the whole queue under the album's, playlist's or artist's name, Shuffle
+  and Repeat on Now Playing, and "Hey Google, play … on
+  Pley", which finds music playlists by name ("my … playlist" too),
+  plays the album, artist or song asked for as such ("play the album …")
+  and says so when it finds nothing. Signed out, the car says to open Pley on the phone.
+- Audiobooks play in the car: a Books tab (being heard, added last, every
+  book) with how far you are in each, kept up to date as you listen,
+  the books being heard first in Recent, search and "Hey Google, play … on Pley". A book goes on where
+  you left it on any device, with back 15 seconds, forward 30 seconds
+  and a Speed button. Previous and Next go through the chapters of a
+  book in one file, and the car shows the chapter playing.
+- Tabs with nothing in them aren't shown; with five, Playlists goes into
+  the artists' tab, named Music.
+- Live TV's channels play as radio: a Live TV tab with favorites,
+  channels watched lately and groups, each channel by its name alone
+  with its region beside what's on and its logo on a plate that sets it
+  off, channel search, and "Hey Google, play … on Pley" by channel name.
+- As the car connects, what played last waits in its Now Playing, paused
+  where it was, and the car's Play plays it; with nothing kept on the
+  phone, the book or album you heard last waits, or the album added last. "Hey
+  Google, stop" pauses and keeps the queue for the next drive.
+- Lists and covers seen before show at once, also on a slow network:
+  they're kept on the phone for each profile, and a list updates once the
+  server answers with something different.
+- Parked, the sideloaded app plays videos and Live TV on the car's screen
+  (Android 15 and later, in cars that allow video apps), every page and
+  control sized for the car, titles larger than the words under them,
+  with 10-second skip buttons, and pauses as
+  soon as the car moves off.
+
+### Changed
+
+- Music goes from one track into the next without a gap or a wait to
+  load, on the phone, on a TV and in the car.
+- Next, Previous and a pick from the queue start the track sooner on a
+  slow network.
+- Music reads further ahead, and plays on through longer gaps in the
+  signal.
+- An artist's, album's or playlist's page puts the cover beside the
+  title on a phone on its side and on tablets, with Play in view, and
+  keeps Play and Shuffle side by side above the bar of what plays.
+- The rail beside the page on a phone on its side or a tablet shows its
+  tabs' icons alone, in a column centered on its height.
+- A track that can't be played says so for 5 seconds, then the next one
+  plays by itself; Play tries it again.
+- Changing tabs fades from one to the next, Now Playing comes up from
+  the bar of what plays, and that bar rises in as music starts.
+- Now Playing's sleep timer opens its choices in a sheet, as the queue
+  and a book's speed do.
+
+### Fixed
+
+- Pause pressed while a track is starting keeps it paused once it loads.
+- The scrubber no longer shows the last track's position while the next
+  one loads, nor jumps back for a moment after a seek, and it moves when
+  seeking while paused, also from the notification or the remote.
+- Previous pressed again while a track is still loading goes one more
+  track back.
+- A track that failed to start no longer starts where the track before
+  it was when Play is pressed.
+- Play/Pause no longer shows Pause for a track that will wait paused, or
+  while a paused track loads after a seek.
+- "Loading…" no longer blinks under the title at every change of track.
+- The home page's banner fits a phone turned on its side, its title and
+  Play in view, also above the bar of what plays.
+- The next episode's Play now button shows its countdown whole in French
+  and Spanish, with Cancel under it when they don't fit side by side.
+- Play and Shuffle on an artist's or album's page are the same height.
+- Now Playing fits a phone turned on its side, with the cover beside
+  the title and every control in view.
+- A Live TV channel played as it is plays on after a few seconds when its
+  provider's stream starts over.
+
+## [0.1.18] - 2026-11-24
+
+### Changed
+
+- Movies, shows and music without a picture show Pley's mark on their
+  placeholder instead of their title, which the caption under it shows.
+  The mark has a glyph for the title's kind of library: a clapperboard
+  for movies, a TV for shows, notes for music.
+
 ### Fixed
 
 - Music playing on the phone pauses once Play on… sends something to
@@ -920,7 +1035,8 @@ On Android TV:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[0.1.18]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.17]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18

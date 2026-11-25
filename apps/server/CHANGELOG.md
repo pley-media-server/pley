@@ -11,14 +11,19 @@ describes how they are made.
 
 ### Added
 
+- Audiobooks in apps that show them: an app's request with
+  `X-Pley-Features: audiobooks` gets audiobook libraries as the web app
+  does. Pley for Android asks for them.
+- A player can ask for the next track ahead (`ahead`), to play it
+  without a gap: it isn't shown as playing on the dashboard, to remotes
+  or in Tautulli until it plays.
 - The dashboard shows the quality a transcode's HDR is tone mapped at
   (high, balanced or fast).
 
 ### Changed
 
-- Pley's license gains a permission for app stores: Pley may be
-  distributed through stores whose terms add restrictions of their own,
-  as long as its source stays available.
+- Where Dolby Vision needs another FFmpeg, the transcoder settings name
+  Pley's own first: the one its Windows installer and Docker image bring.
 - With the software encoder's preset on automatic, a transcode starts and
   seeks on a quick preset, so the picture comes sooner, then moves to the
   best-looking one the computer is measured to encode at twice real time,
@@ -28,6 +33,19 @@ describes how they are made.
 
 ### Fixed
 
+- Live TV channels played as they are no longer stall every few seconds in the
+  browser, and play on after a few seconds when their provider's stream starts
+  over.
+- An NFO file with a very long content rating no longer holds a library
+  scan up.
+- A damaged Matroska file no longer makes the transcoder take memory for
+  more than the file holds.
+- What metadata services and IPTV providers answer is refused once it
+  passes a size limit, rather than read whole first.
+- With FFmpeg 7.1 or 8, a converted file whose subtitles end before the
+  credits do is kept, rather than thrown away as cut short.
+- Apps and tools that edit through the Plex- or Jellyfin-compatible API, such
+  as Kometa, can no longer change audiobooks, which those APIs don't show.
 - A software transcode at 50 or 60 frames a second starts quickly on a
   small computer.
 - A transcode tone mapping HDR on the GPU goes back to its best quality
@@ -36,6 +54,55 @@ describes how they are made.
   and the frames a second it makes now.
 - A transcode whose bitrate changes as it plays (Samsung, LG, Kodi and Roku
   on Automatic) shows the bitrate it is made at.
+
+## [0.1.16] - 2026-11-24
+
+### Added
+
+- A TheTVDB or IMDb id in a show folder's name (`{tvdb-…}`, `{imdb-tt…}`)
+  finds the show, as a TMDB id (`{tmdb-…}`) does.
+- An audiobook's page has the ⋯ menu movies and shows have. Administrators
+  can edit a book's authors, narrators and series with its other details,
+  fix its match by picking an Open Library work or an Audible recording
+  (searched by title and author, or by its ASIN), choose its cover from
+  Audible's and Open Library's, and refresh its metadata.
+- Editions named in a movie's file or folder name without the
+  `{edition-…}` tag, such as Director's Cut, Extended, Theatrical,
+  Unrated, Remastered or IMAX, are versions of one movie with their names.
+  Copies already listed as movies of their own join it once every file is
+  scanned again.
+
+### Changed
+
+- Movies, shows, music and audiobooks without a picture show Pley's mark
+  on their placeholder instead of their title, which the caption under
+  it shows, with a clapperboard, a TV, notes or a book in it for their
+  kind of library. Where nothing beside a picture names it, the title
+  stays.
+- Pley's license gains a permission for app stores: Pley may be
+  distributed through stores whose terms add restrictions of their own,
+  as long as its source stays available.
+- An idle server and its transcoder use far less of the processor and
+  wake it far less often.
+- Files added or changed in a large library, or named in a refresh from
+  another tool, show up sooner.
+- A title a metadata source had nothing for gets its details once the
+  source adds them, without a Refresh.
+
+### Fixed
+
+- Different shows whose folders have the same name, in two of a library's
+  folders or named alike but for their punctuation, are no longer one show
+  when the ids in their folders' names or `tvshow.nfo` files differ. A show
+  already made of two is split at the next scan without losing what was
+  watched.
+- Episodes added to a show that already has its details get theirs at the
+  next scan, and so do those of a show whose seasons TMDB didn't answer
+  for.
+- Renaming or moving files within a library no longer loses their
+  progress, watched state, ratings, history, My List, playlists or added
+  subtitles, and a movie or episode replaced by a copy named differently,
+  or deleted and added again within 180 days, gets its watch state back.
 - Home and a TV library's Recommended tab open at once after a big scan,
   also in a library of thousands of shows.
 - Music playing in the web app pauses once Play on… sends something to
@@ -1233,7 +1300,8 @@ On Intel graphics:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18

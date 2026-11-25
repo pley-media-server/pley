@@ -213,6 +213,62 @@ async fn apps_get_no_audiobooks() {
     assert_eq!(w.app.get(&format!("/api/libraries/{}/items", w.books), &anns).await.status, StatusCode::NOT_FOUND);
 }
 
+/// An app's request that says it shows audiobooks (`X-Pley-Features`, the
+/// Android app) gets them as Pley's own sign-in does: the
+/// library, its books and hubs, a book being heard on Home, books in search.
+/// The same token's other requests still get none, and the account's own
+/// libraries are all it gets either way.
+#[tokio::test]
+async fn an_app_that_shows_audiobooks_gets_them() {
+    let w = shelf().await;
+    let (_, opening, _) = long_book(&w).await;
+    let (token, _) = w.app.app_token(1, "library play").await;
+    progress(&w.app, &token, opening, 600_000).await;
+    let books = "audiobooks";
+    let get = |uri: String, features: &'static str| {
+        let (app, token) = (&w.app, token.clone());
+        async move { app.call(Method::GET, &uri, Some(&token), None, &[("x-pley-features", features)]).await }
+    };
+
+    let listed = get("/api/libraries".into(), books).await;
+    assert_eq!(names(&listed.body), ["Films", "Books", "Docs"]);
+    let items = get(format!("/api/libraries/{}/items", w.books), books).await;
+    assert_eq!(items.status, StatusCode::OK, "{:?}", items.body);
+    let mut found = titles(&items.body["items"]);
+    found.sort();
+    assert_eq!(found, ["Long Book", "Short Book"]);
+    let hubs = get(format!("/api/libraries/{}/hubs", w.books), books).await;
+    assert_eq!(hubs.status, StatusCode::OK, "{:?}", hubs.body);
+    let home = get("/api/hubs/home".into(), "something-else, Audiobooks").await;
+    let listening = home.body["hubs"].as_array().unwrap().iter().find(|h| h["key"] == "continue_listening");
+    assert_eq!(titles(&listening.expect("Continue Listening")["items"]), ["Long Book"]);
+    let found = get(format!("/api/search?q={}", encode("long book")), books).await;
+    assert_eq!(titles(&found.body["items"]), ["Long Book"]);
+
+    // Without the header, or with another feature alone, nothing of the books.
+    assert_eq!(libraries(&w.app, "/api/libraries", &token).await, ["Films", "Docs"]);
+    let other = get("/api/libraries".into(), "audiobooks-later").await;
+    assert_eq!(names(&other.body), ["Films", "Docs"]);
+    assert!(search(&w.app, &token, "long book").await.is_empty());
+
+    // An account that may not open the library doesn't get it by asking.
+    let (_, bo) = w.app.user(&w.admin, "bo", json!({"all_libraries": false, "library_ids": [w.films]})).await;
+    let (bos, _) = w.app.app_token(bo, "library play").await;
+    let theirs = w.app.call(Method::GET, "/api/libraries", Some(&bos), None, &[("x-pley-features", books)]).await;
+    assert_eq!(names(&theirs.body), ["Films"]);
+    let refused = w
+        .app
+        .call(
+            Method::GET,
+            &format!("/api/libraries/{}/items", w.books),
+            Some(&bos),
+            None,
+            &[("x-pley-features", books)],
+        )
+        .await;
+    assert_eq!(refused.status, StatusCode::NOT_FOUND);
+}
+
 /// An app orders the libraries it gets, its user's own order and, with
 /// `server`, everyone's: the library of books it doesn't get keeps its
 /// place in both, and naming it is refused as a library it doesn't have.

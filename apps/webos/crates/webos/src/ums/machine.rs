@@ -493,6 +493,12 @@ impl Machine {
         s.duration.map_or(ms, |d| ms.min(d))
     }
 
+    /// The pipeline's last `currentTime`, as it said it: none until it says one. A pipeline that
+    /// stands still says none after it, or the same again, where [`Machine::position_ms`] runs on.
+    pub fn reported_ms(&self) -> Option<u64> {
+        self.session.as_ref().and_then(|s| s.last_report)
+    }
+
     /// Runs the bounded waits.
     pub fn tick(&mut self, now: Instant) {
         let Some(s) = &mut self.session else { return };

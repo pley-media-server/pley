@@ -11,6 +11,10 @@
 //! play is taken only by a request that names the stream, so connections that say nothing keep
 //! no player from it. Nothing it logs carries the path, which stands in for the token here.
 //!
+//! It counts what comes for its players ([`StreamRelay::came`]) and says while it waits on one
+//! to take it ([`StreamRelay::offering`]): the session tells by them a stream that goes on
+//! coming, whose player stands still, from a provider gone quiet.
+//!
 //! What LG says of it: its player takes media over HTTP and HTTPS
 //! (<https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm>) and plays
 //! TS among its containers (docs/LG.md, "What an LG TV plays"). LG documents nothing on a native
@@ -20,7 +24,7 @@
 
 use std::io::{self, Read, Write};
 use std::net::{Ipv4Addr, Shutdown, SocketAddr, TcpListener, TcpStream};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
@@ -63,6 +67,16 @@ struct Shared {
     closed: AtomicBool,
     heads: AtomicUsize,
     players: AtomicUsize,
+    flow: Flow,
+}
+
+/// What comes of the streams served, for whoever watches that they play.
+#[derive(Default)]
+struct Flow {
+    /// Bytes read for players, counted as they come.
+    came: AtomicU64,
+    /// Players waited on to take what came.
+    offering: AtomicUsize,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -87,6 +101,7 @@ impl StreamRelay {
             closed: AtomicBool::new(false),
             heads: AtomicUsize::new(0),
             players: AtomicUsize::new(0),
+            flow: Flow::default(),
         });
         let accepting = shared.clone();
         std::thread::Builder::new().name("pley-relay".into()).spawn(move || accept(&listener, &accepting))?;
@@ -144,6 +159,18 @@ impl StreamRelay {
     /// Players connected now (tests).
     pub fn players(&self) -> usize {
         self.shared.players.load(Ordering::SeqCst)
+    }
+
+    /// Bytes that came for the players of every stream served so far, counted as they come
+    /// from the server: more of them since the last look, and the stream comes.
+    pub fn came(&self) -> u64 {
+        self.shared.flow.came.load(Ordering::SeqCst)
+    }
+
+    /// Whether a player is waited on to take what came. One that reads nothing holds the
+    /// reading up with it, so no more bytes are counted, yet its stream is there.
+    pub fn offering(&self) -> bool {
+        self.shared.flow.offering.load(Ordering::SeqCst) > 0
     }
 }
 
@@ -309,15 +336,29 @@ fn handle(mut client: TcpStream, shared: &Shared, head: Place<'_>) {
     if answer(&mut client, "200 OK", "Content-Type: video/mp2t\r\nCache-Control: no-store\r\n", false).is_err() {
         return;
     }
-    // As it comes, to the end or until the player lets go: a live stream has no length.
+    let total = hand_on(&mut body.body, &mut client, &shared.flow, &cancel);
+    log::debug!("relay: the stream ended after {} KB", total / 1024);
+}
+
+/// Hands `body` on to `player` as it comes, to the end or until the player lets go or `cancel`
+/// fires: a live stream has no length. What comes is counted in `flow` before the player takes
+/// it, and the wait for the player to take it is said there. The bytes handed on.
+fn hand_on(body: &mut impl Read, player: &mut impl Write, flow: &Flow, cancel: &Cancel) -> u64 {
     let mut buf = vec![0u8; BUFFER];
     let mut total = 0u64;
     loop {
-        let n = match body.body.read(&mut buf) {
+        let n = match body.read(&mut buf) {
             Ok(0) | Err(_) => break,
             Ok(n) => n,
         };
-        if cancel.is_cancelled() || client.write_all(&buf[..n]).is_err() {
+        if cancel.is_cancelled() {
+            break;
+        }
+        flow.came.fetch_add(n as u64, Ordering::SeqCst);
+        flow.offering.fetch_add(1, Ordering::SeqCst);
+        let taken = player.write_all(&buf[..n]);
+        flow.offering.fetch_sub(1, Ordering::SeqCst);
+        if taken.is_err() {
             break;
         }
         if total == 0 {
@@ -325,7 +366,7 @@ fn handle(mut client: TcpStream, shared: &Shared, head: Place<'_>) {
         }
         total += n as u64;
     }
-    log::debug!("relay: the stream ended after {} KB", total / 1024);
+    total
 }
 
 /// The request line's method and target, from a head read up to its blank line; none when it
@@ -550,6 +591,51 @@ mod tests {
         assert!(!body.is_empty());
         until(|| relay.players() == 0);
         assert_eq!(relay.players(), 0);
+    }
+
+    #[test]
+    fn what_comes_for_a_player_is_counted() {
+        let relay = StreamRelay::new().unwrap();
+        assert_eq!((relay.came(), relay.offering()), (0, false));
+        let url = served(&relay, opener(bytes()));
+        assert_eq!(get(&url).2, bytes());
+        assert_eq!(relay.came(), 300_000);
+        // The next stream's count on from there: whoever asks tells them apart by when.
+        let url = served(&relay, opener(vec![1, 2, 3]));
+        assert_eq!(get(&url).2, [1, 2, 3]);
+        assert_eq!(relay.came(), 300_003);
+    }
+
+    #[test]
+    fn a_player_that_takes_nothing_is_waited_on_with_what_came_counted() {
+        /// A player that says when it is given bytes, and takes them only when told.
+        struct Slow {
+            given: mpsc::Sender<usize>,
+            take: Receiver<()>,
+        }
+        impl Write for Slow {
+            fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+                let _ = self.given.send(buf.len());
+                self.take.recv().map(|()| buf.len()).map_err(|_| io::ErrorKind::BrokenPipe.into())
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
+        }
+        let flow = Arc::new(Flow::default());
+        let (given, was_given) = mpsc::channel();
+        let (take, taking) = mpsc::channel();
+        let counted = flow.clone();
+        let handing = std::thread::spawn(move || {
+            let mut player = Slow { given, take: taking };
+            hand_on(&mut Cursor::new(vec![7u8; 1_000]), &mut player, &counted, &Cancel::new())
+        });
+        // Given, not taken: counted already, and waited on.
+        assert_eq!(was_given.recv().unwrap(), 1_000);
+        assert_eq!((flow.came.load(Ordering::SeqCst), flow.offering.load(Ordering::SeqCst)), (1_000, 1));
+        take.send(()).unwrap();
+        assert_eq!(handing.join().unwrap(), 1_000);
+        assert_eq!((flow.came.load(Ordering::SeqCst), flow.offering.load(Ordering::SeqCst)), (1_000, 0));
     }
 
     #[test]

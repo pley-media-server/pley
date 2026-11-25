@@ -57,8 +57,24 @@ interface PlayerEngine {
      */
     val state: StateFlow<EngineState> get() = IdleEngineState.flow
 
+    /**
+     * The bytes servers sent the engine so far: more of them from one look
+     * to the next, and the media still comes (a live channel's provider
+     * hasn't gone quiet). 0 where nothing counts them.
+     */
+    val received: Long get() = 0
+
     /** Loads [source] at [startMs]; plays at once when [playWhenReady]. */
     fun prepare(source: EngineSource, startMs: Long, playWhenReady: Boolean)
+
+    /**
+     * Puts [source] after the media playing, in place of any put there
+     * before (`null`: nothing): as that media ends, the player goes on to
+     * it without a gap ([Player.MEDIA_ITEM_TRANSITION_REASON_AUTO]), and the
+     * media before is let go. Music's tracks, one after the other; a
+     * [prepare] takes it back.
+     */
+    fun setNext(source: EngineSource?) {}
 
     /**
      * Whether [video], [durationMs] long, would come out as Dolby Vision

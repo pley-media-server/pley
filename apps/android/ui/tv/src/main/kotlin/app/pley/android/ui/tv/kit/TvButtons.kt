@@ -1,5 +1,7 @@
 package app.pley.android.ui.tv.kit
 
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -153,11 +155,15 @@ fun TvRoundButton(
     onLongClick: (() -> Unit)? = null,
     showLabel: Boolean = true,
     compact: Boolean = false,
+    selected: Boolean = false,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
     HandOffFocus(enabled, focused)
     val labelAlpha by animateFloatAsState(if (focused) 1f else 0f, PleyMotion.reveal(), label = "label")
+    // On (Shuffle, Repeat): the glyph in the accent and a dot under it, as the phone's and the car's show, seen without
+    // the focus; focused, the button is the accent already.
+    val onAlpha by animateFloatAsState(if (selected && !focused) 1f else 0f, PleyMotion.reveal(), label = "on")
     val side = if (compact) CompactHeight else PleyTv.ButtonHeight
     Box(modifier.menuKey(onLongClick).width(side).alpha(if (enabled) 1f else DISABLED_ALPHA), contentAlignment = Alignment.TopCenter) {
         IconButton(
@@ -190,7 +196,17 @@ fun TvRoundButton(
                 focusedDisabledBorder = Border.None,
             ),
         ) {
-            Icon(icon, contentDescription = null, size = if (compact) CompactIconSize else PleyTv.IconSize, tint = androidx.tv.material3.LocalContentColor.current)
+            val content = androidx.tv.material3.LocalContentColor.current
+            Icon(icon, contentDescription = null, size = if (compact) CompactIconSize else PleyTv.IconSize, tint = lerp(content, PleyColors.Accent, onAlpha))
+        }
+        if (selected || onAlpha > 0f) {
+            Box(
+                Modifier
+                    .padding(top = side - ON_DOT_FROM_BOTTOM)
+                    .size(ON_DOT)
+                    .graphicsLayer { alpha = onAlpha }
+                    .background(PleyColors.Accent, PleyShape.Circle),
+            )
         }
         // The visible label, under the button; the button above already says it to screen readers.
         if (showLabel) {
@@ -298,3 +314,7 @@ private fun Modifier.wrapContentWidthUnbounded(): Modifier = layout { measurable
     val width = constraints.constrainWidth(placeable.width)
     layout(width, placeable.height) { placeable.place((width - placeable.width) / 2, 0) }
 }
+
+/** The dot under an on button's glyph, and how far above the button's bottom edge it sits. */
+private val ON_DOT = 4.dp
+private val ON_DOT_FROM_BOTTOM = 10.dp

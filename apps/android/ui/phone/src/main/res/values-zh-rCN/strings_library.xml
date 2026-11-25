@@ -97,4 +97,10 @@
     <string name="collection_failed">无法加载此合集</string>
     <string name="collection_nothing_to_play">无法播放：此剧集暂无分集</string>
     <string name="collections_title">合集</string>
+    <plurals name="library_count_books">
+        <item quantity="other">%s 本书</item>
+    </plurals>
+    <plurals name="library_count_of_books">
+        <item quantity="other">%1$s / %2$s 本书</item>
+    </plurals>
 </resources>

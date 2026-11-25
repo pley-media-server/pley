@@ -1,0 +1,310 @@
+package app.pley.android.player.music.library
+
+import android.content.Context
+import android.net.Uri
+import android.os.Bundle
+import androidx.media3.common.MediaItem
+import androidx.media3.session.CAR_LIST_BYTES
+import androidx.media3.session.MediaConstants
+import androidx.media3.session.keptForCar
+import androidx.media3.session.parcelledForCar
+import androidx.media3.session.shownToCar
+import androidx.test.core.app.ApplicationProvider
+import app.pley.android.model.ItemKind
+import app.pley.android.model.ItemSummary
+import app.pley.android.model.Library
+import app.pley.android.model.LibraryKind
+import app.pley.android.model.LiveCategory
+import app.pley.android.model.LiveChannel
+import app.pley.android.model.LiveGroup
+import app.pley.android.model.LiveGroups
+import app.pley.android.model.LiveProgram
+import app.pley.android.model.PlaylistDetail
+import app.pley.android.model.PlaylistSummary
+import app.pley.android.model.UserState
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+/**
+ * The longest lists a car is given, 500 rows, as Android Auto is sent
+ * them: Media3 sends a car its list in one parcel, cut where it passes
+ * 256 KiB (MediaLibraryServiceLegacyStub), and the rows after the cut are
+ * never shown. Media3 itself takes some 200 bytes of each row (the row's
+ * class, its flags, the folder's kind), and the row's address, its
+ * picture's and its hints take much of the rest: the rows are sent with
+ * nothing the car doesn't read ([forOlderBrowser]), and their pictures'
+ * addresses short ([MusicArt]).
+ */
+@RunWith(RobolectricTestRunner::class)
+class CarListSizeTest {
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+    private val source = LongSource()
+    private val library = MusicLibrary(
+        source,
+        { Look },
+        { path, seed -> MusicArt.uri(context, path, seed) },
+        artistArt = { artist -> MusicArt.artistUri(context, artist.id, artist.childCount, artist.title, artist.posterUrl) },
+    ) { seed, kind -> MusicArt.placeholderUri(context, seed, kind) }
+    private val liveSource = LongLiveSource()
+    private val live = LiveLibrary(
+        liveSource,
+        { LiveWords },
+        { path -> MusicArt.logoUri(context, path) ?: MusicArt.uri(context, path) },
+        { seed -> MusicArt.placeholderUri(context, seed) },
+        now = { NOW },
+    )
+
+    @Test
+    fun anAlbumOfFiveHundredLongTracksFits() = runTest {
+        // A box set: five discs, each track numbered and under its disc's heading, its title long.
+        assertEquals(ROWS, sent("album tracks", library.children(MusicId.Album(ALBUM), 0, ROWS)))
+    }
+
+    @Test
+    fun fiveHundredChannelsFit() = runTest {
+        // Each with its logo and what is on, picked from a provider's group: the group's name is in each row's id.
+        assertEquals(ROWS, sent("channels", live.children(MusicId.LiveList(LiveCategory.Group(GROUP)))!!))
+    }
+
+    @Test
+    fun liveTvsTabOfFavoritesAndGroupsFits() = runTest {
+        // 50 favorites, 8 watched lately, then a provider's groups, each with the tab's icon while they fit with it.
+        fun groups(count: Int) = LiveGroups(total = 9_999, favorites = 50, recent = 50, groups = (0 until count).map { LiveGroup(long("UK| Group $it", CHANNEL_NAME), "UK", long("Group $it", 12), 999) })
+        liveSource.groups = groups(292)
+        val iconed = live.children(MusicId.LiveTv)!!
+        assertEquals(350, iconed.size)
+        assertTrue(iconed.last().mediaMetadata.artworkUri != null)
+        assertEquals(350, keptForCar(iconed.map { it.forOlderBrowser() }))
+        // More, as many as a page holds: without, all of them sent.
+        liveSource.groups = groups(ROWS)
+        val many = library(live).children(MusicId.LiveTv, 0, ROWS)
+        assertTrue(many.last().mediaMetadata.artworkUri == null)
+        assertTrue(sent("Live TV's tab", many) >= 440)
+    }
+
+    @Test
+    fun aBooksTabSendsSomeThreeHundredOfItsBooks() = runTest {
+        // Every book by title, each under the heading of All books, with its authors and how far the profile is in it
+        // (the status and the share heard, each under a long key of Android's): 500 don't fit, some 800 bytes a row.
+        assertTrue(sent("books", library.children(MusicId.Books, 0, ROWS)) >= 320)
+    }
+
+    @Test
+    fun nearlyTwiceAsManyArtistsAreSent() = runTest {
+        // Each with a picture of their own on the server, the longest address. 500 don't fit: what Media3 takes and the
+        // picture's address leave a row some 560 bytes before its name. Their albums are a grid by the root's default,
+        // not by a hint sent with each row.
+        val pictured = library.children(MusicId.Artists, 0, ROWS)
+        val kept = sent("artists with pictures", pictured)
+        assertTrue("$kept artists", kept >= 430)
+        val before = keptForCar(pictured.map { it.asBefore() })
+        println("artists before: $before sent")
+        assertTrue("$before before", 5 * kept >= 9 * before)
+        source.pictured = false
+        assertTrue(sent("artists without", library.children(MusicId.Artists, 0, ROWS)) >= 440)
+    }
+
+    private fun library(live: LiveLibrary) = MusicLibrary(source, { Look }, { _, _ -> null }, live)
+
+    /** How many of [rows] a car is sent; each is shown as it was, only what the car doesn't read left out. */
+    private fun sent(what: String, rows: List<MediaItem>): Int {
+        assertEquals(ROWS, rows.size)
+        val slim = rows.map { it.forOlderBrowser() }
+        for ((row, sent) in rows.zip(slim)) assertEquals(shownToCar(row), shownToCar(sent))
+        val bytes = parcelledForCar(slim)
+        val kept = keptForCar(slim)
+        println("$what: $bytes bytes, ${bytes / ROWS} a row, $kept sent")
+        if (kept == ROWS) assertTrue(bytes <= CAR_LIST_BYTES)
+        return kept
+    }
+
+    /**
+     * [this] row as it was sent before: whole, with the hints for its children (the root's for what plays, and a
+     * grid for what opens), and its address as a query.
+     */
+    private fun MediaItem.asBefore(): MediaItem {
+        val extras = Bundle(mediaMetadata.extras ?: Bundle()).apply {
+            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
+            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
+        }
+        val path = mediaMetadata.artworkUri?.let { MusicArt.pathOf(context, it) ?: MusicArt.roundOf(context, it)?.first }
+        val art = path?.let { Uri.parse("content://${MusicArt.authority(context)}/picture").buildUpon().appendQueryParameter("p", it).appendQueryParameter("h", "123").build() }
+        return buildUpon().setMediaMetadata(mediaMetadata.buildUpon().setExtras(extras).setArtworkUri(art ?: mediaMetadata.artworkUri).build()).build()
+    }
+
+    /** A library of the longest names and the largest ids a big server gives. */
+    private class LongSource : MusicSource {
+        var pictured = true
+
+        override suspend fun libraries() = listOf(Library(LIBRARY, "Music", LibraryKind.Music, itemCount = 1))
+
+        override suspend fun artists(libraryId: Long, offset: Int, limit: Int) = (0 until limit).map { i ->
+            val id = ITEM + i
+            ItemSummary(
+                id,
+                LIBRARY,
+                ItemKind.Artist,
+                long("Artist $i", ARTIST_NAME),
+                childCount = 999,
+                posterUrl = if (pictured) "/api/items/$id/images/poster?v=$VERSION" else null,
+            )
+        }
+
+        override suspend fun children(itemId: Long) = (0 until ROWS).map { i ->
+            ItemSummary(
+                ITEM + i,
+                LIBRARY,
+                ItemKind.Track,
+                long("Track $i", TRACK_TITLE),
+                index = 100 + i,
+                parentIndex = 1 + i / 100,
+                parentId = itemId,
+                parentTitle = long("Album"),
+                grandparentId = ITEM,
+                grandparentTitle = long("Artist"),
+                durationMs = 5_999_000,
+                posterUrl = "/api/items/$itemId/images/poster?v=$VERSION",
+            )
+        }
+
+        override suspend fun recentlyAdded(libraryId: Long) = emptyList<ItemSummary>()
+
+        override suspend fun recentlyPlayed(libraryId: Long) = emptyList<ItemSummary>()
+
+        override suspend fun item(itemId: Long): ItemSummary? = null
+
+        override suspend fun playlists() = emptyList<PlaylistSummary>()
+
+        override suspend fun playlist(playlistId: Long): PlaylistDetail = error("None")
+
+        override suspend fun search(query: String) = emptyList<ItemSummary>()
+
+        override suspend fun bookLibraries() = listOf(Library(LIBRARY + 1, "Books", LibraryKind.Audiobooks, itemCount = ROWS))
+
+        override suspend fun bookShelves(libraryId: Long) = BookShelves()
+
+        /** Books of long titles by two authors, each third heard part way and each fifth to its end. */
+        override suspend fun books(libraryId: Long, limit: Int) = (0 until minOf(limit, ROWS)).map { i ->
+            val id = ITEM + i
+            ItemSummary(
+                id,
+                LIBRARY + 1,
+                ItemKind.Audiobook,
+                long("Book $i", BOOK_TITLE),
+                posterUrl = "/api/items/$id/images/poster?v=$VERSION",
+                leafCount = 40,
+                viewedLeafCount = if (i % 3 == 0) 12 else 0,
+                authors = listOf(long("Author", AUTHOR), long("Another", AUTHOR)),
+                userState = UserState(watched = i % 5 == 0),
+            )
+        }
+
+        override suspend fun parts(bookId: Long) = emptyList<ItemSummary>()
+
+        override suspend fun onDeck(bookId: Long): ItemSummary? = null
+    }
+
+    /** A provider's group of channels with long names, each with a logo and a long program on. */
+    private class LongLiveSource : LiveSource {
+        var groups = LiveGroups()
+
+        override suspend fun shown() = true
+
+        override suspend fun groups() = groups
+
+        override suspend fun channels(category: LiveCategory, query: String, limit: Int) = (0 until minOf(limit, ROWS)).map { i ->
+            val id = ITEM + i
+            LiveChannel(
+                id,
+                name = "UK| " + long("Channel $i", CHANNEL_NAME),
+                group = GROUP,
+                logo = "/api/live/channels/$id/logo?v=0a1b2c3d",
+                now = LiveProgram(id, NOW - 60, NOW + 600, long("Program $i", PROGRAM)),
+            )
+        }
+
+        override suspend fun channel(id: Long): LiveChannel? = null
+    }
+
+    private object Look : MusicLibraryLook {
+        override val recent = "Recent"
+        override val recentlyPlayed = "Recently played"
+        override val recentlyAdded = "Recently added"
+
+        override fun recentlyAddedIn(library: String) = "Recently added in $library"
+        override val artists = "Artists"
+        override val playlists = "Playlists"
+        override val albums = "Albums"
+        override val songs = "Songs"
+        override val shuffle = "Shuffle"
+
+        override fun tracks(count: Int) = "$count tracks"
+
+        override fun albums(count: Int) = "$count albums"
+
+        override fun disc(number: Int) = "Disque $number"
+
+        override val books = "Books"
+        override val continueListening = "Continue listening"
+        override val allBooks = "All books"
+        override val music = "Music"
+
+        override fun timeLeft(heardMs: Long, totalMs: Long) = ""
+
+        override val recentIcon: Uri? = null
+        override val artistsIcon: Uri? = null
+        override val playlistsIcon: Uri? = null
+        override val booksIcon: Uri? = null
+        override val shuffleIcon: Uri? = null
+    }
+
+    private object LiveWords : LiveLook {
+        override val liveTv = "Live TV"
+        override val favorites = "Favorites"
+        override val watchedLately = "Recently watched"
+        override val groups = "Groups"
+        override val allChannels = "All channels"
+        override val channels = "Channels"
+
+        override fun channelCount(count: Int) = "$count channels"
+
+        override val liveIcon: Uri = Uri.parse("android.resource://app.pley.android/drawable/music_library_live")
+    }
+
+    private companion object {
+        /** As many rows as a car's list holds ([MusicLibrary.MAX_PAGE], [LiveLibrary.MAX_CHANNELS]). */
+        const val ROWS = 500
+
+        /** Ids of seven digits: a server that has scanned millions of items. */
+        const val LIBRARY = 1_234_567L
+        const val ITEM = 9_000_000L
+        const val ALBUM = 9_876_543L
+
+        /** The server's picture versions are times in seconds. */
+        const val VERSION = 1_763_856_000L
+
+        /**
+         * The lengths of each row's words: an artist's name longer than most (most are under 16 characters), a
+         * classical work's movement, an album's and its performers' (not sent in the album's list); a channel's name
+         * with its region, what is on and a provider's group as long as most; a book's title and its two authors' as
+         * long as most. A channel's row has the most besides:
+         * its id names its group, and its logo's address its version.
+         */
+        const val ARTIST_NAME = 24
+        const val BOOK_TITLE = 40
+        const val AUTHOR = 18
+        const val TRACK_TITLE = 48
+        const val NAME = 80
+        const val CHANNEL_NAME = 16
+        const val PROGRAM = 16
+        const val GROUP = "UK| Sport & News"
+
+        const val NOW = 1_763_856_000L
+
+        fun long(start: String, length: Int = NAME) = (start + " ").padEnd(length, 'w')
+    }
+}

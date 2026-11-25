@@ -91,7 +91,7 @@ export function AddToCollectionModal({ item, onClose }: { item: ItemSummary | nu
                     onClick={() => onAdd(c)}
                     className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors enabled:hover:bg-white/5 disabled:opacity-60"
                   >
-                    <Artwork candidates={[c.poster_url]} width={36} alt="" title="" bare className="aspect-[2/3] w-9 shrink-0 rounded" />
+                    <Artwork candidates={[c.poster_url]} width={36} alt="" title="" mark="play" className="aspect-[2/3] w-9 shrink-0 rounded" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-fg">{c.title}</span>
                       <span className="flex items-center gap-1.5 text-xs text-muted">

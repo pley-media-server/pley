@@ -94,4 +94,10 @@
     <string name="tv_collection_failed">無法載入此合集</string>
     <string name="tv_collection_nothing_to_play">無法播放：這部影集還沒有任何單集</string>
     <string name="tv_collection_from">來自</string>
+    <plurals name="tv_library_count_books">
+        <item quantity="other">%s 本書</item>
+    </plurals>
+    <plurals name="tv_library_count_of_books">
+        <item quantity="other">%2$s 本書中的 %1$s 本</item>
+    </plurals>
 </resources>

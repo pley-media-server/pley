@@ -160,7 +160,12 @@ fn index<R: Read + Seek>(inner: R, len: u64, deadline: Option<Instant>) -> Resul
 pub fn chunk_index(path: &Path) -> Result<ContainerIndex> {
     let file = File::open(path).map_err(|_| "cannot open the file")?;
     let len = file.metadata().map_err(|_| "cannot read the file's size")?.len();
-    let mut r = Reader { inner: BufReader::with_capacity(16 * 1024, file), pos: 0 };
+    chunks(BufReader::with_capacity(16 * 1024, file), len)
+}
+
+/// [`chunk_index`] of what `inner` reads, `len` bytes of it.
+fn chunks<R: Read + Seek>(inner: R, len: u64) -> Result<ContainerIndex> {
+    let mut r = Reader { inner, pos: 0 };
     let mut top = TopLevel { pos: 0, len, walked: 0, deadline: Some(Instant::now() + Duration::from_secs(2)) };
     let (start, moov) = loop {
         let start = top.pos;
@@ -1055,6 +1060,7 @@ mod tests {
     use std::io::Cursor;
 
     use super::*;
+    use crate::fuzz::{self, Bytes, Rng};
 
     // ---- building files in memory
 
@@ -1452,6 +1458,45 @@ mod tests {
         let trun = fbx(b"trun", 0, 0, &u32s(&[u32::MAX]));
         let file = [head, bx(b"moof", &[&bx(b"traf", &[&tfhd, &trun])])].concat();
         assert_eq!(parse(&file), Err("too many samples"));
+    }
+
+    /// Files of every kind read here, changed: keyframes or a reason, never
+    /// a panic, and only as much memory as the tables' bounds allow.
+    #[test]
+    fn any_file_is_indexed_or_refused() {
+        let mut empty = Video::new(12_800, 0, 512);
+        empty.stts.clear();
+        let fragmented = [
+            ftyp(),
+            moov(1000, &[empty.trak(1)], Some(mvex(0x0101_0000))),
+            moof(0, 10, 5, 1024),
+            bx(b"mdat", &[&[0; 32]]),
+            cmaf_moof(5_120, &[0, 512, -512]),
+        ]
+        .concat();
+        let seeds = [
+            [ftyp(), moov(1000, &[audio_trak(), bframes(120).trak(1)], None), bx(b"mdat", &[&[0; 16]])].concat(),
+            chunked(false, None),
+            chunked(true, Some(250)),
+            fragmented,
+        ];
+        let input = move |rng: &mut Rng| {
+            let seed = &seeds[rng.below(seeds.len())];
+            Bytes(if rng.one_in(8) { rng.bytes(1024) } else { rng.mutate(seed) })
+        };
+        // Besides what the file holds, the times or places of all the
+        // samples a track may have (fragments' samples take no tables).
+        let limit = |file: &Bytes| (16 << 20) + 64 * file.0.len() + 32 * MAX_SAMPLES as usize;
+        fuzz::check("MP4 files", 2000, input, limit, |file| {
+            let file = &file.0;
+            sniff(file);
+            if let Ok(times) = index(Cursor::new(file), file.len() as u64, None) {
+                assert!(!times.is_empty() && times.is_sorted() && times[0] >= 0, "{times:?}");
+            }
+            if let Ok((moov, points)) = chunks(Cursor::new(file), file.len() as u64) {
+                assert!(moov.end <= file.len() as u64 && points.is_sorted(), "{moov:?}");
+            }
+        });
     }
 
     #[test]

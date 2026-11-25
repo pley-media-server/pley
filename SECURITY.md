@@ -583,6 +583,11 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   streams do, up to 1 MB for a logo and 4 MB for a picture, and are kept
   only when they are JPEG, PNG, WebP or GIF.
 - A profile picture is decoded only up to 4096 pixels.
+- What the metadata services answer is read up to a limit, whatever its
+  headers say, and refused past it: 32 MiB from TMDB, 16 MiB from TheTVDB,
+  TVmaze, MusicBrainz and the audiobooks' sources, 4 MiB from
+  OpenSubtitles' API. So is the HLS playlist a Live TV channel's stream
+  comes as, at 2 MiB.
 - NFO files are read up to 1 MiB, as XML with no DTD and none but XML's
   own entities. What they say is bounded (500 characters for a title,
   20,000 for a summary, 50 genres, 100 entries a file) and ids are checked
@@ -739,6 +744,17 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
 - Besides its two launchers, the app exports only the sign-in's return
   address, the music service and, on TVs, the Watch Next row's pictures
   (read only, by names nobody can guess).
+- The music service lets in only the app, the system's own media controls,
+  Android Auto and the Google app: those two by the certificate Google signs
+  them with, and only as the app that asks (its name must be the asking
+  uid's). They browse the music and pick what plays; a media button, from a
+  headset or another app, only plays, pauses and skips, as do apps given
+  access to notifications (a watch's companion), which Android lets control
+  any media session. Their covers come
+  through a content provider that isn't exported: each of them is granted
+  reading it alone, and it fetches only the server's item and collection
+  pictures and Live TV's channel logos. What music played last is kept on
+  the device for the profile that played it, and goes when it signs out.
 - The TV launcher plays a title from the Watch Next row only when the link
   carries the signature this installation gave it, so no other app can make
   it play.

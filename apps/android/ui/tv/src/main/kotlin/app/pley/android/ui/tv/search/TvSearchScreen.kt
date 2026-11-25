@@ -451,6 +451,7 @@ private fun groupNames(): Map<SearchGroupKind, String> {
     val artists = stringResource(R.string.tv_search_group_artists)
     val albums = stringResource(R.string.tv_search_group_albums)
     val tracks = stringResource(R.string.tv_search_group_tracks)
+    val books = stringResource(app.pley.android.screens.R.string.book_group)
     return remember(people) {
         mapOf(
             SearchGroupKind.People to people,
@@ -461,6 +462,7 @@ private fun groupNames(): Map<SearchGroupKind, String> {
             SearchGroupKind.Artists to artists,
             SearchGroupKind.Albums to albums,
             SearchGroupKind.Tracks to tracks,
+            SearchGroupKind.Books to books,
         )
     }
 }

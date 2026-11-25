@@ -26,6 +26,7 @@
     <script type="text/brightscript" uri="pkg:/components/screens/DetailsScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Titles.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
@@ -41,44 +42,71 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Details.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Media.brs" />
     <children>
-        <Poster id="backdrop" width="1920" height="1080" loadWidth="640" loadHeight="360" loadDisplayMode="scaleToZoom" opacity="0.4" />
-        <Rectangle id="shade" width="1260" height="1080" color="0x16191ED9" />
+        <!-- The backdrop over the whole screen, as on Android TV, under the
+             scrim from the left (the text's side) and a fade to the
+             background at the bottom: no edge cuts it. In the rows, the
+             backdrop alone, faint (uiDimBackdrop). -->
+        <!-- All but the panel: cut to the panel's left while it shows, so
+             what it covers isn't drawn (onPanel). -->
+        <Group id="under">
+        <Backdrop id="backdrop" />
+        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
+        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" />
         <Group id="page">
-            <Poster id="poster" translation="[1404, 120]" width="420" height="630" loadWidth="420" loadHeight="630" loadDisplayMode="scaleToZoom" />
+            <!-- Only for a title without a backdrop. -->
+            <Poster id="poster" translation="[1404, 120]" width="420" height="630" loadWidth="420" loadHeight="630" loadDisplayMode="scaleToZoom" visible="false" />
             <!-- The title's request, where there is one (GET
                  /api/items/{id}/request). -->
             <StagePill id="stage" translation="[1404, 774]" stacked="true" maxWidth="420" visible="false" />
             <Label id="stageLine" translation="[1404, 852]" width="420" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallestSystemFont" visible="false" />
-            <LayoutGroup id="column" translation="[96, 96]" layoutDirection="vert" itemSpacings="[44]">
+            <LayoutGroup id="column" translation="[192, 96]" layoutDirection="vert" itemSpacings="[40]">
                 <!-- Only the labels with text stay in it (layoutText). -->
                 <LayoutGroup id="text" layoutDirection="vert">
-                    <Label id="heading" width="1100" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-                    <Label id="line" width="1100" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-                    <Label id="genres" width="1100" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+                    <Label id="heading" width="1300" wrap="true" maxLines="2" color="0xEBEBEBFF" />
+                    <!-- "2025 · 2 h 7 min · [R] · ☆ 7.4 · [4K] [DV]". -->
+                    <MetaRow id="line" />
+                    <Label id="genres" width="1100" color="0xA1A9B6FF" />
                     <!-- "Directed by … · Starring …". -->
-                    <Label id="credits" width="1100" maxLines="1" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-                    <Label id="tagline" width="1100" maxLines="1" color="0xEBEBEBFF" font="font:SmallerBoldSystemFont" />
-                    <Label id="summary" width="1080" wrap="true" maxLines="4" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
-                    <Label id="note" width="1100" wrap="true" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+                    <Label id="credits" width="1100" maxLines="1" color="0xA1A9B6FF" />
+                    <Label id="tagline" width="1100" maxLines="1" color="0xEBEBEBFF" />
+                    <Label id="summary" width="1040" wrap="true" maxLines="3" lineSpacing="6" color="0xEBEBEBFF" />
+                    <Label id="note" width="1100" wrap="true" color="0xA1A9B6FF" />
                 </LayoutGroup>
-                <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="560" visible="false" />
+                <!-- What plays, a pill; the rest round icons (Android TV's). -->
+                <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
             </LayoutGroup>
             <!-- Its top shows under the buttons; the page slides up to it. -->
-            <RowList id="rows" translation="[96, 940]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+            <QuickRowList id="rows" translation="[168, 940]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
-        <Label id="message" translation="[96, 480]" width="1100" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
+        <!-- With the focus in the rows, the info block at the top over
+             them, as Android TV's: the title on one line, its line of
+             facts, and two lines of the summary; on an episode, its name
+             and line, then two lines of its own summary. -->
+        <Group id="infoBlock" translation="[192, 48]" visible="false">
+            <Label id="infoTitle" width="1500" maxLines="1" color="0xEBEBEBFF" />
+            <MetaRow id="infoLine" translation="[0, 108]" />
+            <Label id="infoName" translation="[0, 164]" width="1100" maxLines="1" color="0xEBEBEBFF" />
+            <Label id="infoSummary" translation="[0, 164]" width="1040" wrap="true" maxLines="2" lineSpacing="6" color="0xEBEBEBFF" />
+        </Group>
+        <Label id="message" translation="[192, 480]" width="1100" wrap="true" color="0xA1A9B6FF" />
+        </Group>
         <!-- A menu (Audio and subtitles, More), or the choices of one of its
              entries. It leaves the buttons in view, and is wider than
              Settings' for a version's long line. -->
         <Group id="panel" visible="false">
-            <Rectangle translation="[720, 0]" width="1200" height="1080" color="0x1E222AFF" />
-            <Label id="panelTitle" translation="[776, 56]" width="1088" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <LabelList id="menu" translation="[776, 150]" itemSize="[1088, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
-            <RadioButtonList id="choices" translation="[776, 150]" itemSize="[1088, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" visible="false" />
+            <Rectangle width="720" height="1080" color="0x16191E80" />
+            <Poster translation="[720, 0]" width="1200" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFF" />
+            <Label id="panelTitle" translation="[776, 72]" width="1088" maxLines="1" color="0xEBEBEBFF" />
+            <QuickList id="menu" translation="[776, 152]" itemComponentName="PanelRow" itemSize="[1088, 88]" itemSpacing="[0, 4]" numRows="9" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+            <QuickList id="choices" translation="[776, 152]" itemComponentName="PanelRow" itemSize="[1088, 88]" itemSpacing="[0, 4]" numRows="9" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
             <!-- Media info: Up and Down scroll it. -->
-            <ScrollableText id="info" translation="[776, 150]" width="1088" height="870" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallSystemFont" visible="false" />
+            <FactSheet id="facts" translation="[776, 152]" width="1064" height="870" visible="false" />
+            <!-- Details: Up and Down scroll it. -->
+            <ScrollableText id="info" translation="[776, 152]" width="1088" height="870" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallSystemFont" visible="false" />
         </Group>
         <!-- The title's request asked again while it downloads. -->
         <Timer id="requestPoll" duration="10" />
+        <!-- Focus resting on a season: its episodes come under the row. -->
+        <Timer id="seasonRest" duration="0.3" />
     </children>
 </component>

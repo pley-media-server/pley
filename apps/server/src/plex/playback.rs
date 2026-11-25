@@ -360,6 +360,7 @@ pub async fn progress(
 pub async fn rate(State(state): State<AppState>, PlexUser(user): PlexUser, params: Params) -> PlexResult<Node> {
     let id = rating_key(&params)?;
     let row = catalog::item(&state.db, user.id, id).await?.ok_or(PlexError::NotFound)?;
+    super::reachable(&state, &user, row.library_id).await?;
     let value = params.parse::<f64>("rating").ok_or_else(|| PlexError::BadRequest("rating is required".into()))?;
     let rating = if value < 0.0 {
         None
@@ -374,6 +375,7 @@ pub async fn rate(State(state): State<AppState>, PlexUser(user): PlexUser, param
 async fn set_watched(state: &AppState, user: &AuthUser, params: &Params, watched: bool) -> PlexResult<Node> {
     let id = rating_key(params)?;
     let row = catalog::item(&state.db, user.id, id).await?.ok_or(PlexError::NotFound)?;
+    super::reachable(state, user, row.library_id).await?;
     if catalog::set_watched(&state.db, &state.events, user.id, id, &row.kind, watched).await? {
         state.events.send(ServerEvent::WatchlistChanged { user_id: user.id });
     }
@@ -466,7 +468,7 @@ pub async fn sessions(State(state): State<AppState>, PlexUser(user): PlexUser) -
     let now = crate::util::now();
     let everyone = super::sees_everyone(&user);
     let sessions: Vec<Arc<Session>> =
-        all.into_iter().filter(|s| (everyone || s.user_id == user.id) && s.is_active(now)).collect();
+        all.into_iter().filter(|s| (everyone || s.user_id == user.id) && s.is_listed(now)).collect();
     let jobs: HashMap<String, JobStatus> = if sessions.iter().any(|s| s.job_id().is_some()) {
         match state.transcoder.status().await {
             Ok(status) => status.jobs.into_iter().map(|j| (j.id.clone(), j)).collect(),
@@ -572,7 +574,7 @@ fn mark_decision(node: &mut Node, method: Method) {
 pub async fn transcode_sessions(State(state): State<AppState>, PlexUser(user): PlexUser) -> PlexResult<Node> {
     let everyone = super::sees_everyone(&user);
     let sessions: Vec<Arc<Session>> =
-        state.sessions.active().into_iter().filter(|s| everyone || s.user_id == user.id).collect();
+        state.sessions.listed().into_iter().filter(|s| everyone || s.user_id == user.id).collect();
     let jobs: HashMap<String, JobStatus> = match state.transcoder.status().await {
         Ok(status) => status.jobs.into_iter().map(|j| (j.id.clone(), j)).collect(),
         Err(_) => HashMap::new(),
@@ -646,6 +648,7 @@ pub async fn universal_start(
         mode: if params.get("directStream") == Some("0") { PlaybackMode::Transcode } else { PlaybackMode::Remux },
         client_id,
         keep_previous: false,
+        ahead: false,
         keyed_urls: false,
         // Plex clients only ever hear of a stop.
         controls: Controls::new(),

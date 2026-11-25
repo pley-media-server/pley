@@ -62,7 +62,7 @@ internal fun LibrarySheetHost(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                if (state.kind != LibraryKind.Music) {
+                if (state.kind?.audio != true) {
                     SheetSection(stringResource(R.string.library_show)) {
                         SegmentedControl(
                             options = listOf(

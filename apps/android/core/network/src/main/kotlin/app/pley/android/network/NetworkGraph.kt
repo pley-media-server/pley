@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit
 import okhttp3.Cache
 import okhttp3.Dispatcher
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 
@@ -32,6 +33,15 @@ interface NetworkGraph {
     /** For pictures: its own limits per host, the server speaking HTTP/1.1. */
     val images: OkHttpClient
 
+    /**
+     * [images] with an HTTP cache of [issuer]'s pictures as profile
+     * [userId], for pictures fetched outside the app's image loader and
+     * read again and again (a car's covers): the server's versioned ones
+     * then come from the device. Another profile, which may not see the
+     * same items, has a cache of its own; none before the profile is known.
+     */
+    fun pictures(issuer: String, userId: Long?): OkHttpClient = images
+
     /** For video and audio of [issuer]: long reads, as HLS segments can wait for the transcoder. */
     fun media(issuer: String): OkHttpClient
 
@@ -42,9 +52,9 @@ interface NetworkGraph {
     fun events(issuer: String): ServerEvents
 
     /**
-     * Lets go of [issuer]'s API clients once its HTTP caches are deleted
-     * (signing out): the next ones open their caches again, where the old
-     * ones would cache nothing more.
+     * Lets go of [issuer]'s API and pictures' clients once its HTTP caches
+     * are deleted (signing out): the next ones open their caches again,
+     * where the old ones would cache nothing more.
      */
     fun forget(issuer: String) {}
 
@@ -111,6 +121,7 @@ internal class HttpNetworkGraph(
 
     private val auths = ConcurrentHashMap<String, IssuerAuth>()
     private val apis = ConcurrentHashMap<Pair<String, Long?>, HttpPleyApi>()
+    private val pictureClients = ConcurrentHashMap<Pair<String, Long>, OkHttpClient>()
     private val mediaClients = ConcurrentHashMap<String, OkHttpClient>()
     private val subtitleClients = ConcurrentHashMap<String, OkHttpClient>()
     private val eventClients = ConcurrentHashMap<String, OkHttpClient>()
@@ -125,20 +136,34 @@ internal class HttpNetworkGraph(
     /**
      * The API client of [origin] as [userId]: with an HTTP cache of its own
      * (library listings come back as 304 Not Modified when unchanged), none
-     * before the profile is known.
+     * before the profile is known. Its requests say the app shows
+     * audiobooks ([FEATURES]): the server gives an app's token none
+     * otherwise.
      */
     internal fun apiClient(origin: String, userId: Long?): OkHttpClient = base.newBuilder()
         .apply { if (userId != null) cache(Cache(cacheDirOf(origin, userId), API_CACHE_BYTES)) }
+        .addInterceptor(showsBooks)
         .signedIn(auth(origin))
         .build()
 
     /** Where the HTTP cache of [origin] as [userId] is: `http/<sha1 of the origin>/<user id>`. */
     internal fun cacheDirOf(origin: String, userId: Long): File = File(cacheDir, "http/${sha1Hex(originOf(origin))}/$userId")
 
+    /**
+     * Where the pictures' cache of [origin] as [userId] is: `http/<sha1 of the origin>/pictures/<user id>`, in the
+     * server's folder, which signing out deletes with the API's caches.
+     */
+    internal fun picturesCacheDirOf(origin: String, userId: Long): File =
+        File(cacheDir, "http/${sha1Hex(originOf(origin))}/pictures/$userId")
+
+    /** Says the app shows audiobooks, on the API's requests and the event stream's (a book library's scans). */
+    private val showsBooks = Interceptor { it.proceed(it.request().newBuilder().header(FEATURES, AUDIOBOOKS).build()) }
+
     // Their caches aren't closed: a request under way may still use one, and a closed cache throws.
     override fun forget(issuer: String) {
         val origin = originOf(issuer)
         apis.keys.removeAll { it.first == origin }
+        pictureClients.keys.removeAll { it.first == origin }
     }
 
     override val images: OkHttpClient by lazy {
@@ -158,6 +183,15 @@ internal class HttpNetworkGraph(
             .addNetworkInterceptor(auth)
             .authenticator(auth)
             .build()
+    }
+
+    // The same dispatcher and connections as [images]: its limits per host hold for both.
+    override fun pictures(issuer: String, userId: Long?): OkHttpClient {
+        if (userId == null) return images
+        val origin = originOf(issuer)
+        return pictureClients.getOrPut(origin to userId) {
+            images.newBuilder().cache(Cache(picturesCacheDirOf(origin, userId), PICTURES_CACHE_BYTES)).build()
+        }
     }
 
     override fun media(issuer: String): OkHttpClient = mediaClients.getOrPut(originOf(issuer)) {
@@ -197,6 +231,7 @@ internal class HttpNetworkGraph(
 
     private fun signedInClient(origin: String, readSeconds: Long): OkHttpClient = base.newBuilder()
         .readTimeout(readSeconds, TimeUnit.SECONDS)
+        .addInterceptor(showsBooks)
         .signedIn(auth(origin))
         .build()
 
@@ -230,6 +265,13 @@ internal class HttpNetworkGraph(
     companion object {
         /** The API's HTTP cache per server and profile. */
         const val API_CACHE_BYTES = 50L * 1024 * 1024
+
+        /** The pictures' HTTP cache per server and profile: a few hundred covers at a car's size. */
+        const val PICTURES_CACHE_BYTES = 32L * 1024 * 1024
+
+        /** The header saying what the app shows beyond movies, shows and music (apps/server/src/auth.rs). */
+        const val FEATURES = "X-Pley-Features"
+        const val AUDIOBOOKS = "audiobooks"
 
         /** Pictures at once per server, above OkHttp's 5: the server speaks HTTP/1.1. */
         const val IMAGES_PER_HOST = 10

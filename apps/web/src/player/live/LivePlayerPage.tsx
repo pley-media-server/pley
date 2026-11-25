@@ -11,20 +11,16 @@ import {
   LoaderCircle,
   Maximize,
   Minimize,
-  RefreshCw,
   Star,
-  TriangleAlert,
-  Tv2,
   Volume1,
   Volume2,
   VolumeX,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ApiError, errorMessage, isApiError } from "@/api/client";
+import { errorMessage, isApiError } from "@/api/client";
 import { onServerEvent } from "@/api/events";
 import type { Control, ServerEvent } from "@/api/types";
 import {
-  busyConnections,
   CHANNEL_PAGE,
   leaveChannel,
   liveKeys,
@@ -36,14 +32,12 @@ import {
   streamUrl,
   useSetFavorite,
   watchChannel,
-  type BusyConnection,
   type Channel,
   type LiveCategory,
 } from "@/api/livetv";
 import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { PlayOn } from "@/components/PlayOn";
 import { Slider } from "@/components/Slider";
-import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { canPlayNativeHls } from "@/lib/caps";
 import { loadHls } from "@/lib/hls";
@@ -53,6 +47,9 @@ import { useDocumentTitle, useLocalStorage } from "@/lib/hooks";
 import { clientId } from "@/lib/progress";
 import { ChannelLogo, formatSpan, formatTime, liveUrl, setLastWatched, timeLeft, useNow } from "@/pages/livetv/common";
 import { ChannelPanel } from "./ChannelPanel";
+import { keepCushion } from "./cushion";
+import { whenStuck } from "./stuck";
+import { brokeOff, cantPlay, hlsTrouble, stopped, trouble, TroubleCard, type Trouble } from "./TroubleCard";
 
 /** Controls hide after this long without the pointer moving. */
 const HIDE_CONTROLS_AFTER = 3500;
@@ -62,57 +59,18 @@ const SPINNER_AFTER = 700;
 const BANNER_FOR = 5000;
 /** A stream that broke off waits this long to hear it was taken over before tuning again. */
 const TAKEN_OVER_GRACE = 1000;
+/**
+ * A channel played from its stream is read again once in this long at most,
+ * ms: one that stands still again sooner (a provider whose clock starts over
+ * at every break) plays from the transcoder's segments instead.
+ */
+const READ_AGAIN_ONCE_IN = 120_000;
+/** mpegts.js says how fast the stream came every 600 ms, and nothing once it ended: this long without, it isn't coming. */
+const COMING_WITHIN = 1500;
 /** Digits typed for a channel number wait this long for more. */
 const NUMBER_WAIT = 1400;
 /** The remote's commands Live TV obeys: channel up and down. It doesn't go back in a channel, so no pause or seek. */
 const LIVE_CONTROLS: Control[] = ["next", "previous"];
-
-type Trouble = {
-  kind: "busy" | "unavailable" | "stopped" | "missing" | "other";
-  title: string;
-  message: string;
-  /** All connections in use: what holds them. */
-  connections?: BusyConnection[];
-};
-
-function trouble(err: unknown, channel: string): Trouble {
-  if (isApiError(err, 409)) {
-    return { kind: "busy", title: t("player.busy", { ns: "livetv" }), message: errorMessage(err), connections: busyConnections(err) };
-  }
-  if (isApiError(err, 410)) return stopped(errorMessage(err));
-  if (isApiError(err, 404)) return { kind: "missing", title: t("player.gone", { ns: "livetv" }), message: errorMessage(err) };
-  if (isApiError(err, 403)) return { kind: "other", title: t("notOpen", { ns: "livetv" }), message: errorMessage(err) };
-  if (isApiError(err, 503)) return { kind: "unavailable", title: t("player.notPlaying", { ns: "livetv", channel }), message: errorMessage(err) };
-  return { kind: "other", title: t("player.didntStart", { ns: "livetv", channel }), message: errorMessage(err) };
-}
-
-/** The channel stopped being watched on the server (its connection taken over, say): why, as it says. */
-function stopped(message: string | null | undefined): Trouble {
-  return { kind: "stopped", title: t("player.stopped", { ns: "livetv" }), message: message || t("player.notWatched", { ns: "livetv" }) };
-}
-
-/** The stream broke off for good: what hls.js says of it. */
-function brokeOff(channel: string, details: string): Trouble {
-  return { kind: "other", title: t("player.channelStopped", { ns: "livetv", channel }), message: details };
-}
-
-/** Neither hls.js nor the browser itself plays the stream. */
-function cantPlay(): Trouble {
-  return { kind: "other", title: t("player.cantPlay", { ns: "livetv" }), message: t("player.cantPlayHint", { ns: "livetv" }) };
-}
-
-/** An HLS error answered by the server: its status and its own words. */
-function hlsTrouble(response: { code?: number; text?: string } | undefined, channel: string): Trouble | null {
-  if (!response?.code || response.code < 400) return null;
-  let message = "";
-  try {
-    message = (JSON.parse(response.text ?? "") as { message?: string }).message ?? "";
-  } catch {
-    // not the server's JSON
-  }
-  const said = message || t("player.serverAnswered", { ns: "livetv", code: response.code });
-  return trouble(new ApiError(response.code, "hls", said), channel);
-}
 
 export function LivePlayerPage() {
   const { t } = useTranslation("livetv");
@@ -283,6 +241,8 @@ function LivePlayer({
   const [problem, setProblem] = useState<Trouble | null>(null);
   const [buffering, setBuffering] = useState(false);
   const [playing, setPlaying] = useState(false);
+  // Waiting for the cushion after a stall: the spinner stays, though the browser could go on.
+  const cushionHold = useRef(false);
   const [volume, setVolume] = useLocalStorage<number>("pley.volume", 1);
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -315,6 +275,9 @@ function LivePlayer({
     let cancelled = false;
     let networkRetries = 0;
     let mediaRetries = 0;
+    // What keeps a channel played from its stream going: its cushion, and
+    // the watch for a picture that stands still.
+    let stopKeeping = () => {};
     setStatus("tuning");
     setProblem(null);
     setBanner(false);
@@ -324,14 +287,17 @@ function LivePlayer({
       // Whatever broke as the connection was taken, that's why it stopped.
       setProblem(takenOver.current ?? why);
       setStatus("error");
+      stopKeeping();
       hlsRef.current?.destroy();
       hlsRef.current = null;
       directRef.current?.destroy();
       directRef.current = null;
     };
     const start = () => {
-      video.play().catch(() => {
-        // Autoplay with sound refused: muted, then.
+      video.play().catch((err: unknown) => {
+        // Autoplay with sound refused: muted, then. Not a play the player
+        // cut short as it let the stream go (an AbortError).
+        if (cancelled || (err as { name?: string } | null)?.name !== "NotAllowedError") return;
         video.muted = true;
         setMuted(true);
         void video.play().catch(() => undefined);
@@ -364,43 +330,119 @@ function LivePlayer({
       if (cancelled || !mpegts?.isSupported()) return false;
       // A device id of its own: reading the stream doesn't end the session asked about.
       const url = new URL(streamUrl(channel.id, `${clientId()}-stream`), window.location.href).href;
-      const player = mpegts.createPlayer(
-        { type: "mpegts", isLive: true, url },
-        {
-          enableWorker: true,
-          enableStashBuffer: false,
-          lazyLoad: false,
-          // Never skipped ahead (the picture jumped as a channel started, its
-          // first seconds all coming at once): a few seconds behind live is
-          // fine. Only far behind (stalls adding up) is it caught up, by
-          // playing a little faster.
-          liveSync: true,
-          liveSyncMaxLatency: 30,
-          liveSyncTargetLatency: 10,
-          liveSyncPlaybackRate: 1.1,
-        },
-      );
       let failed = false;
       // Played from its stream, as the server or the stream said it could be.
       let chosen = false;
-      player.on(mpegts.Events.ERROR, () => {
-        failed = true;
-        player.destroy();
-        if (directRef.current === player) directRef.current = null;
-        // Not chosen yet: the transcoder's segments play once the plan comes, below.
-        if (cancelled || !chosen) return;
-        // It broke off, playing or before its first picture: the transcoder's
-        // segments from now, unless its connection was taken over (that's
-        // told as the stream ends, and tuning again would only find every
-        // connection in use).
+      // When the player last said the stream came.
+      let cameAt = -Infinity;
+      const coming = () => performance.now() - cameAt < COMING_WITHIN;
+      // When it was last read again.
+      let readAgainAt = -Infinity;
+      // It broke off, or stood still for good: the transcoder's segments
+      // from now, unless its connection was taken over (that's told as the
+      // stream ends, and tuning again would only find every connection in use).
+      const toHls = () =>
         window.setTimeout(() => {
           if (cancelled || takenOver.current) return;
           void watch().then((w) => w && playHls(w.url));
         }, TAKEN_OVER_GRACE);
-      });
-      directRef.current = player;
-      player.attachMediaElement(video);
-      player.load();
+      // The player that stood still let go, its picture kept while the next one starts.
+      const letGo = (player: { destroy: () => void }) => {
+        directRef.current = null;
+        keepPicture(video);
+        player.destroy();
+      };
+      const read = () => {
+        cameAt = -Infinity;
+        const player = mpegts.createPlayer(
+          { type: "mpegts", isLive: true, url },
+          {
+            enableWorker: true,
+            enableStashBuffer: false,
+            lazyLoad: false,
+            // Never skipped ahead (the picture jumped as a channel started, its
+            // first seconds all coming at once): a few seconds behind live is
+            // fine. Only far behind (stalls adding up) is it caught up, by
+            // playing a little faster.
+            liveSync: true,
+            liveSyncMaxLatency: 30,
+            liveSyncTargetLatency: 10,
+            liveSyncPlaybackRate: 1.1,
+          },
+        );
+        player.on(mpegts.Events.STATISTICS_INFO, (info: { speed?: number }) => {
+          if ((info.speed ?? 0) > 0) cameAt = performance.now();
+        });
+        player.on(mpegts.Events.ERROR, () => {
+          failed = true;
+          stopKeeping();
+          player.destroy();
+          if (directRef.current === player) directRef.current = null;
+          // Not chosen yet: the transcoder's segments play once the plan comes, below.
+          if (cancelled || !chosen) return;
+          toHls();
+        });
+        directRef.current = player;
+        player.attachMediaElement(video);
+        player.load();
+        return player;
+      };
+      // Played a few seconds behind live, so the provider's bursts play
+      // through; read again from its last keyframe, by a new player, once it
+      // stands still for good while the stream comes.
+      const keep = () => {
+        // Held until the cushion starts it, as after a stall: a player that
+        // was read again keeps the spinner while it fills.
+        cushionHold.current = true;
+        const stopCushion = keepCushion(
+          video,
+          () => {
+            cushionHold.current = false;
+            setBuffering(video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
+            start();
+          },
+          (holding) => {
+            cushionHold.current = holding;
+            // Gone on after waiting its longest, it may still have nothing to play.
+            setBuffering(holding || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
+          },
+        );
+        const stopWatch = whenStuck(video, coming, (played) => {
+          stopKeeping();
+          const stuck = directRef.current;
+          if (cancelled || !stuck) return;
+          // One that never played, a new one wouldn't either; nor one that
+          // stands still again soon after it was read again.
+          if (!played || performance.now() - readAgainAt < READ_AGAIN_ONCE_IN) {
+            letGo(stuck);
+            toHls();
+            return;
+          }
+          // Its watch session counts as there while its stream is read:
+          // seen now, it stays while the stream is read again. One that
+          // ended (the channel stopped from elsewhere) says why instead.
+          void livePlan(sessionId).then(
+            () => true,
+            (err: unknown) => {
+              if (!isApiError(err, 410)) return true;
+              fail(trouble(err, channel.name));
+              return false;
+            },
+          ).then((again) => {
+            if (!again || cancelled || directRef.current !== stuck) return;
+            readAgainAt = performance.now();
+            letGo(stuck);
+            read();
+            keep();
+          });
+        });
+        stopKeeping = () => {
+          stopCushion();
+          stopWatch();
+          cushionHold.current = false;
+        };
+      };
+      const player = read();
       const known = await plan;
       if (cancelled) return true;
       // Let go already (mpegts.js throws when let go twice): it failed, and
@@ -413,7 +455,7 @@ function LivePlayer({
         return false;
       }
       chosen = true;
-      start();
+      keep();
       return true;
     };
     const playHls = async (url: string) => {
@@ -450,6 +492,9 @@ function LivePlayer({
           } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR && mediaRetries < 2) {
             mediaRetries++;
             hls.recoverMediaError();
+            // Recovering loads the video again, which cuts short a play under
+            // way and leaves it paused, without a pause event: it plays on.
+            start();
           } else {
             fail(answered ?? brokeOff(channel.name, data.details));
           }
@@ -470,6 +515,7 @@ function LivePlayer({
     })();
     return () => {
       cancelled = true;
+      stopKeeping();
       // The last picture stays while the next channel tunes.
       keepPicture(video);
       hlsRef.current?.destroy();
@@ -583,9 +629,13 @@ function LivePlayer({
     let stalled: number | undefined;
     const waiting = () => {
       window.clearTimeout(stalled);
-      stalled = window.setTimeout(() => setBuffering(true), SPINNER_AFTER);
+      stalled = window.setTimeout(() => {
+        // The cushion came back at once, so it plays on: no spinner.
+        if (cushionHold.current || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) setBuffering(true);
+      }, SPINNER_AFTER);
     };
     const going = () => {
+      if (cushionHold.current) return;
       window.clearTimeout(stalled);
       stalled = undefined;
       setBuffering(false);
@@ -984,90 +1034,3 @@ function keepPicture(video: HTMLVideoElement) {
     // No picture to keep: black while it tunes.
   }
 }
-
-/** Who holds a connection: "You, on another device", their names, or how many. */
-function holders(c: BusyConnection): string {
-  if (c.yours) return t("player.you", { ns: "livetv" });
-  if (c.watchers.length) return c.watchers.join(", ");
-  return c.people === 1 ? t("player.someoneElse", { ns: "livetv" }) : t("player.people", { ns: "livetv", count: c.people });
-}
-
-function TroubleCard({
-  trouble,
-  channel,
-  onRetry,
-  onTakeOver,
-  onBack,
-  onChannels,
-}: {
-  trouble: Trouble;
-  channel?: Channel;
-  onRetry?: () => void;
-  onTakeOver?: (channelId: number) => void;
-  onBack: () => void;
-  onChannels?: () => void;
-}) {
-  const { t } = useTranslation(["livetv", "common"]);
-  const Icon = trouble.kind === "busy" ? Tv2 : TriangleAlert;
-  const connections = trouble.connections ?? [];
-  const anyToTake = connections.some((c) => c.can_take_over);
-  return (
-    <div className="w-full max-w-md rounded-2xl border border-white/10 bg-surface/95 p-6 text-center shadow-2xl animate-pop-in" role="alert">
-      {channel ? (
-        <ChannelLogo channel={channel} width={120} className="mx-auto mb-4 h-14 w-24 rounded-lg bg-white/[0.06]" />
-      ) : (
-        <Icon className={cn("mx-auto mb-4 size-10", trouble.kind === "busy" ? "text-accent" : "text-danger")} />
-      )}
-      <h2 className="text-lg font-semibold">{trouble.title}</h2>
-      {connections.length ? (
-        <>
-          <p className="mt-2 text-sm text-muted [text-wrap:pretty]">
-            {t("player.connectionsWatching", { count: connections.length })}
-          </p>
-          <ul className="mt-4 space-y-2 text-left">
-            {connections.map((c) => (
-              <li key={c.channel_id} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{c.channel_name}</div>
-                  <div className="truncate text-xs text-muted">{holders(c)}</div>
-                </div>
-                {c.can_take_over && onTakeOver ? (
-                  <button
-                    type="button"
-                    onClick={() => onTakeOver(c.channel_id)}
-                    className="h-8 shrink-0 rounded-md bg-accent px-3 text-xs font-semibold text-accent-fg hover:bg-accent-hover"
-                  >
-                    {t("player.watchHere")}
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          {!anyToTake ? (
-            <p className="mt-3 text-xs text-subtle [text-wrap:pretty]">
-              {t("player.joinHint")}
-            </p>
-          ) : null}
-        </>
-      ) : trouble.message ? (
-        <p className="mt-2 text-sm text-muted [text-wrap:pretty]">{trouble.message}</p>
-      ) : null}
-      <div className="mt-6 flex flex-wrap justify-center gap-2">
-        {onRetry ? (
-          <button type="button" onClick={onRetry} className="flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-fg hover:bg-accent-hover">
-            <RefreshCw className="size-4" /> {trouble.kind === "stopped" ? t("player.watchAgain") : t("common:actions.tryAgain")}
-          </button>
-        ) : null}
-        {onChannels ? (
-          <button type="button" onClick={onChannels} className="flex h-10 items-center gap-2 rounded-md bg-surface-3 px-4 text-sm font-medium hover:bg-border">
-            <List className="size-4" /> {t("player.otherChannels")}
-          </button>
-        ) : null}
-        <button type="button" onClick={onBack} className="flex h-10 items-center rounded-md px-4 text-sm font-medium text-muted hover:bg-white/5 hover:text-fg">
-          {t("player.backToGuide")}
-        </button>
-      </div>
-    </div>
-  );
-}
-

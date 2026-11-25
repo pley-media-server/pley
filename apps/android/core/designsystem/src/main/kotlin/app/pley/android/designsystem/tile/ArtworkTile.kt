@@ -15,7 +15,10 @@ import app.pley.android.designsystem.image.artworkPlaceholder
 /**
  * A tile's art (design spec §2.3): the picture in its [surface2][PleyColors.Surface2]
  * well, or the title's gradient while there is none (and while the picture
- * fades in), and the overlays: the 4 dp progress bar,
+ * fades in), with Pley's mark on it when no picture will come, its glyph
+ * the item's kind's ([ArtworkTileModel.mark]; people have none). The title
+ * isn't on it: the caption under the tile, or the line beside it, names it.
+ * Then the overlays: the 4 dp progress bar,
  * the watched tick or the unwatched count, quality badges and the hairline
  * that keeps dark art from dissolving into the page.
  *
@@ -41,7 +44,7 @@ fun ArtworkTile(
         load = load,
         modifier = modifier
             .clearAndSetSemantics { contentDescription = model.description }
-            .artworkPlaceholder(model.title, if (kind.round) null else style.placeholderText, load, well = PleyColors.Surface2, shape = shape)
+            .artworkPlaceholder(model.title, titleStyle = null, load = load, well = PleyColors.Surface2, shape = shape, mark = model.mark)
             .tileOverlays(model, kind, style, load),
     )
 }

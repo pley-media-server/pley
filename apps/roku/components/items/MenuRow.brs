@@ -4,6 +4,9 @@ sub init()
     m.countBack = m.top.findNode("countBack")
     m.count = m.top.findNode("count")
     m.danger = false
+    ' Pley's type where the markup names Roku's (a list's items are made
+    ' after the scene restyled the screen).
+    uiRestyle(m.top)
 end sub
 
 sub onContent()
@@ -38,10 +41,10 @@ sub onFocus()
     m.focus.visible = focused
     if focused
         m.name.color = "0x16191EFF"
-        m.name.font = "font:MediumBoldSystemFont"
+        m.name.font = uiFont("bold", 32)
     else
         m.name.color = "0xEBEBEBFF"
-        m.name.font = "font:MediumSystemFont"
+        m.name.font = uiSystemFont(36)
     end if
     ' On the accent box, an accent number is dark instead.
     if m.danger

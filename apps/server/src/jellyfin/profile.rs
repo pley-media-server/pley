@@ -790,6 +790,7 @@ mod tests {
             mode: PlaybackMode::Remux,
             client_id: None,
             keep_previous: false,
+            ahead: false,
             keyed_urls: false,
             controls: Controls::new(),
             device_name: None,

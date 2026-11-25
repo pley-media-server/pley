@@ -274,6 +274,7 @@ pub async fn start(
         session.app_grant = user.app.as_ref().map(|app| app.grant_id);
         session.compatibility_token = user.compatibility.map(|c| c.token_id);
         session.media_key = req.keyed_urls.then(new_media_key);
+        session.ahead = req.ahead && req.keep_previous;
         session.controls = req.controls.clone();
         session.api = req.api;
         session.device = device;
@@ -402,6 +403,7 @@ pub async fn start(
     session.app_grant = user.app.as_ref().map(|app| app.grant_id);
     session.compatibility_token = user.compatibility.map(|c| c.token_id);
     session.media_key = req.keyed_urls.then(new_media_key);
+    session.ahead = req.ahead && req.keep_previous;
     session.controls = req.controls.clone();
     session.api = req.api;
     session.device = device;

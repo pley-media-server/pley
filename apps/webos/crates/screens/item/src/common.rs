@@ -129,11 +129,12 @@ impl TileData {
         }
     }
 
-    /// The kit's tile for it.
+    /// The kit's tile for it: a title's with its kind's mark, a person's with none.
     pub fn tile(&self, kind: pley_kit::TileKind) -> pley_kit::Tile<'_> {
         pley_kit::Tile::new(kind, &self.title)
             .subtitle(&self.subtitle)
             .art(&self.art)
+            .mark(self.item.as_ref().map(|i| i.kind.mark_glyph()))
             .progress(self.progress)
             .watched(self.watched)
             .unwatched(self.unwatched)

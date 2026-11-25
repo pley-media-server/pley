@@ -14,8 +14,7 @@ sub init()
     m.backdrop = m.top.findNode("backdrop")
     m.cover = m.top.findNode("cover")
     m.title = m.top.findNode("title")
-    m.artist = m.top.findNode("artist")
-    m.album = m.top.findNode("album")
+    m.line = m.top.findNode("line")
     m.track = m.top.findNode("track")
     m.fill = m.top.findNode("fill")
     m.scrubber = m.top.findNode("scrubber")
@@ -27,8 +26,10 @@ sub init()
     m.message = m.top.findNode("message")
     m.upNextTitle = m.top.findNode("upNextTitle")
     m.upNext = m.top.findNode("upNext")
-    m.top.findNode("heading").text = t("player.nowPlaying.title")
+    m.lower = m.top.findNode("lower")
     m.upNextTitle.text = t("player.upNext.title")
+    ' A small grey heading, as Android TV's.
+    m.upNextTitle.font = uiType("label")
     m.watching = false
     m.labels = []
     ' The buttons' words, and how wide each is: wide enough for either of
@@ -43,14 +44,6 @@ sub init()
         nextTrack: t("player.nowPlaying.next"),
         stopAll: t("player.nowPlaying.stop")
     }
-    m.widths = [
-        chipWidth([m.words.shuffle, m.words.unshuffle], 300),
-        chipWidth([m.words.previousTrack], 220),
-        chipWidth([m.words.pause, m.words.play], 180),
-        chipWidth([m.words.nextTrack], 160),
-        chipWidth([m.words.stopAll], 160),
-        0
-    ]
     ' Up next: the queue it lists (its queueId) and its tracks, read once,
     ' the part of it listed ({ first, last }, invalid before any), its
     ' rows, and the track marked as playing (-1 for none).
@@ -101,8 +94,11 @@ sub onTrack()
     track = m.global.music.track
     if track = invalid then return
     m.title.text = track.title
-    m.artist.text = track.artist
-    m.album.text = track.album
+    parts = []
+    if track.artist <> "" then parts.Push(track.artist)
+    if track.album <> "" then parts.Push(track.album)
+    m.line.text = parts.Join(" · ")
+    placeControls()
     if m.cover.uri <> track.image
         agent = m.top.getScene().getHttpAgent()
         m.cover.setHttpAgent(agent)
@@ -110,6 +106,23 @@ sub onTrack()
         m.backdrop.setHttpAgent(agent)
         m.backdrop.uri = track.image
     end if
+end sub
+
+' The scrubber and the buttons 32 px under the track's lines (lower by a
+' title's second line), and as many rows of Up next as end above the
+' title-safe area's foot (1026).
+sub placeControls()
+    lines = 116 + 16 + 8 + 36
+    for each label in [m.title, m.line]
+        lines += label.boundingRect().height
+    end for
+    dy = Int(lines + 32 - 330)
+    if dy < 0 then dy = 0
+    if m.lower.translation[1] <> dy then m.lower.translation = [0, dy]
+    rows = Int((1026 - 620 - dy + 6) / 102)
+    if rows < 2 then rows = 2
+    if rows > 4 then rows = 4
+    if m.upNext.numRows <> rows then m.upNext.numRows = rows
 end sub
 
 ' Another track, or another queue: Up next marks the track playing. Moved
@@ -155,7 +168,7 @@ sub markRow(at as integer, current as boolean)
     row = m.rows.getChild(index)
     if row = invalid then return
     fresh = CreateObject("roSGNode", "ContentNode")
-    nodesFill(fresh, { title: row.title, subtitle: row.subtitle, duration: row.duration, current: current })
+    nodesFill(fresh, { number: row.number, title: row.title, subtitle: row.subtitle, duration: row.duration, current: current })
     m.rows.replaceChild(fresh, index)
 end sub
 
@@ -179,9 +192,10 @@ sub onMusicState()
     showButtons()
 end sub
 
-' Shuffle (or Stop shuffling), Previous, Pause (or Play, paused), Next and
-' Stop side by side, each wide enough for either of its words, then the
-' sleep timer's button, as wide as what it says.
+' Shuffle (or Stop shuffling), Previous, Pause (or Play, paused), Next,
+' Stop and the sleep timer, as Android TV's Now Playing: round icons, each
+' named under it while focused; a sleep timer running is a pill saying
+' what is left.
 sub showButtons()
     music = m.global.music
     words = m.words
@@ -194,29 +208,18 @@ sub showButtons()
     labels = [shuffle, words.previousTrack, toggle, words.nextTrack, words.stopAll, sleep]
     if FormatJson(labels) = FormatJson(m.labels) then return
     m.labels = labels
+    playIcon = "pause"
+    if music.state = "paused" then playIcon = "play"
+    icons = ["shuffle", "skip-back", playIcon, "skip-forward", "square", "moon"]
     chips = []
     for i = 0 to labels.Count() - 1
-        chips.Push({ label: labels[i], width: m.widths[i] })
+        chips.Push({ label: "", icon: icons[i], name: labels[i], width: 0 })
     end for
+    ' Running, the timer's button says more than its name (MusicPlayer's
+    ' sleep is told whether or not one runs).
+    if sleep <> t("player.sleep.title") then chips[5] = { label: sleep, icon: "moon", width: 0 }
     m.buttons.chips = chips
 end sub
-
-' A chip as wide as the longest of words needs (as ChipRow draws them, with
-' 20 pixels either side), least at least.
-function chipWidth(words as object, least as integer) as integer
-    if m.measure = invalid
-        m.measure = m.top.createChild("Label")
-        m.measure.font = "font:SmallSystemFont"
-        m.measure.opacity = 0
-    end if
-    width = least
-    for each text in words
-        m.measure.text = text
-        need = Int(m.measure.boundingRect().width) + 40
-        if need > width then width = need
-    end for
-    return width
-end function
 
 sub onPosition()
     music = m.global.music

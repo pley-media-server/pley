@@ -17,7 +17,6 @@ import androidx.compose.foundation.text.input.KeyboardActionHandler
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedSecureTextField
@@ -56,6 +55,7 @@ import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.DelayedSpinner
 import app.pley.android.ui.phone.kit.EmptyState
 import app.pley.android.ui.phone.kit.ErrorState
+import app.pley.android.ui.phone.kit.PleyAlertDialog
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
@@ -262,7 +262,7 @@ internal fun TextEntryDialog(
     )
     // The keyboard's Done saves: in landscape, the keyboard covers the dialog's buttons.
     val done: KeyboardActionHandler? = if (multiLine) null else KeyboardActionHandler { save() }
-    AlertDialog(
+    PleyAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(

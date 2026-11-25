@@ -14,11 +14,8 @@
     "reset": "Réinitialiser"
   },
   "menu": {
-    "title": "Lecture",
     "subtitles": "Sous-titres",
-    "subtitlesNow": "Sous-titres : {{track}}",
     "audio": "Audio",
-    "audioNow": "Audio : {{track}}",
     "quality": "Qualité",
     "qualityNow": "Qualité : {{quality}}",
     "sync": "Décalage des sous-titres",
@@ -26,7 +23,6 @@
     "chapters": "Chapitres",
     "find": "Trouver des sous-titres…",
     "details": "Détails de lecture",
-    "backCloses": "Retour pour fermer.",
     "backGoesBack": "Retour pour revenir."
   },
   "details": {
@@ -42,7 +38,7 @@
     "subtitlesOff": "Sous-titres désactivés",
     "quality": "Qualité : {{quality}}",
     "qualityLowered": "Qualité réduite à {{quality}}",
-    "slowServer": "Le serveur n’arrive pas à suivre cette vidéo. Essayez une qualité inférieure : Bas, puis Qualité.",
+    "slowServer": "Le serveur n’arrive pas à suivre cette vidéo. Essayez une qualité inférieure : Bas, puis le bouton Qualité.",
     "notSaved": "Impossible d’enregistrer ce choix pour la prochaine fois.",
     "subtitlesAdded": "Sous-titres ajoutés : {{track}}"
   },
@@ -125,7 +121,6 @@
     "mono": "Mono",
     "stereo": "Stéréo",
     "channelCount": "{{n}} canaux",
-    "fact": "{{label}} : {{value}}",
     "file": "Fichier",
     "video": "Vidéo",
     "audio": "Audio",
@@ -182,7 +177,6 @@
     "streams": "Flux : HLS, en plusieurs tailles"
   },
   "nowPlaying": {
-    "title": "En cours de lecture",
     "position": "Titre {{at, number}} sur {{total, number}}",
     "shuffle": "Aléatoire",
     "stopShuffling": "Arrêter l’aléatoire",
@@ -206,9 +200,6 @@
     "fileDefault": "Celle du fichier par défaut",
     "sameAsAudio": "Identique à la langue audio",
     "rows": {
-      "audio": "Langue audio : {{language}}",
-      "mode": "Sous-titres : {{mode}}",
-      "subtitle": "Langue des sous-titres : {{language}}",
       "fileDefault": "Celle du fichier",
       "sameAsAudio": "Celle de l’audio",
       "readOnly": "{{row}} · à modifier sur le web"
@@ -235,5 +226,21 @@
         "hint": "Les sous-titres dans votre langue s’affichent dès qu’il y en a."
       }
     }
+  },
+  "controls": {
+    "play": "Lire",
+    "pause": "Pause",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "info": "Infos",
+    "endsAt": "Se termine à {{time}}",
+    "remaining": "−{{time}}",
+    "intro": "Intro",
+    "credits": "Générique",
+    "seekBack": "−{{seconds}} s",
+    "seekForward": "+{{seconds}} s",
+    "chapter": "Chapitre {{number}}",
+    "chapterNamed": "Chapitre {{number}} · {{name}}",
+    "chapterWord": "Chapitre"
   }
 }

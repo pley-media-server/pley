@@ -192,9 +192,10 @@
       "tonemapInstead": "{{reason}}：{{fallback}}",
       "tonemapWithAnother": "{{reason}}：改用其他方式進行色調對映轉碼。",
       "builds": {
-        "windows": "<gyan>gyan.dev 的完整構建</gyan> 或 <jellyfin>jellyfin-ffmpeg</jellyfin>",
+        "windows": "Pley 的 Windows 安裝程式隨附的 FFmpeg、<gyan>gyan.dev 的完整構建</gyan> 或 <jellyfin>jellyfin-ffmpeg</jellyfin>",
+        "linux": "Pley 的 Docker 映像隨附的 FFmpeg，或 <jellyfin>jellyfin-ffmpeg</jellyfin>",
         "macos": "Homebrew 的 ffmpeg-full",
-        "any": "Windows 上使用 <gyan>gyan.dev 的完整構建</gyan>，Windows 和 Linux 上使用 <jellyfin>jellyfin-ffmpeg</jellyfin>，Mac 上使用 Homebrew 的 ffmpeg-full"
+        "any": "Pley 的 Docker 映像或 Windows 安裝程式隨附的 FFmpeg，Windows 上使用 <gyan>gyan.dev 的完整構建</gyan>，Windows 和 Linux 上使用 <jellyfin>jellyfin-ffmpeg</jellyfin>，Mac 上使用 Homebrew 的 ffmpeg-full"
       }
     },
     "load": {

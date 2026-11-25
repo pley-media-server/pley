@@ -53,6 +53,8 @@ data class HistoryRow(
     val square: Boolean,
     /** The page the row opens: the album for a track (the track highlighted). */
     val opens: PleyKey,
+    /** What was played: the glyph of Pley's mark on its picture when none comes. */
+    val kind: ItemKind,
 )
 
 /** The history's state. */
@@ -165,12 +167,16 @@ fun historyRow(entry: HistoryEntry, now: Long, words: FormatWords = AppLanguage.
         ItemKind.Episode -> (item.grandparentTitle ?: item.title) to
             listOf(episodeLabel(item, words), item.title).filter { it.isNotEmpty() }.joinToString(" · ")
         ItemKind.Track -> item.title to listOfNotNull(item.grandparentTitle, item.parentTitle).filter { it.isNotEmpty() }.joinToString(" · ")
+        // A book's part: the book, then the part.
+        ItemKind.Part -> (item.parentTitle ?: item.title) to (if (item.parentTitle != null) item.title else "")
         else -> item.title to (item.year?.toString().orEmpty())
     }
     val opens = when (item.kind) {
         ItemKind.Track -> item.parentId?.let { PleyKey.Album(it, trackId = item.id) } ?: PleyKey.Item(item.id)
         ItemKind.Album -> PleyKey.Album(item.id)
         ItemKind.Artist -> PleyKey.Artist(item.id)
+        ItemKind.Audiobook -> PleyKey.Book(item.id)
+        ItemKind.Part -> item.parentId?.let { PleyKey.Book(it) } ?: PleyKey.Item(item.id)
         else -> PleyKey.Item(item.id)
     }
     val art = listOfNotNull(
@@ -186,7 +192,11 @@ fun historyRow(entry: HistoryEntry, now: Long, words: FormatWords = AppLanguage.
         time = formatRelative(entry.viewedAt, now, words),
         device = entry.device?.takeIf { it.isNotBlank() },
         artPaths = art,
-        square = item.kind == ItemKind.Track || item.kind == ItemKind.Album || item.kind == ItemKind.Artist,
+        square = item.kind in SQUARE,
         opens = opens,
+        kind = item.kind,
     )
 }
+
+/** What history shows with a square cover: music and books. */
+private val SQUARE = setOf(ItemKind.Track, ItemKind.Album, ItemKind.Artist, ItemKind.Audiobook, ItemKind.Part)

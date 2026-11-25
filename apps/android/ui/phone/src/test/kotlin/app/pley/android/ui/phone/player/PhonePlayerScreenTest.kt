@@ -3,6 +3,7 @@ package app.pley.android.ui.phone.player
 import android.view.View
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
@@ -15,6 +16,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.dp
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -42,6 +45,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /** The phone player over a FakePlaybackController: timing, Skip, Up Next, menus, errors and recompositions. */
 @RunWith(RobolectricTestRunner::class)
@@ -242,6 +246,58 @@ class PhonePlayerScreenTest {
         assertEquals(1, fake.calls("cancelUpNext").size)
         compose.onNodeWithText("Play now (6)").performClick()
         assertEquals(1, fake.calls("playNext").size)
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun upNextsButtonsSitSideBySideWhileTheyFit() {
+        show(FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7), upNextSecondsLeft = 7) }))
+        assertWhole("Play now (7)")
+        val play = compose.onNodeWithText("Play now (7)").fetchSemanticsNode().boundsInRoot
+        val cancel = compose.onNodeWithText("Cancel").fetchSemanticsNode().boundsInRoot
+        assertTrue("Cancel at $cancel, Play now at $play", cancel.left >= play.right && cancel.top < play.bottom)
+    }
+
+    @Test
+    @Config(qualifiers = "fr-w915dp-h412dp-land")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun upNextsCountdownIsNeverCutCancelGoesUnderItInstead() {
+        show(FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "À suivre · S1 E2", null, 10), upNextSecondsLeft = 10) }))
+        assertWhole("Lire maintenant (10)")
+        val play = compose.onNodeWithText("Lire maintenant (10)").fetchSemanticsNode().boundsInRoot
+        val cancel = compose.onNodeWithText("Annuler").fetchSemanticsNode().boundsInRoot
+        assertTrue("Annuler at $cancel, Lire maintenant at $play", cancel.top >= play.bottom)
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun onACarsScreenUpNextsCountdownIsWholeToo() {
+        val fake = FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7), upNextSecondsLeft = 7) })
+        compose.setContent {
+            PhoneTheme {
+                CarSized(car = true) {
+                    PhonePlayerScreen(fake, host, PictureState(), CaptionLook(), SubtitleChoice(), {}, inPip = false)
+                }
+            }
+        }
+        compose.waitForIdle()
+        assertWhole("Play now (7)")
+        // The countdown going down never puts them back side by side.
+        fake.update { it.copy(upNextCard = it.upNextCard?.copy(secondsLeft = 1), upNextSecondsLeft = 1) }
+        compose.waitForIdle()
+        val play = compose.onNodeWithText("Play now (1)").fetchSemanticsNode().boundsInRoot
+        val cancel = compose.onNodeWithText("Cancel").fetchSemanticsNode().boundsInRoot
+        assertTrue("Cancel at $cancel, Play now at $play", cancel.top >= play.bottom)
+    }
+
+    /** [text] is drawn whole: as wide as it is, no ellipsis. */
+    private fun assertWhole(text: String) {
+        val node = compose.onNode(hasText(text), useUnmergedTree = true).fetchSemanticsNode()
+        val layouts = mutableListOf<TextLayoutResult>()
+        node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
+        val layout = layouts.single()
+        val fits = layout.multiParagraph.intrinsics.maxIntrinsicWidth <= layout.layoutInput.constraints.maxWidth
+        assertTrue("$text is cut", fits && (0 until layout.lineCount).none { layout.isLineEllipsized(it) })
     }
 
     @Test
@@ -609,5 +665,33 @@ class PhonePlayerScreenTest {
 
         assertEquals("compositions while dragging: $during", emptyList<String>(), during.filter { it == "level" })
         assertTrue(host.level > 0.5f)
+    }
+
+    @Test
+    fun onACarsScreenTheControlsAreLargerFewerAndSeekTenSecondsFromTheCentre() {
+        val fake = FakePlaybackController(playing())
+        compose.setContent {
+            PhoneTheme {
+                CarSized(car = true) {
+                    PhonePlayerScreen(fake, host, PictureState(), CaptionLook(), SubtitleChoice(), {}, inPip = false)
+                }
+            }
+        }
+        compose.waitForIdle()
+        // Google's car app quality criteria: touch targets of 64 dp at least, in the screen's own dp (the
+        // nodes' bounds in dp are in the player's, a third larger).
+        fun SemanticsNodeInteraction.screenDp() = with(compose.density) { fetchSemanticsNode().boundsInRoot.let { it.width.toDp() to it.height.toDp() } }
+        for (button in listOf("Back", "Playback settings", "Back 10 seconds", "Forward 10 seconds")) {
+            val (width, height) = compose.onNodeWithContentDescription(button).screenDp()
+            assertTrue("$button: $width × $height", width >= 64.dp && height >= 64.dp)
+        }
+        val (_, subtitles) = compose.onNodeWithText("Subtitles").screenDp()
+        assertTrue("Subtitles: $subtitles", subtitles >= 64.dp)
+        // Quality is in Settings, the chapters show on the seek bar, and nothing in a car needs a lock.
+        for (gone in listOf("Lock", "Quality", "Chapters", "Direct play")) assertEquals(gone, 0, compose.onAllNodesWithTextCount(gone))
+        compose.onNodeWithContentDescription("Forward 10 seconds").performClick()
+        compose.onNodeWithContentDescription("Back 10 seconds").performClick()
+        // From the playhead, which the fake leaves at 0:30.
+        assertEquals(listOf(listOf<Any?>(40_000L), listOf<Any?>(20_000L)), fake.calls("seekTo").map { it.args })
     }
 }

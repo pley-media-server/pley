@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="book_kind">Audiolibro</string>
+    <string name="book_group">Audiolibros</string>
+    <string name="book_not_found">Libro no encontrado</string>
+    <string name="book_failed">No se pudo cargar este libro</string>
+    <string name="book_nothing_to_play">No hay nada que reproducir: este libro no tiene partes.</string>
+    <string name="book_play">Escuchar</string>
+    <string name="book_by">De %1$s</string>
+    <string name="book_read_by">Narrado por %1$s</string>
+    <string name="book_series_place">%1$s, libro %2$s</string>
+    <string name="book_and">y</string>
+    <string name="book_resume">Reanudar</string>
+    <string name="book_listen_again">Volver a escuchar</string>
+    <string name="book_pause">Pausar</string>
+    <string name="book_from_start">Desde el principio</string>
+    <string name="book_mark_finished">Marcar como terminado</string>
+    <string name="book_mark_unfinished">Marcar como no terminado</string>
+    <string name="book_parts">Partes</string>
+    <string name="book_chapters">Capítulos</string>
+    <string name="book_chapter">Capítulo %1$d</string>
+    <string name="book_heard">Terminada</string>
+    <string name="book_up_to">Vas por %1$s</string>
+    <string name="book_percent_heard">%1$s escuchado</string>
+    <string name="book_speed">Velocidad</string>
+    <string name="book_speed_value">Velocidad %1$s</string>
+    <string name="book_back">Retroceder 15 segundos</string>
+    <string name="book_forward">Avanzar 30 segundos</string>
+    <plurals name="book_count_parts">
+        <item quantity="one">%1$,d parte</item>
+        <item quantity="many">%1$,d partes</item>
+        <item quantity="other">%1$,d partes</item>
+    </plurals>
+    <plurals name="library_entry_books">
+        <item quantity="one">%1$,d libro</item>
+        <item quantity="many">%1$,d libros</item>
+        <item quantity="other">%1$,d libros</item>
+    </plurals>
+</resources>

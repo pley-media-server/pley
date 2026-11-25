@@ -10,6 +10,7 @@ import app.pley.android.common.formatWords
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.MarkGlyph
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.CollectionSummary
@@ -66,6 +67,8 @@ internal class TvTiles(context: Context) : TileFactory<ArtworkTileModel> {
             subtitle = count,
             image = ArtworkImage.of(collection.posterUrl, origin),
             description = "${collection.title}, $count",
+            // Not a kind of library's: the logo's play.
+            mark = MarkGlyph.Play,
         )
     }
 }
@@ -90,6 +93,7 @@ internal fun tvDigits(resources: Resources, n: Int): String = digits(resources).
 internal fun tvItemsOfPlural(kind: LibraryKind?): Int = when (kind) {
     LibraryKind.Shows -> R.plurals.tv_library_count_of_shows
     LibraryKind.Music -> R.plurals.tv_library_count_of_artists
+    LibraryKind.Audiobooks -> R.plurals.tv_library_count_of_books
     else -> R.plurals.tv_library_count_of_movies
 }
 
@@ -97,6 +101,7 @@ internal fun tvItemsOfPlural(kind: LibraryKind?): Int = when (kind) {
 internal fun tvItemsPlural(kind: LibraryKind?): Int = when (kind) {
     LibraryKind.Shows -> R.plurals.tv_library_count_shows
     LibraryKind.Music -> R.plurals.tv_library_count_artists
+    LibraryKind.Audiobooks -> R.plurals.tv_library_count_books
     else -> R.plurals.tv_library_count_movies
 }
 

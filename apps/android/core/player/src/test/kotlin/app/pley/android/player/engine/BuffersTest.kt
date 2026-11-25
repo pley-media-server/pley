@@ -43,6 +43,20 @@ class BuffersTest {
     }
 
     @Test
+    fun musicBuffersMinutesAheadWithinFewerBytesOnEveryDevice() {
+        val mib = BufferPlan.MIB
+        val phone = DeviceProfile(FormFactor.Phone, fireTv = false, tier = Tier.T2, model = "SM-N986W", totalRamBytes = 12 * gib, lowRam = false)
+        val lowRam = phone.copy(tier = Tier.T0, totalRamBytes = 2 * gib, lowRam = true)
+        assertEquals(BufferPlan(16 * mib, 50_000, 180_000, 10_000), BufferPlan.of(phone, music = true))
+        assertEquals(BufferPlan(8 * mib, 50_000, 180_000, 10_000), BufferPlan.of(lowRam, music = true))
+        assertEquals(BufferPlan(16 * mib, 50_000, 180_000, 10_000), BufferPlan.of(tv(Tier.T2, 3 * gib), music = true))
+        assertEquals(BufferPlan(8 * mib, 50_000, 180_000, 10_000), BufferPlan.of(tv(Tier.T0, 900L * 1024 * 1024), music = true))
+        // Video keeps the device's.
+        assertEquals(BufferPlan.PHONE, BufferPlan.of(phone, music = false))
+        assertEquals(BufferPlan(120 * mib, 50_000, 50_000, 0), BufferPlan.of(tv(Tier.T2, 3 * gib), music = false))
+    }
+
+    @Test
     fun playbackStartsSoonerFromHome() {
         val plan = BufferPlan.PHONE
         assertEquals(500, plan.startMs(home = true, rebuffering = false))

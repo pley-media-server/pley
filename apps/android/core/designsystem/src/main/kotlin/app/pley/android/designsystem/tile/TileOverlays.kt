@@ -29,6 +29,8 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.image.ArtworkLoad
 import app.pley.android.designsystem.image.ArtworkTrace
+import app.pley.android.designsystem.text.LocalMinTextSize
+import app.pley.android.designsystem.text.atLeast
 
 /** Draws [model]'s overlays over the art, and counts the tile's first frame for the image budget. */
 internal fun Modifier.tileOverlays(model: ArtworkTileModel, kind: TileKind, style: TileStyle, load: ArtworkLoad): Modifier =
@@ -133,7 +135,8 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
 
     private fun DrawScope.drawCount(s: TileOverlaysElement, inset: Float) {
         val text = countLayout ?: measure(s.unwatched.toString(), s).also { countLayout = it }
-        val h = s.style.countHeight.toPx()
+        // As tall as its text takes where text has a smallest size (a car's screen).
+        val h = maxOf(s.style.countHeight.toPx(), text.size.height + 4.dp.toPx())
         val w = maxOf(h + 2.dp.toPx(), text.size.width + 2 * 6.dp.toPx())
         val left = size.width - inset - w
         val r = PleyShape.BadgeRadius.toPx()
@@ -147,7 +150,7 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
 
     private fun DrawScope.drawBadges(s: TileOverlaysElement, inset: Float, barHeight: Float) {
         val layouts = badgeLayouts ?: s.badges.map { measure(it, s) }.also { badgeLayouts = it }
-        val h = s.style.badgeHeight.toPx()
+        val h = maxOf(s.style.badgeHeight.toPx(), layouts.maxOf { it.size.height } + 4.dp.toPx())
         val pad = 6.dp.toPx()
         val gap = 6.dp.toPx()
         val radius = PleyShape.BadgeRadius.toPx()
@@ -169,6 +172,7 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
             defaultLayoutDirection = currentValueOf(LocalLayoutDirection),
             cacheSize = 0,
         ).also { measurer = it }
-        return m.measure(text, s.style.badgeText, maxLines = 1, softWrap = false)
+        // A car's screen has no text under its smallest size, the count and the badges on the art included.
+        return m.measure(text, s.style.badgeText.atLeast(currentValueOf(LocalMinTextSize)), maxLines = 1, softWrap = false)
     }
 }

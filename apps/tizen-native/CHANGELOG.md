@@ -8,6 +8,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-11-24
+
+### Changed
+
+- Movies, shows and music without a picture show Pley's mark on their
+  placeholder instead of their title, which the caption under it shows.
+  The mark has a glyph for the title's library: a clapperboard for movies,
+  a TV for shows, notes for music, and the logo's play for the rest.
+
 ### Fixed
 
 - Up Next no longer comes during credits that something follows (an
@@ -550,7 +559,8 @@ describes how they are made.
 
 - The version of the builds made by hand before the app had releases.
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-22...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20
 [0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
