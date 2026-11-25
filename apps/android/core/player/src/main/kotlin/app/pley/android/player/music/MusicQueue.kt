@@ -1,5 +1,6 @@
 package app.pley.android.player.music
 
+import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.player.MusicQueueState
 import app.pley.android.player.MusicRepeat
@@ -18,6 +19,11 @@ import kotlin.random.Random
  * plays again once it ends ([advance]); Next and Previous still move, and
  * stop at the queue's ends as without Repeat, as Media3 has it for the
  * car, the notification and Bluetooth.
+ *
+ * An audiobook's parts play once, in their order: a queue of them neither
+ * shuffles nor repeats, whatever asks, and starting it ends what repeated
+ * for the music before it, as a stop does. Nothing shows Shuffle or Repeat
+ * while a book plays, so nothing could turn them off.
  */
 class MusicQueue(private val random: Random = Random.Default) {
     private var given: List<ItemSummary> = emptyList()
@@ -41,8 +47,14 @@ class MusicQueue(private val random: Random = Random.Default) {
 
     val current: ItemSummary? get() = order.getOrNull(index)?.let { given[it] }
 
-    /** What plays after the queue's end, or the track's; kept as the queue is started over. */
+    /** What plays after the queue's end, or the track's; kept as the queue is started over with music, and off for a book. */
     var repeat: MusicRepeat = MusicRepeat.Off
+        set(value) {
+            field = if (isBook) MusicRepeat.Off else value
+        }
+
+    /** Whether the queue is an audiobook's parts ([MusicQueueState.isBook]). */
+    private val isBook: Boolean get() = given.firstOrNull()?.kind == ItemKind.Part
 
     /** Whether [next] has a track to go to. */
     val hasNext: Boolean get() = index + 1 < order.size || (repeat == MusicRepeat.All && order.isNotEmpty())
@@ -51,7 +63,8 @@ class MusicQueue(private val random: Random = Random.Default) {
 
     /**
      * Starts over with [tracks] at [startIndex]; with [shuffle], in a
-     * random order that begins with that track.
+     * random order that begins with that track. A book starts in its
+     * order, with nothing repeating.
      */
     fun start(tracks: List<ItemSummary>, startIndex: Int = 0, shuffle: Boolean = false) {
         given = tracks.toList()
@@ -59,6 +72,7 @@ class MusicQueue(private val random: Random = Random.Default) {
         order = IntArray(given.size) { it }
         index = start
         this.shuffle = false
+        if (isBook) repeat = MusicRepeat.Off
         if (shuffle) setShuffle(true)
     }
 
@@ -66,7 +80,8 @@ class MusicQueue(private val random: Random = Random.Default) {
      * Starts over with [tracks] as they played, shuffled, at [startIndex]:
      * [given] is where each was in the order the queue was given, which
      * Shuffle off goes back to. `false`, and nothing changed, when [given]
-     * doesn't place each track once.
+     * doesn't place each track once. A book comes back in the order given,
+     * at the same part, with nothing repeating.
      */
     fun restore(tracks: List<ItemSummary>, given: List<Int>, startIndex: Int): Boolean {
         if (tracks.isEmpty() || given.size != tracks.size || given.toSet() != tracks.indices.toSet()) return false
@@ -76,6 +91,10 @@ class MusicQueue(private val random: Random = Random.Default) {
         order = given.toIntArray()
         index = startIndex.coerceIn(0, tracks.lastIndex)
         shuffle = true
+        if (isBook) {
+            repeat = MusicRepeat.Off
+            setShuffle(false)
+        }
         return true
     }
 
@@ -84,9 +103,11 @@ class MusicQueue(private val random: Random = Random.Default) {
 
     /**
      * Shuffles: the current track first, the rest after it in a random
-     * order. Unshuffles: the order given, at the same track.
+     * order. Unshuffles: the order given, at the same track. A book's
+     * parts stay in their order.
      */
     fun setShuffle(on: Boolean) {
+        if (on && isBook) return
         if (on == shuffle || order.isEmpty()) {
             shuffle = on && order.isNotEmpty()
             return

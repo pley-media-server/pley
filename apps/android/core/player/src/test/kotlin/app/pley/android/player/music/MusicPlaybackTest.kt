@@ -1253,6 +1253,53 @@ class MusicPlaybackTest {
     }
 
     @Test
+    fun aBookPlaysThroughOnceWhateverRepeatedForTheMusicBeforeIt() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        music.setRepeat(MusicRepeat.One)
+        // A book started while the music repeats its track: Now Playing has no Repeat for a book, to turn it off.
+        music.play(book, startIndex = 1, startMs = 600_000)
+        runCurrent()
+        assertEquals(MusicRepeat.Off, music.queueState.value.repeat)
+        assertEquals(MusicRepeat.Off, music.nowPlaying.value?.repeat)
+        output.startPlaying()
+        output.end()
+        settle()
+        // The part after it, not the same one again.
+        assertEquals(listOf(1L, 12L, 13L), starts().map { it.itemId })
+
+        // Asked to repeat or to shuffle while it plays, as a controller can: it does neither.
+        music.setRepeat(MusicRepeat.All)
+        music.setShuffle(true)
+        assertEquals(MusicRepeat.Off, music.queueState.value.repeat)
+        assertFalse(music.queueState.value.shuffle)
+        assertEquals(listOf(11L, 12L, 13L), music.queueState.value.tracks.map { it.id })
+        // Its last part ends it: the book doesn't start over.
+        output.startPlaying()
+        output.end()
+        settle()
+        assertTrue(music.nowPlaying.value!!.ended)
+        assertEquals(3, starts().size)
+
+        // Music after it doesn't repeat by itself: what repeated ended as the book started, as when music stops.
+        music.play(album)
+        runCurrent()
+        assertEquals(MusicRepeat.Off, music.nowPlaying.value?.repeat)
+    }
+
+    @Test
+    fun aBookKeptWithRepeatOnComesBackToPlayThroughOnce() = runTest {
+        val music = music()
+        // Kept as the queue repeated: it waits where it was all the same, and on its last part Next has nowhere to go.
+        music.cue(SavedMusic(book, index = 2, positionMs = 60_000, repeat = MusicRepeat.All))
+        assertEquals(MusicRepeat.Off, music.queueState.value.repeat)
+        assertEquals(13L, music.queueState.value.current?.id)
+        assertEquals(60_000L, music.position().positionMs)
+        assertFalse(music.nowPlaying.value!!.hasNext)
+    }
+
+    @Test
     fun betweenTracksThePositionIsTheNextTracksStartNotWhereTheLastOneWas() = runTest {
         val music = music()
         music.play(album)

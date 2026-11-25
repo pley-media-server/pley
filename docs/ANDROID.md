@@ -749,7 +749,10 @@ Playing (phone, TV and the notification) has back 15 seconds and forward
 car's button does; the speed is kept on the device for every book, the
 car included. Previous and Next go from chapter to chapter in a file with
 chapters, then from part to part, and Now Playing and the bar of what
-plays are named for the chapter playing, the book under it.
+plays are named for the chapter playing, the book under it. A book's
+parts play once, in their order: it never shuffles or repeats, whatever
+asks (a car's own controls, the Assistant), and Repeat set for the music
+before it ends as the book starts, as it does when the music stops.
 
 Now Playing moves from one track (or chapter) to the next, on phones and
 TVs alike: the cover stays until the next one has come and fades in over
@@ -1267,7 +1270,7 @@ the order it has, and Next on its last track and Previous on its first go
 round; a track that repeats plays again by itself, and Next and Previous
 still move, stopping at the queue's ends as they do without Repeat (on
 the phone as in the car). Repeat stays as another album plays, until the
-music stops.
+music stops or a book plays.
 
 A track is one entry of the car's Now Playing from the moment it is the
 queue's: its title, artist, cover and length as the library has them,

@@ -185,8 +185,7 @@ class MusicResumeTest {
         resume().keep(MusicQueueState(album, index = 4, repeat = MusicRepeat.All), positionMs = 61_000)
         runCurrent()
 
-        // Another process: the music, and what keeps it as the app wires them (ServiceMusicControl), the queue kept as it
-        // changes, on the main thread there and then, and written from there.
+        // Another process: the music kept as it changes, there and then, and written from the main thread.
         val main = UnconfinedTestDispatcher(testScheduler)
         val queues = mutableListOf<Int>()
         val again = MusicResume(
@@ -199,22 +198,7 @@ class MusicResumeTest {
             scope = backgroundScope + main,
             work = offMain(),
         )
-        val server = FakePleyApi()
-        val music = MusicPlayback(
-            MusicEnvironment(
-                api = { server },
-                caps = { ClientCaps() },
-                clientId = { "android-test-music" },
-                reporter = SessionReporter(backgroundScope),
-                output = { error("Nothing plays here") },
-            ),
-            backgroundScope,
-        )
-        val keep = { if (!music.suggested) again.keep(music.queueState.value, music.position().positionMs) }
-        backgroundScope.launch(main) { music.queueState.drop(1).collect { keep() } }
-        backgroundScope.launch(main) {
-            music.nowPlaying.map { now -> now?.let { Triple(it.wantsPlay, it.seeks, it.ended) } }.distinctUntilChanged().drop(1).collect { keep() }
-        }
+        val music = musicKeptIn(again, main)
 
         music.cue(again.saved()!!)
         runCurrent()
@@ -226,6 +210,49 @@ class MusicResumeTest {
         assertEquals(4, back.index)
         assertEquals(61_000L, back.positionMs)
         assertEquals(MusicRepeat.All, back.repeat)
+    }
+
+    @Test
+    fun aBookIsKeptWithoutWhatRepeatedForTheMusicBeforeIt() = runTest {
+        val music = musicKeptIn(resume(), UnconfinedTestDispatcher(testScheduler))
+        music.cue(album)
+        music.setRepeat(MusicRepeat.All)
+        runCurrent()
+        assertEquals(MusicRepeat.All, resume().saved()!!.repeat)
+
+        // A book made ready over music that repeats (picked in a car): kept as it plays, through once.
+        val book = (71..73L).map { track(it).copy(kind = ItemKind.Part, parentId = 70) }
+        music.cue(book, startIndex = 1, startMs = 60_000)
+        runCurrent()
+        val saved = resume().saved()!!
+        assertEquals(book, saved.tracks)
+        assertEquals(1, saved.index)
+        assertEquals(60_000L, saved.positionMs)
+        assertEquals(MusicRepeat.Off, saved.repeat)
+    }
+
+    /**
+     * The music, kept in [resume] as the app wires them (ServiceMusicControl): the queue as it changes and the place as
+     * it moves, on the main thread ([main]) there and then. Nothing plays: its queues wait.
+     */
+    private fun TestScope.musicKeptIn(resume: MusicResume, main: CoroutineDispatcher): MusicPlayback {
+        val server = FakePleyApi()
+        val music = MusicPlayback(
+            MusicEnvironment(
+                api = { server },
+                caps = { ClientCaps() },
+                clientId = { "android-test-music" },
+                reporter = SessionReporter(backgroundScope),
+                output = { error("Nothing plays here") },
+            ),
+            backgroundScope,
+        )
+        val keep = { if (!music.suggested) resume.keep(music.queueState.value, music.position().positionMs) }
+        backgroundScope.launch(main) { music.queueState.drop(1).collect { keep() } }
+        backgroundScope.launch(main) {
+            music.nowPlaying.map { now -> now?.let { Triple(it.wantsPlay, it.seeks, it.ended) } }.distinctUntilChanged().drop(1).collect { keep() }
+        }
+        return music
     }
 
     @Test

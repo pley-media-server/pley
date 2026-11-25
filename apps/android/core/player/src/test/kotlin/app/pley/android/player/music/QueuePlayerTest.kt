@@ -326,6 +326,28 @@ class QueuePlayerTest {
     }
 
     @Test
+    fun aBookNeitherRepeatsNorShufflesWhenAControllerAsks() {
+        val book = (11..13L).map { track(it).copy(kind = ItemKind.Part, parentId = 70) }
+        playback.play(book, startIndex = 2)
+        player.queueChanged()
+        idle()
+
+        // Asked through the session, as a car's own controls or the Assistant ask: a book has neither.
+        player.repeatMode = Player.REPEAT_MODE_ALL
+        player.shuffleModeEnabled = true
+        idle()
+        player.queueChanged()
+        idle()
+        assertEquals(Player.REPEAT_MODE_OFF, player.repeatMode)
+        assertFalse(player.shuffleModeEnabled)
+        assertEquals(MusicRepeat.Off, playback.queueState.value.repeat)
+        assertEquals(book.map { it.id }, playback.queueState.value.tracks.map { it.id })
+        // Its last part has no next one to go round to.
+        assertFalse(player.hasNextMediaItem())
+        assertFalse(playback.nowPlaying.value!!.hasNext)
+    }
+
+    @Test
     fun aTrackThatCantStartSaysWhyInPleysWords() {
         api.fail("startPlayback", OfflineException(java.io.IOException("refused")))
         playback.play(album)

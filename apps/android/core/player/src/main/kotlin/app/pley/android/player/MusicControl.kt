@@ -188,10 +188,10 @@ interface MusicControl {
     /** Plays the queue's track at [index]. */
     fun jumpTo(index: Int) {}
 
-    /** Shuffles what is left of the queue around the current track, or puts it back in order. */
+    /** Shuffles what is left of the queue around the current track, or puts it back in order; never a book's parts. */
     fun setShuffle(shuffle: Boolean) {}
 
-    /** Repeats the queue, the track playing, or nothing; kept until the music stops. */
+    /** Repeats the queue, the track playing, or nothing; kept until the music stops or a book plays, which never repeats. */
     fun setRepeat(repeat: MusicRepeat) {}
 
     /** Stops and forgets the queue (signing out). */
