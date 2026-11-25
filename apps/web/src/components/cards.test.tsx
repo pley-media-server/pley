@@ -34,6 +34,17 @@ describe("MediaCard", () => {
     expect(screen.getByText("DV")).toBeInTheDocument();
   });
 
+  it("marks a show whose spoilers are hidden, not its episodes", () => {
+    const { unmount } = renderWithProviders(<MediaCard item={makeItem({ id: 45, kind: "show", title: "Jeopardy!", spoilers_hidden: true })} width={200} />);
+    expect(screen.getByRole("img", { name: "Spoilers hidden" })).toBeInTheDocument();
+    unmount();
+    const { unmount: gone } = renderWithProviders(<MediaCard item={makeItem({ id: 46, kind: "episode", title: "Episode 57", spoilers_hidden: true })} width={200} />);
+    expect(screen.queryByRole("img", { name: "Spoilers hidden" })).not.toBeInTheDocument();
+    gone();
+    renderWithProviders(<MediaCard item={makeItem({ id: 47, kind: "show", title: "Lost" })} width={200} />);
+    expect(screen.queryByRole("img", { name: "Spoilers hidden" })).not.toBeInTheDocument();
+  });
+
   it("leaves music alone", async () => {
     const requests = mockApi({});
     renderWithProviders(<MediaCard item={makeItem({ id: 43, kind: "album" })} width={200} />);

@@ -144,6 +144,18 @@ export function Genres({ genres }: { genres: string[] }) {
 }
 
 /** The item's labels: only administrators get them, so only they see them. */
+/** A show's (or its season's) `no-spoilers` label, said in words. */
+export function SpoilersNote({ item }: { item: ItemSummary }) {
+  const { t } = useTranslation("item");
+  if (!item.spoilers_hidden) return null;
+  return (
+    <p className="flex items-center gap-2 text-sm text-muted">
+      <EyeOff className="size-4 shrink-0" />
+      {t("show.spoilersHidden")}
+    </p>
+  );
+}
+
 export function Labels({ labels }: { labels?: string[] }) {
   const { t } = useTranslation("item");
   if (!labels?.length) return null;

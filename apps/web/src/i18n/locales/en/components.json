@@ -114,7 +114,8 @@
     }
   },
   "cards": {
-    "playTitle": "Play {{title}}"
+    "playTitle": "Play {{title}}",
+    "spoilersHidden": "Spoilers hidden"
   },
   "castReceiver": {
     "playingFrom": "Playing from {{device}}",

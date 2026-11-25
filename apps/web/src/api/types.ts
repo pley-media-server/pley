@@ -253,6 +253,8 @@ export interface ItemSummary {
   media?: MediaSummary | null;
   /** An audiobook's writers. */
   authors?: string[] | null;
+  /** A show labeled `no-spoilers`, or one of its seasons or episodes: its episodes' titles, synopses and stills are hidden. */
+  spoilers_hidden?: boolean;
 }
 
 /** A title's best file (a show's files on average). */

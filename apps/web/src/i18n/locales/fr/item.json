@@ -247,6 +247,7 @@
     "noEpisodes": "Aucun épisode trouvé."
   },
   "show": {
+    "spoilersHidden": "Spoilers masqués : les titres, résumés et images des épisodes ne sont pas affichés.",
     "seasons": "Saisons",
     "noSeasons": "Aucune saison trouvée."
   },

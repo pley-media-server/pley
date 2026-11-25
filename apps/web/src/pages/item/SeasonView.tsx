@@ -13,7 +13,7 @@ import { prefetchPlay } from "@/lib/prefetchPlay";
 import { usePlayItem } from "@/lib/usePlayItem";
 import { playIntent } from "@/player/preload";
 import { MoreActions } from "./ItemActions";
-import { ItemArt, ItemPageShell, MetaLine, SectionError, Summary, WatchedButton } from "./shared";
+import { ItemArt, ItemPageShell, MetaLine, SectionError, SpoilersNote, Summary, WatchedButton } from "./shared";
 import { CastRow } from "./Credits";
 import { itemUrl } from "@/lib/urls";
 
@@ -93,6 +93,7 @@ export function SeasonView({ item }: { item: ItemDetail }) {
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
           </div>
           <MetaLine parts={[item.year, item.leaf_count ? t("counts.episodes", { count: item.leaf_count }) : null]} />
+          <SpoilersNote item={item} />
           <div className="flex flex-wrap items-center gap-2.5 pt-1">
             <Button
               variant="primary"

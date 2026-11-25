@@ -119,7 +119,8 @@
     }
   },
   "cards": {
-    "playTitle": "Lire {{title}}"
+    "playTitle": "Lire {{title}}",
+    "spoilersHidden": "Spoilers masqués"
   },
   "castReceiver": {
     "playingFrom": "Lecture depuis {{device}}",

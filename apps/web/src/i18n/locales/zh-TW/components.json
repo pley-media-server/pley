@@ -109,7 +109,8 @@
     }
   },
   "cards": {
-    "playTitle": "播放 {{title}}"
+    "playTitle": "播放 {{title}}",
+    "spoilersHidden": "已隱藏劇透"
   },
   "castReceiver": {
     "playingFrom": "正在從 {{device}} 播放",

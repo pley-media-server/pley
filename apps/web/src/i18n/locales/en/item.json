@@ -233,6 +233,7 @@
     "noEpisodes": "No episodes found."
   },
   "show": {
+    "spoilersHidden": "Spoilers hidden: episode titles, descriptions and pictures aren't shown.",
     "seasons": "Seasons",
     "noSeasons": "No seasons found."
   },
