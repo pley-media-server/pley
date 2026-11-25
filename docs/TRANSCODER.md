@@ -821,7 +821,9 @@ N of them use the slowest that makes 2 N times real time alone.
   (under 1.15 ×): then the job takes the slowest expected to make 1.5 ×,
   or `ultrafast`.
 - A process the player went past (a seek into segments made before) is left
-  alone until it ends where they begin.
+  alone until it ends where they begin. Nor does a job move while a request
+  waits for a segment its process won't make soon (a seek): the request
+  restarts it there, at once.
 - An fMP4 job keeps the preset of its first process
   ([fMP4 segments](#fmp4-segments)), which starts at the steady one rather
   than one quick for a start.

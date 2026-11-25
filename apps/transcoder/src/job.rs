@@ -653,11 +653,16 @@ impl Proc {
         n >= next && n < self.end && n <= next + self.lookahead
     }
 
-    async fn stop(mut self) {
+    /// Stops it, and says where it stopped: the first segment it didn't
+    /// make. A segment it listed just before is ready by then, so a process
+    /// started in its place goes on after it rather than writing it again
+    /// while it may be served.
+    async fn stop(mut self) -> u32 {
         if let Some(kill) = self.kill.take() {
             let _ = kill.send(());
         }
         let _ = tokio::time::timeout(Duration::from_secs(10), self.exited.wait_for(|exited| *exited)).await;
+        self.next.load(Relaxed)
     }
 
     fn paused(&self) -> bool {
@@ -1219,14 +1224,16 @@ impl JobManager {
             return;
         }
         for job in &jobs {
+            let Some(kind) = job.plan.encode_kind(&job.media) else { continue };
+            let Ok(mut guard) = job.process.try_lock() else { continue };
+            let Some(proc) = guard.as_ref().filter(|p| p.running()) else { continue };
+            // Read under the process's lock: a seek may have just started
+            // another one.
             let (preset, quick) = {
                 let rt = job.runtime.lock();
                 (rt.preset, rt.quick)
             };
             let Some((current, moved_at)) = preset else { continue };
-            let Some(kind) = job.plan.encode_kind(&job.media) else { continue };
-            let Ok(mut guard) = job.process.try_lock() else { continue };
-            let Some(proc) = guard.as_ref().filter(|p| p.running()) else { continue };
             let next = proc.next.load(Relaxed);
             if next >= proc.end {
                 continue;
@@ -1260,10 +1267,12 @@ impl JobManager {
                 // An fMP4 job's preset is that of its init (see
                 // [`InitEncoder`]). And nothing waits for a process its player
                 // went past, into segments made before (a seek): it is left
-                // to end where they begin.
+                // to end where they begin. Nor is one moved while a request
+                // waits for a segment it won't make (a seek): that request
+                // restarts it there.
                 let pinned = job.init_encoder.lock().is_some();
                 let passed = lead < -f64::from(proc.lookahead) * job.plan.segment_seconds;
-                if pinned || passed {
+                if pinned || passed || job.sought_elsewhere(next, proc.lookahead) {
                     continue;
                 }
                 let going = adaptive::Going {
@@ -1293,12 +1302,19 @@ impl JobManager {
                 times(measured.map(|(_, of_its_preset, _)| of_its_preset.speed())),
                 times(expected)
             );
-            if let Some(old) = guard.take() {
-                old.stop().await;
-            }
-            match self.spawn(job, next, Some(to)) {
-                Ok(process) => *guard = Some(process),
-                Err(err) => tracing::warn!(job = %job.id, "could not restart at a new preset: {err:?}"),
+            let Some(old) = guard.take() else { continue };
+            let (lookahead, end) = (old.lookahead, old.end);
+            let next = old.stop().await;
+            // A seek that came while it stopped starts the next process
+            // where it asks, as soon as it has the lock: one started here
+            // would be stopped again at once.
+            if job.sought_elsewhere(next, lookahead) {
+                tracing::debug!(job = %job.id, "preset move left to a seek");
+            } else if next < end {
+                match self.spawn(job, next, Some(to)) {
+                    Ok(process) => *guard = Some(process),
+                    Err(err) => tracing::warn!(job = %job.id, "could not restart at a new preset: {err:?}"),
+                }
             }
             drop(guard);
             job.notify.notify_waiters();
@@ -1584,12 +1600,14 @@ impl JobManager {
                 decoder(want)
             );
             let preset = job.runtime.lock().preset.map(|(i, _)| i);
-            if let Some(old) = guard.take() {
-                old.stop().await;
-            }
-            match self.spawn(&job, next, preset) {
-                Ok(process) => *guard = Some(process),
-                Err(err) => tracing::warn!(job = %job.id, "could not restart for the GPU's load: {err:?}"),
+            let Some(old) = guard.take() else { continue };
+            let end = old.end;
+            let next = old.stop().await;
+            if next < end {
+                match self.spawn(&job, next, preset) {
+                    Ok(process) => *guard = Some(process),
+                    Err(err) => tracing::warn!(job = %job.id, "could not restart for the GPU's load: {err:?}"),
+                }
             }
             drop(guard);
             job.notify.notify_waiters();
@@ -1927,8 +1945,8 @@ impl JobManager {
         }
         tracing::info!(job = %job.id, "memory runs short: its segments go to disk from now on");
         let Some(old) = guard.take_if(|p| p.running() && p.place == Place::Memory) else { return };
-        let (next, end, paused) = (old.next.load(Relaxed), old.end, old.paused());
-        old.stop().await;
+        let (end, paused) = (old.end, old.paused());
+        let next = old.stop().await;
         if !paused && next < end {
             let preset = job.runtime.lock().preset.map(|(i, _)| i);
             match self.spawn(&job, next, preset) {
@@ -2298,6 +2316,15 @@ impl Job {
     /// ([`background::MAX_START`]), on top of what that player fetched.
     fn yields(&self, next: u32) -> bool {
         self.plan.throttle && self.lead_secs(next) >= background::MAX_START.as_secs_f64()
+    }
+
+    /// Whether a request waits for a segment that isn't made and that a
+    /// process at segment `next` won't make soon (`lookahead` segments
+    /// ahead at most, see [`Proc::will_produce`]): a seek, which restarts
+    /// the process where it asks.
+    fn sought_elsewhere(&self, next: u32, lookahead: u32) -> bool {
+        let waiting = self.waiting.lock().clone();
+        waiting.into_iter().any(|m| (m < next || m > next + lookahead) && !self.is_ready(m))
     }
 
     /// Whether a process at segment `next` is far enough ahead of the
@@ -3474,6 +3501,35 @@ mod tests {
         let (p, _exit) = going(60_000, 4.5);
         p.pace.lock().samples.pop_front();
         assert_eq!(job.measured(&p), None);
+    }
+
+    /// A process stopped says where it stopped once the segments it listed
+    /// are in: one started in its place goes on after them, rather than
+    /// writing again a segment that may be served.
+    #[tokio::test]
+    async fn a_stopped_process_says_where_it_stopped() {
+        let (exit_tx, exited) = watch::channel(false);
+        let (kill_tx, kill_rx) = oneshot::channel::<()>();
+        let next = Arc::new(AtomicU32::new(5));
+        let p = Proc {
+            start: 0,
+            end: 50,
+            place: Place::Disk,
+            started: Instant::now(),
+            next: next.clone(),
+            lookahead: 6,
+            pace: Arc::default(),
+            exited,
+            kill: Some(kill_tx),
+            pause: Arc::new(watch::channel(false).0),
+        };
+        // Segment 5 was listed just before the kill, and read after it.
+        tokio::spawn(async move {
+            let _ = kill_rx.await;
+            next.store(6, Relaxed);
+            let _ = exit_tx.send(true);
+        });
+        assert_eq!(p.stop().await, 6);
     }
 
     #[test]
@@ -5252,7 +5308,8 @@ mod tests {
     /// A job on the automatic preset, made to look behind its player with
     /// a process that is slow (a stand-in for the real one, stopped): what
     /// `adapt` does with it.
-    async fn adapted(format: SegmentFormat) -> (Option<usize>, Option<usize>) {
+    /// `sought`: a request waits for that segment meanwhile (a seek).
+    async fn adapted(format: SegmentFormat, sought: Option<u32>) -> (Option<usize>, Option<usize>) {
         let dir = crate::testing::tempdir();
         let Some((input, jobs)) = with_sound(dir.path()) else { return (None, None) };
         let mut req = fmp4_request(&input, VideoMode::Transcode);
@@ -5292,8 +5349,13 @@ mod tests {
             rt.process = Some(ProcessStatus { speed: Some(0.5), ..Default::default() });
             rt.preset = Some((3, Instant::now().checked_sub(Duration::from_secs(60)).unwrap()));
         }
+        let seek = sought.map(|n| Waiting::register(&job, n));
         jobs.adapt().await;
         let after = job.runtime.lock().preset.map(|(i, _)| i);
+        if seek.is_some() {
+            assert_eq!(job.process.lock().await.as_ref().map(|p| p.start), Some(5), "left for the seek to restart");
+        }
+        drop(seek);
         if format == SegmentFormat::Fmp4 {
             assert_eq!(job.process.lock().await.as_ref().map(|p| p.start), Some(5), "left alone");
             // Made again later, it is at the init's preset.
@@ -5309,13 +5371,40 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn the_automatic_preset_moves_ts_jobs_only() {
-        let (ts, _) = adapted(SegmentFormat::Ts).await;
-        let (fmp4, _) = adapted(SegmentFormat::Fmp4).await;
+        let (ts, _) = adapted(SegmentFormat::Ts, None).await;
+        let (fmp4, _) = adapted(SegmentFormat::Fmp4, None).await;
         if ts.is_none() {
             return;
         }
         assert_eq!(ts, Some(0), "behind its player at half real time: the fastest, at once");
         assert_eq!(fmp4, Some(3), "pinned: where it was");
+    }
+
+    /// A request for a segment far from the process (a seek) restarts it
+    /// there: a move meanwhile would start a process only to stop it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_preset_move_leaves_the_process_to_a_seek() {
+        let (moved, _) = adapted(SegmentFormat::Ts, Some(40)).await;
+        if moved.is_none() {
+            return;
+        }
+        assert_eq!(moved, Some(3), "not moved");
+    }
+
+    #[test]
+    fn a_request_far_from_the_process_is_a_seek() {
+        let dir = crate::testing::tempdir();
+        let job = job(dir.path(), (0..=100).map(|i| i * 2_000).collect());
+        job.mark_ready(30, Place::Disk);
+        // A process at segment 10 makes the next 6 soon.
+        let asked = |n| {
+            let _waiting = Waiting::register(&job, n);
+            job.sought_elsewhere(10, 6)
+        };
+        assert!(!asked(10) && !asked(16), "it makes them");
+        assert!(asked(17) && asked(9) && asked(40), "it doesn't");
+        assert!(!asked(30), "made already: it is served as it is");
+        assert!(!job.sought_elsewhere(10, 6), "nobody waits");
     }
 
     /// Each rendition of an fMP4 job has its own init, its segments laid

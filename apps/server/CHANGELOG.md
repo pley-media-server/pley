@@ -54,6 +54,8 @@ describes how they are made.
   and the frames a second it makes now.
 - A transcode whose bitrate changes as it plays (Samsung, LG, Kodi and Roku
   on Automatic) shows the bitrate it is made at.
+- A transcode moving to another preset or tone mapping as it plays no
+  longer, now and then, writes again a segment a player is fetching.
 
 ## [0.1.16] - 2026-11-24
 
