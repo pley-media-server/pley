@@ -96,7 +96,9 @@ internal fun TvHero(
     request: ItemRequestState? = null,
 ) {
     val places = remember { HeroPlaces() }
-    val genres = (page.genres + page.partOf.map { stringResource(R.string.tv_item_part_of, it.title) }).joinToString(" · ")
+    // A show whose spoilers are hidden, and its seasons, say so first in this line.
+    val spoilers = if (page.kind in SPOILER_NOTED && page.item.spoilersHidden) listOf(stringResource(R.string.tv_item_spoilers_hidden)) else emptyList()
+    val genres = (spoilers + page.genres + page.partOf.map { stringResource(R.string.tv_item_part_of, it.title) }).joinToString(" · ")
     // Who made it and who is in it: named by the Cast & Crew row when that is what follows, not twice.
     val credits = if (castFollows(page)) null else creditsLine(page)
     val fit = heroFit(page, request, genres.isNotEmpty(), credits != null)
@@ -469,3 +471,6 @@ private const val STARRING = 3
 internal const val TV_TRACKS_BUTTON = "pley.tv.item.tracks"
 
 internal const val TV_MY_LIST_BUTTON = "pley.tv.item.myList"
+
+/** The pages that say a show's spoilers are hidden; an episode's own page already looks it. */
+private val SPOILER_NOTED = setOf(ItemKind.Show, ItemKind.Season)

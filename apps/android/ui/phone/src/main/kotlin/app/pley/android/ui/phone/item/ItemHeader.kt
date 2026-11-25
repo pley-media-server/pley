@@ -169,9 +169,12 @@ private fun HeaderText(page: ItemPage, actions: PageActions, fullWidthPlay: Bool
         Spacer(Modifier.height(8.dp))
         Text(primary.timeLeft, style = MaterialTheme.typography.labelLarge, color = PleyColors.Fg)
     }
-    if (page.genres.isNotEmpty()) {
+    // A show whose spoilers are hidden, and its seasons, say so first in this line, as on the TV.
+    val spoilers = page.item.spoilersHidden && (page.kind == ItemKind.Show || page.kind == ItemKind.Season)
+    val genres = if (spoilers) listOf(stringResource(R.string.item_spoilers_hidden)) + page.genres else page.genres
+    if (genres.isNotEmpty()) {
         Spacer(Modifier.height(6.dp))
-        Text(page.genres.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)
+        Text(genres.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)
     }
     page.partOf.forEach { collection ->
         Text(

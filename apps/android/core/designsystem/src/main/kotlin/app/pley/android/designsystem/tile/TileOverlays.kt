@@ -11,7 +11,9 @@ import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
@@ -34,13 +36,15 @@ import app.pley.android.designsystem.text.atLeast
 
 /** Draws [model]'s overlays over the art, and counts the tile's first frame for the image budget. */
 internal fun Modifier.tileOverlays(model: ArtworkTileModel, kind: TileKind, style: TileStyle, load: ArtworkLoad): Modifier =
-    this then TileOverlaysElement(model.progress, model.watched, model.unwatched, model.badges, kind, style, load)
+    this then TileOverlaysElement(model.progress, model.watched, model.unwatched, model.badges, model.spoilersHidden, kind, style, load)
 
 private data class TileOverlaysElement(
     val progress: Float,
     val watched: Boolean,
     val unwatched: Int,
     val badges: List<String>,
+    /** The eye-off mark of a show whose spoilers are hidden, top left. */
+    val spoilersHidden: Boolean,
     val kind: TileKind,
     val style: TileStyle,
     val load: ArtworkLoad,
@@ -55,6 +59,7 @@ private data class TileOverlaysElement(
         properties["watched"] = watched
         properties["unwatched"] = unwatched
         properties["badges"] = badges
+        properties["spoilersHidden"] = spoilersHidden
     }
 }
 
@@ -110,6 +115,23 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
             s.watched -> drawTick(s, inset)
         }
         if (s.badges.isNotEmpty()) drawBadges(s, inset, barHeight)
+        if (s.spoilersHidden) drawSpoilersHidden(s, inset)
+    }
+
+    /** Lucide's `eye-off` on a square the size of the watched tick's, top left. */
+    private fun DrawScope.drawSpoilersHidden(s: TileOverlaysElement, inset: Float) {
+        val d = s.style.tickSize.toPx()
+        val r = PleyShape.BadgeRadius.toPx()
+        drawRoundRect(PleyColors.OnArt, Offset(inset, inset), Size(d, d), CornerRadius(r, r))
+        val glyph = s.style.tickGlyph.toPx()
+        val k = glyph / 24f
+        translate(inset + (d - glyph) / 2f, inset + (d - glyph) / 2f) {
+            scale(k, k, pivot = Offset.Zero) {
+                for (path in EyeOffPaths) {
+                    drawPath(path, PleyColors.Fg, style = Stroke(2.5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                }
+            }
+        }
     }
 
     private fun DrawScope.drawTick(s: TileOverlaysElement, inset: Float) {
@@ -175,4 +197,14 @@ private class TileOverlaysNode(var spec: TileOverlaysElement) :
         // A car's screen has no text under its smallest size, the count and the badges on the art included.
         return m.measure(text, s.style.badgeText.atLeast(currentValueOf(LocalMinTextSize)), maxLines = 1, softWrap = false)
     }
+}
+
+/** Lucide's `eye-off` on its 24 grid, parsed once. */
+private val EyeOffPaths: List<Path> by lazy {
+    listOf(
+        "M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49",
+        "M14.084 14.158a3 3 0 0 1-4.242-4.242",
+        "M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143",
+        "m2 2 20 20",
+    ).map { PathParser().parsePathString(it).toPath() }
 }

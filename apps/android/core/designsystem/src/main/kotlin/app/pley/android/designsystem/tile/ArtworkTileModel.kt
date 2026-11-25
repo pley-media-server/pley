@@ -39,6 +39,8 @@ data class ArtworkTileModel(
     val unwatched: Int = 0,
     /** Short quality badges on the art ("4K", "DV P8.1", "Atmos"), bottom left. */
     val badges: List<String> = emptyList(),
+    /** A show whose episodes' spoilers are hidden (the `no-spoilers` label): the eye-off mark, top left. */
+    val spoilersHidden: Boolean = false,
     /** What a screen reader says: "Glasshouse, Season 2 Episode 5, 26 minutes left". */
     val description: String = title,
     /**
@@ -91,6 +93,7 @@ data class ArtworkTileModel(
                 watched = item.userState.watched && unwatched == 0,
                 unwatched = unwatched,
                 badges = if (badges) qualityBadges(item.media) else emptyList(),
+                spoilersHidden = item.spoilersHidden && item.kind == ItemKind.Show,
                 description = tileDescription(item, words, locale),
                 mark = MarkGlyph.of(item.kind),
             )

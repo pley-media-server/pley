@@ -42,6 +42,7 @@
     <string name="tv_item_back">返回</string>
     <string name="tv_item_retry">重试</string>
     <string name="tv_item_part_of">属于 %1$s</string>
+    <string name="tv_item_spoilers_hidden">已隐藏剧透</string>
 
     <!-- Details (Credits.tsx, VideoItemView.tsx, MediaInfo.tsx). -->
     <string name="tv_item_created_by">创建者</string>

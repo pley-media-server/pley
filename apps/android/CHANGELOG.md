@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A show whose spoilers are hidden has an eye-off badge on its poster,
+  and its page and its seasons' pages say so.
+
 ## [0.1.19] - 2026-11-25
 
 ### Added

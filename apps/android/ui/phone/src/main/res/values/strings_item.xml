@@ -18,6 +18,7 @@
     <!-- The rest of the page. -->
     <string name="item_your_rating">Your rating</string>
     <string name="item_part_of">Part of %1$s</string>
+    <string name="item_spoilers_hidden">Spoilers hidden</string>
     <string name="item_read_more">More</string>
     <string name="item_read_less">Less</string>
     <string name="item_version">Version</string>

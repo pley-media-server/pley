@@ -38,6 +38,7 @@
     <string name="tv_item_back">Atrás</string>
     <string name="tv_item_retry">Reintentar</string>
     <string name="tv_item_part_of">Forma parte de %1$s</string>
+    <string name="tv_item_spoilers_hidden">Spoilers ocultos</string>
 
     <string name="tv_item_created_by">Creación</string>
     <string name="tv_item_director">Dirección</string>
