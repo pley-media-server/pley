@@ -19,12 +19,14 @@ object Sdk {
 }
 
 /**
- * How long a module's unit tests may run. Every module's together take 4 to
- * 20 minutes, so a healthy run never reaches it. A test that waits for ever
- * fails its task at it; without it, it holds CI until the job's own limit,
+ * How long a module's unit tests may run. The slowest module takes a minute
+ * or two and all of them together 4 to 20, so a healthy run never reaches
+ * it, and it ends within CI's hour whenever in the job the module's tests
+ * start. A test that waits for ever fails its task at it, and the job fails
+ * naming the module; without it, it holds CI until the job's own limit,
  * which ends the job canceled, with no report.
  */
-internal val UNIT_TESTS_LIMIT: Duration = Duration.ofMinutes(30)
+internal val UNIT_TESTS_LIMIT: Duration = Duration.ofMinutes(15)
 
 /** The version catalog, gradle/libs.versions.toml. */
 val Project.libs: VersionCatalog

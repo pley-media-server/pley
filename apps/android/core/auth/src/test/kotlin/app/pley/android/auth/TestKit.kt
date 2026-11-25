@@ -46,7 +46,9 @@ fun issuerOf(server: MockWebServer): String = Addresses.origin(server.url("/").t
 /**
  * The next request [this] got, in the order they came. One that never comes
  * fails the test: waited for without end, as [MockWebServer.takeRequest]
- * waits, it would hold up every test after it.
+ * waits, it would hold up every test after it. The other modules' tests
+ * have the same wait for their own MockWebServer class (`asked` in
+ * `:core:testing`'s MockPley.kt): the two change together.
  */
 fun MockWebServer.asked(): RecordedRequest =
     takeRequest(5, TimeUnit.SECONDS) ?: throw AssertionError("the server got no further request within 5 s ($requestCount in all)")

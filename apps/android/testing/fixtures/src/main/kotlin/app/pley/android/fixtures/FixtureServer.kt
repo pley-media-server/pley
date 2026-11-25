@@ -193,7 +193,13 @@ class FixtureServer(private val options: Options = Options()) : Closeable {
         }
         next.serverSocketFactory = ReusingSockets
         state.events.listen()
-        next.start(InetAddress.getByName("127.0.0.1"), at)
+        try {
+            next.start(InetAddress.getByName("127.0.0.1"), at)
+        } catch (e: Exception) {
+            // Not listening after all: a stream asked for of the server before still ends as it starts.
+            state.events.drop()
+            throw e
+        }
         server = next
         port = next.port
     }
