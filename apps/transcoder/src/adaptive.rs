@@ -114,6 +114,14 @@ const SETTLES: Duration = Duration::from_secs(60);
 /// How long a measurement tells what a preset makes, once no process shows
 /// it any more: the computer's other work changes.
 const FRESH: Duration = Duration::from_secs(10 * 60);
+/// How long a preset measured under [`COMFORT`] is believed once no process
+/// measures it again as fast as it goes. That is most often another
+/// program's doing, and a process the read rate holds can't show that it
+/// ended: past this, the next start or seek measures anew rather than leave
+/// the job on a faster preset than it needs. A job that no preset makes
+/// twice real time for measures its own again each time it catches up after
+/// a pause.
+const DOUBTED_AFTER: Duration = Duration::from_secs(2 * 60);
 
 /// How fast a preset must be expected to go to be taken.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -167,11 +175,14 @@ struct Seen {
     /// Since when measurements have said it makes more, and what was known
     /// before they did ([`RISES_OVER`]).
     rising: Option<(Instant, f64)>,
+    /// When a process last went as fast as it could at it.
+    exact: Instant,
 }
 
 impl Seen {
     fn fresh(&self, now: Instant) -> bool {
-        now.saturating_duration_since(self.at) < FRESH
+        let age = |t: Instant| now.saturating_duration_since(t);
+        age(self.at) < FRESH && (self.alone >= COMFORT || age(self.exact) < DOUBTED_AFTER)
     }
 }
 
@@ -186,7 +197,8 @@ impl Speeds {
     /// A process at `preset` went at `measured` at `at`, with no other
     /// software encode running if it went as fast as it could. A process
     /// the read rate holds shows only that its preset still makes that
-    /// much, which keeps what was known from growing old.
+    /// much, which keeps what was known from growing old: of a preset known
+    /// to make [`COMFORT`] at least ([`DOUBTED_AFTER`]).
     pub fn learn(&mut self, preset: usize, measured: Measured, at: Instant) {
         let speed = measured.speed();
         let exact = matches!(measured, Measured::Exactly(_));
@@ -194,17 +206,24 @@ impl Speeds {
         if !speed.is_finite() || speed < STALLED {
             return;
         }
-        let measured = Seen { alone: speed, at, rising: None };
+        let measured = Seen { alone: speed, at, rising: None, exact: at };
         *slot = match slot.filter(|old| old.fresh(at)) {
             // The same measurement again: a paused process keeps its last.
             Some(old) if at <= old.at => Some(old),
+            // Held, a process neither keeps nor raises what is doubted.
+            Some(old) if !exact && old.alone < COMFORT => Some(old),
             // More than was known: counted in as long as it has said so,
             // from what was known before it did, and in full after that.
             Some(old) if speed > old.alone => {
                 let (since, before) = old.rising.unwrap_or((old.at, old.alone));
                 let said_for = at.saturating_duration_since(since).as_secs_f64() / RISES_OVER.as_secs_f64();
                 let alone = (before + (speed - before) * said_for).max(old.alone);
-                Some(if said_for >= 1.0 { measured } else { Seen { alone, at, rising: Some((since, before)) } })
+                let exact = if exact { at } else { old.exact };
+                Some(if said_for >= 1.0 {
+                    Seen { exact, ..measured }
+                } else {
+                    Seen { alone, at, rising: Some((since, before)), exact }
+                })
             }
             Some(_) if exact => Some(measured),
             Some(old) => Some(Seen { at, ..old }),
@@ -767,6 +786,38 @@ mod tests {
         speeds.learn(VF, Measured::AtLeast(2.0), at(9));
         assert!(speeds.any(at(18)));
         assert_eq!(speeds.expect(VF, at(18)), Some(3.2));
+    }
+
+    #[test]
+    fn a_preset_measured_under_twice_real_time_is_doubted_two_minutes_later() {
+        let t0 = Instant::now();
+        let at = |secs| t0 + Duration::from_secs(secs);
+        let film = load(1, 4, HD);
+        // Faster made 1.4 × while another program took the processor. Held
+        // by the read rate since (real time, twice that while it catches
+        // up), the process shows neither that the program ended nor more.
+        let mut speeds = knowing(&[(FASTER, FILM_4[FASTER])], t0);
+        speeds.learn(FASTER, Measured::Exactly(1.4), at(5));
+        for secs in (10..=120).step_by(5) {
+            speeds.learn(FASTER, Measured::AtLeast(if secs % 10 == 0 { 2.0 } else { 1.0 }), at(secs));
+        }
+        assert_eq!(speeds.expect(FASTER, at(120)), Some(1.4));
+        assert_eq!(start(&speeds, film, 20.0, Some(FASTER), at(120)), VF, "taken at a seek meanwhile");
+        // Two minutes on, it is forgotten: a seek starts by the processors,
+        // measures anew, and goes back to faster.
+        assert!(!speeds.any(at(130)));
+        assert_eq!(start(&speeds, film, 0.0, Some(VF), at(130)), UF);
+        speeds.learn(UF, Measured::Exactly(FILM_4[UF]), at(133));
+        assert_eq!(start(&speeds, film, 20.0, Some(UF), at(133)), FASTER);
+        // A job no preset makes twice real time for measures its own again
+        // each time it catches up after a pause, and keeps it: 4K HDR tone
+        // mapped on the CPU.
+        let mut speeds = knowing(&[(SF, HDR_8[SF])], t0);
+        for secs in (30..=600).step_by(30) {
+            speeds.learn(SF, Measured::AtLeast(1.0), at(secs));
+            speeds.learn(SF, Measured::Exactly(HDR_8[SF]), at(secs + 15));
+        }
+        assert_eq!(speeds.expect(SF, at(620)), Some(HDR_8[SF]));
     }
 
     #[test]

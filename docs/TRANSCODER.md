@@ -770,6 +770,15 @@ N of them use the slowest that makes 2 N times real time alone.
   - Speeds are kept for each kind of job (the same codecs, sizes, frame
     rate, decoder, tone mapper and burned-in subtitles), for 10 minutes
     after a process last measured or showed them.
+  - A preset measured under twice real time is forgotten 2 minutes after a
+    process last went as fast as it could at it, and a process the read
+    rate holds neither keeps nor raises it. That is most often another
+    program taking the processor, which a held process can't show has
+    ended: the next start or seek measures anew rather than leave the job
+    on a faster preset than it needs. A job no preset makes twice real time
+    for (4K HDR tone mapped on the CPU) measures its own again each time it
+    catches up after a pause; held at real time all along, it forgets it
+    too, and its next seek starts as before anything was measured.
   - A speed under 0.1 × tells nothing: the input stopped coming.
 - **Estimating.** The other presets are estimated from the nearest one
   measured: `superfast` makes 0.55 of what `ultrafast` does, `veryfast`
