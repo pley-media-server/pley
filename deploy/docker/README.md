@@ -199,7 +199,9 @@ work.
   (the apps' broadcast and Bonjour) is off, since neither reaches a
   container on Docker's own network; with host networking, remove
   `PLEY_NO_DISCOVERY`, and turn Bonjour on in Settings → Network for
-  Apple's devices. The transcoder listens inside the
+  Apple's devices. Nor does Pley find its home addresses there for apps
+  to switch to: add the proxy's address in Settings → Network →
+  Addresses. The transcoder listens inside the
   container only.
 - **Not root, no privileges.** Pley runs as your user, with every Linux
   capability dropped and `no-new-privileges`; the image has no setuid

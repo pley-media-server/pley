@@ -73,7 +73,14 @@ Everything else is set in the web app:
   Bonjour is off until turned on there, and has the networks it announces
   Pley on (`bonjour_adapters`, every network Pley listens on unless some
   are chosen, 100.64.0.0/10's only when chosen) and its host name (`bonjour_host_name`, `pley-` and the
-  server id's start unless one is chosen).
+  server id's start unless one is chosen). Its Addresses are where apps
+  reach Pley, which Pley for Android switches between by itself, at home
+  and away, without signing in again: those an administrator adds
+  (`addresses`, such as a reverse proxy's public address; "Add the address
+  you're using" adds the page's own), then those Pley finds itself: its
+  address on the networks chosen for Bonjour while it is on, or on every
+  one but those of virtual machines and containers, and on Tailscale
+  ([API.md](API.md#a-servers-addresses)).
 - **Settings → Live TV**: IPTV sources, which channels show, and who may
   watch.
 - **Settings → Requests**: Discover and requests, their limits, and Radarr and

@@ -144,6 +144,17 @@ export interface ServerStatus {
   two_step_required?: boolean;
 }
 
+/**
+ * `GET /api/server/addresses`: the addresses apps reach the server at and
+ * switch between, the administrator's (`set`) in their order, then those the
+ * server found at home (`found`).
+ */
+export interface ServerAddresses {
+  /** The server's id, as `/api/server` answers it. */
+  id: string;
+  addresses: { url: string; source: "set" | "found" }[];
+}
+
 /** `GET /api/me/two-step`: two-step sign-in for the signed-in user. */
 export interface TwoStepStatus {
   enabled: boolean;
@@ -1123,6 +1134,12 @@ export interface Settings {
    * Absent from servers before it.
    */
   proxy_addresses?: string[];
+  /**
+   * Addresses apps reach pley at, in the administrator's order
+   * (`https://pley.example.com`), before those it finds at home: apps switch
+   * between them by themselves. Absent from servers before it.
+   */
+  addresses?: string[];
   /** OpenSubtitles.com API key: subtitle search is off without it. Absent from servers before it. */
   opensubtitles_api_key?: string;
   /** An opensubtitles.com account, for its daily download quota. */

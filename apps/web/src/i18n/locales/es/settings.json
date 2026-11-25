@@ -355,6 +355,14 @@
     "wouldStop": "Pley dejaría de escuchar donde está esta página: dejaría de funcionar aquí.",
     "pageMoves": "Esta página se moverá al nuevo puerto."
   },
+  "addresses": {
+    "title": "Direcciones",
+    "hint": "Las apps cambian de una a otra por sí solas. Las direcciones de casa se añaden automáticamente.",
+    "automatic": "Automática",
+    "addHere": "Añadir la dirección que estás usando",
+    "remove": "Quitar {{address}}",
+    "address": "Dirección"
+  },
   "proxy": {
     "title": "Acceso a través de un proxy inverso",
     "description": "Algunos proxies transmiten la dirección sin su puerto (<code>$host</code> de nginx, Nginx Proxy Manager). Pley se presenta entonces sin el puerto, y las apps lo rechazan. Añade las direcciones con puerto por las que se llega así a Pley, o haz que el proxy transmita el puerto (<code>proxy_set_header Host $http_host;</code>).",

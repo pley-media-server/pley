@@ -354,6 +354,14 @@
     "wouldStop": "Pley would stop listening where this page is: it would stop working here.",
     "pageMoves": "This page moves to the new port."
   },
+  "addresses": {
+    "title": "Addresses",
+    "hint": "Apps switch between these by themselves. Home addresses are added automatically.",
+    "automatic": "Automatic",
+    "addHere": "Add the address you're using",
+    "remove": "Remove {{address}}",
+    "address": "Address"
+  },
   "proxy": {
     "title": "Reached through a reverse proxy",
     "description": "Some proxies pass the address on without its port (nginx's <code>$host</code>, Nginx Proxy Manager). Pley then names itself without the port, and apps refuse it. Add the addresses with a port Pley is reached at that way, or have the proxy pass the port (<code>proxy_set_header Host $http_host;</code>).",

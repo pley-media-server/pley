@@ -17,6 +17,9 @@ describes how they are made.
 - A player can ask for the next track ahead (`ahead`), to play it
   without a gap: it isn't shown as playing on the dashboard, to remotes
   or in Tautulli until it plays.
+- Settings → Network has Addresses: those an administrator adds, such as a
+  public one, and the home ones Pley finds by itself, which apps switch
+  between without signing in again.
 
 ### Changed
 

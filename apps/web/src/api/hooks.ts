@@ -39,6 +39,7 @@ import type {
   Resources,
   ProfilePatch,
   SearchResults,
+  ServerAddresses,
   ServerStatus,
   SessionStatus,
   ServiceTest,
@@ -57,6 +58,8 @@ import type {
 
 export const keys = {
   server: ["server"] as const,
+  /** Under `server`: saving the settings asks for them again. */
+  serverAddresses: ["server", "addresses"] as const,
   me: ["me"] as const,
   libraries: ["libraries"] as const,
   sharedLibraries: ["libraries", "shared"] as const,
@@ -1315,7 +1318,20 @@ export function useSaveNetwork() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: ListenChoice) => api.put<NetworkSettings>("/api/network", body),
-    onSuccess: (data) => qc.setQueryData(keys.network, data),
+    onSuccess: (data) => {
+      qc.setQueryData(keys.network, data);
+      // Those found at home follow where pley listens.
+      void qc.invalidateQueries({ queryKey: keys.serverAddresses });
+    },
+  });
+}
+
+/** The addresses apps reach the server at: the administrator's, then those it found at home. */
+export function useServerAddresses(enabled = true) {
+  return useQuery({
+    queryKey: keys.serverAddresses,
+    queryFn: () => api.get<ServerAddresses>("/api/server/addresses"),
+    enabled,
   });
 }
 

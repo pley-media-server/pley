@@ -1,8 +1,11 @@
+use std::net::SocketAddr;
+
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use super::remote;
 use crate::accounts::{self, UserDto};
@@ -15,6 +18,7 @@ use crate::auth::{
 use crate::error::{ApiResult, AppError};
 use crate::state::AppState;
 use crate::util::now;
+use crate::{addresses, network};
 
 #[derive(Serialize)]
 pub struct LoginResponse {
@@ -142,6 +146,62 @@ pub async fn server_proof_key(State(state): State<AppState>, _user: AuthUser) ->
         body["proof_key"] = serde_json::json!(proof.key);
     }
     ([(header::CACHE_CONTROL, "no-store")], Json(body)).into_response()
+}
+
+/// The answer of [`server_addresses`].
+#[derive(Serialize)]
+struct ServerAddresses<'a> {
+    /// The server's id, as `/api/server` answers it.
+    id: &'a str,
+    addresses: Vec<addresses::Address>,
+}
+
+/// `GET /api/server/addresses`: where apps reach this server, for anyone
+/// signed in and every app (see [`crate::addresses`]); never in the public
+/// `/api/server`, which would tell anyone a home address with a public one.
+/// The ETag is the answer's own, so an app that asks again while nothing
+/// changed gets `304`.
+pub async fn server_addresses(
+    State(state): State<AppState>,
+    _user: AuthUser,
+    headers: HeaderMap,
+) -> ApiResult<Response> {
+    // Where the web app listens now: an address it can't listen on yet
+    // leads nowhere.
+    let web: Vec<SocketAddr> = state
+        .network
+        .listeners()
+        .into_iter()
+        .filter(|listener| listener.kind == network::Kind::Web && listener.error.is_none())
+        .map(|listener| listener.address)
+        .collect();
+    let found = if web.is_empty() {
+        Vec::new()
+    } else {
+        // Bonjour's choice of adapters counts only while Bonjour is on:
+        // Settings → Network keeps it, hidden, when it is turned off.
+        let wanted = state.network.wanted();
+        let chosen = if wanted.bonjour { wanted.bonjour_adapters } else { Vec::new() };
+        tokio::task::spawn_blocking(move || {
+            addresses::found(&web, &network::adapters(), network::in_container(), &chosen)
+        })
+        .await
+        .map_err(anyhow::Error::from)?
+    };
+    let answer =
+        ServerAddresses { id: &state.identity.id, addresses: addresses::list(&state.settings.get().addresses, found) };
+    let body = serde_json::to_vec(&answer).map_err(anyhow::Error::from)?;
+    let etag = format!("W/\"{}\"", hex::encode(&Sha256::digest(&body)[..12]));
+    let cache = [(header::ETAG, etag.clone()), (header::CACHE_CONTROL, "private, no-cache".to_owned())];
+    let opaque = |tag: &str| tag.trim().trim_start_matches("W/").to_owned();
+    let unchanged = headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|tags| tags.split(',').any(|tag| tag.trim() == "*" || opaque(tag) == opaque(&etag)));
+    if unchanged {
+        return Ok((StatusCode::NOT_MODIFIED, cache).into_response());
+    }
+    Ok((cache, [(header::CONTENT_TYPE, "application/json")], body).into_response())
 }
 
 pub(crate) async fn login_response(

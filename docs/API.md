@@ -27,6 +27,7 @@ details.
   [Language](#language), [Compatibility tokens](#compatibility-tokens)
 - [Apps (OAuth 2.1)](#apps-oauth-21): [Discovery](#discovery),
   [Telling servers apart](#telling-servers-apart),
+  [A server's addresses](#a-servers-addresses),
   [Signing in](#signing-in), [Tokens](#tokens), [TVs](#tvs),
   [Lifetimes and limits](#lifetimes-and-limits), [Scopes](#scopes),
   [Signed-in apps](#signed-in-apps), [Profiles](#profiles),
@@ -935,6 +936,13 @@ Every other `/.well-known/` path answers `404`.
 An address an app saved can later lead to another device: on another
 network, or after the router hands it out again. Before an app sends its
 token to the address, the server there proves it is the one signed in to.
+A token isn't bound to the address it was issued at: an app sends a
+sign-in's token to any address that proves itself, with that sign-in's key,
+as the server that issued it. So an app moves between [the server's
+addresses](#a-servers-addresses), at home and away, without signing in
+again. A server it finds or is given with the `id` it signed in to is
+another address to try, which gets the token once it proves itself too:
+an `id` alone proves nothing, as anyone can read it.
 
 | Method | Path | Who | What |
 |---|---|---|---|
@@ -1035,6 +1043,52 @@ one with a key deletes them first.
 
 Every app checks proofs: the Samsung (web and native), LG, Android,
 Kodi, Roku, desktop and Apple (iPhone, iPad, Mac and Apple TV) apps.
+
+### A server's addresses
+
+| Method | Path | Who | What |
+|---|---|---|---|
+| GET | `/api/server/addresses` | `any app` | `{ id, addresses: { url, source }[] }`: the addresses apps reach the server at |
+
+```json
+{
+  "id": "3f2a…",
+  "addresses": [
+    { "url": "https://pley.example.com", "source": "set" },
+    { "url": "http://192.168.1.20:7539", "source": "found" }
+  ]
+}
+```
+
+Apps switch between these as they move, each address proving itself
+before it gets a token ([Telling servers apart](#telling-servers-apart)).
+`id` is the server's, as `/api/server` answers it. Every address is written
+as the server names itself there, its [issuer](#discovery): in lower case,
+without its scheme's own port or a `/` at its end.
+
+- `set`: an administrator's, in Settings → Network (`addresses` in
+  `Settings`), in their order. They come first.
+- `found`: then those the server finds at home, from where it listens:
+  `http://`, the IPv4 address of each connected network adapter that the
+  web app listens on, and its port, 16 at most. Private addresses
+  (RFC 1918) come first: on the adapters Bonjour announces from when it is
+  on and some are chosen (`bonjour_adapters`, [Discovery](#discovery)),
+  else on every adapter but
+  the networks of virtual machines and containers on that computer
+  (Docker's, Podman's, LXC's and libvirt's, VirtualBox's, VMware's and
+  Parallels' host networks, and Hyper-V's own switches: WSL's, the Default
+  Switch and Docker's). Then Tailscale's address, on its own adapter, as
+  Linux and Windows name it; never another 100.64.0.0/10 address, which is
+  an internet provider's. Nothing is found while the server runs in a
+  container on Docker's own network (Settings → Network says so), and an
+  address the administrator lists is theirs.
+- Nothing in the list comes from a request's `Host`, which any client names
+  as it likes. Only someone signed in reads it: the public `/api/server`
+  would tell anyone a home address with a public one.
+- The answer has a weak `ETag` of its own and `Cache-Control: private,
+  no-cache`; asked with `If-None-Match` while nothing changed, it is `304`.
+- A server from before this answers `404`: the app goes on with the
+  address it has.
 
 ### Signing in
 
@@ -5103,6 +5157,11 @@ interface Settings {
                                     // drops the port from `Host` ("https://media.example.com:9999"; see
                                     // Discovery). http or https with a port and no path, one per scheme and
                                     // host, 16 at most; empty strings are dropped. Anything else: 400
+  addresses: string[];              // addresses apps reach Pley at, in order, before those it finds at home
+                                    // ("https://pley.example.com"; see A server's addresses). http or https,
+                                    // a host and an optional port, no path, query or fragment, 16 at most;
+                                    // kept as the issuer is written (lower case, no default port, no `/` at
+                                    // the end), each once; empty strings are dropped. Anything else: 400
   opensubtitles_api_key: string;    // OpenSubtitles.com API key; "" = subtitle search is off. Each server's
                                     // administrator gets one from opensubtitles.com (Consumers)
   opensubtitles_username: string;   // an opensubtitles.com account, for its daily download quota; "" = the

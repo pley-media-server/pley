@@ -9,6 +9,7 @@ import { Badge, Button, Card, EmptyState, PageSpinner, TextInput, Toggle } from 
 import { t as translate } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle, useOnChange } from "@/lib/hooks";
+import { Addresses } from "./Addresses";
 import { AirPlayPairings } from "./AirPlayPairings";
 import { CastDevices } from "./CastDevices";
 import { ProxyAddresses } from "./ProxyAddresses";
@@ -610,6 +611,8 @@ export function NetworkSettings() {
       <CastDevices />
 
       <AirPlayPairings />
+
+      <Addresses />
 
       <ProxyAddresses />
 

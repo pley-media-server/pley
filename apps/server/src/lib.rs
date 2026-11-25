@@ -9,6 +9,7 @@
 
 pub mod access;
 pub mod accounts;
+pub mod addresses;
 pub mod airplay;
 pub mod api;
 pub mod auth;

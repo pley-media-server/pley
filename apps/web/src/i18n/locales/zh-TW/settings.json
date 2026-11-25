@@ -353,6 +353,14 @@
     "wouldStop": "Pley 將停止在此頁面所在的位址監聽：此頁面將無法繼續工作。",
     "pageMoves": "此頁面將移至新的埠。"
   },
+  "addresses": {
+    "title": "位址",
+    "hint": "應用會自行在這些位址之間切換。家中的位址會自動加入。",
+    "automatic": "自動",
+    "addHere": "新增你正在使用的位址",
+    "remove": "移除 {{address}}",
+    "address": "位址"
+  },
   "proxy": {
     "title": "透過反向代理存取",
     "description": "某些代理轉發的位址不帶埠（如 nginx 的 <code>$host</code>、Nginx Proxy Manager）。此時 Pley 會報告不含埠的自身位址，應用將拒絕該位址。請新增透過這些方式存取 Pley 時帶埠的位址，或讓代理轉發埠（<code>proxy_set_header Host $http_host;</code>）。",

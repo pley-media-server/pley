@@ -212,6 +212,8 @@ pub const APP_ROUTES: &[(&str, &str, Need)] = &[
     // Any app.
     ("GET", "/api/auth/me", AnyApp),
     ("GET", "/api/users/{id}/avatar", AnyApp),
+    // the addresses apps switch between to reach the server
+    ("GET", "/api/server/addresses", AnyApp),
     // whether requests are on, and whether the app should sign in again to
     // ask for movies and shows
     ("GET", "/api/requests/summary", AnyApp),
@@ -458,7 +460,7 @@ mod tests {
     fn every_app_route_is_on_a_real_path() {
         // Whether each names a route of api/mod.rs is checked by
         // tests/app_tokens.rs, which reads it.
-        assert_eq!(APP_ROUTES.len(), 134);
+        assert_eq!(APP_ROUTES.len(), 135);
         for (i, (method, path, _)) in APP_ROUTES.iter().enumerate() {
             assert!(["GET", "POST", "PUT", "PATCH", "DELETE"].contains(method), "{method} {path}");
             assert!(path.starts_with("/api/") && !path.ends_with('/'), "{path}");
@@ -471,6 +473,7 @@ mod tests {
         assert_eq!(required(&Method::HEAD, "/api/files/{id}/stream"), Some(Need::Scope(Scope::Play)));
         assert_eq!(required(&Method::POST, "/api/playlists"), Some(Need::Scope(Scope::Playlists)));
         assert_eq!(required(&Method::GET, "/api/auth/me"), Some(Need::AnyApp));
+        assert_eq!(required(&Method::GET, "/api/server/addresses"), Some(Need::AnyApp), "every app switches addresses");
         assert_eq!(required(&Method::GET, "/api/oauth/profiles"), Some(Need::Scope(Scope::Profiles)));
         assert_eq!(required(&Method::GET, "/api/requests/summary"), Some(Need::AnyApp), "even apps that can't ask");
         assert_eq!(required(&Method::POST, "/api/requests"), Some(Need::Scope(Scope::Requests)));
