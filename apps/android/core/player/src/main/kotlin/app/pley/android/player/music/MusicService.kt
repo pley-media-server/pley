@@ -597,9 +597,11 @@ class MusicService : MediaLibraryService() {
          * Whether [controller] reads the library and picks what plays. A controller named System UI comes as the
          * notification's own (the app's name and uid), with all the notification may do, and the name is whatever the
          * controller says it is: an app holding the session's token, as one with access to notifications does, can
-         * take it. Neither the notification nor the system's media controls browse or pick (Media3 answers the
-         * system's "what played last" itself), so what comes as the notification's is refused: such an app plays,
-         * pauses, skips and seeks, as [onConnect] lets it under its own name.
+         * take it. A request any app starts the service with, made as the notification's buttons make theirs (an
+         * item to play can be one), comes as the notification's too: Media3 has its notification's controller send
+         * it. Neither the notification nor the system's media controls browse or pick (Media3 answers the system's
+         * "what played last" itself), so what comes as the notification's is refused: such an app plays, pauses,
+         * skips and seeks, as [onConnect] lets it under its own name.
          */
         private fun browses(session: MediaSession, controller: MediaSession.ControllerInfo): Boolean =
             answers(controller) && !session.isMediaNotificationController(controller)
@@ -812,18 +814,25 @@ class MusicService : MediaLibraryService() {
                     // "Play music" with nothing named: the queue that waits plays on, or the one kept from before the
                     // app left memory; only with neither, something new (the album added last). The session's Play
                     // that follows starts it.
-                    if (query != null && query.isBlank() && playlist == null && focus.isEmpty) {
+                    val nothingNamed = query != null && query.isBlank() && playlist == null && focus.isEmpty
+                    if (nothingNamed) {
                         val saved = if (playback.active) null else MusicHub.resume?.saved()
                         if (playback.active || saved != null) {
                             showMusic(made, playback, graph.library)
                             // Played meanwhile from somewhere else (the phone, as what was kept was read): that plays on.
                             if (saved != null && !playback.active) playback.cue(saved)
-                            val queue = playback.queueState.value
-                            future.set(MediaSession.MediaItemsWithStartPosition(queue.tracks.map { library().queueItem(it) }, queue.index, playback.position().positionMs))
+                            future.set(queueThere())
                             return@launch
                         }
                     }
                     val selection = selectionFor(picked)
+                    // Played meanwhile from somewhere else, as something new was looked up on the server: that plays
+                    // on, rather than what was found.
+                    if (nothingNamed && playback.active) {
+                        showMusic(made, playback, graph.library)
+                        future.set(queueThere())
+                        return@launch
+                    }
                     if (selection == null && query != null && !music) {
                         val closest = live?.let { runCatching { it.closest(query) }.getOrNull() }
                         if (closest != null) {
@@ -910,6 +919,12 @@ class MusicService : MediaLibraryService() {
         // A queue isn't added to from outside: what a car picks replaces it (onSetMediaItems).
         override fun onAddMediaItems(mediaSession: MediaSession, controller: MediaSession.ControllerInfo, mediaItems: MutableList<MediaItem>): ListenableFuture<MutableList<MediaItem>> =
             Futures.immediateFailedFuture(UnsupportedOperationException())
+
+        /** The music's queue, where it is, as the session is told it. */
+        private fun queueThere(): MediaSession.MediaItemsWithStartPosition {
+            val queue = playback.queueState.value
+            return MediaSession.MediaItemsWithStartPosition(queue.tracks.map { library().queueItem(it) }, queue.index, playback.position().positionMs)
+        }
 
         private suspend fun selectionFor(item: MediaItem): MusicSelection? {
             val query = item.requestMetadata.searchQuery
