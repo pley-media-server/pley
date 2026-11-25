@@ -597,9 +597,11 @@ class MusicService : MediaLibraryService() {
          * Whether [controller] reads the library and picks what plays. A controller named System UI comes as the
          * notification's own (the app's name and uid), with all the notification may do, and the name is whatever the
          * controller says it is: an app holding the session's token, as one with access to notifications does, can
-         * take it. Neither the notification nor the system's media controls browse or pick (Media3 answers the
-         * system's "what played last" itself), so what comes as the notification's is refused: such an app plays,
-         * pauses, skips and seeks, as [onConnect] lets it under its own name.
+         * take it. A request any app starts the service with, made as the notification's buttons make theirs (an
+         * item to play can be one), comes as the notification's too: Media3 has its notification's controller send
+         * it. Neither the notification nor the system's media controls browse or pick (Media3 answers the system's
+         * "what played last" itself), so what comes as the notification's is refused: such an app plays, pauses,
+         * skips and seeks, as [onConnect] lets it under its own name.
          */
         private fun browses(session: MediaSession, controller: MediaSession.ControllerInfo): Boolean =
             answers(controller) && !session.isMediaNotificationController(controller)
