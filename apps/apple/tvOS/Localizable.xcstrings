@@ -4818,6 +4818,35 @@
         }
       }
     },
+    "Playback details" : {
+      "comment" : "Live player's overlay on Apple TV: opens how the channel plays, and that panel's title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detalles de reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Détails de lecture"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放详情"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "播放詳情"
+          }
+        }
+      }
+    },
     "Playing" : {
       "comment" : "VoiceOver, the live player's channel list: the channel playing now.",
       "localizations" : {

@@ -1,6 +1,35 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ fps" : {
+      "comment" : "A live channel's details: its video's frame rate.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ fps"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ i/s"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ fps"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ fps"
+          }
+        }
+      }
+    },
     "%@ · burned into the video" : {
       "comment" : "Details: the subtitles shown, burned into the picture.",
       "localizations" : {
@@ -59,6 +88,35 @@
         }
       }
     },
+    "%lld-bit" : {
+      "comment" : "A live channel's details: its video's bit depth, after the codec (\"HEVC 10-bit\").",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bits"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bits"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 位"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 位"
+          }
+        }
+      }
+    },
     "AirPlay" : {
       "comment" : "The AirPlay button's spoken label.",
       "localizations" : {
@@ -113,6 +171,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "音訊"
+          }
+        }
+      }
+    },
+    "Bitrate" : {
+      "comment" : "A live channel's details: what the provider sends, then a transcode's video bitrate.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tasa de bits"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Débit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "码率"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "位元速率"
           }
         }
       }
@@ -204,6 +291,35 @@
         }
       }
     },
+    "Direct stream" : {
+      "comment" : "A live channel's details: the server copies its video.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmisión directa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux direct"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接串流"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接串流"
+          }
+        }
+      }
+    },
     "Earlier" : {
       "comment" : "The subtitle sync: show the subtitles 0.1 s earlier.",
       "localizations" : {
@@ -258,6 +374,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "提前 (%@)"
+          }
+        }
+      }
+    },
+    "Encoder" : {
+      "comment" : "A live channel's details: the encoder transcoding its video (\"h264_nvenc\").",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codificador"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encodeur"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编码器"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編碼器"
           }
         }
       }
@@ -813,6 +958,35 @@
         }
       }
     },
+    "Transcoding" : {
+      "comment" : "A live channel's details: the server converts its video.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcodificación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcodage"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转码"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轉碼"
+          }
+        }
+      }
+    },
     "Video" : {
       "comment" : "Details: what the screen gets of HDR video.",
       "localizations" : {
@@ -896,6 +1070,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "原因"
+          }
+        }
+      }
+    },
+    "interlaced" : {
+      "comment" : "A live channel's details: its video is interlaced, after the frame rate.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "entrelazado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "entrelacé"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隔行扫描"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隔行掃描"
           }
         }
       }

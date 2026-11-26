@@ -8,7 +8,8 @@ import SwiftUI
 /// of its own on the Mac: the channel's picture, and over it, for 3
 /// seconds after a tap, Close, the channel's logo, number and name, what's
 /// on with its progress and what's next, the star, channel up and down,
-/// the Channels list, Watch on… (another of the profile's devices), AirPlay
+/// the Channels list, Playback details (how the channel plays, in a sheet),
+/// Watch on… (another of the profile's devices), AirPlay
 /// and "Live". Live can't pause or seek. Digits on a keyboard tune a
 /// number, ↑ and ↓ change channel. A cast from another device says where
 /// it came from at the top.
@@ -20,6 +21,7 @@ struct LivePlayerScreen: View {
     @State private var controlsShown = true
     @State private var hiding: Task<Void, Never>?
     @State private var channelsShown = false
+    @State private var detailsShown = false
     @State private var stalled = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -84,6 +86,9 @@ struct LivePlayerScreen: View {
                 model.tune(channel)
                 show()
             }
+        }
+        .sheet(isPresented: $detailsShown) {
+            LiveDetailsSheet(model: model)
         }
         .onAppear { show() }
         .accessibilityElement(children: .contain)
@@ -163,6 +168,11 @@ struct LivePlayerScreen: View {
                 }
                 .accessibilityLabel("Channels")
                 .accessibilityIdentifier("live.channels")
+                Button { detailsShown = true } label: {
+                    Image(systemName: "info.circle").font(.title2).frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Playback details")
+                .accessibilityIdentifier("live.details")
                 if let channelId = model.channelId {
                     PlayOnMenu(remote: app.remote, target: .channel(channelId), prefix: "live", iconOnly: true)
                         .menuStyle(.button)
@@ -311,6 +321,39 @@ struct TroubleView: View {
     /// What VoiceOver reads out as the trouble shows.
     private var spoken: String {
         "\(trouble.title(channel: model.channel?.name ?? localized("The channel"))). \(trouble.message)"
+    }
+}
+
+/// Playback details over the player, in the look of the player's Details:
+/// how the channel plays, the provider's video and audio and what the
+/// server makes of them, and what the provider sends now, asked for again
+/// while the sheet shows. Another channel closes it.
+struct LiveDetailsSheet: View {
+    @ObservedObject var model: LivePlayerModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LiveDetailsView(plan: model.plan)
+                    .padding()
+            }
+            .navigationTitle("Playback details")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        #if os(iOS)
+        .presentationDetents([.medium, .large])
+        #else
+        .frame(minWidth: 360, idealWidth: 420, minHeight: 300, idealHeight: 360)
+        #endif
+        .onAppear { model.showDetails() }
+        .onDisappear { model.hideDetails() }
+        .onValueChange(of: model.channelId) { _ in dismiss() }
+        .accessibilityIdentifier("live.details.sheet")
     }
 }
 

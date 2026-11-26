@@ -7,7 +7,8 @@ import SwiftUI
 /// The live player on Apple TV. A banner with the channel and what's on
 /// shows for 5 seconds when a channel is tuned. Up and down change
 /// channel; Select opens the overlay (Channels, Channel number,
-/// Favorite, Back to the guide); Play/Pause shows the banner, as live
+/// Favorite, Back to the guide, and under them Playback details: how the
+/// channel plays, in a panel); Play/Pause shows the banner, as live
 /// plays on. Menu hides the overlay, then leaves. The number pad tunes a
 /// channel on OK, or 1.4 seconds after its last digit. A channel cast from
 /// another device says where it came from at the top for 4 seconds.
@@ -19,6 +20,7 @@ struct LivePlayerScreen: View {
     @State private var banner: Task<Void, Never>?
     @State private var overlay = false
     @State private var numberPad = false
+    @State private var detailsShown = false
     @State private var channelsShown = false
     @FocusState private var screenFocused: Bool
 
@@ -49,12 +51,15 @@ struct LivePlayerScreen: View {
             } else if numberPad {
                 NumberPad(model: model) { numberPad = false }
                     .focusSection()
+            } else if detailsShown {
+                TVLiveDetails(model: model) { detailsShown = false }
+                    .focusSection()
             } else if overlay {
                 overlayView.focusSection()
             } else {
                 screen
             }
-            if bannerShown && !overlay && !numberPad { bannerView }
+            if bannerShown && !overlay && !numberPad && !detailsShown { bannerView }
             // "Playing from …", as a cast from another device starts.
             if let said = model.banner {
                 Text(said)
@@ -165,7 +170,7 @@ struct LivePlayerScreen: View {
     }
 
     private var overlayView: some View {
-        VStack {
+        VStack(spacing: 0) {
             Spacer()
             HStack(spacing: 40) {
                 Button { channelsShown = true } label: { Label("Channels", systemImage: "list.bullet") }
@@ -182,7 +187,15 @@ struct LivePlayerScreen: View {
                 Button { app.closeLivePlayer() } label: { Label("Back to the guide", systemImage: "rectangle.grid.1x2") }
                     .accessibilityIdentifier("live.close")
             }
-            .padding(50)
+            .padding(.horizontal, 50)
+            .padding(.top, 50)
+            // A row of its own: the four above fill the screen's width.
+            Button { overlay = false; detailsShown = true } label: {
+                Label("Playback details", systemImage: "info.circle")
+            }
+            .accessibilityIdentifier("live.details")
+            .padding(.top, 30)
+            .padding(.bottom, 50)
         }
         .onExitCommand { overlay = false }
     }
@@ -249,6 +262,37 @@ private struct NumberPad: View {
         }
         .accessibilityLabel(Self.words[value])
         .accessibilityIdentifier("live.pad.\(value)")
+    }
+}
+
+/// Playback details beside the picture, in the look of the player's
+/// Details: how the channel plays, the provider's video and audio and what
+/// the server makes of them, and what the provider sends now, asked for
+/// again while the panel shows. Close or Menu closes it, and so does
+/// another channel.
+private struct TVLiveDetails: View {
+    @ObservedObject var model: LivePlayerModel
+    let done: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 30) {
+            Text("Playback details").font(.title3.bold())
+            LiveDetailsView(plan: model.plan)
+            Button("Close", action: done)
+                .accessibilityIdentifier("live.details.close")
+        }
+        .frame(width: 720, alignment: .leading)
+        .padding(50)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 30))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+        .padding(60)
+        .onExitCommand(perform: done)
+        .onAppear { model.showDetails() }
+        .onDisappear { model.hideDetails() }
+        .onChange(of: model.channelId) { _, _ in done() }
+        // A container, so the lines and the button keep their own.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("live.details.panel")
     }
 }
 
