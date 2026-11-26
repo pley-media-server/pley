@@ -11,7 +11,7 @@ function methodName(method: PlaybackMethod): string {
 }
 
 /** How a session plays, in a few words: a direct stream says when its audio is converted. */
-export function methodLabel(info: PlaybackInfo): string {
+export function methodLabel(info: Pick<PlaybackInfo, "method" | "audio_converted">): string {
   return info.method === "remux" && info.audio_converted
     ? `${methodName("remux")} · ${translate("details.audioTranscoding", { ns: "player" })}`
     : methodName(info.method);
@@ -68,14 +68,20 @@ export function simplified(text: string): string {
   return text.replace(/(\d+)×(\d+)/, (whole, w: string, h: string) => resolutionLabel(Number(w), Number(h)) ?? whole);
 }
 
+/** What an FFmpeg encoder is called: `"h264_nvenc"` is `"NVIDIA NVENC"`; one without a name here, as FFmpeg has it. */
+export function encoderName(encoder: string): string {
+  return ENCODERS[encoder] ?? encoder;
+}
+
 /** The encoder, and where it runs: `"NVIDIA NVENC (GPU)"`, `"x264 veryfast (CPU)"`. */
 export function encoderLabel(t: TranscodeInfo): string {
-  const name = t.encoder ? (ENCODERS[t.encoder] ?? t.encoder) : null;
+  const name = t.encoder ? encoderName(t.encoder) : null;
   const where = t.pipeline && t.pipeline !== "copy" ? `(${pipelineName(t.pipeline)})` : null;
   return [name, t.preset, where].filter(Boolean).join(" ");
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+/** A line of the details: what it is, and its value. */
+export function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
       <dt className="text-white/45">{label}</dt>

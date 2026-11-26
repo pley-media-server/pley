@@ -7,6 +7,7 @@ import {
   Cast,
   ChevronDown,
   ChevronUp,
+  Info,
   List,
   LoaderCircle,
   Maximize,
@@ -39,7 +40,7 @@ import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { PlayOn } from "@/components/PlayOn";
 import { Slider } from "@/components/Slider";
 import { cn } from "@/lib/cn";
-import { canPlayNativeHls } from "@/lib/caps";
+import { canPlayNativeHls, streamCaps } from "@/lib/caps";
 import { loadHls } from "@/lib/hls";
 import { loadMpegts } from "@/lib/mpegts";
 import { playingHere } from "@/lib/playingHere";
@@ -48,6 +49,8 @@ import { clientId } from "@/lib/progress";
 import { ChannelLogo, formatSpan, formatTime, liveUrl, setLastWatched, timeLeft, useNow } from "@/pages/livetv/common";
 import { ChannelPanel } from "./ChannelPanel";
 import { keepCushion } from "./cushion";
+import { tracksPlay, type StreamTracks } from "./direct";
+import { LiveDetails, type LivePlayback } from "./LiveDetails";
 import { whenStuck } from "./stuck";
 import { brokeOff, cantPlay, hlsTrouble, stopped, trouble, TroubleCard, type Trouble } from "./TroubleCard";
 
@@ -67,10 +70,23 @@ const TAKEN_OVER_GRACE = 1000;
 const READ_AGAIN_ONCE_IN = 120_000;
 /** mpegts.js says how fast the stream came every 600 ms, and nothing once it ended: this long without, it isn't coming. */
 const COMING_WITHIN = 1500;
+/**
+ * A channel this browser decodes as the provider sends it waits this long,
+ * ms, for mpegts.js to say what it found in the stream. That comes with the
+ * stream's first picture and sound, mostly before the server's plan; one
+ * that never says (sound it doesn't read) isn't kept waiting for long.
+ */
+const TRACKS_WITHIN = 2000;
 /** Digits typed for a channel number wait this long for more. */
 const NUMBER_WAIT = 1400;
 /** The remote's commands Live TV obeys: channel up and down. It doesn't go back in a channel, so no pause or seek. */
 const LIVE_CONTROLS: Control[] = ["next", "previous"];
+/**
+ * The server's Direct Play setting, as its last plan said it: what goes for
+ * a channel whose plan doesn't come in time. Off until a plan says
+ * otherwise, as on a server without the setting.
+ */
+let directPlay = false;
 
 export function LivePlayerPage() {
   const { t } = useTranslation("livetv");
@@ -214,8 +230,9 @@ function LivePlayer({
   onStep: (by: 1 | -1) => boolean;
   byNumber: (digits: string) => Promise<Channel | null>;
 }) {
-  const { t } = useTranslation(["livetv", "common"]);
+  const { t } = useTranslation(["livetv", "common", "player"]);
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsType | null>(null);
@@ -247,6 +264,10 @@ function LivePlayer({
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [panel, setPanel] = useState(false);
+  // Playback details: the watch session they ask about, and how the player plays it.
+  const [details, setDetails] = useState(false);
+  const [session, setSession] = useState<string | null>(null);
+  const [playback, setPlayback] = useState<LivePlayback | null>(null);
   // Watch on…'s menu is open: the controls it hangs from stay.
   const [watchOn, setWatchOn] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -278,7 +299,11 @@ function LivePlayer({
     // What keeps a channel played from its stream going: its cushion, and
     // the watch for a picture that stands still.
     let stopKeeping = () => {};
+    // This browser reads a channel's stream (mpegts.js works here).
+    let reads = false;
     setStatus("tuning");
+    setSession(null);
+    setPlayback(null);
     setProblem(null);
     setBanner(false);
     takenOver.current = null;
@@ -314,6 +339,7 @@ function LivePlayer({
         }
         sessionRef.current?.leave();
         sessionRef.current = { id: watching.session_id, url: watching.url, leave: playingHere(watching.session_id) };
+        setSession(watching.session_id);
         return watching;
       } catch (err) {
         fail(trouble(err, channel.name));
@@ -321,13 +347,16 @@ function LivePlayer({
       }
     };
     // A channel sent as it is (H.264 and AAC) plays from its stream as soon
-    // as a keyframe comes; any other, or where that can't be, from the
-    // transcoder's segments. The stream is read while the server says what
-    // the channel is, and plays once it says it's sent as it is.
+    // as a keyframe comes, and so does one this browser decodes as the
+    // provider sends it (HEVC, say) while the server's Direct Play is on; any
+    // other, or where that can't be, from the transcoder's segments. The
+    // stream is read while the server says what the channel is, and plays
+    // once it says so.
     const playDirect = async (sessionId: string): Promise<boolean> => {
       const plan = livePlan(sessionId).catch(() => null);
       const mpegts = "MediaSource" in window ? await loadMpegts().catch(() => null) : null;
       if (cancelled || !mpegts?.isSupported()) return false;
+      reads = true;
       // A device id of its own: reading the stream doesn't end the session asked about.
       const url = new URL(streamUrl(channel.id, `${clientId()}-stream`), window.location.href).href;
       let failed = false;
@@ -338,6 +367,9 @@ function LivePlayer({
       const coming = () => performance.now() - cameAt < COMING_WITHIN;
       // When it was last read again.
       let readAgainAt = -Infinity;
+      // What mpegts.js found in the stream, once it has read its first picture and sound.
+      let tracks = null as StreamTracks | null;
+      let tracksCame = () => {};
       // It broke off, or stood still for good: the transcoder's segments
       // from now, unless its connection was taken over (that's told as the
       // stream ends, and tuning again would only find every connection in use).
@@ -373,11 +405,17 @@ function LivePlayer({
         player.on(mpegts.Events.STATISTICS_INFO, (info: { speed?: number }) => {
           if ((info.speed ?? 0) > 0) cameAt = performance.now();
         });
+        player.on(mpegts.Events.MEDIA_INFO, (info: StreamTracks) => {
+          tracks = info;
+          tracksCame();
+        });
         player.on(mpegts.Events.ERROR, () => {
           failed = true;
           stopKeeping();
           player.destroy();
           if (directRef.current === player) directRef.current = null;
+          // Nothing more to find in it.
+          tracksCame();
           // Not chosen yet: the transcoder's segments play once the plan comes, below.
           if (cancelled || !chosen) return;
           toHls();
@@ -448,19 +486,44 @@ function LivePlayer({
       // Let go already (mpegts.js throws when let go twice): it failed, and
       // the transcoder's segments play, or watching ended, which says why.
       if (directRef.current !== player) return !failed;
+      if (known) {
+        directPlay = known.direct_play === true;
+        // What Playback details show as they open, before they ask again.
+        qc.setQueryData(liveKeys.plan(sessionId), known);
+      }
       // What the server says goes; not known in time, what the stream turned out to be.
-      if (known ? !playsAsSent(known) : !hasPlayableTracks(player)) {
+      let asSent = known ? playsAsSent(known) : tracksPlay(tracks, null, directPlay);
+      // One the transcoder would convert, that this browser decodes as it
+      // is: it plays once mpegts.js has found its picture and its sound.
+      // The plan says neither how the stream carries them (AC-3 as DVB does,
+      // mpegts.js doesn't read: the picture would play without sound) nor
+      // the video's profile. mpegts.js says what it found only of a stream
+      // with both, so one with a picture or sound alone stays the transcoder's.
+      if (known && !asSent && known.video !== "none" && known.audio !== "none" && playsAsSent(known, streamCaps())) {
+        const found =
+          tracks ??
+          (await new Promise<StreamTracks | null>((resolve) => {
+            tracksCame = () => resolve(tracks);
+            window.setTimeout(() => resolve(null), TRACKS_WITHIN);
+          }));
+        if (cancelled) return true;
+        if (directRef.current !== player) return !failed;
+        asSent = tracksPlay(found, known, true);
+      }
+      if (!asSent) {
         player.destroy();
         directRef.current = null;
         return false;
       }
       chosen = true;
+      setPlayback({ direct: true, reads });
       keep();
       return true;
     };
     const playHls = async (url: string) => {
       const Hls = await loadHls().catch(() => null);
       if (cancelled) return;
+      setPlayback({ direct: false, reads });
       if (Hls?.isSupported()) {
         const hls = new Hls({
           liveSyncDurationCount: 3,
@@ -527,7 +590,7 @@ function LivePlayer({
       if (sessionRef.current) void leaveChannel(sessionRef.current.id);
       forgetSession();
     };
-  }, [channel.id, channel.name, attempt]);
+  }, [channel.id, channel.name, attempt, qc]);
 
   /**
    * Watching ended on the server (its connection taken over, or stopped
@@ -553,6 +616,7 @@ function LivePlayer({
       video.load();
     }
     setBuffering(false);
+    setSession(null);
     setProblem(why);
     setStatus("error");
   };
@@ -687,7 +751,7 @@ function LivePlayer({
     return () => window.clearTimeout(hideTimer.current);
   }, []);
   const controlsVisible =
-    showControls || panel || watchOn || status === "error" || (!remoteTune && (!playing || status === "tuning"));
+    showControls || panel || watchOn || details || status === "error" || (!remoteTune && (!playing || status === "tuning"));
 
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement != null);
@@ -768,21 +832,23 @@ function LivePlayer({
           setBanner((b) => !b);
           break;
         case "Escape":
-          if (panel) setPanel(false);
+          if (details) setDetails(false);
+          else if (panel) setPanel(false);
           else if (!document.fullscreenElement) goBack();
           break;
         case "Backspace":
         case "BrowserBack":
         case "GoBack":
           e.preventDefault();
-          if (panel) setPanel(false);
+          if (details) setDetails(false);
+          else if (panel) setPanel(false);
           else goBack();
           break;
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [poke, onStep, toggleFullscreen, panel, goBack]);
+  }, [poke, onStep, toggleFullscreen, panel, details, goBack]);
 
   const on = channel.now && channel.now.stop > now && channel.now.start <= now ? channel.now : null;
   const next = on ? channel.next : (channel.next ?? channel.now);
@@ -807,7 +873,11 @@ function LivePlayer({
           ref={videoRef}
           className="absolute inset-0 size-full object-contain"
           playsInline
-          onClick={() => (panel ? setPanel(false) : poke())}
+          onClick={() => {
+            setDetails(false);
+            if (panel) setPanel(false);
+            else poke();
+          }}
           onDoubleClick={toggleFullscreen}
         />
 
@@ -949,7 +1019,17 @@ function LivePlayer({
             controlsVisible ? "opacity-100" : "pointer-events-none opacity-0",
           )}
         >
-          <div className="flex items-center gap-0.5 sm:gap-1.5">
+          <div className="relative flex items-center gap-0.5 sm:gap-1.5">
+            {details ? (
+              <div
+                id="live-details"
+                role="region"
+                aria-label={t("player:settings.panel.details")}
+                className="absolute bottom-full right-0 mb-3 w-80 max-w-full animate-pop-in rounded-xl border border-white/10 bg-black/90 py-2 text-white shadow-2xl"
+              >
+                <LiveDetails sessionId={session} playback={playback} open />
+              </div>
+            ) : null}
             <div className="group/vol hidden items-center sm:flex">
               <button type="button" aria-label={muted ? t("player.unmute") : t("player.mute")} onClick={() => setMuted((m) => !m)} className={button}>
                 <VolumeIcon className="size-5" />
@@ -977,6 +1057,17 @@ function LivePlayer({
               </div>
             ) : null}
             <div className="flex-1" />
+            <button
+              type="button"
+              aria-label={t("player:settings.panel.details")}
+              title={t("player:settings.panel.details")}
+              aria-expanded={details}
+              aria-controls="live-details"
+              onClick={() => setDetails((d) => !d)}
+              className={cn(button, details && "bg-white/15")}
+            >
+              <Info className="size-5" />
+            </button>
             <button type="button" aria-label={t("player.channelUp")} title={t("player.channelUpKey")} onClick={() => onStep(1)} className={button}>
               <ChevronUp className="size-5" />
             </button>
@@ -1009,15 +1100,6 @@ function LivePlayer({
       />
     </div>
   );
-}
-
-/** What mpegts.js found in the stream is H.264 and AAC (or either alone), which the browser plays. */
-function hasPlayableTracks(player: { mediaInfo?: unknown }): boolean {
-  const info = player.mediaInfo as { videoCodec?: string; audioCodec?: string; hasVideo?: boolean; hasAudio?: boolean } | undefined;
-  if (!info) return false;
-  const video = !info.hasVideo || (info.videoCodec ?? "").startsWith("avc");
-  const audio = !info.hasAudio || (info.audioCodec ?? "").startsWith("mp4a");
-  return video && audio && (info.hasVideo || info.hasAudio) === true;
 }
 
 /** Keeps what the video shows as its poster: the picture stays while the next channel tunes. */

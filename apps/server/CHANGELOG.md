@@ -16,6 +16,9 @@ describes how they are made.
   with no transcode. The transcoder now starts a channel's transcode only
   when a player asks for it, and a channel says what it is even when no
   transcode is free. Settings → Live TV can turn Direct Play off.
+- Playback details in the web app's Live TV player: whether a channel
+  plays directly, as a direct stream or transcoded, and why, with what the
+  provider sends and its bitrate now.
 
 ## [0.1.17] - 2026-11-25
 

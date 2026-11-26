@@ -113,7 +113,14 @@
     "joinHint": "可以加入已在觀看的頻道，或等某個停止後再試。",
     "watchAgain": "重新觀看",
     "otherChannels": "其他頻道",
-    "backToGuide": "返回節目指南"
+    "backToGuide": "返回節目指南",
+    "details": {
+      "off": "伺服器已關閉直接播放",
+      "interlacedWhy": "隔行影片會轉為逐行",
+      "noVideo": "此裝置無法播放 {{codec}} 影片",
+      "noAudio": "此裝置無法播放 {{codec}} 音訊",
+      "interlaced": "隔行"
+    }
   },
   "panel": {
     "changeGroup": "切換分組",
@@ -154,6 +161,9 @@
       "never": "從不",
       "playing": "播放",
       "playingHint": "同一頻道的每位觀看者共用同一個串流，由轉碼器產生一次。",
+      "directPlay": "直接播放",
+      "directPlayHint": "播放器能按供應商傳送的原樣播放頻道的影片和聲音時，就直接播放，無需轉碼。",
+      "directPlayToggle": "按供應商傳送的原樣播放頻道",
       "deinterlace": "去隔行",
       "deinterlaceHint": "將隔行頻道（1080i、576i）處理為流暢的逐行畫面：需要轉碼，轉碼器有顯示卡時會在顯示卡上進行。",
       "deinterlaceToggle": "對隔行頻道去隔行",
