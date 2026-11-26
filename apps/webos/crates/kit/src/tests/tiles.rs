@@ -23,14 +23,14 @@ fn a_focused_tile_grows_to_1_08_inside_its_ring() {
     assert_eq!(scales(&f.list), vec![(1.08, well.center())]);
     let ring = well.scale_about(well.center(), 1.08).expand(4.5);
     let s = strokes(&f.list);
-    let (rect, color, radius, width) = s.iter().copied().find(|s| s.1 == theme::ACCENT_BRIGHT).unwrap();
+    let (rect, color, radius, width) = s.iter().copied().find(|s| s.1 == theme::accent_bright()).unwrap();
     assert!(close_rect(rect, ring));
-    assert_eq!((color, width), (theme::ACCENT_BRIGHT, 3.0));
+    assert_eq!((color, width), (theme::accent_bright(), 3.0));
     assert!(close(radius, 4.0 * 1.08 + 4.5));
     // The ring reaches 6 dp past the grown edge; the caption stays put, 14 under the well.
     assert!(close(rect.x - 1.5, 96.0 - 108.0 * 0.04 - 6.0));
     let caption = f.list.cmds.iter().find_map(|c| match c {
-        Cmd::Text { origin, layout, color } if &*layout.text == "Arrival" && *color == theme::FG => Some(*origin),
+        Cmd::Text { origin, layout, color } if &*layout.text == "Arrival" && *color == theme::fg() => Some(*origin),
         _ => None,
     });
     assert_eq!(caption, Some(Point::new(96.0, 386.0)));
@@ -91,7 +91,7 @@ fn the_placeholder_shows_until_the_picture_covers_it() {
     assert!(
         f.list.cmds.iter().any(|c| matches!(c, Cmd::Image { image, opacity, .. } if *image == id && *opacity == 1.0))
     );
-    assert_eq!(fills_of(&f.list, theme::SURFACE2).len(), 1);
+    assert_eq!(fills_of(&f.list, theme::surface2()).len(), 1);
 }
 
 /// Where Pley's mark is drawn, with which glyph, and in what.
@@ -134,7 +134,7 @@ fn a_tile_without_a_picture_shows_its_kinds_mark_and_not_its_title() {
     assert!(m.iter().all(|(_, _, c)| *c == Color::WHITE));
     // The caption names the tile; the placeholder doesn't say it again.
     assert_eq!((times(&f.list, "Arrival"), times(&f.list, "Severance")), (1, 1));
-    assert_eq!(text_color(&f.list, "Arrival"), Some(theme::FG));
+    assert_eq!(text_color(&f.list, "Arrival"), Some(theme::fg()));
 }
 
 #[test]
@@ -223,13 +223,13 @@ fn overlays_draw_progress_the_unwatched_count_or_the_tick() {
     assert_eq!(f.focused, Some(Id::new("c")));
     // A 4 dp bar along the foot, half of it Accent.
     assert!(fills_of(&f.list, theme::PROGRESS_TRACK_ON_ART).contains(&Rect::new(96.0, 368.0, 108.0, 4.0)));
-    assert!(fills_of(&f.list, theme::ACCENT).contains(&Rect::new(96.0, 368.0, 54.0, 4.0)));
+    assert!(fills_of(&f.list, theme::accent()).contains(&Rect::new(96.0, 368.0, 54.0, 4.0)));
     // The count instead of the tick: 18 tall, at least 20 wide, 6 in from the top right.
-    assert!(fills_of(&f.list, theme::ACCENT).contains(&Rect::new(218.0 + 108.0 - 6.0 - 20.0, 216.0, 20.0, 18.0)));
+    assert!(fills_of(&f.list, theme::accent()).contains(&Rect::new(218.0 + 108.0 - 6.0 - 20.0, 216.0, 20.0, 18.0)));
     assert_eq!(text_at(&f.list, "3").map(|p| p.y), Some(216.0 + 2.5));
     // The tick: a 20 dp box on art with a 12 dp check.
     let tick = Rect::new(340.0 + 108.0 - 6.0 - 20.0, 216.0, 20.0, 20.0);
-    assert!(fills_of(&f.list, theme::ON_ART).contains(&tick));
+    assert!(fills_of(&f.list, theme::on_art()).contains(&tick));
     let checks = f.list.cmds.iter().filter(|c| matches!(c, Cmd::Icon { icon: Icon::Check, .. })).count();
     assert_eq!(checks, 1);
 }
@@ -262,15 +262,15 @@ fn a_round_well_is_surface2_until_the_photo_covers_it() {
     let f = h.idle(&mut screen);
     // No name-seeded gradient: the circle is Surface2, round.
     assert!(!f.list.cmds.iter().any(|c| matches!(c, Cmd::Quad { .. })));
-    let well = fills_of(&f.list, theme::SURFACE2);
+    let well = fills_of(&f.list, theme::surface2());
     assert_eq!(well, [Rect::new(96.0, 210.0, 96.0, 96.0)]);
     assert!(f.list.cmds.iter().any(|c| matches!(c, Cmd::Fill { color, radius, .. }
-        if *color == theme::SURFACE2 && close(*radius, 48.0))));
+        if *color == theme::surface2() && close(*radius, 48.0))));
     // The photo comes over the same well.
     let id = h.images.ready("http://pley/person/7", 192, 192, -10.0);
     let f = h.idle(&mut screen);
     assert!(f.list.cmds.iter().any(|c| matches!(c, Cmd::Image { image, .. } if *image == id)));
-    assert_eq!(fills_of(&f.list, theme::SURFACE2).len(), 1);
+    assert_eq!(fills_of(&f.list, theme::surface2()).len(), 1);
 }
 
 #[test]

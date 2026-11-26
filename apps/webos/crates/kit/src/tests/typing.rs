@@ -34,7 +34,7 @@ fn the_keyboard_types_letters_capitals_digits_and_edits() {
     let f = settle(&mut h, &mut screen);
     // Focus starts on "q", in the keyboard's panel along the bottom.
     assert_eq!(f.focused, key(1, 0));
-    assert!(fills_of(&f.list, theme::SURFACE2).contains(&Keyboard::rect()));
+    assert!(fills_of(&f.list, theme::surface2()).contains(&Keyboard::rect()));
     assert_eq!(Keyboard::rect(), Rect::new(0.0, 275.0, 960.0, 265.0));
     assert_eq!(Keyboard::key_rect(1, 0.0, 1.0), Rect::new(193.0, 335.0, 52.0, 40.0));
     let type_ok = |h: &mut Harness, screen: &mut dyn FnMut(&mut Ui)| {
@@ -98,16 +98,16 @@ fn a_text_field_lights_its_edge_when_focused_and_shows_a_caret_while_typing() {
     h.idle(&mut screen);
     let f = h.idle(&mut screen);
     let rect = Rect::new(96.0, 27.0, 520.0, 44.0);
-    assert!(strokes(&f.list).iter().any(|s| s.0 == rect.expand(-1.0) && s.1 == theme::ACCENT_BRIGHT && s.3 == 2.0));
-    assert!(fills_of(&f.list, theme::ACCENT_BRIGHT).is_empty());
+    assert!(strokes(&f.list).iter().any(|s| s.0 == rect.expand(-1.0) && s.1 == theme::accent_bright() && s.3 == 2.0));
+    assert!(fills_of(&f.list, theme::accent_bright()).is_empty());
     typing.set(true);
     let f = h.idle(&mut screen);
     // The caret after "dune" (4 characters of 7), 16 in.
-    assert_eq!(fills_of(&f.list, theme::ACCENT_BRIGHT), vec![Rect::new(96.0 + 16.0 + 28.0 + 1.0, 39.0, 2.0, 20.0)]);
+    assert_eq!(fills_of(&f.list, theme::accent_bright()), vec![Rect::new(96.0 + 16.0 + 28.0 + 1.0, 39.0, 2.0, 20.0)]);
     // It blinks every half second.
     h.wait(0.5, &mut screen);
     let f = h.idle(&mut screen);
-    assert!(fills_of(&f.list, theme::ACCENT_BRIGHT).is_empty());
+    assert!(fills_of(&f.list, theme::accent_bright()).is_empty());
 }
 
 #[test]
@@ -138,10 +138,10 @@ fn the_pin_pad_starts_on_5_and_takes_the_remotes_digits() {
     let f = h.step(Step::Press(Key::Digit(3)), &mut screen);
     assert_eq!(pressed.get(), Some(PadKey::Digit(3)));
     let key3 = Rect::new(370.0 + 2.0 * 78.0, 120.0, 64.0, 64.0);
-    assert!(fills_of(&f.list, theme::SURFACE4).contains(&key3));
+    assert!(fills_of(&f.list, theme::surface4()).contains(&key3));
     h.wait(0.2, &mut screen);
     let f = h.idle(&mut screen);
-    assert!(fills_of(&f.list, theme::SURFACE3).contains(&key3));
+    assert!(fills_of(&f.list, theme::surface3()).contains(&key3));
 }
 
 #[test]
@@ -171,12 +171,12 @@ fn pin_dots_show_what_is_typed_and_shake_when_refused() {
     // Four dots, 14 across and 16 apart, centered: two typed, two rings.
     let width = 4.0 * 14.0 + 3.0 * 16.0;
     let first = Rect::new(480.0 - width / 2.0, 200.0, 14.0, 14.0);
-    assert_eq!(fills_of(&f.list, theme::FG), vec![first, first.translate(30.0, 0.0)]);
+    assert_eq!(fills_of(&f.list, theme::fg()), vec![first, first.translate(30.0, 0.0)]);
     assert_eq!(strokes(&f.list).len(), 2);
     shake.set(Some(h.time()));
     h.wait(0.02, &mut screen);
     let f = h.idle(&mut screen);
-    let x = fills_of(&f.list, theme::FG)[0].x;
+    let x = fills_of(&f.list, theme::fg())[0].x;
     assert!(x < first.x && x > first.x - 6.0, "{x}");
     assert_eq!(PinDots::shake_offset(0.04), -6.0);
     assert_eq!(PinDots::shake_offset(0.06), 0.0);

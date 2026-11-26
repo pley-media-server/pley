@@ -21,9 +21,9 @@ fn a_pill_is_at_least_128_wide_and_grows_to_1_05_with_an_accent_fill() {
     let f = settle(&mut h, &mut screen);
     assert_eq!(f.focused, Some(Id::new("play")));
     let rect = Rect::new(96.0, 300.0, 128.0, 40.0);
-    assert!(fills_of(&f.list, theme::ACCENT).contains(&rect));
+    assert!(fills_of(&f.list, theme::accent()).contains(&rect));
     assert_eq!(scales(&f.list), vec![(1.05, rect.center())]);
-    assert_eq!(text_color(&f.list, "Play"), Some(theme::ON_ACCENT));
+    assert_eq!(text_color(&f.list, "Play"), Some(theme::on_accent()));
     // A long label makes it wider: 20 + 20 + 8 + label + 20.
     let h2 = Harness::new();
     let mut list = pley_base::DisplayList::default();
@@ -120,9 +120,9 @@ fn chips_lead_with_a_check_when_selected_and_tabs_mark_the_current_one() {
             _ => None,
         })
         .collect();
-    assert_eq!(checks, vec![theme::ACCENT]);
-    assert_eq!(text_color(&f.list, "Collections"), Some(theme::MUTED));
+    assert_eq!(checks, vec![theme::accent()]);
+    assert_eq!(text_color(&f.list, "Collections"), Some(theme::muted()));
     assert_eq!(press(&mut h, Key::Right, &mut screen), Some(Id::new("collections")));
     let f = h.idle(&mut screen);
-    assert_eq!(fills_of(&f.list, theme::SURFACE3).len(), 2);
+    assert_eq!(fills_of(&f.list, theme::surface3()).len(), 2);
 }

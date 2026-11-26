@@ -229,7 +229,9 @@ impl AlbumScreen {
         let x = theme::GUTTER;
         art_well(ui, Rect::new(x, TOP, ART, ART), cover, &album.title, album.kind.mark_glyph(), radius::TILE);
         let mut y = TOP + ART + 12.0;
-        y += ui.text(Point::new(x, y), &album.title, &theme::TITLE, &TextOpts::wrap(COLUMN, 2).balanced(), theme::FG).h;
+        y += ui
+            .text(Point::new(x, y), &album.title, &theme::TITLE, &TextOpts::wrap(COLUMN, 2).balanced(), theme::fg())
+            .h;
 
         let mut go = None;
         let mut start = None;
@@ -243,21 +245,22 @@ impl AlbumScreen {
                 match (&album.parent_title, album.parent_id) {
                     (Some(artist), Some(artist_id)) => {
                         // The link's padding sits outside the column, so its text lines up with the title's.
-                        let link = Button::link(artist).color(theme::ACCENT_BRIGHT).max_label_width(COLUMN);
+                        let link = Button::link(artist).color(theme::accent_bright()).max_label_width(COLUMN);
                         if link.show(ui, ui.id("artist"), Point::new(x - 16.0, y + 2.0)).activated {
                             go = Some(Go::Artist(artist_id));
                         }
                         y += 2.0 + theme::BUTTON_HEIGHT;
                     }
                     (Some(artist), None) => {
-                        y += ui.text(Point::new(x, y), artist, &theme::LABEL, &TextOpts::line(COLUMN), theme::FG).h;
+                        y += ui.text(Point::new(x, y), artist, &theme::LABEL, &TextOpts::line(COLUMN), theme::fg()).h;
                     }
                     _ => {}
                 }
                 if !self.meta.is_empty() {
                     y += 4.0;
-                    y +=
-                        ui.text(Point::new(x, y), &self.meta, &theme::CAPTION, &TextOpts::line(COLUMN), theme::MUTED).h;
+                    y += ui
+                        .text(Point::new(x, y), &self.meta, &theme::CAPTION, &TextOpts::line(COLUMN), theme::muted())
+                        .h;
                 }
                 if let Some(rating) = pages::user_rating(album) {
                     stars(ui, Point::new(x, y + 6.0), rating);
@@ -303,7 +306,7 @@ impl AlbumScreen {
         if let Some(problem) = &self.problem {
             // Under the buttons and the labels that show under round ones.
             let at = Point::new(x, y + theme::BUTTON_HEIGHT + 6.0 + theme::CAPTION.line_height + 8.0);
-            ui.text(at, problem, &theme::CAPTION, &TextOpts::wrap(COLUMN, 2), theme::DANGER_TEXT);
+            ui.text(at, problem, &theme::CAPTION, &TextOpts::wrap(COLUMN, 2), theme::danger());
         }
         (go, start)
     }
@@ -328,7 +331,7 @@ impl AlbumScreen {
             return None;
         }
         if self.tracks.is_empty() {
-            ui.text(LIST.origin(), t!("music.pages.noTracks"), &theme::BODY, &TextOpts::line(LIST.w), theme::MUTED);
+            ui.text(LIST.origin(), t!("music.pages.noTracks"), &theme::BODY, &TextOpts::line(LIST.w), theme::muted());
             return None;
         }
         let id = ui.id("tracks");
@@ -393,7 +396,7 @@ impl AlbumScreen {
                         AlbumRow::Disc(d) => {
                             let at = Point::new(rect.x + 12.0, rect.y + 14.0);
                             let disc = t!("music.pages.disc", number = d);
-                            ui.text(at, &disc, &theme::LABEL, &TextOpts::line(LIST.w), theme::SUBTLE);
+                            ui.text(at, &disc, &theme::LABEL, &TextOpts::line(LIST.w), theme::subtle());
                         }
                         AlbumRow::Track(i) => {
                             let line = self.line(i, current, true);

@@ -1292,9 +1292,9 @@ fn draw_hero(
     out: &mut Vec<Intent>,
 ) -> Option<i64> {
     let x = theme::GUTTER;
-    ui.text(Point::new(x, top + l.title_y), &m.hero_title, &theme::HERO_TITLE, &title_opts(), theme::FG);
+    ui.text(Point::new(x, top + l.title_y), &m.hero_title, &theme::HERO_TITLE, &title_opts(), theme::fg());
     if let Some(c) = &m.context {
-        ui.text(Point::new(x, top + l.context_y), c, &theme::TITLE, &TextOpts::line(TEXT_W), theme::FG);
+        ui.text(Point::new(x, top + l.context_y), c, &theme::TITLE, &TextOpts::line(TEXT_W), theme::fg());
     }
     meta_line(&m.meta).show(ui, Point::new(x, top + l.meta_y), TEXT_W);
     if let Some(words) = &m.request {
@@ -1302,16 +1302,16 @@ fn draw_hero(
     }
     if m.primary.kind == PrimaryKind::Resume && !m.primary.time_left.is_empty() {
         let at = Point::new(x, top + l.left_y);
-        ui.text(at, &m.primary.time_left, &theme::CAPTION, &TextOpts::line(TEXT_W), theme::FG);
+        ui.text(at, &m.primary.time_left, &theme::CAPTION, &TextOpts::line(TEXT_W), theme::fg());
     }
     if !m.genres.is_empty() {
-        ui.text(Point::new(x, top + l.genres_y), &m.genres, &theme::CAPTION, &TextOpts::line(TEXT_W), theme::MUTED);
+        ui.text(Point::new(x, top + l.genres_y), &m.genres, &theme::CAPTION, &TextOpts::line(TEXT_W), theme::muted());
     }
     let cut = match &m.summary {
         Some(s) => {
             let layout = ui.layout(s, &theme::BODY_LARGE, &TextOpts::wrap(TEXT_W, 3));
             let cut = layout.truncated;
-            ui.draw_text(Point::new(x, top + l.summary_y), layout, theme::SUMMARY);
+            ui.draw_text(Point::new(x, top + l.summary_y), layout, theme::summary());
             cut
         }
         None => false,
@@ -1412,15 +1412,15 @@ fn draw_hero(
 fn draw_credits(ui: &mut Ui, c: &Credits, at: Point) {
     let mut parts: Vec<(&str, Color)> = Vec::new();
     if let Some((label, names)) = &c.made {
-        parts.push((label, theme::MUTED));
-        parts.push((names, theme::FG));
+        parts.push((label, theme::muted()));
+        parts.push((names, theme::fg()));
     }
     if let Some(stars) = &c.starring {
         if c.made.is_some() {
-            parts.push(("·", theme::SUBTLE));
+            parts.push(("·", theme::subtle()));
         }
-        parts.push((t!("item.credits.starring"), theme::MUTED));
-        parts.push((stars, theme::FG));
+        parts.push((t!("item.credits.starring"), theme::muted()));
+        parts.push((stars, theme::fg()));
     }
     // The text engine places no trailing space, so the spaces between the parts are added here.
     let opts = TextOpts::default();
@@ -1475,7 +1475,7 @@ fn draw_episodes(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &Ids, o
     let Some(s) = &m.seasons else { return };
     let tiles_y = if s.tabs.is_empty() {
         let at = Point::new(theme::GUTTER, top);
-        ui.text(at, &s.header, &theme::SECTION, &TextOpts::line(DETAILS_W), theme::FG);
+        ui.text(at, &s.header, &theme::SECTION, &TextOpts::line(DETAILS_W), theme::fg());
         top + theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES
     } else {
         draw_tabs(ui, s, view, top, ids, out);
@@ -1484,7 +1484,7 @@ fn draw_episodes(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &Ids, o
     let Some(episodes) = &s.episodes else { return };
     if episodes.is_empty() {
         let at = Point::new(theme::GUTTER, tiles_y);
-        ui.text(at, t!("item.rows.noEpisodes"), &theme::BODY, &TextOpts::line(DETAILS_W), theme::MUTED);
+        ui.text(at, t!("item.rows.noEpisodes"), &theme::BODY, &TextOpts::line(DETAILS_W), theme::muted());
         return;
     }
     if view.episodes_for != s.selected {
@@ -1685,16 +1685,16 @@ fn draw_details(
 ) {
     let x = theme::GUTTER;
     let w = DETAILS_W;
-    ui.text(Point::new(x, top), t!("item.details.title"), &theme::SECTION, &TextOpts::line(w), theme::FG);
+    ui.text(Point::new(x, top), t!("item.details.title"), &theme::SECTION, &TextOpts::line(w), theme::fg());
     let mut y = top + theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES;
     if !m.facts.is_empty() {
         let card_h = 32.0 + l.facts.iter().sum::<f32>();
-        ui.fill(Rect::new(x, y, w, card_h), theme::SURFACE2.alpha(0.6), radius::CARD);
+        ui.fill(Rect::new(x, y, w, card_h), theme::surface2().alpha(0.6), radius::CARD);
         let (label_opts, value_opts) = (TextOpts::line(FACT_LABEL_W - 8.0), fact_value_opts());
         let mut fy = y + 16.0 + 3.0;
         for ((label, value), h) in m.facts.iter().zip(&l.facts) {
-            ui.text(Point::new(x + 16.0, fy), label, &theme::BODY, &label_opts, theme::SUBTLE);
-            ui.text(Point::new(x + 16.0 + FACT_LABEL_W, fy), value, &theme::BODY, &value_opts, theme::SUMMARY);
+            ui.text(Point::new(x + 16.0, fy), label, &theme::BODY, &label_opts, theme::subtle());
+            ui.text(Point::new(x + 16.0 + FACT_LABEL_W, fy), value, &theme::BODY, &value_opts, theme::summary());
             fy += h;
         }
         y += card_h;
@@ -1704,7 +1704,7 @@ fn draw_details(
         let mut bottoms = l.bottoms.iter().map(|b| top + b);
         if !m.versions.is_empty() {
             y += 20.0;
-            ui.text(Point::new(x, y), t!("item.details.versions"), &theme::TITLE, &TextOpts::line(w), theme::FG);
+            ui.text(Point::new(x, y), t!("item.details.versions"), &theme::TITLE, &TextOpts::line(w), theme::fg());
             y += theme::TITLE.line_height + 8.0;
             for v in &m.versions {
                 let row = ListRow::new(&v.label).checked(v.selected);
@@ -1736,11 +1736,11 @@ fn draw_details(
 
 /// Draws one file's media card, laid out as `card`, at `at`.
 fn draw_card(ui: &mut Ui, f: &FileInfo, card: &CardLayout, at: Point, w: f32) {
-    ui.fill(Rect::new(at.x, at.y, w, card.height), theme::SURFACE2.alpha(0.6), radius::CARD);
+    ui.fill(Rect::new(at.x, at.y, w, card.height), theme::surface2().alpha(0.6), radius::CARD);
     let x = at.x + 16.0;
     let mut y = at.y + 16.0;
     if let Some(t) = &f.title {
-        ui.text(Point::new(x, y), t, &theme::LABEL, &TextOpts::line(w - 32.0), theme::FG);
+        ui.text(Point::new(x, y), t, &theme::LABEL, &TextOpts::line(w - 32.0), theme::fg());
         y += theme::LABEL.line_height + 10.0;
     }
     let (label_opts, value_opts) = (TextOpts::line(BLOCK_LABEL_W - 6.0), block_value_opts());
@@ -1750,12 +1750,18 @@ fn draw_card(ui: &mut Ui, f: &FileInfo, card: &CardLayout, at: Point, w: f32) {
         }
         for (c, b) in pair.iter().enumerate() {
             let bx = x + c as f32 * (BLOCK_W + BLOCK_GAP);
-            ui.text(Point::new(bx, y), &b.title, &theme::LABEL, &TextOpts::line(BLOCK_W), theme::FG);
+            ui.text(Point::new(bx, y), &b.title, &theme::LABEL, &TextOpts::line(BLOCK_W), theme::fg());
             let mut fy = y + theme::LABEL.line_height + 4.0;
             let heights = card.values.get(r * 2 + c).map_or(&[][..], |v| &v[..]);
             for (fact, lh) in b.facts.iter().zip(heights) {
-                ui.text(Point::new(bx, fy + 2.0), &fact.label, &theme::CAPTION, &label_opts, theme::MUTED);
-                ui.text(Point::new(bx + BLOCK_LABEL_W, fy + 2.0), &fact.value, &theme::CAPTION, &value_opts, theme::FG);
+                ui.text(Point::new(bx, fy + 2.0), &fact.label, &theme::CAPTION, &label_opts, theme::muted());
+                ui.text(
+                    Point::new(bx + BLOCK_LABEL_W, fy + 2.0),
+                    &fact.value,
+                    &theme::CAPTION,
+                    &value_opts,
+                    theme::fg(),
+                );
                 fy += lh + 4.0;
             }
         }
@@ -1799,10 +1805,10 @@ fn skeleton(ui: &mut Ui) {
         y += 15.0 + 7.0;
     }
     y += 38.0 - 7.0;
-    ui.fill(Rect::new(x, y, 140.0, theme::BUTTON_HEIGHT), theme::SURFACE2, radius::CONTROL);
+    ui.fill(Rect::new(x, y, 140.0, theme::BUTTON_HEIGHT), theme::surface2(), radius::CONTROL);
     let mut bx = x + 140.0 + theme::BUTTON_GAP;
     for _ in 0..3 {
-        ui.fill(Rect::new(bx, y, theme::BUTTON_HEIGHT, theme::BUTTON_HEIGHT), theme::SURFACE2, radius::CONTROL);
+        ui.fill(Rect::new(bx, y, theme::BUTTON_HEIGHT, theme::BUTTON_HEIGHT), theme::surface2(), radius::CONTROL);
         bx += theme::BUTTON_HEIGHT + theme::BUTTON_GAP;
     }
 }
@@ -1812,7 +1818,7 @@ fn info_block(ui: &mut Ui, id: Id, m: &Model, episode: Option<(&TileData, &str)>
     InfoBlock::show(ui, id, visible, |ui| {
         let r = InfoBlock::RECT;
         let mut y = r.y;
-        y += ui.text(Point::new(r.x, y), &m.hero_title, &theme::HERO_TITLE, &TextOpts::line(r.w), theme::FG).h;
+        y += ui.text(Point::new(r.x, y), &m.hero_title, &theme::HERO_TITLE, &TextOpts::line(r.w), theme::fg()).h;
         y += 10.0;
         meta_line(&m.meta).show(ui, Point::new(r.x, y), r.w);
         y += META_HEIGHT;
@@ -1820,16 +1826,16 @@ fn info_block(ui: &mut Ui, id: Id, m: &Model, episode: Option<(&TileData, &str)>
         match episode.and_then(|(e, line)| Some((e.item.as_ref()?, line))) {
             Some((e, line)) => {
                 y += 14.0;
-                y += ui.text(Point::new(r.x, y), &e.title, &theme::TITLE, &TextOpts::line(r.w), theme::FG).h;
+                y += ui.text(Point::new(r.x, y), &e.title, &theme::TITLE, &TextOpts::line(r.w), theme::fg()).h;
                 y += 4.0;
-                y += ui.text(Point::new(r.x, y), line, &theme::CAPTION, &TextOpts::line(r.w), theme::MUTED).h;
+                y += ui.text(Point::new(r.x, y), line, &theme::CAPTION, &TextOpts::line(r.w), theme::muted()).h;
                 if let Some(s) = e.summary.as_deref().filter(|s| !s.trim().is_empty()) {
-                    ui.text(Point::new(r.x, y + 6.0), s, &theme::BODY, &summary_opts, theme::SUMMARY);
+                    ui.text(Point::new(r.x, y + 6.0), s, &theme::BODY, &summary_opts, theme::summary());
                 }
             }
             None => {
                 if let Some(s) = &m.summary {
-                    ui.text(Point::new(r.x, y + 8.0), s, &theme::BODY, &summary_opts, theme::SUMMARY);
+                    ui.text(Point::new(r.x, y + 8.0), s, &theme::BODY, &summary_opts, theme::summary());
                 }
             }
         }

@@ -80,9 +80,9 @@ pub fn banner(ui: &mut Ui, title: &str, line: Option<&str>, fade: f32) {
     let width = theme::CANVAS_W - theme::SAFE_X - 300.0;
     ui.opacity(fade, |ui| {
         let mut y = theme::SAFE_Y;
-        y += ui.text(Point::new(left, y), title, &theme::TITLE, &TextOpts::line(width), theme::FG).h;
+        y += ui.text(Point::new(left, y), title, &theme::TITLE, &TextOpts::line(width), theme::fg()).h;
         if let Some(line) = line {
-            ui.text(Point::new(left, y + 4.0), line, &theme::LABEL, &TextOpts::line(width), theme::MUTED);
+            ui.text(Point::new(left, y + 4.0), line, &theme::LABEL, &TextOpts::line(width), theme::muted());
         }
     });
 }
@@ -104,9 +104,9 @@ pub fn top_bar(ui: &mut Ui, bar: &TopBar) {
     let right = theme::CANVAS_W - theme::SAFE_X;
     let width = right - left - 300.0 + theme::SAFE_X;
     let mut y = theme::SAFE_Y;
-    y += ui.text(Point::new(left, y), bar.title, &theme::TITLE, &TextOpts::line(width), theme::FG).h;
+    y += ui.text(Point::new(left, y), bar.title, &theme::TITLE, &TextOpts::line(width), theme::fg()).h;
     if let Some(line) = bar.line {
-        ui.text(Point::new(left, y + 4.0), line, &theme::LABEL, &TextOpts::line(width), theme::MUTED);
+        ui.text(Point::new(left, y + 4.0), line, &theme::LABEL, &TextOpts::line(width), theme::muted());
     }
     let clock = ui.layout(bar.clock, &theme::LABEL, &TextOpts::default());
     let badge_style = theme::CAPTION.with_weight(Weight::Bold);
@@ -116,19 +116,19 @@ pub fn top_bar(ui: &mut Ui, bar: &TopBar) {
     let top = theme::SAFE_Y;
     let clock_w = clock.size.w;
     let clock_h = clock.size.h;
-    ui.draw_text(Point::new(right - clock_w, top + (row_h - clock_h) / 2.0), clock, theme::MUTED);
+    ui.draw_text(Point::new(right - clock_w, top + (row_h - clock_h) / 2.0), clock, theme::muted());
     if let (Some(method), Some(layout)) = (bar.method, badge) {
         let color = text::method_color(method);
         let w = layout.size.w + 16.0;
         let r = Rect::new(right - clock_w - 12.0 - w, top + (row_h - badge_h) / 2.0, w, badge_h);
-        ui.fill(r, theme::ON_ART, radius::BADGE);
+        ui.fill(r, theme::on_art(), radius::BADGE);
         ui.fill(r, color.alpha(0.2), radius::BADGE);
         ui.draw_text(Point::new(r.x + 8.0, r.y + 3.0), layout, color);
     }
     if let Some(ends) = bar.ends {
         let l = ui.layout(ends, &theme::LABEL, &TextOpts::default());
         let w = l.size.w;
-        ui.draw_text(Point::new(right - w, top + row_h), l, theme::MUTED);
+        ui.draw_text(Point::new(right - w, top + row_h), l, theme::muted());
     }
 }
 
@@ -183,10 +183,10 @@ pub fn scrubber(ui: &mut Ui, group: Id, id: Id, s: &Scrub) -> Response {
     let shown_ms = s.target_ms.unwrap_or(s.position_ms);
     let elapsed = text::time(shown_ms);
     let rest = text::remaining(shown_ms, s.duration_ms);
-    ui.text(Point::new(left, TIMES_TOP), &elapsed, &theme::CAPTION, &TextOpts::default(), theme::FG);
+    ui.text(Point::new(left, TIMES_TOP), &elapsed, &theme::CAPTION, &TextOpts::default(), theme::fg());
     let rest = ui.layout(&rest, &theme::CAPTION, &TextOpts::default());
     let w = rest.size.w;
-    ui.draw_text(Point::new(right - w, TIMES_TOP), rest, theme::FG);
+    ui.draw_text(Point::new(right - w, TIMES_TOP), rest, theme::fg());
 
     let bar = Rect::new(left, TRACK_CENTRE - SCRUB_HEIGHT / 2.0, BAR_W, SCRUB_HEIGHT);
     let g = Group::row()
@@ -206,7 +206,7 @@ pub fn scrubber(ui: &mut Ui, group: Id, id: Id, s: &Scrub) -> Response {
         let d = s.duration_ms.max(1) as f32;
         let mid = left + ((m.start_ms + m.end_ms) as f32 / 2.0 / d).clamp(0.0, 1.0) * BAR_W;
         let x = (mid - l.size.w / 2.0).clamp(left, (right - l.size.w).max(left));
-        ui.draw_text(Point::new(x, TRACK_CENTRE + 6.0), l, theme::MUTED);
+        ui.draw_text(Point::new(x, TRACK_CENTRE + 6.0), l, theme::muted());
     }
     r
 }
@@ -232,22 +232,22 @@ fn track(ui: &mut Ui, s: &Scrub, focus: f32) {
             continue;
         }
         let seg = |to: f32| Rect::new(BAR_X + a, y, to.min(b) - a, TRACK_HEIGHT);
-        ui.fill(seg(b), theme::FG.alpha(0.25), r);
+        ui.fill(seg(b), theme::fg().alpha(0.25), r);
         if buffered > a {
-            ui.fill(seg(buffered), theme::FG.alpha(0.45), r);
+            ui.fill(seg(buffered), theme::fg().alpha(0.45), r);
         }
         if played > a {
-            ui.fill(seg(played), theme::ACCENT, r);
+            ui.fill(seg(played), theme::accent(), r);
         }
     }
     let radius = (THUMB + (THUMB_FOCUSED - THUMB) * focus) / 2.0;
     let cx = BAR_X + x(s.target_ms.unwrap_or(s.position_ms)).clamp(radius, w - radius);
     let c = Point::new(cx, TRACK_CENTRE);
-    ui.fill(Rect::new(c.x - radius, c.y - radius, 2.0 * radius, 2.0 * radius), theme::FG, radius);
+    ui.fill(Rect::new(c.x - radius, c.y - radius, 2.0 * radius, 2.0 * radius), theme::fg(), radius);
     if focus > 0.0 {
         let ring = radius + RING_OFFSET;
         let rect = Rect::new(c.x - ring, c.y - ring, 2.0 * ring, 2.0 * ring);
-        ui.stroke(rect, theme::ACCENT_BRIGHT.alpha(focus), ring, RING_STROKE);
+        ui.stroke(rect, theme::accent_bright().alpha(focus), ring, RING_STROKE);
     }
 }
 
@@ -279,17 +279,17 @@ pub fn preview(
     let mut y = if picture.is_some() { PREVIEW_TOP } else { PREVIEW_TOP + PREVIEW_H + 6.0 };
     if let Some(p) = picture {
         let rect = Rect::new(mid - PREVIEW_W / 2.0, y, PREVIEW_W, PREVIEW_H);
-        ui.fill(rect, theme::SURFACE2, radius::TILE);
+        ui.fill(rect, theme::surface2(), radius::TILE);
         draw_preview(ui, rect, p, tile);
-        ui.stroke(rect.expand(-1.0), theme::FG.alpha(0.2), radius::TILE - 1.0, 2.0);
+        ui.stroke(rect.expand(-1.0), theme::fg().alpha(0.2), radius::TILE - 1.0, 2.0);
         y += PREVIEW_H + 6.0;
     }
     let tw = time.size.w;
     let th = time.size.h;
-    ui.draw_text(Point::new(mid - tw / 2.0, y), time, theme::FG);
+    ui.draw_text(Point::new(mid - tw / 2.0, y), time, theme::fg());
     if let Some(c) = chapter {
         let cw = c.size.w;
-        ui.draw_text(Point::new(mid - cw / 2.0, y + th), c, theme::MUTED);
+        ui.draw_text(Point::new(mid - cw / 2.0, y + th), c, theme::muted());
     }
 }
 
@@ -469,21 +469,23 @@ pub fn row(
 
 /// The look of the player's buttons: a glyph alone on the scrim until focused, then an Accent
 /// square (radius 6) 1.08 larger with the glyph in OnAccent; AccentBright while pressed.
-const LOOK: ControlLook = ControlLook {
-    fill: Color::TRANSPARENT,
-    content: theme::FG,
-    edge: None,
-    focus_fill: theme::ACCENT,
-    focus_content: theme::ON_ACCENT,
-    pressed_fill: theme::ACCENT_BRIGHT,
-    focus_scale: theme::focus::ROUND.focus_scale,
-};
+fn look() -> ControlLook {
+    ControlLook {
+        fill: Color::TRANSPARENT,
+        content: theme::fg(),
+        edge: None,
+        focus_fill: theme::accent(),
+        focus_content: theme::on_accent(),
+        pressed_fill: theme::accent_bright(),
+        focus_scale: theme::focus::round().focus_scale,
+    }
+}
 
 /// One button of the row, its label fading in 8 dp under it while focused: centered under it, but
 /// kept inside the safe area, where a long label under a button at either end would run off.
 fn button(ui: &mut Ui, id: Id, rect: Rect, b: Btn, playing: bool) -> Response {
     let r = register(ui, id, rect, FocusOpts::default());
-    let s = shade(ui, &LOOK, &r);
+    let s = shade(ui, &look(), &r);
     ui.transform(Point::ZERO, s.scale, rect.center(), |ui| {
         ui.fill(rect, s.fill, radius::CONTROL);
         glyph(ui, rect, b, playing, s.content);
@@ -493,7 +495,7 @@ fn button(ui: &mut Ui, id: Id, rect: Rect, b: Btn, playing: bool) -> Response {
         let l = ui.layout(b.label(playing), &theme::CAPTION, &TextOpts::default());
         let x = (rect.center().x - l.size.w / 2.0).min(theme::CANVAS_W - theme::SAFE_X - l.size.w).max(theme::SAFE_X);
         let at = Point::new(x, rect.bottom() + LABEL_GAP);
-        ui.opacity(shown, |ui| ui.draw_text(at, l, theme::FG));
+        ui.opacity(shown, |ui| ui.draw_text(at, l, theme::fg()));
     }
     r
 }

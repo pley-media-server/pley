@@ -42,7 +42,7 @@ pub use screen::{
     AppEvent, CastMusic, Chrome, Overlay, PlaceholderScreen, Registry, Screen, ScreenFactory, TileActionsFactory,
     placeholder_text,
 };
-pub use shell::{Entry, Shell};
+pub use shell::{Entry, Shell, page_palette};
 pub use state::{
     AppState, CurrentFetch, ITEM_TTL, LIBRARY_GATHER, OFFLINE_ASK, OFFLINE_NOTICE, REVALIDATE, STATE_GATHER, Scan,
     offline_text,

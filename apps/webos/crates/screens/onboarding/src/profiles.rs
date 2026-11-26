@@ -448,7 +448,7 @@ impl ProfilesScreen {
     /// the same ids so the focused profile's ring fades from where it was, and nothing claimed.
     fn pick_ui(&mut self, ui: &mut Ui, cx: &mut AppCx, live: bool) -> Next {
         let opts = TextOpts::line(theme::CANVAS_W).aligned(pley_base::Align::Center);
-        ui.text(Point::new(0.0, 110.0), t!("profiles.title"), &theme::PAGE_TITLE, &opts, theme::FG);
+        ui.text(Point::new(0.0, 110.0), t!("profiles.title"), &theme::PAGE_TITLE, &opts, theme::fg());
 
         let list = shown(&self.profiles, cx.state.me());
         let n = list.len();
@@ -495,7 +495,7 @@ impl ProfilesScreen {
         let mut y = 400.0;
         if let Some(e) = &self.error {
             let opts = TextOpts::wrap(560.0, 0).aligned(pley_base::Align::Center);
-            y += ui.text(Point::new((theme::CANVAS_W - 560.0) / 2.0, y), e, &theme::BODY, &opts, theme::DANGER_TEXT).h;
+            y += ui.text(Point::new((theme::CANVAS_W - 560.0) / 2.0, y), e, &theme::BODY, &opts, theme::danger()).h;
             y += 12.0;
         }
         let mut retry = false;
@@ -584,14 +584,14 @@ impl ProfilesScreen {
             .avatar(ui, pley_base::Rect::new(centre - 28.0, y, 56.0, 56.0));
         y += 56.0 + 14.0;
         let centred = TextOpts::line(theme::CANVAS_W).aligned(pley_base::Align::Center);
-        ui.text(Point::new(0.0, y), &enter_pin(&step.profile.name), &theme::TITLE, &centred, theme::FG);
+        ui.text(Point::new(0.0, y), &enter_pin(&step.profile.name), &theme::TITLE, &centred, theme::fg());
         y += theme::TITLE.line_height + 16.0;
         PinDots { typed: step.digits.len() }.show(ui, centre, y, step.shake_since);
         y += PinDots::DOT;
         if let Some(e) = &step.error {
             let opts = TextOpts::line(560.0).aligned(pley_base::Align::Center);
             let ty = y + (22.0 - theme::BODY.line_height) / 2.0;
-            ui.text(Point::new(centre - 280.0, ty), e, &theme::BODY, &opts, theme::DANGER_TEXT);
+            ui.text(Point::new(centre - 280.0, ty), e, &theme::BODY, &opts, theme::danger());
         }
         y += 22.0;
 
@@ -644,7 +644,7 @@ impl ProfilesScreen {
             }
         } else {
             let opts = TextOpts::line(theme::CANVAS_W).aligned(pley_base::Align::Center);
-            ui.text(Point::new(0.0, y), t!("profiles.pin.keysHint"), &theme::CAPTION, &opts, theme::MUTED);
+            ui.text(Point::new(0.0, y), t!("profiles.pin.keysHint"), &theme::CAPTION, &opts, theme::muted());
         }
         next
     }

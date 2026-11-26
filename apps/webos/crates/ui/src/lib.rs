@@ -29,6 +29,7 @@ mod focus;
 mod id;
 mod input;
 mod motion;
+mod palette;
 pub mod testing;
 pub mod theme;
 mod ui;

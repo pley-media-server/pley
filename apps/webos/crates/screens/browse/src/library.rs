@@ -182,7 +182,7 @@ impl LibraryScreen {
             &library.name,
             &theme::PAGE_TITLE,
             &TextOpts::line(name_w),
-            theme::FG,
+            theme::fg(),
         );
         let tabs_id = ui.id("tabs");
         let shown_id = tabs_id.with(shown.as_str());
@@ -681,7 +681,7 @@ impl GridTab {
             if ui.measure(&text, &theme::CAPTION, &TextOpts::line(f32::MAX)).w <= room {
                 let y = CHIPS_Y + (theme::BUTTON_HEIGHT - theme::CAPTION.line_height) / 2.0;
                 let at = Point::new(end + COUNT_GAP - shift, y);
-                ui.text(at, &text, &theme::CAPTION, &TextOpts::line(room), theme::MUTED);
+                ui.text(at, &text, &theme::CAPTION, &TextOpts::line(room), theme::muted());
             }
         }
         match acted {
@@ -1488,7 +1488,7 @@ impl CollectionsTab {
         let room = theme::CANVAS_W - theme::SAFE_X - x;
         if ui.measure(&text, &theme::CAPTION, &TextOpts::line(f32::MAX)).w <= room {
             let y = CHIPS_Y + (theme::BUTTON_HEIGHT - theme::CAPTION.line_height) / 2.0;
-            ui.text(Point::new(x, y), &text, &theme::CAPTION, &TextOpts::line(room), theme::MUTED);
+            ui.text(Point::new(x, y), &text, &theme::CAPTION, &TextOpts::line(room), theme::muted());
         }
     }
 

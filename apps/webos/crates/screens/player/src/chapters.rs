@@ -115,7 +115,7 @@ pub fn show(ui: &mut Ui, id: Id, strip: &Strip, chapters: &[ChapterMark]) -> Res
 /// A chapter's card: its picture on Surface2, its name and its start; focused, the accent ring and
 /// the name in Fg.
 fn card(ui: &mut Ui, well: Rect, c: &ChapterMark, i: usize, focused: bool, tile: Option<&Tile>) {
-    ui.fill(well, theme::SURFACE2, radius::TILE);
+    ui.fill(well, theme::surface2(), radius::TILE);
     match (c.image_url.as_deref(), tile) {
         (Some(url), _) => {
             ui.fill(well, Color::BLACK, radius::TILE);
@@ -127,15 +127,15 @@ fn card(ui: &mut Ui, well: Rect, c: &ChapterMark, i: usize, focused: bool, tile:
     }
     if focused {
         let reach = RING_OFFSET + RING_STROKE / 2.0;
-        ui.stroke(well.expand(reach), theme::ACCENT_BRIGHT, radius::TILE + reach, RING_STROKE);
+        ui.stroke(well.expand(reach), theme::accent_bright(), radius::TILE + reach, RING_STROKE);
     }
     let y = well.bottom() + TEXT_GAP;
     let name = text::chapter_row(c, i);
-    let color = if focused { theme::FG } else { theme::MUTED };
+    let color = if focused { theme::fg() } else { theme::muted() };
     ui.text(Point::new(well.x, y), &name, &theme::LABEL, &TextOpts::line(well.w), color);
     let start = text::time(c.start_ms);
     let at = Point::new(well.x, y + theme::LABEL.line_height);
-    ui.text(at, &start, &theme::CAPTION, &TextOpts::line(well.w), theme::SUBTLE);
+    ui.text(at, &start, &theme::CAPTION, &TextOpts::line(well.w), theme::subtle());
 }
 
 #[cfg(test)]

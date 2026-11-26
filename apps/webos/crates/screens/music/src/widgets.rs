@@ -46,7 +46,7 @@ fn inert_response(id: Id) -> Response {
 pub fn art_well(ui: &mut Ui, rect: Rect, art: &[ImageRequest], seed: &str, glyph: MarkGlyph, corner: f32) {
     let shown = first_art(ui, art, Priority::Visible);
     if shown.is_some_and(|s| s.opaque()) {
-        ui.fill(rect, theme::SURFACE2, corner);
+        ui.fill(rect, theme::surface2(), corner);
     } else {
         placeholder(ui, rect, seed, "", shown.is_none().then_some(glyph), corner);
     }
@@ -76,7 +76,7 @@ pub fn faint_art(ui: &mut Ui, art: &[ImageRequest], seed: &str, alpha: f32) {
             ui.draw_image(full, s, &ImageOpts::cover());
         }
     });
-    ui.ramp(full, true, &theme::FAINT_ART_FADE);
+    ui.ramp(full, true, &theme::faint_art_fade());
 }
 
 /// A star's side and the gap between stars.
@@ -87,7 +87,7 @@ const STAR_GAP: f32 = 2.0;
 pub fn stars(ui: &mut Ui, at: Point, rating: i64) {
     for star in 1..=5 {
         let x = at.x + (star - 1) as f32 * (STAR + STAR_GAP);
-        let color = if star_lit(rating, star) { theme::ACCENT } else { theme::SURFACE4 };
+        let color = if star_lit(rating, star) { theme::accent() } else { theme::surface4() };
         ui.icon(Rect::new(x, at.y, STAR, STAR), Icon::Star, color);
     }
 }
@@ -108,10 +108,10 @@ pub fn message(ui: &mut Ui, title: &str, body: &str, action: &str) -> Response {
     let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
     let body = clipped(body);
     let mut y = 60.0;
-    y += ui.text(Point::new(theme::GUTTER, y), title, &theme::TITLE, &TextOpts::wrap(width, 2), theme::FG).h;
+    y += ui.text(Point::new(theme::GUTTER, y), title, &theme::TITLE, &TextOpts::wrap(width, 2), theme::fg()).h;
     y += 10.0;
     let opts = TextOpts::wrap(width, MESSAGE_LINES);
-    y += ui.text(Point::new(theme::GUTTER, y), body, &theme::BODY, &opts, theme::MUTED).h;
+    y += ui.text(Point::new(theme::GUTTER, y), body, &theme::BODY, &opts, theme::muted()).h;
     y += 10.0 + 12.0 + 10.0;
     let id = ui.id("message");
     ui.initial_focus(id);
@@ -141,6 +141,6 @@ pub fn list_state(list: &Resource<ItemList>) -> ListState<'_> {
 /// A list that couldn't come, in its place at `at`: why, in `Tv.Body` Muted (three lines at
 /// most), and Retry 12 below.
 pub fn list_failure(ui: &mut Ui, at: Point, width: f32, body: &str) -> Response {
-    let h = ui.text(at, clipped(body), &theme::BODY, &TextOpts::wrap(width, 3), theme::MUTED).h;
+    let h = ui.text(at, clipped(body), &theme::BODY, &TextOpts::wrap(width, 3), theme::muted()).h;
     Button::pill(pley_i18n::t!("music.actions.retry")).show(ui, ui.id("retry"), Point::new(at.x, at.y + h + 12.0))
 }

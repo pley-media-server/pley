@@ -198,11 +198,11 @@ fn reason(e: &ApiError) -> String {
 /// language shown, as the player wrote it.
 pub fn method_color(method: &str) -> Color {
     if method.starts_with(t!("player.method.direct")) {
-        theme::SUCCESS
+        theme::success()
     } else if method.starts_with(t!("player.method.remux")) {
-        theme::INFO
+        theme::info()
     } else {
-        theme::ACCENT
+        theme::accent()
     }
 }
 
@@ -323,7 +323,7 @@ mod tests {
             let c = [chapter(0, 60_000, None), chapter(60_000, 120_000, Some("Chapitre 2"))];
             assert_eq!(chapter_line(&c[0], 0), "Chapitre 1");
             assert_eq!(chapter_line(&c[1], 1), "Chapitre 2");
-            assert_eq!(method_color("Flux direct · Audio transcodé"), theme::INFO);
+            assert_eq!(method_color("Flux direct · Audio transcodé"), theme::info());
         });
         pley_i18n::with_language(pley_i18n::Language::Es, || {
             assert_eq!(speed(0.75), "0,75×");
@@ -335,9 +335,9 @@ mod tests {
 
     #[test]
     fn colours_how_it_plays() {
-        assert_eq!(method_color("Direct play"), theme::SUCCESS);
-        assert_eq!(method_color("Direct stream · Audio transcoding"), theme::INFO);
-        assert_eq!(method_color("Transcoding"), theme::ACCENT);
+        assert_eq!(method_color("Direct play"), theme::success());
+        assert_eq!(method_color("Direct stream · Audio transcoding"), theme::info());
+        assert_eq!(method_color("Transcoding"), theme::accent());
         assert!(shows_previous_next(Some("S1 · E2"), 0));
         assert!(!shows_previous_next(None, 1));
         assert!(shows_previous_next(None, 2));

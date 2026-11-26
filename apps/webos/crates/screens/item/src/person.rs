@@ -119,7 +119,7 @@ impl PersonScreen {
     fn header(&self, ui: &mut Ui) {
         let photo = Rect::new(theme::GUTTER, HEADER_TOP, PHOTO, PHOTO);
         let r = radius::circle(PHOTO);
-        ui.fill(photo, theme::SURFACE2, r);
+        ui.fill(photo, theme::surface2(), r);
         let x = photo.right() + PHOTO_GAP;
         let width = theme::CANVAS_W - theme::SAFE_X - x;
         let Some(page) = &self.page else {
@@ -137,7 +137,7 @@ impl PersonScreen {
             let initials = words::initials(&page.name);
             let size = ui.measure(&initials, &theme::PAGE_TITLE, &TextOpts::default());
             let at = Point::new(photo.center().x - size.w / 2.0, photo.center().y - size.h / 2.0);
-            ui.text(at, &initials, &theme::PAGE_TITLE, &TextOpts::default(), theme::FG.alpha(0.8));
+            ui.text(at, &initials, &theme::PAGE_TITLE, &TextOpts::default(), theme::fg().alpha(0.8));
         }
         if let Some(s) = shown {
             ui.draw_image(photo, &s, &ImageOpts::cover().rounded(r));
@@ -148,10 +148,10 @@ impl PersonScreen {
             if page.counts.is_empty() { String::new() } else { t!("item.person.inLibraries", counts = page.counts) };
         let counts_h = if counts.is_empty() { 0.0 } else { 8.0 + theme::BODY.line_height };
         let mut y = photo.center().y - (name_h + counts_h) / 2.0;
-        ui.text(Point::new(x, y), &page.name, &theme::PAGE_TITLE, &name_opts, theme::FG);
+        ui.text(Point::new(x, y), &page.name, &theme::PAGE_TITLE, &name_opts, theme::fg());
         y += name_h + 8.0;
         if !counts.is_empty() {
-            ui.text(Point::new(x, y), &counts, &theme::BODY, &TextOpts::line(width), theme::MUTED);
+            ui.text(Point::new(x, y), &counts, &theme::BODY, &TextOpts::line(width), theme::muted());
         }
     }
 

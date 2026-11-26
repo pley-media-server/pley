@@ -569,7 +569,7 @@ impl Screen for RequestsScreen {
                             let Some(r) = shown.get(slot.index) else {
                                 let at = Point::new(theme::GUTTER, y + 4.0);
                                 let more = t!("requests.page.newest", number = pley_i18n::number(REQUESTS_MAX));
-                                ui.text(at, &more, &theme::CAPTION, &TextOpts::line(title_w), theme::MUTED);
+                                ui.text(at, &more, &theme::CAPTION, &TextOpts::line(title_w), theme::muted());
                                 return;
                             };
                             let rect = Rect::new(theme::GUTTER, y, CARD_W, CARD_H);
@@ -600,8 +600,8 @@ impl Screen for RequestsScreen {
                             fade,
                             true,
                             vec![
-                                pley_base::GradientStop { at: 0.0, color: theme::BG.alpha(0.0) },
-                                pley_base::GradientStop { at: 1.0, color: theme::BG },
+                                pley_base::GradientStop { at: 0.0, color: theme::bg().alpha(0.0) },
+                                pley_base::GradientStop { at: 1.0, color: theme::bg() },
                             ],
                         );
                     }
@@ -626,14 +626,14 @@ impl Screen for RequestsScreen {
         }
 
         // Over the list: the page's title, the tabs, the filters.
-        ui.fill(Rect::new(0.0, 0.0, theme::CANVAS_W, list_top), theme::BG, 0.0);
+        ui.fill(Rect::new(0.0, 0.0, theme::CANVAS_W, list_top), theme::bg(), 0.0);
         let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
         ui.text(
             Point::new(theme::GUTTER, theme::SAFE_Y),
             requests_title(s.as_ref()),
             &theme::PAGE_TITLE,
             &TextOpts::line(width),
-            theme::FG,
+            theme::fg(),
         );
         let counts = list.as_ref().map(|l| &l.counts);
         let tabs_id = page.with("tabs");
@@ -651,7 +651,7 @@ impl Screen for RequestsScreen {
                         tab_count(t, counts, s.as_ref())
                     };
                     let control = Counted {
-                        look: if t == tab { focus::TAB_CURRENT } else { focus::TAB },
+                        look: if t == tab { focus::tab_current() } else { focus::tab() },
                         icon: None,
                         label,
                         count: n.filter(|n| *n > 0).map(|n| count_text(n, 999)),
@@ -674,7 +674,7 @@ impl Screen for RequestsScreen {
             } else if s.as_ref().is_some_and(|s| s.sign_in_again == Some(Scope::Approvals)) {
                 ui.group(page.with("filters"), bar_group(), |ui| {
                     let y = FILTERS_Y + 2.0;
-                    ui.icon(Rect::new(theme::GUTTER, y + 10.0, 20.0, 20.0), Icon::UserRound, theme::MUTED);
+                    ui.icon(Rect::new(theme::GUTTER, y + 10.0, 20.0, 20.0), Icon::UserRound, theme::muted());
                     let x = theme::GUTTER + 30.0;
                     let pill = Button::pill(t!("requests.buttons.signIn"));
                     let w = theme::CANVAS_W - theme::SAFE_X - x - pill.size(ui).w - 16.0;
@@ -684,7 +684,7 @@ impl Screen for RequestsScreen {
                             sign_in_approvals(),
                             &theme::BODY,
                             &TextOpts::line(w),
-                            theme::MUTED,
+                            theme::muted(),
                         )
                         .w;
                     if pill.show(ui, ui.id("signin"), Point::new(x + used + 16.0, y)).activated {
@@ -978,7 +978,7 @@ impl RequestsScreen {
                         y += 8.0;
                         let facts = format!("{} · {}", request_what(r), asked_line(r, manage, time));
                         y += ui
-                            .text(Point::new(x, y), &facts, &theme::CAPTION, &TextOpts::wrap(inner, 2), theme::MUTED)
+                            .text(Point::new(x, y), &facts, &theme::CAPTION, &TextOpts::wrap(inner, 2), theme::muted())
                             .h;
                         if let Some(note) = &stage.note {
                             y += 2.0
@@ -987,7 +987,7 @@ impl RequestsScreen {
                                     note,
                                     &theme::CAPTION,
                                     &TextOpts::wrap(inner, 3),
-                                    theme::MUTED,
+                                    theme::muted(),
                                 )
                                 .h;
                         }
@@ -998,7 +998,7 @@ impl RequestsScreen {
                                     &note,
                                     &theme::CAPTION,
                                     &TextOpts::wrap(inner, 2),
-                                    theme::MUTED,
+                                    theme::muted(),
                                 )
                                 .h;
                         }
@@ -1143,7 +1143,7 @@ fn card(
     p: f32,
 ) {
     let scale = 1.0 + 0.02 * p;
-    let fill = theme::SURFACE.lerp(theme::SURFACE3, p);
+    let fill = theme::surface().lerp(theme::surface3(), p);
     ui.transform(Point::ZERO, scale, rect.center(), |ui| {
         ui.fill(rect, fill, radius::DIALOG);
         // The poster.
@@ -1158,7 +1158,7 @@ fn card(
         if news {
             let dot = Rect::new(rect.x + 54.0, rect.y + 6.0, 10.0, 10.0);
             ui.fill(dot.expand(2.0), fill, 7.0);
-            ui.fill(dot, theme::ACCENT, 5.0);
+            ui.fill(dot, theme::accent(), 5.0);
         }
         // The stage at the right.
         let stage = stage_words(r, manage, time);
@@ -1181,24 +1181,24 @@ fn card(
             + theme::CAPTION.line_height
             + if note.is_empty() { 0.0 } else { 2.0 + theme::CAPTION.line_height };
         let mut y = rect.y + (rect.h - block) / 2.0;
-        let title = ui.text(Point::new(x, y), &r.title, &theme::TITLE, &TextOpts::line(w), theme::FG);
+        let title = ui.text(Point::new(x, y), &r.title, &theme::TITLE, &TextOpts::line(w), theme::fg());
         if let Some(year) = r.year.filter(|y| *y != 0) {
             let rest = (w - title.w).max(0.0);
             if rest > 40.0 {
                 let at = Point::new(x + title.w, y + 2.0);
-                ui.text(at, &format!(" · {year}"), &theme::LABEL, &TextOpts::line(rest), theme::MUTED);
+                ui.text(at, &format!(" · {year}"), &theme::LABEL, &TextOpts::line(rest), theme::muted());
             }
         }
         y += theme::TITLE.line_height + 3.0;
-        ui.text(Point::new(x, y), &sub, &theme::CAPTION, &TextOpts::line(w), theme::MUTED);
+        ui.text(Point::new(x, y), &sub, &theme::CAPTION, &TextOpts::line(w), theme::muted());
         y += theme::CAPTION.line_height + 2.0;
         if !note.is_empty() {
-            ui.text(Point::new(x, y), &note, &theme::CAPTION, &TextOpts::line(w), theme::SUBTLE);
+            ui.text(Point::new(x, y), &note, &theme::CAPTION, &TextOpts::line(w), theme::subtle());
         }
     });
     if p > 0.0 {
         let grown = rect.scale_about(rect.center(), scale);
         let ring = grown.expand(5.56);
-        ui.stroke(ring, focus::RING_COLOR.alpha(p), 13.56, 2.78);
+        ui.stroke(ring, focus::ring_color().alpha(p), 13.56, 2.78);
     }
 }

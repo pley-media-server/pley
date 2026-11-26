@@ -199,6 +199,34 @@ and `decimal`; counts by CLDR's plural forms, one and other in English,
 one, many and other in French and Spanish, only other in Chinese), times
 of day in the TV's 12- or 24-hour clock.
 
+### Appearance
+
+Settings → Appearance picks the theme and accent, as Account → Appearance
+does on the web ([THEMES.md](THEMES.md)). Its two rows, Theme
+and Accent, say what is picked and open the page of choices on either: the
+nine themes, five to a line, each a small Pley in its colors with its name
+and caption, then the accents, Default (the theme's own) first, each a
+swatch of the color it gives the theme shown. What is picked is checked.
+OK shows a choice at once, every color in the same frame. It is kept for
+each profile on this TV, by server and profile (`themes` in its settings),
+and nothing goes to the server: a profile that picked none here shows
+Midnight in its own accent, and switching profile switches the theme at
+once. The one shown last is kept too (`theme` and `accent`): a start shows
+it from its first frame, as do the pages before a profile is known (the
+servers, the sign-in code, "Who's watching?" and the PIN pad), and signing
+out keeps it. Delete all local data goes back to Midnight. The players,
+and what shows over them, draw a light theme in its dark twin's colors.
+
+The colors are built in from `packages/themes/themes.json`
+(`crates/ui/src/palette.rs`), whose tests hold every theme under every
+accent to the file. Each frame the shell shows the palette picked, and every
+color the screens draw reads it from there (`pley_ui::theme`). The
+backdrops (Twilight's sunset, Moonlight's moon, Nightshade's light,
+Sunshine's bubbles, and Sunshine's rainbow down the open rail) are a few
+vertex gradients under the page, drawn on Mid- and High-tier TVs; a
+Low-tier TV draws the theme's plain page color. A title's picture fades
+into the page color, so a backdrop shows around pictures, not through them.
+
 ### Audio and subtitles
 
 - The server picks the audio track that this TV plays best in the
@@ -826,7 +854,7 @@ but keeps time, seeks, changes speed, waits and ends as the TV's does.
 | `--data <dir>` | Keep the app's data here (by default `pley-lg-sim` in the temporary folder, or a new folder each run with `--fixtures`); the log is `logs/pley.log` in it |
 | `--drive <dir>` | A folder of the computer's stands in for a USB drive plugged into the TV; `--drive fixtures` makes a sample drive in the data folder (`crates/fixtures`: films that are heads only, with tracks, chapters, HDR10+, Dolby Vision profile 7, a subtitle file, a folder and what a drive holds that is never listed) |
 | `--size <w>x<h>` | The window's size (1280x720; `1920x1080` for the TV's) |
-| `--route <route>` | Open a page: `home`, `item:12`, `library:3`, `search:<query>`, `settings:about`, `storage` (the drive's top) or `storage:<folder>`… |
+| `--route <route>` | Open a page: `home`, `item:12`, `library:3`, `search:<query>`, `settings:about`, `appearance`, `storage` (the drive's top) or `storage:<folder>`… |
 | `--keys "<script>"` | Keys to press once the first page shows: `up down left right ok back menu info play pause playpause stop ff rew next prev chup chdown red green yellow blue`, digits, `hold:<key>:<ms>` (held, repeating as the remote does), `wait:<ms>`, `text:<chars>`, `point:<x>,<y>` (dp), `click`, and `drive:out` and `drive:in` (the drive pulled out and plugged in again) |
 | `--screenshot <file>` | After the keys (and a `wait:` at their end), once the frames go quiet, write the frame as PNG and leave |
 | `--screenshot-after <ms>` | Take the screenshot this long after the keys instead: a playing video never goes quiet, and otherwise the shot comes 15 s after the last key |

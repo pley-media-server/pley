@@ -290,7 +290,7 @@ impl Column {
                     Line::Heading(text) => {
                         let at = Point::new(slot.rect.x + INSET, slot.rect.y + 14.0);
                         let opts = TextOpts::line(slot.rect.w - INSET);
-                        ui.text(at, &text.to_uppercase(), &theme::BADGE, &opts, theme::SUBTLE);
+                        ui.text(at, &text.to_uppercase(), &theme::BADGE, &opts, theme::subtle());
                     }
                     _ => {
                         let selected = v
@@ -326,11 +326,11 @@ fn row(ui: &mut Ui, id: Id, rect: Rect, line: &Line, v: &ColumnView, selected: b
     }
     let lit = r.focused || r.pressed;
     let fill = if r.pressed {
-        theme::ACCENT_BRIGHT
+        theme::accent_bright()
     } else if r.focused {
-        theme::ACCENT
+        theme::accent()
     } else if selected {
-        theme::SURFACE3
+        theme::surface3()
     } else {
         pley_base::Color::TRANSPARENT
     };
@@ -338,11 +338,11 @@ fn row(ui: &mut Ui, id: Id, rect: Rect, line: &Line, v: &ColumnView, selected: b
         ui.fill(rect, fill, radius::CONTROL);
     }
     let content = if lit {
-        theme::ON_ACCENT
+        theme::on_accent()
     } else if selected {
-        theme::FG
+        theme::fg()
     } else {
-        theme::MUTED
+        theme::muted()
     };
     let groups = v.groups;
     let (icon, name, count, indent) = match line {
@@ -375,7 +375,7 @@ fn row(ui: &mut Ui, id: Id, rect: Rect, line: &Line, v: &ColumnView, selected: b
     };
     let mut x = rect.x + indent;
     if let Some(icon) = icon {
-        let tint = if selected && !lit { theme::ACCENT } else { content };
+        let tint = if selected && !lit { theme::accent() } else { content };
         ui.icon(Rect::new(x, rect.y + (rect.h - 16.0) / 2.0, 16.0, 16.0), icon, tint);
         x += 16.0 + 10.0;
     }

@@ -407,18 +407,18 @@ impl LinkView {
         let mut y = LOGO_Y;
         self.logo.show(ui, Point::new(x, y), LOGO_H);
         y += LOGO_H + 28.0;
-        ui.text(Point::new(x, y), labels.title, &theme::PAGE_TITLE, &TextOpts::line(width), theme::FG);
+        ui.text(Point::new(x, y), labels.title, &theme::PAGE_TITLE, &TextOpts::line(width), theme::fg());
         y += theme::PAGE_TITLE.line_height;
         if let Some(intro) = labels.intro {
             y += 6.0;
-            y += ui.text(Point::new(x, y), intro, &theme::BODY, &TextOpts::wrap(width, 2), theme::MUTED).h;
+            y += ui.text(Point::new(x, y), intro, &theme::BODY, &TextOpts::wrap(width, 2), theme::muted()).h;
             y += 10.0;
         } else {
             y += 18.0;
         }
         let code = flow.code();
         step(ui, Point::new(x, y), 1, |ui, at| {
-            ui.text(at, t!("signin.link.scan"), &theme::BODY_LARGE, &TextOpts::line(width - 42.0), theme::FG);
+            ui.text(at, t!("signin.link.scan"), &theme::BODY_LARGE, &TextOpts::line(width - 42.0), theme::fg());
         });
         y += 28.0 + 12.0;
         let address = code.map_or_else(|| "…".to_string(), DeviceCode::address);
@@ -430,12 +430,12 @@ impl LinkView {
             let rest = (width - 42.0 - w).max(1.0);
             let shown = ui.layout(&address, &style, &TextOpts::line(rest));
             let dy = lead.first_baseline() - shown.first_baseline();
-            ui.draw_text(at, lead, theme::FG);
-            ui.draw_text(Point::new(at.x + w, at.y + dy), shown, theme::FG);
+            ui.draw_text(at, lead, theme::fg());
+            ui.draw_text(Point::new(at.x + w, at.y + dy), shown, theme::fg());
         });
         y += 28.0 + 12.0;
         step(ui, Point::new(x, y), 3, |ui, at| {
-            ui.text(at, t!("signin.link.enterCode"), &theme::BODY_LARGE, &TextOpts::line(width - 42.0), theme::FG);
+            ui.text(at, t!("signin.link.enterCode"), &theme::BODY_LARGE, &TextOpts::line(width - 42.0), theme::fg());
         });
         y += 28.0 + 12.0;
         let dim = code.is_none() || matches!(status, LinkStatus::Expired | LinkStatus::Starting);
@@ -451,9 +451,9 @@ impl LinkView {
             });
         } else {
             let note = TextOpts::line(width);
-            ui.text(Point::new(x, y), t!("signin.link.sameWifi"), &theme::BODY, &note, theme::MUTED);
+            ui.text(Point::new(x, y), t!("signin.link.sameWifi"), &theme::BODY, &note, theme::muted());
             let y2 = y + theme::BODY.line_height + 6.0;
-            ui.text(Point::new(x, y2), t!("signin.link.otherDevice"), &theme::BODY, &note, theme::MUTED);
+            ui.text(Point::new(x, y2), t!("signin.link.otherDevice"), &theme::BODY, &note, theme::muted());
         }
 
         // The status line at y 478.
@@ -461,26 +461,26 @@ impl LinkView {
         let now = ui.time();
         match status {
             LinkStatus::Starting => {
-                status_line(ui, at, width, t!("signin.link.gettingCode"), &theme::LABEL, theme::MUTED, true);
+                status_line(ui, at, width, t!("signin.link.gettingCode"), &theme::LABEL, theme::muted(), true);
             }
             LinkStatus::Waiting => {
-                status_line(ui, at, width, t!("signin.link.waiting"), &theme::LABEL, theme::MUTED, true);
+                status_line(ui, at, width, t!("signin.link.waiting"), &theme::LABEL, theme::muted(), true);
             }
             LinkStatus::Unreachable { retry_at } => {
                 let left = (retry_at - now).max(0.0).ceil() as u64;
-                status_line(ui, at, width, &retrying(left), &theme::LABEL, theme::DANGER_TEXT, false);
+                status_line(ui, at, width, &retrying(left), &theme::LABEL, theme::danger(), false);
                 if *retry_at > now {
                     ui.repaint_after((retry_at - now).fract().max(0.05));
                 }
             }
             LinkStatus::Declined => {
-                status_line(ui, at, width, t!("signin.link.declined"), &theme::LABEL, theme::DANGER_TEXT, false);
+                status_line(ui, at, width, t!("signin.link.declined"), &theme::LABEL, theme::danger(), false);
             }
             LinkStatus::Expired => {
-                status_line(ui, at, width, t!("signin.link.expired"), &theme::LABEL, theme::MUTED, false);
+                status_line(ui, at, width, t!("signin.link.expired"), &theme::LABEL, theme::muted(), false);
             }
             LinkStatus::Failed(message) => {
-                status_line(ui, at, width, &sentence(message), &theme::LABEL, theme::DANGER_TEXT, false);
+                status_line(ui, at, width, &sentence(message), &theme::LABEL, theme::danger(), false);
             }
             LinkStatus::SignedIn { .. } => {}
         }
@@ -495,11 +495,11 @@ impl LinkView {
         let qr_alpha = if *status == LinkStatus::Expired { 0.4 } else { 1.0 };
         match self.qr.as_mut() {
             Some((_, qr)) => qr.show(ui, tile, radius::DIALOG, qr_alpha),
-            None => ui.fill(tile, theme::SURFACE2, radius::DIALOG),
+            None => ui.fill(tile, theme::surface2(), radius::DIALOG),
         }
         let caption = TextOpts::line(268.0).aligned(pley_base::Align::Center);
         let scan = t!("signin.link.scanCamera");
-        ui.text(Point::new(qx, tile.bottom() + 12.0), scan, &theme::CAPTION, &caption, theme::MUTED);
+        ui.text(Point::new(qx, tile.bottom() + 12.0), scan, &theme::CAPTION, &caption, theme::muted());
         let by = tile.bottom() + 12.0 + theme::CAPTION.line_height + 18.0;
         let back = Button::text(labels.back);
         let bw = back.size(ui).w;
@@ -525,11 +525,11 @@ impl LinkView {
 /// A numbered step (`Step`): a 28 dp Surface3 box with the number, 14 dp, then its words.
 fn step(ui: &mut Ui, at: Point, n: u32, words: impl FnOnce(&mut Ui, Point)) {
     let tile = Rect::new(at.x, at.y, 28.0, 28.0);
-    ui.fill(tile, theme::SURFACE3, radius::FIELD);
+    ui.fill(tile, theme::surface3(), radius::FIELD);
     let label = n.to_string();
     let w = ui.measure(&label, &theme::LABEL, &free_line()).w;
     let ty = at.y + (28.0 - theme::LABEL.line_height) / 2.0;
-    ui.text(Point::new(at.x + (28.0 - w) / 2.0, ty), &label, &theme::LABEL, &free_line(), theme::FG);
+    ui.text(Point::new(at.x + (28.0 - w) / 2.0, ty), &label, &theme::LABEL, &free_line(), theme::fg());
     let wy = at.y + (28.0 - theme::BODY_LARGE.line_height) / 2.0;
     words(ui, Point::new(at.x + 28.0 + 14.0, wy));
 }
@@ -543,14 +543,14 @@ fn code_fields(ui: &mut Ui, at: Point, code: Option<&str>, dim: bool) {
         let mut x = at.x;
         for (i, part) in parts.iter().enumerate() {
             if i > 0 {
-                ui.fill(Rect::new(x + 16.0, at.y + 36.0, 20.0, 4.0), theme::SUBTLE, radius::CONTROL.min(2.0));
+                ui.fill(Rect::new(x + 16.0, at.y + 36.0, 20.0, 4.0), theme::subtle(), radius::CONTROL.min(2.0));
                 x += 52.0;
             }
             let w = ui.measure(part, &theme::CODE, &free_line()).w;
             let field = Rect::new(x, at.y, w + 40.0, 76.0);
-            ui.fill(field, theme::SURFACE2, radius::CARD);
+            ui.fill(field, theme::surface2(), radius::CARD);
             let ty = at.y + (76.0 - theme::CODE.line_height) / 2.0;
-            ui.text(Point::new(x + 20.0, ty), part, &theme::CODE, &free_line(), theme::FG);
+            ui.text(Point::new(x + 20.0, ty), part, &theme::CODE, &free_line(), theme::fg());
             x = field.right();
         }
     });
@@ -560,10 +560,16 @@ fn code_fields(ui: &mut Ui, at: Point, code: Option<&str>, dim: bool) {
 /// words in `Tv.PageTitle` on at most two lines, 20 apart.
 fn signed_in(ui: &mut Ui, name: Option<&str>) {
     let tile = Rect::new(theme::GUTTER, 200.0, 64.0, 64.0);
-    ui.fill(tile, theme::SUCCESS, radius::DIALOG);
-    ui.icon(tile.place(Size::new(32.0, 32.0), 0.5, 0.5), Icon::Check, theme::BG);
+    ui.fill(tile, theme::success(), radius::DIALOG);
+    ui.icon(tile.place(Size::new(32.0, 32.0), 0.5, 0.5), Icon::Check, theme::bg());
     let words = signed_in_text(name);
-    ui.text(Point::new(tile.x, tile.bottom() + 20.0), &words, &theme::PAGE_TITLE, &TextOpts::wrap(440.0, 2), theme::FG);
+    ui.text(
+        Point::new(tile.x, tile.bottom() + 20.0),
+        &words,
+        &theme::PAGE_TITLE,
+        &TextOpts::wrap(440.0, 2),
+        theme::fg(),
+    );
 }
 
 /// The code screen of `Route::Link`. It keeps the screen on while it shows.

@@ -95,9 +95,9 @@ pub fn toast(ui: &mut Ui, state: &mut ToastState, placement: ToastPlacement) {
         ToastPlacement::Player { controls } => Point::new(right - size.w, if controls { 79.0 } else { theme::SAFE_Y }),
         ToastPlacement::BottomLeft => Point::new(theme::GUTTER, theme::CANVAS_H - theme::SAFE_Y - size.h),
     };
-    let color = if state.error { theme::DANGER_TEXT } else { theme::FG };
+    let color = if state.error { theme::danger() } else { theme::fg() };
     ui.opacity(alpha.clamp(0.0, 1.0), |ui| {
-        ui.fill(Rect::from_origin_size(origin, size), theme::SURFACE3, radius::CONTROL);
+        ui.fill(Rect::from_origin_size(origin, size), theme::surface3(), radius::CONTROL);
         ui.draw_text(Point::new(origin.x + 20.0, origin.y + pad_y), layout, color);
     });
 }
@@ -135,8 +135,8 @@ impl LoadingRing {
             stroke: 2.0,
             sweep: 90.0,
             period: 1.0,
-            track: Some(theme::FG),
-            color: theme::ACCENT,
+            track: Some(theme::fg()),
+            color: theme::accent(),
             delay: BUFFERING_DELAY,
         }
     }
@@ -149,7 +149,7 @@ impl LoadingRing {
             sweep: 270.0,
             period: 0.9,
             track: None,
-            color: theme::ACCENT,
+            color: theme::accent(),
             delay: 0.0,
         }
     }
@@ -192,12 +192,12 @@ pub struct ProgressBar {
 impl ProgressBar {
     /// On art: black at 60 % under Accent (tiles, channel cards).
     pub fn on_art() -> ProgressBar {
-        ProgressBar { track: theme::PROGRESS_TRACK_ON_ART, fill: theme::ACCENT, radius: 0.0 }
+        ProgressBar { track: theme::PROGRESS_TRACK_ON_ART, fill: theme::accent(), radius: 0.0 }
     }
 
     /// On the page: Surface4 under Accent, with 2 dp corners.
     pub fn page() -> ProgressBar {
-        ProgressBar { track: theme::SURFACE4, fill: theme::ACCENT, radius: radius::BADGE }
+        ProgressBar { track: theme::surface4(), fill: theme::accent(), radius: radius::BADGE }
     }
 
     /// Draws the bar in `rect`, `fraction` (0 to 1) filled.
@@ -212,7 +212,7 @@ impl ProgressBar {
 
 /// A still skeleton block (`Skeleton.kt`): Surface2, static on TV.
 pub fn skeleton_block(ui: &mut Ui, rect: Rect, corner: f32) {
-    ui.fill(rect, theme::SURFACE2, corner);
+    ui.fill(rect, theme::surface2(), corner);
 }
 
 /// A still skeleton row: a header bar of `header` at (96, `y`), `gap` under it, then `count` wells
@@ -343,17 +343,17 @@ impl<'a> Message<'a> {
         }
         if let Some(icon) = self.icon {
             let x = if centred { left + (width - 40.0) / 2.0 } else { left };
-            ui.icon(Rect::new(x, y, 40.0, 40.0), icon, theme::MUTED);
+            ui.icon(Rect::new(x, y, 40.0, 40.0), icon, theme::muted());
             y += icon_h;
         }
         let th = title.size.h;
-        ui.draw_text(Point::new(left, y), title, theme::FG);
+        ui.draw_text(Point::new(left, y), title, theme::fg());
         y += th;
         if let Some(b) = body {
             y += title_gap;
             let bh = b.size.h;
             let bx = if centred { left + (width - b.size.w) / 2.0 } else { left };
-            ui.draw_text(Point::new(bx, y), b, theme::MUTED);
+            ui.draw_text(Point::new(bx, y), b, theme::muted());
             y += bh;
         }
         let mut out = MessageResponse::default();

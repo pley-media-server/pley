@@ -268,6 +268,8 @@ pub struct UiState {
     typing: bool,
     ev: FrameEvents,
     speech: Speech,
+    /// The palette the last frame ended in: a color animating toward another palette's snaps.
+    palette: Option<&'static theme::Palette>,
 }
 
 /// What Audio Guidance reads: the names controls gave this frame, what focus last read, and what
@@ -355,6 +357,7 @@ impl UiState {
             typing: false,
             ev: FrameEvents::default(),
             speech: Speech::default(),
+            palette: None,
         }
     }
 
@@ -799,7 +802,7 @@ impl<'a> Ui<'a> {
         input: &FrameInput,
     ) -> Ui<'a> {
         list.cmds.clear();
-        list.clear = theme::BG;
+        list.clear = theme::bg();
         state.begin(input);
         Ui {
             st: state,
@@ -827,6 +830,7 @@ impl<'a> Ui<'a> {
         if changed {
             st.gained_frame = st.frame + 1;
         }
+        st.palette = Some(theme::palette());
         st.speech.settle(st.focus.focused);
         std::mem::swap(&mut st.prev, &mut st.cur);
         st.tweens.sweep(st.frame);
@@ -1244,10 +1248,14 @@ impl<'a> Ui<'a> {
         self.tween(id, Some([from, 0.0, 0.0, 0.0]), [target, 0.0, 0.0, 0.0], motion)[0]
     }
 
-    /// A color heading for `target`, channel by channel.
+    /// A color heading for `target`, channel by channel. In the frame a theme or accent is picked
+    /// it snaps, so every color changes in that frame.
     pub fn animate_color(&mut self, id: Id, target: Color, motion: Motion) -> Color {
         let lanes = [target.r as f32, target.g as f32, target.b as f32, target.a as f32];
-        let v = self.tween(id, None, lanes, motion);
+        let picked = self.st.palette.is_some_and(|p| !std::ptr::eq(p, theme::palette()));
+        let snap = picked || self.snaps(motion);
+        let (v, running) = self.st.tweens.animate(id, None, lanes, motion, self.st.time, self.st.frame, snap);
+        self.wake_now |= running;
         let ch = |x: f32| x.round().clamp(0.0, 255.0) as u8;
         Color { r: ch(v[0]), g: ch(v[1]), b: ch(v[2]), a: ch(v[3]) }
     }
@@ -1309,7 +1317,14 @@ impl<'a> Ui<'a> {
 
     /// A radial glow: `inner` at `center`, fading to `outer` at `radius`.
     pub fn radial(&mut self, rect: Rect, center: Point, radius: f32, inner: Color, outer: Color) {
-        self.list.push(Cmd::RadialGradient { rect, center, radius, inner, outer });
+        self.list.push(Cmd::RadialGradient { rect, center, radius, squash: 1.0, inner, outer });
+    }
+
+    /// An elliptical glow: `inner` at `center`, fading to `outer` at `rx` across and `ry` down.
+    pub fn radial_ellipse(&mut self, rect: Rect, center: Point, (rx, ry): (f32, f32), inner: Color, outer: Color) {
+        if rx > 0.0 && ry > 0.0 {
+            self.list.push(Cmd::RadialGradient { rect, center, radius: rx, squash: ry / rx, inner, outer });
+        }
     }
 
     /// An icon in `rect` (square), tinted.

@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 
 pub use settings::{
     PassthroughChoice, PassthroughChoices, PassthroughFormat, Settings, SubtitleBackground, SubtitleFont,
-    SubtitlePosition, SubtitleSize,
+    SubtitlePosition, SubtitleSize, ThemePick,
 };
 pub use snapshots::{SNAPSHOT_BUDGET, SNAPSHOT_PROFILES, Snapshots, snapshot_keys};
 

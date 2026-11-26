@@ -24,7 +24,7 @@ use pley_ui::{Edge, Id, Ui};
 
 use crate::actions::{Actions, Extra, TitleIntent};
 use crate::common::{
-    Asking, Poll, ProblemAction, SignInAgain, ToneTile, TvClock, Unwatching, WARNING, art, keep_last_words, keep_title,
+    Asking, Poll, ProblemAction, SignInAgain, ToneTile, TvClock, Unwatching, art, keep_last_words, keep_title,
     problem_page,
 };
 use crate::widgets::title_meta;
@@ -385,7 +385,7 @@ impl TitleScreen {
             let poster = art(cx, ui, t.poster_url.as_deref(), 200.0);
             if let Some(req) = poster.first() {
                 let rect = Rect::new(664.0, 52.0, 200.0, 300.0);
-                ui.fill(rect, theme::SURFACE2, radius::CARD);
+                ui.fill(rect, theme::surface2(), radius::CARD);
                 ui.image(rect, req, &pley_ui::ImageOpts::cover().rounded(radius::CARD));
             }
         }
@@ -518,7 +518,7 @@ impl TitleScreen {
                         tmdb_credit(),
                         &theme::CAPTION,
                         &TextOpts::line(800.0),
-                        theme::SUBTLE,
+                        theme::subtle(),
                     );
                 }
             }
@@ -586,7 +586,7 @@ impl TitleScreen {
                     &d.title.title,
                     &theme::CAPTION,
                     &TextOpts::line(area.w - 16.0),
-                    theme::MUTED,
+                    theme::muted(),
                 )
                 .h + 8.0;
             // The foot: the allowance's lines, then the button.
@@ -627,10 +627,10 @@ impl TitleScreen {
                 let at = Point::new(area.x + 16.0, fy);
                 // More ticked than may be asked for: the line saying how many may stands out.
                 let (indent, color) = if over && i == 0 {
-                    ui.icon(Rect::new(at.x, at.y + 1.0, 14.0, 14.0), Icon::CircleAlert, WARNING);
-                    (20.0, theme::FG)
+                    ui.icon(Rect::new(at.x, at.y + 1.0, 14.0, 14.0), Icon::CircleAlert, theme::warning());
+                    (20.0, theme::fg())
                 } else {
-                    (0.0, theme::MUTED)
+                    (0.0, theme::muted())
                 };
                 let opts = TextOpts::wrap(note_w - indent, 0);
                 fy += ui.text(Point::new(at.x + indent, at.y), &keep_last_words(l), &theme::CAPTION, &opts, color).h
@@ -723,23 +723,23 @@ impl HeroWords {
         let t = &d.title;
         let x = at.x;
         let mut y = at.y;
-        y += ui.text(Point::new(x, y), &t.title, &theme::HERO_TITLE, &TextOpts::wrap(TEXT_COLUMN, 2), theme::FG).h;
+        y += ui.text(Point::new(x, y), &t.title, &theme::HERO_TITLE, &TextOpts::wrap(TEXT_COLUMN, 2), theme::fg()).h;
         y += 12.0;
         title_meta(ui, Point::new(x, y), t, Some(d), TEXT_COLUMN);
         y += 18.0;
         let facts = HeroWords::facts(d);
         if !facts.is_empty() {
             y += 6.0;
-            y += ui.text(Point::new(x, y), &facts, &theme::CAPTION, &TextOpts::line(TEXT_COLUMN), theme::MUTED).h;
+            y += ui.text(Point::new(x, y), &facts, &theme::CAPTION, &TextOpts::line(TEXT_COLUMN), theme::muted()).h;
         }
         if let Some(tagline) = d.tagline.as_deref().filter(|t| !t.is_empty()) {
             y += 10.0;
-            y += ui.text(Point::new(x, y), tagline, &theme::BODY, &TextOpts::line(TEXT_COLUMN), theme::FG).h;
+            y += ui.text(Point::new(x, y), tagline, &theme::BODY, &TextOpts::line(TEXT_COLUMN), theme::fg()).h;
         }
         if !t.overview.is_empty() {
             y += 10.0;
             let opts = TextOpts::wrap(TEXT_COLUMN, OVERVIEW_LINES);
-            y += ui.text(Point::new(x, y), &t.overview, &theme::BODY_LARGE, &opts, theme::SUMMARY).h;
+            y += ui.text(Point::new(x, y), &t.overview, &theme::BODY_LARGE, &opts, theme::summary()).h;
         }
         y
     }
@@ -750,11 +750,11 @@ fn draw_info(ui: &mut Ui, d: &DiscoverDetail) {
     let r = InfoBlock::RECT;
     let t = &d.title;
     let mut y = r.y;
-    y += ui.text(Point::new(r.x, y), &t.title, &theme::HERO_TITLE, &TextOpts::line(r.w), theme::FG).h + 10.0;
+    y += ui.text(Point::new(r.x, y), &t.title, &theme::HERO_TITLE, &TextOpts::line(r.w), theme::fg()).h + 10.0;
     title_meta(ui, Point::new(r.x, y), t, Some(d), r.w);
     y += 18.0 + 8.0;
     if !t.overview.is_empty() {
-        ui.text(Point::new(r.x, y), &t.overview, &theme::BODY, &TextOpts::wrap(r.w, 2), theme::SUMMARY);
+        ui.text(Point::new(r.x, y), &t.overview, &theme::BODY, &TextOpts::wrap(r.w, 2), theme::summary());
     }
 }
 

@@ -72,34 +72,34 @@ impl TrackLine<'_> {
         let r = register(ui, id, rect, FocusOpts::default());
         let p = look::focus_progress(ui, id, r.focused);
         let rest = if self.highlighted {
-            theme::TRACK_HIGHLIGHT
+            theme::track_highlight()
         } else if self.current {
-            theme::TRACK_CURRENT
+            theme::track_current()
         } else {
             Color::TRANSPARENT
         };
-        let fill = look::mix(rest, theme::ACCENT, p);
+        let fill = look::mix(rest, theme::accent(), p);
         if fill.a > 0 {
             ui.fill(rect, fill, radius::FIELD);
         }
-        let on = |c: Color| look::mix(c, theme::ON_ACCENT, p);
+        let on = |c: Color| look::mix(c, theme::on_accent(), p);
 
         let lead = Rect::new(rect.x + PAD_X, rect.y, NUMBER_W, rect.h);
         let x = if let Some(icon) = self.icon {
             let tile = Rect::new(rect.x + PAD_X, rect.y + (rect.h - TILE) / 2.0, TILE, TILE);
-            ui.fill(tile, look::mix(theme::SURFACE2, TILE_FOCUSED, p), radius::FIELD);
+            ui.fill(tile, look::mix(theme::surface2(), TILE_FOCUSED, p), radius::FIELD);
             let inset = (TILE - TILE_ICON) / 2.0;
-            ui.icon(Rect::new(tile.x + inset, tile.y + inset, TILE_ICON, TILE_ICON), icon, on(theme::MUTED));
+            ui.icon(Rect::new(tile.x + inset, tile.y + inset, TILE_ICON, TILE_ICON), icon, on(theme::muted()));
             tile.right() + TILE_GAP
         } else {
             if self.current {
                 let glyph = if self.playing { Icon::AudioLines } else { Icon::Play };
                 let at = Rect::new(lead.right() - GLYPH, rect.y + (rect.h - GLYPH) / 2.0, GLYPH, GLYPH);
-                ui.icon(at, glyph, on(theme::ACCENT));
+                ui.icon(at, glyph, on(theme::accent()));
             } else if !self.number.is_empty() {
                 let layout = ui.layout(self.number, &theme::CAPTION, &TextOpts::line(NUMBER_W));
                 let at = Point::new(lead.right() - layout.size.w, rect.y + (rect.h - layout.size.h) / 2.0);
-                ui.draw_text(at, layout, on(theme::SUBTLE));
+                ui.draw_text(at, layout, on(theme::subtle()));
             }
             lead.right() + NUMBER_GAP
         };
@@ -110,23 +110,23 @@ impl TrackLine<'_> {
         let duration_w = duration.as_ref().map_or(0.0, |d| d.size.w);
         if let Some(d) = duration {
             let at = Point::new(right - d.size.w, rect.y + (rect.h - d.size.h) / 2.0);
-            ui.draw_text(at, d, on(theme::MUTED));
+            ui.draw_text(at, d, on(theme::muted()));
         }
 
         let width = (right - duration_w - PAD_X - x).max(1.0);
         let mut y = rect.y + (rect.h - self.block()) / 2.0;
-        let title = if self.current { theme::ACCENT_BRIGHT } else { theme::FG };
+        let title = if self.current { theme::accent_bright() } else { theme::fg() };
         ui.text(Point::new(x, y), self.title, &theme::BODY, &TextOpts::line(width), on(title));
         y += theme::BODY.line_height;
         if let Some(s) = self.subtitle {
-            ui.text(Point::new(x, y), s, &theme::CAPTION, &TextOpts::line(width), on(theme::MUTED));
+            ui.text(Point::new(x, y), s, &theme::CAPTION, &TextOpts::line(width), on(theme::muted()));
             y += theme::CAPTION.line_height;
         }
         if self.progress > 0.0 {
             let bar = Rect::new(x, y + BAR_GAP, BAR_W.min(width), BAR_H);
             ui.fill(bar, theme::PROGRESS_TRACK_ON_ART, BAR_H / 2.0);
             let done = Rect::new(bar.x, bar.y, bar.w * self.progress.min(1.0), BAR_H);
-            ui.fill(done, on(theme::ACCENT), BAR_H / 2.0);
+            ui.fill(done, on(theme::accent()), BAR_H / 2.0);
         }
         r
     }

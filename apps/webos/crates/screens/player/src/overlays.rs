@@ -49,9 +49,9 @@ pub fn skip(ui: &mut Ui, group: Id, id: Id, label: &str, bottom: f32, controls: 
     let rect = Rect::new(RIGHT - w, bottom - 40.0, w, 40.0);
     let r = ui.group(group, corner_group(controls, scrubber), |ui| register(ui, id, rect, corner_opts(controls)));
     let (fill, content, edge, width) = if r.focused {
-        (Color::BLACK.alpha(0.6), theme::FG, theme::FG.alpha(0.9), 2.0)
+        (Color::BLACK.alpha(0.6), theme::fg(), theme::fg().alpha(0.9), 2.0)
     } else {
-        (Color::BLACK.alpha(0.45), theme::FG.alpha(0.85), theme::FG.alpha(0.25), 1.0)
+        (Color::BLACK.alpha(0.45), theme::fg().alpha(0.85), theme::fg().alpha(0.25), 1.0)
     };
     ui.fill(rect, fill, radius::CONTROL);
     ui.stroke(rect.expand(-width / 2.0), edge, radius::CONTROL - width / 2.0, width);
@@ -79,17 +79,17 @@ pub fn sleep_notice(
     let h = button.h + 16.0;
     let w = 20.0 + theme::ICON_SIZE + 16.0 + l.size.w + 16.0 + button.w + 8.0;
     let rect = Rect::new(theme::SAFE_X, bottom - h, w, h);
-    ui.fill(rect, theme::SURFACE3, radius::CONTROL);
+    ui.fill(rect, theme::surface3(), radius::CONTROL);
     let mut x = rect.x + 20.0;
-    ui.icon(Rect::new(x, rect.y + (h - 20.0) / 2.0, 20.0, 20.0), Icon::Moon, theme::MUTED);
+    ui.icon(Rect::new(x, rect.y + (h - 20.0) / 2.0, 20.0, 20.0), Icon::Moon, theme::muted());
     x += 20.0 + 16.0;
     let lw = l.size.w;
     let lh = l.size.h;
-    ui.draw_text(Point::new(x, rect.y + (h - lh) / 2.0), l, theme::FG);
+    ui.draw_text(Point::new(x, rect.y + (h - lh) / 2.0), l, theme::fg());
     x += lw + 16.0;
     let b = Rect::new(x, rect.y + 8.0, button.w, button.h);
     let r = ui.group(group, corner_group(controls, scrubber), |ui| register(ui, id, b, corner_opts(controls)));
-    let look = ControlLook { fill: theme::ON_ART, edge: None, focus_scale: 1.05, ..theme::focus::PILL };
+    let look = ControlLook { fill: theme::on_art(), edge: None, focus_scale: 1.05, ..theme::focus::pill() };
     let s = shade(ui, &look, &r);
     let kh = keep.size.h;
     ui.transform(Point::ZERO, s.scale, b.center(), |ui| {
@@ -134,7 +134,7 @@ pub fn up_next(ui: &mut Ui, group: Id, play_id: Id, cancel_id: Id, card: &Card, 
     let title = ui.layout(card.title, &theme::TITLE, &TextOpts::wrap(inner, 2));
     let h = STILL_H + pad + heading.size.h + title.size.h + pad + 48.0 + pad;
     let rect = Rect::new(RIGHT - CARD_W, BOTTOM_HIDDEN - h, CARD_W, h);
-    ui.fill(rect, theme::SURFACE2.alpha(0.96), radius::DIALOG);
+    ui.fill(rect, theme::surface2().alpha(0.96), radius::DIALOG);
     // The card's shape cuts the still: rounded at the top, square where the text starts. It is
     // drawn taller by the corner and clipped to its own height. Until the still is in, and when
     // there is none, the title's placeholder gradient stands in (`Artwork`, without its title),
@@ -153,10 +153,10 @@ pub fn up_next(ui: &mut Ui, group: Id, play_id: Id, cancel_id: Id, card: &Card, 
     });
     let mut y = rect.y + STILL_H + pad;
     let hh = heading.size.h;
-    ui.draw_text(Point::new(rect.x + pad, y), heading, theme::MUTED);
+    ui.draw_text(Point::new(rect.x + pad, y), heading, theme::muted());
     y += hh;
     let th = title.size.h;
-    ui.draw_text(Point::new(rect.x + pad, y), title, theme::FG);
+    ui.draw_text(Point::new(rect.x + pad, y), title, theme::fg());
     y += th + pad;
 
     let mut answer = CardAnswer::default();
@@ -191,7 +191,7 @@ fn play_now(ui: &mut Ui, id: Id, at: Point, left: Option<i64>, reduced: bool, an
     let rect = Rect::new(at.x, at.y, w, 48.0);
     let r = register(ui, id, rect, FocusOpts::default());
     answer.play_now = r.activated;
-    let s = shade(ui, &theme::focus::PILL, &r);
+    let s = shade(ui, &theme::focus::pill(), &r);
     let content = s.content;
     let lh = l.size.h;
     ui.transform(Point::ZERO, s.scale, rect.center(), |ui| {
@@ -264,10 +264,10 @@ pub fn seek_badge(ui: &mut Ui, ms: i64) {
     let bias = if ms < 0 { -2.0 / 3.0 } else { 2.0 / 3.0 };
     let x = (theme::CANVAS_W - side) * (1.0 + bias) / 2.0;
     let rect = Rect::new(x, (theme::CANVAS_H - side) / 2.0, side, side);
-    ui.fill(rect, theme::BG.alpha(0.6), radius::CONTROL);
+    ui.fill(rect, theme::bg().alpha(0.6), radius::CONTROL);
     let l = ui.layout(&pley_player::seeker::badge_text(ms), &theme::LABEL, &TextOpts::default());
     let (w, h) = (l.size.w, l.size.h);
-    ui.draw_text(Point::new(rect.center().x - w / 2.0, rect.center().y - h / 2.0), l, theme::FG);
+    ui.draw_text(Point::new(rect.center().x - w / 2.0, rect.center().y - h / 2.0), l, theme::fg());
 }
 
 /// "Reconnecting…" 16 dp under the buffering ring, on Bg 60 % (padded 12 × 6, radius 6).
@@ -275,8 +275,8 @@ pub fn reconnecting(ui: &mut Ui, ring_bottom: f32) {
     let l = ui.layout(pley_player::details::reconnecting(), &theme::LABEL, &TextOpts::default());
     let (w, h) = (l.size.w + 24.0, l.size.h + 12.0);
     let rect = Rect::new((theme::CANVAS_W - w) / 2.0, ring_bottom + 16.0, w, h);
-    ui.fill(rect, theme::BG.alpha(0.6), radius::CONTROL);
-    ui.draw_text(Point::new(rect.x + 12.0, rect.y + 6.0), l, theme::FG);
+    ui.fill(rect, theme::bg().alpha(0.6), radius::CONTROL);
+    ui.draw_text(Point::new(rect.x + 12.0, rect.y + 6.0), l, theme::fg());
 }
 
 /// The compact Playback details over the video (Settings → Playback details): top left in the
@@ -292,11 +292,11 @@ pub fn readout(ui: &mut Ui, lines: &[(String, String)]) {
     let w = values.iter().map(|v| v.size.w).fold(0.0, f32::max) + label_w + 24.0;
     let line_h = theme::CAPTION.line_height;
     let rect = Rect::new(theme::SAFE_X, theme::SAFE_Y, w.min(480.0), lines.len() as f32 * line_h + 16.0);
-    ui.fill(rect, theme::BG.alpha(0.72), radius::CONTROL);
+    ui.fill(rect, theme::bg().alpha(0.72), radius::CONTROL);
     let mut y = rect.y + 8.0;
     for ((label, _), value) in lines.iter().zip(values) {
-        ui.text(Point::new(rect.x + 12.0, y), label, &theme::CAPTION, &TextOpts::line(label_w - 8.0), theme::MUTED);
-        ui.draw_text(Point::new(rect.x + 12.0 + label_w, y), value, theme::FG);
+        ui.text(Point::new(rect.x + 12.0, y), label, &theme::CAPTION, &TextOpts::line(label_w - 8.0), theme::muted());
+        ui.draw_text(Point::new(rect.x + 12.0 + label_w, y), value, theme::fg());
         y += line_h;
     }
 }
@@ -344,9 +344,9 @@ pub fn toast(ui: &mut Ui, toast: &Toast, controls: bool) -> bool {
     let size = Size::new(l.size.w + 40.0, l.size.h + 20.0);
     let top = if controls { 79.0 } else { theme::SAFE_Y };
     let origin = Point::new(RIGHT - size.w, top);
-    let color = if toast.error { theme::DANGER_TEXT } else { theme::FG };
+    let color = if toast.error { theme::danger() } else { theme::fg() };
     ui.opacity(alpha.clamp(0.0, 1.0), |ui| {
-        ui.fill(Rect::from_origin_size(origin, size), theme::SURFACE3, radius::CONTROL);
+        ui.fill(Rect::from_origin_size(origin, size), theme::surface3(), radius::CONTROL);
         ui.draw_text(Point::new(origin.x + 20.0, origin.y + 10.0), l, color);
     });
     true

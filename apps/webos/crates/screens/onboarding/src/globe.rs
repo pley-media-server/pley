@@ -119,7 +119,7 @@ impl Globe {
                 title,
                 &theme::TITLE,
                 &TextOpts::wrap(area.w - 16.0, 2),
-                theme::FG,
+                theme::fg(),
             );
             let top = area.y + 8.0 + h.h + 12.0;
             let view = pley_base::Rect::new(area.x, top, area.w, area.bottom() - top);

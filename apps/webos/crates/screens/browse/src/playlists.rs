@@ -93,7 +93,7 @@ impl Card {
 /// (`glyph` wide, Subtle) on a Surface3 to Surface2 gradient; with the tile's hairline.
 pub fn cover(ui: &mut Ui, rect: Rect, card: &Card, corner: f32, glyph: f32) {
     if card.quarters.len() >= 4 {
-        ui.fill(rect, theme::SURFACE2, corner);
+        ui.fill(rect, theme::surface2(), corner);
         let (w, h) = (rect.w / 2.0, rect.h / 2.0);
         for (i, req) in card.quarters.iter().take(4).enumerate() {
             let (c, r) = ((i % 2) as f32, (i / 2) as f32);
@@ -107,7 +107,7 @@ pub fn cover(ui: &mut Ui, rect: Rect, card: &Card, corner: f32, glyph: f32) {
     } else if !card.art.is_empty() {
         let shown = pley_kit::first_art(ui, &card.art, pley_base::Priority::Visible);
         if shown.is_some_and(|s| s.opaque()) {
-            ui.fill(rect, theme::SURFACE2, corner);
+            ui.fill(rect, theme::surface2(), corner);
         } else {
             // No title on it: the tile's caption or the row beside the cover names it.
             let mark = shown.is_none().then_some(card.mark);
@@ -117,12 +117,12 @@ pub fn cover(ui: &mut Ui, rect: Rect, card: &Card, corner: f32, glyph: f32) {
             ui.draw_image(rect, &s, &ImageOpts::cover().rounded(corner));
         }
     } else {
-        let (a, b) = (theme::SURFACE3, theme::SURFACE2);
+        let (a, b) = (theme::surface3(), theme::surface2());
         let mid = a.lerp(b, 0.5);
         ui.cmd(Cmd::Quad { rect, colors: [a, mid, mid, b], radius: corner });
         let icon = if card.video { Icon::ListVideo } else { Icon::ListMusic };
         let at = Rect::new(rect.center().x - glyph / 2.0, rect.center().y - glyph / 2.0, glyph, glyph);
-        ui.icon(at, icon, theme::SUBTLE);
+        ui.icon(at, icon, theme::subtle());
     }
     ui.stroke(rect.expand(-0.5), theme::TILE_HAIRLINE, corner - 0.5, 1.0);
 }
@@ -163,7 +163,7 @@ impl PlaylistsScreen {
             t!("playlists.list.title"),
             &theme::PAGE_TITLE,
             &TextOpts::line(title_w),
-            theme::FG,
+            theme::fg(),
         );
         if !with_button {
             return false;

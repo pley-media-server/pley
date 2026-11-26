@@ -325,17 +325,18 @@ impl Rail {
         let g = ui.animate(rail_id().with("grow"), if self.open { 1.0 } else { 0.0 }, GROW);
 
         if !self.open {
-            ui.ramp(Rect::new(0.0, 0.0, CLOSED_WIDTH, theme::CANVAS_H), false, &theme::RAIL_FADE);
+            ui.ramp(Rect::new(0.0, 0.0, CLOSED_WIDTH, theme::CANVAS_H), false, &theme::rail_fade());
         }
         if t > 0.0 {
             // The panel grows out of the closed rail, its soft edge riding on its right (the
             // Samsung app's RailView).
             let width = panel_width(g);
             ui.opacity(t, |ui| {
-                ui.fill(Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H), theme::RAIL_SCRIM, 0.0);
-                ui.fill(Rect::new(0.0, 0.0, width, theme::CANVAS_H), theme::RAIL_PANEL, 0.0);
+                ui.fill(Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H), theme::rail_scrim(), 0.0);
+                ui.fill(Rect::new(0.0, 0.0, width, theme::CANVAS_H), theme::rail_panel(), 0.0);
+                pley_kit::sidebar_glow(ui, Rect::new(0.0, 0.0, width, theme::CANVAS_H));
                 let edge = theme::RAIL_EDGE_END - OPEN_WIDTH;
-                let stops = theme::RAIL_PANEL_EDGE.stops(OPEN_WIDTH, edge);
+                let stops = theme::rail_panel_edge().stops(OPEN_WIDTH, edge);
                 ui.gradient(Rect::new(width, 0.0, edge, theme::CANVAS_H), false, stops);
             });
         }
@@ -528,8 +529,8 @@ fn entry_at(view: &RailView, p: Point, scroll: f32) -> Option<String> {
 
 /// How an entry looks this frame: its fill and content color.
 fn entry_look(ui: &mut Ui, id: Id, focused: bool, pressed: bool, current: bool, t: f32) -> (Color, Color) {
-    let look = if current { focus::RAIL_ENTRY_CURRENT } else { focus::RAIL_ENTRY };
-    let rest = if current { theme::alpha(theme::SURFACE3, t) } else { Color::TRANSPARENT };
+    let look = if current { focus::rail_entry_current() } else { focus::rail_entry() };
+    let rest = if current { theme::alpha(theme::surface3(), t) } else { Color::TRANSPARENT };
     let fill = if pressed {
         look.pressed_fill
     } else if focused {
@@ -564,14 +565,15 @@ fn entry_ui(
     let pressed = r.is_some_and(|r| r.pressed);
     let (fill, content) = entry_look(ui, id, focused, pressed, current, t);
     let pill = Rect::new(X, y, ENTRY_W + (ENTRY_W_OPEN - ENTRY_W) * g, ENTRY_H);
-    let scale = ui.animate(id.with("scale"), if focused { focus::RAIL_ENTRY.focus_scale } else { 1.0 }, Motion::FOCUS);
+    let scale =
+        ui.animate(id.with("scale"), if focused { focus::rail_entry().focus_scale } else { 1.0 }, Motion::FOCUS);
     ui.transform(Point::ZERO, scale, pill.center(), |ui| {
         if fill.a > 0 {
             ui.fill(pill, fill, theme::radius::CONTROL);
         }
         if current && t < 1.0 {
             let bar = Rect::new(X, y + (ENTRY_H - 20.0) / 2.0, 4.0, 20.0);
-            ui.fill(bar, theme::alpha(theme::ACCENT, 1.0 - t), theme::radius::BADGE);
+            ui.fill(bar, theme::alpha(theme::accent(), 1.0 - t), theme::radius::BADGE);
         }
         let icon = Rect::new(X + 18.0, y + (ENTRY_H - ICON) / 2.0, ICON, ICON);
         ui.icon(icon, e.icon, content);
@@ -593,12 +595,12 @@ fn badge(ui: &mut Ui, at: Point, count: i64, danger: bool, focused: bool) {
     let w = (ui.measure(&text, &theme::BADGE, &TextOpts::line(f32::MAX)).w + 10.0).max(18.0);
     let rect = Rect::new(at.x, at.y, w, 18.0);
     let (fill, ink) = match (danger, focused) {
-        (true, _) => (theme::DANGER, theme::BG),
-        (false, true) => (theme::ON_ACCENT, theme::ACCENT_BRIGHT),
-        (false, false) => (theme::ACCENT, theme::ON_ACCENT),
+        (true, _) => (theme::danger(), theme::danger_fg()),
+        (false, true) => (theme::on_accent(), theme::accent_bright()),
+        (false, false) => (theme::accent(), theme::on_accent()),
     };
     // A ring of the background around it, as on the web.
-    ui.fill(Rect::new(rect.x - 2.0, rect.y - 2.0, rect.w + 4.0, rect.h + 4.0), theme::BG, 11.0);
+    ui.fill(Rect::new(rect.x - 2.0, rect.y - 2.0, rect.w + 4.0, rect.h + 4.0), theme::bg(), 11.0);
     ui.fill(rect, fill, 9.0);
     let line = (rect.h - theme::BADGE.line_height) / 2.0;
     let opts = TextOpts::line(rect.w).aligned(pley_base::Align::Center);
@@ -620,19 +622,20 @@ fn profile_entry(ui: &mut Ui, view: &RailView, open: bool, t: f32, g: f32) -> Op
     let current = view.current == Some("profile");
     let (fill, content) = entry_look(ui, id, focused, pressed, current, t);
     let pill = Rect::new(X, TOP, ENTRY_W + (ENTRY_W_OPEN - ENTRY_W) * g, AVATAR_ENTRY);
-    let scale = ui.animate(id.with("scale"), if focused { focus::RAIL_ENTRY.focus_scale } else { 1.0 }, Motion::FOCUS);
+    let scale =
+        ui.animate(id.with("scale"), if focused { focus::rail_entry().focus_scale } else { 1.0 }, Motion::FOCUS);
     let name = view.me.map_or("", |m| m.name.as_str());
     ui.transform(Point::ZERO, scale, pill.center(), |ui| {
         if fill.a > 0 {
             ui.fill(pill, fill, theme::radius::CONTROL);
         }
         let circle = Rect::new(X + (ENTRY_W - AVATAR) / 2.0, TOP + (AVATAR_ENTRY - AVATAR) / 2.0, AVATAR, AVATAR);
-        let color = avatar_color(view.me.and_then(|m| m.avatar_color.as_deref())).unwrap_or(theme::SURFACE3);
+        let color = avatar_color(view.me.and_then(|m| m.avatar_color.as_deref())).unwrap_or(theme::surface3());
         let shown = view.avatar.as_ref().map(|req| ui.image_state(req, pley_base::Priority::Visible));
         if !shown.is_some_and(|s| s.opaque()) {
             ui.fill(circle, color, AVATAR / 2.0);
             let lum = (0.2126 * color.r as f32 + 0.7152 * color.g as f32 + 0.0722 * color.b as f32) / 255.0;
-            let ink = if lum > 0.45 { theme::ON_ACCENT } else { theme::FG };
+            let ink = if lum > 0.45 { theme::on_accent() } else { theme::fg() };
             let style = theme::LABEL.with_weight(pley_base::Weight::Bold);
             let letter = initial(name);
             let size = ui.measure(&letter, &style, &TextOpts::default());
@@ -644,9 +647,9 @@ fn profile_entry(ui: &mut Ui, view: &RailView, open: bool, t: f32, g: f32) -> Op
         }
         if view.offline_mark {
             let mark = Rect::new(circle.x + 22.0, circle.y + 22.0, MARK, MARK);
-            ui.fill(mark.expand(2.0), theme::BG, (MARK + 4.0) / 2.0);
-            ui.fill(mark, theme::SURFACE3, MARK / 2.0);
-            ui.icon(Rect::new(mark.x + 3.5, mark.y + 3.5, 9.0, 9.0), Icon::ServerOff, theme::FG);
+            ui.fill(mark.expand(2.0), theme::bg(), (MARK + 4.0) / 2.0);
+            ui.fill(mark, theme::surface3(), MARK / 2.0);
+            ui.icon(Rect::new(mark.x + 3.5, mark.y + 3.5, 9.0, 9.0), Icon::ServerOff, theme::fg());
         }
         if t > 0.0 {
             ui.opacity(t, |ui| {
@@ -836,7 +839,7 @@ mod tests {
     fn panel(list: &pley_base::DisplayList) -> Option<(f32, f32)> {
         use pley_base::Cmd;
         let fill = list.cmds.iter().find_map(|c| match c {
-            Cmd::Fill { rect, color, .. } if *color == theme::RAIL_PANEL && rect.h == theme::CANVAS_H => Some(rect.w),
+            Cmd::Fill { rect, color, .. } if *color == theme::rail_panel() && rect.h == theme::CANVAS_H => Some(rect.w),
             _ => None,
         })?;
         let edge = list.cmds.iter().find_map(|c| match c {

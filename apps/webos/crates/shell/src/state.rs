@@ -26,7 +26,7 @@ use pley_core::model::{
 };
 use pley_core::model::{RequestList, RequestQuery, RequestSummary, ScanPhase, ServerEvent, SwitchTicket, TitleKind};
 use pley_core::requests::title_key;
-use pley_core::store::{SavedServer, Snapshots, keys, snapshot_keys};
+use pley_core::store::{SavedServer, Snapshots, ThemePick, keys, snapshot_keys};
 use pley_core::{Api, ApiError, CapsOverrides, CapsReport, CastReceiver, Device, EventStream, Http, Promise, Settings};
 use pley_core::{Store, StreamNews, Tasks};
 use pley_i18n::{Language, t};
@@ -783,6 +783,38 @@ impl AppState {
     pub fn set_always_start_as(&mut self, profile: Option<i64>) {
         let Some(server) = self.server.clone() else { return };
         self.update_settings(|s| s.set_always_start_as(&server, profile));
+    }
+
+    /// The profile whose theme shows (docs/THEMES.md): the one signed in on this server, once
+    /// known.
+    fn theme_owner(&self) -> Option<(String, i64)> {
+        if !self.signed_in() {
+            return None;
+        }
+        Some((self.server.clone()?, self.profile()?))
+    }
+
+    /// The theme and accent the pages show: the profile's on this TV once it is known (Midnight
+    /// in its own accent when it picked none here), else the one shown last.
+    pub fn theme_pick(&self) -> ThemePick {
+        match self.theme_owner() {
+            Some((server, profile)) => self.settings.theme_of(&server, profile),
+            None => self.settings.last_theme(),
+        }
+    }
+
+    /// Picks a theme and accent for the profile signed in on this TV, and as the one shown last.
+    pub fn pick_theme(&mut self, pick: ThemePick) {
+        let owner = self.theme_owner();
+        self.update_settings(|s| s.set_theme(owner.as_ref().map(|(s, p)| (s.as_str(), *p)), pick));
+    }
+
+    /// Keeps `pick`, which the pages show now, as the one shown last: the next start, and the
+    /// pages before a profile is known, show it from their first frame.
+    pub fn theme_shown(&mut self, pick: &ThemePick) {
+        if self.settings.last_theme() != *pick {
+            self.update_settings(|s| s.set_theme(None, pick.clone()));
+        }
     }
 
     // What the server has.

@@ -180,17 +180,17 @@ impl ArtistScreen {
         art_well(ui, picture, &art.picture, &detail.title, detail.kind.mark_glyph(), PICTURE / 2.0);
         let mut y = TOP + (header - column) / 2.0;
         y += ui
-            .text(Point::new(x, y), t!("music.pages.artist"), &theme::CAPTION, &TextOpts::line(width), theme::MUTED)
+            .text(Point::new(x, y), t!("music.pages.artist"), &theme::CAPTION, &TextOpts::line(width), theme::muted())
             .h;
         let h = name.size.h;
-        ui.draw_text(Point::new(x, y), name, theme::FG);
+        ui.draw_text(Point::new(x, y), name, theme::fg());
         y += h;
         if !meta.is_empty() {
             y += 6.0;
-            y += ui.text(Point::new(x, y), meta, &theme::LABEL, &TextOpts::line(width), theme::MUTED).h;
+            y += ui.text(Point::new(x, y), meta, &theme::LABEL, &TextOpts::line(width), theme::muted()).h;
         }
         if let Some(s) = summary {
-            ui.draw_text(Point::new(x, y + 8.0), s, theme::SUMMARY);
+            ui.draw_text(Point::new(x, y + 8.0), s, theme::summary());
         }
 
         // Play, Shuffle, Now playing, and what went wrong beside them.
@@ -223,7 +223,7 @@ impl ArtistScreen {
         if let Some(problem) = &self.problem {
             let at = Point::new(end + 8.0, buttons_y + 14.0);
             let width = (theme::CANVAS_W - theme::SAFE_X - at.x).max(1.0);
-            ui.text(at, problem, &theme::CAPTION, &TextOpts::wrap(width, 2), theme::DANGER_TEXT);
+            ui.text(at, problem, &theme::CAPTION, &TextOpts::wrap(width, 2), theme::danger());
         }
 
         // The albums.
@@ -240,7 +240,7 @@ impl ArtistScreen {
                 t!("music.pages.noAlbums")
             };
             let at = Point::new(theme::GUTTER, row_y + 12.0);
-            ui.text(at, text, &theme::BODY, &TextOpts::line(width), theme::MUTED);
+            ui.text(at, text, &theme::BODY, &TextOpts::line(width), theme::muted());
         } else {
             let (albums, years) = (&self.albums, &self.years);
             let art_of = |i: usize| art.albums.get(i).map_or(&[][..], Vec::as_slice);

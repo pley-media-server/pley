@@ -276,7 +276,7 @@ impl DiscoverScreen {
         }
         let (count, danger) = requests_count(s);
         let chip = Counted {
-            look: focus::CHIP,
+            look: focus::chip(),
             icon: Some(Icon::Inbox),
             label: requests_title(s),
             count: (count > 0).then(|| count_text(count, 99)),
@@ -534,7 +534,7 @@ impl DiscoverScreen {
                 }
                 CREDIT => {
                     let at = Point::new(theme::GUTTER, top);
-                    ui.text(at, tmdb_credit(), &theme::CAPTION, &TextOpts::line(800.0), theme::SUBTLE);
+                    ui.text(at, tmdb_credit(), &theme::CAPTION, &TextOpts::line(800.0), theme::subtle());
                 }
                 MINE => {
                     let state = row_states.entry(MINE).or_default();
@@ -625,13 +625,15 @@ fn draw_hero(ui: &mut Ui, at: Point, hero: &DiscoverTitle, d: Option<&DiscoverDe
     let opts = TextOpts { balance: true, ..TextOpts::wrap(TEXT_COLUMN, 2) };
     let title = ui.layout(&t.title, &theme::HERO_TITLE, &opts);
     let h = title.size.h;
-    ui.draw_text(Point::new(x, top + HERO_TITLE_BOX - h), title, theme::FG);
+    ui.draw_text(Point::new(x, top + HERO_TITLE_BOX - h), title, theme::fg());
     let mut y = top + HERO_TITLE_BOX + 8.0;
     title_meta(ui, Point::new(x, y), hero, d, TEXT_COLUMN);
     y += 18.0;
     if !t.overview.is_empty() {
         y += 10.0;
-        y += ui.text(Point::new(x, y), &t.overview, &theme::BODY_LARGE, &TextOpts::line(TEXT_COLUMN), theme::SUMMARY).h;
+        y += ui
+            .text(Point::new(x, y), &t.overview, &theme::BODY_LARGE, &TextOpts::line(TEXT_COLUMN), theme::summary())
+            .h;
     }
     y + 20.0
 }
@@ -646,14 +648,14 @@ fn draw_info(ui: &mut Ui, f: &Focused, manage: bool, time: pley_core::requests::
     };
     let title = ui.layout(name, &theme::PAGE_TITLE, &TextOpts::line(r.w));
     let h = title.size.h;
-    ui.draw_text(Point::new(r.x, r.y + 52.0 - h), title, theme::FG);
+    ui.draw_text(Point::new(r.x, r.y + 52.0 - h), title, theme::fg());
     let mut y = r.y + 52.0 + 10.0;
     match f {
         Focused::Title(t) => {
             title_meta(ui, Point::new(r.x, y), t, None, r.w);
             y += 18.0 + 8.0;
             if !t.overview.is_empty() {
-                ui.text(Point::new(r.x, y), &t.overview, &theme::BODY, &TextOpts::wrap(r.w, 2), theme::SUMMARY);
+                ui.text(Point::new(r.x, y), &t.overview, &theme::BODY, &TextOpts::wrap(r.w, 2), theme::summary());
             }
         }
         Focused::Request(q) => {
@@ -662,7 +664,7 @@ fn draw_info(ui: &mut Ui, f: &Focused, manage: bool, time: pley_core::requests::
             let seasons = q.seasons.as_deref().map(seasons_label).unwrap_or_default();
             if !seasons.is_empty() {
                 let at = Point::new(r.x + size.w + 8.0, y + 2.0);
-                ui.text(at, &seasons, &theme::LABEL, &TextOpts::line(r.w - size.w - 8.0), theme::MUTED);
+                ui.text(at, &seasons, &theme::LABEL, &TextOpts::line(r.w - size.w - 8.0), theme::muted());
             }
             y += size.h + 8.0;
             y += ui
@@ -671,11 +673,11 @@ fn draw_info(ui: &mut Ui, f: &Focused, manage: bool, time: pley_core::requests::
                     &asked_line(q, manage, time),
                     &theme::CAPTION,
                     &TextOpts::line(r.w),
-                    theme::MUTED,
+                    theme::muted(),
                 )
                 .h;
             if let Some(note) = &stage.note {
-                ui.text(Point::new(r.x, y + 2.0), note, &theme::CAPTION, &TextOpts::line(r.w), theme::MUTED);
+                ui.text(Point::new(r.x, y + 2.0), note, &theme::CAPTION, &TextOpts::line(r.w), theme::muted());
             }
         }
     }
@@ -707,7 +709,7 @@ fn paint_mine(ui: &mut Ui, slot: &TileSlot, mine: &[MineTile], manage: bool, tim
 /// A row's place while its first page comes: its title and gray wells; nothing takes focus.
 pub fn row_skeleton(ui: &mut Ui, top: f32, title: &str) {
     let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
-    ui.text(Point::new(theme::GUTTER, top), title, &theme::SECTION, &TextOpts::line(width), theme::FG);
+    ui.text(Point::new(theme::GUTTER, top), title, &theme::SECTION, &TextOpts::line(width), theme::fg());
     let kind = TileKind::Poster;
     let y = top + theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES;
     for i in 0..7 {

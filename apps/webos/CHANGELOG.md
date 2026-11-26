@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Settings → Appearance picks a theme and an accent, as on the web, kept for
+  each profile on this TV.
+
 ## [0.1.15] - 2026-11-25
 
 ### Fixed

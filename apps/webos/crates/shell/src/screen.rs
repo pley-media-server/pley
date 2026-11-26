@@ -5,7 +5,7 @@ use pley_base::{Point, Rect, TextOpts};
 use pley_core::DeviceEvent;
 use pley_core::model::ServerEvent;
 use pley_i18n::t;
-use pley_ui::theme::{self, focus::PILL};
+use pley_ui::theme::{self, focus};
 use pley_ui::{Motion, Ui};
 
 use crate::cast::CastTracks;
@@ -222,11 +222,11 @@ impl Screen for PlaceholderScreen {
         let x = if self.chrome() == Chrome::Rail { theme::GUTTER } else { theme::SAFE_X };
         let width = theme::CANVAS_W - theme::SAFE_X - x;
         let title = self.route.title();
-        ui.text(Point::new(x, theme::SAFE_Y), &title, &theme::PAGE_TITLE, &TextOpts::line(width), theme::FG);
+        ui.text(Point::new(x, theme::SAFE_Y), &title, &theme::PAGE_TITLE, &TextOpts::line(width), theme::fg());
         let y = theme::SAFE_Y + theme::PAGE_TITLE.line_height + theme::space::S;
         // The route's short name is the simulator's, the same in every language.
         let said = format!("{} ({})", placeholder_text(), self.route.name());
-        ui.text(Point::new(x, y), &said, &theme::BODY, &TextOpts::wrap(width, 2), theme::MUTED);
+        ui.text(Point::new(x, y), &said, &theme::BODY, &TextOpts::wrap(width, 2), theme::muted());
 
         let label = t!("shell.placeholder.goBack");
         let text = ui.measure(label, &theme::LABEL, &TextOpts::default());
@@ -234,7 +234,7 @@ impl Screen for PlaceholderScreen {
         let id = ui.id("back");
         ui.initial_focus(id);
         let r = ui.focusable(id, rect);
-        let look = PILL;
+        let look = focus::pill();
         let s = ui.animate(id.with("scale"), if r.focused { look.focus_scale } else { 1.0 }, Motion::FOCUS);
         let fill = if r.pressed {
             look.pressed_fill

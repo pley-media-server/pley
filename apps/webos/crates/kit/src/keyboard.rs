@@ -127,20 +127,20 @@ impl<'a> TextField<'a> {
         });
         let r = register(ui, id, rect, FocusOpts::default());
         let lit = r.focused || self.typing;
-        ui.fill(rect, theme::SURFACE2, radius::FIELD);
+        ui.fill(rect, theme::surface2(), radius::FIELD);
         let (edge, w) =
-            if lit { (focus::FIELD_EDGE_COLOR, focus::FIELD_EDGE) } else { (theme::CONTROL, focus::REST_EDGE) };
+            if lit { (focus::field_edge_color(), focus::FIELD_EDGE) } else { (theme::control(), focus::REST_EDGE) };
         inner_stroke(ui, rect, edge, radius::FIELD, w);
         let mut x = rect.x + 16.0;
         if let Some(icon) = self.icon {
-            let tint = if lit { theme::FG } else { theme::MUTED };
+            let tint = if lit { theme::fg() } else { theme::muted() };
             ui.icon(Rect::new(x, rect.y + 12.0, theme::ICON_SIZE, theme::ICON_SIZE), icon, tint);
             x += theme::ICON_SIZE + 12.0;
         }
         let area = Rect::new(x, rect.y, (rect.right() - 16.0 - x).max(0.0), rect.h);
         if self.text.is_empty() {
             let layout = ui.layout(self.placeholder, &theme::BODY, &TextOpts::line(area.w.max(1.0)));
-            text_mid(ui, area.x, area.y, area.h, layout, theme::MUTED);
+            text_mid(ui, area.x, area.y, area.h, layout, theme::muted());
         }
         let layout = ui.layout(self.text, &theme::BODY, &free_line());
         let caret_w = 2.0;
@@ -149,14 +149,14 @@ impl<'a> TextField<'a> {
         let text_w = layout.size.w;
         ui.clip(area, |ui| {
             if !self.text.is_empty() {
-                text_mid(ui, area.x - shift, area.y, area.h, layout, theme::FG);
+                text_mid(ui, area.x - shift, area.y, area.h, layout, theme::fg());
             }
             if self.typing {
                 let now = ui.time();
                 let half = (now / 0.5).floor();
                 if half as i64 % 2 == 0 {
                     let cx = area.x - shift + text_w + 1.0;
-                    ui.fill(Rect::new(cx, area.y + 12.0, caret_w, 20.0), theme::ACCENT_BRIGHT, 0.0);
+                    ui.fill(Rect::new(cx, area.y + 12.0, caret_w, 20.0), theme::accent_bright(), 0.0);
                 }
                 ui.repaint_after((half + 1.0) * 0.5 - now);
             }
@@ -238,15 +238,17 @@ impl Default for Keyboard<'_> {
 }
 
 /// How a key looks: the PIN pad's keys (`TvKeypad.kt`).
-const KEY_LOOK: focus::ControlLook = focus::ControlLook {
-    fill: theme::SURFACE3,
-    content: theme::FG,
-    edge: None,
-    focus_fill: theme::ACCENT,
-    focus_content: theme::ON_ACCENT,
-    pressed_fill: theme::SURFACE4,
-    focus_scale: 1.08,
-};
+fn key_look() -> focus::ControlLook {
+    focus::ControlLook {
+        fill: theme::surface3(),
+        content: theme::fg(),
+        edge: None,
+        focus_fill: theme::accent(),
+        focus_content: theme::on_accent(),
+        pressed_fill: theme::surface4(),
+        focus_scale: 1.08,
+    }
+}
 
 impl<'a> Keyboard<'a> {
     /// A key's size.
@@ -294,8 +296,8 @@ impl<'a> Keyboard<'a> {
     pub fn show(&self, ui: &mut Ui, id: Id, state: &mut KeyboardState, edit: &mut TextEdit) -> KeyboardResponse {
         let mut out = KeyboardResponse::default();
         let panel = Keyboard::rect();
-        ui.fill(panel, theme::SURFACE2, 0.0);
-        ui.fill(Rect::new(0.0, panel.y, panel.w, 1.0), theme::SURFACE4, 0.0);
+        ui.fill(panel, theme::surface2(), 0.0);
+        ui.fill(Rect::new(0.0, panel.y, panel.w, 1.0), theme::surface4(), 0.0);
         let live = !is_inert();
         if live {
             // The pointer's clicks on the panel between keys go nowhere.
@@ -367,7 +369,7 @@ impl<'a> Keyboard<'a> {
                 let r = key(ui, kid, rect, face);
                 if lit && !r.focused {
                     // Shift on: an Accent line under its label.
-                    ui.fill(Rect::new(rect.x + 14.0, rect.bottom() - 6.0, rect.w - 28.0, 2.0), theme::ACCENT, 1.0);
+                    ui.fill(Rect::new(rect.x + 14.0, rect.bottom() - 6.0, rect.w - 28.0, 2.0), theme::accent(), 1.0);
                 }
                 if !r.activated {
                     continue;
@@ -418,9 +420,10 @@ fn key(ui: &mut Ui, id: Id, rect: Rect, face: KeyFace) -> Response {
     let r = register(ui, id, rect, FocusOpts::default());
     let p = focus_progress(ui, id, r.focused);
     let q = press_progress(ui, id, r.pressed);
-    let fill = mix(mix(KEY_LOOK.fill, KEY_LOOK.focus_fill, p), KEY_LOOK.pressed_fill, q);
-    let content = mix(mix(KEY_LOOK.content, KEY_LOOK.focus_content, p), theme::FG, q);
-    let scale = 1.0 + (KEY_LOOK.focus_scale - 1.0) * p;
+    let look = key_look();
+    let fill = mix(mix(look.fill, look.focus_fill, p), look.pressed_fill, q);
+    let content = mix(mix(look.content, look.focus_content, p), theme::fg(), q);
+    let scale = 1.0 + (look.focus_scale - 1.0) * p;
     ui.transform(Point::ZERO, scale, rect.center(), |ui| {
         ui.fill(rect, fill, radius::CONTROL);
         match face {

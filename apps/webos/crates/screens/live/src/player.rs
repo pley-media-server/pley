@@ -892,15 +892,15 @@ fn tuning(ui: &mut Ui, cx: &AppCx, stage: Rect, c: &LiveChannel, category: &Live
     let height = 112.0 + 22.0 + 36.0 + 18.0 + theme::SECTION.line_height + 6.0 + theme::BODY.line_height;
     let mut y = stage.y + (stage.h - height) / 2.0;
     let cx_ = stage.center().x;
-    let well = Well::PAGE.named().styled(theme::TITLE).filled(Color::WHITE.alpha(0.06), radius::DIALOG);
+    let well = Well::page().named().styled(theme::TITLE).filled(theme::fg().alpha(0.06), radius::DIALOG);
     channel_tile(ui, cx, Rect::new(cx_ - 100.0, y, 200.0, 112.0), c, well);
     y += 112.0 + 22.0;
     LoadingRing::tuning().show(ui, Point::new(cx_, y + 18.0), now);
     y += 36.0 + 18.0;
-    centred(ui, &numbered_name(c, category), &theme::SECTION, cx_, y, stage.w - 96.0, theme::FG);
+    centred(ui, &numbered_name(c, category), &theme::SECTION, cx_, y, stage.w - 96.0, theme::fg());
     y += theme::SECTION.line_height + 6.0;
     let on = c.on_at(seconds).map_or(t!("livetv.player.tuning"), |p| p.title.as_str());
-    centred(ui, on, &theme::BODY, cx_, y, stage.w - 96.0, theme::MUTED);
+    centred(ui, on, &theme::BODY, cx_, y, stage.w - 96.0, theme::muted());
 }
 
 /// A channel with sound and no picture: its logo where the picture would be, with what's on (`SoundOnly`).
@@ -909,16 +909,16 @@ fn sound_only(ui: &mut Ui, cx: &AppCx, stage: Rect, c: &LiveChannel, seconds: i6
     let height = 135.0 + 18.0 + 20.0 + on.map_or(0.0, |_| 8.0 + theme::SECTION.line_height);
     let mut y = stage.y + (stage.h - height) / 2.0;
     let x = stage.center().x;
-    let well = Well::PAGE.named().styled(theme::TITLE).filled(Color::WHITE.alpha(0.06), radius::DIALOG);
+    let well = Well::page().named().styled(theme::TITLE).filled(theme::fg().alpha(0.06), radius::DIALOG);
     channel_tile(ui, cx, Rect::new(x - 120.0, y, 240.0, 135.0), c, well);
     y += 135.0 + 18.0;
     let label = t!("livetv.player.radio");
     let w = 20.0 + 8.0 + measure(ui, label, &theme::LABEL);
-    ui.icon(Rect::new(x - w / 2.0, y, 20.0, 20.0), Icon::Radio, theme::MUTED);
-    line_mid(ui, label, &theme::LABEL, x - w / 2.0 + 28.0, y, 20.0, w, theme::MUTED);
+    ui.icon(Rect::new(x - w / 2.0, y, 20.0, 20.0), Icon::Radio, theme::muted());
+    line_mid(ui, label, &theme::LABEL, x - w / 2.0 + 28.0, y, 20.0, w, theme::muted());
     y += 20.0;
     if let Some(p) = on {
-        centred(ui, &p.title, &theme::SECTION, x, y + 8.0, stage.w - 96.0, theme::FG);
+        centred(ui, &p.title, &theme::SECTION, x, y + 8.0, stage.w - 96.0, theme::fg());
     }
 }
 
@@ -980,7 +980,7 @@ fn info_bar(
             let x0 = theme::SAFE_X;
             let right = theme::CANVAS_W - theme::SAFE_X;
             let row_top = top + BAR_PAD_TOP;
-            let well = Well::PAGE.named().filled(Color::WHITE.alpha(0.08), radius::TILE);
+            let well = Well::page().named().filled(theme::fg().alpha(0.08), radius::TILE);
             channel_tile(ui, cx, Rect::new(x0, row_top + (row_h - 63.0) / 2.0, 112.0, 63.0), c, well);
 
             // Live at the right, beside the column.
@@ -996,14 +996,14 @@ fn info_bar(
             // The number, the name, the star.
             let mut lx = x;
             if let Some(n) = c.number.as_deref().filter(|n| !n.is_empty()) {
-                lx += ui.text(Point::new(lx, y), n, &theme::LABEL, &TextOpts::line(width), theme::MUTED).w + 8.0;
+                lx += ui.text(Point::new(lx, y), n, &theme::LABEL, &TextOpts::line(width), theme::muted()).w + 8.0;
             }
             let name = channel_name(c, Some(&page_category(category)));
             let room = (x + width - lx - if c.favorite { 20.0 } else { 0.0 }).max(1.0);
-            lx += ui.text(Point::new(lx, y), &name, &theme::LABEL, &TextOpts::line(room), theme::MUTED).w;
+            lx += ui.text(Point::new(lx, y), &name, &theme::LABEL, &TextOpts::line(room), theme::muted()).w;
             if c.favorite {
                 let star = Rect::new(lx + 6.0, y + (theme::LABEL.line_height - 14.0) / 2.0, 14.0, 14.0);
-                ui.icon(star, Icon::Star, theme::ACCENT);
+                ui.icon(star, Icon::Star, theme::accent());
             }
             y += theme::LABEL.line_height + 2.0;
 
@@ -1020,24 +1020,24 @@ fn info_bar(
                 None if c.has_guide => t!("livetv.guide.nothingNow"),
                 None => t!("livetv.guide.noGuide"),
             };
-            ui.text(Point::new(tx, y), title, &theme::SECTION, &TextOpts::line((x + width - tx).max(1.0)), theme::FG);
+            ui.text(Point::new(tx, y), title, &theme::SECTION, &TextOpts::line((x + width - tx).max(1.0)), theme::fg());
             y += theme::SECTION.line_height;
 
             // Its times, what's left and how far it is.
             if let Some(p) = &on {
                 y += 6.0;
                 let span = format!("{} · {}", clock.span(p), time_left(p.stop, seconds));
-                let sw = ui.text(Point::new(x, y), &span, &theme::CAPTION, &TextOpts::line(width), theme::MUTED).w;
+                let sw = ui.text(Point::new(x, y), &span, &theme::CAPTION, &TextOpts::line(width), theme::muted()).w;
                 let bar = Rect::new(x + sw + 12.0, y + (theme::CAPTION.line_height - 3.0) / 2.0, 180.0, 3.0);
                 if bar.right() <= x + width {
-                    progress(ui, bar, p, seconds, Color::WHITE.alpha(0.18), theme::ACCENT);
+                    progress(ui, bar, p, seconds, theme::fg().alpha(0.18), theme::accent());
                 }
                 y += theme::CAPTION.line_height;
             }
             if let Some(n) = &next {
                 y += 4.0;
                 let text = t!("livetv.guide.next", time = clock.time(n.start), title = n.title);
-                ui.text(Point::new(x, y), &text, &theme::CAPTION, &TextOpts::line(width), theme::SUBTLE);
+                ui.text(Point::new(x, y), &text, &theme::CAPTION, &TextOpts::line(width), theme::subtle());
             }
 
             let below = row_top + row_h;
@@ -1080,7 +1080,7 @@ fn info_bar(
                     hint,
                     &theme::CAPTION,
                     &TextOpts::line(right - x0),
-                    theme::SUBTLE,
+                    theme::subtle(),
                 );
             }
         });
@@ -1088,15 +1088,16 @@ fn info_bar(
     action
 }
 
-/// Live: a red pill with a white dot, its right edge at `right`, centered on `mid`; its width.
+/// Live: a Danger pill with a dot, its right edge at `right`, centered on `mid`; its width. The dot
+/// and the word are in Danger's words color.
 fn live_pill(ui: &mut Ui, right: f32, mid: f32) -> f32 {
     let text = ui.layout(t!("livetv.player.live"), &theme::BADGE, &TextOpts::default());
     let (tw, th) = (text.size.w, text.size.h);
     let (w, h) = (12.0 + 7.0 + 7.0 + tw + 12.0, 6.0 + th + 6.0);
     let rect = Rect::new(right - w, mid - h / 2.0, w, h);
-    ui.fill(rect, theme::DANGER, h / 2.0);
-    ui.fill(Rect::new(rect.x + 12.0, mid - 3.5, 7.0, 7.0), Color::WHITE, 3.5);
-    ui.draw_text(Point::new(rect.x + 26.0, rect.y + 6.0), text, Color::WHITE);
+    ui.fill(rect, theme::danger(), h / 2.0);
+    ui.fill(Rect::new(rect.x + 12.0, mid - 3.5, 7.0, 7.0), theme::danger_fg(), 3.5);
+    ui.draw_text(Point::new(rect.x + 26.0, rect.y + 6.0), text, theme::danger_fg());
     w
 }
 
@@ -1107,7 +1108,7 @@ fn digits_box(ui: &mut Ui, text: &str, code: bool) {
     let (w, h) = (layout.size.w + 48.0, layout.size.h + 24.0);
     let rect = Rect::new(theme::CANVAS_W - theme::SAFE_X - w, theme::SAFE_Y, w, h);
     ui.fill(rect, Color::BLACK.alpha(0.85), radius::DIALOG);
-    ui.draw_text(Point::new(rect.x + 24.0, rect.y + 12.0), layout, theme::FG);
+    ui.draw_text(Point::new(rect.x + 24.0, rect.y + 12.0), layout, theme::fg());
 }
 
 /// "Its 2 connections are watching:".
@@ -1205,20 +1206,20 @@ fn trouble_card(
         inner + 2.0 * CARD_PAD,
         h + 2.0 * CARD_PAD,
     );
-    ui.fill(card, theme::SURFACE2, radius::DIALOG);
-    ui.stroke(card.expand(-0.5), theme::SURFACE4, radius::DIALOG - 0.5, 1.0);
+    ui.fill(card, theme::surface2(), radius::DIALOG);
+    ui.stroke(card.expand(-0.5), theme::surface4(), radius::DIALOG - 0.5, 1.0);
     let (x, mid) = (card.x + CARD_PAD, card.center().x);
     let mut y = card.y + CARD_PAD;
     match channel {
         Some(c) => {
-            let well = Well::PAGE.named().filled(Color::WHITE.alpha(0.06), radius::TILE);
+            let well = Well::page().named().filled(theme::fg().alpha(0.06), radius::TILE);
             channel_tile(ui, cx, Rect::new(mid - 60.0, y, 120.0, 68.0), c, well);
         }
-        None => ui.icon(Rect::new(mid - 20.0, y, 40.0, 40.0), Icon::CircleAlert, theme::ACCENT),
+        None => ui.icon(Rect::new(mid - 20.0, y, 40.0, 40.0), Icon::CircleAlert, theme::accent()),
     }
     y += top_h + 18.0;
     let th = title.size.h;
-    ui.draw_text(Point::new(x, y), title, theme::FG);
+    ui.draw_text(Point::new(x, y), title, theme::fg());
     y += th;
 
     let mut action = None;
@@ -1226,19 +1227,19 @@ fn trouble_card(
     if let Some(hd) = heading {
         y += 10.0;
         let hh = hd.size.h;
-        ui.draw_text(Point::new(x, y), hd, theme::MUTED);
+        ui.draw_text(Point::new(x, y), hd, theme::muted());
         y += hh + 14.0;
         for (i, c) in connections.iter().take(shown).enumerate() {
             let row = Rect::new(x, y, inner, BUSY_ROW_H);
-            ui.fill(row, Color::WHITE.alpha(0.04), radius::CONTROL);
+            ui.fill(row, theme::fg().alpha(0.04), radius::CONTROL);
             let take = c.can_take_over.then(|| Button::pill(t!("livetv.player.takeOver")));
             let take_w = take.as_ref().map_or(0.0, |b| b.size(ui).w + 12.0);
             let text_w = (inner - 32.0 - take_w).max(1.0);
             let block = theme::LABEL.line_height + theme::CAPTION.line_height;
             let ty = y + (BUSY_ROW_H - block) / 2.0;
-            ui.text(Point::new(x + 16.0, ty), &c.channel_name, &theme::LABEL, &TextOpts::line(text_w), theme::FG);
+            ui.text(Point::new(x + 16.0, ty), &c.channel_name, &theme::LABEL, &TextOpts::line(text_w), theme::fg());
             let by = Point::new(x + 16.0, ty + theme::LABEL.line_height);
-            ui.text(by, &holders(c), &theme::CAPTION, &TextOpts::line(text_w), theme::MUTED);
+            ui.text(by, &holders(c), &theme::CAPTION, &TextOpts::line(text_w), theme::muted());
             if let Some(b) = take {
                 let bid = id.with(("take", i as u64));
                 let size = b.size(ui);
@@ -1258,13 +1259,13 @@ fn trouble_card(
         if let Some(f) = footnote {
             y += 6.0;
             let fh = f.size.h;
-            ui.draw_text(Point::new(x, y), f, theme::SUBTLE);
+            ui.draw_text(Point::new(x, y), f, theme::subtle());
             y += fh;
         }
     } else if let Some(wd) = words {
         y += 10.0;
         let wh = wd.size.h;
-        ui.draw_text(Point::new(x, y), wd, theme::MUTED);
+        ui.draw_text(Point::new(x, y), wd, theme::muted());
         y += wh;
     }
 
