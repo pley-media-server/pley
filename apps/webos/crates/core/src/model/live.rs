@@ -284,12 +284,21 @@ pub struct LivePlan {
     /// they decode it; none from an older server, which has no such setting.
     #[serde(default)]
     pub direct_play: Option<bool>,
+    /// The server's Deinterlace setting: interlaced video is made progressive; none (taken as
+    /// on) from an older server.
+    #[serde(default)]
+    pub deinterlace: Option<bool>,
     /// What the provider sends now, in kbit/s; 0 at first.
     #[serde(default, deserialize_with = "nd")]
     pub kbps: i64,
 }
 
 impl LivePlan {
+    /// Its video is interlaced and the server makes it progressive: the server's to convert.
+    pub fn made_progressive(&self) -> bool {
+        self.interlaced && self.deinterlace != Some(false)
+    }
+
     /// The channel is sent as it is (or without picture or sound).
     pub fn direct(&self) -> bool {
         let as_is = |s: &str| s == "copy" || s == "none";

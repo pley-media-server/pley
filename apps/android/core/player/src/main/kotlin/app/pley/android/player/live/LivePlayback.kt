@@ -788,7 +788,8 @@ class LivePlayback(
             }
             report ?: return NotAsSent.Unknown
             if (!pictureAsSent) {
-                if (plan.interlaced) return NotAsSent.Interlaced
+                // Interlaced video is the server's while it makes it progressive.
+                if (plan.interlaced && plan.deinterlace != false) return NotAsSent.Interlaced
                 val video = plan.videoCodec?.lowercase() ?: return NotAsSent.Unknown
                 if (!decodes(report, plan, video)) return NotAsSent.Video
                 if (video !in STREAM_VIDEO) return NotAsSent.Unknown
@@ -812,7 +813,8 @@ class LivePlayback(
          * goes by its list of codecs.
          */
         private fun decodes(report: ClientCaps, plan: LivePlan, codec: String): Boolean {
-            val decoders = report.video ?: return report.videoCodecs.any { it.equals(codec, ignoreCase = true) }
+            // A report that only names codecs says nothing of bit depth: taken at 8 bits, as the LG app does.
+            val decoders = report.video ?: return (plan.bitDepth ?: 8) <= 8 && report.videoCodecs.any { it.equals(codec, ignoreCase = true) }
             return decoders.any { it.codec.equals(codec, ignoreCase = true) && takes(it, plan) }
         }
 

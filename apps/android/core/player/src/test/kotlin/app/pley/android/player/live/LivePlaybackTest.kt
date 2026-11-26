@@ -214,9 +214,12 @@ class LivePlaybackTest {
         assertEquals(NotAsSent.Video, LivePlayback.notAsSent(plan, device(hevc(maxFps = 30.0))))
         // One of two entries takes it: 2160p at 30, 1080p at 60.
         assertNull(LivePlayback.notAsSent(plan.copy(width = 1920, height = 1080), device(hevc(maxFps = 30.0), hevc(maxWidth = 1920, maxHeight = 1080))))
-        // A decoder that gives no limits (a quirk's), and a report that lists codecs alone.
+        // A decoder that gives no limits (a quirk's), and a report that lists codecs alone, which says no
+        // bit depth: 8 bits.
         assertNull(LivePlayback.notAsSent(plan, device(VideoDecoderCaps("hevc", hardware = true))))
-        assertNull(LivePlayback.notAsSent(plan, CapsSnapshot(ClientCaps(videoCodecs = listOf("hevc"), audioCodecs = listOf("eac3")), emptyList())))
+        val named = CapsSnapshot(ClientCaps(videoCodecs = listOf("hevc"), audioCodecs = listOf("eac3")), emptyList())
+        assertEquals(NotAsSent.Video, LivePlayback.notAsSent(plan, named))
+        assertNull(LivePlayback.notAsSent(plan.copy(bitDepth = 8), named))
 
         // Sound it neither decodes nor sends on: the server's, though the video would play. Sent to a receiver as it is, it plays.
         assertEquals(NotAsSent.Audio, LivePlayback.notAsSent(plan, device(hevc(), sounds = listOf("aac"))))
@@ -228,6 +231,8 @@ class LivePlaybackTest {
         // Interlaced video the server converts stays the server's; copied (its deinterlacing off), it is as sent.
         assertEquals(NotAsSent.Interlaced, LivePlayback.notAsSent(plan.copy(interlaced = true), tv))
         assertNull(LivePlayback.notAsSent(plan.copy(interlaced = true, video = "copy"), tv))
+        // Deinterlace off, the server would send it interlaced all the same: as sent.
+        assertNull(LivePlayback.notAsSent(plan.copy(interlaced = true, deinterlace = false), tv))
         // Off on the server, nothing more plays as sent than did.
         assertEquals(NotAsSent.Off, LivePlayback.notAsSent(plan.copy(directPlay = false), tv))
         assertFalse(LivePlayback.playsAsSent(plan.copy(directPlay = false), tv))

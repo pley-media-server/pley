@@ -91,7 +91,8 @@ public static class LiveRules
         if (caps == null) return NotAsSent.Unknown;
         if (!videoSent)
         {
-            if (plan.Interlaced) return NotAsSent.Interlaced;
+            // Interlaced video is the server's while it makes it progressive.
+            if (plan.Interlaced && plan.Deinterlace != false) return NotAsSent.Interlaced;
             var picture = plan.VideoCodec?.ToLowerInvariant();
             if (picture == null) return NotAsSent.Unknown;
             if (!Player.CapsPolicy.Decodes(caps, picture, plan.BitDepth ?? 8, plan.Width, plan.Height, plan.FrameRate)) return NotAsSent.Video;

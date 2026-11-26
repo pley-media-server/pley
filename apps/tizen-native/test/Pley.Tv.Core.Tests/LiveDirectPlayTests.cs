@@ -23,7 +23,7 @@ public class LiveDirectPlayRuleTests
         VideoCodec = "hevc", Width = 3840, Height = 2160, FrameRate = 50, BitDepth = depth,
         AudioCodec = "eac3", AudioChannels = 6,
         Video = "h264_nvenc", Audio = "aac", OutHeight = 1080, VideoKbps = 8_000,
-        DirectPlay = true, Kbps = 12_300,
+        DirectPlay = true, Deinterlace = true, Kbps = 12_300,
     };
 
     static ClientCaps Decoders(params VideoDecoderCaps[] video) => new ClientCaps { Video = video, AudioDecode = new[] { "aac", "eac3" } };
@@ -55,9 +55,11 @@ public class LiveDirectPlayRuleTests
         Assert.Equal(NotAsSent.Video, LiveRules.WhyNotAsSent(Hevc(), Hd));
         Assert.True(LiveRules.PlaysAsSent(Hevc() with { Width = 1920, Height = 1080 }, Hd));
         Assert.False(LiveRules.PlaysAsSent(Hevc() with { FrameRate = 100 }, Uhd));
-        // A report without decoders is asked by its codecs' names.
-        Assert.True(LiveRules.PlaysAsSent(Hevc(), new ClientCaps { VideoCodecs = new[] { "h264", "hevc" }, AudioCodecs = new[] { "eac3" } }));
-        Assert.False(LiveRules.PlaysAsSent(Hevc(), new ClientCaps { VideoCodecs = new[] { "h264" }, AudioCodecs = new[] { "eac3" } }));
+        // A report without decoders is asked by its codecs' names, which say no bit depth: 8 bits.
+        var named = new ClientCaps { VideoCodecs = new[] { "h264", "hevc" }, AudioCodecs = new[] { "eac3" } };
+        Assert.True(LiveRules.PlaysAsSent(Hevc(8), named));
+        Assert.Equal(NotAsSent.Video, LiveRules.WhyNotAsSent(Hevc(), named));
+        Assert.False(LiveRules.PlaysAsSent(Hevc(8), new ClientCaps { VideoCodecs = new[] { "h264" }, AudioCodecs = new[] { "eac3" } }));
     }
 
     [Fact]
@@ -68,6 +70,8 @@ public class LiveDirectPlayRuleTests
         Assert.True(LiveRules.PlaysAsSent(interlaced with { Interlaced = false }, Uhd));
         // Deinterlacing off on the server: sent as it is, played as it is.
         Assert.True(LiveRules.PlaysAsSent(interlaced with { Video = "copy" }, Uhd));
+        // And converted with it off, it would come out as interlaced: played as sent.
+        Assert.True(LiveRules.PlaysAsSent(interlaced with { Deinterlace = false }, Uhd));
     }
 
     [Fact]
@@ -100,7 +104,7 @@ public class LiveDirectPlayRuleTests
     public void A_plan_reads_what_the_provider_sends_and_what_a_transcode_makes()
     {
         var plan = JsonSerializer.Deserialize<LivePlan>(
-            @"{""video_codec"":""hevc"",""width"":3840,""height"":2160,""frame_rate"":50.0,""interlaced"":false,""bit_depth"":10,""audio_codec"":""eac3"",""audio_channels"":6,""video"":""h264_nvenc"",""audio"":""aac"",""out_height"":1080,""video_kbps"":8000,""direct_play"":true,""kbps"":12300}",
+            @"{""video_codec"":""hevc"",""width"":3840,""height"":2160,""frame_rate"":50.0,""interlaced"":false,""bit_depth"":10,""audio_codec"":""eac3"",""audio_channels"":6,""video"":""h264_nvenc"",""audio"":""aac"",""out_height"":1080,""video_kbps"":8000,""direct_play"":true,""deinterlace"":true,""kbps"":12300}",
             ApiJson.Options)!;
         Assert.Equal(Hevc(), plan);
     }
@@ -233,6 +237,18 @@ public class LiveDirectPlayTests
         Assert.Equal(tuned + 3, PlanAsks);
         // Nothing of it started the HLS.
         Assert.DoesNotContain(live.Sent, s => s.StartsWith("prefetch", StringComparison.Ordinal));
+
+        // Left open in the background, they ask nothing until the app is back in front.
+        p.SetDetailsOpen(true);
+        p.Stop();
+        var stopped = PlanAsks;
+        scheduler.Advance(10 * LivePlayback.DetailsMs);
+        Assert.Equal(stopped, PlanAsks);
+        p.Resume();
+        engines[^1].Start();
+        var resumed = PlanAsks;
+        scheduler.Advance(LivePlayback.DetailsMs);
+        Assert.True(PlanAsks > resumed);
     }
 
     [Fact]

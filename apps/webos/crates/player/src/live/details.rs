@@ -51,7 +51,7 @@ pub fn why_not_as_sent(plan: &LivePlan, caps: Option<&ClientCaps>) -> Option<Not
     }
     let caps = caps?;
     if !as_is(&plan.video) {
-        if plan.interlaced {
+        if plan.made_progressive() {
             return Some(NotAsSent::Interlaced);
         }
         if !decodes_video(plan, caps) {

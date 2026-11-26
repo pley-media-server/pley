@@ -167,6 +167,8 @@ public sealed record LivePlan
     /// null from an older server, which has no such setting (and so no Direct Play).
     /// </summary>
     public bool? DirectPlay { get; init; }
+    /// <summary>The server's Deinterlace setting: interlaced video is made progressive; null (taken as on) from an older server.</summary>
+    public bool? Deinterlace { get; init; }
     /// <summary>What the provider sends now, kbit/s; 0 at first.</summary>
     public long Kbps { get; init; }
 

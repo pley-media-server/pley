@@ -191,6 +191,7 @@ public sealed class LivePlayback
     IDisposable? startTimer, pictureTimer, retryTimer, stallShown, stallCheck, detailsTimer;
     /// <summary>Each opening of Playback details asks the plan in a round of its own: an answer to an earlier one starts nothing.</summary>
     int detailsRound;
+    bool detailsOpen;
     readonly IDisposable events;
 
     /// <param name="report">
@@ -236,6 +237,7 @@ public sealed class LivePlayback
     /// </summary>
     public void SetDetailsOpen(bool open)
     {
+        detailsOpen = open;
         detailsTimer?.Dispose();
         detailsTimer = null;
         var round = ++detailsRound;
@@ -290,6 +292,8 @@ public sealed class LivePlayback
     public void Resume()
     {
         if (State.Value.Is is LivePhase.Idle) Retry();
+        // Playback details left open ask again, as they stopped asking in the background.
+        if (detailsOpen) SetDetailsOpen(true);
     }
 
     /// <summary>
@@ -302,6 +306,10 @@ public sealed class LivePlayback
         generation++;
         cancel?.Cancel();
         ClearTimers();
+        // Playback details stop asking until Resume: nothing is watched meanwhile.
+        detailsTimer?.Dispose();
+        detailsTimer = null;
+        detailsRound++;
         direct = false;
         server.EndStream();
         Leave();

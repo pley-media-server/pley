@@ -12,5 +12,6 @@
   "out_height": 1080,
   "video_kbps": 8000,
   "direct_play": true,
+  "deinterlace": true,
   "kbps": 12300
 }

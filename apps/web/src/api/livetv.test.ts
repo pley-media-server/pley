@@ -63,12 +63,14 @@ describe("playsAsSent", () => {
     expect(playsAsSent(hevc(), null)).toBe(false);
   });
 
-  it("leaves interlaced video to the transcoder unless it is copied", () => {
+  it("leaves interlaced video to the transcoder while it deinterlaces, unless copied", () => {
     const interlaced = hevc({ video_codec: "h264", interlaced: true });
     expect(playsAsSent(interlaced, decodesHevc(10))).toBe(false);
     expect(notAsSent(interlaced, decodesHevc(10))).toEqual({ why: "interlaced" });
     // Deinterlace is off on the server: it copies the channel.
     expect(playsAsSent({ ...interlaced, video: "copy" }, decodesHevc(10))).toBe(true);
+    // Deinterlace off: the transcoder would send it as interlaced as it is.
+    expect(playsAsSent({ ...interlaced, deinterlace: false }, decodesHevc(10))).toBe(true);
   });
 
   it("plays nothing more while Direct Play is off on the server", () => {

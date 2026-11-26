@@ -11,6 +11,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+pub mod ts;
+
 /// Protocol version spoken by this crate. Bumped on breaking changes.
 pub const API_VERSION: u32 = 1;
 

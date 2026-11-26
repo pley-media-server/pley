@@ -4765,6 +4765,7 @@ interface LivePlan {
 }
 interface SessionPlan extends LivePlan {
   direct_play: boolean;                // LiveSettings.direct_play
+  deinterlace: boolean;                // LiveSettings.deinterlace
   kbps: number;                        // what the provider sends now, kbit/s
 }
 interface LiveTuner {                  // a connection in use
@@ -4777,6 +4778,7 @@ interface LiveTuner {                  // a connection in use
              kind: "hls" | "stream"; started_at: number }[];
   idle: boolean;                       // nobody watches: it goes soon
   plan: LivePlan | null;               // what the transcoder makes of it, for HLS viewers
+  transcoding: boolean;                // an HLS player asked for it: the transcoder makes it now
 }
 ```
 
@@ -4831,9 +4833,9 @@ interface LiveTuner {                  // a connection in use
   sends: the plan's progressive video (`video_codec`, at its `bit_depth`
   and size) and sound (`audio_codec`), or either alone. An HEVC channel on a
   device that plays HEVC takes no transcode. Interlaced video goes to the
-  transcoder unless copied, and so does anything else the device doesn't
-  decode. Players show which it is in their playback details: Direct Play
-  from `stream.ts`, Direct Stream for copied HLS, else Transcode.
+  transcoder unless copied while it makes it progressive (`deinterlace`),
+  and so does anything else the device doesn't decode. Players show which it is in their Playback details: Direct play
+  from `stream.ts`, Direct stream for copied HLS, else Transcoding.
 - **Leaving.** An HLS viewer that asked for nothing for 45 s has left,
   unless its device reads the channel's `stream.ts` for it instead (as
   `<client_id>-stream`): it stays while that is read.

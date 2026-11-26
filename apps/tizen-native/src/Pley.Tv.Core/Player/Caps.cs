@@ -176,7 +176,8 @@ public static class CapsPolicy
     /// </summary>
     public static bool Decodes(ClientCaps caps, string codec, int depth, int? width, int? height, double? frameRate)
     {
-        if (caps.Video.Count == 0) return caps.VideoCodecs.Contains(codec, StringComparer.OrdinalIgnoreCase);
+        // A report that only names codecs says nothing of bit depth: taken at 8 bits, as Android does.
+        if (caps.Video.Count == 0) return depth <= 8 && caps.VideoCodecs.Contains(codec, StringComparer.OrdinalIgnoreCase);
         var video = new MediaStream { Kind = "video", Codec = codec, Width = width, Height = height, FrameRate = frameRate };
         return caps.Video.Any(e => string.Equals(e.Codec, codec, StringComparison.OrdinalIgnoreCase) && Takes(e, video, depth));
     }

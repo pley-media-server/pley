@@ -1501,11 +1501,15 @@ async fn a_channel_plays_as_the_provider_sends_it_with_no_transcode_until_hls_is
     assert_eq!(plan.body["bit_depth"], 10);
     assert_eq!(plan.body["video_kbps"], 20000);
     assert_eq!(plan.body["direct_play"], true);
+    assert_eq!(plan.body["deinterlace"], true, "the server's setting, on by default");
     assert!(plan.body["kbps"].is_u64(), "{:?}", plan.body);
     let created = maker.created.lock().clone();
     assert_eq!(created.len(), 1);
     assert_eq!(created[0]["on_demand"], true, "made only once a player asks for its playlist");
     assert_eq!(maker.playlists.load(Ordering::SeqCst), 0);
+    // Administrators see what it is, and that nothing transcodes it.
+    let tuner = &app.get("/api/live/tuners", &admin).await.body[0];
+    assert_eq!((tuner["plan"]["video_codec"].as_str(), tuner["transcoding"].as_bool()), (Some("hevc"), Some(false)));
 
     // Asked again (a player's details): the plan known, no other job.
     let mut settings = app.get("/api/live/settings", &admin).await.body;
@@ -1521,4 +1525,5 @@ async fn a_channel_plays_as_the_provider_sends_it_with_no_transcode_until_hls_is
     assert_eq!(playlist.status, StatusCode::OK, "{:?}", playlist.body);
     assert_eq!(maker.playlists.load(Ordering::SeqCst), 1);
     assert_eq!(maker.created.lock().len(), 1);
+    assert_eq!(app.get("/api/live/tuners", &admin).await.body[0]["transcoding"], true);
 }

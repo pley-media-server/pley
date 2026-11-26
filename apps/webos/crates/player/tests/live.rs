@@ -1284,8 +1284,10 @@ fn a_channel_this_tv_decodes_plays_from_stream_ts_while_the_server_allows_it() {
     assert!(!plays(&converted("hevc", Some(12), "aac")));
     assert!(!plays(&LivePlan { width: Some(3840), height: Some(2160), ..converted("h264", Some(8), "aac") }));
     assert!(plays(&LivePlan { width: Some(3840), height: Some(2160), ..converted("hevc", Some(10), "aac") }));
-    // Interlaced video is the server's to make progressive.
+    // Interlaced video is the server's to make progressive, while it does.
     assert!(!plays(&LivePlan { interlaced: true, ..converted("mpeg2video", Some(8), "mp2") }));
+    let kept = LivePlan { interlaced: true, deinterlace: Some(false), ..converted("mpeg2video", Some(8), "mp2") };
+    assert!(plays(&kept), "Deinterlace off: it would come out interlaced all the same");
     // Direct Play off on the server.
     assert!(!plays(&LivePlan { direct_play: Some(false), ..converted("hevc", Some(8), "aac") }));
     // Sound the TV doesn't decode, or decodes but doesn't read from an MPEG-TS.

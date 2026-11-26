@@ -17,7 +17,7 @@
 //! caller can learn what a channel carries, for players that read the
 //! provider's stream themselves, without a transcode for nobody.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
@@ -28,7 +28,7 @@ use bytes::Bytes;
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use pley_transcoder_api::{
-    EncoderInfo, HwAccel, LiveCreated, LivePlan, LiveRequest, LiveState, LiveStatus, VideoCodec, default_video_kbps,
+    EncoderInfo, HwAccel, LiveCreated, LivePlan, LiveRequest, LiveState, LiveStatus, VideoCodec, default_video_kbps, ts,
 };
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::Notify;
@@ -70,9 +70,10 @@ const PLAYLIST_WAIT: Duration = Duration::from_secs(30);
 const IDLE: Duration = Duration::from_secs(90);
 /// Lines of FFmpeg's output kept for an error.
 const STDERR_LINES: usize = 12;
-/// Input an `on_demand` channel keeps while nobody asked for it: its last
-/// seconds (a keyframe interval or so), at most this many bytes. FFmpeg
-/// starts with them, so the first segments come at once.
+/// Input an `on_demand` channel keeps while nobody asked for it: what came
+/// from the newest video keyframe at least this old, at most this many
+/// bytes. FFmpeg starts there, after the stream's tables, so the first
+/// segments come at once.
 const HELD: Duration = Duration::from_secs(3);
 const HELD_BYTES: usize = 16 << 20;
 
@@ -260,10 +261,12 @@ impl LiveManager {
         // players read the provider's stream themselves needs no slot.
         live.inner.lock().plan = Some(plan.status.clone());
         live.changed.notify_waiters();
-        let now = Instant::now();
-        let mut head: VecDeque<(Instant, Bytes)> = head.into_iter().map(|chunk| (now, chunk)).collect();
         if live.request.on_demand && !ended {
-            let mut held = head_len;
+            let mut held = ts::Backlog::new(HELD_BYTES);
+            for chunk in &head {
+                held.push(chunk);
+            }
+            held.trim_to_keyframe_older_than(HELD);
             loop {
                 let next = tokio::select! {
                     next = tokio::time::timeout(INPUT_STALL, input.next()) => next,
@@ -273,15 +276,8 @@ impl LiveManager {
                 match next {
                     Ok(Some(Ok(chunk))) => {
                         live.bytes_in.fetch_add(chunk.len() as u64, Relaxed);
-                        held += chunk.len();
-                        head.push_back((Instant::now(), chunk));
-                        while head.len() > 1
-                            && (held > HELD_BYTES || head.front().is_some_and(|(at, _)| at.elapsed() > HELD))
-                        {
-                            if let Some((_, gone)) = head.pop_front() {
-                                held -= gone.len();
-                            }
-                        }
+                        held.push(&chunk);
+                        held.trim_to_keyframe_older_than(HELD);
                     }
                     Ok(Some(Err(e))) => return Err(ApiError::Failed(format!("the channel's stream broke off: {e}"))),
                     // Over before anybody asked for it: nothing to make.
@@ -294,6 +290,9 @@ impl LiveManager {
                     }
                 }
             }
+            // The tables, then from the last keyframe: FFmpeg's start, as a
+            // channel's first moment is.
+            head = held.start_held();
         }
         let slot = match plan.encoder {
             Some(enc) => Some(self.slots.take(enc.hardware).ok_or_else(|| {
@@ -337,7 +336,7 @@ impl LiveManager {
         let started = Instant::now();
         let mut broke = None;
         'feed: {
-            for (_, chunk) in head {
+            for chunk in head {
                 if stdin.write_all(&chunk).await.is_err() {
                     break 'feed;
                 }
@@ -1022,15 +1021,27 @@ mod tests {
         (LiveManager::new(Arc::new(ff), slots.clone(), dir.path().join("live")), slots, dir)
     }
 
-    /// A channel as a provider sends it, as it airs: MPEG-2 video (which a
-    /// live channel transcodes) with MP2 sound, `secs` long, in chunks
-    /// about as fast as it plays.
-    fn airing(secs: u32) -> impl Stream<Item = Result<Bytes, std::io::Error>> + Unpin {
+    /// A channel as a provider sends it, as it airs: `video` (MPEG-2, which a
+    /// live channel transcodes, or H.264) with a keyframe every `gop` frames
+    /// and MP2 sound, `secs` long, in chunks about as fast as it plays.
+    fn airing(secs: u32, video: &str, gop: u32) -> impl Stream<Item = Result<Bytes, std::io::Error>> + Unpin {
         let made = std::process::Command::new("ffmpeg")
             .args(["-hide_banner", "-loglevel", "error"])
             .args(["-f", "lavfi", "-i", &format!("testsrc2=s=320x180:r=25:d={secs}")])
             .args(["-f", "lavfi", "-i", &format!("sine=r=48000:d={secs}")])
-            .args(["-c:v", "mpeg2video", "-g", "25", "-c:a", "mp2", "-f", "mpegts", "pipe:1"])
+            .args([
+                "-c:v",
+                video,
+                "-g",
+                &gop.to_string(),
+                "-sc_threshold",
+                "0",
+                "-c:a",
+                "mp2",
+                "-f",
+                "mpegts",
+                "pipe:1",
+            ])
             .output()
             .unwrap();
         assert!(made.status.success());
@@ -1062,7 +1073,7 @@ mod tests {
         let live = mgr.get(&id).unwrap();
         let feeding = {
             let (mgr, live) = (mgr.clone(), live.clone());
-            tokio::spawn(async move { mgr.feed(&live, airing(20)).await })
+            tokio::spawn(async move { mgr.feed(&live, airing(20, "mpeg2video", 25)).await })
         };
         let plan = plan_of(&live).await;
         assert_eq!((plan.video_codec.as_deref(), plan.video.as_str()), (Some("mpeg2video"), "libx264"));
@@ -1076,12 +1087,41 @@ mod tests {
         assert!(!live.dir.join("index.m3u8").exists());
         assert!(status.bytes_in > 0, "the input is read meanwhile");
 
-        // The first playlist starts it, from the seconds kept.
+        // The first playlist starts it, from what was kept.
         let asked = Instant::now();
         let LiveFile::Playlist(text) = live.file("index.m3u8").await.unwrap() else { panic!("a playlist") };
         assert!(text.contains("s0.ts"), "{text}");
         assert!(asked.elapsed() < Duration::from_secs(10), "{:?}", asked.elapsed());
         assert_eq!(live.status().state, LiveState::Running);
+        mgr.remove(&id);
+        let _ = tokio::time::timeout(Duration::from_secs(10), feeding).await;
+    }
+
+    #[tokio::test]
+    async fn an_on_demand_channel_asked_late_starts_from_its_last_keyframe() {
+        if !crate::testing::has_encoder("libx264") {
+            return;
+        }
+        let (mgr, _slots, _dir) = manager(1);
+        // H.264 made again: its decoder, as HEVC's, shows nothing before a keyframe.
+        let id = mgr.create(LiveRequest { on_demand: true, force_transcode: true, ..Default::default() }).unwrap().id;
+        let live = mgr.get(&id).unwrap();
+        // A keyframe every 5 s, as many channels send.
+        let channel = airing(30, "libx264", 125);
+        let airs = Instant::now();
+        let feeding = {
+            let (mgr, live) = (mgr.clone(), live.clone());
+            tokio::spawn(async move { mgr.feed(&live, channel).await })
+        };
+        plan_of(&live).await;
+        // Asked 8.5 s in, it holds from the keyframe at 5 s, the newest 3 s
+        // old: FFmpeg starts with the tables and that keyframe (`ts::Backlog`,
+        // tested there), so the seconds held are made at once.
+        tokio::time::sleep_until((airs + Duration::from_millis(8500)).into()).await;
+        let asked = Instant::now();
+        let LiveFile::Playlist(text) = live.file("index.m3u8").await.unwrap() else { panic!("a playlist") };
+        assert!(text.contains("s0.ts"), "{text}");
+        assert!(asked.elapsed() < Duration::from_millis(2500), "{:?}", asked.elapsed());
         mgr.remove(&id);
         let _ = tokio::time::timeout(Duration::from_secs(10), feeding).await;
     }
@@ -1095,7 +1135,8 @@ mod tests {
         let _taken = slots.take(false).unwrap();
         let id = mgr.create(LiveRequest::default()).unwrap().id;
         let live = mgr.get(&id).unwrap();
-        let fed = tokio::time::timeout(Duration::from_secs(20), mgr.feed(&live, airing(10))).await.unwrap();
+        let fed =
+            tokio::time::timeout(Duration::from_secs(20), mgr.feed(&live, airing(10, "mpeg2video", 25))).await.unwrap();
         assert!(matches!(fed, Err(ApiError::Busy(_))), "{fed:?}");
         let status = live.status();
         assert_eq!(status.state, LiveState::Failed);

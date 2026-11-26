@@ -290,6 +290,8 @@ export interface LivePlan {
 export interface SessionPlan extends LivePlan {
   /** Settings → Live TV's Direct Play (an older server says nothing: off). */
   direct_play?: boolean;
+  /** Settings → Live TV's Deinterlace (an older server says nothing: on). */
+  deinterlace?: boolean;
   /** What the provider sends now, kbit/s. */
   kbps?: number;
 }
@@ -307,6 +309,8 @@ export interface TunerStatus {
   viewers: { session_id: string; user_id: Id; username: string; kind: "hls" | "stream"; started_at: Timestamp }[];
   idle: boolean;
   plan: LivePlan | null;
+  /** An HLS player asked for it: the transcoder makes it now. Until then players read it as the provider sends it. */
+  transcoding?: boolean;
 }
 
 // ---------------------------------------------------------------- queries
@@ -602,8 +606,8 @@ export function notAsSent(plan: SessionPlan, caps?: StreamCaps | null): NotAsSen
   if (asIs(plan.video) && asIs(plan.audio)) return null;
   if (plan.direct_play !== true) return { why: plan.direct_play === false ? "off" : "older" };
   if (!asIs(plan.video)) {
-    // Interlaced video is the transcoder's: the server's Deinterlace setting decides.
-    if (plan.interlaced) return { why: "interlaced" };
+    // Interlaced video is the transcoder's while it makes it progressive.
+    if (plan.interlaced && plan.deinterlace !== false) return { why: "interlaced" };
     const depth = plan.bit_depth ?? 8;
     if (!caps?.video.some((v) => v.codec === plan.video_codec && v.max_bit_depth >= depth)) {
       return { why: "video", codec: plan.video_codec };

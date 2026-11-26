@@ -219,6 +219,8 @@ data class LivePlan(
      * which has no such setting (and so no Direct Play).
      */
     val directPlay: Boolean? = null,
+    /** The server's Deinterlace setting: interlaced video is made progressive; `null` (taken as on) from an older server. */
+    val deinterlace: Boolean? = null,
     /** What the provider sends now, kbit/s; 0 until measured. */
     val kbps: Long = 0,
 ) {

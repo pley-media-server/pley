@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Live TV plays a channel as its provider sends it, HEVC and 10-bit
+  included, when the computer decodes its video and sound, and the live
+  player has Playback details: how the channel plays and why, with its
+  video, audio and bitrate.
+
 ## [0.1.9] - 2026-11-25
 
 ### Changed

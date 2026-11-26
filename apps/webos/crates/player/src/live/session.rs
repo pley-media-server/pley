@@ -99,14 +99,14 @@ pub(crate) fn sent_as_it_is(plan: &LivePlan) -> bool {
             || plan.audio_codec.as_deref().is_some_and(|c| TV_DECODED_AUDIO.contains(&c.to_ascii_lowercase().as_str())))
 }
 
-/// Whether this TV decodes the provider's video from the stream.ts: progressive (interlaced
-/// video is the server's to make progressive), in a codec the pipeline reads from MPEG-TS, and
+/// Whether this TV decodes the provider's video from the stream.ts: not interlaced video the
+/// server makes progressive, in a codec the pipeline reads from MPEG-TS, and
 /// within a decoder of the TV's report at its bit depth (8 when the plan doesn't say), size and
 /// frame rate, by the rule a file's direct play goes by ([`takes`]). A report that only names
 /// codecs (version 1) is taken at 8 bits.
 pub(crate) fn decodes_video(plan: &LivePlan, caps: &ClientCaps) -> bool {
     let Some(codec) = plan.video_codec.as_deref().map(str::to_ascii_lowercase) else { return false };
-    if plan.interlaced || !TS_VIDEO.contains(&codec.as_str()) {
+    if plan.made_progressive() || !TS_VIDEO.contains(&codec.as_str()) {
         return false;
     }
     let depth = plan.bit_depth.filter(|d| *d > 0).unwrap_or(8);
