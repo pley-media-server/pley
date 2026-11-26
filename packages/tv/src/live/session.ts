@@ -1,6 +1,6 @@
 import { signal } from "@preact/signals";
 import { errorMessage, isApiError, SessionStoppedError, unreachable, unreachableReason } from "../api/client";
-import type { Control, LiveBusyConnection, LiveChannel, LiveWatching, ServerEvent } from "../api/types";
+import type { Control, LiveBusyConnection, LiveChannel, LiveWatching, ServerEvent, SessionPlan } from "../api/types";
 import { t } from "../i18n";
 import { Cancel, NetworkError } from "../net/transport";
 import { HLS_MIME, type EngineStatus, type PlayerEngine } from "../player/engine";
@@ -13,6 +13,8 @@ export interface LiveServer {
   leaveChannel(session: string): Promise<unknown>;
   /** Why a session ended (its connection taken over, say), or null while it goes on. */
   whyLiveEnded(session: string, cancel?: Cancel): Promise<string | null>;
+  /** What the channel a session watches is and what the server makes of it, or null while that isn't known. */
+  livePlan(session: string, cancel?: Cancel): Promise<SessionPlan | null>;
   /** A playlist or segment, as the TV's player asks for it. */
   media(method: "GET" | "HEAD", url: string, cancel?: Cancel, timeoutMs?: number): Promise<string>;
   url(path: string): string;
@@ -114,6 +116,8 @@ export interface LiveState {
   audioOnly: boolean;
   /** Counts each channel tuned by the person (not a recovery), so the banner shows anew. */
   tunes: number;
+  /** What the channel is and what the server makes of it, while the details are open and once the server has said. */
+  plan: SessionPlan | null;
 }
 
 /** The server waits for the channel's first segments before it answers the playlist. */
@@ -132,6 +136,8 @@ const PICTURE_CHECK_MS = 1_500;
 const STALL_CHECK_MS = 5_000;
 /** A stall this long: watched anew, as a failure. */
 const STALL_GIVE_UP_MS = 20_000;
+/** The details ask the plan again this long after each answer, for the provider's bitrate as it is now. */
+const PLAN_MS = 2_500;
 
 /**
  * A live channel playing on the TV's own player (the web's LivePlayerPage
@@ -154,6 +160,11 @@ export class LiveController {
   private pictureTimer: ReturnType<typeof setTimeout> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private stallTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The details are open: the plan of the session watched is asked, and asked again. */
+  private detailsOpen = false;
+  private planTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The asking of the plan now under way, or waited for; another session's, or the details closing, ends it. */
+  private planCancel: Cancel | null = null;
   private unsubscribe: (() => void) | null = null;
   private closed = false;
   /** The TV hid the app: nothing is watched until it shows again. */
@@ -161,7 +172,7 @@ export class LiveController {
 
   constructor(channel: LiveChannel, env: LiveEnv) {
     this.env = env;
-    this.state.value = { channel, phase: "tuning", trouble: null, shown: false, audioOnly: false, tunes: 0 };
+    this.state.value = { channel, phase: "tuning", trouble: null, shown: false, audioOnly: false, tunes: 0, plan: null };
   }
 
   get engine(): PlayerEngine | null {
@@ -273,7 +284,7 @@ export class LiveController {
     this.cancel = cancel;
     this.engineRef?.stop();
     this.leave();
-    this.patch({ channel, phase: "tuning", trouble: null, shown: false, audioOnly: false });
+    this.patch({ channel, phase: "tuning", trouble: null, shown: false, audioOnly: false, plan: null });
     const server = this.env.server;
     let watching: LiveWatching;
     try {
@@ -287,6 +298,7 @@ export class LiveController {
       return;
     }
     this.session = this.watched = watching.session_id;
+    this.askPlan();
     this.patch({ channel: { ...channel, ...watching.channel } });
     // An older server's address needs the token, which the TV's player can't send.
     if (!/\/api\/live\/media\//.test(watching.url)) {
@@ -475,9 +487,56 @@ export class LiveController {
     this.engineRef = null;
   }
 
+  /**
+   * The player's details open or close. While they are open the server is
+   * asked what the channel is and what it makes of it (`state.plan`), and
+   * again 2.5 s after each answer, for the provider's bitrate as it is now;
+   * a channel change asks of the new session, and nothing is asked once
+   * they close or watching ends.
+   */
+  setDetailsOpen(open: boolean): void {
+    this.detailsOpen = open;
+    this.stopPlan();
+    if (open) this.askPlan();
+    else this.patch({ plan: null });
+  }
+
+  private askPlan(): void {
+    const session = this.session;
+    if (!session || !this.detailsOpen || this.closed) return;
+    this.stopPlan();
+    const cancel = new Cancel();
+    this.planCancel = cancel;
+    const again = () => {
+      if (this.planCancel !== cancel) return;
+      this.planTimer = setTimeout(() => {
+        this.planTimer = null;
+        this.askPlan();
+      }, PLAN_MS);
+    };
+    this.env.server.livePlan(session, cancel).then(
+      (plan) => {
+        if (this.planCancel !== cancel) return;
+        // Not known yet (the server is still looking at the channel): what was known stays.
+        if (plan) this.patch({ plan });
+        again();
+      },
+      // The server didn't answer: asked again like any other time, and a session that ended is found by the player's own failure.
+      () => again(),
+    );
+  }
+
+  private stopPlan(): void {
+    this.planCancel?.cancel();
+    this.planCancel = null;
+    if (this.planTimer !== null) clearTimeout(this.planTimer);
+    this.planTimer = null;
+  }
+
   private leave(): void {
     const session = this.session;
     this.session = null;
+    this.stopPlan();
     if (session) void this.env.server.leaveChannel(session).catch(() => undefined);
   }
 

@@ -123,8 +123,13 @@ export function simplified(text: string): string {
   return text.replace(/(\d+)×(\d+)/g, (m, w: string, h: string) => resolutionLabel(Number(w), Number(h)) ?? m);
 }
 
+/** FFmpeg's encoder as people know it: "h264_nvenc" → "NVIDIA NVENC"; one not known, as it is. */
+export function encoderName(encoder: string): string {
+  return ENCODERS[encoder] ?? encoder;
+}
+
 export function encoderLabel(t: TranscodeInfo): string {
-  const name = t.encoder ? ENCODERS[t.encoder] ?? t.encoder : null;
+  const name = t.encoder ? encoderName(t.encoder) : null;
   const where = t.pipeline && t.pipeline !== "copy" ? `(${pipelineLabel(t.pipeline)})` : null;
   return [name, where].filter(Boolean).join(" ");
 }

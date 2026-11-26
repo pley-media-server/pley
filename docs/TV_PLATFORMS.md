@@ -160,6 +160,21 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
 - **The player:** Up and Down, CH+ and CH−, Previous and Next change
   channel. The menu key (and CH LIST) opens the channel list beside the
   picture, which moves aside into the 520 px left of it.
+- **Playback info:** Info, last in the player's controls, opens the panel
+  a title's player has. This app plays Live TV through the server's HLS
+  alone, never the provider's own stream (`stream.ts`), so a channel is a
+  **Direct stream** (the server copies its video) or **Transcoding**, never
+  Direct Play, and the panel has no Why. Under Playback come the
+  provider's video and sound with what the server makes of them
+  ("HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p", "AC3 5.1 → AAC
+  Stereo"), the provider's bitrate as it is now with a transcode's after
+  it, and the encoder; what isn't known is left out. Then This TV, as for
+  a title: the player, what it decodes, dropped frames and the buffer.
+  The plan (`GET /api/live/sessions/{id}/plan`) is asked as the panel
+  opens and again 2.5 s after each answer; the panel says "Asking the
+  server…" until the server knows the channel. It stays open over a
+  change of channel and says the new channel's, and nothing is asked once
+  it closes or watching ends. A failure's card closes it.
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change of
   channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).

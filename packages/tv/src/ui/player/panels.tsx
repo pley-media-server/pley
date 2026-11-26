@@ -344,6 +344,14 @@ export function readoutSections(state: PlayerState, stats: EngineStats | null, e
     subs.facts.push({ label: t("player.info.shown"), value: d.subtitleDelivery === "burned_in" ? t("player.info.burnedIn") : t("player.info.drawnHere") });
   }
   out.push(subs);
+  const tv = deviceFacts(stats, engineName, state.stalls);
+  if (state.firstFrameMs !== null) tv.facts.push({ label: t("player.info.firstFrame"), value: `${state.firstFrameMs} ms` });
+  out.push(tv);
+  return out;
+}
+
+/** What this TV says of what it plays: its player, and what that decodes and holds; `stalls` where the player counts them. */
+export function deviceFacts(stats: EngineStats | null, engineName: string, stalls?: number): FactBlock {
   const tv: FactBlock = { title: t("player.info.thisTv"), facts: [{ label: t("player.info.player"), value: engineName }] };
   if (stats) {
     const decoded = [stats.width && stats.height ? `${stats.width}×${stats.height}` : "", stats.frameRate ? `${stats.frameRate.toFixed(3).replace(/\.?0+$/, "")} fps` : "", stats.hdr ?? "", stats.codec ? codecLabel(stats.codec) : ""]
@@ -359,22 +367,18 @@ export function readoutSections(state: PlayerState, stats: EngineStats | null, e
     if (stats.bitrate) tv.facts.push({ label: t("player.info.currentBitrate"), value: formatBitrate(stats.bitrate) });
     if (stats.dropped !== undefined && stats.frames) tv.facts.push({ label: t("player.info.droppedFrames"), value: t("player.info.framesOf", { dropped: stats.dropped, frames: stats.frames }) });
     if (stats.bufferedAheadMs !== undefined) tv.facts.push({ label: t("player.info.bufferedAhead"), value: `${Math.round(stats.bufferedAheadMs / 1000)} s` });
-    tv.facts.push({ label: t("player.info.stalls"), value: String(state.stalls) });
+    if (stalls !== undefined) tv.facts.push({ label: t("player.info.stalls"), value: String(stalls) });
     // The TV's own lines ("Renderer: …"), as it writes them.
     for (const line of stats.extra ?? []) {
       const i = line.indexOf(":");
       if (i > 0) tv.facts.push({ label: line.slice(0, i), value: line.slice(i + 1).trim() });
     }
   }
-  if (state.firstFrameMs !== null) tv.facts.push({ label: t("player.info.firstFrame"), value: `${state.firstFrameMs} ms` });
-  out.push(tv);
-  return out;
+  return tv;
 }
 
 function InfoPanel(p: { state: PlayerState; controller: PlaybackController; onClose: () => void; stats: () => EngineStats | null; engineName: string }) {
   const [, setTick] = useState(0);
-  const [scroll, setScroll] = useState(0);
-  const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     p.controller.setDetailsOpen(true);
     const t = setInterval(() => setTick((n) => n + 1), 1000);
@@ -384,6 +388,13 @@ function InfoPanel(p: { state: PlayerState; controller: PlaybackController; onCl
     };
   }, []);
   const sections = readoutSections(p.state, p.stats(), p.engineName);
+  return <Readout sections={sections} asking={!sections.length} onClose={p.onClose} />;
+}
+
+/** Playback info's panel: the sections one under the other, Up and Down scrolling them; `asking` while the server hasn't said how it plays. */
+export function Readout(p: { sections: FactBlock[]; asking: boolean; onClose: () => void }) {
+  const [scroll, setScroll] = useState(0);
+  const box = useRef<HTMLDivElement>(null);
   return (
     <SidePanel onClose={p.onClose} wide label={t("player.info.title")}>
       <F
@@ -405,7 +416,10 @@ function InfoPanel(p: { state: PlayerState; controller: PlaybackController; onCl
       >
         <div ref={box} class="scroll-y" style={`transform:translateY(${-scroll}px)`}>
           <PanelTitle>{t("player.info.title")}</PanelTitle>
-          {!sections.length ? <div class="t-body c-muted panel-note">{t("player.info.asking")}</div> : sections.map((s) => <Facts key={s.title} block={s} />)}
+          {p.asking && <div class="t-body c-muted panel-note">{t("player.info.asking")}</div>}
+          {p.sections.map((s) => (
+            <Facts key={s.title} block={s} />
+          ))}
           <div style="height:24px" />
         </div>
       </F>
