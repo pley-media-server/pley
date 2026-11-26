@@ -73,8 +73,6 @@ const WORKED_BYTES: u64 = 4 << 20;
 pub struct SessionPlan {
     #[serde(flatten)]
     pub plan: LivePlan,
-    /// Players may play the provider's stream when they decode it (Settings → Live TV).
-    pub direct_play: bool,
     /// Interlaced video is made progressive (Settings → Live TV): players
     /// leave such a channel to the transcoder rather than play it as sent.
     pub deinterlace: bool,
@@ -1078,8 +1076,8 @@ impl Tuners {
     /// none yet, which makes nothing until a player asks for its playlist);
     /// `None` when that takes longer than `wait`. Players that read MPEG-TS
     /// themselves play a channel sent as it is (H.264 and AAC), or one they
-    /// decode while `direct_play` is on, straight from `stream.ts`: sooner
-    /// than its first segments, and with no transcode.
+    /// decode, straight from `stream.ts`: sooner than its first segments,
+    /// and with no transcode.
     pub async fn plan(
         &self,
         session_id: &str,
@@ -1090,12 +1088,7 @@ impl Tuners {
     ) -> Result<Option<SessionPlan>, AppError> {
         let viewer = self.viewer(session_id, user)?;
         let tuner = self.tuner_of(&viewer)?;
-        let known = |plan: LivePlan| SessionPlan {
-            plan,
-            direct_play: settings.direct_play,
-            deinterlace: settings.deinterlace,
-            kbps: tuner.kbps(),
-        };
+        let known = |plan: LivePlan| SessionPlan { plan, deinterlace: settings.deinterlace, kbps: tuner.kbps() };
         // Known already (asked again for the player's details): no job for it.
         // Taken out first: `known` locks the tuner's state for its rate.
         let plan = tuner.state.lock().plan.clone();

@@ -115,7 +115,6 @@
     "andMore_other": "y {{count}} más"
   },
   "details": {
-    "directPlayOff": "La reproducción directa está desactivada en el servidor",
     "interlaced": "El video entrelazado se convierte a progresivo",
     "videoNotPlayed": "Esta TV no reproduce {{codec}}",
     "audioNotPlayed": "Esta TV no reproduce el audio {{codec}}"

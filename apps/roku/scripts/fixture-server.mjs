@@ -928,7 +928,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       if (!fixture.liveSessions.has(match[1])) return json(404, { code: "not_found", message: "not watching" });
       fixture.livePlans.push(match[1]);
       return json(200, { video_codec: "hevc", width: 3840, height: 2160, frame_rate: 50, interlaced: false, bit_depth: 10, audio_codec: "eac3", audio_channels: 6,
-        video: "libx264", audio: "aac", out_height: 1080, video_kbps: 8000, direct_play: true, kbps: 12300 });
+        video: "libx264", audio: "aac", out_height: 1080, video_kbps: 8000, kbps: 12300 });
     }
     if ((match = path.match(/^\/api\/live\/sessions\/(\w+)$/)) && req.method === "DELETE") {
       fixture.liveLeft.push(match[1]);

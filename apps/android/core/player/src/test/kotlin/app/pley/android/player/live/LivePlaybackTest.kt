@@ -181,7 +181,7 @@ class LivePlaybackTest {
         assertTrue(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "aac", audioCodec = "eac3"), passes))
         assertTrue(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "none"), null))
         assertFalse(LivePlayback.playsAsSent(LivePlan(video = "h264_vaapi", audio = "aac", audioCodec = "eac3"), passes))
-        // DTS isn't one the server's plan converts for some players only: it goes to HLS everywhere.
+        // DTS isn't sound the player reads from MPEG-TS: it goes to HLS everywhere.
         val dts = CapsSnapshot(ClientCaps(audioCodecs = listOf("aac", "dts")), emptyList())
         assertFalse(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "aac", audioCodec = "dts"), dts))
         assertFalse(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "aac", audioCodec = "mp2"), passes))
@@ -196,7 +196,7 @@ class LivePlaybackTest {
         VideoDecoderCaps("hevc", hardware = true, maxWidth = maxWidth, maxHeight = maxHeight, maxFps = maxFps, maxBitDepth = maxBitDepth)
 
     @Test
-    fun `with Direct Play, a channel plays as sent where a decoder takes its video and the device its sound`() {
+    fun `a channel plays as sent where a decoder takes its video and the device its sound`() {
         // HEVC, 10-bit, 3840×2160 at 50, with E-AC3: the server would make H.264 and AAC of it.
         val plan = Fixtures.decode<LivePlan>("live/plan_hevc.json")
         val tv = device(hevc())
@@ -233,9 +233,6 @@ class LivePlaybackTest {
         assertNull(LivePlayback.notAsSent(plan.copy(interlaced = true, video = "copy"), tv))
         // Deinterlace off, the server would send it interlaced all the same: as sent.
         assertNull(LivePlayback.notAsSent(plan.copy(interlaced = true, deinterlace = false), tv))
-        // Off on the server, nothing more plays as sent than did.
-        assertEquals(NotAsSent.Off, LivePlayback.notAsSent(plan.copy(directPlay = false), tv))
-        assertFalse(LivePlayback.playsAsSent(plan.copy(directPlay = false), tv))
         // Not before the device is probed.
         assertEquals(NotAsSent.Unknown, LivePlayback.notAsSent(plan, null))
         // Nor what Media3 doesn't read from MPEG-TS, decoded here or not, nor a codec the plan doesn't name.
@@ -248,19 +245,24 @@ class LivePlaybackTest {
     }
 
     @Test
-    fun `an older server's plan says nothing new, and its channels play as they did`() {
+    fun `an older server's plan says nothing new, and its video is taken as 8-bit`() {
         val plan = Fixtures.decode<LivePlan>("live/plan.json")
-        assertNull(plan.directPlay)
         assertEquals(0L, plan.kbps)
         assertNull(plan.bitDepth)
         assertNull(plan.outHeight)
         assertNull(plan.videoKbps)
+        assertNull(plan.deinterlace)
         val tv = device(hevc())
-        // Sent as it is, and with sound the server converts that this device plays: as before.
+        // Sent as it is, and with sound the server converts that this device plays.
         assertTrue(LivePlayback.playsAsSent(plan, null))
         assertTrue(LivePlayback.playsAsSent(plan.copy(audio = "aac", audioCodec = "eac3"), tv))
-        // HEVC it would decode stays the server's to convert, with no word of a setting that server lacks.
-        assertEquals(NotAsSent.Unknown, LivePlayback.notAsSent(plan.copy(videoCodec = "hevc", video = "libx264"), tv))
+        // HEVC the server converts: as sent where a decoder takes it at 8 bits, and not before the device is probed.
+        val converted = plan.copy(videoCodec = "hevc", video = "libx264")
+        assertNull(LivePlayback.notAsSent(converted, tv))
+        assertEquals(NotAsSent.Video, LivePlayback.notAsSent(converted, device(VideoDecoderCaps("h264", hardware = true))))
+        assertEquals(NotAsSent.Unknown, LivePlayback.notAsSent(converted, null))
+        // Interlaced, with no word of the Deinterlace setting: the server makes it progressive.
+        assertEquals(NotAsSent.Interlaced, LivePlayback.notAsSent(converted.copy(interlaced = true), tv))
     }
 
     /** How [playback] says the channel plays, once the server answered. */
@@ -284,8 +286,12 @@ class LivePlaybackTest {
         assertTrue(engine().player.playWhenReady)
         // Nothing to say while it tunes.
         assertNull(details(playback))
+        assertNull(playback.known())
         engine().player.ready()
         settle()
+        // The tune left it known: the badge asks the server nothing.
+        assertEquals(LivePlaying(plan, asSent = true), playback.known())
+        assertEquals(listOf("live-1"), live.plansAsked)
         assertEquals(LivePlaying(plan, asSent = true), details(playback))
         // Asked again, the plan says what the provider sends now; one that doesn't come leaves the last.
         live.plan = plan.copy(kbps = 9_000)
@@ -301,7 +307,10 @@ class LivePlaybackTest {
         assertTrue(engine().prepared.last().source.hls)
         engine().player.ready()
         settle()
+        // Tuned again without its plan asked for: not known until the details ask.
+        assertNull(playback.known())
         assertEquals(LivePlaying(plan, asSent = false), details(playback))
+        assertEquals(LivePlaying(plan, asSent = false), playback.known())
 
         // On a device without the decoder, the HLS from the start, and why.
         caps = device(VideoDecoderCaps("h264", hardware = true, maxBitDepth = 8))
@@ -310,12 +319,14 @@ class LivePlaybackTest {
         assertTrue(engine().prepared.last().source.hls)
         engine().player.ready()
         settle()
+        assertEquals(LivePlaying(plan, asSent = false, why = NotAsSent.Video), playback.known())
         assertEquals(LivePlaying(plan, asSent = false, why = NotAsSent.Video), details(playback))
 
         // Let go, there is nothing to say, and nothing is asked.
         playback.stop()
         val asked = live.plansAsked.size
         assertNull(details(playback))
+        assertNull(playback.known())
         assertEquals(asked, live.plansAsked.size)
         playback.close()
     }

@@ -57,7 +57,7 @@ class TvReadoutTest {
     private fun facts(input: ReadoutInput) = TvReadout.sections(r, input).associate { s -> s.title to s.facts.associate { it.label to it.value } }
 
     @Test
-    fun `a live channel's panel has how it plays and this TV, with no file or tracks`() {
+    fun `a live channel's panel has how it plays, where its sound goes and this TV, with no file or tracks`() {
         val live = PlaybackDetailsUi(
             method = "Transcoding",
             why = "This device doesn't play HEVC",
@@ -67,14 +67,16 @@ class TvReadoutTest {
             playbackMethod = PlaybackMethod.Transcode,
         )
         val sections = TvReadout.liveSections(r, ReadoutInput(details = live, stats = stats, bufferedMs = 4_000))
-        assertEquals(listOf("How it plays", "This TV"), sections.map { it.title })
+        // A video's sections, in its order, without those of a file and its tracks.
+        assertEquals(listOf("How it plays", "Audio", "This TV"), sections.map { it.title })
         assertEquals(
             listOf("Playback" to "Transcoding", "Why" to "This device doesn't play HEVC", "Video" to "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p", "Encoder" to "NVIDIA NVENC"),
             sections[0].facts.map { it.label to it.value },
         )
-        assertEquals("c2.amlogic.hevc.decoder (hardware)", sections[1].facts.first().value)
+        assertEquals(listOf("Output" to "Passed through as E-AC-3"), sections[1].facts.map { it.label to it.value })
+        assertEquals("c2.amlogic.hevc.decoder (hardware)", sections[2].facts.first().value)
         // Before the server answered, this TV's side alone; with nothing known, nothing.
-        assertEquals(listOf("This TV"), TvReadout.liveSections(r, ReadoutInput(stats = stats)).map { it.title })
+        assertEquals(listOf("Audio", "This TV"), TvReadout.liveSections(r, ReadoutInput(stats = stats)).map { it.title })
         assertEquals(emptyList<String>(), TvReadout.liveSections(r, ReadoutInput()).map { it.title })
     }
 

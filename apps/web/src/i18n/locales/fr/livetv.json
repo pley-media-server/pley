@@ -125,7 +125,6 @@
     "otherChannels": "Autres chaînes",
     "backToGuide": "Retour au guide des programmes",
     "details": {
-      "off": "La lecture directe est désactivée sur le serveur",
       "interlacedWhy": "La vidéo entrelacée est rendue progressive",
       "noVideo": "Cet appareil ne lit pas la vidéo {{codec}}",
       "noAudio": "Cet appareil ne lit pas le son {{codec}}",
@@ -171,9 +170,6 @@
       "never": "Jamais",
       "playing": "Lecture",
       "playingHint": "Tous ceux qui regardent une chaîne reçoivent le même flux, produit une seule fois par le transcodeur.",
-      "directPlay": "Lecture directe",
-      "directPlayHint": "Un lecteur capable de lire la vidéo et le son d’une chaîne tels que le fournisseur les envoie le fait, sans transcodage.",
-      "directPlayToggle": "Lire les chaînes telles que le fournisseur les envoie",
       "deinterlace": "Désentrelacer",
       "deinterlaceHint": "Les chaînes entrelacées (1080i, 576i) rendues fluides et progressives : un transcodage, sur la carte graphique quand le transcodeur en a une.",
       "deinterlaceToggle": "Désentrelacer les chaînes entrelacées",

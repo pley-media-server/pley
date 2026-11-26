@@ -667,8 +667,7 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
     audio: "copy",
     out_height: 1080,
     video_kbps: 6000,
-    direct_play: true,
-    kbps: 5200,
+      kbps: 5200,
   };
   // The stream as mpegts.js reads it: its HEVC by the profile and level it has.
   const itsTracks = { hasVideo: true, hasAudio: true, videoCodec: "hvc1.2.1.L123.B0", audioCodec: "mp4a.40.2" };
@@ -787,8 +786,6 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
   });
 
   it.each([
-    ["Direct Play is off on the server", () => ({ ...hevc, direct_play: false })],
-    ["the server is an older one, which says nothing of Direct Play", () => ({ ...hevc, direct_play: undefined, bit_depth: undefined })],
     ["its video is interlaced", () => ({ ...hevc, interlaced: true })],
     ["its sound isn't decoded", () => ({ ...hevc, audio_codec: "ac3", audio: "aac" })],
   ])("plays the transcoder's segments at once when %s", async (_why, answer) => {
@@ -814,41 +811,25 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
     await toHls();
   });
 
-  /** Tunes it again with the server's plan held back: the stream's tracks are found, then no plan comes in time. */
+  /** Tunes it with the server's plan held back: the stream's tracks are found, then no plan comes in time. */
   async function tunedWithoutPlan() {
     hlsInstances.length = 0;
     mpegtsPlayers.length = 0;
     play.mockClear();
     let sendPlan: (plan: unknown) => void = () => undefined;
     planAnswer = () => new Promise((resolve) => (sendPlan = resolve));
+    const asked = plans().length;
     renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
     await waitFor(() => expect(mpegtsPlayers[0]?.calls).toContain("load"));
-    await waitFor(() => expect(plans()).toHaveLength(2));
+    await waitFor(() => expect(plans()).toHaveLength(asked + 1));
     act(() => mpegtsPlayers[0]?.found(itsTracks));
     act(() => sendPlan(null));
   }
 
-  it("plays it by the tracks found when its plan doesn't come in time, Direct Play on as the server last said", async () => {
-    const before = await tuned();
-    act(() => mpegtsPlayers[0]?.found(itsTracks));
-    await waitFor(() => expect(play).toHaveBeenCalled());
-    before.unmount();
-
+  it("plays it by the tracks found when its plan doesn't come in time", async () => {
     await tunedWithoutPlan();
     await waitFor(() => expect(play).toHaveBeenCalled());
     expect(hlsInstances).toHaveLength(0);
-  });
-
-  it("plays only H.264 and AAC without a plan once the server said Direct Play is off", async () => {
-    planAnswer = () => ({ ...hevc, direct_play: false });
-    const before = await tuned();
-    await toHls();
-    before.unmount();
-
-    await tunedWithoutPlan();
-    await toHls("s2");
-    expect(play).not.toHaveBeenCalled();
-    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
   });
 
   describe("and its Playback details", () => {
@@ -859,6 +840,8 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
       await tuned();
       act(() => mpegtsPlayers[0]?.found(itsTracks));
       await waitFor(() => expect(play).toHaveBeenCalled());
+      // The badge says how it plays, as the video player's does.
+      expect(screen.getByRole("button", { name: "Playback details" })).toHaveTextContent("Direct play");
       expect(screen.queryByRole("region", { name: "Playback details" })).not.toBeInTheDocument();
       // Closed, nothing is asked again.
       await act(() => vi.advanceTimersByTimeAsync(6000));
@@ -885,12 +868,13 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
     });
 
     it("say why a channel is transcoded", async () => {
-      planAnswer = () => ({ ...hevc, direct_play: false });
+      planAnswer = () => ({ ...hevc, audio_codec: "ac3", audio: "aac" });
       await tuned();
       await toHls();
       open();
       expect(await within(details()).findByText("Transcoding")).toBeInTheDocument();
-      expect(within(details()).getByText("Direct Play is off on the server")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Playback details" })).toHaveTextContent("Transcoding");
+      expect(within(details()).getByText("This device doesn't play AC3 sound")).toBeInTheDocument();
       expect(within(details()).getByText("HEVC 10-bit · 1920×1080 · 50 fps → H.264 1080p")).toBeInTheDocument();
       expect(within(details()).getByText("5.2 Mbps → 6.0 Mbps")).toBeInTheDocument();
       expect(within(details()).getByText("NVIDIA NVENC")).toBeInTheDocument();

@@ -184,7 +184,6 @@
     "shownAs": "顯示為",
     "subtitles": "字幕",
     "burnedIn": "已壓制",
-    "interlaced": "隔行掃描",
     "encoder": "編碼器",
     "speed": "速度",
     "toneMapped": "SDR（透過 {{method}} 色調對映）",

@@ -16,9 +16,6 @@ import app.pley.android.player.session.PlaybackDetails
 
 /** Why a channel isn't played as its provider sends it ([LivePlayback.notAsSent]). */
 enum class NotAsSent {
-    /** The server's Live TV settings have Direct Play off, or the server is older than the setting. */
-    Off,
-
     /** Its video is interlaced, and the server makes it progressive. */
     Interlaced,
 
@@ -47,8 +44,9 @@ data class LivePlaying(val plan: LivePlan?, val asSent: Boolean, val why: NotAsS
 /**
  * A channel's Playback details, in the words and rows of a video's
  * ([PlaybackDetails]): the way it plays (Direct play from `stream.ts`,
- * Direct stream for HLS with its video copied, else Transcoding), why it
- * isn't played as sent, then the provider's video, sound and bitrate, with
+ * Direct stream for HLS with its video copied, "· Audio transcoding" after
+ * it when its sound is converted, else Transcoding), why it isn't played
+ * as sent, then the provider's video, sound and bitrate, with
  * what the server makes of them when it converts them. A row whose value
  * isn't known is left out.
  */
@@ -68,10 +66,11 @@ object LiveDetails {
         val words = formatWords(res)
         // What the server makes of it reaches the player only on HLS.
         val transcoded = method == PlaybackMethod.Transcode
+        val soundConverted = !playing.asSent && plan?.audio == "aac"
         val rows = buildList {
             if (plan == null) return@buildList
             video(res, plan, transcoded, words)?.let { add(DetailRow(res.getString(R.string.session_row_video), it)) }
-            audio(plan, converted = !playing.asSent && plan.audio == "aac", words)?.let { add(DetailRow(res.getString(R.string.session_row_audio), it)) }
+            audio(plan, soundConverted, words)?.let { add(DetailRow(res.getString(R.string.session_row_audio), it)) }
             bitrate(plan, transcoded, words)?.let { add(DetailRow(res.getString(R.string.session_row_bitrate), it)) }
             if (transcoded) add(DetailRow(res.getString(R.string.session_row_encoder), PlaybackDetails.encoderName(plan.video)))
         }
@@ -79,7 +78,8 @@ object LiveDetails {
             method = res.getString(
                 when (method) {
                     PlaybackMethod.Direct -> R.string.session_method_direct
-                    PlaybackMethod.Remux -> R.string.session_method_remux
+                    // As a video's (PlayerTexts.method): a direct stream says when its sound is converted.
+                    PlaybackMethod.Remux -> if (soundConverted) R.string.session_method_remux_audio else R.string.session_method_remux
                     else -> R.string.session_method_transcode
                 },
             ),
@@ -93,7 +93,6 @@ object LiveDetails {
 
     /** [LivePlaying.why] in a sentence; `null` when there is nothing to tell. */
     private fun why(res: Resources, playing: LivePlaying): String? = when (playing.why) {
-        NotAsSent.Off -> res.getString(R.string.live_why_off)
         NotAsSent.Interlaced -> res.getString(R.string.live_why_interlaced)
         NotAsSent.Video -> res.getString(R.string.live_why_video, codecLabel(playing.plan?.videoCodec))
         NotAsSent.Audio -> res.getString(R.string.live_why_audio, codecLabel(playing.plan?.audioCodec))

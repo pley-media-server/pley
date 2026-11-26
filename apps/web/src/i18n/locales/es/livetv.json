@@ -125,7 +125,6 @@
     "otherChannels": "Otros canales",
     "backToGuide": "Volver a la guía",
     "details": {
-      "off": "La reproducción directa está desactivada en el servidor",
       "interlacedWhy": "El video entrelazado se hace progresivo",
       "noVideo": "Este dispositivo no reproduce video {{codec}}",
       "noAudio": "Este dispositivo no reproduce sonido {{codec}}",
@@ -171,9 +170,6 @@
       "never": "Nunca",
       "playing": "Reproducción",
       "playingHint": "Todos los que ven un canal reciben la misma transmisión, creada una sola vez por el transcodificador.",
-      "directPlay": "Reproducción directa",
-      "directPlayHint": "Un reproductor que puede reproducir el video y el sonido de un canal tal como los envía el proveedor lo hace, sin transcodificar.",
-      "directPlayToggle": "Reproducir los canales tal como los envía el proveedor",
       "deinterlace": "Desentrelazar",
       "deinterlaceHint": "Los canales entrelazados (1080i, 576i) se ven fluidos y progresivos: es una transcodificación, en la tarjeta gráfica si el transcodificador tiene una.",
       "deinterlaceToggle": "Desentrelazar los canales entrelazados",

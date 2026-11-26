@@ -140,10 +140,9 @@ public sealed record LiveWatching
 /// names, as the TV's report has them) and what the transcoder makes of it (<see cref="Video"/>:
 /// <c>copy</c>, <c>none</c> or the encoder; <see cref="Audio"/>: <c>copy</c>, <c>aac</c> or
 /// <c>none</c>). Sent as it is, the channel plays from its <c>stream.ts</c>, sooner than its first
-/// HLS segments (<see cref="Direct"/>); so does one this TV decodes as the provider sends it,
-/// while the server lets players (<see cref="DirectPlay"/>). An older server says nothing of the
-/// bit depth, a transcode's size and bitrate, Direct Play or the provider's bitrate: they stay
-/// unknown (Direct Play too, which such a server doesn't have) and 0.
+/// HLS segments (<see cref="Direct"/>); so does one this TV decodes as the provider sends it
+/// (<see cref="Live.LiveRules.PlaysAsSent"/>). An older server says nothing of the bit depth, a
+/// transcode's size and bitrate or the provider's bitrate: they stay unknown and 0.
 /// </summary>
 public sealed record LivePlan
 {
@@ -162,11 +161,6 @@ public sealed record LivePlan
     public int? OutHeight { get; init; }
     /// <summary>A transcode's video bitrate, kbit/s; null when the picture is sent as it is.</summary>
     public int? VideoKbps { get; init; }
-    /// <summary>
-    /// The server's Live TV setting: players play from <c>stream.ts</c> the channels they decode;
-    /// null from an older server, which has no such setting (and so no Direct Play).
-    /// </summary>
-    public bool? DirectPlay { get; init; }
     /// <summary>The server's Deinterlace setting: interlaced video is made progressive; null (taken as on) from an older server.</summary>
     public bool? Deinterlace { get; init; }
     /// <summary>What the provider sends now, kbit/s; 0 at first.</summary>

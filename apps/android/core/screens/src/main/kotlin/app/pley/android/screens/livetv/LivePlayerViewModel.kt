@@ -67,7 +67,7 @@ data class ChannelDigits(val typed: String = "", val notFound: String? = null)
  * at a time for the channel list, which can show another category's (a
  * channel tuned from there makes channel up and down go through that one,
  * as the web's does); watched as it airs, without pausing or going back; a
- * favorite; how the channel plays, for its Playback details; the
+ * favorite; how the channel plays, for its badge and Playback details; the
  * profile's remote changes channel as channel up and down do. The
  * channel and its category are kept with the screen's saved
  * state, and the channel for the profile too: the guide opens back at it.
@@ -138,6 +138,17 @@ class LivePlayerViewModel(
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(replayExpirationMillis = 0), null)
+
+    /**
+     * How the channel plays, for the badge over the picture, as a video's
+     * says Direct play, Direct stream or Transcoding: what tuning it left
+     * known, asked of the server once where that says nothing (a channel on
+     * HLS whose plan wasn't asked for). `null` while no channel plays.
+     */
+    val how: StateFlow<LivePlaying?> = state.map { it.channelId to (it.phase == LivePhase.Playing) }.distinctUntilChanged().flatMapLatest { (_, playing) ->
+        if (!playing) return@flatMapLatest flowOf<LivePlaying?>(null)
+        flow { emit(playback.known() ?: playback.details()) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     /** The channel playing, as the server has it now (a favorite set shows at once). */
     val channel: StateFlow<LiveChannel?> = current.flatMapLatest { id ->

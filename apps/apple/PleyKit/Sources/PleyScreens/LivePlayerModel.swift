@@ -23,7 +23,7 @@ public struct LiveRequest: Hashable, Codable, Sendable {
 /// up and down through the category it was opened in (wrapping round its
 /// ends), a channel number typed on a remote or keyboard, the favorite,
 /// the trouble a channel can run into, and how the channel plays while
-/// Playback details show (`plan`). `playback` does the watching.
+/// Details show (`plan`). `playback` does the watching.
 /// The profile's remotes change channel the same way (`obey`).
 @MainActor
 public final class LivePlayerModel: ObservableObject, Identifiable {
@@ -39,7 +39,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     public static let bannerShown: Duration = .seconds(4)
     /// A channel number has this many digits at most.
     public static let maxDigits = 5
-    /// While Playback details show, the session's plan is asked for again this often.
+    /// While Details show, the session's plan is asked for again this often.
     public static let planEvery: Duration = .seconds(2)
 
     public nonisolated let id = UUID()
@@ -59,7 +59,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     /// The time now (unix seconds), moved every `LiveTvRules.playerTick`.
     @Published public private(set) var now: Int64
     /// What the channel playing is and what the server makes of it, while
-    /// Playback details show (`showDetails`); `nil` until the server knows,
+    /// Details show (`showDetails`); `nil` until the server knows,
     /// and again from one session to the next.
     @Published public private(set) var plan: LivePlan?
 
@@ -274,7 +274,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
 
     // MARK: Details
 
-    /// Playback details opened: the session's plan is asked for now, and
+    /// Details opened: the session's plan is asked for now, and
     /// again every `planEvery` for what the provider sends as it changes.
     /// The server answers what it knows at once, and starts nothing for it.
     public func showDetails() {
@@ -290,7 +290,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
         }
     }
 
-    /// Playback details closed: the plan is asked for no more.
+    /// Details closed: the plan is asked for no more.
     public func hideDetails() {
         planning?.cancel()
         planning = nil

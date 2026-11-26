@@ -164,7 +164,7 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
   a title's player has. This app plays Live TV through the server's HLS
   alone, never the provider's own stream (`stream.ts`), so a channel is a
   **Direct stream** (the server copies its video) or **Transcoding**, never
-  Direct Play, and the panel has no Why. Under Playback come the
+  Direct play, and the panel has no Why. Under Playback come the
   provider's video and sound with what the server makes of them
   ("HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p", "AC3 5.1 → AAC
   Stereo"), the provider's bitrate as it is now with a transcode's after
@@ -713,18 +713,17 @@ from its last keyframe) is read while the server says what the channel is
 and what it makes of it, and plays when that is the channel as it is, or
 with sound every Samsung TV decodes itself (AC3, E-AC3, MP2), which the
 server converts for other players; otherwise, or when it fails, the
-channel's HLS. While the server's Direct Play is on
-([API.md](API.md#live-tv)), a channel the server would convert plays from
-`stream.ts` too when the TV decodes it as the provider sends it, and the
-server makes no transcode of it: progressive video that a decoder in the
-TV's report takes at its bit depth, size and frame rate (the report a
-film's direct play goes by, `Player/TizenCaps.cs`), and sound the TV
-decodes or passes to the receiver. Only what the TV's player reads out of
-MPEG-TS counts (H.264, HEVC and MPEG-2 video; AAC, AC3, E-AC3, MP2 and MP3
-sound), so an AV1 channel stays with its HLS though the TV plays AV1
-files, and interlaced video the server converts stays with the server,
-whose deinterlacing setting decides. The rule is `LiveRules.PlaysAsSent`,
-as Android's `playsAsSent`. The TV's
+channel's HLS. A channel the server would convert plays from `stream.ts`
+too when the TV decodes it as the provider sends it, and the server makes
+no transcode of it: progressive video that a decoder in the TV's report
+takes at its bit depth (8 when the server doesn't say), size and frame
+rate (the report a film's direct play goes by, `Player/TizenCaps.cs`), and
+sound the TV decodes or passes to the receiver. Only what the TV's player
+reads out of MPEG-TS counts (H.264, HEVC and MPEG-2 video; AAC, AC3,
+E-AC3, MP2 and MP3 sound), so an AV1 channel stays with its HLS though the
+TV plays AV1 files, and interlaced video the server converts stays with
+the server, whose deinterlacing setting decides. The rule is
+`LiveRules.PlaysAsSent`, as Android's `playsAsSent`. The TV's
 player can't send the `Authorization` header `stream.ts` needs, and the
 server takes an app's token nowhere else, so the app reads it with its
 token and hands it on to the player as it comes, on the TV's loopback
@@ -738,18 +737,25 @@ for 0.5 s there, where Android waits 1.5 s or 2 s after a stall: a seek
 took 2 s, now under one. A film asks the server for its stream before its player
 screen is made, which takes the UI thread half a second the first time.
 
-The live player's controls (OK held) have Info after the channel list and
-the favorite, as on Android TV. It opens Playback details in the film
-player's Info panel: how the channel plays (Direct play from `stream.ts`;
-from its HLS, Direct stream when the server sends the video as it is, else
-Transcoding), why it isn't Direct play when the server's plan and the TV's
-report say (Direct Play off on the server, interlaced video made
+The live player's controls (OK held) have Info, the film player's button
+by name and icon, last as there: after the channel list and the favorite,
+as on Android TV. It opens Playback details in the film player's Info
+panel, under the same title and headings. How it plays says the way in a
+film's words (Direct play from `stream.ts`; from its HLS, Direct stream
+when the server sends the video as it is, with "Audio transcoding" after
+it when it converts the sound, else Transcoding), why it isn't Direct play
+when the server's plan and the TV's report say (interlaced video made
 progressive, video or sound the TV doesn't play), the provider's video,
 audio and bitrate with what the server makes of them, the encoder of a
-transcode, and what the TV's player says it decodes. A line whose value
-isn't known is left out. While the panel shows, the plan is asked again
-2.5 s after each answer, for the provider's bitrate as it is now; asking
-starts no transcode. A channel that stops closes the panel for its card.
+transcode and the TV's network speed. A channel has no file or tracks to
+list, so its Video and Audio lines say what a film's sections of those
+names do ("HEVC 10-bit · 3840×2160 · 50 fps", "EAC3 5.1 → AAC Stereo").
+This TV has a film's lines: what the TV's player says it decodes, its
+buffer, the channel's stalls and the time to its first picture. A line
+whose value isn't known is left out. While the panel shows, the plan is
+asked again 2.5 s after each answer, for the provider's bitrate as it is
+now; asking starts no transcode. A channel that stops closes the panel for
+its card.
 
 Someone taking over a channel's connection (the server's
 `live_taken_over`) stops it at once, as on Android TV: the card says "Live

@@ -8,9 +8,9 @@ import SwiftUI
 /// of its own on the Mac: the channel's picture, and over it, for 3
 /// seconds after a tap, Close, the channel's logo, number and name, what's
 /// on with its progress and what's next, the star, channel up and down,
-/// the Channels list, Playback details (how the channel plays, in a sheet),
-/// Watch on… (another of the profile's devices), AirPlay
-/// and "Live". Live can't pause or seek. Digits on a keyboard tune a
+/// the Channels list, Details (how the channel plays, in a sheet named as
+/// the player's Details are), Watch on… (another of the profile's devices),
+/// AirPlay and "Live". Live can't pause or seek. Digits on a keyboard tune a
 /// number, ↑ and ↓ change channel. A cast from another device says where
 /// it came from at the top.
 struct LivePlayerScreen: View {
@@ -171,7 +171,7 @@ struct LivePlayerScreen: View {
                 Button { detailsShown = true } label: {
                     Image(systemName: "info.circle").font(.title2).frame(width: 44, height: 44)
                 }
-                .accessibilityLabel("Playback details")
+                .accessibilityLabel("Details")
                 .accessibilityIdentifier("live.details")
                 if let channelId = model.channelId {
                     PlayOnMenu(remote: app.remote, target: .channel(channelId), prefix: "live", iconOnly: true)
@@ -324,7 +324,7 @@ struct TroubleView: View {
     }
 }
 
-/// Playback details over the player, in the look of the player's Details:
+/// Details over the player, named and laid out as the player's Details:
 /// how the channel plays, the provider's video and audio and what the
 /// server makes of them, and what the provider sends now, asked for again
 /// while the sheet shows. Another channel closes it.
@@ -338,7 +338,7 @@ struct LiveDetailsSheet: View {
                 LiveDetailsView(plan: model.plan)
                     .padding()
             }
-            .navigationTitle("Playback details")
+            .navigationTitle("Details")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }

@@ -142,8 +142,7 @@ public static class LiveText
     public static string StreamEnded => Strings.T("livetv.engine.ended");
     public static string Stalled => Strings.T("livetv.engine.stalled");
 
-    /// <summary>Playback details: why a channel plays from its HLS, not as the provider sends it (Android's live_why_off…).</summary>
-    public static string WhyOff => Strings.T("livetv.details.whyOff");
+    /// <summary>Playback details: why a channel plays from its HLS, not as the provider sends it (Android's live_why_interlaced…).</summary>
     public static string WhyInterlaced => Strings.T("livetv.details.whyInterlaced");
 
     /// <summary>"This device doesn't play HEVC".</summary>

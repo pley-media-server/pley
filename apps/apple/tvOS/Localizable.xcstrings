@@ -1766,7 +1766,7 @@
       }
     },
     "Details" : {
-      "comment" : "A title's page: the details' heading.",
+      "comment" : "A title's page: the details' heading. The live player: opens how the channel plays, and that panel's title, as the player's Details tab.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -4814,35 +4814,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "播放"
-          }
-        }
-      }
-    },
-    "Playback details" : {
-      "comment" : "Live player's overlay on Apple TV: opens how the channel plays, and that panel's title.",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Detalles de reproducción"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Détails de lecture"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "播放详情"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "播放詳情"
           }
         }
       }

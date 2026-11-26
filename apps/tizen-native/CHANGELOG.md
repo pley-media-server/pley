@@ -10,11 +10,8 @@ describes how they are made.
 
 ### Added
 
-- Live TV plays a channel as the provider sends it when the TV decodes it
-  (an HEVC channel, say), which starts sooner and takes no transcode on
-  the server, while Direct Play is on in the server's Live TV settings.
-  The live player's controls have Info, which opens Playback details: how
-  the channel plays and why, with its video, audio and bitrate.
+- Live TV plays a channel as the provider sends it when the TV decodes it,
+  and Info in the live player's controls opens Playback details.
 
 ## [0.1.14] - 2026-11-24
 

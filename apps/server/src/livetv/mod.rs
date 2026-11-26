@@ -110,10 +110,6 @@ pub struct LiveSettings {
     /// Interlaced channels are made progressive (transcoded) rather than
     /// sent as they are, which players show combed.
     pub deinterlace: bool,
-    /// Players that read MPEG-TS play a channel from the provider's stream
-    /// when they decode its video and sound (HEVC on a device that plays
-    /// it), rather than its transcode. Off: only channels sent as they are.
-    pub direct_play: bool,
     /// The most lines a transcoded channel has; `None`: as many as it has.
     pub max_height: Option<u32>,
     /// How far back a channel can be paused and rewound, in minutes.
@@ -137,7 +133,6 @@ impl Default for LiveSettings {
             access: Access::Everyone,
             age_limited: false,
             deinterlace: true,
-            direct_play: true,
             max_height: None,
             timeshift_minutes: 5,
             refresh_hours: 24,

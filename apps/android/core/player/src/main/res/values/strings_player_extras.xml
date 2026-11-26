@@ -10,8 +10,7 @@
     <string name="session_stopped_message" translatable="false">%1$s\n%2$s</string>
     <!-- A channel's stream refused with no sentence of the server's: its HTTP status, "The server answered 503." -->
     <string name="live_server_answered">The server answered %1$d.</string>
-    <!-- Why a channel isn't played as its provider sends it, in its Playback details (docs/API.md, "Direct Play"). -->
-    <string name="live_why_off">Direct Play is off on the server</string>
+    <!-- Why a channel isn't played as its provider sends it, in its Playback details (docs/API.md, "Live TV"). -->
     <string name="live_why_interlaced">Interlaced video is made progressive</string>
     <!-- The video's codec: "This device doesn't play HEVC". -->
     <string name="live_why_video">This device doesn\'t play %1$s</string>

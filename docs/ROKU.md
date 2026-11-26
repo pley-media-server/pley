@@ -530,14 +530,16 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   in the favorites or takes it out, in the list the channel in focus,
   else the one playing, the banner showing its star. Leaving, or changing
   channel, sends `DELETE /api/live/sessions/{session}`.
-- **Playback details** (Replay; the banner names the key) show in the
-  panel the player's Info opens: Direct stream while the server copies the
-  channel's video into its HLS stream, else Transcoding; the provider's
-  video and audio, and what the server makes of them; what the provider
-  sends now, with the transcode's video bitrate; and the encoder. They come
-  from the session's plan (`GET /api/live/sessions/{session}/plan`), asked
-  for again every 2 s while they show. Up and Down scroll them, Back or
-  Replay closes them, and they close as the channel changes.
+- **Playback details** (Replay; the banner names the key, as the live
+  player has no row of buttons for an Info button) show in the panel a
+  title's player's Info opens, under the same title and in the same rows:
+  Direct stream while the server copies the channel's video into its HLS
+  stream, else Transcoding; the provider's video and audio, and what the
+  server makes of them; what the provider sends now, with the transcode's
+  video bitrate; and the encoder. They come from the session's plan
+  (`GET /api/live/sessions/{session}/plan`), asked for again every 2 s
+  while they show. Up and Down scroll them, Back or Replay closes them,
+  and they close as the channel changes.
 - **The channel list** opens on the category Up and Down go through, at
   the channel playing. Left in it lists the categories as Live TV does
   (OK on one lists its channels instead, Back goes back), and Replay
@@ -1086,7 +1088,7 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
   controls while those show: moving them would change the caption style of
   the whole Roku. Picture subtitles, which Pley draws, go while paused.
 - Live TV has no channel numbers to type: Roku remotes have no number keys.
-- Live TV never plays as the provider sends it (Direct Play): the Roku
+- Live TV never plays as the provider sends it (Direct play): the Roku
   plays the server's HLS stream, not MPEG-TS.
 - Not yet: an editable music queue.
 

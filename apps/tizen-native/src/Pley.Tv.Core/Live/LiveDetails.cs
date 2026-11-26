@@ -8,10 +8,12 @@ namespace Pley.Tv.Core.Live;
 
 /// <summary>
 /// How a channel plays, for the live player's Playback details: the film player's Info panel
-/// (<see cref="Readout"/>), with a channel's own lines. The way first: Direct play from its
-/// stream.ts; from its HLS, Direct stream when the server sends the picture as it is, else
-/// Transcoding. Then why it isn't Direct play, when the plan and the TV's report say; what the
-/// provider sends and what the server makes of it; and what the TV's player says it decodes.
+/// (<see cref="Readout"/>), with a channel's own lines. The way first, in a film's words: Direct
+/// play from its stream.ts; from its HLS, Direct stream when the server sends the picture as it
+/// is ("Direct stream · Audio transcoding" when it converts the sound), else Transcoding. Then
+/// why it isn't Direct play, when the plan and the TV's report say; what the provider sends and
+/// what the server makes of it; and This TV, as a film's. A channel has no file and no tracks to
+/// list: its Video and Audio lines say what a film's sections of those names do.
 /// </summary>
 public static class LiveDetails
 {
@@ -22,12 +24,12 @@ public static class LiveDetails
     /// <param name="direct">What plays is the channel's stream.ts, as the provider sends it.</param>
     /// <param name="plan">What the server last said of the channel; null until it says.</param>
     /// <param name="caps">The TV's report, which says why a channel isn't played as it is sent.</param>
-    /// <param name="stats">What the TV's player says of what it plays; null when it doesn't.</param>
-    public static PlayerPanel Panel(bool direct, LivePlan? plan, ClientCaps? caps, EngineStats? stats) =>
-        PlayerPanels.Info(Sections(direct, plan, caps, stats), waiting: plan == null && !direct);
+    /// <param name="tv">What the TV's player says of what it plays, with the channel's own counts (<see cref="LivePlayerModel.Readout"/>).</param>
+    public static PlayerPanel Panel(bool direct, LivePlan? plan, ClientCaps? caps, ReadoutInput tv) =>
+        PlayerPanels.Info(Sections(direct, plan, caps, tv), waiting: plan == null && !direct);
 
     /// <summary>The panel's sections: how it plays, then this TV.</summary>
-    public static IReadOnlyList<MediaFactBlock> Sections(bool direct, LivePlan? plan, ClientCaps? caps, EngineStats? stats)
+    public static IReadOnlyList<MediaFactBlock> Sections(bool direct, LivePlan? plan, ClientCaps? caps, ReadoutInput tv)
     {
         var sections = new List<MediaFactBlock>();
         var facts = Facts(direct, plan, caps).ToList();
@@ -35,11 +37,11 @@ public static class LiveDetails
         {
             // Beside the provider's bitrate, as a film's: a channel that stalls on a network
             // bringing less than the provider sends is one the network can't carry.
-            if (stats?.Bandwidth is long bandwidth) facts.Add(new MediaFact(SessionText.RowNetwork, ItemFormat.Bitrate(bandwidth)));
+            if (tv.Stats?.Bandwidth is long bandwidth) facts.Add(new MediaFact(SessionText.RowNetwork, ItemFormat.Bitrate(bandwidth)));
             sections.Add(new MediaFactBlock(Readout.HowItPlays, facts));
         }
-        var tv = stats != null ? Readout.Decoded(stats).Concat(Readout.Said(stats)).ToList() : new List<MediaFact>();
-        if (tv.Count > 0) sections.Add(new MediaFactBlock(Readout.ThisTv, tv));
+        var device = Readout.Device(tv.Stats, tv);
+        if (device.Count > 0) sections.Add(new MediaFactBlock(Readout.ThisTv, device));
         return sections;
     }
 
@@ -58,10 +60,13 @@ public static class LiveDetails
         }
         // From its stream.ts the TV plays what the provider sends, whatever the plan would make for other players.
         var transcoded = !direct && plan.Video is not ("copy" or "none");
-        facts.Add(new MediaFact(Strings.T("player.readout.playback"), direct ? SessionText.MethodDirect : transcoded ? SessionText.MethodTranscode : SessionText.MethodRemux));
+        var converted = !direct && plan.Audio == "aac";
+        // A film's words: its remux with the sound converted says so too.
+        var method = direct ? SessionText.MethodDirect : transcoded ? SessionText.MethodTranscode : converted ? SessionText.MethodRemuxAudio : SessionText.MethodRemux;
+        facts.Add(new MediaFact(Strings.T("player.readout.playback"), method));
         if (!direct && Why(plan, caps) is { } why) facts.Add(new MediaFact(Strings.T("player.readout.why"), why));
         if (Video(plan, transcoded) is { Length: > 0 } video) facts.Add(new MediaFact(SessionText.RowVideo, video));
-        if (Audio(plan, converted: !direct && plan.Audio == "aac") is { Length: > 0 } audio) facts.Add(new MediaFact(SessionText.RowAudio, audio));
+        if (Audio(plan, converted) is { Length: > 0 } audio) facts.Add(new MediaFact(SessionText.RowAudio, audio));
         if (Bitrate(plan, transcoded) is { Length: > 0 } bitrate) facts.Add(new MediaFact(SessionText.RowBitrate, bitrate));
         if (transcoded) facts.Add(new MediaFact(SessionText.RowEncoder, Details.EncoderName(plan.Video)));
         return facts;
@@ -73,7 +78,6 @@ public static class LiveDetails
     /// </summary>
     public static string? Why(LivePlan plan, ClientCaps? caps) => LiveRules.WhyNotAsSent(plan, caps) switch
     {
-        NotAsSent.Off => LiveText.WhyOff,
         NotAsSent.Interlaced => LiveText.WhyInterlaced,
         NotAsSent.Video => LiveText.WhyVideo(ItemFormat.CodecLabel(plan.VideoCodec)),
         NotAsSent.Audio => LiveText.WhyAudio(ItemFormat.CodecLabel(plan.AudioCodec)),

@@ -10,10 +10,8 @@ describes how they are made.
 
 ### Added
 
-- Live TV plays a channel as its provider sends it when the TV plays its
-  video and sound, HEVC included, and Info in the Live TV player's
-  controls shows Playback details: how the channel plays, its video,
-  audio and bitrate.
+- Live TV plays HEVC and 10-bit channels as sent where the TV decodes
+  them, and Info in its controls shows Playback details.
 
 ## [0.1.15] - 2026-11-25
 

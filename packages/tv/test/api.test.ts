@@ -158,15 +158,15 @@ describe("a live session", () => {
   it("reads its plan for the player's details, and what an older server leaves out as not known", async () => {
     const sent = { video_codec: "hevc", width: 3840, height: 2160, frame_rate: 50, interlaced: false, audio_codec: "eac3", audio_channels: 6, video: "h264_nvenc", audio: "aac" };
     const answers: Record<string, unknown> = {
-      "/api/live/sessions/s1/plan": { ...sent, bit_depth: 10, out_height: 1080, video_kbps: 8000, direct_play: true, kbps: 12_300 },
+      "/api/live/sessions/s1/plan": { ...sent, bit_depth: 10, out_height: 1080, video_kbps: 8000, kbps: 12_300 },
       "/api/live/sessions/s2/plan": sent,
       "/api/live/sessions/s3/plan": null,
     };
     const t = transport((req) => ok(answers[req.url.replace(/^https?:\/\/[^/]+/, "")]));
     const api = new Api("https://pley.example.com", tokens, t.http);
-    expect(await api.livePlan("s1")).toEqual({ ...sent, bit_depth: 10, out_height: 1080, video_kbps: 8000, direct_play: true, kbps: 12_300 });
-    // An older server: no bit depth, no transcode's size or bitrate, no bitrate now, and Direct Play off.
-    expect(await api.livePlan("s2")).toEqual({ ...sent, bit_depth: null, out_height: null, video_kbps: null, direct_play: false, kbps: 0 });
+    expect(await api.livePlan("s1")).toEqual({ ...sent, bit_depth: 10, out_height: 1080, video_kbps: 8000, kbps: 12_300 });
+    // An older server: no bit depth, no transcode's size or bitrate, and no bitrate now.
+    expect(await api.livePlan("s2")).toEqual({ ...sent, bit_depth: null, out_height: null, video_kbps: null, kbps: 0 });
     // Not known in time.
     expect(await api.livePlan("s3")).toBeNull();
     expect(t.asked).toEqual(["GET /api/live/sessions/s1/plan", "GET /api/live/sessions/s2/plan", "GET /api/live/sessions/s3/plan"]);

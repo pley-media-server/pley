@@ -7,7 +7,6 @@ import {
   Cast,
   ChevronDown,
   ChevronUp,
-  Info,
   List,
   LoaderCircle,
   Maximize,
@@ -31,6 +30,7 @@ import {
   playsAsSent,
   programProgress,
   streamUrl,
+  useSessionPlan,
   useSetFavorite,
   watchChannel,
   type Channel,
@@ -50,7 +50,8 @@ import { ChannelLogo, formatSpan, formatTime, liveUrl, setLastWatched, timeLeft,
 import { ChannelPanel } from "./ChannelPanel";
 import { keepCushion } from "./cushion";
 import { tracksPlay, type StreamTracks } from "./direct";
-import { LiveDetails, type LivePlayback } from "./LiveDetails";
+import { methodLabel } from "../PlaybackDetails";
+import { LiveDetails, liveMethod, type LivePlayback } from "./LiveDetails";
 import { whenStuck } from "./stuck";
 import { brokeOff, cantPlay, hlsTrouble, stopped, trouble, TroubleCard, type Trouble } from "./TroubleCard";
 
@@ -81,13 +82,6 @@ const TRACKS_WITHIN = 2000;
 const NUMBER_WAIT = 1400;
 /** The remote's commands Live TV obeys: channel up and down. It doesn't go back in a channel, so no pause or seek. */
 const LIVE_CONTROLS: Control[] = ["next", "previous"];
-/**
- * The server's Direct Play setting, as its last plan said it: what goes for
- * a channel whose plan doesn't come in time. Off until a plan says
- * otherwise, as on a server without the setting.
- */
-let directPlay = false;
-
 export function LivePlayerPage() {
   const { t } = useTranslation("livetv");
   const { channelId, sourceUid } = useParams();
@@ -266,8 +260,13 @@ function LivePlayer({
   const [panel, setPanel] = useState(false);
   // Playback details: the watch session they ask about, and how the player plays it.
   const [details, setDetails] = useState(false);
+  // Hovering the badge shows them too, as the video player's badge does.
+  const [detailsHover, setDetailsHover] = useState(false);
   const [session, setSession] = useState<string | null>(null);
   const [playback, setPlayback] = useState<LivePlayback | null>(null);
+  // What the badge says: the plan as the tune or the details last had it.
+  const knownPlan = useSessionPlan(session, false).data ?? null;
+  const method = playback ? liveMethod(playback.direct, knownPlan) : null;
   // Watch on…'s menu is open: the controls it hangs from stay.
   const [watchOn, setWatchOn] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -487,12 +486,11 @@ function LivePlayer({
       // the transcoder's segments play, or watching ended, which says why.
       if (directRef.current !== player) return !failed;
       if (known) {
-        directPlay = known.direct_play === true;
         // What Playback details show as they open, before they ask again.
         qc.setQueryData(liveKeys.plan(sessionId), known);
       }
       // What the server says goes; not known in time, what the stream turned out to be.
-      let asSent = known ? playsAsSent(known) : tracksPlay(tracks, null, directPlay);
+      let asSent = known ? playsAsSent(known) : tracksPlay(tracks, null);
       // One the transcoder would convert, that this browser decodes as it
       // is: it plays once mpegts.js has found its picture and its sound.
       // The plan says neither how the stream carries them (AC-3 as DVB does,
@@ -508,7 +506,7 @@ function LivePlayer({
           }));
         if (cancelled) return true;
         if (directRef.current !== player) return !failed;
-        asSent = tracksPlay(found, known, true);
+        asSent = tracksPlay(found, known);
       }
       if (!asSent) {
         player.destroy();
@@ -1020,7 +1018,7 @@ function LivePlayer({
           )}
         >
           <div className="relative flex items-center gap-0.5 sm:gap-1.5">
-            {details ? (
+            {details || detailsHover ? (
               <div
                 id="live-details"
                 role="region"
@@ -1057,17 +1055,28 @@ function LivePlayer({
               </div>
             ) : null}
             <div className="flex-1" />
-            <button
-              type="button"
-              aria-label={t("player:settings.panel.details")}
-              title={t("player:settings.panel.details")}
-              aria-expanded={details}
-              aria-controls="live-details"
-              onClick={() => setDetails((d) => !d)}
-              className={cn(button, details && "bg-white/15")}
-            >
-              <Info className="size-5" />
-            </button>
+            {/* How it plays, as the video player's badge says it: hovered, or pressed to keep them open. */}
+            <div className="mr-1" onMouseEnter={() => setDetailsHover(true)} onMouseLeave={() => setDetailsHover(false)}>
+              <button
+                type="button"
+                aria-label={t("player:settings.panel.details")}
+                aria-expanded={details}
+                aria-controls="live-details"
+                onClick={() => setDetails((d) => !d)}
+                className={cn(
+                  "rounded px-2 py-0.5 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+                  method?.method === "direct"
+                    ? "bg-success/20 text-success"
+                    : method?.method === "remux"
+                      ? "bg-info/20 text-info"
+                      : method
+                        ? "bg-accent/20 text-accent"
+                        : "bg-white/10 text-white/70",
+                )}
+              >
+                {method ? methodLabel(method) : "…"}
+              </button>
+            </div>
             <button type="button" aria-label={t("player.channelUp")} title={t("player.channelUpKey")} onClick={() => onStep(1)} className={button}>
               <ChevronUp className="size-5" />
             </button>

@@ -11,10 +11,10 @@
 //!   asked what the channel is made into ([`plays_as_sent`]): sent as it is,
 //!   or with sound the TV decodes itself, it plays from its first keyframe
 //!   rather than after the first HLS segments. So does one the server would
-//!   convert whose video and sound this TV plays as the provider sends them,
-//!   while the server's Direct Play is on: no transcode is made for it. Its
-//!   address takes the token, which the TV's player can't send, so the app
-//!   reads it and hands it on from the TV's loopback address ([`StreamRelay`]).
+//!   convert whose video and sound this TV plays as the provider sends them:
+//!   no transcode is made for it. Its address takes the token, which the TV's
+//!   player can't send, so the app reads it and hands it on from the TV's
+//!   loopback address ([`StreamRelay`]).
 //! - Otherwise, or when it fails, the server's HLS from its live edge, once
 //!   its playlist has come: before the stream.ts played at once; while it
 //!   played, once the server has said watching didn't end there.
@@ -133,15 +133,14 @@ pub(crate) fn plays_audio(plan: &LivePlan, caps: &ClientCaps) -> bool {
 }
 
 /// Whether this TV plays a channel's stream.ts as the provider sends it. A channel the server
-/// sends as it is always does ([`sent_as_it_is`]). While the server's Direct Play is on, so
-/// does one it would convert whose video and sound this TV's report (`caps`, the one a file's
-/// direct play goes by) plays; with no report, or from an older server (no `direct_play`), only
-/// the first holds.
+/// sends as it is always does ([`sent_as_it_is`]). So does one it would convert whose video and
+/// sound this TV's report (`caps`, the one a file's direct play goes by) plays; with no report,
+/// only the first holds.
 pub fn plays_as_sent(plan: &LivePlan, caps: Option<&ClientCaps>) -> bool {
     if sent_as_it_is(plan) {
         return true;
     }
-    let Some(caps) = caps.filter(|_| plan.direct_play == Some(true)) else { return false };
+    let Some(caps) = caps else { return false };
     let video = as_is(&plan.video) || decodes_video(plan, caps);
     let audio = as_is(&plan.audio) || plays_audio(plan, caps);
     video && audio && !(plan.video == "none" && plan.audio == "none")

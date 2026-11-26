@@ -476,7 +476,7 @@ pub(crate) fn routes() -> Vec<Route> {
                 &json!({
                     "video_codec": "h264", "width": 1920, "height": 1080, "frame_rate": 24.0, "interlaced": false,
                     "bit_depth": 8, "audio_codec": "aac", "audio_channels": 2, "video": "copy", "audio": "copy",
-                    "out_height": null, "video_kbps": null, "direct_play": true, "kbps": kbps,
+                    "out_height": null, "video_kbps": null, "kbps": kbps,
                 }),
             ))
         }),

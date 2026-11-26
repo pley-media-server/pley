@@ -226,9 +226,13 @@ function detLive(plan as object) as object
         parts = [codec]
         width = Int(httpNumber(plan.width, 0))
         if width > 0 and height > 0 then parts.Push(urlValue(width) + "×" + urlValue(height))
+        ' The frame rate in a file's Media info's words ("25 fps, interlaced").
         frames = httpNumber(plan.frame_rate, 0)
-        if frames > 0 then parts.Push(t("player.media.fps", { fps: fmtThreeDecimals(frames) }))
-        if httpTrue(plan.interlaced) then parts.Push(t("titles.playback.interlaced"))
+        if frames > 0 and httpTrue(plan.interlaced)
+            parts.Push(t("player.media.fpsInterlaced", { fps: fmtThreeDecimals(frames) }))
+        else if frames > 0
+            parts.Push(t("player.media.fps", { fps: fmtThreeDecimals(frames) }))
+        end if
         value = parts.Join(" · ")
         if converted
             out = detEncoded(made)

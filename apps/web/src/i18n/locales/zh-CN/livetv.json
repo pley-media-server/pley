@@ -115,7 +115,6 @@
     "otherChannels": "其他频道",
     "backToGuide": "返回节目指南",
     "details": {
-      "off": "服务器已关闭直接播放",
       "interlacedWhy": "隔行视频会转为逐行",
       "noVideo": "此设备无法播放 {{codec}} 视频",
       "noAudio": "此设备无法播放 {{codec}} 音频",
@@ -161,9 +160,6 @@
       "never": "从不",
       "playing": "播放",
       "playingHint": "同一频道的每位观看者共享同一个流，由转码器生成一次。",
-      "directPlay": "直接播放",
-      "directPlayHint": "播放器能按服务商发送的原样播放频道的视频和声音时，就直接播放，无需转码。",
-      "directPlayToggle": "按服务商发送的原样播放频道",
       "deinterlace": "去隔行",
       "deinterlaceHint": "将隔行频道（1080i、576i）处理为流畅的逐行画面：需要转码，转码器有显卡时会在显卡上进行。",
       "deinterlaceToggle": "对隔行频道去隔行",

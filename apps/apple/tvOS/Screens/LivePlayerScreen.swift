@@ -7,9 +7,9 @@ import SwiftUI
 /// The live player on Apple TV. A banner with the channel and what's on
 /// shows for 5 seconds when a channel is tuned. Up and down change
 /// channel; Select opens the overlay (Channels, Channel number,
-/// Favorite, Back to the guide, and under them Playback details: how the
-/// channel plays, in a panel); Play/Pause shows the banner, as live
-/// plays on. Menu hides the overlay, then leaves. The number pad tunes a
+/// Favorite, Back to the guide, and under them Details: how the channel
+/// plays, in a panel named as the player's Details tab is); Play/Pause
+/// shows the banner, as live plays on. Menu hides the overlay, then leaves. The number pad tunes a
 /// channel on OK, or 1.4 seconds after its last digit. A channel cast from
 /// another device says where it came from at the top for 4 seconds.
 struct LivePlayerScreen: View {
@@ -191,7 +191,7 @@ struct LivePlayerScreen: View {
             .padding(.top, 50)
             // A row of its own: the four above fill the screen's width.
             Button { overlay = false; detailsShown = true } label: {
-                Label("Playback details", systemImage: "info.circle")
+                Label("Details", systemImage: "info.circle")
             }
             .accessibilityIdentifier("live.details")
             .padding(.top, 30)
@@ -265,8 +265,8 @@ private struct NumberPad: View {
     }
 }
 
-/// Playback details beside the picture, in the look of the player's
-/// Details: how the channel plays, the provider's video and audio and what
+/// Details beside the picture, named and laid out as the player's Details
+/// tab: how the channel plays, the provider's video and audio and what
 /// the server makes of them, and what the provider sends now, asked for
 /// again while the panel shows. Close or Menu closes it, and so does
 /// another channel.
@@ -276,7 +276,7 @@ private struct TVLiveDetails: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 30) {
-            Text("Playback details").font(.title3.bold())
+            Text("Details").font(.title3.bold())
             LiveDetailsView(plan: model.plan)
             Button("Close", action: done)
                 .accessibilityIdentifier("live.details.close")

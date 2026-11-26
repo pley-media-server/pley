@@ -1232,12 +1232,8 @@ fn a_plan_sent_as_it_is_or_with_sound_the_tv_decodes_plays_from_stream_ts() {
         ("copy", "aac", "truehd", false),
         ("h264_vaapi", "copy", "aac", false),
     ] {
-        // What holds with no report from the TV, and with the server's Direct Play off.
-        let report = tv_report().caps;
-        for (caps, direct_play) in [(None, true), (Some(&report), false)] {
-            let plan = LivePlan { direct_play: Some(direct_play), ..plan(video, audio, codec) };
-            assert_eq!(plays_as_sent(&plan, caps), direct, "{video} {audio} {codec}");
-        }
+        // What holds with no report from the TV.
+        assert_eq!(plays_as_sent(&plan(video, audio, codec), None), direct, "{video} {audio} {codec}");
     }
 }
 
@@ -1247,7 +1243,7 @@ fn tv_report() -> CapsReport {
     lg_2022_caps(&CapsOverrides::default())
 }
 
-/// A 1080p channel at 50 the server would transcode whole, while its Direct Play is on.
+/// A 1080p channel at 50 the server would transcode whole.
 fn converted(video_codec: &str, bit_depth: Option<i64>, audio_codec: &str) -> LivePlan {
     LivePlan {
         video_codec: Some(video_codec.into()),
@@ -1261,13 +1257,12 @@ fn converted(video_codec: &str, bit_depth: Option<i64>, audio_codec: &str) -> Li
         audio: "aac".into(),
         out_height: Some(1080),
         video_kbps: Some(6_000),
-        direct_play: Some(true),
         ..LivePlan::default()
     }
 }
 
 #[test]
-fn a_channel_this_tv_decodes_plays_from_stream_ts_while_the_server_allows_it() {
+fn a_channel_this_tv_decodes_plays_from_stream_ts() {
     let caps = tv_report().caps;
     let plays = |plan: &LivePlan| plays_as_sent(plan, Some(&caps));
     // HEVC at 8 and 10 bits, and at 8 when the plan doesn't say; MPEG-2; sound the TV decodes.
@@ -1288,8 +1283,6 @@ fn a_channel_this_tv_decodes_plays_from_stream_ts_while_the_server_allows_it() {
     assert!(!plays(&LivePlan { interlaced: true, ..converted("mpeg2video", Some(8), "mp2") }));
     let kept = LivePlan { interlaced: true, deinterlace: Some(false), ..converted("mpeg2video", Some(8), "mp2") };
     assert!(plays(&kept), "Deinterlace off: it would come out interlaced all the same");
-    // Direct Play off on the server.
-    assert!(!plays(&LivePlan { direct_play: Some(false), ..converted("hevc", Some(8), "aac") }));
     // Sound the TV doesn't decode, or decodes but doesn't read from an MPEG-TS.
     assert!(!plays(&converted("hevc", Some(8), "dts")));
     assert!(!plays(&converted("hevc", Some(8), "truehd")));
@@ -1334,8 +1327,8 @@ fn hevc_needs_a_decoder_of_its_bit_depth() {
 }
 
 #[test]
-fn an_older_server_s_plan_plays_only_what_is_sent_as_it_is() {
-    // No bit depth, no transcode's size and bitrate, no Direct Play setting, no provider's bitrate.
+fn an_older_server_s_plan_is_taken_at_8_bits() {
+    // No bit depth, no transcode's size and bitrate, no provider's bitrate.
     let json = |video: &str| {
         format!(
             r#"{{"video_codec":"hevc","width":1920,"height":1080,"frame_rate":50.0,"interlaced":false,
@@ -1343,18 +1336,24 @@ fn an_older_server_s_plan_plays_only_what_is_sent_as_it_is() {
         )
     };
     let plan: LivePlan = serde_json::from_str(&json("libx264")).unwrap();
-    assert_eq!((plan.direct_play, plan.kbps), (None, 0));
-    assert_eq!((plan.bit_depth, plan.out_height, plan.video_kbps), (None, None, None));
+    assert_eq!((plan.kbps, plan.bit_depth, plan.out_height, plan.video_kbps), (0, None, None, None));
+    // The TV's report decides, as for any plan: its HEVC decoder takes 8 bits.
     let caps = tv_report().caps;
-    assert!(!plays_as_sent(&plan, Some(&caps)), "an older server's HEVC channel stays with its transcode");
-    // With no word of a setting that server lacks.
+    assert!(plays_as_sent(&plan, Some(&caps)));
     assert_eq!(pley_player::live::details::why_not_as_sent(&plan, Some(&caps)), None);
+    // A TV whose HEVC decoder stops at 1080p at 30 leaves it to the server's transcode.
+    let mut slow = caps.clone();
+    for d in slow.video.iter_mut().filter(|d| d.codec == "hevc") {
+        d.max_fps = Some(30.0);
+    }
+    assert!(!plays_as_sent(&plan, Some(&slow)));
+    assert!(!plays_as_sent(&plan, None));
     let copied: LivePlan = serde_json::from_str(&json("copy")).unwrap();
-    assert!(plays_as_sent(&copied, Some(&caps)));
+    assert!(plays_as_sent(&copied, None));
     // The new fields sent as `null` read the same way.
-    let nulls = r#"{"video":"libx264","audio":"aac","direct_play":null,"kbps":null,"bit_depth":null}"#;
+    let nulls = r#"{"video":"libx264","audio":"aac","kbps":null,"bit_depth":null}"#;
     let plan: LivePlan = serde_json::from_str(nulls).unwrap();
-    assert_eq!((plan.direct_play, plan.kbps, plan.bit_depth), (None, 0, None));
+    assert_eq!((plan.kbps, plan.bit_depth), (0, None));
 }
 
 #[test]
@@ -1379,9 +1378,8 @@ fn a_channel_the_server_would_transcode_plays_from_stream_ts_on_a_tv_that_decode
 #[test]
 fn a_channel_this_tv_doesn_t_decode_plays_its_hls() {
     for (plan, report) in [
-        // 12-bit HEVC; Direct Play off; no report from the TV.
+        // 12-bit HEVC; no report from the TV.
         (converted("hevc", Some(12), "aac"), Some(tv_report())),
-        (LivePlan { direct_play: Some(false), ..converted("hevc", Some(10), "aac") }, Some(tv_report())),
         (converted("hevc", Some(10), "aac"), None),
     ] {
         let fake = LiveFake::new();

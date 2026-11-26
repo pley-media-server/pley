@@ -60,10 +60,11 @@ class LiveDetailsTest {
     }
 
     @Test
-    fun `HLS with its video copied is Direct stream, with the sound the server converts`() {
+    fun `HLS with its video copied is Direct stream, and says when the server converts its sound, as a video's`() {
         val plan = h264.copy(audio = "aac", audioCodec = "ac3", audioChannels = 6)
         val details = LiveDetails.build(english, LivePlaying(plan, asSent = false, why = NotAsSent.Audio))
-        assertEquals("Direct stream", details?.method)
+        assertEquals("Direct stream · Audio transcoding", details?.method)
+        assertEquals("Flux direct · Audio transcodé", LiveDetails.build(inLanguage("fr").resources, LivePlaying(plan, asSent = false))?.method)
         assertEquals(PlaybackMethod.Remux, details?.playbackMethod)
         assertEquals("This device doesn't play AC3 sound", details?.why)
         // An older server: no bit depth and no bitrate to show, and nothing encodes the video.
@@ -78,7 +79,6 @@ class LiveDetailsTest {
     @Test
     fun `why says each reason in a sentence, and nothing when there is none to tell`() {
         fun why(reason: NotAsSent?) = LiveDetails.build(english, LivePlaying(hevc, asSent = false, why = reason))?.why
-        assertEquals("Direct Play is off on the server", why(NotAsSent.Off))
         assertEquals("Interlaced video is made progressive", why(NotAsSent.Interlaced))
         assertEquals("This device doesn't play HEVC", why(NotAsSent.Video))
         assertEquals("This device doesn't play EAC3 sound", why(NotAsSent.Audio))
@@ -89,7 +89,7 @@ class LiveDetailsTest {
     @Test
     fun `rows whose value isn't known are left out`() {
         // A radio channel: no picture.
-        val radio = LivePlan(audioCodec = "mp2", audioChannels = 1, video = "none", audio = "aac", directPlay = true)
+        val radio = LivePlan(audioCodec = "mp2", audioChannels = 1, video = "none", audio = "aac")
         assertEquals(listOf("Audio" to "MP2 Mono → AAC Stereo"), rows(LiveDetails.build(english, LivePlaying(radio, asSent = false, why = NotAsSent.Audio))))
         assertEquals(listOf("Audio" to "MP2 Mono"), rows(LiveDetails.build(english, LivePlaying(radio, asSent = true))))
         // Nothing probed of it but that it is copied.
@@ -116,16 +116,14 @@ class LiveDetailsTest {
             rows(french),
         )
         fun why(tag: String, reason: NotAsSent) = LiveDetails.build(inLanguage(tag).resources, LivePlaying(hevc, asSent = false, why = reason))?.why
-        assertEquals("La lecture directe est désactivée sur le serveur", why("fr", NotAsSent.Off))
         assertEquals("La vidéo entrelacée est convertie en progressif", why("fr", NotAsSent.Interlaced))
         assertEquals("Cet appareil ne lit pas l’audio EAC3", why("fr", NotAsSent.Audio))
-        assertEquals("La reproducción directa está desactivada en el servidor", why("es-MX", NotAsSent.Off))
         assertEquals("El video entrelazado se convierte a progresivo", why("es-MX", NotAsSent.Interlaced))
         assertEquals("Este dispositivo no reproduce HEVC", why("es-MX", NotAsSent.Video))
         assertEquals("Este dispositivo no reproduce el audio EAC3", why("es-MX", NotAsSent.Audio))
-        assertEquals("服务器已关闭直接播放", why("zh-CN", NotAsSent.Off))
+        assertEquals("隔行扫描视频会转换为逐行扫描", why("zh-CN", NotAsSent.Interlaced))
         assertEquals("此设备无法播放 EAC3 音频", why("zh-CN", NotAsSent.Audio))
-        assertEquals("伺服器已關閉直接播放", why("zh-TW", NotAsSent.Off))
+        assertEquals("隔行掃描影片會轉換為逐行掃描", why("zh-TW", NotAsSent.Interlaced))
         assertEquals("此裝置無法播放 HEVC", why("zh-TW", NotAsSent.Video))
     }
 }

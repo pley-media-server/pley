@@ -127,8 +127,6 @@ export interface LiveSettings {
   /** Profiles with an age limit see Live TV too. */
   age_limited: boolean;
   deinterlace: boolean;
-  /** Players play a channel from the provider's stream when they decode it (an older server has no such setting). */
-  direct_play?: boolean;
   /** The most lines a transcoded channel has; null: as many as it has. */
   max_height: number | null;
   timeshift_minutes: number;
@@ -286,10 +284,8 @@ export interface LivePlan {
   video_kbps?: number | null;
 }
 
-/** A watch session's plan: with the server's Direct Play setting, and what the provider sends now. */
+/** A watch session's plan: with the server's Deinterlace setting, and what the provider sends now. */
 export interface SessionPlan extends LivePlan {
-  /** Settings → Live TV's Direct Play (an older server says nothing: off). */
-  direct_play?: boolean;
   /** Settings → Live TV's Deinterlace (an older server says nothing: on). */
   deinterlace?: boolean;
   /** What the provider sends now, kbit/s. */
@@ -585,26 +581,24 @@ export function useSessionPlan(sessionId: string | null, open: boolean) {
 export const asIs = (made: string) => made === "copy" || made === "none";
 
 /**
- * Why a channel isn't played from its stream: Direct Play is off on the
- * server (`older`: a server too old to have it), its video is interlaced
- * (the transcoder makes it progressive), or this device doesn't play its
- * video or its sound (`codec`: null when the server doesn't know it).
+ * Why a channel isn't played from its stream: its video is interlaced (the
+ * transcoder makes it progressive), or this device doesn't play its video
+ * or its sound (`codec`: null when the server doesn't know it).
  */
 export type NotAsSent =
-  | { why: "off" | "older" | "interlaced" | "nothing" }
+  | { why: "interlaced" | "nothing" }
   | { why: "video" | "audio"; codec: string | null };
 
 /**
  * Why a player that reads MPEG-TS doesn't play a channel from `stream.ts`;
  * null when it does. It plays one sent as it is (H.264, AAC, or either
- * alone), and, while the server's Direct Play is on, one whose progressive
- * video (at its bit depth) and sound `caps` say this device plays as the
- * provider sends them. Without `caps`, only the first.
+ * alone), and one whose progressive video (at its bit depth) and sound
+ * `caps` say this device plays as the provider sends them. Without `caps`,
+ * only the first.
  */
 export function notAsSent(plan: SessionPlan, caps?: StreamCaps | null): NotAsSent | null {
   if (plan.video === "none" && plan.audio === "none") return { why: "nothing" };
   if (asIs(plan.video) && asIs(plan.audio)) return null;
-  if (plan.direct_play !== true) return { why: plan.direct_play === false ? "off" : "older" };
   if (!asIs(plan.video)) {
     // Interlaced video is the transcoder's while it makes it progressive.
     if (plan.interlaced && plan.deinterlace !== false) return { why: "interlaced" };

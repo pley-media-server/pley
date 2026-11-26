@@ -255,11 +255,9 @@ pub struct LiveWatching {
 
 /// `GET /api/live/sessions/{session}/plan`: what the channel carries and
 /// what the transcoder makes of it (`video`: `copy`, `none` or the encoder;
-/// `audio`: `copy`, `aac` or `none`), with the server's Direct Play setting
-/// and what the provider sends now. Answers `null` while unknown. An older
-/// server leaves out the bit depth, what a transcode makes, `direct_play`
-/// (none: it has no such setting, so only a channel sent as it is plays from
-/// its `stream.ts`) and `kbps` (0).
+/// `audio`: `copy`, `aac` or `none`), with what the provider sends now.
+/// Answers `null` while unknown. An older server leaves out the bit depth,
+/// what a transcode makes and `kbps` (0).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct LivePlan {
     pub video_codec: Option<String>,
@@ -280,10 +278,6 @@ pub struct LivePlan {
     pub out_height: Option<i64>,
     /// A transcode's video bitrate, in kbit/s; none when the video is copied.
     pub video_kbps: Option<i64>,
-    /// The server's Live TV setting: players play a channel from the provider's stream when
-    /// they decode it; none from an older server, which has no such setting.
-    #[serde(default)]
-    pub direct_play: Option<bool>,
     /// The server's Deinterlace setting: interlaced video is made progressive; none (taken as
     /// on) from an older server.
     #[serde(default)]

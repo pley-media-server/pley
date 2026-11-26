@@ -10,7 +10,7 @@ using Xunit;
 
 namespace Pley.Tv.Core.Tests;
 
-/// <summary>Channels a TV plays as the provider sends them, by its own report, while the server's Direct Play is on.</summary>
+/// <summary>Channels a TV plays as the provider sends them, by its own report.</summary>
 public class LiveDirectPlayRuleTests
 {
     /// <summary>A 2025 4K set, and one with a Full HD panel.</summary>
@@ -23,7 +23,7 @@ public class LiveDirectPlayRuleTests
         VideoCodec = "hevc", Width = 3840, Height = 2160, FrameRate = 50, BitDepth = depth,
         AudioCodec = "eac3", AudioChannels = 6,
         Video = "h264_nvenc", Audio = "aac", OutHeight = 1080, VideoKbps = 8_000,
-        DirectPlay = true, Deinterlace = true, Kbps = 12_300,
+        Deinterlace = true, Kbps = 12_300,
     };
 
     static ClientCaps Decoders(params VideoDecoderCaps[] video) => new ClientCaps { Video = video, AudioDecode = new[] { "aac", "eac3" } };
@@ -38,7 +38,7 @@ public class LiveDirectPlayRuleTests
         // Its sound alone converted, or its picture alone.
         Assert.True(LiveRules.PlaysAsSent(Hevc() with { Video = "copy" }, Uhd));
         Assert.True(LiveRules.PlaysAsSent(Hevc() with { Audio = "copy" }, Uhd));
-        Assert.True(LiveRules.PlaysAsSent(new LivePlan { VideoCodec = "mpeg2video", Width = 1280, Height = 720, FrameRate = 50, AudioCodec = "mp2", Video = "libx264", Audio = "aac", DirectPlay = true }, Uhd));
+        Assert.True(LiveRules.PlaysAsSent(new LivePlan { VideoCodec = "mpeg2video", Width = 1280, Height = 720, FrameRate = 50, AudioCodec = "mp2", Video = "libx264", Audio = "aac" }, Uhd));
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public class LiveDirectPlayRuleTests
     [Fact]
     public void Interlaced_video_stays_with_the_server_unless_it_sends_it_as_it_is()
     {
-        var interlaced = new LivePlan { VideoCodec = "h264", Width = 1920, Height = 1080, FrameRate = 25, Interlaced = true, AudioCodec = "aac", Video = "h264_nvenc", Audio = "copy", DirectPlay = true };
+        var interlaced = new LivePlan { VideoCodec = "h264", Width = 1920, Height = 1080, FrameRate = 25, Interlaced = true, AudioCodec = "aac", Video = "h264_nvenc", Audio = "copy" };
         Assert.Equal(NotAsSent.Interlaced, LiveRules.WhyNotAsSent(interlaced, Uhd));
         Assert.True(LiveRules.PlaysAsSent(interlaced with { Interlaced = false }, Uhd));
         // Deinterlacing off on the server: sent as it is, played as it is.
@@ -75,36 +75,27 @@ public class LiveDirectPlayRuleTests
     }
 
     [Fact]
-    public void With_direct_play_off_only_what_the_server_sends_as_it_is_plays_as_sent()
-    {
-        Assert.Equal(NotAsSent.Off, LiveRules.WhyNotAsSent(Hevc() with { DirectPlay = false }, Uhd));
-        Assert.True(LiveRules.PlaysAsSent(new LivePlan { Video = "copy", Audio = "copy" }, Uhd));
-        // Sound every Samsung TV decodes, as before there was such a setting.
-        Assert.True(LiveRules.PlaysAsSent(new LivePlan { Video = "copy", Audio = "aac", AudioCodec = "ac3" }, Uhd));
-    }
-
-    [Fact]
-    public void An_older_servers_plan_reads_without_direct_play_and_plays_as_it_did()
+    public void An_older_servers_plan_reads_without_what_it_doesnt_say_and_its_picture_is_taken_as_8_bit()
     {
         var plan = JsonSerializer.Deserialize<LivePlan>(
             @"{""video_codec"":""hevc"",""width"":3840,""height"":2160,""frame_rate"":50.0,""interlaced"":false,""audio_codec"":""eac3"",""audio_channels"":6,""video"":""h264_nvenc"",""audio"":""aac""}",
             ApiJson.Options)!;
-        Assert.Null(plan.DirectPlay);
         Assert.Equal(0, plan.Kbps);
         Assert.Null(plan.BitDepth);
         Assert.Null(plan.OutHeight);
         Assert.Null(plan.VideoKbps);
-        Assert.False(LiveRules.PlaysAsSent(plan, Uhd));
-        // No word of a setting that server lacks.
-        Assert.Equal(NotAsSent.Unknown, LiveRules.WhyNotAsSent(plan, Uhd));
-        Assert.True(LiveRules.PlaysAsSent(plan with { Video = "copy" }, Uhd));
+        Assert.Null(plan.Deinterlace);
+        Assert.True(LiveRules.PlaysAsSent(plan, Uhd));
+        Assert.Equal(NotAsSent.Video, LiveRules.WhyNotAsSent(plan, Decoders(new VideoDecoderCaps { Codec = "h264", MaxBitDepth = 8 })));
+        // Deinterlacing it doesn't speak of is taken as on.
+        Assert.Equal(NotAsSent.Interlaced, LiveRules.WhyNotAsSent(plan with { Interlaced = true }, Uhd));
     }
 
     [Fact]
     public void A_plan_reads_what_the_provider_sends_and_what_a_transcode_makes()
     {
         var plan = JsonSerializer.Deserialize<LivePlan>(
-            @"{""video_codec"":""hevc"",""width"":3840,""height"":2160,""frame_rate"":50.0,""interlaced"":false,""bit_depth"":10,""audio_codec"":""eac3"",""audio_channels"":6,""video"":""h264_nvenc"",""audio"":""aac"",""out_height"":1080,""video_kbps"":8000,""direct_play"":true,""deinterlace"":true,""kbps"":12300}",
+            @"{""video_codec"":""hevc"",""width"":3840,""height"":2160,""frame_rate"":50.0,""interlaced"":false,""bit_depth"":10,""audio_codec"":""eac3"",""audio_channels"":6,""video"":""h264_nvenc"",""audio"":""aac"",""out_height"":1080,""video_kbps"":8000,""deinterlace"":true,""kbps"":12300}",
             ApiJson.Options)!;
         Assert.Equal(Hevc(), plan);
     }
@@ -125,7 +116,10 @@ public class LiveDirectPlayRuleTests
     public void Without_the_tvs_report_only_what_is_sent_as_it_is_plays_as_sent()
     {
         Assert.Equal(NotAsSent.Unknown, LiveRules.WhyNotAsSent(Hevc(), null));
-        Assert.True(LiveRules.PlaysAsSent(new LivePlan { Video = "copy", Audio = "copy", DirectPlay = true }, null));
+        Assert.True(LiveRules.PlaysAsSent(new LivePlan { Video = "copy", Audio = "copy" }, null));
+        // Sound every Samsung TV decodes, which the server converts for players that can't.
+        Assert.True(LiveRules.PlaysAsSent(new LivePlan { Video = "copy", Audio = "aac", AudioCodec = "ac3" }, null));
+        Assert.False(LiveRules.PlaysAsSent(new LivePlan { Video = "copy", Audio = "aac", AudioCodec = "dts" }, null));
     }
 
     [Fact]
@@ -173,9 +167,9 @@ public class LiveDirectPlayTests
     }
 
     [Fact]
-    public void With_direct_play_off_or_no_decoder_for_it_the_channel_plays_its_hls()
+    public void Without_a_decoder_for_it_the_channel_plays_its_hls()
     {
-        live.PlanAnswer = LiveDirectPlayRuleTests.Hevc() with { DirectPlay = false };
+        live.PlanAnswer = LiveDirectPlayRuleTests.Hevc() with { AudioCodec = "dts" };
         var p = Playback();
         p.Tune(1);
         Assert.True(engines[0].Source?.Hls);
@@ -264,7 +258,7 @@ public class LiveDirectPlayTests
         p.Tune(2);
         Assert.Null(p.Plan.Value);
         live.HoldPlan = false;
-        live.AnswerPlan(new LivePlan { Video = "copy", Audio = "copy", DirectPlay = true });
+        live.AnswerPlan(new LivePlan { Video = "copy", Audio = "copy" });
         Assert.Equal("copy", p.Plan.Value?.Video);
         live.Sent.Clear();
         scheduler.Advance(LivePlayback.DetailsMs);
@@ -275,6 +269,31 @@ public class LiveDirectPlayTests
         live.Sent.Clear();
         scheduler.Advance(10 * LivePlayback.DetailsMs);
         Assert.Empty(live.Sent);
+    }
+
+    [Fact]
+    public void A_channels_stalls_and_the_time_to_its_first_picture_are_counted_for_the_details()
+    {
+        live.PlanAnswer = LiveDirectPlayRuleTests.Hevc();
+        var p = Playback();
+        p.Tune(1);
+        Assert.Null(p.FirstFrameMs);
+        scheduler.Advance(800);
+        engines[0].Start();
+        Assert.Equal(800, p.FirstFrameMs);
+        Assert.Equal(0, p.Stalls);
+        // A stall counts once, however long it lasts.
+        engines[0].Status(EngineStatus.Buffering);
+        engines[0].Status(EngineStatus.Buffering);
+        Assert.Equal(1, p.Stalls);
+        engines[0].Status(EngineStatus.Ready);
+        engines[0].Status(EngineStatus.Buffering);
+        Assert.Equal(2, p.Stalls);
+        Assert.Equal(800, p.FirstFrameMs);
+        // Another channel starts from none.
+        p.Tune(2);
+        Assert.Equal(0, p.Stalls);
+        Assert.Null(p.FirstFrameMs);
     }
 
     [Fact]
@@ -293,6 +312,8 @@ public class LiveDirectPlayTests
         Assert.Equal("How it plays", panel.Rows[0].Label);
         Assert.Equal(("Playback", "Direct play"), (panel.Rows[1].Label, panel.Rows[1].Value));
         Assert.All(panel.Rows.Skip(1), r => Assert.Equal(PlayerRowKind.Fact, r.Kind));
+        // This TV's counts, as a film's: none of a channel that just started.
+        Assert.Equal(new ReadoutInput(FirstFrameMs: 0), model.Readout());
         model.SetDetailsOpen(false);
         scheduler.Advance(10 * LivePlayback.DetailsMs);
         Assert.Equal(tuned + 1, PlanAsks);
@@ -312,7 +333,7 @@ public class LiveDetailsTests
         VideoCodec = "mpeg2video", Width = 720, Height = 576, FrameRate = 25, Interlaced = true, BitDepth = 8,
         AudioCodec = "mp2", AudioChannels = 2,
         Video = "h264_nvenc", Audio = "aac", OutHeight = 576, VideoKbps = 3_000,
-        DirectPlay = true, Kbps = 4_500,
+        Kbps = 4_500,
     };
 
     static (string, string)[] Rows(bool direct, LivePlan? plan, ClientCaps? caps = null) =>
@@ -343,7 +364,7 @@ public class LiveDetailsTests
             ("Encoder", "NVIDIA NVENC"),
         }, Rows(false, Sd));
         // A server that doesn't say a transcode's lines: the provider's.
-        var rows = Rows(false, LiveDirectPlayRuleTests.Hevc() with { OutHeight = null, VideoKbps = null, DirectPlay = false });
+        var rows = Rows(false, LiveDirectPlayRuleTests.Hevc() with { OutHeight = null, VideoKbps = null });
         Assert.Contains(("Video", "HEVC 10-bit · 3840×2160 · 50 fps → H.264 2160p"), rows);
         Assert.Contains(("Bitrate", "12 Mbps"), rows);
         Assert.Contains(("Encoder", "NVIDIA NVENC"), rows);
@@ -352,10 +373,11 @@ public class LiveDetailsTests
     [Fact]
     public void A_direct_stream_is_the_hls_of_a_picture_sent_as_it_is()
     {
-        var dts = new LivePlan { VideoCodec = "h264", Width = 1920, Height = 1080, FrameRate = 50, AudioCodec = "dts", AudioChannels = 6, Video = "copy", Audio = "aac", DirectPlay = true, Kbps = 850 };
+        var dts = new LivePlan { VideoCodec = "h264", Width = 1920, Height = 1080, FrameRate = 50, AudioCodec = "dts", AudioChannels = 6, Video = "copy", Audio = "aac", Kbps = 850 };
         Assert.Equal(new[]
         {
-            ("Playback", "Direct stream"),
+            // A film's words for a remux whose sound is converted.
+            ("Playback", "Direct stream · Audio transcoding"),
             ("Why", "This device doesn't play DTS sound"),
             ("Video", "H.264 · 1920×1080 · 50 fps"),
             ("Audio", "DTS 5.1 → AAC Stereo"),
@@ -364,12 +386,12 @@ public class LiveDetailsTests
     }
 
     [Fact]
-    public void Why_says_the_servers_setting_then_the_picture_then_the_sound()
+    public void Why_says_the_picture_then_the_sound()
     {
         var hevc = LiveDirectPlayRuleTests.Hevc();
-        Assert.Equal("Direct Play is off on the server", LiveDetails.Why(hevc with { DirectPlay = false }, Uhd));
-        Assert.Equal("Direct Play is off on the server", LiveDetails.Why(Sd with { DirectPlay = false }, Uhd));
+        Assert.Equal("Interlaced video is made progressive", LiveDetails.Why(Sd, Uhd));
         Assert.Equal("This device doesn't play HEVC", LiveDetails.Why(hevc, Hd));
+        Assert.Equal("This device doesn't play HEVC", LiveDetails.Why(hevc with { AudioCodec = "dts" }, Hd));
         Assert.Equal("This device doesn't play DTS sound", LiveDetails.Why(hevc with { AudioCodec = "dts" }, Uhd));
         // Played as sent, or for a reason neither the plan nor the report gives: nothing.
         Assert.Null(LiveDetails.Why(hevc, Uhd));
@@ -396,15 +418,24 @@ public class LiveDetailsTests
     [Fact]
     public void The_panel_waits_for_the_server_or_lists_how_it_plays_then_this_tv()
     {
-        var waiting = LiveDetails.Panel(false, null, Uhd, null);
+        var waiting = LiveDetails.Panel(false, null, Uhd, new ReadoutInput());
         Assert.Equal(new[] { (PlayerRowKind.Note, "Asking the server…") }, waiting.Rows.Select(r => (r.Kind, r.Label)));
 
         var stats = new EngineStats { Width = 3840, Height = 2160, FrameRate = 50, Bandwidth = 40_000_000 };
-        var sections = LiveDetails.Sections(true, LiveDirectPlayRuleTests.Hevc(), Uhd, stats);
+        var tv = new ReadoutInput(Stats: stats, BufferedAheadMs: 4_200, Stalls: 2, FirstFrameMs: 850);
+        var sections = LiveDetails.Sections(true, LiveDirectPlayRuleTests.Hevc(), Uhd, tv);
         Assert.Equal(new[] { "How it plays", "This TV" }, sections.Select(s => s.Title));
         Assert.Equal(new MediaFact("TV network speed", "40 Mbps"), sections[0].Facts.Last());
-        Assert.Equal(new[] { new MediaFact("Decoded", "3840×2160 · 50 fps") }, sections[1].Facts);
+        // This TV's lines are a film's, which has no other.
+        Assert.Equal(new[]
+        {
+            new MediaFact("Decoded", "3840×2160 · 50 fps"),
+            new MediaFact("Buffered ahead", "4 s"),
+            new MediaFact("Stalls", "2"),
+            new MediaFact("First frame", "850 ms"),
+        }, sections[1].Facts);
+        Assert.Equal(Readout.Sections(tv).Single().Facts, sections[1].Facts);
         // A player that says nothing of itself: how it plays alone.
-        Assert.Equal(new[] { "How it plays" }, LiveDetails.Sections(true, LiveDirectPlayRuleTests.Hevc(), Uhd, new EngineStats()).Select(s => s.Title));
+        Assert.Equal(new[] { "How it plays" }, LiveDetails.Sections(true, LiveDirectPlayRuleTests.Hevc(), Uhd, new ReadoutInput()).Select(s => s.Title));
     }
 }

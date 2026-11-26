@@ -1,7 +1,10 @@
 package app.pley.android.ui.phone.livetv
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -92,22 +95,26 @@ class LivePlayerScreenTest {
     }
 
     @Test
-    fun `Playback details open from the controls and say how the channel plays`() {
+    fun `the controls badge how the channel plays, as the video player's, and the badge opens Playback details`() {
         live.plan = LivePlan(
             videoCodec = "hevc", width = 1920, height = 1080, frameRate = 50.0, bitDepth = 10,
-            audioCodec = "aac", audioChannels = 2, video = "copy", audio = "copy", directPlay = true, kbps = 6_500,
+            audioCodec = "aac", audioChannels = 2, video = "copy", audio = "copy", kbps = 6_500,
         )
         val vm = player()
         show(vm)
+        // Nothing to badge while the channel tunes.
+        compose.onNodeWithTag(LIVE_PLAYER_DETAILS).assertDoesNotExist()
         playing(vm)
         compose.onNodeWithTag(LIVE_PLAYER_DETAILS_SHEET, useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag(LIVE_PLAYER_DETAILS).assertContentDescriptionEquals(compose.activity.getString(R.string.player_method_hint, "Direct play"))
         compose.onNodeWithTag(LIVE_PLAYER_DETAILS).performClick()
         compose.waitForIdle()
         // Read unmerged: the sheet takes the touches inside it, which makes one node of its words.
         compose.onNodeWithTag(LIVE_PLAYER_DETAILS_SHEET, useUnmergedTree = true).assertExists()
         // The video player's words and rows.
         compose.onNodeWithText(compose.activity.getString(R.string.player_details), useUnmergedTree = true).assertExists()
-        compose.onNodeWithText("Direct play", useUnmergedTree = true).assertExists()
+        // In the badge and in the sheet.
+        compose.onAllNodesWithText("Direct play", useUnmergedTree = true).assertCountEquals(2)
         compose.onNodeWithText("HEVC 10-bit · 1920×1080 · 50 fps", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("AAC Stereo", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("6.5 Mbps", useUnmergedTree = true).assertExists()

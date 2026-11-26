@@ -132,7 +132,7 @@ class TvLivePlayerScreenTest {
     fun `Info, last in the controls, opens Playback details, which Up and Down scroll and Back closes`() {
         live.plan = LivePlan(
             videoCodec = "hevc", width = 1920, height = 1080, frameRate = 50.0, bitDepth = 10,
-            audioCodec = "aac", audioChannels = 2, video = "copy", audio = "copy", directPlay = true, kbps = 6_500,
+            audioCodec = "aac", audioChannels = 2, video = "copy", audio = "copy", kbps = 6_500,
         )
         val vm = player()
         show(vm)
@@ -141,6 +141,8 @@ class TvLivePlayerScreenTest {
         send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_CENTER, repeat = 1)
         send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_CENTER)
         channelsFocused()
+        // How it plays, in the video player's badge.
+        compose.onNodeWithText("Direct play").assertExists()
         // Right twice: past the favorite, to Info.
         repeat(2) {
             send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT)

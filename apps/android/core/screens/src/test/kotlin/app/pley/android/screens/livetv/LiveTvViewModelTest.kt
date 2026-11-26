@@ -16,6 +16,7 @@ import app.pley.android.network.ApiException
 import app.pley.android.player.PlayRequest
 import app.pley.android.player.live.LivePlayback
 import app.pley.android.player.live.LivePlaying
+import app.pley.android.player.live.NotAsSent
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.testing.MainDispatcherRule
 import app.pley.android.data.LiveTvView
@@ -347,7 +348,7 @@ class LiveTvViewModelTest {
 
     @Test
     fun `the details ask how the channel plays while they show, every few seconds, and for the channel then playing`() = liveTest {
-        val plan = LivePlan(videoCodec = "h264", audioCodec = "aac", video = "copy", audio = "copy", directPlay = true, kbps = 5_000)
+        val plan = LivePlan(videoCodec = "h264", audioCodec = "aac", video = "copy", audio = "copy", kbps = 5_000)
         live.plan = plan
         val vm = player(1)
         engines.last().player.ready()
@@ -386,6 +387,38 @@ class LiveTvViewModelTest {
         settle()
         assertEquals(asked, live.plansAsked.size)
         assertNull(vm.details.value)
+    }
+
+    @Test
+    fun `how the channel plays comes from the tune, and is asked of the server once where the tune didn't learn it`() = liveTest {
+        val plan = LivePlan(videoCodec = "h264", audioCodec = "aac", video = "copy", audio = "copy", kbps = 5_000)
+        live.plan = plan
+        val vm = player(1)
+        backgroundScope.launch(main.dispatcher) { vm.how.collect { } }
+        settle()
+        // Nothing to say while it tunes.
+        assertNull(vm.how.value)
+        engines.last().player.ready()
+        settle()
+        assertEquals(LivePlaying(plan, asSent = true), vm.how.value)
+        // Only the tune asked, and nothing is asked again as time passes.
+        advanceTimeBy(LivePlayerViewModel.DETAILS_MS * 2)
+        settle()
+        assertEquals(listOf("live-1"), live.plansAsked)
+
+        // A channel whose plan didn't come in time plays its HLS: asked once more, for the badge.
+        live.plan = null
+        vm.step(1)
+        settle()
+        assertNull(vm.how.value)
+        live.plan = plan.copy(video = "libx264", videoCodec = "hevc")
+        engines.last().player.ready()
+        settle()
+        assertEquals(LivePlaying(live.plan, asSent = false, why = NotAsSent.Unknown), vm.how.value)
+        assertEquals(listOf("live-1", "live-2", "live-2"), live.plansAsked)
+        advanceTimeBy(LivePlayerViewModel.DETAILS_MS * 2)
+        settle()
+        assertEquals(3, live.plansAsked.size)
     }
 
     @Test

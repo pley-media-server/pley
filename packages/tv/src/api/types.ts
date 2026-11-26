@@ -646,8 +646,6 @@ export interface LivePlan {
 
 /** `GET /api/live/sessions/{session}/plan`: the plan of the channel a session watches. */
 export interface SessionPlan extends LivePlan {
-  /** The server's Direct Play setting, for players that read the provider's stream. */
-  direct_play: boolean;
   /** What the provider sends now, in kbit/s; 0 at first. */
   kbps: number;
 }

@@ -798,7 +798,9 @@ impl Screen for LivePlayerScreen {
         }
         let bar_id = ui.id("bar");
         let controls = self.overlay == Overlay::Controls;
-        let visible = playing && matches!(self.overlay, Overlay::None | Overlay::Controls) && (controls || info);
+        // Playback details opens over the controls, which stay under it as the video player's do.
+        let under = self.overlay == Overlay::Details;
+        let visible = playing && (controls || under || (self.overlay == Overlay::None && info));
         let p = ui.animate(bar_id.with("shown"), if visible { 1.0 } else { 0.0 }, Motion::OVERLAY);
 
         // What shows in place of a picture.
@@ -808,7 +810,7 @@ impl Screen for LivePlayerScreen {
             }
             (Some((_, s)), Some(c)) if s.audio_only && playing => {
                 // Above the bar while it shows, rather than under its name and what's on.
-                let bar_top = theme::CANVAS_H - bar_height(c, clock.now, controls).2 + BAR_PAD_TOP;
+                let bar_top = theme::CANVAS_H - bar_height(c, clock.now, controls || under).2 + BAR_PAD_TOP;
                 let above = Rect::new(stage.x, stage.y, stage.w, bar_top - BAR_CLEARANCE - stage.y);
                 let room = Rect { h: stage.h + (above.h - stage.h) * p, ..stage };
                 sound_only(ui, cx, room, c, clock.now);
@@ -862,7 +864,8 @@ impl Screen for LivePlayerScreen {
         {
             let focus = self.focus_controls.take();
             let live = s.phase == LivePhase::Playing || s.phase == LivePhase::Buffering;
-            let bar = |ui: &mut Ui| info_bar(ui, cx, bar_id, c, &self.category, &clock, live, controls, p, focus);
+            let buttons = controls || under;
+            let bar = |ui: &mut Ui| info_bar(ui, cx, bar_id, c, &self.category, &clock, live, buttons, p, focus);
             let action = if visible && controls { bar(ui) } else { inert(ui, bar) };
             match action {
                 Some(BarAction::Channels | BarAction::Menu) => self.open_list(),
@@ -1043,9 +1046,10 @@ fn bar_height(c: &LiveChannel, seconds: i64, controls: bool) -> (f32, f32, f32) 
 }
 
 /// The bar at the foot (`InfoBar`): the channel's logo, number and name, what's on with its times, how
-/// far it is and what's next, the Live badge at the right; with `controls`, the channel list,
-/// favorite and Info (Playback details) buttons, `focus` going to one of them, else the hint. It
-/// slides up a third of its height and fades as `p` goes to 1.
+/// far it is and what's next, the Live badge at the right; with `controls`, the channel list and
+/// favorite buttons at the left and Info (Playback details) at the right end of their row, where
+/// the video player's is, `focus` going to one of them, else the hint. It slides up a third of
+/// its height and fades as `p` goes to 1.
 #[allow(clippy::too_many_arguments)]
 fn info_bar(
     ui: &mut Ui,
@@ -1140,7 +1144,10 @@ fn info_bar(
             if controls {
                 let at = below + 16.0;
                 let (channels_id, favourite_id, info_id) = (id.with("channels"), id.with("favourite"), id.with("info"));
-                ui.initial_focus(channels_id);
+                // Under Playback details the buttons only show: first focus is the panel's.
+                if !pley_kit::is_inert() {
+                    ui.initial_focus(channels_id);
+                }
                 match focus {
                     Some(BarButton::Channels) => ui.request_focus(channels_id),
                     Some(BarButton::Info) => ui.request_focus(info_id),
@@ -1167,8 +1174,9 @@ fn info_bar(
                     if f.activated {
                         action = Some(BarAction::Favourite);
                     }
-                    // Info, as the video player's control that opens the same panel.
-                    let ix = fx + ROUND_SIZE + theme::BUTTON_GAP;
+                    // Info, the video player's control that opens the same panel, where it is there:
+                    // last in the row, at the safe area's right edge.
+                    let ix = right - ROUND_SIZE;
                     let i =
                         RoundButton::new(Icon::Info, t!("player.controls.info")).show(ui, info_id, Point::new(ix, at));
                     if i.activated {

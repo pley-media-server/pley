@@ -655,11 +655,11 @@ export class Api {
    * it, for the player's details: null while the transcoder hasn't said.
    * The server waits up to 3 s the first time; asked again it answers at
    * once, with the provider's bitrate as it is now. What an older server
-   * leaves out reads as not known, and its Direct Play as off.
+   * leaves out reads as not known.
    */
   livePlan(session: string, cancel?: Cancel): Promise<SessionPlan | null> {
     return this.get<Partial<SessionPlan> | null>(`/api/live/sessions/${encodeURIComponent(session)}/plan`, { cancel, timeoutMs: 8_000 }).then((plan) =>
-      plan ? ({ bit_depth: null, out_height: null, video_kbps: null, direct_play: false, kbps: 0, ...plan } as SessionPlan) : null,
+      plan ? ({ bit_depth: null, out_height: null, video_kbps: null, kbps: 0, ...plan } as SessionPlan) : null,
     );
   }
 

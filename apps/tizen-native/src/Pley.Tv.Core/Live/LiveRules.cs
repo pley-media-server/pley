@@ -19,8 +19,6 @@ public sealed record GroupSections(IReadOnlyList<GroupRegion> Regions, IReadOnly
 /// <summary>Why a channel plays as HLS and not from its stream.ts, as far as its plan and the TV's report say.</summary>
 public enum NotAsSent
 {
-    /// <summary>The server's Direct Play is off (or the server is older, and has none).</summary>
-    Off,
     /// <summary>Its picture is interlaced, and the server makes it progressive.</summary>
     Interlaced,
     /// <summary>This TV has no decoder for its picture: the codec, or its bit depth, size or rate.</summary>
@@ -63,17 +61,16 @@ public static class LiveRules
     /// Whether this TV plays a channel's stream.ts as the provider sends it (Direct Play), which
     /// starts sooner than its HLS and costs the server no transcode:
     ///
-    /// - Whatever the server's setting, a channel whose picture the plan sends as it is (or that
-    ///   has none), with sound sent as it is or in a format every Samsung TV decodes itself (AC3,
-    ///   MP2…), which the plan converts for players that can't. Android plays such sound where its
-    ///   device's probe says it decodes it or passes it to the receiver: its devices decode
-    ///   different things.
-    /// - While the server lets players (<see cref="LivePlan.DirectPlay"/>; an older server doesn't),
-    ///   a channel the plan would convert that this TV decodes by its own report
+    /// - A channel whose picture the plan sends as it is (or that has none), with sound sent as
+    ///   it is or in a format every Samsung TV decodes itself (AC3, MP2…), which the plan converts
+    ///   for players that can't. Android plays such sound where its device's probe says it decodes
+    ///   it or passes it to the receiver: its devices decode different things.
+    /// - A channel the plan would convert that this TV decodes by its own report
     ///   (<paramref name="caps"/>, the one a film's direct play goes by): its picture's codec at
-    ///   its bit depth, size and rate, and sound it decodes or passes to the receiver, of those the
-    ///   TV's player reads out of MPEG-TS. Interlaced video the plan converts stays with the
-    ///   server, whose own setting says whether it is made progressive.
+    ///   its bit depth (8 when the plan doesn't say), size and rate, and sound it decodes or
+    ///   passes to the receiver, of those the TV's player reads out of MPEG-TS. Interlaced video
+    ///   the plan converts stays with the server, whose own setting says whether it is made
+    ///   progressive.
     ///
     /// Without the report, only the first.
     /// </summary>
@@ -86,8 +83,6 @@ public static class LiveRules
         var audioSent = plan.Audio is "copy" or "none";
         var sound = plan.AudioCodec?.ToLowerInvariant();
         if (videoSent && (audioSent || (sound != null && Player.TizenCaps.DecodedAudio.Contains(sound)))) return null;
-        // An older server has no such setting: nothing to say of it.
-        if (plan.DirectPlay != true) return plan.DirectPlay == false ? NotAsSent.Off : NotAsSent.Unknown;
         if (caps == null) return NotAsSent.Unknown;
         if (!videoSent)
         {

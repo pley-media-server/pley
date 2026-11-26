@@ -2180,7 +2180,7 @@
       }
     },
     "Details" : {
-      "comment" : "A title's page: the heading of its details.",
+      "comment" : "A title's page: the heading of its details. The live player: opens how the channel plays, and that sheet's title, as the player's Details.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -5692,35 +5692,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "播放"
-          }
-        }
-      }
-    },
-    "Playback details" : {
-      "comment" : "The live player: opens how the channel plays, and that sheet's title.",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Detalles de reproducción"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Détails de lecture"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "播放详情"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "播放詳情"
           }
         }
       }

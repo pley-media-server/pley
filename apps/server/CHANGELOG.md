@@ -11,14 +11,9 @@ describes how they are made.
 
 ### Added
 
-- Live TV Direct Play: a player that decodes a channel's video and sound
-  (HEVC, 10-bit, MPEG-2 and others) plays it as the provider sends it,
-  with no transcode. The transcoder now starts a channel's transcode only
-  when a player asks for it, and a channel says what it is even when no
-  transcode is free. Settings → Live TV can turn Direct Play off.
-- Playback details in the web app's Live TV player: whether a channel
-  plays directly, as a direct stream or transcoded, and why, with what the
-  provider sends and its bitrate now.
+- Live TV plays a channel as the provider sends it when the device decodes
+  it (HEVC and 10-bit included), and transcodes only for players that need it.
+- Playback details in the web app's Live TV player.
 
 ## [0.1.17] - 2026-11-25
 

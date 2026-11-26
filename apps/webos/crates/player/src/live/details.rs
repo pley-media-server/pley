@@ -1,20 +1,22 @@
 //! Playback details for a live channel (a video's are [`crate::details`]): how it plays (the
 //! provider's stream, the server's copy of it, or its transcode), why it isn't the provider's
-//! stream, and what the channel is and is made into, from its session's plan.
+//! stream, and what the channel is and is made into, from its session's plan. They read as a
+//! video's do: the same rows in the same words, and the provider's video and sound in sections
+//! of their own, as a file's streams are.
 
-use pley_core::format::{channels_label, codec_label, format_bitrate, frame_rate_label};
-use pley_core::model::{ClientCaps, LivePlan};
+use pley_core::format::{
+    Fact, FactBlock, bit_depth_label, channels_label, codec_label, dimensions_label, format_bitrate, frame_rate_label,
+};
+use pley_core::model::{ClientCaps, LivePlan, MediaStream};
 use pley_i18n::t;
 
-use crate::details::{DetailRow, encoder_name};
+use crate::details::{DetailRow, audio_label, encoder_name, video_label};
 use crate::live::session::{as_is, decodes_video, plays_audio, sent_as_it_is};
 
 /// Why a channel plays the server's HLS when the server doesn't send it as it is: what
 /// [`crate::live::plays_as_sent`] refused it for.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NotAsSent {
-    /// Direct Play is off in the server's Live TV settings (or the server is older than it).
-    Off,
     /// Interlaced video, which the server makes progressive.
     Interlaced,
     /// Video this TV doesn't play from an MPEG-TS, by ffprobe's name.
@@ -27,7 +29,6 @@ impl NotAsSent {
     /// In words, for the details' Why.
     pub fn text(&self) -> String {
         match self {
-            NotAsSent::Off => t!("livetv.details.directPlayOff").into(),
             NotAsSent::Interlaced => t!("livetv.details.interlaced").into(),
             NotAsSent::Video(codec) => t!("livetv.details.videoNotPlayed", codec = codec_label(codec)),
             NotAsSent::Audio(codec) => t!("livetv.details.audioNotPlayed", codec = codec_label(codec)),
@@ -42,12 +43,6 @@ impl NotAsSent {
 pub fn why_not_as_sent(plan: &LivePlan, caps: Option<&ClientCaps>) -> Option<NotAsSent> {
     if sent_as_it_is(plan) {
         return None;
-    }
-    match plan.direct_play {
-        Some(true) => {}
-        Some(false) => return Some(NotAsSent::Off),
-        // An older server has no such setting: nothing to say of it.
-        None => return None,
     }
     let caps = caps?;
     if !as_is(&plan.video) {
@@ -73,6 +68,9 @@ pub struct LiveDetails {
     pub why: Option<String>,
     /// Video, Audio, Bitrate and Encoder; a row whose value isn't known is left out.
     pub rows: Vec<DetailRow>,
+    /// Video and Audio: what the provider sends, as the plan has it. A video's Info has these
+    /// sections for its file's streams.
+    pub streams: Vec<FactBlock>,
 }
 
 /// The codec an encoder makes, by ffprobe's name: `h264_nvenc` and `libx264` make `h264`.
@@ -84,42 +82,73 @@ fn encoder_codec(encoder: &str) -> &str {
     }
 }
 
-/// "HEVC 10-bit · 3840×2160 · 50 fps", and what a transcode makes of it: "… → H.264 1080p".
+/// "HEVC 4K", and what a transcode makes of it: "… → H.264 1080p", as a video's row says them.
 fn video_row(plan: &LivePlan, converted: bool) -> Option<String> {
     let codec = plan.video_codec.as_deref().filter(|c| !c.is_empty())?;
-    let mut name = codec_label(codec);
-    if let Some(depth) = plan.bit_depth.filter(|d| *d > 8) {
-        name = format!("{name} {}", t!("format.track.bitDepth", n = depth));
-    }
-    let size = plan.width.zip(plan.height).filter(|(w, h)| *w > 0 && *h > 0).map(|(w, h)| format!("{w}×{h}"));
-    let rate = frame_rate_label(plan.frame_rate, plan.interlaced);
-    let sent = [Some(name), size, rate].into_iter().flatten().collect::<Vec<_>>().join(" · ");
+    let label = |codec: &str, width, height| {
+        video_label(Some(&MediaStream { codec: codec.into(), width, height, ..MediaStream::default() }))
+    };
+    let sent = label(codec, plan.width, plan.height);
     if !converted {
         return Some(sent);
     }
-    // A transcode that keeps the size doesn't say its lines: the provider's.
-    let lines = plan.out_height.or(plan.height).filter(|h| *h > 0).map(|h| format!("{h}p"));
-    let made = [Some(codec_label(encoder_codec(&plan.video))), lines].into_iter().flatten().collect::<Vec<_>>();
-    Some(format!("{sent} → {}", made.join(" ")))
+    // A transcode says its lines only when it changes them: its width follows the provider's shape.
+    let size = plan.width.zip(plan.height).filter(|(w, h)| *w > 0 && *h > 0);
+    let (width, height) = match (plan.out_height.filter(|h| *h > 0), size) {
+        (Some(lines), Some((w, h))) => (Some(w.saturating_mul(lines) / h), Some(lines)),
+        (Some(lines), None) => (None, Some(lines)),
+        (None, _) => (plan.width, plan.height),
+    };
+    Some(format!("{sent} → {}", label(encoder_codec(&plan.video), width, height)))
 }
 
-/// "EAC3 5.1", and what the server makes of it: "… → AAC Stereo".
+/// "EAC3 5.1", and what the server makes of it: "… → AAC 2.0", as a video's row says them.
 fn audio_row(plan: &LivePlan, converted: bool) -> Option<String> {
     let codec = plan.audio_codec.as_deref().filter(|c| !c.is_empty())?;
-    let sent = [codec_label(codec), channels_label(plan.audio_channels, None)]
-        .into_iter()
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join(" ");
+    let label = |codec: &str, channels| {
+        audio_label(Some(&MediaStream { codec: codec.into(), channels, ..MediaStream::default() }))
+    };
+    let sent = label(codec, plan.audio_channels);
     if !converted {
         return Some(sent);
     }
     // The server's AAC is stereo.
     let made = match plan.audio.as_str() {
-        "aac" => format!("{} {}", codec_label("aac"), t!("format.channels.stereo")),
-        other => codec_label(other),
+        "aac" => label("aac", Some(2)),
+        other => label(other, None),
     };
     Some(format!("{sent} → {made}"))
+}
+
+/// The provider's video and sound under Video and Audio, with a file's labels for what the plan
+/// says of them: the codec, the size, the frame rate and the bit depth; the codec and the
+/// channels. A fact it doesn't say is left out, and a section with none.
+fn stream_blocks(plan: &LivePlan) -> Vec<FactBlock> {
+    let named = |codec: &Option<String>| codec.as_deref().filter(|c| !c.is_empty()).map(codec_label);
+    let block = |title: &str, facts: Vec<(&str, Option<String>)>| {
+        let facts: Vec<Fact> = facts
+            .into_iter()
+            .filter_map(|(label, value)| Some(Fact { label: label.into(), value: value.filter(|v| !v.is_empty())? }))
+            .collect();
+        (!facts.is_empty()).then(|| FactBlock { title: title.into(), facts })
+    };
+    let video = block(
+        t!("player.details.video"),
+        vec![
+            (t!("format.media.codec"), named(&plan.video_codec)),
+            (t!("format.media.resolution"), dimensions_label(plan.width, plan.height)),
+            (t!("format.media.frameRate"), frame_rate_label(plan.frame_rate, plan.interlaced)),
+            (t!("format.media.bitDepth"), bit_depth_label(plan.bit_depth, None)),
+        ],
+    );
+    let audio = block(
+        t!("player.details.audio"),
+        vec![
+            (t!("format.media.codec"), named(&plan.audio_codec)),
+            (t!("format.media.channels"), Some(channels_label(plan.audio_channels, None))),
+        ],
+    );
+    video.into_iter().chain(audio).collect()
 }
 
 /// What the provider sends now, and a transcode's video bitrate after it: "12 Mbps → 8.0 Mbps".
@@ -137,7 +166,12 @@ fn bitrate_row(plan: &LivePlan, converted: bool) -> Option<String> {
 /// None for a channel on the server's HLS whose plan isn't known: nothing says how it plays.
 pub fn live_details(plan: Option<&LivePlan>, direct: bool, caps: Option<&ClientCaps>) -> Option<LiveDetails> {
     let Some(plan) = plan else {
-        return direct.then(|| LiveDetails { method: t!("player.method.direct").into(), why: None, rows: Vec::new() });
+        return direct.then(|| LiveDetails {
+            method: t!("player.method.direct").into(),
+            why: None,
+            rows: Vec::new(),
+            streams: Vec::new(),
+        });
     };
     let video_converted = !direct && !as_is(&plan.video);
     let audio_converted = !direct && !as_is(&plan.audio);
@@ -161,7 +195,7 @@ pub fn live_details(plan: Option<&LivePlan>, direct: bool, caps: Option<&ClientC
     row(t!("player.details.audio"), audio_row(plan, audio_converted));
     row(t!("player.details.bitrate"), bitrate_row(plan, video_converted));
     row(t!("player.details.encoder"), video_converted.then(|| encoder_name(&plan.video).to_string()));
-    Some(LiveDetails { method: method.into(), why, rows })
+    Some(LiveDetails { method: method.into(), why, rows, streams: stream_blocks(plan) })
 }
 
 #[cfg(test)]
@@ -189,7 +223,6 @@ mod tests {
             audio: "aac".into(),
             out_height: Some(1080),
             video_kbps: Some(8_000),
-            direct_play: Some(true),
             kbps: 12_300,
             ..LivePlan::default()
         }
@@ -199,14 +232,35 @@ mod tests {
         d.rows.iter().map(|r| (r.label.as_str(), r.value.as_str())).collect()
     }
 
+    /// The sections after How it plays: each one's title and facts.
+    fn streams(d: &LiveDetails) -> Vec<(&str, Vec<(&str, &str)>)> {
+        d.streams
+            .iter()
+            .map(|b| (b.title.as_str(), b.facts.iter().map(|f| (f.label.as_str(), f.value.as_str())).collect()))
+            .collect()
+    }
+
     #[test]
     fn the_providers_stream_is_direct_play_with_what_the_channel_is() {
         let d = live_details(Some(&hevc()), true, Some(&caps())).unwrap();
         assert_eq!((d.method.as_str(), d.why.as_deref()), ("Direct play", None));
         // Nothing is made of it: no transcode's size, sound, bitrate or encoder.
+        assert_eq!(rows(&d), [("Video", "HEVC 4K"), ("Audio", "EAC3 5.1"), ("Bitrate", "12 Mbps")]);
+        // What the provider sends, in a video's Video and Audio sections.
         assert_eq!(
-            rows(&d),
-            [("Video", "HEVC 10-bit · 3840×2160 · 50 fps"), ("Audio", "EAC3 5.1"), ("Bitrate", "12 Mbps")]
+            streams(&d),
+            [
+                (
+                    "Video",
+                    vec![
+                        ("Codec", "HEVC"),
+                        ("Resolution", "3840×2160 (4K)"),
+                        ("Frame rate", "50 fps"),
+                        ("Bit depth", "10-bit"),
+                    ]
+                ),
+                ("Audio", vec![("Codec", "EAC3"), ("Channels", "5.1")]),
+            ]
         );
     }
 
@@ -218,16 +272,22 @@ mod tests {
         assert_eq!(
             rows(&d),
             [
-                ("Video", "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p"),
-                ("Audio", "EAC3 5.1 → AAC Stereo"),
+                ("Video", "HEVC 4K → H.264 1080p"),
+                ("Audio", "EAC3 5.1 → AAC 2.0"),
                 ("Bitrate", "12 Mbps → 8.0 Mbps"),
                 ("Encoder", "NVIDIA NVENC"),
             ]
         );
-        // A transcode that keeps the size has the provider's lines.
+        // The sections say what the provider sends, whatever is made of it.
+        assert_eq!(streams(&d), streams(&live_details(Some(&hevc()), true, Some(&caps())).unwrap()));
+        // A transcode that keeps the size has the provider's.
         let same = LivePlan { out_height: None, height: Some(720), width: Some(1280), ..hevc() };
         let d = live_details(Some(&same), false, Some(&caps())).unwrap();
-        assert_eq!(rows(&d)[0].1, "HEVC 10-bit · 1280×720 · 50 fps → H.264 720p");
+        assert_eq!(rows(&d)[0].1, "HEVC 720p → H.264 720p");
+        // One it makes smaller keeps the provider's shape: 1920×800 is 1080p, 1280×534 is 720p.
+        let wide = LivePlan { width: Some(1920), height: Some(800), out_height: Some(534), ..hevc() };
+        let d = live_details(Some(&wide), false, Some(&caps())).unwrap();
+        assert_eq!(rows(&d)[0].1, "HEVC 1080p → H.264 720p");
     }
 
     #[test]
@@ -242,32 +302,25 @@ mod tests {
             audio_channels: Some(2),
             video: "copy".into(),
             audio: "copy".into(),
-            direct_play: Some(true),
             kbps: 850,
             ..LivePlan::default()
         };
         let d = live_details(Some(&copied), false, Some(&caps())).unwrap();
         assert_eq!((d.method.as_str(), d.why.as_deref()), ("Direct stream", None));
-        assert_eq!(
-            rows(&d),
-            [("Video", "H.264 · 1920×1080 · 25 fps"), ("Audio", "AAC Stereo"), ("Bitrate", "850 kbps")]
-        );
+        assert_eq!(rows(&d), [("Video", "H.264 1080p"), ("Audio", "AAC 2.0"), ("Bitrate", "850 kbps")]);
         // Sound alone converted, as a video's: DTS, which no LG TV reads from an MPEG-TS.
         let dts = LivePlan { audio_codec: Some("dts".into()), audio_channels: Some(6), audio: "aac".into(), ..copied };
         let d = live_details(Some(&dts), false, Some(&caps())).unwrap();
         assert_eq!(d.method, "Direct stream · Audio transcoding");
         assert_eq!(d.why.as_deref(), Some("This TV doesn't play DTS sound"));
-        assert_eq!(rows(&d)[1], ("Audio", "DTS 5.1 → AAC Stereo"));
+        assert_eq!(rows(&d)[1], ("Audio", "DTS 5.1 → AAC 2.0"));
     }
 
     #[test]
     fn why_follows_the_rule() {
         let caps = caps();
         let why = |plan: &LivePlan| why_not_as_sent(plan, Some(&caps));
-        assert_eq!(why(&LivePlan { direct_play: Some(false), ..hevc() }), Some(NotAsSent::Off));
         assert_eq!(why(&LivePlan { interlaced: true, ..hevc() }), Some(NotAsSent::Interlaced));
-        // The server's setting comes first.
-        assert_eq!(why(&LivePlan { interlaced: true, direct_play: Some(false), ..hevc() }), Some(NotAsSent::Off));
         // AV1, which the pipeline doesn't read from an MPEG-TS; 12-bit HEVC, beyond its decoder.
         assert_eq!(why(&LivePlan { video_codec: Some("av1".into()), ..hevc() }), Some(NotAsSent::Video("av1".into())));
         assert_eq!(why(&LivePlan { bit_depth: Some(12), ..hevc() }), Some(NotAsSent::Video("hevc".into())));
@@ -286,7 +339,7 @@ mod tests {
 
     #[test]
     fn rows_without_a_value_are_left_out() {
-        // From an older server: no bit depth, no bitrate, and no Direct Play setting to speak of.
+        // From an older server: no bit depth and no bitrate.
         let old = LivePlan {
             video_codec: Some("mpeg2video".into()),
             audio_codec: Some("mp2".into()),
@@ -297,13 +350,14 @@ mod tests {
             ..LivePlan::default()
         };
         let d = live_details(Some(&old), false, Some(&caps())).unwrap();
-        assert_eq!(d.why, None);
-        let off = LivePlan { direct_play: Some(false), ..old.clone() };
-        let said = live_details(Some(&off), false, Some(&caps())).unwrap().why;
-        assert_eq!(said.as_deref(), Some("Direct play is off on the server"));
+        assert_eq!(d.why.as_deref(), Some("Interlaced video is made progressive"));
+        assert_eq!(rows(&d), [("Video", "MPEG-2 → H.264"), ("Audio", "MP2 → AAC 2.0"), ("Encoder", "x264")]);
         assert_eq!(
-            rows(&d),
-            [("Video", "MPEG-2 · 25 fps, interlaced → H.264"), ("Audio", "MP2 → AAC Stereo"), ("Encoder", "x264")]
+            streams(&d),
+            [
+                ("Video", vec![("Codec", "MPEG-2"), ("Frame rate", "25 fps, interlaced")]),
+                ("Audio", vec![("Codec", "MP2")]),
+            ]
         );
         // A radio channel: no video row.
         let radio = LivePlan {
@@ -311,14 +365,14 @@ mod tests {
             audio_channels: Some(2),
             video: "none".into(),
             audio: "aac".into(),
-            direct_play: Some(true),
             ..LivePlan::default()
         };
         let d = live_details(Some(&radio), true, Some(&caps())).unwrap();
-        assert_eq!(rows(&d), [("Audio", "MP3 Stereo")]);
+        assert_eq!(rows(&d), [("Audio", "MP3 2.0")]);
+        assert_eq!(streams(&d), [("Audio", vec![("Codec", "MP3"), ("Channels", "Stereo")])]);
         // No plan: the provider's stream says how it plays, the server's HLS nothing yet.
         let d = live_details(None, true, None).unwrap();
-        assert_eq!((d.method.as_str(), d.rows.len()), ("Direct play", 0));
+        assert_eq!((d.method.as_str(), d.rows.len(), d.streams.len()), ("Direct play", 0, 0));
         assert_eq!(live_details(None, false, None), None);
     }
 
@@ -330,6 +384,7 @@ mod tests {
             assert_eq!(d.method, "Transcodage");
             assert_eq!(d.why.as_deref(), Some("La vidéo entrelacée est désentrelacée"));
             assert_eq!(rows(&d)[2], ("Débit", "12 Mbit/s → 8,0 Mbit/s"));
+            assert_eq!(streams(&d)[0].1[2], ("Débit d’images", "50 i/s, entrelacé"));
         });
         with_language(Language::Es, || {
             let plan = LivePlan { video_codec: Some("av1".into()), ..hevc() };

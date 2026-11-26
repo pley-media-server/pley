@@ -434,7 +434,9 @@ pub fn info_sections(s: &PlayerState, stats: &EngineStats) -> Vec<FactBlock> {
 }
 
 /// A live channel's Info (`info_sections` for a video): how it plays, with what the channel is
-/// and what the server makes of it, and what this TV says. Empty until `details` are known.
+/// and what the server makes of it, the provider's video and audio, and what this TV says: a
+/// video's sections but the file, the subtitles and the quality, which a channel hasn't. Empty
+/// until `details` are known.
 pub fn live_info_sections(details: Option<&LiveDetails>, stats: &EngineStats) -> Vec<FactBlock> {
     let Some(d) = details else { return Vec::new() };
     let fact = |label: &str, value: String| Fact { label: label.into(), value };
@@ -446,12 +448,11 @@ pub fn live_info_sections(details: Option<&LiveDetails>, stats: &EngineStats) ->
     if let Some(bps) = stats.network_bps.filter(|b| *b > 0) {
         how.push(fact(t!("player.info.network"), format_bitrate(Some(i64::try_from(bps).unwrap_or(i64::MAX)))));
     }
+    let mut out = vec![FactBlock { title: t!("player.info.howItPlays").into(), facts: how }];
+    out.extend(d.streams.iter().cloned());
     // Live TV counts no stalls and times no first frame.
-    let tv = tv_facts(stats, None, None);
-    vec![
-        FactBlock { title: t!("player.info.howItPlays").into(), facts: how },
-        FactBlock { title: t!("player.info.thisTv").into(), facts: tv },
-    ]
+    out.push(FactBlock { title: t!("player.info.thisTv").into(), facts: tv_facts(stats, None, None) });
+    out
 }
 
 /// This TV's facts: its player, what it decodes, its sound, what arrives now, dropped frames and
@@ -758,11 +759,16 @@ mod tests {
     fn a_live_channel_s_info_says_how_it_plays_and_what_this_tv_says() {
         use pley_player::details::{DetailRow, PlaybackDetails};
 
-        let video = "MPEG-2 · 25 fps, interlaced → H.264 1080p";
+        let video = "MPEG-2 1080p → H.264 1080p";
+        let sent = FactBlock {
+            title: "Video".into(),
+            facts: vec![Fact { label: "Frame rate".into(), value: "25 fps, interlaced".into() }],
+        };
         let details = LiveDetails {
             method: "Transcoding".into(),
             why: Some("Interlaced video is made progressive".into()),
             rows: vec![DetailRow { label: "Video".into(), value: video.into() }],
+            streams: vec![sent.clone()],
         };
         let stats = EngineStats {
             player: "webOS media pipeline".into(),
@@ -771,7 +777,9 @@ mod tests {
             ..EngineStats::default()
         };
         let sections = live_info_sections(Some(&details), &stats);
-        assert_eq!(sections.iter().map(|s| s.title.as_str()).collect::<Vec<_>>(), ["How it plays", "This TV"]);
+        // A video's sections, in its order: what the provider sends between how it plays and the TV.
+        assert_eq!(sections.iter().map(|s| s.title.as_str()).collect::<Vec<_>>(), ["How it plays", "Video", "This TV"]);
+        assert_eq!(sections[1], sent);
         assert_eq!(
             facts(&sections[0]),
             [
@@ -782,7 +790,7 @@ mod tests {
             ]
         );
         // Live TV counts no stalls and times no first frame.
-        assert_eq!(facts(&sections[1]), [("Player", "webOS media pipeline"), ("Buffered ahead", "2 s")]);
+        assert_eq!(facts(&sections[2]), [("Player", "webOS media pipeline"), ("Buffered ahead", "2 s")]);
         // Nothing known of how it plays: the panel says it is asking.
         assert!(live_info_sections(None, &stats).is_empty());
 

@@ -163,7 +163,9 @@ data class LiveState(
  *   (as the web's), and the server makes no transcode of it; otherwise, or
  *   when it fails, the answer's HLS from the live edge, on the app's
  *   Media3 engine;
- * - [details] says which it is and why, for the player's Playback details;
+ * - [details] says which it is and why, for the player's Playback details,
+ *   and [known] which without asking the server, for the badge that opens
+ *   them;
  * - it is watched as it airs, as the web's: no pausing, no going back;
  * - a player failure tunes the channel again twice, after 1 s and 3 s
  *   (Samsung's), before it says why, unless the server said no ([RETRIES]);
@@ -553,6 +555,23 @@ class LivePlayback(
         val now = quietly { live.plan(asked) }
         if (session != asked || state.value.phase != LivePhase.Playing) return null
         if (now != null) plan = now
+        return how()
+    }
+
+    /**
+     * How the channel plays now as tuning it left it known, with nothing
+     * asked of the server, for the badge that says it over the picture.
+     * `null` while no channel plays, and for a channel on HLS whose plan
+     * wasn't asked for (its `stream.ts` failed, or had no address):
+     * [details] asks.
+     */
+    fun known(): LivePlaying? {
+        if (session == null || state.value.phase != LivePhase.Playing) return null
+        return how().takeIf { it.asSent || it.plan != null }
+    }
+
+    /** What plays, with the plan last known and, for a channel on HLS, why it isn't played as sent. */
+    private fun how(): LivePlaying {
         val known = plan
         val asSent = direct && !holding
         return LivePlaying(known, asSent, if (asSent || known == null) null else notAsSent(known, caps()))
@@ -759,14 +778,11 @@ class LivePlayback(
          * the provider sends it; `null` when it does:
          *
          * - its picture sent as it is (or none), and its sound too
-         *   ([LivePlan.direct]), or AC3, E-AC3 or MP2, which the plan
-         *   converts for players that can't, where this device decodes it
-         *   or sends it to its receiver as it is ([caps], as Samsung's
-         *   PlaysAsSent, whose TVs all decode them);
-         * - while the server allows it ([LivePlan.directPlay]), whatever
-         *   else it plays of the provider's: progressive video a decoder
-         *   here takes at its bit depth, size and frame rate, and sound it
-         *   decodes or sends on, among what Media3 reads from MPEG-TS
+         *   ([LivePlan.direct]);
+         * - whatever else this device plays of the provider's ([caps]):
+         *   progressive video a decoder here takes at its bit depth, size
+         *   and frame rate, and sound it decodes or sends to its receiver
+         *   as it is, among what Media3 reads from MPEG-TS
          *   ([STREAM_VIDEO], [STREAM_SOUND]). Interlaced video the server
          *   converts stays the server's: its deinterlacing setting decides.
          *
@@ -776,18 +792,8 @@ class LivePlayback(
          */
         fun notAsSent(plan: LivePlan, caps: CapsSnapshot?): NotAsSent? {
             if (plan.direct) return null
-            val report = caps?.report
-            val sound = plan.audioCodec?.lowercase()
-            val pictureAsSent = plan.video in AS_SENT
-            if (pictureAsSent && sound in CONVERTED_SOUND && report != null && sound in sounds(report)) return null
-            when (plan.directPlay) {
-                true -> {}
-                false -> return NotAsSent.Off
-                // An older server: nothing to say of a setting it doesn't have.
-                null -> return NotAsSent.Unknown
-            }
-            report ?: return NotAsSent.Unknown
-            if (!pictureAsSent) {
+            val report = caps?.report ?: return NotAsSent.Unknown
+            if (plan.video !in AS_SENT) {
                 // Interlaced video is the server's while it makes it progressive.
                 if (plan.interlaced && plan.deinterlace != false) return NotAsSent.Interlaced
                 val video = plan.videoCodec?.lowercase() ?: return NotAsSent.Unknown
@@ -795,7 +801,7 @@ class LivePlayback(
                 if (video !in STREAM_VIDEO) return NotAsSent.Unknown
             }
             if (plan.audio !in AS_SENT) {
-                sound ?: return NotAsSent.Unknown
+                val sound = plan.audioCodec?.lowercase() ?: return NotAsSent.Unknown
                 if (sound !in sounds(report)) return NotAsSent.Audio
                 if (sound !in STREAM_SOUND) return NotAsSent.Unknown
             }
@@ -837,9 +843,6 @@ class LivePlayback(
 
         /** A plan's picture or sound as the provider sends it, or none of it. */
         private val AS_SENT = setOf("copy", "none")
-
-        /** Sound the server converts for HLS that a device may play as it comes, in the server's names. */
-        private val CONVERTED_SOUND = setOf("ac3", "eac3", "mp2")
 
         /** The video Media3 reads from MPEG-TS (DefaultTsPayloadReaderFactory) that the probe lists decoders for, in the server's names. */
         private val STREAM_VIDEO = setOf("h264", "hevc", "mpeg2video")

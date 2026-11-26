@@ -19,7 +19,6 @@ const uhd = (plan: Partial<SessionPlan> = {}): SessionPlan => ({
   audio: "aac",
   out_height: 1080,
   video_kbps: 8000,
-  direct_play: true,
   kbps: 12_300,
   ...plan,
 });
@@ -44,9 +43,6 @@ describe("liveMethod", () => {
 
 describe("liveWhy", () => {
   it("says why a channel isn't played from its stream", () => {
-    expect(liveWhy(uhd({ direct_play: false }), hevcAndAac)).toBe("Direct Play is off on the server");
-    // An older server has no such setting: nothing is said of it.
-    expect(liveWhy(uhd({ direct_play: undefined }), hevcAndAac)).toBeNull();
     expect(liveWhy(uhd({ interlaced: true }), hevcAndAac)).toBe("Interlaced video is made progressive");
     expect(liveWhy(uhd({ video_codec: "mpeg2video" }), hevcAndAac)).toBe("This device doesn't play MPEG-2");
     expect(liveWhy(uhd(), { ...hevcAndAac, video: [{ codec: "hevc", max_bit_depth: 8 }] })).toBe("This device doesn't play HEVC");
@@ -166,10 +162,10 @@ describe("LiveDetails", () => {
   });
 
   it("gives no reason where the browser reads no stream: every channel comes from the transcoder", async () => {
-    answer = uhd({ direct_play: false });
+    answer = uhd({ interlaced: true });
     renderWithProviders(<LiveDetails sessionId="s1" playback={{ direct: false, reads: false }} open />);
     expect(await screen.findByText("Transcoding")).toBeInTheDocument();
-    expect(screen.queryByText("Direct Play is off on the server")).not.toBeInTheDocument();
+    expect(screen.queryByText("Interlaced video is made progressive")).not.toBeInTheDocument();
   });
 
   it("asks nothing while the channel tunes", async () => {

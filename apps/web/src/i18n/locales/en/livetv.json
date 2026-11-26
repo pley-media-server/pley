@@ -120,7 +120,6 @@
     "otherChannels": "Other channels",
     "backToGuide": "Back to the guide",
     "details": {
-      "off": "Direct Play is off on the server",
       "interlacedWhy": "Interlaced video is made progressive",
       "noVideo": "This device doesn't play {{codec}}",
       "noAudio": "This device doesn't play {{codec}} sound",
@@ -166,9 +165,6 @@
       "never": "Never",
       "playing": "Playing",
       "playingHint": "Every player of a channel watches the same stream, made once by the transcoder.",
-      "directPlay": "Direct Play",
-      "directPlayHint": "A player that can play a channel's video and sound as the provider sends them does, with no transcode.",
-      "directPlayToggle": "Play channels as the provider sends them",
       "deinterlace": "Deinterlace",
       "deinterlaceHint": "Interlaced channels (1080i, 576i) made smooth and progressive: a transcode, on the graphics card where the transcoder has one.",
       "deinterlaceToggle": "Deinterlace interlaced channels",

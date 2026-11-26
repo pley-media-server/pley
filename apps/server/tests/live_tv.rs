@@ -1486,7 +1486,6 @@ async fn a_channel_plays_as_the_provider_sends_it_with_no_transcode_until_hls_is
     assert_eq!(added.status, StatusCode::CREATED, "{:?}", added.body);
     wait_until_read(&app, &admin).await;
     let one = app.get("/api/live/channels", &admin).await.body[0]["id"].as_i64().unwrap();
-    assert_eq!(app.get("/api/live/settings", &admin).await.body["direct_play"], true, "on by default");
 
     let watching = app.post(&format!("/api/live/channels/{one}/watch"), &admin, json!({"client_id": "tv"})).await;
     assert_eq!(watching.status, StatusCode::OK, "{:?}", watching.body);
@@ -1500,7 +1499,6 @@ async fn a_channel_plays_as_the_provider_sends_it_with_no_transcode_until_hls_is
     assert_eq!(plan.body["video_codec"], "hevc");
     assert_eq!(plan.body["bit_depth"], 10);
     assert_eq!(plan.body["video_kbps"], 20000);
-    assert_eq!(plan.body["direct_play"], true);
     assert_eq!(plan.body["deinterlace"], true, "the server's setting, on by default");
     assert!(plan.body["kbps"].is_u64(), "{:?}", plan.body);
     let created = maker.created.lock().clone();
@@ -1513,11 +1511,11 @@ async fn a_channel_plays_as_the_provider_sends_it_with_no_transcode_until_hls_is
 
     // Asked again (a player's details): the plan known, no other job.
     let mut settings = app.get("/api/live/settings", &admin).await.body;
-    settings["direct_play"] = json!(false);
+    settings["deinterlace"] = json!(false);
     assert_eq!(app.put("/api/live/settings", &admin, settings).await.status, StatusCode::OK);
     let again = app.get(&format!("/api/live/sessions/{session}/plan"), &admin).await;
     assert_eq!(again.body["video_codec"], "hevc");
-    assert_eq!(again.body["direct_play"], false, "the setting as it is now");
+    assert_eq!(again.body["deinterlace"], false, "the setting as it is now");
     assert_eq!(maker.created.lock().len(), 1);
 
     // A player that can't play it reads the transcode's playlist, which starts it.

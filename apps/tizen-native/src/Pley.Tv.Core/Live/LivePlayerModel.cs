@@ -242,18 +242,26 @@ public sealed class LivePlayerModel : IDisposable
     public void SetDetailsOpen(bool open) => playback.SetDetailsOpen(open);
 
     /// <summary>Playback details as they stand now (<see cref="LiveDetails.Panel"/>), which the panel reads once a second while it shows.</summary>
-    public Player.PlayerPanel Details()
+    public Player.PlayerPanel Details() => LiveDetails.Panel(playback.Direct, playback.Plan.Value, playback.Caps, Readout());
+
+    /// <summary>
+    /// What This TV's lines are made of, as a film's (<see cref="Player.PlayerModel.Readout"/>):
+    /// the player's stats, its buffer, and the channel's stalls and time to its first picture.
+    /// </summary>
+    public Player.ReadoutInput Readout()
     {
+        var engine = playback.Engine as Player.IVideoEngine;
         Player.EngineStats? stats = null;
         try
         {
-            stats = (playback.Engine as Player.IVideoEngine)?.Stats();
+            stats = engine?.Stats();
         }
         catch (Exception)
         {
             // Between states, the TV's player may refuse: no stats this time.
         }
-        return LiveDetails.Panel(playback.Direct, playback.Plan.Value, playback.Caps, stats);
+        var ahead = engine?.KnowsBuffer == true ? Math.Max(0, engine.BufferedMs - engine.PositionMs) : 0;
+        return new Player.ReadoutInput(Stats: stats, BufferedAheadMs: ahead, Stalls: playback.Stalls, FirstFrameMs: playback.FirstFrameMs);
     }
 
     public void Retry() => playback.Retry();

@@ -190,11 +190,10 @@ data class WatchRequest(
  * carries and what the transcoder makes of it ([video]: `copy` or the
  * encoder; [audio]: `copy`, `aac` or `none`). Sent as it is, a player
  * that reads MPEG-TS plays it from `stream.ts`, sooner than its first HLS
- * segments ([direct]); with [directPlay], so does one that decodes what
- * the provider sends, and the server then makes no transcode of it. An
- * older server says neither [directPlay] nor [kbps], nor the bit depth and
- * what a transcode comes out as: they stay as they are here, and channels
- * play as they did.
+ * segments ([direct]); so does one that decodes what the provider sends,
+ * and the server then makes no transcode of it. An older server says
+ * neither [kbps] nor the bit depth, nor what a transcode comes out as:
+ * they stay as they are here.
  */
 @Serializable
 data class LivePlan(
@@ -213,12 +212,6 @@ data class LivePlan(
     val outHeight: Int? = null,
     /** A transcode's video bitrate, kbit/s; `null` when the video is copied. */
     val videoKbps: Long? = null,
-    /**
-     * The server's Live TV setting: players play a channel from the
-     * provider's stream when they decode it; `null` from an older server,
-     * which has no such setting (and so no Direct Play).
-     */
-    val directPlay: Boolean? = null,
     /** The server's Deinterlace setting: interlaced video is made progressive; `null` (taken as on) from an older server. */
     val deinterlace: Boolean? = null,
     /** What the provider sends now, kbit/s; 0 until measured. */

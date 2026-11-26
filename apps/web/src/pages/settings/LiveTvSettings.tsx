@@ -131,11 +131,6 @@ function OptionsForm({ saved }: { saved: LiveSettings }) {
       </Group>
 
       <Group title={t("settings.options.playing")} description={t("settings.options.playingHint")}>
-        {form.direct_play !== undefined ? (
-          <Row label={t("settings.options.directPlay")} hint={t("settings.options.directPlayHint")}>
-            <Toggle checked={form.direct_play} onChange={(v) => set("direct_play", v)} label={t("settings.options.directPlayToggle")} />
-          </Row>
-        ) : null}
         <Row label={t("settings.options.deinterlace")} hint={t("settings.options.deinterlaceHint")}>
           <Toggle checked={form.deinterlace} onChange={(v) => set("deinterlace", v)} label={t("settings.options.deinterlaceToggle")} />
         </Row>

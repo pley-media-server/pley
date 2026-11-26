@@ -18,7 +18,6 @@ function plan(over: Partial<SessionPlan> = {}): SessionPlan {
     audio: "copy",
     out_height: null,
     video_kbps: null,
-    direct_play: true,
     kbps: 6200,
     ...over,
   };
@@ -93,7 +92,7 @@ describe("a live channel's Playback info", () => {
   });
 
   it("never says Direct play, nor why: this TV plays Live TV through the server's HLS alone", () => {
-    for (const p of [plan(), plan({ direct_play: false }), plan({ interlaced: true, video: "libx264" }), plan({ video_codec: "hevc", bit_depth: 10 })]) {
+    for (const p of [plan(), plan({ interlaced: true, video: "libx264" }), plan({ video_codec: "hevc", bit_depth: 10 })]) {
       const facts = liveFacts(p).facts;
       expect(facts[0]!.value).not.toBe("Direct play");
       expect(facts.map((f) => f.label)).not.toContain("Why");

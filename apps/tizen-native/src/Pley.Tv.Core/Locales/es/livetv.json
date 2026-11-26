@@ -90,7 +90,6 @@
     "noneToTake": "Puedes unirte a un canal que ya se está viendo, o volver a intentarlo cuando se detenga alguno."
   },
   "details": {
-    "whyOff": "La reproducción directa está desactivada en el servidor",
     "whyInterlaced": "El video entrelazado se convierte a progresivo",
     "whyVideo": "Este dispositivo no reproduce {{codec}}",
     "whyAudio": "Este dispositivo no reproduce el audio {{codec}}",

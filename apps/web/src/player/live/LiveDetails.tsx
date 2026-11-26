@@ -32,8 +32,6 @@ export function liveMethod(direct: boolean, plan: LivePlan | null): Pick<Playbac
 export function liveWhy(plan: SessionPlan, caps: StreamCaps): string | null {
   const not = notAsSent(plan, caps);
   switch (not?.why) {
-    case "off":
-      return translate("player.details.off", { ns: "livetv" });
     case "interlaced":
       return translate("player.details.interlacedWhy", { ns: "livetv" });
     case "video":

@@ -8,9 +8,10 @@ use common::TestApp;
 use pley_base::{Cmd, Key, KeyEvent};
 use pley_core::model::LiveCategory;
 use pley_fixtures::{CastBody, Mode, ServerEvent, ids};
+use pley_kit::button::ROUND_SIZE;
 use pley_live::picture_aside;
 use pley_shell::Route;
-use pley_ui::InputEvent;
+use pley_ui::{InputEvent, theme};
 
 /// The app on the live player of `channel`, channel up and down going through `category`; the
 /// channel watched.
@@ -136,14 +137,30 @@ fn info_in_the_controls_opens_playback_details_asked_again_while_it_shows() {
     app.press(Key::Right);
     app.press(Key::Right);
     let info = app.id(&["bar", "info"]);
-    assert_eq!(app.focused(), Some(info), "Info isn't the controls' third button");
+    assert_eq!(app.focused(), Some(info), "Info isn't the controls' last button");
+    // At the right end of the row, where the video player's Info is: its label shows under its middle.
+    let middle = |a: &TestApp| {
+        a.list.cmds.iter().find_map(|c| match c {
+            Cmd::Text { origin, layout, .. } if &*layout.text == "Info" => Some(origin.x + layout.size.w / 2.0),
+            _ => None,
+        })
+    };
+    assert!(app.until(|a| middle(a).is_some()), "Info has no label");
+    let end = theme::CANVAS_W - theme::SAFE_X - ROUND_SIZE / 2.0;
+    assert!(middle(&app).is_some_and(|x| (x - end).abs() < 0.01), "Info is at {:?}, not {end}", middle(&app));
     app.press(Key::Ok);
     // The fake server sends the channel as it is: it plays from its stream.ts.
     assert!(app.until(|a| a.shows("Playback details") && fact(a, "Bitrate").is_some()), "no details");
     assert_eq!(fact(&app, "Playback").as_deref(), Some("Direct play"));
-    assert_eq!(fact(&app, "Video").as_deref(), Some("H.264 · 1920×1080 · 24 fps"));
-    assert_eq!(fact(&app, "Audio").as_deref(), Some("AAC Stereo"));
+    // A video's rows and sections, in its words.
+    assert_eq!(fact(&app, "Video").as_deref(), Some("H.264 1080p"));
+    assert_eq!(fact(&app, "Audio").as_deref(), Some("AAC 2.0"));
+    assert_eq!(fact(&app, "Resolution").as_deref(), Some("1920×1080 (1080p)"));
+    assert_eq!(fact(&app, "Frame rate").as_deref(), Some("24 fps"));
+    assert_eq!(fact(&app, "Channels").as_deref(), Some("Stereo"));
     assert!(app.shows("How it plays") && app.shows("This TV") && !app.shows("Why") && !app.shows("Encoder"));
+    // The controls stay under the panel, as the video player's do, and take no key.
+    assert!(app.shows("LIVE") && app.focused() != Some(info));
     // The plan is asked again while it shows: what the provider sends moves on.
     let first = fact(&app, "Bitrate");
     assert!(app.until(|a| fact(a, "Bitrate") != first), "the bitrate stayed at {first:?}");

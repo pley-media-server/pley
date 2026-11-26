@@ -170,12 +170,14 @@ internal object TvReadout {
     }
 
     /**
-     * A live channel's sections: how it plays and why, with what the
-     * provider sends and what the server makes of it, then what this TV
-     * does with it. A channel has no file and no tracks to list.
+     * A live channel's sections, a video's in their order: how it plays and
+     * why, with what the provider sends and what the server makes of it,
+     * where its sound goes, then what this TV does with it. A channel has
+     * no file and no tracks to list.
      */
     fun liveSections(r: Resources, input: ReadoutInput): List<MediaFacts> = buildList {
         input.details?.let { add(MediaFacts(r.getString(R.string.tv_player_info_how), playback(r, it, input.quality))) }
+        input.stats?.let { audioOutput(r, it) }?.let { add(MediaFacts(r.getString(R.string.tv_readout_audio), listOf(MediaFact(r.getString(R.string.tv_readout_output), it)))) }
         input.stats?.let { add(MediaFacts(r.getString(R.string.tv_player_info_device), device(r, it, input))) }
     }
 

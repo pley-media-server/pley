@@ -19,8 +19,8 @@ public struct PlayerDetailsView: View {
     }
 }
 
-/// How a Live TV channel plays, for the live player's Playback details, in
-/// the look of the player's Details: the way ("Direct stream"), the
+/// How a Live TV channel plays, for the live player's Details, in the
+/// look of the player's: the way ("Direct stream"), the
 /// provider's video and audio and what the server makes of them, what the
 /// provider sends now, and the encoder of a transcode.
 public struct LiveDetailsView: View {

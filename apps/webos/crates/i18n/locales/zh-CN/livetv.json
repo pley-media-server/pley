@@ -105,7 +105,6 @@
     "andMore_other": "还有 {{count}} 个"
   },
   "details": {
-    "directPlayOff": "服务器已关闭直接播放",
     "interlaced": "隔行视频会转为逐行",
     "videoNotPlayed": "此电视无法播放 {{codec}}",
     "audioNotPlayed": "此电视无法播放 {{codec}} 音频"

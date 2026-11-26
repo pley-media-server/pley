@@ -42,7 +42,6 @@ function plan(over: Partial<SessionPlan> = {}): SessionPlan {
     audio: "copy",
     out_height: null,
     video_kbps: null,
-    direct_play: true,
     kbps: 6200,
     ...over,
   };

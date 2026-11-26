@@ -16,7 +16,6 @@ const hevc = (plan: Partial<SessionPlan> = {}): SessionPlan => ({
   audio: "copy",
   out_height: 1080,
   video_kbps: 8000,
-  direct_play: true,
   kbps: 6000,
   ...plan,
 });
@@ -32,8 +31,8 @@ const decodesHevc = (depth: number): StreamCaps => ({
 const h264Only: StreamCaps = { video: [{ codec: "h264", max_bit_depth: 8 }], audio_codecs: ["aac"] };
 
 describe("playsAsSent", () => {
-  it("plays a channel sent as it is, whatever the device and the setting", () => {
-    const copied = hevc({ video_codec: "h264", video: "copy", direct_play: false });
+  it("plays a channel sent as it is, whatever the device", () => {
+    const copied = hevc({ video_codec: "h264", video: "copy" });
     expect(playsAsSent(copied)).toBe(true);
     expect(playsAsSent(copied, null)).toBe(true);
     expect(playsAsSent(copied, { video: [], audio_codecs: [] })).toBe(true);
@@ -73,16 +72,11 @@ describe("playsAsSent", () => {
     expect(playsAsSent({ ...interlaced, deinterlace: false }, decodesHevc(10))).toBe(true);
   });
 
-  it("plays nothing more while Direct Play is off on the server", () => {
-    expect(playsAsSent(hevc({ direct_play: false }), decodesHevc(10))).toBe(false);
-    expect(notAsSent(hevc({ direct_play: false }), decodesHevc(10))).toEqual({ why: "off" });
-  });
-
-  it("plays as before with an older server, which says nothing of Direct Play", () => {
+  it("plays an older server's channels too, taking a bit depth it doesn't say as 8", () => {
     // What an older server sends: none of the new fields.
     const old = { video_codec: "hevc", width: 1920, height: 1080, frame_rate: 50, interlaced: false, audio_codec: "aac", audio_channels: 2 };
-    expect(playsAsSent({ ...old, video: "h264_nvenc", audio: "copy" }, decodesHevc(10))).toBe(false);
-    expect(notAsSent({ ...old, video: "h264_nvenc", audio: "copy" }, decodesHevc(10))).toEqual({ why: "older" });
+    expect(playsAsSent({ ...old, video: "h264_nvenc", audio: "copy" }, decodesHevc(8))).toBe(true);
+    expect(playsAsSent({ ...old, video: "h264_nvenc", audio: "copy" }, h264Only)).toBe(false);
     expect(playsAsSent({ ...old, video_codec: "h264", video: "copy", audio: "copy" }, decodesHevc(10))).toBe(true);
   });
 

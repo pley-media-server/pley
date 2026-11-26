@@ -91,6 +91,7 @@ import app.pley.android.model.BusyConnection
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveNames
+import app.pley.android.player.PlaybackDetailsUi
 import app.pley.android.player.engine.VideoSurface
 import app.pley.android.player.live.LiveDetails
 import app.pley.android.player.live.LivePhase
@@ -105,6 +106,7 @@ import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.player.CarGap
 import app.pley.android.ui.phone.player.LocalCarScreen
+import app.pley.android.ui.phone.player.MethodBadge
 import app.pley.android.ui.phone.player.PlaybackDetailsBody
 import app.pley.android.ui.phone.player.SheetFrame
 import app.pley.android.ui.phone.player.SheetTitle
@@ -119,10 +121,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * SurfaceView; while tuning its logo and what's on; a card that says why
  * it doesn't play (the server's own sentence: which channels hold every
  * connection) with Try again and Other channels. A tap shows the
- * controls: Back, the channel and what's on, the favorite, the channel
- * list; Live; Playback details, in the video player's sheet; channel down
- * and up. Live TV is watched as it airs: no
- * pause, no going back (as the web's). A swipe up or
+ * controls: Back, the channel and what's on, how it plays (the video
+ * player's badge, which opens Playback details in its sheet), the
+ * favorite, the channel list; Live; channel down and up. Live TV is
+ * watched as it airs: no pause, no going back (as the web's). A swipe up or
  * down changes channel. What's on and next shows for 5 s when a tap brings
  * the controls, not on its own as a channel tunes. [onPip], where picture in
  * picture is allowed, is a button in the top bar; [inPip], the small window
@@ -137,6 +139,9 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit, inPip
     val now by vm.now.collectAsStateWithLifecycle()
     val digits by vm.digits.collectAsStateWithLifecycle()
     val category by vm.category.collectAsStateWithLifecycle()
+    val how by vm.how.collectAsStateWithLifecycle()
+    val resources = LocalResources.current
+    val method = remember(how, resources) { how?.let { LiveDetails.build(resources, it) } }
     var controls by remember { mutableStateOf(true) }
     var poked by remember { mutableIntStateOf(0) }
     var panel by rememberSaveable { mutableStateOf(false) }
@@ -227,7 +232,7 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit, inPip
             }
         }
         AnimatedVisibility(controls && state.phase !is LivePhase.Failed, enter = fadeIn(), exit = fadeOut()) {
-            Controls(state, shown, origin, now, vm, onBack = onBack, onChannels = { panel = true }, onDetails = { details = true }, onPoke = poke, onPip = onPip)
+            Controls(state, shown, origin, now, vm, method, onBack = onBack, onChannels = { panel = true }, onDetails = { details = true }, onPoke = poke, onPip = onPip)
         }
         if (shown != null) {
             AnimatedVisibility(
@@ -323,7 +328,14 @@ private fun SoundOnly(channel: LiveChannel, origin: String, now: Long) {
     }
 }
 
-/** The controls over the picture: a top bar, then Live, what's on's times and channel up and down below. */
+/**
+ * The controls over the picture: a top bar, then Live, what's on's times
+ * and channel up and down below. How the channel plays ([method]) is the
+ * video player's badge, after the channel as there after the title, and
+ * opens Playback details. A car's screen has an info button below for
+ * them instead: the video player's has no badge either (its Settings lead
+ * to them), and the buttons there need the room.
+ */
 @Composable
 private fun Controls(
     state: LiveState,
@@ -331,6 +343,7 @@ private fun Controls(
     origin: String,
     now: Long,
     vm: LivePlayerViewModel,
+    method: PlaybackDetailsUi?,
     onBack: () -> Unit,
     onChannels: () -> Unit,
     onDetails: () -> Unit,
@@ -355,15 +368,22 @@ private fun Controls(
             PleyIconButton(PleyIcons.ArrowLeft, stringResource(R.string.live_player_back), onClick = onBack)
             if (channel != null) {
                 ChannelTile(channel, origin, Modifier.padding(start = 4.dp).size(width = 56.dp, height = 34.dp), well = Color.White.copy(alpha = 0.1f))
-                Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                    Text(
-                        listOfNotNull(channel.number, LiveNames.channelName(channel, LocalCategory.current)).joinToString("  "),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = PleyColors.Fg,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    on?.let { Text(it.title, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                // The badge shares the channel's room: on a narrow window it gives way, not the buttons after it.
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text(
+                            listOfNotNull(channel.number, LiveNames.channelName(channel, LocalCategory.current)).joinToString("  "),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = PleyColors.Fg,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        on?.let { Text(it.title, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    }
+                    if (!car && method != null) {
+                        MethodBadge(method.method, method.playbackMethod, Modifier.testTag(LIVE_PLAYER_DETAILS), onClick = onDetails)
+                        Spacer(Modifier.size(4.dp))
+                    }
                 }
                 PleyIconButton(
                     if (channel.favorite) PleyIcons.Star else PleyIcons.StarOutline,
@@ -401,7 +421,7 @@ private fun Controls(
                     color = PleyColors.Muted,
                     modifier = Modifier.weight(1f),
                 )
-                PleyIconButton(PleyIcons.Info, stringResource(R.string.player_details), onClick = onDetails, modifier = Modifier.testTag(LIVE_PLAYER_DETAILS))
+                if (car) PleyIconButton(PleyIcons.Info, stringResource(R.string.player_details), onClick = onDetails, modifier = Modifier.testTag(LIVE_PLAYER_DETAILS))
                 PleyIconButton(PleyIcons.ChevronDown, stringResource(R.string.live_player_channel_down), onClick = {
                     onPoke()
                     vm.step(-1)

@@ -102,6 +102,7 @@ import app.pley.android.ui.tv.kit.TvSidePanel
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.player.INFO_WIDTH
+import app.pley.android.ui.tv.player.MethodBadge
 import app.pley.android.ui.tv.player.ReadoutColumn
 import app.pley.android.ui.tv.player.TvReadout
 import app.pley.android.ui.tv.player.rememberLiveReadout
@@ -357,8 +358,9 @@ private fun SoundOnly(channel: LiveChannel, origin: String, now: Long) {
 
 /**
  * The bar at the foot: the channel's logo, number and name, what's on with
- * its times, how far it is and what's next; Live; and with [controls],
- * the buttons, the channel list first, Playback details last.
+ * its times, how far it is and what's next; how it plays, in the video
+ * player's badge, and Live; and with [controls], the buttons, the channel
+ * list first, Info (Playback details) last, as in the video player's row.
  */
 @Composable
 private fun InfoBar(
@@ -373,6 +375,9 @@ private fun InfoBar(
 ) {
     val clock = rememberClock()
     val category by vm.category.collectAsStateWithLifecycle()
+    val how by vm.how.collectAsStateWithLifecycle()
+    val resources = LocalResources.current
+    val method = remember(how, resources) { how?.let { LiveDetails.build(resources, it) } }
     val on = channel.onAt(now)
     val next = channel.nextAt(now)
     Column(
@@ -417,7 +422,13 @@ private fun InfoBar(
                     )
                 }
             }
-            if (state.phase == LivePhase.Playing) LiveBadge()
+            if (state.phase == LivePhase.Playing) {
+                method?.let {
+                    MethodBadge(it.method, it.playbackMethod)
+                    Spacer(Modifier.width(12.dp))
+                }
+                LiveBadge()
+            }
         }
         if (controls) {
             Row(
