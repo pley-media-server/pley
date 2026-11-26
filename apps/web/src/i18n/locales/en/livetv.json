@@ -120,9 +120,9 @@
     "otherChannels": "Other channels",
     "backToGuide": "Back to the guide",
     "details": {
-      "interlacedWhy": "Interlaced video is made progressive",
-      "noVideo": "This device doesn't play {{codec}}",
-      "noAudio": "This device doesn't play {{codec}} sound",
+      "interlacedWhy": "Interlaced video is made progressive.",
+      "noVideo": "This device doesn't play {{codec}} video.",
+      "noAudio": "This device doesn't play {{codec}} audio.",
       "interlaced": "interlaced"
     }
   },

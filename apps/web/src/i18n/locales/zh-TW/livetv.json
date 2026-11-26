@@ -115,9 +115,9 @@
     "otherChannels": "其他頻道",
     "backToGuide": "返回節目指南",
     "details": {
-      "interlacedWhy": "隔行影片會轉為逐行",
-      "noVideo": "此裝置無法播放 {{codec}} 影片",
-      "noAudio": "此裝置無法播放 {{codec}} 音訊",
+      "interlacedWhy": "隔行掃描影片會轉換為逐行掃描。",
+      "noVideo": "此裝置無法播放 {{codec}} 影片。",
+      "noAudio": "此裝置無法播放 {{codec}} 音訊。",
       "interlaced": "隔行"
     }
   },

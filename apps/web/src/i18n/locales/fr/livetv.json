@@ -125,9 +125,9 @@
     "otherChannels": "Autres chaînes",
     "backToGuide": "Retour au guide des programmes",
     "details": {
-      "interlacedWhy": "La vidéo entrelacée est rendue progressive",
-      "noVideo": "Cet appareil ne lit pas la vidéo {{codec}}",
-      "noAudio": "Cet appareil ne lit pas le son {{codec}}",
+      "interlacedWhy": "La vidéo entrelacée est convertie en progressif.",
+      "noVideo": "Cet appareil ne lit pas la vidéo {{codec}}.",
+      "noAudio": "Cet appareil ne lit pas l’audio {{codec}}.",
       "interlaced": "entrelacé"
     }
   },

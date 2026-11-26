@@ -4,7 +4,7 @@ import { asIs, notAsSent, useSessionPlan, type LivePlan, type SessionPlan } from
 import type { PlaybackInfo } from "@/api/types";
 import { currentLocale, t as translate } from "@/i18n";
 import { streamCaps, type StreamCaps } from "@/lib/caps";
-import { codecLabel, formatBitrate } from "@/lib/format";
+import { codecLabel, formatBitrate, resolutionLabel } from "@/lib/format";
 import { encoderName, methodLabel, Row, soundLabel } from "../PlaybackDetails";
 
 /**
@@ -28,14 +28,21 @@ export function liveMethod(direct: boolean, plan: LivePlan | null): Pick<Playbac
   return asIs(plan.video) ? { method: "remux", audio_converted: plan.audio === "aac" } : { method: "transcode" };
 }
 
-/** Why a channel isn't played from its stream, in words; null when nothing says. */
+/** The provider's video codec with its bit depth above 8: `"HEVC 10-bit"`, `"H.264"`. */
+function videoCodec(plan: LivePlan): string {
+  const depth = plan.bit_depth && plan.bit_depth > 8 ? translate("format.bitDepth", { n: plan.bit_depth }) : null;
+  return [codecLabel(plan.video_codec), depth].filter(Boolean).join(" ");
+}
+
+/** Why a channel isn't played from its stream, in a sentence; null when nothing says. */
 export function liveWhy(plan: SessionPlan, caps: StreamCaps): string | null {
   const not = notAsSent(plan, caps);
   switch (not?.why) {
     case "interlaced":
       return translate("player.details.interlacedWhy", { ns: "livetv" });
     case "video":
-      return not.codec ? translate("player.details.noVideo", { ns: "livetv", codec: codecLabel(not.codec) }) : null;
+      // With its bit depth: a browser that plays 8-bit HEVC isn't told it doesn't play HEVC.
+      return not.codec ? translate("player.details.noVideo", { ns: "livetv", codec: videoCodec(plan) }) : null;
     case "audio":
       return not.codec ? translate("player.details.noAudio", { ns: "livetv", codec: codecLabel(not.codec) }) : null;
     default:
@@ -44,16 +51,24 @@ export function liveWhy(plan: SessionPlan, caps: StreamCaps): string | null {
 }
 
 /**
+ * Why this player doesn't play the channel from its stream, for the details
+ * and the badge's name. Only where a stream could have been read: elsewhere
+ * every channel comes from the transcoder.
+ */
+export function playbackWhy(plan: SessionPlan | null, playback: LivePlayback | null, caps: StreamCaps): string | null {
+  return plan && playback?.reads && !playback.direct ? liveWhy(plan, caps) : null;
+}
+
+/**
  * The provider's video as `"HEVC 10-bit · 3840×2160 · 50 fps"`, and what
  * the transcoder makes of it when it isn't played from its stream:
- * `" → H.264 1080p"`.
+ * `" → H.264 1080p"`, `" → H.264 4K"`.
  */
 export function liveVideo(plan: LivePlan, direct: boolean): string | null {
   if (plan.video === "none") return null;
-  const depth = plan.bit_depth && plan.bit_depth > 8 ? translate("format.bitDepth", { n: plan.bit_depth }) : null;
   const rate = plan.frame_rate ? (Math.round(plan.frame_rate * 100) / 100).toLocaleString(currentLocale()) : null;
   const source = [
-    [codecLabel(plan.video_codec), depth].filter(Boolean).join(" "),
+    videoCodec(plan),
     plan.width && plan.height ? `${plan.width}×${plan.height}` : null,
     rate ? translate("mediaInfo.fps", { ns: "item", value: rate }) : null,
     plan.interlaced ? translate("player.details.interlaced", { ns: "livetv" }) : null,
@@ -63,8 +78,9 @@ export function liveVideo(plan: LivePlan, direct: boolean): string | null {
   if (!source) return null;
   if (direct || asIs(plan.video)) return source;
   // The transcoder makes every channel it converts H.264 (docs/API.md, "The stream").
-  const lines = plan.out_height ?? plan.height;
-  return `${source} → ${[codecLabel("h264"), lines ? `${lines}p` : null].filter(Boolean).join(" ")}`;
+  // The server says its lines alone: they name its size as a video's details name one.
+  const size = resolutionLabel(null, plan.out_height ?? plan.height);
+  return `${source} → ${[codecLabel("h264"), size].filter(Boolean).join(" ")}`;
 }
 
 /** The provider's sound as `"AC3 5.1"`, and `" → AAC 2.0"` when the transcoder's segments have it converted, as a file's details write sound. */
@@ -110,8 +126,7 @@ export function LiveDetails({
   const caps = useMemo(() => streamCaps(), []);
   const direct = playback?.direct ?? false;
   const method = playback ? liveMethod(direct, plan) : null;
-  // Only where a stream could have been read: elsewhere every channel comes from the transcoder.
-  const why = plan && playback?.reads && !direct ? liveWhy(plan, caps) : null;
+  const why = playbackWhy(plan, playback, caps);
   const video = plan ? liveVideo(plan, direct) : null;
   const audio = plan ? liveAudio(plan, direct) : null;
   const bitrate = plan ? liveBitrate(plan, direct) : null;

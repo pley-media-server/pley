@@ -51,7 +51,7 @@ import { ChannelPanel } from "./ChannelPanel";
 import { keepCushion } from "./cushion";
 import { tracksPlay, type StreamTracks } from "./direct";
 import { methodLabel } from "../PlaybackDetails";
-import { LiveDetails, liveMethod, type LivePlayback } from "./LiveDetails";
+import { LiveDetails, liveMethod, playbackWhy, type LivePlayback } from "./LiveDetails";
 import { whenStuck } from "./stuck";
 import { brokeOff, cantPlay, hlsTrouble, stopped, trouble, TroubleCard, type Trouble } from "./TroubleCard";
 
@@ -275,6 +275,9 @@ function LivePlayer({
   // connection, under the error card.
   useSessionPlan(session, status !== "error" && !!playback && !playback.direct && !knownPlan);
   const method = playback ? liveMethod(playback.direct, knownPlan) : null;
+  // Why it isn't direct play, for the badge's name, as the video player's badge says its reason.
+  const caps = useMemo(() => streamCaps(), []);
+  const why = playbackWhy(knownPlan, playback, caps);
   // Watch on…'s menu is open: the controls it hangs from stay.
   const [watchOn, setWatchOn] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -1052,8 +1055,10 @@ function LivePlayer({
             <div className="flex-1" />
             {method ? (
               // Hovering (or focusing) the badge shows how it plays, as the video player's does; none until that is known.
+              // At every width, a tap focusing it: this player has no menu with the details, as the video player's has.
+              // On a narrow screen the details hang from the bar, which they fit, and a long name is cut short.
               <div
-                className="relative mr-1 hidden md:block"
+                className="mr-1 min-w-0 md:relative"
                 onMouseEnter={() => setDetailsHover(true)}
                 onMouseLeave={() => setDetailsHover(false)}
                 onFocus={() => setDetailsHover(true)}
@@ -1061,9 +1066,9 @@ function LivePlayer({
               >
                 <span
                   tabIndex={0}
-                  aria-label={methodLabel(method)}
+                  aria-label={[methodLabel(method), why].filter(Boolean).join(". ")}
                   className={cn(
-                    "cursor-default rounded px-2 py-0.5 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+                    "block cursor-default truncate rounded px-2 py-0.5 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-white/60",
                     method.method === "direct" ? "bg-success/20 text-success" : method.method === "remux" ? "bg-info/20 text-info" : "bg-accent/20 text-accent",
                   )}
                 >
@@ -1072,7 +1077,7 @@ function LivePlayer({
                 {detailsHover ? (
                   <div
                     role="tooltip"
-                    className="absolute bottom-full right-0 mb-3 w-80 animate-pop-in rounded-xl border border-white/10 bg-black/90 py-2 text-white shadow-2xl"
+                    className="absolute bottom-full right-0 mb-3 w-80 max-w-full animate-pop-in rounded-xl border border-white/10 bg-black/90 py-2 text-white shadow-2xl"
                   >
                     <LiveDetails sessionId={session} playback={playback} open />
                   </div>

@@ -892,17 +892,31 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
       expect(plans()).toHaveLength(asked);
     });
 
-    it("say why a channel is transcoded", async () => {
+    it("say why a channel is transcoded, in the badge's name too, as the video player's says its reason", async () => {
       planAnswer = () => ({ ...hevc, audio_codec: "ac3", audio: "aac" });
       await tuned();
       await toHls();
-      await waitFor(() => expect(badge("Transcoding")).toHaveTextContent("Transcoding"));
-      open("Transcoding");
+      const named = "Transcoding. This device doesn't play AC3 audio.";
+      await waitFor(() => expect(badge(named)).toHaveTextContent(/^Transcoding$/));
+      open(named);
       expect(await within(details()).findByText("Transcoding")).toBeInTheDocument();
-      expect(within(details()).getByText("This device doesn't play AC3 sound")).toBeInTheDocument();
+      expect(within(details()).getByText("This device doesn't play AC3 audio.")).toBeInTheDocument();
       expect(within(details()).getByText("HEVC 10-bit · 1920×1080 · 50 fps → H.264 1080p")).toBeInTheDocument();
       expect(within(details()).getByText("5.2 Mbps → 6.0 Mbps")).toBeInTheDocument();
       expect(within(details()).getByText("NVIDIA NVENC")).toBeInTheDocument();
+    });
+
+    it("show at every width, on the badge's focus: a tap focuses it, and one elsewhere takes the focus away", async () => {
+      await tuned();
+      act(() => mpegtsPlayers[0]?.found(itsTracks));
+      await waitFor(() => expect(play).toHaveBeenCalled());
+      // Not hidden on a narrow screen as the video player's is: this player has no menu with the details.
+      expect(badge("Direct play").parentElement?.className).not.toMatch(/\bhidden\b/);
+      expect(badge("Direct play")).toHaveAttribute("tabindex", "0");
+      act(() => badge("Direct play").focus());
+      expect(within(details()).getByText("HEVC 10-bit · 1920×1080 · 50 fps")).toBeInTheDocument();
+      act(() => badge("Direct play").blur());
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     });
 
     it("keep the controls on screen while they show", async () => {

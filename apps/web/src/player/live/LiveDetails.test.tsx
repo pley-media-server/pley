@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionPlan } from "@/api/livetv";
 import type { StreamCaps } from "@/lib/caps";
 import { mockApi, renderWithProviders, type FakeRequest } from "@/test/render";
-import { liveAudio, liveBitrate, LiveDetails, liveEncoder, liveMethod, liveVideo, liveWhy } from "./LiveDetails";
+import { liveAudio, liveBitrate, LiveDetails, liveEncoder, liveMethod, liveVideo, liveWhy, playbackWhy } from "./LiveDetails";
 
 /** A 4K HEVC channel with 5.1 sound, both converted for the transcoder's segments. */
 const uhd = (plan: Partial<SessionPlan> = {}): SessionPlan => ({
@@ -42,11 +42,28 @@ describe("liveMethod", () => {
 });
 
 describe("liveWhy", () => {
-  it("says why a channel isn't played from its stream", () => {
-    expect(liveWhy(uhd({ interlaced: true }), hevcAndAac)).toBe("Interlaced video is made progressive");
-    expect(liveWhy(uhd({ video_codec: "mpeg2video" }), hevcAndAac)).toBe("This device doesn't play MPEG-2");
-    expect(liveWhy(uhd(), { ...hevcAndAac, video: [{ codec: "hevc", max_bit_depth: 8 }] })).toBe("This device doesn't play HEVC");
-    expect(liveWhy(uhd(), hevcAndAac)).toBe("This device doesn't play EAC3 sound");
+  it("says why a channel isn't played from its stream, in a sentence", () => {
+    expect(liveWhy(uhd({ interlaced: true }), hevcAndAac)).toBe("Interlaced video is made progressive.");
+    expect(liveWhy(uhd({ video_codec: "mpeg2video", bit_depth: 8 }), hevcAndAac)).toBe("This device doesn't play MPEG-2 video.");
+    expect(liveWhy(uhd(), hevcAndAac)).toBe("This device doesn't play EAC3 audio.");
+  });
+
+  it("names the video's bit depth above 8: a browser that plays 8-bit HEVC isn't told it doesn't play HEVC", () => {
+    const eightBit = { ...hevcAndAac, video: [{ codec: "hevc", max_bit_depth: 8 }] };
+    expect(liveWhy(uhd(), eightBit)).toBe("This device doesn't play HEVC 10-bit video.");
+    expect(liveWhy(uhd({ bit_depth: 8 }), { ...hevcAndAac, video: [] })).toBe("This device doesn't play HEVC video.");
+    // An older server says no bit depth.
+    expect(liveWhy(uhd({ bit_depth: undefined }), { ...hevcAndAac, video: [] })).toBe("This device doesn't play HEVC video.");
+  });
+
+  it("is said only where a stream could have been read, of a channel that isn't played from it", () => {
+    const interlaced = uhd({ interlaced: true });
+    expect(playbackWhy(interlaced, { direct: false, reads: true }, hevcAndAac)).toBe("Interlaced video is made progressive.");
+    // Every channel comes from the transcoder there.
+    expect(playbackWhy(interlaced, { direct: false, reads: false }, hevcAndAac)).toBeNull();
+    expect(playbackWhy(interlaced, { direct: true, reads: true }, hevcAndAac)).toBeNull();
+    expect(playbackWhy(null, { direct: false, reads: true }, hevcAndAac)).toBeNull();
+    expect(playbackWhy(interlaced, null, hevcAndAac)).toBeNull();
   });
 
   it("says nothing when the rule would have played it, or the codec isn't known", () => {
@@ -86,6 +103,21 @@ describe("the rows", () => {
     expect(liveVideo(uhd({ frame_rate: 30000 / 1001 }), true)).toBe("HEVC 10-bit · 3840×2160 · 29.97 fps");
   });
 
+  it("name a transcode's size as a video's details do, from its lines", () => {
+    const made = (out_height: number | null, plan: Partial<SessionPlan> = {}) => liveVideo(uhd({ out_height, ...plan }), false)?.split(" → ")[1];
+    expect(made(2160)).toBe("H.264 4K");
+    expect(made(1440)).toBe("H.264 1440p");
+    expect(made(1080)).toBe("H.264 1080p");
+    expect(made(720)).toBe("H.264 720p");
+    expect(made(576)).toBe("H.264 576p");
+    expect(made(480)).toBe("H.264 480p");
+    expect(made(360)).toBe("H.264 SD");
+    // Kept at the provider's size.
+    expect(made(null)).toBe("H.264 4K");
+    // Neither known: the codec alone.
+    expect(made(null, { width: null, height: null })).toBe("H.264");
+  });
+
   it("name the sound's channels", () => {
     expect(liveAudio(copied({ audio_channels: 1 }), false)).toBe("AAC 1.0");
     expect(liveAudio(copied({ audio_channels: 8 }), false)).toBe("AAC 7.1");
@@ -100,7 +132,7 @@ describe("the rows", () => {
     // Nothing came yet, and an older server, which says neither.
     expect(liveBitrate(copied({ kbps: 0 }), false)).toBeNull();
     expect(liveBitrate(copied({ kbps: undefined }), false)).toBeNull();
-    expect(liveVideo(uhd({ bit_depth: undefined, out_height: undefined }), false)).toBe("HEVC · 3840×2160 · 50 fps → H.264 2160p");
+    expect(liveVideo(uhd({ bit_depth: undefined, out_height: undefined }), false)).toBe("HEVC · 3840×2160 · 50 fps → H.264 4K");
     expect(liveBitrate(uhd({ video_kbps: undefined }), false)).toBe("12 Mbps");
   });
 });
@@ -126,7 +158,7 @@ describe("LiveDetails", () => {
     answer = uhd();
     renderWithProviders(<LiveDetails sessionId="s1" playback={{ direct: false, reads: true }} open />);
     expect(await screen.findByText("Transcoding")).toBeInTheDocument();
-    expect(screen.getByText("This device doesn't play EAC3 sound")).toBeInTheDocument();
+    expect(screen.getByText("This device doesn't play EAC3 audio.")).toBeInTheDocument();
     expect(screen.getByText("HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p")).toBeInTheDocument();
     expect(screen.getByText("EAC3 5.1 → AAC 2.0")).toBeInTheDocument();
     expect(screen.getByText("12 Mbps → 8.0 Mbps")).toBeInTheDocument();
@@ -165,7 +197,7 @@ describe("LiveDetails", () => {
     answer = uhd({ interlaced: true });
     renderWithProviders(<LiveDetails sessionId="s1" playback={{ direct: false, reads: false }} open />);
     expect(await screen.findByText("Transcoding")).toBeInTheDocument();
-    expect(screen.queryByText("Interlaced video is made progressive")).not.toBeInTheDocument();
+    expect(screen.queryByText("Interlaced video is made progressive.")).not.toBeInTheDocument();
   });
 
   it("asks nothing while the channel tunes", async () => {

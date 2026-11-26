@@ -125,9 +125,9 @@
     "otherChannels": "Otros canales",
     "backToGuide": "Volver a la guía",
     "details": {
-      "interlacedWhy": "El video entrelazado se hace progresivo",
-      "noVideo": "Este dispositivo no reproduce video {{codec}}",
-      "noAudio": "Este dispositivo no reproduce sonido {{codec}}",
+      "interlacedWhy": "El video entrelazado se convierte a progresivo.",
+      "noVideo": "Este dispositivo no reproduce el video {{codec}}.",
+      "noAudio": "Este dispositivo no reproduce el audio {{codec}}.",
       "interlaced": "entrelazado"
     }
   },
