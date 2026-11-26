@@ -657,7 +657,8 @@ watch history page; playlists (their covers, a playlist's page with
 moving and removing entries, Rename and Delete, Add to playlist, New
 playlist and saving a library's filters as a smart playlist); Settings
 (its categories and their rows, the side panels of choices, the web
-page's address and QR code, signing out); Diagnostics (the TV's facts and
+page's address and QR code, signing out, and Appearance's themes and accents,
+[Appearance](#appearance)); Diagnostics (the TV's facts and
 what it tells the server it plays); Live TV's page (the categories and
 their search, the guide and the channels' tiles, a program's details
 and favorites) and its live player (changing channel, number keys, what's
@@ -859,6 +860,40 @@ rules, which resx has no form for (Chinese has only `other`), and no
 satellite assemblies to package. A word a language lacks shows in English.
 The Core's tests hold every language to English's keys, its own plural
 forms and the same values, French and Spanish to their punctuation.
+
+### Appearance
+
+Settings → Appearance shows the theme and the accent this TV draws in
+([THEMES.md](THEMES.md)); its Theme and Accent rows open the picker, with
+focus on the theme or the accent shown. The nine themes come first, five
+to a row, each a small Pley in its colors with its name and caption, then
+Default (the theme's own) and the six accents, each with its swatch in the
+theme shown. The pick shown has the accent's edge and a check. OK shows a
+pick at once: every page is drawn again where it was, in the new colors,
+the picker with focus on what was picked, and Settings under it back on
+the row that opened it. The pages are made again rather than recolored:
+NUI keeps each view's colors as it is made, and every view following the
+theme would cost each of them as it draws. The pick is kept in the TV's
+preferences (pley.theme, pley.accent) and never sent to the server;
+a TV that picked none, or keeps an id the app doesn't know, shows
+Midnight in its own accent.
+
+The colors come from packages/themes/themes.json, built into the Core
+library as it is (src/Pley.Tv.Core/Ui/Themes.cs); the app's colors by
+what they are for (PleyPalette, which the screens read through
+PleyColors) are each a token of it, or a token at a set strength for a
+wash, made once per pick. ThemeTests holds every one to the file in
+every theme under every accent. In a light theme the players, their
+panels and what they draw over the video take the theme's dark twin's
+colors, with the same accent. The logo on the sign-in screens is drawn in
+the theme's colors: the app writes it as an SVG file with them into its
+cache, one file per set of colors, as NUI draws a vector from a file.
+
+The themes' backdrops (Twilight's sunset, Moonlight's moon, Nightshade's
+light, Sunshine's bubbles and rainbow sidebar) aren't drawn: the pages are
+the theme's plain page color. The pages fade their pictures into that
+color with gradients drawn over them (NUI has no mask for a picture), so a
+glow behind them would show its edges where a picture ends.
 
 ### How it is built
 

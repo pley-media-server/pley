@@ -79,7 +79,7 @@ static class RequestKit
     /// <summary>A stage's colors: its words and dot, and the tint behind them.</summary>
     public static (Color Content, Color Container) Tone(PillTone tone) => tone switch
     {
-        PillTone.Amber => (PleyColors.Amber, Alpha(PleyColors.Amber, 0.2f)),
+        PillTone.Amber => (PleyColors.Warning, Alpha(PleyColors.Warning, 0.2f)),
         PillTone.Blue => (PleyColors.AccentBright, Alpha(PleyColors.Info, 0.2f)),
         PillTone.Green => (PleyColors.Success, Alpha(PleyColors.Success, 0.2f)),
         PillTone.Red => (PleyColors.DangerText, Alpha(PleyColors.DangerText, 0.2f)),

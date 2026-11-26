@@ -20,7 +20,7 @@ sealed class AvatarView : View
         {
             Size = new Size(px, px),
             PixelSize = px * 0.44f,
-            TextColor = ProfileColors.DarkTextOn(rgb) ? PleyColors.Bg : Color.White,
+            TextColor = ProfileColors.DarkTextOn(rgb) ? PleyColors.DarkInk : Color.White,
             FontFamily = PleyType.Roboto,
             FontStyle = Text.Weight(PleyType.Bold),
             HorizontalAlignment = HorizontalAlignment.Center,

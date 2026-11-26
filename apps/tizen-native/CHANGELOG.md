@@ -8,6 +8,10 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The themes and accents, picked under Settings → Appearance.
+
 ## [0.1.14] - 2026-11-24
 
 ### Changed

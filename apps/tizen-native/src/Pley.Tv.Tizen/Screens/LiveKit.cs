@@ -14,8 +14,6 @@ namespace Pley.Tv.Tizen.Screens;
 /// <summary>What Live TV's pages and its player draw alike (the Android app's TvLiveKit).</summary>
 static class LiveViews
 {
-    /// <summary>A program airing in the guide, the New badge: the Android app's PrimaryContainer.</summary>
-    public static readonly Color PrimaryContainer = new Color(0x14 / 255f, 0x30 / 255f, 0x3E / 255f, 1);
 
     /// <summary>The icon of Core's Lucide name, among those the app ships (packages/tv's set): All channels has layers there.</summary>
     public static string Icon(string name) => name switch
@@ -44,12 +42,12 @@ static class LiveViews
     /// <summary>A small boxed word in capitals: Live in danger red, New in the accent.</summary>
     public static View Badge(string text, bool live)
     {
-        var label = Text.Label(text.ToUpperInvariant(), PleyType.Badge, live ? PleyColors.Bg : PleyColors.AccentBright);
+        var label = Text.Label(text.ToUpperInvariant(), PleyType.Badge, live ? PleyColors.DangerFg : PleyColors.AccentBright);
         var width = label.NaturalSize.Width + Ui.Dp(10);
         var box = new View
         {
             Size = new Size(width, Ui.Dp(PleyType.Badge.Line + 4)),
-            BackgroundColor = live ? PleyColors.Danger : PrimaryContainer,
+            BackgroundColor = live ? PleyColors.Danger : PleyColors.AccentTint,
             CornerRadius = Ui.Dp(PleyShape.BadgeRadius),
         };
         label.Size = new Size(width, box.SizeHeight);
