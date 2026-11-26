@@ -43,6 +43,48 @@ sub test_details_of_a_direct_play_and_a_conversion()
     tkEqual(sheet[3], { kind: "fact", text: "Bitrate", value: "24 Mbps" })
 end sub
 
+' A conversion's Encoder row, after the bitrate as on the other apps, when
+' the server names its encoder.
+sub test_details_name_a_conversions_encoder()
+    file = detailsTestFile()
+    info = { method: "transcode", audio_index: 1 }
+    live = { video: "transcode", audio: "copy", video_in: "HEVC 3840×2160", video_out: "H.264 1920×1080", encoder: "h264_nvenc", preset: invalid, pipeline: "gpu", speed: 2 }
+    rows = detPlayback(info, file, -1, live, 0).rows
+    tkEqual(rows[2], { label: "Bitrate", value: "24 Mbps" })
+    tkEqual(rows[3], { label: "Encoder", value: "NVIDIA NVENC (GPU)" })
+    tkEqual(rows[4].label, "Speed")
+    tkEqual(detEncoder({ encoder: "libx264", preset: "veryfast", pipeline: "cpu" }), "x264 veryfast (CPU)", "a software encoder's preset")
+    tkEqual(detEncoder({ encoder: "hevc_qsv", pipeline: "hybrid" }), "Intel Quick Sync (GPU and CPU)")
+    tkEqual(detEncoder({ encoder: "libx265", preset: "fast" }), "x265 fast", "an older server says nowhere")
+    tkEqual(detEncoder({ encoder: "h264_newthing", pipeline: "fpga" }), "h264_newthing (fpga)", "ones not known, as the server names them")
+    ' None named (an older server, a conversion still starting), or the
+    ' video copied: no row.
+    labels = []
+    for each row in detPlayback(info, file, -1, { video: "transcode", audio: "copy", speed: 2 }, 0).rows
+        labels.Push(row.label)
+    end for
+    tkEqual(labels, ["Video", "Audio", "Bitrate", "Speed"])
+    labels = []
+    for each row in detPlayback({ method: "remux", audio_converted: true }, file, -1, { video: "copy", audio: "transcode", encoder: "libx264", pipeline: "copy" }, 0).rows
+        labels.Push(row.label)
+    end for
+    tkEqual(labels, ["Video", "Audio", "Bitrate"])
+    labels = []
+    for each row in detPlayback(info, file, -1, invalid, 0).rows
+        labels.Push(row.label)
+    end for
+    tkEqual(labels, ["Video", "Audio", "Bitrate"], "its figures not asked for yet")
+    i18nUse("fr")
+    tkEqual(detPlayback(info, file, -1, live, 0).rows[3], { label: "Encodeur", value: "NVIDIA NVENC (GPU)" })
+    tkEqual(detPipeline("hybrid"), "GPU et CPU")
+    i18nUse("es")
+    tkEqual(detPipeline("hybrid"), "GPU y CPU")
+    i18nUse("zh-CN")
+    tkEqual(detEncoder({ encoder: "h264_vaapi", pipeline: "hybrid" }), "VA-API (GPU 和 CPU)")
+    i18nUse("zh-TW")
+    tkEqual(detPipeline("hybrid"), "GPU 和 CPU")
+end sub
+
 sub test_details_in_french_and_spanish()
     file = detailsTestFile()
     live = { video: "transcode", audio: "transcode", video_in: "HEVC 3840×2160 Dolby Vision P8.1", video_out: "H.264 1920×1080", audio_in: "TrueHD 7.1", audio_out: "AAC 2.0", tonemap: "libplacebo", speed: 1.5, transcoded_ms: 70000 }
@@ -75,23 +117,27 @@ end function
 sub test_details_of_a_live_channel_copied()
     copied = detLive(detailsTestPlan("""video_codec"":""h264"",""width"":1920,""height"":1080,""frame_rate"":50,""interlaced"":false,""bit_depth"":8,""audio_codec"":""aac"",""audio_channels"":2,""video"":""copy"",""audio"":""copy"",""out_height"":null,""video_kbps"":null,""kbps"":8200"))
     tkEqual(copied.method, "Direct stream", "the server's HLS stream with its video copied")
+    tkEqual(copied.kind, "remux", "the badge's color, a file's copied stream's")
     tkEqual(copied.why, "", "nothing says why: the Roku plays HLS alone")
     tkEqual(copied.rows, [{ label: "Video", value: "H.264 · 1920×1080 · 50 fps" }, { label: "Audio", value: "AAC 2.0" }, { label: "Bitrate", value: "8.2 Mbps" }])
     ' Other sound is made AAC stereo while the video is copied.
     sound = detLive(detailsTestPlan("""video_codec"":""h264"",""width"":1280,""height"":720,""frame_rate"":29.97,""interlaced"":false,""audio_codec"":""eac3"",""audio_channels"":6,""video"":""copy"",""audio"":""aac"",""kbps"":850"))
     tkEqual(sound.method, "Direct stream · Audio transcoding", "a file's words for it")
     tkEqual(sound.method, detMethod({ method: "remux", audio_converted: true }))
+    tkEqual(sound.kind, "remux")
     tkEqual(sound.rows, [{ label: "Video", value: "H.264 · 1280×720 · 29.97 fps" }, { label: "Audio", value: "EAC3 5.1 → AAC 2.0" }, { label: "Bitrate", value: "850 kbps" }])
     tkEqual(detSheet(sound)[2], { kind: "fact", text: "Audio", value: "EAC3 5.1 › AAC 2.0" }, "an arrow Roboto has")
     ' Radio: no video, nothing measured yet.
     radio = detLive(detailsTestPlan("""video_codec"":null,""width"":null,""height"":null,""frame_rate"":null,""interlaced"":false,""audio_codec"":""mp2"",""audio_channels"":2,""video"":""none"",""audio"":""aac"",""kbps"":0"))
     tkEqual(radio.method, "Direct stream · Audio transcoding")
+    tkEqual(radio.kind, "remux")
     tkEqual(radio.rows, [{ label: "Audio", value: "MP2 2.0 → AAC 2.0" }])
 end sub
 
 sub test_details_of_a_live_channel_transcoded()
     hevc = detLive(detailsTestPlan("""video_codec"":""hevc"",""width"":3840,""height"":2160,""frame_rate"":50,""interlaced"":false,""bit_depth"":10,""audio_codec"":""eac3"",""audio_channels"":6,""video"":""h264_nvenc"",""audio"":""aac"",""out_height"":1080,""video_kbps"":8000,""kbps"":12300"))
     tkEqual(hevc.method, "Transcoding")
+    tkEqual(hevc.kind, "transcode", "the badge's color, a file's conversion's")
     tkEqual(hevc.why, "")
     tkEqual(hevc.rows, [{ label: "Video", value: "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p" }, { label: "Audio", value: "EAC3 5.1 → AAC 2.0" }, { label: "Bitrate", value: "12 Mbps → 8 Mbps" }, { label: "Encoder", value: "NVIDIA NVENC" }])
     sheet = detSheet(hevc)
@@ -102,6 +148,18 @@ sub test_details_of_a_live_channel_transcoded()
     tkEqual(interlaced.rows[0], { label: "Video", value: "MPEG-2 · 720×576 · 25 fps, interlaced → H.264 576p" })
     tkEqual(interlaced.rows[2], { label: "Bitrate", value: "4.1 Mbps → 2.5 Mbps" })
     tkEqual(interlaced.rows[3], { label: "Encoder", value: "x264" })
+    ' The size made by the name a file's goes by, from its lines alone.
+    made = {}
+    for each lines in [2160, 1440, 1080, 720, 576, 480, 360]
+        plan = detailsTestPlan("""video_codec"":""hevc"",""width"":3840,""height"":2160,""video"":""hevc_nvenc"",""audio"":""copy"",""out_height"":" + lines.ToStr())
+        made[lines.ToStr()] = detLive(plan).rows[0].value
+        tkEqual(made[lines.ToStr()], "HEVC · 3840×2160 → HEVC " + detResolution(0, lines), "a file's label for these lines")
+    end for
+    tkEqual(made["2160"], "HEVC · 3840×2160 → HEVC 4K", "not 2160p")
+    tkEqual(made["1440"], "HEVC · 3840×2160 → HEVC 1440p")
+    tkEqual(made["360"], "HEVC · 3840×2160 → HEVC SD", "fewer lines than any size has a name for")
+    kept = detLive(detailsTestPlan("""video_codec"":""hevc"",""width"":3840,""height"":2160,""video"":""hevc_nvenc"",""audio"":""copy"""))
+    tkEqual(kept.rows[0].value, "HEVC · 3840×2160 → HEVC 4K", "the channel's own lines")
     tkEqual(detEncoderName("hevc_qsv"), "Intel Quick Sync")
     tkEqual(detEncoderName("h264_amf"), "AMD AMF")
     tkEqual(detEncoderName("hevc_vaapi"), "VA-API")

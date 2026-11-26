@@ -10,7 +10,9 @@ describes how they are made.
 
 ### Added
 
-- Live TV has Playback details, on the Replay key.
+- Live TV has Playback details on the Replay key, and its banner shows
+  how the channel plays, as the player does for a film.
+- A transcode's Playback details name its encoder.
 
 ## [0.1.14] - 2026-11-25
 

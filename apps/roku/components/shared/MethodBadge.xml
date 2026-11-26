@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- How a title or a channel plays, badged as the Android TV app's
+     MethodBadge: its words ("Direct stream") in the method's color on a
+     tint of it over bg at 80 %, 46 high and as wide as its words. The
+     player's controls show it before the clock, the live player's banner
+     before its Live chip. -->
+<component name="MethodBadge" extends="Group">
+    <interface>
+        <!-- The words, and the method's kind ("direct", "remux",
+             "transcode") for the color. -->
+        <field id="text" type="string" onChange="onLook" />
+        <field id="kind" type="string" onChange="onLook" />
+        <!-- How wide it is drawn, for whoever places it. -->
+        <field id="width" type="integer" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/shared/MethodBadge.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <children>
+        <Poster id="methodBack" uri="pkg:/images/ui/r4.9.png" blendColor="0x16191ECC" height="46" />
+        <Poster id="methodTint" uri="pkg:/images/ui/r4.9.png" height="46" />
+        <Label id="methodText" translation="[16, 0]" height="46" vertAlign="center" />
+    </children>
+</component>

@@ -344,7 +344,9 @@ the episode's "S1 E2 · Pilot", as on Android TV.
 - **Progress** goes to the server every 10 s while playing, every 30 s
   paused, and at once after a seek.
 - **Playback details** (Info) are asked for again every 2 s while they show;
-  only the figures that changed are drawn again. Up and Down scroll them, as
+  only the figures that changed are drawn again. A conversion's name its
+  encoder, its preset and where it runs ("NVIDIA NVENC (GPU)", "x264
+  veryfast (CPU)") once the server says, as the web's do. Up and Down scroll them, as
   on Android TV, and they stay on the line at their top as rows come and go.
 
 The controls are Pley's own, as the Android TV player's
@@ -526,7 +528,12 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
 - **The player** tunes with `POST …/watch`, waits for the server's live HLS
   playlist (up to 50 s), then plays it with `Live = true`. Up and Down
   change channel, tuning 0.7 s after the last press. Left opens the
-  channel list; Right or OK show the banner. Options (\*) puts the channel
+  channel list; Right or OK show the banner. Before its Live chip, the
+  banner badges how the channel plays, as the player's controls badge a
+  title's (`components/shared/MethodBadge`, in the same words and
+  colors): only once the server has said, from the plan asked for once
+  as the channel plays, and not while Up or Down lead to another.
+  Options (\*) puts the channel
   in the favorites or takes it out, in the list the channel in focus,
   else the one playing, the banner showing its star. Leaving, or changing
   channel, sends `DELETE /api/live/sessions/{session}`.
@@ -536,7 +543,8 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   Direct stream while the server copies the channel's video into its HLS
   stream ("Direct stream · Audio transcoding" when it converts the
   sound), else Transcoding; the provider's video and audio, and what the
-  server makes of them; what the provider sends now, with the transcode's
+  server makes of them (a transcode's size named as a file's is: "→ H.264
+  4K", "→ H.264 1080p"); what the provider sends now, with the transcode's
   video bitrate; and the encoder, by the name people know ("NVIDIA
   NVENC"). They come from the session's plan
   (`GET /api/live/sessions/{session}/plan`), asked for again every 2 s

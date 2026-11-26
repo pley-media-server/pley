@@ -2,8 +2,9 @@
 <!-- The live player: a channel's live HLS stream in the Video node (its
      own controls and seek bar off: live is live, with a Live chip), the
      channel's logo with a spinner under it while it tunes, a banner of
-     what's on and next, up and down to change channel within the
-     category it was opened from, the category's channels at the left
+     what's on and next with how the channel plays badged before its Live
+     chip, as the player's controls badge a title's, up and down to change
+     channel within the category it was opened from, its channels at the left
      (Left; another category, or a search, can be listed there), how it
      plays in the panel the player's Info opens (Replay), and what went
      wrong when it did (every connection in use, the channel not
@@ -72,6 +73,9 @@
             <Rectangle id="bannerTrack" translation="[384, 886]" width="1100" height="6" color="0x2E3440FF" />
             <Rectangle id="bannerFill" translation="[384, 886]" width="0" height="6" color="0x38BDF8FF" />
             <Label id="bannerNext" translation="[384, 908]" width="1100" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <!-- How the channel plays, once the server has said: before
+                 the Live chip, as on Android TV (the screen places it). -->
+            <MethodBadge id="method" visible="false" />
             <!-- The Live chip: live is all there is. -->
             <Rectangle translation="[1648, 750]" width="176" height="52" color="0xEB6B70FF" />
             <Label id="liveMark" translation="[1648, 750]" width="176" height="52" horizAlign="center" vertAlign="center" color="0xEBEBEBFF">

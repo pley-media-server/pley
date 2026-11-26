@@ -14,8 +14,9 @@
 ' once, and Live TV opens back at the channel watched. The user's remote,
 ' on another device, changes channel as up and down do (Remote.brs), and
 ' watching stopped from elsewhere stops here, saying who stopped it.
-' Replay shows how the channel plays (GET /api/live/sessions/{session}/plan,
-' Details.brs's detLive), in the panel the player's Info opens.
+' How the channel plays (GET /api/live/sessions/{session}/plan, Details.brs's
+' detLive) is asked once as it starts, for the badge before the banner's
+' Live chip, and Replay shows it in the panel the player's Info opens.
 
 sub init()
     m.video = m.top.findNode("video")
@@ -37,6 +38,7 @@ sub init()
     m.bannerNext = m.top.findNode("bannerNext")
     m.bannerHint = m.top.findNode("bannerHint")
     m.star = m.top.findNode("star")
+    m.method = m.top.findNode("method")
     m.list = m.top.findNode("list")
     m.listTitle = m.top.findNode("listTitle")
     m.listRange = m.top.findNode("listRange")
@@ -617,6 +619,7 @@ sub onZapTimer()
     if m.channel <> invalid and target.id = m.channel.id and m.sessionId <> ""
         ' Back where it started.
         if m.played then m.card.visible = false
+        showMethod()
         return
     end if
     tune(target, 0, false, true)
@@ -631,9 +634,10 @@ sub tune(channel as object, takeOver = 0 as integer, again = false as boolean, s
     m.picks = liveTunePicks(m.picks, again, stepped)
     abandonWatch()
     leave()
-    ' The details were the channel before's.
+    ' The details and the badge were the channel before's.
     closeDetails()
     m.plan = invalid
+    showMethod()
     if not again then m.retries = 0
     m.retryTimer.control = "stop"
     m.zapTo = invalid
@@ -673,6 +677,8 @@ sub leave()
     uiRequest({ method: "DELETE", path: "/api/live/sessions/" + urlEncode(m.sessionId) }, "")
     m.sessionId = ""
     m.playlist = ""
+    ' How it played goes with it.
+    showMethod()
 end sub
 
 function isCurrent(event as object) as boolean
@@ -730,6 +736,10 @@ sub play()
     m.video.setHttpAgent(uiHttpAgent())
     m.video.content = content
     m.video.control = "play"
+    ' How it plays, for the banner's badge: asked once, as the player's
+    ' controls know a title's from the start. The server knows it by now
+    ' (its playlist answered), and starts nothing for the asking.
+    askPlan()
 end sub
 
 sub onState(event as object)
@@ -972,6 +982,7 @@ sub showBanner(hides as boolean)
     if coming <> invalid then m.bannerNext.text = t("livetv.player.next", { time: liveClock(coming.start, m.twelve), title: coming.title })
     m.star.text = ""
     if channel.favorite then m.star.text = "★ " + t("livetv.favourites.mark")
+    showMethod()
     m.bannerHint.text = t("livetv.player.bannerHint", { category: m.categoryName }) + Chr(10) + t("livetv.player.bannerMoreHint")
     if m.list.visible or m.notice.visible then return
     m.banner.visible = true
@@ -1047,6 +1058,29 @@ end sub
 
 ' --- Playback details ---
 
+' How the channel plays, badged before the banner's Live chip in the
+' words and colors the player's controls badge a title's with
+' (MethodBadge): only once the server has said how, of the channel
+' playing, so not over the one Up or Down leads to. The channel's name and
+' what's on end before it.
+sub showMethod()
+    known = m.plan <> invalid and m.sessionId <> "" and m.zapTo = invalid
+    m.method.visible = known
+    room = 1100
+    if known
+        how = detLive(m.plan)
+        m.method.kind = how.kind
+        m.method.text = how.method
+        ' Its right edge 24 px before the chip (Android TV's 12 dp), its
+        ' middle on the chip's.
+        left = 1648 - 24 - m.method.width
+        m.method.translation = [left, 753]
+        if left - 24 - 384 < room then room = left - 24 - 384
+    end if
+    m.bannerChannel.width = room
+    m.bannerTitle.width = room
+end sub
+
 ' Replay: how the channel plays, in the panel the player's Info opens. What
 ' is known of this session shows at once; the plan is asked for again every
 ' 2 s while the panel shows, for what the provider sends now (the server
@@ -1079,13 +1113,17 @@ sub closeDetails()
     end if
 end sub
 
-' One asking at a time: the server waits up to 3 s for a plan it doesn't
-' know yet.
 sub onDetailsTick()
     if not m.details.visible
         m.detailsTimer.control = "stop"
         return
     end if
+    askPlan()
+end sub
+
+' One asking at a time: the server waits up to 3 s for a plan it doesn't
+' know yet.
+sub askPlan()
     if m.sessionId = "" or m.planAsked = m.sessionId then return
     m.planAsked = m.sessionId
     uiRequest({ method: "GET", path: "/api/live/sessions/" + urlEncode(m.sessionId) + "/plan", session: m.sessionId }, "onPlan")
@@ -1099,6 +1137,7 @@ sub onPlan(event as object)
     ' Not known yet (null), or not answered: what was known stays.
     if not answer.ok or httpObject(answer.data) = invalid then return
     m.plan = answer.data
+    showMethod()
     if m.details.visible then showDetails()
 end sub
 

@@ -178,6 +178,11 @@ function detPlayback(info as object, file as dynamic, audioIndex as integer, liv
         bitrate = fmtBitrate(file.bitrate)
         if bitrate <> "" then rows.Push({ label: t("titles.playback.bitrate"), value: bitrate })
     end if
+    ' What converts the video, where the server says: an older one, or a
+    ' conversion still starting, names no encoder.
+    if transcode <> invalid and httpString(transcode.video) = "transcode" and httpString(transcode.encoder) <> ""
+        rows.Push({ label: t("titles.playback.encoder"), value: detEncoder(transcode) })
+    end if
     shown = httpSentence(info.video_range)
     if transcode <> invalid and httpString(transcode.tonemap) <> "" then shown = t("titles.playback.toneMapped", { method: httpSentence(transcode.tonemap) })
     if video <> invalid and shown <> "" then rows.Push({ label: t("titles.playback.shownAs"), value: shown })
@@ -224,13 +229,37 @@ function detEncoderName(encoder as string) as string
     return known
 end function
 
+' A conversion's encoder, its preset and where it runs, as the other apps
+' say them: "NVIDIA NVENC (GPU)", "x264 veryfast (CPU)". transcode is the
+' session's TranscodeInfo.
+function detEncoder(transcode as object) as string
+    parts = [detEncoderName(httpSentence(transcode.encoder))]
+    preset = httpSentence(transcode.preset)
+    if preset <> "" then parts.Push(preset)
+    ' "copy" converts no video: there is nowhere to name.
+    pipeline = httpSentence(transcode.pipeline)
+    if pipeline <> "" and pipeline <> "copy" then parts.Push("(" + detPipeline(pipeline) + ")")
+    return parts.Join(" ")
+end function
+
+' Where the transcoder works: "GPU", "CPU", or both ("GPU and CPU"); one
+' not known as the server names it.
+function detPipeline(pipeline as string) as string
+    if pipeline = "gpu" then return "GPU"
+    if pipeline = "cpu" then return "CPU"
+    if pipeline = "hybrid" then return t("titles.playback.pipeline.hybrid")
+    return pipeline
+end function
+
 ' A Live TV channel's details, as detPlayback's: plan is the session's
 ' SessionPlan (GET /api/live/sessions/{session}/plan). The Roku plays the
 ' server's HLS stream: a direct stream while the video is copied (or the
 ' channel has none), saying as a file's does when the sound is converted,
 ' else a transcode, with nothing to say why (it reads no MPEG-TS, so the
 ' provider's stream is never played as it is). The video and audio are
-' the provider's, then what the server makes of them.
+' the provider's, then what the server makes of them; kind is the method
+' as a file's PlaybackInfo names it ("remux", "transcode"), for the badge's
+' color.
 ' An older server sends no bit depth, transcode size or bitrates: those go
 ' unsaid.
 function detLive(plan as object) as object
@@ -258,7 +287,9 @@ function detLive(plan as object) as object
             lines = Int(httpNumber(plan.out_height, 0))
             ' A transcode keeps the channel's lines unless it says otherwise.
             if lines <= 0 then lines = height
-            if lines > 0 then out = (out + " " + urlValue(lines) + "p").Trim()
+            ' Its size by the name a file's goes by ("4K", "1080p"), from
+            ' its lines alone: the plan doesn't give its width.
+            out = (out + " " + detResolution(0, lines)).Trim()
             if out = "" then out = "…"
             value = value + " → " + out
         end if
@@ -284,7 +315,7 @@ function detLive(plan as object) as object
     ' The method in a file's words.
     way = { method: "remux", audio_converted: sound }
     if converted then way = { method: "transcode" }
-    return { method: detMethod(way), why: "", rows: rows }
+    return { method: detMethod(way), kind: way.method, why: "", rows: rows }
 end function
 
 ' kbit/s as bit/s, for fmtBitrate; 0 for none, or for more than any

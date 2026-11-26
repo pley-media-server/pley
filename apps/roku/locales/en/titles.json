@@ -190,6 +190,9 @@
     "subtitles": "Subtitles",
     "burnedIn": "Burned in",
     "encoder": "Encoder",
+    "pipeline": {
+      "hybrid": "GPU and CPU"
+    },
     "speed": "Speed",
     "toneMapped": "SDR (tone-mapped with {{method}})",
     "realTime": "{{speed}}× real time",

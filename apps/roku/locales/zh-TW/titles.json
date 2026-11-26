@@ -185,6 +185,9 @@
     "subtitles": "字幕",
     "burnedIn": "已壓制",
     "encoder": "編碼器",
+    "pipeline": {
+      "hybrid": "GPU 和 CPU"
+    },
     "speed": "速度",
     "toneMapped": "SDR（透過 {{method}} 色調對映）",
     "realTime": "{{speed}}× 即時",
