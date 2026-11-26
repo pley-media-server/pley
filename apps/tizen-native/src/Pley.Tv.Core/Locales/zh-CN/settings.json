@@ -9,6 +9,7 @@
     "playback": "播放",
     "audio": "音频",
     "display": "字幕和显示",
+    "appearance": "外观",
     "server": "服务器",
     "diagnostics": "诊断",
     "about": "关于",
@@ -102,6 +103,43 @@
       "raised": "略高",
       "higher": "较高",
       "highest": "最高"
+    }
+  },
+  "appearance": {
+    "theme": "主题",
+    "themeHint": "Pley 在这台电视上的外观。每台设备各自保存。",
+    "accent": "强调色",
+    "accentHint": "应用于按钮、链接和其他焦点元素。",
+    "own": "默认",
+    "names": {
+      "midnight": "午夜",
+      "midday": "正午",
+      "starlight": "星光",
+      "twilight": "暮光",
+      "moonlight": "月光",
+      "nightshade": "夜影",
+      "greenlight": "绿光",
+      "sunshine": "阳光",
+      "blacklight": "黑光"
+    },
+    "about": {
+      "midnight": "关灯，爆米花就位",
+      "midday": "午夜，但在吃早午餐",
+      "starlight": "香槟，不宿醉",
+      "twilight": "看日落，不晒伤",
+      "moonlight": "燕尾服模式",
+      "nightshade": "潜伏在蕨丛里",
+      "greenlight": "足不出户，摸摸草",
+      "sunshine": "果汁盒认证",
+      "blacklight": "零色彩，零烦恼"
+    },
+    "accents": {
+      "sky": "天蓝",
+      "violet": "紫罗兰",
+      "miami": "迈阿密",
+      "gold": "金色",
+      "mint": "薄荷",
+      "amber": "琥珀"
     }
   },
   "server": {

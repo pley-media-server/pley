@@ -184,6 +184,9 @@ public sealed class AppState
     const string LanguageKey = "pley.language";
     /// <summary>The language picked on this TV with the globe, under the web apps' key.</summary>
     const string DeviceLanguageKey = "pley.deviceLanguage";
+    /// <summary>The theme and accent picked on this TV (Settings, Appearance), under the web apps' keys.</summary>
+    const string ThemeKey = "pley.theme";
+    const string AccentKey = "pley.accent";
 
     static readonly JsonSerializerOptions Camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     static readonly JsonSerializerOptions SettingsJson = new JsonSerializerOptions
@@ -244,6 +247,7 @@ public sealed class AppState
         this.scheduler = scheduler ?? new ContextScheduler();
         store = platform.Storage;
         Settings = new Signal<Settings>(Read<Settings>(SettingsKey, SettingsJson)?.Allowed() ?? new Settings());
+        Theme = new Signal<Ui.ThemePick>(Ui.ThemePick.Of(store.Get(ThemeKey), store.Get(AccentKey)));
         Me.Changed += _ => ChooseLanguage();
         var server = store.Get(ServerKey);
         if (!string.IsNullOrEmpty(server)) Use(server!);
@@ -764,6 +768,27 @@ public sealed class AppState
     {
         Settings.Value = change(Settings.Value).Allowed();
         Write(SettingsKey, Settings.Value, SettingsJson);
+    }
+
+    /// <summary>
+    /// The theme and accent this TV shows (docs/THEMES.md): its own, kept on the TV and never sent to
+    /// the server; Midnight in its own accent until one is picked, or for an id this app doesn't know.
+    /// </summary>
+    public Signal<Ui.ThemePick> Theme { get; }
+
+    /// <summary>Shows <paramref name="theme"/>, keeping the accent picked, and keeps it for the next start.</summary>
+    public void ChooseTheme(string theme)
+    {
+        Theme.Value = Ui.ThemePick.Of(theme, Theme.Value.Accent);
+        store.Set(ThemeKey, Theme.Value.Theme);
+    }
+
+    /// <summary>Shows <paramref name="accent"/> over the theme's own (null: the theme's own again), and keeps it.</summary>
+    public void ChooseAccent(string? accent)
+    {
+        Theme.Value = Ui.ThemePick.Of(Theme.Value.Theme, accent);
+        if (Theme.Value.Accent is { } kept) store.Set(AccentKey, kept);
+        else store.Remove(AccentKey);
     }
 
     // ---- what the server has

@@ -32,6 +32,13 @@
     <None Include="..\..\src\Pley.Tv.Tizen\shared\res\placeholder-mark-*.svg" Link="res\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Pley's themes as every app draws them, the web's logo and its words for them, for ThemeTests. -->
+  <ItemGroup>
+    <None Include="..\..\..\..\packages\themes\themes.json" Link="themes\themes.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\web\src\components\Logo.tsx" Link="themes\Logo.tsx" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\web\src\i18n\locales\**\pages.json" Link="themes\pages\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- The app's own sources, for DisposeRulesTests: a rule of NUI's the compiler can't hold them to. -->
   <ItemGroup>
     <None Include="..\..\src\Pley.Tv.Tizen\**\*.cs" Exclude="..\..\src\Pley.Tv.Tizen\bin\**;..\..\src\Pley.Tv.Tizen\obj\**" Link="app\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

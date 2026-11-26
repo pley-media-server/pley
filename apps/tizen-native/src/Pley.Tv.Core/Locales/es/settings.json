@@ -9,6 +9,7 @@
     "playback": "Reproducción",
     "audio": "Audio",
     "display": "Subtítulos y pantalla",
+    "appearance": "Apariencia",
     "server": "Servidor",
     "diagnostics": "Diagnóstico",
     "about": "Acerca de",
@@ -102,6 +103,43 @@
       "raised": "Un poco más arriba",
       "higher": "Más arriba",
       "highest": "Aún más arriba"
+    }
+  },
+  "appearance": {
+    "theme": "Tema",
+    "themeHint": "Cómo se ve Pley en esta TV. Cada dispositivo guarda el suyo.",
+    "accent": "Acento",
+    "accentHint": "Se aplica a botones, enlaces y otros elementos destacados.",
+    "own": "Predeterminado",
+    "names": {
+      "midnight": "Medianoche",
+      "midday": "Mediodía",
+      "starlight": "Luz de estrellas",
+      "twilight": "Crepúsculo",
+      "moonlight": "Luz de luna",
+      "nightshade": "Belladona",
+      "greenlight": "Luz verde",
+      "sunshine": "Sol",
+      "blacklight": "Luz negra"
+    },
+    "about": {
+      "midnight": "Luces fuera, palomitas dentro",
+      "midday": "Medianoche, pero de brunch",
+      "starlight": "Champán sin resaca",
+      "twilight": "Atardecer sin quemaduras",
+      "moonlight": "Modo esmoquin",
+      "nightshade": "Al acecho entre helechos",
+      "greenlight": "Tocar césped sin salir",
+      "sunshine": "Aprobado por la merienda",
+      "blacklight": "Cero colores, cero dramas"
+    },
+    "accents": {
+      "sky": "Cielo",
+      "violet": "Violeta",
+      "miami": "Miami",
+      "gold": "Oro",
+      "mint": "Menta",
+      "amber": "Ámbar"
     }
   },
   "server": {

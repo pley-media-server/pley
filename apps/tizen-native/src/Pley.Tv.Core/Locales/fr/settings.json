@@ -9,6 +9,7 @@
     "playback": "Lecture",
     "audio": "Audio",
     "display": "Sous-titres et affichage",
+    "appearance": "Apparence",
     "server": "Serveur",
     "diagnostics": "Diagnostic",
     "about": "À propos",
@@ -102,6 +103,43 @@
       "raised": "Un peu plus haut",
       "higher": "Plus haut",
       "highest": "Encore plus haut"
+    }
+  },
+  "appearance": {
+    "theme": "Thème",
+    "themeHint": "L’apparence de Pley sur cette TV. Chaque appareil garde la sienne.",
+    "accent": "Accent",
+    "accentHint": "S’applique aux boutons, aux liens et aux autres éléments mis en avant.",
+    "own": "Par défaut",
+    "names": {
+      "midnight": "Minuit",
+      "midday": "Midi",
+      "starlight": "Clair d’étoiles",
+      "twilight": "Crépuscule",
+      "moonlight": "Clair de lune",
+      "nightshade": "Belladone",
+      "greenlight": "Feu vert",
+      "sunshine": "Soleil",
+      "blacklight": "Lumière noire"
+    },
+    "about": {
+      "midnight": "Lumière éteinte, pop-corn prêt",
+      "midday": "Minuit, version brunch",
+      "starlight": "Champagne, sans gueule de bois",
+      "twilight": "Coucher de soleil, sans coup de soleil",
+      "moonlight": "Mode smoking",
+      "nightshade": "Tapi dans les fougères",
+      "greenlight": "Toucher l’herbe sans sortir",
+      "sunshine": "Validé à l’heure du goûter",
+      "blacklight": "Aucune couleur, aucun regret"
+    },
+    "accents": {
+      "sky": "Ciel",
+      "violet": "Violet",
+      "miami": "Miami",
+      "gold": "Or",
+      "mint": "Menthe",
+      "amber": "Ambre"
     }
   },
   "server": {
