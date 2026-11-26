@@ -259,10 +259,13 @@ function LivePlayer({
   const [fullscreen, setFullscreen] = useState(false);
   const [panel, setPanel] = useState(false);
   // Playback details: the watch session they ask about, and how the player plays it.
-  const [details, setDetails] = useState(false);
-  // Hovering the badge shows them too, as the video player's badge does.
-  const [detailsHover, setDetailsHover] = useState(false);
   const [session, setSession] = useState<string | null>(null);
+  // Playback details show while the badge is hovered or focused, as the video
+  // player's do: the session it was hovered in, so a channel that tunes (the
+  // badge gone from under the mouse, which never leaves it) shows none.
+  const [hoveredIn, setHoveredIn] = useState<string | null>(null);
+  const detailsHover = hoveredIn !== null && hoveredIn === session;
+  const setDetailsHover = (on: boolean) => setHoveredIn(on ? session : null);
   const [playback, setPlayback] = useState<LivePlayback | null>(null);
   // What the badge says: the plan as the tune or the details last had it.
   const knownPlan = useSessionPlan(session, false).data ?? null;
@@ -752,7 +755,7 @@ function LivePlayer({
     return () => window.clearTimeout(hideTimer.current);
   }, []);
   const controlsVisible =
-    showControls || panel || watchOn || details || detailsHover || status === "error" || (!remoteTune && (!playing || status === "tuning"));
+    showControls || panel || watchOn || detailsHover || status === "error" || (!remoteTune && (!playing || status === "tuning"));
 
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement != null);
@@ -833,23 +836,21 @@ function LivePlayer({
           setBanner((b) => !b);
           break;
         case "Escape":
-          if (details) setDetails(false);
-          else if (panel) setPanel(false);
+          if (panel) setPanel(false);
           else if (!document.fullscreenElement) goBack();
           break;
         case "Backspace":
         case "BrowserBack":
         case "GoBack":
           e.preventDefault();
-          if (details) setDetails(false);
-          else if (panel) setPanel(false);
+          if (panel) setPanel(false);
           else goBack();
           break;
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [poke, onStep, toggleFullscreen, panel, details, goBack]);
+  }, [poke, onStep, toggleFullscreen, panel, goBack]);
 
   const on = channel.now && channel.now.stop > now && channel.now.start <= now ? channel.now : null;
   const next = on ? channel.next : (channel.next ?? channel.now);
@@ -875,7 +876,6 @@ function LivePlayer({
           className="absolute inset-0 size-full object-contain"
           playsInline
           onClick={() => {
-            setDetails(false);
             if (panel) setPanel(false);
             else poke();
           }}
@@ -1021,16 +1021,6 @@ function LivePlayer({
           )}
         >
           <div className="relative flex items-center gap-0.5 sm:gap-1.5">
-            {details || detailsHover ? (
-              <div
-                id="live-details"
-                role="region"
-                aria-label={t("player:settings.panel.details")}
-                className="absolute bottom-full right-0 mb-3 w-80 max-w-full animate-pop-in rounded-xl border border-white/10 bg-black/90 py-2 text-white shadow-2xl"
-              >
-                <LiveDetails sessionId={session} playback={playback} open />
-              </div>
-            ) : null}
             <div className="group/vol hidden items-center sm:flex">
               <button type="button" aria-label={muted ? t("player.unmute") : t("player.mute")} onClick={() => setMuted((m) => !m)} className={button}>
                 <VolumeIcon className="size-5" />
@@ -1058,33 +1048,35 @@ function LivePlayer({
               </div>
             ) : null}
             <div className="flex-1" />
-            {/* How it plays, as the video player's badge says it: hovered, or pressed to keep them open. */}
-            <div
-              className="mr-1"
-              // A mouse only: a tap is a press, which keeps them open or closes them.
-              onPointerEnter={(e) => e.pointerType === "mouse" && setDetailsHover(true)}
-              onPointerLeave={() => setDetailsHover(false)}
-            >
-              <button
-                type="button"
-                aria-label={t("player:settings.panel.details")}
-                aria-expanded={details}
-                aria-controls="live-details"
-                onClick={() => setDetails((d) => !d)}
-                className={cn(
-                  "rounded px-2 py-0.5 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-white/60",
-                  method?.method === "direct"
-                    ? "bg-success/20 text-success"
-                    : method?.method === "remux"
-                      ? "bg-info/20 text-info"
-                      : method
-                        ? "bg-accent/20 text-accent"
-                        : "bg-white/10 text-white/70",
-                )}
+            {method ? (
+              // Hovering (or focusing) the badge shows how it plays, as the video player's does; none until that is known.
+              <div
+                className="relative mr-1 hidden md:block"
+                onMouseEnter={() => setDetailsHover(true)}
+                onMouseLeave={() => setDetailsHover(false)}
+                onFocus={() => setDetailsHover(true)}
+                onBlur={() => setDetailsHover(false)}
               >
-                {method ? methodLabel(method) : "…"}
-              </button>
-            </div>
+                <span
+                  tabIndex={0}
+                  aria-label={methodLabel(method)}
+                  className={cn(
+                    "cursor-default rounded px-2 py-0.5 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+                    method.method === "direct" ? "bg-success/20 text-success" : method.method === "remux" ? "bg-info/20 text-info" : "bg-accent/20 text-accent",
+                  )}
+                >
+                  {methodLabel(method)}
+                </span>
+                {detailsHover ? (
+                  <div
+                    role="tooltip"
+                    className="absolute bottom-full right-0 mb-3 w-80 animate-pop-in rounded-xl border border-white/10 bg-black/90 py-2 text-white shadow-2xl"
+                  >
+                    <LiveDetails sessionId={session} playback={playback} open />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <button type="button" aria-label={t("player.channelUp")} title={t("player.channelUpKey")} onClick={() => onStep(1)} className={button}>
               <ChevronUp className="size-5" />
             </button>

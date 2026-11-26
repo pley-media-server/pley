@@ -118,7 +118,7 @@ export function LiveDetails({
   const encoder = plan ? liveEncoder(plan, direct) : null;
   return (
     <div className="px-4 pb-3 pt-1">
-      <span className="text-sm font-semibold text-accent">{method ? methodLabel(method) : "…"}</span>
+      {method ? <span className="text-sm font-semibold text-accent">{methodLabel(method)}</span> : null}
       {why ? <p className="mt-0.5 text-xs leading-snug text-white/65">{why}</p> : null}
       {video || audio || bitrate || encoder ? (
         <dl className="mt-2.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs tabular-nums">

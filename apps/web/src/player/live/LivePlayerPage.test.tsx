@@ -833,21 +833,24 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
   });
 
   describe("and its Playback details", () => {
-    const details = () => screen.getByRole("region", { name: "Playback details" });
-    const open = () => fireEvent.click(screen.getByRole("button", { name: "Playback details" }));
+    const details = () => screen.getByRole("tooltip");
+    // As the video player's: shown while the badge is hovered, nothing to click.
+    const badge = (label: string) => screen.getByLabelText(label);
+    const open = (label: string) => fireEvent.mouseEnter(badge(label));
 
     it("say it plays directly, and what the provider sends, asked again while they show", async () => {
       await tuned();
       act(() => mpegtsPlayers[0]?.found(itsTracks));
       await waitFor(() => expect(play).toHaveBeenCalled());
       // The badge says how it plays, as the video player's does.
-      expect(screen.getByRole("button", { name: "Playback details" })).toHaveTextContent("Direct play");
-      expect(screen.queryByRole("region", { name: "Playback details" })).not.toBeInTheDocument();
+      expect(badge("Direct play")).toHaveTextContent("Direct play");
+      expect(badge("Direct play").tagName).not.toBe("BUTTON");
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
       // Closed, nothing is asked again.
       await act(() => vi.advanceTimersByTimeAsync(6000));
       expect(plans()).toHaveLength(1);
 
-      open();
+      open("Direct play");
       expect(within(details()).getByText("Direct play")).toBeInTheDocument();
       expect(within(details()).getByText("HEVC 10-bit · 1920×1080 · 50 fps")).toBeInTheDocument();
       expect(within(details()).getByText("AAC 2.0")).toBeInTheDocument();
@@ -860,9 +863,9 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
       const asked = plans().length;
       expect(asked).toBeGreaterThan(1);
 
-      // Closed again (Escape closes them before it leaves the player): no more asking.
-      fireEvent.keyDown(window, { key: "Escape" });
-      expect(screen.queryByRole("region", { name: "Playback details" })).not.toBeInTheDocument();
+      // Gone with the mouse: no more asking.
+      fireEvent.mouseLeave(badge("Direct play"));
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
       await act(() => vi.advanceTimersByTimeAsync(6000));
       expect(plans()).toHaveLength(asked);
     });
@@ -871,9 +874,9 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
       planAnswer = () => ({ ...hevc, audio_codec: "ac3", audio: "aac" });
       await tuned();
       await toHls();
-      open();
+      await waitFor(() => expect(badge("Transcoding")).toHaveTextContent("Transcoding"));
+      open("Transcoding");
       expect(await within(details()).findByText("Transcoding")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Playback details" })).toHaveTextContent("Transcoding");
       expect(within(details()).getByText("This device doesn't play AC3 sound")).toBeInTheDocument();
       expect(within(details()).getByText("HEVC 10-bit · 1920×1080 · 50 fps → H.264 1080p")).toBeInTheDocument();
       expect(within(details()).getByText("5.2 Mbps → 6.0 Mbps")).toBeInTheDocument();
@@ -891,7 +894,7 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
       await act(() => vi.advanceTimersByTimeAsync(4000));
       expect(controls()).toHaveClass("opacity-0");
 
-      open();
+      open("Direct play");
       await act(() => vi.advanceTimersByTimeAsync(6000));
       expect(controls()).not.toHaveClass("opacity-0");
     });
