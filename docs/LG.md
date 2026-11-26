@@ -289,14 +289,14 @@ and goes with `live_channels_changed`. On LG:
   plays from its `stream.ts`, from its first keyframe rather than after the
   first HLS segments. So does a channel the server would convert, when
   the TV plays what the provider sends, and the server makes no transcode
-  for it: progressive video in H.264, HEVC or MPEG-2 that a decoder of the
+  for it: video in H.264, HEVC or MPEG-2 that a decoder of the
   [capability report](#what-an-lg-tv-plays) takes at its bit depth (8
   when the plan doesn't say), size and frame rate, and sound in AAC, AC-3,
   E-AC-3, MP2 or MP3 that the report decodes or passes through. Those are
   the formats LG lists for an MPEG-TS, and the report is the one files
-  play by. Interlaced video the server converts stays with the server, as
-  does every converted channel while the TV has no report yet
-  (`crates/player/src/live/session.rs`).
+  play by. Interlaced video stays with the server while its Deinterlace
+  setting is on, as does every converted channel while the TV has no
+  report yet (`crates/player/src/live/session.rs`).
 - **Handing it on:** the pipeline can't send the token, so the app reads
   the stream with it and hands it on from the TV's loopback address
   (`http://127.0.0.1:<port>/relay/<128 random bits>/stream.ts`): only that

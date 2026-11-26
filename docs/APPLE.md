@@ -492,9 +492,7 @@ behind it.
   since moving to the next key can take longer than a keyboard's wait;
   "No channel 123" shows for 2 seconds when none has it. **Details** (a
   sheet on iPhone, iPad and Mac, a panel beside the picture on Apple TV,
-  named and laid out as the player's Details; a sheet and a panel, not the
-  player's menu and tab, since the live player is Pley's own view and they
-  are asked for while they show) say how the channel plays, Direct stream
+  named and laid out as the player's Details) say how the channel plays, Direct stream
   while the server copies its video into the HLS stream and Transcoding
   otherwise; the provider's video and audio, and
   what the server makes of them; what the provider sends now, with the

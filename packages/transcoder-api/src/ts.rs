@@ -12,8 +12,12 @@ use bytes::Bytes;
 /// An MPEG-TS packet's size, and the byte it starts with.
 pub const PACKET: usize = 188;
 pub const SYNC: u8 = 0x47;
+/// What holding a chunk costs beside its bytes, counted against the limit:
+/// a stream sent a byte at a time holds no more than one sent whole.
+const CHUNK_COST: usize = 64;
 
-/// What came of a stream lately, at most `limit` bytes of it, with where its
+/// What came of a stream lately, at most `limit` bytes of it (each chunk
+/// counting [`CHUNK_COST`] more; the last is always kept), with where its
 /// video keyframes start.
 pub struct Backlog {
     /// Each with when it came.
@@ -39,7 +43,7 @@ impl Backlog {
         }
         self.bytes += chunk.len();
         self.chunks.push_back((Instant::now(), chunk.clone()));
-        while self.bytes > self.limit {
+        while self.chunks.len() > 1 && self.bytes + CHUNK_COST * self.chunks.len() > self.limit {
             self.drop_front();
         }
     }
@@ -55,12 +59,23 @@ impl Backlog {
 
     /// Lets go of what came before the newest keyframe at least `age` old,
     /// so a reader started at the first keyframe held ([`Backlog::start_held`])
-    /// is given that much at once. Nothing goes until a keyframe is that old.
+    /// is given that much at once. Nothing goes until a keyframe is that old;
+    /// a stream that marks none keeps only its last `age`.
     pub fn trim_to_keyframe_older_than(&mut self, age: Duration) {
+        let now = Instant::now();
+        if self.keyframes.is_empty() {
+            while self.chunks.len() > 1 && self.chunks.front().is_some_and(|(at, _)| now.duration_since(*at) > age) {
+                self.drop_front();
+            }
+            return;
+        }
         let old_enough = |&(n, _): &(u64, usize)| {
-            self.chunks.get((n - self.dropped) as usize).is_some_and(|(at, _)| at.elapsed() >= age)
+            self.chunks.get((n - self.dropped) as usize).is_some_and(|(at, _)| now.duration_since(*at) >= age)
         };
-        let Some(&(n, _)) = self.keyframes.iter().rev().find(|k| old_enough(k)) else { return };
+        // Oldest first, up to the first that is too young: what goes now isn't
+        // looked at again, so a stream marking every packet a keyframe costs
+        // little more than one that doesn't.
+        let Some(&(n, _)) = self.keyframes.iter().take_while(|k| old_enough(k)).last() else { return };
         while self.dropped < n && !self.chunks.is_empty() {
             self.drop_front();
         }
@@ -287,6 +302,43 @@ mod tests {
         assert_eq!(b.bytes(), 2 * PACKET);
         assert_eq!(b.start_held().concat(), [pat.clone(), pmt.clone(), key(2), frame.clone()].concat());
         assert_eq!(b.start().concat(), [pat, pmt, key(2), frame].concat());
+    }
+
+    #[test]
+    fn a_stream_sent_a_byte_at_a_time_holds_no_more_than_its_limit_allows() {
+        let mut b = Backlog::new(64 * 100);
+        for _ in 0..10_000 {
+            b.push(&Bytes::from_static(b"x"));
+        }
+        assert!(b.chunks.len() < 100, "{}", b.chunks.len());
+        // One chunk larger than the limit is still kept.
+        b.push(&Bytes::from(vec![0u8; 64 * 200]));
+        assert_eq!(b.chunks.len(), 1);
+    }
+
+    #[test]
+    fn a_keyframe_in_every_chunk_is_trimmed_as_it_goes() {
+        let key = packet(0x101, true, Some(0x40), &[0, 0, 1, 0xe0]);
+        let mut b = Backlog::new(LIMIT);
+        for chunk in [[pat(0x100), packet(0x100, true, None, &[0, 2])].concat(), key.clone(), key.clone(), key] {
+            b.push(&Bytes::from(chunk));
+            b.trim_to_keyframe_older_than(Duration::ZERO);
+        }
+        // Each newer keyframe let the older go: the newest alone is held.
+        assert_eq!((b.keyframes.len(), b.chunks.len()), (1, 1));
+    }
+
+    #[test]
+    fn a_stream_marking_no_keyframes_keeps_only_its_last_moments() {
+        let frame = Bytes::from(packet(0x101, true, Some(0), &[0, 0, 1, 0xe0]));
+        let mut b = Backlog::new(LIMIT);
+        for _ in 0..50 {
+            b.push(&frame);
+        }
+        b.trim_to_keyframe_older_than(Duration::from_secs(3600));
+        assert_eq!(b.chunks.len(), 50);
+        b.trim_to_keyframe_older_than(Duration::ZERO);
+        assert_eq!(b.chunks.len(), 1);
     }
 
     #[test]

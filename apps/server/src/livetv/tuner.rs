@@ -54,6 +54,8 @@ const BACKLOG_BYTES: usize = 2 << 20;
 const CHANNEL_CHUNKS: usize = 2048;
 /// The provider sending nothing this long breaks the connection.
 const STALL: Duration = Duration::from_secs(15);
+/// How long a channel whose transcode failed isn't asked to be made again.
+const HLS_RETRY: Duration = Duration::from_secs(30);
 /// The most of a provider's HLS segment read whole (to put its audio in).
 const SEGMENT_BYTES: usize = 64 << 20;
 /// The pieces a segment read whole is handed on in, as a segment read as it
@@ -364,8 +366,10 @@ struct TunerState {
     idle_since: Option<Instant>,
     /// The provider was given up on.
     ended: bool,
-    /// The transcoder's job failed (and why): not made again for this tuner.
-    hls_failed: Option<String>,
+    /// The transcoder's job failed, why and when: not made again for
+    /// [`HLS_RETRY`] (players that read the provider's stream keep a tuner
+    /// long after, and the trouble may pass: a transcode slot frees).
+    hls_failed: Option<(String, Instant)>,
     plan: Option<LivePlan>,
     /// A player asked for the transcoder's playlist: it is made now.
     transcoding: bool,
@@ -1138,7 +1142,17 @@ impl Tuners {
                         *hls = None;
                     }
                 }
-                Err(err) => return Err(self.why_not(&tuner, err.into())),
+                Err(err) => {
+                    // The job failed (no transcode slot free, say): its reason, not the bare error,
+                    // before the feed's end records it too.
+                    if let Ok(status) = self.transcoder.live_status(&job).await
+                        && let Some(why) = status.error
+                        && tuner.state.lock().connected
+                    {
+                        tuner.state.lock().hls_failed = Some((why, Instant::now()));
+                    }
+                    return Err(self.why_not(&tuner, err.into()));
+                }
             }
         }
         Err(self.why_not(&tuner, AppError::Unavailable("the channel didn't start".into())))
@@ -1147,7 +1161,7 @@ impl Tuners {
     /// The error a player gets: what the provider did, when it is to blame.
     fn why_not(&self, tuner: &Tuner, fallback: AppError) -> AppError {
         let state = tuner.state.lock();
-        match (&state.error, state.connected, &state.hls_failed) {
+        match (&state.error, state.connected, state.hls_failed.as_ref().map(|(why, _)| why)) {
             (Some(why), false, _) => AppError::Unavailable(format!("{} isn't playing: {why}", tuner.channel_name)),
             (_, _, Some(why)) => AppError::Unavailable(format!("{} can't be shown: {why}", tuner.channel_name)),
             _ => fallback,
@@ -1159,8 +1173,16 @@ impl Tuners {
         if let Some(job) = hls.clone() {
             return Ok(job);
         }
-        if let Some(why) = tuner.state.lock().hls_failed.clone() {
-            return Err(AppError::Unavailable(format!("{} can't be shown: {why}", tuner.channel_name)));
+        {
+            let mut state = tuner.state.lock();
+            match &state.hls_failed {
+                Some((why, at)) if at.elapsed() < HLS_RETRY => {
+                    return Err(AppError::Unavailable(format!("{} can't be shown: {why}", tuner.channel_name)));
+                }
+                // Long enough ago: tried again.
+                Some(_) => state.hls_failed = None,
+                None => {}
+            }
         }
         if !tuner.is_live() {
             return Err(self.why_not(tuner, AppError::Unavailable("the channel stopped".into())));
@@ -1202,7 +1224,7 @@ impl Tuners {
                     && connected
                 {
                     tracing::warn!(channel = t.channel_id, "the transcoder gave up on a live channel: {why}");
-                    t.state.lock().hls_failed = Some(why);
+                    t.state.lock().hls_failed = Some((why, Instant::now()));
                 }
             } else if let Err(err) = result {
                 tracing::warn!(channel = t.channel_id, "sending a live channel to the transcoder failed: {err}");
@@ -1289,7 +1311,7 @@ impl Tuners {
                     source_name: t.source_name.clone(),
                     started_at: t.started_at,
                     connected: state.connected,
-                    error: state.error.clone().or_else(|| state.hls_failed.clone()),
+                    error: state.error.clone().or_else(|| state.hls_failed.as_ref().map(|(why, _)| why.clone())),
                     bytes_in: state.bytes_in,
                     kbps,
                     idle: watching.is_empty(),

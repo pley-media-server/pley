@@ -1389,6 +1389,8 @@ async fn a_guide_that_breaks_off_leaves_nothing_behind() {
 struct LiveMaker {
     created: Arc<parking_lot::Mutex<Vec<Value>>>,
     playlists: Arc<AtomicUsize>,
+    /// Its channels fail as one with no transcode slot free does.
+    busy: Arc<AtomicBool>,
 }
 
 async fn live_maker() -> (String, LiveMaker) {
@@ -1429,10 +1431,12 @@ async fn live_maker() -> (String, LiveMaker) {
         )
         .route(
             "/v1/live/{id}",
-            get(|Path(id): Path<String>| async move {
+            get(|State(maker): State<LiveMaker>, Path(id): Path<String>| async move {
+                let busy = maker.busy.load(Ordering::SeqCst);
                 Json(LiveStatus {
                     id,
-                    state: LiveState::Waiting,
+                    state: if busy { LiveState::Failed } else { LiveState::Waiting },
+                    error: busy.then(|| "every transcode slot is taken".to_owned()),
                     plan: Some(LivePlan {
                         video_codec: Some("hevc".into()),
                         width: Some(3840),
@@ -1455,7 +1459,11 @@ async fn live_maker() -> (String, LiveMaker) {
             "/v1/live/{id}/{file}",
             get(|State(maker): State<LiveMaker>| async move {
                 maker.playlists.fetch_add(1, Ordering::SeqCst);
-                "#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:1.0,\ns0.ts\n"
+                if maker.busy.load(Ordering::SeqCst) {
+                    let why = json!({"code": "busy", "message": "every transcode slot is taken"});
+                    return (StatusCode::SERVICE_UNAVAILABLE, Json(why)).into_response();
+                }
+                "#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:1.0,\ns0.ts\n".into_response()
             }),
         )
         .with_state(maker.clone());
@@ -1524,4 +1532,44 @@ async fn a_channel_plays_as_the_provider_sends_it_with_no_transcode_until_hls_is
     assert_eq!(maker.playlists.load(Ordering::SeqCst), 1);
     assert_eq!(maker.created.lock().len(), 1);
     assert_eq!(app.get("/api/live/tuners", &admin).await.body[0]["transcoding"], true);
+}
+
+/// A channel whose transcode can't be made (no slot free) tells an HLS
+/// player why at once, while a player reading the provider's stream keeps
+/// the channel, and isn't made again straight away.
+#[tokio::test]
+async fn an_hls_player_is_told_why_the_transcode_cant_be_made() {
+    let (base, _) = provider().await;
+    let (maker_url, maker) = live_maker().await;
+    let app = TestApp::with_config(|c| c.transcoder_url = Some(maker_url)).await;
+    app.state.transcoder.start();
+    assert!(app.state.transcoder.wait_ready(Duration::from_secs(10)).await, "the stand-in answers /v1/info");
+    let admin = app.setup_admin().await;
+    let added = app
+        .post(
+            "/api/live/sources",
+            &admin,
+            json!({"name": "Provider", "kind": "m3u", "url": format!("{base}/list.m3u")}),
+        )
+        .await;
+    assert_eq!(added.status, StatusCode::CREATED, "{:?}", added.body);
+    wait_until_read(&app, &admin).await;
+    let one = app.get("/api/live/channels", &admin).await.body[0]["id"].as_i64().unwrap();
+    let watching = app.post(&format!("/api/live/channels/{one}/watch"), &admin, json!({"client_id": "tv"})).await;
+    let session = watching.body["session_id"].as_str().unwrap().to_owned();
+    let (status, body) = open_stream(&app, &admin, one, "tv-stream").await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, _reading) = first_bytes(body).await;
+    assert_eq!(app.get(&format!("/api/live/sessions/{session}/plan"), &admin).await.status, StatusCode::OK);
+
+    maker.busy.store(true, Ordering::SeqCst);
+    let refused = app.get(&format!("/api/live/sessions/{session}/index.m3u8"), &admin).await;
+    assert_eq!(refused.status, StatusCode::SERVICE_UNAVAILABLE, "{:?}", refused.body);
+    let said = refused.body["message"].as_str().unwrap_or_default().to_owned();
+    assert!(said.contains("every transcode slot is taken"), "{said}");
+    // Asked again soon: the same answer, and no new job.
+    let jobs = maker.created.lock().len();
+    let again = app.get(&format!("/api/live/sessions/{session}/index.m3u8"), &admin).await;
+    assert_eq!(again.status, StatusCode::SERVICE_UNAVAILABLE, "{:?}", again.body);
+    assert_eq!(maker.created.lock().len(), jobs);
 }

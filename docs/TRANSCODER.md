@@ -574,8 +574,9 @@ One input at a time; a second is `400`.
   the rest after it.
 - **On demand.** With `on_demand`, FFmpeg waits for the first request for
   the playlist, keeping what came from the newest video keyframe at least
-  3 s old (16 MB at most) meanwhile, and starts with the stream's tables
-  (PAT and PMT) and that keyframe: the first segments come at once. Until then the channel
+  3 s old (16 MB at most; the last 3 s of a stream that marks none)
+  meanwhile, and starts with the stream's tables (PAT and PMT) and that
+  keyframe: the first segments come at once. Until then the channel
   is `waiting` with its `plan`, and takes no slot. A caller whose players
   read the provider's stream themselves learns what it is, for nothing;
   one nobody asks for is stopped as idle, like any other.

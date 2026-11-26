@@ -532,7 +532,7 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   channel, sends `DELETE /api/live/sessions/{session}`.
 - **Playback details** (Replay; the banner names the key, as the live
   player has no row of buttons for an Info button) show in the panel a
-  title's player's Info opens, under the same title and in the same rows:
+  title's player's Info opens, under the same title:
   Direct stream while the server copies the channel's video into its HLS
   stream, else Transcoding; the provider's video and audio, and what the
   server makes of them; what the provider sends now, with the transcode's

@@ -4827,14 +4827,14 @@ interface LiveTuner {                  // a connection in use
   same HLS stream, made once, and only once a player asks for its
   playlist: the plan alone starts nothing.
 - **Direct Play.** A player that reads MPEG-TS plays the channel from
-  `stream.ts` when it decodes what the provider sends: the plan's
-  progressive video (`video_codec`, at its `bit_depth` and size) and sound
-  (`audio_codec`), or either alone. An HEVC channel on a device that plays
-  HEVC takes no transcode. Interlaced video goes to the transcoder unless
-  copied while it makes it progressive (`deinterlace`), and so does
-  anything else the device doesn't decode. Players show which it is in
-  their Playback details: Direct play from `stream.ts`, Direct stream for
-  copied HLS, else Transcoding.
+  `stream.ts` when it decodes what the provider sends: the plan's video
+  (`video_codec`, at its `bit_depth` and size) and sound (`audio_codec`),
+  or either alone. An HEVC channel on a device that plays HEVC takes no
+  transcode. While the server deinterlaces (`deinterlace`), interlaced
+  video goes to the transcoder unless copied, and so does anything else
+  the device doesn't decode. Players show which it is in their Playback
+  details: Direct play from `stream.ts`, Direct stream for copied HLS,
+  else Transcoding.
 - **Leaving.** An HLS viewer that asked for nothing for 45 s has left,
   unless its device reads the channel's `stream.ts` for it instead (as
   `<client_id>-stream`): it stays while that is read.

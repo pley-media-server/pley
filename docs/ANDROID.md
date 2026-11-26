@@ -878,13 +878,12 @@ comes first, then asks for the session's `plan`: a channel the server sends
 as it is plays that MPEG-TS from its first keyframe, and so does any
 channel the device plays as the provider sends it
 ([API.md](API.md#live-tv)), of which the server makes no transcode:
-progressive H.264, HEVC or MPEG-2 video that one of the device's decoders
+H.264, HEVC or MPEG-2 video that one of the device's decoders
 takes at its bit depth, size and frame rate (8 bits when the plan gives
 none), with AAC, AC3, E-AC3 or MP3 sound the device decodes or sends to
 its receiver as it is (Diagnostics lists both), which is what Media3 reads
-from MPEG-TS and Android has decoders for. Interlaced video the server
-converts stays with the server, whose deinterlacing setting decides, and
-so does MP2 sound, which the app doesn't look for a decoder of. Before the
+from MPEG-TS and Android has decoders for. Interlaced video stays with
+the server while its Deinterlace setting is on, and so does MP2 sound, which the app doesn't look for a decoder of. Before the
 device's decoders are known, only a channel sent as it is plays so.
 Anything else plays the server's HLS, and so does a channel whose
 `stream.ts` fails.

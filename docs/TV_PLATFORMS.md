@@ -715,14 +715,14 @@ with sound every Samsung TV decodes itself (AC3, E-AC3, MP2), which the
 server converts for other players; otherwise, or when it fails, the
 channel's HLS. A channel the server would convert plays from `stream.ts`
 too when the TV decodes it as the provider sends it, and the server makes
-no transcode of it: progressive video that a decoder in the TV's report
+no transcode of it: video that a decoder in the TV's report
 takes at its bit depth (8 when the server doesn't say), size and frame
 rate (the report a film's direct play goes by, `Player/TizenCaps.cs`), and
 sound the TV decodes or passes to the receiver. Only what the TV's player
 reads out of MPEG-TS counts (H.264, HEVC and MPEG-2 video; AAC, AC3,
 E-AC3, MP2 and MP3 sound), so an AV1 channel stays with its HLS though the
-TV plays AV1 files, and interlaced video the server converts stays with
-the server, whose deinterlacing setting decides. The rule is
+TV plays AV1 files, and interlaced video stays with the server while its
+Deinterlace setting is on. The rule is
 `LiveRules.PlaysAsSent`, as Android's `playsAsSent`. The TV's
 player can't send the `Authorization` header `stream.ts` needs, and the
 server takes an app's token nowhere else, so the app reads it with its

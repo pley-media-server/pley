@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { StreamCaps } from "@/lib/caps";
 import { notAsSent, playsAsSent, type SessionPlan } from "./livetv";
 
-/** A 1080p HEVC channel with AAC sound, as a server with Direct Play on plans it: its video transcoded. */
+/** A 1080p HEVC channel with AAC sound, as the server plans it: its video transcoded. */
 const hevc = (plan: Partial<SessionPlan> = {}): SessionPlan => ({
   video_codec: "hevc",
   width: 1920,

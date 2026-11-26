@@ -266,6 +266,9 @@ function LivePlayer({
   const [playback, setPlayback] = useState<LivePlayback | null>(null);
   // What the badge says: the plan as the tune or the details last had it.
   const knownPlan = useSessionPlan(session, false).data ?? null;
+  // Not had from the tune (the transcoder's segments played at once): asked
+  // until known, for the badge, as the details would.
+  useSessionPlan(session, !!playback && !playback.direct && !knownPlan);
   const method = playback ? liveMethod(playback.direct, knownPlan) : null;
   // Watch on…'s menu is open: the controls it hangs from stay.
   const [watchOn, setWatchOn] = useState(false);
@@ -347,8 +350,8 @@ function LivePlayer({
     };
     // A channel sent as it is (H.264 and AAC) plays from its stream as soon
     // as a keyframe comes, and so does one this browser decodes as the
-    // provider sends it (HEVC, say) while the server's Direct Play is on; any
-    // other, or where that can't be, from the transcoder's segments. The
+    // provider sends it (HEVC, say); any other, or where that can't be,
+    // from the transcoder's segments. The
     // stream is read while the server says what the channel is, and plays
     // once it says so.
     const playDirect = async (sessionId: string): Promise<boolean> => {
@@ -749,7 +752,7 @@ function LivePlayer({
     return () => window.clearTimeout(hideTimer.current);
   }, []);
   const controlsVisible =
-    showControls || panel || watchOn || details || status === "error" || (!remoteTune && (!playing || status === "tuning"));
+    showControls || panel || watchOn || details || detailsHover || status === "error" || (!remoteTune && (!playing || status === "tuning"));
 
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement != null);
@@ -1056,7 +1059,12 @@ function LivePlayer({
             ) : null}
             <div className="flex-1" />
             {/* How it plays, as the video player's badge says it: hovered, or pressed to keep them open. */}
-            <div className="mr-1" onMouseEnter={() => setDetailsHover(true)} onMouseLeave={() => setDetailsHover(false)}>
+            <div
+              className="mr-1"
+              // A mouse only: a tap is a press, which keeps them open or closes them.
+              onPointerEnter={(e) => e.pointerType === "mouse" && setDetailsHover(true)}
+              onPointerLeave={() => setDetailsHover(false)}
+            >
               <button
                 type="button"
                 aria-label={t("player:settings.panel.details")}
