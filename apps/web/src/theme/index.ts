@@ -25,7 +25,7 @@ export function isTheme(value: unknown): value is Theme {
  * The accents picked over a theme's own (docs/THEMES.md, "Accents"): on
  * <html data-accent>, none for the theme's own.
  */
-export const ACCENTS = ["sky", "violet", "miami", "gold", "mint", "sunset", "fire"] as const;
+export const ACCENTS = ["sky", "violet", "miami", "gold", "mint", "amber"] as const;
 export type Accent = (typeof ACCENTS)[number];
 
 /** Where this device keeps the accent it showed last; public/theme.js reads it too. */

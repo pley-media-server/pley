@@ -1,7 +1,7 @@
 # Themes
 
 Pley is drawn in one of nine themes, picked on Account → Appearance, in the
-theme's own accent or one of seven others. The pick belongs to the device it
+theme's own accent or one of six others. The pick belongs to the device it
 was made on: each browser, and the desktop app, keeps its own, and starts in
 Midnight until one is picked there. The web app
 and the desktop app draw all nine. The other apps draw Midnight for now, and
@@ -58,16 +58,16 @@ light theme it is handed as its dark twin (the table's last column).
 
 ## Accents
 
-An accent can replace a theme's own: Sky, Violet, Miami, Gold, Mint, Sunset
-or Fire, picked under the themes on Account → Appearance. It colors what the
+An accent can replace a theme's own: Sky, Violet, Miami, Gold, Mint or
+Amber, picked under the themes on Account → Appearance. It colors what the
 theme's accent colors (buttons, links, focus, what is picked) and the logo's
 posters, and nothing else: the surfaces, the words and the logo's tile stay
 the theme's. The logo takes the colors of the theme its accent comes from:
 Sky's are Midnight's and Midday's, Miami's Twilight's, Gold's Moonlight's
 and Starlight's, Mint's Nightshade's and Greenlight's, so an accent that
-matches a theme's own leaves that theme's logo as it was. Violet's, Sunset's
-and Fire's, and Miami's in the light themes, follow the same steps from
-light to deep. Sunshine keeps its toy-box logo under any accent. Like the
+matches a theme's own leaves that theme's logo as it was. Violet's and
+Amber's, and Miami's in the light themes, follow the same steps from light
+to deep. Sunshine keeps its toy-box logo under any accent. Like the
 theme, it belongs to the device (the web app: `pley.accent` in
 `localStorage`), and a device that picked none, or whose stored id it
 doesn't know, shows the theme's own. It stays when the theme changes. The
@@ -84,7 +84,7 @@ under any accent.
 An accent never reads as a state. Where one comes near a state color, that
 state moves aside while it is picked, as Nightshade's success leans teal
 beside its mint: with Mint, success turns teal; with Gold, warning turns
-orange; with Sunset, warning turns yellow; with Fire, danger leans crimson.
+orange; with Amber, warning turns yellow.
 
 ## How the web app draws a theme
 
@@ -96,8 +96,8 @@ orange; with Sunset, warning turns yellow; with Fire, danger leans crimson.
   theme's own. Each `[data-accent="<id>"]` block sets `--accent-dark`,
   `--accent-dark-hover` and `--accent-dark-fg`, the same three for `light`,
   the logo's colors (`--accent-dark-logo…`, `--accent-light-logo…`), and
-  `--success-dark`/`--success-light`, `--danger-…` or `--warning-…` where it
-  moves a state. Every theme reads them, its own color the fallback:
+  `--success-dark`/`--success-light` or `--warning-…` where it moves a
+  state. Every theme reads them, its own color the fallback:
   `--color-accent: var(--accent-dark, #38bdf8)`. `[data-accent="own"]` clears
   them, so the picker's swatch of the theme's own shows inside a page with
   another.
@@ -183,9 +183,9 @@ readable where the picture is brightest.
    `ThemeCard.test.tsx`).
 2. Add its block to `index.css`, with every token and variable, starting from
    the closest theme. A light theme also goes in its dark twin's selector list
-   (`[data-theme="<id>"] [data-dark]`). Its accent, success, danger and
-   warning read the accent's variables, as the others' do (`--accent-light…`
-   in a light theme), and so do its logo's posters. Every accent's logo has
+   (`[data-theme="<id>"] [data-dark]`). Its accent, success and warning read
+   the accent's variables, as the others' do (`--accent-light…` in a light
+   theme), and so do its logo's posters. Every accent's logo has
    to stay readable on its tile.
 3. Give it a name and a caption of a few words in every language: under
    `account.theme` in `apps/web/src/i18n/locales/<language>/pages.json`.

@@ -43,7 +43,7 @@ describe("ThemeCard", () => {
     expect(screen.getByRole("radio", { name: "Gold" })).toBeChecked();
   });
 
-  it("offers the theme's own and seven accents, the theme's own on a device that picked none", () => {
+  it("offers the theme's own and six accents, the theme's own on a device that picked none", () => {
     startTheme();
     renderWithProviders(<ThemeCard />);
     expect(within(accents()).getAllByRole("radio").map((radio) => radio.closest("label")?.textContent)).toEqual([
@@ -53,8 +53,7 @@ describe("ThemeCard", () => {
       "Miami",
       "Gold",
       "Mint",
-      "Sunset",
-      "Fire",
+      "Amber",
     ]);
     expect(screen.getByRole("radio", { name: "Default" })).toBeChecked();
   });
@@ -84,8 +83,8 @@ describe("ThemeCard", () => {
     renderWithProviders(<ThemeCard />);
     await userEvent.click(screen.getByRole("radio", { name: /^Blacklight/ }));
     for (const radio of within(accents()).getAllByRole("radio")) expect(radio).toBeEnabled();
-    await userEvent.click(screen.getByRole("radio", { name: "Fire" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Amber" }));
     expect(document.documentElement.dataset.theme).toBe("blacklight");
-    expect(document.documentElement.dataset.accent).toBe("fire");
+    expect(document.documentElement.dataset.accent).toBe("amber");
   });
 });

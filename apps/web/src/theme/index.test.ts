@@ -74,8 +74,8 @@ describe("themes", () => {
 });
 
 describe("accents", () => {
-  it("are Pley's seven, none being the theme's own", () => {
-    expect(ACCENTS).toEqual(["sky", "violet", "miami", "gold", "mint", "sunset", "fire"]);
+  it("are Pley's six, none being the theme's own", () => {
+    expect(ACCENTS).toEqual(["sky", "violet", "miami", "gold", "mint", "amber"]);
     expect(isAccent("gold")).toBe(true);
     for (const wrong of ["own", "Gold", "", null, 3]) expect(isAccent(wrong)).toBe(false);
   });

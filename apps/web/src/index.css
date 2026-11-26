@@ -147,7 +147,7 @@
   --color-muted: #a1a9b6;
   --color-subtle: #7e8795;
   --color-success: var(--success-dark, #3fb27f);
-  --color-danger: var(--danger-dark, #ed6c6d);
+  --color-danger: #ed6c6d;
   --color-danger-fg: #0b0d10;
   --color-info: #4c9aff;
   --color-warning: var(--warning-dark, #f0a83c);
@@ -179,7 +179,7 @@
   --color-muted: #4a5361;
   --color-subtle: #5d6675;
   --color-success: var(--success-light, #126e46);
-  --color-danger: var(--danger-light, #b42d36);
+  --color-danger: #b42d36;
   --color-danger-fg: #ffffff;
   --color-info: #1e5dc0;
   --color-warning: var(--warning-light, #855700);
@@ -211,7 +211,7 @@
   --color-muted: #5c5141;
   --color-subtle: #685d4a;
   --color-success: var(--success-light, #206c45);
-  --color-danger: var(--danger-light, #ac2f28);
+  --color-danger: #ac2f28;
   --color-danger-fg: #ffffff;
   --color-info: #2b5daf;
   --color-warning: var(--warning-light, #8a5200);
@@ -247,7 +247,7 @@
   --color-muted: #c9b8d1;
   --color-subtle: #9a88ab;
   --color-success: var(--success-dark, #4cc38a);
-  --color-danger: var(--danger-dark, #f0727e);
+  --color-danger: #f0727e;
   --color-danger-fg: #140e22;
   --color-info: #7aa7ff;
   --color-warning: var(--warning-dark, #ffa24c);
@@ -280,7 +280,7 @@
   --color-muted: #bdb6a8;
   --color-subtle: #8e8a82;
   --color-success: var(--success-dark, #5bc28c);
-  --color-danger: var(--danger-dark, #e8726d);
+  --color-danger: #e8726d;
   --color-danger-fg: #0c0d0e;
   --color-info: #6fa8ff;
   --color-warning: var(--warning-dark, #f59a45);
@@ -313,7 +313,7 @@
   --color-muted: #a2b3a8;
   --color-subtle: #798c81;
   --color-success: var(--success-dark, #3cc2a6);
-  --color-danger: var(--danger-dark, #e8726d);
+  --color-danger: #e8726d;
   --color-danger-fg: #0a0f0c;
   --color-info: #6aa6ff;
   --color-warning: var(--warning-dark, #f0a83c);
@@ -345,7 +345,7 @@
   --color-muted: #45564a;
   --color-subtle: #58695d;
   --color-success: var(--success-light, #0d6a60);
-  --color-danger: var(--danger-light, #b02c35);
+  --color-danger: #b02c35;
   --color-danger-fg: #ffffff;
   --color-info: #1e5dc0;
   --color-warning: var(--warning-light, #855700);
@@ -394,7 +394,7 @@
   --color-muted: #4f437c;
   --color-subtle: #62578f;
   --color-success: var(--success-light, #0c713d);
-  --color-danger: var(--danger-light, #b81e3f);
+  --color-danger: #b81e3f;
   --color-danger-fg: #ffffff;
   --color-info: #135ec2;
   --color-warning: var(--warning-light, #a14700);
@@ -539,45 +539,26 @@
   --success-light: #0d6a60;
 }
 
-/* Sunset would read as a warning: warnings turn yellow beside it. */
-[data-accent="sunset"] {
-  --accent-dark: #ff9447;
-  --accent-dark-hover: #ffb27a;
-  --accent-dark-fg: #1f0d02;
-  --accent-dark-logo-light: #ffd9b5;
-  --accent-dark-logo: #ff9447;
-  --accent-dark-logo-deep: #c2621f;
-  --accent-dark-logo-far: #6b3517;
-  --accent-light: #9c4100;
-  --accent-light-hover: #873800;
+/* Amber would read as a warning: warnings turn yellow beside it. */
+[data-accent="amber"] {
+  --accent-dark: #ff6f3c;
+  --accent-dark-hover: #ff956c;
+  --accent-dark-fg: #1f0702;
+  --accent-dark-logo-light: #ffcbb0;
+  --accent-dark-logo: #ff6f3c;
+  --accent-dark-logo-deep: #c4461a;
+  --accent-dark-logo-far: #6b2612;
+  --accent-light: #a03d00;
+  --accent-light-hover: #8b3500;
   --accent-light-fg: #ffffff;
-  --accent-light-logo-light: #ff9447;
-  --accent-light-logo: #9c4100;
-  --accent-light-logo-deep: #d9742c;
-  --accent-light-logo-far: #e6b083;
+  --accent-light-logo-light: #ff6f3c;
+  --accent-light-logo: #a03d00;
+  --accent-light-logo-deep: #de5a2c;
+  --accent-light-logo-far: #efae92;
   --warning-dark: #e8c23a;
   --warning-light: #6f5a00;
 }
 
-/* Fire would read as danger: danger leans crimson beside it. */
-[data-accent="fire"] {
-  --accent-dark: #ff6459;
-  --accent-dark-hover: #ff8f86;
-  --accent-dark-fg: #1f0604;
-  --accent-dark-logo-light: #ffc8c0;
-  --accent-dark-logo: #ff6459;
-  --accent-dark-logo-deep: #c4372c;
-  --accent-dark-logo-far: #6b1f1b;
-  --accent-light: #b3261a;
-  --accent-light-hover: #9c2116;
-  --accent-light-fg: #ffffff;
-  --accent-light-logo-light: #ff6459;
-  --accent-light-logo: #b3261a;
-  --accent-light-logo-deep: #e0574a;
-  --accent-light-logo-far: #f0b4ac;
-  --danger-dark: #f5759f;
-  --danger-light: #a8195a;
-}
 
 /* The theme's own, inside a page with another accent (the picker's swatch). */
 [data-accent="own"] {
@@ -597,8 +578,6 @@
   --accent-light-logo-far: initial;
   --success-dark: initial;
   --success-light: initial;
-  --danger-dark: initial;
-  --danger-light: initial;
   --warning-dark: initial;
   --warning-light: initial;
 }
