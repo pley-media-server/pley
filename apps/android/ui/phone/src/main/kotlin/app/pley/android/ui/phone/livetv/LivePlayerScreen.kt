@@ -105,6 +105,7 @@ import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.player.CarGap
+import app.pley.android.ui.phone.player.DetailsReadout
 import app.pley.android.ui.phone.player.LocalCarScreen
 import app.pley.android.ui.phone.player.MethodBadge
 import app.pley.android.ui.phone.player.PlaybackDetailsBody
@@ -128,10 +129,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * down changes channel. What's on and next shows for 5 s when a tap brings
  * the controls, not on its own as a channel tunes. [onPip], where picture in
  * picture is allowed, is a button in the top bar; [inPip], the small window
- * shows the picture alone ([PipOverlay]).
+ * shows the picture alone ([PipOverlay]). [showDetails] (Settings →
+ * Playback details) keeps the video player's readout over the picture
+ * while the controls are hidden ([LiveReadout]).
  */
 @Composable
-internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit, inPip: Boolean = false, onPip: (() -> Unit)? = null) {
+internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit, inPip: Boolean = false, onPip: (() -> Unit)? = null, showDetails: Boolean = false) {
     val state by vm.state.collectAsStateWithLifecycle()
     val engine by vm.engine.collectAsStateWithLifecycle()
     val channel by vm.channel.collectAsStateWithLifecycle()
@@ -234,6 +237,7 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit, inPip
         AnimatedVisibility(controls && state.phase !is LivePhase.Failed, enter = fadeIn(), exit = fadeOut()) {
             Controls(state, shown, origin, now, vm, method, onBack = onBack, onChannels = { panel = true }, onDetails = { details = true }, onPoke = poke, onPip = onPip)
         }
+        LiveReadout(vm, method, shown = showDetails && playing && !controls && !panel && !details)
         if (shown != null) {
             AnimatedVisibility(
                 banner && playing && !panel && !details,
@@ -286,6 +290,27 @@ private fun BoxScope.DetailsSheet(open: Boolean, vm: LivePlayerViewModel, onClos
             PlaybackDetailsBody(remember(playing, resources) { playing?.let { LiveDetails.build(resources, it) } }, engine)
         }
     }
+}
+
+/**
+ * Settings → Playback details over a channel, as over a video
+ * ([DetailsReadout]): how it plays and its details' rows, while the
+ * controls are hidden and neither the channel list nor the details' sheet
+ * is open. The server is asked while it shows, as for the sheet, for the
+ * bitrate as it is now ([LivePlayerViewModel.details]); until it answers,
+ * what the badge [knows] is shown.
+ */
+@Composable
+private fun BoxScope.LiveReadout(vm: LivePlayerViewModel, knows: PlaybackDetailsUi?, shown: Boolean) {
+    val resources = LocalResources.current
+    // Collected only while it shows: hidden, nothing is asked.
+    val asked = if (shown) {
+        val playing by vm.details.collectAsStateWithLifecycle()
+        remember(playing, resources) { playing?.let { LiveDetails.build(resources, it) } }
+    } else {
+        null
+    }
+    DetailsReadout(asked ?: knows, shown)
 }
 
 /** The category the player was opened from: names leave out the region its group says. */

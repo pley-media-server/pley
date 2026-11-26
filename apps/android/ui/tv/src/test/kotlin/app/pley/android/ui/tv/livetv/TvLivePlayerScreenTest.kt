@@ -25,6 +25,7 @@ import app.pley.android.screens.livetv.LivePlayerViewModel
 import app.pley.android.testing.data.FakeLiveTv
 import app.pley.android.testing.player.engine.FakePlayerEngine
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.player.TAG_DETAILS
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlin.reflect.KClass
 import kotlinx.coroutines.flow.flowOf
@@ -36,7 +37,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** The TV's live player with the remote's keys: OK and OK held, what's over the picture, Playback details. */
+/** The TV's live player with the remote's keys: OK and OK held, what's over the picture, Playback details in their panel and over the picture. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
 class TvLivePlayerScreenTest {
@@ -70,10 +71,10 @@ class TvLivePlayerScreenTest {
         return ViewModelProvider.create(store, factory)[LivePlayerViewModel::class]
     }
 
-    private fun show(vm: LivePlayerViewModel) {
+    private fun show(vm: LivePlayerViewModel, showDetails: Boolean = false) {
         compose.setContent {
             TvTheme {
-                TvLivePlayerScreen(vm, onExit = {})
+                TvLivePlayerScreen(vm, onExit = {}, showDetails = showDetails)
             }
         }
         compose.waitForIdle()
@@ -171,6 +172,52 @@ class TvLivePlayerScreenTest {
         compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.waitForIdle()
         compose.onNodeWithTag(TV_LIVE_PLAYER_DETAILS).assertDoesNotExist()
+    }
+
+    @Test
+    fun `Playback details show over the channel while nothing else does, as over a video, asking the server`() {
+        live.plan = LivePlan(
+            videoCodec = "hevc", width = 1920, height = 1080, frameRate = 50.0, bitDepth = 10,
+            audioCodec = "aac", audioChannels = 2, video = "copy", audio = "copy", kbps = 6_500,
+        )
+        val vm = player()
+        show(vm, showDetails = true)
+        // Nothing to say of a channel that tunes.
+        compose.onNodeWithTag(TAG_DETAILS).assertDoesNotExist()
+        playing(vm)
+        // The video player's readout: the way, then the rows of the channel's details.
+        compose.onNodeWithTag(TAG_DETAILS).assertExists()
+        compose.onNodeWithText("Direct play").assertExists()
+        compose.onNodeWithText("HEVC 10-bit · 1920×1080 · 50 fps").assertExists()
+        compose.onNodeWithText("AAC 2.0").assertExists()
+        compose.onNodeWithText("6.5 Mbps").assertExists()
+        // Asked of the session watched, besides the tune's own asking.
+        assertEquals(listOf("live-1", "live-1"), live.plansAsked)
+
+        // The controls take its place, and it comes back when they go.
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_CENTER)
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_CENTER, repeat = 1)
+        send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_CENTER)
+        channelsFocused()
+        compose.onNodeWithTag(TAG_DETAILS).assertDoesNotExist()
+        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_DETAILS).assertExists()
+        // The channel list does too.
+        ok()
+        compose.onNodeWithTag(TV_LIVE_PLAYER_CHANNELS).assertExists()
+        compose.onNodeWithTag(TAG_DETAILS).assertDoesNotExist()
+    }
+
+    @Test
+    fun `without the setting nothing shows over the channel, and the server isn't asked`() {
+        live.plan = LivePlan(videoCodec = "h264", width = 1280, height = 720, audioCodec = "aac", audioChannels = 2, video = "copy", audio = "copy")
+        val vm = player()
+        show(vm)
+        playing(vm)
+        compose.onNodeWithTag(TAG_DETAILS).assertDoesNotExist()
+        // The tune's own asking, alone.
+        assertEquals(listOf("live-1"), live.plansAsked)
     }
 
     @Test

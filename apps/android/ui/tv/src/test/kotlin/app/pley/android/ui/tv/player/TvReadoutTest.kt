@@ -60,7 +60,7 @@ class TvReadoutTest {
     fun `a live channel's panel has how it plays, where its sound goes and this TV, with no file or tracks`() {
         val live = PlaybackDetailsUi(
             method = "Transcoding",
-            why = "This device doesn't play HEVC",
+            why = "This device doesn't play HEVC 10-bit video.",
             pipeline = null,
             rows = listOf(DetailRow("Video", "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p"), DetailRow("Encoder", "NVIDIA NVENC")),
             engine = emptyList(),
@@ -70,7 +70,7 @@ class TvReadoutTest {
         // A video's sections, in its order, without those of a file and its tracks.
         assertEquals(listOf("How it plays", "Audio", "This TV"), sections.map { it.title })
         assertEquals(
-            listOf("Playback" to "Transcoding", "Why" to "This device doesn't play HEVC", "Video" to "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p", "Encoder" to "NVIDIA NVENC"),
+            listOf("Playback" to "Transcoding", "Why" to "This device doesn't play HEVC 10-bit video.", "Video" to "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p", "Encoder" to "NVIDIA NVENC"),
             sections[0].facts.map { it.label to it.value },
         )
         assertEquals(listOf("Output" to "Passed through as E-AC-3"), sections[1].facts.map { it.label to it.value })
@@ -78,6 +78,39 @@ class TvReadoutTest {
         // Before the server answered, this TV's side alone; with nothing known, nothing.
         assertEquals(listOf("Audio", "This TV"), TvReadout.liveSections(r, ReadoutInput(stats = stats)).map { it.title })
         assertEquals(emptyList<String>(), TvReadout.liveSections(r, ReadoutInput()).map { it.title })
+    }
+
+    @Test
+    fun `Playback details over a live channel have how it plays, its rows and this TV, without the reason`() {
+        val live = PlaybackDetailsUi(
+            method = "Transcoding",
+            why = "This device doesn't play HEVC 10-bit video.",
+            pipeline = null,
+            rows = listOf(DetailRow("Video", "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p"), DetailRow("Audio", "EAC3 5.1 → AAC 2.0"), DetailRow("Bitrate", "12 Mbps → 8.0 Mbps"), DetailRow("Encoder", "NVIDIA NVENC")),
+            engine = emptyList(),
+            playbackMethod = PlaybackMethod.Transcode,
+        )
+        val display = DisplayNow(3840, 2160, 50f, emptyList())
+        // A video's compact lines for this TV, after the channel's own.
+        assertEquals(
+            listOf(
+                "Playback" to "Transcoding",
+                "Video" to "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p",
+                "Audio" to "EAC3 5.1 → AAC 2.0",
+                "Bitrate" to "12 Mbps → 8.0 Mbps",
+                "Encoder" to "NVIDIA NVENC",
+                "Decoder" to "c2.amlogic.hevc.decoder (hardware)",
+                "Display" to "3840×2160 at 50 Hz · SDR",
+                "Dropped" to "10 of 1000",
+                "Buffer" to "4 s ahead · 120 Mbps",
+            ),
+            TvReadout.liveCompact(r, ReadoutInput(details = live, stats = stats, bufferedMs = 4_000, display = display)).map { it.label to it.value },
+        )
+        assertEquals(TvReadout.compact(r, ReadoutInput(stats = stats, display = display)), TvReadout.liveCompact(r, ReadoutInput(stats = stats, display = display)))
+        // A channel played as sent, with nothing known of this TV's side yet: the way alone; nothing known, nothing.
+        val direct = live.copy(method = "Direct play", why = null, rows = emptyList(), playbackMethod = PlaybackMethod.Direct)
+        assertEquals(listOf("Playback" to "Direct play"), TvReadout.liveCompact(r, ReadoutInput(details = direct)).map { it.label to it.value })
+        assertTrue(TvReadout.liveCompact(r, ReadoutInput()).isEmpty())
     }
 
     @Test

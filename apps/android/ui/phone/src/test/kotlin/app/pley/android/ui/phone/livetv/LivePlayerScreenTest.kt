@@ -25,6 +25,7 @@ import app.pley.android.screens.livetv.LivePlayerViewModel
 import app.pley.android.testing.data.FakeLiveTv
 import app.pley.android.testing.player.engine.FakePlayerEngine
 import app.pley.android.ui.phone.R
+import app.pley.android.ui.phone.player.TAG_READOUT
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlin.reflect.KClass
 import kotlinx.coroutines.flow.flowOf
@@ -36,7 +37,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** The phone's live player: Playback details, and picture in picture (its button, what the small window shows). */
+/** The phone's live player: Playback details in their sheet and over the picture, and picture in picture (its button, what the small window shows). */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w800dp-h360dp-xxhdpi")
 class LivePlayerScreenTest {
@@ -70,12 +71,18 @@ class LivePlayerScreenTest {
         return ViewModelProvider.create(store, factory)[LivePlayerViewModel::class]
     }
 
-    private fun show(vm: LivePlayerViewModel, inPip: Boolean = false, onPip: (() -> Unit)? = null) {
+    private fun show(vm: LivePlayerViewModel, inPip: Boolean = false, onPip: (() -> Unit)? = null, showDetails: Boolean = false) {
         compose.setContent {
             PhoneTheme {
-                LivePlayerScreen(vm, onBack = {}, inPip = inPip, onPip = onPip)
+                LivePlayerScreen(vm, onBack = {}, inPip = inPip, onPip = onPip, showDetails = showDetails)
             }
         }
+        compose.waitForIdle()
+    }
+
+    /** A tap on the picture: it hides the controls, or brings them back. */
+    private fun tapPicture() {
+        compose.onNodeWithTag(LIVE_PLAYER).performClick()
         compose.waitForIdle()
     }
 
@@ -124,6 +131,56 @@ class LivePlayerScreenTest {
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.player_close)).performClick()
         compose.waitForIdle()
         compose.onNodeWithTag(LIVE_PLAYER_DETAILS_SHEET, useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `Playback details show over the channel while the controls are hidden, as over a video, asking the server`() {
+        live.plan = LivePlan(
+            videoCodec = "hevc", width = 1920, height = 1080, frameRate = 50.0, bitDepth = 10,
+            audioCodec = "aac", audioChannels = 2, video = "copy", audio = "copy", kbps = 6_500,
+        )
+        val vm = player()
+        show(vm, showDetails = true)
+        playing(vm)
+        // The controls show as the player opens: the badge says it, and nothing more is asked.
+        compose.onNodeWithTag(TAG_READOUT, useUnmergedTree = true).assertDoesNotExist()
+        assertEquals(listOf("live-1"), live.plansAsked)
+        tapPicture()
+        compose.onNodeWithTag(LIVE_PLAYER_DETAILS).assertDoesNotExist()
+        // The video player's readout: the way, then the rows of the channel's details.
+        compose.onNodeWithTag(TAG_READOUT, useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Direct play", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("HEVC 10-bit · 1920×1080 · 50 fps", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("AAC 2.0", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("6.5 Mbps", useUnmergedTree = true).assertExists()
+        assertEquals(listOf("live-1", "live-1"), live.plansAsked)
+        // The controls take its place.
+        tapPicture()
+        compose.onNodeWithTag(LIVE_PLAYER_DETAILS).assertExists()
+        compose.onNodeWithTag(TAG_READOUT, useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `without the setting nothing shows over the channel, and the server isn't asked`() {
+        live.plan = LivePlan(videoCodec = "h264", width = 1280, height = 720, audioCodec = "aac", audioChannels = 2, video = "copy", audio = "copy")
+        val vm = player()
+        show(vm)
+        playing(vm)
+        tapPicture()
+        compose.onNodeWithTag(LIVE_PLAYER_DETAILS).assertDoesNotExist()
+        compose.onNodeWithTag(TAG_READOUT, useUnmergedTree = true).assertDoesNotExist()
+        // The tune's own asking, alone.
+        assertEquals(listOf("live-1"), live.plansAsked)
+    }
+
+    @Test
+    fun `picture in picture shows no Playback details over the picture`() {
+        live.plan = LivePlan(videoCodec = "h264", width = 1280, height = 720, audioCodec = "aac", audioChannels = 2, video = "copy", audio = "copy")
+        val vm = player()
+        show(vm, inPip = true, onPip = {}, showDetails = true)
+        playing(vm)
+        compose.onNodeWithTag(TAG_READOUT, useUnmergedTree = true).assertDoesNotExist()
+        assertEquals(listOf("live-1"), live.plansAsked)
     }
 
     @Test

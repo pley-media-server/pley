@@ -219,14 +219,31 @@ internal object TvReadout {
                 val bitrate = listOf(formatBitrate(d.file?.bitrate, words), currentBitrate(r, d, stats).orEmpty()).filter { it.isNotEmpty() }.distinct()
                 if (bitrate.isNotEmpty()) add(MediaFact(r.getString(R.string.tv_readout_bitrate), bitrate.joinToString(" → ")))
             }
-            if (stats != null) {
-                stats.videoDecoder?.let { add(MediaFact(r.getString(R.string.tv_readout_decoder), it + hardware(r, stats.videoDecoderHardware))) }
-                input.display?.let { add(MediaFact(r.getString(R.string.tv_player_info_display), displayMode(r, it) + " · " + (hdrShown(stats, it, carriesHdr10Plus(input)) ?: "SDR"))) }
-                add(MediaFact(r.getString(R.string.tv_readout_dropped_short), r.getString(R.string.tv_player_info_dropped_value, stats.droppedFrames, stats.renderedFrames + stats.droppedFrames)))
-                val buffer = r.getString(R.string.tv_readout_buffer_compact, (input.bufferedMs / 1000).toInt())
-                add(MediaFact(r.getString(R.string.tv_readout_buffer_short), buffer + (stats.bandwidth?.let { " · " + formatBitrate(it, words) } ?: "")))
-            }
+            if (stats != null) addAll(compactDevice(r, stats, input))
         }
+    }
+
+    /**
+     * Playback details over a live channel, a video's in their order: the
+     * way it plays, the rows its details have (the provider's video, sound
+     * and bitrate, with what the server makes of them), and this TV. A
+     * channel has no file and no tracks to give a line each.
+     */
+    fun liveCompact(r: Resources, input: ReadoutInput): List<MediaFact> = buildList {
+        input.details?.let { d ->
+            add(MediaFact(r.getString(R.string.tv_readout_playback), d.method))
+            d.rows.forEach { add(MediaFact(it.label, it.value)) }
+        }
+        input.stats?.let { addAll(compactDevice(r, it, input)) }
+    }
+
+    /** This TV's lines of the compact readout: the decoder, the display's mode, dropped frames, the buffer and the network. */
+    private fun compactDevice(r: Resources, stats: PlaybackStats, input: ReadoutInput): List<MediaFact> = buildList {
+        stats.videoDecoder?.let { add(MediaFact(r.getString(R.string.tv_readout_decoder), it + hardware(r, stats.videoDecoderHardware))) }
+        input.display?.let { add(MediaFact(r.getString(R.string.tv_player_info_display), displayMode(r, it) + " · " + (hdrShown(stats, it, carriesHdr10Plus(input)) ?: "SDR"))) }
+        add(MediaFact(r.getString(R.string.tv_readout_dropped_short), r.getString(R.string.tv_player_info_dropped_value, stats.droppedFrames, stats.renderedFrames + stats.droppedFrames)))
+        val buffer = r.getString(R.string.tv_readout_buffer_compact, (input.bufferedMs / 1000).toInt())
+        add(MediaFact(r.getString(R.string.tv_readout_buffer_short), buffer + (stats.bandwidth?.let { " · " + formatBitrate(it, formatWords(r)) } ?: "")))
     }
 
     private fun playback(r: Resources, d: PlaybackDetailsUi, quality: String): List<MediaFact> = buildList {
@@ -371,7 +388,25 @@ private const val READOUT_MS = 1_000L
 internal fun BoxScope.TvPlaybackDetails(state: State<PlayerUiState>, engine: State<EngineState?>) {
     val input by rememberReadout(state, engine)
     val resources = LocalResources.current
-    val lines = remember(input, resources) { TvReadout.compact(resources, input) }
+    CompactReadout(remember(input, resources) { TvReadout.compact(resources, input) })
+}
+
+/**
+ * Playback details over a live channel, as over a video
+ * ([TvPlaybackDetails]): how it plays as [details] has it, and what the
+ * [engine] does with it. The live player hides it while its controls or a
+ * panel show.
+ */
+@Composable
+internal fun BoxScope.TvLivePlaybackDetails(details: PlaybackDetailsUi?, engine: PlayerEngine?) {
+    val input by rememberLiveReadout(details, engine)
+    val resources = LocalResources.current
+    CompactReadout(remember(input, resources) { TvReadout.liveCompact(resources, input) })
+}
+
+/** The compact readout's [lines] in their card; nothing without any. */
+@Composable
+private fun BoxScope.CompactReadout(lines: List<MediaFact>) {
     if (lines.isEmpty()) return
     Column(
         Modifier

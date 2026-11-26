@@ -11,11 +11,11 @@
     <!-- A channel's stream refused with no sentence of the server's: its HTTP status, "The server answered 503." -->
     <string name="live_server_answered">The server answered %1$d.</string>
     <!-- Why a channel isn't played as its provider sends it, in its Playback details (docs/API.md, "Live TV"). -->
-    <string name="live_why_interlaced">Interlaced video is made progressive</string>
-    <!-- The video's codec: "This device doesn't play HEVC". -->
-    <string name="live_why_video">This device doesn\'t play %1$s</string>
-    <!-- The sound's codec: "This device doesn't play EAC3 sound". -->
-    <string name="live_why_audio">This device doesn\'t play %1$s sound</string>
+    <string name="live_why_interlaced">Interlaced video is made progressive.</string>
+    <!-- The video's codec, with its bit depth above 8: "This device doesn't play HEVC 10-bit video." -->
+    <string name="live_why_video">This device doesn\'t play %1$s video.</string>
+    <!-- The sound's codec: "This device doesn't play EAC3 audio." -->
+    <string name="live_why_audio">This device doesn\'t play %1$s audio.</string>
     <!-- After a channel's video in its Playback details: "MPEG-2 · 720×576 · 25 fps · interlaced". -->
     <string name="live_details_interlaced">interlaced</string>
 

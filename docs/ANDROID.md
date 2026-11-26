@@ -917,22 +917,33 @@ info button beside channel down and up on a car's screen, which has no
 badge), in the video player's sheet; **Info**, last in the controls, on
 TVs, in its side panel, which Up and Down scroll. They say how the
 channel plays and, for a channel on HLS, why it isn't played as sent
-(**Interlaced video is made progressive**, **This device doesn't play
-HEVC**, **This device doesn't play EAC3 sound**; nothing when the device
-decodes a codec that Media3 doesn't read from MPEG-TS, or when
-`stream.ts` failed). Then the provider's video ("HEVC 10-bit · 3840×2160
-· 50 fps", with "interlaced"), sound ("EAC3 5.1") and bitrate as it is
-now, each with what the server makes of it when it converts it ("→ H.264
-1080p", "→ AAC 2.0", the transcode's video bitrate), a transcode's
+(**Interlaced video is made progressive.**, **This device doesn't play
+HEVC 10-bit video.**, **This device doesn't play EAC3 audio.**; nothing
+when the device decodes a codec that Media3 doesn't read from MPEG-TS, or
+when `stream.ts` failed). Then the provider's video ("HEVC 10-bit ·
+3840×2160 · 50 fps", with "interlaced"), sound ("EAC3 5.1") and bitrate as
+it is now, each with what the server makes of it when it converts it ("→
+H.264 1080p", "→ AAC 2.0", the transcode's video bitrate), a transcode's
 encoder, and this device's side as for a video: the decoder, the
-picture, dropped frames, where the sound goes. A row whose value isn't
-known is left out. The badge comes from the plan the player asked for as
-it tuned, or asks for it once when a channel went to HLS without one.
-While the details show, the player asks for the session's `plan` again
-every 2.5 s, and for the next channel's when the channel changes;
-closed, it asks nothing. A channel on HLS whose plan the server doesn't
-give has no badge, and its details, where a button opens them, show
-waiting.
+picture, dropped frames, where the sound goes. The video's bit depth is
+said only above 8, in its row and in the reason, and a transcode's size
+is written as a video's ("4K", "1080p", "SD"), from its lines. A row whose
+value isn't known is left out. The badge comes from the plan the player
+asked for as it tuned, or asks for it once when a channel went to HLS
+without one. While the details show, the player asks for the session's
+`plan` again every 2.5 s, and for the next channel's when the channel
+changes; closed, it asks nothing. A channel on HLS whose plan the server
+doesn't give has no badge, and its details, where a button opens them,
+show waiting.
+
+**Settings → Playback details** keeps the video player's readout over a
+channel as over a video, at the top left while the channel plays and the
+controls are hidden: how it plays, then the rows of its details, and on
+TVs this TV's lines too (the decoder, the display, dropped frames, the
+buffer). It steps aside for the controls, the channel list and the
+details themselves, and picture in picture shows the picture alone. It
+asks for the `plan` as the details do while it shows, and shows what the
+badge knows until the server answers.
 
 Live TV has no pause, so another app's sound, a call's included, quiets
 the channel instead: its sound comes back once the other app is done, or,

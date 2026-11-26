@@ -19,6 +19,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -104,6 +105,7 @@ import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.player.INFO_WIDTH
 import app.pley.android.ui.tv.player.MethodBadge
 import app.pley.android.ui.tv.player.ReadoutColumn
+import app.pley.android.ui.tv.player.TvLivePlaybackDetails
 import app.pley.android.ui.tv.player.TvReadout
 import app.pley.android.ui.tv.player.rememberLiveReadout
 import app.pley.android.ui.tv.search.TvSearchField
@@ -130,9 +132,12 @@ private enum class Overlay { None, Controls, Channels, Details }
  * What's on and next shows for 5 s when asked for (Info), never on its
  * own as a channel tunes, with Live. A channel that doesn't start says why
  * (the server's sentence), with Try again and Other channels.
+ * [showDetails] (Settings → Playback details) keeps the video player's
+ * compact readout over the picture while neither the controls nor a panel
+ * shows ([Readout]).
  */
 @Composable
-internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
+internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit, showDetails: Boolean = false) {
     val state by vm.state.collectAsStateWithLifecycle()
     val engine by vm.engine.collectAsStateWithLifecycle()
     val channel by vm.channel.collectAsStateWithLifecycle()
@@ -287,6 +292,8 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
                 )
             }
         }
+        // Playback details have the top left while the controls and the panels are away, as in the video player.
+        if (showDetails && playing && overlay == Overlay.None) Readout(vm)
         Digits(digits, Modifier.align(Alignment.TopEnd))
         TvSidePanel(visible = overlay == Overlay.Channels, onDismiss = { overlay = Overlay.None }) {
             ChannelList(
@@ -321,6 +328,23 @@ private fun Details(vm: LivePlayerViewModel) {
     val input by rememberLiveReadout(remember(playing, resources) { playing?.let { LiveDetails.build(resources, it) } }, engine)
     val sections = remember(input, resources) { TvReadout.liveSections(resources, input) }
     ReadoutColumn(sections, waiting = input.details == null, Modifier.initialFocus().testTag(TV_LIVE_PLAYER_DETAILS))
+}
+
+/**
+ * Settings → Playback details over the picture, the video player's
+ * compact readout: how the channel plays, its details' rows and what this
+ * TV does with it. The server is asked while it shows, as for the panel,
+ * for the bitrate as it is now ([LivePlayerViewModel.details]); until it
+ * answers, what tuning left known is shown ([LivePlayerViewModel.how]).
+ */
+@Composable
+private fun BoxScope.Readout(vm: LivePlayerViewModel) {
+    val asked by vm.details.collectAsStateWithLifecycle()
+    val known by vm.how.collectAsStateWithLifecycle()
+    val engine by vm.engine.collectAsStateWithLifecycle()
+    val resources = LocalResources.current
+    val playing = asked ?: known
+    TvLivePlaybackDetails(remember(playing, resources) { playing?.let { LiveDetails.build(resources, it) } }, engine)
 }
 
 /** The channel's logo, name and what's on while it is tuned. */

@@ -8,6 +8,7 @@ import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.codecLabel
 import app.pley.android.model.format.formatBitrate
 import app.pley.android.model.format.frameRateLabel
+import app.pley.android.model.format.resolutionLabel
 import app.pley.android.player.DetailRow
 import app.pley.android.player.PlaybackDetailsUi
 import app.pley.android.player.R
@@ -82,7 +83,7 @@ object LiveDetails {
                     else -> R.string.session_method_transcode
                 },
             ),
-            why = why(res, playing),
+            why = why(res, playing, words),
             pipeline = null,
             rows = rows,
             engine = emptyList(),
@@ -90,32 +91,42 @@ object LiveDetails {
         )
     }
 
-    /** [LivePlaying.why] in a sentence; `null` when there is nothing to tell. */
-    private fun why(res: Resources, playing: LivePlaying): String? = when (playing.why) {
+    /**
+     * [LivePlaying.why] in a sentence; `null` when there is nothing to tell.
+     * The video's codec comes with its bit depth, as its row has it: a device
+     * that plays 8-bit HEVC isn't told it doesn't play HEVC.
+     */
+    private fun why(res: Resources, playing: LivePlaying, words: FormatWords): String? = when (playing.why) {
         NotAsSent.Interlaced -> res.getString(R.string.live_why_interlaced)
-        NotAsSent.Video -> res.getString(R.string.live_why_video, codecLabel(playing.plan?.videoCodec))
+        NotAsSent.Video -> res.getString(R.string.live_why_video, videoCodec(playing.plan, words))
         NotAsSent.Audio -> res.getString(R.string.live_why_audio, codecLabel(playing.plan?.audioCodec))
         NotAsSent.Unknown, null -> null
     }
 
+    /**
+     * The provider's video codec, with its bit depth only above 8, as the
+     * other apps write it: "HEVC 10-bit", but "H.264", never "H.264 8-bit".
+     */
+    private fun videoCodec(plan: LivePlan?, words: FormatWords): String = listOfNotNull(
+        codecLabel(plan?.videoCodec).ifEmpty { null },
+        plan?.bitDepth?.takeIf { it > 8 }?.let(words::bitDepth),
+    ).joinToString(" ")
+
     /** "HEVC 10-bit · 3840×2160 · 50 fps", " · interlaced", and " → H.264 1080p" when [transcoded]; `null` without video. */
     private fun video(res: Resources, plan: LivePlan, transcoded: Boolean, words: FormatWords): String? {
         if (plan.video == "none") return null
-        val codec = listOfNotNull(
-            codecLabel(plan.videoCodec).ifEmpty { null },
-            plan.bitDepth?.takeIf { it > 0 }?.let(words::bitDepth),
-        ).joinToString(" ")
         val width = plan.width ?: 0
         val height = plan.height ?: 0
         val source = listOfNotNull(
-            codec.ifEmpty { null },
+            videoCodec(plan, words).ifEmpty { null },
             if (width > 0 && height > 0) "$width×$height" else null,
             frameRateLabel(plan.frameRate, words),
             if (plan.interlaced) res.getString(R.string.live_details_interlaced) else null,
         ).joinToString(" · ")
         if (!transcoded) return source.ifEmpty { null }
-        val lines = (plan.outHeight ?: plan.height)?.takeIf { it > 0 }?.let { "${it}p" }
-        val made = listOfNotNull(codecLabel(encodedCodec(plan.video)), lines).joinToString(" ")
+        // A video's size label ("4K", "1080p"), from the transcode's lines alone: the plan doesn't say how wide it comes out.
+        val size = (plan.outHeight ?: plan.height)?.takeIf { it > 0 }?.let { resolutionLabel(null, it) }
+        val made = listOfNotNull(codecLabel(encodedCodec(plan.video)), size).joinToString(" ")
         return if (source.isEmpty()) made else "$source → $made"
     }
 

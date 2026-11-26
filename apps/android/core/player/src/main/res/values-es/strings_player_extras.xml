@@ -5,9 +5,9 @@
     <string name="live_stopped_by_admin">El administrador del servidor detuvo la TV en vivo.</string>
     <string name="live_stopped_elsewhere">La TV en vivo se detuvo desde otro dispositivo.</string>
     <string name="live_server_answered">El servidor respondió con el código %1$d.</string>
-    <string name="live_why_interlaced">El video entrelazado se convierte a progresivo</string>
-    <string name="live_why_video">Este dispositivo no reproduce %1$s</string>
-    <string name="live_why_audio">Este dispositivo no reproduce el audio %1$s</string>
+    <string name="live_why_interlaced">El video entrelazado se convierte a progresivo.</string>
+    <string name="live_why_video">Este dispositivo no reproduce el video %1$s.</string>
+    <string name="live_why_audio">Este dispositivo no reproduce el audio %1$s.</string>
     <string name="live_details_interlaced">entrelazado</string>
 
     <string name="cast_playing_from">Reproduciendo desde %1$s</string>
