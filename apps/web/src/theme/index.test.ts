@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import themeScript from "../../public/theme.js?raw";
 import { logoIcon } from "@/components/Logo";
-import { currentTheme, isTheme, onTheme, showTheme, startTheme, THEME_KEY, THEMES } from ".";
+import { ACCENT_KEY, ACCENTS, currentAccent, currentTheme, isAccent, isTheme, onTheme, showAccent, showTheme, startTheme, THEME_KEY, THEMES } from ".";
 
 afterEach(() => {
   localStorage.clear();
   delete document.documentElement.dataset.theme;
+  delete document.documentElement.dataset.accent;
 });
 
 describe("themes", () => {
@@ -69,5 +70,62 @@ describe("themes", () => {
     const run = new Function(themeScript) as () => void;
     run();
     expect(document.documentElement.dataset.theme).toBe("twilight");
+  });
+});
+
+describe("accents", () => {
+  it("are Pley's five, none being the theme's own", () => {
+    expect(ACCENTS).toEqual(["sky", "violet", "pink", "gold", "mint"]);
+    expect(isAccent("gold")).toBe(true);
+    for (const wrong of ["own", "Gold", "", null, 3]) expect(isAccent(wrong)).toBe(false);
+  });
+
+  it("start in this device's last, else the theme's own", () => {
+    startTheme();
+    expect(currentAccent()).toBeNull();
+    expect(document.documentElement.dataset.accent).toBeUndefined();
+
+    localStorage.setItem(ACCENT_KEY, "violet");
+    startTheme();
+    expect(currentAccent()).toBe("violet");
+    expect(document.documentElement.dataset.accent).toBe("violet");
+
+    // One a later Pley kept, which this one doesn't draw.
+    localStorage.setItem(ACCENT_KEY, "coral");
+    startTheme();
+    expect(currentAccent()).toBeNull();
+    expect(document.documentElement.dataset.accent).toBeUndefined();
+  });
+
+  it("show on the page over the theme, are kept for the next visit, and tell who follows", () => {
+    startTheme();
+    const listener = vi.fn();
+    const stop = onTheme(listener);
+    showAccent("mint");
+    expect(document.documentElement.dataset.accent).toBe("mint");
+    expect(localStorage.getItem(ACCENT_KEY)).toBe("mint");
+    expect(listener).toHaveBeenCalledTimes(1);
+    showAccent("mint");
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    // A theme picked after keeps the accent.
+    showTheme("sunshine");
+    expect(document.documentElement.dataset.accent).toBe("mint");
+
+    showAccent(null);
+    expect(document.documentElement.dataset.accent).toBeUndefined();
+    expect(localStorage.getItem(ACCENT_KEY)).toBeNull();
+    expect(currentTheme()).toBe("sunshine");
+    expect(listener).toHaveBeenCalledTimes(3);
+    stop();
+  });
+
+  it("are put on the page before it draws, from where the app keeps them", () => {
+    localStorage.setItem(ACCENT_KEY, "pink");
+    expect(themeScript).toContain(JSON.stringify(ACCENT_KEY));
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const run = new Function(themeScript) as () => void;
+    run();
+    expect(document.documentElement.dataset.accent).toBe("pink");
   });
 });

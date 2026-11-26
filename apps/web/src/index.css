@@ -129,9 +129,9 @@
   --backdrop-opacity: 0.85;
   --glow: none;
   --sidebar: none;
-  --color-accent: #38bdf8;
-  --color-accent-hover: #7dd3fc;
-  --color-accent-fg: #03131f;
+  --color-accent: var(--accent-dark, #38bdf8);
+  --color-accent-hover: var(--accent-dark-hover, #7dd3fc);
+  --color-accent-fg: var(--accent-dark-fg, #03131f);
   --color-brand-light: #bae6fd;
   --color-brand: #38bdf8;
   --color-brand-deep: #0284c7;
@@ -146,11 +146,11 @@
   --color-fg: #e9ebef;
   --color-muted: #a1a9b6;
   --color-subtle: #7e8795;
-  --color-success: #3fb27f;
+  --color-success: var(--success-dark, #3fb27f);
   --color-danger: #ed6c6d;
   --color-danger-fg: #0b0d10;
   --color-info: #4c9aff;
-  --color-warning: #f0a83c;
+  --color-warning: var(--warning-dark, #f0a83c);
   --color-shade: #000000;
   --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a1a9b6' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
@@ -161,9 +161,9 @@
   --backdrop-opacity: 0.6;
   --glow: none;
   --sidebar: none;
-  --color-accent: #03669c;
-  --color-accent-hover: #075985;
-  --color-accent-fg: #ffffff;
+  --color-accent: var(--accent-light, #03669c);
+  --color-accent-hover: var(--accent-light-hover, #075985);
+  --color-accent-fg: var(--accent-light-fg, #ffffff);
   --color-brand-light: #38bdf8;
   --color-brand: #0369a1;
   --color-brand-deep: #3d9fd8;
@@ -178,11 +178,11 @@
   --color-fg: #12161c;
   --color-muted: #4a5361;
   --color-subtle: #5d6675;
-  --color-success: #126e46;
+  --color-success: var(--success-light, #126e46);
   --color-danger: #b42d36;
   --color-danger-fg: #ffffff;
   --color-info: #1e5dc0;
-  --color-warning: #855700;
+  --color-warning: var(--warning-light, #855700);
   --color-shade: rgb(16 26 44 / 0.42);
   --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234a5361' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
@@ -193,9 +193,9 @@
   --backdrop-opacity: 0.6;
   --glow: none;
   --sidebar: none;
-  --color-accent: #835613;
-  --color-accent-hover: #774e11;
-  --color-accent-fg: #fffaf2;
+  --color-accent: var(--accent-light, #835613);
+  --color-accent-hover: var(--accent-light-hover, #774e11);
+  --color-accent-fg: var(--accent-light-fg, #fffaf2);
   --color-brand-light: #d6a548;
   --color-brand: #8a5a12;
   --color-brand-deep: #c0904a;
@@ -210,11 +210,11 @@
   --color-fg: #2a2318;
   --color-muted: #5c5141;
   --color-subtle: #685d4a;
-  --color-success: #206c45;
+  --color-success: var(--success-light, #206c45);
   --color-danger: #ac2f28;
   --color-danger-fg: #ffffff;
   --color-info: #2b5daf;
-  --color-warning: #8a5200;
+  --color-warning: var(--warning-light, #8a5200);
   --color-shade: rgb(66 44 12 / 0.38);
   --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%235c5141' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
@@ -229,9 +229,9 @@
     radial-gradient(60% 50% at 96% 106%, rgb(244 114 182 / 0.26), transparent 70%),
     radial-gradient(55% 45% at 4% 110%, rgb(168 85 247 / 0.24), transparent 70%);
   --sidebar: none;
-  --color-accent: #ff79b0;
-  --color-accent-hover: #ffa0c8;
-  --color-accent-fg: #2a0619;
+  --color-accent: var(--accent-dark, #ff79b0);
+  --color-accent-hover: var(--accent-dark-hover, #ffa0c8);
+  --color-accent-fg: var(--accent-dark-fg, #2a0619);
   --color-brand-light: #ffd3a6;
   --color-brand: #ff79b0;
   --color-brand-deep: #c2448f;
@@ -246,11 +246,11 @@
   --color-fg: #f8eef6;
   --color-muted: #c9b8d1;
   --color-subtle: #9a88ab;
-  --color-success: #4cc38a;
+  --color-success: var(--success-dark, #4cc38a);
   --color-danger: #f0727e;
   --color-danger-fg: #140e22;
   --color-info: #7aa7ff;
-  --color-warning: #ffa24c;
+  --color-warning: var(--warning-dark, #ffa24c);
   --color-shade: #000000;
   --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23c9b8d1' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
@@ -262,9 +262,9 @@
   --backdrop-opacity: 0.85;
   --glow: radial-gradient(55% 40% at 92% -6%, rgb(245 214 140 / 0.07), transparent 70%);
   --sidebar: none;
-  --color-accent: #f5c542;
-  --color-accent-hover: #f9d97c;
-  --color-accent-fg: #1c1604;
+  --color-accent: var(--accent-dark, #f5c542);
+  --color-accent-hover: var(--accent-dark-hover, #f9d97c);
+  --color-accent-fg: var(--accent-dark-fg, #1c1604);
   --color-brand-light: #fff3c9;
   --color-brand: #f5c542;
   --color-brand-deep: #b48d2b;
@@ -279,11 +279,11 @@
   --color-fg: #f3ead9;
   --color-muted: #bdb6a8;
   --color-subtle: #8e8a82;
-  --color-success: #5bc28c;
+  --color-success: var(--success-dark, #5bc28c);
   --color-danger: #e8726d;
   --color-danger-fg: #0c0d0e;
   --color-info: #6fa8ff;
-  --color-warning: #f59a45;
+  --color-warning: var(--warning-dark, #f59a45);
   --color-shade: #000000;
   --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23bdb6a8' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
@@ -295,9 +295,9 @@
   --backdrop-opacity: 0.85;
   --glow: radial-gradient(70% 45% at 88% -8%, rgb(95 211 154 / 0.07), transparent 70%);
   --sidebar: none;
-  --color-accent: #5fd39a;
-  --color-accent-hover: #8fe3b8;
-  --color-accent-fg: #03140a;
+  --color-accent: var(--accent-dark, #5fd39a);
+  --color-accent-hover: var(--accent-dark-hover, #8fe3b8);
+  --color-accent-fg: var(--accent-dark-fg, #03140a);
   --color-brand-light: #c9f6dc;
   --color-brand: #5fd39a;
   --color-brand-deep: #2f9a68;
@@ -312,11 +312,11 @@
   --color-fg: #e7efe9;
   --color-muted: #a2b3a8;
   --color-subtle: #798c81;
-  --color-success: #3cc2a6;
+  --color-success: var(--success-dark, #3cc2a6);
   --color-danger: #e8726d;
   --color-danger-fg: #0a0f0c;
   --color-info: #6aa6ff;
-  --color-warning: #f0a83c;
+  --color-warning: var(--warning-dark, #f0a83c);
   --color-shade: #000000;
   --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a2b3a8' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
@@ -327,9 +327,9 @@
   --backdrop-opacity: 0.6;
   --glow: none;
   --sidebar: none;
-  --color-accent: #1a6e45;
-  --color-accent-hover: #16623e;
-  --color-accent-fg: #ffffff;
+  --color-accent: var(--accent-light, #1a6e45);
+  --color-accent-hover: var(--accent-light-hover, #16623e);
+  --color-accent-fg: var(--accent-light-fg, #ffffff);
   --color-brand-light: #5fd39a;
   --color-brand: #1a7048;
   --color-brand-deep: #4fae80;
@@ -344,11 +344,11 @@
   --color-fg: #122017;
   --color-muted: #45564a;
   --color-subtle: #58695d;
-  --color-success: #0d6a60;
+  --color-success: var(--success-light, #0d6a60);
   --color-danger: #b02c35;
   --color-danger-fg: #ffffff;
   --color-info: #1e5dc0;
-  --color-warning: #855700;
+  --color-warning: var(--warning-light, #855700);
   --color-shade: rgb(14 44 26 / 0.38);
   --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2345564a' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
@@ -376,9 +376,9 @@
     rgb(56 182 255 / 0.22) 80%,
     rgb(150 100 255 / 0.22)
   );
-  --color-accent: #5a2ff0;
-  --color-accent-hover: #4a1fd6;
-  --color-accent-fg: #ffffff;
+  --color-accent: var(--accent-light, #5a2ff0);
+  --color-accent-hover: var(--accent-light-hover, #4a1fd6);
+  --color-accent-fg: var(--accent-light-fg, #ffffff);
   --color-brand-light: #ffd84a;
   --color-brand: #ff8a1f;
   --color-brand-deep: #ff5fa2;
@@ -393,11 +393,11 @@
   --color-fg: #24124f;
   --color-muted: #4f437c;
   --color-subtle: #62578f;
-  --color-success: #0c713d;
+  --color-success: var(--success-light, #0c713d);
   --color-danger: #b81e3f;
   --color-danger-fg: #ffffff;
   --color-info: #135ec2;
-  --color-warning: #a14700;
+  --color-warning: var(--warning-light, #a14700);
   --color-shade: rgb(58 30 100 / 0.34);
   --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234f437c' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
@@ -432,6 +432,81 @@
   --color-warning: #a6a6a6;
   --color-shade: #000000;
   --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23b5b5b5' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/*
+ * Accents (src/theme): one picked over any theme but Blacklight, on <html
+ * data-accent>, or none for the theme's own. Each gives the dark themes a
+ * bright color with dark words on it and the light themes a deep one with
+ * light words; the themes read them through --accent-dark and
+ * --accent-light, their own as the fallback, so the players ([data-dark])
+ * and the picker's previews take the right one. An accent a theme's state
+ * color would be mistaken for moves that state, as Nightshade's success
+ * leans teal (docs/THEMES.md, "Accents").
+ */
+[data-accent="sky"] {
+  --accent-dark: #38bdf8;
+  --accent-dark-hover: #7dd3fc;
+  --accent-dark-fg: #03131f;
+  --accent-light: #025d8f;
+  --accent-light-hover: #034e78;
+  --accent-light-fg: #ffffff;
+}
+
+[data-accent="violet"] {
+  --accent-dark: #b39afd;
+  --accent-dark-hover: #cdbffe;
+  --accent-dark-fg: #160b33;
+  --accent-light: #5a2ff0;
+  --accent-light-hover: #4a1fd6;
+  --accent-light-fg: #ffffff;
+}
+
+[data-accent="pink"] {
+  --accent-dark: #ff79b0;
+  --accent-dark-hover: #ffa0c8;
+  --accent-dark-fg: #2a0619;
+  --accent-light: #a61e6a;
+  --accent-light-hover: #901a5c;
+  --accent-light-fg: #ffffff;
+}
+
+/* Gold would read as a warning: warnings turn orange beside it. */
+[data-accent="gold"] {
+  --accent-dark: #f5c542;
+  --accent-dark-hover: #f9d97c;
+  --accent-dark-fg: #1c1604;
+  --accent-light: #835613;
+  --accent-light-hover: #774e11;
+  --accent-light-fg: #fffaf2;
+  --warning-dark: #ff8f5a;
+  --warning-light: #9a3f17;
+}
+
+/* Mint would read as success: success leans teal beside it, as in Nightshade. */
+[data-accent="mint"] {
+  --accent-dark: #5fd39a;
+  --accent-dark-hover: #8fe3b8;
+  --accent-dark-fg: #03140a;
+  --accent-light: #18663f;
+  --accent-light-hover: #145a37;
+  --accent-light-fg: #ffffff;
+  --success-dark: #3cc2a6;
+  --success-light: #0d6a60;
+}
+
+/* The theme's own, inside a page with another accent (the picker's swatch). */
+[data-accent="own"] {
+  --accent-dark: initial;
+  --accent-dark-hover: initial;
+  --accent-dark-fg: initial;
+  --accent-light: initial;
+  --accent-light-hover: initial;
+  --accent-light-fg: initial;
+  --success-dark: initial;
+  --success-light: initial;
+  --warning-dark: initial;
+  --warning-light: initial;
 }
 
 /* Sunshine's page is rounder all over, in a rounded type where the device has one (ui-rounded on Apple's). */

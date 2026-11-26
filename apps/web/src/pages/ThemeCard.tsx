@@ -2,16 +2,18 @@ import { Check, Palette } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Card, CardTitle } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { showTheme, THEMES, useTheme, type Theme } from "@/theme";
+import { ACCENTLESS, ACCENTS, showAccent, showTheme, THEMES, useAccent, useTheme, type Accent, type Theme } from "@/theme";
 
 /**
- * This device's theme, each one shown as a small Pley in its colors. A pick
- * shows at once and stays on this device (src/theme); another browser, or
- * the desktop app, keeps its own.
+ * This device's theme, each one shown as a small Pley in its colors, and an
+ * accent over it. A pick shows at once and stays on this device (src/theme);
+ * another browser, or the desktop app, keeps its own.
  */
 export function ThemeCard() {
   const { t } = useTranslation("pages");
   const shown = useTheme();
+  const accent = useAccent();
+  const accentless = shown === ACCENTLESS;
 
   return (
     <Card>
@@ -50,7 +52,55 @@ export function ThemeCard() {
           );
         })}
       </div>
+      <h3 id="accent-title" className="mt-6 text-sm font-medium text-fg">
+        {t("account.theme.accent.title")}
+      </h3>
+      <p className="mb-3 text-sm text-muted">
+        {accentless ? t("account.theme.accent.accentless") : t("account.theme.accent.hint")}
+      </p>
+      <div role="radiogroup" aria-labelledby="accent-title" className="flex flex-wrap gap-2">
+        {[null, ...ACCENTS].map((choice) => (
+          <AccentChoice key={choice ?? "own"} accent={choice} theme={shown} checked={choice === accent} disabled={accentless} />
+        ))}
+      </div>
     </Card>
+  );
+}
+
+/**
+ * An accent to pick (null for the theme's own), its swatch drawn by the CSS
+ * itself in the theme shown, so it is the color the page will have.
+ */
+function AccentChoice({ accent, theme, checked, disabled }: { accent: Accent | null; theme: Theme; checked: boolean; disabled: boolean }) {
+  const { t } = useTranslation("pages");
+  return (
+    <label
+      className={cn(
+        "flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
+        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+        checked ? "border-accent bg-accent/[0.06] text-fg" : "border-border text-muted",
+        !checked && !disabled && "hover:border-border-strong hover:text-fg",
+      )}
+    >
+      <input
+        type="radio"
+        name="accent"
+        value={accent ?? ""}
+        checked={checked}
+        disabled={disabled}
+        onChange={() => showAccent(accent)}
+        className="sr-only"
+      />
+      <span
+        data-theme={theme}
+        data-accent={accent ?? "own"}
+        aria-hidden
+        className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-accent-fg ring-1 ring-fg/20"
+      >
+        {checked ? <Check className="size-3" strokeWidth={3} /> : null}
+      </span>
+      {accent ? t(`account.theme.accent.names.${accent}`) : t("account.theme.accent.own")}
+    </label>
   );
 }
 

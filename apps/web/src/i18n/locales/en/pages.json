@@ -233,6 +233,19 @@
         "greenlight": "Touch grass, indoors",
         "sunshine": "Juice box approved",
         "blacklight": "Zero colors given"
+      },
+      "accent": {
+        "title": "Accent",
+        "hint": "Buttons, links and what has focus, in any theme but Blacklight.",
+        "accentless": "Blacklight is black and white only, so it keeps its white.",
+        "own": "The theme's own",
+        "names": {
+          "sky": "Sky",
+          "violet": "Violet",
+          "pink": "Pink",
+          "gold": "Gold",
+          "mint": "Mint"
+        }
       }
     },
     "playback": {

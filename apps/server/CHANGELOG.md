@@ -13,7 +13,9 @@ describes how they are made.
 
 - Themes: Account → Appearance picks Midnight, Midlight, Starlight, Twilight,
   Moonlight, Nightshade, Greenlight, Sunshine (a bright one for children)
-  or Blacklight (black and white only), kept on the device it was picked on.
+  or Blacklight (black and white only), and an accent over any but
+  Blacklight (Sky, Violet, Pink, Gold or Mint), kept on the device they were
+  picked on.
 
 ### Changed
 

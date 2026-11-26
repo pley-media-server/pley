@@ -231,6 +231,19 @@
         "greenlight": "足不出戶，摸摸草",
         "sunshine": "果汁盒認證",
         "blacklight": "零色彩，零煩惱"
+      },
+      "accent": {
+        "title": "強調色",
+        "hint": "按鈕、連結和焦點所在之處的顏色，適用於黑光以外的所有主題。",
+        "accentless": "黑光只有黑白兩色，因此保持白色。",
+        "own": "主題自帶",
+        "names": {
+          "sky": "天藍",
+          "violet": "紫羅蘭",
+          "pink": "粉紅",
+          "gold": "金色",
+          "mint": "薄荷"
+        }
       }
     },
     "playback": {

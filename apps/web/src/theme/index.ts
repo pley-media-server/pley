@@ -5,7 +5,8 @@ import { logoIcon } from "@/components/Logo";
  * The theme Pley is drawn in (docs/THEMES.md): each device's own, kept in its
  * storage, Midnight until one is picked there. index.css holds each theme's
  * colors under `[data-theme="…"]`; the page's own is on <html>, set before
- * the first page draws by public/theme.js.
+ * the first page draws by public/theme.js. An accent picked over the
+ * theme's own is kept and shown alike, on <html data-accent>.
  */
 export const THEMES = ["midnight", "midlight", "starlight", "twilight", "moonlight", "nightshade", "greenlight", "sunshine", "blacklight"] as const;
 export type Theme = (typeof THEMES)[number];
@@ -20,7 +21,26 @@ export function isTheme(value: unknown): value is Theme {
   return typeof value === "string" && (THEMES as readonly string[]).includes(value);
 }
 
+/**
+ * The accents picked over a theme's own (docs/THEMES.md, "Accents"): on
+ * <html data-accent>, none for the theme's own. Blacklight keeps its white
+ * whatever is picked.
+ */
+export const ACCENTS = ["sky", "violet", "pink", "gold", "mint"] as const;
+export type Accent = (typeof ACCENTS)[number];
+
+/** Where this device keeps the accent it showed last; public/theme.js reads it too. */
+export const ACCENT_KEY = "pley.accent";
+
+/** The theme that draws no accent but its own. */
+export const ACCENTLESS: Theme = "blacklight";
+
+export function isAccent(value: unknown): value is Accent {
+  return typeof value === "string" && (ACCENTS as readonly string[]).includes(value);
+}
+
 let shown: Theme = DEFAULT_THEME;
+let shownAccent: Accent | null = null;
 const listeners = new Set<() => void>();
 
 /** The theme on the page. */
@@ -28,17 +48,24 @@ export function currentTheme(): Theme {
   return shown;
 }
 
+/** The accent on the page; null for the theme's own. */
+export function currentAccent(): Accent | null {
+  return shownAccent;
+}
+
 export function onTheme(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
-function draw(theme: Theme) {
+function draw(theme: Theme, accent: Accent | null) {
   const root = document.documentElement;
   // Every color changes at once: what eases its color (a link, a button)
   // would otherwise fade from the old theme while the rest has changed.
   root.classList.add("theme-changing");
   root.dataset.theme = theme;
+  if (accent) root.dataset.accent = accent;
+  else delete root.dataset.accent;
   // Draws the new colors now, while nothing eases.
   void document.body.offsetHeight;
   setTimeout(() => root.classList.remove("theme-changing"), 0);
@@ -58,7 +85,7 @@ function draw(theme: Theme) {
 export function showTheme(theme: Theme) {
   if (theme === shown && document.documentElement.dataset.theme === theme) return;
   shown = theme;
-  draw(theme);
+  draw(theme, shownAccent);
   try {
     localStorage.setItem(THEME_KEY, theme);
   } catch {
@@ -67,19 +94,44 @@ export function showTheme(theme: Theme) {
   for (const listener of listeners) listener();
 }
 
-/** Before the app draws: the theme of this device's last visit. */
+/**
+ * Puts an accent on the page over the theme's own (null goes back to it),
+ * and keeps it on this device as the theme is kept.
+ */
+export function showAccent(accent: Accent | null) {
+  if (accent === shownAccent && (document.documentElement.dataset.accent ?? null) === accent) return;
+  shownAccent = accent;
+  draw(shown, accent);
+  try {
+    if (accent) localStorage.setItem(ACCENT_KEY, accent);
+    else localStorage.removeItem(ACCENT_KEY);
+  } catch {
+    // Without storage, the next visit starts in the theme's own.
+  }
+  for (const listener of listeners) listener();
+}
+
+/** Before the app draws: the theme and accent of this device's last visit. */
 export function startTheme() {
   let kept: string | null = null;
+  let keptAccent: string | null = null;
   try {
     kept = localStorage.getItem(THEME_KEY);
+    keptAccent = localStorage.getItem(ACCENT_KEY);
   } catch {
     // Nothing kept.
   }
   shown = isTheme(kept) ? kept : DEFAULT_THEME;
-  draw(shown);
+  shownAccent = isAccent(keptAccent) ? keptAccent : null;
+  draw(shown, shownAccent);
 }
 
 /** The theme on the page, following changes. */
 export function useTheme(): Theme {
   return useSyncExternalStore(onTheme, currentTheme);
+}
+
+/** The accent on the page (null for the theme's own), following changes. */
+export function useAccent(): Accent | null {
+  return useSyncExternalStore(onTheme, currentAccent);
 }

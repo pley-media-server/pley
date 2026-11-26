@@ -235,6 +235,19 @@
         "greenlight": "Tocar césped sin salir",
         "sunshine": "Aprobado por la merienda",
         "blacklight": "Cero colores, cero dramas"
+      },
+      "accent": {
+        "title": "Acento",
+        "hint": "Botones, enlaces y lo que tiene el foco, en cualquier tema salvo Luz negra.",
+        "accentless": "Luz negra es solo blanco y negro, así que conserva su blanco.",
+        "own": "El del tema",
+        "names": {
+          "sky": "Cielo",
+          "violet": "Violeta",
+          "pink": "Rosa",
+          "gold": "Oro",
+          "mint": "Menta"
+        }
       }
     },
     "playback": {

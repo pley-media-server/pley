@@ -235,6 +235,19 @@
         "greenlight": "Toucher l'herbe sans sortir",
         "sunshine": "Validé à l'heure du goûter",
         "blacklight": "Aucune couleur, aucun regret"
+      },
+      "accent": {
+        "title": "Accent",
+        "hint": "Les boutons, les liens et ce qui a le focus, dans tous les thèmes sauf Lumière noire.",
+        "accentless": "Lumière noire n'a que du noir et du blanc, il garde donc son blanc.",
+        "own": "Celui du thème",
+        "names": {
+          "sky": "Ciel",
+          "violet": "Violet",
+          "pink": "Rose",
+          "gold": "Or",
+          "mint": "Menthe"
+        }
       }
     },
     "playback": {
