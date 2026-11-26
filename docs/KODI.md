@@ -204,7 +204,9 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Kodi:
 - **Playing:** Kodi plays the provider's MPEG-TS passed through the server
   (`GET /api/live/channels/{id}/stream.ts`), not the server's HLS. Kodi
   deinterlaces it itself, surround reaches a receiver, the server converts
-  nothing, and it starts at once.
+  nothing, and it starts at once. It doesn't ask the server's Direct Play
+  setting: Kodi decodes what providers send. Kodi's own codec info shows
+  what plays, in place of the other apps' Playback details.
 - **Tuning:** the add-on first asks `POST …/watch` with this Kodi's
   `client_id`, then Kodi reads the stream for that session as
   `<client_id>-stream`, so changing channel never holds two connections,
