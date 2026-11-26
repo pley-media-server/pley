@@ -168,9 +168,11 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
   Direct play, and the panel has no Why. Under Playback come the
   provider's video and sound with what the server makes of them
   ("HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p", "AC3 5.1 → AAC
-  Stereo"), the provider's bitrate as it is now with a transcode's after
-  it, and the encoder; what isn't known is left out. Then This TV, as for
-  a title: the player, what it decodes, dropped frames and the buffer.
+  2.0", as a title's sound is written), the provider's bitrate as it is
+  now with a transcode's after it, and the encoder; what isn't known is
+  left out. Then This TV, as for
+  a title: the player, what it decodes, dropped frames, the buffer, the
+  channel's stalls and the time from tuning to its first picture.
   The plan (`GET /api/live/sessions/{id}/plan`) is asked as the panel
   opens and again 2.5 s after each answer; the panel says "Asking the
   server…" until the server knows the channel. It stays open over a
@@ -750,7 +752,7 @@ progressive, video or sound the TV doesn't play), the provider's video,
 audio and bitrate with what the server makes of them, the encoder of a
 transcode and the TV's network speed. A channel has no file or tracks to
 list, so its Video and Audio lines say what a film's sections of those
-names do ("HEVC 10-bit · 3840×2160 · 50 fps", "EAC3 5.1 → AAC Stereo").
+names do ("HEVC 10-bit · 3840×2160 · 50 fps", "EAC3 5.1 → AAC 2.0").
 This TV has a film's lines: what the TV's player says it decodes, its
 buffer, the channel's stalls and the time to its first picture. A line
 whose value isn't known is left out. While the panel shows, the plan is

@@ -394,7 +394,7 @@ public class LiveDetailsTests
             ("Playback", "Transcoding"),
             ("Why", "Interlaced video is made progressive"),
             ("Video", "MPEG-2 8-bit · 720×576 · 25 fps · interlaced → H.264 576p"),
-            ("Audio", "MP2 Stereo → AAC Stereo"),
+            ("Audio", "MP2 2.0 → AAC 2.0"),
             ("Bitrate", "4.5 Mbps → 3.0 Mbps"),
             ("Encoder", "NVIDIA NVENC"),
         }, Rows(false, Sd));
@@ -415,7 +415,7 @@ public class LiveDetailsTests
             ("Playback", "Direct stream · Audio transcoding"),
             ("Why", "This device doesn't play DTS sound"),
             ("Video", "H.264 · 1920×1080 · 50 fps"),
-            ("Audio", "DTS 5.1 → AAC Stereo"),
+            ("Audio", "DTS 5.1 → AAC 2.0"),
             ("Bitrate", "850 kbps"),
         }, Rows(false, dts));
     }
@@ -442,7 +442,7 @@ public class LiveDetailsTests
     {
         Assert.Equal(new[] { ("Playback", "Direct play") }, Rows(true, new LivePlan { Video = "copy", Audio = "copy" }));
         // Radio: no picture.
-        Assert.Equal(new[] { ("Playback", "Direct play"), ("Audio", "MP3 Stereo") }, Rows(true, new LivePlan { AudioCodec = "mp3", AudioChannels = 2, Video = "none", Audio = "copy" }));
+        Assert.Equal(new[] { ("Playback", "Direct play"), ("Audio", "MP3 2.0") }, Rows(true, new LivePlan { AudioCodec = "mp3", AudioChannels = 2, Video = "none", Audio = "copy" }));
         Assert.Equal(new[] { ("Playback", "Direct stream"), ("Video", "H.264"), ("Audio", "AAC 5ch") },
             Rows(false, new LivePlan { VideoCodec = "h264", AudioCodec = "aac", AudioChannels = 5, Video = "copy", Audio = "copy" }));
         // Without a plan: the way alone, which only a channel's stream.ts says by itself.

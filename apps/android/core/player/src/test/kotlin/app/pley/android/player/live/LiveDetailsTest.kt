@@ -45,7 +45,7 @@ class LiveDetailsTest {
         assertEquals(
             listOf(
                 "Video" to "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p",
-                "Audio" to "EAC3 5.1 → AAC Stereo",
+                "Audio" to "EAC3 5.1 → AAC 2.0",
                 "Bitrate" to "12 Mbps → 8.0 Mbps",
                 "Encoder" to "NVIDIA NVENC",
             ),
@@ -54,7 +54,7 @@ class LiveDetailsTest {
         // Interlaced, and no height said for the transcode: the provider's lines. An encoder with no name of its own stays as it is.
         val sd = hevc.copy(videoCodec = "mpeg2video", width = 720, height = 576, frameRate = 25.0, interlaced = true, bitDepth = null, outHeight = null, videoKbps = null, kbps = 850, video = "h264_rkmpp")
         assertEquals(
-            listOf("Video" to "MPEG-2 · 720×576 · 25 fps · interlaced → H.264 576p", "Audio" to "EAC3 5.1 → AAC Stereo", "Bitrate" to "850 kbps", "Encoder" to "h264_rkmpp"),
+            listOf("Video" to "MPEG-2 · 720×576 · 25 fps · interlaced → H.264 576p", "Audio" to "EAC3 5.1 → AAC 2.0", "Bitrate" to "850 kbps", "Encoder" to "h264_rkmpp"),
             rows(LiveDetails.build(english, LivePlaying(sd, asSent = false, why = NotAsSent.Interlaced))),
         )
     }
@@ -68,12 +68,12 @@ class LiveDetailsTest {
         assertEquals(PlaybackMethod.Remux, details?.playbackMethod)
         assertEquals("This device doesn't play AC3 sound", details?.why)
         // An older server: no bit depth and no bitrate to show, and nothing encodes the video.
-        assertEquals(listOf("Video" to "H.264 · 1280×720 · 25 fps", "Audio" to "AC3 5.1 → AAC Stereo"), rows(details))
+        assertEquals(listOf("Video" to "H.264 · 1280×720 · 25 fps", "Audio" to "AC3 5.1 → AAC 2.0"), rows(details))
         // Copied whole and on HLS all the same (its stream.ts failed): nothing converted, no reason.
         val copied = LiveDetails.build(english, LivePlaying(h264, asSent = false))
         assertEquals("Direct stream", copied?.method)
         assertNull(copied?.why)
-        assertEquals(listOf("Video" to "H.264 · 1280×720 · 25 fps", "Audio" to "AAC Stereo"), rows(copied))
+        assertEquals(listOf("Video" to "H.264 · 1280×720 · 25 fps", "Audio" to "AAC 2.0"), rows(copied))
     }
 
     @Test
@@ -90,8 +90,8 @@ class LiveDetailsTest {
     fun `rows whose value isn't known are left out`() {
         // A radio channel: no picture.
         val radio = LivePlan(audioCodec = "mp2", audioChannels = 1, video = "none", audio = "aac")
-        assertEquals(listOf("Audio" to "MP2 Mono → AAC Stereo"), rows(LiveDetails.build(english, LivePlaying(radio, asSent = false, why = NotAsSent.Audio))))
-        assertEquals(listOf("Audio" to "MP2 Mono"), rows(LiveDetails.build(english, LivePlaying(radio, asSent = true))))
+        assertEquals(listOf("Audio" to "MP2 1.0 → AAC 2.0"), rows(LiveDetails.build(english, LivePlaying(radio, asSent = false, why = NotAsSent.Audio))))
+        assertEquals(listOf("Audio" to "MP2 1.0"), rows(LiveDetails.build(english, LivePlaying(radio, asSent = true))))
         // Nothing probed of it but that it is copied.
         assertEquals(emptyList<Pair<String, String>>(), rows(LiveDetails.build(english, LivePlaying(LivePlan(video = "copy", audio = "none"), asSent = true))))
         // No plan: as sent, the way alone; on HLS, nothing to say of it.
@@ -109,7 +109,7 @@ class LiveDetailsTest {
         assertEquals(
             listOf(
                 "Vidéo" to "HEVC 10 bits · 3840×2160 · 50 i/s · entrelacé → H.264 1080p",
-                "Audio" to "EAC3 5.1 → AAC Stéréo",
+                "Audio" to "EAC3 5.1 → AAC 2.0",
                 "Débit" to "12 Mbit/s → 8,0 Mbit/s",
                 "Encodeur" to "NVIDIA NVENC",
             ),

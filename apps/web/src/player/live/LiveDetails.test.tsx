@@ -60,7 +60,7 @@ describe("liveWhy", () => {
 describe("the rows", () => {
   it("show what the provider sends, and what the transcoder makes of it", () => {
     expect(liveVideo(uhd(), false)).toBe("HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p");
-    expect(liveAudio(uhd(), false)).toBe("EAC3 5.1 → AAC Stereo");
+    expect(liveAudio(uhd(), false)).toBe("EAC3 5.1 → AAC 2.0");
     expect(liveBitrate(uhd(), false)).toBe("12 Mbps → 8.0 Mbps");
     expect(liveEncoder(uhd(), false)).toBe("NVIDIA NVENC");
   });
@@ -74,7 +74,7 @@ describe("the rows", () => {
 
   it("show a copied channel as it is", () => {
     expect(liveVideo(copied(), false)).toBe("H.264 · 1920×1080 · 25 fps");
-    expect(liveAudio(copied(), false)).toBe("AAC Stereo");
+    expect(liveAudio(copied(), false)).toBe("AAC 2.0");
     expect(liveBitrate(copied(), false)).toBe("850 kbps");
     expect(liveEncoder(copied(), false)).toBeNull();
   });
@@ -87,7 +87,7 @@ describe("the rows", () => {
   });
 
   it("name the sound's channels", () => {
-    expect(liveAudio(copied({ audio_channels: 1 }), false)).toBe("AAC Mono");
+    expect(liveAudio(copied({ audio_channels: 1 }), false)).toBe("AAC 1.0");
     expect(liveAudio(copied({ audio_channels: 8 }), false)).toBe("AAC 7.1");
     expect(liveAudio(copied({ audio_channels: 4 }), false)).toBe("AAC 4ch");
     expect(liveAudio(copied({ audio_channels: null }), false)).toBe("AAC");
@@ -128,7 +128,7 @@ describe("LiveDetails", () => {
     expect(await screen.findByText("Transcoding")).toBeInTheDocument();
     expect(screen.getByText("This device doesn't play EAC3 sound")).toBeInTheDocument();
     expect(screen.getByText("HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p")).toBeInTheDocument();
-    expect(screen.getByText("EAC3 5.1 → AAC Stereo")).toBeInTheDocument();
+    expect(screen.getByText("EAC3 5.1 → AAC 2.0")).toBeInTheDocument();
     expect(screen.getByText("12 Mbps → 8.0 Mbps")).toBeInTheDocument();
     expect(screen.getByText("NVIDIA NVENC")).toBeInTheDocument();
   });

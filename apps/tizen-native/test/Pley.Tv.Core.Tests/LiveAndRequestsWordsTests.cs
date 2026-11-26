@@ -41,7 +41,7 @@ public sealed class LiveAndRequestsWordsTests : IDisposable
             ("Lecture", "Transcodage"),
             ("Pourquoi", "La vidéo entrelacée est convertie en progressif"),
             ("Vidéo", "HEVC · entrelacé → H.264"),
-            ("Audio", "DTS Stéréo → AAC Stéréo"),
+            ("Audio", "DTS 2.0 → AAC 2.0"),
             ("Débit", "4,5 Mbit/s"),
             ("Encodeur", "x264"),
         }, LiveDetails.Facts(false, hevc, ClientCaps.Of(TizenCaps.Of(new TizenFacts()))).Select(f => (f.Label, f.Value)));

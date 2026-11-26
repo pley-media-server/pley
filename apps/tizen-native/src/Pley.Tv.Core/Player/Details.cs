@@ -78,11 +78,13 @@ public static class Details
         v == null ? "" : ItemFormat.Join(" ", ItemFormat.CodecLabel(v.Codec), ItemFormat.ResolutionLabel(v.Width, v.Height), ItemFormat.DynamicRangeLabel(v));
 
     /// <summary>An audio stream as "TrueHD 7.1".</summary>
-    public static string AudioLabel(MediaStream? a)
+    public static string AudioLabel(MediaStream? a) => a == null ? "" : SoundLabel(a.Codec, a.Channels);
+
+    /// <summary>Sound as "AAC 2.0", "EAC3 5.1": a codec and its channels, as Playback details write them (a live channel's too).</summary>
+    public static string SoundLabel(string? codec, int? channels)
     {
-        if (a == null) return "";
-        string? channels = a.Channels is int c ? Channels.TryGetValue(c, out var name) ? name : Strings.T("player.details.channels", ("n", c)) : null;
-        return ItemFormat.Join(" ", ItemFormat.CodecLabel(a.Codec), channels);
+        string? count = channels is int c ? Channels.TryGetValue(c, out var name) ? name : Strings.T("player.details.channels", ("n", c)) : null;
+        return ItemFormat.Join(" ", ItemFormat.CodecLabel(codec), count);
     }
 
     /// <summary>The transcoder's "H.264 1920×1080" as "H.264 1080p".</summary>

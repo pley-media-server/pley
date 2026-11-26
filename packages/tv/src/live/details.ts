@@ -1,8 +1,8 @@
 import type { SessionPlan } from "../api/types";
-import { channelsLabel, codecLabel, formatBitrate } from "../format/format";
+import { codecLabel, formatBitrate } from "../format/format";
 import { frameRateLabel, type FactBlock } from "../format/media-info";
 import { t } from "../i18n";
-import { encoderName, methodText } from "../player/details";
+import { encoderName, methodText, soundLabel } from "../player/details";
 
 /** The server converts the channel's video: it is neither copied nor absent. */
 export function liveTranscodes(plan: SessionPlan): boolean {
@@ -25,10 +25,10 @@ function videoRow(plan: SessionPlan): string {
   return `${sent} → ${[encodedLabel(plan.video), lines ? `${lines}p` : ""].filter(Boolean).join(" ")}`;
 }
 
-/** The provider's sound as "EAC3 5.1", and " → AAC Stereo" when the server converts it. */
+/** The provider's sound as "EAC3 5.1", and " → AAC 2.0" when the server converts it, as a title's Playback info writes sound. */
 function audioRow(plan: SessionPlan): string {
-  const sent = [codecLabel(plan.audio_codec), channelsLabel(plan.audio_channels)].filter(Boolean).join(" ");
-  return sent && plan.audio === "aac" ? `${sent} → ${codecLabel("aac")} ${channelsLabel(2)}` : sent;
+  const sent = soundLabel(plan.audio_codec, plan.audio_channels);
+  return sent && plan.audio === "aac" ? `${sent} → ${soundLabel("aac", 2)}` : sent;
 }
 
 /** What the provider sends now as "12 Mbps", and a transcode's video after it: "12 Mbps → 8.0 Mbps". */

@@ -48,10 +48,12 @@ object PlaybackDetails {
         live?.tonemap?.let { texts.toneMapped(it) } ?: info.videoRange
 
     /** An audio stream as "TrueHD 7.1". */
-    fun audioLabel(a: MediaStream?): String {
-        if (a == null) return ""
-        val channels = a.channels?.let { CHANNELS[it] ?: "${it}ch" }
-        return listOfNotNull(codecLabel(a.codec).takeIf { it.isNotEmpty() }, channels).joinToString(" ")
+    fun audioLabel(a: MediaStream?): String = if (a == null) "" else soundLabel(a.codec, a.channels)
+
+    /** Sound as "AAC 2.0", "EAC3 5.1": a codec and its channels, as Playback details write them (a live channel's too). */
+    fun soundLabel(codec: String?, channels: Int?): String {
+        val count = channels?.let { CHANNELS[it] ?: "${it}ch" }
+        return listOfNotNull(codecLabel(codec).takeIf { it.isNotEmpty() }, count).joinToString(" ")
     }
 
     private val CHANNELS = mapOf(1 to "1.0", 2 to "2.0", 3 to "2.1", 6 to "5.1", 7 to "6.1", 8 to "7.1")

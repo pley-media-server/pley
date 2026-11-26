@@ -113,9 +113,13 @@ export function shownAs(info: PlaybackInfo, live: TranscodeInfo | null): string 
 
 /** An audio stream as "TrueHD 7.1". */
 export function audioLabel(a: MediaStream | null): string {
-  if (!a) return "";
-  const channels = a.channels ? CHANNELS[a.channels] ?? `${a.channels}ch` : null;
-  return [codecLabel(a.codec), channels].filter(Boolean).join(" ");
+  return a ? soundLabel(a.codec, a.channels) : "";
+}
+
+/** Sound as "AAC 2.0", "EAC3 5.1": a codec and its channels, as Playback info writes them (a live channel's too). */
+export function soundLabel(codec: string | null | undefined, count: number | null | undefined): string {
+  const channels = count ? CHANNELS[count] ?? `${count}ch` : null;
+  return [codecLabel(codec), channels].filter(Boolean).join(" ");
 }
 
 /** The transcoder's "H.264 1920×1080" as "H.264 1080p". */

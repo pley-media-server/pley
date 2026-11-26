@@ -5,7 +5,6 @@ import app.pley.android.common.formatWords
 import app.pley.android.model.LivePlan
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.format.FormatWords
-import app.pley.android.model.format.channelsLabel
 import app.pley.android.model.format.codecLabel
 import app.pley.android.model.format.formatBitrate
 import app.pley.android.model.format.frameRateLabel
@@ -70,7 +69,7 @@ object LiveDetails {
         val rows = buildList {
             if (plan == null) return@buildList
             video(res, plan, transcoded, words)?.let { add(DetailRow(res.getString(R.string.session_row_video), it)) }
-            audio(plan, soundConverted, words)?.let { add(DetailRow(res.getString(R.string.session_row_audio), it)) }
+            audio(plan, soundConverted)?.let { add(DetailRow(res.getString(R.string.session_row_audio), it)) }
             bitrate(plan, transcoded, words)?.let { add(DetailRow(res.getString(R.string.session_row_bitrate), it)) }
             if (transcoded) add(DetailRow(res.getString(R.string.session_row_encoder), PlaybackDetails.encoderName(plan.video)))
         }
@@ -120,15 +119,12 @@ object LiveDetails {
         return if (source.isEmpty()) made else "$source → $made"
     }
 
-    /** "EAC3 5.1", and " → AAC Stereo" when [converted]; `null` without sound. */
-    private fun audio(plan: LivePlan, converted: Boolean, words: FormatWords): String? {
+    /** "EAC3 5.1", and " → AAC 2.0" when [converted], as a video's details write sound; `null` without sound. */
+    private fun audio(plan: LivePlan, converted: Boolean): String? {
         if (plan.audio == "none") return null
-        val source = listOfNotNull(
-            codecLabel(plan.audioCodec).ifEmpty { null },
-            channelsLabel(plan.audioChannels, words = words).ifEmpty { null },
-        ).joinToString(" ")
+        val source = PlaybackDetails.soundLabel(plan.audioCodec, plan.audioChannels)
         // The server makes AAC stereo of sound it converts (docs/API.md, "The stream").
-        val made = codecLabel("aac") + " " + channelsLabel(2, words = words)
+        val made = PlaybackDetails.soundLabel("aac", 2)
         return when {
             !converted -> source.ifEmpty { null }
             source.isEmpty() -> made

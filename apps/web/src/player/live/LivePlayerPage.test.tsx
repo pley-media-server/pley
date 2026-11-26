@@ -850,7 +850,7 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
       open();
       expect(within(details()).getByText("Direct play")).toBeInTheDocument();
       expect(within(details()).getByText("HEVC 10-bit · 1920×1080 · 50 fps")).toBeInTheDocument();
-      expect(within(details()).getByText("AAC Stereo")).toBeInTheDocument();
+      expect(within(details()).getByText("AAC 2.0")).toBeInTheDocument();
       expect(within(details()).getByText("5.2 Mbps")).toBeInTheDocument();
       expect(within(details()).queryByText("Encoder")).not.toBeInTheDocument();
 

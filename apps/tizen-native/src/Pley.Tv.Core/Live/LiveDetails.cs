@@ -115,14 +115,14 @@ public static class LiveDetails
     /// <summary>The codec an encoder makes, in the server's names: HEVC for "hevc_nvenc" and "libx265", else H.264, which is what the server makes of live video.</summary>
     static string EncodedCodec(string encoder) => encoder.StartsWith("hevc", System.StringComparison.Ordinal) || encoder == "libx265" ? "hevc" : "h264";
 
-    /// <summary>The provider's sound, "EAC3 5.1", then " → AAC Stereo" when the server converts it. Empty without sound.</summary>
+    /// <summary>The provider's sound, "EAC3 5.1", then " → AAC 2.0" when the server converts it, as a film's details write sound. Empty without sound.</summary>
     static string Audio(LivePlan plan, bool converted)
     {
         if (plan.Audio == "none") return "";
-        var sent = ItemFormat.Join(" ", ItemFormat.CodecLabel(plan.AudioCodec), ItemFormat.ChannelsLabel(plan.AudioChannels));
+        var sent = Details.SoundLabel(plan.AudioCodec, plan.AudioChannels);
         if (!converted) return sent;
         // The server makes AAC stereo of sound it converts (docs/API.md, "The stream").
-        var made = $"{ItemFormat.CodecLabel("aac")} {ItemFormat.ChannelsLabel(2)}";
+        var made = Details.SoundLabel("aac", 2);
         return sent.Length > 0 ? $"{sent} → {made}" : made;
     }
 

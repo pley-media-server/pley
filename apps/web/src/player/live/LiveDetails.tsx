@@ -4,8 +4,8 @@ import { asIs, notAsSent, useSessionPlan, type LivePlan, type SessionPlan } from
 import type { PlaybackInfo } from "@/api/types";
 import { currentLocale, t as translate } from "@/i18n";
 import { streamCaps, type StreamCaps } from "@/lib/caps";
-import { channelsLabel, codecLabel, formatBitrate } from "@/lib/format";
-import { encoderName, methodLabel, Row } from "../PlaybackDetails";
+import { codecLabel, formatBitrate } from "@/lib/format";
+import { encoderName, methodLabel, Row, soundLabel } from "../PlaybackDetails";
 
 /**
  * How the player plays a channel: from its stream (mpegts.js) or from the
@@ -67,12 +67,12 @@ export function liveVideo(plan: LivePlan, direct: boolean): string | null {
   return `${source} → ${[codecLabel("h264"), lines ? `${lines}p` : null].filter(Boolean).join(" ")}`;
 }
 
-/** The provider's sound as `"AC3 5.1"`, and `" → AAC Stereo"` when the transcoder's segments have it converted. */
+/** The provider's sound as `"AC3 5.1"`, and `" → AAC 2.0"` when the transcoder's segments have it converted, as a file's details write sound. */
 export function liveAudio(plan: LivePlan, direct: boolean): string | null {
   if (plan.audio === "none") return null;
-  const source = [codecLabel(plan.audio_codec), channelsLabel(plan.audio_channels ?? undefined)].filter(Boolean).join(" ");
+  const source = soundLabel(plan.audio_codec, plan.audio_channels);
   if (!source) return null;
-  return direct || plan.audio !== "aac" ? source : `${source} → ${codecLabel("aac")} ${channelsLabel(2)}`;
+  return direct || plan.audio !== "aac" ? source : `${source} → ${soundLabel("aac", 2)}`;
 }
 
 /** What the provider sends now as `"12 Mbps"`, and a transcode's video after it: `"12 Mbps → 8.0 Mbps"`. */

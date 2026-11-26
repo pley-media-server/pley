@@ -116,7 +116,7 @@ class LivePlayerScreenTest {
         // In the badge and in the sheet.
         compose.onAllNodesWithText("Direct play", useUnmergedTree = true).assertCountEquals(2)
         compose.onNodeWithText("HEVC 10-bit · 1920×1080 · 50 fps", useUnmergedTree = true).assertExists()
-        compose.onNodeWithText("AAC Stereo", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("AAC 2.0", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("6.5 Mbps", useUnmergedTree = true).assertExists()
         // Asked of the session watched, besides the tune's own asking.
         assertEquals(listOf("live-1", "live-1"), live.plansAsked)

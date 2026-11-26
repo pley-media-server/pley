@@ -923,7 +923,7 @@ decodes a codec that Media3 doesn't read from MPEG-TS, or when
 `stream.ts` failed). Then the provider's video ("HEVC 10-bit · 3840×2160
 · 50 fps", with "interlaced"), sound ("EAC3 5.1") and bitrate as it is
 now, each with what the server makes of it when it converts it ("→ H.264
-1080p", "→ AAC Stereo", the transcode's video bitrate), a transcode's
+1080p", "→ AAC 2.0", the transcode's video bitrate), a transcode's
 encoder, and this device's side as for a video: the decoder, the
 picture, dropped frames, where the sound goes. A row whose value isn't
 known is left out. The badge comes from the plan the player asked for as

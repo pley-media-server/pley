@@ -182,7 +182,7 @@ describe("the Live TV player's Playback info", () => {
       "How it plays": [
         "Playback: Transcoding",
         "Video: HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p",
-        "Audio: AAC Stereo",
+        "Audio: AAC 2.0",
         "Bitrate: 12 Mbps → 8.0 Mbps",
         "Encoder: NVIDIA NVENC",
       ],
@@ -196,7 +196,7 @@ describe("the Live TV player's Playback info", () => {
     await tv.wait(0);
     tv.shows();
     await tv.openInfo();
-    expect(tv.read()["How it plays"]).toEqual(["Playback: Direct stream", "Video: H.264 8-bit · 1920×1080 · 25 fps", "Audio: AAC Stereo"]);
+    expect(tv.read()["How it plays"]).toEqual(["Playback: Direct stream", "Video: H.264 8-bit · 1920×1080 · 25 fps", "Audio: AAC 2.0"]);
     tv.plans.s1 = plan({ kbps: 6200 });
     tv.setStats({ width: 1920, height: 1080, dropped: 9, frames: 550 });
     await tv.wait(1_000);
