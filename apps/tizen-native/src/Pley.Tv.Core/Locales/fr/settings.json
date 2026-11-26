@@ -107,7 +107,7 @@
   },
   "appearance": {
     "theme": "Thème",
-    "themeHint": "L’apparence de Pley sur cette TV. Chaque appareil garde la sienne.",
+    "themeHint": "L’apparence de Pley pour vous sur ce téléviseur. Chaque profil garde la sienne.",
     "accent": "Accent",
     "accentHint": "S’applique aux boutons, aux liens et aux autres éléments mis en avant.",
     "own": "Par défaut",

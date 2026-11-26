@@ -107,7 +107,7 @@
   },
   "appearance": {
     "theme": "Tema",
-    "themeHint": "Cómo se ve Pley en esta TV. Cada dispositivo guarda el suyo.",
+    "themeHint": "Cómo se ve Pley para ti en este televisor. Cada perfil guarda el suyo.",
     "accent": "Acento",
     "accentHint": "Se aplica a botones, enlaces y otros elementos destacados.",
     "own": "Predeterminado",

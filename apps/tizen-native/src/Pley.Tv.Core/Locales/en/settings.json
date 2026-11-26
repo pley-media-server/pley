@@ -107,7 +107,7 @@
   },
   "appearance": {
     "theme": "Theme",
-    "themeHint": "How Pley looks on this TV. Each device keeps its own.",
+    "themeHint": "How Pley looks for you on this TV. Each profile keeps its own.",
     "accent": "Accent",
     "accentHint": "Affects buttons, links and other focal items.",
     "own": "Default",

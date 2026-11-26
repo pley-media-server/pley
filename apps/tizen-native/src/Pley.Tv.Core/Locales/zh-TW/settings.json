@@ -107,7 +107,7 @@
   },
   "appearance": {
     "theme": "主題",
-    "themeHint": "Pley 在這臺電視上的外觀。每臺裝置各自儲存。",
+    "themeHint": "你在此電視上看到的 Pley 外觀。每個設定檔各自儲存。",
     "accent": "強調色",
     "accentHint": "套用於按鈕、連結和其他焦點元素。",
     "own": "預設",
