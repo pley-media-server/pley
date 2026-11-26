@@ -1218,7 +1218,11 @@ impl Tuners {
             }
             // The transcoder stopped making it: say why, unless the provider is to blame.
             if let Ok(status) = transcoder.live_status(&job).await {
-                t.state.lock().plan = status.plan;
+                // One that failed before it knew the channel says nothing of
+                // it: the plan known already (a direct player's details) stays.
+                if status.plan.is_some() {
+                    t.state.lock().plan = status.plan;
+                }
                 let connected = t.state.lock().connected;
                 if let Some(why) = status.error
                     && connected

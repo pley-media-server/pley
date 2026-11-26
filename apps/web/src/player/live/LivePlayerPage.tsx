@@ -270,8 +270,10 @@ function LivePlayer({
   // What the badge says: the plan as the tune or the details last had it.
   const knownPlan = useSessionPlan(session, false).data ?? null;
   // Not had from the tune (the transcoder's segments played at once): asked
-  // until known, for the badge, as the details would.
-  useSessionPlan(session, !!playback && !playback.direct && !knownPlan);
+  // until known, for the badge, as the details would. Not once it failed:
+  // each answer keeps the session there, and with it the provider's
+  // connection, under the error card.
+  useSessionPlan(session, status !== "error" && !!playback && !playback.direct && !knownPlan);
   const method = playback ? liveMethod(playback.direct, knownPlan) : null;
   // Watch on…'s menu is open: the controls it hangs from stay.
   const [watchOn, setWatchOn] = useState(false);

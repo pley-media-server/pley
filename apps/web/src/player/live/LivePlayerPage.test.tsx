@@ -811,6 +811,28 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
     await toHls();
   });
 
+  it("stops asking what the channel is once it failed, so its session can end", async () => {
+    // The server never knew it: the badge's asking goes on while it plays.
+    planAnswer = () => null;
+    renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await toHls();
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(plans().length).toBeGreaterThan(1);
+
+    act(() =>
+      hlsInstances[0]?.emit("hlsError", {
+        fatal: true,
+        type: "networkError",
+        response: { code: 503, text: JSON.stringify({ code: "unavailable", message: "News can't be shown: no slot is free" }) },
+      }),
+    );
+    expect(await screen.findByText(/can't be shown/)).toBeInTheDocument();
+    // Each answer would keep the session, and the provider's connection, there.
+    const asked = plans().length;
+    await act(() => vi.advanceTimersByTimeAsync(20_000));
+    expect(plans()).toHaveLength(asked);
+  });
+
   /** Tunes it with the server's plan held back: the stream's tracks are found, then no plan comes in time. */
   async function tunedWithoutPlan() {
     hlsInstances.length = 0;
