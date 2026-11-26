@@ -16,6 +16,7 @@
     "playback": "Playback",
     "audio": "Audio",
     "display": "Subtitles and display",
+    "appearance": "Appearance",
     "server": "Server",
     "diagnostics": "Diagnostics",
     "about": "About",
@@ -171,5 +172,44 @@
     "plays_other": "{{count}} plays",
     "loadingMore": "Loading…",
     "remove": "Remove {{title}} from history"
+  },
+  "theme": {
+    "title": "Theme",
+    "hint": "How Pley looks on this TV. Each device keeps its own.",
+    "names": {
+      "midnight": "Midnight",
+      "midday": "Midday",
+      "starlight": "Starlight",
+      "twilight": "Twilight",
+      "moonlight": "Moonlight",
+      "nightshade": "Nightshade",
+      "greenlight": "Greenlight",
+      "sunshine": "Sunshine",
+      "blacklight": "Blacklight"
+    },
+    "about": {
+      "midnight": "Lights off, popcorn on",
+      "midday": "Midnight, but it's brunch",
+      "starlight": "Champagne, no hangover",
+      "twilight": "Sunset, no sunburn",
+      "moonlight": "Tuxedo mode",
+      "nightshade": "Lurking in the ferns",
+      "greenlight": "Touch grass, indoors",
+      "sunshine": "Juice box approved",
+      "blacklight": "Zero colors given"
+    },
+    "accent": {
+      "title": "Accent",
+      "hint": "Affects buttons, links and other focal items.",
+      "own": "Default",
+      "names": {
+        "sky": "Sky",
+        "violet": "Violet",
+        "miami": "Miami",
+        "gold": "Gold",
+        "mint": "Mint",
+        "amber": "Amber"
+      }
+    }
   }
 }

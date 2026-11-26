@@ -29,6 +29,8 @@ export type PageKey =
   /** New playlist; with `smart`, Save these filters (a library's listing). */
   | { name: "newPlaylist"; smart?: { libraryId: number; filter: string } }
   | { name: "settings" }
+  /** Settings, Appearance: the themes, then the accents; `accent`: focus starts on the accents. */
+  | { name: "appearance"; accent?: boolean }
   | { name: "history" }
   | { name: "diagnostics" }
   | { name: "nowPlaying" }

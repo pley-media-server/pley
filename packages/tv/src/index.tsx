@@ -2,9 +2,11 @@ import "./polyfills";
 import "./ui/theme.css";
 import "./ui/screens.css";
 import { render } from "preact";
+import { effect } from "@preact/signals";
 import type { Platform } from "./platform";
 import { AppState } from "./state";
 import { App } from "./ui/shell/app";
+import { applyTheme } from "./ui/themes";
 
 export type { Platform, DeviceFacts, FoundServer } from "./platform";
 export { AppState } from "./state";
@@ -27,6 +29,8 @@ export function startApp(platform: Platform): AppState {
   // TVs never resize; a desktop browser (development) does.
   window.addEventListener("resize", fit);
   const state = new AppState(platform);
+  // The theme picked on this TV, before the first frame; a pick redraws every color in the next one.
+  effect(() => applyTheme(state.theme.value, state.accent.value));
   render(<App state={state} scale={scale} />, root);
   return state;
 }

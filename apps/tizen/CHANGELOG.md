@@ -10,6 +10,7 @@ describes how they are made.
 
 ### Added
 
+- Themes and accents, under Settings → Appearance, kept on the TV.
 - A library's Collections are grouped by category, and can be narrowed
   to one category; a collection's page shows its category.
 - A row's See all opens the collection it shows, and a Home row of

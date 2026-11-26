@@ -13,6 +13,7 @@ import { Reporter } from "./player/reporter";
 import { isSummary, newsKeys, newsText, readyNews, readyText, statusFromRequest, titleKey } from "./requests";
 import type { SubtitleFont, SubtitlePosition } from "./subs/style";
 import { OffsetStore } from "./subs/sync";
+import { accentId, themeId, type AccentId, type ThemeId } from "./ui/themes";
 
 /** What a person sets on this TV (Settings). */
 export interface Settings {
@@ -85,6 +86,9 @@ const NOTICES_KEPT = 3;
 const LANGUAGE_KEY = "pley.language";
 /** The language picked on this TV with the globe, as the web app keeps its own. */
 const DEVICE_LANGUAGE_KEY = "pley.deviceLanguage";
+/** This TV's theme and accent (Settings → Appearance), by id, as the web app keeps its own; the server keeps none. */
+const THEME_KEY = "pley.theme";
+const ACCENT_KEY = "pley.accent";
 
 /** News of requests popped up over the pages: on TVs, only what is ready to watch. */
 export interface RequestNotice {
@@ -186,6 +190,10 @@ export class AppState {
   private readonly liveKnown = new Map<number, LiveChannel>();
   readonly profiles = signal<HouseholdProfile[] | null>(null);
   readonly settings = signal<Settings>(DEFAULT_SETTINGS);
+  /** The theme this TV draws in: Midnight until one is picked here. */
+  readonly theme = signal<ThemeId>("midnight");
+  /** The accent over it; null for the theme's own. */
+  readonly accent = signal<AccentId | null>(null);
   readonly home = signal<Hub[] | null>(null);
   readonly homeError = signal<unknown>(null);
   /** The last try at who is watching and the libraries failed (and none were saved): the library pages offer Retry. */
@@ -304,6 +312,9 @@ export class AppState {
     this.offsets = new OffsetStore(platform.storage, () => this.me.value?.id ?? null);
     setDeviceLanguages(() => this.deviceLanguages());
     this.deviceChoice.value = supportedLanguage(this.store.get(DEVICE_LANGUAGE_KEY)) ?? null;
+    // An id this build doesn't know (a theme from a newer one) is Midnight, or the theme's own accent.
+    this.theme.value = themeId(this.store.get(THEME_KEY));
+    this.accent.value = accentId(this.store.get(ACCENT_KEY));
     // The language shown last, until the server says; at the first start, the one picked here or the TV's.
     setLanguage(supportedLanguage(this.store.get(LANGUAGE_KEY)) ?? this.deviceChoice.value ?? deviceLanguage(this.deviceLanguages()) ?? "en");
     const kept = readJson<Partial<Settings>>(this.store, SETTINGS_KEY) ?? {};
@@ -559,6 +570,19 @@ export class AppState {
     this.home.value = null;
     this.signedOut.value = true;
     this.followLanguage();
+  }
+
+  /** Draws the app in a theme from now on, kept on the TV. */
+  chooseTheme(theme: ThemeId): void {
+    this.theme.value = theme;
+    this.store.set(THEME_KEY, theme);
+  }
+
+  /** Draws the app in an accent (null: the theme's own) from now on, kept on the TV whatever the theme. */
+  chooseAccent(accent: AccentId | null): void {
+    this.accent.value = accent;
+    if (accent) this.store.set(ACCENT_KEY, accent);
+    else this.store.remove(ACCENT_KEY);
   }
 
   updateSettings(patch: Partial<Settings>): void {

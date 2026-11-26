@@ -15,19 +15,22 @@ export function BrandGlow(p: { children: ComponentChildren }) {
   return <div class="brand-glow">{p.children}</div>;
 }
 
-/** The Pley mark: three posters on a shelf, play cut out of the front one, on its tile (the web's LogoMark). */
+/**
+ * The Pley mark: three posters on a shelf, play cut out of the front one, on
+ * its tile (the web's LogoMark), in the theme's colors (`--brand-*`).
+ */
 export function LogoMark(p: { size: number }) {
   return (
     <svg width={p.size} height={p.size} viewBox="0 0 64 64" aria-hidden="true" style="flex:none">
       <defs>
         <linearGradient id="pley-mark" x1="12" y1="15" x2="34" y2="49" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stop-color="#bae6fd" />
-          <stop offset="1" stop-color="#38bdf8" />
+          <stop offset="0" style="stop-color:var(--brand-light)" />
+          <stop offset="1" style="stop-color:var(--brand)" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="15" fill="#0a1622" />
-      <path fill="#0c4a6e" d="M46 21.5h3a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3h-3z" />
-      <path fill="#0284c7" d="M36 18.5h4.5a3.5 3.5 0 0 1 3.5 3.5v20a3.5 3.5 0 0 1-3.5 3.5H36z" />
+      <rect width="64" height="64" rx="15" style="fill:var(--brand-tile)" />
+      <path style="fill:var(--brand-far)" d="M46 21.5h3a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3h-3z" />
+      <path style="fill:var(--brand-deep)" d="M36 18.5h4.5a3.5 3.5 0 0 1 3.5 3.5v20a3.5 3.5 0 0 1-3.5 3.5H36z" />
       <path fill="url(#pley-mark)" fill-rule="evenodd" d="M16 15.5h14a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4v-25a4 4 0 0 1 4-4zM19 27v10a1 1 0 0 0 1.51.86l8.5-5a1 1 0 0 0 0-1.72l-8.5-5A1 1 0 0 0 19 27z" />
     </svg>
   );

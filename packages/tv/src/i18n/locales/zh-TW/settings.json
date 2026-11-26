@@ -16,6 +16,7 @@
     "playback": "播放",
     "audio": "音訊",
     "display": "字幕與顯示",
+    "appearance": "外觀",
     "server": "伺服器",
     "diagnostics": "診斷",
     "about": "關於",
@@ -170,5 +171,44 @@
     "plays_other": "{{count}} 次播放",
     "loadingMore": "載入中…",
     "remove": "從歷史記錄中移除 {{title}}"
+  },
+  "theme": {
+    "title": "主題",
+    "hint": "Pley 在這臺電視上的外觀。每臺裝置各自儲存。",
+    "names": {
+      "midnight": "午夜",
+      "midday": "正午",
+      "starlight": "星光",
+      "twilight": "暮光",
+      "moonlight": "月光",
+      "nightshade": "夜影",
+      "greenlight": "綠光",
+      "sunshine": "陽光",
+      "blacklight": "黑光"
+    },
+    "about": {
+      "midnight": "關燈，爆米花就位",
+      "midday": "午夜，但在吃早午餐",
+      "starlight": "香檳，不宿醉",
+      "twilight": "看日落，不曬傷",
+      "moonlight": "燕尾服模式",
+      "nightshade": "潛伏在蕨叢裡",
+      "greenlight": "足不出戶，摸摸草",
+      "sunshine": "果汁盒認證",
+      "blacklight": "零色彩，零煩惱"
+    },
+    "accent": {
+      "title": "強調色",
+      "hint": "套用於按鈕、連結和其他焦點元素。",
+      "own": "預設",
+      "names": {
+        "sky": "天藍",
+        "violet": "紫羅蘭",
+        "miami": "邁阿密",
+        "gold": "金色",
+        "mint": "薄荷",
+        "amber": "琥珀"
+      }
+    }
   }
 }

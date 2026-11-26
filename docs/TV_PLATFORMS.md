@@ -445,6 +445,36 @@ apps.
   files, so a wrong one fails the type check; English stands in for a word
   missing elsewhere, and the tests check every language has every word.
 
+### Appearance
+
+The TV draws in one of Pley's nine themes, with one of six accents or the
+theme's own ([THEMES.md](THEMES.md)), the light themes included.
+
+- **Settings → Appearance** shows the theme and the accent; either row
+  opens the picker: the themes three across, each a small Pley in its
+  colors with its name and caption, then the accents, Default first. The
+  ones in use are ticked. OK picks, and every color changes at once.
+- **Kept on the TV** (`pley.theme`, `pley.accent`), never on the server.
+  A TV that picked none draws Midnight in its own accent; an id it
+  doesn't know counts as none.
+- **The colors** come from `packages/themes/themes.json`, bundled into
+  the app: `ui/themes.ts` gives each of the app's colors its token and
+  writes them as one stylesheet, written again on a pick, so nothing is
+  looked up while the remote moves. `test/ui/themes.test.ts` holds every
+  theme under every accent to the file, and fails on a color in the
+  stylesheets that isn't the theme's (black and white over pictures and
+  video aside).
+- **The players stay dark:** while a player is on top, the app takes the
+  light theme's dark twin, with the same accent, toasts and dialogs over
+  it too.
+- **Backdrops:** Sunshine's rainbow runs down the open rail. The others
+  (Twilight's sunset, Moonlight's moon, Nightshade's light) aren't drawn:
+  the pages fade their pictures, and hide the rows sliding under the rail,
+  with the page's own color, so a backdrop behind them would show only in
+  pieces. The page is the theme's plain background.
+- Sunshine's rounder corners and rounded type are the web's: the TV draws
+  the same shapes and Roboto in every theme.
+
 ## Building and testing
 
 ### Commands
@@ -492,6 +522,7 @@ its packages into the SDK by hand and it runs on WHPX.
 | `i18n/` | The words in English, French, Spanish and Chinese, `t()` and `Trans`, plural forms, the language shown, dates and numbers in it |
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, a pointer and its wheel |
+| `ui/themes.ts`, `ui/theme.css` | The themes and accents from `packages/themes/themes.json`, as the app's colors; the styles that draw in them |
 | `ui/shell/`, `ui/screens/`, `ui/kit/` | The rail, back stack and screens |
 | `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, sleep timer, reports, music, the remote and casts |
 | `live/` | Live TV: categories, the guide's pages, a channel on the TV's player |

@@ -237,6 +237,13 @@ export function App(p: ShellProps) {
     if (lastTop.current !== null && lastTop.current !== top.id && !reduced) curtain.value++;
     lastTop.current = top.id;
   }, [top?.id]);
+  // The players stay dark: in a light theme they, and the toasts and dialogs over them, take its dark twin's colors.
+  const onPlayer = isPlayer(top?.key);
+  useLayoutEffect(() => {
+    const app = document.getElementById("app");
+    if (onPlayer) app?.setAttribute("data-dark", "");
+    else app?.removeAttribute("data-dark");
+  }, [onPlayer]);
 
   useEffect(() => {
     if (!toast.value) return;

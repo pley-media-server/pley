@@ -24,7 +24,7 @@ import { pageOf } from "./item-actions";
 import { librarySorting, sortNeedsNewer } from "./library";
 import { ProfileAvatar, QrCode } from "./onboarding/kit";
 
-type Category = "profile" | "playback" | "audio" | "display" | "server" | "diagnostics" | "about" | "signout";
+type Category = "profile" | "playback" | "audio" | "display" | "appearance" | "server" | "diagnostics" | "about" | "signout";
 
 /** The categories, their names in `settings.categories`. */
 const CATEGORIES: { id: Category; icon: IconName }[] = [
@@ -32,6 +32,7 @@ const CATEGORIES: { id: Category; icon: IconName }[] = [
   { id: "playback", icon: "play" },
   { id: "audio", icon: "audio-lines" },
   { id: "display", icon: "captions" },
+  { id: "appearance", icon: "palette" },
   { id: "server", icon: "server" },
   { id: "diagnostics", icon: "gauge" },
   { id: "about", icon: "info" },
@@ -462,6 +463,33 @@ export function SettingsScreen(p: { entry: Entry }) {
         />,
       );
       break;
+    case "appearance": {
+      // The picker is a page of its own: nine previews and the accents don't fit beside the categories.
+      const accent = app.accent.value;
+      rows.push(
+        <SettingRow
+          key="theme"
+          fid="row-theme"
+          icon="palette"
+          label={t("settings.theme.title")}
+          value={t(`settings.theme.names.${app.theme.value}`)}
+          chevron
+          onSelect={() => ui.nav.open({ name: "appearance" })}
+        />,
+      );
+      rows.push(
+        <SettingRow
+          key="accent"
+          fid="row-accent"
+          icon="palette"
+          label={t("settings.theme.accent.title")}
+          value={accent ? t(`settings.theme.accent.names.${accent}`) : t("settings.theme.accent.own")}
+          chevron
+          onSelect={() => ui.nav.open({ name: "appearance", accent: true })}
+        />,
+      );
+      break;
+    }
     case "server":
       rows.push(
         <SettingRow
@@ -542,7 +570,13 @@ export function SettingsScreen(p: { entry: Entry }) {
       <div class="t-page c-fg" style="position:absolute;left:96px;top:27px">
         {t("settings.title")}
       </div>
-      <G kind="col" restore class="settings-categories">
+      <G
+        kind="col"
+        restore
+        class="settings-categories"
+        // Back from a page a row opened (Appearance, Diagnostics), Left returns to that row's category, not the one beside it.
+        onEnter={(dir) => (dir === "left" ? document.querySelector<HTMLElement>(`[data-fid="category-${shown}"]`) : null)}
+      >
         {CATEGORIES.map((c) => (
           <SettingRow
             key={c.id}
@@ -958,7 +992,7 @@ export function SignOutDialog(p: { server: string | null; onCancel: () => void; 
       onDismiss={p.onCancel}
       buttons={[
         { label: t("common.actions.cancel"), initial: true, onSelect: p.onCancel },
-        { label: t("settings.signOut.button"), color: "var(--danger-text)", onSelect: p.onSignOut },
+        { label: t("settings.signOut.button"), color: "var(--danger)", onSelect: p.onSignOut },
       ]}
     />
   );
