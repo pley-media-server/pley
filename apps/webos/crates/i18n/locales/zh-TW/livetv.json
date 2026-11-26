@@ -104,6 +104,12 @@
     "noneToTake": "可加入正在觀看的頻道，或待其停止後再試。",
     "andMore_other": "還有 {{count}} 個"
   },
+  "details": {
+    "directPlayOff": "伺服器已關閉直接播放",
+    "interlaced": "隔行影片會轉為逐行",
+    "videoNotPlayed": "此電視無法播放 {{codec}}",
+    "audioNotPlayed": "此電視無法播放 {{codec}} 音訊"
+  },
   "trouble": {
     "busy": "所有連線均在使用中",
     "stopped": "直播電視已停止",

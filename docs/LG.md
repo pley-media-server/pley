@@ -287,7 +287,18 @@ and goes with `live_channels_changed`. On LG:
 - **The channel's own stream:** a channel the server sends as it is, or
   whose only change is sound the TV decodes itself (AC-3, E-AC-3, MP2),
   plays from its `stream.ts`, from its first keyframe rather than after the
-  first HLS segments. The pipeline can't send the token, so the app reads
+  first HLS segments. While the server's Direct Play is on (the plan's
+  `direct_play`), so does a channel the server would convert, when the TV
+  plays what the provider sends, and the server makes no transcode for
+  it: progressive video in H.264, HEVC or MPEG-2 that a decoder of the
+  [capability report](#what-an-lg-tv-plays) takes at its bit depth (8
+  when the plan doesn't say), size and frame rate, and sound in AAC, AC-3,
+  E-AC-3, MP2 or MP3 that the report decodes or passes through. Those are
+  the formats LG lists for an MPEG-TS, and the report is the one files
+  play by. Interlaced video the server converts stays with the server, as
+  does every converted channel of a server older than `direct_play`
+  (`crates/player/src/live/session.rs`).
+- **Handing it on:** the pipeline can't send the token, so the app reads
   the stream with it and hands it on from the TV's loopback address
   (`http://127.0.0.1:<port>/relay/<128 random bits>/stream.ts`): only that
   one stream, to at most four players (a place taken only by a request
@@ -326,7 +337,24 @@ and goes with `live_channels_changed`. On LG:
 - **The player:** Up and Down, CH+ and CH−, Next and Previous change
   channel within the category; digits tune a number. OK, the menu or the
   guide key opens the channel list beside the picture, which moves aside
-  to make room; holding OK shows the controls, as in the Samsung app.
+  to make room; holding OK shows the controls, as in the Samsung app:
+  the channel list, the favorite and Info.
+- **Playback details:** Info in the controls opens the video player's
+  panel for the channel. Playback says Direct play (the provider's
+  `stream.ts`), Direct stream (the server's HLS with the video copied,
+  and "Audio transcoding" beside it when the server converts the sound)
+  or Transcoding. Why says what keeps a channel the server converts from
+  Direct play: Direct play off on the server, interlaced video, or the
+  video or sound this TV doesn't play. Video and Audio say what the
+  provider sends and, after an arrow, what the server makes of it;
+  Bitrate what the provider sends now, with a transcode's video bitrate;
+  Encoder the transcode's. They come from the session's plan, asked again
+  every 2.5 s while the panel shows; a row whose value isn't known is
+  left out, and a channel on HLS whose plan hasn't come says "Asking the
+  server…". The TV's network speed and, under This TV, what the pipeline
+  says of itself follow, as for a video. The panel stays through a change
+  of channel; Back goes to the controls
+  (`crates/player/src/live/details.rs`).
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change
   of channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).
@@ -925,6 +953,7 @@ keep a release's.
   [CLI guide](https://webostv.developer.lge.com/develop/tools/cli-dev-guide),
   [appinfo.json](https://webostv.developer.lge.com/develop/references/appinfo-json),
   [streaming protocols](https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm),
+  [video and audio formats](https://webostv.developer.lge.com/develop/specifications/video-audio-250),
   [resuming media](https://webostv.developer.lge.com/develop/guides/resuming-media-with-mediaoption),
   [Back button](https://webostv.developer.lge.com/develop/guides/back-button),
   [uMediaServer for webOS OSE](https://www.webosose.org/docs/reference/ls2-api/com-webos-media/).

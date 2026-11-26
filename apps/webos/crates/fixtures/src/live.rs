@@ -466,12 +466,17 @@ pub(crate) fn routes() -> Vec<Route> {
         locked("POST", "/api/live/channels/*/watch", play, watch),
         locked("GET", "/api/live/sessions/*/plan", play, |cx, state| {
             open(cx, state)?;
-            own_viewer(state, cx.value(0), cx.caller().profile)?;
+            let started = own_viewer(state, cx.value(0), cx.caller().profile)?.started_ms;
+            // What the provider sends: not known in the session's first second, then a rate that
+            // moves from one second to the next, as a real one does.
+            let seconds = (cx.now_ms() - started).max(0) / 1000;
+            let kbps = if seconds == 0 { 0 } else { 6_000 + seconds % 8 * 100 };
             Ok(json(
                 200,
                 &json!({
                     "video_codec": "h264", "width": 1920, "height": 1080, "frame_rate": 24.0, "interlaced": false,
-                    "audio_codec": "aac", "audio_channels": 2, "video": "copy", "audio": "copy",
+                    "bit_depth": 8, "audio_codec": "aac", "audio_channels": 2, "video": "copy", "audio": "copy",
+                    "out_height": null, "video_kbps": null, "direct_play": true, "kbps": kbps,
                 }),
             ))
         }),

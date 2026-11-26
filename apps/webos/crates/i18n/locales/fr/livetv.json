@@ -114,6 +114,12 @@
     "andMore_many": "et {{count}} de plus",
     "andMore_other": "et {{count}} de plus"
   },
+  "details": {
+    "directPlayOff": "La lecture directe est désactivée sur le serveur",
+    "interlaced": "La vidéo entrelacée est désentrelacée",
+    "videoNotPlayed": "Cette TV ne lit pas la vidéo {{codec}}",
+    "audioNotPlayed": "Cette TV ne lit pas l’audio {{codec}}"
+  },
   "trouble": {
     "busy": "Toutes les connexions sont utilisées",
     "stopped": "La TV en direct s’est arrêtée",

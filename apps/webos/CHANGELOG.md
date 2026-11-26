@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Live TV plays a channel as its provider sends it when the TV plays its
+  video and sound, HEVC included, and Info in the Live TV player's
+  controls shows Playback details: how the channel plays, its video,
+  audio and bitrate.
+
 ## [0.1.15] - 2026-11-25
 
 ### Fixed

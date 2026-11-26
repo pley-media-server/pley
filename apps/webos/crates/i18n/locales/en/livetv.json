@@ -109,6 +109,12 @@
     "andMore_one": "and {{count}} more",
     "andMore_other": "and {{count}} more"
   },
+  "details": {
+    "directPlayOff": "Direct play is off on the server",
+    "interlaced": "Interlaced video is made progressive",
+    "videoNotPlayed": "This TV doesn't play {{codec}}",
+    "audioNotPlayed": "This TV doesn't play {{codec}} sound"
+  },
   "trouble": {
     "busy": "All connections are in use",
     "stopped": "Live TV stopped",
