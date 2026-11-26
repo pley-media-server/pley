@@ -81,6 +81,13 @@
     "takeOver": "改在这里观看",
     "noneToTake": "正在观看的频道可以加入，或等其停止后再试。"
   },
+  "details": {
+    "whyOff": "服务器已关闭直接播放",
+    "whyInterlaced": "隔行扫描视频会转换为逐行扫描",
+    "whyVideo": "此设备无法播放 {{codec}}",
+    "whyAudio": "此设备无法播放 {{codec}} 音频",
+    "interlaced": "隔行扫描"
+  },
   "trouble": {
     "busy": "所有连接都已占用",
     "stopped": "直播电视已停止",

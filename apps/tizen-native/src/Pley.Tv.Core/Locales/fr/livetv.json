@@ -89,6 +89,13 @@
     "takeOver": "Regarder ici à la place",
     "noneToTake": "Vous pouvez rejoindre une chaîne déjà regardée, ou réessayer quand l’une d’elles est arrêtée."
   },
+  "details": {
+    "whyOff": "La lecture directe est désactivée sur le serveur",
+    "whyInterlaced": "La vidéo entrelacée est convertie en progressif",
+    "whyVideo": "Cet appareil ne lit pas la vidéo {{codec}}",
+    "whyAudio": "Cet appareil ne lit pas l’audio {{codec}}",
+    "interlaced": "entrelacé"
+  },
   "trouble": {
     "busy": "Toutes les connexions sont utilisées",
     "stopped": "La TV en direct s’est arrêtée",

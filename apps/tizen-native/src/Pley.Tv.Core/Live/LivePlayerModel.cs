@@ -22,14 +22,14 @@ public sealed record ChannelDigits(string Typed = "", string? NotFound = null)
 /// channels a page at a time for the channel list, which can show another category's (a channel
 /// tuned from there makes channel up and down go through that one); watched as it airs, without
 /// pausing or going back; a favorite; the profile's remote changes channel as channel up and
-/// down do. The channel is kept for the profile: the guide opens back at it. The playback ends
-/// with the model.
+/// down do; how the channel plays, for Playback details. The channel is kept for the profile:
+/// the guide opens back at it. The playback ends with the model.
 ///
 /// The screen (the Android app's TvLivePlayerScreen): with nothing over the picture, Up and Down
 /// and Channel up and down change channel (<see cref="Step"/>: Up the next), digits tune a
 /// number, OK, Menu or Guide the channel list, OK held the controls (the channel list, the
-/// favorite) over what's on, Info what's on for <see cref="InfoMs"/>; Back hides what shows, then
-/// leaves.
+/// favorite, Info for Playback details) over what's on, the Info key what's on for
+/// <see cref="InfoMs"/>; Back hides what shows, then leaves.
 /// Play, pause, rewind, fast forward, Left and Right do nothing. The controls hide after
 /// <see cref="ControlsMs"/> untouched while it plays.
 /// </summary>
@@ -233,6 +233,27 @@ public sealed class LivePlayerModel : IDisposable
         {
             if (Digits.Value.NotFound == typed) Digits.Value = new ChannelDigits();
         });
+    }
+
+    /// <summary>
+    /// Playback details open or close: while they show, the server is asked again and again what
+    /// the channel is, for the provider's bitrate as it is now (<see cref="LivePlayback.SetDetailsOpen"/>).
+    /// </summary>
+    public void SetDetailsOpen(bool open) => playback.SetDetailsOpen(open);
+
+    /// <summary>Playback details as they stand now (<see cref="LiveDetails.Panel"/>), which the panel reads once a second while it shows.</summary>
+    public Player.PlayerPanel Details()
+    {
+        Player.EngineStats? stats = null;
+        try
+        {
+            stats = (playback.Engine as Player.IVideoEngine)?.Stats();
+        }
+        catch (Exception)
+        {
+            // Between states, the TV's player may refuse: no stats this time.
+        }
+        return LiveDetails.Panel(playback.Direct, playback.Plan.Value, playback.Caps, stats);
     }
 
     public void Retry() => playback.Retry();

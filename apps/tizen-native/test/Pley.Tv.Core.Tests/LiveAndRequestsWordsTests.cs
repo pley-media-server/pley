@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Live;
 using Pley.Tv.Core.Requests;
@@ -32,6 +33,20 @@ public sealed class LiveAndRequestsWordsTests : IDisposable
         var clock = new LiveClock(CultureInfo.GetCultureInfo("fr-FR"), TimeZoneInfo.Utc);
         Assert.Equal("Aujourd’hui", clock.Day(Now + 3600, Now));
         Assert.Equal("À suivre 12:00 · Le Journal", clock.Next(FakeLive.Program(1, Now, Now + 1, "Le Journal")));
+        // Playback details, in the film player's words.
+        var hevc = new LivePlan { VideoCodec = "hevc", Interlaced = true, AudioCodec = "dts", AudioChannels = 2, Video = "libx264", Audio = "aac", DirectPlay = false, Kbps = 4_500 };
+        Assert.Equal(new[]
+        {
+            ("Lecture", "Transcodage"),
+            ("Pourquoi", "La lecture directe est désactivée sur le serveur"),
+            ("Vidéo", "HEVC · entrelacé → H.264"),
+            ("Audio", "DTS Stéréo → AAC Stéréo"),
+            ("Débit", "4,5 Mbit/s"),
+            ("Encodeur", "x264"),
+        }, LiveDetails.Facts(false, hevc, null).Select(f => (f.Label, f.Value)));
+        Assert.Equal("La vidéo entrelacée est convertie en progressif", LiveText.WhyInterlaced);
+        Assert.Equal("Cet appareil ne lit pas la vidéo AV1", LiveText.WhyVideo("AV1"));
+        Assert.Equal("Cet appareil ne lit pas l’audio DTS", LiveText.WhyAudio("DTS"));
     }
 
     [Fact]
@@ -43,6 +58,8 @@ public sealed class LiveAndRequestsWordsTests : IDisposable
         Assert.Equal("Quedan 12 min", LiveText.TimeLeft(FakeLive.Program(1, 0, 720, ""), 0));
         Assert.Equal("3 personas", LiveText.Holders(new BusyConnection { People = 3 }));
         Assert.Equal("No hay canal 9", LiveText.NoChannel("9"));
+        Assert.Equal("La reproducción directa está desactivada en el servidor", LiveText.WhyOff);
+        Assert.Equal("Este dispositivo no reproduce el audio DTS", LiveText.WhyAudio("DTS"));
         Assert.Equal("T2 E14", new LiveProgram { Season = 2, Episode = 14 }.EpisodeLabel);
         // The server's words go in as they are.
         Assert.Equal("No se guardó el favorito: No.", LiveText.FavoriteFailed(new ApiException(500, "internal", "no")));

@@ -89,10 +89,13 @@ public static class Details
     public static string Simplified(string text) =>
         Size.Replace(text, m => ItemFormat.ResolutionLabel(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)) ?? m.Value);
 
+    /// <summary>An encoder by the name people know: "h264_nvenc" is "NVIDIA NVENC"; one not known as it is.</summary>
+    public static string EncoderName(string encoder) => Encoders.TryGetValue(encoder, out var known) ? known : encoder;
+
     /// <summary>The encoder and where it runs: "NVIDIA NVENC (GPU)", "x264 veryfast (CPU)".</summary>
     public static string EncoderLabel(TranscodeInfo t)
     {
-        var name = t.Encoder != null ? Encoders.TryGetValue(t.Encoder, out var known) ? known : t.Encoder : null;
+        var name = t.Encoder != null ? EncoderName(t.Encoder) : null;
         var where = t.Pipeline != null && t.Pipeline != "copy" ? $"({Pipeline(t.Pipeline)})" : null;
         return ItemFormat.Join(" ", name, t.Preset, where);
     }
@@ -303,8 +306,22 @@ public static class Readout
 
     static List<MediaFact> Device(EngineStats? stats, ReadoutInput input)
     {
+        if (stats == null) return new List<MediaFact>();
+        var facts = Decoded(stats);
+        facts.Add(new MediaFact(Strings.T("player.readout.bufferedAhead"), Strings.T("player.units.seconds", ("value", input.BufferedAheadMs / 1000))));
+        facts.Add(new MediaFact(Strings.T("player.readout.stalls"), input.Stalls.ToString(CultureInfo.InvariantCulture)));
+        if (input.FirstFrameMs is long first) facts.Add(new MediaFact(Strings.T("player.readout.firstFrame"), Strings.T("player.units.milliseconds", ("value", first))));
+        facts.AddRange(Said(stats));
+        return facts;
+    }
+
+    /// <summary>
+    /// What the TV's player decodes, as it says: its decoder, the picture, the codec arriving and
+    /// the frames it dropped. A live channel's details have these too.
+    /// </summary>
+    public static List<MediaFact> Decoded(EngineStats stats)
+    {
         var facts = new List<MediaFact>();
-        if (stats == null) return facts;
         if (stats.Decoder != null) facts.Add(new MediaFact(Strings.T("player.readout.videoDecoder"), Decoder(stats.Decoder, stats.Hardware)));
         var codec = stats.Codec;
         var picture = ItemFormat.Join(" · ",
@@ -317,17 +334,15 @@ public static class Readout
         // What arrives: "hvc1.2.4.L153.B0", "dvhe.08.06", after the MIME type.
         if (codec != null && codec.IndexOf(' ') is var space && space > 0 && codec.Substring(space + 1).Trim() is { Length: > 0 } codecString) facts.Add(new MediaFact(Strings.T("player.readout.codecString"), codecString));
         if (stats.Dropped is long dropped && stats.Frames is long frames) facts.Add(new MediaFact(Strings.T("player.readout.droppedFrames"), DroppedOf(dropped, frames)));
-        facts.Add(new MediaFact(Strings.T("player.readout.bufferedAhead"), Strings.T("player.units.seconds", ("value", input.BufferedAheadMs / 1000))));
-        facts.Add(new MediaFact(Strings.T("player.readout.stalls"), input.Stalls.ToString(CultureInfo.InvariantCulture)));
-        if (input.FirstFrameMs is long first) facts.Add(new MediaFact(Strings.T("player.readout.firstFrame"), Strings.T("player.units.milliseconds", ("value", first))));
-        // The engine's own lines, "Label: value".
-        foreach (var line in stats.Extra)
-        {
-            var at = line.IndexOf(": ", StringComparison.Ordinal);
-            facts.Add(at > 0 ? new MediaFact(line.Substring(0, at), line.Substring(at + 2)) : new MediaFact("", line));
-        }
         return facts;
     }
+
+    /// <summary>The engine's own lines, "Label: value".</summary>
+    public static IEnumerable<MediaFact> Said(EngineStats stats) => stats.Extra.Select(line =>
+    {
+        var at = line.IndexOf(": ", StringComparison.Ordinal);
+        return at > 0 ? new MediaFact(line.Substring(0, at), line.Substring(at + 2)) : new MediaFact("", line);
+    });
 
     /// <summary>"10 of 1000": dropped of every frame the decoder had.</summary>
     static string DroppedOf(long dropped, long frames) => Strings.T("player.readout.droppedOf", ("dropped", dropped), ("frames", frames));

@@ -169,6 +169,18 @@ public static class CapsPolicy
             .FirstOrDefault();
     }
 
+    /// <summary>
+    /// Whether a decoder here takes video of <paramref name="codec"/> at this bit depth, size and
+    /// rate: all a live channel says of its picture. A report without decoders (version 1) is
+    /// asked by its codecs' names.
+    /// </summary>
+    public static bool Decodes(ClientCaps caps, string codec, int depth, int? width, int? height, double? frameRate)
+    {
+        if (caps.Video.Count == 0) return caps.VideoCodecs.Contains(codec, StringComparer.OrdinalIgnoreCase);
+        var video = new MediaStream { Kind = "video", Codec = codec, Width = width, Height = height, FrameRate = frameRate };
+        return caps.Video.Any(e => string.Equals(e.Codec, codec, StringComparison.OrdinalIgnoreCase) && Takes(e, video, depth));
+    }
+
     static CapsDecision DolbyVision(MediaStream video, ClientCaps caps)
     {
         var profile = video.DvProfile;
