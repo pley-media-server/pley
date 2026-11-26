@@ -441,17 +441,26 @@ function Facts(p: { block: FactBlock }) {
   );
 }
 
-/** The compact readout (Settings → Playback details) over the video while nothing else shows. */
-export function CompactReadout(p: { state: PlayerState; controller: PlaybackController; stats: () => EngineStats | null }): ComponentChildren {
+/**
+ * The compact readout's life over what plays: its controller asks the
+ * server how it plays while the readout shows, and the TV's player is read
+ * each second.
+ */
+function useReadout(controller: { setDetailsOpen(open: boolean): void }): void {
   const [, setTick] = useState(0);
   useEffect(() => {
-    p.controller.setDetailsOpen(true);
+    controller.setDetailsOpen(true);
     const t = setInterval(() => setTick((n) => n + 1), 1000);
     return () => {
       clearInterval(t);
-      p.controller.setDetailsOpen(false);
+      controller.setDetailsOpen(false);
     };
   }, []);
+}
+
+/** The compact readout (Settings → Playback details) over the video while nothing else shows. */
+export function CompactReadout(p: { state: PlayerState; controller: PlaybackController; stats: () => EngineStats | null }): ComponentChildren {
+  useReadout(p.controller);
   const d = p.state.details;
   if (!d) return null;
   const stats = p.stats();
@@ -462,12 +471,36 @@ export function CompactReadout(p: { state: PlayerState; controller: PlaybackCont
   // The file's bitrate, then what arrives now when that differs: "18 Mbps → 8 Mbps".
   const rates = [d.file?.bitrate ? formatBitrate(d.file.bitrate) : "", stats?.bitrate ? formatBitrate(stats.bitrate) : ""].filter((r, i, a) => r && a.indexOf(r) === i);
   if (rates.length) lines.push([t("player.details.bitrate"), rates.join(" → ")]);
+  return <CompactLines lines={lines.concat(decodedLines(stats))} />;
+}
+
+/**
+ * The compact readout over a live channel, under the title player's
+ * conditions: how it plays and the rows its Playback info has (`facts`,
+ * `null` until the server has said), then what the TV's player says, as
+ * over a title. A channel has no subtitles to name.
+ */
+export function LiveCompactReadout(p: { facts: FactBlock | null; controller: { setDetailsOpen(open: boolean): void }; stats: () => EngineStats | null }): ComponentChildren {
+  useReadout(p.controller);
+  if (!p.facts) return null;
+  const lines = p.facts.facts.map((f): [string, string] => [f.label, f.value]);
+  return <CompactLines lines={lines.concat(decodedLines(p.stats()))} />;
+}
+
+/** The compact readout's last lines: what the TV's player decodes, drops and holds. */
+function decodedLines(stats: EngineStats | null): [string, string][] {
+  const lines: [string, string][] = [];
   if (stats?.width && stats.height) lines.push([t("player.info.decoded"), `${stats.width}×${stats.height}${stats.hdr ? ` · ${stats.hdr}` : ""}`]);
   if (stats?.dropped !== undefined && stats.frames) lines.push([t("player.info.dropped"), t("player.info.framesOf", { dropped: stats.dropped, frames: stats.frames })]);
   if (stats?.bufferedAheadMs !== undefined) {
     const ahead = t("player.info.secondsAhead", { seconds: Math.round(stats.bufferedAheadMs / 1000) });
     lines.push([t("player.info.buffer"), stats.bandwidth ? `${ahead} · ${formatBitrate(stats.bandwidth)}` : ahead]);
   }
+  return lines;
+}
+
+function CompactLines(p: { lines: [string, string][] }) {
+  const lines = p.lines;
   return (
     <div class="compact-readout">
       {lines.map(([l, v]) => (

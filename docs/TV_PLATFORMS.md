@@ -176,8 +176,18 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
   The plan (`GET /api/live/sessions/{id}/plan`) is asked as the panel
   opens and again 2.5 s after each answer; the panel says "Asking the
   server…" until the server knows the channel. It stays open over a
-  change of channel and says the new channel's, and nothing is asked once
-  it closes or watching ends. A failure's card closes it.
+  change of channel and says the new channel's, and nothing more is asked
+  once it closes or watching ends. A failure's card closes it.
+- **The badge:** the controls say the way in a title's badge, its words
+  and colors, left of Live, as on Android TV. The plan is asked once as
+  each channel shows, for it (asking starts no transcode); a channel the
+  server doesn't know by then has no badge until Playback info has asked,
+  and none shows while a channel tunes.
+- **Settings → Playback details** keeps the compact readout over a
+  channel as over a title, while the controls, the channel list and
+  Playback info are closed: the way, the panel's Video, Audio, Bitrate and
+  Encoder lines, then what the TV's player decodes, drops and holds. The
+  plan is asked again 2.5 s after each answer while it shows.
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change of
   channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).

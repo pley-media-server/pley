@@ -37,7 +37,7 @@ describes how they are made.
   a key is pressed on the TV.
 - When the server has video transcoding turned off, the Quality menu
   offers only Original.
-- Live TV's player has Playback info, under Info in its controls.
+- Live TV's player shows how a channel plays, as a film's player does.
 
 ### Changed
 

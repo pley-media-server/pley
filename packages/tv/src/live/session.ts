@@ -116,7 +116,7 @@ export interface LiveState {
   audioOnly: boolean;
   /** Counts each channel tuned by the person (not a recovery), so the banner shows anew. */
   tunes: number;
-  /** What the channel is and what the server makes of it, while the details are open and once the server has said. */
+  /** What the channel is and what the server makes of it, as the server last said: asked once as it shows, for the badge, and by the details while they are open. `null` before, and as another tunes. */
   plan: SessionPlan | null;
   /** Time from tuning to the channel's first frame, in ms (Playback details' First frame, as a film's); `null` before it shows. */
   firstFrameMs: number | null;
@@ -164,7 +164,7 @@ export class LiveController {
   private pictureTimer: ReturnType<typeof setTimeout> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private stallTimer: ReturnType<typeof setTimeout> | null = null;
-  /** The details are open: the plan of the session watched is asked, and asked again. */
+  /** The details are open: the plan of the session watched is asked again and again. */
   private detailsOpen = false;
   private planTimer: ReturnType<typeof setTimeout> | null = null;
   /** The asking of the plan now under way, or waited for; another session's, or the details closing, ends it. */
@@ -307,7 +307,7 @@ export class LiveController {
       return;
     }
     this.session = this.watched = watching.session_id;
-    this.askPlan();
+    if (this.detailsOpen) this.askPlan();
     this.patch({ channel: { ...channel, ...watching.channel } });
     // An older server's address needs the token, which the TV's player can't send.
     if (!/\/api\/live\/media\//.test(watching.url)) {
@@ -385,6 +385,8 @@ export class LiveController {
     this.startTimer = null;
     const firstFrameMs = this.state.value.firstFrameMs ?? Date.now() - this.tunedAt;
     this.patch({ shown: true, phase: "playing", firstFrameMs });
+    // How it plays, for the badge: asked once, unless the details already ask.
+    if (!this.planCancel) this.askPlan();
     const mine = this.generation;
     if (this.pictureTimer !== null) clearTimeout(this.pictureTimer);
     this.pictureTimer = setTimeout(() => {
@@ -502,24 +504,35 @@ export class LiveController {
    * The player's details open or close. While they are open the server is
    * asked what the channel is and what it makes of it (`state.plan`), and
    * again 2.5 s after each answer, for the provider's bitrate as it is now;
-   * a channel change asks of the new session, and nothing is asked once
-   * they close or watching ends.
+   * a channel change asks of the new session. Closed, what the server said
+   * stays, for the badge, and nothing more is asked.
    */
   setDetailsOpen(open: boolean): void {
     this.detailsOpen = open;
+    // An asking under way is left to answer: for the details as they open, for the badge once they close.
+    if (this.planCancel && this.planTimer === null) return;
     this.stopPlan();
     if (open) this.askPlan();
-    else this.patch({ plan: null });
   }
 
+  /**
+   * Asks the plan of the session watched, and again after each answer while
+   * the details are open. Without them it is asked once, as the channel
+   * shows, for the badge: a channel the server doesn't know by then has no
+   * badge until the details ask. Asking starts no transcode.
+   */
   private askPlan(): void {
     const session = this.session;
-    if (!session || !this.detailsOpen || this.closed) return;
+    if (!session || this.closed) return;
     this.stopPlan();
     const cancel = new Cancel();
     this.planCancel = cancel;
     const again = () => {
       if (this.planCancel !== cancel) return;
+      if (!this.detailsOpen) {
+        this.planCancel = null;
+        return;
+      }
       this.planTimer = setTimeout(() => {
         this.planTimer = null;
         this.askPlan();

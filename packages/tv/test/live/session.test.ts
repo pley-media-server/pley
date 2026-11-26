@@ -185,7 +185,8 @@ describe("a live channel on the TV's player", () => {
     engine.listener!.firstFrame();
     c.tune(channel(2));
     await vi.advanceTimersByTimeAsync(0);
-    expect(asked.slice(2)).toEqual(["leave s1", "watch 2 tizen-tv", "GET /api/live/media/pley_mk_2/index.m3u8"]);
+    // Its plan was asked as the first channel showed, for the badge.
+    expect(asked.slice(2)).toEqual(["plan s1", "leave s1", "watch 2 tizen-tv", "GET /api/live/media/pley_mk_2/index.m3u8"]);
     expect(engine.calls).toContain("stop");
     expect(c.state.value).toMatchObject({ phase: "tuning", shown: false, tunes: 2 });
     expect(c.state.value.channel.id).toBe(2);
@@ -361,10 +362,11 @@ describe("a live channel taken over by another viewer", () => {
     c.tune(channel(1));
     await vi.advanceTimersByTimeAsync(0);
     engine.listener!.firstFrame();
+    const before = asked.length;
     send(takenOver(2, "s9", "Sam is watching Two now, on the connection this channel used."));
     expect(c.state.value.phase).toBe("playing");
     expect(c.state.value.trouble).toBeNull();
-    expect(asked).toHaveLength(2);
+    expect(asked).toHaveLength(before);
   });
 
   it("shows one alert however many of the channel's viewers the server ended", async () => {
@@ -564,15 +566,51 @@ describe("a live channel that stalls or fails", () => {
 });
 
 describe("a live channel's details", () => {
-  it("ask the server nothing of the plan until they open", async () => {
+  it("ask the plan once as the channel shows, for the badge, and no more until they open", async () => {
     const { c, engine, asked, plans } = setup();
     plans.s1 = plan();
+    c.tune(channel(1));
+    // Nothing while it tunes.
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(plansAsked(asked)).toEqual([]);
+    expect(c.state.value.plan).toBeNull();
+    engine.listener!.firstFrame();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(plansAsked(asked)).toEqual(["plan s1"]);
+    expect(c.state.value.plan?.video).toBe("copy");
+  });
+
+  it("ask once: a channel the server doesn't know by then has no plan until they open", async () => {
+    const { c, engine, asked, plans } = setup();
     c.tune(channel(1));
     await vi.advanceTimersByTimeAsync(0);
     engine.listener!.firstFrame();
     await vi.advanceTimersByTimeAsync(30_000);
-    expect(plansAsked(asked)).toEqual([]);
+    expect(plansAsked(asked)).toEqual(["plan s1"]);
     expect(c.state.value.plan).toBeNull();
+    plans.s1 = plan();
+    c.setDetailsOpen(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(c.state.value.plan?.video).toBe("copy");
+  });
+
+  it("ask the next channel's plan as it shows, the one before forgotten as it tunes", async () => {
+    const { c, engine, asked, plans } = setup();
+    plans.s1 = plan();
+    plans.s2 = plan({ video: "libx264" });
+    c.tune(channel(1));
+    await vi.advanceTimersByTimeAsync(0);
+    engine.listener!.firstFrame();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(c.state.value.plan?.video).toBe("copy");
+    c.tune(channel(2));
+    expect(c.state.value.plan).toBeNull();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(plansAsked(asked)).toEqual(["plan s1"]);
+    engine.listener!.firstFrame();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(plansAsked(asked)).toEqual(["plan s1", "plan s2"]);
+    expect(c.state.value.plan?.video).toBe("libx264");
   });
 
   it("ask the plan as they open, and again 2.5 s after each answer, for the provider's bitrate as it is now", async () => {
@@ -595,22 +633,29 @@ describe("a live channel's details", () => {
     expect(plansAsked(asked)).toHaveLength(4);
   });
 
-  it("stop asking when they close, and forget the plan", async () => {
+  it("stop asking when they close, and keep what the server said, for the badge", async () => {
     const { c, engine, asked, plans } = setup();
     plans.s1 = plan();
     c.tune(channel(1));
     await vi.advanceTimersByTimeAsync(0);
     engine.listener!.firstFrame();
     c.setDetailsOpen(true);
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(2_500);
+    expect(plansAsked(asked)).toHaveLength(2);
     c.setDetailsOpen(false);
-    expect(c.state.value.plan).toBeNull();
+    expect(c.state.value.plan?.video).toBe("copy");
     await vi.advanceTimersByTimeAsync(30_000);
-    expect(plansAsked(asked)).toEqual(["plan s1"]);
+    expect(plansAsked(asked)).toHaveLength(2);
+    // Open again: asked at once, for the bitrate as it is now.
+    plans.s1 = plan({ kbps: 6200 });
+    c.setDetailsOpen(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(plansAsked(asked)).toHaveLength(3);
+    expect(c.state.value.plan?.kbps).toBe(6200);
   });
 
-  it("drop an answer that comes once they have closed", async () => {
-    const { c, engine, plans } = setup();
+  it("keep the answer under way as they close, for the badge, and ask no more", async () => {
+    const { c, engine, asked, plans } = setup();
     plans.s1 = plan();
     c.tune(channel(1));
     await vi.advanceTimersByTimeAsync(0);
@@ -619,7 +664,8 @@ describe("a live channel's details", () => {
     // Closed before the server's answer is heard.
     c.setDetailsOpen(false);
     await vi.advanceTimersByTimeAsync(10_000);
-    expect(c.state.value.plan).toBeNull();
+    expect(c.state.value.plan?.video).toBe("copy");
+    expect(plansAsked(asked)).toEqual(["plan s1"]);
   });
 
   it("say the new channel's once the channel changes, and ask no more of the one before", async () => {

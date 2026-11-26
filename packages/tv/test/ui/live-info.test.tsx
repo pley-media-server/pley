@@ -18,7 +18,7 @@ vi.mock("../../src/player/music", async (original) => ({
   initMusic: () => ({ yieldToVideo: () => undefined }),
 }));
 
-/** The Live TV player's Playback info, on a server and a TV's player that answer as the test says. */
+/** The Live TV player's Playback info, badge and compact readout, on a server and a TV's player that answer as the test says. */
 
 let root: HTMLElement | null = null;
 let detach: (() => void) | null = null;
@@ -47,7 +47,7 @@ function plan(over: Partial<SessionPlan> = {}): SessionPlan {
   };
 }
 
-function setup() {
+function setup(settings: { playbackDetails: boolean } = { playbackDetails: false }) {
   document.body.innerHTML = "";
   root = document.createElement("div");
   document.body.appendChild(root);
@@ -78,6 +78,8 @@ function setup() {
     url: (path: string) => `http://tv.test${path}`,
     // The category's channels, for CH+ and CH−: two, round their ends.
     liveBrowse: () => Promise.resolve({ total: 2, offset: 0, channels: [channel(1), channel(2)] }),
+    // The channel list's categories: none but All.
+    liveGroups: () => Promise.resolve({ total: 2, favorites: 0, recent: 0, groups: [] }),
   };
   const ui = {
     focus,
@@ -104,6 +106,7 @@ function setup() {
   const app = {
     changes: signal(0),
     visible: signal(true),
+    settings: signal(settings),
     knownLiveChannel: (id: number) => channel(id),
     keepLiveChannel: () => undefined,
     installId: () => "tizen-tv",
@@ -152,7 +155,17 @@ function setup() {
   };
   const note = () => panel()?.querySelector(".panel-note")?.textContent ?? null;
   const plansAsked = () => asked.filter((a) => a.indexOf("plan") === 0);
-  return { root: root!, focus, asked, plans, press, wait, shows, openInfo, panel, read, note, plansAsked, setStats: (s: EngineStats) => (stats = s) };
+  /** How it plays, beside Live in the controls: its words and its color, or null when it isn't drawn. */
+  const badge = () => {
+    const el = root!.querySelector(".player-controls .live-chip-box .method-badge");
+    return el ? `${el.textContent} (${el.className.replace("method-badge t-caption ", "")})` : null;
+  };
+  /** The compact readout over the picture, as "label: value" lines; null when it isn't drawn. */
+  const readout = () => {
+    const el = root!.querySelector(".compact-readout");
+    return el ? Array.from(el.querySelectorAll(".readout-fact")).map((f) => `${f.children[0]?.textContent}: ${f.children[1]?.textContent}`) : null;
+  };
+  return { root: root!, focus, asked, plans, press, wait, shows, openInfo, panel, read, note, plansAsked, badge, readout, setStats: (s: EngineStats) => (stats = s) };
 }
 
 beforeEach(() => {
@@ -173,8 +186,10 @@ describe("the Live TV player's Playback info", () => {
     const tv = setup();
     tv.plans.s1 = plan({ video_codec: "hevc", bit_depth: 10, width: 3840, height: 2160, frame_rate: 50, video: "h264_nvenc", out_height: 1080, video_kbps: 8000, kbps: 12_300 });
     await tv.wait(0);
-    tv.shows();
     expect(tv.plansAsked()).toEqual([]);
+    tv.shows();
+    // Asked once as the channel shows, for the badge.
+    expect(tv.plansAsked()).toEqual(["plan s1"]);
     await tv.openInfo();
     expect(tv.panel()?.querySelector(".panel-title")?.textContent).toBe("Playback info");
     expect(tv.note()).toBeNull();
@@ -196,14 +211,15 @@ describe("the Live TV player's Playback info", () => {
     await tv.wait(0);
     tv.shows();
     await tv.openInfo();
-    expect(tv.read()["How it plays"]).toEqual(["Playback: Direct stream", "Video: H.264 8-bit · 1920×1080 · 25 fps", "Audio: AAC 2.0"]);
+    expect(tv.read()["How it plays"]).toEqual(["Playback: Direct stream", "Video: H.264 · 1920×1080 · 25 fps", "Audio: AAC 2.0"]);
     tv.plans.s1 = plan({ kbps: 6200 });
     tv.setStats({ width: 1920, height: 1080, dropped: 9, frames: 550 });
     await tv.wait(1_000);
     expect(tv.read()["This TV"]).toContain("Dropped frames: 9 of 550");
     expect(tv.read()["How it plays"]).not.toContain("Bitrate: 6.2 Mbps");
     await tv.wait(1_500);
-    expect(tv.plansAsked()).toEqual(["plan s1", "plan s1"]);
+    // Once as the channel showed (for the badge), as the panel opened, and 2.5 s after.
+    expect(tv.plansAsked()).toEqual(["plan s1", "plan s1", "plan s1"]);
     expect(tv.read()["How it plays"]).toContain("Bitrate: 6.2 Mbps");
     // The controls stay up under it, however long it is read.
     await tv.wait(10_000);
@@ -254,7 +270,127 @@ describe("the Live TV player's Playback info", () => {
     expect(tv.panel()).not.toBeNull();
     expect(tv.read()["How it plays"]![0]).toBe("Playback: Transcoding");
     await tv.wait(5_000);
-    expect(tv.plansAsked().filter((a) => a === "plan s1")).toHaveLength(1);
+    // As the channel showed, for the badge, and as the panel opened.
+    expect(tv.plansAsked().filter((a) => a === "plan s1")).toHaveLength(2);
     expect(tv.plansAsked().filter((a) => a === "plan s2")).toHaveLength(3);
+  });
+});
+
+describe("the Live TV player's badge", () => {
+  it("says how the channel plays beside Live, in a title's words and colors", async () => {
+    const tv = setup();
+    tv.plans.s1 = plan({ video_codec: "hevc", bit_depth: 10, video: "h264_nvenc", out_height: 1080 });
+    await tv.wait(0);
+    tv.shows();
+    await tv.wait(0);
+    expect(tv.badge()).toBe("Transcoding (transcode)");
+    // Left of Live, in its box.
+    const box = tv.root.querySelector(".live-chip-box")!;
+    expect(Array.from(box.children).map((el) => el.className.split(" ")[0])).toEqual(["method-badge", "live-badge"]);
+    // It takes no focus: a title's doesn't.
+    expect(box.querySelector("[data-fid]")).toBeNull();
+  });
+
+  it("is a direct stream's while the server copies the video, saying so when it converts the sound", async () => {
+    const tv = setup();
+    tv.plans.s1 = plan();
+    tv.plans.s2 = plan({ audio_codec: "ac3", audio_channels: 6, audio: "aac" });
+    await tv.wait(0);
+    tv.shows();
+    await tv.wait(0);
+    expect(tv.badge()).toBe("Direct stream (stream)");
+    tv.press("channelUp");
+    await tv.wait(0);
+    // None while the next channel tunes, nor "…": the one before isn't said under its name.
+    expect(tv.badge()).toBeNull();
+    tv.shows();
+    await tv.wait(0);
+    expect(tv.badge()).toBe("Direct stream · Audio transcoding (stream)");
+  });
+
+  it("isn't drawn until the server has said how the channel plays", async () => {
+    const tv = setup();
+    await tv.wait(0);
+    tv.shows();
+    await tv.wait(5_000);
+    expect(tv.badge()).toBeNull();
+    expect(tv.root.querySelector(".live-chip-box .live-badge")).not.toBeNull();
+    // Asked once, and no more while it plays.
+    expect(tv.plansAsked()).toEqual(["plan s1"]);
+    // Playback info asks, and the badge has it after.
+    tv.plans.s1 = plan();
+    await tv.openInfo();
+    tv.press("back");
+    await tv.wait(0);
+    expect(tv.badge()).toBe("Direct stream (stream)");
+  });
+});
+
+describe("Settings → Playback details over a live channel", () => {
+  it("draws no readout while the setting is off", async () => {
+    const tv = setup();
+    tv.plans.s1 = plan();
+    await tv.wait(0);
+    tv.shows();
+    await tv.wait(3_000);
+    expect(tv.readout()).toBeNull();
+    expect(tv.plansAsked()).toEqual(["plan s1"]);
+  });
+
+  it("keeps the compact readout over the picture: how it plays, its rows, then what the TV decodes, as over a title", async () => {
+    const tv = setup({ playbackDetails: true });
+    tv.plans.s1 = plan({ video_codec: "hevc", bit_depth: 10, width: 3840, height: 2160, frame_rate: 50, video: "h264_nvenc", out_height: 1080, video_kbps: 8000, kbps: 12_300 });
+    await tv.wait(0);
+    tv.shows();
+    await tv.wait(0);
+    expect(tv.readout()).toEqual([
+      "Playback: Transcoding",
+      "Video: HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p",
+      "Audio: AAC 2.0",
+      "Bitrate: 12 Mbps → 8.0 Mbps",
+      "Encoder: NVIDIA NVENC",
+      "Decoded: 1920×1080",
+      "Dropped: 3 of 500",
+      "Buffer: 4 s ahead",
+    ]);
+    // Asked again while it shows, and the TV's player read each second.
+    tv.plans.s1 = plan({ kbps: 6200 });
+    tv.setStats({ width: 1920, height: 1080, dropped: 9, frames: 550 });
+    await tv.wait(2_500);
+    expect(tv.readout()).toContain("Bitrate: 6.2 Mbps");
+    expect(tv.readout()).toContain("Dropped: 9 of 550");
+  });
+
+  it("is hidden under the controls and Playback info, and back once they close", async () => {
+    const tv = setup({ playbackDetails: true });
+    tv.plans.s1 = plan();
+    await tv.wait(0);
+    tv.shows();
+    await tv.wait(0);
+    expect(tv.readout()).not.toBeNull();
+    await tv.openInfo();
+    expect(tv.readout()).toBeNull();
+    expect(tv.read()["How it plays"]![0]).toBe("Playback: Direct stream");
+    tv.press("back");
+    await tv.wait(0);
+    // The controls are still up.
+    expect(tv.readout()).toBeNull();
+    tv.press("back");
+    await tv.wait(0);
+    expect(tv.readout()).not.toBeNull();
+  });
+
+  it("is hidden beside the channel list, and says nothing until the server has said how the channel plays", async () => {
+    const tv = setup({ playbackDetails: true });
+    await tv.wait(0);
+    tv.shows();
+    await tv.wait(0);
+    expect(tv.readout()).toBeNull();
+    tv.plans.s1 = plan();
+    await tv.wait(2_500);
+    expect(tv.readout()![0]).toBe("Playback: Direct stream");
+    tv.press("channelList");
+    await tv.wait(0);
+    expect(tv.readout()).toBeNull();
   });
 });
