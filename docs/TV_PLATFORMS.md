@@ -873,10 +873,15 @@ pick at once: every page is drawn again where it was, in the new colors,
 the picker with focus on what was picked, and Settings under it back on
 the row that opened it. The pages are made again rather than recolored:
 NUI keeps each view's colors as it is made, and every view following the
-theme would cost each of them as it draws. The pick is kept in the TV's
-preferences (pley.theme, pley.accent) and never sent to the server;
-a TV that picked none, or keeps an id the app doesn't know, shows
-Midnight in its own accent.
+theme would cost each of them as it draws. The pick is kept on the TV
+for each profile (pley.theme.<server>.<id>, pley.accent.<server>.<id>
+in its preferences) and never sent to the server: once the profile is
+known, its own shows, and Midnight in its own accent where it picked none
+on this TV; switching profile switches to its pick at once. Before a
+profile is known (starting, signing in, Who's watching?), the TV shows the
+pick it showed last (pley.theme, pley.accent), so nothing changes
+color as it starts, and signing out keeps it. An id the app doesn't know
+shows as Midnight, or the theme's own accent.
 
 The colors come from packages/themes/themes.json, built into the Core
 library as it is (src/Pley.Tv.Core/Ui/Themes.cs); the app's colors by

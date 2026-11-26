@@ -100,8 +100,8 @@ class App : NUIApplication
                 Redraw();
             });
         };
-        // A theme or accent picked (Settings, Appearance): every color from here is its, and what shows
-        // is drawn again in it once the key that picked it has run its course.
+        // A theme or accent picked (Settings, Appearance), or another profile's pick: every color from
+        // here is its, and what shows is drawn again in it once what changed it has run its course.
         state.Theme.Changed += pick =>
         {
             PleyColors.Use(pick);

@@ -12,7 +12,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// a grid of five, each a small Pley in its colors with its name and caption, then Default and the
 /// six accents, each with its swatch in the theme shown. The pick shown is outlined in the accent
 /// and checked; focus is the TV's ring on a theme, the accent fill on an accent. OK shows a pick at
-/// once and keeps it on the TV (AppState.Theme): the app draws every page again in it, this one
+/// once and keeps it on the TV for the profile (AppState.Theme): the app draws every page again in it, this one
 /// with focus where it was.
 /// </summary>
 sealed class AppearanceScreen : ShellPage

@@ -10,7 +10,8 @@ describes how they are made.
 
 ### Added
 
-- The themes and accents, picked under Settings → Appearance.
+- The themes and accents, picked under Settings → Appearance and kept for each
+  profile on this TV.
 
 ## [0.1.14] - 2026-11-24
 

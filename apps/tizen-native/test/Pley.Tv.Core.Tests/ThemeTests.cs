@@ -258,7 +258,7 @@ public class ThemeTests
     }
 }
 
-/// <summary>The pick is the TV's own, kept under the web apps' keys and never sent to the server.</summary>
+/// <summary>The pick is the TV's own for each profile, kept under the web apps' keys and never sent to the server.</summary>
 public class ThemePickTests
 {
     static AppState State(MemoryKeyValue store) =>
@@ -292,6 +292,74 @@ public class ThemePickTests
         state.ChooseAccent(null);
         Assert.Null(store.Get("pley.accent"));
         Assert.Equal(new ThemePick("sunshine", null), State(store).Theme.Value);
+    }
+
+    const string Server = "https://pley.example.com";
+
+    static User Profile(long id) => new User { Id = id, Name = "P" + id };
+
+    [Fact]
+    public void Each_profile_keeps_its_own_pick_on_the_TV_and_switching_shows_it()
+    {
+        var store = new MemoryKeyValue();
+        var state = State(store);
+        state.Use(Server);
+        state.Me.Value = Profile(1);
+        state.ChooseTheme("starlight");
+        state.ChooseAccent("violet");
+        // A profile new to this TV: Midnight in its own accent, whatever showed before.
+        state.Me.Value = Profile(2);
+        Assert.Equal(ThemePick.Default, state.Theme.Value);
+        state.ChooseTheme("twilight");
+        state.Me.Value = Profile(1);
+        Assert.Equal(new ThemePick("starlight", "violet"), state.Theme.Value);
+        state.Me.Value = Profile(2);
+        Assert.Equal(new ThemePick("twilight", null), state.Theme.Value);
+        // Nothing of it goes to the server: the TV keeps it.
+        Assert.Equal("starlight", store.Get($"pley.theme.{Server}.1"));
+        Assert.Equal("violet", store.Get($"pley.accent.{Server}.1"));
+        Assert.Equal("twilight", store.Get($"pley.theme.{Server}.2"));
+        Assert.Null(store.Get($"pley.accent.{Server}.2"));
+    }
+
+    [Fact]
+    public void Before_a_profile_is_known_the_pick_shown_last_shows()
+    {
+        var store = new MemoryKeyValue();
+        var state = State(store);
+        state.Use(Server);
+        state.Me.Value = Profile(1);
+        state.ChooseTheme("sunshine");
+        state.Me.Value = Profile(2);
+        state.ChooseTheme("blacklight");
+        state.ChooseAccent("amber");
+        // Signed out: the pick shown stays, and is what the next start shows first.
+        state.Me.Value = null;
+        Assert.Equal(new ThemePick("blacklight", "amber"), state.Theme.Value);
+        var next = State(store);
+        Assert.Equal(new ThemePick("blacklight", "amber"), next.Theme.Value);
+        // Then the profile signed in brings its own.
+        next.Use(Server);
+        next.Me.Value = Profile(1);
+        Assert.Equal(new ThemePick("sunshine", null), next.Theme.Value);
+        Assert.Equal(new ThemePick("sunshine", null), State(store).Theme.Value);
+    }
+
+    [Fact]
+    public void A_profile_known_again_with_the_same_pick_changes_nothing()
+    {
+        var store = new MemoryKeyValue();
+        var state = State(store);
+        state.Use(Server);
+        state.Me.Value = Profile(1);
+        state.ChooseTheme("greenlight");
+        var heard = 0;
+        state.Theme.Changed += _ => heard++;
+        store.Written.Clear();
+        // Who is watching heard again from the server: no redraw, nothing written.
+        state.Me.Value = Profile(1) with { Name = "Renamed" };
+        Assert.Equal(0, heard);
+        Assert.DoesNotContain(store.Written, k => k.StartsWith("pley.theme", StringComparison.Ordinal) || k.StartsWith("pley.accent", StringComparison.Ordinal));
     }
 
     [Fact]
