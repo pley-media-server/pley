@@ -66,6 +66,7 @@ import app.pley.android.player.sleep.SleepTexts
 import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.item.FactLine
+import app.pley.android.ui.tv.item.MediaFacts
 import app.pley.android.ui.tv.item.PanelHeading
 import app.pley.android.ui.tv.item.PanelRow
 import app.pley.android.ui.tv.kit.focusRow
@@ -386,13 +387,23 @@ private fun InfoPanel(state: State<PlayerUiState>, engine: State<EngineState?>, 
     val input by rememberReadout(state, engine)
     val resources = LocalResources.current
     val sections = remember(input, resources) { TvReadout.sections(resources, input) }
+    ReadoutColumn(sections, waiting = input.details == null, Modifier.focusRequester(ui.requester(PlayerFocus.Panel)))
+}
+
+/**
+ * Playback details' [sections] under their title, the video player's and
+ * the live player's, in a column that takes focus ([modifier] says how)
+ * and that Up and Down scroll; "Asking the server…" while [waiting] for
+ * how it plays.
+ */
+@Composable
+internal fun ReadoutColumn(sections: List<MediaFacts>, waiting: Boolean, modifier: Modifier = Modifier) {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val step = with(LocalDensity.current) { 96.dp.toPx() }
     Column(
-        Modifier
+        modifier
             .fillMaxSize()
-            .focusRequester(ui.requester(PlayerFocus.Panel))
             .onKeyEvent { event ->
                 val native = event.nativeKeyEvent
                 if (native.action != AndroidKeyEvent.ACTION_DOWN) return@onKeyEvent false
@@ -412,7 +423,7 @@ private fun InfoPanel(state: State<PlayerUiState>, engine: State<EngineState?>, 
             .verticalScroll(scroll),
     ) {
         PanelTitle(stringResource(R.string.tv_player_info_title))
-        if (input.details == null) PanelNote(stringResource(R.string.tv_player_info_waiting))
+        if (waiting) PanelNote(stringResource(R.string.tv_player_info_waiting))
         sections.forEach { section ->
             PanelHeading(section.title)
             Column(Modifier.padding(horizontal = 16.dp)) {
@@ -457,7 +468,7 @@ private fun PanelNote(text: String, modifier: Modifier = Modifier) {
 private val PANEL_WIDTH = 360.dp
 
 /** Info is wider: its readout has a label column. */
-private val INFO_WIDTH = 440.dp
+internal val INFO_WIDTH = 440.dp
 private val INFO_LABEL_WIDTH = 112.dp
 
 internal const val TAG_PANEL = "pley.tv.player.panel"

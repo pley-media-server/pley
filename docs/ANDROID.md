@@ -877,8 +877,19 @@ asks for the channel (`POST …/watch`), the server tuning for whichever
 comes first, then asks for the session's `plan`: a channel the server sends
 as it is plays that MPEG-TS from its first keyframe, as does one whose AC3
 or E-AC3 sound the server converts, where the device decodes it or sends it
-to its receiver as it is (Diagnostics lists both); anything else
-plays the server's HLS. Taking over a connection, it reads `stream.ts` only once
+to its receiver as it is (Diagnostics lists both). While the server's
+Direct Play is on (`direct_play`, [API.md](API.md#live-tv)), so does any
+channel the device plays as the provider sends it, and the server makes no
+transcode of it: progressive H.264, HEVC or MPEG-2 video that one of the
+device's decoders takes at its bit depth, size and frame rate (8 bits
+when the plan gives none), with AAC, AC3, E-AC3 or MP3 sound the device
+decodes or sends to its receiver, which is what Media3 reads from MPEG-TS
+and Android has decoders for. Interlaced video the server converts stays
+with the server, whose deinterlacing setting decides, and so does MP2
+sound, which the app doesn't look for a decoder of. Before the device's
+decoders are known, only a channel sent as it is plays so. Anything else
+plays the server's HLS, and so does a channel whose `stream.ts` fails.
+Taking over a connection, it reads `stream.ts` only once
 the watch has answered, as only the watch takes the connection. Leaving
 the player ends the session, unless it goes into picture in picture
 (below). A page of channels that didn't load is asked for again once
@@ -897,6 +908,27 @@ server starts at its last keyframe. A channel that never played, or that
 stands still again within 2 minutes of being read again, plays the
 server's HLS instead. A provider that sends nothing isn't read again: the
 player waits for it.
+
+The live player has **Playback details**, the video player's: the info
+button beside channel down and up on phones, in the video player's sheet;
+**Info**, last in the controls, on TVs, in its side panel, which Up and
+Down scroll. They say how the channel plays, **Direct play** from
+`stream.ts`, **Direct stream** for HLS with its video copied or
+**Transcoding**, and for a channel on HLS why it isn't played as sent
+(**Direct Play is off on the server**, **Interlaced video is made
+progressive**, **This device doesn't play HEVC**, **This device doesn't
+play EAC3 sound**; nothing when the device decodes a codec that Media3
+doesn't read from MPEG-TS, or when `stream.ts` failed). Then the
+provider's video ("HEVC 10-bit · 3840×2160 · 50 fps", with "interlaced"),
+sound ("EAC3 5.1") and bitrate as it is now, each with what the server
+makes of it when it converts it ("→ H.264 1080p", "→ AAC Stereo", the
+transcode's video bitrate), a transcode's encoder, and this device's
+side as for a video: the decoder, the picture, dropped frames. A row
+whose value isn't known is left out. While they show, the player asks
+for the session's `plan` again every 2.5 s, and for the next channel's
+when the channel changes; closed, it asks nothing. A channel on HLS
+whose plan the server doesn't give shows them waiting.
+
 Live TV has no pause, so another app's sound, a call's included, quiets
 the channel instead: its sound comes back once the other app is done, or,
 after music or a video, which take the sound for good, with the next
@@ -913,7 +945,8 @@ player. The screen turning off lets the session go too, and the channel
 is tuned again in the small window once the screen is back on.
 
 On TVs, OK in the player opens the channel list, as Menu and Guide do;
-holding OK shows the controls (the channel list and the favorite's star) over
+holding OK shows the controls (the channel list, the favorite's star and
+Info, for Playback details) over
 what's on. Up and Down, Channel up and down, and Previous and Next change
 channel. In the guide, Left and Right go program by program, back
 through a program that began before the guide a screen at a time, and a

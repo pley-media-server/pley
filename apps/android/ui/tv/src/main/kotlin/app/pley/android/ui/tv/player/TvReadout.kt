@@ -37,6 +37,7 @@ import app.pley.android.model.format.hdrFormatLabel
 import app.pley.android.model.format.levelLabel
 import app.pley.android.model.format.sampleRateLabel
 import app.pley.android.player.PlaybackDetailsUi
+import app.pley.android.player.PlayerEngine
 import app.pley.android.player.PlayerUiState
 import app.pley.android.player.SubtitleDelivery
 import app.pley.android.player.engine.EngineState
@@ -95,6 +96,27 @@ internal fun rememberReadout(state: State<PlayerUiState>, engine: State<EngineSt
     }
 }
 
+/**
+ * A live channel's readout: how it plays as [details] has it (`null`: not
+ * known yet), with the [engine]'s stats, its buffer and the display,
+ * sampled once a second while shown, as a video's ([rememberReadout]).
+ */
+@Composable
+internal fun rememberLiveReadout(details: PlaybackDetailsUi?, engine: PlayerEngine?): State<ReadoutInput> {
+    val view = LocalView.current
+    return produceState(ReadoutInput(details = details), details, engine, view) {
+        while (true) {
+            value = ReadoutInput(
+                details = details,
+                stats = engine?.state?.value?.stats,
+                bufferedMs = engine?.player?.let { it.bufferedPosition - it.currentPosition }?.coerceAtLeast(0) ?: 0,
+                display = displayNow(view),
+            )
+            delay(READOUT_MS)
+        }
+    }
+}
+
 /** The window's display: its mode and the HDR types that mode takes. */
 private fun displayNow(view: View): DisplayNow? {
     val display = view.display ?: return null
@@ -145,6 +167,16 @@ internal object TvReadout {
                 if (lines.isNotEmpty()) add(MediaFacts(r.getString(R.string.tv_player_info_device), lines))
             }
         }
+    }
+
+    /**
+     * A live channel's sections: how it plays and why, with what the
+     * provider sends and what the server makes of it, then what this TV
+     * does with it. A channel has no file and no tracks to list.
+     */
+    fun liveSections(r: Resources, input: ReadoutInput): List<MediaFacts> = buildList {
+        input.details?.let { add(MediaFacts(r.getString(R.string.tv_player_info_how), playback(r, it, input.quality))) }
+        input.stats?.let { add(MediaFacts(r.getString(R.string.tv_player_info_device), device(r, it, input))) }
     }
 
     /** Playback details over the video: one line each for the way, the streams, and this TV. */

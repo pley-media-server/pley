@@ -10,6 +10,15 @@
     <string name="session_stopped_message" translatable="false">%1$s\n%2$s</string>
     <!-- A channel's stream refused with no sentence of the server's: its HTTP status, "The server answered 503." -->
     <string name="live_server_answered">服务器返回 %1$d。</string>
+    <!-- Why a channel isn't played as its provider sends it, in its Playback details (docs/API.md, "Direct Play"). -->
+    <string name="live_why_off">服务器已关闭直接播放</string>
+    <string name="live_why_interlaced">隔行扫描视频会转换为逐行扫描</string>
+    <!-- The video's codec: "This device doesn't play HEVC". -->
+    <string name="live_why_video">此设备无法播放 %1$s</string>
+    <!-- The sound's codec: "This device doesn't play EAC3 sound". -->
+    <string name="live_why_audio">此设备无法播放 %1$s 音频</string>
+    <!-- After a channel's video in its Playback details: "MPEG-2 · 720×576 · 25 fps · interlaced". -->
+    <string name="live_details_interlaced">隔行扫描</string>
 
     <!-- Something another of the profile's devices sent here (Play on…), said a few seconds as it starts: the device. -->
     <string name="cast_playing_from">正在播放来自 %1$s 的内容</string>

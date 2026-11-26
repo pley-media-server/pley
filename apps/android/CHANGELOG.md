@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Live TV plays a channel as its provider sends it when the device
+  decodes its video and sound, and the live player has Playback details.
+
 ## [0.1.19] - 2026-11-25
 
 ### Added

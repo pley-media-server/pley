@@ -63,9 +63,12 @@ object PlaybackDetails {
 
     private val SIZE = Regex("""(\d+)×(\d+)""")
 
+    /** FFmpeg's encoder as people know it: "h264_nvenc" is NVIDIA NVENC, "libx264" x264; others as they are. */
+    fun encoderName(encoder: String): String = ENCODERS[encoder] ?: encoder
+
     /** The encoder and where it runs: "NVIDIA NVENC (GPU)", "x264 veryfast (CPU)". */
     fun encoderLabel(texts: PlayerTexts, t: TranscodeInfo): String {
-        val name = t.encoder?.let { ENCODERS[it] ?: it }
+        val name = t.encoder?.let(::encoderName)
         val where = t.pipeline?.takeIf { it != "copy" }?.let { "(${texts.pipeline(it)})" }
         return listOfNotNull(name, t.preset, where).joinToString(" ")
     }

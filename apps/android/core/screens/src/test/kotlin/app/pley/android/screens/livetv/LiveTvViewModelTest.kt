@@ -10,10 +10,12 @@ import app.pley.android.data.Loadable
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveGuide
+import app.pley.android.model.LivePlan
 import app.pley.android.model.LiveProgram
 import app.pley.android.network.ApiException
 import app.pley.android.player.PlayRequest
 import app.pley.android.player.live.LivePlayback
+import app.pley.android.player.live.LivePlaying
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.testing.MainDispatcherRule
 import app.pley.android.data.LiveTvView
@@ -341,6 +343,49 @@ class LiveTvViewModelTest {
         assertEquals("9", vm.digits.value.notFound)
         advanceTimeBy(LivePlayerViewModel.NOT_FOUND_MS + 1)
         assertEquals(ChannelDigits(), vm.digits.value)
+    }
+
+    @Test
+    fun `the details ask how the channel plays while they show, every few seconds, and for the channel then playing`() = liveTest {
+        val plan = LivePlan(videoCodec = "h264", audioCodec = "aac", video = "copy", audio = "copy", directPlay = true, kbps = 5_000)
+        live.plan = plan
+        val vm = player(1)
+        engines.last().player.ready()
+        settle()
+        // Nobody reads them: only the tune asked for the plan.
+        advanceTimeBy(LivePlayerViewModel.DETAILS_MS * 2)
+        settle()
+        assertEquals(listOf("live-1"), live.plansAsked)
+        assertNull(vm.details.value)
+
+        // They open: asked at once, then again each time, for the provider's bitrate as it is now.
+        val reading = backgroundScope.launch(main.dispatcher) { vm.details.collect { } }
+        settle()
+        assertEquals(LivePlaying(plan, asSent = true), vm.details.value)
+        assertEquals(2, live.plansAsked.size)
+        live.plan = plan.copy(kbps = 4_200)
+        advanceTimeBy(LivePlayerViewModel.DETAILS_MS + 1)
+        settle()
+        assertEquals(4_200L, vm.details.value?.plan?.kbps)
+        assertEquals(3, live.plansAsked.size)
+
+        // Another channel: nothing of the last one stays while it tunes, then its own.
+        vm.step(1)
+        settle()
+        assertNull(vm.details.value)
+        engines.last().player.ready()
+        settle()
+        assertEquals(LivePlaying(live.plan, asSent = true), vm.details.value)
+        assertEquals("live-2", live.plansAsked.last())
+
+        // They close: nothing more is asked, and nothing kept for the next time.
+        reading.cancel()
+        settle()
+        val asked = live.plansAsked.size
+        advanceTimeBy(LivePlayerViewModel.DETAILS_MS * 2)
+        settle()
+        assertEquals(asked, live.plansAsked.size)
+        assertNull(vm.details.value)
     }
 
     @Test

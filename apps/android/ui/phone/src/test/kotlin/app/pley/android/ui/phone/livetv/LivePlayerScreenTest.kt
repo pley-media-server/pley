@@ -2,6 +2,7 @@ package app.pley.android.ui.phone.livetv
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -11,6 +12,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.CreationExtras
 import app.pley.android.common.TestTags
+import app.pley.android.model.LivePlan
 import app.pley.android.network.ApiException
 import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LivePlayback
@@ -31,7 +33,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** The phone's live player and picture in picture: its button, and what the small window shows. */
+/** The phone's live player: Playback details, and picture in picture (its button, what the small window shows). */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w800dp-h360dp-xxhdpi")
 class LivePlayerScreenTest {
@@ -87,6 +89,34 @@ class LivePlayerScreenTest {
         show(player(), onPip = { asked++ })
         compose.onNodeWithTag(LIVE_PLAYER_PIP).performClick()
         assertEquals(1, asked)
+    }
+
+    @Test
+    fun `Playback details open from the controls and say how the channel plays`() {
+        live.plan = LivePlan(
+            videoCodec = "hevc", width = 1920, height = 1080, frameRate = 50.0, bitDepth = 10,
+            audioCodec = "aac", audioChannels = 2, video = "copy", audio = "copy", directPlay = true, kbps = 6_500,
+        )
+        val vm = player()
+        show(vm)
+        playing(vm)
+        compose.onNodeWithTag(LIVE_PLAYER_DETAILS_SHEET, useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag(LIVE_PLAYER_DETAILS).performClick()
+        compose.waitForIdle()
+        // Read unmerged: the sheet takes the touches inside it, which makes one node of its words.
+        compose.onNodeWithTag(LIVE_PLAYER_DETAILS_SHEET, useUnmergedTree = true).assertExists()
+        // The video player's words and rows.
+        compose.onNodeWithText(compose.activity.getString(R.string.player_details), useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Direct play", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("HEVC 10-bit · 1920×1080 · 50 fps", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("AAC Stereo", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("6.5 Mbps", useUnmergedTree = true).assertExists()
+        // Asked of the session watched, besides the tune's own asking.
+        assertEquals(listOf("live-1", "live-1"), live.plansAsked)
+
+        compose.onNodeWithContentDescription(compose.activity.getString(R.string.player_close)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(LIVE_PLAYER_DETAILS_SHEET, useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test

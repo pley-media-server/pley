@@ -1,0 +1,16 @@
+{
+  "video_codec": "hevc",
+  "width": 3840,
+  "height": 2160,
+  "frame_rate": 50.0,
+  "interlaced": false,
+  "bit_depth": 10,
+  "audio_codec": "eac3",
+  "audio_channels": 6,
+  "video": "h264_nvenc",
+  "audio": "aac",
+  "out_height": 1080,
+  "video_kbps": 8000,
+  "direct_play": true,
+  "kbps": 12300
+}

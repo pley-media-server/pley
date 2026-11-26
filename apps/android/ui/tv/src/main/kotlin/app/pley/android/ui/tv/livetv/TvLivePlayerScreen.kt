@@ -61,6 +61,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -87,6 +88,7 @@ import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveNames
 import app.pley.android.player.engine.VideoSurface
+import app.pley.android.player.live.LiveDetails
 import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LiveState
 import app.pley.android.player.live.LiveTrouble
@@ -99,13 +101,17 @@ import app.pley.android.ui.tv.kit.TvRoundButton
 import app.pley.android.ui.tv.kit.TvSidePanel
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
+import app.pley.android.ui.tv.player.INFO_WIDTH
+import app.pley.android.ui.tv.player.ReadoutColumn
+import app.pley.android.ui.tv.player.TvReadout
+import app.pley.android.ui.tv.player.rememberLiveReadout
 import app.pley.android.ui.tv.search.TvSearchField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 
 /** What shows over the picture. */
-private enum class Overlay { None, Controls, Channels }
+private enum class Overlay { None, Controls, Channels, Details }
 
 /**
  * The TV's live player (the web's LivePlayerPage, for a remote), the
@@ -114,8 +120,9 @@ private enum class Overlay { None, Controls, Channels }
  * - Up and Down, Channel up and down, and Previous and Next change
  *   channel (Up the next number), digits tune a number;
  * - OK opens the channel list, as Menu and Guide do; held, it shows the
- *   controls (the channel list, the favorite) over what's on; Back hides
- *   what shows, then leaves.
+ *   controls (the channel list, the favorite, Info) over what's on; Info
+ *   opens Playback details, the video player's panel; Back hides what
+ *   shows, then leaves.
  *
  * Live TV is watched as it airs, as the web's: no pause, no going back,
  * so play, pause, rewind and fast forward, Left and Right do nothing.
@@ -165,6 +172,8 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
         if (overlay == Overlay.None && !failed) runCatching { root.requestFocus() }
     }
     BackHandler(enabled = overlay != Overlay.None) { overlay = Overlay.None }
+    // A channel that stopped says why, with what to do about it: the details don't stay over that.
+    LaunchedEffect(failed) { if (failed && overlay == Overlay.Details) overlay = Overlay.None }
     // The channel list opens on the category zapped through.
     LaunchedEffect(overlay == Overlay.Channels) { if (overlay == Overlay.Channels) vm.openList() }
 
@@ -259,7 +268,7 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
         if (state.buffering && playing) Spinner(Modifier.align(Alignment.Center))
         // What's on, with the window and the controls when asked for.
         AnimatedVisibility(
-            visible = shown != null && playing && overlay != Overlay.Channels && (overlay == Overlay.Controls || showInfo),
+            visible = shown != null && playing && (overlay == Overlay.Controls || (overlay == Overlay.None && showInfo)),
             enter = fadeIn() + slideInVertically { it / 3 },
             exit = fadeOut() + slideOutVertically { it / 3 },
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -273,6 +282,7 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
                     controls = overlay == Overlay.Controls,
                     vm = vm,
                     onChannels = { overlay = Overlay.Channels },
+                    onDetails = { overlay = Overlay.Details },
                 )
             }
         }
@@ -289,7 +299,27 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
                 },
             )
         }
+        // As wide as the video player's Info: the readout has a label column. The width given first is the one kept.
+        TvSidePanel(visible = overlay == Overlay.Details, onDismiss = { overlay = Overlay.None }, modifier = Modifier.width(INFO_WIDTH)) {
+            Details(vm)
+        }
     }
+}
+
+/**
+ * Playback details, as the video player's Info panel: how the channel
+ * plays and why, what the provider sends and what the server makes of it,
+ * then what this TV does with it. Asked of the server while the panel
+ * shows ([LivePlayerViewModel.details]); Up and Down scroll it.
+ */
+@Composable
+private fun Details(vm: LivePlayerViewModel) {
+    val playing by vm.details.collectAsStateWithLifecycle()
+    val engine by vm.engine.collectAsStateWithLifecycle()
+    val resources = LocalResources.current
+    val input by rememberLiveReadout(remember(playing, resources) { playing?.let { LiveDetails.build(resources, it) } }, engine)
+    val sections = remember(input, resources) { TvReadout.liveSections(resources, input) }
+    ReadoutColumn(sections, waiting = input.details == null, Modifier.initialFocus().testTag(TV_LIVE_PLAYER_DETAILS))
 }
 
 /** The channel's logo, name and what's on while it is tuned. */
@@ -328,7 +358,7 @@ private fun SoundOnly(channel: LiveChannel, origin: String, now: Long) {
 /**
  * The bar at the foot: the channel's logo, number and name, what's on with
  * its times, how far it is and what's next; Live; and with [controls],
- * the buttons, the channel list first.
+ * the buttons, the channel list first, Playback details last.
  */
 @Composable
 private fun InfoBar(
@@ -339,6 +369,7 @@ private fun InfoBar(
     controls: Boolean,
     vm: LivePlayerViewModel,
     onChannels: () -> Unit,
+    onDetails: () -> Unit,
 ) {
     val clock = rememberClock()
     val category by vm.category.collectAsStateWithLifecycle()
@@ -406,6 +437,7 @@ private fun InfoBar(
                     onClick = vm::toggleFavorite,
                     showLabel = false,
                 )
+                TvRoundButton(stringResource(R.string.tv_player_info), PleyIcons.Info, onClick = onDetails, modifier = Modifier.testTag(TV_LIVE_PLAYER_INFO_BUTTON))
             }
         } else {
             BasicText(stringResource(R.string.tv_live_player_hint), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle), modifier = Modifier.padding(top = 12.dp))
@@ -810,3 +842,5 @@ internal const val TV_LIVE_PLAYER_BUSY = "pley.tv.live.player.busy"
 internal const val TV_LIVE_PLAYER_CHANNELS = "pley.tv.live.player.channels"
 internal const val TV_LIVE_PLAYER_GROUP = "pley.tv.live.player.group"
 internal const val TV_LIVE_PLAYER_SEARCH = "pley.tv.live.player.search"
+internal const val TV_LIVE_PLAYER_INFO_BUTTON = "pley.tv.live.player.info.button"
+internal const val TV_LIVE_PLAYER_DETAILS = "pley.tv.live.player.details"

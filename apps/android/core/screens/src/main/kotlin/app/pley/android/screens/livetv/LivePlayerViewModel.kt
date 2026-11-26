@@ -18,6 +18,7 @@ import app.pley.android.model.LiveGroups
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LivePlayback
+import app.pley.android.player.live.LivePlaying
 import app.pley.android.player.live.LiveState
 import app.pley.android.screens.screensGraph
 import kotlinx.coroutines.CancellationException
@@ -66,8 +67,9 @@ data class ChannelDigits(val typed: String = "", val notFound: String? = null)
  * at a time for the channel list, which can show another category's (a
  * channel tuned from there makes channel up and down go through that one,
  * as the web's does); watched as it airs, without pausing or going back; a
- * favorite; the profile's remote changes channel as channel up and down
- * do. The channel and its category are kept with the screen's saved
+ * favorite; how the channel plays, for its Playback details; the
+ * profile's remote changes channel as channel up and down do. The
+ * channel and its category are kept with the screen's saved
  * state, and the channel for the profile too: the guide opens back at it.
  * The playback ends with the ViewModel.
  */
@@ -119,6 +121,23 @@ class LivePlayerViewModel(
 
     /** The engine, for the video surface and the media session. */
     val engine: StateFlow<PlayerEngine?> = playback.engine
+
+    /**
+     * How the channel plays, for its Playback details: asked of the server
+     * as they open and every [DETAILS_MS] while they show, for the
+     * provider's bitrate as it is now, and again for another channel.
+     * `null` until the server answered, while no channel plays, and once
+     * they close: nothing is asked with nobody reading it.
+     */
+    val details: StateFlow<LivePlaying?> = state.map { it.channelId to (it.phase == LivePhase.Playing) }.distinctUntilChanged().flatMapLatest { (_, playing) ->
+        if (!playing) return@flatMapLatest flowOf<LivePlaying?>(null)
+        flow {
+            while (true) {
+                emit(playback.details())
+                delay(DETAILS_MS)
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(replayExpirationMillis = 0), null)
 
     /** The channel playing, as the server has it now (a favorite set shows at once). */
     val channel: StateFlow<LiveChannel?> = current.flatMapLatest { id ->
@@ -306,6 +325,9 @@ class LivePlayerViewModel(
         const val DIGITS_WAIT_MS = 1_400L
         const val NOT_FOUND_MS = 2_000L
         const val MAX_DIGITS = 5
+
+        /** The Playback details ask how the channel plays this often while open. */
+        const val DETAILS_MS = 2_500L
 
         private const val CHANNEL = "live.channel"
         private const val CATEGORY = "live.category"

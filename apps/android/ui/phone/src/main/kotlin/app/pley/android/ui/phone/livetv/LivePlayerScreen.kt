@@ -65,6 +65,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -91,6 +92,7 @@ import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveNames
 import app.pley.android.player.engine.VideoSurface
+import app.pley.android.player.live.LiveDetails
 import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LiveState
 import app.pley.android.player.live.LiveTrouble
@@ -103,6 +105,9 @@ import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.player.CarGap
 import app.pley.android.ui.phone.player.LocalCarScreen
+import app.pley.android.ui.phone.player.PlaybackDetailsBody
+import app.pley.android.ui.phone.player.SheetFrame
+import app.pley.android.ui.phone.player.SheetTitle
 import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.PlayOnButton
 import kotlin.math.abs
@@ -115,7 +120,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * it doesn't play (the server's own sentence: which channels hold every
  * connection) with Try again and Other channels. A tap shows the
  * controls: Back, the channel and what's on, the favorite, the channel
- * list; Live; channel down and up. Live TV is watched as it airs: no
+ * list; Live; Playback details, in the video player's sheet; channel down
+ * and up. Live TV is watched as it airs: no
  * pause, no going back (as the web's). A swipe up or
  * down changes channel. What's on and next shows for 5 s when a tap brings
  * the controls, not on its own as a channel tunes. [onPip], where picture in
@@ -134,6 +140,7 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit, inPip
     var controls by remember { mutableStateOf(true) }
     var poked by remember { mutableIntStateOf(0) }
     var panel by rememberSaveable { mutableStateOf(false) }
+    var details by rememberSaveable { mutableStateOf(false) }
     // What's on and next shows when asked for (a tap that brings the controls), never on its own as a channel tunes.
     var banner by remember(state.channelId) { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -144,10 +151,13 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit, inPip
     }
 
     BackHandler(enabled = panel) { panel = false }
+    BackHandler(enabled = details) { details = false }
+    // A channel that stopped says why, with what to do about it: nothing stays over that.
+    LaunchedEffect(state.phase is LivePhase.Failed) { if (state.phase is LivePhase.Failed) details = false }
     // Each opening starts on the category zapped through.
     LaunchedEffect(panel) { if (panel) vm.openList() }
-    LaunchedEffect(poked, controls, playing, panel) {
-        if (controls && playing && !panel) {
+    LaunchedEffect(poked, controls, playing, panel, details) {
+        if (controls && playing && !panel && !details) {
             delay(HIDE_CONTROLS_MS)
             controls = false
         }
@@ -217,11 +227,11 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit, inPip
             }
         }
         AnimatedVisibility(controls && state.phase !is LivePhase.Failed, enter = fadeIn(), exit = fadeOut()) {
-            Controls(state, shown, origin, now, vm, onBack = onBack, onChannels = { panel = true }, onPoke = poke, onPip = onPip)
+            Controls(state, shown, origin, now, vm, onBack = onBack, onChannels = { panel = true }, onDetails = { details = true }, onPoke = poke, onPip = onPip)
         }
         if (shown != null) {
             AnimatedVisibility(
-                banner && playing && !panel,
+                banner && playing && !panel && !details,
                 enter = fadeIn() + slideInVertically { it / 4 },
                 exit = fadeOut() + slideOutVertically { it / 4 },
                 modifier = Modifier.align(Alignment.BottomStart),
@@ -249,7 +259,27 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit, inPip
                 },
             )
         }
+        DetailsSheet(details, vm, onClose = { details = false })
     }
+    }
+}
+
+/**
+ * Playback details, as the video player's (PlayerSheet): how the channel
+ * plays and why, what the provider sends and what the server makes of it,
+ * then this device's side. Asked of the server while the sheet shows
+ * ([LivePlayerViewModel.details]).
+ */
+@Composable
+private fun BoxScope.DetailsSheet(open: Boolean, vm: LivePlayerViewModel, onClose: () -> Unit) {
+    SheetFrame(open, onClose) {
+        SheetTitle(stringResource(R.string.player_details), onBack = null, onClose = onClose)
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 12.dp).testTag(LIVE_PLAYER_DETAILS_SHEET)) {
+            val playing by vm.details.collectAsStateWithLifecycle()
+            val engine by vm.engine.collectAsStateWithLifecycle()
+            val resources = LocalResources.current
+            PlaybackDetailsBody(remember(playing, resources) { playing?.let { LiveDetails.build(resources, it) } }, engine)
+        }
     }
 }
 
@@ -303,6 +333,7 @@ private fun Controls(
     vm: LivePlayerViewModel,
     onBack: () -> Unit,
     onChannels: () -> Unit,
+    onDetails: () -> Unit,
     onPoke: () -> Unit,
     onPip: (() -> Unit)?,
 ) {
@@ -370,6 +401,7 @@ private fun Controls(
                     color = PleyColors.Muted,
                     modifier = Modifier.weight(1f),
                 )
+                PleyIconButton(PleyIcons.Info, stringResource(R.string.player_details), onClick = onDetails, modifier = Modifier.testTag(LIVE_PLAYER_DETAILS))
                 PleyIconButton(PleyIcons.ChevronDown, stringResource(R.string.live_player_channel_down), onClick = {
                     onPoke()
                     vm.step(-1)
@@ -839,6 +871,8 @@ internal const val LIVE_PLAYER_UP = "pley.live.player.up"
 internal const val LIVE_PLAYER_LIVE = "pley.live.player.live"
 internal const val LIVE_PLAYER_CHANNELS = "pley.live.player.channels"
 internal const val LIVE_PLAYER_PIP = "pley.live.player.pip"
+internal const val LIVE_PLAYER_DETAILS = "pley.live.player.details"
+internal const val LIVE_PLAYER_DETAILS_SHEET = "pley.live.player.details.sheet"
 internal const val LIVE_PLAYER_PANEL = "pley.live.player.panel"
 internal const val LIVE_PLAYER_GROUP = "pley.live.player.group"
 internal const val LIVE_PLAYER_SEARCH = "pley.live.player.search"
