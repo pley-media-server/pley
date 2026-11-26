@@ -2,11 +2,12 @@
 
 Pley is drawn in one of nine themes, picked on Account → Appearance, in the
 theme's own accent or one of six others. The pick belongs to the device it
-was made on: each browser, and the desktop app, keeps its own, and starts in
-Midnight until one is picked there. The web app
-and the desktop app draw all nine. The other apps draw Midnight for now, and
-TV apps will draw only the dark ones (see [On a TV](#on-a-tv)). This document is for anyone changing how Pley looks:
-what a theme is, the rules every theme keeps, and how to add one.
+was made on: each browser, the desktop app and each TV keeps its own, and
+starts in Midnight until one is picked there. Every app draws the same
+themes from the same colors ([In every app](#in-every-app)); one that
+doesn't offer them yet draws Midnight. This document is for anyone changing
+how Pley looks: what a theme is, the rules every theme keeps, and how to add
+one.
 
 ## What every theme owes people
 
@@ -27,17 +28,17 @@ what a theme is, the rules every theme keeps, and how to add one.
 
 ## The themes
 
-| Id | Name | Kind | What it is | On a TV |
-|---|---|---|---|---|
-| `midnight` | Midnight | Dark | Pley's own: deep night and sky blue. The default, and the one every other theme is measured against. | Midnight |
-| `midday` | Midday | Light | Midnight in daylight: Midnight's cool grays turned light, its sky blue deepened until it reads as text. | Midnight |
-| `twilight` | Twilight | Dark | A sunset: deep purple surfaces, a pink accent, the sun's last orange light along the foot of the window. | Twilight |
-| `starlight` | Starlight | Light | Soft champagne and cream with a bronze-gold accent. | Moonlight |
-| `moonlight` | Moonlight | Dark | Carbon blacks and graphite, champagne words, a gold accent and a faint moon at the top right. | Moonlight |
-| `nightshade` | Nightshade | Dark | Green-black with a soft mint accent and a faint green light. Success leans teal, so it never reads as the accent. | Nightshade |
-| `greenlight` | Greenlight | Light | Nightshade in daylight: soft sage surfaces and a deep green accent. | Nightshade |
-| `sunshine` | Sunshine | Light | For children: sunny cream with bubbles of colored light, a sidebar in a soft rainbow, sky and lilac controls, a bright violet, rounder shapes and a toy-box logo. | Midnight |
-| `blacklight` | Blacklight | Dark | Black and white: white words on black, and a white accent unless another is picked. States differ by their gray, and by their words and icons as everywhere. | Blacklight |
+| Id | Name | Kind | What it is |
+|---|---|---|---|
+| `midnight` | Midnight | Dark | Pley's own: deep night and sky blue. The default, and the one every other theme is measured against. |
+| `midday` | Midday | Light | Midnight in daylight: Midnight's cool grays turned light, its sky blue deepened until it reads as text. |
+| `twilight` | Twilight | Dark | A sunset: deep purple surfaces, a pink accent, the sun's last orange light along the foot of the window. |
+| `starlight` | Starlight | Light | Soft champagne and cream with a bronze-gold accent. |
+| `moonlight` | Moonlight | Dark | Carbon blacks and graphite, champagne words, a gold accent and a faint moon at the top right. |
+| `nightshade` | Nightshade | Dark | Green-black with a soft mint accent and a faint green light. Success leans teal, so it never reads as the accent. |
+| `greenlight` | Greenlight | Light | Nightshade in daylight: soft sage surfaces and a deep green accent. |
+| `sunshine` | Sunshine | Light | For children: sunny cream with bubbles of colored light, a sidebar in a soft rainbow, sky and lilac controls, a bright violet, rounder shapes and a toy-box logo. |
+| `blacklight` | Blacklight | Dark | Black and white: white words on black, and a white accent unless another is picked. States differ by their gray, and by their words and icons as everywhere. |
 
 A device keeps its pick in its own storage (the web app: `pley.theme` in
 `localStorage`); the server keeps none. A device that picked none, or whose
@@ -46,15 +47,44 @@ stored id it doesn't know, shows Midnight.
 Each light theme has a **dark twin**: Midday's is Midnight, Starlight's is
 Moonlight, Greenlight's is Nightshade and Sunshine's is Midnight. In a light
 theme, the players use their twin's colors, because a light frame would glare
-around the picture. On a TV, the twin replaces the light theme everywhere.
+around the picture.
 
-## On a TV
+## In every app
 
-TV apps (Android TV, Samsung, LG, Roku, Kodi, Apple TV) draw only dark
-themes. For now they draw Midnight; when one offers themes, it follows this.
-A TV is watched in a dim room from across it, and a light page would glare.
-A TV app offers only the dark themes, keeps its pick on the TV, and shows any
-light theme it is handed as its dark twin (the table's last column).
+Every app, TV apps included, offers the nine themes and the six accents
+the same way:
+
+- **Where.** An Appearance section in the app's own settings (Account →
+  Appearance on the web): the themes first, each as a small preview with
+  its name and caption, in the order of the table above; then the accents,
+  Default (the theme's own) first.
+- **The words.** Each theme's name and caption and each accent's name are
+  the web's, in every language (`account.theme` in
+  `apps/web/src/i18n/locales/<language>/pages.json`), copied into the app's
+  own catalogs.
+- **Kept on the device,** by the ids above. An id the app doesn't know
+  shows Midnight, or the theme's own accent. Each device keeps its own pick:
+  a TV doesn't take the phone's.
+- **The colors** come from `packages/themes/themes.json`: each theme's
+  colors (`colors`, by the tokens below), its kind, its twin, the tokens an
+  accent replaces in it (`follows`), and each accent's colors for the dark
+  themes and the light ones. A token's color is the accent's, from the set
+  for the theme's kind, when the theme follows that token, and the theme's
+  own otherwise (`colorOf` in `apps/web/src/theme/spec.ts`). Each app's
+  tests hold its colors to the file, so the contrast `palettes.test.ts`
+  checks holds in every app. `bun run themes` in `apps/web` writes the file
+  from `index.css`, and `spec.test.ts` fails while it's out of date.
+- **The logo** is drawn in the theme's colors, as on the web: the front
+  poster a gradient from `brand-light` to `brand`, the middle poster
+  `brand-deep`, the back one `brand-far`, on a `brand-tile` tile. Where the
+  platform can't draw a vector, each shape is a white picture tinted with
+  its color.
+- **Players stay dark:** in a light theme, a player draws in its twin's
+  colors.
+- **Backdrops** (Twilight's sunset, Moonlight's moon, Nightshade's light,
+  Sunshine's bubbles and rainbow sidebar) are drawn where the platform can
+  draw a soft gradient; where it can't, the page is the theme's plain `bg`,
+  and the app's doc says so.
 
 ## Accents
 
@@ -116,7 +146,7 @@ Every color the app draws comes from these, as Tailwind classes (`bg-surface`,
 
 | Token | For |
 |---|---|
-| `bg` | The page |
+| `bg` | The
 | `surface`, `surface-2`, `surface-3` | Cards and the sidebar; inputs and hovered rows; pressed things and placeholders |
 | `border`, `border-strong` | Lines between things; outlined buttons |
 | `fg`, `muted`, `subtle` | Main text; secondary text; hints |
@@ -124,7 +154,7 @@ Every color the app draws comes from these, as Tailwind classes (`bg-surface`,
 | `success`, `danger`, `warning`, `info` | States, as text and as fills |
 | `danger-fg` | Words on a danger fill (dark on the dark themes' bright red, white on the light themes' deep red) |
 | `brand-light`, `brand`, `brand-deep`, `brand-far`, `brand-tile` | The logo: the front poster's gradient, the middle and back posters, the tile |
-| `shade` | Shadows and the dim behind a dialog |
+| `shade` | Shadows and the dim behind a
 
 Besides the colors, each theme sets the following:
 - `--glow`: a backdrop behind the whole window, or `none`.

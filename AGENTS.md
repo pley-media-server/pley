@@ -15,7 +15,7 @@ Read the doc for the part you touch; they say how things work and why.
 | Server, its HTTP API, app sign-in | [docs/API.md](docs/API.md), [SECURITY.md](SECURITY.md) |
 | Transcoder and its protocol | [docs/TRANSCODER.md](docs/TRANSCODER.md) |
 | Quality, Automatic, playback decisions | [docs/QUALITY.md](docs/QUALITY.md) |
-| Themes, colors, the look of the web app | [docs/THEMES.md](docs/THEMES.md) |
+| Themes, colors, the look of every app | [docs/THEMES.md](docs/THEMES.md) |
 | Data folder, caches, backups | [docs/STORAGE.md](docs/STORAGE.md) |
 | Plex- and Jellyfin-compatible APIs, tokens for other apps | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) |
 | Android, Kodi, Roku, Samsung and LG apps | [docs/ANDROID.md](docs/ANDROID.md), [docs/KODI.md](docs/KODI.md), [docs/ROKU.md](docs/ROKU.md), [docs/TV_PLATFORMS.md](docs/TV_PLATFORMS.md) (Samsung), [docs/LG.md](docs/LG.md) |
@@ -139,8 +139,9 @@ readable by everyone, balanced and considered down to its last detail. The
 web app draws only in the theme's colors (white and black only on pictures
 and video), and `palettes.test.ts` holds every theme to WCAG's contrast. A
 new theme or a color change keeps it passing, and gets looked at over
-pictures in a dark and a light theme. Each device keeps its own theme; TV
-apps draw Midnight for now and, once they offer themes, only dark ones.
+pictures in a dark and a light theme. Each device keeps its own theme.
+Every app draws the same themes and accents, TV apps included, from
+`packages/themes/themes.json`, which its tests hold it to.
 
 **Every app.** A feature people see is expected on every app (web and
 desktop, Android phone and TV, Samsung, LG, Kodi, Roku), the same way,
