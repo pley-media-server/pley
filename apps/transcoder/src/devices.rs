@@ -63,7 +63,8 @@ fn pick_intel_node(nodes: &[(String, Option<String>)]) -> Option<String> {
 }
 
 /// What detection's results depend on besides FFmpeg: the render nodes and
-/// their drivers, NVIDIA's driver, and WSL's GPU.
+/// their drivers, NVIDIA's driver, WSL's GPU, and Rockchip's video engines
+/// (MPP's and RGA's devices, which a Docker add-on hands over).
 pub fn stamp() -> String {
     let nodes: Vec<String> =
         render_nodes().iter().map(|(node, driver)| format!("{node}={}", driver.as_deref().unwrap_or("?"))).collect();
@@ -73,11 +74,13 @@ pub fn stamp() -> String {
         .unwrap_or_default();
     let present = |path: &str| if std::path::Path::new(path).exists() { "1" } else { "0" };
     format!(
-        "{}|vaapi={}|nvidia={}:{nvidia}|dxg={}",
+        "{}|vaapi={}|nvidia={}:{nvidia}|dxg={}|rkmpp={}{}",
         nodes.join(","),
         vaapi_device(),
         present("/dev/nvidia0"),
-        present("/dev/dxg")
+        present("/dev/dxg"),
+        present("/dev/mpp_service"),
+        present("/dev/rga")
     )
 }
 

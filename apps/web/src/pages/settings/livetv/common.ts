@@ -36,6 +36,7 @@ const ENCODERS: Record<string, string> = {
   h264_qsv: "Intel Quick Sync",
   h264_amf: "AMD",
   h264_videotoolbox: "VideoToolbox",
+  h264_rkmpp: "Rockchip",
 };
 
 /** What the transcoder makes of a channel: "1080i MPEG-2 → H.264 on NVIDIA · MP2 → AAC". */

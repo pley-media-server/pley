@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Playback details call a transcode made on a Rockchip server's video
+  engines Rockchip MPP.
+
 ## [0.1.19] - 2026-11-25
 
 ### Added

@@ -63,8 +63,8 @@ In the web and desktop apps only, for now.
   shown ([QUALITY.md](QUALITY.md)).
 - Automatic quality adjusts to your connection while you watch, stepping
   down when playback stalls and back up when it recovers.
-- Hardware transcoding (NVENC, Quick Sync, AMF, VAAPI, VideoToolbox) and
-  GPU tone mapping for HDR10, HLG and Dolby Vision.
+- Hardware transcoding (NVENC, Quick Sync, AMF, VAAPI, VideoToolbox,
+  Rockchip MPP) and GPU tone mapping for HDR10, HLG and Dolby Vision.
 - Image subtitles (PGS, VobSub, DVB) drawn by the apps instead of burned
   in, and subtitle timing adjustment on every player.
 - Audio and subtitle defaults per profile, carried over to the next

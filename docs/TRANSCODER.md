@@ -203,7 +203,7 @@ before using what it names:
 | `dolby_vision` | Dolby Vision profile 5 renders with correct colors (needs libplacebo) |
 | `vulkan_decode` | codecs the GPU decodes straight into Vulkan memory, for libplacebo |
 | `vulkan_encode` | `h264_vulkan` encodes libplacebo's output on the GPU |
-| `gpu_pipelines` | GPU-only decode → scale → encode pipelines, with the codecs each passed for, and `main10`: those Quick Sync's keeps in 10 bits into its HEVC Main 10 encoder (HDR kept) |
+| `gpu_pipelines` | GPU-only decode → scale → encode pipelines, with the codecs each passed for, and `main10`: those Quick Sync's keeps in 10 bits into its HEVC Main 10 encoder (HDR kept); `p010`: those Rockchip's scaler brings to memory in 10 bits ([Rockchip](#rockchip)) |
 | `qsv_tonemap` | Quick Sync's scaler (VAAPI's `tonemap_vaapi` on Linux) tone maps HDR10 its decoder decoded into `h264_qsv` ([Sharing the GPU](#sharing-the-gpu)) |
 | `qsv_opencl_dovi` | OpenCL tone maps Dolby Vision by its metadata between FFmpeg's decoder on Direct3D 11 and `h264_qsv`, the frames mapped rather than copied (Windows, pley-ffmpeg and jellyfin-ffmpeg; [Sharing the GPU](#sharing-the-gpu)) |
 | `vaapi_tonemappers` | tone mappers whose frames reach a VAAPI encoder ([VAAPI encoders](#vaapi-encoders)) |
@@ -213,7 +213,8 @@ before using what it names:
 | `tonemap_speed?` | `{high, balanced, fast}`: frames a second libplacebo tone maps 4K to 4K at each quality ([libplacebo quality](#libplacebo-quality)) |
 | `placebo_software` | libplacebo runs on a CPU's Vulkan (Mesa's llvmpipe), where no GPU is: it tone maps at `fast` ([libplacebo quality](#libplacebo-quality)) |
 | `amf_upload` | FFmpeg uploads AMF's frames to the AMD GPU ([AMF on Windows](#amf-on-windows)) |
-| `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the color primaries `h264_amf` leaves out |
+| `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the color primaries `h264_amf` leaves out, and the sample aspect ratio `h264_rkmpp` does |
+| `hevc_metadata` | FFmpeg has the `hevc_metadata` bitstream filter, which writes the sample aspect ratio `hevc_rkmpp` leaves out |
 | `subtitle_burn_image`, `subtitle_burn_text` | picture and text subtitles can be burned in |
 | `qsv_overlay` | Quick Sync lays picture subtitles on frames it decoded ([Subtitle burn-in](#subtitle-burn-in)) |
 | `readrate`, `readrate_catchup` | `-readrate` and `-readrate_catchup` work ([Throttling](#throttling)) |
@@ -464,7 +465,7 @@ variants, segment_format}`. See [How HLS jobs work](#how-hls-jobs-work).
 
 | Field | Default | Meaning |
 |---|---|---|
-| `hwaccel` | `auto` | `auto`, `none`, `nvenc`, `qsv`, `amf`, `vaapi`, `videotoolbox` or `vulkan` |
+| `hwaccel` | `auto` | `auto`, `none`, `nvenc`, `qsv`, `amf`, `vaapi`, `videotoolbox`, `rkmpp` or `vulkan` |
 | `hardware_decoding` | on | decode on the GPU paired with the encoder |
 | `tonemap` | `auto` | `auto`, `libplacebo`, `opencl`, `zscale` or `none` |
 | `preset` | `veryfast` | x264 preset for software encodes, or `auto`: chosen and changed by the transcoder from its load and its lead on the player |
@@ -573,7 +574,7 @@ One input at a time; a second is `400`.
   for all of them: H.264 and AAC. The video is copied when it is 8-bit H.264
   already, no taller than `max_height` and (with `deinterlace`) progressive.
   Otherwise it is transcoded with the best H.264 encoder that takes frames
-  from system memory (NVENC, Quick Sync, AMF, VideoToolbox), else x264. The
+  from system memory (NVENC, Quick Sync, AMF, VideoToolbox, Rockchip's), else x264. The
   audio is copied when it is AAC, else made AAC stereo.
 - **Interlaced** video is deinterlaced with `yadif`: each field a frame (50 or
   60 a second) on a hardware encoder, one frame of the two on x264.
@@ -838,6 +839,7 @@ Each candidate encoder is test-encoded at start, not just listed:
 |---|---|
 | NVENC, QSV (Quick Sync), AMF | Windows and Linux |
 | VAAPI | Linux, on the first Intel or AMD render node (`PLEY_VAAPI_DEVICE` names another) |
+| Rockchip MPP | Linux on Rockchip chips (RK3588, RK3568 and the like) ([Rockchip](#rockchip)) |
 | VideoToolbox | macOS |
 | libx264, libx265 | everywhere (software fallback) |
 
@@ -886,10 +888,63 @@ options.
 | x264, x265 | CRF 21 and 24 |
 | VAAPI | `-rc_mode VBR` (FFmpeg picks CBR when bitrate equals maxrate) |
 | Quick Sync | maxrate one bit above the bitrate, so FFmpeg picks VBR; `-mbbrc 1`. |
+| Rockchip MPP | `-rc_mode VBR` (between a sixteenth of the bitrate and `-maxrate`) |
 | VideoToolbox | `-maxrate` (`DataRateLimits`, a hard limit over one second) |
 
 AMF HEVC needs no `-header_insertion_mode`: with `-forced_idr 1` FFmpeg sends
 the VPS, SPS and PPS with every forced keyframe.
+
+#### Rockchip
+
+Rockchip's video engines (RK3588, RK3568 and the like) decode and encode
+with MPP, Rockchip's Media Process Platform, and scale with RGA, its 2D
+engine. They need Rockchip's own kernel, which has `/dev/mpp_service`, and
+an FFmpeg with jellyfin-ffmpeg's Rockchip patch: Pley's on arm64
+([deploy/ffmpeg](../deploy/ffmpeg/README.md#rockchip)), jellyfin-ffmpeg's or
+nyanmisaka's ffmpeg-rockchip. FFmpeg's own `h264_rkmpp` takes other options
+and fails the start-up test.
+
+- **Encoding.** `h264_rkmpp` and `hevc_rkmpp`, in 8 bits only: HDR kept in
+  HEVC Main 10 is encoded with x265. They take NV12 from memory or from
+  RGA. With `-flags:v +low_delay` each frame is encoded before the next is
+  taken: otherwise MPP keeps up to four frames queued, and a keyframe
+  forced on a frame, asked for as the frame is queued, could start before
+  it, off its segment's boundary. The start-up test encodes into MPEG-TS
+  and fMP4, every frame a forced keyframe, as jobs do.
+- **Zero-copy.** SDR without burned-in subtitles stays on the engines:
+
+  ```
+  -init_hw_device rkmpp=rk -hwaccel rkmpp -hwaccel_device rk -hwaccel_output_format drm_prime
+  ... scale_rkrga=w=1920:h=1080:format=nv12:force_original_aspect_ratio=disable ... -c:v h264_rkmpp
+  ```
+
+  `-hwaccel rkmpp` picks MPP's decoder for the codec. It has no software
+  fallback, so it decodes only the codecs its start-up test passed
+  (`gpu_pipelines`, on the same clips as the other GPUs').
+- **Into memory.** Frames for the CPU's filters (subtitles burned in, tone
+  mapping) or for x264 standing in come through RGA, whatever their size:
+  `scale_rkrga=…:format=nv12,hwdownload,format=nv12`. 10-bit video goes
+  there in 10 bits (`p010le`) for the tone mapper where RGA makes P010,
+  RGA3's alone (the RK3588's; `gpu_pipelines[].p010`), and is decoded by the
+  CPU elsewhere: the decoder's own 10-bit frames are in Rockchip's packed
+  NV15, which only a conversion on the CPU turns into P010. Tone mapping is
+  zimg's on the CPU, or OpenCL's or libplacebo's where the board's GPU
+  passes their tests.
+- **RGA's limits.** RGA scales within 8 times either way, from sources 68
+  pixels wide or more (RGA3's limits; RGA2's are wider). Video that needs
+  more (4K made 240 lines) is decoded and scaled by the CPU, and encoded by
+  MPP. So is interlaced video, which `yadif` deinterlaces.
+- **Pixel shape.** MPP's encoders write no sample aspect ratio: anamorphic
+  video (DVDs, SD and 1440×1080 Live TV) would play squashed.
+  `-bsf:v h264_metadata=sample_aspect_ratio=…` (`hevc_metadata` for HEVC)
+  writes the source's at the output's size, where the probe found one
+  (`MediaStream.sample_aspect_ratio`).
+- **A decoder that fails.** MPP's decoder failing before a process's first
+  segment hands the video to the CPU for the job's later processes, as
+  another GPU's decoder failing does (the warning `GPU decoding failed,
+  using the CPU`); the failure doesn't count against the segment, and a
+  second one is the encoder's. A conversion tries once more with the CPU
+  decoding.
 
 #### AMF on Windows
 
@@ -918,7 +973,8 @@ the VPS, SPS and PPS with every forced keyframe.
 
 - The decoder is paired with the encoder: `cuda` with NVENC, `d3d11va` with
   QSV or AMF on Windows, `vaapi` with VAAPI (and QSV on Linux),
-  `videotoolbox` with VideoToolbox. FFmpeg falls back to software decoding
+  `videotoolbox` with VideoToolbox, `rkmpp` with Rockchip's
+  ([Rockchip](#rockchip)). FFmpeg falls back to software decoding
   when the GPU doesn't decode the codec. Quick Sync's own decoders (`qsv`)
   decode for its zero-copy pipeline, and for some frames that go to memory
   (below); they have no software fallback, so they decode only what their

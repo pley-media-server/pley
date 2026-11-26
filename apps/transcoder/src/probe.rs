@@ -498,6 +498,7 @@ struct RawStream {
     width: Option<i64>,
     height: Option<i64>,
     pix_fmt: Option<String>,
+    sample_aspect_ratio: Option<String>,
     level: Option<i64>,
     field_order: Option<String>,
     has_b_frames: Option<i64>,
@@ -588,6 +589,11 @@ pub fn parse_ffprobe_json(json: &[u8], path: &Path) -> anyhow::Result<MediaInfo>
                 stream.level = s.level.filter(|l| *l > 0);
                 stream.interlaced = s.field_order.as_deref().map(|f| !matches!(f, "progressive" | "unknown"));
                 stream.rotation = display_rotation(&s.side_data_list);
+                stream.sample_aspect_ratio = s
+                    .sample_aspect_ratio
+                    .as_deref()
+                    .and_then(pley_transcoder_api::sample_aspect)
+                    .map(|(num, den)| format!("{num}:{den}"));
                 stream.has_b_frames = s.has_b_frames.map(|n| n > 0);
                 stream.closed_captions = s.closed_captions.map(|n| n > 0);
                 // Suspected only: the prober decodes a few frames to know.

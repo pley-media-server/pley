@@ -9,6 +9,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Hardware transcoding on Rockchip chips (RK3588, RK3568 and the like):
+  Rockchip MPP in Settings → Transcoder decodes and encodes on the chip's
+  video engines and scales with its RGA, and Automatic takes it where the
+  transcoder finds them. The arm64 Docker image's FFmpeg has them, and
+  `compose.rockchip.yaml` hands Pley their devices; they need Rockchip's
+  own kernel.
+
 ## [0.1.17] - 2026-11-25
 
 ### Added

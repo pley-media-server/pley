@@ -462,6 +462,12 @@ pub struct VideoOut {
     /// H.264's VUI), which it leaves unsaid: players then guess, and some
     /// take BT.2020 for 4K.
     pub vui_primaries: Option<u8>,
+    /// The shape of the source's pixels where they aren't square
+    /// ([`MediaStream::sample_aspect_ratio`]), which Rockchip's encoder
+    /// leaves out of its stream (`h264_rkmpp`, `hevc_rkmpp`): it is
+    /// written in, at the output's size, after the encoder
+    /// ([`VideoOut::rkmpp_sample_aspect`]).
+    pub sample_aspect: Option<(i64, i64)>,
     pub hw_decode: Option<String>,
     /// The decoder that takes over where Quick Sync's own (`hw_decode` "qsv")
     /// fails: FFmpeg's paired with the encoder, or the CPU's (`None`). See
@@ -508,12 +514,23 @@ impl VideoOut {
     /// The GPU that scales the frames it decoded, when `pipeline` brings them
     /// to memory (the CPU's filters, a software encoder) and their size
     /// changes: only the output's pixels are copied and scaled no more on the
-    /// CPU (4K to 1080p, a quarter of them). Quick Sync's frames whatever
-    /// their size: its decoder keeps them on the GPU, so they come to memory
-    /// through its scaler.
+    /// CPU (4K to 1080p, a quarter of them). Quick Sync's and Rockchip's
+    /// frames whatever their size: their decoders keep them on the GPU, so
+    /// they come to memory through its scaler (Rockchip's 10-bit frames
+    /// would come in its own packed format otherwise).
     pub fn scales_on_gpu(&self, pipeline: Pipeline) -> Option<HwAccel> {
         let resized = self.width != self.src_width || self.height != self.src_height;
-        self.gpu_scale.filter(|accel| pipeline == Pipeline::Software && (resized || *accel == HwAccel::Qsv))
+        self.gpu_scale.filter(|accel| {
+            pipeline == Pipeline::Software && (resized || matches!(accel, HwAccel::Qsv | HwAccel::Rkmpp))
+        })
+    }
+
+    /// The sample aspect ratio Rockchip's encoder's stream is made to say:
+    /// the source's pixel shape at the output's size, as FFmpeg's scalers
+    /// (RGA's too) carry it on the frames; `None` for square pixels.
+    pub fn rkmpp_sample_aspect(&self) -> Option<(i64, i64)> {
+        let (num, den) = self.sample_aspect?;
+        sample_aspect_at(num * self.src_width * self.height, den * self.src_height * self.width)
     }
 
     /// Whether OpenCL tone maps the frames mapped to it from Direct3D 11's
@@ -812,6 +829,7 @@ impl Plan {
                         placebo_fallback_peak: false,
                         amf_upload: false,
                         vui_primaries: None,
+                        sample_aspect: None,
                         hw_decode: None,
                         qsv_fallback_decode: None,
                         gpu_scale: None,
@@ -897,6 +915,8 @@ impl Plan {
                         && hdr.is_none()
                         && src.bit_depth.unwrap_or(8) <= 8
                         && burn.as_ref().is_some_and(|b| !matches!(b, Burn::Text { .. }));
+                    // RGA scales Rockchip's frames within its limits only.
+                    let rga = rga_fits((src_width, src_height), (width, height));
                     // Turned frames stay in memory, where FFmpeg turns them.
                     let pipeline = if !hardware_decoding || deinterlace || turned {
                         Pipeline::Software
@@ -919,6 +939,7 @@ impl Plan {
                             .gpu_pipelines
                             .iter()
                             .filter(|p| hdr.is_none() || p.accel == HwAccel::Nvenc || p.main10.contains(&key))
+                            .filter(|p| p.accel != HwAccel::Rkmpp || rga)
                             .find(|p| p.accel == encoder.accel && p.codecs.contains(&key))
                             .map_or(Pipeline::Software, |p| match p.accel {
                                 HwAccel::Amf => Pipeline::D3d11 { encode_on_gpu: true },
@@ -969,11 +990,25 @@ impl Plan {
                         && qsv_decodes(encoder.accel)
                         && !deinterlace
                         && !turned;
+                    // Rockchip's decoder brings frames that come to memory
+                    // through RGA, in 8 bits, or in 10 for the tone mapper
+                    // where RGA makes P010 (RGA3), never in its own packed
+                    // 10-bit format: where its tests didn't pass for the
+                    // video, or RGA can't take its size, the CPU decodes.
+                    let rkmpp_decodes = encoder.accel == HwAccel::Rkmpp
+                        && encoder.hardware
+                        && !deinterlace
+                        && !turned
+                        && rga
+                        && ff.caps.gpu_pipelines.iter().any(|p| {
+                            p.accel == HwAccel::Rkmpp && p.codecs.contains(&key) && (!ten_bits || p.p010.contains(&key))
+                        });
                     let hw_decode = match pipeline {
                         Pipeline::Vulkan { .. } => Some("vulkan".to_owned()),
                         Pipeline::D3d11 { .. } => Some("d3d11va".to_owned()),
                         Pipeline::Gpu(accel) => Some(gpu_decoder_name(accel).to_owned()),
                         Pipeline::Software if hardware_decoding && qsv_first => Some("qsv".to_owned()),
+                        Pipeline::Software if hardware_decoding && rkmpp_decodes => Some("rkmpp".to_owned()),
                         Pipeline::Software if hardware_decoding => pick_hw_decoder(ff, &encoder),
                         Pipeline::Software => None,
                     };
@@ -985,17 +1020,20 @@ impl Plan {
                     // anyway (a software encoder standing in for its own too).
                     // VAAPI's scaler in 8 bits only: its start-up test makes
                     // NV12, and 10 bits on the GPU were tried with CUDA and
-                    // Quick Sync alone.
+                    // Quick Sync alone. Rockchip's decodes only what RGA
+                    // brings to memory (above), as Quick Sync's.
                     let gpu_scale = match hw_decode.as_deref() {
                         Some("cuda") => Some(HwAccel::Nvenc),
                         Some("vaapi") if !ten_bits => Some(HwAccel::Vaapi),
                         Some("qsv") => Some(HwAccel::Qsv),
+                        Some("rkmpp") => Some(HwAccel::Rkmpp),
                         _ => None,
                     }
                     .filter(|accel| {
                         !deinterlace
                             && !turned
-                            && (tonemap != Some(Tonemapper::Libplacebo) || *accel == HwAccel::Qsv)
+                            && (tonemap != Some(Tonemapper::Libplacebo)
+                                || matches!(accel, HwAccel::Qsv | HwAccel::Rkmpp))
                             && ff.caps.gpu_pipelines.iter().any(|p| p.accel == *accel && p.codecs.contains(&key))
                     });
                     // Dolby Vision that OpenCL could tone map by its metadata
@@ -1056,6 +1094,15 @@ impl Plan {
                             && hdr.is_none())
                         .then(|| if tonemap.is_some() { Some(1) } else { h264_primaries(src) })
                         .flatten(),
+                        // Where FFmpeg has the filter that writes it into the
+                        // stream; turned frames' pixels turn with them.
+                        sample_aspect: src
+                            .sample_aspect()
+                            .filter(|_| match vreq.codec {
+                                VideoCodec::H264 => ff.caps.h264_metadata,
+                                VideoCodec::Hevc => ff.caps.hevc_metadata,
+                            })
+                            .map(|(n, d)| if src.shown_sideways() { (d, n) } else { (n, d) }),
                         hw_decode,
                         qsv_fallback_decode,
                         gpu_scale,
@@ -1341,6 +1388,29 @@ impl Plan {
         self.video
             .as_ref()
             .is_some_and(|v| !v.copy && v.pipeline == Pipeline::Software && v.hw_decode.as_deref() == Some("qsv"))
+    }
+
+    /// Whether this plan's frames come from Rockchip's decoder (`-hwaccel
+    /// rkmpp`), in its zero-copy pipeline or into memory, which has no
+    /// software fallback: a video it can't decode fails the process.
+    pub fn decodes_on_rkmpp(&self) -> bool {
+        self.video.as_ref().is_some_and(|v| !v.copy && v.hw_decode.as_deref() == Some("rkmpp"))
+    }
+
+    /// This plan with the CPU decoding in place of Rockchip's decoder,
+    /// where that one failed on the video ([`Plan::decodes_on_rkmpp`]): the
+    /// frames come to memory whole, scaled by the CPU, into the same
+    /// encoder.
+    pub fn without_rkmpp_decoding(&self) -> Plan {
+        let mut plan = self.clone();
+        if plan.decodes_on_rkmpp()
+            && let Some(v) = plan.video.as_mut()
+        {
+            v.hw_decode = None;
+            v.gpu_scale = None;
+            v.pipeline = Pipeline::Software;
+        }
+        plan
     }
 
     /// This plan with FFmpeg's decoder paired with the encoder in place of
@@ -1700,6 +1770,7 @@ impl Plan {
                 Pipeline::Gpu(HwAccel::Videotoolbox) => {
                     a.push_all(["-hwaccel", "videotoolbox", "-hwaccel_output_format", "videotoolbox_vld"])
                 }
+                Pipeline::Gpu(HwAccel::Rkmpp) => a.push_all(RKMPP_DECODE),
                 Pipeline::Gpu(_) => {
                     a.push_all(["-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-extra_hw_frames", "8"])
                 }
@@ -1723,7 +1794,10 @@ impl Plan {
                         _ if vaapi => a.push_all(["-vaapi_device", vaapi_device()]),
                         _ => {}
                     }
-                    if let Some(dec) = &v.hw_decode {
+                    if v.hw_decode.as_deref() == Some("rkmpp") {
+                        // Its frames on its device, for RGA (`scales_on_gpu`).
+                        a.push_all(RKMPP_DECODE);
+                    } else if let Some(dec) = &v.hw_decode {
                         a.push_all(["-hwaccel", dec.as_str()]);
                         // Decoded on the GPU that encodes.
                         if upload && dec == "d3d11va" {
@@ -1795,6 +1869,12 @@ impl Plan {
                 }
                 if let Some(primaries) = v.vui_primaries.filter(|_| encoder.is_some_and(|e| e.accel == HwAccel::Amf)) {
                     a.push_all(["-bsf:v", &format!("h264_metadata=colour_primaries={primaries}")]);
+                }
+                if let Some((num, den)) =
+                    v.rkmpp_sample_aspect().filter(|_| encoder.is_some_and(|e| e.accel == HwAccel::Rkmpp))
+                {
+                    let filter = if v.codec == VideoCodec::H264 { "h264_metadata" } else { "hevc_metadata" };
+                    a.push_all(["-bsf:v", &format!("{filter}=sample_aspect_ratio={num}/{den}")]);
                 }
                 let keyint = format!("expr:gte(t,n_forced*{})", trim_float(self.segment_seconds));
                 a.push_all(["-force_key_frames", &keyint]);
@@ -1907,6 +1987,7 @@ impl Plan {
                 }
                 HwAccel::Qsv => format!("vpp_qsv=w={w}:h={h}:format={format}"),
                 HwAccel::Videotoolbox => format!("scale_vt=w={w}:h={h}"),
+                HwAccel::Rkmpp => rkmpp_scale(w, h, format),
                 _ => format!("scale_cuda=w={w}:h={h}:format={format}"),
             };
             return format!("{input}{scaler}[vout]");
@@ -1953,11 +2034,12 @@ impl Plan {
             Some(accel) => {
                 let format = if v.tonemap.is_some() || v.hdr.is_some() { "p010le" } else { "nv12" };
                 let scaler = match accel {
-                    HwAccel::Vaapi => "scale_vaapi",
-                    HwAccel::Qsv => "vpp_qsv",
-                    _ => "scale_cuda",
+                    HwAccel::Vaapi => format!("scale_vaapi=w={w}:h={h}:format={format}"),
+                    HwAccel::Qsv => format!("vpp_qsv=w={w}:h={h}:format={format}"),
+                    HwAccel::Rkmpp => rkmpp_scale(w, h, format),
+                    _ => format!("scale_cuda=w={w}:h={h}:format={format}"),
                 };
-                pre.push(format!("{scaler}=w={w}:h={h}:format={format},hwdownload,format={format}"));
+                pre.push(format!("{scaler},hwdownload,format={format}"));
                 false
             }
             None => scale_needed,
@@ -2055,6 +2137,7 @@ impl Plan {
             None if vulkan => {}
             Some("p010le") if vulkan => {}
             Some(format) => post.push(format!("format={format}")),
+            None if encoder.is_some_and(|e| e.accel == HwAccel::Rkmpp) => post.push("format=nv12".into()),
             None if hardware && v.tonemap == Some(Tonemapper::Libplacebo) => post.push("format=nv12".into()),
             None => post.push("format=yuv420p".into()),
         }
@@ -2211,6 +2294,70 @@ pub fn qsv_codes_alike(codec: VideoCodec, w: i64, h: i64) -> bool {
 /// VAAPI's rate control: variable, capped by `-maxrate`.
 pub const VAAPI_VBR: [&str; 2] = ["-rc_mode", "VBR"];
 
+/// Rockchip's rate control: variable, between a sixteenth of the bitrate
+/// and `-maxrate` (jellyfin-ffmpeg's `rkmppenc.c`).
+pub const RKMPP_VBR: [&str; 2] = ["-rc_mode", "VBR"];
+
+/// Rockchip's encoder one frame in, one out. Otherwise it keeps up to four
+/// frames queued, and a keyframe forced on a frame (which it asks for as
+/// the frame is queued) could start before it, off the segment's boundary.
+pub const RKMPP_IN_ORDER: [&str; 2] = ["-flags:v", "+low_delay"];
+
+/// Rockchip's decoder (MPP), its frames kept in DRM PRIME buffers on its
+/// device for RGA's scaler. `-hwaccel rkmpp` picks MPP's decoder for the
+/// codec, which has no software fallback: a stream it can't decode fails
+/// the process, so it decodes only what its start-up test passed.
+pub const RKMPP_DECODE: [&str; 8] = [
+    "-init_hw_device",
+    "rkmpp=rk",
+    "-hwaccel",
+    "rkmpp",
+    "-hwaccel_device",
+    "rk",
+    "-hwaccel_output_format",
+    "drm_prime",
+];
+
+/// RGA's scaler making `w`×`h` frames in `format` (`nv12`, or `p010le` on
+/// RGA3). It keeps the source's shape unless told not to: the planned size
+/// is kept as the other GPUs' scalers keep it.
+pub fn rkmpp_scale(w: i64, h: i64, format: &str) -> String {
+    format!("scale_rkrga=w={w}:h={h}:format={format}:force_original_aspect_ratio=disable")
+}
+
+/// Whether RGA scales `src` frames to `out`: within 8 times either way,
+/// which RGA3 (RK3588) takes and RGA2 too, from sources 68 pixels wide or
+/// more, which RGA3 needs.
+pub fn rga_fits(src: (i64, i64), out: (i64, i64)) -> bool {
+    let within = |a: i64, b: i64| a > 0 && b > 0 && a <= 8 * b && b <= 8 * a;
+    src.0 >= 68 && within(src.0, out.0) && within(src.1, out.1)
+}
+
+/// `num`:`den` as H.264's and HEVC's VUI write a sample aspect ratio, in
+/// lowest terms below 65536 (16 bits each); `None` for square pixels.
+pub fn sample_aspect_at(num: i64, den: i64) -> Option<(i64, i64)> {
+    if num <= 0 || den <= 0 {
+        return None;
+    }
+    let gcd = |mut a: i64, mut b: i64| {
+        while b != 0 {
+            (a, b) = (b, a % b);
+        }
+        a
+    };
+    let g = gcd(num, den);
+    let (mut n, mut d) = (num / g, den / g);
+    if n.max(d) > 65_535 {
+        // Approximated to 1/10000 of its value (rounding sizes to even
+        // numbers makes such ratios).
+        let ratio = num as f64 / den as f64;
+        (n, d) = ((ratio * 10_000.0).round() as i64, 10_000);
+        let g = gcd(n, d);
+        (n, d) = (n / g, d / g);
+    }
+    (n != d).then_some((n, d))
+}
+
 fn encoder_args(enc: &EncoderInfo, v: &VideoOut, preset: Option<&str>) -> Vec<String> {
     let br = v.bitrate_kbps;
     // `auto` is the transcoder's to choose; one it didn't is a plain default.
@@ -2279,6 +2426,12 @@ fn encoder_args(enc: &EncoderInfo, v: &VideoOut, preset: Option<&str>) -> Vec<St
             if v.hdr.is_some() {
                 s.extend(["-profile:v", profile].map(String::from));
             }
+        }
+        HwAccel::Rkmpp => {
+            s.extend(RKMPP_VBR.map(String::from));
+            rate(&mut s);
+            s.extend(["-g", "9999", "-profile:v", profile].map(String::from));
+            s.extend(RKMPP_IN_ORDER.map(String::from));
         }
         HwAccel::Videotoolbox => {
             rate(&mut s);
@@ -2353,6 +2506,7 @@ fn gpu_decoder_name(accel: HwAccel) -> &'static str {
         HwAccel::Qsv => "qsv",
         HwAccel::Videotoolbox => "videotoolbox",
         HwAccel::Vulkan => "vulkan",
+        HwAccel::Rkmpp => "rkmpp",
         _ => "cuda",
     }
 }
@@ -2367,6 +2521,8 @@ fn pick_hw_decoder(ff: &Ffmpeg, encoder: &EncoderInfo) -> Option<String> {
         HwAccel::Videotoolbox => "videotoolbox",
         HwAccel::Qsv | HwAccel::Amf if cfg!(windows) => "d3d11va",
         HwAccel::Qsv => "vaapi",
+        // Rockchip's decoder only where its own tests passed (`rkmpp_decodes`).
+        HwAccel::Rkmpp => return None,
         _ if nvidia => "cuda",
         _ if cfg!(target_os = "macos") => "videotoolbox",
         _ => return None,
@@ -3261,6 +3417,216 @@ mod tests {
             assert!(!args.contains("hwaccel_output_format") && !args.contains("scale_cuda"), "{args}");
             assert!(args.contains("scale=1920:1080:flags=bicubic"), "{args}");
         }
+    }
+
+    fn rkmpp() -> EncoderInfo {
+        EncoderInfo { name: "h264_rkmpp".into(), accel: HwAccel::Rkmpp, ..nvenc() }
+    }
+
+    /// A Rockchip board: MPP's encoder, its decoder into RGA's scaler for
+    /// the clips in `codecs`, RGA's P010 for those in `p010` (RGA3, the
+    /// RK3588's), and zimg tone mapping on the CPU.
+    fn rockchip(codecs: &[&str], p010: &[&str]) -> Ffmpeg {
+        let mut ff = ffmpeg_with(vec![rkmpp(), x264()], vec![Tonemapper::Zscale]);
+        ff.caps.hwaccels = vec!["rkmpp".into()];
+        (ff.caps.h264_metadata, ff.caps.hevc_metadata) = (true, true);
+        ff.caps.gpu_pipelines = vec![GpuPipeline {
+            accel: HwAccel::Rkmpp,
+            codecs: codecs.iter().map(|c| c.to_string()).collect(),
+            p010: p010.iter().map(|c| c.to_string()).collect(),
+            ..Default::default()
+        }];
+        ff
+    }
+
+    const RKMPP_DECODE_ARGS: &str =
+        "-init_hw_device rkmpp=rk -hwaccel rkmpp -hwaccel_device rk -hwaccel_output_format drm_prime";
+
+    #[test]
+    fn rockchip_keeps_sdr_on_its_video_engines() {
+        let ff = rockchip(&["hevc", "hevc10"], &["hevc10"]);
+        let plan = Plan::build(&request(), &media(DynamicRange::Sdr, None), &ff, None).unwrap();
+        let v = plan.video.as_ref().unwrap();
+        assert_eq!((v.pipeline, v.hw_decode.as_deref()), (Pipeline::Gpu(HwAccel::Rkmpp), Some("rkmpp")));
+        let args = args_string(&plan, 0, 2);
+        assert!(args.contains(RKMPP_DECODE_ARGS), "{args}");
+        assert!(
+            args.contains("[0:0]scale_rkrga=w=1920:h=1080:format=nv12:force_original_aspect_ratio=disable[vout]"),
+            "{args}"
+        );
+        // VBR under the cap, the keyframes where they are forced.
+        assert!(args.contains("-c:v h264_rkmpp -rc_mode VBR -b:v 8000k -maxrate 8000k -bufsize 16000k"), "{args}");
+        assert!(args.contains("-g 9999 -profile:v high -flags:v +low_delay"), "{args}");
+        assert!(!args.contains("cuda") && !args.contains("-bsf:v"), "{args}");
+        assert_eq!(plan.video_plan(&media(DynamicRange::Sdr, None), None).unwrap().pipeline.as_deref(), Some("gpu"));
+
+        // A software encoder standing in: RGA brings the frames to memory.
+        let ctx = ArgsContext {
+            input: Path::new("/media/movie.mkv"),
+            encoder: Some(&ff.caps.encoders[1]),
+            relative_split_times: true,
+            preset: None,
+            shader_cache: None,
+        };
+        let args: Vec<String> = plan.ffmpeg_args(&ctx, 0, 2).iter().map(|a| a.to_string_lossy().into_owned()).collect();
+        let args = args.join(" ");
+        assert!(args.contains(RKMPP_DECODE_ARGS), "{args}");
+        assert!(
+            args.contains(
+                "[0:0]scale_rkrga=w=1920:h=1080:format=nv12:force_original_aspect_ratio=disable,\
+                 hwdownload,format=nv12,format=yuv420p[vout]"
+            ),
+            "{args}"
+        );
+        assert!(args.contains("-c:v libx264") && !args.contains("low_delay"), "{args}");
+
+        // Subtitles burned in: RGA scales, the CPU draws, MPP encodes NV12.
+        let mut req = request();
+        req.subtitle = Some(SubtitleBurnRequest { stream_index: Some(3), external_path: None });
+        let plan = Plan::build(&req, &media(DynamicRange::Sdr, None), &ff, None).unwrap();
+        let v = plan.video.as_ref().unwrap();
+        assert_eq!((v.pipeline, v.gpu_scale), (Pipeline::Software, Some(HwAccel::Rkmpp)));
+        let args = args_string(&plan, 0, 2);
+        assert!(args.contains(RKMPP_DECODE_ARGS), "{args}");
+        assert!(
+            args.contains("format=nv12:force_original_aspect_ratio=disable,hwdownload,format=nv12,setpts="),
+            "{args}"
+        );
+        assert!(args.contains(",format=nv12[vout]") && args.contains("-c:v h264_rkmpp"), "{args}");
+
+        // Kept at its size, the frames still come through RGA: 10 bits
+        // never come to memory in Rockchip's own packed format.
+        let mut req = request();
+        req.video.as_mut().unwrap().max_height = None;
+        let plan = Plan::build(&req, &ten_bit(media(DynamicRange::Sdr, None)), &ff, None).unwrap();
+        let v = plan.video.as_ref().unwrap();
+        assert_eq!(v.scales_on_gpu(Pipeline::Software), Some(HwAccel::Rkmpp));
+        assert_eq!(v.pipeline, Pipeline::Gpu(HwAccel::Rkmpp));
+    }
+
+    #[test]
+    fn rockchip_brings_hdr_to_the_tone_mapper_through_rga() {
+        // RGA3 makes P010: decoded by MPP, scaled by RGA, tone mapped on the
+        // CPU at the output's size, encoded by MPP.
+        let ff = rockchip(&["hevc", "hevc10"], &["hevc10"]);
+        let hdr = ten_bit(media(DynamicRange::Hdr10, None));
+        let plan = Plan::build(&request(), &hdr, &ff, None).unwrap();
+        let v = plan.video.as_ref().unwrap();
+        assert_eq!(
+            (v.pipeline, v.hw_decode.as_deref(), v.gpu_scale, v.tonemap),
+            (Pipeline::Software, Some("rkmpp"), Some(HwAccel::Rkmpp), Some(Tonemapper::Zscale))
+        );
+        let args = args_string(&plan, 0, 2);
+        assert!(args.contains(RKMPP_DECODE_ARGS), "{args}");
+        assert!(
+            args.contains(&format!(
+                "[0:0]scale_rkrga=w=1920:h=1080:format=p010le:force_original_aspect_ratio=disable,hwdownload,\
+                 format=p010le,setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc,\
+                 {ZSCALE_TONEMAP},format=nv12[vout]"
+            )),
+            "{args}"
+        );
+        assert_eq!(plan.video_plan(&hdr, None).unwrap().pipeline.as_deref(), Some("hybrid"));
+
+        // RGA2 (RK3568) makes none: the CPU decodes, as it scales.
+        let ff = rockchip(&["hevc", "hevc10"], &[]);
+        let plan = Plan::build(&request(), &hdr, &ff, None).unwrap();
+        let v = plan.video.as_ref().unwrap();
+        assert_eq!((v.hw_decode.as_deref(), v.gpu_scale), (None, None));
+        let args = args_string(&plan, 0, 2);
+        assert!(!args.contains("rkmpp=rk") && !args.contains("scale_rkrga"), "{args}");
+        assert!(args.contains("-c:v h264_rkmpp"), "{args}");
+    }
+
+    #[test]
+    fn rockchip_leaves_to_the_cpu_what_its_engines_cant_take() {
+        let ff = rockchip(&["hevc", "h264"], &[]);
+        let decoded_by = |req: &JobRequest, media: &MediaInfo| {
+            let v = Plan::build(req, media, &ff, None).unwrap().video.unwrap();
+            (v.pipeline, v.hw_decode)
+        };
+        let cpu = (Pipeline::Software, None);
+        // RGA scales within 8 times: 4K made 240 lines is 9 times.
+        let mut small = request();
+        small.video.as_mut().unwrap().max_height = Some(240);
+        assert_eq!(decoded_by(&small, &media(DynamicRange::Sdr, None)), cpu);
+        small.video.as_mut().unwrap().max_height = Some(270);
+        assert_eq!(decoded_by(&small, &media(DynamicRange::Sdr, None)).0, Pipeline::Gpu(HwAccel::Rkmpp));
+        // RGA3 takes nothing narrower than 68 pixels.
+        let mut tiny = media(DynamicRange::Sdr, None);
+        (tiny.streams[0].width, tiny.streams[0].height) = (Some(64), Some(48));
+        assert_eq!(decoded_by(&request(), &tiny), cpu);
+        // Interlaced video is deinterlaced on the CPU, from the CPU's frames.
+        let mut interlaced = media(DynamicRange::Sdr, None);
+        interlaced.streams[0].interlaced = Some(true);
+        assert_eq!(decoded_by(&request(), &interlaced), cpu);
+        // A codec its tests didn't pass (VP9 here): the CPU, MPP encoding.
+        let mut vp9 = media(DynamicRange::Sdr, None);
+        vp9.streams[0].codec = "vp9".into();
+        assert_eq!(decoded_by(&request(), &vp9), cpu);
+        // Hardware decoding off.
+        let mut off = request();
+        off.options.hardware_decoding = false;
+        assert_eq!(decoded_by(&off, &media(DynamicRange::Sdr, None)), cpu);
+        assert!(rga_fits((1920, 1080), (240, 135)) && !rga_fits((1920, 1080), (238, 134)));
+    }
+
+    #[test]
+    fn rockchip_says_the_pixel_shape_its_encoder_leaves_out() {
+        let ff = rockchip(&["mpeg2video"], &[]);
+        // An anamorphic DVD: 720×480, its pixels 32:27 (16:9).
+        let mut dvd = media(DynamicRange::Sdr, None);
+        dvd.streams[0].codec = "mpeg2video".into();
+        (dvd.streams[0].width, dvd.streams[0].height) = (Some(720), Some(480));
+        dvd.streams[0].sample_aspect_ratio = Some("32:27".into());
+        let plan = Plan::build(&request(), &dvd, &ff, None).unwrap();
+        assert_eq!(plan.video.as_ref().unwrap().pipeline, Pipeline::Gpu(HwAccel::Rkmpp));
+        let args = args_string(&plan, 0, 2);
+        assert!(args.contains("-bsf:v h264_metadata=sample_aspect_ratio=32/27"), "{args}");
+        // Made smaller (360 lines, 540 wide), the pixels keep their shape.
+        let mut req = request();
+        req.video.as_mut().unwrap().max_height = Some(360);
+        let v = Plan::build(&req, &dvd, &ff, None).unwrap().video.unwrap();
+        assert_eq!(((v.width, v.height), v.rkmpp_sample_aspect()), ((540, 360), Some((32, 27))));
+        // HEVC out: hevc_metadata.
+        req.video.as_mut().unwrap().codec = VideoCodec::Hevc;
+        let mut hevc = rockchip(&["mpeg2video"], &[]);
+        hevc.caps.encoders.insert(0, EncoderInfo { name: "hevc_rkmpp".into(), codec: VideoCodec::Hevc, ..rkmpp() });
+        let args = args_string(&Plan::build(&req, &dvd, &hevc, None).unwrap(), 0, 2);
+        assert!(args.contains("-c:v hevc_rkmpp") && args.contains("-profile:v main"), "{args}");
+        assert!(args.contains("-bsf:v hevc_metadata=sample_aspect_ratio=32/27"), "{args}");
+        // Encoders that write it themselves get no filter.
+        let nvidia = ffmpeg_with(vec![nvenc(), x264()], vec![]);
+        assert!(!args_string(&Plan::build(&request(), &dvd, &nvidia, None).unwrap(), 0, 2).contains("-bsf:v"));
+        // Square pixels say nothing.
+        assert!(
+            !args_string(&Plan::build(&request(), &media(DynamicRange::Sdr, None), &ff, None).unwrap(), 0, 2)
+                .contains("-bsf:v")
+        );
+        assert_eq!(sample_aspect_at(64 * 720 * 288, 45 * 576 * 360), Some((64, 45)));
+        assert_eq!(sample_aspect_at(4, 4), None);
+        // Too large for 16 bits: to a 10000th.
+        assert_eq!(sample_aspect_at(100_003, 50_000), Some((20_001, 10_000)));
+    }
+
+    #[test]
+    fn rockchip_decoding_that_failed_goes_to_the_cpu() {
+        let ff = rockchip(&["hevc"], &[]);
+        let plan = Plan::build(&request(), &media(DynamicRange::Sdr, None), &ff, None).unwrap();
+        assert!(plan.decodes_on_rkmpp() && !plan.decodes_on_quick_sync());
+        let taken = plan.without_rkmpp_decoding();
+        let v = taken.video.as_ref().unwrap();
+        assert!(!taken.decodes_on_rkmpp());
+        assert_eq!((v.pipeline, v.hw_decode.as_deref(), v.gpu_scale), (Pipeline::Software, None, None));
+        let args = args_string(&taken, 0, 2);
+        assert!(!args.contains("rkmpp=rk") && !args.contains("scale_rkrga"), "{args}");
+        assert!(args.contains("scale=1920:1080:flags=bicubic,format=nv12[vout]"), "{args}");
+        assert!(args.contains("-c:v h264_rkmpp"), "the encoder stays: {args}");
+        // Other plans are left as they are.
+        let nvidia = ffmpeg_with(vec![nvenc(), x264()], vec![]);
+        let plan = Plan::build(&request(), &media(DynamicRange::Sdr, None), &nvidia, None).unwrap();
+        assert!(!plan.decodes_on_rkmpp());
+        assert_eq!(args_string(&plan.without_rkmpp_decoding(), 0, 2), args_string(&plan, 0, 2));
     }
 
     /// HDR tone mapped by zimg or OpenCL comes to memory: the GPU scales it

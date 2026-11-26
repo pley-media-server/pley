@@ -441,6 +441,7 @@ interface MediaStream {
   interlaced?: boolean;
   rotation?: number;                // degrees counterclockwise the picture is turned to be shown (phone
                                     // video: 90 or -90); absent when not turned
+  sample_aspect_ratio?: string;     // its pixels' shape ("32:27" on an anamorphic DVD); absent when square
   has_b_frames?: boolean;
   color_transfer?: string;          // "smpte2084", "arib-std-b67", …
   color_primaries?: string;
@@ -4959,7 +4960,7 @@ on another administrator's account, but for the `GET`s
   subtitles whose media file is gone.
 - **`PUT /api/settings`** answers `400` for a `hwaccel` or `tonemapping`
   that can't work here, when changed from what is saved:
-  - VAAPI off Linux, VideoToolbox off macOS, NVENC, Quick Sync or AMF on
+  - VAAPI or Rockchip MPP off Linux, VideoToolbox off macOS, NVENC, Quick Sync or AMF on
     macOS (for a managed transcoder, which runs on Pley's system);
   - one the transcoder found no working encoder or tone mapper for
     (`transcoder.accels`, `transcoder.tonemapping`; not checked while it
@@ -5064,7 +5065,7 @@ interface Settings {
                                     // true; see CONFIGURATION.md). A change scans every library
   strm_files: boolean;              // movie and TV libraries list and play .strm files (default false; see
                                     // .strm files). A change scans those libraries
-  hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
+  hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "rkmpp" | "vulkan";
   hardware_decoding: boolean;       // decode on the GPU when possible
   tonemapping: "auto" | "libplacebo" | "opencl" | "zscale" | "none"; // HDR10/HLG/Dolby Vision to SDR
   transcode_video: boolean;         // transcode video for players that can't play a file's as it is, or
@@ -5173,10 +5174,10 @@ interface SystemInfo {
     encoders: string[];             // working video encoders: ["h264_nvenc", "libx264"]
     active_encoder: string | null;  // encoder new transcodes use with the current settings
     hwaccels: string[];             // FFmpeg's decoding hwaccels (`ffmpeg -hwaccels`: built in, not tried)
-    accels: ("nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox")[]; // with a working H.264 encoder, best
+    accels: ("nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "rkmpp")[]; // with a working H.264 encoder, best
                                     // first: the first is the one "auto" uses ([] while unavailable)
     hardware_decoding: boolean;     // some video is decoded on a GPU, so the setting changes something
-    with_accel: { [hwaccel: string]: {   // what each `hwaccel` choice does here, all eight ({} while unavailable)
+    with_accel: { [hwaccel: string]: {   // what each `hwaccel` choice does here, all nine ({} while unavailable)
       hardware_decoding: boolean;   // some video is decoded on a GPU with it (software encoding gets CUDA's
                                     // decoder where an NVIDIA card encodes, VideoToolbox's on a Mac)
       software: ("h264" | "hevc" | "hdr")[]; // what it leaves to software encoders, where one works

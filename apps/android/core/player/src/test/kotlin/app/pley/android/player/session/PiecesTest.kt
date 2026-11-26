@@ -96,6 +96,7 @@ class PiecesTest {
         assertEquals("H.264 1080p", PlaybackDetails.simplified("H.264 1920×1080"))
         val live = TranscodeInfo(jobId = "j", state = JobState.Running, encoder = "h264_nvenc", pipeline = "gpu")
         assertEquals("NVIDIA NVENC (GPU)", PlaybackDetails.encoderLabel(texts, live))
+        assertEquals("Rockchip MPP (GPU)", PlaybackDetails.encoderLabel(texts, live.copy(encoder = "hevc_rkmpp")))
 
         val audio = MediaStream(1, StreamKind.Audio, "eac3", channels = 6, default = true)
         val file = MediaFile(id = 1, path = "a.mkv", bitrate = 62_000_000, streams = listOf(video, audio))

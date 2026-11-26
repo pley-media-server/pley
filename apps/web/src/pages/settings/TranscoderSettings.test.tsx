@@ -132,7 +132,7 @@ describe("TranscoderSettings on this server's hardware", () => {
     expect(option("NVIDIA NVENC (needs an NVIDIA graphics card)")).toBeDisabled();
     expect(option("AMD AMF (needs an AMD graphics card)")).toBeDisabled();
     // Never on Windows: not offered at all.
-    expect(screen.queryByRole("option", { name: /VAAPI|VideoToolbox/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /VAAPI|VideoToolbox|Rockchip/ })).not.toBeInTheDocument();
 
     expect(option(/^Automatic · OpenCL$/)).toBeEnabled();
     expect(option("libplacebo (needs libplacebo and a Vulkan GPU)")).toBeDisabled();
@@ -185,6 +185,24 @@ describe("TranscoderSettings on this server's hardware", () => {
     expect(await screen.findByRole("option", { name: "Automatic · VAAPI" })).toBeEnabled();
     expect(option(/^VAAPI$/)).toBeEnabled();
     expect(option("VideoToolbox (needs an FFmpeg with VideoToolbox)")).toBeDisabled();
+    // An FFmpeg without Rockchip's support: not offered at all.
+    expect(screen.queryByRole("option", { name: /Rockchip/ })).not.toBeInTheDocument();
+  });
+
+  it("offers Rockchip where the transcoder's FFmpeg has it", async () => {
+    // Pley's arm64 image on another board: grayed out, with why.
+    const pi = { ...intel, encoders: ["libx264"], active_encoder: "libx264", hwaccels: ["rkmpp", "drm"], accels: [] };
+    mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => system(pi, "linux") });
+    const { unmount } = renderWithProviders(<TranscoderSettings />);
+    expect(await screen.findByRole("option", { name: "Rockchip MPP (needs a Rockchip chip and Rockchip's kernel)" })).toBeDisabled();
+    unmount();
+
+    // A Rockchip board: chosen by Automatic.
+    const board = { ...pi, encoders: ["h264_rkmpp", "libx264"], active_encoder: "h264_rkmpp", accels: ["rkmpp"] };
+    mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => system(board, "linux") });
+    renderWithProviders(<TranscoderSettings />);
+    expect(await screen.findByRole("option", { name: "Automatic · Rockchip MPP" })).toBeEnabled();
+    expect(option(/^Rockchip MPP$/)).toBeEnabled();
   });
 
   describe("in memory", () => {

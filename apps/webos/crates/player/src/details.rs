@@ -211,6 +211,7 @@ fn encoder_name(encoder: &str) -> &str {
         "h264_vaapi" | "hevc_vaapi" => "VA-API",
         "h264_videotoolbox" | "hevc_videotoolbox" => "VideoToolbox",
         "h264_vulkan" | "hevc_vulkan" => "Vulkan",
+        "h264_rkmpp" | "hevc_rkmpp" => "Rockchip MPP",
         "h264_v4l2m2m" => "V4L2",
         other => other,
     }
@@ -493,6 +494,8 @@ mod tests {
         assert_eq!(rows[1].1, "EAC3 5.1");
         assert!(rows.contains(&("Encoder", "NVIDIA NVENC (GPU)")));
         assert!(rows.contains(&("Speed", "2.5× real time · 36 s ready")));
+        let rockchip = TranscodeInfo { encoder: Some("hevc_rkmpp".into()), ..live.clone() };
+        assert_eq!(encoder_label(&rockchip), "Rockchip MPP (GPU)");
 
         // In French: the method, the rows and the server's speed with a decimal comma.
         pley_i18n::with_language(pley_i18n::Language::Fr, || {
