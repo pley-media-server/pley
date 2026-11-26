@@ -426,18 +426,20 @@ pub fn info_sections(s: &PlayerState, stats: &EngineStats) -> Vec<FactBlock> {
             out.push(block);
         }
     }
-    out.push(FactBlock {
-        title: t!("player.info.thisTv").into(),
-        facts: tv_facts(stats, Some(s.stalls), s.first_frame_ms),
-    });
+    out.push(FactBlock { title: t!("player.info.thisTv").into(), facts: tv_facts(stats, s.stalls, s.first_frame_ms) });
     out
 }
 
 /// A live channel's Info (`info_sections` for a video): how it plays, with what the channel is
-/// and what the server makes of it, the provider's video and audio, and what this TV says: a
-/// video's sections but the file, the subtitles and the quality, which a channel hasn't. Empty
-/// until `details` are known.
-pub fn live_info_sections(details: Option<&LiveDetails>, stats: &EngineStats) -> Vec<FactBlock> {
+/// and what the server makes of it, the provider's video and audio, and what this TV says, with
+/// the channel's `stalls` and the time to its `first_frame`: a video's sections but the file,
+/// the subtitles and the quality, which a channel hasn't. Empty until `details` are known.
+pub fn live_info_sections(
+    details: Option<&LiveDetails>,
+    stats: &EngineStats,
+    stalls: u32,
+    first_frame_ms: Option<i64>,
+) -> Vec<FactBlock> {
     let Some(d) = details else { return Vec::new() };
     let fact = |label: &str, value: String| Fact { label: label.into(), value };
     let mut how = vec![fact(t!("player.info.playback"), d.method.clone())];
@@ -450,14 +452,13 @@ pub fn live_info_sections(details: Option<&LiveDetails>, stats: &EngineStats) ->
     }
     let mut out = vec![FactBlock { title: t!("player.info.howItPlays").into(), facts: how }];
     out.extend(d.streams.iter().cloned());
-    // Live TV counts no stalls and times no first frame.
-    out.push(FactBlock { title: t!("player.info.thisTv").into(), facts: tv_facts(stats, None, None) });
+    out.push(FactBlock { title: t!("player.info.thisTv").into(), facts: tv_facts(stats, stalls, first_frame_ms) });
     out
 }
 
 /// This TV's facts: its player, what it decodes, its sound, what arrives now, dropped frames and
-/// the buffer, with the player's `stalls` and time to the `first_frame` where it keeps them.
-fn tv_facts(stats: &EngineStats, stalls: Option<u32>, first_frame_ms: Option<i64>) -> Vec<Fact> {
+/// the buffer, with the player's `stalls` and time to the `first_frame`.
+fn tv_facts(stats: &EngineStats, stalls: u32, first_frame_ms: Option<i64>) -> Vec<Fact> {
     let fact = |label: &str, value: String| Fact { label: label.into(), value };
     let mut tv = vec![fact(t!("player.info.player"), stats.player.clone())];
     let mut decoded = Vec::new();
@@ -492,9 +493,7 @@ fn tv_facts(stats: &EngineStats, stalls: Option<u32>, first_frame_ms: Option<i64
     if let Some(ms) = stats.buffered_ahead_ms {
         tv.push(fact(t!("player.info.bufferedAhead"), t!("player.info.seconds", seconds = (ms + 500) / 1000)));
     }
-    if let Some(stalls) = stalls {
-        tv.push(fact(t!("player.info.stalls"), stalls.to_string()));
-    }
+    tv.push(fact(t!("player.info.stalls"), stalls.to_string()));
     tv.extend(stats.extra.iter().map(|(l, v)| fact(l, v.clone())));
     if let Some(ms) = first_frame_ms {
         tv.push(fact(t!("player.info.firstFrame"), t!("player.info.milliseconds", ms = ms)));
@@ -533,6 +532,26 @@ pub fn readout_lines(s: &PlayerState, stats: &EngineStats) -> Vec<(String, Strin
     if !rates.is_empty() {
         out.push((bitrate.into(), rates.join(" → ")));
     }
+    tv_lines(&mut out, stats);
+    out
+}
+
+/// A live channel's compact readout (`readout_lines` for a video): how it plays and the details'
+/// rows, then what this TV says, in a video's lines and their order. Its one Bitrate line is the
+/// details' own, the provider's now and a transcode's, after the other rows where a video's is;
+/// a channel has no subtitles to say.
+pub fn live_readout_lines(d: &LiveDetails, stats: &EngineStats) -> Vec<(String, String)> {
+    let mut out = vec![(t!("player.info.playback").to_string(), d.method.clone())];
+    let bitrate = t!("player.details.bitrate");
+    let (rates, rows): (Vec<_>, Vec<_>) = d.rows.iter().partition(|r| r.label == bitrate);
+    out.extend(rows.into_iter().chain(rates).map(|r| (r.label.clone(), r.value.clone())));
+    tv_lines(&mut out, stats);
+    out
+}
+
+/// The readout's last lines, from the TV's player: what it decodes, dropped frames and the
+/// buffer.
+fn tv_lines(out: &mut Vec<(String, String)>, stats: &EngineStats) {
     if let (Some(w), Some(h)) = (stats.width, stats.height) {
         let range = stats.dynamic_range.as_ref().map(|r| format!(" · {r}")).unwrap_or_default();
         out.push((t!("player.info.decoded").into(), format!("{w}×{h}{range}")));
@@ -543,7 +562,6 @@ pub fn readout_lines(s: &PlayerState, stats: &EngineStats) -> Vec<(String, Strin
     if let Some(ms) = stats.buffered_ahead_ms {
         out.push((t!("player.info.buffer").into(), t!("player.info.secondsAhead", seconds = (ms + 500) / 1000)));
     }
-    out
 }
 
 /// How far a press of Up or Down moves Info (`TvReadout.kt`).
@@ -766,8 +784,12 @@ mod tests {
         };
         let details = LiveDetails {
             method: "Transcoding".into(),
-            why: Some("Interlaced video is made progressive".into()),
-            rows: vec![DetailRow { label: "Video".into(), value: video.into() }],
+            why: Some("Interlaced video is made progressive.".into()),
+            rows: vec![
+                DetailRow { label: "Video".into(), value: video.into() },
+                DetailRow { label: "Bitrate".into(), value: "12 Mbps → 8.0 Mbps".into() },
+                DetailRow { label: "Encoder".into(), value: "x264".into() },
+            ],
             streams: vec![sent.clone()],
         };
         let stats = EngineStats {
@@ -776,7 +798,7 @@ mod tests {
             buffered_ahead_ms: Some(2_400),
             ..EngineStats::default()
         };
-        let sections = live_info_sections(Some(&details), &stats);
+        let sections = live_info_sections(Some(&details), &stats, 2, Some(1_240));
         // A video's sections, in its order: what the provider sends between how it plays and the TV.
         assert_eq!(sections.iter().map(|s| s.title.as_str()).collect::<Vec<_>>(), ["How it plays", "Video", "This TV"]);
         assert_eq!(sections[1], sent);
@@ -784,17 +806,45 @@ mod tests {
             facts(&sections[0]),
             [
                 ("Playback", "Transcoding"),
-                ("Why", "Interlaced video is made progressive"),
+                ("Why", "Interlaced video is made progressive."),
                 ("Video", video),
+                ("Bitrate", "12 Mbps → 8.0 Mbps"),
+                ("Encoder", "x264"),
                 ("TV network speed", "48 Mbps"),
             ]
         );
-        // Live TV counts no stalls and times no first frame.
-        assert_eq!(facts(&sections[2]), [("Player", "webOS media pipeline"), ("Buffered ahead", "2 s")]);
+        // The channel's stalls and the time to its first picture, as a video's.
+        assert_eq!(
+            facts(&sections[2]),
+            [
+                ("Player", "webOS media pipeline"),
+                ("Buffered ahead", "2 s"),
+                ("Stalls", "2"),
+                ("First frame", "1240 ms")
+            ]
+        );
+        // No picture yet: its stalls alone.
+        let waiting = live_info_sections(Some(&details), &stats, 0, None);
+        assert_eq!(facts(&waiting[2])[2..], [("Stalls", "0")]);
         // Nothing known of how it plays: the panel says it is asking.
-        assert!(live_info_sections(None, &stats).is_empty());
+        assert!(live_info_sections(None, &stats, 0, None).is_empty());
 
-        // A video's This TV has the same facts, with its stalls and first frame.
+        // The compact readout: a video's lines in its order, its one Bitrate after the rows.
+        let decoding = EngineStats { width: Some(1920), height: Some(1080), ..stats.clone() };
+        let lines = live_readout_lines(&details, &decoding);
+        assert_eq!(
+            lines.iter().map(|(l, v)| (l.as_str(), v.as_str())).collect::<Vec<_>>(),
+            [
+                ("Playback", "Transcoding"),
+                ("Video", video),
+                ("Encoder", "x264"),
+                ("Bitrate", "12 Mbps → 8.0 Mbps"),
+                ("Decoded", "1920×1080"),
+                ("Buffer", "2 s ahead"),
+            ]
+        );
+
+        // A video's This TV has the same facts.
         let playing = PlayerState {
             details: Some(PlaybackDetails {
                 method: "Direct play".into(),

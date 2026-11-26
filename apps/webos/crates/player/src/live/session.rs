@@ -24,7 +24,11 @@
 //!   ([`crate::live::stuck`], the web app's rules).
 //! - Playback details ([`crate::live::details`]) asks the plan again while
 //!   it shows ([`LiveSession::ask_plan`]): the server answers what it knows
-//!   at once, with what the provider sends now.
+//!   at once, with what the provider sends now. A channel on HLS whose tune
+//!   didn't learn its plan asks it once as its picture starts, for the badge
+//!   that says how it plays.
+//! - As a video's, it counts the channel's stalls and times its first
+//!   picture from each tune, for Playback details' This TV.
 //!
 //! The owner calls [`LiveSession::tick`] each frame with the app's clock in ms.
 
@@ -272,6 +276,12 @@ pub struct LiveState {
     pub audio_only: bool,
     /// Counts each channel tuned by the person (not a recovery), so the banner shows anew.
     pub tunes: u32,
+    /// Time from tuning to the channel's first picture, in ms (Playback details' First frame, as
+    /// a video's); none before it shows.
+    pub first_frame_ms: Option<i64>,
+    /// Times the channel stopped to wait for more once it played (Playback details' Stalls, as
+    /// a video's): counted anew for another channel.
+    pub stalls: u32,
 }
 
 /// What a failure's question to the server was for.
@@ -338,6 +348,8 @@ pub struct LiveSession {
     generation: Arc<AtomicU64>,
     retries: u32,
     now: i64,
+    /// When the channel was last tuned, for its First frame.
+    tuned_at: i64,
     start_deadline: Option<i64>,
     picture_at: Option<i64>,
     retry_at: Option<(i64, LiveChannel)>,
@@ -402,6 +414,8 @@ impl LiveSession {
                 shown: false,
                 audio_only: false,
                 tunes: 0,
+                first_frame_ms: None,
+                stalls: 0,
             },
             version: 0,
             session: None,
@@ -411,6 +425,7 @@ impl LiveSession {
             generation: Arc::new(AtomicU64::new(0)),
             retries: 0,
             now,
+            tuned_at: now,
             start_deadline: None,
             picture_at: None,
             retry_at: None,
@@ -502,6 +517,12 @@ impl LiveSession {
     /// What the engine says of itself, and the TV's network speed, for Playback details.
     pub fn engine_stats(&self) -> EngineStats {
         EngineStats { network_bps: self.engine.network_bps(), ..self.engine.stats() }
+    }
+
+    /// What the engine says of itself, for Playback details' readout: it shows no network speed,
+    /// which on LG means reading a file.
+    pub fn readout_stats(&self) -> EngineStats {
+        self.engine.stats()
     }
 
     /// The picture's place: none for the full screen, or the channel list's 520×540 at the left.
@@ -684,6 +705,16 @@ impl LiveSession {
         self.read_again_at = None;
         // Of the channel before, or of this one before it was watched anew.
         self.plan = None;
+        // Another channel's stalls say nothing of this one.
+        if self.state.channel.id != channel.id {
+            self.state.stalls = 0;
+        }
+        // From each tune; the HLS that takes over from a stream.ts that never played is the same
+        // tune, its first frame timed from when it was asked for.
+        if allow_direct || self.state.shown {
+            self.tuned_at = self.now;
+        }
+        self.state.first_frame_ms = None;
         let mut stream = match (&relay, take_over) {
             (Some(r), None) => r.serve(opener.clone()),
             _ => None,
@@ -947,10 +978,7 @@ impl LiveSession {
         log::info!("live: the channel's stream.ts stands still while it comes: read again");
         // Waiting, for the person, from now until what is read again plays.
         self.clear_stall();
-        if self.state.phase != LivePhase::Buffering {
-            self.state.phase = LivePhase::Buffering;
-            self.changed();
-        }
+        self.waits();
         // The plan first: asking marks the watch session seen, so it stays while no stream is
         // read for it, and one that ended (stopped from elsewhere) says why instead.
         let (server, g) = (self.server.clone(), self.current());
@@ -1103,10 +1131,7 @@ impl LiveSession {
                 if matches!(self.state.phase, LivePhase::Error | LivePhase::Tuning) {
                     return;
                 }
-                if self.state.phase != LivePhase::Buffering {
-                    self.state.phase = LivePhase::Buffering;
-                    self.changed();
-                }
+                self.waits();
                 self.watch_stall();
             }
             // A stream.ts that ends before it plays: its HLS now, not after the wait.
@@ -1125,6 +1150,18 @@ impl LiveSession {
             | EngineEvent::VideoInfo { .. }
             | EngineEvent::Buffered { .. } => {}
         }
+    }
+
+    /// The channel waits for more: a stall, counted when it played until now.
+    fn waits(&mut self) {
+        if self.state.phase == LivePhase::Buffering {
+            return;
+        }
+        if self.state.phase == LivePhase::Playing {
+            self.state.stalls += 1;
+        }
+        self.state.phase = LivePhase::Buffering;
+        self.changed();
     }
 
     /// A stall that lasts: the server says whether watching ended (and why); one that goes on is a failure.
@@ -1148,6 +1185,13 @@ impl LiveSession {
         self.start_deadline = None;
         self.state.shown = true;
         self.state.phase = LivePhase::Playing;
+        // From the tune: a stream read again, a while into the channel, isn't its first picture.
+        self.state.first_frame_ms.get_or_insert(self.now - self.tuned_at);
+        // On HLS with a plan the tune didn't learn (its stream.ts failed, or the app can't hand
+        // one on): asked once, so the badge says how the channel plays.
+        if !self.direct && self.plan.is_none() {
+            self.ask_plan();
+        }
         self.picture_at = Some(self.now + PICTURE_CHECK_MS);
         // From its first picture: until then the stream has its 10 s to start.
         self.stuck = self.direct.then(|| StuckWatch::new(self.now, self.engine.reported_ms()));
@@ -1258,12 +1302,14 @@ impl LiveSession {
         self.leave();
     }
 
-    /// The TV shows the app again: the channel from its live edge. One that stopped on the server
-    /// keeps its card, and is watched again only with Watch again (as Android's).
-    pub fn resume(&mut self) {
+    /// The TV shows the app again, at `now` (it may have been hidden long past the last tick, and
+    /// the first frame is timed from here): the channel from its live edge. One that stopped on
+    /// the server keeps its card, and is watched again only with Watch again (as Android's).
+    pub fn resume(&mut self, now: i64) {
         if self.closed {
             return;
         }
+        self.now = now.max(self.now);
         if self.state.phase == LivePhase::Error
             && self.state.trouble.as_ref().is_some_and(|t| t.kind == TroubleKind::Stopped)
         {

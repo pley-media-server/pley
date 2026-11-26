@@ -923,7 +923,7 @@ fn a_take_overs_card_stays_through_the_background_and_nothing_is_watched_until_w
     let shown = w.c.state().clone();
     w.c.suspend();
     w.settle();
-    w.c.resume();
+    w.c.resume(w.now);
     w.settle();
     w.advance(10_000);
     assert_eq!(w.c.state(), &shown);
@@ -1115,7 +1115,7 @@ fn lets_go_of_the_session_when_the_tv_hides_the_app_and_watches_again_when_it_sh
     w.c.suspend();
     w.settle();
     assert_eq!(w.fake.asked().last().map(String::as_str), Some("leave s1"));
-    w.c.resume();
+    w.c.resume(w.now);
     w.settle();
     let asked = w.fake.asked();
     assert_eq!(asked[asked.len() - 2..], ["watch 1 webos-tv", "GET /api/live/media/pley_mk_2/index.m3u8"]);
@@ -1452,6 +1452,91 @@ fn a_channel_back_on_its_hls_learns_its_plan_when_playback_details_ask() {
     w.c.close();
     w.until(|w| !w.c.busy());
     w.fake.plans_held.store(false, Ordering::SeqCst);
+}
+
+#[test]
+fn a_channel_on_hls_whose_tune_learned_no_plan_asks_it_once_as_its_picture_starts() {
+    // Its stream.ts failed: watched as HLS, the tune asks no plan.
+    let fake = LiveFake::new();
+    fake.set_plan(plan("copy", "copy", "aac"));
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    w.advance(200);
+    w.sim.fail(2, "no such format");
+    w.settle();
+    let asked = w.fake.plans();
+    assert_eq!((w.kinds().last().copied(), w.c.plan()), (Some(MediaKind::LiveHls), None));
+    // Its picture starts: the badge that says how it plays needs the plan.
+    w.first_frame();
+    assert_eq!((w.c.plan(), w.fake.plans()), (Some(&plan("copy", "copy", "aac")), asked + 1));
+    // Its first frame from the tune: the stream.ts that failed was part of it.
+    assert_eq!(w.c.state().first_frame_ms, Some(200 + SIM_LOAD_MS));
+    // Known now: nothing more is asked while it plays.
+    w.advance(10_000);
+    assert_eq!(w.fake.plans(), asked + 1);
+    // A channel whose tune learned its plan asks nothing as its picture starts, on HLS or not.
+    for report in [None, Some(tv_report())] {
+        let fake = LiveFake::new();
+        fake.set_plan(converted("hevc", Some(10), "aac"));
+        let mut w = Live::reporting(fake, report);
+        w.c.tune(channel(1));
+        w.settle();
+        w.first_frame();
+        assert_eq!(w.fake.plans(), 1);
+    }
+}
+
+#[test]
+fn stalls_are_counted_for_the_channel_and_its_first_frame_timed_from_each_tune() {
+    let mut w = Live::new(LiveFake::new());
+    w.advance(4_000);
+    w.c.tune(channel(1));
+    w.settle();
+    assert_eq!((w.c.state().stalls, w.c.state().first_frame_ms), (0, None));
+    w.first_frame();
+    // From the tune, not from when the player opened.
+    assert_eq!(w.c.state().first_frame_ms, Some(SIM_LOAD_MS));
+    // It played, and stops to wait for more: a stall, counted once while it lasts.
+    w.sim.wait(true);
+    w.settle();
+    w.sim.wait(true);
+    w.settle();
+    assert_eq!((w.c.state().phase, w.c.state().stalls), (LivePhase::Buffering, 1));
+    w.sim.wait(false);
+    w.settle();
+    w.sim.wait(true);
+    w.settle();
+    assert_eq!(w.c.state().stalls, 2);
+    // The same channel watched anew (Try again, a recovery) keeps its stalls, and times its
+    // first frame again.
+    w.advance(3_000);
+    w.c.retry();
+    w.settle();
+    assert_eq!((w.c.state().stalls, w.c.state().first_frame_ms), (2, None));
+    // Waiting for its first picture is no stall.
+    w.sim.wait(true);
+    w.settle();
+    w.sim.wait(false);
+    w.settle();
+    assert_eq!(w.c.state().stalls, 2);
+    w.first_frame();
+    assert_eq!(w.c.state().first_frame_ms, Some(SIM_LOAD_MS));
+    // Another channel's stalls say nothing of this one.
+    w.c.tune(channel(2));
+    w.settle();
+    assert_eq!((w.c.state().stalls, w.c.state().first_frame_ms), (0, None));
+    // Shown again after the TV hid the app: timed from then, however long it was hidden with
+    // no tick.
+    w.first_frame();
+    w.c.suspend();
+    w.settle();
+    w.now += 3_600_000;
+    w.clock.set(w.now);
+    w.c.resume(w.now);
+    w.settle();
+    w.first_frame();
+    assert_eq!(w.c.state().first_frame_ms, Some(SIM_LOAD_MS));
 }
 
 #[test]

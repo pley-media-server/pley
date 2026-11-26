@@ -11,7 +11,7 @@ describes how they are made.
 ### Added
 
 - Live TV plays HEVC and 10-bit channels as sent where the TV decodes
-  them, and Info in its controls shows Playback details.
+  them, and shows how a channel plays as a video does.
 
 ## [0.1.15] - 2026-11-25
 

@@ -19,18 +19,27 @@ use crate::live::session::{as_is, decodes_video, plays_audio, sent_as_it_is};
 pub enum NotAsSent {
     /// Interlaced video, which the server makes progressive.
     Interlaced,
-    /// Video this TV doesn't play from an MPEG-TS, by ffprobe's name.
-    Video(String),
+    /// Video this TV doesn't play from an MPEG-TS, by ffprobe's name, at the bit depth the plan
+    /// says.
+    Video(String, Option<i64>),
     /// Sound it doesn't.
     Audio(String),
 }
 
 impl NotAsSent {
-    /// In words, for the details' Why.
+    /// In a sentence, for the details' Why.
     pub fn text(&self) -> String {
         match self {
             NotAsSent::Interlaced => t!("livetv.details.interlaced").into(),
-            NotAsSent::Video(codec) => t!("livetv.details.videoNotPlayed", codec = codec_label(codec)),
+            NotAsSent::Video(codec, depth) => {
+                // The depth beside the codec above 8 bits ("HEVC 10-bit"): a TV that plays 8-bit
+                // HEVC isn't told it doesn't play HEVC.
+                let codec = match depth.filter(|d| *d > 8) {
+                    Some(d) => format!("{} {}", codec_label(codec), t!("format.track.bitDepth", n = d)),
+                    None => codec_label(codec),
+                };
+                t!("livetv.details.videoNotPlayed", codec = codec)
+            }
             NotAsSent::Audio(codec) => t!("livetv.details.audioNotPlayed", codec = codec_label(codec)),
         }
     }
@@ -50,7 +59,7 @@ pub fn why_not_as_sent(plan: &LivePlan, caps: Option<&ClientCaps>) -> Option<Not
             return Some(NotAsSent::Interlaced);
         }
         if !decodes_video(plan, caps) {
-            return plan.video_codec.clone().map(NotAsSent::Video);
+            return plan.video_codec.clone().map(|codec| NotAsSent::Video(codec, plan.bit_depth));
         }
     }
     if !as_is(&plan.audio) && !plays_audio(plan, caps) {
@@ -312,7 +321,7 @@ mod tests {
         let dts = LivePlan { audio_codec: Some("dts".into()), audio_channels: Some(6), audio: "aac".into(), ..copied };
         let d = live_details(Some(&dts), false, Some(&caps())).unwrap();
         assert_eq!(d.method, "Direct stream · Audio transcoding");
-        assert_eq!(d.why.as_deref(), Some("This TV doesn't play DTS sound"));
+        assert_eq!(d.why.as_deref(), Some("This TV doesn't play DTS audio."));
         assert_eq!(rows(&d)[1], ("Audio", "DTS 5.1 → AAC 2.0"));
     }
 
@@ -322,8 +331,9 @@ mod tests {
         let why = |plan: &LivePlan| why_not_as_sent(plan, Some(&caps));
         assert_eq!(why(&LivePlan { interlaced: true, ..hevc() }), Some(NotAsSent::Interlaced));
         // AV1, which the pipeline doesn't read from an MPEG-TS; 12-bit HEVC, beyond its decoder.
-        assert_eq!(why(&LivePlan { video_codec: Some("av1".into()), ..hevc() }), Some(NotAsSent::Video("av1".into())));
-        assert_eq!(why(&LivePlan { bit_depth: Some(12), ..hevc() }), Some(NotAsSent::Video("hevc".into())));
+        let av1 = LivePlan { video_codec: Some("av1".into()), ..hevc() };
+        assert_eq!(why(&av1), Some(NotAsSent::Video("av1".into(), Some(10))));
+        assert_eq!(why(&LivePlan { bit_depth: Some(12), ..hevc() }), Some(NotAsSent::Video("hevc".into(), Some(12))));
         assert_eq!(
             why(&LivePlan { audio_codec: Some("truehd".into()), ..hevc() }),
             Some(NotAsSent::Audio("truehd".into()))
@@ -350,7 +360,7 @@ mod tests {
             ..LivePlan::default()
         };
         let d = live_details(Some(&old), false, Some(&caps())).unwrap();
-        assert_eq!(d.why.as_deref(), Some("Interlaced video is made progressive"));
+        assert_eq!(d.why.as_deref(), Some("Interlaced video is made progressive."));
         assert_eq!(rows(&d), [("Video", "MPEG-2 → H.264"), ("Audio", "MP2 → AAC 2.0"), ("Encoder", "x264")]);
         assert_eq!(
             streams(&d),
@@ -382,14 +392,59 @@ mod tests {
         with_language(Language::Fr, || {
             let d = live_details(Some(&LivePlan { interlaced: true, ..hevc() }), false, Some(&caps)).unwrap();
             assert_eq!(d.method, "Transcodage");
-            assert_eq!(d.why.as_deref(), Some("La vidéo entrelacée est désentrelacée"));
+            assert_eq!(d.why.as_deref(), Some("La vidéo entrelacée est convertie en progressif."));
             assert_eq!(rows(&d)[2], ("Débit", "12 Mbit/s → 8,0 Mbit/s"));
             assert_eq!(streams(&d)[0].1[2], ("Débit d’images", "50 i/s, entrelacé"));
         });
         with_language(Language::Es, || {
             let plan = LivePlan { video_codec: Some("av1".into()), ..hevc() };
             let d = live_details(Some(&plan), false, Some(&caps)).unwrap();
-            assert_eq!(d.why.as_deref(), Some("Esta TV no reproduce AV1"));
+            assert_eq!(d.why.as_deref(), Some("Este televisor no reproduce el video AV1 10 bits."));
         });
+    }
+
+    #[test]
+    fn why_names_the_codec_with_its_bit_depth_above_8() {
+        // 12-bit HEVC on a TV that plays HEVC to 10 bits: the depth says what it doesn't play.
+        assert_eq!(NotAsSent::Video("hevc".into(), Some(12)).text(), "This TV doesn't play HEVC 12-bit video.");
+        // At 8 bits, or with no depth in the plan, the codec alone.
+        assert_eq!(NotAsSent::Video("av1".into(), Some(8)).text(), "This TV doesn't play AV1 video.");
+        assert_eq!(NotAsSent::Video("vp9".into(), None).text(), "This TV doesn't play VP9 video.");
+        // Sound has no depth to say.
+        assert_eq!(NotAsSent::Audio("truehd".into()).text(), "This TV doesn't play TrueHD audio.");
+        assert_eq!(NotAsSent::Interlaced.text(), "Interlaced video is made progressive.");
+        // Every language says them the same way, the TV its subject.
+        for (language, video, audio, interlaced) in [
+            (
+                Language::Es,
+                "Este televisor no reproduce el video HEVC 12 bits.",
+                "Este televisor no reproduce el audio TrueHD.",
+                "El video entrelazado se convierte a progresivo.",
+            ),
+            (
+                Language::Fr,
+                "Ce téléviseur ne lit pas la vidéo HEVC 12 bits.",
+                "Ce téléviseur ne lit pas l’audio TrueHD.",
+                "La vidéo entrelacée est convertie en progressif.",
+            ),
+            (
+                Language::ZhCn,
+                "此电视无法播放 HEVC 12 位 视频。",
+                "此电视无法播放 TrueHD 音频。",
+                "隔行扫描视频会转换为逐行扫描。",
+            ),
+            (
+                Language::ZhTw,
+                "此電視無法播放 HEVC 12 位 影片。",
+                "此電視無法播放 TrueHD 音訊。",
+                "隔行掃描影片會轉換為逐行掃描。",
+            ),
+        ] {
+            with_language(language, || {
+                assert_eq!(NotAsSent::Video("hevc".into(), Some(12)).text(), video);
+                assert_eq!(NotAsSent::Audio("truehd".into()).text(), audio);
+                assert_eq!(NotAsSent::Interlaced.text(), interlaced);
+            });
+        }
     }
 }

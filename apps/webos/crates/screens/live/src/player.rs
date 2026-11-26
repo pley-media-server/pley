@@ -5,7 +5,9 @@
 //! the picture, which moves aside; OK held shows what's on with the controls (Samsung's rule, where
 //! Android's OK shows the controls); Info shows what's on for 5 s. The controls' Info opens
 //! Playback details, the video player's panel: how the channel plays, from the session's plan,
-//! asked again every 2.5 s while it shows.
+//! asked again every 2.5 s while it shows. The bar says it too, in the video player's badge
+//! beside Live, and with Settings' Playback details on, the video player's readout stays over
+//! the picture while nothing else does.
 //! Live TV is watched as it airs: play, pause, rewind and fast forward, Left and Right do nothing. A
 //! channel that doesn't start says why, with Try again, Other channels and Back to the guide; every
 //! connection in use lists what holds each, with Watch here instead where it may be taken over.
@@ -26,10 +28,11 @@ use pley_kit::button::ROUND_SIZE;
 use pley_kit::{Button, LoadingRing, RoundButton, SidePanel, bar_group, inert};
 use pley_player::live::data::{CHANNEL_PAGE, channel_by_number, channel_name, time_left};
 use pley_player::live::{
-    Category, ChannelPages, LivePhase, LiveSession, Trouble, TroubleKind, holders, live_details, trouble_of,
+    Category, ChannelPages, LiveDetails, LivePhase, LiveSession, Trouble, TroubleKind, holders, live_details,
+    trouble_of,
 };
 use pley_player::{PlayerServer, now_ms};
-use pley_player_ui::{info_panel, live_info_sections};
+use pley_player_ui::{info_panel, live_info_sections, live_readout_lines, method_badge, readout};
 use pley_shell::{AppCx, AppEvent, Chrome, Screen};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Dirs, FocusOpts, Id, Motion, Ui};
@@ -53,8 +56,8 @@ pub const CONTROLS: f64 = 6.0;
 pub const STALL_SHOWN: f64 = 0.7;
 /// What's on is drawn anew this often (`LivePlayerViewModel`'s clock).
 const CLOCK_S: i64 = 5;
-/// The session's plan is asked again this often while Playback details shows, for what the
-/// provider sends now.
+/// The session's plan is asked again this often while Playback details show (the panel or the
+/// readout), for what the provider sends now.
 pub const PLAN_S: f64 = 2.5;
 /// The trouble card's widest (`widthIn(max = 520.dp)`) and its padding.
 const CARD_MAX: f32 = 520.0;
@@ -233,7 +236,8 @@ pub struct LivePlayerScreen {
     /// with them.
     details_scroll: f32,
     sections: Vec<FactBlock>,
-    /// When the plan was last asked for Playback details (the UI's seconds).
+    /// When the plan was last asked for Playback details, the panel's or the readout's (the UI's
+    /// seconds).
     plan_asked_at: Option<f64>,
     logged: bool,
     /// Whether the screen saver was last held off (none: ask again, the TV let it go while hidden).
@@ -485,20 +489,45 @@ impl LivePlayerScreen {
         self.focus_controls = Some(BarButton::Info);
     }
 
+    /// The session's plan, asked again every [`PLAN_S`] while Playback details show, in the panel
+    /// or the readout, as the video player asks its details for both.
+    fn ask_plan(&mut self, ui: &mut Ui, now: f64) {
+        let Some(s) = self.session.as_mut() else { return };
+        let next = self.plan_asked_at.map_or(now, |at| at + PLAN_S);
+        if now >= next {
+            self.plan_asked_at = Some(now);
+            s.ask_plan();
+        }
+        ui.repaint_after((self.plan_asked_at.map_or(now, |at| at + PLAN_S) - now).max(0.0));
+    }
+
+    /// The compact Playback details over the picture, the video player's (Settings → Playback
+    /// details): how the channel plays and what this TV says, while it `playing` and nothing else
+    /// shows over it, from `details` once they are known.
+    fn details_readout(&mut self, ui: &mut Ui, cx: &AppCx, playing: bool, details: Option<&LiveDetails>, now: f64) {
+        if !cx.settings().playback_details || self.overlay != Overlay::None || !playing {
+            return;
+        }
+        // Asked before the details are known too: a channel whose plan the tune didn't learn
+        // gets it here.
+        self.ask_plan(ui, now);
+        let (Some(d), Some(s)) = (details, self.session.as_ref()) else { return };
+        readout(ui, &live_readout_lines(d, &s.readout_stats()));
+        // What the TV says of itself moves on, as in the video player's.
+        ui.repaint_after(1.0);
+    }
+
     /// Playback details in the video player's panel, sliding out once closed. While it shows, the
     /// session's plan is asked again every [`PLAN_S`], and the sections are made anew each frame
-    /// from what the session knows: nothing until the channel plays.
-    fn details_panel(&mut self, ui: &mut Ui, playing: bool, now: f64) {
+    /// from `details`, what the session knows: nothing until the channel plays.
+    fn details_panel(&mut self, ui: &mut Ui, details: Option<&LiveDetails>, now: f64) {
         let open = self.overlay == Overlay::Details;
-        if open && let Some(s) = self.session.as_mut() {
-            let next = self.plan_asked_at.map_or(now, |at| at + PLAN_S);
-            if now >= next {
-                self.plan_asked_at = Some(now);
-                s.ask_plan();
-            }
-            ui.repaint_after((self.plan_asked_at.map_or(now, |at| at + PLAN_S) - now).max(0.0));
-            let details = if playing { live_details(s.plan(), s.direct(), s.caps()) } else { None };
-            self.sections = live_info_sections(details.as_ref(), &s.engine_stats());
+        if open {
+            self.ask_plan(ui, now);
+        }
+        if open && let Some(s) = self.session.as_ref() {
+            let state = s.state();
+            self.sections = live_info_sections(details, &s.engine_stats(), state.stalls, state.first_frame_ms);
             // What the TV says of itself moves on, as in the video player's.
             ui.repaint_after(1.0);
         }
@@ -683,6 +712,10 @@ impl Screen for LivePlayerScreen {
         let channel = self.channel().cloned();
         let phase = state.as_ref().map(|s| s.1.phase);
         let playing = matches!(phase, Some(LivePhase::Playing | LivePhase::Buffering));
+        // How the channel plays, once it does and the session knows: the badge beside Live, the
+        // readout and Playback details say it.
+        let details =
+            self.session.as_ref().filter(|_| playing).and_then(|s| live_details(s.plan(), s.direct(), s.caps()));
         // The screen saver is held off while a channel tunes or plays, not while the trouble card waits;
         // the TV lets it go whenever the app is hidden, so it is asked again as it shows.
         let awake = !self.hidden && (playing || phase == Some(LivePhase::Tuning));
@@ -865,7 +898,9 @@ impl Screen for LivePlayerScreen {
             let focus = self.focus_controls.take();
             let live = s.phase == LivePhase::Playing || s.phase == LivePhase::Buffering;
             let buttons = controls || under;
-            let bar = |ui: &mut Ui| info_bar(ui, cx, bar_id, c, &self.category, &clock, live, buttons, p, focus);
+            let method = details.as_ref().map(|d| d.method.as_str());
+            let bar =
+                |ui: &mut Ui| info_bar(ui, cx, bar_id, c, &self.category, &clock, live, method, buttons, p, focus);
             let action = if visible && controls { bar(ui) } else { inert(ui, bar) };
             match action {
                 Some(BarAction::Channels | BarAction::Menu) => self.open_list(),
@@ -875,7 +910,8 @@ impl Screen for LivePlayerScreen {
             }
         }
 
-        self.details_panel(ui, playing, now);
+        self.details_readout(ui, cx, playing, details.as_ref(), now);
+        self.details_panel(ui, details.as_ref(), now);
 
         // A number being typed, or one that matched nothing.
         if let Some((text, code)) = self.digits.text(now) {
@@ -935,7 +971,7 @@ impl Screen for LivePlayerScreen {
             }
             AppEvent::Visible(true) => {
                 if let Some(s) = self.session.as_mut() {
-                    s.resume();
+                    s.resume(now_ms());
                 }
                 // The TV let the screen saver go while the app was hidden: it is held off again.
                 self.hidden = false;
@@ -1046,7 +1082,8 @@ fn bar_height(c: &LiveChannel, seconds: i64, controls: bool) -> (f32, f32, f32) 
 }
 
 /// The bar at the foot (`InfoBar`): the channel's logo, number and name, what's on with its times, how
-/// far it is and what's next, the Live badge at the right; with `controls`, the channel list and
+/// far it is and what's next, the Live badge at the right, and before it how the channel plays
+/// (`method`, once known) in the video player's badge; with `controls`, the channel list and
 /// favorite buttons at the left and Info (Playback details) at the right end of their row, where
 /// the video player's is, `focus` going to one of them, else the hint. It slides up a third of
 /// its height and fades as `p` goes to 1.
@@ -1059,6 +1096,7 @@ fn info_bar(
     category: &LiveCategory,
     clock: &Clock,
     live: bool,
+    method: Option<&str>,
     controls: bool,
     p: f32,
     focus: Option<BarButton>,
@@ -1083,11 +1121,16 @@ fn info_bar(
             let well = Well::PAGE.named().filled(Color::WHITE.alpha(0.08), radius::TILE);
             channel_tile(ui, cx, Rect::new(x0, row_top + (row_h - 63.0) / 2.0, 112.0, 63.0), c, well);
 
-            // Live at the right, beside the column.
+            // Live at the right, beside the column, and how the channel plays before it, 12 dp
+            // apart as Android TV's are.
             let mut end = right;
             if live {
-                let w = live_pill(ui, right, row_top + row_h / 2.0);
-                end = right - w - 18.0;
+                let mid = row_top + row_h / 2.0;
+                end -= live_pill(ui, right, mid);
+                if let Some(method) = method {
+                    end -= 12.0 + method_badge(ui, method, end - 12.0, mid);
+                }
+                end -= 18.0;
             }
             let x = x0 + 112.0 + 18.0;
             let width = (end - x).max(1.0);

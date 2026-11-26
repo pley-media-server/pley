@@ -105,9 +105,9 @@
     "andMore_other": "还有 {{count}} 个"
   },
   "details": {
-    "interlaced": "隔行视频会转为逐行",
-    "videoNotPlayed": "此电视无法播放 {{codec}}",
-    "audioNotPlayed": "此电视无法播放 {{codec}} 音频"
+    "interlaced": "隔行扫描视频会转换为逐行扫描。",
+    "videoNotPlayed": "此电视无法播放 {{codec}} 视频。",
+    "audioNotPlayed": "此电视无法播放 {{codec}} 音频。"
   },
   "trouble": {
     "busy": "所有连接均在使用中",

@@ -184,6 +184,48 @@ fn info_in_the_controls_opens_playback_details_asked_again_while_it_shows() {
     assert!(matches!(app.route(), Some(Route::LivePlayer { .. })));
 }
 
+/// Where the last frame drew `text`'s left, if it did.
+fn text_left(app: &TestApp, text: &str) -> Option<f32> {
+    app.list.cmds.iter().find_map(|c| match c {
+        Cmd::Text { origin, layout, .. } if &*layout.text == text => Some(origin.x),
+        _ => None,
+    })
+}
+
+#[test]
+fn the_bar_says_how_the_channel_plays_in_the_video_player_s_badge_beside_live() {
+    let mut app = watching(ids::LIVE_CHANNEL, LiveCategory::All);
+    let engine = app.engine().unwrap();
+    assert!(app.until(|_| engine.playing()), "the channel didn't play");
+    hold_ok(&mut app);
+    // The fake server sends the channel as it is, which the tune learned: the badge says so,
+    // before Live, with no panel open.
+    assert!(app.until(|a| a.shows("Direct play")), "no badge");
+    assert!(!app.shows("Playback details"));
+    let (badge, live) = (text_left(&app, "Direct play").unwrap(), text_left(&app, "LIVE").unwrap());
+    assert!(badge < live, "the badge at {badge} isn't before Live at {live}");
+}
+
+#[test]
+fn settings_playback_details_keeps_the_readout_over_the_picture_while_nothing_else_shows() {
+    let mut app = TestApp::start();
+    app.state.update_settings(|s| s.playback_details = true);
+    app.open(Route::LivePlayer { channel_id: ids::LIVE_CHANNEL, category: LiveCategory::All, pressed_at: 0.0 });
+    assert!(app.until(|a| a.engine().is_some()), "no player");
+    let engine = app.engine().unwrap();
+    assert!(app.until(|_| engine.playing()), "the channel didn't play");
+    // The video player's lines, from the live details, with no panel open.
+    assert!(app.until(|a| fact(a, "Playback").as_deref() == Some("Direct play")), "no readout");
+    assert_eq!(fact(&app, "Video").as_deref(), Some("H.264 1080p"));
+    assert_eq!(fact(&app, "Audio").as_deref(), Some("AAC 2.0"));
+    assert!(!app.shows("Playback details") && !app.shows("This TV"));
+    // The controls take its place, as they do the video player's.
+    hold_ok(&mut app);
+    assert!(app.until(|a| fact(a, "Playback").is_none()), "the readout stayed under the controls");
+    app.press(Key::Back);
+    assert!(app.until(|a| fact(a, "Playback").is_some()), "the readout didn't come back");
+}
+
 /// Where the last frame drew `text`'s top, if it did.
 fn text_top(app: &TestApp, text: &str) -> Option<f32> {
     app.list.cmds.iter().find_map(|c| match c {
