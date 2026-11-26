@@ -497,7 +497,8 @@ behind it.
   into the HLS stream ("Direct stream · Audio transcoding" when it
   converts the sound) and Transcoding otherwise; the provider's video and
   audio, and
-  what the server makes of them; what the provider sends now, with the
+  what the server makes of them (a transcode's size named as a file's is:
+  "→ H.264 4K", "→ H.264 1080p"); what the provider sends now, with the
   transcode's video bitrate; and the encoder, by the name people know
   ("NVIDIA NVENC"). They come from the session's
   plan (`GET /api/live/sessions/{session}/plan`), asked for again every 2

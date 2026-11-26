@@ -50,6 +50,22 @@ import Testing
                                "Encoder: NVIDIA NVENC"])
     }
 
+    @Test func aTranscodesSizeGoesByTheNameAFilesDoes() {
+        // What the server makes of a 2160-line channel at `lines`, the channel's own when the plan names none.
+        func made(_ lines: Int?) -> String {
+            let plan = LivePlan(videoCodec: "hevc", width: 3840, height: 2160, video: "hevc_nvenc", audio: "copy",
+                                outHeight: lines)
+            return said(plan)[1]
+        }
+        #expect(made(nil) == "Video: HEVC · 3840×2160 → HEVC 4K")
+        #expect(made(2160) == "Video: HEVC · 3840×2160 → HEVC 4K")
+        #expect(made(1440) == "Video: HEVC · 3840×2160 → HEVC 1440p")
+        #expect(made(720) == "Video: HEVC · 3840×2160 → HEVC 720p")
+        #expect(made(480) == "Video: HEVC · 3840×2160 → HEVC 480p")
+        // Fewer lines than any size has a name for, as a file's.
+        #expect(made(360) == "Video: HEVC · 3840×2160 → HEVC SD")
+    }
+
     @Test func interlacedVideoSaysSoAndKeepsItsLines() {
         let plan = LivePlan(videoCodec: "mpeg2video", width: 720, height: 576, frameRate: 25, interlaced: true,
                             bitDepth: 8, audioCodec: "mp2", audioChannels: 2, video: "libx264", audio: "aac",

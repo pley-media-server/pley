@@ -151,7 +151,8 @@ public enum LiveDetails {
 
     /// "HEVC 10-bit · 3840×2160 · 50 fps · interlaced → H.264 1080p": the
     /// provider's video, then what a transcode makes of it (its lines the
-    /// channel's own unless the plan says otherwise); `nil` without video.
+    /// channel's own unless the plan says otherwise, by the name a file's
+    /// size goes by: "4K", "1080p"); `nil` without video.
     private static func video(_ plan: LivePlan, converted: Bool) -> String? {
         var name = Words.codec(plan.videoCodec)
         guard !name.isEmpty else { return nil }
@@ -175,8 +176,10 @@ public enum LiveDetails {
             if let codec = encoded(plan.video) {
                 out.append(codec)
             }
-            if let made = plan.outHeight ?? plan.height, made > 0 {
-                out.append("\(made)p")
+            // The plan gives the transcode's lines, not its width.
+            if let made = plan.outHeight ?? plan.height, made > 0,
+               let size = Words.resolution(width: nil, height: made) {
+                out.append(size)
             }
             text += " → " + (out.isEmpty ? "…" : out.joined(separator: " "))
         }
