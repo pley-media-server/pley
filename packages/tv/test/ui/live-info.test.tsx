@@ -186,7 +186,7 @@ describe("the Live TV player's Playback info", () => {
         "Bitrate: 12 Mbps → 8.0 Mbps",
         "Encoder: NVIDIA NVENC",
       ],
-      "This TV": ["Player: AVPlay", "Decoded: 1920×1080 · 25 fps · H.264", "Dropped frames: 3 of 500", "Buffered ahead: 4 s"],
+      "This TV": ["Player: AVPlay", "Decoded: 1920×1080 · 25 fps · H.264", "Dropped frames: 3 of 500", "Buffered ahead: 4 s", "Stalls: 0", "First frame: 0 ms"],
     });
   });
 

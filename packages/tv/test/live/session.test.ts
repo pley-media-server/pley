@@ -191,6 +191,29 @@ describe("a live channel on the TV's player", () => {
     expect(c.state.value.channel.id).toBe(2);
   });
 
+  it("counts the time to its first frame and its stalls, as a film's details do, anew for another channel", async () => {
+    const { c, engine } = setup();
+    c.tune(channel(1));
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(c.state.value.firstFrameMs).toBeNull();
+    engine.listener!.firstFrame();
+    expect(c.state.value.firstFrameMs).toBe(1200);
+    // A stall once it played; the buffering said again while it waits is the same one.
+    engine.listener!.status("buffering");
+    engine.listener!.status("buffering");
+    engine.listener!.status("ready");
+    engine.listener!.status("buffering");
+    engine.listener!.status("ready");
+    // A second picture (after a recovery, say) keeps the first's time.
+    engine.listener!.firstFrame();
+    expect(c.state.value).toMatchObject({ stalls: 2, firstFrameMs: 1200 });
+    c.tune(channel(2));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(c.state.value).toMatchObject({ stalls: 0, firstFrameMs: null });
+    engine.listener!.firstFrame();
+    expect(c.state.value.firstFrameMs).toBe(300);
+  });
+
   it("says the server's own words when every connection is in use, and tries again when asked", async () => {
     let busy = true;
     const { c, asked } = setup((id, n) =>

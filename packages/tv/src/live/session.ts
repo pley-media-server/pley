@@ -118,6 +118,10 @@ export interface LiveState {
   tunes: number;
   /** What the channel is and what the server makes of it, while the details are open and once the server has said. */
   plan: SessionPlan | null;
+  /** Time from tuning to the channel's first frame, in ms (Playback details' First frame, as a film's); `null` before it shows. */
+  firstFrameMs: number | null;
+  /** Times the channel stopped to wait for more once it played (Playback details' Stalls, as a film's). */
+  stalls: number;
 }
 
 /** The server waits for the channel's first segments before it answers the playlist. */
@@ -169,10 +173,12 @@ export class LiveController {
   private closed = false;
   /** The TV hid the app: nothing is watched until it shows again. */
   private hidden = false;
+  /** When the channel playing was last tuned, for its First frame. */
+  private tunedAt = 0;
 
   constructor(channel: LiveChannel, env: LiveEnv) {
     this.env = env;
-    this.state.value = { channel, phase: "tuning", trouble: null, shown: false, audioOnly: false, tunes: 0, plan: null };
+    this.state.value = { channel, phase: "tuning", trouble: null, shown: false, audioOnly: false, tunes: 0, plan: null, firstFrameMs: null, stalls: 0 };
   }
 
   get engine(): PlayerEngine | null {
@@ -284,7 +290,10 @@ export class LiveController {
     this.cancel = cancel;
     this.engineRef?.stop();
     this.leave();
-    this.patch({ channel, phase: "tuning", trouble: null, shown: false, audioOnly: false, plan: null });
+    // Another channel's stalls say nothing of this one.
+    const stalls = channel.id === this.state.value.channel.id ? this.state.value.stalls : 0;
+    this.tunedAt = Date.now();
+    this.patch({ channel, phase: "tuning", trouble: null, shown: false, audioOnly: false, plan: null, firstFrameMs: null, stalls });
     const server = this.env.server;
     let watching: LiveWatching;
     try {
@@ -334,7 +343,8 @@ export class LiveController {
     const st = this.state.value;
     if (st.phase === "error" || st.phase === "tuning") return;
     if (s === "buffering") {
-      this.patch({ phase: "buffering" });
+      // A stall: it played, and stopped to wait for more.
+      this.patch({ phase: "buffering", stalls: st.phase === "playing" ? st.stalls + 1 : st.stalls });
       this.watchStall();
     } else if (s === "ready") {
       this.clearStall();
@@ -373,7 +383,8 @@ export class LiveController {
   private onFirstFrame(): void {
     if (this.startTimer !== null) clearTimeout(this.startTimer);
     this.startTimer = null;
-    this.patch({ shown: true, phase: "playing" });
+    const firstFrameMs = this.state.value.firstFrameMs ?? Date.now() - this.tunedAt;
+    this.patch({ shown: true, phase: "playing", firstFrameMs });
     const mine = this.generation;
     if (this.pictureTimer !== null) clearTimeout(this.pictureTimer);
     this.pictureTimer = setTimeout(() => {

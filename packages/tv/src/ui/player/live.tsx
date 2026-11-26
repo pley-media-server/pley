@@ -519,7 +519,13 @@ function LiveInfoPanel(p: { controller: LiveController; plan: SessionPlan | null
   }, []);
   const engine = p.controller.engine;
   const sections = p.plan ? [liveFacts(p.plan)] : [];
-  if (engine) sections.push(deviceFacts(engine.stats(), engine.name));
+  if (engine) {
+    // This TV's lines, with its stalls and first frame, as a film's.
+    const { stalls, firstFrameMs } = p.controller.state.value;
+    const tv = deviceFacts(engine.stats(), engine.name, stalls);
+    if (firstFrameMs !== null) tv.facts.push({ label: t("player.info.firstFrame"), value: `${firstFrameMs} ms` });
+    sections.push(tv);
+  }
   return <Readout sections={sections} asking={!p.plan} onClose={p.onClose} />;
 }
 
