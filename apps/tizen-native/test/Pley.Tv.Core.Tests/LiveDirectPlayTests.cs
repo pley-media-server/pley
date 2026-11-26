@@ -392,17 +392,23 @@ public class LiveDetailsTests
         Assert.Equal(new[]
         {
             ("Playback", "Transcoding"),
-            ("Why", "Interlaced video is made progressive"),
-            ("Video", "MPEG-2 8-bit · 720×576 · 25 fps · interlaced → H.264 576p"),
+            ("Why", "Interlaced video is made progressive."),
+            // 8 bits go unsaid, as in a film's video track.
+            ("Video", "MPEG-2 · 720×576 · 25 fps · interlaced → H.264 576p"),
             ("Audio", "MP2 2.0 → AAC 2.0"),
             ("Bitrate", "4.5 Mbps → 3.0 Mbps"),
             ("Encoder", "NVIDIA NVENC"),
         }, Rows(false, Sd));
         // A server that doesn't say a transcode's lines: the provider's.
         var rows = Rows(false, LiveDirectPlayRuleTests.Hevc() with { OutHeight = null, VideoKbps = null });
-        Assert.Contains(("Video", "HEVC 10-bit · 3840×2160 · 50 fps → H.264 2160p"), rows);
+        Assert.Contains(("Video", "HEVC 10-bit · 3840×2160 · 50 fps → H.264 4K"), rows);
         Assert.Contains(("Bitrate", "12 Mbps"), rows);
         Assert.Contains(("Encoder", "NVIDIA NVENC"), rows);
+        // What the server makes is sized by a film's names for it (Details.Simplified), from its lines alone.
+        Assert.Contains(("Video", "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p"), Rows(false, LiveDirectPlayRuleTests.Hevc()));
+        Assert.Contains(("Video", "HEVC 10-bit · 3840×2160 · 50 fps → HEVC 4K"), Rows(false, LiveDirectPlayRuleTests.Hevc() with { Video = "hevc_nvenc", OutHeight = 2160 }));
+        Assert.Contains(("Video", "HEVC · 3840×2160 · 50 fps → H.264 720p"), Rows(false, LiveDirectPlayRuleTests.Hevc(8) with { OutHeight = 720 }));
+        Assert.Equal(Details.Simplified("H.264 3840×2160"), "H.264 " + ItemFormat.ResolutionLabel(null, 2160));
     }
 
     [Fact]
@@ -413,7 +419,7 @@ public class LiveDetailsTests
         {
             // A film's words for a remux whose sound is converted.
             ("Playback", "Direct stream · Audio transcoding"),
-            ("Why", "This device doesn't play DTS sound"),
+            ("Why", "This device doesn't play DTS audio."),
             ("Video", "H.264 · 1920×1080 · 50 fps"),
             ("Audio", "DTS 5.1 → AAC 2.0"),
             ("Bitrate", "850 kbps"),
@@ -424,10 +430,13 @@ public class LiveDetailsTests
     public void Why_says_the_picture_then_the_sound()
     {
         var hevc = LiveDirectPlayRuleTests.Hevc();
-        Assert.Equal("Interlaced video is made progressive", LiveDetails.Why(Sd, Uhd));
-        Assert.Equal("This device doesn't play HEVC", LiveDetails.Why(hevc, Hd));
-        Assert.Equal("This device doesn't play HEVC", LiveDetails.Why(hevc with { AudioCodec = "dts" }, Hd));
-        Assert.Equal("This device doesn't play DTS sound", LiveDetails.Why(hevc with { AudioCodec = "dts" }, Uhd));
+        Assert.Equal("Interlaced video is made progressive.", LiveDetails.Why(Sd, Uhd));
+        // The picture's bit depth above 8 is said, as in its Video line: the TV may play 8-bit HEVC.
+        Assert.Equal("This device doesn't play HEVC 10-bit video.", LiveDetails.Why(hevc, Hd));
+        Assert.Equal("This device doesn't play HEVC 10-bit video.", LiveDetails.Why(hevc with { AudioCodec = "dts" }, Hd));
+        Assert.Equal("This device doesn't play HEVC video.", LiveDetails.Why(LiveDirectPlayRuleTests.Hevc(8), Hd));
+        Assert.Equal("This device doesn't play HEVC video.", LiveDetails.Why(LiveDirectPlayRuleTests.Hevc(null), Hd));
+        Assert.Equal("This device doesn't play DTS audio.", LiveDetails.Why(hevc with { AudioCodec = "dts" }, Uhd));
         // Played as sent, or for a reason neither the plan nor the report gives: nothing.
         Assert.Null(LiveDetails.Why(hevc, Uhd));
         Assert.Null(LiveDetails.Why(hevc, null));

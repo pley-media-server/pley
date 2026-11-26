@@ -39,14 +39,14 @@ public sealed class LiveAndRequestsWordsTests : IDisposable
         Assert.Equal(new[]
         {
             ("Lecture", "Transcodage"),
-            ("Pourquoi", "La vidéo entrelacée est convertie en progressif"),
+            ("Pourquoi", "La vidéo entrelacée est convertie en progressif."),
             ("Vidéo", "HEVC · entrelacé → H.264"),
             ("Audio", "DTS 2.0 → AAC 2.0"),
             ("Débit", "4,5 Mbit/s"),
             ("Encodeur", "x264"),
         }, LiveDetails.Facts(false, hevc, ClientCaps.Of(TizenCaps.Of(new TizenFacts()))).Select(f => (f.Label, f.Value)));
-        Assert.Equal("Cet appareil ne lit pas la vidéo AV1", LiveText.WhyVideo("AV1"));
-        Assert.Equal("Cet appareil ne lit pas l’audio DTS", LiveText.WhyAudio("DTS"));
+        Assert.Equal("Cet appareil ne lit pas la vidéo AV1.", LiveText.WhyVideo("AV1"));
+        Assert.Equal("Cet appareil ne lit pas l’audio DTS.", LiveText.WhyAudio("DTS"));
     }
 
     [Fact]
@@ -58,8 +58,9 @@ public sealed class LiveAndRequestsWordsTests : IDisposable
         Assert.Equal("Quedan 12 min", LiveText.TimeLeft(FakeLive.Program(1, 0, 720, ""), 0));
         Assert.Equal("3 personas", LiveText.Holders(new BusyConnection { People = 3 }));
         Assert.Equal("No hay canal 9", LiveText.NoChannel("9"));
-        Assert.Equal("El video entrelazado se convierte a progresivo", LiveText.WhyInterlaced);
-        Assert.Equal("Este dispositivo no reproduce el audio DTS", LiveText.WhyAudio("DTS"));
+        Assert.Equal("El video entrelazado se convierte a progresivo.", LiveText.WhyInterlaced);
+        Assert.Equal("Este dispositivo no reproduce el video HEVC 10 bits.", LiveText.WhyVideo("HEVC 10 bits"));
+        Assert.Equal("Este dispositivo no reproduce el audio DTS.", LiveText.WhyAudio("DTS"));
         Assert.Equal("T2 E14", new LiveProgram { Season = 2, Episode = 14 }.EpisodeLabel);
         // The server's words go in as they are.
         Assert.Equal("No se guardó el favorito: No.", LiveText.FavoriteFailed(new ApiException(500, "internal", "no")));

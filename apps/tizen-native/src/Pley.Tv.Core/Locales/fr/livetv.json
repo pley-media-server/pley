@@ -90,9 +90,9 @@
     "noneToTake": "Vous pouvez rejoindre une chaîne déjà regardée, ou réessayer quand l’une d’elles est arrêtée."
   },
   "details": {
-    "whyInterlaced": "La vidéo entrelacée est convertie en progressif",
-    "whyVideo": "Cet appareil ne lit pas la vidéo {{codec}}",
-    "whyAudio": "Cet appareil ne lit pas l’audio {{codec}}",
+    "whyInterlaced": "La vidéo entrelacée est convertie en progressif.",
+    "whyVideo": "Cet appareil ne lit pas la vidéo {{codec}}.",
+    "whyAudio": "Cet appareil ne lit pas l’audio {{codec}}.",
     "interlaced": "entrelacé"
   },
   "trouble": {

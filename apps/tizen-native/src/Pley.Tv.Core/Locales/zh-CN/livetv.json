@@ -82,9 +82,9 @@
     "noneToTake": "正在观看的频道可以加入，或等其停止后再试。"
   },
   "details": {
-    "whyInterlaced": "隔行扫描视频会转换为逐行扫描",
-    "whyVideo": "此设备无法播放 {{codec}}",
-    "whyAudio": "此设备无法播放 {{codec}} 音频",
+    "whyInterlaced": "隔行扫描视频会转换为逐行扫描。",
+    "whyVideo": "此设备无法播放 {{codec}} 视频。",
+    "whyAudio": "此设备无法播放 {{codec}} 音频。",
     "interlaced": "隔行扫描"
   },
   "trouble": {

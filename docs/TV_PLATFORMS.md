@@ -747,12 +747,16 @@ panel, under the same title and headings. How it plays says the way in a
 film's words (Direct play from `stream.ts`; from its HLS, Direct stream
 when the server sends the video as it is, with "Audio transcoding" after
 it when it converts the sound, else Transcoding), why it isn't Direct play
-when the server's plan and the TV's report say (interlaced video made
-progressive, video or sound the TV doesn't play), the provider's video,
-audio and bitrate with what the server makes of them, the encoder of a
-transcode and the TV's network speed. A channel has no file or tracks to
-list, so its Video and Audio lines say what a film's sections of those
-names do ("HEVC 10-bit · 3840×2160 · 50 fps", "EAC3 5.1 → AAC 2.0").
+when the server's plan and the TV's report say, in a sentence
+(**Interlaced video is made progressive.**, **This device doesn't play
+HEVC 10-bit video.**, **This device doesn't play DTS audio.**), the
+provider's video, audio and bitrate with what the server makes of them,
+the encoder of a transcode and the TV's network speed. A channel has no
+file or tracks to list, so its Video and Audio lines say what a film's
+sections of those names do ("HEVC 10-bit · 3840×2160 · 50 fps → H.264
+1080p", "EAC3 5.1 → AAC 2.0"). The video's bit depth is written only above
+8, in its line and in the reason, and a transcode's size by a film's name
+for it ("4K", "1080p").
 This TV has a film's lines: what the TV's player says it decodes, its
 buffer, the channel's stalls and the time to its first picture. A line
 whose value isn't known is left out. While the panel shows, the plan is

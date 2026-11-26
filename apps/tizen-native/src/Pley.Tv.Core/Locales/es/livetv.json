@@ -90,9 +90,9 @@
     "noneToTake": "Puedes unirte a un canal que ya se está viendo, o volver a intentarlo cuando se detenga alguno."
   },
   "details": {
-    "whyInterlaced": "El video entrelazado se convierte a progresivo",
-    "whyVideo": "Este dispositivo no reproduce {{codec}}",
-    "whyAudio": "Este dispositivo no reproduce el audio {{codec}}",
+    "whyInterlaced": "El video entrelazado se convierte a progresivo.",
+    "whyVideo": "Este dispositivo no reproduce el video {{codec}}.",
+    "whyAudio": "Este dispositivo no reproduce el audio {{codec}}.",
     "interlaced": "entrelazado"
   },
   "trouble": {

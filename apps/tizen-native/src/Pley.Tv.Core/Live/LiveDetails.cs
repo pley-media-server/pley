@@ -85,30 +85,41 @@ public static class LiveDetails
     /// <summary>
     /// Why a channel plays from its HLS and not as the provider sends it, in a sentence; null when
     /// neither its plan nor the TV's report says (it plays as sent but its stream.ts failed, say).
+    /// The picture's codec comes with its bit depth, as its Video line has it: a TV that plays
+    /// 8-bit HEVC isn't told it doesn't play HEVC.
     /// </summary>
     public static string? Why(LivePlan plan, ClientCaps? caps) => LiveRules.WhyNotAsSent(plan, caps) switch
     {
         NotAsSent.Interlaced => LiveText.WhyInterlaced,
-        NotAsSent.Video => LiveText.WhyVideo(ItemFormat.CodecLabel(plan.VideoCodec)),
+        NotAsSent.Video => LiveText.WhyVideo(Codec(plan)),
         NotAsSent.Audio => LiveText.WhyAudio(ItemFormat.CodecLabel(plan.AudioCodec)),
         _ => null,
     };
 
     /// <summary>
+    /// The picture's codec, "HEVC 10-bit": with its bit depth only above 8, as a film's video
+    /// track is written (<see cref="ItemFormat.StreamLabel"/>), so never "H.264 8-bit".
+    /// </summary>
+    static string Codec(LivePlan plan) =>
+        ItemFormat.Join(" ", ItemFormat.CodecLabel(plan.VideoCodec), plan.BitDepth is int depth && depth > 8 ? ItemFormat.BitDepth(depth) : null);
+
+    /// <summary>
     /// The provider's picture, "HEVC 10-bit · 3840×2160 · 50 fps" (" · interlaced"), then what a
-    /// transcode makes of it: " → H.264 1080p". Empty without a picture.
+    /// transcode makes of it, its size by a film's name for it (<see cref="Details.Simplified"/>):
+    /// " → H.264 1080p", " → H.264 4K". Empty without a picture.
     /// </summary>
     static string Video(LivePlan plan, bool transcoded)
     {
         if (plan.Video == "none") return "";
         var sent = ItemFormat.Join(" · ",
-            ItemFormat.Join(" ", ItemFormat.CodecLabel(plan.VideoCodec), plan.BitDepth is int depth && depth > 0 ? ItemFormat.BitDepth(depth) : null),
+            Codec(plan),
             plan.Width > 0 && plan.Height > 0 ? $"{plan.Width}×{plan.Height}" : null,
             ItemFormat.FrameRateLabel(plan.FrameRate),
             plan.Interlaced ? LiveText.Interlaced : null);
         if (!transcoded) return sent;
-        // A transcode's lines; a server that doesn't say them keeps the provider's.
-        var made = ItemFormat.Join(" ", ItemFormat.CodecLabel(EncodedCodec(plan.Video)), (plan.OutHeight ?? plan.Height) is int lines && lines > 0 ? $"{lines}p" : null);
+        // A transcode's lines; a server that doesn't say them keeps the provider's. The plan has
+        // no width for what the server makes, so the name is the one those lines alone have.
+        var made = ItemFormat.Join(" ", ItemFormat.CodecLabel(EncodedCodec(plan.Video)), ItemFormat.ResolutionLabel(null, plan.OutHeight ?? plan.Height));
         return sent.Length > 0 ? $"{sent} → {made}" : made;
     }
 
