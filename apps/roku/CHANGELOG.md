@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Live TV has Playback details, on the Replay key: whether the channel is
+  transcoded, its video, audio and bitrate, and the encoder.
+
 ## [0.1.14] - 2026-11-25
 
 ### Fixed

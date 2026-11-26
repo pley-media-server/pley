@@ -184,6 +184,8 @@
     "shownAs": "显示为",
     "subtitles": "字幕",
     "burnedIn": "已压制",
+    "interlaced": "隔行扫描",
+    "encoder": "编码器",
     "speed": "速度",
     "toneMapped": "SDR（通过 {{method}} 色调映射）",
     "realTime": "{{speed}}× 实时",

@@ -194,6 +194,8 @@
     "shownAs": "Se muestra en",
     "subtitles": "Subtítulos",
     "burnedIn": "Incrustados",
+    "interlaced": "entrelazado",
+    "encoder": "Codificador",
     "speed": "Velocidad",
     "toneMapped": "SDR (mapeo de tonos con {{method}})",
     "realTime": "{{speed}}× tiempo real",

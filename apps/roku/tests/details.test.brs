@@ -67,6 +67,74 @@ sub test_details_in_french_and_spanish()
     tkEqual(detChapters(file)[1].label, "2. Capítulo 2 · 1:00")
 end sub
 
+' A Live TV session's plan, as the server answers it.
+function detailsTestPlan(fields as string) as object
+    return ParseJson("{" + fields + "}")
+end function
+
+sub test_details_of_a_live_channel_copied()
+    copied = detLive(detailsTestPlan("""video_codec"":""h264"",""width"":1920,""height"":1080,""frame_rate"":50,""interlaced"":false,""bit_depth"":8,""audio_codec"":""aac"",""audio_channels"":2,""video"":""copy"",""audio"":""copy"",""out_height"":null,""video_kbps"":null,""direct_play"":true,""kbps"":8200"))
+    tkEqual(copied.method, "Direct stream", "the server's HLS stream with its video copied")
+    tkEqual(copied.why, "", "nothing says why: the Roku plays HLS alone")
+    tkEqual(copied.rows, [{ label: "Video", value: "H.264 · 1920×1080 · 50 fps" }, { label: "Audio", value: "AAC 2.0" }, { label: "Bitrate", value: "8.2 Mbps" }])
+    ' Other sound is made AAC stereo while the video is copied.
+    sound = detLive(detailsTestPlan("""video_codec"":""h264"",""width"":1280,""height"":720,""frame_rate"":29.97,""interlaced"":false,""audio_codec"":""eac3"",""audio_channels"":6,""video"":""copy"",""audio"":""aac"",""direct_play"":true,""kbps"":850"))
+    tkEqual(sound.method, "Direct stream")
+    tkEqual(sound.rows, [{ label: "Video", value: "H.264 · 1280×720 · 29.97 fps" }, { label: "Audio", value: "EAC3 5.1 → AAC 2.0" }, { label: "Bitrate", value: "850 kbps" }])
+    tkEqual(detSheet(sound)[2], { kind: "fact", text: "Audio", value: "EAC3 5.1 › AAC 2.0" }, "an arrow Roboto has")
+    ' Radio: no video, nothing measured yet.
+    radio = detLive(detailsTestPlan("""video_codec"":null,""width"":null,""height"":null,""frame_rate"":null,""interlaced"":false,""audio_codec"":""mp2"",""audio_channels"":2,""video"":""none"",""audio"":""aac"",""direct_play"":true,""kbps"":0"))
+    tkEqual(radio.method, "Direct stream")
+    tkEqual(radio.rows, [{ label: "Audio", value: "MP2 2.0 → AAC 2.0" }])
+end sub
+
+sub test_details_of_a_live_channel_transcoded()
+    hevc = detLive(detailsTestPlan("""video_codec"":""hevc"",""width"":3840,""height"":2160,""frame_rate"":50,""interlaced"":false,""bit_depth"":10,""audio_codec"":""eac3"",""audio_channels"":6,""video"":""h264_nvenc"",""audio"":""aac"",""out_height"":1080,""video_kbps"":8000,""direct_play"":true,""kbps"":12300"))
+    tkEqual(hevc.method, "Transcoding")
+    tkEqual(hevc.why, "")
+    tkEqual(hevc.rows, [{ label: "Video", value: "HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p" }, { label: "Audio", value: "EAC3 5.1 → AAC 2.0" }, { label: "Bitrate", value: "12 Mbps → 8 Mbps" }, { label: "Encoder", value: "h264_nvenc" }])
+    sheet = detSheet(hevc)
+    tkEqual(sheet[0], { kind: "heading", text: "Transcoding" })
+    tkEqual(sheet[1], { kind: "fact", text: "Video", value: "HEVC 10-bit · 3840×2160 · 50 fps › H.264 1080p" })
+    ' Interlaced video made progressive, at the channel's own lines.
+    interlaced = detLive(detailsTestPlan("""video_codec"":""mpeg2video"",""width"":720,""height"":576,""frame_rate"":25,""interlaced"":true,""bit_depth"":8,""audio_codec"":""mp2"",""audio_channels"":2,""video"":""libx264"",""audio"":""aac"",""out_height"":576,""video_kbps"":2500,""direct_play"":false,""kbps"":4100"))
+    tkEqual(interlaced.rows[0], { label: "Video", value: "MPEG-2 · 720×576 · 25 fps · interlaced → H.264 576p" })
+    tkEqual(interlaced.rows[2], { label: "Bitrate", value: "4.1 Mbps → 2.5 Mbps" })
+    tkEqual(interlaced.rows[3], { label: "Encoder", value: "libx264" })
+    tkEqual(detEncoded("hevc_qsv"), "HEVC")
+    tkEqual(detEncoded("mystery"), "", "an encoder whose name doesn't say")
+end sub
+
+sub test_details_of_a_live_channel_from_an_older_server()
+    ' No bit depth, transcode size or bitrates: the rows say what is known.
+    older = detLive(detailsTestPlan("""video_codec"":""hevc"",""width"":1920,""height"":1080,""frame_rate"":25,""interlaced"":false,""audio_codec"":""ac3"",""audio_channels"":6,""video"":""libx264"",""audio"":""aac"""))
+    tkEqual(older.method, "Transcoding")
+    tkEqual(older.rows, [{ label: "Video", value: "HEVC · 1920×1080 · 25 fps → H.264 1080p" }, { label: "Audio", value: "AC3 5.1 → AAC 2.0" }, { label: "Encoder", value: "libx264" }])
+    copied = detLive(detailsTestPlan("""video_codec"":""h264"",""width"":null,""height"":null,""frame_rate"":null,""interlaced"":false,""audio_codec"":null,""audio_channels"":null,""video"":""copy"",""audio"":""copy"""))
+    tkEqual(copied.method, "Direct stream")
+    tkEqual(copied.rows, [{ label: "Video", value: "H.264" }])
+    tkEqual(detLive({}).rows.Count(), 0, "nothing known, nothing said")
+end sub
+
+sub test_details_of_a_live_channel_in_other_languages()
+    plan = detailsTestPlan("""video_codec"":""hevc"",""width"":1920,""height"":1080,""frame_rate"":29.97,""interlaced"":true,""bit_depth"":10,""audio_codec"":""ac3"",""audio_channels"":6,""video"":""h264_nvenc"",""audio"":""aac"",""out_height"":720,""video_kbps"":4500,""direct_play"":true,""kbps"":9400")
+    i18nUse("fr")
+    details = detLive(plan)
+    tkEqual(details.method, "Transcodage")
+    tkEqual(details.rows, [{ label: "Vidéo", value: "HEVC 10 bits · 1920×1080 · 29,97 i/s · entrelacé → H.264 720p" }, { label: "Audio", value: "AC3 5.1 → AAC 2.0" }, { label: "Débit", value: "9,4 Mbit/s → 4,5 Mbit/s" }, { label: "Encodeur", value: "h264_nvenc" }])
+    i18nUse("es")
+    details = detLive(plan)
+    tkEqual(details.method, "Transcodificación")
+    tkEqual(details.rows[0].value, "HEVC 10 bits · 1920×1080 · 29,97 fps · entrelazado → H.264 720p")
+    tkEqual(details.rows[3].label, "Codificador")
+    i18nUse("zh-CN")
+    details = detLive(plan)
+    tkEqual(details.rows[0].value, "HEVC 10 位 · 1920×1080 · 29.97 帧/秒 · 隔行扫描 → H.264 720p")
+    tkEqual(details.rows[3].label, "编码器")
+    i18nUse("zh-TW")
+    tkEqual(detLive(plan).rows[3].label, "編碼器")
+end sub
+
 sub test_details_chapters()
     chapters = detChapters(detailsTestFile())
     tkEqual(chapters, [{ label: "1. Opening · 0:00", name: "Opening", startMs: 0 }, { label: "2. Chapter 2 · 1:00", name: "", startMs: 60000 }])

@@ -10,7 +10,8 @@
 // libraries' collections opened together and one library's from it, a
 // show's page, its episodes and a person's
 // page, music (an artist, an album, Now Playing), playlists, Live TV (its
-// guide, a channel watched, the next one, the channel list, a favorite
+// guide, a channel watched, its playback details, the next one, the
+// channel list, a favorite
 // and another category listed there, every connection in use, the
 // Channels tab), Search (and its Discover row's
 // See all), Discover (a movie asked for, a show's seasons picked), the
@@ -57,7 +58,7 @@ brs.subscribeHost("smoke", (event, data) => {
 });
 
 // The remote: key codes as brs-node's CLI sends them, in its shared buffer.
-const KEYS = { back: 0, up: 2, down: 3, left: 4, right: 5, select: 6, options: 10 };
+const KEYS = { back: 0, up: 2, down: 3, left: 4, right: 5, select: 6, replay: 7, options: 10 };
 const shared = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * (brs.DataBufferIndex + brs.DataBufferSize));
 const control = new Int32Array(shared).fill(-1);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -633,6 +634,15 @@ async function walk() {
   await waitFor(/^GET \/api\/live\/sessions\/live\d+\/index\.m3u8$/, since, "its playlist");
   await sleep(1000);
   shoot("live-player");
+  // Replay: the channel's playback details, from its session's plan; Back
+  // closes them, and the channel plays on.
+  since = mark();
+  await press("replay");
+  await waitFor(/^GET \/api\/live\/sessions\/live\d+\/plan$/, since, "the channel's plan for its playback details");
+  await sleep(800);
+  shoot("live-details");
+  await press("back");
+  await sleep(300);
   since = mark();
   await press("up");
   await waitFor(/^POST \/api\/live\/channels\/2\/watch$/, since, "the next channel watched");
@@ -1663,6 +1673,7 @@ const checks = [
   ["kept the last channel watched on the Roku for the server and profile", registry !== null && /liveViews\.http[^"]*\|1","\{[^}]*\\"channel\\":3\b/.test(JSON.stringify([...registry]))],
   ["watched channels with one client_id, so zapping holds one connection", fixture.liveWatches.length >= 2 && new Set(fixture.liveWatches.map((w) => w.client_id)).size === 1 && fixture.liveWatches[0].client_id !== null],
   ["asked for a channel's playlist before playing it", fixture.livePlaylists.length >= 2],
+  ["asked for a channel's plan for its playback details", fixture.livePlans.length > 0],
   ["put a channel in the favorites from the player's list", fixture.liveFavoriteChanges.some((c) => c.id === 2 && c.favorite)],
   ["listed another category's channels in the player's list", fixture.liveBrowses.some((b) => b.category === "favorites")],
   ["said every connection is in use", live.busy],

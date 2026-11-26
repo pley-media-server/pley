@@ -1,7 +1,8 @@
 ' What the player's menu says of the playing file, as the other apps' do
 ' (packages/tv/src/player/details.ts, the Android app's PlaybackDetails):
 ' how it plays and why, its video and audio as they are and as the server
-' converts them; and its chapters.
+' converts them; and its chapters. A Live TV channel's are the live
+' player's (detLive).
 
 ' ffprobe's codec name as people know it: "h264" is "H.264"; others in
 ' capitals.
@@ -194,6 +195,79 @@ function detPlayback(info as object, file as dynamic, audioIndex as integer, liv
         end if
     end if
     return { method: detMethod(info), why: why, rows: rows }
+end function
+
+' The codec an encoder makes, by FFmpeg's name for it ("h264_nvenc",
+' "libx264"): "H.264"; "" for one whose name doesn't say.
+function detEncoded(encoder as string) as string
+    if Instr(1, encoder, "264") > 0 then return "H.264"
+    if Instr(1, encoder, "265") > 0 or Instr(1, encoder, "hevc") > 0 then return "HEVC"
+    if Instr(1, encoder, "av1") > 0 then return "AV1"
+    return ""
+end function
+
+' A Live TV channel's details, as detPlayback's: plan is the session's
+' SessionPlan (GET /api/live/sessions/{session}/plan). The Roku plays the
+' server's HLS stream: a direct stream while the video is copied (or the
+' channel has none), else a transcode, with nothing to say why (it reads
+' no MPEG-TS, so the provider's stream is never played as it is). The
+' video and audio are the provider's, then what the server makes of them.
+' An older server sends no bit depth, transcode size or bitrates: those go
+' unsaid.
+function detLive(plan as object) as object
+    made = LCase(httpString(plan.video))
+    converted = made <> "" and made <> "copy" and made <> "none"
+    rows = []
+    codec = detCodec(plan.video_codec)
+    height = Int(httpNumber(plan.height, 0))
+    if codec <> ""
+        bits = Int(httpNumber(plan.bit_depth, 8))
+        if bits > 8 then codec = codec + " " + t("player.media.bits", { n: bits })
+        parts = [codec]
+        width = Int(httpNumber(plan.width, 0))
+        if width > 0 and height > 0 then parts.Push(urlValue(width) + "×" + urlValue(height))
+        frames = httpNumber(plan.frame_rate, 0)
+        if frames > 0 then parts.Push(t("player.media.fps", { fps: fmtThreeDecimals(frames) }))
+        if httpTrue(plan.interlaced) then parts.Push(t("titles.playback.interlaced"))
+        value = parts.Join(" · ")
+        if converted
+            out = detEncoded(made)
+            lines = Int(httpNumber(plan.out_height, 0))
+            ' A transcode keeps the channel's lines unless it says otherwise.
+            if lines <= 0 then lines = height
+            if lines > 0 then out = (out + " " + urlValue(lines) + "p").Trim()
+            if out = "" then out = "…"
+            value = value + " → " + out
+        end if
+        rows.Push({ label: t("titles.playback.video"), value: value })
+    end if
+    if httpString(plan.audio_codec) <> ""
+        value = detAudio({ codec: plan.audio_codec, channels: plan.audio_channels })
+        ' The server makes any other sound AAC stereo.
+        if LCase(httpString(plan.audio)) = "aac" then value = value + " → " + detAudio({ codec: "aac", channels: 2 })
+        rows.Push({ label: t("titles.playback.audio"), value: value })
+    end if
+    ' What the provider sends now (0 until it is measured), then the
+    ' transcode's video.
+    bitrate = fmtBitrate(detBps(plan.kbps))
+    if bitrate <> ""
+        out = ""
+        if converted then out = fmtBitrate(detBps(plan.video_kbps))
+        if out <> "" then bitrate = bitrate + " → " + out
+        rows.Push({ label: t("titles.playback.bitrate"), value: bitrate })
+    end if
+    if converted then rows.Push({ label: t("titles.playback.encoder"), value: httpSentence(plan.video) })
+    method = t("titles.playback.method.remux")
+    if converted then method = t("titles.playback.method.transcode")
+    return { method: method, why: "", rows: rows }
+end function
+
+' kbit/s as bit/s, for fmtBitrate; 0 for none, or for more than any
+' stream's (which wouldn't fit a 32-bit integer).
+function detBps(kbps as dynamic) as integer
+    value = httpNumber(kbps, 0)
+    if value <= 0 or value > 2000000 then return 0
+    return Int(value) * 1000
 end function
 
 ' The playback's details as a FactSheet's lines: the method as a heading,
