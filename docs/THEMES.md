@@ -60,8 +60,14 @@ light theme it is handed as its dark twin (the table's last column).
 
 An accent can replace a theme's own: Sky, Violet, Pink, Gold or Mint, picked
 under the themes on Account → Appearance. It colors what the theme's accent
-colors (buttons, links, focus, what is picked) and nothing else: the
-surfaces, the words and the logo stay the theme's. Like the theme, it belongs
+colors (buttons, links, focus, what is picked) and the logo's posters, and
+nothing else: the surfaces, the words and the logo's tile stay the theme's.
+The logo takes the colors of the theme its accent comes from: Sky's are
+Midnight's and Midlight's, Pink's Twilight's, Gold's Moonlight's and
+Starlight's, Mint's Nightshade's and Greenlight's, so an accent that matches
+a theme's own leaves that theme's logo as it was. Violet's, and Pink's in
+the light themes, follow the same steps from light to deep. Sunshine keeps
+its toy-box logo under any accent. Like the theme, it belongs
 to the device (the web app: `pley.accent` in `localStorage`), and a device
 that picked none, or whose stored id it doesn't know, shows the theme's own.
 It stays when the theme changes. The other apps draw the theme's own for now.
@@ -153,6 +159,8 @@ theme to these levels:
 | Each state color on `surface`, and on its own tint up to 20% | 4.5:1 |
 | `danger-fg` on `danger`, and on the danger button's 90% fill; `bg` on `warning` | 4.5:1 |
 | The logo's front poster on its tile | 4.5:1 |
+| The logo's middle poster on its tile | 2:1 |
+| The logo's back poster on its tile | 1.3:1 |
 
 It holds every theme but Blacklight to them again under each accent. It also
 keeps each accent, and each state an accent moves, apart in hue from the
@@ -174,7 +182,8 @@ readable where the picture is brightest.
    the closest theme. A light theme also goes in its dark twin's selector list
    (`[data-theme="<id>"] [data-dark]`). Its accent, success and warning read
    the accent's variables, as the others' do (`--accent-light…` in a light
-   theme), unless it is black and white only like Blacklight.
+   theme), and so do its logo's posters, unless it is black and white only
+   like Blacklight. Every accent's logo has to stay readable on its tile.
 3. Give it a name and a caption of a few words in every language: under
    `account.theme` in `apps/web/src/i18n/locales/<language>/pages.json`.
 4. Describe it in this document's table, with what a TV shows, and add it to

@@ -74,10 +74,11 @@ function draw(theme: Theme, accent: Accent | null) {
   const background = style.getPropertyValue("--color-bg").trim();
   if (background) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", background);
   if (style.colorScheme) document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", style.colorScheme);
-  // The tab's icon: Pley's own file in Midnight, the logo in the theme's colors in the others.
+  // The tab's icon: Pley's own file in Midnight in its own accent, the logo
+  // in the page's colors otherwise, as an accent colors it too.
   const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"][type="image/svg+xml"]');
   if (icon && background) {
-    icon.href = theme === DEFAULT_THEME ? "/favicon.svg" : `data:image/svg+xml,${encodeURIComponent(logoIcon(style))}`;
+    icon.href = theme === DEFAULT_THEME && !accent ? "/favicon.svg" : `data:image/svg+xml,${encodeURIComponent(logoIcon(style))}`;
   }
 }
 

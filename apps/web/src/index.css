@@ -132,10 +132,10 @@
   --color-accent: var(--accent-dark, #38bdf8);
   --color-accent-hover: var(--accent-dark-hover, #7dd3fc);
   --color-accent-fg: var(--accent-dark-fg, #03131f);
-  --color-brand-light: #bae6fd;
-  --color-brand: #38bdf8;
-  --color-brand-deep: #0284c7;
-  --color-brand-far: #0c4a6e;
+  --color-brand-light: var(--accent-dark-logo-light, #bae6fd);
+  --color-brand: var(--accent-dark-logo, #38bdf8);
+  --color-brand-deep: var(--accent-dark-logo-deep, #0284c7);
+  --color-brand-far: var(--accent-dark-logo-far, #0c4a6e);
   --color-brand-tile: #0a1622;
   --color-bg: #0b0d10;
   --color-surface: #12151a;
@@ -164,10 +164,10 @@
   --color-accent: var(--accent-light, #03669c);
   --color-accent-hover: var(--accent-light-hover, #075985);
   --color-accent-fg: var(--accent-light-fg, #ffffff);
-  --color-brand-light: #38bdf8;
-  --color-brand: #0369a1;
-  --color-brand-deep: #3d9fd8;
-  --color-brand-far: #a8d5f2;
+  --color-brand-light: var(--accent-light-logo-light, #38bdf8);
+  --color-brand: var(--accent-light-logo, #0369a1);
+  --color-brand-deep: var(--accent-light-logo-deep, #3d9fd8);
+  --color-brand-far: var(--accent-light-logo-far, #9ac9ed);
   --color-brand-tile: #ddeefa;
   --color-bg: #f3f5f8;
   --color-surface: #ffffff;
@@ -196,10 +196,10 @@
   --color-accent: var(--accent-light, #835613);
   --color-accent-hover: var(--accent-light-hover, #774e11);
   --color-accent-fg: var(--accent-light-fg, #fffaf2);
-  --color-brand-light: #d6a548;
-  --color-brand: #8a5a12;
-  --color-brand-deep: #c0904a;
-  --color-brand-far: #dcc08a;
+  --color-brand-light: var(--accent-light-logo-light, #d6a548);
+  --color-brand: var(--accent-light-logo, #8a5a12);
+  --color-brand-deep: var(--accent-light-logo-deep, #c0904a);
+  --color-brand-far: var(--accent-light-logo-far, #dcc08a);
   --color-brand-tile: #efe3c8;
   --color-bg: #f6f0e5;
   --color-surface: #fdfaf4;
@@ -232,10 +232,10 @@
   --color-accent: var(--accent-dark, #ff79b0);
   --color-accent-hover: var(--accent-dark-hover, #ffa0c8);
   --color-accent-fg: var(--accent-dark-fg, #2a0619);
-  --color-brand-light: #ffd3a6;
-  --color-brand: #ff79b0;
-  --color-brand-deep: #c2448f;
-  --color-brand-far: #6e2c7a;
+  --color-brand-light: var(--accent-dark-logo-light, #ffd3a6);
+  --color-brand: var(--accent-dark-logo, #ff79b0);
+  --color-brand-deep: var(--accent-dark-logo-deep, #c2448f);
+  --color-brand-far: var(--accent-dark-logo-far, #6e2c7a);
   --color-brand-tile: #1f1233;
   --color-bg: #140e22;
   --color-surface: #1c142e;
@@ -265,10 +265,10 @@
   --color-accent: var(--accent-dark, #f5c542);
   --color-accent-hover: var(--accent-dark-hover, #f9d97c);
   --color-accent-fg: var(--accent-dark-fg, #1c1604);
-  --color-brand-light: #fff3c9;
-  --color-brand: #f5c542;
-  --color-brand-deep: #b48d2b;
-  --color-brand-far: #66532a;
+  --color-brand-light: var(--accent-dark-logo-light, #fff3c9);
+  --color-brand: var(--accent-dark-logo, #f5c542);
+  --color-brand-deep: var(--accent-dark-logo-deep, #b48d2b);
+  --color-brand-far: var(--accent-dark-logo-far, #66532a);
   --color-brand-tile: #18191b;
   --color-bg: #0c0d0e;
   --color-surface: #141517;
@@ -298,10 +298,10 @@
   --color-accent: var(--accent-dark, #5fd39a);
   --color-accent-hover: var(--accent-dark-hover, #8fe3b8);
   --color-accent-fg: var(--accent-dark-fg, #03140a);
-  --color-brand-light: #c9f6dc;
-  --color-brand: #5fd39a;
-  --color-brand-deep: #2f9a68;
-  --color-brand-far: #1d5a3e;
+  --color-brand-light: var(--accent-dark-logo-light, #c9f6dc);
+  --color-brand: var(--accent-dark-logo, #5fd39a);
+  --color-brand-deep: var(--accent-dark-logo-deep, #2f9a68);
+  --color-brand-far: var(--accent-dark-logo-far, #1d5a3e);
   --color-brand-tile: #0f1a14;
   --color-bg: #0a0f0c;
   --color-surface: #111814;
@@ -330,10 +330,10 @@
   --color-accent: var(--accent-light, #1a6e45);
   --color-accent-hover: var(--accent-light-hover, #16623e);
   --color-accent-fg: var(--accent-light-fg, #ffffff);
-  --color-brand-light: #5fd39a;
-  --color-brand: #1a7048;
-  --color-brand-deep: #4fae80;
-  --color-brand-far: #a6d8bb;
+  --color-brand-light: var(--accent-light-logo-light, #5fd39a);
+  --color-brand: var(--accent-light-logo, #1a7048);
+  --color-brand-deep: var(--accent-light-logo-deep, #4fae80);
+  --color-brand-far: var(--accent-light-logo-far, #98cdb0);
   --color-brand-tile: #dbefe2;
   --color-bg: #f1f6f2;
   --color-surface: #fbfdfb;
@@ -440,35 +440,62 @@
  * bright color with dark words on it and the light themes a deep one with
  * light words; the themes read them through --accent-dark and
  * --accent-light, their own as the fallback, so the players ([data-dark])
- * and the picker's previews take the right one. An accent a theme's state
- * color would be mistaken for moves that state, as Nightshade's success
- * leans teal (docs/THEMES.md, "Accents").
+ * and the picker's previews take the right one. Each also colors the logo,
+ * all but its tile, as the theme it comes from does: Sky as Midnight and
+ * Midlight, Pink as Twilight, Gold as Moonlight and Starlight, Mint as
+ * Nightshade and Greenlight. Sunshine keeps its toy-box logo. An accent a
+ * theme's state color would be mistaken for moves that state, as
+ * Nightshade's success leans teal (docs/THEMES.md, "Accents").
  */
 [data-accent="sky"] {
   --accent-dark: #38bdf8;
   --accent-dark-hover: #7dd3fc;
   --accent-dark-fg: #03131f;
+  --accent-dark-logo-light: #bae6fd;
+  --accent-dark-logo: #38bdf8;
+  --accent-dark-logo-deep: #0284c7;
+  --accent-dark-logo-far: #0c4a6e;
   --accent-light: #025d8f;
   --accent-light-hover: #034e78;
   --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #38bdf8;
+  --accent-light-logo: #0369a1;
+  --accent-light-logo-deep: #3d9fd8;
+  --accent-light-logo-far: #9ac9ed;
 }
 
 [data-accent="violet"] {
   --accent-dark: #b39afd;
   --accent-dark-hover: #cdbffe;
   --accent-dark-fg: #160b33;
+  --accent-dark-logo-light: #e2d9ff;
+  --accent-dark-logo: #b39afd;
+  --accent-dark-logo-deep: #7b5ce6;
+  --accent-dark-logo-far: #43307f;
   --accent-light: #5a2ff0;
   --accent-light-hover: #4a1fd6;
   --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #b39afd;
+  --accent-light-logo: #5a2ff0;
+  --accent-light-logo-deep: #8b6cf6;
+  --accent-light-logo-far: #c6b6f8;
 }
 
 [data-accent="pink"] {
   --accent-dark: #ff79b0;
   --accent-dark-hover: #ffa0c8;
   --accent-dark-fg: #2a0619;
+  --accent-dark-logo-light: #ffd3a6;
+  --accent-dark-logo: #ff79b0;
+  --accent-dark-logo-deep: #c2448f;
+  --accent-dark-logo-far: #6e2c7a;
   --accent-light: #a61e6a;
   --accent-light-hover: #901a5c;
   --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #ff79b0;
+  --accent-light-logo: #a61e6a;
+  --accent-light-logo-deep: #db5b9b;
+  --accent-light-logo-far: #eeb4cf;
 }
 
 /* Gold would read as a warning: warnings turn orange beside it. */
@@ -476,9 +503,17 @@
   --accent-dark: #f5c542;
   --accent-dark-hover: #f9d97c;
   --accent-dark-fg: #1c1604;
+  --accent-dark-logo-light: #fff3c9;
+  --accent-dark-logo: #f5c542;
+  --accent-dark-logo-deep: #b48d2b;
+  --accent-dark-logo-far: #66532a;
   --accent-light: #835613;
   --accent-light-hover: #774e11;
   --accent-light-fg: #fffaf2;
+  --accent-light-logo-light: #d6a548;
+  --accent-light-logo: #8a5a12;
+  --accent-light-logo-deep: #c0904a;
+  --accent-light-logo-far: #dcc08a;
   --warning-dark: #ff8f5a;
   --warning-light: #9a3f17;
 }
@@ -488,9 +523,17 @@
   --accent-dark: #5fd39a;
   --accent-dark-hover: #8fe3b8;
   --accent-dark-fg: #03140a;
+  --accent-dark-logo-light: #c9f6dc;
+  --accent-dark-logo: #5fd39a;
+  --accent-dark-logo-deep: #2f9a68;
+  --accent-dark-logo-far: #1d5a3e;
   --accent-light: #18663f;
   --accent-light-hover: #145a37;
   --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #5fd39a;
+  --accent-light-logo: #1a7048;
+  --accent-light-logo-deep: #4fae80;
+  --accent-light-logo-far: #98cdb0;
   --success-dark: #3cc2a6;
   --success-light: #0d6a60;
 }
@@ -500,9 +543,17 @@
   --accent-dark: initial;
   --accent-dark-hover: initial;
   --accent-dark-fg: initial;
+  --accent-dark-logo-light: initial;
+  --accent-dark-logo: initial;
+  --accent-dark-logo-deep: initial;
+  --accent-dark-logo-far: initial;
   --accent-light: initial;
   --accent-light-hover: initial;
   --accent-light-fg: initial;
+  --accent-light-logo-light: initial;
+  --accent-light-logo: initial;
+  --accent-light-logo-deep: initial;
+  --accent-light-logo-far: initial;
   --success-dark: initial;
   --success-light: initial;
   --warning-dark: initial;

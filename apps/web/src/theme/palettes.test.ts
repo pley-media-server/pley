@@ -133,6 +133,19 @@ function expectReadable(colors: Record<string, string>) {
   expect(contrast(color("danger-fg"), over(color("danger"), 0.9, color("surface"))), "danger button").toBeGreaterThanOrEqual(4.5);
 }
 
+/**
+ * Holds a palette's logo to what it needs on its tile: the front poster plain
+ * at one end of its gradient, the others fading into the tile behind it.
+ */
+function expectLogo(colors: Record<string, string>) {
+  const onTile = (name: string) => contrast(colors[`--color-${name}`]!, colors["--color-brand-tile"]!);
+  expect(Math.max(onTile("brand-light"), onTile("brand")), "logo, front poster").toBeGreaterThanOrEqual(4.5);
+  expect(onTile("brand-deep"), "logo, middle poster").toBeGreaterThanOrEqual(2);
+  expect(onTile("brand-far"), "logo, back poster").toBeGreaterThanOrEqual(1.3);
+}
+
+const LOGO = ["--color-brand-light", "--color-brand", "--color-brand-deep", "--color-brand-far"];
+
 describe("each theme's colors", () => {
   const all = palettes();
 
@@ -165,13 +178,7 @@ describe("each theme's colors", () => {
   it.each(THEMES)("are readable in %s", (theme: Theme) => {
     const colors = all.get(theme)!;
     expectReadable(colors);
-    const color = (name: string) => colors[`--color-${name}`]!;
-    // The logo on its tile: the front poster plain at one end of its
-    // gradient, the others fading into the tile behind it.
-    const onTile = (name: string) => contrast(color(name), color("brand-tile"));
-    expect(Math.max(onTile("brand-light"), onTile("brand")), "logo, front poster").toBeGreaterThanOrEqual(4.5);
-    expect(onTile("brand-deep"), "logo, middle poster").toBeGreaterThanOrEqual(2);
-    expect(onTile("brand-far"), "logo, back poster").toBeGreaterThanOrEqual(1.3);
+    expectLogo(colors);
   });
 });
 
@@ -183,11 +190,12 @@ describe("each accent", () => {
   // accent to a state on purpose.
   const APART = 0.035;
 
-  it("is one src/theme offers, with a color, its hover and its words for the dark themes and the light ones", () => {
+  it("is one src/theme offers, with a color, its hover, its words and the logo's colors for the dark themes and the light ones", () => {
     expect([...accents.keys()].filter((accent) => accent !== "own").sort()).toEqual([...ACCENTS].sort());
+    const parts = ["", "-hover", "-fg", "-logo-light", "-logo", "-logo-deep", "-logo-far"];
     for (const accent of ACCENTS) {
       for (const kind of ["dark", "light"]) {
-        for (const part of ["", "-hover", "-fg"]) expect(accents.get(accent)![`--accent-${kind}${part}`], `${accent} ${kind}${part}`).toMatch(/^#[0-9a-f]{6}$/);
+        for (const part of parts) expect(accents.get(accent)![`--accent-${kind}${part}`], `${accent} ${kind}${part}`).toMatch(/^#[0-9a-f]{6}$/);
       }
     }
   });
@@ -196,6 +204,18 @@ describe("each accent", () => {
     for (const theme of THEMES) {
       const reads = ["--color-accent", "--color-accent-hover", "--color-accent-fg"].every((name) => READ.test(themes.get(theme)![name]!));
       expect(reads, theme).toBe(theme !== ACCENTLESS);
+    }
+  });
+
+  it("colors the logo, all but its tile, in every theme but Blacklight and Sunshine, which keeps its toy box", () => {
+    for (const theme of THEMES) {
+      const values = themes.get(theme)!;
+      // The logo's colors for the kind of accent the theme takes, dark or light.
+      const kind = READ.exec(values["--color-accent"]!)?.[1] === "--accent-light" ? "light" : "dark";
+      const read = LOGO.map((name) => READ.exec(values[name]!)?.[1] ?? null);
+      const expected = theme === ACCENTLESS || theme === "sunshine" ? LOGO.map(() => null) : ["-logo-light", "-logo", "-logo-deep", "-logo-far"].map((part) => `--accent-${kind}${part}`);
+      expect(read, theme).toEqual(expected);
+      expect(READ.test(values["--color-brand-tile"]!), `${theme}'s tile`).toBe(false);
     }
   });
 
@@ -212,6 +232,7 @@ describe("each accent", () => {
     const set = accents.get(accent)!;
     const palette = colors(themes.get(theme)!, set);
     expectReadable(palette);
+    expectLogo(palette);
     const color = (name: string) => palette[`--color-${name}`]!;
     for (const state of STATES) expect(hueApart(color("accent"), color(state)), `accent and ${state}`).toBeGreaterThanOrEqual(APART);
     // A state the accent moves stays apart from the others too.
