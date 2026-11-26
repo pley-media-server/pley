@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import css from "../index.css?raw";
+import themeScript from "../../public/theme.js?raw";
 import { ACCENTS, THEMES, type Theme } from ".";
 
 /**
@@ -179,6 +180,30 @@ describe("each theme's colors", () => {
     const colors = all.get(theme)!;
     expectReadable(colors);
     expectLogo(colors);
+  });
+
+  it("color the browser's bars before the app draws, as index.css does", () => {
+    const meta = (name: string) => {
+      const tag = document.createElement("meta");
+      tag.name = name;
+      document.head.append(tag);
+      return tag;
+    };
+    const [color, scheme] = [meta("theme-color"), meta("color-scheme")];
+    // Run as the page runs it.
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const run = new Function(themeScript) as () => void;
+    for (const theme of THEMES) {
+      localStorage.setItem("pley.theme", theme);
+      run();
+      const block = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)].find(([, selector]) => new RegExp(`^\\s*\\[data-theme="${theme}"\\]\\s*,?\\s*$`, "m").test(selector!));
+      expect(color.content, theme).toBe(all.get(theme)!["--color-bg"]);
+      expect(scheme.content, theme).toBe(/color-scheme:\s*([a-z]+);/.exec(block![2]!)?.[1]);
+    }
+    localStorage.clear();
+    delete document.documentElement.dataset.theme;
+    color.remove();
+    scheme.remove();
   });
 });
 

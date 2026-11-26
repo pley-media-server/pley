@@ -108,19 +108,39 @@ export function showAccent(accent: Accent | null) {
   for (const listener of listeners) listener();
 }
 
-/** Before the app draws: the theme and accent of this device's last visit. */
-export function startTheme() {
-  let kept: string | null = null;
-  let keptAccent: string | null = null;
+/** The theme and accent this device keeps, Midnight in its own where it keeps none it knows. */
+function kept(): [Theme, Accent | null] {
+  let theme: string | null = null;
+  let accent: string | null = null;
   try {
-    kept = localStorage.getItem(THEME_KEY);
-    keptAccent = localStorage.getItem(ACCENT_KEY);
+    theme = localStorage.getItem(THEME_KEY);
+    accent = localStorage.getItem(ACCENT_KEY);
   } catch {
     // Nothing kept.
   }
-  shown = isTheme(kept) ? kept : DEFAULT_THEME;
-  shownAccent = isAccent(keptAccent) ? keptAccent : null;
+  return [isTheme(theme) ? theme : DEFAULT_THEME, isAccent(accent) ? accent : null];
+}
+
+let following = false;
+
+/**
+ * Before the app draws: the theme and accent of this device's last visit.
+ * Then follows a pick made in another of its tabs, which keeps it alike.
+ */
+export function startTheme() {
+  [shown, shownAccent] = kept();
   draw(shown, shownAccent);
+  if (following) return;
+  following = true;
+  window.addEventListener("storage", (event) => {
+    // A key of its own, or the storage cleared (null).
+    if (event.key !== null && event.key !== THEME_KEY && event.key !== ACCENT_KEY) return;
+    const [theme, accent] = kept();
+    if (theme === shown && accent === shownAccent) return;
+    [shown, shownAccent] = [theme, accent];
+    draw(theme, accent);
+    for (const listener of listeners) listener();
+  });
 }
 
 /** The theme on the page, following changes. */

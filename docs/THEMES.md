@@ -101,9 +101,12 @@ orange; with Amber, warning turns yellow.
   `--color-accent: var(--accent-dark, #38bdf8)`. `[data-accent="own"]` clears
   them, so the picker's swatch of the theme's own shows inside a page with
   another.
-- `apps/web/src/theme` holds the ids, shows a theme and an accent, and keeps
-  the device's picks in storage. `public/theme.js` puts them on the page
-  before it first draws (the CSP runs no script written into the page).
+- `apps/web/src/theme` holds the ids, shows a theme and an accent, keeps
+  the device's picks in storage, and follows a pick made in another of its
+  tabs. `public/theme.js` puts them on the page before it first draws (the
+  CSP runs no script written into the page), with the browser's bars in the
+  theme's page color; it holds each theme's color itself, since the styles
+  load after it, so a new theme goes there too.
 - `apps/web/src/pages/ThemeCard.tsx` is the picker on Account → Appearance.
 
 ### Tokens
@@ -185,8 +188,9 @@ readable where the picture is brightest.
    the closest theme. A light theme also goes in its dark twin's selector list
    (`[data-theme="<id>"] [data-dark]`). Its accent, success and warning read
    the accent's variables, as the others' do (`--accent-light…` in a light
-   theme), and so do its logo's posters. Every accent's logo has
-   to stay readable on its tile.
+   theme), and so do its logo's posters. Every accent's logo has to stay
+   readable on its tile. Add its page color and kind to `BARS` in
+   `apps/web/public/theme.js`.
 3. Give it a name and a caption of a few words in every language: under
    `account.theme` in `apps/web/src/i18n/locales/<language>/pages.json`.
 4. Describe it in this document's table, with what a TV shows, and add it to

@@ -45,6 +45,27 @@ describe("themes", () => {
     stop();
   });
 
+  it("follow a pick made in another tab", () => {
+    startTheme();
+    const listener = vi.fn();
+    const stop = onTheme(listener);
+    // Another tab writes the storage; this one hears of it.
+    localStorage.setItem(THEME_KEY, "starlight");
+    localStorage.setItem(ACCENT_KEY, "amber");
+    window.dispatchEvent(new StorageEvent("storage", { key: ACCENT_KEY }));
+    expect(currentTheme()).toBe("starlight");
+    expect(currentAccent()).toBe("amber");
+    expect(document.documentElement.dataset.theme).toBe("starlight");
+    expect(document.documentElement.dataset.accent).toBe("amber");
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    // Another key, or nothing new, changes nothing.
+    window.dispatchEvent(new StorageEvent("storage", { key: "pley.language" }));
+    window.dispatchEvent(new StorageEvent("storage", { key: THEME_KEY }));
+    expect(listener).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
   it("color the tab's icon as the logo", () => {
     const colors: Record<string, string> = {
       "--color-brand-light": "#ffd3a6",
