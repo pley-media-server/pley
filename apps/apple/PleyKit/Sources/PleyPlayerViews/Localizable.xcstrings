@@ -291,35 +291,6 @@
         }
       }
     },
-    "Direct stream" : {
-      "comment" : "A live channel's details: the server copies its video.",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transmisión directa"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Flux direct"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "直接串流"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "直接串流"
-          }
-        }
-      }
-    },
     "Earlier" : {
       "comment" : "The subtitle sync: show the subtitles 0.1 s earlier.",
       "localizations" : {
@@ -379,7 +350,7 @@
       }
     },
     "Encoder" : {
-      "comment" : "A live channel's details: the encoder transcoding its video (\"h264_nvenc\").",
+      "comment" : "A live channel's details: the encoder transcoding its video (\"NVIDIA NVENC\").",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -954,35 +925,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "字幕"
-          }
-        }
-      }
-    },
-    "Transcoding" : {
-      "comment" : "A live channel's details: the server converts its video.",
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transcodificación"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transcodage"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "转码"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "轉碼"
           }
         }
       }

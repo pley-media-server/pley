@@ -534,9 +534,11 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   player has no row of buttons for an Info button) show in the panel a
   title's player's Info opens, under the same title:
   Direct stream while the server copies the channel's video into its HLS
-  stream, else Transcoding; the provider's video and audio, and what the
+  stream ("Direct stream · Audio transcoding" when it converts the
+  sound), else Transcoding; the provider's video and audio, and what the
   server makes of them; what the provider sends now, with the transcode's
-  video bitrate; and the encoder. They come from the session's plan
+  video bitrate; and the encoder, by the name people know ("NVIDIA
+  NVENC"). They come from the session's plan
   (`GET /api/live/sessions/{session}/plan`), asked for again every 2 s
   while they show. Up and Down scroll them, Back or Replay closes them,
   and they close as the channel changes.

@@ -1,4 +1,5 @@
 import PleyModel
+import PleyPlayer
 @testable import PleyPlayerViews
 import Testing
 
@@ -19,8 +20,25 @@ import Testing
     @Test func otherSoundIsMadeAACWhileTheVideoIsCopied() {
         let plan = LivePlan(videoCodec: "h264", width: 1280, height: 720, frameRate: 29.97, audioCodec: "eac3",
                             audioChannels: 6, video: "copy", audio: "aac", kbps: 850)
-        #expect(said(plan) == ["Playing: Direct stream", "Video: H.264 · 1280×720 · 29.97 fps",
+        #expect(said(plan) == ["Playing: Direct stream · Audio transcoding", "Video: H.264 · 1280×720 · 29.97 fps",
                                "Audio: EAC3 5.1 → AAC Stereo", "Bitrate: 850 kbps"])
+    }
+
+    @Test func howItPlaysIsInThePlayersWords() {
+        // What the player's Details say of a file played each way.
+        func player(_ method: PlaybackMethod, audioConverted: Bool = false) -> String? {
+            var state = PlayerState()
+            state.method = method
+            state.audioConverted = audioConverted
+            return PlayerDetails.lines(state).first?.text
+        }
+        func live(video: String, audio: String) -> String? {
+            LiveDetails.lines(LivePlan(videoCodec: "h264", audioCodec: "ac3", video: video, audio: audio)).first?.text
+        }
+        #expect(live(video: "copy", audio: "copy") == player(.remux))
+        #expect(live(video: "copy", audio: "aac") == player(.remux, audioConverted: true))
+        #expect(live(video: "libx264", audio: "aac") == player(.transcode, audioConverted: true))
+        #expect(live(video: "libx264", audio: "aac") == "Transcoding")
     }
 
     @Test func aTranscodeSaysWhatIsMadeAndItsEncoder() {
@@ -29,7 +47,7 @@ import Testing
                             videoKbps: 8_000, kbps: 12_300)
         #expect(said(plan) == ["Playing: Transcoding", "Video: HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p",
                                "Audio: EAC3 5.1 → AAC Stereo", "Bitrate: 12 Mbps → 8.0 Mbps",
-                               "Encoder: h264_nvenc"])
+                               "Encoder: NVIDIA NVENC"])
     }
 
     @Test func interlacedVideoSaysSoAndKeepsItsLines() {
@@ -39,7 +57,7 @@ import Testing
         #expect(said(plan) == ["Playing: Transcoding",
                                "Video: MPEG-2 · 720×576 · 25 fps · interlaced → H.264 576p",
                                "Audio: MP2 Stereo → AAC Stereo", "Bitrate: 4.1 Mbps → 2.5 Mbps",
-                               "Encoder: libx264"])
+                               "Encoder: x264"])
     }
 
     @Test func anOlderServersPlanSaysWhatItKnows() {
@@ -47,16 +65,27 @@ import Testing
         let plan = LivePlan(videoCodec: "hevc", width: 1920, height: 1080, frameRate: 25, audioCodec: "ac3",
                             audioChannels: 6, video: "libx264", audio: "aac")
         #expect(said(plan) == ["Playing: Transcoding", "Video: HEVC · 1920×1080 · 25 fps → H.264 1080p",
-                               "Audio: AC3 5.1 → AAC Stereo", "Encoder: libx264"])
+                               "Audio: AC3 5.1 → AAC Stereo", "Encoder: x264"])
     }
 
     @Test func radioHasNoVideoToSpeakOf() {
         let plan = LivePlan(audioCodec: "mp2", audioChannels: 2, video: "none", audio: "aac")
-        #expect(said(plan) == ["Playing: Direct stream", "Audio: MP2 Stereo → AAC Stereo"])
+        #expect(said(plan) == ["Playing: Direct stream · Audio transcoding", "Audio: MP2 Stereo → AAC Stereo"])
     }
 
     @Test func aPlanNotKnownYetSaysOnlyThatItStarts() {
         #expect(said(nil) == ["Playing: Starting…"])
+    }
+
+    @Test func anEncoderGoesByTheNamePeopleKnow() {
+        #expect(LiveDetails.encoderName("hevc_nvenc") == "NVIDIA NVENC")
+        #expect(LiveDetails.encoderName("libx265") == "x265")
+        #expect(LiveDetails.encoderName("h264_qsv") == "Intel Quick Sync")
+        #expect(LiveDetails.encoderName("hevc_amf") == "AMD AMF")
+        #expect(LiveDetails.encoderName("h264_vaapi") == "VA-API")
+        #expect(LiveDetails.encoderName("h264_videotoolbox") == "VideoToolbox")
+        // One not known stays as the server names it.
+        #expect(LiveDetails.encoderName("h264_newthing") == "h264_newthing")
     }
 
     @Test func anEncoderNamesItsCodec() {

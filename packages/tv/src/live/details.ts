@@ -2,7 +2,7 @@ import type { SessionPlan } from "../api/types";
 import { channelsLabel, codecLabel, formatBitrate } from "../format/format";
 import { frameRateLabel, type FactBlock } from "../format/media-info";
 import { t } from "../i18n";
-import { encoderName } from "../player/details";
+import { encoderName, methodText } from "../player/details";
 
 /** The server converts the channel's video: it is neither copied nor absent. */
 export function liveTranscodes(plan: SessionPlan): boolean {
@@ -42,12 +42,15 @@ function bitrateRow(plan: SessionPlan): string {
  * How a live channel plays, for the player's Playback info: the readout's
  * "How it plays", in a title's words. This TV plays Live TV through the
  * server's HLS alone, so a channel is a direct stream (its video as the
- * provider sends it) or a transcode, never the provider's own stream, and
- * nothing here could say why. A row whose value isn't known is left out.
+ * provider sends it, "· Audio transcoding" after it when the server
+ * converts the sound, as a film says) or a transcode, never the provider's
+ * own stream, and nothing here could say why. A row whose value isn't
+ * known is left out.
  */
 export function liveFacts(plan: SessionPlan): FactBlock {
   const transcodes = liveTranscodes(plan);
-  const facts = [{ label: t("player.info.playback"), value: transcodes ? t("player.details.method.transcode") : t("player.details.method.remux") }];
+  const method = methodText(transcodes ? { method: "transcode" } : { method: "remux", audio_converted: plan.audio === "aac" });
+  const facts = [{ label: t("player.info.playback"), value: method }];
   const add = (label: string, value: string) => {
     if (value) facts.push({ label, value });
   };

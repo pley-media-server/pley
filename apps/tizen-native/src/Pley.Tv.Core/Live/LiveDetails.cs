@@ -46,6 +46,21 @@ public static class LiveDetails
     }
 
     /// <summary>
+    /// The way a channel plays, in a film's words (<see cref="SessionText.Method"/>), for the
+    /// panel's Playback line and the badge in the player's bar: Direct play from its stream.ts,
+    /// whatever the plan would make for other players; from its HLS, what the plan says, a remux
+    /// with the sound converted saying so too. Null for the HLS without a plan, whose way only
+    /// the plan says.
+    /// </summary>
+    public static string? Method(bool direct, LivePlan? plan)
+    {
+        if (direct) return SessionText.MethodDirect;
+        if (plan == null) return null;
+        if (plan.Video is not ("copy" or "none")) return SessionText.MethodTranscode;
+        return plan.Audio == "aac" ? SessionText.MethodRemuxAudio : SessionText.MethodRemux;
+    }
+
+    /// <summary>
     /// How it plays, a line each, without those whose value isn't known: Playback, Why, Video,
     /// Audio, Bitrate and Encoder. Without a plan, Playback alone, and nothing at all for the HLS,
     /// whose way the plan says.
@@ -53,17 +68,12 @@ public static class LiveDetails
     public static IReadOnlyList<MediaFact> Facts(bool direct, LivePlan? plan, ClientCaps? caps)
     {
         var facts = new List<MediaFact>();
-        if (plan == null)
-        {
-            if (direct) facts.Add(new MediaFact(Strings.T("player.readout.playback"), SessionText.MethodDirect));
-            return facts;
-        }
+        if (Method(direct, plan) is not { } method) return facts;
+        facts.Add(new MediaFact(Strings.T("player.readout.playback"), method));
+        if (plan == null) return facts;
         // From its stream.ts the TV plays what the provider sends, whatever the plan would make for other players.
         var transcoded = !direct && plan.Video is not ("copy" or "none");
         var converted = !direct && plan.Audio == "aac";
-        // A film's words: its remux with the sound converted says so too.
-        var method = direct ? SessionText.MethodDirect : transcoded ? SessionText.MethodTranscode : converted ? SessionText.MethodRemuxAudio : SessionText.MethodRemux;
-        facts.Add(new MediaFact(Strings.T("player.readout.playback"), method));
         if (!direct && Why(plan, caps) is { } why) facts.Add(new MediaFact(Strings.T("player.readout.why"), why));
         if (Video(plan, transcoded) is { Length: > 0 } video) facts.Add(new MediaFact(SessionText.RowVideo, video));
         if (Audio(plan, converted) is { Length: > 0 } audio) facts.Add(new MediaFact(SessionText.RowAudio, audio));

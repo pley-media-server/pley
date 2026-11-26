@@ -206,12 +206,31 @@ function detEncoded(encoder as string) as string
     return ""
 end function
 
+' An encoder by the name people know, as the other apps say it:
+' "h264_nvenc" is "NVIDIA NVENC", "libx264" "x264"; one not known as it is.
+function detEncoderName(encoder as string) as string
+    names = {
+        "libx264": "x264", "libx265": "x265",
+        "h264_nvenc": "NVIDIA NVENC", "hevc_nvenc": "NVIDIA NVENC",
+        "h264_qsv": "Intel Quick Sync", "hevc_qsv": "Intel Quick Sync",
+        "h264_amf": "AMD AMF", "hevc_amf": "AMD AMF",
+        "h264_vaapi": "VA-API", "hevc_vaapi": "VA-API",
+        "h264_videotoolbox": "VideoToolbox", "hevc_videotoolbox": "VideoToolbox",
+        "h264_vulkan": "Vulkan", "hevc_vulkan": "Vulkan",
+        "h264_v4l2m2m": "V4L2"
+    }
+    known = names[encoder]
+    if known = invalid then return encoder
+    return known
+end function
+
 ' A Live TV channel's details, as detPlayback's: plan is the session's
 ' SessionPlan (GET /api/live/sessions/{session}/plan). The Roku plays the
 ' server's HLS stream: a direct stream while the video is copied (or the
-' channel has none), else a transcode, with nothing to say why (it reads
-' no MPEG-TS, so the provider's stream is never played as it is). The
-' video and audio are the provider's, then what the server makes of them.
+' channel has none), saying as a file's does when the sound is converted,
+' else a transcode, with nothing to say why (it reads no MPEG-TS, so the
+' provider's stream is never played as it is). The video and audio are
+' the provider's, then what the server makes of them.
 ' An older server sends no bit depth, transcode size or bitrates: those go
 ' unsaid.
 function detLive(plan as object) as object
@@ -245,10 +264,11 @@ function detLive(plan as object) as object
         end if
         rows.Push({ label: t("titles.playback.video"), value: value })
     end if
+    ' The server makes any other sound AAC stereo.
+    sound = (LCase(httpString(plan.audio)) = "aac")
     if httpString(plan.audio_codec) <> ""
         value = detAudio({ codec: plan.audio_codec, channels: plan.audio_channels })
-        ' The server makes any other sound AAC stereo.
-        if LCase(httpString(plan.audio)) = "aac" then value = value + " → " + detAudio({ codec: "aac", channels: 2 })
+        if sound then value = value + " → " + detAudio({ codec: "aac", channels: 2 })
         rows.Push({ label: t("titles.playback.audio"), value: value })
     end if
     ' What the provider sends now (0 until it is measured), then the
@@ -260,10 +280,11 @@ function detLive(plan as object) as object
         if out <> "" then bitrate = bitrate + " → " + out
         rows.Push({ label: t("titles.playback.bitrate"), value: bitrate })
     end if
-    if converted then rows.Push({ label: t("titles.playback.encoder"), value: httpSentence(plan.video) })
-    method = t("titles.playback.method.remux")
-    if converted then method = t("titles.playback.method.transcode")
-    return { method: method, why: "", rows: rows }
+    if converted then rows.Push({ label: t("titles.playback.encoder"), value: detEncoderName(httpSentence(plan.video)) })
+    ' The method in a file's words.
+    way = { method: "remux", audio_converted: sound }
+    if converted then way = { method: "transcode" }
+    return { method: detMethod(way), why: "", rows: rows }
 end function
 
 ' kbit/s as bit/s, for fmtBitrate; 0 for none, or for more than any

@@ -27,7 +27,7 @@ export function upNextHeading(label: string | null): string {
   return label ? t("player.upNext.episode", { episode: label }) : t("player.upNext.title");
 }
 
-export function methodText(info: PlaybackInfo): string {
+export function methodText(info: Pick<PlaybackInfo, "method" | "audio_converted">): string {
   const remux = t("player.details.method.remux");
   if (info.method === "remux") return info.audio_converted ? `${remux} · ${t("player.details.audioTranscoding")}` : remux;
   if (info.method === "transcode") return t("player.details.method.transcode");

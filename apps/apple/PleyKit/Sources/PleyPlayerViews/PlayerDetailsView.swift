@@ -88,8 +88,10 @@ public enum PlayerDetails {
 /// session's plan (`GET /api/live/sessions/{session}/plan`). Apple's
 /// players take Live TV as the server's HLS stream alone (AVPlayer plays
 /// no MPEG-TS as it comes), so a channel plays as a direct stream while
-/// the server copies its video, or has none, and as a transcode otherwise;
-/// nothing says why, as nothing here could have played it another way.
+/// the server copies its video, or has none, and as a transcode otherwise,
+/// in the player's words (`PlayerState.label(of:audioConverted:)`: a
+/// direct stream says when its audio is converted); nothing says why, as
+/// nothing here could have played it another way.
 public enum LiveDetails {
     /// The lines of `plan`: how it plays, then what is known of the video,
     /// the audio, the bitrate and the encoder. Without a plan (the server
@@ -100,8 +102,8 @@ public enum LiveDetails {
             return [PlayerDetails.Line(title: localized("Playing"), text: localized("Starting…"))]
         }
         let converted = isConverted(plan)
-        var lines = [PlayerDetails.Line(title: localized("Playing"),
-                                        text: converted ? localized("Transcoding") : localized("Direct stream"))]
+        let method = PlayerState.label(of: converted ? .transcode : .remux, audioConverted: audioConverted(plan))
+        var lines = [PlayerDetails.Line(title: localized("Playing"), text: method)]
         if let video = video(plan, converted: converted) {
             lines.append(PlayerDetails.Line(title: localized("Video"), text: video))
         }
@@ -112,7 +114,7 @@ public enum LiveDetails {
             lines.append(PlayerDetails.Line(title: localized("Bitrate"), text: bitrate))
         }
         if converted {
-            lines.append(PlayerDetails.Line(title: localized("Encoder"), text: plan.video))
+            lines.append(PlayerDetails.Line(title: localized("Encoder"), text: encoderName(plan.video)))
         }
         return lines
     }
@@ -121,6 +123,30 @@ public enum LiveDetails {
     /// not `copy` or `none` (a channel of sound alone).
     static func isConverted(_ plan: LivePlan) -> Bool {
         !["", "copy", "none"].contains(plan.video.lowercased())
+    }
+
+    /// Whether the server converts the audio: it makes AAC stereo of any
+    /// sound the HLS stream can't carry as it is.
+    static func audioConverted(_ plan: LivePlan) -> Bool {
+        plan.audio.lowercased() == "aac"
+    }
+
+    /// FFmpeg's encoders by the names people know, as the other apps say them.
+    private static let encoders = [
+        "libx264": "x264", "libx265": "x265",
+        "h264_nvenc": "NVIDIA NVENC", "hevc_nvenc": "NVIDIA NVENC",
+        "h264_qsv": "Intel Quick Sync", "hevc_qsv": "Intel Quick Sync",
+        "h264_amf": "AMD AMF", "hevc_amf": "AMD AMF",
+        "h264_vaapi": "VA-API", "hevc_vaapi": "VA-API",
+        "h264_videotoolbox": "VideoToolbox", "hevc_videotoolbox": "VideoToolbox",
+        "h264_vulkan": "Vulkan", "hevc_vulkan": "Vulkan",
+        "h264_v4l2m2m": "V4L2",
+    ]
+
+    /// An encoder by the name people know: "h264_nvenc" is "NVIDIA NVENC",
+    /// "libx264" "x264"; one not known as it is.
+    static func encoderName(_ encoder: String) -> String {
+        encoders[encoder] ?? encoder
     }
 
     /// "HEVC 10-bit · 3840×2160 · 50 fps · interlaced → H.264 1080p": the
@@ -173,7 +199,7 @@ public enum LiveDetails {
         let codec = Words.codec(plan.audioCodec)
         guard !codec.isEmpty else { return nil }
         let text = [codec, Words.channels(plan.audioChannels)].filter { !$0.isEmpty }.joined(separator: " ")
-        guard plan.audio.lowercased() == "aac" else { return text }
+        guard audioConverted(plan) else { return text }
         return text + " → " + Words.codec("aac") + " " + Words.channels(2)
     }
 

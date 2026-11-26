@@ -163,7 +163,8 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
 - **Playback info:** Info, last in the player's controls, opens the panel
   a title's player has. This app plays Live TV through the server's HLS
   alone, never the provider's own stream (`stream.ts`), so a channel is a
-  **Direct stream** (the server copies its video) or **Transcoding**, never
+  **Direct stream** (the server copies its video; "· Audio transcoding"
+  after it when it converts the sound) or **Transcoding**, never
   Direct play, and the panel has no Why. Under Playback come the
   provider's video and sound with what the server makes of them
   ("HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p", "AC3 5.1 → AAC
@@ -755,7 +756,10 @@ buffer, the channel's stalls and the time to its first picture. A line
 whose value isn't known is left out. While the panel shows, the plan is
 asked again 2.5 s after each answer, for the provider's bitrate as it is
 now; asking starts no transcode. A channel that stops closes the panel for
-its card.
+its card. The bar over the picture says the way too, in the film player's
+badge beside Live, as on Android TV: from the plan the player asked for as
+it tuned, with nothing more asked of the server, so a channel on HLS whose
+plan isn't known has no badge until Playback details have asked for it.
 
 Someone taking over a channel's connection (the server's
 `live_taken_over`) stops it at once, as on Android TV: the card says "Live

@@ -492,11 +492,14 @@ behind it.
   since moving to the next key can take longer than a keyboard's wait;
   "No channel 123" shows for 2 seconds when none has it. **Details** (a
   sheet on iPhone, iPad and Mac, a panel beside the picture on Apple TV,
-  named and laid out as the player's Details) say how the channel plays, Direct stream
-  while the server copies its video into the HLS stream and Transcoding
-  otherwise; the provider's video and audio, and
+  named and laid out as the player's Details) say how the channel plays,
+  in the player's words: Direct stream while the server copies its video
+  into the HLS stream ("Direct stream · Audio transcoding" when it
+  converts the sound) and Transcoding otherwise; the provider's video and
+  audio, and
   what the server makes of them; what the provider sends now, with the
-  transcode's video bitrate; and the encoder. They come from the session's
+  transcode's video bitrate; and the encoder, by the name people know
+  ("NVIDIA NVENC"). They come from the session's
   plan (`GET /api/live/sessions/{session}/plan`), asked for again every 2
   seconds while they show; until the server knows it they say "Starting…",
   and another channel closes them. When every

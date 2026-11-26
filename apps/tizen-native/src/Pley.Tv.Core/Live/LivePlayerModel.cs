@@ -241,6 +241,18 @@ public sealed class LivePlayerModel : IDisposable
     /// </summary>
     public void SetDetailsOpen(bool open) => playback.SetDetailsOpen(open);
 
+    /// <summary>What the server last said the channel is (<see cref="LivePlayback.Plan"/>): the bar's badge follows it.</summary>
+    public Signal<LivePlan?> Plan => playback.Plan;
+
+    /// <summary>
+    /// How the channel plays, for the badge beside Live in the player's bar, the film player's, as
+    /// Android's live player has it: "Direct play", "Direct stream", "Transcoding"
+    /// (<see cref="LiveDetails.Method"/>). From what tuning the channel left known, with nothing
+    /// asked of the server: null while no channel plays, and for a channel on its HLS whose plan
+    /// isn't known.
+    /// </summary>
+    public string? Method => playback.State.Value.Playing ? LiveDetails.Method(playback.Direct, playback.Plan.Value) : null;
+
     /// <summary>Playback details as they stand now (<see cref="LiveDetails.Panel"/>), which the panel reads once a second while it shows.</summary>
     public Player.PlayerPanel Details() => LiveDetails.Panel(playback.Direct, playback.Plan.Value, playback.Caps, Readout());
 

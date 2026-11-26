@@ -319,6 +319,41 @@ public class LiveDirectPlayTests
         Assert.Equal(tuned + 1, PlanAsks);
         model.Dispose();
     }
+
+    [Fact]
+    public void The_bars_badge_says_how_the_channel_plays_from_the_plan_tuning_left_with_nothing_asked()
+    {
+        // Played as the provider sends it: Direct play, once it plays.
+        live.PlanAnswer = LiveDirectPlayRuleTests.Hevc();
+        var model = new LivePlayerModel(live, Playback(), scheduler, 1, new LiveCategory.All().Key);
+        Assert.Null(model.Method);
+        engines[0].Start();
+        Assert.Equal("Direct play", model.Method);
+        var tuned = PlanAsks;
+
+        // Sound the TV doesn't play, its picture sent as it is: its HLS, in a film's words for it.
+        live.PlanAnswer = LiveDirectPlayRuleTests.Hevc() with { AudioCodec = "dts", Video = "copy" };
+        model.Tune(2);
+        Assert.Null(model.Method);
+        engines[0].Start();
+        Assert.Equal("Direct stream · Audio transcoding", model.Method);
+        Assert.Equal(SessionText.Method(new PlaybackInfo { Method = "remux", AudioConverted = true }), model.Method);
+
+        // A picture the server converts.
+        live.PlanAnswer = LiveDirectPlayRuleTests.Hevc() with { Interlaced = true };
+        model.Tune(3);
+        engines[0].Start();
+        Assert.Equal("Transcoding", model.Method);
+        Assert.Equal(model.Method, model.Details().Rows[1].Value);
+
+        // Each channel's plan was asked once, as it was tuned: the badge asks nothing, however long it shows.
+        Assert.Equal(tuned + 2, PlanAsks);
+        scheduler.Advance(10 * LivePlayback.DetailsMs);
+        Assert.Equal(tuned + 2, PlanAsks);
+        // The plan the screen watches, to draw the badge again as it changes, is the playback's.
+        Assert.Equal(live.PlanAnswer, model.Plan.Value);
+        model.Dispose();
+    }
 }
 
 /// <summary>Playback details of a channel: the way, why, and what goes in and comes out.</summary>
@@ -413,6 +448,7 @@ public class LiveDetailsTests
         // Without a plan: the way alone, which only a channel's stream.ts says by itself.
         Assert.Equal(new[] { ("Playback", "Direct play") }, Rows(true, null));
         Assert.Empty(Rows(false, null));
+        Assert.Null(LiveDetails.Method(false, null));
     }
 
     [Fact]

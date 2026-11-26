@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { SessionPlan } from "../../src/api/types";
 import { setLanguage } from "../../src/i18n";
 import { liveFacts, liveTranscodes } from "../../src/live/details";
+import { methodText } from "../../src/player/details";
 
 /** A channel's plan as the server says it: H.264 and AAC copied, unless `over` says otherwise. */
 function plan(over: Partial<SessionPlan> = {}): SessionPlan {
@@ -62,10 +63,14 @@ describe("a live channel's Playback info", () => {
     ]);
   });
 
-  it("stays a direct stream when only the sound is converted", () => {
+  it("stays a direct stream when only the sound is converted, and says so as a film does", () => {
     const sound = plan({ audio_codec: "ac3", audio_channels: 6, audio: "aac" });
     expect(liveTranscodes(sound)).toBe(false);
-    expect(rows(sound)).toEqual(["Playback: Direct stream", "Video: H.264 8-bit · 1920×1080 · 25 fps", "Audio: AC3 5.1 → AAC Stereo", "Bitrate: 6.2 Mbps"]);
+    expect(rows(sound)).toEqual(["Playback: Direct stream · Audio transcoding", "Video: H.264 8-bit · 1920×1080 · 25 fps", "Audio: AC3 5.1 → AAC Stereo", "Bitrate: 6.2 Mbps"]);
+    // The film's own words for it.
+    expect(liveFacts(sound).facts[0]!.value).toBe(methodText({ method: "remux", audio_converted: true }));
+    // A transcode says Transcoding alone, whatever becomes of the sound.
+    expect(rows(plan({ video: "libx264", audio: "aac" }))[0]).toBe("Playback: Transcoding");
   });
 
   it("names an encoder it doesn't know as the server does, and channels it has no name for by their count", () => {
@@ -88,6 +93,7 @@ describe("a live channel's Playback info", () => {
   it("has no video row for a radio channel, and no audio row for a channel without sound", () => {
     const radio = plan({ video_codec: null, width: null, height: null, frame_rate: null, bit_depth: null, video: "none", audio_codec: "mp3", kbps: 128 });
     expect(rows(radio)).toEqual(["Playback: Direct stream", "Audio: MP3 Stereo", "Bitrate: 128 kbps"]);
+    expect(rows({ ...radio, audio: "aac" })).toEqual(["Playback: Direct stream · Audio transcoding", "Audio: MP3 Stereo → AAC Stereo", "Bitrate: 128 kbps"]);
     expect(rows(plan({ audio_codec: null, audio_channels: null, audio: "none" }))).toEqual(["Playback: Direct stream", "Video: H.264 8-bit · 1920×1080 · 25 fps", "Bitrate: 6.2 Mbps"]);
   });
 
@@ -108,5 +114,6 @@ describe("a live channel's Playback info", () => {
       "Débit: 6,2 Mbps → 3,5 Mbps",
       "Encodeur: x264",
     ]);
+    expect(rows(plan({ audio_codec: "ac3", audio: "aac" }))[0]).toBe("Lecture: Flux direct · Audio transcodé");
   });
 });
