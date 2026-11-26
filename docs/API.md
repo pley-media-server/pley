@@ -4669,7 +4669,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | DELETE | `/api/live/channels/{id}/favorite` | `play` | `204` |
 | POST | `/api/live/channels/{id}/watch` | `play` | optional `{ client_id?, keyed_urls?, take_over?, controls?, device_name?, device_kind? }` → `{ session_id, url, kind: "hls", channel: LiveChannel }`: `url` is the channel's live HLS playlist; with `keyed_urls`, an address carrying a key of its own ([Keyed URLs](#keyed-urls)); `take_over`: see Watching, below; `controls`, `device_name` and `device_kind` as a play request's ([Remote control](#remote-control)) |
 | GET | `/api/live/channels/{id}/stream.ts` | `play` | `?client_id=&take_over=&device_kind=`: the channel's MPEG-TS (`video/mp2t`) as the provider sends it (one served as HLS: its segments, with the default audio track put in when the provider keeps it apart), for as long as it is read (VLC, Kodi, TVs that read MPEG-TS). `take_over` counts only with a token: over plain HTTP, a GET the browser's cookie signs in may be another site's link (Pley's page uses `POST …/watch`). A reader that watches by itself obeys no remote and is named from its User-Agent; `device_kind` says what it plays on ([Remote control](#remote-control)) |
-| GET | `/api/live/sessions/{session}/plan` | `play` | `LivePlan \| null`: what the transcoder makes of the channel, waited for up to 3 s; `null` when not known in time. A player that reads MPEG-TS plays a channel whose video and audio are copied from `stream.ts` (with a client id of its own), sooner than its first segments |
+| GET | `/api/live/sessions/{session}/plan` | `play` | `SessionPlan \| null`: what the channel is and what the transcoder makes of it, waited for up to 3 s; `null` when not known in time. A player that reads MPEG-TS plays from `stream.ts` (with a client id of its own) a channel whose video and audio are copied, or, with `direct_play`, one it decodes as the provider sends it (Direct Play, below). Asked again, it answers at once, with the provider's bitrate as it is now, for a player's details |
 | GET | `/api/live/sessions/{session}/{file}` | `play` | `index.m3u8` or a segment of a watching session; `410 session_stopped` once the session is over, with why as `message` |
 | GET | `/api/live/media/{key}/{file}` | `public` (the key) | the same, for a session watched with `keyed_urls` |
 | DELETE | `/api/live/sessions/{session}` | `play` | `204`: stops watching; `404` when not yours (administrators: any) or already gone |
@@ -4734,6 +4734,7 @@ interface LiveSettings {                // defaults in /* */
   denied_users: Id[];                  // may not (administrators always may)
   age_limited: boolean;                // /* false */ profiles with an age limit see Live TV too
   deinterlace: boolean;                // /* true */ interlaced channels are made progressive
+  direct_play: boolean;                // /* true */ players play a channel from the provider's stream when they decode it
   max_height: number | null;           // /* null */ transcoded channels at most this many lines, 240-2160
   timeshift_minutes: number;           // /* 5 */ how far back a channel can be paused and rewound, 1-60
   refresh_hours: number;               // /* 24 */ channels and guide read again this often, 1-168
@@ -4754,10 +4755,17 @@ interface LivePlan {
   video_codec: string | null;          // the input's: "h264", "mpeg2video", "hevc"…
   width: number | null; height: number | null; frame_rate: number | null;
   interlaced: boolean;
+  bit_depth: number | null;            // the input's video: 8, 10, 12
   audio_codec: string | null;          // the input's: "aac", "mp2", "ac3"…
   audio_channels: number | null;
-  video: string;                       // "copy", or the encoder: "h264_nvenc", "libx264"…
+  video: string;                       // "copy", "none", or the encoder: "h264_nvenc", "libx264"…
   audio: "copy" | "aac" | "none";
+  out_height: number | null;           // a transcode's lines; null when copied
+  video_kbps: number | null;           // a transcode's video bitrate; null when copied
+}
+interface SessionPlan extends LivePlan {
+  direct_play: boolean;                // LiveSettings.direct_play
+  kbps: number;                        // what the provider sends now, kbit/s
 }
 interface LiveTuner {                  // a connection in use
   channel_id: Id; channel_name: string; source_id: Id; source_name: string;
@@ -4816,7 +4824,16 @@ interface LiveTuner {                  // a connection in use
 - **The stream.** H.264 is sent as it is; other video, and interlaced
   video while `deinterlace` is on, is made H.264 by the transcoder; audio
   that isn't AAC is made AAC stereo. Every player of a channel reads the
-  same HLS stream, made once.
+  same HLS stream, made once, and only once a player asks for its
+  playlist: the plan alone starts nothing.
+- **Direct Play.** While `direct_play` is on, a player that reads MPEG-TS
+  plays the channel from `stream.ts` when it decodes what the provider
+  sends: the plan's progressive video (`video_codec`, at its `bit_depth`
+  and size) and sound (`audio_codec`), or either alone. An HEVC channel on a
+  device that plays HEVC takes no transcode. Interlaced video goes to the
+  transcoder unless copied, and so does anything else the device doesn't
+  decode. Players show which it is in their playback details: Direct Play
+  from `stream.ts`, Direct Stream for copied HLS, else Transcode.
 - **Leaving.** An HLS viewer that asked for nothing for 45 s has left,
   unless its device reads the channel's `stream.ts` for it instead (as
   `<client_id>-stream`): it stays while that is read.

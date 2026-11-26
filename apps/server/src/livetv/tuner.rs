@@ -71,6 +71,17 @@ const ATTEMPTS: u32 = 5;
 /// start again from 0).
 const WORKED_BYTES: u64 = 4 << 20;
 
+/// What a session's channel is and how it comes (`GET /api/live/sessions/{id}/plan`).
+#[derive(Debug, Clone, Serialize)]
+pub struct SessionPlan {
+    #[serde(flatten)]
+    pub plan: LivePlan,
+    /// Players may play the provider's stream when they decode it (Settings → Live TV).
+    pub direct_play: bool,
+    /// What the provider sends, kbit/s, of late.
+    pub kbps: u64,
+}
+
 /// Whether a channel played: it sent something, or the provider gave
 /// nothing for it however often it was asked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1191,9 +1202,11 @@ impl Tuners {
     /// made when it is the first.
     /// What the transcoder makes of the channel a session watches, once it
     /// has looked at its first moment (starting its live job when there is
-    /// none yet); `None` when that takes longer than `wait`. Players that
-    /// read MPEG-TS themselves play a channel sent as it is (H.264 and AAC)
-    /// straight from `stream.ts`, sooner than its first segments.
+    /// none yet, which makes nothing until a player asks for its playlist);
+    /// `None` when that takes longer than `wait`. Players that read MPEG-TS
+    /// themselves play a channel sent as it is (H.264 and AAC), or one they
+    /// decode while `direct_play` is on, straight from `stream.ts`: sooner
+    /// than its first segments, and with no transcode.
     pub async fn plan(
         &self,
         session_id: &str,
@@ -1201,20 +1214,28 @@ impl Tuners {
         settings: &LiveSettings,
         hwaccel: HwAccel,
         wait: Duration,
-    ) -> Result<Option<LivePlan>, AppError> {
+    ) -> Result<Option<SessionPlan>, AppError> {
         let viewer = self.viewer(session_id, user)?;
         let tuner = self.tuner_of(&viewer)?;
+        let known = |plan: LivePlan| SessionPlan { plan, direct_play: settings.direct_play, kbps: tuner.kbps() };
+        // Known already (asked again for the player's details): no job for it.
+        // Taken out first: `known` locks the tuner's state for its rate.
+        let plan = tuner.state.lock().plan.clone();
+        if let Some(plan) = plan {
+            return Ok(Some(known(plan)));
+        }
         let job = self.hls_job(&tuner, settings, hwaccel).await?;
         let deadline = Instant::now() + wait;
         loop {
-            if let Some(plan) = tuner.state.lock().plan.clone() {
-                return Ok(Some(plan));
+            let plan = tuner.state.lock().plan.clone();
+            if let Some(plan) = plan {
+                return Ok(Some(known(plan)));
             }
             if let Ok(status) = self.transcoder.live_status(&job).await
                 && let Some(plan) = status.plan
             {
                 tuner.state.lock().plan = Some(plan.clone());
-                return Ok(Some(plan));
+                return Ok(Some(known(plan)));
             }
             if Instant::now() >= deadline || !tuner.is_live() {
                 return Ok(None);
@@ -1287,6 +1308,9 @@ impl Tuners {
                 max_bitrate_kbps: None,
                 hwaccel,
                 window_seconds: Some(settings.timeshift_minutes * 60),
+                // Made once an HLS player asks: players that read the
+                // provider's stream need only the plan.
+                on_demand: true,
             })
             .await?;
         let input = tuner.subscribe().ok_or_else(|| AppError::Unavailable("the channel stopped".into()))?;

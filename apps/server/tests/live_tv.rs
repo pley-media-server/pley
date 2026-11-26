@@ -1381,3 +1381,144 @@ async fn a_guide_that_breaks_off_leaves_nothing_behind() {
     let left: Vec<_> = std::fs::read_dir(&downloads).unwrap().flatten().map(|e| e.path()).collect();
     assert!(left.is_empty(), "{left:?}");
 }
+
+/// A stand-in transcoder that makes live channels: what it was asked to
+/// make, and whether a playlist was asked for. Its channels are HEVC, which
+/// it would transcode.
+#[derive(Clone, Default)]
+struct LiveMaker {
+    created: Arc<parking_lot::Mutex<Vec<Value>>>,
+    playlists: Arc<AtomicUsize>,
+}
+
+async fn live_maker() -> (String, LiveMaker) {
+    use axum::Json;
+    use axum::routing::{post, put};
+    use pley_transcoder_api::{Capabilities, LiveCreated, LivePlan, LiveState, LiveStatus, TranscoderInfo};
+
+    let maker = LiveMaker::default();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let app = Router::new()
+        .route(
+            "/v1/info",
+            get(|| async {
+                Json(TranscoderInfo {
+                    name: "pley-transcoder".into(),
+                    api_version: pley_transcoder_api::API_VERSION,
+                    capabilities: Capabilities { ffmpeg_available: true, live: true, ..Default::default() },
+                    ..Default::default()
+                })
+            }),
+        )
+        .route(
+            "/v1/live",
+            post(|State(maker): State<LiveMaker>, Json(req): Json<Value>| async move {
+                let mut created = maker.created.lock();
+                created.push(req);
+                (StatusCode::CREATED, Json(LiveCreated { id: format!("live{}", created.len()) }))
+            }),
+        )
+        .route(
+            "/v1/live/{id}/input",
+            put(|body: Body| async move {
+                let mut input = body.into_data_stream();
+                while let Some(Ok(_)) = input.next().await {}
+                StatusCode::NO_CONTENT
+            }),
+        )
+        .route(
+            "/v1/live/{id}",
+            get(|Path(id): Path<String>| async move {
+                Json(LiveStatus {
+                    id,
+                    state: LiveState::Waiting,
+                    plan: Some(LivePlan {
+                        video_codec: Some("hevc".into()),
+                        width: Some(3840),
+                        height: Some(2160),
+                        frame_rate: Some(50.0),
+                        bit_depth: Some(10),
+                        audio_codec: Some("eac3".into()),
+                        audio_channels: Some(6),
+                        video: "h264_nvenc".into(),
+                        audio: "aac".into(),
+                        out_height: Some(2160),
+                        video_kbps: Some(20000),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                })
+            }),
+        )
+        .route(
+            "/v1/live/{id}/{file}",
+            get(|State(maker): State<LiveMaker>| async move {
+                maker.playlists.fetch_add(1, Ordering::SeqCst);
+                "#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:1.0,\ns0.ts\n"
+            }),
+        )
+        .with_state(maker.clone());
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    (base, maker)
+}
+
+/// A channel's plan says what it is, and that players may play it as the
+/// provider sends it, with the provider's bitrate for their details. The
+/// transcoder is asked for a channel made on demand: one every player reads
+/// from `stream.ts` takes no transcode. Asked again, the plan is the one
+/// known, with no job of its own.
+#[tokio::test]
+async fn a_channel_plays_as_the_provider_sends_it_with_no_transcode_until_hls_is_asked() {
+    let (base, _) = provider().await;
+    let (maker_url, maker) = live_maker().await;
+    let app = TestApp::with_config(|c| c.transcoder_url = Some(maker_url)).await;
+    app.state.transcoder.start();
+    assert!(app.state.transcoder.wait_ready(Duration::from_secs(10)).await, "the stand-in answers /v1/info");
+    let admin = app.setup_admin().await;
+    let added = app
+        .post(
+            "/api/live/sources",
+            &admin,
+            json!({"name": "Provider", "kind": "m3u", "url": format!("{base}/list.m3u")}),
+        )
+        .await;
+    assert_eq!(added.status, StatusCode::CREATED, "{:?}", added.body);
+    wait_until_read(&app, &admin).await;
+    let one = app.get("/api/live/channels", &admin).await.body[0]["id"].as_i64().unwrap();
+    assert_eq!(app.get("/api/live/settings", &admin).await.body["direct_play"], true, "on by default");
+
+    let watching = app.post(&format!("/api/live/channels/{one}/watch"), &admin, json!({"client_id": "tv"})).await;
+    assert_eq!(watching.status, StatusCode::OK, "{:?}", watching.body);
+    let session = watching.body["session_id"].as_str().unwrap().to_owned();
+    let (status, body) = open_stream(&app, &admin, one, "tv-stream").await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, _reading) = first_bytes(body).await;
+
+    let plan = app.get(&format!("/api/live/sessions/{session}/plan"), &admin).await;
+    assert_eq!(plan.status, StatusCode::OK, "{:?}", plan.body);
+    assert_eq!(plan.body["video_codec"], "hevc");
+    assert_eq!(plan.body["bit_depth"], 10);
+    assert_eq!(plan.body["video_kbps"], 20000);
+    assert_eq!(plan.body["direct_play"], true);
+    assert!(plan.body["kbps"].is_u64(), "{:?}", plan.body);
+    let created = maker.created.lock().clone();
+    assert_eq!(created.len(), 1);
+    assert_eq!(created[0]["on_demand"], true, "made only once a player asks for its playlist");
+    assert_eq!(maker.playlists.load(Ordering::SeqCst), 0);
+
+    // Asked again (a player's details): the plan known, no other job.
+    let mut settings = app.get("/api/live/settings", &admin).await.body;
+    settings["direct_play"] = json!(false);
+    assert_eq!(app.put("/api/live/settings", &admin, settings).await.status, StatusCode::OK);
+    let again = app.get(&format!("/api/live/sessions/{session}/plan"), &admin).await;
+    assert_eq!(again.body["video_codec"], "hevc");
+    assert_eq!(again.body["direct_play"], false, "the setting as it is now");
+    assert_eq!(maker.created.lock().len(), 1);
+
+    // A player that can't play it reads the transcode's playlist, which starts it.
+    let playlist = app.get(&format!("/api/live/sessions/{session}/index.m3u8"), &admin).await;
+    assert_eq!(playlist.status, StatusCode::OK, "{:?}", playlist.body);
+    assert_eq!(maker.playlists.load(Ordering::SeqCst), 1);
+    assert_eq!(maker.created.lock().len(), 1);
+}

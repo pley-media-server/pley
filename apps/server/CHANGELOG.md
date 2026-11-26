@@ -9,6 +9,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Live TV Direct Play: a player that decodes a channel's video and sound
+  (HEVC, 10-bit, MPEG-2 and others) plays it as the provider sends it,
+  with no transcode. The transcoder now starts a channel's transcode only
+  when a player asks for it, and a channel says what it is even when no
+  transcode is free. Settings → Live TV can turn Direct Play off.
+
 ## [0.1.17] - 2026-11-25
 
 ### Added
