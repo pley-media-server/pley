@@ -214,7 +214,7 @@
       "hint": "How Pley looks on this device. Each browser, and the desktop app, keeps its own.",
       "names": {
         "midnight": "Midnight",
-        "midlight": "Midlight",
+        "midday": "Midday",
         "starlight": "Starlight",
         "twilight": "Twilight",
         "moonlight": "Moonlight",
@@ -225,7 +225,7 @@
       },
       "about": {
         "midnight": "Lights off, popcorn on",
-        "midlight": "Midnight, but it's brunch",
+        "midday": "Midnight, but it's brunch",
         "starlight": "Champagne, no hangover",
         "twilight": "Sunset, no sunburn",
         "moonlight": "Tuxedo mode",
@@ -236,15 +236,16 @@
       },
       "accent": {
         "title": "Accent",
-        "hint": "Buttons, links and what has focus, in any theme but Blacklight.",
-        "accentless": "Blacklight is black and white only, so it keeps its white.",
-        "own": "The theme's own",
+        "hint": "Affects buttons, links and other focal items.",
+        "own": "Default",
         "names": {
           "sky": "Sky",
           "violet": "Violet",
-          "pink": "Pink",
+          "miami": "Miami",
           "gold": "Gold",
-          "mint": "Mint"
+          "mint": "Mint",
+          "sunset": "Sunset",
+          "fire": "Fire"
         }
       }
     },

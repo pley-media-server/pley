@@ -2,7 +2,7 @@ import { Check, Palette } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Card, CardTitle } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { ACCENTLESS, ACCENTS, showAccent, showTheme, THEMES, useAccent, useTheme, type Accent, type Theme } from "@/theme";
+import { ACCENTS, showAccent, showTheme, THEMES, useAccent, useTheme, type Accent, type Theme } from "@/theme";
 
 /**
  * This device's theme, each one shown as a small Pley in its colors, and an
@@ -13,7 +13,6 @@ export function ThemeCard() {
   const { t } = useTranslation("pages");
   const shown = useTheme();
   const accent = useAccent();
-  const accentless = shown === ACCENTLESS;
 
   return (
     <Card>
@@ -55,12 +54,10 @@ export function ThemeCard() {
       <h3 id="accent-title" className="mt-6 text-sm font-medium text-fg">
         {t("account.theme.accent.title")}
       </h3>
-      <p className="mb-3 text-sm text-muted">
-        {accentless ? t("account.theme.accent.accentless") : t("account.theme.accent.hint")}
-      </p>
+      <p className="mb-3 text-sm text-muted">{t("account.theme.accent.hint")}</p>
       <div role="radiogroup" aria-labelledby="accent-title" className="flex flex-wrap gap-2">
         {[null, ...ACCENTS].map((choice) => (
-          <AccentChoice key={choice ?? "own"} accent={choice} theme={shown} checked={choice === accent} disabled={accentless} />
+          <AccentChoice key={choice ?? "own"} accent={choice} theme={shown} checked={choice === accent} />
         ))}
       </div>
     </Card>
@@ -71,15 +68,13 @@ export function ThemeCard() {
  * An accent to pick (null for the theme's own), its swatch drawn by the CSS
  * itself in the theme shown, so it is the color the page will have.
  */
-function AccentChoice({ accent, theme, checked, disabled }: { accent: Accent | null; theme: Theme; checked: boolean; disabled: boolean }) {
+function AccentChoice({ accent, theme, checked }: { accent: Accent | null; theme: Theme; checked: boolean }) {
   const { t } = useTranslation("pages");
   return (
     <label
       className={cn(
-        "flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
-        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
-        checked ? "border-accent bg-accent/[0.06] text-fg" : "border-border text-muted",
-        !checked && !disabled && "hover:border-border-strong hover:text-fg",
+        "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
+        checked ? "border-accent bg-accent/[0.06] text-fg" : "border-border text-muted hover:border-border-strong hover:text-fg",
       )}
     >
       <input
@@ -87,7 +82,6 @@ function AccentChoice({ accent, theme, checked, disabled }: { accent: Accent | n
         name="accent"
         value={accent ?? ""}
         checked={checked}
-        disabled={disabled}
         onChange={() => showAccent(accent)}
         className="sr-only"
       />

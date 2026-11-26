@@ -117,13 +117,13 @@
  * theme of its own, as Account → Theme's previews are. Midnight repeats
  * @theme's colors for those, and is the page's until a theme is set. In
  * the light themes the players stay dark ([data-dark]), in their dark
- * twin's colors: Midlight's and Sunshine's in Midnight's, Starlight's in
+ * twin's colors: Midday's and Sunshine's in Midnight's, Starlight's in
  * Moonlight's, Greenlight's in Nightshade's. A light frame would glare
  * around the picture.
  */
 :root,
 [data-theme="midnight"],
-[data-theme="midlight"] [data-dark],
+[data-theme="midday"] [data-dark],
 [data-theme="sunshine"] [data-dark] {
   color-scheme: dark;
   --backdrop-opacity: 0.85;
@@ -147,7 +147,7 @@
   --color-muted: #a1a9b6;
   --color-subtle: #7e8795;
   --color-success: var(--success-dark, #3fb27f);
-  --color-danger: #ed6c6d;
+  --color-danger: var(--danger-dark, #ed6c6d);
   --color-danger-fg: #0b0d10;
   --color-info: #4c9aff;
   --color-warning: var(--warning-dark, #f0a83c);
@@ -156,7 +156,7 @@
 }
 
 /* Midnight in daylight: soft gray and sky blue. */
-[data-theme="midlight"] {
+[data-theme="midday"] {
   color-scheme: light;
   --backdrop-opacity: 0.6;
   --glow: none;
@@ -179,7 +179,7 @@
   --color-muted: #4a5361;
   --color-subtle: #5d6675;
   --color-success: var(--success-light, #126e46);
-  --color-danger: #b42d36;
+  --color-danger: var(--danger-light, #b42d36);
   --color-danger-fg: #ffffff;
   --color-info: #1e5dc0;
   --color-warning: var(--warning-light, #855700);
@@ -211,7 +211,7 @@
   --color-muted: #5c5141;
   --color-subtle: #685d4a;
   --color-success: var(--success-light, #206c45);
-  --color-danger: #ac2f28;
+  --color-danger: var(--danger-light, #ac2f28);
   --color-danger-fg: #ffffff;
   --color-info: #2b5daf;
   --color-warning: var(--warning-light, #8a5200);
@@ -247,7 +247,7 @@
   --color-muted: #c9b8d1;
   --color-subtle: #9a88ab;
   --color-success: var(--success-dark, #4cc38a);
-  --color-danger: #f0727e;
+  --color-danger: var(--danger-dark, #f0727e);
   --color-danger-fg: #140e22;
   --color-info: #7aa7ff;
   --color-warning: var(--warning-dark, #ffa24c);
@@ -280,7 +280,7 @@
   --color-muted: #bdb6a8;
   --color-subtle: #8e8a82;
   --color-success: var(--success-dark, #5bc28c);
-  --color-danger: #e8726d;
+  --color-danger: var(--danger-dark, #e8726d);
   --color-danger-fg: #0c0d0e;
   --color-info: #6fa8ff;
   --color-warning: var(--warning-dark, #f59a45);
@@ -313,7 +313,7 @@
   --color-muted: #a2b3a8;
   --color-subtle: #798c81;
   --color-success: var(--success-dark, #3cc2a6);
-  --color-danger: #e8726d;
+  --color-danger: var(--danger-dark, #e8726d);
   --color-danger-fg: #0a0f0c;
   --color-info: #6aa6ff;
   --color-warning: var(--warning-dark, #f0a83c);
@@ -345,7 +345,7 @@
   --color-muted: #45564a;
   --color-subtle: #58695d;
   --color-success: var(--success-light, #0d6a60);
-  --color-danger: #b02c35;
+  --color-danger: var(--danger-light, #b02c35);
   --color-danger-fg: #ffffff;
   --color-info: #1e5dc0;
   --color-warning: var(--warning-light, #855700);
@@ -394,7 +394,7 @@
   --color-muted: #4f437c;
   --color-subtle: #62578f;
   --color-success: var(--success-light, #0c713d);
-  --color-danger: #b81e3f;
+  --color-danger: var(--danger-light, #b81e3f);
   --color-danger-fg: #ffffff;
   --color-info: #135ec2;
   --color-warning: var(--warning-light, #a14700);
@@ -408,13 +408,13 @@
   --backdrop-opacity: 0.85;
   --glow: none;
   --sidebar: none;
-  --color-accent: #ffffff;
-  --color-accent-hover: #d6d6d6;
-  --color-accent-fg: #000000;
-  --color-brand-light: #ffffff;
-  --color-brand: #bdbdbd;
-  --color-brand-deep: #8a8a8a;
-  --color-brand-far: #4d4d4d;
+  --color-accent: var(--accent-dark, #ffffff);
+  --color-accent-hover: var(--accent-dark-hover, #d6d6d6);
+  --color-accent-fg: var(--accent-dark-fg, #000000);
+  --color-brand-light: var(--accent-dark-logo-light, #ffffff);
+  --color-brand: var(--accent-dark-logo, #bdbdbd);
+  --color-brand-deep: var(--accent-dark-logo-deep, #8a8a8a);
+  --color-brand-far: var(--accent-dark-logo-far, #4d4d4d);
   --color-brand-tile: #141414;
   --color-bg: #000000;
   --color-surface: #0d0d0d;
@@ -435,15 +435,16 @@
 }
 
 /*
- * Accents (src/theme): one picked over any theme but Blacklight, on <html
- * data-accent>, or none for the theme's own. Each gives the dark themes a
+ * Accents (src/theme): one picked over any theme, on <html data-accent>, or
+ * none for the theme's own. Each gives the dark themes a
  * bright color with dark words on it and the light themes a deep one with
  * light words; the themes read them through --accent-dark and
  * --accent-light, their own as the fallback, so the players ([data-dark])
  * and the picker's previews take the right one. Each also colors the logo,
  * all but its tile, as the theme it comes from does: Sky as Midnight and
- * Midlight, Pink as Twilight, Gold as Moonlight and Starlight, Mint as
- * Nightshade and Greenlight. Sunshine keeps its toy-box logo. An accent a
+ * Midday, Miami as Twilight, Gold as Moonlight and Starlight, Mint as
+ * Nightshade and Greenlight. Sunshine keeps its toy-box logo, and Blacklight
+ * keeps its gray states. An accent a
  * theme's state color would be mistaken for moves that state, as
  * Nightshade's success leans teal (docs/THEMES.md, "Accents").
  */
@@ -481,7 +482,7 @@
   --accent-light-logo-far: #c6b6f8;
 }
 
-[data-accent="pink"] {
+[data-accent="miami"] {
   --accent-dark: #ff79b0;
   --accent-dark-hover: #ffa0c8;
   --accent-dark-fg: #2a0619;
@@ -538,6 +539,46 @@
   --success-light: #0d6a60;
 }
 
+/* Sunset would read as a warning: warnings turn yellow beside it. */
+[data-accent="sunset"] {
+  --accent-dark: #ff9447;
+  --accent-dark-hover: #ffb27a;
+  --accent-dark-fg: #1f0d02;
+  --accent-dark-logo-light: #ffd9b5;
+  --accent-dark-logo: #ff9447;
+  --accent-dark-logo-deep: #c2621f;
+  --accent-dark-logo-far: #6b3517;
+  --accent-light: #9c4100;
+  --accent-light-hover: #873800;
+  --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #ff9447;
+  --accent-light-logo: #9c4100;
+  --accent-light-logo-deep: #d9742c;
+  --accent-light-logo-far: #e6b083;
+  --warning-dark: #e8c23a;
+  --warning-light: #6f5a00;
+}
+
+/* Fire would read as danger: danger leans crimson beside it. */
+[data-accent="fire"] {
+  --accent-dark: #ff6459;
+  --accent-dark-hover: #ff8f86;
+  --accent-dark-fg: #1f0604;
+  --accent-dark-logo-light: #ffc8c0;
+  --accent-dark-logo: #ff6459;
+  --accent-dark-logo-deep: #c4372c;
+  --accent-dark-logo-far: #6b1f1b;
+  --accent-light: #b3261a;
+  --accent-light-hover: #9c2116;
+  --accent-light-fg: #ffffff;
+  --accent-light-logo-light: #ff6459;
+  --accent-light-logo: #b3261a;
+  --accent-light-logo-deep: #e0574a;
+  --accent-light-logo-far: #f0b4ac;
+  --danger-dark: #f5759f;
+  --danger-light: #a8195a;
+}
+
 /* The theme's own, inside a page with another accent (the picker's swatch). */
 [data-accent="own"] {
   --accent-dark: initial;
@@ -556,6 +597,8 @@
   --accent-light-logo-far: initial;
   --success-dark: initial;
   --success-light: initial;
+  --danger-dark: initial;
+  --danger-light: initial;
   --warning-dark: initial;
   --warning-light: initial;
 }

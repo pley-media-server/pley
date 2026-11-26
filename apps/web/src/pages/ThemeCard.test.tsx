@@ -43,18 +43,20 @@ describe("ThemeCard", () => {
     expect(screen.getByRole("radio", { name: "Gold" })).toBeChecked();
   });
 
-  it("offers the theme's own and five accents, the theme's own on a device that picked none", () => {
+  it("offers the theme's own and seven accents, the theme's own on a device that picked none", () => {
     startTheme();
     renderWithProviders(<ThemeCard />);
     expect(within(accents()).getAllByRole("radio").map((radio) => radio.closest("label")?.textContent)).toEqual([
-      "The theme's own",
+      "Default",
       "Sky",
       "Violet",
-      "Pink",
+      "Miami",
       "Gold",
       "Mint",
+      "Sunset",
+      "Fire",
     ]);
-    expect(screen.getByRole("radio", { name: "The theme's own" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Default" })).toBeChecked();
   });
 
   it("shows the accent picked at once over the theme, keeps it on this device, and goes back to the theme's own", async () => {
@@ -71,17 +73,19 @@ describe("ThemeCard", () => {
     await userEvent.click(screen.getByRole("radio", { name: /^Sunshine/ }));
     expect(document.documentElement.dataset.accent).toBe("violet");
 
-    await userEvent.click(screen.getByRole("radio", { name: "The theme's own" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Default" }));
     expect(document.documentElement.dataset.accent).toBeUndefined();
     expect(localStorage.getItem(ACCENT_KEY)).toBeNull();
     expect(requests).toEqual([]);
   });
 
-  it("can't change Blacklight's white, and says why", async () => {
+  it("puts an accent over Blacklight too", async () => {
     startTheme();
     renderWithProviders(<ThemeCard />);
     await userEvent.click(screen.getByRole("radio", { name: /^Blacklight/ }));
-    for (const radio of within(accents()).getAllByRole("radio")) expect(radio).toBeDisabled();
-    expect(screen.getByText("Blacklight is black and white only, so it keeps its white.")).toBeInTheDocument();
+    for (const radio of within(accents()).getAllByRole("radio")) expect(radio).toBeEnabled();
+    await userEvent.click(screen.getByRole("radio", { name: "Fire" }));
+    expect(document.documentElement.dataset.theme).toBe("blacklight");
+    expect(document.documentElement.dataset.accent).toBe("fire");
   });
 });

@@ -11,10 +11,10 @@ describes how they are made.
 
 ### Added
 
-- Themes: Account → Appearance picks Midnight, Midlight, Starlight, Twilight,
+- Themes: Account → Appearance picks Midnight, Midday, Twilight, Starlight,
   Moonlight, Nightshade, Greenlight, Sunshine (a bright one for children)
-  or Blacklight (black and white only), and an accent over any but
-  Blacklight (Sky, Violet, Pink, Gold or Mint) that colors the logo too, kept
+  or Blacklight (black and white), and an accent over any of them (Sky,
+  Violet, Miami, Gold, Mint, Sunset or Fire) that colors the logo too, kept
   on the device they were picked on.
 
 ### Changed

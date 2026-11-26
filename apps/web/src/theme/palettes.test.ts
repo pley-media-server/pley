@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import css from "../index.css?raw";
-import { ACCENTLESS, ACCENTS, THEMES, type Theme } from ".";
+import { ACCENTS, THEMES, type Theme } from ".";
 
 /**
  * Each `[data-theme="…"]` block of index.css: its custom properties by name,
@@ -168,7 +168,7 @@ describe("each theme's colors", () => {
   });
 
   it("keep the players dark in the light themes, in their dark twin's colors", () => {
-    const twins = { midlight: "midnight", starlight: "moonlight", greenlight: "nightshade", sunshine: "midnight" };
+    const twins = { midday: "midnight", starlight: "moonlight", greenlight: "nightshade", sunshine: "midnight" };
     for (const [light, dark] of Object.entries(twins)) {
       const block = [...css.matchAll(/([^{}]*)\{[^{}]*\}/g)].find(([, selector]) => selector!.includes(`[data-theme="${dark}"],`));
       expect(block?.[1], light).toContain(`[data-theme="${light}"] [data-dark]`);
@@ -200,20 +200,20 @@ describe("each accent", () => {
     }
   });
 
-  it("is read by every theme but Blacklight, which keeps its white", () => {
+  it("is read by every theme", () => {
     for (const theme of THEMES) {
       const reads = ["--color-accent", "--color-accent-hover", "--color-accent-fg"].every((name) => READ.test(themes.get(theme)![name]!));
-      expect(reads, theme).toBe(theme !== ACCENTLESS);
+      expect(reads, theme).toBe(true);
     }
   });
 
-  it("colors the logo, all but its tile, in every theme but Blacklight and Sunshine, which keeps its toy box", () => {
+  it("colors the logo, all but its tile, in every theme but Sunshine, which keeps its toy box", () => {
     for (const theme of THEMES) {
       const values = themes.get(theme)!;
       // The logo's colors for the kind of accent the theme takes, dark or light.
       const kind = READ.exec(values["--color-accent"]!)?.[1] === "--accent-light" ? "light" : "dark";
       const read = LOGO.map((name) => READ.exec(values[name]!)?.[1] ?? null);
-      const expected = theme === ACCENTLESS || theme === "sunshine" ? LOGO.map(() => null) : ["-logo-light", "-logo", "-logo-deep", "-logo-far"].map((part) => `--accent-${kind}${part}`);
+      const expected = theme === "sunshine" ? LOGO.map(() => null) : ["-logo-light", "-logo", "-logo-deep", "-logo-far"].map((part) => `--accent-${kind}${part}`);
       expect(read, theme).toEqual(expected);
       expect(READ.test(values["--color-brand-tile"]!), `${theme}'s tile`).toBe(false);
     }
@@ -226,7 +226,7 @@ describe("each accent", () => {
     for (const value of Object.values(own)) expect(value).toBe("initial");
   });
 
-  const combinations = THEMES.filter((theme) => theme !== ACCENTLESS).flatMap((theme) => ACCENTS.map((accent) => [theme, accent] as const));
+  const combinations = THEMES.flatMap((theme) => ACCENTS.map((accent) => [theme, accent] as const));
 
   it.each(combinations)("keeps %s readable in %s, apart from its states", (theme, accent) => {
     const set = accents.get(accent)!;
@@ -235,8 +235,11 @@ describe("each accent", () => {
     expectLogo(palette);
     const color = (name: string) => palette[`--color-${name}`]!;
     for (const state of STATES) expect(hueApart(color("accent"), color(state)), `accent and ${state}`).toBeGreaterThanOrEqual(APART);
-    // A state the accent moves stays apart from the others too.
-    const moved = STATES.filter((state) => Object.keys(set).some((name) => name.startsWith(`--${state}-`)));
+    // A state the accent moves stays apart from the others too, in a theme
+    // that lets it move it (Blacklight's states stay gray).
+    const moved = STATES.filter(
+      (state) => READ.test(themes.get(theme)![`--color-${state}`]!) && Object.keys(set).some((name) => name.startsWith(`--${state}-`)),
+    );
     for (const state of moved) {
       for (const other of STATES.filter((s) => s !== state)) expect(hueApart(color(state), color(other)), `${state} and ${other}`).toBeGreaterThanOrEqual(APART);
     }

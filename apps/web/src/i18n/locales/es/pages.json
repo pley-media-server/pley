@@ -216,7 +216,7 @@
       "hint": "Cómo se ve Pley en este dispositivo. Cada navegador, y la app de escritorio, guarda el suyo.",
       "names": {
         "midnight": "Medianoche",
-        "midlight": "Mediodía",
+        "midday": "Mediodía",
         "starlight": "Luz de estrellas",
         "twilight": "Crepúsculo",
         "moonlight": "Luz de luna",
@@ -227,7 +227,7 @@
       },
       "about": {
         "midnight": "Luces fuera, palomitas dentro",
-        "midlight": "Medianoche, pero de brunch",
+        "midday": "Medianoche, pero de brunch",
         "starlight": "Champán sin resaca",
         "twilight": "Atardecer sin quemaduras",
         "moonlight": "Modo esmoquin",
@@ -238,15 +238,16 @@
       },
       "accent": {
         "title": "Acento",
-        "hint": "Botones, enlaces y lo que tiene el foco, en cualquier tema salvo Luz negra.",
-        "accentless": "Luz negra es solo blanco y negro, así que conserva su blanco.",
-        "own": "El del tema",
+        "hint": "Se aplica a botones, enlaces y otros elementos destacados.",
+        "own": "Predeterminado",
         "names": {
           "sky": "Cielo",
           "violet": "Violeta",
-          "pink": "Rosa",
+          "miami": "Miami",
           "gold": "Oro",
-          "mint": "Menta"
+          "mint": "Menta",
+          "sunset": "Ocaso",
+          "fire": "Fuego"
         }
       }
     },

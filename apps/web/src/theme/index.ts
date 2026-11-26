@@ -8,7 +8,7 @@ import { logoIcon } from "@/components/Logo";
  * the first page draws by public/theme.js. An accent picked over the
  * theme's own is kept and shown alike, on <html data-accent>.
  */
-export const THEMES = ["midnight", "midlight", "starlight", "twilight", "moonlight", "nightshade", "greenlight", "sunshine", "blacklight"] as const;
+export const THEMES = ["midnight", "midday", "twilight", "starlight", "moonlight", "nightshade", "greenlight", "sunshine", "blacklight"] as const;
 export type Theme = (typeof THEMES)[number];
 
 /** Pley's own, for a device that picked none. */
@@ -23,17 +23,13 @@ export function isTheme(value: unknown): value is Theme {
 
 /**
  * The accents picked over a theme's own (docs/THEMES.md, "Accents"): on
- * <html data-accent>, none for the theme's own. Blacklight keeps its white
- * whatever is picked.
+ * <html data-accent>, none for the theme's own.
  */
-export const ACCENTS = ["sky", "violet", "pink", "gold", "mint"] as const;
+export const ACCENTS = ["sky", "violet", "miami", "gold", "mint", "sunset", "fire"] as const;
 export type Accent = (typeof ACCENTS)[number];
 
 /** Where this device keeps the accent it showed last; public/theme.js reads it too. */
 export const ACCENT_KEY = "pley.accent";
-
-/** The theme that draws no accent but its own. */
-export const ACCENTLESS: Theme = "blacklight";
 
 export function isAccent(value: unknown): value is Accent {
   return typeof value === "string" && (ACCENTS as readonly string[]).includes(value);

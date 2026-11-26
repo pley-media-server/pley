@@ -11,7 +11,7 @@ afterEach(() => {
 
 describe("themes", () => {
   it("are Pley's nine, Midnight first", () => {
-    expect(THEMES).toEqual(["midnight", "midlight", "starlight", "twilight", "moonlight", "nightshade", "greenlight", "sunshine", "blacklight"]);
+    expect(THEMES).toEqual(["midnight", "midday", "twilight", "starlight", "moonlight", "nightshade", "greenlight", "sunshine", "blacklight"]);
     expect(isTheme("twilight")).toBe(true);
     for (const wrong of ["light", "Midnight", "", null, 3]) expect(isTheme(wrong)).toBe(false);
   });
@@ -74,8 +74,8 @@ describe("themes", () => {
 });
 
 describe("accents", () => {
-  it("are Pley's five, none being the theme's own", () => {
-    expect(ACCENTS).toEqual(["sky", "violet", "pink", "gold", "mint"]);
+  it("are Pley's seven, none being the theme's own", () => {
+    expect(ACCENTS).toEqual(["sky", "violet", "miami", "gold", "mint", "sunset", "fire"]);
     expect(isAccent("gold")).toBe(true);
     for (const wrong of ["own", "Gold", "", null, 3]) expect(isAccent(wrong)).toBe(false);
   });
@@ -121,11 +121,11 @@ describe("accents", () => {
   });
 
   it("are put on the page before it draws, from where the app keeps them", () => {
-    localStorage.setItem(ACCENT_KEY, "pink");
+    localStorage.setItem(ACCENT_KEY, "miami");
     expect(themeScript).toContain(JSON.stringify(ACCENT_KEY));
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const run = new Function(themeScript) as () => void;
     run();
-    expect(document.documentElement.dataset.accent).toBe("pink");
+    expect(document.documentElement.dataset.accent).toBe("miami");
   });
 });

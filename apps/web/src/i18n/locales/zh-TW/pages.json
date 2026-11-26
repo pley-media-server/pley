@@ -212,7 +212,7 @@
       "hint": "Pley 在此裝置上的外觀。每個瀏覽器和桌面應用程式各自儲存。",
       "names": {
         "midnight": "午夜",
-        "midlight": "正午",
+        "midday": "正午",
         "starlight": "星光",
         "twilight": "暮光",
         "moonlight": "月光",
@@ -223,7 +223,7 @@
       },
       "about": {
         "midnight": "關燈，爆米花就位",
-        "midlight": "午夜，但在吃早午餐",
+        "midday": "午夜，但在吃早午餐",
         "starlight": "香檳，不宿醉",
         "twilight": "看日落，不曬傷",
         "moonlight": "燕尾服模式",
@@ -234,15 +234,16 @@
       },
       "accent": {
         "title": "強調色",
-        "hint": "按鈕、連結和焦點所在之處的顏色，適用於黑光以外的所有主題。",
-        "accentless": "黑光只有黑白兩色，因此保持白色。",
-        "own": "主題自帶",
+        "hint": "套用於按鈕、連結和其他焦點元素。",
+        "own": "預設",
         "names": {
           "sky": "天藍",
           "violet": "紫羅蘭",
-          "pink": "粉紅",
+          "miami": "邁阿密",
           "gold": "金色",
-          "mint": "薄荷"
+          "mint": "薄荷",
+          "sunset": "日落",
+          "fire": "火焰"
         }
       }
     },
