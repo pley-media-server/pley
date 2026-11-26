@@ -1,8 +1,9 @@
 #!/bin/sh
 # The pley-ffmpeg image's tag: FFmpeg's version and the hash of its recipe,
-# the Dockerfile and the patches it applies in their order, so a changed
-# recipe is always a new image. `tag.sh windows` gives the Windows build's
-# (Dockerfile.windows, the patches and windows/).
+# the Dockerfile and the patches it applies in their order (Rockchip's in
+# rockchip/ too), so a changed recipe is always a new image. `tag.sh
+# windows` gives the Windows build's (Dockerfile.windows, the patches and
+# windows/).
 set -eu
 # windows/'s files in the same order whatever the shell's language.
 export LC_ALL=C
@@ -15,6 +16,9 @@ hash=$({
     while read -r patch; do cat "patches/$patch"; done < patches/series
     if [ "$dockerfile" = Dockerfile.windows ]; then
         for f in windows/*; do cat "$f"; done
+    else
+        cat rockchip/series
+        while read -r patch; do cat "rockchip/$patch"; done < rockchip/series
     fi
 } | sha256sum | cut -c1-12)
 echo "$version-$hash"

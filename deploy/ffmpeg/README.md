@@ -12,7 +12,8 @@ built for two places:
   ([../docker/Dockerfile](../docker/Dockerfile)) instead of compiling them
   on every build. The image holds files only: `/usr` (the programs,
   libplacebo, their licenses and sources, the patches among them) and
-  `/packages`, the Debian packages they link.
+  `/packages`, the Debian packages they link. On arm64 it also has
+  Rockchip's video engines ([below](#rockchip)).
 - **Windows** ([Dockerfile.windows](Dockerfile.windows)): `ffmpeg.exe` and
   `ffprobe.exe` for x64, with their libraries built in, so they need no DLL
   beside them. They come in a folder the installer takes as it is: `bin`,
@@ -75,12 +76,35 @@ synthetic streams; it hasn't been compared with a Dolby decoder on a real
 disc, which is why the transcoder uses it only when asked
 ([TRANSCODER.md](../../docs/TRANSCODER.md#profile-7s-full-enhancement-layer)).
 
-The rest of jellyfin-ffmpeg's series is left out: what is for other GPUs
-(NVIDIA's CUDA filters, AMD's AMF, Apple's VideoToolbox, Rockchip),
-filters, decoders and options Pley doesn't use, what FFmpeg 9.0.2 already
-has, and the patches that only change a default (the Quick Sync encoders'
-B-frames, VAAPI's scaler and its encoders' depth): what Pley wants there,
-its transcoder asks for.
+The rest of jellyfin-ffmpeg's series is left out, but for Rockchip's
+([below](#rockchip)): what is for other GPUs (NVIDIA's CUDA filters, AMD's
+AMF, Apple's VideoToolbox), filters, decoders and options Pley doesn't use,
+what FFmpeg 9.0.2 already has, and the patches that only change a default
+(the Quick Sync encoders' B-frames, VAAPI's scaler and its encoders'
+depth): what Pley wants there, its transcoder asks for.
+
+## Rockchip
+
+On arm64 the Docker image has Rockchip's video engines (RK3588, RK3568 and
+the like, on Rockchip's own kernel), as jellyfin-ffmpeg's arm64 builds do:
+
+- [rockchip/series](rockchip/series): jellyfin-ffmpeg's patch 0042,
+  applied after Pley's series and on arm64 only. It brings MPP's decoders
+  (`h264_rkmpp`, `hevc_rkmpp`, `vp9_rkmpp`, `av1_rkmpp` and the older
+  codecs), which `-hwaccel rkmpp` picks, and its encoders in place of
+  FFmpeg's own, an `rkmpp` device, and RGA's scaler, `scale_rkrga`. Its
+  header says what changed when it was moved to FFmpeg 9.0.2.
+- MPP and RGA, Rockchip's libraries, from jellyfin-ffmpeg's mirror of them
+  ([nyanmisaka/rk-mirrors](https://github.com/nyanmisaka/rk-mirrors)) at
+  the commits its 8.1.3-2 release builds: Rockchip publishes no release
+  sources. They are under Apache-2.0 (and MIT, for parts of MPP), which
+  FFmpeg takes with `--enable-version3`: FFmpeg is GPLv3 there, as the
+  Windows build is. The image carries them in `/usr/local/lib`, their
+  licenses and sources in `/usr/share/doc/rockchip-mpp` and
+  `/usr/share/doc/librga`.
+
+Being on arm64 alone, they leave the amd64 image and the Windows build as
+they were: the Windows build's tag doesn't hash `rockchip/`.
 
 ## Building
 
@@ -111,8 +135,8 @@ times slower; the patch lets them take the frame as it is.
 ## Updating FFmpeg, libplacebo or the patches
 
 The image's tag is FFmpeg's version and the hash of its recipe, the
-[Dockerfile](Dockerfile) and the patches (`sh tag.sh`), so a changed
-recipe is a new image. The Windows build's is the same of
+[Dockerfile](Dockerfile) and the patches, Rockchip's too (`sh tag.sh`), so
+a changed recipe is a new image. The Windows build's is the same of
 [Dockerfile.windows](Dockerfile.windows), the patches and `windows/`
 (`sh tag.sh windows`).
 
