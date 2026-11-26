@@ -198,6 +198,27 @@ describe("accents", () => {
     stop();
   });
 
+  it("are told to the desktop app with the theme, as they show", () => {
+    const theme = vi.fn();
+    const desktop = window as unknown as { __PLEY_APP__?: string; __PLEY_DESKTOP__?: unknown };
+    desktop.__PLEY_APP__ = "desktop";
+    desktop.__PLEY_DESKTOP__ = { theme };
+    try {
+      localStorage.setItem(THEME_KEY, "moonlight");
+      startTheme();
+      expect(theme).toHaveBeenLastCalledWith("moonlight", null);
+      showAccent("violet");
+      expect(theme).toHaveBeenLastCalledWith("moonlight", "violet");
+      showTheme("sunshine");
+      expect(theme).toHaveBeenLastCalledWith("sunshine", "violet");
+      showAccent(null);
+      expect(theme).toHaveBeenLastCalledWith("sunshine", null);
+    } finally {
+      delete desktop.__PLEY_APP__;
+      delete desktop.__PLEY_DESKTOP__;
+    }
+  });
+
   it("are put on the page before it draws, from where the app keeps them", () => {
     localStorage.setItem(ACCENT_KEY, "miami");
     expect(themeScript).toContain(JSON.stringify(ACCENT_KEY));

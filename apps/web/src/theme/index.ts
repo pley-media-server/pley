@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { logoIcon } from "@/components/Logo";
+import { tellShellTheme } from "@/lib/shell";
 
 /**
  * The theme Pley is drawn in (docs/THEMES.md): each profile's own on each
@@ -97,6 +98,8 @@ function draw(theme: Theme, accent: Accent | null) {
   if (icon && background) {
     icon.href = theme === DEFAULT_THEME && !accent ? "/favicon.svg" : `data:image/svg+xml,${encodeURIComponent(logoIcon(style))}`;
   }
+  // The desktop app's own pages and its window, in the same.
+  tellShellTheme(theme, accent);
 }
 
 /** Shows a theme and an accent, telling who follows, if the page doesn't show them already. */
