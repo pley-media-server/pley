@@ -14,8 +14,8 @@ describes how they are made.
 - Themes: Account → Appearance picks Midnight, Midday, Twilight, Starlight,
   Moonlight, Nightshade, Greenlight, Sunshine (a bright one for children)
   or Blacklight (black and white), and an accent over any of them (Sky,
-  Violet, Miami, Gold, Mint or Amber) that colors the logo too, kept on the
-  device they were picked on.
+  Violet, Miami, Gold, Mint or Amber) that colors the logo too, kept for
+  each profile on each device.
 
 ### Changed
 
