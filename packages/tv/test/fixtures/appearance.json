@@ -1,0 +1,62 @@
+{
+  "shown": [
+    {
+      "name": "a fresh install, before a profile is known",
+      "kept": {},
+      "profile": null,
+      "out": { "theme": "midnight", "accent": null }
+    },
+    {
+      "name": "before a profile is known: the pick shown last",
+      "kept": { "pley.theme": "starlight", "pley.accent": "gold", "pley.theme.http://pley.local:7539.7": "twilight", "pley.accent.http://pley.local:7539.7": "mint" },
+      "profile": null,
+      "out": { "theme": "starlight", "accent": "gold" }
+    },
+    {
+      "name": "a known profile: its own pick on this device",
+      "kept": { "pley.theme": "starlight", "pley.accent": "gold", "pley.theme.http://pley.local:7539.7": "twilight", "pley.accent.http://pley.local:7539.7": "mint" },
+      "profile": { "server": "http://pley.local:7539", "id": 7 },
+      "out": { "theme": "twilight", "accent": "mint" }
+    },
+    {
+      "name": "a profile new to this device: Midnight in its own accent, whatever was shown last",
+      "kept": { "pley.theme": "starlight", "pley.accent": "gold", "pley.theme.http://pley.local:7539.7": "twilight", "pley.accent.http://pley.local:7539.7": "mint" },
+      "profile": { "server": "http://pley.local:7539", "id": 9 },
+      "out": { "theme": "midnight", "accent": null }
+    },
+    {
+      "name": "the same user id on another server is another profile",
+      "kept": { "pley.theme.http://pley.local:7539.7": "twilight", "pley.accent.http://pley.local:7539.7": "mint", "pley.theme.http://den.local:7539.7": "blacklight" },
+      "profile": { "server": "http://den.local:7539", "id": 7 },
+      "out": { "theme": "blacklight", "accent": null }
+    },
+    {
+      "name": "ids this build doesn't know",
+      "kept": { "pley.theme.http://pley.local:7539.7": "aurora", "pley.accent.http://pley.local:7539.7": "sunset" },
+      "profile": { "server": "http://pley.local:7539", "id": 7 },
+      "out": { "theme": "midnight", "accent": null }
+    }
+  ],
+  "picks": [
+    {
+      "name": "a pick is the profile's, and the one shown last",
+      "kept": { "pley.theme": "starlight", "pley.accent": "gold", "pley.theme.http://pley.local:7539.9": "midday" },
+      "profile": { "server": "http://pley.local:7539", "id": 7 },
+      "pick": { "theme": "greenlight", "accent": "amber" },
+      "out": {
+        "pley.theme": "greenlight",
+        "pley.accent": "amber",
+        "pley.theme.http://pley.local:7539.7": "greenlight",
+        "pley.accent.http://pley.local:7539.7": "amber",
+        "pley.theme.http://pley.local:7539.9": "midday"
+      }
+    },
+    {
+      "name": "the theme's own accent keeps no accent",
+      "kept": { "pley.theme": "greenlight", "pley.accent": "amber", "pley.theme.http://pley.local:7539.7": "greenlight", "pley.accent.http://pley.local:7539.7": "amber" },
+      "profile": { "server": "http://pley.local:7539", "id": 7 },
+      "pick": { "theme": "greenlight", "accent": null },
+      "out": { "pley.theme": "greenlight", "pley.theme.http://pley.local:7539.7": "greenlight" }
+    }
+  ]
+}

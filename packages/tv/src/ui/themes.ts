@@ -87,6 +87,36 @@ export function accentId(id: string | null | undefined): AccentId | null {
   return ACCENTS.find((a) => a === id) ?? null;
 }
 
+/** A profile of a server: user ids repeat from one server to the next, so a server's origin ("http://pley.local:7539") goes with its id. */
+export interface ProfileOf {
+  server: string;
+  id: number;
+}
+
+/**
+ * Where the TV keeps the picks: each profile's, by its server as its
+ * sign-in is kept (`pley.theme.<server>.<user id>`), and the one shown last
+ * (`pley.theme`), which shows before a profile is known.
+ */
+export const PICK_KEYS = {
+  theme: (profile: ProfileOf | null) => (profile ? `pley.theme.${profile.server}.${profile.id}` : "pley.theme"),
+  accent: (profile: ProfileOf | null) => (profile ? `pley.accent.${profile.server}.${profile.id}` : "pley.accent"),
+};
+
+export interface ThemePick {
+  theme: ThemeId;
+  accent: AccentId | null;
+}
+
+/**
+ * The theme and accent to show: the profile's own on this TV once it is
+ * known (Midnight in its own accent for one that picked none here), the
+ * one shown last before then (packages/tv/test/fixtures/appearance.json).
+ */
+export function shownPick(get: (key: string) => string | null, profile: ProfileOf | null): ThemePick {
+  return { theme: themeId(get(PICK_KEYS.theme(profile))), accent: accentId(get(PICK_KEYS.accent(profile))) };
+}
+
 function themeSpec(id: ThemeId): ThemeSpec {
   return SPEC.themes.find((t) => t.id === id) ?? SPEC.themes[0]!;
 }

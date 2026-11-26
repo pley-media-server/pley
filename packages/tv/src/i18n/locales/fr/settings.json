@@ -176,7 +176,7 @@
   },
   "theme": {
     "title": "Thème",
-    "hint": "L’apparence de Pley sur cette TV. Chaque appareil garde la sienne.",
+    "hint": "L’apparence de Pley pour vous sur cette TV. Chaque profil garde la sienne sur chaque appareil.",
     "names": {
       "midnight": "Minuit",
       "midday": "Midi",

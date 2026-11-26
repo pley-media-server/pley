@@ -454,9 +454,17 @@ theme's own ([THEMES.md](THEMES.md)), the light themes included.
   opens the picker: the themes three across, each a small Pley in its
   colors with its name and caption, then the accents, Default first. The
   ones in use are ticked. OK picks, and every color changes at once.
-- **Kept on the TV** (`pley.theme`, `pley.accent`), never on the server.
-  A TV that picked none draws Midnight in its own accent; an id it
-  doesn't know counts as none.
+- **Kept for each profile on this TV**, never on the server: by the
+  server's address and the user's id (`pley.theme.<server>.<user id>`,
+  `pley.accent.<server>.<user id>`), as user ids repeat from one server to
+  the next. Once the server says who is watching, the TV shows that
+  profile's pick, and a profile that has none here sees Midnight in its
+  own accent; a switch of profile switches the theme at once. A pick is
+  also kept as the one shown last (`pley.theme`, `pley.accent`), which
+  shows until the profile is known (at a start, signing in, "Who's
+  watching?") and stays after signing out, so nothing flashes. An id the
+  TV doesn't know counts as none. `packages/tv/test/fixtures/appearance.json`
+  pins these rules for both Samsung apps.
 - **The colors** come from `packages/themes/themes.json`, bundled into
   the app: `ui/themes.ts` gives each of the app's colors its token and
   writes them as one stylesheet, written again on a pick, so nothing is

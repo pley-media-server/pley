@@ -2,10 +2,27 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import type { User } from "../../src/api/types";
 import type { KeyValue } from "../../src/auth/tokens";
 import type { Platform } from "../../src/platform";
 import { AppState } from "../../src/state";
-import { accentId, ACCENTS, applyTheme, channels, ROLES, SUNSHINE_SIDEBAR, themeCss, themeId, THEMES, themeVariables, type AccentId, type ThemeId } from "../../src/ui/themes";
+import {
+  accentId,
+  ACCENTS,
+  applyTheme,
+  channels,
+  ROLES,
+  shownPick,
+  SUNSHINE_SIDEBAR,
+  themeCss,
+  themeId,
+  THEMES,
+  themeVariables,
+  type AccentId,
+  type ProfileOf,
+  type ThemeId,
+} from "../../src/ui/themes";
+import fixture from "../fixtures/appearance.json";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "../../../..");
@@ -124,40 +141,120 @@ describe("the themes", () => {
   });
 });
 
-function memoryStore(): KeyValue & { kept: Map<string, string> } {
-  const kept = new Map<string, string>();
-  return { kept, get: (k) => kept.get(k) ?? null, set: (k, v) => void kept.set(k, v), remove: (k) => void kept.delete(k) };
+function memoryStore(kept: Record<string, string> = {}): KeyValue & { kept: Map<string, string> } {
+  const map = new Map(Object.entries(kept));
+  return { kept: map, get: (k) => map.get(k) ?? null, set: (k, v) => void map.set(k, v), remove: (k) => void map.delete(k) };
+}
+
+describe("the pick shown (fixtures/appearance.json)", () => {
+  it("is the profile's own once it is known, the one shown last before", () => {
+    for (const c of fixture.shown) {
+      const kept = new Map(Object.entries(c.kept as unknown as Record<string, string>));
+      expect(shownPick((k) => kept.get(k) ?? null, c.profile as ProfileOf | null), c.name).toEqual(c.out);
+    }
+  });
+
+  it("is kept for the profile, and as the one shown last", () => {
+    for (const c of fixture.picks) {
+      const store = memoryStore(c.kept as unknown as Record<string, string>);
+      const state = app(store);
+      state.server.value = c.profile.server;
+      state.me.value = { id: c.profile.id } as User;
+      state.chooseTheme(c.pick.theme as ThemeId);
+      state.chooseAccent(c.pick.accent as AccentId | null);
+      expect(Object.fromEntries(store.kept), c.name).toEqual(c.out);
+    }
+  });
+});
+
+const app = (store: KeyValue) => new AppState({ name: "tizen", clientId: "test", storage: store } as unknown as Platform, () => Promise.reject(new Error("no network in tests")));
+
+const SERVER = "http://pley.local:7539";
+
+/** A TV signed in to `server`, which says `who()` is watching; what else it asks never answers. */
+function signedIn(store: KeyValue, who: () => number, server = SERVER) {
+  const state = app(store);
+  state.server.value = server;
+  const quiet = () => new Promise(() => undefined);
+  (state.api as { value: unknown }).value = new Proxy(
+    {},
+    {
+      get: (_, name) =>
+        name === "me" ? () => Promise.resolve({ id: who(), name: `p${who()}` }) : name === "libraries" ? () => Promise.resolve([]) : name === "profiles" ? () => Promise.resolve([]) : quiet,
+    },
+  );
+  return state;
 }
 
 describe("a TV's theme", () => {
-  const app = (store: KeyValue) => new AppState({ name: "tizen", clientId: "test", storage: store } as unknown as Platform, () => Promise.reject(new Error("no network in tests")));
-
   it("is Midnight with its own accent on a fresh install", () => {
     const state = app(memoryStore());
     expect(state.theme.value).toBe("midnight");
     expect(state.accent.value).toBeNull();
   });
 
-  it("is kept on the TV by its ids, the accent whatever the theme", () => {
+  it("is each profile's own: two profiles keep different picks, and a switch shows the other's at once", async () => {
     const store = memoryStore();
-    const state = app(store);
+    let profile = 1;
+    const state = signedIn(store, () => profile);
+    await state.loadAccount();
     state.chooseTheme("greenlight");
     state.chooseAccent("amber");
-    state.chooseTheme("twilight");
-    expect(store.kept.get("pley.theme")).toBe("twilight");
-    expect(store.kept.get("pley.accent")).toBe("amber");
-    const again = app(store);
-    expect(again.theme.value).toBe("twilight");
-    expect(again.accent.value).toBe("amber");
-    again.chooseAccent(null);
-    expect(store.kept.has("pley.accent")).toBe(false);
+    profile = 2;
+    await state.switched();
+    // New to the TV: Midnight in its own accent, not the profile before's.
+    expect([state.theme.value, state.accent.value]).toEqual(["midnight", null]);
+    state.chooseTheme("blacklight");
+    state.chooseAccent("miami");
+    profile = 1;
+    await state.switched();
+    expect([state.theme.value, state.accent.value]).toEqual(["greenlight", "amber"]);
+    profile = 2;
+    await state.switched();
+    expect([state.theme.value, state.accent.value]).toEqual(["blacklight", "miami"]);
+  });
+
+  it("shows the pick shown last until the profile is known, then the profile's", async () => {
+    const store = memoryStore({ "pley.theme": "starlight", "pley.accent": "gold", [`pley.theme.${SERVER}.3`]: "twilight" });
+    const state = signedIn(store, () => 3);
+    expect([state.theme.value, state.accent.value]).toEqual(["starlight", "gold"]);
+    await state.loadAccount();
+    expect([state.theme.value, state.accent.value]).toEqual(["twilight", null]);
+    // The next start shows it before the profile is known.
+    const next = app(store);
+    expect([next.theme.value, next.accent.value]).toEqual(["twilight", null]);
+  });
+
+  it("keeps a pick for each server: the same user id on two servers is two profiles", async () => {
+    const store = memoryStore();
+    const den = "http://den.local:7539";
+    const here = signedIn(store, () => 7);
+    await here.loadAccount();
+    here.chooseTheme("greenlight");
+    const there = signedIn(store, () => 7, den);
+    await there.loadAccount();
+    expect([there.theme.value, there.accent.value]).toEqual(["midnight", null]);
+    there.chooseTheme("blacklight");
+    there.chooseAccent("gold");
+    const back = signedIn(store, () => 7);
+    await back.loadAccount();
+    expect([back.theme.value, back.accent.value]).toEqual(["greenlight", null]);
+    expect(store.kept.get(`pley.theme.${den}.7`)).toBe("blacklight");
+    expect(store.kept.get(`pley.theme.${SERVER}.7`)).toBe("greenlight");
+  });
+
+  it("keeps the pick shown last on signing out", async () => {
+    const store = memoryStore();
+    const state = signedIn(store, () => 4);
+    await state.loadAccount();
+    state.chooseTheme("sunshine");
+    await state.signOut();
+    expect(state.theme.value).toBe("sunshine");
+    expect(app(store).theme.value).toBe("sunshine");
   });
 
   it("shows Midnight and the theme's own accent for ids from another build", () => {
-    const store = memoryStore();
-    store.set("pley.theme", "aurora");
-    store.set("pley.accent", "sunset");
-    const state = app(store);
+    const state = app(memoryStore({ "pley.theme": "aurora", "pley.accent": "sunset" }));
     expect(state.theme.value).toBe("midnight");
     expect(state.accent.value).toBeNull();
   });

@@ -175,7 +175,7 @@
   },
   "theme": {
     "title": "Theme",
-    "hint": "How Pley looks on this TV. Each device keeps its own.",
+    "hint": "How Pley looks for you on this TV. Each profile keeps its own on each device.",
     "names": {
       "midnight": "Midnight",
       "midday": "Midday",

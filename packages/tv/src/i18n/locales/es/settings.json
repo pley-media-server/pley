@@ -176,7 +176,7 @@
   },
   "theme": {
     "title": "Tema",
-    "hint": "Cómo se ve Pley en esta TV. Cada dispositivo guarda el suyo.",
+    "hint": "Cómo ves Pley en esta TV. Cada perfil guarda el suyo en cada dispositivo.",
     "names": {
       "midnight": "Medianoche",
       "midday": "Mediodía",
