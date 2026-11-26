@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The server picker, the window's title bar and its icon follow the theme
+  and accent picked in the server's web app.
+
 ## [0.1.9] - 2026-11-25
 
 ### Changed

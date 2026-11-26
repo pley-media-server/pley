@@ -1,25 +1,56 @@
-/* The server picker, in the web app's colors (apps/web/src/index.css). */
+/*
+ * The server picker, in the theme picked in the web app: src/theme.ts sets
+ * each of its colors (packages/themes/themes.json) as `--bg`, `--accent` and
+ * so on, and the theme's id on <html data-theme>. Until it has, the window
+ * shows the theme's background (src-tauri/src/theme.rs) and nothing else.
+ */
 :root {
-  --bg: #0b0d10;
-  --surface: #12151a;
-  --surface-2: #191d24;
-  --surface-3: #222731;
-  --border: #2a303b;
-  --fg: #e9ebef;
-  --muted: #a1a9b6;
-  --subtle: #6c7584;
-  --accent: #38bdf8;
-  --accent-hover: #7dd3fc;
-  --accent-fg: #03131f;
-  --success: #3fb27f;
-  --danger: #e5484d;
-  color-scheme: dark;
+  --radius: 0.6rem;
+  --radius-sm: 0.5rem;
+  /* The light at the top of the page, in the accent (--halo). */
+  --glow: radial-gradient(60rem 30rem at 50% -10rem, var(--halo), transparent 70%);
   font-family:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   font-size: 15px;
   line-height: 1.5;
   color: var(--fg);
   background: var(--bg);
+}
+
+:root:not([data-theme]) {
+  visibility: hidden;
+}
+
+/* The backdrops of the themes that have one, as the web app's (--glow in apps/web/src/index.css). */
+:root[data-theme="twilight"] {
+  --glow:
+    linear-gradient(to bottom, transparent 35%, rgb(190 60 130 / 0.08) 72%, rgb(255 122 72 / 0.12)),
+    radial-gradient(110% 55% at 50% 118%, rgb(255 138 76 / 0.26), transparent 65%),
+    radial-gradient(60% 50% at 96% 106%, rgb(244 114 182 / 0.26), transparent 70%),
+    radial-gradient(55% 45% at 4% 110%, rgb(168 85 247 / 0.24), transparent 70%);
+}
+
+:root[data-theme="moonlight"] {
+  --glow: radial-gradient(55% 40% at 92% -6%, rgb(245 214 140 / 0.07), transparent 70%);
+}
+
+:root[data-theme="nightshade"] {
+  --glow: radial-gradient(70% 45% at 88% -8%, rgb(95 211 154 / 0.07), transparent 70%);
+}
+
+/* Sunshine's bubbles, its rounder shapes and its rounded type, as on the web. */
+:root[data-theme="sunshine"] {
+  --glow:
+    radial-gradient(circle at 34% 10%, rgb(255 99 146 / 0.24), transparent 20%),
+    radial-gradient(circle at 96% 8%, rgb(56 182 255 / 0.28), transparent 22%),
+    radial-gradient(circle at 90% 92%, rgb(255 196 0 / 0.32), transparent 24%),
+    radial-gradient(circle at 42% 96%, rgb(74 214 140 / 0.26), transparent 22%),
+    radial-gradient(circle at 68% 48%, rgb(150 100 255 / 0.12), transparent 22%);
+  --radius: 0.875rem;
+  --radius-sm: 0.625rem;
+  font-family:
+    ui-rounded, "SF Pro Rounded", "Nunito", "Varela Round", "Segoe UI", system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji";
 }
 
 * {
@@ -29,9 +60,37 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(60rem 30rem at 50% -10rem, rgb(56 189 248 / 0.09), transparent 70%),
-    var(--bg);
+}
+
+/* The backdrop, still as the page scrolls. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--glow);
+}
+
+/* The logo in the theme's colors, as the web app's (Logo.tsx). */
+.mark .tile {
+  fill: var(--brand-tile);
+}
+
+.mark .far {
+  fill: var(--brand-far);
+}
+
+.mark .deep {
+  fill: var(--brand-deep);
+}
+
+.mark .light {
+  stop-color: var(--brand-light);
+}
+
+.mark .brand {
+  stop-color: var(--brand);
 }
 
 .picker {
@@ -77,7 +136,7 @@ h1 {
   display: flex;
   align-items: stretch;
   border: 1px solid var(--border);
-  border-radius: 0.6rem;
+  border-radius: var(--radius);
   background: var(--surface);
   overflow: hidden;
   transition: border-color 120ms ease-out;
@@ -194,7 +253,7 @@ input {
   height: 2.6rem;
   padding: 0 0.8rem;
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
   color: var(--fg);
   font: inherit;
@@ -213,7 +272,7 @@ button.primary {
   height: 2.6rem;
   padding: 0 1.1rem;
   border: 0;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--accent-fg);
   font: inherit;

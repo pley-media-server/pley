@@ -1,4 +1,5 @@
 import "./style.css";
+import { pickFrom, showPick } from "./theme";
 import { invoke } from "@tauri-apps/api/core";
 import { coming, describe, fraction, serverName, type Download } from "./downloads";
 import { isSaid, say, startLanguage, t } from "./i18n";
@@ -13,6 +14,9 @@ import {
   type ServerEntry,
   type ServerInfo,
 } from "./servers";
+
+// Before anything draws.
+showPick(pickFrom(window.location.search));
 
 function element<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
