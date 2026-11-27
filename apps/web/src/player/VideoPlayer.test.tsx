@@ -1343,4 +1343,68 @@ describe("VideoPlayer obeying the remote", () => {
     expect(controlsShown()).toBe(true);
     expect(screen.getByRole("button", { name: /Skip Intro/ })).toBeInTheDocument();
   });
+
+  it("gives Skip Intro its 8 s after a start inside the intro that took longer than that", async () => {
+    fakeTimers();
+    const item = detail();
+    item.markers = [makeMarker({ file_id: 3, kind: "intro", start_ms: 0, end_ms: 90_000 })];
+    // The stream's first frames are slow to come.
+    let started: () => void = () => undefined;
+    media.play.mockReturnValue(new Promise<void>((resolve) => (started = resolve)));
+    const { video } = await playing(5_000, item);
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(screen.queryByRole("button", { name: /Skip Intro/ })).not.toBeInTheDocument();
+
+    await act(async () => {
+      started();
+      await Promise.resolve();
+    });
+    expect(await screen.findByRole("button", { name: /Skip Intro/ })).toBeInTheDocument();
+    await untouched(video);
+    expect(screen.getByRole("button", { name: /Skip Intro/ })).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Skip Intro/ })).not.toBeInTheDocument());
+  });
+
+  it("doesn't start Skip Intro's 8 s over when the stream loads again inside the intro", async () => {
+    fakeTimers();
+    const item = tracked();
+    item.markers = [makeMarker({ file_id: 3, kind: "intro", start_ms: 0, end_ms: 90_000 })];
+    const { requests, video } = await playing(5_000, item, { audio_index: 1 });
+    expect(await screen.findByRole("button", { name: /Skip Intro/ })).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(6_000);
+    });
+
+    // Another audio track is another session, started where this one was.
+    act(() => FakeEventSource.last?.send(command("audio", { stream_index: 2 })));
+    await waitFor(() => expect(starts(requests)).toHaveLength(2));
+    await waitFor(() => expect(hlsInstances).toHaveLength(2));
+    await untouched(video);
+    expect(screen.queryByRole("button", { name: /Skip Intro/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps the controls, and Skip Intro above them, while the mouse rests on it", async () => {
+    fakeTimers();
+    const item = detail();
+    item.markers = [makeMarker({ file_id: 3, kind: "intro", start_ms: 0, end_ms: 90_000 })];
+    const { video } = await playing(5_000, item);
+    const skip = await screen.findByRole("button", { name: /Skip Intro/ });
+    fireEvent.mouseEnter(skip);
+    fireEvent.play(video);
+    // Past the 3 s the controls stay untouched, and Skip's 8 s on its own.
+    act(() => {
+      vi.advanceTimersByTime(9_000);
+    });
+    expect(controlsShown()).toBe(true);
+    expect(screen.getByRole("button", { name: /Skip Intro/ })).toHaveClass("bottom-28");
+
+    fireEvent.mouseLeave(skip);
+    await waitFor(() => expect(controlsShown()).toBe(false));
+    expect(screen.queryByRole("button", { name: /Skip Intro/ })).not.toBeInTheDocument();
+  });
 });

@@ -82,31 +82,59 @@ export function useSkipMarkers({
 export const SKIP_ALONE_MS = 8_000;
 
 /**
- * Whether Skip shows on its own: for `SKIP_ALONE_MS` from the moment the
- * playhead enters `marker`, and again each time it enters one anew (seeking
- * inside it doesn't count). After that Skip shows only with the controls, so
- * it doesn't sit over a whole intro or the credits.
+ * Whether Skip shows on its own: for `SKIP_ALONE_MS` once the playhead is in
+ * `marker` and Skip can show (`showable`: not while the stream still loads,
+ * so a slow start inside a segment takes nothing from it), and again each
+ * time the playhead enters a segment anew. Inside one the time counts on
+ * whatever happens: a seek doesn't start it over, nor does the stream
+ * loading again. After that Skip shows only with the controls, so it doesn't
+ * sit over a whole intro or the credits.
  */
-export function useSkipAlone(marker: Marker | null): boolean {
+export function useSkipAlone(marker: Marker | null, showable: boolean): boolean {
   const key = marker ? `${marker.file_id}:${marker.kind}:${marker.start_ms}` : null;
   const [entered, setEntered] = useState(key);
+  const [counting, setCounting] = useState(false);
   const [expired, setExpired] = useState(false);
   // A new segment (or none) starts over, at once rather than an effect later.
   if (key !== entered) {
     setEntered(key);
+    setCounting(false);
     setExpired(false);
+  } else if (key && showable && !counting) {
+    setCounting(true);
   }
   useEffect(() => {
-    if (!key) return;
+    if (!key || !counting) return;
     const timer = window.setTimeout(() => setExpired(true), SKIP_ALONE_MS);
     return () => window.clearTimeout(timer);
-  }, [key]);
+  }, [key, counting]);
   return key !== null && key === entered && !expired;
 }
 
-export function SkipButton({ marker, onSkip, lifted }: { marker: Marker; onSkip: () => void; lifted: boolean }) {
+export function SkipButton({
+  marker,
+  onSkip,
+  lifted,
+  onHover,
+}: {
+  marker: Marker;
+  onSkip: () => void;
+  lifted: boolean;
+  /** The mouse comes over the button (true) or leaves it: the controls stay while it is there, and Skip with them. */
+  onHover: (over: boolean) => void;
+}) {
   const { t } = useTranslation("player");
   const label = t(`skip.${marker.kind}`);
+  const hovered = useRef(false);
+  const hover = (over: boolean) => {
+    hovered.current = over;
+    onHover(over);
+  };
+  // A button that goes from under the mouse (skipped, or its segment over) hears no mouseleave.
+  const gone = useEffectEvent(() => {
+    if (hovered.current) onHover(false);
+  });
+  useEffect(() => () => gone(), []);
   return (
     <button
       type="button"
@@ -115,6 +143,8 @@ export function SkipButton({ marker, onSkip, lifted }: { marker: Marker; onSkip:
         onSkip();
       }}
       onDoubleClick={(e) => e.stopPropagation()}
+      onMouseEnter={() => hover(true)}
+      onMouseLeave={() => hover(false)}
       title={`${label} (s)`}
       // Quiet over the picture: dark and see-through with a faint outline, firmer on hover or focus.
       className={cn(

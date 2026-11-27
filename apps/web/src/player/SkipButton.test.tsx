@@ -134,8 +134,10 @@ describe("useSkipAlone", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  const hook = () =>
-    renderHook(({ marker }: { marker: Marker | null }) => useSkipAlone(marker), { initialProps: { marker: null as Marker | null } });
+  // Skip can show unless a test says otherwise.
+  type Props = { marker: Marker | null; showable?: boolean };
+  const hook = (initial: Props = { marker: null }) =>
+    renderHook(({ marker, showable = true }: Props) => useSkipAlone(marker, showable), { initialProps: initial });
 
   it("shows Skip on its own for 8 s from entering a segment, then not", () => {
     const { result, rerender } = hook();
@@ -181,13 +183,85 @@ describe("useSkipAlone", () => {
     rerender({ marker: credits });
     expect(result.current).toBe(true);
   });
+
+  it("counts its 8 s from when Skip can show, however long a start inside the segment takes", () => {
+    const { result, rerender } = hook({ marker: intro, showable: false });
+    act(() => {
+      vi.advanceTimersByTime(SKIP_ALONE_MS + 5_000);
+    });
+    rerender({ marker: intro, showable: true });
+    expect(result.current).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(SKIP_ALONE_MS - 1);
+    });
+    expect(result.current).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current).toBe(false);
+  });
+
+  it("counts on while the stream loads again inside the segment", () => {
+    const { result, rerender } = hook({ marker: intro });
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    // A seek or another quality: Skip can't show until the stream plays again.
+    rerender({ marker: intro, showable: false });
+    act(() => {
+      vi.advanceTimersByTime(2_000);
+    });
+    rerender({ marker: intro, showable: true });
+    expect(result.current).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(result.current).toBe(false);
+  });
+
+  it("waits again in a segment entered anew before Skip can show", () => {
+    const { result, rerender } = hook({ marker: intro });
+    act(() => {
+      vi.advanceTimersByTime(SKIP_ALONE_MS);
+    });
+    rerender({ marker: credits, showable: false });
+    act(() => {
+      vi.advanceTimersByTime(SKIP_ALONE_MS);
+    });
+    rerender({ marker: credits, showable: true });
+    expect(result.current).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(SKIP_ALONE_MS);
+    });
+    expect(result.current).toBe(false);
+  });
 });
 
 describe("SkipButton", () => {
   it("names the segment and skips it", async () => {
     const onSkip = vi.fn();
-    render(<SkipButton marker={credits} onSkip={onSkip} lifted={false} />);
+    render(<SkipButton marker={credits} onSkip={onSkip} lifted={false} onHover={() => undefined} />);
     await userEvent.click(screen.getByRole("button", { name: /Skip Credits/ }));
     expect(onSkip).toHaveBeenCalledTimes(1);
+  });
+
+  it("says when the mouse comes over it and leaves, and that it left when it goes from under the mouse", async () => {
+    const onHover = vi.fn();
+    const { unmount } = render(<SkipButton marker={credits} onSkip={() => undefined} lifted onHover={onHover} />);
+    const button = screen.getByRole("button", { name: /Skip Credits/ });
+    await userEvent.hover(button);
+    expect(onHover.mock.calls).toEqual([[true]]);
+    await userEvent.unhover(button);
+    expect(onHover.mock.calls).toEqual([[true], [false]]);
+
+    await userEvent.hover(button);
+    unmount();
+    expect(onHover.mock.calls).toEqual([[true], [false], [true], [false]]);
+  });
+
+  it("says nothing as it goes with the mouse elsewhere", () => {
+    const onHover = vi.fn();
+    render(<SkipButton marker={credits} onSkip={() => undefined} lifted onHover={onHover} />).unmount();
+    expect(onHover).not.toHaveBeenCalled();
   });
 });
