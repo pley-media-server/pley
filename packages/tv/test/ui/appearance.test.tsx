@@ -21,7 +21,11 @@ function setup(accent = false) {
   document.body.innerHTML = "";
   root = document.createElement("div");
   document.body.appendChild(root);
-  const kept = new Map<string, string>();
+  // Signed in as profile 1 of the server: its picks are kept for it.
+  const kept = new Map<string, string>([
+    ["pley.server", "http://pley.local:7539"],
+    ["pley.me", JSON.stringify({ id: 1, name: "Alex" })],
+  ]);
   const storage: KeyValue = { get: (k) => kept.get(k) ?? null, set: (k, v) => void kept.set(k, v), remove: (k) => void kept.delete(k) };
   const app = new AppState({ name: "tizen", clientId: "test", storage } as unknown as Platform, () => Promise.reject(new Error("no network in tests")));
   const focus = new FocusManager();
@@ -118,17 +122,17 @@ describe("Appearance", () => {
     const { root, app, kept, select } = setup();
     select("theme-starlight");
     expect(app.theme.value).toBe("starlight");
-    expect(kept.get("pley.theme")).toBe("starlight");
+    expect(kept.get("pley.theme.http://pley.local:7539.1")).toBe("starlight");
     expect(root.querySelector(".theme-card.current")!.getAttribute("data-fid")).toBe("theme-starlight");
     select("accent-gold");
     expect(app.accent.value).toBe("gold");
-    expect(kept.get("pley.accent")).toBe("gold");
+    expect(kept.get("pley.accent.http://pley.local:7539.1")).toBe("gold");
     expect(root.querySelector(".accent-chip.current")!.getAttribute("data-fid")).toBe("accent-gold");
     // The other swatches are now the light themes' colors.
     expect(root.querySelector<HTMLElement>('[data-fid="accent-gold"] .accent-swatch')!.classList.contains("picked")).toBe(true);
     expect(root.querySelector<HTMLElement>('[data-fid="accent-own"] .accent-swatch')!.style.background).toBe("rgb(131, 86, 19)");
     select("accent-own");
     expect(app.accent.value).toBeNull();
-    expect(kept.has("pley.accent")).toBe(false);
+    expect(kept.has("pley.accent.http://pley.local:7539.1")).toBe(false);
   });
 });

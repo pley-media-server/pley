@@ -51,6 +51,15 @@ export type PageKey =
 
 export type LibraryTab = "recommended" | "library" | "collections";
 
+/**
+ * Pages outside a profile, which draw Midnight whatever it picked
+ * (packages/tv/test/fixtures/appearance.json): choosing a server, signing
+ * in, "Who's watching?" and its PIN.
+ */
+export function outsideProfile(key: PageKey | undefined): boolean {
+  return !key || key.name === "servers" || key.name === "link" || key.name === "profiles";
+}
+
 export interface Entry {
   key: PageKey;
   /** Unique per entry: pages keep their state by it. */

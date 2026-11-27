@@ -13,7 +13,7 @@ import { Reporter } from "./player/reporter";
 import { isSummary, newsKeys, newsText, readyNews, readyText, statusFromRequest, titleKey } from "./requests";
 import type { SubtitleFont, SubtitlePosition } from "./subs/style";
 import { OffsetStore } from "./subs/sync";
-import { PICK_KEYS, shownPick, type AccentId, type ProfileOf, type ThemePick, type ThemeId } from "./ui/themes";
+import { MIDNIGHT, PICK_KEYS, shownPick, type AccentId, type ProfileOf, type ThemePick, type ThemeId } from "./ui/themes";
 
 /** What a person sets on this TV (Settings). */
 export interface Settings {
@@ -187,10 +187,12 @@ export class AppState {
   private readonly liveKnown = new Map<number, LiveChannel>();
   readonly profiles = signal<HouseholdProfile[] | null>(null);
   readonly settings = signal<Settings>(DEFAULT_SETTINGS);
-  /** The theme this TV draws in: Midnight until one is picked here. */
+  /** The theme the profile's pages draw in: its own on this TV, Midnight until it picks one here. */
   readonly theme = signal<ThemeId>("midnight");
   /** The accent over it; null for the theme's own. */
   readonly accent = signal<AccentId | null>(null);
+  /** A screen outside a profile shows (choosing a server, signing in, "Who's watching?"): it draws Midnight. */
+  readonly outside = signal(false);
   readonly home = signal<Hub[] | null>(null);
   readonly homeError = signal<unknown>(null);
   /** The last try at who is watching and the libraries failed (and none were saved): the library pages offer Retry. */
@@ -309,11 +311,6 @@ export class AppState {
     this.offsets = new OffsetStore(platform.storage, () => this.me.value?.id ?? null);
     setDeviceLanguages(() => this.deviceLanguages());
     this.deviceChoice.value = supportedLanguage(this.store.get(DEVICE_LANGUAGE_KEY)) ?? null;
-    // The theme shown last, until the profile is known: nothing flashes. An id this build doesn't know (a theme
-    // from a newer one) is Midnight, or the theme's own accent.
-    const shown = shownPick((k) => this.store.get(k), null);
-    this.theme.value = shown.theme;
-    this.accent.value = shown.accent;
     // The language shown last, until the server says; at the first start, the one picked here or the TV's.
     setLanguage(supportedLanguage(this.store.get(LANGUAGE_KEY)) ?? this.deviceChoice.value ?? deviceLanguage(this.deviceLanguages()) ?? "en");
     const kept = readJson<Partial<Settings>>(this.store, SETTINGS_KEY) ?? {};
@@ -343,6 +340,8 @@ export class AppState {
     this.libraries.value = Array.isArray(libraries) ? libraries : null;
     this.live.value = live && typeof live === "object" && typeof live.available === "boolean" && Array.isArray(live.recent) ? live : null;
     this.requests.value = isSummary(requests) ? requests : null;
+    // The profile the TV was left on, from the first frame: its pages start in its pick, with no Midnight between.
+    this.followTheme();
   }
 
   /** The first screen, from what the TV kept. */
@@ -573,14 +572,14 @@ export class AppState {
 
   // ---- the theme (Settings → Appearance): each profile's on this TV, never the server's
 
-  /** Draws the app in a theme from now on, kept for the profile on this TV. */
+  /** Draws the profile's pages in a theme from now on, kept for the profile on this TV. */
   chooseTheme(theme: ThemeId): void {
-    this.showPick({ theme, accent: this.accent.value }, this.watching());
+    this.keepPick({ theme, accent: this.accent.value });
   }
 
-  /** Draws the app in an accent (null: the theme's own) from now on, kept for the profile on this TV whatever the theme. */
+  /** Draws the profile's pages in an accent (null: the theme's own) from now on, kept for the profile on this TV whatever the theme. */
   chooseAccent(accent: AccentId | null): void {
-    this.showPick({ theme: this.theme.value, accent }, this.watching());
+    this.keepPick({ theme: this.theme.value, accent });
   }
 
   /** Who is watching, of which server: user ids repeat from one server to the next. */
@@ -590,25 +589,30 @@ export class AppState {
     return server && typeof id === "number" ? { server, id } : null;
   }
 
-  /** Shows the profile's own theme and accent on this TV, once the server says who is watching; Midnight for one with none. */
-  private followTheme(): void {
-    const profile = this.watching();
-    if (profile) this.showPick(shownPick((k) => this.store.get(k), profile));
-  }
-
   /**
-   * Shows a theme and an accent, kept as the ones shown last, which the
-   * next start shows before the profile is known; and as `profile`'s own,
-   * for a pick.
+   * The profile's own theme and accent on this TV (Midnight for one that
+   * picked none here, or none known), for its pages; screens outside a
+   * profile draw Midnight whatever it is (`outside`).
    */
-  private showPick(pick: ThemePick, profile: ProfileOf | null = null): void {
+  private followTheme(): void {
+    const pick = shownPick((k) => this.store.get(k), this.watching());
     this.theme.value = pick.theme;
     this.accent.value = pick.accent;
-    const keep = (key: string, id: string | null) => (id ? this.store.set(key, id) : this.store.remove(key));
-    for (const at of profile === null ? [null] : [profile, null]) {
-      keep(PICK_KEYS.theme(at), pick.theme);
-      keep(PICK_KEYS.accent(at), pick.accent);
-    }
+  }
+
+  private keepPick(pick: ThemePick): void {
+    this.theme.value = pick.theme;
+    this.accent.value = pick.accent;
+    const profile = this.watching();
+    if (!profile) return;
+    this.store.set(PICK_KEYS.theme(profile), pick.theme);
+    if (pick.accent) this.store.set(PICK_KEYS.accent(profile), pick.accent);
+    else this.store.remove(PICK_KEYS.accent(profile));
+  }
+
+  /** What the app draws in: Midnight in its own accent on a screen outside a profile, else the profile's pick. */
+  drawn(): ThemePick {
+    return this.outside.value ? MIDNIGHT : { theme: this.theme.value, accent: this.accent.value };
   }
 
   updateSettings(patch: Partial<Settings>): void {

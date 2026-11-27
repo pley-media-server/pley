@@ -93,14 +93,10 @@ export interface ProfileOf {
   id: number;
 }
 
-/**
- * Where the TV keeps the picks: each profile's, by its server as its
- * sign-in is kept (`pley.theme.<server>.<user id>`), and the one shown last
- * (`pley.theme`), which shows before a profile is known.
- */
+/** Where the TV keeps each profile's pick: by its server, as its sign-in is kept (`pley.theme.<server>.<user id>`). */
 export const PICK_KEYS = {
-  theme: (profile: ProfileOf | null) => (profile ? `pley.theme.${profile.server}.${profile.id}` : "pley.theme"),
-  accent: (profile: ProfileOf | null) => (profile ? `pley.accent.${profile.server}.${profile.id}` : "pley.accent"),
+  theme: (profile: ProfileOf) => `pley.theme.${profile.server}.${profile.id}`,
+  accent: (profile: ProfileOf) => `pley.accent.${profile.server}.${profile.id}`,
 };
 
 export interface ThemePick {
@@ -108,12 +104,17 @@ export interface ThemePick {
   accent: AccentId | null;
 }
 
+/** Pley's own look: what screens outside a profile draw, and a profile that picked nothing on this TV. */
+export const MIDNIGHT: ThemePick = { theme: "midnight", accent: null };
+
 /**
- * The theme and accent to show: the profile's own on this TV once it is
- * known (Midnight in its own accent for one that picked none here), the
- * one shown last before then (packages/tv/test/fixtures/appearance.json).
+ * The theme and accent the app draws (packages/tv/test/fixtures/appearance.json):
+ * Midnight in its own accent outside a profile (choosing a server, signing
+ * in, "Who's watching?") and before the profile is known; inside one, its
+ * own pick on this TV, Midnight for one that picked none here.
  */
-export function shownPick(get: (key: string) => string | null, profile: ProfileOf | null): ThemePick {
+export function shownPick(get: (key: string) => string | null, profile: ProfileOf | null, outside = false): ThemePick {
+  if (outside || !profile) return MIDNIGHT;
   return { theme: themeId(get(PICK_KEYS.theme(profile))), accent: accentId(get(PICK_KEYS.accent(profile))) };
 }
 

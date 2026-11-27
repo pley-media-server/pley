@@ -29,8 +29,12 @@ export function startApp(platform: Platform): AppState {
   // TVs never resize; a desktop browser (development) does.
   window.addEventListener("resize", fit);
   const state = new AppState(platform);
-  // The theme picked on this TV, before the first frame; a pick redraws every color in the next one.
-  effect(() => applyTheme(state.theme.value, state.accent.value));
+  // The profile's theme on this TV (Midnight outside a profile), before the first frame; a pick redraws every color
+  // in the next one.
+  effect(() => {
+    const drawn = state.drawn();
+    applyTheme(drawn.theme, drawn.accent);
+  });
   render(<App state={state} scale={scale} />, root);
   return state;
 }
