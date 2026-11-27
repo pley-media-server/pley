@@ -9,6 +9,8 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.18] - 2026-11-27
+
 ### Added
 
 - Live TV plays a channel as the provider sends it when the device decodes
@@ -1302,7 +1304,8 @@ On Intel graphics:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-25...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-27...HEAD
+[0.1.18]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-27
 [0.1.17]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-25
 [0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
