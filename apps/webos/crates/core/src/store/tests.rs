@@ -172,50 +172,34 @@ fn settings_this_version_doesnt_know_fall_back_alone() {
     assert_eq!(s.passthrough.get(PassthroughFormat::Ac3), PassthroughChoice::Off);
 }
 
-/// Each profile's theme is kept apart, by server and profile, and a pick is the one shown last too.
+/// Each profile's theme is kept apart, by server and profile, by the ids of the theme and accent.
 #[test]
 fn each_profile_keeps_its_own_theme() {
     let s = store("settings-themes");
     let mut settings = Settings::default();
+    settings.save(&s).unwrap();
+    assert_eq!(s.get::<serde_json::Value>(keys::SETTINGS).unwrap(), serde_json::json!({}));
     let pick = |theme: &str, accent: Option<&str>| ThemePick { theme: theme.into(), accent: accent.map(Into::into) };
-    settings.set_theme(Some(("http://nas:7539", 2)), pick("sunshine", Some("mint")));
-    settings.set_theme(Some(("http://nas:7539", 3)), pick("blacklight", None));
+    settings.set_theme("http://nas:7539", 2, pick("sunshine", Some("mint")));
+    settings.set_theme("http://nas:7539", 3, pick("blacklight", None));
     assert_eq!(settings.theme_of("http://nas:7539", 2), pick("sunshine", Some("mint")));
     assert_eq!(settings.theme_of("http://nas:7539", 3), pick("blacklight", None));
     // A profile new to the TV, or the same id on another server, shows Midnight in its own accent.
     assert_eq!(settings.theme_of("http://nas:7539", 4), ThemePick::default());
     assert_eq!(settings.theme_of("http://den:7539", 2), pick("midnight", None));
     // The same profile id on another server keeps a pick of its own.
-    settings.set_theme(Some(("http://den:7539", 2)), pick("greenlight", Some("violet")));
+    settings.set_theme("http://den:7539", 2, pick("greenlight", Some("violet")));
     assert_eq!(settings.theme_of("http://den:7539", 2), pick("greenlight", Some("violet")));
     assert_eq!(settings.theme_of("http://nas:7539", 2), pick("sunshine", Some("mint")));
-    settings.set_theme(Some(("http://nas:7539", 3)), pick("blacklight", None));
-    assert_eq!(settings.last_theme(), pick("blacklight", None));
-    // Before a profile is known, a pick is the one shown last alone.
-    settings.set_theme(None, pick("midday", Some("gold")));
-    assert_eq!(settings.last_theme(), pick("midday", Some("gold")));
-    assert_eq!(settings.theme_of("http://nas:7539", 3), pick("blacklight", None));
-    settings.save(&s).unwrap();
-    assert_eq!(Settings::load(&s), settings);
-}
-
-/// The theme and accent are kept by their ids, as the web keeps them; the app shows Midnight and
-/// the theme's own accent for ids it doesn't know (`pley_ui::theme`).
-#[test]
-fn the_theme_and_accent_are_kept_by_their_ids() {
-    let s = store("settings-theme");
-    let mut settings = Settings::default();
-    assert_eq!((settings.theme.as_str(), settings.accent.as_deref()), ("midnight", None));
-    settings.save(&s).unwrap();
-    assert_eq!(s.get::<serde_json::Value>(keys::SETTINGS).unwrap(), serde_json::json!({}));
-    settings.theme = "sunshine".into();
-    settings.accent = Some("mint".into());
     settings.save(&s).unwrap();
     let kept: serde_json::Value = s.get(keys::SETTINGS).unwrap();
-    assert_eq!(kept, serde_json::json!({"theme": "sunshine", "accent": "mint"}));
+    let nas =
+        serde_json::json!({"2": {"theme": "sunshine", "accent": "mint"}, "3": {"theme": "blacklight", "accent": null}});
+    assert_eq!(kept["themes"]["http://nas:7539"], nas);
     assert_eq!(Settings::load(&s), settings);
-    let read = Settings::from_json(&serde_json::json!({"theme": 3, "accent": ["mint"]}));
-    assert_eq!((read.theme.as_str(), read.accent), ("midnight", None));
+    // A shape this version doesn't know keeps none.
+    let read = Settings::from_json(&serde_json::json!({"themes": {"http://nas:7539": "sunshine"}}));
+    assert_eq!(read.theme_of("http://nas:7539", 2), ThemePick::default());
 }
 
 #[test]

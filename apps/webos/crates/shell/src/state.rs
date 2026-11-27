@@ -794,26 +794,20 @@ impl AppState {
         Some((self.server.clone()?, self.profile()?))
     }
 
-    /// The theme and accent the pages show: the profile's on this TV once it is known (Midnight
-    /// in its own accent when it picked none here), else the one shown last.
+    /// The theme and accent of the profile signed in, on this TV: Midnight in its own accent when
+    /// it picked none here, or when no profile is known. A saved sign-in names its profile before
+    /// the first frame, so a start shows the profile's from there.
     pub fn theme_pick(&self) -> ThemePick {
         match self.theme_owner() {
             Some((server, profile)) => self.settings.theme_of(&server, profile),
-            None => self.settings.last_theme(),
+            None => ThemePick::default(),
         }
     }
 
-    /// Picks a theme and accent for the profile signed in on this TV, and as the one shown last.
+    /// Picks a theme and accent for the profile signed in on this TV; with none, nothing is kept.
     pub fn pick_theme(&mut self, pick: ThemePick) {
-        let owner = self.theme_owner();
-        self.update_settings(|s| s.set_theme(owner.as_ref().map(|(s, p)| (s.as_str(), *p)), pick));
-    }
-
-    /// Keeps `pick`, which the pages show now, as the one shown last: the next start, and the
-    /// pages before a profile is known, show it from their first frame.
-    pub fn theme_shown(&mut self, pick: &ThemePick) {
-        if self.settings.last_theme() != *pick {
-            self.update_settings(|s| s.set_theme(None, pick.clone()));
+        if let Some((server, profile)) = self.theme_owner() {
+            self.update_settings(|s| s.set_theme(&server, profile, pick));
         }
     }
 

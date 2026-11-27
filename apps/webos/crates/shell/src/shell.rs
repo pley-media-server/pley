@@ -372,16 +372,10 @@ impl Shell {
     pub fn frame(&mut self, ui: &mut Ui, state: &mut AppState) {
         let now = ui.time();
         // The theme before anything draws, so a pick changes every color in the same frame: the
-        // profile's, once known and past the pages of getting in ("Who's watching?", a PIN, a
-        // server, a sign-in), which show the one shown last. A player, and what shows over it,
-        // draws in a light theme's dark twin.
-        let pick = if self.chrome() == Chrome::Bare {
-            state.settings().last_theme()
-        } else {
-            let pick = state.theme_pick();
-            state.theme_shown(&pick);
-            pick
-        };
+        // profile's inside it; Midnight in its own accent on the pages outside a profile (a
+        // server, a sign-in, "Who's watching?", a PIN), which are no profile's. A player, and
+        // what shows over it, draws in a light theme's dark twin.
+        let pick = if self.chrome() == Chrome::Bare { ThemePick::default() } else { state.theme_pick() };
         let page = page_palette(&pick);
         let video = self.chrome() == Chrome::Video;
         theme::show(if video { page.for_video() } else { page });

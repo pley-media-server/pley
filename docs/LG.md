@@ -214,11 +214,13 @@ OK shows a choice at once, every color in the same frame. It is kept for
 each profile on this TV, by server and profile (`themes` in its settings),
 and nothing goes to the server: a profile that picked none here shows
 Midnight in its own accent, and switching profile switches the theme at
-once. The one shown last is kept too (`theme` and `accent`): a start shows
-it from its first frame, as do the pages before a profile is known (the
-servers, the sign-in code, "Who's watching?" and the PIN pad), and signing
-out keeps it. Delete all local data goes back to Midnight. The players,
-and what shows over them, draw a light theme in its dark twin's colors.
+once. The pages outside a profile (the servers, an address, the sign-in
+code, "Who's watching?" and the PIN pad) are no profile's: they draw
+Midnight in its own accent, and the profile's pick comes back as the app
+goes into it again. A start with a saved sign-in knows its profile before
+the first frame, so its pages draw that profile's pick from the first
+frame. Delete all local data goes back to Midnight. The players, and what
+shows over them, draw a light theme in its dark twin's colors.
 
 The colors are built in from `packages/themes/themes.json`
 (`crates/ui/src/palette.rs`), whose tests hold every theme under every
