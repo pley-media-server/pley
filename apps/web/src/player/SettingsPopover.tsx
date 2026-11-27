@@ -4,11 +4,10 @@ import { Check, ChevronLeft, ChevronRight, Minus, Plus, Search, Settings2, Trash
 import { SUBTITLE_FILE_MAX, SUBTITLE_FILE_TYPES } from "@/api/subtitles";
 import type { MediaStream } from "@/api/types";
 import { cn } from "@/lib/cn";
-import { formatClock, streamLabel } from "@/lib/format";
+import { streamLabel } from "@/lib/format";
 import { useDismiss } from "@/lib/hooks";
 import { AddSubtitleFile, FindSubtitles, subtitleSearchUnavailable, type SubtitleSources } from "./FindSubtitles";
 import { AUTO, ORIGINAL, qualityLabel, type QualityOption } from "./quality";
-import { SLEEP_MINUTES, type SleepChoice } from "./sleepTimer";
 import { SPEEDS, speedLabel } from "./speed";
 import {
   clampSubtitleOffset,
@@ -23,7 +22,7 @@ import {
 } from "./subtitles";
 
 /** The menu's panels; each but the first is titled `settings.panel.<panel>`. */
-type Panel = "root" | "quality" | "audio" | "subtitles" | "find" | "upload" | "style" | "speed" | "sleep" | "details";
+type Panel = "root" | "quality" | "audio" | "subtitles" | "find" | "upload" | "style" | "speed" | "details";
 
 function GroupLabel({ children }: { children: ReactNode }) {
   return <div className="px-4 pb-1 pt-2 text-xs font-medium text-white/50">{children}</div>;
@@ -178,12 +177,6 @@ export interface SettingsPopoverProps {
   /** How fast it plays (1: normal), for this title. */
   speed: number;
   onSpeed: (speed: number) => void;
-  /** The sleep timer, if set, and how long it has left (seconds; for minutes). */
-  sleep: SleepChoice | null;
-  sleepLeft: number | null;
-  /** "End of this episode". */
-  sleepEndLabel: string;
-  onSleep: (choice: SleepChoice | null) => void;
 }
 
 export function SettingsPopover(props: SettingsPopoverProps) {
@@ -191,7 +184,6 @@ export function SettingsPopover(props: SettingsPopoverProps) {
   const { open, setOpen, details, qualities, quality, originalHint, autoNow, autoWhy, onQuality } = props;
   const { audioStreams, audioIndex, onAudio, subtitleStreams, subtitleIndex, onSubtitle } = props;
   const { subtitleStyle, onSubtitleStyle, subtitleOffset, onSubtitleOffset, picturesMovable, speed, onSpeed } = props;
-  const { sleep, sleepLeft, sleepEndLabel, onSleep } = props;
   const { subtitleSources: sources, canDeleteSubtitle, onDeleteSubtitle, onSubtitleFileRefused } = props;
   const [panel, setPanel] = useState<Panel>("root");
   const [subtitleFile, setSubtitleFile] = useState<File | null>(null);
@@ -212,14 +204,6 @@ export function SettingsPopover(props: SettingsPopoverProps) {
   const styled = !!currentSub && currentSub.text_based !== false;
   // Subtitle style goes back to the menu while it doesn't apply (C turned the subtitles off).
   const view = panel === "style" && !styled ? "root" : panel;
-  const sleepValue =
-    sleep === null
-      ? t("common:states.off")
-      : sleep === "end"
-        ? sleepEndLabel
-        : sleepLeft !== null
-          ? t("common:format.left", { time: formatClock(sleepLeft) })
-          : t("sleep.minutesShort", { minutes: sleep });
   const original = qualityLabel(ORIGINAL);
   const picked = qualities.find((q) => q.id === quality);
   const qualityValue =
@@ -298,7 +282,6 @@ export function SettingsPopover(props: SettingsPopoverProps) {
                 />
               ) : null}
               <Nav label={t("settings.panel.speed")} value={speedLabel(speed)} onClick={() => setPanel("speed")} />
-              <Nav label={t("settings.panel.sleep")} value={sleepValue} onClick={() => setPanel("sleep")} />
               {details ? (
                 <>
                   <div className="my-1 h-px bg-white/10" />
@@ -504,25 +487,6 @@ export function SettingsPopover(props: SettingsPopoverProps) {
                   {movableSub ? <SubtitleSync offset={subtitleOffset} onChange={onSubtitleOffset} /> : null}
                 </>
               ) : null}
-              {panel === "sleep"
-                ? ([null, ...SLEEP_MINUTES, "end"] as const).map((choice) => (
-                    <Option
-                      key={String(choice)}
-                      selected={choice === sleep}
-                      hint={choice !== null && choice !== "end" && choice === sleep ? sleepValue : undefined}
-                      onClick={() => {
-                        onSleep(choice);
-                        close();
-                      }}
-                    >
-                      {choice === null
-                        ? t("common:states.off")
-                        : choice === "end"
-                          ? sleepEndLabel
-                          : t("sleep.minutes", { count: choice })}
-                    </Option>
-                  ))
-                : null}
             </>
           )}
         </div>

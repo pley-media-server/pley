@@ -26,10 +26,6 @@ function renderPopover(overrides: Partial<SettingsPopoverProps> = {}) {
     onSubtitleOffset: vi.fn(),
     speed: 1,
     onSpeed: vi.fn(),
-    sleep: null,
-    sleepLeft: null,
-    sleepEndLabel: "End of this episode",
-    onSleep: vi.fn(),
     ...overrides,
   };
   const { rerender } = render(<SettingsPopover {...props} />);
@@ -199,32 +195,5 @@ describe("SettingsPopover", () => {
     expect(screen.getByRole("button", { name: /Subtitles/ })).not.toHaveTextContent("+0.5 s");
     await user.click(screen.getByRole("button", { name: /Subtitles/ }));
     expect(screen.queryByText("Timing")).not.toBeInTheDocument();
-  });
-
-  it("sets the sleep timer", async () => {
-    const user = userEvent.setup();
-    const props = renderPopover();
-    await user.click(screen.getByRole("button", { name: /Sleep timer\s*Off/ }));
-    expect(screen.getAllByRole("menuitemradio").map((o) => o.textContent)).toEqual([
-      "Off",
-      "15 minutes",
-      "30 minutes",
-      "45 minutes",
-      "60 minutes",
-      "90 minutes",
-      "End of this episode",
-    ]);
-    await user.click(screen.getByRole("menuitemradio", { name: "45 minutes" }));
-    expect(props.onSleep).toHaveBeenCalledWith(45);
-    expect(props.setOpen).toHaveBeenCalledWith(false);
-  });
-
-  it("says how long the sleep timer has left", async () => {
-    const user = userEvent.setup();
-    const props = renderPopover({ sleep: 30, sleepLeft: 754 });
-    await user.click(screen.getByRole("button", { name: /Sleep timer\s*12:34 left/ }));
-    expect(screen.getByRole("menuitemradio", { name: /30 minutes/ })).toHaveAttribute("aria-checked", "true");
-    await user.click(screen.getByRole("menuitemradio", { name: "Off" }));
-    expect(props.onSleep).toHaveBeenCalledWith(null);
   });
 });

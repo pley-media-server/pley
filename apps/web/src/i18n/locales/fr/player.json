@@ -35,11 +35,6 @@
     },
     "originalNotSmooth": "L’original n’était pas fluide dans ce navigateur.",
     "originalFailed": "Ce navigateur n’a pas pu lire le fichier original.",
-    "sleepEnd": {
-      "episode": "Fin de cet épisode",
-      "movie": "Fin de ce film",
-      "video": "Fin de cette vidéo"
-    },
     "stoppedElsewhere": "La lecture a été arrêtée depuis un autre appareil",
     "stoppedByAdmin": "La lecture a été arrêtée par l’administrateur du serveur",
     "unreachable": "Impossible de joindre votre serveur",
@@ -77,12 +72,9 @@
     "cancel": "Annuler la lecture automatique"
   },
   "sleep": {
-    "pausingIn": "Mise en pause dans {{seconds}} s",
-    "keepWatching": "Continuer à regarder",
     "minutes_one": "{{count}} minute",
     "minutes_many": "{{count}} de minutes",
-    "minutes_other": "{{count}} minutes",
-    "minutesShort": "{{minutes}} min"
+    "minutes_other": "{{count}} minutes"
   },
   "chapters": {
     "title": "Chapitres",
@@ -123,7 +115,6 @@
       "upload": "Ajouter un fichier de sous-titres",
       "style": "Style des sous-titres",
       "speed": "Vitesse",
-      "sleep": "Minuteur de veille",
       "details": "Détails de lecture"
     },
     "defaultAudio": "Par défaut",

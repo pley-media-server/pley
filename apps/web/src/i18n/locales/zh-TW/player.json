@@ -35,11 +35,6 @@
     },
     "originalNotSmooth": "原始畫質在此瀏覽器中播放不流暢。",
     "originalFailed": "此瀏覽器無法播放原始檔案。",
-    "sleepEnd": {
-      "episode": "本集結束",
-      "movie": "本片結束",
-      "video": "本影片結束"
-    },
     "stoppedElsewhere": "播放已被另一臺裝置停止",
     "stoppedByAdmin": "播放已被伺服器管理員停止",
     "unreachable": "無法連線到你的伺服器",
@@ -77,10 +72,7 @@
     "cancel": "取消自動播放"
   },
   "sleep": {
-    "pausingIn": "{{seconds}} 秒後暫停",
-    "keepWatching": "繼續觀看",
-    "minutes_other": "{{count}} 分鐘",
-    "minutesShort": "{{minutes}} 分鐘"
+    "minutes_other": "{{count}} 分鐘"
   },
   "chapters": {
     "title": "章節",
@@ -121,7 +113,6 @@
       "upload": "新增字幕檔案",
       "style": "字幕樣式",
       "speed": "速度",
-      "sleep": "睡眠定時器",
       "details": "播放詳情"
     },
     "defaultAudio": "預設",

@@ -35,11 +35,6 @@
     },
     "originalNotSmooth": "原始画质在此浏览器中播放不流畅。",
     "originalFailed": "此浏览器无法播放原始文件。",
-    "sleepEnd": {
-      "episode": "本集结束",
-      "movie": "本片结束",
-      "video": "本视频结束"
-    },
     "stoppedElsewhere": "播放已被另一台设备停止",
     "stoppedByAdmin": "播放已被服务器管理员停止",
     "unreachable": "无法连接到你的服务器",
@@ -77,10 +72,7 @@
     "cancel": "取消自动播放"
   },
   "sleep": {
-    "pausingIn": "{{seconds}} 秒后暂停",
-    "keepWatching": "继续观看",
-    "minutes_other": "{{count}} 分钟",
-    "minutesShort": "{{minutes}} 分钟"
+    "minutes_other": "{{count}} 分钟"
   },
   "chapters": {
     "title": "章节",
@@ -121,7 +113,6 @@
       "upload": "添加字幕文件",
       "style": "字幕样式",
       "speed": "速度",
-      "sleep": "睡眠定时器",
       "details": "播放详情"
     },
     "defaultAudio": "默认",

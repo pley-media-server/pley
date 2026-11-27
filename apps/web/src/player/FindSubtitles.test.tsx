@@ -58,10 +58,6 @@ function renderMenu(overrides: Partial<SettingsPopoverProps> = {}, sources: Part
     onSubtitleFileRefused: vi.fn(),
     speed: 1,
     onSpeed: vi.fn(),
-    sleep: null,
-    sleepLeft: null,
-    sleepEndLabel: "End of this movie",
-    onSleep: vi.fn(),
     ...overrides,
   };
   const view = renderWithProviders(<SettingsPopover {...props} />, { user });

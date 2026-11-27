@@ -35,11 +35,6 @@
     },
     "originalNotSmooth": "The original didn't play smoothly in this browser.",
     "originalFailed": "This browser couldn't play the original file.",
-    "sleepEnd": {
-      "episode": "End of this episode",
-      "movie": "End of this movie",
-      "video": "End of this video"
-    },
     "stoppedElsewhere": "Playback was stopped from another device",
     "stoppedByAdmin": "Playback was stopped by the server's administrator",
     "unreachable": "Can't reach your server",
@@ -77,11 +72,8 @@
     "cancel": "Cancel autoplay"
   },
   "sleep": {
-    "pausingIn": "Pausing in {{seconds}} s",
-    "keepWatching": "Keep watching",
     "minutes_one": "{{count}} minute",
-    "minutes_other": "{{count}} minutes",
-    "minutesShort": "{{minutes}} min"
+    "minutes_other": "{{count}} minutes"
   },
   "chapters": {
     "title": "Chapters",
@@ -122,7 +114,6 @@
       "upload": "Add subtitle file",
       "style": "Subtitle style",
       "speed": "Speed",
-      "sleep": "Sleep timer",
       "details": "Playback details"
     },
     "defaultAudio": "Default",

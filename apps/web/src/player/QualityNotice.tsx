@@ -15,7 +15,7 @@ export interface QualityNoticeText {
 /**
  * What Automatic did, said once over the picture ("Playing at 8 Mbps 1080p
  * for a smoother picture"), then fading: at the top, clear of the
- * controls, Skip and the sleep notice. Screen readers hear it once.
+ * controls and Skip. Screen readers hear it once.
  */
 export function QualityNotice({ notice }: { notice: QualityNoticeText | null }) {
   const [shown, setShown] = useState<{ n: number; leaving: boolean } | null>(null);

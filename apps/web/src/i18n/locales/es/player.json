@@ -35,11 +35,6 @@
     },
     "originalNotSmooth": "El original no se reproducía con fluidez en este navegador.",
     "originalFailed": "Este navegador no pudo reproducir el archivo original.",
-    "sleepEnd": {
-      "episode": "Final de este episodio",
-      "movie": "Final de esta película",
-      "video": "Final de este video"
-    },
     "stoppedElsewhere": "La reproducción se detuvo desde otro dispositivo",
     "stoppedByAdmin": "El administrador del servidor detuvo la reproducción",
     "unreachable": "No se puede conectar con tu servidor",
@@ -77,12 +72,9 @@
     "cancel": "Cancelar la reproducción automática"
   },
   "sleep": {
-    "pausingIn": "Se pausará en {{seconds}} s",
-    "keepWatching": "Seguir viendo",
     "minutes_one": "{{count}} minuto",
     "minutes_many": "{{count}} minutos",
-    "minutes_other": "{{count}} minutos",
-    "minutesShort": "{{minutes}} min"
+    "minutes_other": "{{count}} minutos"
   },
   "chapters": {
     "title": "Capítulos",
@@ -123,7 +115,6 @@
       "upload": "Añadir archivo de subtítulos",
       "style": "Estilo de subtítulos",
       "speed": "Velocidad",
-      "sleep": "Temporizador de suspensión",
       "details": "Detalles de reproducción"
     },
     "defaultAudio": "Predeterminado",

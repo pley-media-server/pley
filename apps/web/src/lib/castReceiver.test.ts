@@ -52,7 +52,7 @@ describe("the desktop app as a receiver of casts", () => {
   it("marks the pages a cast opens, and only those", () => {
     expect(castOf(castState())).toEqual(expect.any(Number));
     expect(castOf(null)).toBeNull();
-    expect(castOf({ sleep: 30 })).toBeNull();
+    expect(castOf({ highlight: 30 })).toBeNull();
   });
 
   it("asks for channels only while the user has Live TV, and says it switches profile for a cast", () => {
