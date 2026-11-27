@@ -7,7 +7,7 @@ import { probe } from "./auth/servers";
 import { SignedOutError, Tokens, type KeyValue } from "./auth/tokens";
 import { deviceLanguage, language, navigatorLanguages, pickLanguage, setDeviceLanguages, setLanguage, supportedLanguage, type Language } from "./i18n";
 import { xhrTransport, type Transport } from "./net/transport";
-import type { Platform, Probe } from "./platform";
+import type { Platform, PlayerChoice, Probe } from "./platform";
 import { CAST_SWITCH_WAIT_MS, receiverQuery } from "./player/cast";
 import { Reporter } from "./player/reporter";
 import { isSummary, newsKeys, newsText, readyNews, readyText, statusFromRequest, titleKey } from "./requests";
@@ -32,6 +32,8 @@ export interface Settings {
   passthroughTrueHd: boolean;
   /** Send DTS to the receiver as it is. */
   passthroughDts: boolean;
+  /** Which of the TV's players plays videos: picked for each (`auto`), or always AVPlay. */
+  player: PlayerChoice;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -45,6 +47,7 @@ const DEFAULT_SETTINGS: Settings = {
   quality: "auto",
   passthroughTrueHd: false,
   passthroughDts: false,
+  player: "auto",
 };
 
 const SERVER_KEY = "pley.server";

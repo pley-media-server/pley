@@ -517,6 +517,8 @@ function GridRest(p: { at: Signal<number>; itemAt: (index: number) => ItemSummar
 /** "42 Mbps · 23.4 GB", or "Bitrate unknown". */
 function bitrateLine(item: ItemSummary): string {
   const m = item.media;
+  // A size of 0 is one not known yet (a .strm file's media before it is found): nothing to say.
+  if (m?.size === 0 && !m.bitrate) return "";
   const parts = [m?.bitrate ? formatBitrate(m.bitrate) : "", m?.size ? formatBytes(m.size) : ""].filter(Boolean);
   return parts.length ? parts.join(" · ") : t("browse.library.bitrateUnknown");
 }

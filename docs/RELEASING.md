@@ -215,6 +215,12 @@ module's test task at that limit, well inside the job's hour, so the job
 fails and names the module, though not the test, instead of being canceled
 at its own time limit.
 
+Robolectric's Android runtimes, which those tests run on, are dependencies
+in the app's version catalog: Gradle fetches them, with its retries, and
+the Gradle cache CI keeps holds them from one run to the next. Robolectric
+itself would download them from Maven Central during the tests, each run,
+and a failed download failed them.
+
 A CHANGELOG change alone runs only Repository. Prepare release and Audit
 (known vulnerabilities in the lock files) run only by hand.
 

@@ -68,6 +68,17 @@ export function playingAudio(file: MediaFile | null, info: PlaybackInfo): MediaS
 }
 
 /**
+ * Whether `audio` is the track a player starts the file with by itself:
+ * the one flagged default, else the first; none plays when there is none.
+ */
+export function startsWith(file: MediaFile | null, audio: MediaStream | null): boolean {
+  if (!audio) return true;
+  const all = audioStreams(file);
+  const first = all.filter((s) => s.default)[0] ?? all[0];
+  return !first || first.index === audio.index;
+}
+
+/**
  * The subtitles to start with: as asked (`-1`: none, as a cast asks), else
  * the profile's choice; `null` is off, whatever the file flags.
  */
@@ -136,6 +147,25 @@ export function containerPlaysHere(file: MediaFile | null, caps: ClientCaps | nu
   if (!container || !caps) return true;
   const list = caps.containers.map((c) => c.toLowerCase());
   return list.indexOf(container) >= 0 || (container === "mkv" && list.indexOf("matroska") >= 0) || (container === "matroska" && list.indexOf("mkv") >= 0);
+}
+
+/**
+ * The capabilities a stream is asked for with: only the audio the player
+ * plays in a stream's segments, when it says (`hls.audio`), so the server
+ * converts the rest. The fields stay the player's own.
+ */
+export function streamingCaps(caps: ClientCaps): ClientCaps {
+  const { audio, audio_channels: channels, ...hls } = caps.hls;
+  if (!audio && channels == null) return caps;
+  const plays = (list: string[]) => (audio ? list.filter((c) => audio.indexOf(c) >= 0) : list);
+  return {
+    ...caps,
+    audio_codecs: plays(caps.audio_codecs),
+    audio_decode: plays(caps.audio_decode),
+    audio_passthrough: plays(caps.audio_passthrough),
+    audio_channels: channels != null ? Math.min(caps.audio_channels, channels) : caps.audio_channels,
+    hls,
+  };
 }
 
 /** Whether the session will surely stream (HLS), before asking. */

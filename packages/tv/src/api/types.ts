@@ -403,7 +403,13 @@ export interface ClientCaps {
   audio_track_switching: boolean;
   picture_subtitles_sideload: boolean;
   /** `variants`: moves between a multivariant playlist's sizes by itself (adaptive bitrate). */
-  hls: { master_playlist: boolean; segments: string[]; variants?: boolean };
+  /**
+   * `audio`, `audio_channels`: what the player plays in a stream's segments,
+   * when that is less than from a file. The app's own: a stream is asked for
+   * with only these (`streamingCaps`, which takes them out); a file played as
+   * it is sends them too, and the server ignores them.
+   */
+  hls: { master_playlist: boolean; segments: string[]; variants?: boolean; audio?: string[]; audio_channels?: number };
   display?: { width: number; height: number; refresh_rates: number[] };
   device: { form: "tv"; tier: "low" | "mid" | "high"; fire_tv: false; model: string };
 }

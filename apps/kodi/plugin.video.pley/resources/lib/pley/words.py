@@ -278,8 +278,12 @@ def bitrate(bps) -> str:
 
 def media_line(media) -> str:
     """The line under a poster sorted by bitrate: "42 Mbps · 23.4 GB",
-    "Bitrate unknown" when neither is known, "" without a summary."""
+    "Bitrate unknown" when neither is known, "" without a summary. A size of
+    0 is one not known yet (a .strm file's media before it is found): with
+    no bitrate either, nothing is said, as in the other apps."""
     if not isinstance(media, dict):
+        return ""
+    if media.get("size") == 0 and not (media.get("bitrate") or 0) > 0:
         return ""
     return " · ".join(p for p in (bitrate(media.get("bitrate")), size(media.get("size"))) if p) or kodi.text("bitrate_unknown")
 

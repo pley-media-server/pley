@@ -316,11 +316,16 @@ public static class LibraryText
         _ => "film",
     };
 
-    /// <summary>"42 Mbps · 23.4 GB", "Bitrate unknown" when neither is known, "" without a summary.</summary>
+    /// <summary>
+    /// "42 Mbps · 23.4 GB", "Bitrate unknown" when neither is known, "" without a summary. A size
+    /// of 0 is one not known yet (a .strm file's media before it is found): it is left out, and
+    /// with no bitrate either, nothing is said.
+    /// </summary>
     public static string MediaLine(MediaSummary? media)
     {
         if (media == null) return "";
-        var line = ItemFormat.Join(" · ", ItemFormat.Bitrate(media.Bitrate), ItemFormat.Bytes(media.Size));
+        if (media.Size == 0 && !(media.Bitrate > 0)) return "";
+        var line = ItemFormat.Join(" · ", ItemFormat.Bitrate(media.Bitrate), ItemFormat.Bytes(media.Size > 0 ? media.Size : null));
         return line.Length > 0 ? line : Strings.T("library.bitrateUnknown");
     }
 

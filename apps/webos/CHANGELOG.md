@@ -15,6 +15,16 @@ describes how they are made.
 - Settings → Appearance picks a theme and an accent, as on the web, kept for
   each profile on this TV.
 
+### Changed
+
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
+
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+- Chinese says 隔行扫描 / 隔行掃描 for interlaced video.
+
 ## [0.1.15] - 2026-11-25
 
 ### Fixed

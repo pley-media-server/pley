@@ -47,7 +47,7 @@ whose glibc is too old for the other one, such as DSM.
 
 The image is `ghcr.io/pley-media-server/pley` (amd64 and arm64; `:latest`, or a
 version such as `:0.0.1`). It holds Pley, its transcoder, FFmpeg 9 and the
-GPU drivers for Intel, AMD and NVIDIA.
+GPU drivers for Intel, AMD, NVIDIA and Rockchip (MPP/RGA).
 [docker/README.md](docker/README.md) sets it up with Docker Compose, locked
 down, behind a reverse proxy. Without Compose:
 
@@ -60,12 +60,17 @@ docker logs pley    # the setup link
 ```
 
 - **Intel or AMD GPU:** add `--device /dev/dri`. **NVIDIA:** add
-  `--gpus all` (needs the NVIDIA Container Toolkit).
+  `--gpus all` (needs the NVIDIA Container Toolkit). **Rockchip:** add
+  `--device` for `/dev/dri`, `/dev/mpp_service`, `/dev/rga` and
+  `/dev/dma_heap`.
 - **Intel's Quick Sync** works in the image on 11th-generation Core
   (Tiger Lake) and later, Arc and the N100 family: Debian 13 has only
   Intel's current runtime (`libmfx-gen1.2`). Older Intel graphics transcode
   with VAAPI instead, the same video engine through another driver
   interface.
+- **Rockchip** (RK3588, RK3568 and the like) needs Rockchip's kernel, which
+  has `/dev/mpp_service` (board makers' images, Armbian's vendor ones).
+  Without it, as on a Raspberry Pi, Pley transcodes on the CPU.
 - Pley runs as user and group 1000 (`-e PUID=… -e PGID=…` change them) and
   gives that user the config folder on its first start. Libraries are
   folders under `/media`.
@@ -102,6 +107,10 @@ and `PLEY_FFPROBE=…` in the unit.
   Core and later, `libmfx1` (where the distribution still has it) for older.
 - **NVIDIA:** the proprietary driver is enough. If NVENC works by hand but
   not from the service, load `nvidia-uvm` at boot.
+- **Rockchip:** Rockchip's kernel, and jellyfin-ffmpeg's arm64 package
+  (above) as `PLEY_FFMPEG` and `PLEY_FFPROBE`. Uncomment
+  `SupplementaryGroups=render video`, plus `/dev/mpp_service`'s group if it
+  isn't `video`.
 
 ## macOS (launchd)
 

@@ -18,6 +18,7 @@ describes how they are made.
 
 ### Fixed
 
+- A title whose size isn't known yet shows none, not "0 B".
 - Home chosen on the rail after the language changed comes in the new
   language, as it did coming back to it with Back.
 

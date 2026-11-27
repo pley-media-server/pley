@@ -68,7 +68,12 @@
     "autoplay": "Lire l’épisode suivant automatiquement",
     "autoplayHint": "Après un compte à rebours de 10 secondes",
     "details": "Détails de lecture",
-    "detailsHint": "Afficher par-dessus la vidéo comment elle est lue (directe, remux ou transcodage)"
+    "detailsHint": "Afficher par-dessus la vidéo comment elle est lue (directe, remux ou transcodage)",
+    "player": "Lecteur",
+    "playerAuto": "Automatique",
+    "playerAutoHint": "AVPlay, ou le lecteur web du téléviseur là où AVPlay ne peut pas se déplacer dans un fichier",
+    "playerAvplay": "AVPlay uniquement",
+    "playerAvplayHint": "AVPlay de Samsung pour toutes les vidéos, comme avant"
   },
   "audio": {
     "intro": "Le Dolby Digital, le Dolby Digital Plus et l’Atmos sont toujours transmis tels quels. Activez ces options si votre ampli les prend en charge ; sinon, Pley les convertit.",

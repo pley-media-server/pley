@@ -6,7 +6,7 @@ import type { HistoryEntry, SubtitleMode } from "../../api/types";
 import { displayAddress } from "../../auth/addresses";
 import { episodeLabel, languageName, relativeTime } from "../../format/format";
 import { currentLanguage, LANGUAGES as APP_LANGUAGES, pickLanguage, supportedLanguage, t, type Language } from "../../i18n";
-import type { Probe } from "../../platform";
+import type { PlayerChoice, Probe } from "../../platform";
 import { AUTO, ORIGINAL, PRESETS, presetById } from "../../player/quality";
 import type { AppState, Settings } from "../../state";
 import { fontsHere, SUBTITLE_FONTS, SUBTITLE_POSITIONS } from "../../subs/style";
@@ -345,6 +345,24 @@ export function SettingsScreen(p: { entry: Entry }) {
           onSelect={() => setting({ playbackDetails: !settings.playbackDetails })}
         />,
       );
+      rows.push(
+        <SettingRow
+          key="player"
+          fid="row-player"
+          icon="monitor"
+          label={t("settings.playback.player")}
+          value={playerName(settings.player)}
+          onSelect={() =>
+            choose(
+              "row-player",
+              t("settings.playback.player"),
+              PLAYER_CHOICES.map((v) => ({ value: v, label: playerName(v), hint: playerHint(v) })),
+              settings.player,
+              (v) => setting({ player: v as PlayerChoice }),
+            )
+          }
+        />,
+      );
       break;
     case "audio":
       rows.push(
@@ -643,6 +661,16 @@ export function SettingsScreen(p: { entry: Entry }) {
       )}
     </div>
   );
+}
+
+const PLAYER_CHOICES: PlayerChoice[] = ["auto", "avplay"];
+
+function playerName(choice: PlayerChoice): string {
+  return choice === "avplay" ? t("settings.playback.playerAvplay") : t("settings.playback.playerAuto");
+}
+
+function playerHint(choice: PlayerChoice): string {
+  return choice === "avplay" ? t("settings.playback.playerAvplayHint") : t("settings.playback.playerAutoHint");
 }
 
 /** "Automatic", "Original", "30 Mbps 4K": as the player's Quality menu says. */

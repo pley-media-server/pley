@@ -32,6 +32,7 @@ const KEYS = [
   "scan_interval_minutes",
   "watch_libraries",
   "strm_files",
+  "strm_probe",
   "detect_markers",
   "seek_previews",
   "previews_in_background",
@@ -285,6 +286,12 @@ ${form.opensubtitles_password ?? ""}`}
               {form.strm_files !== undefined ? (
                 <Row label={t("server.scanning.strm")} hint={t("server.scanning.strmHint")}>
                   <Toggle checked={form.strm_files} onChange={(v) => set("strm_files", v)} label={t("server.scanning.strmToggle")} />
+                </Row>
+              ) : null}
+              {/* Only while .strm files are read: without them there is nothing to find. */}
+              {form.strm_probe !== undefined && form.strm_files ? (
+                <Row label={t("server.scanning.strmProbe")} hint={t("server.scanning.strmProbeHint")}>
+                  <Toggle checked={form.strm_probe} onChange={(v) => set("strm_probe", v)} label={t("server.scanning.strmProbeToggle")} />
                 </Row>
               ) : null}
               <LibraryWorkRows form={form} set={set} />

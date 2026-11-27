@@ -857,19 +857,23 @@
 .now-status { height: 22px; padding-top: 4px; box-sizing: border-box; }
 .now-scrubber { margin-top: 14px; }
 .scrub-box { position: relative; width: 484px; height: 24px; }
-.scrub-track { position: absolute; left: 0; right: 0; top: 10px; height: 4px; border-radius: 2px; background: rgba(var(--fg-rgb), 0.25); overflow: hidden; }
+/* The music scrubber's track: 4 px, 8 while focused (Left and Right seek there); it grows by a scale, so no frame lays it out. */
+.scrub-track { position: absolute; left: 0; right: 0; top: 8px; height: 8px; border-radius: 4px; background: rgba(var(--fg-rgb), 0.25); overflow: hidden; transform: scaleY(0.5); transition: transform 150ms var(--focus-ease); }
 .scrub-buffered,
 .scrub-played { position: absolute; left: 0; top: 0; bottom: 0; }
 .scrub-buffered { background: rgba(var(--fg-rgb), 0.45); }
 .scrub-played { background: var(--accent); }
-/* The music scrubber's thumb: 10 px, 12 with a 2 px ring 1 px clear of it while focused; it grows by a scale, so no frame lays it out. */
+.scrub-box[data-focused] .scrub-track { transform: none; }
+/* Its thumb: 10 px, 18 with a 2 px ring 1 px clear of it while focused; scaled too. */
 .scrub-thumb { position: absolute; top: 12px; width: 0; height: 0; }
 .scrub-thumb::before,
 .scrub-thumb::after { content: ""; position: absolute; left: 0; top: 0; border-radius: 50%; transform: translate(-50%, -50%); }
-.scrub-thumb::before { width: 12px; height: 12px; background: var(--fg); transform: translate(-50%, -50%) scale(0.8333); transition: transform 150ms var(--focus-ease); }
-.scrub-thumb::after { width: 18px; height: 18px; box-sizing: border-box; border: 2px solid var(--accent-bright); opacity: 0; transition: opacity 150ms var(--focus-ease); }
+.scrub-thumb::before { width: 18px; height: 18px; background: var(--fg); transform: translate(-50%, -50%) scale(0.5556); transition: transform 150ms var(--focus-ease); }
+.scrub-thumb::after { width: 24px; height: 24px; box-sizing: border-box; border: 2px solid var(--accent-bright); opacity: 0; transition: opacity 150ms var(--focus-ease); }
 .scrub-box[data-focused] .scrub-thumb::before { transform: translate(-50%, -50%); }
 .scrub-box[data-focused] .scrub-thumb::after { opacity: 1; }
+.reduced .scrub-track,
+.reduced .scrub-thumb::before { transition: none; }
 .scrub-times { display: flex; justify-content: space-between; margin-top: 4px; }
 .now-controls { display: flex; align-items: flex-start; margin-top: 16px; height: 88px; }
 .now-controls > * + * { margin-left: 16px; }

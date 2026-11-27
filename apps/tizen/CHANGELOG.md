@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Added
 
+- Settings › Playback › Player can play everything on AVPlay instead of
+  choosing a player for each file.
 - Themes and accents, under Settings → Appearance, kept for each profile
   on the TV.
 - A library's Collections are grouped by category, and can be narrowed
@@ -43,6 +45,8 @@ describes how they are made.
 
 ### Changed
 
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
 - Movies, shows and music without a picture show Pley's mark on their
   placeholder instead of their title, which the caption under it shows,
   with a clapperboard, a TV or notes in it for their kind of library.
@@ -195,6 +199,11 @@ describes how they are made.
 
 ### Fixed
 
+- Seeking and resuming work in files played as they are on 2019 and older
+  sets, and a stream on them keeps its sound.
+- Seeking in a song works when the TV won't seek in its file, and holding
+  a key on Now Playing seeks once.
+- A title whose size isn't known yet shows none, not "0 B".
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end instead.
 - A video whose audio the TV can't decode plays with the audio converted

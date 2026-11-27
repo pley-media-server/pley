@@ -24,6 +24,7 @@ const ACCEL_BRAND: Record<Exclude<HwAccel, "auto" | "none">, string> = {
   vaapi: "VAAPI",
   videotoolbox: "VideoToolbox",
   vulkan: "Vulkan",
+  rkmpp: "Rockchip MPP",
 };
 
 function accelName(accel: HwAccel): string {
@@ -33,12 +34,12 @@ function accelName(accel: HwAccel): string {
 }
 
 /** The accelerations that need a GPU or an FFmpeg of their own. */
-const ACCEL_NEEDS = ["nvenc", "qsv", "amf", "vaapi", "videotoolbox"] as const;
+const ACCEL_NEEDS = ["nvenc", "qsv", "amf", "vaapi", "videotoolbox", "rkmpp"] as const;
 type NeedyAccel = (typeof ACCEL_NEEDS)[number];
 const needsHardware = (accel: HwAccel): accel is NeedyAccel => (ACCEL_NEEDS as readonly HwAccel[]).includes(accel);
 
 /** The menu's order; Vulkan only when saved (it is set through the API). */
-const ACCELS: HwAccel[] = ["auto", "nvenc", "qsv", "amf", "vaapi", "videotoolbox", "none"];
+const ACCELS: HwAccel[] = ["auto", "nvenc", "qsv", "amf", "vaapi", "videotoolbox", "rkmpp", "none"];
 
 const TONEMAP_SHORT: Partial<Record<ToneMapping, string>> = { libplacebo: "libplacebo", opencl: "OpenCL", zscale: "zscale" };
 
@@ -67,7 +68,7 @@ export function transcoderOs(system: SystemInfo | undefined): string | null {
 /** Why `accel` can never work on `os`, or `null`. */
 function osReason(accel: HwAccel, os: string | null): string | null {
   if (!os) return null;
-  if (accel === "vaapi" && os !== "linux") return t("choices.linuxOnly", { ns: "settings" });
+  if ((accel === "vaapi" || accel === "rkmpp") && os !== "linux") return t("choices.linuxOnly", { ns: "settings" });
   if (accel === "videotoolbox" && os !== "macos") return t("choices.macosOnly", { ns: "settings" });
   if ((accel === "nvenc" || accel === "qsv" || accel === "amf") && os === "macos") return t("choices.notOnMacos", { ns: "settings" });
   return null;
@@ -85,14 +86,18 @@ export function accelReason(accel: HwAccel, system: SystemInfo | undefined): str
 /**
  * The hardware accelerations to offer: those this system never has are left
  * out (VideoToolbox on Windows), unless saved; those it lacks the GPU or
- * FFmpeg for are offered with the reason.
+ * FFmpeg for are offered with the reason. Rockchip's only where the
+ * transcoder's FFmpeg has it (Pley's arm64 image's does): every other Linux
+ * computer would show it grayed out.
  */
 export function accelChoices(saved: HwAccel, system: SystemInfo | undefined): Choice<HwAccel>[] {
   const tc = knownTranscoder(system);
   const os = transcoderOs(system);
   const values = ACCELS.includes(saved) ? ACCELS : [...ACCELS.slice(0, -1), saved, "none" as const];
+  const rockchip = system?.transcoder?.hwaccels?.includes("rkmpp") ?? false;
   return values
     .filter((value) => value === saved || !osReason(value, os))
+    .filter((value) => value === saved || value !== "rkmpp" || rockchip)
     .map((value) => {
       const reason = accelReason(value, system);
       let label = accelName(value);

@@ -18,6 +18,10 @@ describes how they are made.
 - The window's title bar and icon follow the theme and accent the server's
   web app shows, and are Midnight's on the list of servers.
 
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
 ## [0.1.9] - 2026-11-25
 
 ### Changed

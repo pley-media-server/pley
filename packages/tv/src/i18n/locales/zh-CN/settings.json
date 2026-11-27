@@ -68,7 +68,12 @@
     "autoplay": "自动播放下一集",
     "autoplayHint": "10 秒倒计时后",
     "details": "播放详情",
-    "detailsHint": "在画面上显示视频的播放方式（直接播放、直接串流或转码）"
+    "detailsHint": "在画面上显示视频的播放方式（直接播放、直接串流或转码）",
+    "player": "播放器",
+    "playerAuto": "自动",
+    "playerAutoHint": "使用 AVPlay；AVPlay 无法在文件中跳转时使用电视的网页播放器",
+    "playerAvplay": "仅 AVPlay",
+    "playerAvplayHint": "所有视频都使用三星 AVPlay，与以前相同"
   },
   "audio": {
     "intro": "Dolby Digital、Dolby Digital Plus 和 Atmos 始终直通。如果你的功放支持这些格式，请开启以下选项；否则 Pley 会进行转换。",

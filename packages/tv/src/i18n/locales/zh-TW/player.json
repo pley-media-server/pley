@@ -168,6 +168,7 @@
     "drawnHere": "由這臺電視繪製",
     "thisTv": "這臺電視",
     "player": "播放器",
+    "videoElement": "HTML5 影片",
     "decoded": "已解碼",
     "decoder": "影片解碼器",
     "hardware": "{{decoder}}（硬體）",

@@ -380,7 +380,9 @@ and goes with `live_channels_changed`. On LG:
   or Transcoding. Why says what keeps a channel the server converts from
   Direct play, in a sentence: interlaced video, or the video or sound this
   TV doesn't play, the video's codec with its bit depth above 8 bits
-  ("This TV doesn't play HEVC 12-bit video."). Video and Audio say what the provider sends and, after an arrow,
+  ("This TV doesn't play HEVC 12-bit video."); nothing for a codec the TV
+  plays from a file that its pipeline doesn't read from MPEG-TS (VP9, AV1,
+  Opus), as on Android. Video and Audio say what the provider sends and, after an arrow,
   what the server makes of it ("HEVC 4K → H.264 1080p", "EAC3 5.1 → AAC
   2.0"); Bitrate what the provider sends now, with a transcode's video
   bitrate; Encoder the transcode's; then the TV's network speed. The

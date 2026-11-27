@@ -486,5 +486,7 @@ describe("media summaries", () => {
     expect(mediaBadges(unknown)).toEqual([]);
     expect(mediaLine(unknown)).toBe("Bitrate unknown");
     expect(mediaLine(undefined)).toBe("");
+    // A .strm file's media before it is found: no "0 B".
+    expect(mediaLine({ ...unknown, size: 0 })).toBe("");
   });
 });

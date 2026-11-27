@@ -934,6 +934,50 @@ describe("LivePlayerPage, a channel this browser decodes as its provider sends i
       await act(() => vi.advanceTimersByTimeAsync(6000));
       expect(controls()).not.toHaveClass("opacity-0");
     });
+
+    it.each([
+      ["hovered", (el: HTMLElement) => fireEvent.mouseEnter(el)],
+      ["focused", (el: HTMLElement) => act(() => el.focus())],
+    ])("go with the badge once the channel failed, though %s, so its session can end", async (_how, show) => {
+      planAnswer = () => ({ ...hevc, audio_codec: "ac3", audio: "aac" });
+      await tuned();
+      await toHls();
+      const named = "Transcoding. This device doesn't play AC3 audio.";
+      await waitFor(() => expect(badge(named)).toBeInTheDocument());
+      show(badge(named));
+      expect(await within(details()).findByText("This device doesn't play AC3 audio.")).toBeInTheDocument();
+
+      act(() =>
+        hlsInstances[0]?.emit("hlsError", {
+          fatal: true,
+          type: "networkError",
+          response: { code: 503, text: JSON.stringify({ code: "unavailable", message: "News can't be shown: no slot is free" }) },
+        }),
+      );
+      expect(await screen.findByText(/can't be shown/)).toBeInTheDocument();
+      // Nothing to say of a channel that doesn't play; and each answer would
+      // keep its session, and the provider's connection, there.
+      expect(screen.queryByLabelText(named)).not.toBeInTheDocument();
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+      const asked = plans().length;
+      await act(() => vi.advanceTimersByTimeAsync(20_000));
+      expect(plans()).toHaveLength(asked);
+
+      // Tried again, it comes back with the new session's plan.
+      await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+      await waitFor(() => expect(badge(named)).toBeInTheDocument());
+      expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/live/sessions/s1")).toBe(true);
+    });
+
+    it("go with the badge once the channel's connection is taken over", async () => {
+      await tuned();
+      act(() => mpegtsPlayers[0]?.found(itsTracks));
+      await waitFor(() => expect(play).toHaveBeenCalled());
+      expect(badge("Direct play")).toBeInTheDocument();
+      act(() => FakeEventSource.last?.send(takenOver(5)));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Live TV stopped");
+      expect(screen.queryByLabelText("Direct play")).not.toBeInTheDocument();
+    });
   });
 });
 
@@ -1007,6 +1051,9 @@ describe("LivePlayerPage and the remote", () => {
     renderWithProviders(<Player />, { route: "/live/5" });
     await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
     await waitFor(() => expect(requests.some((r) => r.path.startsWith("/api/live/browse"))).toBe(true));
+    // The address the page settles on (/live/5 names the channel by its id only), before any command: on a
+    // busy machine it can come after the requests above, and the check below would then see /live/5.
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/live/src/5"));
 
     // Another session's: nothing happens here.
     act(() => FakeEventSource.last?.send(command("other", "next")));

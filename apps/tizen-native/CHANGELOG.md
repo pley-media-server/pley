@@ -15,6 +15,15 @@ describes how they are made.
 - The themes and accents, picked under Settings → Appearance and kept for each
   profile on this TV.
 
+### Changed
+
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
+
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
 ## [0.1.14] - 2026-11-24
 
 ### Changed

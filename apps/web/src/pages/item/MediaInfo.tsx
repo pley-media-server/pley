@@ -143,7 +143,8 @@ function FileInfo({ file }: { file: MediaFile }) {
           <span className="break-all font-mono text-xs text-fg/80">{admin ? file.path : fileName(file.path)}</span>
         </Row>
         <Row label={t("mediaInfo.rows.container")}>{file.container?.toUpperCase() ?? "—"}</Row>
-        <Row label={t("mediaInfo.rows.size")}>{formatBytes(file.size)}</Row>
+        {/* 0: not known yet (a .strm file's media before it is found). */}
+        {file.size ? <Row label={t("mediaInfo.rows.size")}>{formatBytes(file.size)}</Row> : null}
         {file.duration_ms ? <Row label={t("mediaInfo.rows.duration")}>{formatDuration(file.duration_ms)}</Row> : null}
         {file.bitrate ? <Row label={t("mediaInfo.rows.bitrate")}>{formatBitrate(file.bitrate)}</Row> : null}
         {file.video_codec ? (

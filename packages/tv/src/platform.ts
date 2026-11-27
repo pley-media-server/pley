@@ -3,6 +3,14 @@ import type { KeyValue } from "./auth/tokens";
 import type { PlayerEngine } from "./player/engine";
 import type { Key } from "./ui/keys";
 
+/**
+ * Settings › Playback › Player: `auto` lets the app pick the TV's player
+ * for each source (on Samsung, <video> for a file played as it is on sets
+ * before 2020 or where AVPlay won't seek in it, AVPlay for the rest);
+ * `avplay` plays everything on AVPlay.
+ */
+export type PlayerChoice = "auto" | "avplay";
+
 /** What the person turned on in Settings for their receiver: formats sent as they are though the TV can't promise them. */
 export interface CapsOverrides {
   truehd: boolean;
@@ -60,8 +68,11 @@ export interface Platform {
   mapKey(e: KeyboardEvent): Key | null;
   /** Asks the TV for the keys it keeps for itself unless an app registers them (Tizen's media keys). */
   registerKeys?(): void;
-  /** The TV's own player, its picture shown inside `host`. */
-  createEngine(host: HTMLElement): PlayerEngine;
+  /**
+   * The TV's own player, its picture shown inside `host`. `player` is the
+   * choice of player (Settings › Playback), read as each source opens.
+   */
+  createEngine(host: HTMLElement, options?: { player?: () => PlayerChoice }): PlayerEngine;
   /** The capabilities report (version 2) and the lines Diagnostics shows; probed after the first screen, again when Settings change it. */
   probe(overrides: CapsOverrides): Promise<Probe>;
   device(): DeviceFacts;

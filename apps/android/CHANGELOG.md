@@ -16,6 +16,15 @@ describes how they are made.
   themes and an accent over it, kept for each profile on this phone or
   TV.
 
+### Changed
+
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
+
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
 ## [0.1.19] - 2026-11-25
 
 ### Added
