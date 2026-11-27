@@ -486,6 +486,8 @@ export class AppState {
     this.homeError.value = null;
     this.items.clear();
     this.me.value = null;
+    // Until the server says who it is: not the profile before's theme.
+    this.followTheme();
     this.live.value = null;
     this.forgetLive();
     this.events?.restart();
@@ -552,6 +554,7 @@ export class AppState {
     this.homeError.value = null;
     this.accountError.value = null;
     this.me.value = null;
+    this.followTheme();
     this.libraries.value = null;
     this.live.value = null;
     this.forgetLive();
@@ -571,6 +574,7 @@ export class AppState {
     this.home.value = null;
     this.signedOut.value = true;
     this.followLanguage();
+    this.followTheme();
   }
 
   // ---- the theme (Settings → Appearance): each profile's on this TV, never the server's
@@ -587,6 +591,8 @@ export class AppState {
 
   /** Who is watching, of which server: user ids repeat from one server to the next. */
   private watching(): ProfileOf | null {
+    // Signed out, whoever was watching isn't any more.
+    if (this.signedOut.value) return null;
     const server = this.server.value;
     const id = this.me.value?.id;
     return server && typeof id === "number" ? { server, id } : null;

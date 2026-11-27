@@ -185,7 +185,14 @@ function signedIn(store: KeyValue, who: () => number, server = SERVER) {
     {},
     {
       get: (_, name) =>
-        name === "me" ? () => Promise.resolve({ id: who(), name: `p${who()}` }) : name === "libraries" ? () => Promise.resolve([]) : name === "profiles" ? () => Promise.resolve([]) : quiet,
+        // who() 0: the server doesn't answer who is watching.
+        name === "me"
+          ? () => (who() > 0 ? Promise.resolve({ id: who(), name: `p${who()}` }) : Promise.reject(new Error("offline")))
+          : name === "libraries"
+            ? () => Promise.resolve([])
+            : name === "profiles"
+              ? () => Promise.resolve([])
+              : quiet,
     },
   );
   return state;
@@ -277,6 +284,40 @@ describe("a TV's theme", () => {
     const again = signedIn(store, () => 4);
     await again.loadAccount();
     expect(drawn(again)).toEqual(["sunshine", null]);
+  });
+
+  it("doesn't keep the profile before's theme while a switch can't say who is watching", async () => {
+    const store = memoryStore();
+    let profile = 1;
+    const state = signedIn(store, () => profile);
+    await state.loadAccount();
+    state.chooseTheme("starlight");
+    // The switch's answer doesn't come.
+    profile = 0;
+    await state.switched().catch(() => undefined);
+    expect(drawn(state)).toEqual(["midnight", null]);
+    // A pick meanwhile isn't the profile before's.
+    state.chooseTheme("twilight");
+    expect(store.kept.get(`pley.theme.${SERVER}.1`)).toBe("starlight");
+  });
+
+  it("leaves a server's profile's theme behind when another server is used", async () => {
+    const state = signedIn(memoryStore(), () => 6);
+    await state.loadAccount();
+    state.chooseTheme("greenlight");
+    state.use("http://den.local:7539");
+    expect(drawn(state)).toEqual(["midnight", null]);
+  });
+
+  it("keeps no pick for the profile signed out of", async () => {
+    const store = memoryStore();
+    const state = signedIn(store, () => 4);
+    await state.loadAccount();
+    state.chooseTheme("sunshine");
+    await state.signOut();
+    expect(drawn(state)).toEqual(["midnight", null]);
+    state.chooseTheme("blacklight");
+    expect(store.kept.get(`pley.theme.${SERVER}.4`)).toBe("sunshine");
   });
 
   it("shows Midnight and the theme's own accent for ids from another build", () => {
