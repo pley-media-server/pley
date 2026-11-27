@@ -81,7 +81,7 @@ class App : NUIApplication
         Core.Auth.ServerProofs.FollowNetworks();
         state = new AppState(Platform.Of());
         Profile.Took("app state", made);
-        // The theme this TV picked, before the first page (Midnight until one is picked).
+        // The saved profile's theme, before the first page; Midnight while it isn't known.
         PleyColors.Use(state.Theme.Value);
         window.BackgroundColor = PleyColors.Bg;
         globe = new LanguageGlobe(state);
@@ -318,6 +318,9 @@ class App : NUIApplication
     /// <summary>Shows the page for <paramref name="key"/>, in place of what is on screen.</summary>
     void Go(PageKey key)
     {
+        // Outside a profile (the servers, signing in, Who's watching?) the app is in Midnight; its pages
+        // in the profile's own pick. Set before the screen is made, which draws in it.
+        state.ShowingOutside(key is PageKey.Servers or PageKey.Link or PageKey.Profiles);
         switch (key)
         {
             case PageKey.Servers:
@@ -375,6 +378,8 @@ class App : NUIApplication
     /// </summary>
     void ShowHome(IReadOnlyList<PageKey>? reopen = null, Action<TvShell>? land = null, bool load = true)
     {
+        // Inside the profile: its own pick, as soon as who is watching is known.
+        state.ShowingOutside(false);
         var made = Profile.Start();
         TvShell? tv = null;
         tv = new TvShell(state,
