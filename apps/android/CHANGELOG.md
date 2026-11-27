@@ -13,6 +13,11 @@ describes how they are made.
 - Live TV plays a channel as its provider sends it when the device
   decodes it, and the live player has Playback details.
 
+### Changed
+
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
+
 ### Fixed
 
 - A title whose size isn't known yet shows none, not "0 B".

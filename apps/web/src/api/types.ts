@@ -1032,7 +1032,7 @@ export type ServerEvent =
 type TitleKindName = "movie" | "show";
 
 /** `vulkan` (h264_vulkan) isn't offered: it can only be set through the API. */
-export type HwAccel = "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
+export type HwAccel = "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan" | "rkmpp";
 /** `auto`: the transcoder picks one from its load and how far ahead of the player it is, and changes it as they change. */
 export type TranscodePreset = "auto" | "ultrafast" | "superfast" | "veryfast" | "faster" | "fast" | "medium";
 export type ToneMapping = "auto" | "libplacebo" | "opencl" | "zscale" | "none";

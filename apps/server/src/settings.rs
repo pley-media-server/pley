@@ -387,6 +387,7 @@ fn accel_name(accel: HwAccel) -> &'static str {
         HwAccel::Vaapi => "VAAPI",
         HwAccel::Videotoolbox => "VideoToolbox",
         HwAccel::Vulkan => "Vulkan",
+        HwAccel::Rkmpp => "Rockchip MPP",
     }
 }
 
@@ -398,7 +399,9 @@ pub fn hwaccel_problem(hwaccel: HwAccel, os: Option<&str>, caps: Option<&Capabil
     let name = accel_name(hwaccel);
     match (hwaccel, os) {
         (HwAccel::Auto | HwAccel::None, _) => return None,
-        (HwAccel::Vaapi, Some(os)) if os != "linux" => return Some(format!("{name} works on Linux only")),
+        (HwAccel::Vaapi | HwAccel::Rkmpp, Some(os)) if os != "linux" => {
+            return Some(format!("{name} works on Linux only"));
+        }
         (HwAccel::Videotoolbox, Some(os)) if os != "macos" => return Some(format!("{name} works on macOS only")),
         (HwAccel::Nvenc | HwAccel::Qsv | HwAccel::Amf, Some("macos")) => {
             return Some(format!("{name} doesn't work on macOS"));
@@ -417,6 +420,7 @@ pub fn hwaccel_problem(hwaccel: HwAccel, os: Option<&str>, caps: Option<&Capabil
         HwAccel::Amf => "an AMD graphics card",
         HwAccel::Vaapi => "an Intel or AMD graphics chip",
         HwAccel::Videotoolbox => "an FFmpeg built with VideoToolbox",
+        HwAccel::Rkmpp => "a Rockchip chip on Rockchip's own kernel and an FFmpeg built with its MPP",
         _ => "a GPU that FFmpeg encodes on through Vulkan",
     };
     (!works).then(|| format!("{name} isn't available here: it needs {needs}, and the transcoder found none"))
@@ -470,13 +474,14 @@ pub fn decodes_on_gpu(caps: &Capabilities) -> bool {
 }
 
 /// Every hardware acceleration Settings can choose.
-pub const ACCELS: [HwAccel; 8] = [
+pub const ACCELS: [HwAccel; 9] = [
     HwAccel::Auto,
     HwAccel::Nvenc,
     HwAccel::Qsv,
     HwAccel::Amf,
     HwAccel::Vaapi,
     HwAccel::Videotoolbox,
+    HwAccel::Rkmpp,
     HwAccel::Vulkan,
     HwAccel::None,
 ];
@@ -553,6 +558,8 @@ pub fn decodes_on_gpu_with(caps: &Capabilities, hwaccel: HwAccel) -> bool {
             HwAccel::Videotoolbox => has("videotoolbox"),
             HwAccel::Qsv => has("d3d11va") || has("vaapi"),
             HwAccel::Amf => has("d3d11va") || nvidia,
+            // Rockchip's decoders only through its pipeline, above.
+            HwAccel::Rkmpp => false,
             _ => nvidia || has("videotoolbox"),
         }
 }
@@ -1240,6 +1247,10 @@ mod tests {
         assert_eq!(problem(HwAccel::Vaapi, Some("windows")).unwrap(), "VAAPI works on Linux only");
         assert_eq!(problem(HwAccel::Videotoolbox, Some("linux")).unwrap(), "VideoToolbox works on macOS only");
         assert_eq!(problem(HwAccel::Qsv, Some("macos")).unwrap(), "Intel Quick Sync doesn't work on macOS");
+        assert_eq!(problem(HwAccel::Rkmpp, Some("windows")).unwrap(), "Rockchip MPP works on Linux only");
+        assert!(problem(HwAccel::Rkmpp, Some("linux")).unwrap().contains("Rockchip chip"));
+        let rockchip = Capabilities { encoders: vec![encoder("h264_rkmpp", HwAccel::Rkmpp)], ..intel() };
+        assert_eq!(hwaccel_problem(HwAccel::Rkmpp, Some("linux"), Some(&rockchip)), None);
         // A transcoder elsewhere (its own system unknown) is judged by its encoders only.
         assert!(problem(HwAccel::Vaapi, None).unwrap().contains("Intel or AMD graphics chip"));
         assert!(problem(HwAccel::Vulkan, None).is_some());
@@ -1319,6 +1330,31 @@ mod tests {
         };
         assert!(accel_use(&nvidia, HwAccel::None).hardware_decoding);
         assert_eq!(accel_use(&nvidia, HwAccel::Nvenc).software, Vec::<&str>::new(), "no HEVC encoder at all");
+        // Rockchip's decoders work only through its pipeline, which its
+        // start-up test passed or didn't; its encoders take no 10 bits.
+        let rockchip = Capabilities {
+            encoders: vec![
+                encoder("h264_rkmpp", HwAccel::Rkmpp),
+                hevc("hevc_rkmpp", HwAccel::Rkmpp, false),
+                encoder("libx264", HwAccel::None),
+                hevc("libx265", HwAccel::None, true),
+            ],
+            hwaccels: vec!["rkmpp".into()],
+            ..intel.clone()
+        };
+        let untested = accel_use(&rockchip, HwAccel::Rkmpp);
+        assert!(!untested.hardware_decoding);
+        assert_eq!(untested.software, ["hdr"]);
+        let piped = Capabilities {
+            gpu_pipelines: vec![pley_transcoder_api::GpuPipeline {
+                accel: HwAccel::Rkmpp,
+                codecs: vec!["h264".into()],
+                ..Default::default()
+            }],
+            ..rockchip
+        };
+        assert!(accel_use(&piped, HwAccel::Rkmpp).hardware_decoding);
+        assert_eq!(accel_use(&piped, HwAccel::Auto), accel_use(&piped, HwAccel::Rkmpp));
         // Vulkan's decoder feeds libplacebo whatever encodes.
         let vulkan = Capabilities { vulkan_decode: vec!["hevc10".into()], ..intel };
         assert!(ACCELS.iter().all(|accel| accel_use(&vulkan, *accel).hardware_decoding));

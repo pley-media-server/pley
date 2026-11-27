@@ -234,7 +234,8 @@
       "qsv": "needs an Intel graphics chip",
       "amf": "needs an AMD graphics card",
       "vaapi": "needs an Intel or AMD graphics chip",
-      "videotoolbox": "needs an FFmpeg with VideoToolbox"
+      "videotoolbox": "needs an FFmpeg with VideoToolbox",
+      "rkmpp": "needs a Rockchip chip and Rockchip's kernel"
     },
     "tonemapNeeds": {
       "libplacebo": "needs libplacebo and a Vulkan GPU",

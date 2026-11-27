@@ -233,7 +233,8 @@
       "qsv": "需要 Intel 显卡芯片",
       "amf": "需要 AMD 显卡",
       "vaapi": "需要 Intel 或 AMD 显卡芯片",
-      "videotoolbox": "需要带 VideoToolbox 的 FFmpeg"
+      "videotoolbox": "需要带 VideoToolbox 的 FFmpeg",
+      "rkmpp": "需要 Rockchip 芯片和 Rockchip 内核"
     },
     "tonemapNeeds": {
       "libplacebo": "需要 libplacebo 和 Vulkan GPU",

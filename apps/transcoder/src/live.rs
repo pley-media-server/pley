@@ -587,6 +587,9 @@ struct ProbedStream {
     interlaced: bool,
     /// Bits a sample (8, 10, 12), when the pixel format says.
     bit_depth: Option<i64>,
+    /// The shape of its pixels where they aren't square (SD channels'
+    /// 16:15 or 64:45, 1440×1080's 4:3).
+    sample_aspect: Option<(i64, i64)>,
     channels: Option<i64>,
 }
 
@@ -652,6 +655,7 @@ fn parse_probe(json: &[u8]) -> Probed {
                 .or_else(|| s["r_frame_rate"].as_str().and_then(rate)),
             interlaced: matches!(s["field_order"].as_str(), Some("tt" | "bb" | "tb" | "bt")),
             bit_depth: s["pix_fmt"].as_str().filter(|p| !p.is_empty()).map(bit_depth),
+            sample_aspect: s["sample_aspect_ratio"].as_str().and_then(pley_transcoder_api::sample_aspect),
             channels: s["channels"].as_i64(),
         };
         match s["codec_type"].as_str() {
@@ -691,6 +695,9 @@ struct Plan<'a> {
     deinterlace: bool,
     height: Option<i64>,
     kbps: u32,
+    /// The sample aspect ratio Rockchip's encoder's stream is made to say,
+    /// which it leaves out ([`crate::plan::VideoOut::rkmpp_sample_aspect`]).
+    rkmpp_sample_aspect: Option<(i64, i64)>,
     status: LivePlan,
 }
 
@@ -713,6 +720,17 @@ fn plan<'a>(ff: &'a Ffmpeg, request: &LiveRequest, probed: &Probed) -> ApiResult
         (h, _) => h,
     });
     let width = video.as_ref().and_then(|v| v.width);
+    // At the output's size: `scale=-2:<height>` keeps the frame's shape,
+    // its width rounded to an even number, and FFmpeg the picture's.
+    let rkmpp_sample_aspect =
+        video.as_ref().zip(encoder).filter(|(_, e)| e.accel == HwAccel::Rkmpp && ff.caps.h264_metadata).and_then(
+            |(v, _)| {
+                let ((num, den), w, h) = (v.sample_aspect?, v.width?, v.height?);
+                let out_h = height.unwrap_or(h);
+                let out_w = if out_h < h { ((out_h * w) as f64 / (h * 2) as f64).round() as i64 * 2 } else { w };
+                crate::plan::sample_aspect_at(num * w * out_h, den * h * out_w)
+            },
+        );
     let kbps = request
         .max_bitrate_kbps
         .unwrap_or_else(|| default_video_kbps(width.unwrap_or(1920), height.unwrap_or(1080)))
@@ -740,7 +758,7 @@ fn plan<'a>(ff: &'a Ffmpeg, request: &LiveRequest, probed: &Probed) -> ApiResult
         out_height: encoder.and(height),
         video_kbps: encoder.map(|_| kbps),
     };
-    Ok(Plan { video, audio, encoder, deinterlace, height, kbps, status })
+    Ok(Plan { video, audio, encoder, deinterlace, height, kbps, rkmpp_sample_aspect, status })
 }
 
 /// The H.264 encoder a live transcode uses: a hardware one that takes
@@ -748,7 +766,8 @@ fn plan<'a>(ff: &'a Ffmpeg, request: &LiveRequest, probed: &Probed) -> ApiResult
 /// uploaded to their device, which file jobs' pipelines do.)
 fn live_encoder(ff: &Ffmpeg, accel: HwAccel) -> Option<&EncoderInfo> {
     let takes_system_frames = |e: &&EncoderInfo| {
-        !e.hardware || matches!(e.accel, HwAccel::Nvenc | HwAccel::Qsv | HwAccel::Amf | HwAccel::Videotoolbox)
+        !e.hardware
+            || matches!(e.accel, HwAccel::Nvenc | HwAccel::Qsv | HwAccel::Amf | HwAccel::Videotoolbox | HwAccel::Rkmpp)
     };
     let (picked, _) = ff.pick_encoder(VideoCodec::H264, accel);
     picked.filter(takes_system_frames).or_else(|| ff.software_encoder_for(VideoCodec::H264, false))
@@ -851,6 +870,14 @@ fn video_args(plan: &Plan, enc: &EncoderInfo) -> Vec<String> {
             push(&["-b:v", &b, "-maxrate", &max, "-bufsize", &buf, "-allow_sw", "1", "-realtime", "1"]);
             push(&["-g", &gop, "-profile:v", "high"]);
         }
+        HwAccel::Rkmpp => {
+            push(&crate::plan::RKMPP_VBR);
+            push(&["-b:v", &b, "-maxrate", &max, "-bufsize", &buf, "-g", &gop, "-profile:v", "high"]);
+            push(&crate::plan::RKMPP_IN_ORDER);
+            if let Some((num, den)) = plan.rkmpp_sample_aspect {
+                push(&["-bsf:v", &format!("h264_metadata=sample_aspect_ratio={num}/{den}")]);
+            }
+        }
         _ => {
             push(&["-preset", "veryfast", "-tune", "zerolatency", "-crf", "21", "-maxrate", &max, "-bufsize", &buf]);
             push(&["-profile:v", "high", "-sc_threshold", "0", "-g", &gop]);
@@ -948,6 +975,7 @@ mod tests {
             deinterlace: false,
             height: Some(720),
             kbps: 4000,
+            rkmpp_sample_aspect: None,
             status: LivePlan::default(),
         };
         let line = ffmpeg_args(&plan, 300).join(" ");
@@ -983,6 +1011,7 @@ mod tests {
             deinterlace: true,
             height: Some(720),
             kbps: 4000,
+            rkmpp_sample_aspect: None,
             status: LivePlan::default(),
         };
         let line = video_args(&plan, &nvenc).join(" ");
@@ -992,6 +1021,50 @@ mod tests {
         plan.encoder = Some(&x264);
         let line = video_args(&plan, &x264).join(" ");
         assert!(line.contains("yadif=mode=send_frame") && line.contains("-g 25") && line.contains("libx264"), "{line}");
+    }
+
+    #[test]
+    fn rockchip_encodes_channels_from_memory_and_says_their_pixel_shape() {
+        let encoder = |name: &str, accel: HwAccel| EncoderInfo {
+            name: name.into(),
+            codec: VideoCodec::H264,
+            hardware: accel != HwAccel::None,
+            accel,
+            main10: false,
+            low_power: false,
+        };
+        let ff = Ffmpeg {
+            ffmpeg: "ffmpeg".into(),
+            ffprobe: "ffprobe".into(),
+            caps: pley_transcoder_api::Capabilities {
+                encoders: vec![encoder("h264_rkmpp", HwAccel::Rkmpp), encoder("libx264", HwAccel::None)],
+                h264_metadata: true,
+                ..Default::default()
+            },
+            segment_times_relative: true,
+        };
+        // A PAL channel's 16:9 picture: 720×576, its pixels 64:45.
+        let json = br#"{"streams":[{"index":0,"codec_type":"video","codec_name":"mpeg2video","width":720,
+            "height":576,"sample_aspect_ratio":"64:45","avg_frame_rate":"25/1","field_order":"tt"}]}"#;
+        let probed = parse_probe(json);
+        assert_eq!(probed.video.as_ref().unwrap().sample_aspect, Some((64, 45)));
+        let planned = plan(&ff, &LiveRequest::default(), &probed).unwrap();
+        let rkmpp = planned.encoder.unwrap();
+        assert_eq!(rkmpp.name, "h264_rkmpp", "it takes frames from memory");
+        let line = video_args(&planned, rkmpp).join(" ");
+        assert!(line.contains("format=nv12 -c:v h264_rkmpp -rc_mode VBR -b:v"), "{line}");
+        assert!(line.contains("-flags:v +low_delay"), "keyframes forced where asked: {line}");
+        assert!(line.contains("-bsf:v h264_metadata=sample_aspect_ratio=64/45"), "{line}");
+        assert!(!line.contains("-preset") && !line.contains("-crf"), "none of x264's options: {line}");
+
+        // Made 288 lines high (360×288): the pixels keep their shape.
+        let half = plan(&ff, &LiveRequest { max_height: Some(288), ..LiveRequest::default() }, &probed).unwrap();
+        assert_eq!(half.rkmpp_sample_aspect, Some((64, 45)));
+        // Square pixels say nothing; nor x264, which writes them itself.
+        let square = parse_probe(&String::from_utf8_lossy(json).replace("64:45", "1:1").into_bytes());
+        assert_eq!(plan(&ff, &LiveRequest::default(), &square).unwrap().rkmpp_sample_aspect, None);
+        let software = LiveRequest { hwaccel: HwAccel::None, ..LiveRequest::default() };
+        assert_eq!(plan(&ff, &software, &probed).unwrap().rkmpp_sample_aspect, None);
     }
 
     /// Live channels with the real FFmpeg and x264, `max_jobs` transcodes at once.

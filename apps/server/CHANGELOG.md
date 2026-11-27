@@ -21,6 +21,9 @@ describes how they are made.
   foot, beside Settings; each browser remembers how it was left. Narrowed,
   its icons show their names in a tip on hover, as the remote's button and
   Sort libraries now do.
+- Hardware transcoding on Rockchip chips (RK3588, RK3568 and the like)
+  with Rockchip's own kernel: Rockchip MPP in Settings → Transcoder; the
+  arm64 Docker image has it, with `compose.rockchip.yaml`.
 
 ## [0.1.17] - 2026-11-25
 

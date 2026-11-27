@@ -490,6 +490,7 @@ public class PlaybackDetailsTests
         Assert.Equal("TrueHD 7.1", Details.AudioLabel(new MediaStream { Index = 1, Kind = "audio", Codec = "truehd", Channels = 8 }));
         Assert.Equal("H.264 1080p", Details.Simplified("H.264 1920×1080"));
         Assert.Equal("NVIDIA NVENC (GPU)", Details.EncoderLabel(new TranscodeInfo { JobId = "j", Encoder = "h264_nvenc", Pipeline = "gpu" }));
+        Assert.Equal("Rockchip MPP (GPU)", Details.EncoderLabel(new TranscodeInfo { JobId = "j", Encoder = "hevc_rkmpp", Pipeline = "gpu" }));
 
         var audio = new MediaStream { Index = 1, Kind = "audio", Codec = "eac3", Channels = 6, Default = true };
         var file = new MediaFile { Id = 1, Path = "a.mkv", Bitrate = 62_000_000, Streams = new[] { Dv, audio } };

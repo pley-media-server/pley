@@ -29,6 +29,7 @@ object PlaybackDetails {
         "h264_vaapi" to "VA-API", "hevc_vaapi" to "VA-API",
         "h264_videotoolbox" to "VideoToolbox", "hevc_videotoolbox" to "VideoToolbox",
         "h264_vulkan" to "Vulkan", "hevc_vulkan" to "Vulkan",
+        "h264_rkmpp" to "Rockchip MPP", "hevc_rkmpp" to "Rockchip MPP",
         "h264_v4l2m2m" to "V4L2",
     )
 
