@@ -82,6 +82,8 @@ class Moments:
             self.dismissed.clear()
             self.shown_since.clear()
         if marker and reaches_end(marker, self.duration_ms) and self.next_item and not self.next_cancelled:
+            # Up Next takes Skip Credits' place: if it comes back (Cancel), its 8 seconds start then.
+            self.shown_since.pop(key(marker), None)
             return "next", marker
         if marker and key(marker) not in self.dismissed:
             since = self.shown_since.get(key(marker))

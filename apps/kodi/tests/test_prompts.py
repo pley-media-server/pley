@@ -115,6 +115,22 @@ class MomentsTest(unittest.TestCase):
         self.now = 38.0
         self.assertIsNone(self.moments.offer(88_500))
 
+    def test_skip_credits_shown_before_the_next_episode_was_known_comes_back_after_cancel(self):
+        late = prompts.Moments([CREDITS], None, clock=lambda: self.now, duration_ms=90_000)
+        self.assertEqual(late.offer(81_000), ("skip", CREDITS))
+        late.appeared(CREDITS)
+        self.now = 2.0
+        late.next_item = NEXT
+        self.assertEqual(late.offer(83_000), ("next", CREDITS))
+        self.now = 12.0
+        late.cancel_next()
+        self.assertEqual(late.offer(84_000), ("skip", CREDITS), "8 fresh seconds, though its first began 12 s ago")
+        late.appeared(CREDITS)
+        self.now = 19.5
+        self.assertEqual(late.offer(85_000), ("skip", CREDITS))
+        self.now = 20.0
+        self.assertIsNone(late.offer(85_500))
+
     def test_without_a_next_episode_credits_are_skipped(self):
         movie = prompts.Moments([CREDITS], duration_ms=90_000)
         self.assertEqual(movie.offer(85_000), ("skip", CREDITS))
