@@ -1707,6 +1707,12 @@ pwsh ..\..\scripts\check-android.ps1   # the release's libraries, native code an
 - Two flavors: `store` (Google Play and the Amazon Appstore, no
   self-updater) and `direct` (the APK to sideload, with an update check).
 - Debug APKs: `app/build/outputs/apk/{store,direct}/debug/`.
+- Unit tests run on Robolectric's Android 16 (SDK 36, robolectric.properties)
+  and, where a test asks for it, 8.1 (SDK 27). Gradle fetches those runtimes
+  (`robolectric-android-all-*` in the version catalog) and the tests never
+  download them. A Robolectric update moves their versions too; a test on
+  another SDK needs its runtime added to the catalog and to
+  `build-logic`'s `Robolectric.kt`, or it fails with "no artifact for".
 - `-Ppley.composeReports=true` writes Compose compiler reports to each
   module's `build/compose/`.
 - Baseline and Startup Profiles live in

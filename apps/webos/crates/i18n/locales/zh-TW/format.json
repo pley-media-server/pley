@@ -52,7 +52,7 @@
     "kbps": "{{n}} kbps",
     "kilohertz": "{{rate}} kHz",
     "fps": "{{rate}} fps",
-    "fpsInterlaced": "{{rate}} fps，隔行"
+    "fpsInterlaced": "{{rate}} fps，隔行掃描"
   },
   "media": {
     "file": "檔案",

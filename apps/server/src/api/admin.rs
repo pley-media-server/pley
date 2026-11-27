@@ -98,21 +98,7 @@ pub async fn put_settings(
     // coming for the libraries, when they were just turned on).
     if !before.strm_probe && after.strm_probe && before.strm_files {
         let state = state.clone();
-        tokio::spawn(async move {
-            match crate::library::list_libraries(&state.db).await {
-                Ok(libraries) => {
-                    for lib in libraries {
-                        if matches!(
-                            lib.kind(),
-                            crate::library::LibraryKind::Movies | crate::library::LibraryKind::Shows
-                        ) {
-                            crate::strm::walk(&state, lib.id);
-                        }
-                    }
-                }
-                Err(err) => tracing::warn!("finding what .strm files' media are failed: {err}"),
-            }
-        });
+        tokio::spawn(async move { crate::strm::walk_all(&state).await });
     }
     // Requests turned on or off, other limits, another TMDB key: every app
     // fetches its summary again.

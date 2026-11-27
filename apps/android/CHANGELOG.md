@@ -8,11 +8,6 @@ describes how they are made.
 
 ## [Unreleased]
 
-### Added
-
-- Live TV plays a channel as its provider sends it when the device
-  decodes it, and the live player has Playback details.
-
 ### Changed
 
 - Up Next's card shows the next title's name without its picture, so it
@@ -21,6 +16,16 @@ describes how they are made.
 - Skip Intro and Skip Credits show by themselves for 8 seconds, then only
   with the player's controls, instead of over the whole intro or credits.
   On TVs, OK and the arrows act on the video again once Skip has gone.
+
+## [0.1.20] - 2026-11-27
+
+### Added
+
+- Live TV plays a channel as its provider sends it when the device
+  decodes it, and the live player has Playback details.
+
+### Changed
+
 - Playback details name Rockchip MPP when a Rockchip server's video
   engines made the transcode.
 
@@ -1059,7 +1064,8 @@ On Android TV:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-25...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-27...HEAD
+[0.1.20]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-27
 [0.1.19]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-25
 [0.1.18]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.17]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22

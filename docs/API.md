@@ -3098,8 +3098,10 @@ A `.strm` file in a movie or TV library names the address its media is at
   is gets found for every file it isn't known for yet (as `GET
   /api/items/{id}` finds it), a few files at a time; the apps are told the
   library changed (`library_changed`) every 30 s while that goes on and
-  once at its end. An address that failed isn't asked again by a scan for a
-  day, unless its file names another.
+  once at its end (what opening or playing an item finds meanwhile, at
+  once, as at any other time, unless the walk is looking at that file
+  then). An address that failed isn't asked again
+  by a scan for a day, unless its file names another.
 - `GET /api/items/{id}` of a movie, an episode or an extra finds what the
   media is when it isn't known, waiting up to 2.5 s for it; a play request
   and `POST /api/conversions` wait for it as long as it takes. Then

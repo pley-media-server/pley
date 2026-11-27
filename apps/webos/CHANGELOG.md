@@ -8,11 +8,6 @@ describes how they are made.
 
 ## [Unreleased]
 
-### Added
-
-- Live TV plays HEVC and 10-bit channels as sent where the TV decodes
-  them, and shows how a channel plays as a video does.
-
 ### Changed
 
 - Up Next's card shows the next title's name without its picture, so it
@@ -21,12 +16,23 @@ describes how they are made.
 - Skip Intro and Skip Credits show on their own for 8 seconds, then only
   with the player's controls, so they don't sit over the whole intro or
   credits and hold the remote's OK.
+
+## [0.1.16] - 2026-11-27
+
+### Added
+
+- Live TV plays HEVC and 10-bit channels as sent where the TV decodes
+  them, and shows how a channel plays as a video does.
+
+### Changed
+
 - Playback details name Rockchip MPP when a Rockchip server's video
   engines made the transcode.
 
 ### Fixed
 
 - A title whose size isn't known yet shows none, not "0 B".
+- Chinese says 隔行扫描 / 隔行掃描 for interlaced video.
 
 ## [0.1.15] - 2026-11-25
 
@@ -545,7 +551,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-25...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-27...HEAD
+[0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-27
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-25
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
