@@ -149,6 +149,10 @@ add(
 // off the tile, a gap that on a Roku's grown tiles read as loose and
 // reached the next tile.
 ninePatch("ring.9.png", 64, 64, 22, `<rect x="3" y="3" width="58" height="58" rx="11" fill="none" stroke="#ffffff" stroke-width="6"/>`);
+// The same ring around a box with corners of 12 (Appearance's cards and
+// chips): the ring's inner corners follow the box's, so no gap opens between
+// them at the corners.
+ninePatch("ring12.9.png", 64, 64, 22, `<rect x="3" y="3" width="58" height="58" rx="15" fill="none" stroke="#ffffff" stroke-width="6"/>`);
 // The same ring around a person's circle, as wide as a row's (192 px and
 // 6 px each side).
 add("ring-round.png", 204, 204, `<circle cx="102" cy="102" r="99" fill="none" stroke="#ffffff" stroke-width="6"/>`);

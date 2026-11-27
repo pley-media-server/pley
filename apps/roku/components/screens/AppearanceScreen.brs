@@ -85,7 +85,8 @@ end sub
 
 ' A card for each theme: its preview (a small Pley in its colors, under
 ' the accent picked), its name and caption; the theme in use in the
-' accent's border, with a check.
+' accent's border, with a check. Focused, the ring stands in for the
+' border: the two side by side read as a double line.
 sub drawThemes()
     m.themes.removeChildrenIndex(m.themes.getChildCount(), 0)
     m.cards = []
@@ -97,20 +98,20 @@ sub drawThemes()
         if picked then addPoster(card, "pkg:/images/ui/r12.9.png", 0, 0, 302, 300, themeAlpha(m.c.accent, "14"))
         edge = m.c.border
         if picked then edge = m.c.accent
-        addPoster(card, "pkg:/images/ui/edge.9.png", 0, 0, 302, 300, edge)
-        if picked then addPoster(card, "pkg:/images/ui/edge.9.png", 1, 1, 300, 298, edge)
+        edges = [addPoster(card, "pkg:/images/ui/edge.9.png", 0, 0, 302, 300, edge)]
+        if picked then edges.Push(addPoster(card, "pkg:/images/ui/edge.9.png", 1, 1, 300, 298, edge))
         preview = card.createChild("Group")
         preview.translation = [12, 12]
         drawPreview(preview, themeColors(id, m.accent), id)
-        if picked then addCheck(card, 240, 18)
+        if picked then addCheck(card, 240, 23)
         name = addLabel(card, t("settings.appearance.names." + id), "bodyLarge", m.c.fg, 16, 180, 280)
         name.maxLines = 1
         ' Its caption on up to two lines, a size under the name's.
         about = addLabel(card, t("settings.appearance.about." + id), "body", m.c.muted, 16, 218, 280)
         about.update({ font: uiFont("regular", 26), wrap: true, maxLines: 2, lineSpacing: 2 })
-        ring = addPoster(card, "pkg:/images/ui/ring.9.png", -6, -6, 314, 312, m.c.accentHover)
+        ring = addPoster(card, "pkg:/images/ui/ring12.9.png", -6, -6, 314, 312, m.c.accentHover)
         ring.visible = false
-        m.cards.Push({ ring: ring })
+        m.cards.Push({ ring: ring, edges: edges })
     end for
 end sub
 
@@ -164,6 +165,7 @@ sub drawAccents()
         if id <> "" then words = t("settings.appearance.accent.names." + id)
         chip = m.accents.createChild("Group")
         chip.translation = [x, 0]
+        edges = []
         label = CreateObject("roSGNode", "Label")
         label.font = uiType("bodyLarge")
         label.text = words
@@ -174,30 +176,37 @@ sub drawAccents()
             addIcon(chip, "check", 32, 28, 24, m.c.accentFg)
             label.color = m.c.accentFg
         else
-            addPoster(chip, "pkg:/images/ui/edge.9.png", 0, 0, width, 80, m.c.border)
+            edges.Push(addPoster(chip, "pkg:/images/ui/edge.9.png", 0, 0, width, 80, m.c.border))
             addPoster(chip, "pkg:/images/ui/circle.png", 24, 20, 40, 40, colors.accent)
             addPoster(chip, "pkg:/images/ui/edge-round.png", 24, 20, 40, 40, themeAlpha(m.c.fg, "33"))
             label.color = m.c.fg
         end if
         label.update({ translation: [80, 0], height: 80, vertAlign: "center" })
         chip.appendChild(label)
-        ring = addPoster(chip, "pkg:/images/ui/ring.9.png", -6, -6, width + 12, 92, m.c.accentHover)
+        ring = addPoster(chip, "pkg:/images/ui/ring12.9.png", -6, -6, width + 12, 92, m.c.accentHover)
         ring.visible = false
-        m.chips.Push({ ring: ring, x: x, width: width })
+        m.chips.Push({ ring: ring, edges: edges, x: x, width: width })
         x = x + width + 22
     end for
 end sub
 
 ' The focus, as the app's tiles show it: the accent's ring around the card
-' or chip.
+' or chip, in place of its own edge.
 sub look()
     if m.cards = invalid then return
     focused = m.top.isInFocusChain()
     for i = 0 to m.cards.Count() - 1
-        m.cards[i].ring.visible = focused and m.zone = "themes" and i = m.at
+        showRing(m.cards[i], focused and m.zone = "themes" and i = m.at)
     end for
     for i = 0 to m.chips.Count() - 1
-        m.chips[i].ring.visible = focused and m.zone = "accents" and i = m.at
+        showRing(m.chips[i], focused and m.zone = "accents" and i = m.at)
+    end for
+end sub
+
+sub showRing(item as object, shown as boolean)
+    item.ring.visible = shown
+    for each edge in item.edges
+        edge.visible = not shown
     end for
 end sub
 
