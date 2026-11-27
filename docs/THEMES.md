@@ -111,6 +111,7 @@ draws:
 | Samsung | Settings → Appearance | Sunshine's rainbow on the open rail | [TV_PLATFORMS.md](TV_PLATFORMS.md) |
 | Samsung, native | Settings → Appearance | None | [TV_PLATFORMS.md](TV_PLATFORMS.md) |
 | LG | Settings → Appearance | All, on mid- and high-tier TVs | [LG.md](LG.md) |
+| Roku | Settings → Appearance | All, as one picture under the pages, and Sunshine's rainbow on the open rail | [ROKU.md](ROKU.md) |
 
 Kodi and the Apple apps don't offer themes yet, and draw Midnight. The
 window an Android device draws before Pley starts is Midnight's, and the
