@@ -600,7 +600,11 @@
   align-items: center;
   justify-content: center;
 }
-/* Focus: a tile's ring, 3 px outside the edge, and a scale. */
+/*
+ * Focus: a tile's ring, 3 px outside the edge, its corners the card's
+ * grown by as much, and a scale. The ring takes the place of the card's
+ * own border, which beside it would read as a second line.
+ */
 .theme-ring {
   position: absolute;
   left: -5.56px;
@@ -608,13 +612,13 @@
   right: -5.56px;
   bottom: -5.56px;
   border: 2.78px solid var(--accent-bright);
-  border-radius: 12px;
+  border-radius: 13.56px;
   opacity: 0;
   transition: opacity 120ms var(--unfocus-ease);
   pointer-events: none;
 }
 .theme-card[data-focused],
-.accent-chip[data-focused] { z-index: 1; transform: scale(1.05); transition: transform 150ms var(--focus-ease); }
+.accent-chip[data-focused] { z-index: 1; box-shadow: none; transform: scale(1.05); transition: transform 150ms var(--focus-ease); }
 .theme-card[data-focused] .theme-ring,
 .accent-chip[data-focused] .theme-ring { opacity: 1; transition: opacity 150ms var(--focus-ease); }
 .theme-card[data-pressed],
@@ -657,7 +661,7 @@
   transition: transform 120ms var(--unfocus-ease);
 }
 .accent-chip.current { background: var(--accent); color: var(--on-accent); box-shadow: none; }
-.accent-chip .theme-ring { border-radius: 9px; }
+.accent-chip .theme-ring { border-radius: 11.56px; }
 .accent-swatch {
   width: 20px;
   height: 20px;
