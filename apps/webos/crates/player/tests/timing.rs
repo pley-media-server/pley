@@ -117,6 +117,28 @@ fn credits_show_up_next_and_its_countdown_plays_the_next_episode_10_s_on() {
 }
 
 #[test]
+fn the_file_ending_while_the_credits_countdown_runs_keeps_the_cards_seconds() {
+    let mut w = episode();
+    w.c.seek_to(7_099_000);
+    w.advance(2_500);
+    let seconds = |w: &World| w.c.state().up_next.as_ref().and_then(|c| c.seconds_left);
+    let first = seconds(&w).expect("the countdown runs");
+    // To just after one of the countdown's steps, so the end falls well inside a second.
+    while seconds(&w) == Some(first) {
+        w.advance(50);
+    }
+    let left = seconds(&w).expect("the countdown goes on");
+    w.sim.end();
+    w.advance(100);
+    assert_eq!(w.c.state().phase, Phase::Paused);
+    assert_eq!(seconds(&w), Some(left), "the card keeps its count rather than losing it until the next step");
+    // The countdown wasn't started again: the next episode plays when it was going to.
+    w.advance(left * 1000);
+    let last = w.fake.requests().last().cloned().unwrap();
+    assert_eq!((last.item_id, last.start_ms), (71, Some(0)));
+}
+
+#[test]
 fn credits_that_something_follows_bring_skip_credits_and_up_next_comes_at_the_end() {
     // The credits stop a minute before the end: an after-credits scene, or a show's last minutes.
     let mut w = credits_until(7_140_000, true, |_| ());

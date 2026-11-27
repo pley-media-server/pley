@@ -68,7 +68,9 @@ fn states() -> Vec<State> {
         state("skip-controls", |p, _| skip(p, t!("player.skip.intro"), false), "wait:200 up wait:400"),
         state("up-next", up_next, "wait:400"),
         State { reduced_motion: true, ..state("up-next-reduced", up_next, "wait:400") },
+        // Its countdown under way, the sweep across Play now: focused, then at rest beside Cancel.
         state("up-next-counting", |p, _| p.state.up_next = Some(card(7)), "wait:400"),
+        state("up-next-cancel", |p, _| p.state.up_next = Some(card(4)), "wait:400 right wait:300"),
         state("sleep-notice", |p, _| p.state.sleep.seconds_left = Some(28), "wait:400"),
         state("buffering", |p, _| p.state.phase = Phase::Buffering, "wait:900"),
         state(
@@ -148,7 +150,8 @@ fn skip(p: &mut Fake, label: &str, alone: bool) {
     p.state.skip_alone = alone;
 }
 
-/// The card as it first shows, its countdown at its widest ("Next in 10" under Reduce motion).
+/// The card as it first shows, its countdown at its widest ("Play now (10)"; "Next in 10" under
+/// Reduce motion).
 fn up_next(p: &mut Fake, _: &mut Settings) {
     p.state.up_next = Some(card(pley_player::controller::COUNTDOWN_SECONDS));
 }
