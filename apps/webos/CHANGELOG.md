@@ -21,6 +21,7 @@ describes how they are made.
 ### Fixed
 
 - A title whose size isn't known yet shows none, not "0 B".
+- Chinese says 隔行扫描 / 隔行掃描 for interlaced video.
 
 ## [0.1.15] - 2026-11-25
 

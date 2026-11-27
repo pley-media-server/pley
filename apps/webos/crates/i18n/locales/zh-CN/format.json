@@ -52,7 +52,7 @@
     "kbps": "{{n}} kbps",
     "kilohertz": "{{rate}} kHz",
     "fps": "{{rate}} fps",
-    "fpsInterlaced": "{{rate}} fps，隔行"
+    "fpsInterlaced": "{{rate}} fps，隔行扫描"
   },
   "media": {
     "file": "文件",
