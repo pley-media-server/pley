@@ -300,7 +300,8 @@ impl Conversions {
         // Rockchip's encoder leaves out of its stream and Pley writes in.
         let rockchip =
             self.ff.caps.encoders.iter().any(|e| e.hardware && e.accel == pley_transcoder_api::HwAccel::Rkmpp);
-        let media = if rockchip { Arc::new(self.prober.with_sample_aspect(&input, &media).await) } else { media };
+        let media =
+            if rockchip { Arc::new(self.prober.with_sample_aspect(&input, &media, false).await) } else { media };
         // Made at full speed, from the start.
         req.options.throttle = false;
         req.start_ms = None;
@@ -384,10 +385,13 @@ impl Conversions {
                 break;
             }
             let _ = tokio::fs::remove_file(&part).await;
-            // Rockchip's decoder has no software fallback: once, the CPU
-            // decodes in its place, as a job's next process does.
-            if plan.decodes_on_rkmpp() {
-                tracing::warn!(conversion = %id, "Rockchip's decoder failed: decoding on the CPU");
+            let lines: Vec<String> = tail.lock().iter().cloned().collect();
+            // Rockchip's decoder has no software fallback: where it failed
+            // before the first frame, once, the CPU decodes in its place, as
+            // a job's next process does. A failure later on is the file's,
+            // its share's or its disk's.
+            if plan.decodes_on_rkmpp() && conversion.status.lock().progress <= 0.0 {
+                tracing::warn!(conversion = %id, "Rockchip's decoder failed ({}): decoding on the CPU", lines.join(" / "));
                 plan = plan.without_rkmpp_decoding();
                 // Made again from the start: the first try's progress
                 // would pass for the second's.
@@ -397,7 +401,6 @@ impl Conversions {
                 });
                 continue;
             }
-            let lines: Vec<String> = tail.lock().iter().cloned().collect();
             if lines.is_empty() {
                 bail!("ffmpeg exited with {status}");
             }

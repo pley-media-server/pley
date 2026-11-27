@@ -185,9 +185,9 @@ pub struct MediaStream {
     /// -90. Absent when not turned (and in older probes).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rotation: Option<i64>,
-    /// The shape of its pixels, as ffprobe gives it (`32:27` on an
-    /// anamorphic DVD), where they aren't square. Absent for square pixels
-    /// (and in older probes).
+    /// The shape of its pixels, as ffprobe gives it: `32:27` on an
+    /// anamorphic DVD, `1:1` for square ones. Absent in older probes, and
+    /// where ffprobe gives none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sample_aspect_ratio: Option<String>,
     /// Frames are stored out of order (B-frames). FFmpeg then seeks a little

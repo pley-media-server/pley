@@ -777,13 +777,11 @@ impl JobManager {
         };
         // Media info from before probes read the pixels' shape, which
         // Rockchip's encoder leaves out of its stream and Pley writes in.
+        // A remux asked for too: it is transcoded where it can't be made
+        // (no keyframe index yet, a turned picture, subtitles burned in).
         let rockchip =
             self.ff.caps.encoders.iter().any(|e| e.hardware && e.accel == pley_transcoder_api::HwAccel::Rkmpp);
-        let media = if rockchip && !wants_copy {
-            Arc::new(self.prober.with_sample_aspect(&input, &media).await)
-        } else {
-            media
-        };
+        let media = if rockchip { Arc::new(self.prober.with_sample_aspect(&input, &media, true).await) } else { media };
         let probed = probing.elapsed();
         let indexing = Instant::now();
         let keyframes = if wants_copy {
@@ -2302,6 +2300,15 @@ impl Job {
                 // better at the next try.
                 if made_nothing && process.is_some_and(|p| p.hardware) {
                     rt.hardware_failed = true;
+                    // Rockchip's encoder failing with the CPU decoding too
+                    // (a size its encoder doesn't make): the first failure
+                    // was the encoder's as well, not its decoder's, which
+                    // brings the software encoder its frames again.
+                    if rt.rkmpp_decode_failed {
+                        rt.rkmpp_decode_failed = false;
+                        rt.decoded_in_software = false;
+                        rt.warnings.retain(|w| w != GPU_DECODING_FAILED);
+                    }
                 }
             }
         }
@@ -4268,12 +4275,16 @@ mod tests {
         let shown = status.video.unwrap();
         assert_eq!((shown.decoder.as_deref(), shown.pipeline.as_deref()), (Some("cpu"), Some("hybrid")));
 
-        // Failing again: the encoder's.
+        // Failing again with the CPU decoding: the encoder's, the first
+        // failure too. The software encoder standing in gets MPP's frames.
         started(&job);
         job.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
-        let rt = job.runtime.lock();
-        assert!(rt.hardware_failed);
-        assert_eq!(rt.failures.get(&1), Some(&1));
+        {
+            let rt = job.runtime.lock();
+            assert!(rt.hardware_failed && !rt.rkmpp_decode_failed && !rt.decoded_in_software);
+            assert_eq!(rt.failures.get(&1), Some(&1));
+        }
+        assert!(job.status().warnings.is_empty());
     }
 
     /// Quick Sync's own decoder has no software fallback: a process whose

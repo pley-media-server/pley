@@ -952,14 +952,17 @@ and fails the start-up test.
   writes the source's at the output's size, where the probe found one
   (`MediaStream.sample_aspect_ratio`) and the filter rewrote that encoder's
   stream in a start-up test. Media info from before probes read it says
-  none: video narrower than 1920 pixels, where anamorphic video is, is
-  probed again for it.
+  none (probes say `1:1` for square pixels): video narrower than 1920
+  pixels, where anamorphic video is, is probed again for it.
 - **A decoder that fails.** MPP's decoder failing before a process's first
   segment hands the video to the CPU for the job's later processes, as
   another GPU's decoder failing does (the warning `GPU decoding failed,
   using the CPU`); the failure doesn't count against the segment, and a
-  second one is the encoder's. A conversion tries once more with the CPU
-  decoding.
+  second one is the encoder's. A conversion that failed before its first
+  frame tries once more with the CPU decoding.
+- **A transcoder of its own.** A server from before Rockchip MPP can't
+  read the capabilities of a transcoder that has it: update the server
+  first, as with any external transcoder.
 
 #### AMF on Windows
 

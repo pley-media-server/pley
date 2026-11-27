@@ -162,11 +162,12 @@ impl Prober {
 
     /// `media` (the server's) with its video's pixel shape where it says
     /// none, as media info from before probes read it doesn't: from the
-    /// file's own probe ([`Self::probe_now`], which keeps it). Rockchip's
+    /// file's own probe, which the prober keeps (`urgent`: one a playback
+    /// waits for, [`Self::probe_now`]). Rockchip's
     /// encoder needs it said (`plan::VideoOut::sample_aspect`). Anamorphic
     /// video is narrower than 1080p's (DVDs, 1440×1080): wider video is
     /// taken for square, unread.
-    pub async fn with_sample_aspect(&self, path: &Path, media: &MediaInfo) -> MediaInfo {
+    pub async fn with_sample_aspect(&self, path: &Path, media: &MediaInfo, urgent: bool) -> MediaInfo {
         let mut known = media.clone();
         let unsaid = |s: &MediaStream| {
             s.kind == StreamKind::Video && s.sample_aspect_ratio.is_none() && s.width.is_some_and(|w| w < 1920)
@@ -174,7 +175,8 @@ impl Prober {
         if !known.streams.iter().any(unsaid) {
             return known;
         }
-        let Ok(probed) = self.probe_now(path).await else { return known };
+        let probed = if urgent { self.probe_now(path).await } else { self.probe(path).await };
+        let Ok(probed) = probed else { return known };
         for stream in known.streams.iter_mut().filter(|s| unsaid(s)) {
             stream.sample_aspect_ratio = probed
                 .streams
@@ -547,6 +549,16 @@ struct RawStream {
     side_data_list: Vec<serde_json::Value>,
 }
 
+/// ffprobe's sample aspect ratio as the probe keeps it: `1:1` for square
+/// pixels, which says it was read; none where it says none (`0:1`).
+fn pixel_shape(text: &str) -> Option<String> {
+    if let Some((num, den)) = pley_transcoder_api::sample_aspect(text) {
+        return Some(format!("{num}:{den}"));
+    }
+    let (num, den) = text.split_once(':')?;
+    (num.trim() == den.trim() && num.trim().parse::<i64>().is_ok_and(|n| n > 0)).then(|| "1:1".to_owned())
+}
+
 /// The rotation of a stream's display matrix, as ffprobe gives it, to the
 /// nearest degree; none when it doesn't turn the picture.
 fn display_rotation(side_data: &[serde_json::Value]) -> Option<i64> {
@@ -614,11 +626,7 @@ pub fn parse_ffprobe_json(json: &[u8], path: &Path) -> anyhow::Result<MediaInfo>
                 stream.level = s.level.filter(|l| *l > 0);
                 stream.interlaced = s.field_order.as_deref().map(|f| !matches!(f, "progressive" | "unknown"));
                 stream.rotation = display_rotation(&s.side_data_list);
-                stream.sample_aspect_ratio = s
-                    .sample_aspect_ratio
-                    .as_deref()
-                    .and_then(pley_transcoder_api::sample_aspect)
-                    .map(|(num, den)| format!("{num}:{den}"));
+                stream.sample_aspect_ratio = s.sample_aspect_ratio.as_deref().and_then(pixel_shape);
                 stream.has_b_frames = s.has_b_frames.map(|n| n > 0);
                 stream.closed_captions = s.closed_captions.map(|n| n > 0);
                 // Suspected only: the prober decodes a few frames to know.
@@ -916,11 +924,24 @@ mod tests {
             ..Default::default()
         };
         let older = MediaInfo { streams: vec![video.clone()], ..Default::default() };
-        let known = prober.with_sample_aspect(&dvd, &older).await;
+        let known = prober.with_sample_aspect(&dvd, &older, true).await;
         assert_eq!(known.streams[0].sample_aspect_ratio.as_deref(), Some("32:27"));
         // 1080p's width and wider: taken for square, unread.
-        let wide = MediaInfo { streams: vec![MediaStream { width: Some(1920), ..video }], ..Default::default() };
-        assert_eq!(prober.with_sample_aspect(&dvd, &wide).await.streams[0].sample_aspect_ratio, None);
+        let wide =
+            MediaInfo { streams: vec![MediaStream { width: Some(1920), ..video.clone() }], ..Default::default() };
+        assert_eq!(prober.with_sample_aspect(&dvd, &wide, false).await.streams[0].sample_aspect_ratio, None);
+        // Read before: square pixels say so, and aren't read again.
+        let square = MediaInfo {
+            streams: vec![MediaStream { sample_aspect_ratio: Some("1:1".into()), ..video }],
+            ..Default::default()
+        };
+        assert_eq!(
+            prober.with_sample_aspect(&dvd, &square, true).await.streams[0].sample_aspect_ratio.as_deref(),
+            Some("1:1")
+        );
+        assert_eq!(pixel_shape("1:1").as_deref(), Some("1:1"));
+        assert_eq!(pixel_shape("64:45").as_deref(), Some("64:45"));
+        assert_eq!((pixel_shape("0:1"), pixel_shape("N/A")), (None, None));
     }
 
     const SAMPLE: &str = r#"{

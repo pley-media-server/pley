@@ -441,7 +441,8 @@ interface MediaStream {
   interlaced?: boolean;
   rotation?: number;                // degrees counterclockwise the picture is turned to be shown (phone
                                     // video: 90 or -90); absent when not turned
-  sample_aspect_ratio?: string;     // its pixels' shape ("32:27" on an anamorphic DVD); absent when square
+  sample_aspect_ratio?: string;     // its pixels' shape: "32:27" on an anamorphic DVD, "1:1" square; absent
+                                    // in older probes
   has_b_frames?: boolean;
   color_transfer?: string;          // "smpte2084", "arib-std-b67", …
   color_primaries?: string;

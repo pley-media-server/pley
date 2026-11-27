@@ -995,11 +995,16 @@ impl Plan {
                     // where RGA makes P010 (RGA3), never in its own packed
                     // 10-bit format: where its tests didn't pass for the
                     // video, or RGA can't take its size, the CPU decodes.
+                    // Nor Dolby Vision or HDR10+ that libplacebo or OpenCL
+                    // tone maps by their metadata, which FFmpeg's own
+                    // decoder brings, as for Quick Sync.
                     let rkmpp_decodes = encoder.accel == HwAccel::Rkmpp
                         && encoder.hardware
                         && !deinterlace
                         && !turned
                         && rga
+                        && !(has_scene_metadata
+                            && matches!(tonemap, Some(Tonemapper::Libplacebo | Tonemapper::Opencl)))
                         && ff.caps.gpu_pipelines.iter().any(|p| {
                             p.accel == HwAccel::Rkmpp && p.codecs.contains(&key) && (!ten_bits || p.p010.contains(&key))
                         });
@@ -3527,6 +3532,16 @@ mod tests {
             "{args}"
         );
         assert_eq!(plan.video_plan(&hdr, None).unwrap().pipeline.as_deref(), Some("hybrid"));
+
+        // Dolby Vision that OpenCL tone maps by its metadata: FFmpeg's own
+        // decoder brings it, on the CPU. HDR10 still comes through RGA.
+        let mut opencl = rockchip(&["hevc", "hevc10"], &["hevc10"]);
+        opencl.caps.tonemappers = vec![Tonemapper::Opencl, Tonemapper::Zscale];
+        let dv = ten_bit(media(DynamicRange::DolbyVision, Some(8)));
+        let v = Plan::build(&request(), &dv, &opencl, None).unwrap().video.unwrap();
+        assert_eq!((v.tonemap, v.hw_decode.as_deref()), (Some(Tonemapper::Opencl), None));
+        let v = Plan::build(&request(), &hdr, &opencl, None).unwrap().video.unwrap();
+        assert_eq!((v.tonemap, v.hw_decode.as_deref()), (Some(Tonemapper::Opencl), Some("rkmpp")));
 
         // RGA2 (RK3568) makes none: the CPU decodes, as it scales.
         let ff = rockchip(&["hevc", "hevc10"], &[]);
