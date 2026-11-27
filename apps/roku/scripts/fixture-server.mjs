@@ -487,7 +487,11 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       res.writeHead(answered.status, { "Content-Type": "application/json", "Cache-Control": "no-store", ...answered.headers });
       return res.end(JSON.stringify(answered.body));
     }
-    const me = () => ({ id: 1, username: "anna", name: "Anna", ...fixture.trackDefaults, language: fixture.language });
+    // The profile signed in: Anna until a switch to another of the household.
+    const me = () => {
+      const current = fixture.household.find((p) => p.current) ?? fixture.household[0];
+      return { id: current.id, username: current.name.toLowerCase(), name: current.name, ...fixture.trackDefaults, language: fixture.language };
+    };
     if (path === "/api/auth/me") return json(200, me());
     // The account's language (docs/API.md, "Language"): one of the five,
     // or null for Automatic.
