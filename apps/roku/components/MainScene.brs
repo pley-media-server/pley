@@ -1267,8 +1267,13 @@ sub onRailChosen()
     home = m.stack.Peek()
     m.railReturn = invalid
     if nav = invalid
-        home.visible = true
-        home.active = true
+        ' Made in a language shown before: made again.
+        if stale(home)
+            home = renew(0)
+        else
+            home.visible = true
+            home.active = true
+        end if
         placeRail()
         ' Home put the focus back where it was as it became active: on
         ' the screen itself, nothing would show it, and a key would be lost.

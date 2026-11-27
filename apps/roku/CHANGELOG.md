@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Home chosen on the rail after the language changed comes in the new
+  language, as it did coming back to it with Back.
+
 ## [0.1.14] - 2026-11-25
 
 ### Fixed
