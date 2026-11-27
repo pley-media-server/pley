@@ -292,6 +292,9 @@ impl AppState {
                 }
             }
         });
+        // What `.strm` files' media is, once a scan is done, for those it
+        // isn't known for yet.
+        crate::strm::follow_scans(self);
         // Fingerprints of files scanned by older versions (then previews of
         // what lacks them), and a daily clean-up.
         let (store, trickplay) = (self.store.clone(), self.trickplay.clone());

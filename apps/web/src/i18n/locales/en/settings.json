@@ -89,6 +89,9 @@
       "strm": ".strm files",
       "strmHint": "Use .strm files to play videos from web addresses.",
       "strmToggle": "Read .strm files",
+      "strmProbe": "Preload media info from .strm files",
+      "strmProbeHint": "After each library scan, request each new .strm file's address and store the video's media info (tracks, length, size).",
+      "strmProbeToggle": "Preload media info from .strm files",
       "markers": "Detect intros and credits",
       "markersHint": "Compare the audio of episodes in the background to offer Skip Intro and Skip Credits. Chapters named Intro or Credits are always used.",
       "noChromaprint": "This FFmpeg lacks Chromaprint, so only chapters can mark intros and credits.",
@@ -231,7 +234,8 @@
       "qsv": "needs an Intel graphics chip",
       "amf": "needs an AMD graphics card",
       "vaapi": "needs an Intel or AMD graphics chip",
-      "videotoolbox": "needs an FFmpeg with VideoToolbox"
+      "videotoolbox": "needs an FFmpeg with VideoToolbox",
+      "rkmpp": "needs a Rockchip chip and Rockchip's kernel"
     },
     "tonemapNeeds": {
       "libplacebo": "needs libplacebo and a Vulkan GPU",

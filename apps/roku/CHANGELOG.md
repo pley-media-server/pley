@@ -22,6 +22,10 @@ describes how they are made.
   with the player's controls, so they no longer sit over the whole intro
   or credits and hold the remote's OK.
 
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
 ## [0.1.14] - 2026-11-25
 
 ### Fixed

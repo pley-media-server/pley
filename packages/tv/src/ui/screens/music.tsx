@@ -300,6 +300,8 @@ export function NowPlayingScreen() {
   const now = player.now.value;
   const sleep = player.sleep.value;
   const [dim, setDim] = useState(false);
+  const playBig = useRef<HTMLElement | null>(null);
+  const seeker = useSettledSeek();
   // Any key wakes the page; two minutes without one dim it.
   useEffect(() => {
     let timer = setTimeout(() => setDim(true), 120_000);
@@ -336,10 +338,10 @@ export function NowPlayingScreen() {
             player.previous();
             return true;
           case "fastForward":
-            player.seekTo(Math.min(player.durationMs(), player.positionMs() + 10_000));
+            seeker.move(forward(seeker.from(), player.durationMs()));
             return true;
           case "rewind":
-            player.seekTo(Math.max(0, player.positionMs() - 10_000));
+            seeker.move(Math.max(0, seeker.from() - 10_000));
             return true;
           default:
             return false;
@@ -391,15 +393,16 @@ export function NowPlayingScreen() {
           {byline}
         </div>
         <div class={`t-caption now-status ${now.error ? "c-danger" : "c-subtle"}`}>{status}</div>
-        <NowScrubber playing={now.playing} />
-        <G kind="row" class="now-controls">
+        <NowScrubber playing={now.playing} seeker={seeker} />
+        {/* Down from the scrubber lands on Play, whichever control sits under the scrubber's middle. */}
+        <G kind="row" class="now-controls" onEnter={(dir) => (dir === "down" ? playBig.current : null)}>
           <div class="now-round">
             <Round label={now.shuffle ? t("browse.music.stopShuffling") : t("browse.actions.shuffle")} icon="shuffle" onSelect={() => player.setShuffle(!now.shuffle)} />
           </div>
           <div class="now-round">
             <Round label={t("browse.music.previous")} icon="skip-back" onSelect={() => player.previous()} />
           </div>
-          <F class="play-big" initial label={now.playing || (now.loading && !now.error) ? t("browse.music.pause") : t("common.actions.play")} onSelect={() => player.toggle()}>
+          <F class="play-big" initial elRef={(el) => (playBig.current = el)} label={now.playing || (now.loading && !now.error) ? t("browse.music.pause") : t("common.actions.play")} onSelect={() => player.toggle()}>
             <Icon name={now.playing || (now.loading && !now.error) ? "pause" : "play"} size={32} />
           </F>
           <div class="now-round">
@@ -493,7 +496,7 @@ function NowQueue(p: { list: ItemSummary[]; index: number; playing: boolean; onJ
  * no second shows for half a second or one and a half), each second while
  * paused, and at once after a seek; the page and its queue aren't.
  */
-function NowScrubber(p: { playing: boolean }) {
+function NowScrubber(p: { playing: boolean; seeker: SettledSeek }) {
   const player = musicPlayer();
   const [, setBeat] = useState(0);
   const pos = player.positionMs();
@@ -502,23 +505,83 @@ function NowScrubber(p: { playing: boolean }) {
     return () => clearTimeout(t);
   });
   return (
-    <Scrubber
-      positionMs={pos}
-      durationMs={player.durationMs()}
-      bufferedMs={player.bufferedMs()}
-      onSeek={(ms) => {
-        player.seekTo(ms);
-        setBeat((n) => n + 1);
-      }}
-      onToggle={() => player.toggle()}
-    />
+    <Scrubber positionMs={pos} durationMs={player.durationMs()} bufferedMs={player.bufferedMs()} seeker={p.seeker} onToggle={() => player.toggle()} />
   );
 }
 
-/** The track's scrubber: Left and Right seek 10 s, OK plays or pauses. */
-function Scrubber(p: { positionMs: number; durationMs: number; bufferedMs: number; onSeek: (ms: number) => void; onToggle: () => void }) {
+/** How long after the last of quick presses (Left or Right, fast-forward or rewind) the track seeks, once, to where they took it. */
+const SEEK_SETTLE_MS = 300;
+
+/** Now Playing's seeks by key: where the presses took it (null: none to go), a press, and where the next press goes from. */
+interface SettledSeek {
+  target: number | null;
+  move(to: number): void;
+  from(): number;
+}
+
+/**
+ * Each press moves the place shown at once; the seek itself goes once, to
+ * the last place, as the presses stop (a held key would otherwise ask for
+ * the file from a new place ten times a second, or start a conversion as
+ * often), and only on the track they were made on.
+ */
+function useSettledSeek(): SettledSeek {
+  const player = musicPlayer();
+  const [target, setTarget] = useState<number | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pending = useRef<{ to: number; track: string } | null>(null);
+  const trackNow = () => {
+    const n = player.now.value;
+    return n ? `${n.index}:${n.track.id}` : "";
+  };
+  /** The seek still to go, if its track still plays. */
+  const mine = () => (pending.current && pending.current.track === trackNow() ? pending.current : null);
+  const go = () => {
+    timer.current = null;
+    const p = mine();
+    pending.current = null;
+    if (p) player.seekTo(p.to);
+  };
+  // Leaving the page mid-press still seeks where the presses went.
+  useEffect(
+    () => () => {
+      if (timer.current === null) return;
+      clearTimeout(timer.current);
+      go();
+    },
+    [],
+  );
+  return {
+    target: mine() ? target : null,
+    move(to) {
+      pending.current = { to, track: trackNow() };
+      setTarget(to);
+      if (timer.current !== null) clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        go();
+        setTarget(null);
+      }, SEEK_SETTLE_MS);
+    },
+    // From where the last press went, drawn or not yet.
+    from: () => mine()?.to ?? player.positionMs(),
+  };
+}
+
+/** 10 s on, within the track; a length not known yet (0) holds nothing back. */
+function forward(positionMs: number, durationMs: number): number {
+  const to = positionMs + 10_000;
+  return durationMs > 0 ? Math.min(durationMs, to) : to;
+}
+
+/**
+ * The track's scrubber, above Play: Left and Right move
+ * 10 s (a seek that settles, `useSettledSeek`), OK plays or pauses, Down
+ * goes to the controls.
+ */
+function Scrubber(p: { positionMs: number; durationMs: number; bufferedMs: number; seeker: SettledSeek; onToggle: () => void }) {
   const dur = Math.max(0, p.durationMs);
-  const played = dur ? Math.min(1, p.positionMs / dur) : 0;
+  const pos = p.seeker.target ?? p.positionMs;
+  const played = dur ? Math.min(1, pos / dur) : 0;
   const buffered = dur ? Math.min(1, p.bufferedMs / dur) : 0;
   return (
     <div class="now-scrubber">
@@ -528,11 +591,11 @@ function Scrubber(p: { positionMs: number; durationMs: number; bufferedMs: numbe
         onSelect={p.onToggle}
         onKey={(key) => {
           if (key === "left") {
-            p.onSeek(Math.max(0, p.positionMs - 10_000));
+            p.seeker.move(Math.max(0, p.seeker.from() - 10_000));
             return true;
           }
           if (key === "right") {
-            p.onSeek(Math.min(dur, p.positionMs + 10_000));
+            p.seeker.move(forward(p.seeker.from(), dur));
             return true;
           }
           return false;
@@ -545,8 +608,8 @@ function Scrubber(p: { positionMs: number; durationMs: number; bufferedMs: numbe
         <div class="scrub-thumb" style={`left:${played * 100}%`} />
       </F>
       <div class="scrub-times t-caption c-fg">
-        <span>{formatClock(p.positionMs)}</span>
-        <span>{`−${formatClock(Math.max(0, dur - p.positionMs))}`}</span>
+        <span>{formatClock(pos)}</span>
+        <span>{`−${formatClock(Math.max(0, dur - pos))}`}</span>
       </div>
     </div>
   );

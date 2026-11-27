@@ -71,6 +71,20 @@ if [ -n "$render_node" ]; then
 fi
 nvidia=
 if docker info --format '{{json .Runtimes}}' | grep -q '"nvidia"'; then nvidia=1; fi
+# Rockchip's video engines, on Rockchip's own kernel, which has MPP's device:
+# compose.rockchip.yaml hands over it, RGA's, the DMA heaps and /dev/dri.
+rockchip='' rockchip_skipped=''
+if [ "$os" = linux ] && [ -c /dev/mpp_service ]; then
+    rockchip=1
+    for dev in /dev/rga /dev/dma_heap /dev/dri; do
+        [ -e "$dev" ] || rockchip_skipped="this system has no $dev"
+    done
+    if [ -n "$rootless" ]; then
+        rockchip_skipped="rootless Docker can't give Pley the host's video group"
+    elif [ "$(stat -c %g /dev/mpp_service)" = 0 ]; then
+        rockchip_skipped="/dev/mpp_service belongs to root's group"
+    fi
+fi
 
 # ---- .env, on the first run ------------------------------------------------
 if [ ! -f .env ]; then
@@ -99,6 +113,13 @@ if [ ! -f .env ]; then
         files="$files${sep}compose.nvidia.yaml"
         say "Found the NVIDIA Container Toolkit: NVIDIA hardware transcoding is on (compose.nvidia.yaml)."
     fi
+    if [ -n "$rockchip" ] && [ -z "$rockchip_skipped" ]; then
+        files="$files${sep}compose.rockchip.yaml"
+        set -- "$@" -e "s|^# PLEY_ROCKCHIP_GID=.*|PLEY_ROCKCHIP_GID=$(stat -c %g /dev/mpp_service)|"
+        say "Found Rockchip's video engines (/dev/mpp_service): hardware transcoding is on (compose.rockchip.yaml)."
+    elif [ -n "$rockchip" ]; then
+        say "Found Rockchip's video engines (/dev/mpp_service), left off: $rockchip_skipped (README.md, Hardware transcoding)."
+    fi
     [ "$files" = compose.yaml ] || set -- "$@" -e "s|^# COMPOSE_FILE=.*|COMPOSE_FILE=$files|"
 
     sed "$@" .env.example >.env.new
@@ -118,6 +139,13 @@ else
     case $files in
         *compose.nvidia.yaml*) ;;
         *) [ -z "$nvidia" ] || say "Docker has the NVIDIA Container Toolkit, which Pley doesn't use: add compose.nvidia.yaml to COMPOSE_FILE in .env." ;;
+    esac
+    case $files in
+        *compose.rockchip.yaml*) ;;
+        *)
+            [ -z "$rockchip" ] || [ -n "$rockchip_skipped" ] ||
+                say "Pley doesn't use Rockchip's video engines: add compose.rockchip.yaml to COMPOSE_FILE and PLEY_ROCKCHIP_GID=$(stat -c %g /dev/mpp_service) to .env."
+            ;;
     esac
 fi
 

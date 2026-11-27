@@ -9,7 +9,9 @@ and packaging. It follows the [Android TV app](ANDROID.md): the same
 is a native app: [LG.md](LG.md).)
 
 - **Package:** a Tizen web app (`.wgt`).
-- **Player:** AVPlay, Samsung's player, on the hardware video plane.
+- **Player:** AVPlay, Samsung's player on the hardware video plane;
+  `<video>` for files played as they are on sets before 2020, and where
+  AVPlay won't seek in one.
 - **Oldest TV:** 2018 (Tizen 4.0, Chromium 56); Samsung's store takes new
   media apps for 2021 (Tizen 6.0) and later.
 
@@ -67,6 +69,8 @@ until it has, asks "Who's watching?". What differs:
   the native Samsung app show the controls on OK (Down: on Play/Pause),
   wait for OK before a seek, as YouTube's TV app does, and show the
   chapters as a row of cards over the scrubber.
+- The media keys drive the music on Now Playing only; in the native
+  Samsung app they drive it from any page.
 - Samsung's `ChannelUp`, `ChannelDown`, `ChannelList` and `Guide` keys are
   registered.
 
@@ -547,8 +551,9 @@ its packages into the SDK by hand and it runs on WHPX.
   the TV build for the TV's engine. The native Samsung app has them in C#.
 - `apps/tizen` has `facts.ts` (what the TV says about itself), `caps.ts`
   (the capability report, with snapshot tests of real sets), `engine.ts`
-  (AVPlay), `platform.ts`, `main.ts`, its manifest (`config.xml`) and
-  `scripts/`.
+  (AVPlay), `engine-select.ts` (`<video>` or AVPlay for each source, and
+  the Player setting), `platform.ts`, `main.ts`, its manifest
+  (`config.xml`) and `scripts/`.
 - The server's side is in [API.md](API.md): the `tizen.json` OAuth client,
   [keyed addresses](API.md#keyed-urls) and CORS.
 
@@ -567,8 +572,8 @@ and field reports:
 
 | Year | Tizen | Chromium | Beyond H.264 and HEVC Main 10 | Notes |
 |---|---|---|---|---|
-| 2018 | 4.0 | 56 | VP9 Profile 0 and 2 | |
-| 2019 | 5.0 | 63 | VP9; 8K HEVC on 8K sets | |
+| 2018 | 4.0 | 56 | VP9 Profile 0 and 2 | Dolby audio from files only: silent in MPEG-TS segments |
+| 2019 | 5.0 | 63 | VP9; 8K HEVC on 8K sets | Dolby audio from files only: silent in MPEG-TS segments |
 | 2020 | 5.5 | 69 | AV1 | fMP4 in HLS |
 | 2021 | 6.0 | 76 | AV1 | Codec queries, HTTP status in player errors; the store's floor |
 | 2022 | 6.5 | 85 | AV1 | |
@@ -602,6 +607,14 @@ Pley's capability report (`apps/tizen/src/caps.ts`,
 version), the panel (4K, 8K, HDR), codec queries on Tizen 6.0 and later,
 and the sound output. AC-3 and E-AC-3 are passed through when the TV's
 output is set to Dolby; TrueHD and DTS only when Settings → Playback asks.
+Before 2020, AVPlay plays AC-3 and E-AC-3 from a file but is silent on
+them in a stream's MPEG-TS segments (2018 and 2019 sets): the report's
+`hls.audio` and `hls.audio_channels` say what a stream's audio can be (AAC
+or MP3, stereo), and every stream is asked for with only those
+(`streamingCaps`, `packages/tv/src/player/plan.ts`), so the server
+converts the rest. A stream the server chose for a file the app expected to
+play as it is is asked for again that way. (The native app needs Tizen 9,
+so it never plays on these sets.)
 
 AVPlay rules the engine keeps: one call at a time while a seek runs; no
 seek to 0; stop and close before the next source; the picture placed in
@@ -610,6 +623,72 @@ the native player too, can say one failure twice (its error, and the call
 that failed): the apps act on a session's first only, so the fallbacks go
 one step at a time. When the TV hides the app, the session closes and
 reopens at the same place.
+
+AVPlay can say it is ready before it plays, and a seek in a stream can
+leave it paused (Tizen 5): the engine asks it to play before it says ready,
+and again once a seek is made, and the session asks it to play when it
+means to and finds it paused. A file played as it is that AVPlay won't
+seek in is seeked as a remux, a new session at the place; once AVPlay
+refused seeks in a kind of file (container and video codec) on two items,
+seeks in that kind go straight to the remux for 30 days
+(`packages/tv/src/player/seekmemory.ts`). While AVPlay makes a seek in a
+stream, the server making the place isn't a stall, for up to 30 s. A seek
+shorter than 30 s failed only when AVPlay plays on from where it was:
+it lands on a keyframe, which in a long-GOP file can be as far behind the
+target as the skip is long. Tizen 5's AVPlay (sets before 2020) prepares a stream from
+its first segment and doesn't answer a seek before it plays, so there a
+stream started part-way plays first and seeks to the place once it does.
+The session therefore asks the server for such a stream from its start
+(`hlsFromFirstSegment`), unless picture subtitles are on, and the
+transcoder's first process makes the segment AVPlay asks for first. The
+seek then restarts it once at the place. Later sets seek to the place
+before they play, as the stream the server started there.
+
+The app has two players (`apps/tizen/src/engine-select.ts`). On sets
+before 2020, whose AVPlay refuses seeks in files played as they are, such
+a file goes to `<video>` (`packages/tv/src/player/video-engine.ts`), whose
+pipeline fetches it by HTTP range and seeks in it from there, as
+Jellyfin's player does on these TVs, when it is H.264 or HEVC up to 1080p
+in SDR, in MKV, MP4, TS or WebM, with the audio track the file starts with
+in AAC, AC-3, E-AC-3, MP3, FLAC, Opus or PCM. AVPlay plays the rest:
+streams and live channels, 4K and 8K, HDR and Dolby Vision, and another
+audio track than the file's own. The two share the screen and the decoder,
+so one is let go entirely before the other starts. A file `<video>` can't
+open before its first picture goes on with AVPlay at the same place, and
+that kind of file stays on AVPlay while the player is open; the session's
+stall clock starts again with AVPlay. Later sets play such files on
+AVPlay, as before. On any set, a seek AVPlay refuses in a file `<video>`
+takes (and in HEVC up to 4K in SDR, as Jellyfin plays it there) plays the
+same address on `<video>` at the place before a remux; one `<video>`
+can't open goes to the remux. What each player refuses is remembered
+apart. `<video>` takes a seek as made when it lands within 5 s of the
+place, or nearer it than where it was (a keyframe), or, for one shorter
+than 30 s, anywhere but where it was; one still fetching over a slow
+network is left to the session's stall clock.
+`<video>`'s frame counts aren't used: dropped frames would have the server
+convert a file played as it is. Settings → Playback → Player set to AVPlay
+only plays everything on AVPlay. An audio track picked while `<video>`
+plays starts a new session on AVPlay: `<video>` can't be told which track
+to play.
+
+Music plays a file as it is through `<audio>`, which on Tizen 5 doesn't
+move in a FLAC file: told a new `currentTime`, it pauses and plays on where
+it was, or from 0. A seek in a file therefore goes up to three steps
+(`climb` in `packages/tv/src/player/music.ts`): it moves the element and
+takes the seek as made when it lands within 3 s of the place (or played on
+past it) within 1.5 s; else it loads the file again from the place
+(`#t=`) and waits up to 2.5 s once it can play; else it ends the session
+and the server converts the track's audio from the place, for that session
+only, so the next track and the next seek ask for the file again. No step
+waits more than 3 s, and a newer seek replaces one under way. Which step
+worked is remembered for each kind of audio file (`flac`) for 30 days
+(`storedAudioSeekMemory`), so later seeks in that kind skip the steps that
+failed. A step that ran out of time while the file still loaded (a slow
+network) teaches nothing, and the first seek in a kind since the app
+started tries a plain move again: one that works forgets the kind. A seek
+asked while a track starts, or before the file knows its length, goes
+through the same steps. The console logs each step as `[music] seek
+ladder`.
 
 ## Releases
 
@@ -671,7 +750,7 @@ and why a channel doesn't play); music's artist and
 album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
 (the scrubber, the controls, the sleep timer and the queue), with the
 music playing on behind the other pages, driven by the remote's media keys
-from any of them, and pausing for a video; Discover and requests, ported from Android TV
+on Now Playing, and pausing for a video; Discover and requests, ported from Android TV
 ([Requests](#requests): the rail's entry and its number, Discover's hero
 and rows, a title's page and Which seasons?, the requests and their
 actions, Discover's row in Search, Request more seasons on a show's page,

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { formatClock, formatTimeOfDay } from "../../format/format";
 import { storedMemory } from "../../player/autoquality";
+import { storedSeekMemory } from "../../player/seekmemory";
 import { initMusic } from "../../player/music";
 import { serverNetwork } from "../../player/network";
 import { COUNTDOWN_SECONDS, PlaybackController, type PlayerEnv, type SavedPlayback } from "../../player/controller";
@@ -58,7 +59,7 @@ export function PlayerScreen(p: { request: PlayRequest; pressedAt: number }) {
     const env: PlayerEnv = {
       api: ui.api,
       reporter: app.reporter,
-      engine: () => app.platform.createEngine(host.current!),
+      engine: () => app.platform.createEngine(host.current!, { player: () => app.settings.value.player }),
       caps: () =>
         app.caps().then((r) => {
           probe.current = r?.dvContainers ?? null;
@@ -71,6 +72,7 @@ export function PlayerScreen(p: { request: PlayRequest; pressedAt: number }) {
       quality: { remembered: () => saved?.quality ?? app.settings.value.quality, remember: (id) => app.updateSettings({ quality: id }) },
       autoMemory: storedMemory(app.store, `pley.autoQuality.${ui.api.server}`),
       network: serverNetwork(ui.api, app.installId()),
+      seekMemory: storedSeekMemory(app.store, "pley.seekRefusals"),
       autoplayNext: () => app.settings.value.autoplayNext,
       events: (l) => app.onEvent(l),
       cachedItem: (id) => app.cachedItem(id),
@@ -245,8 +247,9 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
     setControls(true);
     focusFid(focus);
   };
+  // A controller still meaning to play while it says paused shows Play: pressing it plays, not pauses.
   const playPause = () => {
-    if (c.wantsToPlay) {
+    if (c.wantsToPlay && !c.waitsToPlay) {
       c.pause();
       if (!controls) show("scrubber");
     } else c.play();

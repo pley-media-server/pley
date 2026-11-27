@@ -170,6 +170,7 @@
     "drawnHere": "Drawn by this TV",
     "thisTv": "This TV",
     "player": "Player",
+    "videoElement": "HTML5 video",
     "decoded": "Decoded",
     "decoder": "Video decoder",
     "hardware": "{{decoder}} (hardware)",

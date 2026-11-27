@@ -22,6 +22,7 @@ import { storedMemory, type Remembered } from "../../src/player/autoquality";
 import type { NetworkMemory } from "../../src/player/network";
 import { ORIGINAL } from "../../src/player/quality";
 import { Reporter } from "../../src/player/reporter";
+import { SEEK_REFUSALS_TRUSTED, storedSeekMemory } from "../../src/player/seekmemory";
 import { NetworkError } from "../../src/net/transport";
 import { OffsetStore } from "../../src/subs/sync";
 
@@ -237,6 +238,8 @@ describe("Dolby Vision", () => {
 
 class FakeEngine implements PlayerEngine {
   readonly name = "Fake";
+  /** Samsung's AVPlay: a stream starts at its first segment, and is sought once it plays. */
+  hlsFromFirstSegment = false;
   listener: EngineListener | null = null;
   prepared: EngineSource[] = [];
   state: EngineStatus = "idle";
@@ -255,7 +258,11 @@ class FakeEngine implements PlayerEngine {
   }
   play() {}
   pause() {}
-  seekTo() {}
+  /** Where it was asked to seek, in order. */
+  seeks: number[] = [];
+  seekTo(ms: number) {
+    this.seeks.push(ms);
+  }
   stop() {
     this.state = "idle";
   }
@@ -302,6 +309,19 @@ class FakeEngine implements PlayerEngine {
   }
   stats() {
     return null;
+  }
+  /** Whether the TV's other player (Samsung's <video>) can take the file at a seek this one refused; where it was asked to. */
+  switchable = false;
+  switchedAt: number[] = [];
+  switchForSeek(targetMs: number) {
+    if (!this.switchable) return false;
+    this.switchedAt.push(targetMs);
+    return true;
+  }
+  /** Which of the TV's players plays now (`null`: the engine has one). */
+  player: string | null = null;
+  activePlayer() {
+    return this.player;
   }
 }
 
@@ -447,6 +467,34 @@ describe("a playback session", () => {
     expect(w.requests[1]!.max_bitrate).toBeDefined();
     expect(w.requests[1]!.audio_index).toBeUndefined();
     expect(c.state.value.audio.filter((a) => a.selected).map((a) => a.index)).toEqual([1]);
+    c.close();
+  });
+
+  it("asks again with the audio a stream plays when the server streams a file the TV expected to play as it is", async () => {
+    // Only DTS, which this TV doesn't decode: the server streams it, though the video and container play here.
+    const dts = file({ audio_codec: "dts", streams: [file().streams[0]!, stream({ index: 1, kind: "audio", codec: "dts", language: "eng", channels: 6 })] });
+    const w = world(item(dts), (req) => info({ method: "remux", hls: true, url: `/api/media/pley_mk_KEY/${req.caps.audio_channels}/master.m3u8` }));
+    const tsOnly: ClientCaps = { ...LG, hls: { master_playlist: true, segments: ["ts"], audio: ["aac", "mp3"], audio_channels: 2 } };
+    w.env.caps = async () => tsOnly;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    expect(w.requests.length).toBe(2);
+    expect(w.requests[0]!.caps).toEqual(tsOnly);
+    const again = w.requests[1]!;
+    expect([again.caps.audio_decode, again.caps.audio_channels, again.audio_index]).toEqual([["aac"], 2, undefined]);
+    // The first session never plays: it is ended.
+    expect(w.calls.filter((x) => x.startsWith("start") || x.startsWith("delete")).slice(0, 3)).toEqual(["start auto", "start auto", "delete s1"]);
+    expect(w.engine.prepared.map((p) => p.url)).toEqual(["http://nas:7539/api/media/pley_mk_KEY/2/master.m3u8"]);
+    c.close();
+  });
+
+  it("doesn't ask again for a stream the server chose on a TV that plays the same audio from a stream as from a file", async () => {
+    const w = world(item(file()), () => info({ method: "remux", hls: true, url: "/api/media/pley_mk_KEY/master.m3u8" }));
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    expect(w.requests.length).toBe(1);
     c.close();
   });
 
@@ -630,6 +678,249 @@ describe("a playback session", () => {
     expect(unlisted.requests.map((r) => r.mode)).toEqual(["auto", "remux"]);
     expect(unlisted.requests[1]!.caps).toEqual(LG);
     d.close();
+  });
+});
+
+describe("a seek the TV's player didn't make", () => {
+  const shown = (w: ReturnType<typeof world>) => {
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+  };
+
+  it("starts one new session where the seek went, and no more when that one can't get there either", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    expect(w.engine.seeks).toEqual([1_200_000]);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    expect(w.requests.map((r) => r.start_ms)).toEqual([600_000, 1_200_000]);
+    expect(w.engine.prepared.map((p) => p.startMs)).toEqual([600_000, 1_200_000]);
+    expect(c.state.value.phase.kind).not.toBe("error");
+    // The new session's player can't start there either: it plays on where it is, and says so.
+    shown(w);
+    w.engine.pos = 640_000;
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    expect(w.requests.length).toBe(2);
+    expect(c.clock.value.positionMs).toBe(640_000);
+    expect(c.state.value.phase.kind).not.toBe("error");
+    c.close();
+  });
+
+  it("starts the session again, as a remux, at the resume point the TV's player refused", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    // It plays from the start instead.
+    w.engine.pos = 2_000;
+    shown(w);
+    w.engine.listener?.seekFailed?.(600_000);
+    await settle();
+    expect(w.requests.map((r) => r.start_ms)).toEqual([600_000, 600_000]);
+    // The resume point stays where it was.
+    expect(w.calls.slice(0, 4)).toEqual(["start auto", "progress stopped 600000", "delete s1", "start remux"]);
+    c.close();
+  });
+
+  it("tries again for a seek elsewhere after one it gave up on", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    shown(w);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    expect(w.requests.length).toBe(2);
+    c.seekTo(3_000_000);
+    w.engine.listener?.seekFailed?.(3_000_000);
+    await settle();
+    expect(w.requests.map((r) => r.start_ms)).toEqual([600_000, 1_200_000, 3_000_000]);
+    c.close();
+  });
+
+  it("keeps the resume point when the player closes before it got there", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    // The TV's player started at the beginning, and nothing said so.
+    w.engine.pos = 30_000;
+    shown(w);
+    c.close();
+    await settle();
+    expect(w.calls).toEqual(["start auto", "progress stopped 600000", "delete s1"]);
+  });
+
+  it("reports where a seek back went when the player closes", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(30_000);
+    w.engine.pos = 30_000;
+    c.close();
+    await settle();
+    expect(w.calls).toContain("progress stopped 30000");
+  });
+});
+
+describe("a seek the TV's player didn't make, and what else happens meanwhile", () => {
+  const shown = (w: ReturnType<typeof world>) => {
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+  };
+  const tick = (c: PlaybackController) => (c as unknown as { tick(): void }).tick();
+
+  it("doesn't take a late failure of the last item's seek for the next item's", async () => {
+    const w = world(item(file(), { kind: "episode" }), () => info());
+    const api = w.env.api as unknown as Record<string, unknown>;
+    const first = item(file(), { kind: "episode" });
+    const next = { ...first, id: 71, title: "Next" };
+    api.next = async () => ({ item: next });
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    api.item = async (id: number) => {
+      // The engine still has the last item's seek: AVPlay refuses it now.
+      if (id === 71) w.engine.listener?.seekFailed?.(1_200_000);
+      return id === 71 ? next : first;
+    };
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    c.playNext();
+    await settle();
+    await settle();
+    expect(w.requests.map((r) => [r.item_id, r.start_ms])).toEqual([
+      [70, 600_000],
+      [71, 600_000],
+    ]);
+    c.close();
+  });
+
+  it("asks for a remux at the place when the TV's player can't seek in the file played as it is", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(3_000_000);
+    w.engine.listener?.seekFailed?.(3_000_000);
+    await settle();
+    expect(w.requests.map((r) => [r.start_ms, r.mode])).toEqual([
+      [600_000, "auto"],
+      [3_000_000, "remux"],
+    ]);
+    c.close();
+  });
+
+  it("asks for audio the TV's player plays in a stream when the remux is made", async () => {
+    const w = world(item(file()), () => info());
+    // A 2019 Samsung: E-AC-3 from the file, only AAC and MP3 in MPEG-TS segments.
+    const tsOnly: ClientCaps = { ...LG, hls: { master_playlist: true, segments: ["ts"], audio: ["aac", "mp3"], audio_channels: 2 } };
+    w.env.caps = async () => tsOnly;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(3_000_000);
+    w.engine.listener?.seekFailed?.(3_000_000);
+    await settle();
+    // Played as it is, the file keeps its own audio.
+    expect(w.requests[0]!.caps).toEqual(tsOnly);
+    const remux = w.requests[1]!;
+    expect(remux.mode).toBe("remux");
+    expect([remux.caps.audio_decode, remux.caps.audio_passthrough, remux.caps.audio_codecs, remux.caps.audio_channels]).toEqual([["aac"], [], ["aac"], 2]);
+    c.close();
+  });
+
+  it("ignores a failure for a place neither the session's start nor the last seek", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    w.engine.listener?.seekFailed?.(3_000_000);
+    await settle();
+    expect(w.requests.length).toBe(1);
+    c.close();
+  });
+
+  it("goes back to where it was when the new session can't get to the seek and starts at the beginning", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    w.engine.pos = 610_000;
+    c.seekTo(3_000_000);
+    w.engine.listener?.seekFailed?.(3_000_000);
+    await settle();
+    shown(w);
+    w.engine.pos = 0;
+    w.engine.listener?.seekFailed?.(3_000_000);
+    await settle();
+    expect(w.requests.map((r) => r.start_ms)).toEqual([600_000, 3_000_000, 610_000]);
+    // That one can't either: it plays on, and its stop keeps the place it came from.
+    shown(w);
+    w.engine.pos = 0;
+    w.engine.listener?.seekFailed?.(610_000);
+    await settle();
+    expect(w.requests.length).toBe(3);
+    c.close();
+    await settle();
+    // The last stop is the resume point the server keeps.
+    expect(w.calls.filter((x) => x.startsWith("progress stopped")).pop()).toBe("progress stopped 610000");
+  });
+
+  it("reports where it played on, not the seek it gave up on, when the player closes", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    shown(w);
+    w.engine.pos = 640_000;
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    w.engine.pos = 900_000;
+    tick(c);
+    c.close();
+    await settle();
+    expect(w.calls.filter((x) => x.startsWith("progress stopped")).pop()).toBe("progress stopped 900000");
+  });
+
+  it("tries a seek to the same place again once the new session there played", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(90_000);
+    w.engine.listener?.seekFailed?.(90_000);
+    await settle();
+    expect(w.requests.map((r) => r.start_ms)).toEqual([600_000, 90_000]);
+    // The new session got there and played on.
+    shown(w);
+    w.engine.pos = 96_000;
+    tick(c);
+    c.seekTo(90_000);
+    w.engine.listener?.seekFailed?.(90_000);
+    await settle();
+    expect(w.requests.map((r) => r.start_ms)).toEqual([600_000, 90_000, 90_000]);
+    c.close();
   });
 });
 
@@ -947,6 +1238,74 @@ describe("stalls (Info's count)", () => {
   });
 });
 
+describe("the TV's player starting the source afresh on its other one, before the first picture", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("restarts the stall clock: <video> failing at 8 s and AVPlay's first picture at 15 s start no new session", async () => {
+    vi.useFakeTimers();
+    const w = world(item(file()), () => info());
+    w.env.now = () => Date.now();
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await vi.advanceTimersByTimeAsync(8_000);
+    w.engine.listener?.restarted?.();
+    await vi.advanceTimersByTimeAsync(7_000);
+    w.engine.state = "ready";
+    w.engine.listener?.firstFrame();
+    w.engine.listener?.status("ready");
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(w.requests.length).toBe(1);
+    expect(c.state.value.phase.kind).toBe("playing");
+    c.close();
+  });
+
+  it("still takes a wait past the stall after the new start as a stall", async () => {
+    vi.useFakeTimers();
+    const w = world(item(file()), () => info());
+    w.env.now = () => Date.now();
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await vi.advanceTimersByTimeAsync(3_000);
+    w.engine.listener?.restarted?.();
+    await vi.advanceTimersByTimeAsync(13_000);
+    expect(w.requests.length).toBeGreaterThan(1);
+    c.close();
+  });
+});
+
+describe("stalls (Info's count), and a seek the TV's player makes by itself", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("don't count the wait of a stream's own seek to where it starts", async () => {
+    vi.useFakeTimers();
+    const w = world(item(file()), () => info({ method: "remux", hls: true, url: "/api/media/pley_mk_KEY/master.m3u8" }));
+    let pending = false;
+    (w.engine as unknown as { seekPending(): boolean }).seekPending = () => pending;
+    w.env.now = () => Date.now();
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await vi.advanceTimersByTimeAsync(50);
+    const now = (s: EngineStatus) => {
+      w.engine.state = s;
+      w.engine.listener?.status(s);
+    };
+    // AVPlay plays the stream from its first segment, then seeks to the resume point itself.
+    now("ready");
+    await vi.advanceTimersByTimeAsync(3_000);
+    pending = true;
+    now("buffering");
+    await vi.advanceTimersByTimeAsync(4_000);
+    pending = false;
+    now("ready");
+    expect(c.state.value.stalls).toBe(0);
+    c.close();
+  });
+});
+
 describe("Automatic", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -1052,6 +1411,23 @@ describe("Automatic", () => {
     await play(4, 0.5);
     expect(w.requests.map((r) => r.mode)).toEqual(["auto"]);
     expect(c.state.value.quality).toBe("Automatic · Original");
+    c.close();
+  });
+
+  it("doesn't count the wait of a seek the TV's player makes by itself in a stream", async () => {
+    const { w, c, play, wait, now } = await automatic();
+    let pending = false;
+    (w.engine as unknown as { seekPending(): boolean }).seekPending = () => pending;
+    // As in the step down on a 2 s wait, but the wait is the stream's own seek to where it starts.
+    w.engine.bandwidth = 20_000;
+    await play(12, 0.5);
+    pending = true;
+    await wait(2_500);
+    await vi.advanceTimersByTimeAsync(2_500);
+    pending = false;
+    now("ready");
+    await play(2, 1.2);
+    expect(w.requests.map((r) => r.mode)).toEqual(["auto"]);
     c.close();
   });
 
@@ -1919,5 +2295,498 @@ describe("a title cast with the tracks picked on the remote's page", () => {
   it("starts with subtitles off for -1, else as asked, else the profile's choice", () => {
     const f = file({ selected_subtitle: 4 });
     expect([initialSubtitle(f, -1), initialSubtitle(f, 3)?.index, initialSubtitle(f, null)?.index]).toEqual([null, 3, 4]);
+  });
+});
+
+describe("a jump's new session plays by itself", () => {
+  it("plays, and says so, once the remux session's player plays after it said ready", async () => {
+    const w = world(item(file()), (req) => (req.mode === "remux" ? info({ method: "remux", hls: true, url: "/api/media/pley_mk_KEY/master.m3u8" }) : info()));
+    // As a TV's player can: "ready" is said while it hasn't begun to play yet, and nothing is said once it does.
+    let avplayPlaying = false;
+    w.engine.playing = () => w.engine.state === "ready" && avplayPlaying;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    avplayPlaying = true;
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+    expect(c.state.value.phase.kind).toBe("playing");
+    // The jump: the file played as it is refuses it; a remux session starts there.
+    c.seekTo(1_200_000);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    expect(w.engine.prepared.at(-1)).toMatchObject({ startMs: 1_200_000, hls: true });
+    avplayPlaying = false;
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+    avplayPlaying = true;
+    w.engine.listener?.firstFrame();
+    await new Promise((r) => setTimeout(r, 1_100));
+    expect(c.wantsToPlay).toBe(true);
+    expect(c.state.value.phase.kind).toBe("playing");
+    c.close();
+  });
+
+  it("asks the TV's player to play when it was left paused though meant to play", async () => {
+    const w = world(item(file()), () => info());
+    let avplayPlaying = false;
+    let asked = 0;
+    w.engine.playing = () => w.engine.state === "ready" && avplayPlaying;
+    w.engine.play = () => {
+      asked++;
+      avplayPlaying = true;
+    };
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+    expect(c.state.value.phase.kind).toBe("paused");
+    await new Promise((r) => setTimeout(r, 1_100));
+    expect(asked).toBeGreaterThan(0);
+    expect(c.state.value.phase.kind).toBe("playing");
+    c.close();
+  });
+
+  it("leaves a pause the person asked for alone", async () => {
+    const w = world(item(file()), () => info());
+    let asked = 0;
+    w.engine.play = () => void asked++;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+    c.pause();
+    w.engine.playing = () => false;
+    await new Promise((r) => setTimeout(r, 1_100));
+    expect(asked).toBe(0);
+    expect(c.state.value.phase.kind).toBe("paused");
+    c.close();
+  });
+});
+
+describe("files this TV's player can't seek in, as it plays them", () => {
+  const shown = (w: ReturnType<typeof world>) => {
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+  };
+  const remuxed = (req: PlaybackRequest) => (req.mode === "remux" ? info({ method: "remux", hls: true, url: "/api/media/pley_mk_KEY/master.m3u8" }) : info());
+  /** Plays item `id` as it is, has it refuse a seek, and closes it. */
+  async function refuses(w: ReturnType<typeof world>, id: number) {
+    const api = w.env.api as unknown as Record<string, unknown>;
+    api.item = async () => item(file(), { id });
+    const c = new PlaybackController({ itemId: id }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    c.close();
+    await settle();
+  }
+
+  it("goes straight to a remux at the place once the TV's player refused seeks in such files on two items", async () => {
+    const w = world(item(file()), remuxed);
+    w.env.seekMemory = storedSeekMemory(memory(), "seeks");
+    for (let id = 80; id < 80 + SEEK_REFUSALS_TRUSTED; id++) await refuses(w, id);
+    const before = w.requests.length;
+    const seeks = w.engine.seeks.length;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(3_000_000);
+    await settle();
+    expect(w.engine.seeks.length).toBe(seeks);
+    expect(w.requests.slice(before).map((r) => [r.start_ms, r.mode])).toEqual([
+      [600_000, "auto"],
+      [3_000_000, "remux"],
+    ]);
+    expect(c.clock.value.positionMs).toBe(3_000_000);
+    c.close();
+  });
+
+  it("still seeks in the file when the TV's player refused it on one item only", async () => {
+    const w = world(item(file()), remuxed);
+    w.env.seekMemory = storedSeekMemory(memory(), "seeks");
+    await refuses(w, 80);
+    // The same item again doesn't count twice.
+    await refuses(w, 80);
+    const before = w.requests.length;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(3_000_000);
+    await settle();
+    expect(w.engine.seeks.at(-1)).toBe(3_000_000);
+    expect(w.requests.length).toBe(before + 1);
+    c.close();
+  });
+
+  it("seeks in another kind of file as it is", async () => {
+    const w = world(item(file()), remuxed);
+    w.env.seekMemory = storedSeekMemory(memory(), "seeks");
+    for (let id = 80; id < 80 + SEEK_REFUSALS_TRUSTED; id++) await refuses(w, id);
+    const api = w.env.api as unknown as Record<string, unknown>;
+    api.item = async () => item(file({ container: "mp4", path: "/media/Film (2024).mp4" }));
+    const before = w.requests.length;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(3_000_000);
+    await settle();
+    expect(w.engine.seeks.at(-1)).toBe(3_000_000);
+    expect(w.requests.length).toBe(before + 1);
+    c.close();
+  });
+
+  it("doesn't count a resume point the TV's player refused", async () => {
+    const w = world(item(file()), remuxed);
+    w.env.seekMemory = storedSeekMemory(memory(), "seeks");
+    for (let id = 80; id < 80 + SEEK_REFUSALS_TRUSTED; id++) {
+      const api = w.env.api as unknown as Record<string, unknown>;
+      api.item = async () => item(file(), { id });
+      const c = new PlaybackController({ itemId: id }, w.env, 0);
+      c.start();
+      await settle();
+      w.engine.pos = 2_000;
+      shown(w);
+      w.engine.listener?.seekFailed?.(600_000);
+      await settle();
+      c.close();
+      await settle();
+    }
+    expect(w.env.seekMemory.known("mkv/hevc")).toBe(false);
+  });
+
+  it("doesn't count a seek the TV's player gave up on while it still loaded (a slow network), and still remuxes there", async () => {
+    const w = world(item(file()), remuxed);
+    w.env.seekMemory = storedSeekMemory(memory(), "seeks");
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    w.engine.listener?.seekFailed?.(1_200_000, true);
+    await settle();
+    expect(w.requests.at(-1)).toMatchObject({ start_ms: 1_200_000, mode: "remux" });
+    c.close();
+    await settle();
+    // One more item's refusal would make two, were the slow one counted.
+    w.env.seekMemory.refused("mkv/hevc", 99);
+    expect(w.env.seekMemory.known("mkv/hevc")).toBe(false);
+  });
+});
+
+describe("a seek the TV's player is still making in a stream", () => {
+  it("isn't a stall while the server makes the place it went to", async () => {
+    const w = world(item(file()), () => info({ method: "remux", hls: true, url: "/api/media/pley_mk_KEY/master.m3u8" }));
+    let pending = false;
+    (w.engine as unknown as { seekPending(): boolean }).seekPending = () => pending;
+    const statusAsked = vi.fn(() => Promise.resolve({ session_id: "s1", method: "remux", transcode: null }));
+    (w.env.api as unknown as Record<string, unknown>).sessionStatus = statusAsked;
+    let now = 0;
+    w.env.now = () => now;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+    const tick = () => (c as unknown as { tick(): void }).tick();
+    tick();
+    c.seekTo(3_000_000);
+    pending = true;
+    w.engine.state = "buffering";
+    for (let t = 0; t <= 20_000; t += 500) {
+      now = t;
+      tick();
+    }
+    expect(statusAsked).not.toHaveBeenCalled();
+    expect(w.requests.length).toBe(1);
+    // A seek that stays unanswered is a stall after all.
+    for (let t = 20_000; t <= 60_000; t += 500) {
+      now = t;
+      tick();
+    }
+    expect(statusAsked).toHaveBeenCalled();
+    c.close();
+  });
+});
+
+describe("a stream on a TV whose player starts it at its first segment (Samsung's AVPlay)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** The file as it is (s1), a remux of it as a stream (s2), a conversion as a stream. */
+  const answer = (req: PlaybackRequest) =>
+    req.mode === "remux"
+      ? info({ session_id: "s2", method: "remux", hls: true, url: "/api/media/pley_mk_KEY/master.m3u8" })
+      : req.max_bitrate
+        ? info({ session_id: `s${req.max_bitrate}`, method: "transcode", hls: true, url: "/api/media/pley_mk_KEY2/master.m3u8" })
+        : info();
+  const shown = (w: ReturnType<typeof world>) => {
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+  };
+
+  it("has the server start a jump's remux at the first segment, which the player asks for first, and the player seek to the place", async () => {
+    const w = world(item(file()), answer);
+    w.engine.hlsFromFirstSegment = true;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    // The file as it is starts where asked: it isn't a stream.
+    expect(w.requests.map((r) => [r.start_ms, r.mode])).toEqual([
+      [600_000, "auto"],
+      [0, "remux"],
+    ]);
+    expect(w.engine.prepared.at(-1)).toMatchObject({ hls: true, startMs: 1_200_000 });
+    expect(c.clock.value.positionMs).toBe(1_200_000);
+    c.close();
+  });
+
+  it("keeps the place for the server with picture subtitles: it copies them out of the file from there first", async () => {
+    const w = world(item(file({ selected_subtitle: 3 })), answer);
+    w.engine.hlsFromFirstSegment = true;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    expect(w.requests.at(-1)).toMatchObject({ start_ms: 1_200_000, mode: "remux" });
+    c.close();
+  });
+
+  it("makes the first segment ready beside the one playing, for a quality picked", async () => {
+    vi.useFakeTimers();
+    const w = world(item(file()), answer);
+    w.engine.hlsFromFirstSegment = true;
+    w.env.now = () => Date.now();
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await vi.advanceTimersByTimeAsync(50);
+    w.engine.state = "ready";
+    w.engine.listener?.firstFrame();
+    w.engine.listener?.status("ready");
+    w.calls.length = 0;
+    c.selectQuality("4m");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(w.requests[1]).toMatchObject({ keep_previous: true, max_bitrate: 4000, start_ms: 0 });
+    expect(w.calls).toEqual(["start transcode", "GET pley_mk_KEY2/master.m3u8", "GET pley_mk_KEY2/v0/index.m3u8", "HEAD pley_mk_KEY2/v0/0.ts", "progress stopped 600000", "delete s1"]);
+    // The player seeks from there to where the one playing got to.
+    expect(w.engine.prepared[1]).toMatchObject({ hls: true, startMs: 600_000 });
+    c.close();
+  });
+});
+
+describe("a file played as it is, on a TV with two players (Samsung's AVPlay and <video>)", () => {
+  const shown = (w: ReturnType<typeof world>) => {
+    w.engine.state = "ready";
+    w.engine.listener?.status("ready");
+  };
+  const remuxed = (req: PlaybackRequest) => (req.mode === "remux" ? info({ method: "remux", hls: true, url: "/api/media/pley_mk_KEY/master.m3u8" }) : info());
+
+  it("seeks in the file on <video> with no new session", async () => {
+    const w = world(item(file()), remuxed);
+    w.engine.player = "video";
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    await settle();
+    expect(w.engine.seeks).toEqual([1_200_000]);
+    expect(w.requests.length).toBe(1);
+    c.close();
+  });
+
+  it("tries the same file on <video> at the place before a remux, when AVPlay refuses a seek", async () => {
+    const w = world(item(file()), remuxed);
+    w.env.seekMemory = storedSeekMemory(memory(), "seeks");
+    w.engine.switchable = true;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    expect(w.engine.switchedAt).toEqual([1_200_000]);
+    expect(w.requests.length).toBe(1);
+    expect(c.clock.value.positionMs).toBe(1_200_000);
+    expect(c.state.value.phase.kind).not.toBe("error");
+    // Not remembered before <video> played there.
+    expect(w.env.seekMemory.seeksViaElement("mkv/hevc")).toBe(false);
+    w.engine.player = "video";
+    // <video> can't get there either: the remux does.
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    expect(w.requests.map((r) => [r.start_ms, r.mode])).toEqual([
+      [600_000, "auto"],
+      [1_200_000, "remux"],
+    ]);
+    c.close();
+    // <video>'s failure at the place AVPlay refused isn't one of <video>'s refusals to remember.
+    w.env.seekMemory.refused("mkv/hevc@video", 99);
+    expect(w.env.seekMemory.known("mkv/hevc@video")).toBe(false);
+  });
+
+  describe("while <video> opens the file at the place", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const switched = async () => {
+      vi.useFakeTimers();
+      const w = world(item(file()), remuxed);
+      w.env.now = () => Date.now();
+      w.env.seekMemory = storedSeekMemory(memory(), "seeks");
+      w.engine.switchable = true;
+      const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+      c.start();
+      await vi.advanceTimersByTimeAsync(50);
+      w.engine.listener?.firstFrame();
+      shown(w);
+      await vi.advanceTimersByTimeAsync(1_000);
+      c.seekTo(1_200_000);
+      w.engine.listener?.seekFailed?.(1_200_000);
+      // The new <video> knows no time before its metadata.
+      w.engine.player = "video";
+      w.engine.pos = 0;
+      w.engine.state = "buffering";
+      await vi.advanceTimersByTimeAsync(1_000);
+      return { w, c };
+    };
+
+    it("shows the place, not 0, and keeps the place as the least a stop reports", async () => {
+      const { w, c } = await switched();
+      expect(w.engine.switchedAt).toEqual([1_200_000]);
+      expect(c.clock.value.positionMs).toBe(1_200_000);
+      c.close();
+      await vi.advanceTimersByTimeAsync(50);
+      expect(w.reported.filter((r) => r.startsWith("stopped")).map((r) => Number(r.split(" ")[1]))).toEqual([1_200_000]);
+    });
+
+    it("remembers that <video> seeks in such files once it played on from the place", async () => {
+      const { w, c } = await switched();
+      w.engine.pos = 1_200_000;
+      w.engine.listener?.firstFrame();
+      shown(w);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(w.env.seekMemory!.seeksViaElement("mkv/hevc")).toBe(false);
+      w.engine.pos = 1_206_000;
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(w.env.seekMemory!.seeksViaElement("mkv/hevc")).toBe(true);
+      expect(w.requests.length).toBe(1);
+      c.close();
+    });
+
+    it("doesn't take <video> failing to open the file after a newer seek for its refusal, and remuxes at the newer place", async () => {
+      const { w, c } = await switched();
+      c.seekTo(2_400_000);
+      w.engine.listener?.seekFailed?.(2_400_000);
+      await vi.advanceTimersByTimeAsync(50);
+      expect(w.engine.switchedAt).toEqual([1_200_000]);
+      expect(w.requests.map((r) => [r.start_ms, r.mode])).toEqual([
+        [600_000, "auto"],
+        [2_400_000, "remux"],
+      ]);
+      c.close();
+      w.env.seekMemory!.refused("mkv/hevc@video", 99);
+      expect(w.env.seekMemory!.known("mkv/hevc@video")).toBe(false);
+    });
+  });
+
+  it("goes to the remux when <video> can't take the file", async () => {
+    const w = world(item(file()), remuxed);
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    expect(w.engine.switchedAt).toEqual([]);
+    expect(w.requests.at(-1)).toMatchObject({ start_ms: 1_200_000, mode: "remux" });
+    c.close();
+  });
+
+  it("doesn't send a seek on <video> to the remux for AVPlay's refusals in such files", async () => {
+    const w = world(item(file()), remuxed);
+    w.env.seekMemory = storedSeekMemory(memory(), "seeks");
+    for (let id = 80; id < 80 + SEEK_REFUSALS_TRUSTED; id++) w.env.seekMemory.refused("mkv/hevc", id);
+    w.engine.player = "video";
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(3_000_000);
+    await settle();
+    expect(w.engine.seeks).toEqual([3_000_000]);
+    expect(w.requests.length).toBe(1);
+    c.close();
+  });
+
+  it("remembers refusals on <video> apart from AVPlay's", async () => {
+    const w = world(item(file()), remuxed);
+    w.env.seekMemory = storedSeekMemory(memory(), "seeks");
+    w.engine.player = "video";
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(1_200_000);
+    w.engine.listener?.seekFailed?.(1_200_000);
+    await settle();
+    c.close();
+    expect(w.env.seekMemory.known("mkv/hevc@video")).toBe(false);
+    expect(w.env.seekMemory.known("mkv/hevc")).toBe(false);
+    w.env.seekMemory.refused("mkv/hevc@video", 99);
+    expect(w.env.seekMemory.known("mkv/hevc@video")).toBe(true);
+    expect(w.env.seekMemory.known("mkv/hevc")).toBe(false);
+  });
+
+  it("goes straight to <video> for a kind AVPlay refuses and <video> seeks in", async () => {
+    const w = world(item(file()), remuxed);
+    w.env.seekMemory = storedSeekMemory(memory(), "seeks");
+    for (let id = 80; id < 80 + SEEK_REFUSALS_TRUSTED; id++) w.env.seekMemory.refused("mkv/hevc", id);
+    w.env.seekMemory.seekedViaElement("mkv/hevc", 80);
+    w.engine.switchable = true;
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    shown(w);
+    c.seekTo(3_000_000);
+    await settle();
+    expect(w.engine.seeks).toEqual([]);
+    expect(w.engine.switchedAt).toEqual([3_000_000]);
+    expect(w.requests.length).toBe(1);
+    c.close();
+  });
+
+  it("says which audio track a file starts with, for the TV to pick its player", async () => {
+    const w = world(item(file()), () => info());
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    expect(w.engine.prepared[0]).toMatchObject({ audioDefault: true });
+    c.close();
+    const other = world(item(file({ selected_audio: 2 })), () => info({ audio_index: 2 }));
+    const d = new PlaybackController({ itemId: 70 }, other.env, 0);
+    d.start();
+    await settle();
+    expect(other.engine.prepared[0]).toMatchObject({ audioDefault: false });
+    d.close();
   });
 });

@@ -116,7 +116,10 @@ export function rangeFilterOf(value: string | null | undefined): RangeFilter | u
 /** The line under a title's poster: `"42 Mbps · 23.4 GB"`. */
 export function mediaLine(media: MediaSummary | null | undefined): string {
   if (!media) return "";
-  return [formatBitrate(media.bitrate), formatBytes(media.size)].filter(Boolean).join(" · ") || t("format.bitrateUnknown");
+  // A size of 0 is one not known yet (a .strm file's media before it is
+  // found): nothing to say, rather than "0 B".
+  if (media.size === 0 && !media.bitrate) return "";
+  return [formatBitrate(media.bitrate), media.size ? formatBytes(media.size) : ""].filter(Boolean).join(" · ") || t("format.bitrateUnknown");
 }
 
 /** Bits per second → "8.2 Mbps" / "320 kbps". */

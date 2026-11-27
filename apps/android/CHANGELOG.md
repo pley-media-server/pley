@@ -21,6 +21,12 @@ describes how they are made.
 - Skip Intro and Skip Credits show by themselves for 8 seconds, then only
   with the player's controls, instead of over the whole intro or credits.
   On TVs, OK and the arrows act on the video again once Skip has gone.
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
+
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
 
 ## [0.1.19] - 2026-11-25
 

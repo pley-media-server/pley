@@ -67,7 +67,12 @@
     "autoplay": "Play the next episode by itself",
     "autoplayHint": "After a 10 second countdown",
     "details": "Playback details",
-    "detailsHint": "Show how a video plays (direct, remux or transcode) over it"
+    "detailsHint": "Show how a video plays (direct, remux or transcode) over it",
+    "player": "Player",
+    "playerAuto": "Automatic",
+    "playerAutoHint": "AVPlay, or the TV's web player where AVPlay can't seek in a file",
+    "playerAvplay": "AVPlay only",
+    "playerAvplayHint": "Samsung's AVPlay for every video, as before"
   },
   "audio": {
     "intro": "Dolby Digital, Dolby Digital Plus and Atmos are always passed through. Turn these on if your receiver supports them; otherwise Pley converts them.",

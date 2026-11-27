@@ -262,7 +262,9 @@
     "requests": "Solicitudes",
     "yourRequests": "Tus solicitudes",
     "waiting": "pendientes",
-    "playlists": "Listas de reproducción"
+    "playlists": "Listas de reproducción",
+    "collapse": "Contraer la barra lateral",
+    "expand": "Expandir la barra lateral"
   },
   "sortLibraries": {
     "title": "Ordenar bibliotecas",

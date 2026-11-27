@@ -22,6 +22,12 @@ describes how they are made.
   or the credits begin, then only with the controls, so they don't sit
   over the picture for the whole segment. Once they go, OK and the arrows
   work as with nothing on screen.
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
+
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
 
 ## [0.1.14] - 2026-11-24
 

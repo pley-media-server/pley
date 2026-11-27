@@ -89,6 +89,9 @@
       "strm": "Fichiers .strm",
       "strmHint": "Utiliser les fichiers .strm pour lire des vidéos depuis des adresses web.",
       "strmToggle": "Lire les fichiers .strm",
+      "strmProbe": "Précharger les informations sur le média des fichiers .strm",
+      "strmProbeHint": "Après chaque analyse de la bibliothèque, interroger l'adresse de chaque nouveau fichier .strm et enregistrer les informations sur le média de la vidéo (pistes, durée, taille).",
+      "strmProbeToggle": "Précharger les informations sur le média des fichiers .strm",
       "markers": "Détecter les intros et les génériques",
       "markersHint": "Comparer l’audio des épisodes en arrière-plan pour proposer Passer l’intro et Passer le générique. Les chapitres nommés Intro ou Credits sont toujours utilisés.",
       "noChromaprint": "Ce FFmpeg n’a pas Chromaprint : seuls les chapitres peuvent marquer les intros et les génériques.",
@@ -232,7 +235,8 @@
       "qsv": "nécessite une puce graphique Intel",
       "amf": "nécessite une carte graphique AMD",
       "vaapi": "nécessite une puce graphique Intel ou AMD",
-      "videotoolbox": "nécessite un FFmpeg avec VideoToolbox"
+      "videotoolbox": "nécessite un FFmpeg avec VideoToolbox",
+      "rkmpp": "nécessite une puce Rockchip et le noyau de Rockchip"
     },
     "tonemapNeeds": {
       "libplacebo": "nécessite libplacebo et un GPU Vulkan",

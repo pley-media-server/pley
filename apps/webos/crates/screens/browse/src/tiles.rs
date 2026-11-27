@@ -77,8 +77,13 @@ pub fn requests(api: &Api, paths: &[String], px: u32) -> Vec<ImageRequest> {
 }
 
 /// "42 Mbps · 23.4 GB" under a title of a library sorted by bitrate, or "Bitrate unknown".
+/// A size of 0 is one not known yet (a .strm file's media before it is found): with no
+/// bitrate either, nothing is said.
 pub fn bitrate_line(item: &ItemSummary) -> String {
     let m = item.media.as_ref();
+    if m.is_some_and(|m| m.size == Some(0) && m.bitrate.is_none_or(|b| b <= 0)) {
+        return String::new();
+    }
     let parts: Vec<String> = [
         m.and_then(|m| m.bitrate).filter(|b| *b > 0).map(|b| format_bitrate(Some(b))),
         m.and_then(|m| m.size).filter(|s| *s > 0).map(|s| format_bytes(Some(s as u64))),
@@ -218,6 +223,18 @@ mod tests {
             backdrop_url: Some("/api/items/7/images/backdrop?v=1".into()),
             ..ItemSummary::default()
         }
+    }
+
+    #[test]
+    fn a_size_not_known_yet_says_nothing_rather_than_0_b() {
+        let with = |bitrate: Option<i64>, size: Option<i64>| ItemSummary {
+            media: Some(MediaSummary { bitrate, size, ..MediaSummary::default() }),
+            ..movie()
+        };
+        // A .strm file's media before it is found.
+        assert_eq!(bitrate_line(&with(None, Some(0))), "");
+        assert_eq!(bitrate_line(&with(Some(8_200_000), Some(0))), "8.2 Mbps");
+        assert_eq!(bitrate_line(&with(None, None)), "Bitrate unknown");
     }
 
     #[test]

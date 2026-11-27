@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.7
 # pley media server and its transcoder, on Debian 13 with FFmpeg 9:
-# NVIDIA (NVENC, CUDA scaling), Intel (Quick Sync, VAAPI) and AMD (VAAPI)
-# transcoding, and HDR tone mapping on the GPU (libplacebo over Vulkan,
-# OpenCL) or the CPU (zscale).
+# NVIDIA (NVENC, CUDA scaling), Intel (Quick Sync, VAAPI), AMD (VAAPI) and,
+# on arm64, Rockchip (MPP, RGA scaling) transcoding, and HDR tone mapping on
+# the GPU (libplacebo over Vulkan, OpenCL) or the CPU (zscale).
 #
 #   docker build -f deploy/docker/Dockerfile -t pley .
 #   docker run -d -p 127.0.0.1:7539:7539 -v ./config:/config -v /srv/media:/media:ro pley
@@ -12,7 +12,7 @@
 
 # FFmpeg and libplacebo, built by deploy/ffmpeg. The tag is
 # deploy/ffmpeg/tag.sh's, which CI checks.
-ARG FFMPEG_IMAGE=ghcr.io/pley-media-server/pley-ffmpeg:9.0.2-d28e7780d830
+ARG FFMPEG_IMAGE=ghcr.io/pley-media-server/pley-ffmpeg:9.0.2-7522111270f3
 FROM ${FFMPEG_IMAGE} AS ffmpeg
 
 # ---- web app ----------------------------------------------------------------
