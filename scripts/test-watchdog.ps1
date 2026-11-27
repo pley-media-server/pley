@@ -5,7 +5,9 @@
 #
 #   scripts/test-watchdog.ps1 [-Minutes 5] [-Dumps test-dumps] -- cargo test --workspace --locked
 #
-# For a stuck test program (a file in target\debug\deps), the watchdog
+# For a stuck test program (a program cargo built under target\debug, named
+# after its crate and a 16-digit hash: target\debug\deps before Rust 1.100,
+# target\debug\build\<package>\<hash>\out since), the watchdog
 #  * prints the stacks of its threads, when cdb (Debugging Tools for Windows)
 #    is installed; libtest's threads carry their test's name;
 #  * writes a minidump of it to -Dumps, with its .exe and .pdb beside it, to
@@ -17,8 +19,8 @@
 param(
     [double]$Minutes = 5,
     [string]$Dumps = "test-dumps",
-    # The folder of the test programs; target\debug\deps by default.
-    [string]$Deps,
+    # The folder the test programs are in, or under; target\debug by default.
+    [string]$Programs,
     # The process ID of the run to watch, for the watchdog's own process.
     [int]$Watch = 0,
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -28,11 +30,18 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 
-if (-not $Deps) {
+if (-not $Programs) {
     $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { Join-Path $root "target" }
-    $Deps = Join-Path $target "debug\deps"
+    $Programs = Join-Path $target "debug"
 }
-$Deps = [IO.Path]::GetFullPath($Deps).TrimEnd('\') + '\'
+$Programs = [IO.Path]::GetFullPath($Programs).TrimEnd('\') + '\'
+
+# A test program's name, as cargo gives it; build scripts (build-script-build)
+# and the binaries the tests start are left alone.
+function Test-TestProgram([string]$path) {
+    $path.StartsWith($Programs, [StringComparison]::OrdinalIgnoreCase) -and
+        [IO.Path]::GetFileName($path) -match '-[0-9a-f]{16}\.exe$'
+}
 if (-not [IO.Path]::IsPathRooted($Dumps)) { $Dumps = Join-Path (Get-Location) $Dumps }
 $Dumps = [IO.Path]::GetFullPath($Dumps)
 
@@ -83,7 +92,8 @@ function Stop-StuckTest($process, [string]$path) {
     $cdb = Find-Cdb
     if ($cdb) {
         # Noninvasive: reads the threads without becoming the debugger.
-        & $cdb -pv -p $process.Id -y $Deps -lines -c "~; ~*k 80; q" | Out-Host
+        # Its symbols are beside it.
+        & $cdb -pv -p $process.Id -y (Split-Path $path -Parent) -lines -c "~; ~*k 80; q" | Out-Host
     } else {
         Write-Host "No cdb here to print the threads: they are in the minidump in $Dumps."
     }
@@ -112,7 +122,7 @@ if ($Watch) {
             } catch {
                 continue
             }
-            if (-not $path -or -not $path.StartsWith($Deps, [StringComparison]::OrdinalIgnoreCase)) { continue }
+            if (-not $path -or -not (Test-TestProgram $path)) { continue }
             if (((Get-Date) - $started).TotalMinutes -lt $Minutes) { continue }
             $ended[$process.Id] = $true
             Stop-StuckTest $process $path
@@ -125,10 +135,10 @@ if (-not $Command) { throw "no command to run: scripts/test-watchdog.ps1 -- carg
 
 $cdb = Find-Cdb
 $how = if ($cdb) { "prints their threads with $cdb" } else { "keeps a minidump of them (no cdb here)" }
-Write-Host "Test programs in $Deps that run for over $Minutes minutes are ended; the watchdog $how."
+Write-Host "Test programs under $Programs that run for over $Minutes minutes are ended; the watchdog $how."
 $shell = (Get-Process -Id $PID).Path
 $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"", "-Watch", $PID,
-    "-Minutes", $Minutes.ToString([Globalization.CultureInfo]::InvariantCulture), "-Dumps", "`"$Dumps`"", "-Deps", "`"$($Deps.TrimEnd('\'))`"")
+    "-Minutes", $Minutes.ToString([Globalization.CultureInfo]::InvariantCulture), "-Dumps", "`"$Dumps`"", "-Programs", "`"$($Programs.TrimEnd('\'))`"")
 $watchdog = Start-Process -FilePath $shell -ArgumentList $arguments -NoNewWindow -PassThru
 try {
     $program = $Command[0]
