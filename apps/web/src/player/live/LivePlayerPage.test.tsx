@@ -1007,6 +1007,9 @@ describe("LivePlayerPage and the remote", () => {
     renderWithProviders(<Player />, { route: "/live/5" });
     await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
     await waitFor(() => expect(requests.some((r) => r.path.startsWith("/api/live/browse"))).toBe(true));
+    // The address the page settles on (/live/5 names the channel by its id only), before any command: on a
+    // busy machine it can come after the requests above, and the check below would then see /live/5.
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/live/src/5"));
 
     // Another session's: nothing happens here.
     act(() => FakeEventSource.last?.send(command("other", "next")));
