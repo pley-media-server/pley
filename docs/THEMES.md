@@ -94,6 +94,23 @@ the same way:
   draw a soft gradient; where it can't, the page is the theme's plain `bg`,
   and the app's doc says so.
 
+Each app's tests hold its colors to `themes.json`, and its doc says what it
+draws:
+
+| App | Appearance | Backdrops | Its doc |
+|---|---|---|---|
+| Web | Account → Appearance | All | This one |
+| Desktop | The web's; the app's own server picker, title bar and icon follow the web's pick | All on the server picker | `apps/desktop/src-tauri/src/lib.rs` |
+| Android phone and tablet | Settings → Appearance | The glows; not Sunshine's rainbow | [ANDROID.md](ANDROID.md) |
+| Android TV, Fire TV | Settings → Appearance | The glows, and Sunshine's rainbow on the open side menu | [ANDROID.md](ANDROID.md) |
+| Samsung | Settings → Appearance | Sunshine's rainbow on the open rail | [TV_PLATFORMS.md](TV_PLATFORMS.md) |
+| Samsung, native | Settings → Appearance | None | [TV_PLATFORMS.md](TV_PLATFORMS.md) |
+| LG | Settings → Appearance | All, on mid- and high-tier TVs | [LG.md](LG.md) |
+
+Kodi and the Apple apps don't offer themes yet, and draw Midnight. The
+window an Android device draws before Pley starts is Midnight's, and the
+Mac's Dock keeps Pley's own icon.
+
 ## Accents
 
 An accent can replace a theme's own: Sky, Violet, Miami, Gold, Mint or
