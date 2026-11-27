@@ -2,8 +2,16 @@ import { useState } from "react";
 import type { User } from "@/api/types";
 import { cn } from "@/lib/cn";
 
-/** Colors offered for profiles; also the fallback picked from the name. */
+/**
+ * Colors offered for profiles; also the fallback picked from the name. Every
+ * app draws a profile's avatar by the same rule, which
+ * packages/tv/test/fixtures/avatar.json pins (docs/THEMES.md, "Profile colors").
+ */
 export const AVATAR_COLORS = ["#38bdf8", "#a78bfa", "#f472b6", "#fb923c", "#facc15", "#4ade80", "#2dd4bf", "#f87171"];
+
+/** The initial's two colors: Midnight's background on light circles, white on dark ones. */
+const INK_DARK = "#0b0d10";
+const INK_LIGHT = "#ffffff";
 
 const SIZES = {
   xs: "size-6 text-[11px]",
@@ -15,22 +23,45 @@ const SIZES = {
 
 export type AvatarUser = Pick<User, "id" | "name" | "avatar_url" | "avatar_color">;
 
-/** The profile's color, or a stable one derived from its name. */
+/** A color the server keeps (#rgb or #rrggbb, any case) as #rrggbb; null for anything else. */
+function hexColor(color: string | null | undefined): string | null {
+  const digits = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color ?? "")?.[1]?.toLowerCase();
+  if (!digits) return null;
+  return `#${digits.length === 3 ? [...digits].map((c) => c + c).join("") : digits}`;
+}
+
+/** The profile's color, or, without a valid one, a stable one derived from its name. */
 export function avatarColor(user: Pick<User, "name" | "avatar_color">): string {
-  if (user.avatar_color) return user.avatar_color;
+  const own = hexColor(user.avatar_color);
+  if (own) return own;
   let hash = 0;
-  for (const ch of user.name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  for (const ch of user.name) hash = (hash * 31 + (ch.codePointAt(0) ?? 0)) >>> 0;
   return AVATAR_COLORS[hash % AVATAR_COLORS.length] ?? "#38bdf8";
 }
 
-/** Dark text on light colors, white on dark ones. */
-export function textOn(hex: string): string {
-  const digits = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex)?.[1];
-  if (!digits) return "#ffffff";
-  const full = digits.length === 3 ? [...digits].map((c) => c + c).join("") : digits;
-  const channel = (at: number) => parseInt(full.slice(at, at + 2), 16) / 255;
-  const lum = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
-  return lum > 0.45 ? "#0b0d10" : "#ffffff";
+/** WCAG's relative luminance of #rrggbb. */
+function luminance(hex: string): number {
+  const linear = (at: number) => {
+    const c = parseInt(hex.slice(at, at + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * linear(1) + 0.7152 * linear(3) + 0.0722 * linear(5);
+}
+
+/** The initial's color on a circle: dark or white, whichever reads better on it (WCAG's contrast). */
+export function textOn(color: string): string {
+  const hex = hexColor(color.startsWith("#") ? color : `#${color}`);
+  if (!hex) return INK_LIGHT;
+  const on = luminance(hex) + 0.05;
+  const dark = on / (luminance(INK_DARK) + 0.05);
+  const light = (luminance(INK_LIGHT) + 0.05) / on;
+  return dark >= light ? INK_DARK : INK_LIGHT;
+}
+
+/** The name's first letter in capitals, "?" for a blank name. */
+export function avatarInitial(name: string): string {
+  const [first] = name.trim();
+  return first ? first.toUpperCase() : "?";
 }
 
 /** Profile picture, or a colored circle with the initial. */
@@ -50,7 +81,7 @@ export function Avatar({
     <span
       aria-hidden
       className={cn(
-        "relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full font-bold uppercase",
+        "relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full font-bold",
         SIZES[size],
         className,
       )}
@@ -65,7 +96,7 @@ export function Avatar({
           onError={() => setBroken(picture)}
         />
       ) : (
-        (user.name.trim()[0] ?? "?")
+        avatarInitial(user.name)
       )}
     </span>
   );

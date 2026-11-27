@@ -1,6 +1,20 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Avatar, AVATAR_COLORS, avatarColor, textOn } from "./Avatar";
+import fixture from "../../../../packages/tv/test/fixtures/avatar.json";
+import { Avatar, AVATAR_COLORS, avatarColor, avatarInitial, textOn } from "./Avatar";
+
+describe("a profile's avatar, as on every app (fixtures/avatar.json)", () => {
+  it("offers the fixture's colors", () => {
+    expect(AVATAR_COLORS).toEqual(fixture.colors);
+  });
+
+  it.each(fixture.cases)("$name, $avatar_color: $initial on $color in $ink", (c) => {
+    const color = avatarColor({ name: c.name, avatar_color: c.avatar_color });
+    expect(color).toBe(c.color);
+    expect(textOn(color)).toBe(c.ink);
+    expect(avatarInitial(c.name)).toBe(c.initial);
+  });
+});
 
 describe("avatarColor", () => {
   it("uses the chosen color", () => {
@@ -28,7 +42,7 @@ describe("textOn", () => {
     expect(textOn("#FFF")).toBe("#0b0d10");
   });
 
-  it("falls back to white for anything else", () => {
+  it("falls back to white for anything that isn't a color", () => {
     expect(textOn("red")).toBe("#ffffff");
     expect(textOn("#12345")).toBe("#ffffff");
   });
@@ -40,7 +54,7 @@ describe("Avatar", () => {
   it("shows the initial on the profile color", () => {
     const { container } = render(<Avatar user={user} />);
     const avatar = container.firstElementChild as HTMLElement;
-    expect(avatar).toHaveTextContent("s");
+    expect(avatar).toHaveTextContent("S");
     expect(avatar).toHaveStyle({ backgroundColor: "#000000", color: "#ffffff" });
   });
 
@@ -51,7 +65,12 @@ describe("Avatar", () => {
 
     fireEvent.error(img);
     expect(container.querySelector("img")).toBeNull();
-    expect(container.firstElementChild).toHaveTextContent("s");
+    expect(container.firstElementChild).toHaveTextContent("S");
+  });
+
+  it("falls back to a color from the name when the profile's isn't one", () => {
+    const { container } = render(<Avatar user={{ ...user, avatar_color: "blue" }} />);
+    expect(container.firstElementChild).toHaveStyle({ backgroundColor: avatarColor({ name: "sam", avatar_color: null }) });
   });
 
   it("has a placeholder for blank names", () => {

@@ -66,7 +66,9 @@ the same way:
 - **Where.** An Appearance section in the app's own settings (Account →
   Appearance on the web): the themes first, each as a small preview with
   its name and caption, in the order of the table above; then the accents,
-  Default (the theme's own) first.
+  Default (the theme's own) first. On a TV, Settings' Appearance has two
+  rows that open it, Theme with Lucide's palette and Accent with its
+  droplet.
 - **The words.** Each theme's name and caption and each accent's name are
   the web's, in every language (`account.theme` in
   `apps/web/src/i18n/locales/<language>/pages.json`), copied into the app's
@@ -146,6 +148,20 @@ An accent never reads as a state. Where one comes near a state color, that
 state moves aside while it is picked, as Nightshade's success leans teal
 beside its mint: with Mint, success turns teal; with Gold, warning turns
 orange; with Amber, warning turns yellow.
+
+## Profile colors
+
+A profile's avatar is drawn alike in every theme and every app, the rail's
+at the top left of a TV included: its picture; without one, or while it
+fails to load, a circle in the color the profile picked (`avatar_color`,
+`#rgb` or `#rrggbb`); without a color, or one that isn't one, a color of
+the eight the web offers, picked from the name, so the same profile has the
+same color on every screen. On the circle, the name's first letter in
+capitals (`?` for a blank name), in Midnight's background or white,
+whichever has the higher contrast with it. These colors are the profile's,
+not the theme's, so they stay under any theme and accent.
+`packages/tv/test/fixtures/avatar.json` pins the rule, and every app's
+tests read it.
 
 ## How the web app draws a theme
 

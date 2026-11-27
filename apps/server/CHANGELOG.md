@@ -19,6 +19,8 @@ describes how they are made.
 
 ### Changed
 
+- A profile's initial on its avatar is dark or white, whichever reads
+  better on its color.
 - The web player's Up Next card shows the next title's name without its
   picture, so it covers less of the credits.
 - Skip Intro and Skip Credits show on their own for 8 seconds as the intro
