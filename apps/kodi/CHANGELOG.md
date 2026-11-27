@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Skip Intro and Skip Credits show for 8 seconds from when they appear,
+  instead of 10, and come back when the video enters an intro or credits
+  again, such as after seeking back into one.
+
 ## [0.1.12] - 2026-11-24
 
 ### Changed

@@ -1192,7 +1192,8 @@ class Player(xbmc.Player):
         kind, marker = offer
         if kind == "skip":
             name = "skip_intro" if marker["kind"] == "intro" else "skip_credits"
-            return self.show(("skip", prompts.key(marker), marker), "", kodi.text(name))
+            self.show(("skip", prompts.key(marker), marker), "", kodi.text(name))
+            return moments.appeared(marker)
         left = moments.counting()
         if left == 0:
             return self.play_next(moments.next_item)
