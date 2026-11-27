@@ -451,9 +451,12 @@ The TV draws in one of Pley's nine themes, with one of six accents or the
 theme's own ([THEMES.md](THEMES.md)), the light themes included.
 
 - **Settings → Appearance** shows the theme and the accent; either row
-  opens the picker: the themes three across, each a small Pley in its
-  colors with its name and caption, then the accents, Default first. The
-  ones in use are ticked. OK picks, and every color changes at once.
+  opens the picker, laid out as on every TV app and on one screen: the
+  themes five to a row, each a small Pley in its colors over its name and
+  caption, then the accents, Default first. The theme in use has the
+  accent's border and a tick, the accent in use the accent's fill; Up and
+  Down between the two land on them. OK picks, and every color changes at
+  once.
 - **Kept for each profile on this TV**, never on the server: by the
   server's address and the user's id (`pley.theme.<server>.<user id>`,
   `pley.accent.<server>.<user id>`), as user ids repeat from one server to

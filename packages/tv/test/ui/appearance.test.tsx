@@ -96,13 +96,22 @@ describe("Appearance", () => {
     expect(setup(true).focus.current?.getAttribute("data-fid")).toBe("accent-own");
   });
 
-  it("offers the theme's own accent first, then the six, each swatch in the color it gives", () => {
+  it("offers the theme's own accent first, then the six, each swatch in the color it gives, the one in use ticked", () => {
     const { root } = setup();
     const chips = Array.from(root.querySelectorAll(".accent-chip"));
     expect(chips.map((c) => c.textContent)).toEqual(["Default", "Sky", "Violet", "Miami", "Gold", "Mint", "Amber"]);
-    const swatch = (fid: string) => root.querySelector<HTMLElement>(`[data-fid="${fid}"] .accent-swatch`)!.style.background;
-    expect(swatch("accent-own")).toBe("rgb(56, 189, 248)");
-    expect(swatch("accent-gold")).toBe("rgb(245, 197, 66)");
+    const swatch = (fid: string) => root.querySelector<HTMLElement>(`[data-fid="${fid}"] .accent-swatch`)!;
+    expect(swatch("accent-own").classList.contains("picked")).toBe(true);
+    expect(swatch("accent-sky").style.background).toBe("rgb(56, 189, 248)");
+    expect(swatch("accent-gold").style.background).toBe("rgb(245, 197, 66)");
+  });
+
+  it("lays the themes out five to a row, each name and caption under its preview", () => {
+    const { root } = setup();
+    const grid = root.querySelector('[data-fg="grid"]')!;
+    expect(grid.classList.contains("theme-grid")).toBe(true);
+    const card = root.querySelector('[data-fid="theme-midnight"]')!;
+    expect(Array.from(card.children).map((c) => c.className)).toEqual(["theme-preview", "t-body one-line theme-name", "t-caption lines-2 theme-about", "theme-tick", "theme-ring"]);
   });
 
   it("shows a pick at once and keeps it on the TV", () => {
@@ -111,12 +120,13 @@ describe("Appearance", () => {
     expect(app.theme.value).toBe("starlight");
     expect(kept.get("pley.theme")).toBe("starlight");
     expect(root.querySelector(".theme-card.current")!.getAttribute("data-fid")).toBe("theme-starlight");
-    // The swatches are now the light themes' colors.
     select("accent-gold");
     expect(app.accent.value).toBe("gold");
     expect(kept.get("pley.accent")).toBe("gold");
     expect(root.querySelector(".accent-chip.current")!.getAttribute("data-fid")).toBe("accent-gold");
-    expect(root.querySelector<HTMLElement>('[data-fid="accent-gold"] .accent-swatch')!.style.background).toBe("rgb(131, 86, 19)");
+    // The other swatches are now the light themes' colors.
+    expect(root.querySelector<HTMLElement>('[data-fid="accent-gold"] .accent-swatch')!.classList.contains("picked")).toBe(true);
+    expect(root.querySelector<HTMLElement>('[data-fid="accent-own"] .accent-swatch')!.style.background).toBe("rgb(131, 86, 19)");
     select("accent-own");
     expect(app.accent.value).toBeNull();
     expect(kept.has("pley.accent")).toBe(false);

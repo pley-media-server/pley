@@ -560,92 +560,117 @@
 .settings-fact { display: flex; padding: 3px 0; }
 
 /*
- * Appearance: the themes, three across, each a preview beside its name and
- * caption; the accents in a row under them. The theme shown is ringed in the
- * accent and ticked; focus fills a card as it fills a setting's row.
+ * Appearance, as every TV app lays it out: the themes five to a row, each
+ * a preview over its name and caption, then the accents in one row, on one
+ * screen. The pick in use has the accent's border and a tick (a theme) or
+ * the accent's fill (an accent). Focus is a tile's: a ring and a scale, so
+ * it reads apart from the pick; only transform and opacity animate.
  */
 .appearance-page { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden; }
 .appearance-title { position: absolute; left: 96px; top: 27px; }
-.appearance-section { position: absolute; left: 96px; right: 48px; }
-.appearance-hint { margin-top: 2px; }
-.theme-grid { position: absolute; left: 96px; top: 136px; width: 816px; display: flex; flex-wrap: wrap; }
+.appearance-section { position: absolute; left: 96px; right: 48px; height: 22px; display: flex; align-items: baseline; white-space: nowrap; }
+.appearance-hint { margin-left: 16px; overflow: hidden; text-overflow: ellipsis; }
+.theme-grid { position: absolute; left: 96px; top: 101px; width: 816px; display: flex; flex-wrap: wrap; }
 .theme-card {
   position: relative;
-  width: 264px;
-  height: 70px;
-  margin: 0 12px 10px 0;
-  padding: 8px;
+  width: 151px;
+  height: 150px;
+  margin: 0 15px 17px 0;
+  padding: 5px;
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
   border-radius: 8px;
-  background: var(--surface2);
+  box-shadow: inset 0 0 0 1px var(--surface4);
   color: var(--fg);
   transition: transform 120ms var(--unfocus-ease);
 }
-.theme-card:nth-child(3n) { margin-right: 0; }
-.theme-card.current { box-shadow: inset 0 0 0 2px var(--accent); }
-.theme-card[data-focused] { background: var(--accent); color: var(--on-accent); box-shadow: none; transform: scale(1.04); transition: transform 150ms var(--focus-ease); }
-.theme-card[data-pressed] { background: var(--accent-bright); transform: scale(1); }
-.theme-card-text { flex: 1; min-width: 0; margin-left: 12px; }
-.theme-about { margin-top: 2px; color: var(--muted); }
-.theme-card[data-focused] .theme-about { color: rgba(var(--on-accent-rgb), 0.8); }
-.theme-preview-box { position: relative; width: 96px; height: 54px; flex: none; }
+.theme-card:nth-child(5n) { margin-right: 0; }
+.theme-card.current { background: rgba(var(--accent-rgb), 0.08); box-shadow: inset 0 0 0 2px var(--accent); }
+.theme-name { margin: 8px 2px 0; }
+.theme-about { margin: 0 2px; color: var(--muted); }
 .theme-tick {
   position: absolute;
-  right: -6px;
-  top: -6px;
-  width: 18px;
-  height: 18px;
+  right: 8px;
+  top: 8px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: var(--accent);
   color: var(--on-accent);
-  box-shadow: 0 0 0 2px var(--surface2);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.theme-card[data-focused] .theme-tick { background: var(--on-accent); color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-/* The preview: a Pley 96 by 54 in its own theme's colors (themeStyle), its edge in its own words' color. */
-.theme-preview {
+/* Focus: a tile's ring, 3 px outside the edge, and a scale. */
+.theme-ring {
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 96px;
-  height: 54px;
+  left: -5.56px;
+  top: -5.56px;
+  right: -5.56px;
+  bottom: -5.56px;
+  border: 2.78px solid var(--accent-bright);
+  border-radius: 12px;
+  opacity: 0;
+  transition: opacity 120ms var(--unfocus-ease);
+  pointer-events: none;
+}
+.theme-card[data-focused],
+.accent-chip[data-focused] { z-index: 1; transform: scale(1.05); transition: transform 150ms var(--focus-ease); }
+.theme-card[data-focused] .theme-ring,
+.accent-chip[data-focused] .theme-ring { opacity: 1; transition: opacity 150ms var(--focus-ease); }
+.theme-card[data-pressed],
+.accent-chip[data-pressed] { transform: scale(1); }
+/* The preview: a Pley 140 by 78 in its own theme's colors (themeStyle), its edge in its own words' color. */
+.theme-preview {
+  position: relative;
+  width: 140px;
+  height: 78px;
   border-radius: 4px;
   overflow: hidden;
   display: flex;
   background: var(--bg);
   box-shadow: inset 0 0 0 1px rgba(var(--fg-rgb), 0.12);
 }
-.tp-rail { width: 14px; flex: none; padding-top: 6px; box-sizing: border-box; background-color: var(--surface); background-image: var(--sidebar); }
-.tp-dot { display: block; width: 6px; height: 4px; margin: 0 0 4px 4px; border-radius: 2px; background: rgba(var(--fg-rgb), 0.2); }
-.tp-dot.on { background: var(--accent); }
-.tp-page { position: relative; flex: 1; padding: 6px 0 0 7px; }
-.tp-page > span { display: block; border-radius: 2px; }
-.tp-title { width: 34px; height: 5px; background: rgba(var(--fg-rgb), 0.85); }
-.tp-line { width: 22px; height: 3px; margin-top: 3px; background: rgba(var(--muted-rgb), 0.6); }
-.tp-button { width: 18px; height: 6px; margin-top: 4px; background: var(--accent); }
-.tp-posters { position: absolute; left: 7px; bottom: 5px; display: flex; }
-.tp-posters > span { width: 12px; height: 17px; margin-right: 4px; border-radius: 1px; background: var(--surface3); }
-.tp-posters > span.focused { box-shadow: 0 0 0 1px var(--accent); }
-.accent-row { position: absolute; left: 96px; top: 441px; width: 816px; display: flex; flex-wrap: wrap; }
-.accent-row > .chip { margin: 0 10px 10px 0; }
-.accent-chip.current { box-shadow: inset 0 0 0 2px var(--accent); }
+.tp-rail { width: 34px; flex: none; padding: 9px 0 0 7px; box-sizing: border-box; background-color: var(--surface); background-image: var(--sidebar); }
+.tp-rail > span { display: block; width: 20px; height: 5px; margin-bottom: 7px; border-radius: 3px; background: rgba(var(--fg-rgb), 0.18); }
+.tp-rail > span.on { width: 15px; background: var(--accent); }
+.tp-page { position: relative; flex: 1; }
+.tp-page > span { position: absolute; border-radius: 3px; }
+.tp-title { left: 8px; top: 9px; width: 45px; height: 6px; background: rgba(var(--fg-rgb), 0.7); }
+.tp-line { left: 8px; top: 20px; width: 30px; height: 4px; background: rgba(var(--muted-rgb), 0.6); }
+.tp-button { right: 7px; top: 8px; width: 23px; height: 8px; border-radius: 4px; background: var(--accent); }
+.tp-posters { position: absolute; left: 8px; bottom: 7px; display: flex; }
+.tp-posters > span { width: 20px; height: 30px; margin-right: 3px; border-radius: 1px; background: var(--surface3); }
+.tp-posters > span.focused { box-shadow: inset 0 0 0 1px var(--accent); }
+.accent-row { position: absolute; left: 96px; top: 466px; width: 816px; display: flex; }
+.accent-chip {
+  position: relative;
+  flex: none;
+  height: 40px;
+  margin-right: 10px;
+  padding: 0 14px 0 10px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--surface4);
+  color: var(--fg);
+  transition: transform 120ms var(--unfocus-ease);
+}
+.accent-chip.current { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.accent-chip .theme-ring { border-radius: 9px; }
 .accent-swatch {
   width: 20px;
   height: 20px;
   margin-right: 8px;
   flex: none;
+  box-sizing: border-box;
   border-radius: 50%;
   box-shadow: inset 0 0 0 1px rgba(var(--fg-rgb), 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.accent-swatch .icon { margin: 0; }
-.accent-chip[data-focused] .accent-swatch { box-shadow: 0 0 0 2px var(--on-accent); }
+.accent-swatch.picked { border: 1.5px solid currentColor; box-shadow: none; }
 .settings-fact > :first-child { width: 150px; flex: none; }
 /* Diagnostics: a column that scrolls with focus; every line takes it (the accent fill, as every row). */
 .diagnostics-page { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden; }
