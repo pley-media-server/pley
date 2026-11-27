@@ -44,9 +44,8 @@ describes how they are made.
 ### Changed
 
 - Up Next's card shows the next title's name without its picture, so it
-  covers less of the credits. Its countdown is in Play now, "Play now (7)"
-  with a sweep that fills the button smoothly, in place of a ring that
-  moved a step each second.
+  covers less of the credits. Its countdown is in Play now: "Play now (7)"
+  with a sweep that fills the button.
 - Playback details name Rockchip MPP when a Rockchip server's video
   engines made the transcode.
 - Movies, shows and music without a picture show Pley's mark on their

@@ -11,10 +11,8 @@ describes how they are made.
 ### Changed
 
 - Up Next's card shows the next title's name without its picture, so it
-  covers less of the credits.
-- Up Next's countdown is in Play now, as on Android TV: "Play now (7)"
-  with a sweep that crosses the button smoothly, in place of a ring that
-  filled a step each second.
+  covers less of the credits. Its countdown is in Play now: "Play now (7)"
+  with a sweep that fills the button.
 - Skip Intro and Skip Credits show on their own for 8 seconds, then only
   with the player's controls, so they don't sit over the whole intro or
   credits and hold the remote's OK.
