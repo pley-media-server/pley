@@ -143,6 +143,52 @@ fn credits_ending_10_s_before_the_end_bring_up_next() {
 }
 
 #[test]
+fn skip_shows_alone_for_8_s_from_entering_a_marker_then_only_with_the_controls() {
+    // Credits something follows: Skip Credits without Up Next.
+    let mut w = credits_until(7_140_000, true, |_| ());
+    w.c.seek_to(7_110_000);
+    w.advance(600);
+    assert_eq!(w.c.state().skip_label.as_deref(), Some("Skip Credits"));
+    assert!(w.c.state().skip_alone);
+    w.advance(7_000);
+    assert!(w.c.state().skip_alone, "7.6 s in");
+    w.advance(1_000);
+    assert!(!w.c.state().skip_alone, "8.6 s in");
+    assert_eq!(w.c.state().skip_label.as_deref(), Some("Skip Credits"), "still offered, with the controls");
+    assert_eq!(w.c.state().phase, Phase::Playing, "nothing else happens by itself");
+    // A seek inside the same credits: nothing new.
+    w.c.seek_to(7_120_000);
+    w.advance(1_000);
+    assert!(!w.c.state().skip_alone);
+    // Out of them and back in: a fresh 8 s.
+    w.c.seek_to(7_000_000);
+    w.advance(1_000);
+    assert_eq!(w.c.state().skip_label, None);
+    assert!(!w.c.state().skip_alone);
+    w.c.seek_to(7_110_000);
+    w.advance(1_000);
+    assert!(w.c.state().skip_alone);
+}
+
+#[test]
+fn skip_credits_shows_alone_for_8_s_from_when_up_next_is_canceled() {
+    let mut w = episode();
+    w.c.seek_to(7_099_000);
+    w.advance(2_500);
+    assert!(w.c.state().up_next.is_some());
+    assert!(!w.c.state().skip_alone, "the card takes its place");
+    w.advance(3_000);
+    w.c.cancel_up_next();
+    w.advance(100);
+    assert_eq!(w.c.state().skip_label.as_deref(), Some("Skip Credits"));
+    assert!(w.c.state().skip_alone);
+    w.advance(7_800);
+    assert!(w.c.state().skip_alone, "7.9 s after Cancel");
+    w.advance(200);
+    assert!(!w.c.state().skip_alone, "8.1 s after Cancel");
+}
+
+#[test]
 fn credits_of_a_file_whose_length_isnt_known_bring_skip_credits_only() {
     let mut w = credits_until(7_200_000, false, |_| ());
     w.c.seek_to(7_099_000);

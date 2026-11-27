@@ -61,12 +61,11 @@ fn states() -> Vec<State> {
         state("seek-preview", preview, "up wait:300 hold:right:1500"),
         state("seek-chapter", |_, _| {}, "up wait:300 hold:left:700"),
         state("seek-badge", |_, _| {}, "right right right"),
-        state("skip", |p, _| p.state.skip_label = Some(t!("player.skip.intro").into()), "wait:400"),
-        state(
-            "skip-lifted",
-            |p, _| p.state.skip_label = Some(t!("player.skip.credits").into()),
-            "wait:200 info wait:400",
-        ),
+        // Skip in its first 8 s, on its own, then with the controls brought on it.
+        state("skip", |p, _| skip(p, t!("player.skip.intro"), true), "wait:400"),
+        state("skip-lifted", |p, _| skip(p, t!("player.skip.credits"), true), "wait:200 info wait:400"),
+        // After its 8 s: only with the controls, which open on the scrubber.
+        state("skip-controls", |p, _| skip(p, t!("player.skip.intro"), false), "wait:200 up wait:400"),
         state("up-next", up_next, "wait:400"),
         State { reduced_motion: true, ..state("up-next-reduced", up_next, "wait:400") },
         state("up-next-counting", |p, _| p.state.up_next = Some(card(7)), "wait:400"),
@@ -141,6 +140,12 @@ fn card(seconds: i64) -> pley_player::controller::UpNextCard {
     let mut card = Fake::card(seconds);
     card.heading = details::up_next(Some("S1 · E3"));
     card
+}
+
+/// Skip offered as `label`, on its own (its first 8 s) or only with the controls.
+fn skip(p: &mut Fake, label: &str, alone: bool) {
+    p.state.skip_label = Some(label.into());
+    p.state.skip_alone = alone;
 }
 
 /// The card as it first shows, its countdown at its widest ("Next in 10" under Reduce motion).

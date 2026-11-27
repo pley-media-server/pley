@@ -52,7 +52,7 @@ use pley_subs::{Fetch, PictureAnswer, PictureTrack, Presenter, Shown, TrackKind,
 use crate::autoquality::{AutoOptions, AutoQuality, AutoStep, FIRST_MINUTE_MS, LiveStream, Remembered};
 use crate::details::{self, DetailsInput, PlaybackDetails};
 use crate::env::{PlayerEnv, ThroughShared};
-use crate::markers::{CreditsGate, active_marker, markers_of, skip_label, skip_target};
+use crate::markers::{CreditsGate, SkipWindow, active_marker, markers_of, skip_label, skip_target};
 use crate::nextup::{
     TRICKPLAY_GIVE_UP_MS, TRICKPLAY_RETRY_MS, has_next, label_of, next_after, preview_bucket, sheet_path, start_of,
     thumbnail_at,
@@ -235,7 +235,12 @@ pub struct PlayerState {
     pub note: Option<String>,
     pub can_play_original: bool,
     pub suggest_lower_quality: bool,
+    /// "Skip Intro" or "Skip Credits" while the playhead is in a marker (until a second before
+    /// its end).
     pub skip_label: Option<String>,
+    /// Skip shows on its own, without the controls: for 8 s from when it appears
+    /// ([`crate::markers::SKIP_ALONE_MS`]). After that it shows only with the controls.
+    pub skip_alone: bool,
     pub markers: Vec<Marker>,
     pub chapters: Vec<ChapterMark>,
     pub trickplay: Option<Trickplay>,
@@ -291,6 +296,7 @@ impl Default for PlayerState {
             can_play_original: false,
             suggest_lower_quality: false,
             skip_label: None,
+            skip_alone: false,
             markers: Vec::new(),
             chapters: Vec::new(),
             trickplay: None,
@@ -619,6 +625,8 @@ pub struct PlaybackController {
     recovery: Recovery,
     struggle: StruggleMeter,
     credits: CreditsGate,
+    /// When Skip shows on its own.
+    skip: SkipWindow,
     presenter: Presenter,
     sleep: SleepTimer,
 
@@ -716,6 +724,7 @@ impl PlaybackController {
             recovery: Recovery::default(),
             struggle: StruggleMeter::default(),
             credits: CreditsGate::default(),
+            skip: SkipWindow::default(),
             presenter,
             sleep: SleepTimer::default(),
             last_advance_at: now,
@@ -838,6 +847,7 @@ impl PlaybackController {
         let mut due = vec![Some(self.next_tick)];
         due.extend([self.progress_at, self.seek_report_at, self.details_at, self.sleep.next_due()]);
         due.push(self.countdown.map(|c| c.2));
+        due.push(self.skip.due(self.now));
         due.push(self.trickplay_at.map(|t| t.0));
         due.push(self.outage.as_ref().and_then(|o| o.due));
         due.push(self.warming.as_ref().map(|w| w.deadline));
@@ -866,6 +876,11 @@ impl PlaybackController {
         if self.now >= self.next_tick {
             self.next_tick = self.now + TICK_MS;
             self.check();
+        }
+        let alone = self.skip.alone(self.state.up_next.is_none(), self.now);
+        if alone != self.state.skip_alone {
+            self.state.skip_alone = alone;
+            self.changed();
         }
         self.subtitles_now();
         self.collect();
@@ -1985,6 +2000,10 @@ impl PlaybackController {
                 self.clock = clock;
                 self.changed();
             }
+            // An error clears the label but isn't a new marker: Skip's time alone goes on.
+            if !self.in_error() {
+                self.skip.at(marker.as_ref());
+            }
             let label = marker.as_ref().map(|m| skip_label(m).to_string());
             if label != self.state.skip_label {
                 self.state.skip_label = label;
@@ -2901,6 +2920,7 @@ impl PlaybackController {
         self.next = None;
         self.recovery.new_item();
         self.credits.reset();
+        self.skip.reset();
         self.guard_mode = None;
         self.presenter.hide();
         self.ended = false;
