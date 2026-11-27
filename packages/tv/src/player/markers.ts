@@ -26,6 +26,52 @@ export function skipLabel(m: Marker): string {
   return m.kind === "intro" ? t("player.skip.intro") : t("player.skip.credits");
 }
 
+/** Skip shows on its own this long from when it appears; then only with the controls. */
+export const SKIP_SHOWN_MS = 8_000;
+
+/** Identifies a marker, to tell entering it again from entering another. */
+function markerKey(m: Marker): string {
+  return `${m.file_id}:${m.kind}:${m.start_ms}`;
+}
+
+/**
+ * When Skip shows on its own: for SKIP_SHOWN_MS of the wall clock from the
+ * playhead entering a marker (playing, seeking or starting into it), paused
+ * or not; after that only with the controls, so it doesn't sit over the
+ * picture for a whole intro or the credits. Entering a marker again, or
+ * another, starts afresh; a seek within the one it is in doesn't.
+ * test/fixtures/skip-shown.json pins it for both Samsung apps.
+ */
+export class SkipWindow {
+  private key: string | null = null;
+  private since = 0;
+
+  /** The marker the playhead is in at `nowMs` (null for none): whether Skip shows on its own. */
+  at(m: Marker | null, nowMs: number): boolean {
+    const key = m ? markerKey(m) : null;
+    if (key !== this.key) {
+      this.key = key;
+      this.since = nowMs;
+    }
+    return this.key !== null && nowMs - this.since < SKIP_SHOWN_MS;
+  }
+
+  /** Skip appears again in the marker the playhead is in (Up Next cancelled over its credits): a fresh window. */
+  again(nowMs: number): void {
+    this.since = nowMs;
+  }
+
+  /** A new item: the next marker starts afresh, even the same one. */
+  reset(): void {
+    this.key = null;
+  }
+}
+
+/** Whether Skip shows, the playhead in a marker: on its own while its window lasts, else with the controls. */
+export function skipShows(inMarker: boolean, onItsOwn: boolean, controls: boolean): boolean {
+  return inMarker && (onItsOwn || controls);
+}
+
 /**
  * Credits ending this close to the end of their file run to it: only a
  * studio's logo or black follows (the server's CREDITS_TAIL_MS).
@@ -53,7 +99,7 @@ export class CreditsGate {
   /** Whether entering `m`, in a file `durationMs` long, should start Up Next (the first time only). */
   enter(m: Marker, durationMs: number | null): boolean {
     if (!reachesEnd(m, durationMs)) return false;
-    const key = `${m.file_id}:${m.kind}:${m.start_ms}`;
+    const key = markerKey(m);
     if (this.seen.has(key)) return false;
     this.seen.add(key);
     return true;

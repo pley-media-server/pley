@@ -289,6 +289,49 @@ public class MarkersTests
         Assert.Equal((c.GetProperty("name").GetString(), c.GetProperty("up_next").GetBoolean()), (c.GetProperty("name").GetString(), Markers.ReachesEnd(marker, durationMs)));
     }
 
+    public static IEnumerable<object[]> SkipShownCases() =>
+        Enumerable.Range(0, Fixtures.Load("skip-shown").GetProperty("cases").GetArrayLength()).Select(i => new object[] { i });
+
+    /// <summary>
+    /// When Skip shows is the Samsung web app's (packages/tv/test/fixtures/skip-shown.json): on its
+    /// own for 8 s from entering a marker, then only with the controls; afresh on entering one again.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(SkipShownCases))]
+    public void Skip_shows_on_its_own_for_8_s_then_with_the_controls(int i)
+    {
+        var fixture = Fixtures.Load("skip-shown");
+        Assert.Equal(Markers.SkipShownMs, fixture.GetProperty("shown_ms").GetInt64());
+        var markers = JsonSerializer.Deserialize<Marker[]>(fixture.GetProperty("markers").GetRawText(), ApiJson.Options)!;
+        var c = fixture.GetProperty("cases")[i];
+        var name = c.GetProperty("name").GetString();
+        var window = new SkipWindow();
+        foreach (var step in c.GetProperty("steps").EnumerateArray())
+        {
+            var ms = step.GetProperty("ms").GetInt64();
+            if (step.TryGetProperty("up_next_cancelled", out _))
+            {
+                window.Again(ms);
+                continue;
+            }
+            var marker = Markers.Active(markers, step.GetProperty("position_ms").GetInt64());
+            var controls = step.GetProperty("controls").GetBoolean();
+            var alone = window.At(marker, ms);
+            var shown = Markers.SkipShows(marker != null, alone, controls) ? marker!.Kind : null;
+            Assert.Equal((name, ms, controls, step.GetProperty("skip").GetString(), step.GetProperty("on_its_own").GetBoolean()), (name, ms, controls, shown, alone));
+        }
+    }
+
+    [Fact]
+    public void Skip_starts_afresh_for_a_new_item_even_in_the_same_marker()
+    {
+        var window = new SkipWindow();
+        Assert.True(window.At(Intro, 0));
+        Assert.False(window.At(Intro, 9_000));
+        window.Reset();
+        Assert.True(window.At(Intro, 10_000));
+    }
+
     [Fact]
     public void What_comes_next_in_a_queue_and_where_it_starts()
     {

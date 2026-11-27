@@ -19,9 +19,10 @@ namespace Pley.Tv.Tizen.Screens;
 /// Core's <see cref="PlayerModel"/>: the server's session on the TV's own player, on the video
 /// plane under the window, with the subtitles drawn over it.
 /// <list type="bullet">
-/// <item><b>Controls hidden.</b> Only the video and subtitles show; Skip, Up Next and the sleep
-/// timer's notice are all that appear unasked. OK shows the controls on the scrubber, as Up does (a
-/// showing Skip takes it); Left and Right seek (<see cref="Seeker"/>), Down shows them on Play/Pause.
+/// <item><b>Controls hidden.</b> Only the video and subtitles show; Skip (its first 8 s in a
+/// marker), Up Next and the sleep timer's notice are all that appear unasked. OK shows the controls
+/// on the scrubber, as Up does (a showing Skip takes it); Left and Right seek (<see cref="Seeker"/>),
+/// Down shows them on Play/Pause.
 /// OK during or just after a seek confirms it and plays on.</item>
 /// <item><b>Controls shown.</b> The title, the method badge and the clock at the top; the times,
 /// the scrubber (with its chapters and the marker playing) and the control row at the bottom, over
@@ -135,6 +136,8 @@ sealed class PlayerScreen : Sheet
     long? lastFirstFrame;
     long waitingSince = -1;
     bool skipShown;
+    /// <summary>Skip shows on its own (its first 8 s in the marker): with the controls hidden it has focus, and Info opens them on it.</summary>
+    bool skipAlone;
     bool noticeShown;
     bool upNextShown;
     bool stoppedLeaving;
@@ -601,16 +604,18 @@ sealed class PlayerScreen : Sheet
     void ClosePanel() => panel?.Close();
 
     /// <summary>
-    /// Skip and the sleep notice, as the state says. Skip shows while its marker runs, unless Up
-    /// Next, an error or a seek preview is on screen, and takes focus while the controls are hidden;
-    /// the notice takes it as Skip does, Skip first.
+    /// Skip and the sleep notice, as the state says. Skip shows on its own for its first 8 s in a
+    /// marker, then only with the controls, unless Up Next, an error or a seek preview is on screen,
+    /// and takes focus while the controls are hidden; the notice takes it as Skip does, Skip first.
     /// </summary>
     void Overlays()
     {
         var s = model.State.Value;
         var free = error == null && s.UpNext == null;
         // Over the scrubber with the controls up, as on Android TV, but not over a seek's preview or the chapters.
-        var skipNow = s.SkipLabel != null && free && !(shown && (seeker.Target != null || chapterStrip.Open));
+        var skipFree = free && !(shown && (seeker.Target != null || chapterStrip.Open));
+        skipAlone = skipFree && Markers.SkipShows(s.SkipLabel != null, s.SkipAlone, false);
+        var skipNow = skipFree && Markers.SkipShows(s.SkipLabel != null, s.SkipAlone, shown);
         if (skipNow) skip.SetLabel(s.SkipLabel!);
         var noticeNow = s.Sleep.SecondsLeft != null && error == null;
         if (s.Sleep.SecondsLeft is int left) notice.Set(left);
@@ -891,7 +896,7 @@ sealed class PlayerScreen : Sheet
         }
         if (RemoteKeys.Info(key) || RemoteKeys.Menu(key) || RemoteKeys.Guide(key))
         {
-            if (down) ShowControls(true, skipShown ? skip.Item : scrubber);
+            if (down) ShowControls(true, skipAlone ? skip.Item : scrubber);
             return true;
         }
         switch (key)

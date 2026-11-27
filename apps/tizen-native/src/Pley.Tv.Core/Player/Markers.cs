@@ -18,6 +18,9 @@ public static class Markers
     /// <summary>Skip Intro lands this long before the intro ends, so its last moment plays.</summary>
     public const long IntroLeadMs = 750;
 
+    /// <summary>Skip shows on its own this long from when it appears; then only with the controls.</summary>
+    public const long SkipShownMs = 8_000;
+
     /// <summary>Credits ending this close to the end of their file run to it: only a studio's logo or black follows (the server's CREDITS_TAIL_MS).</summary>
     public const long CreditsTailMs = 15_000;
 
@@ -48,6 +51,9 @@ public static class Markers
 
     /// <summary>Identifies a segment, to tell entering it again apart from entering another.</summary>
     public static string KeyOf(Marker marker) => $"{marker.FileId}:{marker.Kind}:{marker.StartMs}";
+
+    /// <summary>Whether Skip shows, the playhead in a marker: on its own while its window lasts, else with the controls.</summary>
+    public static bool SkipShows(bool inMarker, bool alone, bool controls) => inMarker && (alone || controls);
 
     /// <summary>
     /// Whether <paramref name="marker"/> is credits that run to the end of its file,
@@ -80,6 +86,37 @@ public sealed class CreditsGate
 
     /// <summary>A new item: every segment may be announced again.</summary>
     public void Reset() => announced.Clear();
+}
+
+/// <summary>
+/// When Skip shows on its own: for <see cref="Markers.SkipShownMs"/> of the wall clock from the
+/// playhead entering a marker (playing, seeking or starting into it), paused or not; after that only
+/// with the controls, so it doesn't sit over the picture for a whole intro or the credits. Entering
+/// a marker again, or another, starts afresh; a seek within the one it is in doesn't.
+/// packages/tv/test/fixtures/skip-shown.json pins it for both Samsung apps.
+/// </summary>
+public sealed class SkipWindow
+{
+    string? key;
+    long since;
+
+    /// <summary>The marker the playhead is in at <paramref name="nowMs"/> (null for none): whether Skip shows on its own.</summary>
+    public bool At(Marker? marker, long nowMs)
+    {
+        var now = marker != null ? Markers.KeyOf(marker) : null;
+        if (now != key)
+        {
+            key = now;
+            since = nowMs;
+        }
+        return key != null && nowMs - since < Markers.SkipShownMs;
+    }
+
+    /// <summary>Skip appears again in the marker the playhead is in (Up Next cancelled over its credits): a fresh window.</summary>
+    public void Again(long nowMs) => since = nowMs;
+
+    /// <summary>A new item: the next marker starts afresh, even the same one.</summary>
+    public void Reset() => key = null;
 }
 
 /// <summary>

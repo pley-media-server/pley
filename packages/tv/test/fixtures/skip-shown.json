@@ -1,0 +1,82 @@
+{
+  "shown_ms": 8000,
+  "markers": [
+    { "file_id": 7, "kind": "intro", "start_ms": 60000, "end_ms": 150000, "source": "chapter" },
+    { "file_id": 7, "kind": "credits", "start_ms": 2580000, "end_ms": 2700000, "source": "chapter" }
+  ],
+  "cases": [
+    {
+      "name": "playing into the intro: Skip shows on its own for 8 s, then only with the controls",
+      "steps": [
+        { "ms": 0, "position_ms": 58000, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 2000, "position_ms": 60000, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 9999, "position_ms": 67999, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 10000, "position_ms": 68000, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 10000, "position_ms": 68000, "controls": true, "skip": "intro", "on_its_own": false },
+        { "ms": 30000, "position_ms": 88000, "controls": true, "skip": "intro", "on_its_own": false },
+        { "ms": 30000, "position_ms": 88000, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 90999, "position_ms": 148999, "controls": true, "skip": "intro", "on_its_own": false },
+        { "ms": 91000, "position_ms": 149000, "controls": true, "skip": null, "on_its_own": false }
+      ]
+    },
+    {
+      "name": "starting inside the intro: on its own from the first moment",
+      "steps": [
+        { "ms": 0, "position_ms": 90000, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 7999, "position_ms": 97999, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 8000, "position_ms": 98000, "controls": false, "skip": null, "on_its_own": false }
+      ]
+    },
+    {
+      "name": "paused in the intro: the 8 s run on the wall clock",
+      "steps": [
+        { "ms": 0, "position_ms": 61000, "controls": true, "skip": "intro", "on_its_own": true },
+        { "ms": 7999, "position_ms": 61000, "controls": true, "skip": "intro", "on_its_own": true },
+        { "ms": 8000, "position_ms": 61000, "controls": true, "skip": "intro", "on_its_own": false },
+        { "ms": 8000, "position_ms": 61000, "controls": false, "skip": null, "on_its_own": false }
+      ]
+    },
+    {
+      "name": "seeking within the intro doesn't start the 8 s again",
+      "steps": [
+        { "ms": 0, "position_ms": 60000, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 5000, "position_ms": 120000, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 6000, "position_ms": 70000, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 8000, "position_ms": 72000, "controls": false, "skip": null, "on_its_own": false }
+      ]
+    },
+    {
+      "name": "seeking out of the intro and back in starts a fresh 8 s",
+      "steps": [
+        { "ms": 0, "position_ms": 60000, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 9000, "position_ms": 69000, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 10000, "position_ms": 30000, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 11000, "position_ms": 70000, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 18999, "position_ms": 77999, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 19000, "position_ms": 78000, "controls": false, "skip": null, "on_its_own": false }
+      ]
+    },
+    {
+      "name": "the next marker starts a fresh 8 s, even within the last one's",
+      "steps": [
+        { "ms": 0, "position_ms": 60000, "controls": false, "skip": "intro", "on_its_own": true },
+        { "ms": 3000, "position_ms": 2590000, "controls": false, "skip": "credits", "on_its_own": true },
+        { "ms": 10999, "position_ms": 2597999, "controls": false, "skip": "credits", "on_its_own": true },
+        { "ms": 11000, "position_ms": 2598000, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 11000, "position_ms": 2598000, "controls": true, "skip": "credits", "on_its_own": false }
+      ]
+    },
+    {
+      "name": "Up Next cancelled over the credits: Skip Credits on its own for 8 s from then",
+      "steps": [
+        { "ms": 0, "position_ms": 2580000, "controls": false, "skip": "credits", "on_its_own": true },
+        { "ms": 20000, "position_ms": 2600000, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 20000, "up_next_cancelled": true },
+        { "ms": 20000, "position_ms": 2600000, "controls": false, "skip": "credits", "on_its_own": true },
+        { "ms": 27999, "position_ms": 2607999, "controls": false, "skip": "credits", "on_its_own": true },
+        { "ms": 28000, "position_ms": 2608000, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 28000, "position_ms": 2608000, "controls": true, "skip": "credits", "on_its_own": false }
+      ]
+    }
+  ]
+}

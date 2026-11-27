@@ -18,6 +18,10 @@ describes how they are made.
 - Up Next's card shows the next title's name without its picture, so it
   covers less of the credits, and its countdown ring fills smoothly
   instead of a step each second.
+- Skip Intro and Skip Credits show on their own for 8 seconds as an intro
+  or the credits begin, then only with the controls, so they don't sit
+  over the picture for the whole segment. Once they go, OK and the arrows
+  work as with nothing on screen.
 
 ## [0.1.14] - 2026-11-24
 

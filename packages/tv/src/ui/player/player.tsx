@@ -7,6 +7,7 @@ import { COUNTDOWN_SECONDS, PlaybackController, type PlayerEnv, type SavedPlayba
 import type { PlayRequest } from "../../player/plan";
 import type { Marker, PlaybackMethod } from "../../api/types";
 import { t } from "../../i18n";
+import { skipShows } from "../../player/markers";
 import { CountdownFill, thumbnailAt, sheetPath } from "../../player/nextup";
 import { badgeText, MEDIA_STEP_MS, Seeker, STEP_MS } from "../../player/seeker";
 import { LEAVE_AFTER_MS } from "../../player/sleep";
@@ -250,10 +251,13 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
       if (!controls) show("scrubber");
     } else c.play();
   };
-  const skipShown = !!s.skipLabel && !s.upNext && !error && !(controls && seeker.target !== null);
+  // Skip: on its own for its first 8 s in a marker, then only with the controls (where Up from the scrubber reaches it).
+  const skipFree = !s.upNext && !error && !(controls && seeker.target !== null);
+  const skipShown = skipFree && skipShows(!!s.skipLabel, s.skipAlone, controls);
+  const skipAlone = skipFree && skipShows(!!s.skipLabel, s.skipAlone, false);
   const sleepShown = s.sleep.secondsLeft !== null && !error;
 
-  // A new Skip or sleep notice takes focus while nothing else is up; the hidden-controls focus holder otherwise.
+  // A new Skip or sleep notice takes focus while nothing else is up; the hidden-controls focus holder otherwise, as Skip goes after its 8 s.
   useEffect(() => {
     if (controls || panel || s.upNext || error) return;
     if (skipShown) focusFid("skip");
@@ -399,7 +403,7 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
             return true;
           }
           if (key === "menu" || key === "info") {
-            show(skipShownRef.current ? "skip" : "scrubber");
+            show(skipAloneRef.current ? "skip" : "scrubber");
             return true;
           }
           if (key === "back") {
@@ -412,7 +416,7 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
         if (key === "back") {
           if (e.type === "down") {
             setControls(false);
-            focusFid(skipShownRef.current ? "skip" : "video");
+            focusFid(skipAloneRef.current ? "skip" : "video");
           }
           return true;
         }
@@ -467,6 +471,8 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
   panelRef.current = panel;
   const skipShownRef = useRef(skipShown);
   skipShownRef.current = skipShown;
+  const skipAloneRef = useRef(skipAlone);
+  skipAloneRef.current = skipAlone;
 
   const openPanel = (which: PlayerPanel) => setPanel(which);
   const closePanel = () => {

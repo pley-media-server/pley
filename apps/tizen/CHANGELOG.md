@@ -55,6 +55,10 @@ describes how they are made.
   watching?" each time. A profile with a PIN still asks first, and Switch
   profile still shows every profile. Settings' Always start as
   calls this Profile used last, where it said Ask who's watching.
+- Skip Intro and Skip Credits show on their own for 8 seconds as an intro
+  or the credits begin, then only with the controls, so they don't sit
+  over the picture for the whole segment. Once they go, OK and the arrows
+  work as with nothing on screen.
 
 ### Security
 

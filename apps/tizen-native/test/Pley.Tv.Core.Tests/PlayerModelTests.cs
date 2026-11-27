@@ -328,6 +328,54 @@ public class PlayerModelTests
         Assert.Null(h.State.SkipLabel);
     }
 
+    /// <summary>Skip shows on its own for 8 s from entering its marker, then only with the controls; leaving and entering again starts afresh.</summary>
+    [Fact]
+    public void Skip_shows_on_its_own_for_8_s_then_only_with_the_controls()
+    {
+        var intro = new Marker { FileId = 10, Kind = "intro", StartMs = 10_000, EndMs = 70_000, Source = "chapter" };
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { intro }));
+        h.Start(new PlayRequest(1, 9_000, false));
+        h.Play(1_000);
+        Assert.Equal(("Skip Intro", true), (h.State.SkipLabel, h.State.SkipAlone));
+        h.Play(7_500);
+        Assert.True(h.State.SkipAlone);
+        h.Play(500);
+        // The label stays, for the controls.
+        Assert.Equal(("Skip Intro", false), (h.State.SkipLabel, h.State.SkipAlone));
+        // A seek within the intro: still only with the controls.
+        h.Engine.PositionMs = 50_000;
+        h.Play(500);
+        Assert.Equal(("Skip Intro", false), (h.State.SkipLabel, h.State.SkipAlone));
+        // Out and back in: on its own again.
+        h.Engine.PositionMs = 5_000;
+        h.Play(500);
+        Assert.Equal(((string?)null, false), (h.State.SkipLabel, h.State.SkipAlone));
+        h.Engine.PositionMs = 20_000;
+        h.Play(500);
+        Assert.Equal(("Skip Intro", true), (h.State.SkipLabel, h.State.SkipAlone));
+    }
+
+    /// <summary>Skip Credits, hidden under Up Next, gets its 8 s on its own from when the card is cancelled.</summary>
+    [Fact]
+    public void Cancelling_up_next_gives_skip_credits_its_8_s_on_its_own_from_then()
+    {
+        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_600_000, EndMs = 2_700_000, Source = "chapter" };
+        var next = PlayerHarness.Episode(2, 2);
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
+        h.Source.NextOf[1] = next;
+        h.Start(new PlayRequest(1, 2_599_000, false));
+        h.Play(1_000);
+        Assert.NotNull(h.State.UpNext);
+        h.Play(8_000);
+        Assert.Equal(("Skip Credits", false), (h.State.SkipLabel, h.State.SkipAlone));
+        h.Model.CancelUpNext();
+        Assert.Equal(((UpNextCard?)null, "Skip Credits", true), (h.State.UpNext, h.State.SkipLabel, h.State.SkipAlone));
+        h.Play(7_500);
+        Assert.True(h.State.SkipAlone);
+        h.Play(500);
+        Assert.Equal(("Skip Credits", false), (h.State.SkipLabel, h.State.SkipAlone));
+    }
+
     [Fact]
     public void Entering_the_credits_brings_up_next_whose_countdown_plays_it_on_the_same_engine()
     {

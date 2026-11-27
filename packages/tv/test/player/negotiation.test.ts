@@ -801,6 +801,50 @@ describe("Up Next at the credits", () => {
     c.close();
   });
 
+  it("shows Skip Credits on its own for 8 s, then only with the controls, and again on entering them anew", async () => {
+    const { w, c } = await playing(credits(2_520_000, 2_640_000));
+    w.engine.pos = 2_520_500;
+    await vi.advanceTimersByTimeAsync(500);
+    expect([c.state.value.skipLabel, c.state.value.skipAlone]).toEqual(["Skip Credits", true]);
+    await vi.advanceTimersByTimeAsync(7_000);
+    expect(c.state.value.skipAlone).toBe(true);
+    // The label stays, for the controls.
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect([c.state.value.skipLabel, c.state.value.skipAlone]).toEqual(["Skip Credits", false]);
+    // A seek within the credits: still only with the controls.
+    w.engine.pos = 2_600_000;
+    await vi.advanceTimersByTimeAsync(500);
+    expect([c.state.value.skipLabel, c.state.value.skipAlone]).toEqual(["Skip Credits", false]);
+    // Out and back in: on its own again.
+    w.engine.pos = 2_400_000;
+    await vi.advanceTimersByTimeAsync(500);
+    expect([c.state.value.skipLabel, c.state.value.skipAlone]).toEqual([null, false]);
+    w.engine.pos = 2_530_000;
+    await vi.advanceTimersByTimeAsync(500);
+    expect([c.state.value.skipLabel, c.state.value.skipAlone]).toEqual(["Skip Credits", true]);
+    c.close();
+  });
+
+  it("gives Skip Credits its 8 s on its own from when Up Next is cancelled over them", async () => {
+    const { w, c } = await playing(credits(2_600_000, 2_700_000));
+    w.engine.pos = 2_600_500;
+    await vi.advanceTimersByTimeAsync(600);
+    expect(c.state.value.upNext).toMatchObject({ itemId: 71 });
+    // Skip's first 8 s go by under the card.
+    await vi.advanceTimersByTimeAsync(8_500);
+    expect(c.state.value.skipAlone).toBe(false);
+    c.cancelUpNext();
+    expect([c.state.value.upNext, c.state.value.skipLabel, c.state.value.skipAlone]).toEqual([null, "Skip Credits", true]);
+    // Playing on, so it isn't a stall.
+    w.engine.pos = 2_610_000;
+    await vi.advanceTimersByTimeAsync(7_500);
+    expect(c.state.value.skipAlone).toBe(true);
+    w.engine.pos = 2_620_000;
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect([c.state.value.skipLabel, c.state.value.skipAlone]).toEqual(["Skip Credits", false]);
+    c.close();
+  });
+
   it("follows the same rule through a playlist of movies", async () => {
     const { w, c } = await playing(credits(2_520_000, 2_640_000), { kind: "playlist", id: 3 });
     w.engine.pos = 2_520_500;

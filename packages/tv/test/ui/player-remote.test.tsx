@@ -34,6 +34,7 @@ const PLAYING: PlayerState = {
   canPlayOriginal: false,
   suggestLowerQuality: false,
   skipLabel: null,
+  skipAlone: false,
   markers: [],
   chapters: [],
   trickplay: null,
