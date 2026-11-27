@@ -131,3 +131,72 @@ describe("Sidebar playlists", () => {
     expect(screen.queryByRole("link", { name: "Playlists" })).not.toBeInTheDocument();
   });
 });
+
+describe("Sidebar narrowed", () => {
+  const shows: Library = { id: 2, name: "TV Shows", kind: "shows", paths: [], item_count: 0, created_at: 0, scanned_at: null, scanning: false };
+
+  function Narrowing() {
+    const [collapsed, setCollapsed] = useState(false);
+    return <Sidebar open={false} onClose={() => {}} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />;
+  }
+
+  /** The tip with these words: hidden from screen readers, which have the names already. */
+  const tip = (text: string) => screen.findByText(text, { selector: '[role="tooltip"]' });
+
+  it("narrows to its icons, each still named, and widens again", async () => {
+    mockApi({ "GET /api/libraries": () => [shows] });
+    const user = userEvent.setup();
+    renderWithProviders(<Narrowing />);
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    expect(await within(nav).findByRole("link", { name: "TV Shows" })).toBeInTheDocument();
+    expect(within(nav).getByText("Libraries")).toBeInTheDocument();
+
+    // An icon, named for screen readers and in its tip, not written.
+    const collapse = within(nav).getByRole("button", { name: "Collapse sidebar" });
+    expect(collapse).not.toHaveAttribute("title");
+    expect(within(nav).queryByText("Collapse sidebar")).not.toBeInTheDocument();
+    await user.hover(collapse);
+    expect(await tip("Collapse sidebar")).toBeInTheDocument();
+
+    await user.click(collapse);
+    // Still read out by name, and shown in a tip on hover.
+    const library = within(nav).getByRole("link", { name: "TV Shows" });
+    expect(library).not.toHaveAttribute("title");
+    await user.hover(library);
+    expect(await tip("TV Shows")).toBeInTheDocument();
+    await user.hover(within(nav).getByRole("link", { name: "Home" }));
+    expect(await tip("Home")).toBeInTheDocument();
+    // The heading is a line now, still read out.
+    expect(within(nav).getByText("Libraries")).toHaveClass("sr-only");
+    const expand = within(nav).getByRole("button", { name: "Expand sidebar" });
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(expand);
+    expect(within(nav).getByRole("button", { name: "Collapse sidebar" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("keeps the requests' count on a narrow sidebar, named in its tip", async () => {
+    mockApi({ "GET /api/libraries": () => [], "GET /api/requests/summary": () => makeSummary({ access: "auto", manage: true, pending: 3, unseen: 1 }) });
+    const user = userEvent.setup();
+    renderWithProviders(<Sidebar open={false} onClose={() => {}} collapsed onToggle={() => {}} />);
+    await user.hover(await screen.findByRole("link", { name: "Requests 4 waiting" }));
+    expect(await tip("Requests")).toBeInTheDocument();
+  });
+
+  it("names nothing in tips while wide, where the names are written, but Sort libraries, after a longer wait", async () => {
+    const films: Library = { ...shows, id: 1, name: "Movies", kind: "movies" };
+    mockApi({ "GET /api/libraries": () => [films, shows] });
+    const user = userEvent.setup();
+    renderWithProviders(<Sidebar open={false} onClose={() => {}} collapsed={false} onToggle={() => {}} />);
+    await user.hover(await screen.findByRole("link", { name: "TV Shows" }));
+    await new Promise((r) => setTimeout(r, 500));
+    expect(screen.queryByRole("tooltip", { hidden: true })).toBeNull();
+
+    const sort = screen.getByRole("button", { name: "Sort libraries" });
+    expect(sort).not.toHaveAttribute("title");
+    await user.hover(sort);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(screen.queryByRole("tooltip", { hidden: true })).toBeNull();
+    expect(await tip("Sort libraries")).toBeInTheDocument();
+  });
+});

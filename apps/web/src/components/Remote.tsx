@@ -71,6 +71,7 @@ import { activeMarker, skipTarget } from "@/player/SkipButton";
 import { Artwork } from "./Artwork";
 import { ChannelLogo } from "./ChannelLogo";
 import { Slider } from "./Slider";
+import { useTooltip } from "./Tooltip";
 import { IconButton, ProgressBar } from "./ui";
 
 /**
@@ -214,28 +215,30 @@ export function RemoteButton() {
     if (!panelRef.current?.contains(document.activeElement)) buttonRef.current?.focus();
   });
 
+  const playing = devices.filter((d) => d.session);
+  const label = playing.length
+    ? t("remote.buttonPlaying", { count: playing.length })
+    : t("remote.buttonReady", { count: devices.length });
+  const { trigger, tip } = useTooltip(open || !devices.length ? undefined : label, { side: "bottom" });
+
   // No other device on: it opens closed when one is on again.
   if (known && !devices.length && open) close();
   if (!devices.length) return null;
 
-  const playing = devices.filter((d) => d.session);
   // A device chosen that plays nothing yet (Play on… just went to it) shows once it plays.
   const waitingFor = devices.some((d) => d.id === chosen && !d.session);
   const current = waitingFor
     ? undefined
     : (playing.find((d) => d.id === chosen) ?? (playing.length === 1 ? playing[0] : undefined));
-  const label = playing.length
-    ? t("remote.buttonPlaying", { count: playing.length })
-    : t("remote.buttonReady", { count: devices.length });
   return (
     <div ref={ref} className="relative">
       <button
+        {...trigger}
         ref={buttonRef}
         type="button"
         onClick={() => (open ? close() : setOpen(true))}
         aria-label={label}
         aria-expanded={open}
-        title={label}
         className={cn(
           "flex size-9 items-center justify-center rounded-full transition-colors hover:bg-white/5 hover:text-fg",
           open ? "text-accent" : "text-muted",
@@ -243,6 +246,7 @@ export function RemoteButton() {
       >
         <MonitorSmartphone className="size-5" />
       </button>
+      {tip}
       {shown ? (
         // On a phone the button isn't at the screen's edge: the panel spans the screen instead.
         <div

@@ -252,7 +252,9 @@
     "requests": "Requests",
     "yourRequests": "Your requests",
     "waiting": "waiting",
-    "playlists": "Playlists"
+    "playlists": "Playlists",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar"
   },
   "sortLibraries": {
     "title": "Sort libraries",
