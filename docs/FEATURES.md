@@ -96,8 +96,10 @@ In the web and desktop apps only, for now.
 - One connection per channel however many people watch, within the
   provider's limit. A channel several sources carry can play on another's
   connection when its own source's are all in use.
-- Channels play straight from the provider when the device can, through
-  the transcoder when it can't.
+- Channels play straight from the provider when the device decodes them
+  (HEVC, 10-bit, MPEG-2 and others), through the transcoder when it
+  can't; the transcode starts only for a player that needs it. Playback
+  details on the Live TV player say which, the codecs and the bitrate.
 - Groups in the provider's order, or A to Z for a provider that lists them
   in none.
 

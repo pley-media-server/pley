@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Live TV plays HEVC and 10-bit channels as sent where the TV decodes
+  them, and shows how a channel plays as a video does.
+
 ### Changed
 
 - Playback details call a transcode made on a Rockchip server's video

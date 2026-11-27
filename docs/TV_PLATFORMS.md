@@ -160,6 +160,34 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
 - **The player:** Up and Down, CH+ and CH−, Previous and Next change
   channel. The menu key (and CH LIST) opens the channel list beside the
   picture, which moves aside into the 520 px left of it.
+- **Playback info:** Info, last in the player's controls, opens the panel
+  a title's player has. This app plays Live TV through the server's HLS
+  alone, never the provider's own stream (`stream.ts`), so a channel is a
+  **Direct stream** (the server copies its video; "· Audio transcoding"
+  after it when it converts the sound) or **Transcoding**, never
+  Direct play, and the panel has no Why. Under Playback come the
+  provider's video and sound with what the server makes of them
+  ("HEVC 10-bit · 3840×2160 · 50 fps → H.264 1080p", "AC3 5.1 → AAC
+  2.0", as a title's sound is written), the provider's bitrate as it is
+  now with a transcode's after it, and the encoder; what isn't known is
+  left out. Then This TV, as for
+  a title: the player, what it decodes, dropped frames, the buffer, the
+  channel's stalls and the time from tuning to its first picture.
+  The plan (`GET /api/live/sessions/{id}/plan`) is asked as the panel
+  opens and again 2.5 s after each answer; the panel says "Asking the
+  server…" until the server knows the channel. It stays open over a
+  change of channel and says the new channel's, and nothing more is asked
+  once it closes or watching ends. A failure's card closes it.
+- **The badge:** the controls say the way in a title's badge, its words
+  and colors, left of Live, as on Android TV. The plan is asked once as
+  each channel shows, for it (asking starts no transcode); a channel the
+  server doesn't know by then has no badge until Playback info has asked,
+  and none shows while a channel tunes.
+- **Settings → Playback details** keeps the compact readout over a
+  channel as over a title, while the controls, the channel list and
+  Playback info are closed: the way, the panel's Video, Audio, Bitrate and
+  Encoder lines, then what the TV's player decodes, drops and holds. The
+  plan is asked again 2.5 s after each answer while it shows.
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change of
   channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).
@@ -622,8 +650,8 @@ page's address and QR code, signing out); Diagnostics (the TV's facts and
 what it tells the server it plays); Live TV's page (the categories and
 their search, the guide and the channels' tiles, a program's details
 and favorites) and its live player (changing channel, number keys, what's
-on, the channel list on OK and the controls on OK held, and why a channel
-doesn't play); music's artist and
+on, the channel list on OK and the controls on OK held, Playback details,
+and why a channel doesn't play); music's artist and
 album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
 (the scrubber, the controls, the sleep timer and the queue), with the
 music playing on behind the other pages, driven by the remote's media keys
@@ -694,10 +722,21 @@ The engine says it is prepared apart (`Opened`), for the audio chosen to
 be switched to before it plays.
 
 A channel starts as on Android: its `stream.ts` (the provider's MPEG-TS,
-from its last keyframe) is read while the server says what it makes of the
-channel, and plays when that is the channel as it is, or with sound every
-Samsung TV decodes itself (AC3, E-AC3, MP2), which the server converts for
-other players; otherwise, or when it fails, the channel's HLS. The TV's
+from its last keyframe) is read while the server says what the channel is
+and what it makes of it, and plays when that is the channel as it is, or
+with sound every Samsung TV decodes itself (AC3, E-AC3, MP2), which the
+server converts for other players; otherwise, or when it fails, the
+channel's HLS. A channel the server would convert plays from `stream.ts`
+too when the TV decodes it as the provider sends it, and the server makes
+no transcode of it: video that a decoder in the TV's report
+takes at its bit depth (8 when the server doesn't say), size and frame
+rate (the report a film's direct play goes by, `Player/TizenCaps.cs`), and
+sound the TV decodes or passes to the receiver. Only what the TV's player
+reads out of MPEG-TS counts (H.264, HEVC and MPEG-2 video; AAC, AC3,
+E-AC3, MP2 and MP3 sound), so an AV1 channel stays with its HLS though the
+TV plays AV1 files, and interlaced video stays with the server while its
+Deinterlace setting is on. The rule is
+`LiveRules.PlaysAsSent`, as Android's `playsAsSent`. The TV's
 player can't send the `Authorization` header `stream.ts` needs, and the
 server takes an app's token nowhere else, so the app reads it with its
 token and hands it on to the player as it comes, on the TV's loopback
@@ -710,6 +749,33 @@ for its buffer after every seek too, not only after a stall, so films wait
 for 0.5 s there, where Android waits 1.5 s or 2 s after a stall: a seek
 took 2 s, now under one. A film asks the server for its stream before its player
 screen is made, which takes the UI thread half a second the first time.
+
+The live player's controls (OK held) have Info, the film player's button
+by name and icon, last as there: after the channel list and the favorite,
+as on Android TV. It opens Playback details in the film player's Info
+panel, under the same title and headings. How it plays says the way in a
+film's words (Direct play from `stream.ts`; from its HLS, Direct stream
+when the server sends the video as it is, with "Audio transcoding" after
+it when it converts the sound, else Transcoding), why it isn't Direct play
+when the server's plan and the TV's report say, in a sentence
+(**Interlaced video is made progressive.**, **This device doesn't play
+HEVC 10-bit video.**, **This device doesn't play DTS audio.**), the
+provider's video, audio and bitrate with what the server makes of them,
+the encoder of a transcode and the TV's network speed. A channel has no
+file or tracks to list, so its Video and Audio lines say what a film's
+sections of those names do ("HEVC 10-bit · 3840×2160 · 50 fps → H.264
+1080p", "EAC3 5.1 → AAC 2.0"). The video's bit depth is written only above
+8, in its line and in the reason, and a transcode's size by a film's name
+for it ("4K", "1080p").
+This TV has a film's lines: what the TV's player says it decodes, its
+buffer, the channel's stalls and the time to its first picture. A line
+whose value isn't known is left out. While the panel shows, the plan is
+asked again 2.5 s after each answer, for the provider's bitrate as it is
+now; asking starts no transcode. A channel that stops closes the panel for
+its card. The bar over the picture says the way too, in the film player's
+badge beside Live, as on Android TV: from the plan the player asked for as
+it tuned, with nothing more asked of the server, so a channel on HLS whose
+plan isn't known has no badge until Playback details have asked for it.
 
 Someone taking over a channel's connection (the server's
 `live_taken_over`) stops it at once, as on Android TV: the card says "Live

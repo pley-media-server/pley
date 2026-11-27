@@ -79,21 +79,26 @@ public static class Details
         v == null ? "" : ItemFormat.Join(" ", ItemFormat.CodecLabel(v.Codec), ItemFormat.ResolutionLabel(v.Width, v.Height), ItemFormat.DynamicRangeLabel(v));
 
     /// <summary>An audio stream as "TrueHD 7.1".</summary>
-    public static string AudioLabel(MediaStream? a)
+    public static string AudioLabel(MediaStream? a) => a == null ? "" : SoundLabel(a.Codec, a.Channels);
+
+    /// <summary>Sound as "AAC 2.0", "EAC3 5.1": a codec and its channels, as Playback details write them (a live channel's too).</summary>
+    public static string SoundLabel(string? codec, int? channels)
     {
-        if (a == null) return "";
-        string? channels = a.Channels is int c ? Channels.TryGetValue(c, out var name) ? name : Strings.T("player.details.channels", ("n", c)) : null;
-        return ItemFormat.Join(" ", ItemFormat.CodecLabel(a.Codec), channels);
+        string? count = channels is int c ? Channels.TryGetValue(c, out var name) ? name : Strings.T("player.details.channels", ("n", c)) : null;
+        return ItemFormat.Join(" ", ItemFormat.CodecLabel(codec), count);
     }
 
     /// <summary>The transcoder's "H.264 1920×1080" as "H.264 1080p".</summary>
     public static string Simplified(string text) =>
         Size.Replace(text, m => ItemFormat.ResolutionLabel(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)) ?? m.Value);
 
+    /// <summary>An encoder by the name people know: "h264_nvenc" is "NVIDIA NVENC"; one not known as it is.</summary>
+    public static string EncoderName(string encoder) => Encoders.TryGetValue(encoder, out var known) ? known : encoder;
+
     /// <summary>The encoder and where it runs: "NVIDIA NVENC (GPU)", "x264 veryfast (CPU)".</summary>
     public static string EncoderLabel(TranscodeInfo t)
     {
-        var name = t.Encoder != null ? Encoders.TryGetValue(t.Encoder, out var known) ? known : t.Encoder : null;
+        var name = t.Encoder != null ? EncoderName(t.Encoder) : null;
         var where = t.Pipeline != null && t.Pipeline != "copy" ? $"({Pipeline(t.Pipeline)})" : null;
         return ItemFormat.Join(" ", name, t.Preset, where);
     }
@@ -302,7 +307,12 @@ public static class Readout
         return facts;
     }
 
-    static List<MediaFact> Device(EngineStats? stats, ReadoutInput input)
+    /// <summary>
+    /// This TV's lines, a film's and a live channel's: what its player says it decodes, how far it
+    /// has loaded, its stalls and the time to the first frame, then the player's own lines. None
+    /// when the player says nothing of itself.
+    /// </summary>
+    public static List<MediaFact> Device(EngineStats? stats, ReadoutInput input)
     {
         var facts = new List<MediaFact>();
         if (stats == null) return facts;

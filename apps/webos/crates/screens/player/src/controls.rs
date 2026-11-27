@@ -109,27 +109,39 @@ pub fn top_bar(ui: &mut Ui, bar: &TopBar) {
         ui.text(Point::new(left, y + 4.0), line, &theme::LABEL, &TextOpts::line(width), theme::MUTED);
     }
     let clock = ui.layout(bar.clock, &theme::LABEL, &TextOpts::default());
-    let badge_style = theme::CAPTION.with_weight(Weight::Bold);
-    let badge = bar.method.map(|m| ui.layout(m, &badge_style, &TextOpts::default()));
-    let badge_h = theme::CAPTION.line_height + 6.0;
-    let row_h = badge.as_ref().map_or(clock.size.h, |_| badge_h.max(clock.size.h));
+    let row_h = bar.method.map_or(clock.size.h, |_| method_badge_h().max(clock.size.h));
     let top = theme::SAFE_Y;
     let clock_w = clock.size.w;
     let clock_h = clock.size.h;
     ui.draw_text(Point::new(right - clock_w, top + (row_h - clock_h) / 2.0), clock, theme::MUTED);
-    if let (Some(method), Some(layout)) = (bar.method, badge) {
-        let color = text::method_color(method);
-        let w = layout.size.w + 16.0;
-        let r = Rect::new(right - clock_w - 12.0 - w, top + (row_h - badge_h) / 2.0, w, badge_h);
-        ui.fill(r, theme::ON_ART, radius::BADGE);
-        ui.fill(r, color.alpha(0.2), radius::BADGE);
-        ui.draw_text(Point::new(r.x + 8.0, r.y + 3.0), layout, color);
+    if let Some(method) = bar.method {
+        method_badge(ui, method, right - clock_w - 12.0, top + row_h / 2.0);
     }
     if let Some(ends) = bar.ends {
         let l = ui.layout(ends, &theme::LABEL, &TextOpts::default());
         let w = l.size.w;
         ui.draw_text(Point::new(right - w, top + row_h), l, theme::MUTED);
     }
+}
+
+/// The height of [`method_badge`].
+fn method_badge_h() -> f32 {
+    theme::CAPTION.line_height + 6.0
+}
+
+/// How it plays, in a badge (`MethodBadge`): `method` in bold, in [`text::method_color`] over
+/// 20 % of it on the art's scrim, its right edge at `right`, centered on `mid`. Its width. The
+/// live player draws it too, beside Live.
+pub fn method_badge(ui: &mut Ui, method: &str, right: f32, mid: f32) -> f32 {
+    let layout = ui.layout(method, &theme::CAPTION.with_weight(Weight::Bold), &TextOpts::default());
+    let color = text::method_color(method);
+    let w = layout.size.w + 16.0;
+    let h = method_badge_h();
+    let r = Rect::new(right - w, mid - h / 2.0, w, h);
+    ui.fill(r, theme::ON_ART, radius::BADGE);
+    ui.fill(r, color.alpha(0.2), radius::BADGE);
+    ui.draw_text(Point::new(r.x + 8.0, r.y + 3.0), layout, color);
+    w
 }
 
 /// Registers a focusable of the player unless it is being drawn on its way out; a kit-like

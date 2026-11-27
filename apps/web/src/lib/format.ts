@@ -249,6 +249,7 @@ const CODECS: Record<string, string> = {
   theora: "Theora",
   prores: "ProRes",
   aac: "AAC",
+  aac_latm: "AAC",
   ac3: "AC3",
   eac3: "EAC3",
   dts: "DTS",

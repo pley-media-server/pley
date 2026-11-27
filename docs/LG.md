@@ -287,7 +287,17 @@ and goes with `live_channels_changed`. On LG:
 - **The channel's own stream:** a channel the server sends as it is, or
   whose only change is sound the TV decodes itself (AC-3, E-AC-3, MP2),
   plays from its `stream.ts`, from its first keyframe rather than after the
-  first HLS segments. The pipeline can't send the token, so the app reads
+  first HLS segments. So does a channel the server would convert, when
+  the TV plays what the provider sends, and the server makes no transcode
+  for it: video in H.264, HEVC or MPEG-2 that a decoder of the
+  [capability report](#what-an-lg-tv-plays) takes at its bit depth (8
+  when the plan doesn't say), size and frame rate, and sound in AAC, AC-3,
+  E-AC-3, MP2 or MP3 that the report decodes or passes through. Those are
+  the formats LG lists for an MPEG-TS, and the report is the one files
+  play by. Interlaced video stays with the server while its Deinterlace
+  setting is on, as does every converted channel while the TV has no
+  report yet (`crates/player/src/live/session.rs`).
+- **Handing it on:** the pipeline can't send the token, so the app reads
   the stream with it and hands it on from the TV's loopback address
   (`http://127.0.0.1:<port>/relay/<128 random bits>/stream.ts`): only that
   one stream, to at most four players (a place taken only by a request
@@ -326,7 +336,37 @@ and goes with `live_channels_changed`. On LG:
 - **The player:** Up and Down, CH+ and CH−, Next and Previous change
   channel within the category; digits tune a number. OK, the menu or the
   guide key opens the channel list beside the picture, which moves aside
-  to make room; holding OK shows the controls, as in the Samsung app.
+  to make room; holding OK shows the controls, as in the Samsung app:
+  the channel list and the favorite at the left, and Info at the right
+  end of their row, where the video player has it.
+- **Playback details:** Info in the controls opens the video player's
+  panel for the channel, over the controls, and it reads as a video's.
+  Under How it plays, Playback says Direct play (the provider's
+  `stream.ts`), Direct stream (the server's HLS with the video copied,
+  and "Audio transcoding" beside it when the server converts the sound)
+  or Transcoding. Why says what keeps a channel the server converts from
+  Direct play, in a sentence: interlaced video, or the video or sound this
+  TV doesn't play, the video's codec with its bit depth above 8 bits
+  ("This TV doesn't play HEVC 12-bit video."). Video and Audio say what the provider sends and, after an arrow,
+  what the server makes of it ("HEVC 4K → H.264 1080p", "EAC3 5.1 → AAC
+  2.0"); Bitrate what the provider sends now, with a transcode's video
+  bitrate; Encoder the transcode's; then the TV's network speed. The
+  Video and Audio sections say the provider's codec, size, frame rate,
+  bit depth and channels, as a video's say its file's, and This TV what
+  the pipeline says of itself, with the channel's stalls (counted anew
+  for another channel) and the time from tuning to its first picture. A
+  channel has no file, subtitles or quality to list. The details come
+  from the session's plan, asked again every 2.5 s while the panel shows;
+  what it doesn't say is left out, and a channel on HLS whose plan hasn't
+  come says "Asking the server…". The panel stays through a change of
+  channel; Back goes to the controls, on Info
+  (`crates/player/src/live/details.rs`). The bar says the way too, in the
+  video player's badge beside Live, once it is known: from the plan the
+  tune learned, or, for a channel on HLS whose tune didn't, the plan asked
+  once as its picture starts; asking starts no transcode. With Settings →
+  Playback details on, the video player's readout stays over the picture
+  while nothing else shows over it: the way, the details' rows, and what
+  the pipeline decodes and buffers.
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change
   of channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).
@@ -925,6 +965,7 @@ keep a release's.
   [CLI guide](https://webostv.developer.lge.com/develop/tools/cli-dev-guide),
   [appinfo.json](https://webostv.developer.lge.com/develop/references/appinfo-json),
   [streaming protocols](https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm),
+  [video and audio formats](https://webostv.developer.lge.com/develop/specifications/video-audio-250),
   [resuming media](https://webostv.developer.lge.com/develop/guides/resuming-media-with-mediaoption),
   [Back button](https://webostv.developer.lge.com/develop/guides/back-button),
   [uMediaServer for webOS OSE](https://www.webosose.org/docs/reference/ls2-api/com-webos-media/).

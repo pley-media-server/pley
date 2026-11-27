@@ -16,6 +16,19 @@ public sealed record GroupRegion(string Region, IReadOnlyList<LiveGroup> Groups,
 /// </summary>
 public sealed record GroupSections(IReadOnlyList<GroupRegion> Regions, IReadOnlyList<LiveGroup> Others);
 
+/// <summary>Why a channel plays as HLS and not from its stream.ts, as far as its plan and the TV's report say.</summary>
+public enum NotAsSent
+{
+    /// <summary>Its picture is interlaced, and the server makes it progressive.</summary>
+    Interlaced,
+    /// <summary>This TV has no decoder for its picture: the codec, or its bit depth, size or rate.</summary>
+    Video,
+    /// <summary>This TV neither decodes its sound nor passes it to the receiver.</summary>
+    Audio,
+    /// <summary>Not for a reason people are told: the plan doesn't say what the channel carries, the TV's report is missing, or its player doesn't read that codec out of MPEG-TS.</summary>
+    Unknown,
+}
+
 /// <summary>Live TV's rules, shared by its pages and its player (the Android app's LiveTv object).</summary>
 public static class LiveRules
 {
@@ -35,15 +48,56 @@ public static class LiveRules
     public const int FoundGroupsMax = 12;
 
     /// <summary>
-    /// Whether this TV plays a channel's stream.ts as the provider sends it: its picture sent as it
-    /// is (or none), its sound sent as it is or in a format every Samsung TV decodes itself (AC3,
-    /// MP2…), which the plan converts for players that can't: as HLS, such a channel starts later.
-    /// Android plays such sound where its device's probe says it decodes it or passes it to the
-    /// receiver: its devices decode different things.
+    /// The picture the TV's player reads out of MPEG-TS, in ffprobe's names: what broadcasts
+    /// carry. AV1 and VP9, which the TV decodes from files, have no place in a provider's stream
+    /// the player knows of, so such a channel stays with its HLS.
     /// </summary>
-    public static bool PlaysAsSent(LivePlan plan) =>
-        plan.Video is "copy" or "none"
-        && (plan.Audio is "copy" or "none" || (plan.AudioCodec != null && Player.TizenCaps.DecodedAudio.Contains(plan.AudioCodec)));
+    static readonly string[] StreamVideo = { "h264", "hevc", "mpeg2video" };
+
+    /// <summary>The sound the TV's player reads out of MPEG-TS.</summary>
+    static readonly string[] StreamSound = { "aac", "ac3", "eac3", "mp2", "mp3" };
+
+    /// <summary>
+    /// Whether this TV plays a channel's stream.ts as the provider sends it (Direct Play), which
+    /// starts sooner than its HLS and costs the server no transcode:
+    ///
+    /// - A channel whose picture the plan sends as it is (or that has none), with sound sent as
+    ///   it is or in a format every Samsung TV decodes itself (AC3, MP2…), which the plan converts
+    ///   for players that can't. Android plays such sound where its device's probe says it decodes
+    ///   it or passes it to the receiver: its devices decode different things.
+    /// - A channel the plan would convert that this TV decodes by its own report
+    ///   (<paramref name="caps"/>, the one a film's direct play goes by): its picture's codec at
+    ///   its bit depth (8 when the plan doesn't say), size and rate, and sound it decodes or
+    ///   passes to the receiver, of those the TV's player reads out of MPEG-TS. Interlaced video
+    ///   the plan converts stays with the server, whose own setting says whether it is made
+    ///   progressive.
+    ///
+    /// Without the report, only the first.
+    /// </summary>
+    public static bool PlaysAsSent(LivePlan plan, Player.ClientCaps? caps = null) => WhyNotAsSent(plan, caps) == null;
+
+    /// <summary>Why a channel plays as HLS, not as the provider sends it; null when it plays as sent (<see cref="PlaysAsSent"/>).</summary>
+    public static NotAsSent? WhyNotAsSent(LivePlan plan, Player.ClientCaps? caps)
+    {
+        var videoSent = plan.Video is "copy" or "none";
+        var audioSent = plan.Audio is "copy" or "none";
+        var sound = plan.AudioCodec?.ToLowerInvariant();
+        if (videoSent && (audioSent || (sound != null && Player.TizenCaps.DecodedAudio.Contains(sound)))) return null;
+        if (caps == null) return NotAsSent.Unknown;
+        if (!videoSent)
+        {
+            // Interlaced video is the server's while it makes it progressive.
+            if (plan.Interlaced && plan.Deinterlace != false) return NotAsSent.Interlaced;
+            var picture = plan.VideoCodec?.ToLowerInvariant();
+            if (picture == null) return NotAsSent.Unknown;
+            if (!Player.CapsPolicy.Decodes(caps, picture, plan.BitDepth ?? 8, plan.Width, plan.Height, plan.FrameRate)) return NotAsSent.Video;
+            if (!StreamVideo.Contains(picture)) return NotAsSent.Unknown;
+        }
+        if (audioSent) return null;
+        if (sound == null) return NotAsSent.Unknown;
+        if (!caps.AudioDecode.Concat(caps.AudioPassthrough).Concat(caps.AudioCodecs).Contains(sound, StringComparer.OrdinalIgnoreCase)) return NotAsSent.Audio;
+        return StreamSound.Contains(sound) ? null : NotAsSent.Unknown;
+    }
 
     static readonly Regex LeadingBars = new Regex(@"^\|+\s*", RegexOptions.CultureInvariant);
     static readonly Regex Bracketed = new Regex(@"^\[([^\]]{1,16})]\s*(.+)$", RegexOptions.CultureInvariant);

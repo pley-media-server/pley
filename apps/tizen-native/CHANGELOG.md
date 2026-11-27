@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Live TV plays a channel as the provider sends it when the TV decodes it,
+  and Info in the live player's controls opens Playback details.
+
 ### Changed
 
 - Playback details call a transcode made on a Rockchip server's video

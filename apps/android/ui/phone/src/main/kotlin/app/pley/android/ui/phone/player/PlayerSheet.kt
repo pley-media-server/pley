@@ -76,6 +76,7 @@ import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.player.AudioDelays
 import app.pley.android.player.PlaybackDetailsUi
 import app.pley.android.player.PlaybackSpeeds
+import app.pley.android.player.PlayerEngine
 import app.pley.android.player.SubtitleSearchUi
 import app.pley.android.player.engine.EngineState
 import app.pley.android.player.engine.PlaybackStats
@@ -117,27 +118,39 @@ internal fun BoxScope.PlayerSheet(state: PlayerScreenState, style: SubtitleChoic
     LaunchedEffect(styleGone) {
         if (styleGone) state.back()
     }
+    var shown by remember { mutableStateOf(page) }
+    if (page != null) shown = page
+    SheetFrame(open = page != null, onClose = state::closeSheet) {
+        shown?.let { SheetContent(it, state, style, onStyle) }
+    }
+}
+
+/**
+ * A sheet over a player, the video player's and the live player's:
+ * [surface2][PleyColors.Surface2], 20 dp top corners and a handle, over a
+ * 60 % scrim that closes it ([onClose]); [content] under the handle.
+ */
+@Composable
+internal fun BoxScope.SheetFrame(open: Boolean, onClose: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val reduced = reducedMotion()
-    val scrim by animateFloatAsState(if (page != null) 1f else 0f, PleyMotion.overlay(reduced), label = "sheetScrim")
-    if (page != null || scrim > 0f) {
+    val scrim by animateFloatAsState(if (open) 1f else 0f, PleyMotion.overlay(reduced), label = "sheetScrim")
+    if (open || scrim > 0f) {
         Box(
             Modifier
                 .fillMaxSize()
                 .drawBehind { drawRect(PleyColors.Scrim.copy(alpha = PleyColors.Scrim.alpha * scrim)) }
                 .then(
-                    if (page != null) {
-                        Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = state::closeSheet)
+                    if (open) {
+                        Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose)
                     } else {
                         Modifier
                     },
                 ),
         )
     }
-    var shown by remember { mutableStateOf(page) }
-    if (page != null) shown = page
     val maxHeight = with(LocalDensity.current) { (LocalWindowInfo.current.containerSize.height * 0.88f).toDp() }
     AnimatedVisibility(
-        page != null,
+        open,
         Modifier.align(Alignment.BottomCenter),
         enter = if (reduced) fadeIn(PleyMotion.reveal()) else slideInVertically(PleyMotion.overlay()) { it } + fadeIn(PleyMotion.overlay()),
         exit = if (reduced) fadeOut(PleyMotion.reveal()) else slideOutVertically(PleyMotion.overlay()) { it } + fadeOut(PleyMotion.overlay()),
@@ -160,8 +173,27 @@ internal fun BoxScope.PlayerSheet(state: PlayerScreenState, style: SubtitleChoic
             Box(Modifier.fillMaxWidth().height(20.dp), contentAlignment = Alignment.Center) {
                 Box(Modifier.size(32.dp, 4.dp).background(PleyColors.Control, PleyShape.Pill))
             }
-            shown?.let { SheetContent(it, state, style, onStyle) }
+            content()
         }
+    }
+}
+
+/** A sheet's heading: Back where [onBack] leads somewhere, the page's [title], and Close. */
+@Composable
+internal fun SheetTitle(title: String, onBack: (() -> Unit)?, onClose: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (onBack != null) {
+            PleyIconButton(PleyIcons.ChevronLeft, stringResource(R.string.player_sheet_back), onClick = onBack)
+        } else {
+            Spacer(Modifier.width(16.dp))
+        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            color = PleyColors.Fg,
+            modifier = Modifier.weight(1f).semantics { heading() },
+        )
+        PleyIconButton(PleyIcons.X, stringResource(R.string.player_close), onClick = onClose)
     }
 }
 
@@ -182,20 +214,8 @@ private fun ColumnScope.SheetContent(page: SheetPage, state: PlayerScreenState, 
             SheetPage.FindSubtitles -> R.string.player_find_subtitles
         },
     )
-    Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        if ((state.sheetRoot == SheetPage.Settings && page != SheetPage.Settings) || page == SheetPage.FindSubtitles) {
-            PleyIconButton(PleyIcons.ChevronLeft, stringResource(R.string.player_sheet_back), onClick = state::back)
-        } else {
-            Spacer(Modifier.width(16.dp))
-        }
-        Text(
-            title,
-            style = MaterialTheme.typography.titleMedium,
-            color = PleyColors.Fg,
-            modifier = Modifier.weight(1f).semantics { heading() },
-        )
-        PleyIconButton(PleyIcons.X, stringResource(R.string.player_close), onClick = state::closeSheet)
-    }
+    val inside = (state.sheetRoot == SheetPage.Settings && page != SheetPage.Settings) || page == SheetPage.FindSubtitles
+    SheetTitle(title, onBack = if (inside) state::back else null, onClose = state::closeSheet)
     if (page == SheetPage.Chapters) {
         ChaptersPage(state)
         return
@@ -385,8 +405,15 @@ private fun StylePage(style: SubtitleChoice, onStyle: (SubtitleChoice) -> Unit) 
  * decoder, picture, dropped frames, the display.
  */
 @Composable
-private fun DetailsPage(state: PlayerScreenState) {
-    val details: PlaybackDetailsUi? = state.details
+private fun DetailsPage(state: PlayerScreenState) = PlaybackDetailsBody(state.details, state.controller.engine)
+
+/**
+ * Playback details' body, the video player's and the live player's:
+ * [details] as the session or the channel has them (a spinner until they
+ * come), then this device's side as [engine] plays it.
+ */
+@Composable
+internal fun PlaybackDetailsBody(details: PlaybackDetailsUi?, engine: PlayerEngine?) {
     if (details == null) {
         Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
             DelayedSpinner(stringResource(R.string.player_loading))
@@ -410,7 +437,7 @@ private fun DetailsPage(state: PlayerScreenState) {
             details.rows.forEach { DetailLine(it.label, it.value) }
         }
     }
-    val engineState = state.controller.engine?.state?.collectAsState()
+    val engineState = engine?.state?.collectAsState()
     val device = deviceLines(engineState?.value)
     if (device.isNotEmpty() || details.engine.isNotEmpty()) {
         GroupLabel(stringResource(R.string.player_details_device))

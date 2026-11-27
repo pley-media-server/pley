@@ -88,7 +88,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   typed or on Apple TV's number pad, AirPlay, and Watch here instead when
   every connection is in use. Search shows the channels it finds. Live TV
   stopped from another device, or its connection taken, stops at once and
-  says why.
+  says why. Details say how a channel plays.
 - Music: Play and Shuffle on albums, artists and music playlists, a track
   plays its album from there, and it plays on in the background and with
   the screen locked. A mini player and Now Playing (a window on the Mac,

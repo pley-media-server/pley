@@ -17,8 +17,10 @@ namespace Pley.Tv.Tizen.Screens;
 /// The live player (the Android app's TvLivePlayerScreen): the channel full screen on the TV's
 /// own player, under a clear window. With nothing over it, Up and Down and Channel up and down
 /// change channel (Up the next), digits tune a number; OK, Menu or Guide opens the channel list;
-/// OK held shows the controls (the channel list, the favorite) over what's on; Info shows what's
-/// on for 5 s; Back hides what shows, then leaves. Live TV is watched as it airs: play, pause, rewind,
+/// OK held shows the controls (the channel list, the favorite, Info) over what's on, where Info
+/// opens Playback details, the film player's panel; the Info key shows what's on for 5 s, with
+/// how the channel plays in the film player's badge beside Live; Back
+/// hides what shows, then leaves. Live TV is watched as it airs: play, pause, rewind,
 /// fast forward, Left and Right do nothing. A channel that doesn't start says why, with Try again
 /// (or Watch here instead, every connection being in use), Other channels and Back to the guide.
 /// The app hidden, the channel and its connection are let go; shown again, it tunes again.
@@ -61,14 +63,17 @@ sealed class LivePlayerScreen : Sheet
     bool listOpen;
     /// <summary>The channel list beside the picture, while it is open.</summary>
     LiveChannelListSheet? list;
+    /// <summary>Playback details beside the picture, while they are open.</summary>
+    PlayerPanelSheet? details;
     string? stageShown;
     string? barShown;
     LiveTrouble? troubleShown;
     long? channelShown;
     bool gone;
 
+    /// <param name="caps">What the TV says it plays (<see cref="PlayerScreen.Caps"/>), which says the channels it plays as the provider sends them; null when it can't say.</param>
     /// <param name="playingFrom">"Playing from …", shown at the top right as the channel starts: where a cast came from.</param>
-    public LivePlayerScreen(Shell shell, AppLiveSource source, LiveWatch watch, Images images, KeyRepeatGate gate, Action closed, string? playingFrom = null) : base("live-player")
+    public LivePlayerScreen(Shell shell, AppLiveSource source, LiveWatch watch, Images images, KeyRepeatGate gate, Action closed, IReadOnlyDictionary<string, object?>? caps, string? playingFrom = null) : base("live-player")
     {
         Covers = true;
         this.shell = shell;
@@ -99,11 +104,13 @@ sealed class LivePlayerScreen : Sheet
         Root.Add(trouble);
 
         var scheduler = new ContextScheduler();
-        model = new LivePlayerModel(source, new LivePlayback(source, Engine, scheduler), scheduler, watch.ChannelId, watch.CategoryKey, watch.Seen);
+        model = new LivePlayerModel(source, new LivePlayback(source, Engine, scheduler, caps), scheduler, watch.ChannelId, watch.CategoryKey, watch.Seen);
         watches.Add(model.State.Watch(_ => Draw()));
         watches.Add(model.Channel.Watch(_ => Draw()));
         watches.Add(model.Now.Watch(_ => Draw()));
         watches.Add(model.Category.Watch(_ => Draw()));
+        // The bar's badge follows what the server says the channel is.
+        watches.Add(model.Plan.Watch(_ => Draw()));
         watches.Add(model.Digits.Watch(Digits));
 #if PROFILE
         // From tuning to the picture: the engine's marks fall between these.
@@ -129,11 +136,12 @@ sealed class LivePlayerScreen : Sheet
 
     public void Show() => shell.Push(this);
 
-    /// <summary>Leaves the player, its channel list first: a cast plays something else in its place.</summary>
+    /// <summary>Leaves the player, its channel list or Playback details first: a cast plays something else in its place.</summary>
     public void Close()
     {
         if (gone) return;
         if (list != null) shell.Pop(list);
+        details?.Close();
         shell.Pop(this);
     }
 
@@ -316,6 +324,22 @@ sealed class LivePlayerScreen : Sheet
         Draw();
     }
 
+    /// <summary>Playback details in the film player's Info panel, which asks the server again and again while it shows.</summary>
+    void OpenDetails()
+    {
+        if (details != null || gone) return;
+        ShowControls(false);
+        var sheet = new PlayerPanelSheet(shell, model.Details, model.SetDetailsOpen);
+        details = sheet;
+        sheet.Gone += () =>
+        {
+            if (details == sheet) details = null;
+            if (!gone) Draw();
+        };
+        sheet.Show();
+        Draw();
+    }
+
     void Shown(bool shown)
     {
         if (gone) return;
@@ -352,6 +376,13 @@ sealed class LivePlayerScreen : Sheet
     {
         if (gone) return;
         var state = State;
+        if (state.Is is LivePhase.Failed && details != null)
+        {
+            // A channel that stopped says why, with what to do about it: the details don't stay
+            // over that, as on Android TV. Their going draws this again.
+            details.Close();
+            return;
+        }
         var channel = model.Channel.Value;
         var now = model.Now.Value;
         if (state.ChannelId != channelShown)
@@ -405,7 +436,7 @@ sealed class LivePlayerScreen : Sheet
             else if (stageKey.StartsWith("radio", StringComparison.Ordinal)) SoundOnly(channel!, now);
         }
 
-        var barVisible = channel != null && playing && !listOpen && (controlsShown || infoShown);
+        var barVisible = channel != null && playing && !listOpen && details == null && (controlsShown || infoShown);
         if (!barVisible)
         {
             // By what's drawn, not barShown: ShowControls(false) forgets that to have the bar drawn
@@ -421,7 +452,7 @@ sealed class LivePlayerScreen : Sheet
             if (controlsShown && !playing) controlsShown = false;
             return;
         }
-        var barKey = $"{channel!.GetHashCode()}|{name}|{now / 60}|{controlsShown}|{playing}";
+        var barKey = $"{channel!.GetHashCode()}|{name}|{now / 60}|{controlsShown}|{playing}|{model.Method}";
         if (barKey == barShown) return;
         // Drawn again (the favorite changed, a minute passed): focus stays on the same button.
         var focusedAt = Tree.Current != null && Tree.Current.Parent == controls ? controls.Children.ToList().IndexOf(Tree.Current) : 0;
@@ -528,8 +559,8 @@ sealed class LivePlayerScreen : Sheet
 
     /// <summary>
     /// The bar at the foot: the channel's logo, number and name, what's on with its times, how far
-    /// it is and what's next; Live; then the controls (the channel list first, the favorite) or
-    /// the hint.
+    /// it is and what's next; how it plays, in the film player's badge, and Live; then the controls
+    /// (the channel list first, the favorite, Playback details) or the hint.
     /// </summary>
     void InfoBar(LiveChannel channel, string name, long now)
     {
@@ -554,7 +585,14 @@ sealed class LivePlayerScreen : Sheet
         infoBar.Add(logo);
         var x = left + 112 + 18;
         var live = State.Playing ? LiveBadge() : null;
-        var right = PleyTv.CanvasWidth - PleyTv.SafeHorizontal - (live != null ? live.SizeWidth / Ui.Scale + 16 : 0);
+        // How it plays, 12 dp left of Live, as Android's bar has it.
+        MethodBadge? method = null;
+        if (live != null && model.Method is { } way)
+        {
+            method = new MethodBadge();
+            method.Set(way);
+        }
+        var right = PleyTv.CanvasWidth - PleyTv.SafeHorizontal - (live != null ? live.SizeWidth / Ui.Scale + 16 : 0) - (method != null ? method.WidthDp + 12 : 0);
         var textWidth = right - x;
 
         // The number and name, a star for a favorite.
@@ -610,6 +648,11 @@ sealed class LivePlayerScreen : Sheet
             live.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - PleyTv.SafeHorizontal) - live.SizeWidth, Ui.Dp(top + padTop + (rowHeight - 25) / 2));
             infoBar.Add(live);
         }
+        if (live != null && method != null)
+        {
+            method.Position = new Position(live.PositionX - Ui.Dp(12) - method.SizeWidth, Ui.Dp(top + padTop) + (Ui.Dp(rowHeight) - method.SizeHeight) / 2);
+            infoBar.Add(method);
+        }
 
         var under = top + padTop + rowHeight;
         if (!controlsShown)
@@ -632,6 +675,11 @@ sealed class LivePlayerScreen : Sheet
         favorite.Position = new Position(Ui.Dp(left + PleyTv.ButtonHeight + PleyTv.ButtonGap), Ui.Dp(under + 16));
         infoBar.Add(favorite);
         controls.Add(favorite.Item);
+        // Info, as the film player's button: how the channel plays.
+        var info = new RoundButton(PlayerText.Info, "info", OpenDetails);
+        info.Position = new Position(Ui.Dp(left + 2 * (PleyTv.ButtonHeight + PleyTv.ButtonGap)), Ui.Dp(under + 16));
+        infoBar.Add(info);
+        controls.Add(info.Item);
     }
 
     /// <summary>Live, red with a dot.</summary>

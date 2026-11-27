@@ -114,6 +114,11 @@
     "andMore_many": "et {{count}} de plus",
     "andMore_other": "et {{count}} de plus"
   },
+  "details": {
+    "interlaced": "La vidéo entrelacée est convertie en progressif.",
+    "videoNotPlayed": "Ce téléviseur ne lit pas la vidéo {{codec}}.",
+    "audioNotPlayed": "Ce téléviseur ne lit pas l’audio {{codec}}."
+  },
   "trouble": {
     "busy": "Toutes les connexions sont utilisées",
     "stopped": "La TV en direct s’est arrêtée",

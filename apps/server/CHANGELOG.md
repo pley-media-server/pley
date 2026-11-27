@@ -11,12 +11,12 @@ describes how they are made.
 
 ### Added
 
-- Hardware transcoding on Rockchip chips (RK3588, RK3568 and the like):
-  Rockchip MPP in Settings → Transcoder decodes and encodes on the chip's
-  video engines and scales with its RGA, and Automatic takes it where the
-  transcoder finds them. The arm64 Docker image's FFmpeg has them, and
-  `compose.rockchip.yaml` hands Pley their devices; they need Rockchip's
-  own kernel.
+- Live TV plays a channel as the provider sends it when the device decodes
+  it (HEVC and 10-bit included), and transcodes only for players that need it.
+- Playback details in the web app's Live TV player.
+- Hardware transcoding on Rockchip chips (RK3588, RK3568 and the like)
+  with Rockchip's own kernel: Rockchip MPP in Settings → Transcoder; the
+  arm64 Docker image has it, with `compose.rockchip.yaml`.
 
 ## [0.1.17] - 2026-11-25
 

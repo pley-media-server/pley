@@ -123,7 +123,13 @@
     "joinHint": "Vous pouvez rejoindre une chaîne déjà regardée, ou réessayer quand l’une d’elles est arrêtée.",
     "watchAgain": "Regarder à nouveau",
     "otherChannels": "Autres chaînes",
-    "backToGuide": "Retour au guide des programmes"
+    "backToGuide": "Retour au guide des programmes",
+    "details": {
+      "interlacedWhy": "La vidéo entrelacée est convertie en progressif.",
+      "noVideo": "Cet appareil ne lit pas la vidéo {{codec}}.",
+      "noAudio": "Cet appareil ne lit pas l’audio {{codec}}.",
+      "interlaced": "entrelacé"
+    }
   },
   "panel": {
     "changeGroup": "Changer de groupe",

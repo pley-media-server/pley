@@ -11,6 +11,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+pub mod ts;
+
 /// Protocol version spoken by this crate. Bumped on breaking changes.
 pub const API_VERSION: u32 = 1;
 
@@ -941,6 +943,11 @@ pub struct LiveRequest {
     /// in seconds (default 300; at least 30).
     #[serde(default)]
     pub window_seconds: Option<u32>,
+    /// Probe the input at once but make nothing of it until its playlist
+    /// is first asked for: a channel every player reads as the provider
+    /// sends it takes no transcode.
+    #[serde(default)]
+    pub on_demand: bool,
 }
 
 impl Default for LiveRequest {
@@ -954,6 +961,7 @@ impl Default for LiveRequest {
             max_bitrate_kbps: None,
             hwaccel: HwAccel::Auto,
             window_seconds: None,
+            on_demand: false,
         }
     }
 }
@@ -991,15 +999,23 @@ pub struct LivePlan {
     pub frame_rate: Option<f64>,
     #[serde(default)]
     pub interlaced: bool,
+    /// The input's video bit depth (8, 10, 12), when its pixel format says.
+    #[serde(default)]
+    pub bit_depth: Option<i64>,
     /// The input's audio codec (`aac`, `mp2`, `ac3`…).
     #[serde(default)]
     pub audio_codec: Option<String>,
     #[serde(default)]
     pub audio_channels: Option<i64>,
-    /// `copy`, or the encoder transcoding it (`h264_nvenc`, `libx264`…).
+    /// `copy`, `none`, or the encoder transcoding it (`h264_nvenc`, `libx264`…).
     pub video: String,
-    /// `copy` or `aac`.
+    /// `copy`, `aac` or `none`.
     pub audio: String,
+    /// A transcode's lines and video bitrate (kbit/s); `None` when copied.
+    #[serde(default)]
+    pub out_height: Option<i64>,
+    #[serde(default)]
+    pub video_kbps: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]

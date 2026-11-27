@@ -433,7 +433,8 @@ sealed class ToastView : View
 
 /// <summary>
 /// How it plays, badged as the phone's and the web's players do: a file played as it is in
-/// Success, a direct stream in Info's blue, a transcode in the accent, on Bg at 80 %.
+/// Success, a direct stream in Info's blue, a transcode in the accent, on Bg at 80 %. The live
+/// player's bar has it too.
 /// </summary>
 sealed class MethodBadge : View
 {

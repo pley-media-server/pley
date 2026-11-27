@@ -81,6 +81,12 @@
     "takeOver": "改在這裡觀看",
     "noneToTake": "正在觀看的頻道可以加入，或等其停止後再試。"
   },
+  "details": {
+    "whyInterlaced": "隔行掃描影片會轉換為逐行掃描。",
+    "whyVideo": "此裝置無法播放 {{codec}} 影片。",
+    "whyAudio": "此裝置無法播放 {{codec}} 音訊。",
+    "interlaced": "隔行掃描"
+  },
   "trouble": {
     "busy": "所有連線都已佔用",
     "stopped": "直播電視已停止",

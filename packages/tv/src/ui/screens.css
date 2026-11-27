@@ -1392,6 +1392,8 @@ html.avplay .engine-host { background: transparent; }
 .live-stage .live-radio { width: 100%; }
 .live-stage .player-ring { left: 50%; margin-left: -20px; }
 .live-stage.aside .player-row { left: 32px; right: 32px; }
+/* Beside the channel list the row is narrow: a long way of playing ("Direct stream · Audio transcoding") is cut short of the buttons on the left. */
+.live-stage.aside .method-badge { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 .live-stage.aside .live-info { right: 32px; left: 32px; }
 .live-stage.aside .player-top { left: 32px; right: 32px; }
 .live-stage.aside .live-progress.wide { width: 100px; }
@@ -1413,6 +1415,8 @@ html.avplay .engine-host { background: transparent; }
 .reduced .live-badge.at-live .live-dot { animation: none; }
 /* With the buttons: centered on the 36 px buttons' line; behind live, a button that goes back to it. */
 .live-chip-box { position: relative; height: 36px; display: flex; align-items: center; margin-right: 6px; }
+/* How it plays, left of LIVE, as far from it as from a title's clock. */
+.live-chip-box > .method-badge { margin-right: 12px; }
 @keyframes live-pulse {
   0% { opacity: 1; }
   50% { opacity: 0.35; }

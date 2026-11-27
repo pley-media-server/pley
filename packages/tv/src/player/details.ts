@@ -27,7 +27,7 @@ export function upNextHeading(label: string | null): string {
   return label ? t("player.upNext.episode", { episode: label }) : t("player.upNext.title");
 }
 
-export function methodText(info: PlaybackInfo): string {
+export function methodText(info: Pick<PlaybackInfo, "method" | "audio_converted">): string {
   const remux = t("player.details.method.remux");
   if (info.method === "remux") return info.audio_converted ? `${remux} · ${t("player.details.audioTranscoding")}` : remux;
   if (info.method === "transcode") return t("player.details.method.transcode");
@@ -114,9 +114,13 @@ export function shownAs(info: PlaybackInfo, live: TranscodeInfo | null): string 
 
 /** An audio stream as "TrueHD 7.1". */
 export function audioLabel(a: MediaStream | null): string {
-  if (!a) return "";
-  const channels = a.channels ? CHANNELS[a.channels] ?? `${a.channels}ch` : null;
-  return [codecLabel(a.codec), channels].filter(Boolean).join(" ");
+  return a ? soundLabel(a.codec, a.channels) : "";
+}
+
+/** Sound as "AAC 2.0", "EAC3 5.1": a codec and its channels, as Playback info writes them (a live channel's too). */
+export function soundLabel(codec: string | null | undefined, count: number | null | undefined): string {
+  const channels = count ? CHANNELS[count] ?? `${count}ch` : null;
+  return [codecLabel(codec), channels].filter(Boolean).join(" ");
 }
 
 /** The transcoder's "H.264 1920×1080" as "H.264 1080p". */
@@ -124,8 +128,13 @@ export function simplified(text: string): string {
   return text.replace(/(\d+)×(\d+)/g, (m, w: string, h: string) => resolutionLabel(Number(w), Number(h)) ?? m);
 }
 
+/** FFmpeg's encoder as people know it: "h264_nvenc" → "NVIDIA NVENC"; one not known, as it is. */
+export function encoderName(encoder: string): string {
+  return ENCODERS[encoder] ?? encoder;
+}
+
 export function encoderLabel(t: TranscodeInfo): string {
-  const name = t.encoder ? ENCODERS[t.encoder] ?? t.encoder : null;
+  const name = t.encoder ? encoderName(t.encoder) : null;
   const where = t.pipeline && t.pipeline !== "copy" ? `(${pipelineLabel(t.pipeline)})` : null;
   return [name, where].filter(Boolean).join(" ");
 }

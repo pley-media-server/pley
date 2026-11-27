@@ -2180,7 +2180,7 @@
       }
     },
     "Details" : {
-      "comment" : "A title's page: the heading of its details.",
+      "comment" : "A title's page: the heading of its details. The live player: opens how the channel plays, and that sheet's title, as the player's Details.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
