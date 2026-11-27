@@ -2,7 +2,7 @@
   "total": 10,
   "cases": [
     {
-      "name": "each second, the ring glides to where it stands at that second's end",
+      "name": "each second, the fill glides to where it stands at that second's end",
       "steps": [
         { "set": 10, "ms": 0 },
         { "ms": 0, "fill": 0 },
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "name": "the ring is full as the countdown reaches nothing",
+      "name": "the fill is full as the countdown reaches nothing",
       "steps": [
         { "set": 10, "ms": 0 },
         { "set": 9, "ms": 1000 },
@@ -31,7 +31,7 @@
       ]
     },
     {
-      "name": "a second that comes a little early carries on from where the ring is",
+      "name": "a second that comes a little early carries on from where the fill is",
       "steps": [
         { "set": 10, "ms": 0 },
         { "set": 9, "ms": 960 },
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "name": "seconds that were missed: the ring jumps to where the countdown is",
+      "name": "seconds that were missed: the fill jumps to where the countdown is",
       "steps": [
         { "set": 10, "ms": 0 },
         { "set": 5, "ms": 1000 },
@@ -62,10 +62,26 @@
       ]
     },
     {
-      "name": "a card that shows midway starts the ring where its countdown is",
+      "name": "a card that shows midway starts the fill where its countdown is",
       "steps": [
         { "set": 4, "ms": 0 },
         { "ms": 0, "fill": 0.6, "moving": true }
+      ]
+    },
+    {
+      "name": "with reduced motion the fill steps once a second, to where that second starts",
+      "smooth": false,
+      "steps": [
+        { "set": 10, "ms": 0 },
+        { "ms": 0, "fill": 0, "moving": false },
+        { "ms": 500, "fill": 0, "moving": false },
+        { "set": 9, "ms": 1000 },
+        { "ms": 1000, "fill": 0.1, "moving": false },
+        { "ms": 1900, "fill": 0.1, "moving": false },
+        { "set": 7, "ms": 3000 },
+        { "ms": 3000, "fill": 0.3, "moving": false },
+        { "set": 10, "ms": 4000 },
+        { "ms": 4000, "fill": 0, "moving": false }
       ]
     }
   ]

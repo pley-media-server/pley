@@ -214,6 +214,11 @@ impl Tweens {
         (t.value(now), t.running(now))
     }
 
+    /// Drops the value of `id`: asked for again, it is a new value.
+    pub(crate) fn forget(&mut self, id: Id) {
+        self.map.remove(&id);
+    }
+
     /// Drops the values no frame asked for since `frame`.
     pub(crate) fn sweep(&mut self, frame: u64) {
         self.map.retain(|_, t| t.touched >= frame);
@@ -317,5 +322,18 @@ mod tests {
         tw.animate(Id::new("other"), None, [1.0; 4], Motion::OVERLAY, 5.0, 2, false);
         tw.sweep(2);
         assert_eq!(tw.len(), 1);
+    }
+
+    #[test]
+    fn a_forgotten_value_starts_again_at_its_start() {
+        let id = Id::new("fill");
+        let mut tw = Tweens::default();
+        tw.animate(id, Some([0.5; 4]), [0.6; 4], Motion::OVERLAY, 0.0, 1, false);
+        // Heading back without forgetting: it glides there from where it is.
+        let (v, _) = tw.animate(id, Some([0.0; 4]), [0.1; 4], Motion::OVERLAY, 1.0, 2, false);
+        assert_eq!(v[0], 0.6);
+        tw.forget(id);
+        let (v, running) = tw.animate(id, Some([0.0; 4]), [0.1; 4], Motion::OVERLAY, 1.0, 3, false);
+        assert_eq!((v[0], running), (0.0, true));
     }
 }

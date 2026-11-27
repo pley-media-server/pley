@@ -57,6 +57,7 @@
     "title": "接下來播放",
     "episode": "接下來播放 · {{episode}}",
     "playNow": "立即播放",
+    "playNowIn": "立即播放（{{seconds}}）",
     "cancel": "取消",
     "nextIn": "{{seconds}} 秒後播放"
   },

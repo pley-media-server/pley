@@ -1212,6 +1212,9 @@ html.avplay .engine-host { background: transparent; }
 .upnext-buttons { display: flex; align-items: center; margin-top: 16px; }
 .upnext-buttons > * + * { margin-left: 12px; }
 .playnow {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
   min-height: 48px;
   padding: 4px 16px 4px 20px;
   box-sizing: border-box;
@@ -1223,6 +1226,12 @@ html.avplay .engine-host { background: transparent; }
   align-items: center;
 }
 .playnow[data-focused] { background: var(--accent); color: var(--on-accent); box-shadow: none; transform: scale(1.05); }
+/* The countdown's sweep, from the left edge: under the icon and the words, cut to the button's shape, growing with it. Fg at 14 % over the faint fill at rest, black at 18 % over a focused button's accent. */
+.playnow-sweep { position: absolute; z-index: -1; left: 0; top: 0; width: 100%; height: 100%; background: rgba(233, 235, 239, 0.14); transform: scaleX(0); transform-origin: 0 50%; }
+.playnow[data-focused] .playnow-sweep { background: rgba(0, 0, 0, 0.18); }
+/* As wide as its widest words (the countdown's first second), so Cancel stays where it is as the count shortens. */
+.playnow-label { display: block; margin-left: 10px; white-space: nowrap; }
+.playnow-widest { display: block; height: 0; overflow: hidden; visibility: hidden; }
 
 .seek-badge { position: absolute; top: 238px; width: 64px; height: 64px; border-radius: 6px; background: rgba(11, 13, 16, 0.6); color: var(--fg); display: flex; align-items: center; justify-content: center; z-index: 5; }
 .player-ring { position: absolute; left: 460px; top: 250px; width: 40px; height: 40px; z-index: 5; }

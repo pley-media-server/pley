@@ -44,6 +44,27 @@ public sealed class PlayerWordsTests : IDisposable
     }
 
     [Fact]
+    public void Play_now_counts_down_in_every_language_in_its_own_words_for_play_now()
+    {
+        foreach (var language in Languages.All)
+        {
+            Strings.Use(language);
+            Assert.StartsWith(PlayerText.PlayNow, PlayerText.PlayNowLabel(7, reduced: false));
+            Assert.Contains("7", PlayerText.PlayNowLabel(7, reduced: false));
+            Assert.Equal(PlayerText.PlayNow, PlayerText.PlayNowLabel(null, reduced: false));
+            Assert.Equal(PlayerText.NextIn(7), PlayerText.PlayNowLabel(7, reduced: true));
+        }
+        Strings.Use("es");
+        Assert.Equal("Reproducir ahora (7)", PlayerText.PlayNowIn(7));
+        Strings.Use("fr");
+        Assert.Equal("Lire maintenant (7)", PlayerText.PlayNowIn(7));
+        Strings.Use("zh-CN");
+        Assert.Equal("立即播放（7）", PlayerText.PlayNowIn(7));
+        Strings.Use("zh-TW");
+        Assert.Equal("立即播放（7）", PlayerText.PlayNowIn(7));
+    }
+
+    [Fact]
     public void Chapters_name_themselves_in_English_or_in_the_language_shown()
     {
         Strings.Use("fr");

@@ -55,6 +55,7 @@
     "title": "Up next",
     "episode": "Up next · {{episode}}",
     "playNow": "Play now",
+    "playNowIn": "Play now ({{seconds}})",
     "nextIn": "Next in {{seconds}}"
   },
   "speed": {

@@ -18,6 +18,10 @@ describes how they are made.
   with the player's controls, instead of over the whole intro or credits.
   On TVs, OK and the arrows act on the video again once Skip has gone.
 
+### Fixed
+
+- Up Next's countdown stays in Play now when the episode ends during it.
+
 ## [0.1.20] - 2026-11-27
 
 ### Added

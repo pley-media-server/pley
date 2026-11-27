@@ -38,11 +38,13 @@ export function labelOf(next: ItemSummary): string | null {
 }
 
 /**
- * How much of Up Next's countdown has gone, from 0 to 1, for its ring (the
- * Android app's countdownFill). The controller counts whole seconds; through
- * each one the fill glides, linearly, to where it stands at that second's
- * end, so the ring moves without steps and is full as the countdown reaches
- * 0. A countdown that starts again jumps back at once rather than sliding back.
+ * How much of Up Next's countdown has gone, from 0 to 1, for the sweep across
+ * Play now (the Android app's countdownFill). The controller counts whole
+ * seconds; through each one the fill glides, linearly, to where it stands at
+ * that second's end, so the sweep moves without steps and is full as the
+ * countdown reaches 0. A countdown that starts again jumps back at once
+ * rather than sliding back. Without `smooth` (reduced motion) it steps once
+ * a second, to where that second starts.
  */
 export class CountdownFill {
   private from = 0;
@@ -55,15 +57,21 @@ export class CountdownFill {
   }
 
   /** The countdown shows `secondsLeft` at `nowMs`. */
-  set(secondsLeft: number, nowMs: number): void {
+  set(secondsLeft: number, nowMs: number, smooth = true): void {
     const start = unit((this.total - secondsLeft) / this.total);
     const end = unit((this.total - secondsLeft + 1) / this.total);
     let current = this.at(nowMs);
     // Ahead of this second (a countdown started again) or far behind it: from its place.
-    if (current > end || current < start - 0.5 / this.total) current = start;
+    if (!smooth || current > end || current < start - 0.5 / this.total) current = start;
     this.from = current;
-    this.to = end;
+    this.to = smooth ? end : start;
     this.startedMs = nowMs;
+  }
+
+  /** Back to empty, for a countdown that stopped. */
+  reset(): void {
+    this.from = 0;
+    this.to = 0;
   }
 
   /** The fill at `nowMs`. */
@@ -77,7 +85,7 @@ export class CountdownFill {
   }
 }
 
-/** How long each of the ring's glides takes: one second of the countdown. */
+/** How long each of the fill's glides takes: one second of the countdown. */
 export const COUNTDOWN_SECOND_MS = 1000;
 
 function unit(value: number): number {
