@@ -140,6 +140,7 @@ public enum LiveDetails {
         "h264_vaapi": "VA-API", "hevc_vaapi": "VA-API",
         "h264_videotoolbox": "VideoToolbox", "hevc_videotoolbox": "VideoToolbox",
         "h264_vulkan": "Vulkan", "hevc_vulkan": "Vulkan",
+        "h264_rkmpp": "Rockchip MPP", "hevc_rkmpp": "Rockchip MPP",
         "h264_v4l2m2m": "V4L2",
     ]
 

@@ -52,9 +52,9 @@ class LiveDetailsTest {
             rows(details),
         )
         // Interlaced, and no height said for the transcode: the provider's lines. An encoder with no name of its own stays as it is.
-        val sd = hevc.copy(videoCodec = "mpeg2video", width = 720, height = 576, frameRate = 25.0, interlaced = true, bitDepth = null, outHeight = null, videoKbps = null, kbps = 850, video = "h264_rkmpp")
+        val sd = hevc.copy(videoCodec = "mpeg2video", width = 720, height = 576, frameRate = 25.0, interlaced = true, bitDepth = null, outHeight = null, videoKbps = null, kbps = 850, video = "h264_mediacodec")
         assertEquals(
-            listOf("Video" to "MPEG-2 · 720×576 · 25 fps · interlaced → H.264 576p", "Audio" to "EAC3 5.1 → AAC 2.0", "Bitrate" to "850 kbps", "Encoder" to "h264_rkmpp"),
+            listOf("Video" to "MPEG-2 · 720×576 · 25 fps · interlaced → H.264 576p", "Audio" to "EAC3 5.1 → AAC 2.0", "Bitrate" to "850 kbps", "Encoder" to "h264_mediacodec"),
             rows(LiveDetails.build(english, LivePlaying(sd, asSent = false, why = NotAsSent.Interlaced))),
         )
     }

@@ -100,6 +100,7 @@ import Testing
         #expect(LiveDetails.encoderName("hevc_amf") == "AMD AMF")
         #expect(LiveDetails.encoderName("h264_vaapi") == "VA-API")
         #expect(LiveDetails.encoderName("h264_videotoolbox") == "VideoToolbox")
+        #expect(LiveDetails.encoderName("hevc_rkmpp") == "Rockchip MPP")
         // One not known stays as the server names it.
         #expect(LiveDetails.encoderName("h264_newthing") == "h264_newthing")
     }
