@@ -16,10 +16,13 @@ import androidx.core.content.edit
  * no pick on this device shows Midnight in the theme's own accent, and so
  * does a stored id this app doesn't know.
  *
- * The device also keeps the pick it showed last, which shows before a
- * profile is known (the first frame, the servers, signing in, "Who's
- * watching?") so nothing flashes, and stays after signing out. It is read
- * once as the app starts ([attach]); the profile's comes once the app knows
+ * Outside a profile (choosing a server, signing in, "Who's watching?" and
+ * its PIN), the shells draw Midnight in its own accent ([PleyPalette.Default])
+ * whatever the profile's pick, and the profile's comes back once the app is
+ * inside it again. The device keeps the palette its first frame takes: the
+ * signed-in profile's pick while the app is inside it, else Midnight. It is
+ * read once as the app starts ([attach]), so a start inside a profile shows
+ * its pick from the first frame; the profile's own comes once the app knows
  * who is signed in ([showProfile]).
  *
  * Kept as Compose state: the shells read [palette], so a pick or a switch
@@ -37,14 +40,32 @@ object Appearance {
     @Volatile
     private var profile: String? = null
 
+    /** Whether the app shows a screen outside a profile ([outside]). */
+    @Volatile
+    private var outsideNow = false
+
     /** The theme shown. */
     val theme: PleyTheme get() = shown.theme
 
     /** The accent shown; `null`: the theme's own. */
     val accent: PleyAccent? get() = shown.pick
 
-    /** The palette shown. Read in composition, it recomposes as it changes. */
+    /** The profile's palette (the one the app starts in, before it knows the profile). Read in composition, it recomposes as it changes. */
     val palette: PleyPalette get() = shown
+
+    /** The palette a shell draws a screen in: Midnight in its own accent outside a profile ([outside]), else [palette]. */
+    fun paletteFor(outside: Boolean): PleyPalette = if (outside) PleyPalette.Default else shown
+
+    /**
+     * The shell shows a screen outside a profile, or one inside it again:
+     * kept, on the main thread, so the next start's first frame is drawn
+     * as this one is.
+     */
+    fun outside(context: Context, outside: Boolean) {
+        if (outside == outsideNow) return
+        outsideNow = outside
+        preferences(context).edit { keepFirst() }
+    }
 
     /** As the app starts, before anything is drawn: the pick this device showed last. */
     fun attach(context: Context) {
@@ -69,9 +90,8 @@ object Appearance {
         if (profile == key) return
         profile = key
         val preferences = preferences(context)
-        val palette = read(preferences, suffix = ".$key")
-        shown = palette
-        preferences.edit { keep(palette, suffix = "") }
+        shown = read(preferences, suffix = ".$key")
+        preferences.edit { keepFirst() }
     }
 
     /** Shows [theme] from now on, on the main thread, and keeps it for the profile and as the last shown; the accent stays. */
@@ -85,8 +105,8 @@ object Appearance {
         shown = palette
         val profile = profile
         preferences(context).edit {
-            keep(palette, suffix = "")
             if (profile != null) keep(palette, suffix = ".$profile")
+            keepFirst()
         }
     }
 
@@ -94,14 +114,18 @@ object Appearance {
     @VisibleForTesting
     internal fun forget() {
         profile = null
+        outsideNow = false
         shown = PleyPalette.Default
     }
 
     private fun preferences(context: Context) = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
 
-    /** The pick kept under [suffix] ("" for the last shown, ".<server>.<user id>" for a profile's). */
+    /** The pick kept under [suffix] ("" for the first frame's, ".<server>.<user id>" for a profile's). */
     private fun read(preferences: SharedPreferences, suffix: String): PleyPalette =
         PleyPalette.of(PleyTheme.of(preferences.getString(THEME + suffix, null)), PleyAccent.of(preferences.getString(ACCENT + suffix, null)))
+
+    /** What the next start's first frame shows: the profile's pick inside it, else Midnight. */
+    private fun SharedPreferences.Editor.keepFirst() = keep(if (outsideNow) PleyPalette.Default else shown, suffix = "")
 
     private fun SharedPreferences.Editor.keep(palette: PleyPalette, suffix: String) {
         // Midnight and the theme's own accent are what nothing kept shows: nothing to keep.

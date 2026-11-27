@@ -44,6 +44,19 @@ fun PhoneTheme(palette: PleyPalette = Appearance.palette, content: @Composable (
     }
 }
 
+/**
+ * [palette] for what is drawn below, in Material's roles too: the shell's
+ * choice between the profile's pick and Midnight outside a profile
+ * ([Appearance.paletteFor]).
+ */
+@Composable
+fun PhonePalette(palette: PleyPalette, content: @Composable () -> Unit) {
+    val colors = remember(palette) { phoneColors(palette) }
+    CompositionLocalProvider(LocalPleyPalette provides palette) {
+        MaterialTheme(colorScheme = colors, typography = PhoneTypography, shapes = PhoneShapes, content = content)
+    }
+}
+
 /** The Material roles of design spec §1.1 in [p], every one set: Material's defaults are a light purple scheme. */
 fun phoneColors(p: PleyPalette): ColorScheme = darkColorScheme(
     primary = p.accent,

@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
@@ -63,6 +64,7 @@ import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.image.LocalArtworkHold
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.designsystem.theme.ThemedWindow
 import app.pley.android.player.CastFrom
 import app.pley.android.screens.PleyKey
@@ -93,6 +95,7 @@ import app.pley.android.ui.tv.livetv.liveTvEntries
 import app.pley.android.ui.tv.playlists.playlistsEntries
 import app.pley.android.ui.tv.requests.requestsEntries
 import app.pley.android.ui.tv.search.searchEntries
+import app.pley.android.ui.tv.theme.TvPalette
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -126,8 +129,6 @@ fun TvApp(
     // Settings → Display → Reduce motion, on top of the system's "Remove animations".
     val chosen by source.reduceMotion.collectAsStateWithLifecycle(false)
     TvTheme(tier, reducedMotion ?: true.takeIf { chosen }) {
-        // The window under the pages, in this device's theme (docs/THEMES.md).
-        ThemedWindow(PleyColors.palette)
         val gate = remember { KeyRepeatGate() }
         val root = remember { TvScrolling.root() }
         CompositionLocalProvider(LocalKeyRepeatGate provides gate, LocalArtworkHold provides gate, LocalBringIntoViewSpec provides root) {
@@ -154,7 +155,6 @@ private fun TvShell(
     opened: Flow<Long?>,
     onOpened: (Long) -> Unit,
 ) {
-    val palette = PleyColors.palette
     val backStack = rememberNavBackStack(start)
     val libraries by source.libraries.collectAsStateWithLifecycle(emptyList())
     val profile by source.profile.collectAsStateWithLifecycle(null)
@@ -192,6 +192,11 @@ private fun TvShell(
     rail.current = railCurrent(root, items + SettingsItem)
     // Signing in and choosing a profile are full screen.
     rail.shown = root !is PleyKey.Servers && root !is PleyKey.Link && root !is PleyKey.SignIn && root !is PleyKey.Profiles
+    // Outside a profile (those same screens), Midnight in its own accent; inside, the profile's pick.
+    val outside = !rail.shown
+    val palette = Appearance.paletteFor(outside)
+    val context = LocalContext.current
+    LaunchedEffect(outside) { Appearance.outside(context, outside) }
     val curtain = rememberCurtain(backStack.lastOrNull())
     // The screen the frame-rate counter's lines name, read outside composition.
     LaunchedEffect(backStack) { snapshotFlow { backStack.lastOrNull() }.collect { FrameRate.route = it } }
@@ -241,79 +246,83 @@ private fun TvShell(
     val select: (PleyKey) -> Unit = { key ->
         if (navigator.root == key && backStack.size == 1) rail.backToContent() else navigator.restart(key)
     }
-    Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .focusRequester(content)
-                .onFocusChanged { rail.contentFocused = it.hasFocus }
-                // No focusRestorer here: it would hand focus back to a page that is leaving.
-                // The rail saves and restores the page's focus itself.
-                .railOnLeftStopOnRight(if (rail.shown) rail else null, stopRight = false)
-                .focusGroup()
-                .drawWithContent {
-                    drawContent()
-                    // The open rail dims the page behind it, at once.
-                    if (rail.hasFocus) drawRect(palette.bg.copy(alpha = RAIL_DIM))
-                    val a = curtain.value
-                    if (a > 0f) drawRect(palette.bg.copy(alpha = a))
-                },
-        ) {
-            CompositionLocalProvider(
-                LocalTvNavigator provides navigator,
-                LocalTvRailFocus provides rail.takeIf { it.shown },
-                LocalTvOffline provides offline,
-                LocalTvOverlays provides overlays,
-                LocalTvTileActions provides tileActions,
-            ) {
-                NavDisplay(
-                    backStack = backStack,
-                    onBack = { navigator.back() },
-                    entryDecorators = listOf(
-                        rememberSaveableStateHolderNavEntryDecorator(),
-                        rememberViewModelStoreNavEntryDecorator(),
-                        rememberRootPageDecorator(backStack, pages),
-                    ),
-                    // The rail's page stays under the pages opened on it (RootUnderPages).
-                    sceneStrategies = listOf(pages, SinglePaneSceneStrategy()),
-                    // Screens change under the curtain, not with sliding or fading pages.
-                    transitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
-                    popTransitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
-                    predictivePopTransitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
-                    entryProvider = entryProvider(fallback = { key -> NavEntry(key) { placeholder(it) } }) {
-                        onboardingEntries()
-                        homeEntries()
-                        libraryEntries()
-                        itemEntries()
-                        searchEntries()
-                        playlistsEntries()
-                        liveTvEntries()
-                        accountEntries()
-                        musicEntries()
-                        requestsEntries()
-                        driveEntries()
+    TvPalette(palette) {
+        // The window under the pages, in the same colors (docs/THEMES.md).
+        ThemedWindow(palette)
+        Box(Modifier.fillMaxSize()) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .focusRequester(content)
+                    .onFocusChanged { rail.contentFocused = it.hasFocus }
+                    // No focusRestorer here: it would hand focus back to a page that is leaving.
+                    // The rail saves and restores the page's focus itself.
+                    .railOnLeftStopOnRight(if (rail.shown) rail else null, stopRight = false)
+                    .focusGroup()
+                    .drawWithContent {
+                        drawContent()
+                        // The open rail dims the page behind it, at once.
+                        if (rail.hasFocus) drawRect(palette.bg.copy(alpha = RAIL_DIM))
+                        val a = curtain.value
+                        if (a > 0f) drawRect(palette.bg.copy(alpha = a))
                     },
+            ) {
+                CompositionLocalProvider(
+                    LocalTvNavigator provides navigator,
+                    LocalTvRailFocus provides rail.takeIf { it.shown },
+                    LocalTvOffline provides offline,
+                    LocalTvOverlays provides overlays,
+                    LocalTvTileActions provides tileActions,
+                ) {
+                    NavDisplay(
+                        backStack = backStack,
+                        onBack = { navigator.back() },
+                        entryDecorators = listOf(
+                            rememberSaveableStateHolderNavEntryDecorator(),
+                            rememberViewModelStoreNavEntryDecorator(),
+                            rememberRootPageDecorator(backStack, pages),
+                        ),
+                        // The rail's page stays under the pages opened on it (RootUnderPages).
+                        sceneStrategies = listOf(pages, SinglePaneSceneStrategy()),
+                        // Screens change under the curtain, not with sliding or fading pages.
+                        transitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
+                        popTransitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
+                        predictivePopTransitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
+                        entryProvider = entryProvider(fallback = { key -> NavEntry(key) { placeholder(it) } }) {
+                            onboardingEntries()
+                            homeEntries()
+                            libraryEntries()
+                            itemEntries()
+                            searchEntries()
+                            playlistsEntries()
+                            liveTvEntries()
+                            accountEntries()
+                            musicEntries()
+                            requestsEntries()
+                            driveEntries()
+                        },
+                    )
+                }
+                // Signing in and choosing a profile say for themselves when the server can't be reached.
+                if (rail.shown) TvOfflineNotice(offline)
+                // Requests' news, once nothing else holds focus; not on the requests, which show it.
+                if (rail.shown && backStack.lastOrNull() !is PleyKey.Requests) {
+                    TvRequestNotices(source, content, rail, free = { !rail.hasFocus && !overlays.any }, onOpen = navigator::open)
+                }
+            }
+            // A tile's actions, over the page they were asked on.
+            TvTileActionsPanel(tileActions, page = backStack.lastOrNull(), navigator = navigator)
+            TvCastNotice(cast?.first, key = cast?.second)
+            if (rail.shown) {
+                TvRail(
+                    items = items,
+                    profile = profile,
+                    rail = rail,
+                    onSelect = { select(it.key) },
+                    onProfile = { select(PleyKey.Profiles()) },
+                    offline = offline.offline,
                 )
             }
-            // Signing in and choosing a profile say for themselves when the server can't be reached.
-            if (rail.shown) TvOfflineNotice(offline)
-            // Requests' news, once nothing else holds focus; not on the requests, which show it.
-            if (rail.shown && backStack.lastOrNull() !is PleyKey.Requests) {
-                TvRequestNotices(source, content, rail, free = { !rail.hasFocus && !overlays.any }, onOpen = navigator::open)
-            }
-        }
-        // A tile's actions, over the page they were asked on.
-        TvTileActionsPanel(tileActions, page = backStack.lastOrNull(), navigator = navigator)
-        TvCastNotice(cast?.first, key = cast?.second)
-        if (rail.shown) {
-            TvRail(
-                items = items,
-                profile = profile,
-                rail = rail,
-                onSelect = { select(it.key) },
-                onProfile = { select(PleyKey.Profiles()) },
-                offline = offline.offline,
-            )
         }
     }
 }

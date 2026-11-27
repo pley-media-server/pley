@@ -176,10 +176,13 @@ The pick is kept for each profile on this phone or TV, in the app's own
 preferences, by its server and user id (one device can sign in to several
 servers, where ids repeat); nothing goes to the server. A profile with no
 pick on the device, or one this app doesn't know, shows Midnight in its
-own accent. The device also keeps the pick it showed last, which shows as
-the app starts and wherever no profile is known yet (choosing a server,
-signing in, "Who's watching?"), and stays after signing out; switching
-profile shows that profile's pick at once.
+own accent. Outside a profile (choosing a server, signing in, "Who's
+watching?" and its PIN), the app is Midnight in its own accent whatever
+was picked, and the profile's pick comes back once the app is inside it
+again; switching profile shows the new profile's pick at once. So that a
+start inside a profile is in its pick from the first frame, the device
+also keeps the palette to start in: the signed-in profile's pick while
+the app is inside it, Midnight once it is outside one or signed out.
 
 Colors come only from `packages/themes/themes.json`, which
 `PleyPaletteTest` holds every theme and accent to. In a light theme the

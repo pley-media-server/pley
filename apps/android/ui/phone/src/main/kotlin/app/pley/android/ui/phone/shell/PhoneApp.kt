@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
@@ -90,6 +91,7 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.designsystem.theme.ThemedWindow
 import app.pley.android.player.CastFrom
 import app.pley.android.screens.PleyKey
@@ -126,6 +128,7 @@ import app.pley.android.ui.phone.requests.RequestsTabIcon
 import app.pley.android.ui.phone.requests.requestsEntries
 import app.pley.android.ui.phone.search.searchEntries
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
+import app.pley.android.ui.phone.theme.PhonePalette
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
@@ -161,8 +164,6 @@ fun PhoneApp(
     graph: () -> ScreensGraph,
 ) {
     PhoneTheme {
-        // The window under the pages, in this device's theme (docs/THEMES.md).
-        ThemedWindow(PleyColors.palette)
         // On a car's screen (Android Auto, parked), every page is car-sized, as Google's car criteria ask of a parked
         // app: 64 dp buttons, no text under 24 sp.
         CarSized(onCarScreen()) {
@@ -212,18 +213,27 @@ internal fun PhoneShell(
             override fun playOn(target: CastTarget) = shell.playOn(target)
         }
     }
-    CompositionLocalProvider(
-        LocalPhoneNavigator provides navigation,
-        LocalPhoneShell provides shell,
-        LocalPlayOn provides playOn,
-        LocalOffline provides shell.offlineState,
-        LocalOfflineAction provides offlineAction.takeIf { navigation.inside },
-        LocalPhoneDeviceTier provides tier,
-    ) {
-        if (navigation.inside) {
-            key(navigation.generation) { Tabs(navigation, shell, entries) }
-        } else {
-            GettingIn(navigation, shell, entries)
+    // Outside a profile (getting in, "Who's watching?"), Midnight in its own accent; inside, the profile's pick.
+    val outside = !navigation.inside
+    val palette = Appearance.paletteFor(outside)
+    val context = LocalContext.current
+    LaunchedEffect(outside) { Appearance.outside(context, outside) }
+    PhonePalette(palette) {
+        // The window under the pages, in the same colors (docs/THEMES.md).
+        ThemedWindow(palette)
+        CompositionLocalProvider(
+            LocalPhoneNavigator provides navigation,
+            LocalPhoneShell provides shell,
+            LocalPlayOn provides playOn,
+            LocalOffline provides shell.offlineState,
+            LocalOfflineAction provides offlineAction.takeIf { navigation.inside },
+            LocalPhoneDeviceTier provides tier,
+        ) {
+            if (navigation.inside) {
+                key(navigation.generation) { Tabs(navigation, shell, entries) }
+            } else {
+                GettingIn(navigation, shell, entries)
+            }
         }
     }
 }

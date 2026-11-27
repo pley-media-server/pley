@@ -11,8 +11,9 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * The theme kept on the device for each profile (docs/THEMES.md, "In every
- * app"): each profile's own pick, Midnight for one new to the device, and
- * the last shown before a profile is known.
+ * app"): each profile's own pick, Midnight for one new to the device and
+ * outside a profile, and a start inside a profile in its pick from the
+ * first frame.
  */
 @RunWith(RobolectricTestRunner::class)
 class AppearanceTest {
@@ -67,23 +68,46 @@ class AppearanceTest {
     }
 
     @Test
-    fun beforeAProfileIsKnownTheLastShownShows() {
+    fun aStartInsideAProfileIsInItsPickFromTheFirstFrame() {
         Appearance.attach(context)
         Appearance.showProfile(context, SERVER, 1)
         Appearance.pick(context, PleyTheme.Starlight)
         Appearance.showProfile(context, SERVER, 2)
         Appearance.pick(context, PleyTheme.Moonlight)
         Appearance.pickAccent(context, PleyAccent.Violet)
-        // The app starts again: the last one shown, whoever's it was, until a profile is known.
+        // The app starts again, the profile signed in still the second: its pick before it is known.
         Appearance.forget()
         Appearance.attach(context)
         assertSame(PleyPalette.of(PleyTheme.Moonlight, PleyAccent.Violet), Appearance.palette)
-        // The profile known, its own; and that is now the last shown.
+        // Another profile signed in meanwhile: its own once known, and the next start's.
         Appearance.showProfile(context, SERVER, 1)
         assertSame(PleyPalette.of(PleyTheme.Starlight, null), Appearance.palette)
         Appearance.forget()
         Appearance.attach(context)
         assertSame(PleyPalette.of(PleyTheme.Starlight, null), Appearance.palette)
+    }
+
+    @Test
+    fun outsideAProfileIsMidnightAndThePickComesBack() {
+        Appearance.attach(context)
+        Appearance.showProfile(context, SERVER, 1)
+        Appearance.pick(context, PleyTheme.Sunshine)
+        Appearance.pickAccent(context, PleyAccent.Gold)
+        val pick = PleyPalette.of(PleyTheme.Sunshine, PleyAccent.Gold)
+        // "Who's watching?", signing in, the servers: Midnight in its own accent, whatever was shown before.
+        Appearance.outside(context, true)
+        assertSame(PleyPalette.Default, Appearance.paletteFor(outside = true))
+        // A start there begins in Midnight too.
+        Appearance.forget()
+        Appearance.attach(context)
+        assertSame(PleyPalette.Default, Appearance.palette)
+        // Back inside the profile: its pick, here and at the next start.
+        Appearance.showProfile(context, SERVER, 1)
+        Appearance.outside(context, false)
+        assertSame(pick, Appearance.paletteFor(outside = false))
+        Appearance.forget()
+        Appearance.attach(context)
+        assertSame(pick, Appearance.palette)
     }
 
     @Test

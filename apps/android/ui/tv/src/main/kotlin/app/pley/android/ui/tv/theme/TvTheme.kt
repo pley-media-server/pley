@@ -94,6 +94,19 @@ internal const val MAX_FONT_SCALE = 1.3f
 val LocalTvTier = staticCompositionLocalOf { Tier.T2 }
 
 /**
+ * [palette] for what is drawn below, in tv-material's roles too: the
+ * shell's choice between the profile's pick and Midnight outside a profile
+ * ([Appearance.paletteFor]).
+ */
+@Composable
+internal fun TvPalette(palette: PleyPalette, content: @Composable () -> Unit) {
+    val colors = remember(palette) { tvColors(palette) }
+    CompositionLocalProvider(LocalPleyPalette provides palette) {
+        MaterialTheme(colorScheme = colors, shapes = TvShapes, typography = TvTypography, content = content)
+    }
+}
+
+/**
  * The scheme of design spec §1.1 in [p], the phone's roles with
  * `accent-hover` as the focus ring's color and no tint on surfaces.
  */
