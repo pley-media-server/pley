@@ -11,7 +11,7 @@ use pley_core::model::{ClientCaps, LivePlan, MediaStream};
 use pley_i18n::t;
 
 use crate::details::{DetailRow, audio_label, encoder_name, video_label};
-use crate::live::session::{as_is, decodes_video, plays_audio, sent_as_it_is};
+use crate::live::session::{as_is, decodes_video, reports_video, sent_as_it_is};
 
 /// Why a channel plays the server's HLS when the server doesn't send it as it is: what
 /// [`crate::live::plays_as_sent`] refused it for.
@@ -19,10 +19,9 @@ use crate::live::session::{as_is, decodes_video, plays_audio, sent_as_it_is};
 pub enum NotAsSent {
     /// Interlaced video, which the server makes progressive.
     Interlaced,
-    /// Video this TV doesn't play from an MPEG-TS, by ffprobe's name, at the bit depth the plan
-    /// says.
+    /// Video this TV's report doesn't decode, by ffprobe's name, at the bit depth the plan says.
     Video(String, Option<i64>),
-    /// Sound it doesn't.
+    /// Sound it neither decodes nor sends to a receiver.
     Audio(String),
 }
 
@@ -47,8 +46,9 @@ impl NotAsSent {
 
 /// Why the channel of `plan` doesn't play from its stream.ts on a TV reporting `caps`, in the
 /// order the rule refuses it. None where the rule takes it (its stream.ts failed, or the app
-/// can't hand it on), and where nothing is known to say: no report, or a codec the plan doesn't
-/// name.
+/// can't hand it on), and where nothing is known to say: no report, a codec the plan doesn't
+/// name, or one the report plays that the pipeline doesn't read from an MPEG-TS (VP9, AV1, Opus),
+/// of which Android's `notAsSent` and the Samsung app's `WhyNotAsSent` say nothing either.
 pub fn why_not_as_sent(plan: &LivePlan, caps: Option<&ClientCaps>) -> Option<NotAsSent> {
     if sent_as_it_is(plan) {
         return None;
@@ -58,11 +58,17 @@ pub fn why_not_as_sent(plan: &LivePlan, caps: Option<&ClientCaps>) -> Option<Not
         if plan.made_progressive() {
             return Some(NotAsSent::Interlaced);
         }
-        if !decodes_video(plan, caps) {
+        if !reports_video(plan, caps) {
             return plan.video_codec.clone().map(|codec| NotAsSent::Video(codec, plan.bit_depth));
         }
+        // Video the TV plays from a file but its pipeline doesn't read from an MPEG-TS (VP9, AV1):
+        // no reason to give, as Android and the Samsung app give none.
+        if !decodes_video(plan, caps) {
+            return None;
+        }
     }
-    if !as_is(&plan.audio) && !plays_audio(plan, caps) {
+    // Sound the report plays, read from an MPEG-TS or not (Opus, DTS sent to a receiver), likewise.
+    if !as_is(&plan.audio) && !plan.audio_codec.as_deref().is_some_and(|c| caps.plays_audio(c)) {
         return plan.audio_codec.clone().map(NotAsSent::Audio);
     }
     None
@@ -317,7 +323,7 @@ mod tests {
         let d = live_details(Some(&copied), false, Some(&caps())).unwrap();
         assert_eq!((d.method.as_str(), d.why.as_deref()), ("Direct stream", None));
         assert_eq!(rows(&d), [("Video", "H.264 1080p"), ("Audio", "AAC 2.0"), ("Bitrate", "850 kbps")]);
-        // Sound alone converted, as a video's: DTS, which no LG TV reads from an MPEG-TS.
+        // Sound alone converted, as a video's: DTS, which this TV neither decodes nor sends on.
         let dts = LivePlan { audio_codec: Some("dts".into()), audio_channels: Some(6), audio: "aac".into(), ..copied };
         let d = live_details(Some(&dts), false, Some(&caps())).unwrap();
         assert_eq!(d.method, "Direct stream · Audio transcoding");
@@ -330,9 +336,9 @@ mod tests {
         let caps = caps();
         let why = |plan: &LivePlan| why_not_as_sent(plan, Some(&caps));
         assert_eq!(why(&LivePlan { interlaced: true, ..hevc() }), Some(NotAsSent::Interlaced));
-        // AV1, which the pipeline doesn't read from an MPEG-TS; 12-bit HEVC, beyond its decoder.
-        let av1 = LivePlan { video_codec: Some("av1".into()), ..hevc() };
-        assert_eq!(why(&av1), Some(NotAsSent::Video("av1".into(), Some(10))));
+        // VC-1, which the TV's report doesn't decode; 12-bit HEVC, beyond its decoder.
+        let vc1 = LivePlan { video_codec: Some("vc1".into()), ..hevc() };
+        assert_eq!(why(&vc1), Some(NotAsSent::Video("vc1".into(), Some(10))));
         assert_eq!(why(&LivePlan { bit_depth: Some(12), ..hevc() }), Some(NotAsSent::Video("hevc".into(), Some(12))));
         assert_eq!(
             why(&LivePlan { audio_codec: Some("truehd".into()), ..hevc() }),
@@ -397,10 +403,31 @@ mod tests {
             assert_eq!(streams(&d)[0].1[2], ("Débit d’images", "50 i/s, entrelacé"));
         });
         with_language(Language::Es, || {
-            let plan = LivePlan { video_codec: Some("av1".into()), ..hevc() };
+            let plan = LivePlan { video_codec: Some("vc1".into()), ..hevc() };
             let d = live_details(Some(&plan), false, Some(&caps)).unwrap();
-            assert_eq!(d.why.as_deref(), Some("Este televisor no reproduce el video AV1 10 bits."));
+            assert_eq!(d.why.as_deref(), Some("Este televisor no reproduce el video VC-1 10 bits."));
         });
+    }
+
+    #[test]
+    fn what_the_tv_plays_but_not_from_an_mpeg_ts_is_no_reason() {
+        // As Android's and the Samsung app's: the report decodes AV1, VP9 and Opus, and sends DTS to a
+        // receiver when Settings says so, which the pipeline doesn't read from an MPEG-TS. The TV plays
+        // them from a file, so it isn't said not to.
+        let mut caps = caps();
+        caps.audio_passthrough.push("dts".into());
+        let why = |plan: &LivePlan| why_not_as_sent(plan, Some(&caps));
+        for codec in ["av1", "vp9"] {
+            let plan = LivePlan { video_codec: Some(codec.into()), ..hevc() };
+            assert_eq!(why(&plan), None, "{codec}");
+            assert_eq!(live_details(Some(&plan), false, Some(&caps)).unwrap().why, None, "{codec}");
+        }
+        for codec in ["opus", "dts"] {
+            assert_eq!(why(&LivePlan { audio_codec: Some(codec.into()), ..hevc() }), None, "{codec}");
+        }
+        // What the report doesn't decode is still said, whether the pipeline reads it from an MPEG-TS or not.
+        let av1 = LivePlan { video_codec: Some("av1".into()), bit_depth: Some(12), ..hevc() };
+        assert_eq!(why(&av1), Some(NotAsSent::Video("av1".into(), Some(12))));
     }
 
     #[test]
