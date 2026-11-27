@@ -16,6 +16,7 @@ import { cn } from "@/lib/cn";
 import { useDocumentTitle } from "@/lib/hooks";
 import { codeKind, mustSetUpTwoStep, twoStepSetupOf } from "@/lib/twoStep";
 import { RecoveryCodesView, ScanSetup } from "./TwoStepSetup";
+import { useOutsideProfile } from "@/theme";
 
 /**
  * Where to go after signing in (`?next=`): a path on this site, but not the
@@ -147,6 +148,8 @@ type SettingUp = { kind: "scan"; password: string; setup: TwoStepSetup } | { kin
 /** "Who's watching?": pick a home profile for this device. */
 export function ProfilesPage() {
   const { t } = useTranslation(["pages", "common"]);
+  // "Who's watching?" belongs to no profile: Pley's own Midnight.
+  useOutsideProfile();
   useDocumentTitle(t("profiles.title"));
   const me = useAuth();
   const server = useServer();

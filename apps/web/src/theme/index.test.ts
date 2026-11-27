@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import themeScript from "../../public/theme.js?raw";
 import { logoIcon } from "@/components/Logo";
-import { ACCENT_KEY, ACCENTS, currentAccent, currentTheme, isAccent, isTheme, onTheme, showAccent, showProfile, showTheme, startTheme, THEME_KEY, THEMES } from ".";
+import { renderHook } from "@testing-library/react";
+import { ACCENT_KEY, ACCENTS, currentAccent, currentTheme, isAccent, isTheme, onTheme, showAccent, showProfile, showTheme, startTheme, THEME_KEY, THEMES, useOutsideProfile } from ".";
 
 afterEach(() => {
   localStorage.clear();
@@ -148,6 +149,39 @@ describe("each profile", () => {
     expect(currentTheme()).toBe("moonlight");
     expect(listener).toHaveBeenCalledTimes(1);
     stop();
+  });
+});
+
+describe("outside a profile", () => {
+  it("is Midnight in its own accent, the profile's own coming back after", () => {
+    startTheme();
+    showProfile(1);
+    showTheme("starlight");
+    showAccent("amber");
+    // Signing in, "Who's watching?", setup: no profile's theme.
+    const screen = renderHook(() => useOutsideProfile());
+    expect(currentTheme()).toBe("midnight");
+    expect(currentAccent()).toBeNull();
+    expect(document.documentElement.dataset.theme).toBe("midnight");
+    // A reload there starts in Midnight too.
+    expect(localStorage.getItem(THEME_KEY)).toBe("midnight");
+    expect(localStorage.getItem(ACCENT_KEY)).toBeNull();
+    // The profile keeps its pick.
+    expect(localStorage.getItem(`${THEME_KEY}.1`)).toBe("starlight");
+    screen.unmount();
+    expect(currentTheme()).toBe("starlight");
+    expect(currentAccent()).toBe("amber");
+    expect(localStorage.getItem(THEME_KEY)).toBe("starlight");
+  });
+
+  it("stays Midnight when the profile becomes known under it", () => {
+    startTheme();
+    localStorage.setItem(`${THEME_KEY}.3`, "twilight");
+    const screen = renderHook(() => useOutsideProfile());
+    showProfile(3);
+    expect(currentTheme()).toBe("midnight");
+    screen.unmount();
+    expect(currentTheme()).toBe("twilight");
   });
 });
 

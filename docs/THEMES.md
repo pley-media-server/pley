@@ -44,10 +44,14 @@ one.
 A device keeps each profile's pick in its own storage (the web app:
 `pley.theme.<profile id>` in `localStorage`); the server keeps none. A
 profile that picked none on the device, or whose stored id the device
-doesn't know, shows Midnight. The device also keeps the pick it showed last
-(`pley.theme`), and draws in it until it knows the profile: as it starts,
-when signing in and on "Who's watching?". Signing out keeps it, and another
-profile's own shows as soon as it is known.
+doesn't know, shows Midnight.
+
+Outside a profile, Pley is drawn in Midnight in its own accent: choosing a
+server, signing in, "Who's watching?", setup, and the screen that says the
+server can't be reached. The profile's own pick comes back as soon as the
+app is inside it again. The web app also keeps the theme it shows
+(`pley.theme`), its profile's or Midnight, for its next visit's first
+page, which is drawn before it can ask who is signed in.
 
 Each light theme has a **dark twin**: Midday's is Midnight, Starlight's is
 Moonlight, Greenlight's is Nightshade and Sunshine's is Midnight. In a light
@@ -68,8 +72,9 @@ the same way:
   `apps/web/src/i18n/locales/<language>/pages.json`), copied into the app's
   own catalogs.
 - **Kept for each profile on the device,** by the ids above, as
-  [The themes](#the-themes) says: a profile's own once the app knows it,
-  the one shown last before. An app that can sign in to several servers
+  [The themes](#the-themes) says, and Midnight outside a profile. An app
+  that knows the profile signed in as it starts draws its pick from the
+  first frame. An app that can sign in to several servers
   keeps a profile's pick under its server too, since profile ids repeat
   from one server to the next. An id the app doesn't know shows Midnight,
   or the theme's own accent. A TV doesn't take the phone's pick.
@@ -158,7 +163,9 @@ orange; with Amber, warning turns yellow.
   another.
 - `apps/web/src/theme` holds the ids, shows a theme and an accent, keeps
   each profile's picks in storage, shows the profile's own once the app
-  knows it (`showProfile`, from `RequireAuth`), and follows a pick made in
+  knows it (`showProfile`, from `RequireAuth`), draws Midnight on a screen
+  outside a profile (`useOutsideProfile`: `AuthLayout`, `SetupLayout`,
+  "Who's watching?", the offline screen), and follows a pick made in
   another of its tabs. `public/theme.js` puts them on the page before it first draws (the
   CSP runs no script written into the page), with the browser's bars in the
   theme's page color; it holds each theme's color itself, since the styles

@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useLayoutEffect, useSyncExternalStore } from "react";
 import { logoIcon } from "@/components/Logo";
 import { tellShellTheme } from "@/lib/shell";
 
@@ -139,17 +139,21 @@ function kept(of: string | null): [Theme, Accent | null] {
   return [isTheme(theme) ? theme : DEFAULT_THEME, isAccent(accent) ? accent : null];
 }
 
+/** How many screens outside a profile are on the page (signing in, "Who's watching?", setup). */
+let outside = 0;
+
 /**
- * The profile signed in, once the app knows it (RequireAuth): shows its own
- * pick on this device, Midnight in its own accent where it made none, and
- * keeps that as the one shown last, which the next visit's first page and
- * the pages before a profile (signing in, "Who's watching?") are drawn in.
+ * What the page is drawn in: Midnight in its own accent outside a profile,
+ * the profile's own pick inside one, and before the app knows the profile,
+ * the one shown last (its first page, while it asks).
  */
-export function showProfile(id: string | number) {
-  const of = String(id);
-  if (of === profile) return;
-  profile = of;
-  const [theme, accent] = kept(of);
+function wanted(): [Theme, Accent | null] {
+  return outside > 0 ? [DEFAULT_THEME, null] : kept(profile);
+}
+
+/** Shows what the page should be drawn in, and keeps it as the one shown last for the next visit's first page. */
+function refresh() {
+  const [theme, accent] = wanted();
   show(theme, accent);
   try {
     localStorage.setItem(THEME_KEY, theme);
@@ -160,15 +164,43 @@ export function showProfile(id: string | number) {
   }
 }
 
+/**
+ * The profile signed in, once the app knows it (RequireAuth): shows its own
+ * pick on this device, Midnight in its own accent where it made none.
+ */
+export function showProfile(id: string | number) {
+  const of = String(id);
+  if (of === profile) return;
+  profile = of;
+  refresh();
+}
+
+/**
+ * A screen outside a profile (signing in, "Who's watching?", setup, the
+ * server out of reach) is drawn in Midnight in its own accent, whichever
+ * profile was shown before; the profile's own comes back when it goes.
+ */
+export function useOutsideProfile() {
+  useLayoutEffect(() => {
+    outside += 1;
+    refresh();
+    return () => {
+      outside -= 1;
+      refresh();
+    };
+  }, []);
+}
+
 let following = false;
 
 /**
  * Before the app draws, and before it knows the profile: the theme and
- * accent this device showed last. Then follows a pick made in another of
- * its tabs, which keeps them alike.
+ * accent this device showed last, the profile's then signed in or Midnight.
+ * Then follows a pick made in another of its tabs, which keeps them alike.
  */
 export function startTheme() {
   profile = null;
+  outside = 0;
   const [theme, accent] = kept(null);
   [shown, shownAccent] = [theme, accent];
   draw(theme, accent);
@@ -178,7 +210,7 @@ export function startTheme() {
     // The profile's keys or the last shown, or the storage cleared (null).
     const keys = [THEME_KEY, ACCENT_KEY, keyOf(THEME_KEY, profile), keyOf(ACCENT_KEY, profile)];
     if (event.key !== null && !keys.includes(event.key)) return;
-    show(...kept(profile));
+    show(...wanted());
   });
 }
 
