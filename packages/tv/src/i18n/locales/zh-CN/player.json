@@ -168,6 +168,7 @@
     "drawnHere": "由这台电视绘制",
     "thisTv": "这台电视",
     "player": "播放器",
+    "videoElement": "HTML5 视频",
     "decoded": "已解码",
     "decoder": "视频解码器",
     "hardware": "{{decoder}}（硬件）",

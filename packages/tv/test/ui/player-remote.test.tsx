@@ -79,6 +79,9 @@ function setup() {
   const state = signal<PlayerState>(PLAYING);
   const set = (patch: Partial<PlayerState>) => (state.value = { ...state.value, ...patch });
   let wantPlay = true;
+  /** The title played to its end; Play then plays it again from the start (`replays`). */
+  let ended = false;
+  let replays = 0;
   const controller = {
     state,
     clock: signal<PlayerClock>({ positionMs: 600_000, durationMs: 7_200_000, bufferedMs: 0 }),
@@ -87,8 +90,15 @@ function setup() {
     get wantsToPlay() {
       return wantPlay;
     },
+    get waitsToPlay() {
+      return wantPlay && !ended && state.value.phase.kind === "paused";
+    },
     // As the controller does: playing again ends the remote's pause; the TV's own pause isn't the remote's.
     play: () => {
+      if (ended) {
+        replays++;
+        return;
+      }
       wantPlay = true;
       set({ phase: { kind: "playing" }, pausedByRemote: false });
     },
@@ -128,7 +138,16 @@ function setup() {
   const wait = (ms: number) => act(() => void vi.advanceTimersByTime(ms));
   const controlsShown = () => !!root!.querySelector(".player-controls.in");
   const toast = () => root!.querySelector(".toast")?.textContent ?? null;
-  return { root: root!, remote, press, wait, controlsShown, toast };
+  /** What the controller says, as it changes by itself (the TV's player said ready before it played). */
+  const says = (patch: Partial<PlayerState>) => act(() => void set(patch));
+  const phase = () => state.value.phase.kind;
+  /** The title ends with another after it: the controller says paused, still meaning to play, and Up Next counts down. */
+  const ends = () =>
+    act(() => {
+      ended = true;
+      set({ phase: { kind: "paused" }, upNext: { itemId: 71, title: "Next", heading: "Up next", imageUrl: null, secondsLeft: 10 } });
+    });
+  return { root: root!, remote, press, wait, controlsShown, toast, says, phase, ends, replays: () => replays, wantsToPlay: () => wantPlay };
 }
 
 beforeEach(() => {
@@ -216,5 +235,29 @@ describe("the player, driven by the user's remote on another device", () => {
     expect(t.controlsShown()).toBe(true);
     t.wait(1_000);
     expect(t.controlsShown()).toBe(false);
+  });
+});
+
+describe("the player's Play button", () => {
+  it("plays when it shows Play, though the controller still means to play", () => {
+    const t = setup();
+    // Meant to play, said paused: the button shows Play, and pressing it plays rather than pauses.
+    t.says({ phase: { kind: "paused" } });
+    t.press("playPause");
+    expect(t.phase()).toBe("playing");
+  });
+
+  it("doesn't play the title just ended again while Up Next counts down", () => {
+    const t = setup();
+    t.ends();
+    t.press("playPause");
+    expect(t.replays()).toBe(0);
+    expect(t.wantsToPlay()).toBe(false);
+  });
+
+  it("pauses when it shows Pause", () => {
+    const t = setup();
+    t.press("playPause");
+    expect(t.phase()).toBe("paused");
   });
 });

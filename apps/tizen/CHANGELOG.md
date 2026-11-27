@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Added
 
+- Settings › Playback › Player can play everything on AVPlay instead of
+  choosing a player for each file.
 - A library's Collections are grouped by category, and can be narrowed
   to one category; a collection's page shows its category.
 - A row's See all opens the collection it shows, and a Home row of
@@ -195,6 +197,10 @@ describes how they are made.
 
 ### Fixed
 
+- Seeking and resuming work in files played as they are on 2019 and older
+  sets, and a stream on them keeps its sound.
+- Seeking in a song works when the TV won't seek in its file, and holding
+  a key on Now Playing seeks once.
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end instead.
 - A video whose audio the TV can't decode plays with the audio converted

@@ -172,6 +172,7 @@
     "drawnHere": "Dibujados por esta TV",
     "thisTv": "Esta TV",
     "player": "Reproductor",
+    "videoElement": "Vídeo HTML5",
     "decoded": "Decodificado",
     "decoder": "Decodificador",
     "hardware": "{{decoder}} (hardware)",
