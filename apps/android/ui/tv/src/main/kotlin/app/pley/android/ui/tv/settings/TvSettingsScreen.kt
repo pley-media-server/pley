@@ -64,6 +64,8 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.theme.Appearance
+import app.pley.android.designsystem.theme.accentNameRes
+import app.pley.android.designsystem.theme.nameRes
 import app.pley.android.model.SubtitleMode
 import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.screens.PleyGraphOwner
@@ -563,15 +565,25 @@ private fun LazyListScope.pane(
             }
         }
         Category.Appearance -> {
-            // Its own page: the themes as previews, then the accents (docs/THEMES.md).
+            // Both open its page, the themes as previews then the accents (docs/THEMES.md); Accent with focus on them.
             item(key = "row-appearance", contentType = SETTING_ROW) {
                 TvSettingRow(
                     stringResource(DesignR.string.appearance_theme),
-                    value = appearanceValue(Appearance.palette),
+                    value = stringResource(Appearance.theme.nameRes),
                     icon = PleyIcons.Palette,
                     chevron = true,
-                    onClick = { onOpen(PleyKey.Appearance) },
+                    onClick = { onOpen(PleyKey.Appearance()) },
                     modifier = keyed("row-appearance"),
+                )
+            }
+            item(key = "row-accent", contentType = SETTING_ROW) {
+                TvSettingRow(
+                    stringResource(DesignR.string.appearance_accent),
+                    value = stringResource(accentNameRes(Appearance.accent)),
+                    icon = PleyIcons.Sparkles,
+                    chevron = true,
+                    onClick = { onOpen(PleyKey.Appearance(accent = true)) },
+                    modifier = keyed("row-accent"),
                 )
             }
         }

@@ -158,15 +158,19 @@ rates as the decoder gives them, the same in every language.
 ### Appearance
 
 Pley's nine themes and six accents ([THEMES.md](THEMES.md)) are in
-Settings: on phones the Appearance group's Theme row, on TVs the
-Appearance section beside the others, whose Theme row says the theme and
-accent shown ("Midday · Miami"). It opens Appearance: the themes, two to
-a row on a phone held upright, three on a wider screen and on TVs, each
-a small preview of Pley in its colors with its name and caption, then
-the accents, Default (the theme's own) first, each a swatch in the color
-it would give the page. What is shown is outlined and checked; on a TV,
-focus starts on the theme shown. A pick shows at once on every screen
-open, the players' too.
+Settings: on phones the Appearance group's Theme row, which says the
+theme and accent shown ("Midday · Miami"); on TVs the Appearance section
+after Subtitles and display, whose Theme and Accent rows each say what is
+shown. Each opens Appearance: the themes, each a small preview of Pley in
+its colors with its name and caption, then the accents, Default (the
+theme's own) first, each a swatch in the color it would give the page. A
+phone shows two themes to a row held upright and three on a wider screen.
+A TV shows them five to a row, the whole page on one screen as on every
+Pley TV app, with each section's hint beside its name; focus starts on
+the theme in use, or on the accent in use from the Accent row, and Up and
+Down between the themes and the accents land on what is in use. The theme
+in use is outlined and checked, and the accent in use filled. A pick
+shows at once on every screen open, the players' too.
 
 The pick is kept for each profile on this phone or TV, in the app's own
 preferences, by its server and user id (one device can sign in to several

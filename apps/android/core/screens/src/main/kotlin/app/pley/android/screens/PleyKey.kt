@@ -132,9 +132,12 @@ sealed interface PleyKey : NavKey {
     @Serializable
     data object Settings : PleyKey
 
-    /** This device's theme and accent (docs/THEMES.md), from Settings. */
+    /**
+     * This device's theme and accent (docs/THEMES.md), from Settings;
+     * [accent]: opened from a TV's Accent row, focus on the accent in use.
+     */
     @Serializable
-    data object Appearance : PleyKey
+    data class Appearance(val accent: Boolean = false) : PleyKey
 
     /** What this device decodes and shows, for when something doesn't play. */
     @Serializable

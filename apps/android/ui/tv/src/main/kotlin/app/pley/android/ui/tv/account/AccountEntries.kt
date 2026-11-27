@@ -22,7 +22,7 @@ fun EntryProviderScope<NavKey>.accountEntries() {
     entry<PleyKey.Me> { key -> WithGraph(key) { TvSettingsScreen(start = Category.Profile) } }
     entry<PleyKey.History> { key -> WithGraph(key) { TvHistoryScreen() } }
     entry<PleyKey.Diagnostics> { key -> WithGraph(key) { TvDiagnosticsScreen() } }
-    entry<PleyKey.Appearance> { TvAppearanceScreen() }
+    entry<PleyKey.Appearance> { key -> TvAppearanceScreen(accent = key.accent) }
 }
 
 /**

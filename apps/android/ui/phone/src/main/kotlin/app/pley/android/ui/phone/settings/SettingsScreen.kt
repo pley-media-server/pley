@@ -212,7 +212,7 @@ internal fun SettingsScreen() {
                         stringResource(DesignR.string.appearance_theme),
                         value = appearanceValue(Appearance.palette),
                         icon = PleyIcons.Palette,
-                        onClick = { navigator.open(PleyKey.Appearance) },
+                        onClick = { navigator.open(PleyKey.Appearance()) },
                     )
                 }
             }

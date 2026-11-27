@@ -24,9 +24,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Settings → Appearance with the D-pad: focus starts on the theme shown,
- * Select on another shows it at once, and the accents follow the themes,
- * Default first.
+ * Settings → Appearance with the D-pad: focus starts on the theme shown
+ * (on its accent from the Accent row), Select on another shows it at once,
+ * the themes are five to a row, and Up and Down between the themes and the
+ * accents land on what is in use.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
@@ -48,9 +49,9 @@ class TvAppearanceTest {
         Appearance.attach(context)
     }
 
-    private fun show() {
+    private fun show(accent: Boolean = false) {
         compose.setContent {
-            TvTheme(Tier.T2, reducedMotion = true) { TvAppearanceScreen() }
+            TvTheme(Tier.T2, reducedMotion = true) { TvAppearanceScreen(accent) }
         }
         compose.waitForIdle()
     }
@@ -72,16 +73,33 @@ class TvAppearanceTest {
     }
 
     @Test
-    fun theAccentsComeAfterTheThemesDefaultFirst() {
+    fun fiveToARowThenTheAccentInUse() {
         show()
-        compose.press(Key.DirectionDown, times = 3)
-        compose.press(Key.DirectionLeft, times = 6)
+        compose.press(Key.DirectionDown)
+        theme(PleyTheme.Nightshade).assertIsFocused()
+        compose.press(Key.DirectionDown)
         accent(null).assertIsFocused().assertIsSelected()
         compose.press(Key.DirectionRight)
         accent(PleyAccent.Sky).assertIsFocused()
         compose.press(Key.DirectionCenter)
         assertEquals(PleyAccent.Sky, Appearance.accent)
-        // The theme stays as it was.
+        // The theme stays as it was, and Up goes back to it.
         assertEquals(PleyTheme.Midnight, Appearance.theme)
+        compose.press(Key.DirectionUp)
+        theme(PleyTheme.Midnight).assertIsFocused()
+    }
+
+    @Test
+    fun fromTheAccentRowFocusStartsOnTheAccentInUse() {
+        Appearance.pickAccent(context, PleyAccent.Gold)
+        show(accent = true)
+        accent(PleyAccent.Gold).assertIsFocused().assertIsSelected()
+        compose.press(Key.DirectionUp)
+        theme(PleyTheme.Midnight).assertIsFocused()
+        compose.press(Key.DirectionRight, times = 4)
+        theme(PleyTheme.Moonlight).assertIsFocused()
+        // Down from Moonlight, with no theme under it, goes to the accent in use too.
+        compose.press(Key.DirectionDown)
+        accent(PleyAccent.Gold).assertIsFocused()
     }
 }

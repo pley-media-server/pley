@@ -207,7 +207,18 @@ class TvSettingsFocusTest {
         compose.press(Key.DirectionRight)
         compose.focused().assert(hasText("Theme")).assert(hasText("Midnight"))
         compose.press(Key.DirectionCenter)
-        compose.runOnIdle { assertEquals(PleyKey.Appearance, stack.last()) }
+        compose.runOnIdle { assertEquals(PleyKey.Appearance(), stack.last()) }
+    }
+
+    @Test
+    fun accentOpensThePageOnTheAccents() {
+        show()
+        compose.press(Key.DirectionDown, times = 4)
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasText("Accent")).assert(hasText("Default"))
+        compose.press(Key.DirectionCenter)
+        compose.runOnIdle { assertEquals(PleyKey.Appearance(accent = true), stack.last()) }
     }
 
     @Test
