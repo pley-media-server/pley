@@ -113,7 +113,7 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
     () =>
       new LiveController(p.first, {
         server: ui.api,
-        engine: () => app.platform.createEngine(host.current!),
+        engine: () => app.platform.createEngine(host.current!, { player: () => app.settings.value.player }),
         clientId: app.installId(),
         events: (l) => app.onEvent(l),
         step: (by) => remoteStep.current(by),
