@@ -242,10 +242,10 @@ Shows/The Expanse/Season 01/The Expanse - S01E01.strm
   is found the first time someone opens its page or plays it, and kept
   until the file names another address. Until then it has no badges in
   listings and reads `STRM` where its format goes. To have scans find it
-  anyway, turn on *Find what .strm files play*, shown below that switch
-  once it is on: once a scan of a movie or TV library is done, Pley asks
-  the address of each of its files whose video isn't known yet, a few at a
-  time, so a hosting service is asked for each of them. An address that
+  anyway, turn on *Preload media info from .strm files*, shown below that
+  switch once it is on: once a scan of a movie or TV library is done, Pley
+  asks the address of each of its files whose video isn't known yet, a few
+  at a time, so a hosting service is asked for each of them. An address that
   fails isn't asked again by a scan for a day, unless its file names
   another.
 - **What isn't made for it**: seek previews, chapter pictures, a picture

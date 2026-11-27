@@ -142,7 +142,7 @@ describe("ServerSettings", () => {
       "PUT /api/settings": (req) => ({ ...SETTINGS, strm_files: true, strm_probe: false, ...(req.body as Partial<Settings>) }),
     });
     const first = renderWithProviders(<ServerSettings />);
-    const toggle = await screen.findByRole("switch", { name: "Find what .strm files play" });
+    const toggle = await screen.findByRole("switch", { name: "Preload media info from .strm files" });
     expect(toggle).toBeEnabled();
     expect(toggle).not.toBeChecked();
     await user.click(toggle);
@@ -157,9 +157,9 @@ describe("ServerSettings", () => {
     });
     renderWithProviders(<ServerSettings />);
     const reading = await screen.findByRole("switch", { name: "Read .strm files" });
-    expect(screen.queryByRole("switch", { name: "Find what .strm files play" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Preload media info from .strm files" })).not.toBeInTheDocument();
     await user.click(reading);
-    expect(await screen.findByRole("switch", { name: "Find what .strm files play" })).not.toBeChecked();
+    expect(await screen.findByRole("switch", { name: "Preload media info from .strm files" })).not.toBeChecked();
   });
 
   it("requires two-step sign-in only from an administrator who uses it", async () => {
