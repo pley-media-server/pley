@@ -77,8 +77,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   conversion, and a heavy one never holds up the screen or the remote.
   Find Subtitles… in the player searches online through your server and
   adds the subtitles you choose, which show at once.
-- Playback speed from 0.5× to 2×, and a sleep timer for videos with Keep
-  watching in its last 30 seconds.
+- Playback speed from 0.5× to 2×.
 - Picture in Picture on iPhone, iPad, Apple TV and Mac: from the player's
   button, and by itself when you leave the app on iPhone and iPad; its ✕
   ends the playback.
@@ -155,7 +154,6 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- The video player no longer has a sleep timer. Music keeps its own.
 - Skip Intro and Skip Credits show by themselves for 8 seconds as an intro
   or the credits begin, then only with the player's controls, so they no
   longer sit over the picture, or hold Apple TV's focus, for the whole
