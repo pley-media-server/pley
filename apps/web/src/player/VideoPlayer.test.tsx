@@ -1320,4 +1320,27 @@ describe("VideoPlayer obeying the remote", () => {
     unmount();
     await waitFor(() => expect(reports(requests).at(-1)).toMatchObject({ state: "stopped", audio_index: 2, subtitle_index: -1 }));
   });
+
+  it("shows Skip Intro on its own for 8 s, then only with the controls", async () => {
+    fakeTimers();
+    const item = detail();
+    item.markers = [makeMarker({ file_id: 3, kind: "intro", start_ms: 0, end_ms: 90_000 })];
+    const { video } = await playing(5_000, item);
+    act(() => {
+      video.dispatchEvent(new Event("timeupdate"));
+    });
+    expect(await screen.findByRole("button", { name: /Skip Intro/ })).toBeInTheDocument();
+    // The controls go after 3 s; Skip stays on its own until 8 s.
+    await untouched(video);
+    expect(screen.getByRole("button", { name: /Skip Intro/ })).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Skip Intro/ })).not.toBeInTheDocument());
+
+    // Still in the intro: it comes back with the controls.
+    fireEvent.keyDown(video, { key: "Shift" });
+    expect(controlsShown()).toBe(true);
+    expect(screen.getByRole("button", { name: /Skip Intro/ })).toBeInTheDocument();
+  });
 });

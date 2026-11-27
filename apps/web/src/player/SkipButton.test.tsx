@@ -1,9 +1,9 @@
-import { render, renderHook, screen } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ItemDetail, Marker, MediaFile } from "@/api/types";
 import { makeItem, makeMarker } from "@/test/fixtures";
-import { activeMarker, fileMarkers, reachesEnd, SkipButton, skipTarget, useSkipMarkers } from "./SkipButton";
+import { activeMarker, fileMarkers, reachesEnd, SKIP_ALONE_MS, SkipButton, skipTarget, useSkipAlone, useSkipMarkers } from "./SkipButton";
 
 const intro = makeMarker({ kind: "intro", start_ms: 10_000, end_ms: 70_000 });
 const credits = makeMarker({ kind: "credits", start_ms: 1_200_000, end_ms: 1_300_000 });
@@ -127,6 +127,59 @@ describe("useSkipMarkers", () => {
     const { result, onCredits } = setup({ seconds: 1_201, enabled: false });
     expect(result.current).toBeNull();
     expect(onCredits).not.toHaveBeenCalled();
+  });
+});
+
+describe("useSkipAlone", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const hook = () =>
+    renderHook(({ marker }: { marker: Marker | null }) => useSkipAlone(marker), { initialProps: { marker: null as Marker | null } });
+
+  it("shows Skip on its own for 8 s from entering a segment, then not", () => {
+    const { result, rerender } = hook();
+    expect(result.current).toBe(false);
+    rerender({ marker: intro });
+    expect(result.current).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(SKIP_ALONE_MS - 1);
+    });
+    expect(result.current).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current).toBe(false);
+  });
+
+  it("doesn't start over while the playhead stays in the segment", () => {
+    const { result, rerender } = hook();
+    rerender({ marker: intro });
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    rerender({ marker: { ...intro } });
+    act(() => {
+      vi.advanceTimersByTime(3_000);
+    });
+    expect(result.current).toBe(false);
+  });
+
+  it("starts over on entering the segment again, or another", () => {
+    const { result, rerender } = hook();
+    rerender({ marker: intro });
+    act(() => {
+      vi.advanceTimersByTime(SKIP_ALONE_MS);
+    });
+    rerender({ marker: null });
+    expect(result.current).toBe(false);
+    rerender({ marker: intro });
+    expect(result.current).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(SKIP_ALONE_MS);
+    });
+    rerender({ marker: credits });
+    expect(result.current).toBe(true);
   });
 });
 

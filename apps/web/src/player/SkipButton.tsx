@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronsRight } from "lucide-react";
 import type { ItemDetail, Marker } from "@/api/types";
@@ -76,6 +76,32 @@ export function useSkipMarkers({
   }, [key, final]);
 
   return marker;
+}
+
+/** Skip shows on its own this long after the playhead enters a segment; after that, only with the controls. */
+export const SKIP_ALONE_MS = 8_000;
+
+/**
+ * Whether Skip shows on its own: for `SKIP_ALONE_MS` from the moment the
+ * playhead enters `marker`, and again each time it enters one anew (seeking
+ * inside it doesn't count). After that Skip shows only with the controls, so
+ * it doesn't sit over a whole intro or the credits.
+ */
+export function useSkipAlone(marker: Marker | null): boolean {
+  const key = marker ? `${marker.file_id}:${marker.kind}:${marker.start_ms}` : null;
+  const [entered, setEntered] = useState(key);
+  const [expired, setExpired] = useState(false);
+  // A new segment (or none) starts over, at once rather than an effect later.
+  if (key !== entered) {
+    setEntered(key);
+    setExpired(false);
+  }
+  useEffect(() => {
+    if (!key) return;
+    const timer = window.setTimeout(() => setExpired(true), SKIP_ALONE_MS);
+    return () => window.clearTimeout(timer);
+  }, [key]);
+  return key !== null && key === entered && !expired;
 }
 
 export function SkipButton({ marker, onSkip, lifted }: { marker: Marker; onSkip: () => void; lifted: boolean }) {

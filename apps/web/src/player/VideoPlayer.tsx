@@ -67,7 +67,7 @@ import { SeekBar } from "./SeekBar";
 import { methodLabel, PlaybackDetails } from "./PlaybackDetails";
 import { SettingsPopover } from "./SettingsPopover";
 import { speedLabel, stepSpeed } from "./speed";
-import { fileMarkers, SkipButton, skipTarget, useSkipMarkers } from "./SkipButton";
+import { activeMarker, fileMarkers, SkipButton, skipTarget, useSkipAlone, useSkipMarkers } from "./SkipButton";
 import { carriedSleepTimer, sleepChoice, SleepNotice, useSleepTimer } from "./sleepTimer";
 import { SubtitleOverlay } from "./SubtitleOverlay";
 import { PictureSubtitleOverlay, usePictureTrack, type PictureTrackHooks } from "./PictureSubtitleOverlay";
@@ -1865,6 +1865,10 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   const skipMarker = () => {
     if (marker) seekTo(Math.min(skipTarget(marker) / 1000, duration));
   };
+  // Skip shows by itself for a few seconds as a segment begins (or as Up Next
+  // goes, at credits), then only with the controls. Timed from the playhead,
+  // so a seek inside the segment that reloads the stream doesn't start it over.
+  const skipAlone = useSkipAlone(info && !upNext ? activeMarker(markers, current * 1000) : null);
 
   const retry = () => {
     setError(null);
@@ -2276,7 +2280,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
         </div>
       </div>
 
-      {marker && !upNext && !ended ? <SkipButton marker={marker} onSkip={skipMarker} lifted={active || !playing} /> : null}
+      {marker && !upNext && !ended && (skipAlone || showControls) ? <SkipButton marker={marker} onSkip={skipMarker} lifted={active || !playing} /> : null}
 
       {sleep.notice !== null && !stopped && !error && !ended ? (
         <SleepNotice seconds={sleep.notice} onKeepWatching={sleep.keepWatching} lifted={active || !playing} />
