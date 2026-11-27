@@ -73,6 +73,9 @@ class WordsTest(unittest.TestCase):
         self.assertEqual(words.media_line({"bitrate": None, "size": 157_286_400}), "150 MB")
         self.assertEqual(words.media_line({"bitrate": None, "size": None}), "Bitrate unknown")
         self.assertEqual(words.media_line(None), "")
+        # A .strm file's media before it is found: nothing, not "Bitrate unknown".
+        self.assertEqual(words.media_line({"bitrate": None, "size": 0}), "")
+        self.assertEqual(words.media_line({"bitrate": 8_200_000, "size": 0}), "8.2 Mbps")
         self.assertEqual(words.bitrate(320_400), "320 kbps")
         self.assertEqual(words.bitrate(12_400_000), "12 Mbps")
         self.assertEqual(words.size(1536), "1.5 KB")

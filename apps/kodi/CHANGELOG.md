@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A title whose size and bitrate aren't known yet shows nothing under its
+  poster, not "Bitrate unknown".
+
 ## [0.1.12] - 2026-11-24
 
 ### Changed
