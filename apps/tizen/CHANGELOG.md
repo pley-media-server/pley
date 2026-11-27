@@ -41,6 +41,9 @@ describes how they are made.
 
 ### Changed
 
+- Up Next's card shows the next title's name without its picture, so it
+  covers less of the credits, and its countdown ring fills smoothly
+  instead of a step each second.
 - Movies, shows and music without a picture show Pley's mark on their
   placeholder instead of their title, which the caption under it shows,
   with a clapperboard, a TV or notes in it for their kind of library.

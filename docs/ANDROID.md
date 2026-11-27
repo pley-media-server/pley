@@ -165,8 +165,7 @@ rates as the decoder gives them, the same in every language.
   gradient alone. A tile's name is in its caption, not on its picture. The mark shows only
   where the title's name is by its picture (a caption, the line beside
   it): backdrops, people, Live TV's programs and a playlist's mosaic
-  keep the gradient alone, and the player's Up Next card too, as it
-  doesn't know its title's kind. The gradient and the mark are
+  keep the gradient alone. The gradient and the mark are
   `packages/placeholder`'s, which unit tests hold the app's copies to.
 - **The tabs** are a bar under the page on a phone held upright, with
   their names, and a rail beside it on a phone on its side, a tablet or
@@ -780,7 +779,10 @@ as the player has it; with no length known, they don't. Credits that
 something follows, an after-credits scene or a show's last minutes, offer
 only Skip Credits, so the countdown never skips what comes after them. An
 episode goes on to the next one, and a title played from a playlist or a
-collection to the next title there, the same on phones and TVs.
+collection to the next title there, the same on phones and TVs. The card
+holds the next title's name and episode, without a picture, so it covers
+little of the credits; its countdown fills Play now smoothly (a sweep on
+phones, a ring on TVs) and steps once a second with reduced motion.
 
 ### Audio and subtitles
 

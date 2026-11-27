@@ -32,7 +32,6 @@ sub init()
     m.skip = m.top.findNode("skip")
     m.controls = m.top.findNode("controls")
     m.upNext = m.top.findNode("upNext")
-    m.nextImage = m.top.findNode("nextImage")
     m.nextTitle = m.top.findNode("nextTitle")
     m.nextLine = m.top.findNode("nextLine")
     m.countdown = m.top.findNode("countdown")
@@ -1605,8 +1604,6 @@ sub showUpNext()
     m.upNextShown = true
     m.nextTitle.text = m.next.title
     m.nextLine.text = m.next.line
-    m.nextImage.setHttpAgent(m.top.getScene().getHttpAgent())
-    m.nextImage.uri = m.next.image
     m.upNext.visible = true
     m.nextButtons.focusButton = 0
     m.nextButtons.setFocus(true)

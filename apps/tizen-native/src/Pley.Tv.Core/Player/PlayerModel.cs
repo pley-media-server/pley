@@ -1653,9 +1653,7 @@ public sealed class PlayerModel : IDisposable
                 if (choices == choicesSaved) nextDetail = d;
             }, _ => { });
         }
-        var image = found.ThumbUrl ?? found.BackdropUrl;
-        var card = new UpNextCard(found.Id, found.Title, SessionText.UpNext(NextUp.LabelOf(found)),
-            image != null ? source.Url(Artwork.Sized(image, NextUp.ImageWidth)) : null, null);
+        var card = new UpNextCard(found.Id, found.Title, SessionText.UpNext(NextUp.LabelOf(found)), null);
         Update(s => s with { UpNext = card });
         if (!restartCountdown) return;
         StopCountdown();

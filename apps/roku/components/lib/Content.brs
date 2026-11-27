@@ -842,7 +842,7 @@ function contentPlayerTitle(detail as object) as string
     return parts.Join(" · ")
 end function
 
-' Up Next's card for the next episode: { itemId, title, line, image,
+' Up Next's card for the next episode: { itemId, title, line,
 ' startMs }.
 function contentUpNext(item as object, server as string) as object
     tile = contentTile(item, server, true)
@@ -856,7 +856,7 @@ function contentUpNext(item as object, server as string) as object
             line = line + title
         end if
     end if
-    return { itemId: tile.itemId, title: tile.title, line: line, image: tile.image, startMs: playerStartOf(tile.positionMs, tile.durationMs) }
+    return { itemId: tile.itemId, title: tile.title, line: line, startMs: playerStartOf(tile.positionMs, tile.durationMs) }
 end function
 
 ' A title's quality badges ("4K", "DV"): its media's, else its first file's.

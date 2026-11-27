@@ -334,13 +334,12 @@ public class PlayerModelTests
         var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_600_000, EndMs = 2_700_000, Source = "chapter" };
         var next = PlayerHarness.Episode(2, 2);
         h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
-        h.Source.NextOf[1] = next with { ThumbUrl = "/api/items/2/images/thumb?v=1", UserState = new UserState { PositionMs = 30_000 } };
+        h.Source.NextOf[1] = next with { UserState = new UserState { PositionMs = 30_000 } };
         h.Start(new PlayRequest(1, 2_599_000, false));
         Assert.Equal(("Ashfall", "S1 · E1 · Episode 1"), (h.State.Title, h.State.Subtitle));
         h.Play(1_000);
         var card = h.State.UpNext!;
         Assert.Equal((2L, "Episode 2", "Up next · S1 · E2", 10), (card.ItemId, card.Title, card.Heading, card.SecondsLeft));
-        Assert.Equal(ItemKit.Origin + "/api/items/2/images/thumb?v=1&w=480", card.ImageUrl);
         h.Play(5_000);
         Assert.Equal(5, h.State.UpNext!.SecondsLeft);
         h.Play(5_000);

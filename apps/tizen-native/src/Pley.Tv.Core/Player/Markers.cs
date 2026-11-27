@@ -92,9 +92,6 @@ public static class NextUp
     /// <summary>Up Next plays by itself after this many seconds.</summary>
     public const int CountdownSeconds = 10;
 
-    /// <summary>The width Up Next's still is asked for at.</summary>
-    public const int ImageWidth = 480;
-
     /// <summary>Whether <paramref name="kind"/> played from <paramref name="queue"/> can have something next, before asking.</summary>
     public static bool HasNext(string kind, PlayQueue? queue) => queue != null || kind == "episode";
 
@@ -114,8 +111,47 @@ public static class NextUp
         next.Kind == "episode" && Format.EpisodeLabel(next) is { Length: > 0 } label ? label : null;
 }
 
+/// <summary>
+/// How much of Up Next's countdown has gone, from 0 to 1, for its ring (the Android app's
+/// countdownFill). The model counts whole seconds; through each one the fill glides, linearly, to
+/// where it stands at that second's end, so the ring moves without steps and is full as the
+/// countdown reaches 0. A countdown that starts again jumps back at once rather than sliding back.
+/// </summary>
+public sealed class CountdownFill
+{
+    /// <summary>How long each glide takes: one second of the countdown.</summary>
+    public const int SecondMs = 1000;
+
+    float from, to;
+    long startedMs;
+
+    /// <summary>The countdown shows <paramref name="secondsLeft"/> at <paramref name="nowMs"/>.</summary>
+    public void Set(int secondsLeft, long nowMs)
+    {
+        const int total = NextUp.CountdownSeconds;
+        var start = Unit((total - secondsLeft) / (float)total);
+        var end = Unit((total - secondsLeft + 1) / (float)total);
+        var current = At(nowMs);
+        // Ahead of this second (a countdown started again) or far behind it: from its place.
+        if (current > end || current < start - 0.5f / total) current = start;
+        from = current;
+        to = end;
+        startedMs = nowMs;
+    }
+
+    /// <summary>Back to empty, for a countdown that stopped.</summary>
+    public void Reset() => from = to = 0;
+
+    /// <summary>The fill at <paramref name="nowMs"/>.</summary>
+    public float At(long nowMs) => from + (to - from) * Unit((nowMs - startedMs) / (float)SecondMs);
+
+    /// <summary>Whether it still moves at <paramref name="nowMs"/>; once it rests, nothing needs drawing again.</summary>
+    public bool Moving(long nowMs) => from != to && nowMs - startedMs < SecondMs;
+
+    static float Unit(float value) => Math.Max(0f, Math.Min(1f, value));
+}
+
 /// <summary>What plays next, during its card (the Android app's UpNextUi).</summary>
 /// <param name="Heading">"Up next · S1 E2", or "Up next".</param>
-/// <param name="ImageUrl">Absolute address of its still (16:9), asked for at <see cref="NextUp.ImageWidth"/>.</param>
 /// <param name="SecondsLeft">Seconds before it plays by itself; null when it won't (autoplay off, or the sleep timer holds it).</param>
-public sealed record UpNextCard(long ItemId, string Title, string Heading, string? ImageUrl, int? SecondsLeft);
+public sealed record UpNextCard(long ItemId, string Title, string Heading, int? SecondsLeft);

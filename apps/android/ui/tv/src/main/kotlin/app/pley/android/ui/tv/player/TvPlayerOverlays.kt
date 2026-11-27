@@ -81,10 +81,9 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
+import app.pley.android.designsystem.countdownFill
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
-import app.pley.android.designsystem.image.Artwork
-import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.GradientBitmaps
 import app.pley.android.designsystem.image.drawStretched
 import app.pley.android.designsystem.reducedMotion
@@ -100,7 +99,7 @@ import kotlinx.coroutines.delay
  * What shows over the video besides the controls (design spec §2.7): the
  * title as an item begins, Skip, Up Next, the seek badge, buffering, the
  * refresh-rate switch, errors and toasts. With the controls hidden, only
- * Skip's and Up Next's countdowns move, once a second (§6).
+ * Up Next's countdown ring moves, and only its drawing (§6).
  */
 
 /**
@@ -220,10 +219,10 @@ internal fun BoxScope.TvSkipButton(
 
 /**
  * Up Next (design spec §2.7): a 300 dp card, right edge at x = 912 and
- * bottom at y = 489, on surface2 at 96 %: the next one's still, "Up next ·
- * S2 · E6" and its title, then "Play now" with a ring filling over the
- * countdown (stepped once a second; "Next in 7" with reduced motion) and
- * Cancel.
+ * bottom at y = 489, on surface2 at 96 %: "Up next · S2 · E6" and the next
+ * one's title, then "Play now" with a ring filling smoothly over the
+ * countdown ("Next in 7" with reduced motion) and Cancel. No still: the
+ * card stays small over the credits.
  */
 @Composable
 internal fun BoxScope.TvUpNextCard(card: UpNextUi?, ui: TvPlayerUi, onPlay: () -> Unit, onCancel: () -> Unit) {
@@ -250,11 +249,6 @@ internal fun BoxScope.TvUpNextCard(card: UpNextUi?, ui: TvPlayerUi, onPlay: () -
                 .testTag(TAG_UP_NEXT)
                 .semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            Artwork(
-                shown.imageUrl?.let { ArtworkImage(listOf(it), maxWidth = UP_NEXT_IMAGE_WIDTH) },
-                title = shown.title,
-                modifier = Modifier.fillMaxWidth().height(UP_NEXT_IMAGE_HEIGHT),
-            )
             Column(Modifier.padding(16.dp)) {
                 BasicText(TvPlayerText.episodeLine(shown.heading) ?: shown.heading, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), maxLines = 1)
                 BasicText(shown.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -331,10 +325,11 @@ private fun PlayNowButton(secondsLeft: Int?, reduced: Boolean, ui: TvPlayerUi, o
     }
 }
 
-/** A 22 dp ring filling over the 10 s countdown, redrawn as the seconds change. */
+/** A 22 dp ring filling smoothly over the 10 s countdown; only its drawing follows the fill ([countdownFill]). */
 @Composable
 private fun CountdownRing(secondsLeft: Int, color: Color) {
     val stroke = 3.dp
+    val fill = countdownFill(secondsLeft, COUNTDOWN_S)
     Box(
         Modifier
             .size(22.dp)
@@ -343,8 +338,7 @@ private fun CountdownRing(secondsLeft: Int, color: Color) {
                 val inset = w / 2f
                 val arcSize = Size(size.width - w, size.height - w)
                 drawArc(color.copy(alpha = 0.25f), 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(w))
-                val done = ((COUNTDOWN_S - secondsLeft).toFloat() / COUNTDOWN_S).coerceIn(0f, 1f)
-                drawArc(color, -90f, 360f * done, false, Offset(inset, inset), arcSize, style = Stroke(w, cap = StrokeCap.Round))
+                drawArc(color, -90f, 360f * fill.value, false, Offset(inset, inset), arcSize, style = Stroke(w, cap = StrokeCap.Round))
             },
     )
 }
@@ -533,9 +527,7 @@ internal fun Modifier.videoFocus(ui: TvPlayerUi, enabled: Boolean, label: String
 private const val SKIP_FADE_MS = 150
 private const val COUNTDOWN_S = 10
 private const val BUFFERING_DELAY_MS = 500L
-private const val UP_NEXT_IMAGE_WIDTH = 640
 private val UP_NEXT_WIDTH = 300.dp
-private val UP_NEXT_IMAGE_HEIGHT = 169.dp
 
 /** Play now and Cancel: taller than a page's buttons, as the controls' Play is. */
 private val UP_NEXT_BUTTON = 44.dp

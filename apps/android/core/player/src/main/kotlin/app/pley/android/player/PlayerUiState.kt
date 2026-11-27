@@ -127,8 +127,6 @@ data class UpNextUi(
     val title: String,
     /** "Up next · S1 E2", or "Up next". */
     val heading: String,
-    /** Absolute address of its still (16:9), for the card; preloaded. */
-    val imageUrl: String?,
     /** Seconds before it plays by itself; `null` when it won't (autoplay off, or canceled). */
     val secondsLeft: Int?,
 )

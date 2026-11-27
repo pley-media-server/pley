@@ -838,7 +838,7 @@ class TvPlayerScreenTest {
         val controller = playing()
         show(controller)
         press(Key.DirectionUp)
-        controller.update { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7)) }
+        controller.update { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7)) }
         compose.waitForIdle()
         focusedOn(TAG_PLAY_NOW)
         compose.onNodeWithText("Up next · S1 · E2").assertExists()

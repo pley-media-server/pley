@@ -13,6 +13,12 @@ describes how they are made.
 - Live TV plays a channel as its provider sends it when the device
   decodes it, and the live player has Playback details.
 
+### Changed
+
+- Up Next's card shows the next title's name without its picture, so it
+  covers less of the credits, and its countdown fills smoothly instead of
+  a step each second.
+
 ## [0.1.19] - 2026-11-25
 
 ### Added

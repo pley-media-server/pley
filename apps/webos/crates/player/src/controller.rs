@@ -103,8 +103,6 @@ pub const COUNTDOWN_SECONDS: i64 = 10;
 pub const END_WAIT_MS: u64 = 2_000;
 /// Seeks stop this short of the end, so the end isn't reached by a seek.
 pub const SEEK_END_MARGIN_MS: i64 = 250;
-/// Up Next's picture is asked for this wide (`?w=480`).
-pub const UP_NEXT_IMAGE_WIDTH: u32 = 480;
 /// The server out of reach mid-playback is asked again this long, as long as it waits for a player it doesn't hear from.
 pub const OUTAGE_MS: i64 = 90_000;
 /// Between its questions: 0.5 s, 1 s, then every 2 s.
@@ -180,13 +178,9 @@ pub struct ChapterMark {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UpNextCard {
     pub item_id: i64,
-    /// What it is: its still's placeholder shows its kind's mark.
-    pub kind: ItemKind,
     pub title: String,
     /// "Up next · S1 · E2".
     pub heading: String,
-    /// Absolute, 480 px wide.
-    pub image_url: Option<String>,
     /// Seconds before it plays by itself; none when it won't.
     pub seconds_left: Option<i64>,
 }
@@ -2858,13 +2852,10 @@ impl PlaybackController {
             let id = found.id;
             self.spawn(move || Done::NextDetail { saved, result: server.item(id) });
         }
-        let image = found.thumb_url.as_deref().or(found.backdrop_url.as_deref());
         self.state.up_next = Some(UpNextCard {
             item_id: found.id,
-            kind: found.kind,
             title: found.title.clone(),
             heading: details::up_next(label_of(&found).as_deref()),
-            image_url: image.map(|i| self.env.server.url(&with_width(i, UP_NEXT_IMAGE_WIDTH))),
             seconds_left: None,
         });
         self.changed();

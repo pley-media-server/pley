@@ -131,8 +131,9 @@ transcode free for two (`503`), the old session ends first.
 Up Next (the next episode, or the next title of a playlist or collection)
 comes as credits that run to the end of the file begin: credits ending
 within 15 s of the end, where only a studio's logo or black follows.
-Seeking back into them doesn't bring it again. Its card counts down 10 s,
-then plays the next title; with Settings' Play the next episode by itself
+Seeking back into them doesn't bring it again. Its card, the next title's
+name without a picture, counts down 10 s with a ring that fills smoothly
+inside Play now ("Next in 7" with Reduce motion), then plays the next title; with Settings' Play the next episode by itself
 off, it waits. Credits that something follows (an after-credits scene, the last minutes
 of a show after music every episode shares) bring Skip Credits alone, and
 Up Next comes at the end of the file, as it does for a file without

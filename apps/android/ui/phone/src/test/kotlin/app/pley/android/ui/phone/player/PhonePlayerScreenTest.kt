@@ -233,7 +233,7 @@ class PhonePlayerScreenTest {
     @Test
     fun upNextCountsDownAndCancelsOrPlaysNow() {
         val fake = FakePlaybackController(
-            playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7), upNext = "Second", upNextSecondsLeft = 7) },
+            playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7), upNext = "Second", upNextSecondsLeft = 7) },
         )
         show(fake)
         compose.onNodeWithText("Up next · S1 E2").assertIsDisplayed()
@@ -251,7 +251,7 @@ class PhonePlayerScreenTest {
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun upNextsButtonsSitSideBySideWhileTheyFit() {
-        show(FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7), upNextSecondsLeft = 7) }))
+        show(FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7), upNextSecondsLeft = 7) }))
         assertWhole("Play now (7)")
         val play = compose.onNodeWithText("Play now (7)").fetchSemanticsNode().boundsInRoot
         val cancel = compose.onNodeWithText("Cancel").fetchSemanticsNode().boundsInRoot
@@ -262,7 +262,7 @@ class PhonePlayerScreenTest {
     @Config(qualifiers = "fr-w915dp-h412dp-land")
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun upNextsCountdownIsNeverCutCancelGoesUnderItInstead() {
-        show(FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "À suivre · S1 E2", null, 10), upNextSecondsLeft = 10) }))
+        show(FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "À suivre · S1 E2", 10), upNextSecondsLeft = 10) }))
         assertWhole("Lire maintenant (10)")
         val play = compose.onNodeWithText("Lire maintenant (10)").fetchSemanticsNode().boundsInRoot
         val cancel = compose.onNodeWithText("Annuler").fetchSemanticsNode().boundsInRoot
@@ -272,7 +272,7 @@ class PhonePlayerScreenTest {
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun onACarsScreenUpNextsCountdownIsWholeToo() {
-        val fake = FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7), upNextSecondsLeft = 7) })
+        val fake = FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7), upNextSecondsLeft = 7) })
         compose.setContent {
             PhoneTheme {
                 CarSized(car = true) {

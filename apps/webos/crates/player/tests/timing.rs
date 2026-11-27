@@ -102,7 +102,6 @@ fn credits_show_up_next_and_its_countdown_plays_the_next_episode_10_s_on() {
     w.advance(2_500);
     let card = w.c.state().up_next.clone().expect("Up Next shows");
     assert_eq!((card.item_id, card.heading.as_str()), (71, "Up next · S1 · E2"));
-    assert_eq!(card.image_url.as_deref(), Some("http://nas:7539/api/items/71/images/thumb?v=3&w=480"));
     assert_eq!(w.c.state().skip_label.as_deref(), Some("Skip Credits"));
     let left = card.seconds_left.unwrap();
     assert!((9..=10).contains(&left), "{left}");

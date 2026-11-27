@@ -1434,8 +1434,7 @@ public final class PlaybackController: ObservableObject {
 
     private func showUpNext(_ found: ItemSummary, countdown: Bool) {
         next = found
-        var card = UpNextCard(itemId: found.id, title: found.title, heading: NextUp.heading(found),
-                              imagePath: found.thumbUrl ?? found.backdropUrl)
+        var card = UpNextCard(itemId: found.id, title: found.title, heading: NextUp.heading(found))
         // With autoplay off (Settings), the card waits for Play Next.
         if countdown && env.autoplayNext {
             countdownLeftMs = NextUp.countdownSeconds * 1000

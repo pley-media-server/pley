@@ -14,6 +14,11 @@ describes how they are made.
   how the channel plays, as the player does for a film.
 - A transcode's Playback details name its encoder.
 
+### Changed
+
+- Up Next's card shows the next title's name without its picture, so it
+  covers less of the credits.
+
 ## [0.1.14] - 2026-11-25
 
 ### Fixed

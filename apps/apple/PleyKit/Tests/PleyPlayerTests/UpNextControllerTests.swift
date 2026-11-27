@@ -99,7 +99,6 @@ struct UpNextControllerTests {
         #expect(card.itemId == 32)
         #expect(card.title == "Episode 2")
         #expect(card.heading == "Up next · S1 E2")
-        #expect(card.imagePath == "/api/items/32/images/thumb")
         #expect(card.secondsLeft == 10)
         #expect(card.playLabel == "Play Next (10)")
         #expect(rig.server.requests("/api/items/31/next").count == 1)

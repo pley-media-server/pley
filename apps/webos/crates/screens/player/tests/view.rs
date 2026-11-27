@@ -844,23 +844,34 @@ fn up_next_with_reduce_motion_says_play_now_then_the_seconds() {
 }
 
 #[test]
-fn up_next_shows_the_placeholder_until_its_still_is_in() {
-    let placeholders = |pl: &mut Player| {
+fn up_next_shows_no_still() {
+    let mut pl = Player::new(Fake::episode());
+    pl.p.state.up_next = Some(Fake::card(7));
+    pl.wait(0.3);
+    let f = pl.idle();
+    assert!(!f.list.cmds.iter().any(|c| matches!(c, Cmd::Quad { rect, .. } if rect.w == 300.0)));
+}
+
+#[test]
+fn up_next_s_ring_glides_through_each_second_then_rests() {
+    let ring = |pl: &mut Player| {
         let f = pl.idle();
-        f.list.cmds.iter().filter(|c| matches!(c, Cmd::Quad { rect, .. } if rect.w == 300.0)).count()
+        f.list.cmds.iter().find_map(|c| match c {
+            Cmd::Raw { rect, key, .. } if rect.w == 22.0 => Some(*key),
+            _ => None,
+        })
     };
     let mut pl = Player::new(Fake::episode());
     pl.p.state.up_next = Some(Fake::card(7));
     pl.wait(0.3);
-    assert_eq!(placeholders(&mut pl), 1, "none: the gradient for good");
-    let mut card = Fake::card(7);
-    card.image_url = Some("still".into());
-    pl.p.state.up_next = Some(card);
-    pl.wait(0.1);
-    assert_eq!(placeholders(&mut pl), 1, "until the still is in");
-    pl.h.images.ready("still", 480, 270, 0.0);
-    pl.wait(0.3);
-    assert_eq!(placeholders(&mut pl), 0);
+    let early = ring(&mut pl).expect("the ring shows");
+    pl.wait(0.4);
+    let later = ring(&mut pl).expect("the ring shows");
+    assert_ne!(early, later, "it moves within the second");
+    pl.wait(1.0);
+    let rested = ring(&mut pl);
+    pl.wait(0.5);
+    assert_eq!(ring(&mut pl), rested, "at the second's end it waits for the next");
 }
 
 #[test]

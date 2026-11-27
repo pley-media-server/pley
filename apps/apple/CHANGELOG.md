@@ -155,6 +155,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- On iPhone, iPad and Mac, Up Next's card shows the next episode's name
+  without its picture, so it covers less of the credits.
 - Movies, shows and music without a picture, or whose picture doesn't
   load, show their title's colors with Pley's mark, as the other apps do,
   in place of a gray box, on tiles, an item's page, playlists and

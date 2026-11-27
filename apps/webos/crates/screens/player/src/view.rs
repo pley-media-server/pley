@@ -1027,13 +1027,7 @@ impl PlayerView {
         if (card_fade > 0.0 || card && !error)
             && let Some(c) = &self.last_card
         {
-            let shown = Card {
-                heading: &c.heading,
-                title: &c.title,
-                image: c.image_url.as_deref().map(|u| pley_base::ImageRequest::new(u, 480)),
-                mark: c.kind.mark_glyph(),
-                seconds_left: c.seconds_left,
-            };
+            let shown = Card { heading: &c.heading, title: &c.title, seconds_left: c.seconds_left };
             let reduced = ui.reduced_motion();
             let live = card && !error;
             let a = ui.opacity(card_fade, |ui| {

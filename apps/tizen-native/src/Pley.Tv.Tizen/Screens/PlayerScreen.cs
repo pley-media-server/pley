@@ -293,7 +293,7 @@ sealed class PlayerScreen : Sheet
         notice = new SleepNoticeView(model.KeepWatching) { Opacity = 0 };
         notice.Keep.Shown = false;
         View.Add(notice);
-        upNext = new UpNextView(images, state.Settings.Value.ReduceMotion, model.PlayNext, model.CancelUpNext) { Opacity = 0 };
+        upNext = new UpNextView(state.Settings.Value.ReduceMotion, model.PlayNext, model.CancelUpNext) { Opacity = 0 };
         foreach (var item in upNext.Group.Children.OfType<FocusItem>()) item.Shown = false;
         View.Add(upNext);
 

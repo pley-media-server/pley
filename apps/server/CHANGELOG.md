@@ -15,6 +15,11 @@ describes how they are made.
   it (HEVC and 10-bit included), and transcodes only for players that need it.
 - Playback details in the web app's Live TV player.
 
+### Changed
+
+- The web player's Up Next card shows the next title's name without its
+  picture, so it covers less of the credits.
+
 ## [0.1.17] - 2026-11-25
 
 ### Added

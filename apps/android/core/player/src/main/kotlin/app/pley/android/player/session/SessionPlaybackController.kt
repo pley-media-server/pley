@@ -2075,7 +2075,7 @@ class SessionPlaybackController(
 
     private fun showUpNext(found: ItemSummary, restartCountdown: Boolean) {
         next = found
-        // The next item's details and still, ahead of time.
+        // The next item's details, ahead of time.
         if (nextDetail?.first != found.id) {
             val choices = choicesSaved
             scope.launch {
@@ -2094,8 +2094,6 @@ class SessionPlaybackController(
             itemId = found.id,
             title = found.title,
             heading = texts.upNext(NextUp.labelOf(found, texts.format)),
-            // A download's picture is a file here.
-            imageUrl = (found.thumbUrl ?: found.backdropUrl)?.let { if (it.startsWith("file:")) it else env.api.url(it, UP_NEXT_IMAGE_WIDTH) },
             secondsLeft = null,
         )
         ui.update { it.copy(upNextCard = card, upNext = card.title, upNextSecondsLeft = null) }
@@ -2354,7 +2352,6 @@ class SessionPlaybackController(
         /** What every video obeys from the remote. */
         private val VIDEO_CONTROLS = listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip)
 
-        const val UP_NEXT_IMAGE_WIDTH = 480
         private const val CUE_MIN_MS = 20L
         private const val CUE_MAX_MS = 250L
         private const val CUE_IDLE_MS = 500L

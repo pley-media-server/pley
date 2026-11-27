@@ -69,7 +69,7 @@ fn states() -> Vec<State> {
         ),
         state("up-next", up_next, "wait:400"),
         State { reduced_motion: true, ..state("up-next-reduced", up_next, "wait:400") },
-        state("up-next-no-still", |p, _| p.state.up_next = Some(card(7)), "wait:400"),
+        state("up-next-counting", |p, _| p.state.up_next = Some(card(7)), "wait:400"),
         state("sleep-notice", |p, _| p.state.sleep.seconds_left = Some(28), "wait:400"),
         state("buffering", |p, _| p.state.phase = Phase::Buffering, "wait:900"),
         state(
@@ -145,9 +145,7 @@ fn card(seconds: i64) -> pley_player::controller::UpNextCard {
 
 /// The card as it first shows, its countdown at its widest ("Next in 10" under Reduce motion).
 fn up_next(p: &mut Fake, _: &mut Settings) {
-    let mut card = card(pley_player::controller::COUNTDOWN_SECONDS);
-    card.image_url = Some("still:next".into());
-    p.state.up_next = Some(card);
+    p.state.up_next = Some(card(pley_player::controller::COUNTDOWN_SECONDS));
 }
 
 fn error(p: &mut Fake, _: &mut Settings) {

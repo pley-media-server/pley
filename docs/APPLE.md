@@ -1009,8 +1009,8 @@ player's; with no length known, they don't. Credits that something else
 follows (an after-credits scene, the last minutes of a show whose music
 every episode shares) only offer Skip Credits, and the card waits for the
 end, so its countdown doesn't skip what follows.
-The card shows the next episode's picture, "Up
-next · S1 E2", its title, and counts 10 seconds down while it plays (the
+The card shows "Up next · S1 E2" and the next
+episode's title, without a picture, and counts 10 seconds down while it plays (the
 countdown waits while paused), then plays it; Play Next plays it at once,
 Cancel hides the card. With Play the next episode automatically off
 (Settings), the card shows without its countdown and nothing plays by

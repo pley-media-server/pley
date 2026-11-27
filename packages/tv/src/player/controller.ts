@@ -103,7 +103,6 @@ export interface UpNextCard {
   itemId: number;
   title: string;
   heading: string;
-  imageUrl: string | null;
   /** Seconds before it plays by itself; `null` when it won't. */
   secondsLeft: number | null;
 }
@@ -267,7 +266,6 @@ export const COUNTDOWN_SECONDS = 10;
 export const END_WAIT_MS = 2_000;
 /** Seeks stop this short of the end, so the end isn't reached by a seek. */
 export const SEEK_END_MARGIN_MS = 250;
-export const UP_NEXT_IMAGE_WIDTH = 480;
 /** The server out of reach mid-playback is asked again this long, as long as it waits for a player it doesn't hear from. */
 export const OUTAGE_MS = 90_000;
 /** Between its questions: 0.5 s, 1 s, then every 2 s. */
@@ -1738,12 +1736,10 @@ export class PlaybackController {
         () => undefined,
       );
     }
-    const image = found.thumb_url ?? found.backdrop_url ?? null;
     const card: UpNextCard = {
       itemId: found.id,
       title: found.title,
       heading: upNextHeading(labelOf(found)),
-      imageUrl: image ? this.env.api.url(withWidth(image, UP_NEXT_IMAGE_WIDTH)) : null,
       secondsLeft: null,
     };
     this.update({ upNext: card });

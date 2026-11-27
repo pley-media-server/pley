@@ -56,7 +56,6 @@ class MarkersAndUpNextTest {
         val card = state.upNextCard!!
         assertEquals(FixtureIds.SHOW_S1E2, card.itemId)
         assertEquals("Up next · S1 · E2", card.heading)
-        assertTrue(card.imageUrl!!.startsWith(h.server.url))
         assertEquals(card.title, state.upNext)
         assertEquals(10, state.upNextSecondsLeft)
         assertEquals(1, h.api.count("next"))
@@ -120,7 +119,7 @@ class MarkersAndUpNextTest {
     @Test
     fun `a download goes on to the next one downloaded when the server is away`() {
         val first = runBlocking { h.api.item(FixtureIds.SHOW_S1E1) }
-        val second: ItemSummary = runBlocking { h.api.item(FixtureIds.SHOW_S1E2) }.toSummary().copy(thumbUrl = "file:///downloads/e2/image.jpg")
+        val second: ItemSummary = runBlocking { h.api.item(FixtureIds.SHOW_S1E2) }.toSummary()
         h.local = object : LocalMedia {
             override fun file(fileId: Long) = LocalFile("file:///downloads/e1/media.mkv").takeIf { fileId == first.files.first().id }
 
@@ -135,7 +134,6 @@ class MarkersAndUpNextTest {
 
         val card = c.state.value.upNextCard!!
         assertEquals(FixtureIds.SHOW_S1E2, card.itemId)
-        assertEquals("the picture saved with it", "file:///downloads/e2/image.jpg", card.imageUrl)
         assertEquals(PlayerPhase.Paused, c.state.value.phase)
     }
 

@@ -33,7 +33,7 @@ struct PlayerScreen: View {
                     .onChange(of: geometry.size) { sized($0) }
             }
             .ignoresSafeArea()
-            PlayerOverlay(app: app, controller: controller)
+            PlayerOverlay(controller: controller)
             overlay
         }
         .statusBarHidden()
@@ -201,7 +201,7 @@ private struct PlayerWindowContent: View {
             Color.black
             PlayerSurface(controller: controller, state: controller.state, caps: app.caps,
                           onFindSubtitles: findSubtitles)
-            PlayerOverlay(app: app, controller: controller)
+            PlayerOverlay(controller: controller)
             VStack {
                 if let notice {
                     Text(notice)
