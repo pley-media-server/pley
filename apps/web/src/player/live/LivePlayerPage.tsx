@@ -322,6 +322,10 @@ function LivePlayer({
       // Whatever broke as the connection was taken, that's why it stopped.
       setProblem(takenOver.current ?? why);
       setStatus("error");
+      // Nothing plays: no badge, and no details asking the server about the
+      // session, which each answer would keep there with its connection.
+      setSession(null);
+      setPlayback(null);
       stopKeeping();
       hlsRef.current?.destroy();
       hlsRef.current = null;
@@ -626,6 +630,7 @@ function LivePlayer({
     }
     setBuffering(false);
     setSession(null);
+    setPlayback(null);
     setProblem(why);
     setStatus("error");
   };
