@@ -94,6 +94,17 @@ object Appearance {
         preferences.edit { keepFirst() }
     }
 
+    /**
+     * Signed out, or signed in while who is watching isn't known yet (a
+     * switch to a profile new to this device, a sign-in after signing out),
+     * on the main thread: Midnight in its own accent until [showProfile],
+     * and nothing picked meanwhile is kept for the profile before.
+     */
+    fun noProfile() {
+        profile = null
+        shown = PleyPalette.Default
+    }
+
     /** Shows [theme] from now on, on the main thread, and keeps it for the profile and as the last shown; the accent stays. */
     fun pick(context: Context, theme: PleyTheme) = show(context, PleyPalette.of(theme, shown.pick))
 

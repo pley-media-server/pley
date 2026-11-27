@@ -12,6 +12,7 @@ import app.pley.android.common.TraceNames
 import app.pley.android.common.perf.FrameRate
 import app.pley.android.common.perf.StartupSignals
 import app.pley.android.data.ProfileScope
+import app.pley.android.data.SessionState
 import app.pley.android.designsystem.PleyImageLoader
 import app.pley.android.designsystem.theme.Appearance
 import app.pley.android.downloads.AppDownloads
@@ -129,13 +130,23 @@ class PleyApplication : Application(), PleyGraphOwner, PlayerGraphOwner, Downloa
             }
             graph.data
             launch { language.follow(graph.data.language) }
-            // The theme kept for the profile signed in on this device, once it is known; signing out keeps it.
+            // The theme kept for the profile signed in on this device, once it is known. Signed in
+            // while who is watching isn't known yet, or signed out: Midnight, and no profile to keep
+            // a pick for. While the session is still read at start, the first frame's stays.
             launch {
-                graph.data.session.session
-                    .mapNotNull { session -> session?.me?.id?.let { ProfileScope.serverKey(session.issuer) to it } }
+                graph.data.session.state
+                    .mapNotNull { state ->
+                        when (state) {
+                            SessionState.Starting -> null
+                            is SessionState.SignedIn -> state.session.me?.id?.let { ProfileScope.serverKey(state.session.issuer) to it } ?: NO_PROFILE
+                            else -> NO_PROFILE
+                        }
+                    }
                     .distinctUntilChanged()
                     .collect { (server, id) ->
-                        withContext(Dispatchers.Main.immediate) { Appearance.showProfile(this@PleyApplication, server, id) }
+                        withContext(Dispatchers.Main.immediate) {
+                            if (id == NO_PROFILE.second) Appearance.noProfile() else Appearance.showProfile(this@PleyApplication, server, id)
+                        }
                     }
             }
             val start = startup.await()
@@ -175,6 +186,9 @@ class PleyApplication : Application(), PleyGraphOwner, PlayerGraphOwner, Downloa
 
         /** A key no picture has: looking it up opens the picture cache and finds nothing. */
         const val WARM_UP_KEY = "pley-warm-up"
+
+        /** No profile known (signed out, or who is watching not heard yet): profile ids are positive. */
+        val NO_PROFILE: Pair<String, Long> = "" to -1L
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

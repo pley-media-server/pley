@@ -58,6 +58,24 @@ class AppearanceTest {
     }
 
     @Test
+    fun noProfileKnownShowsMidnightAndKeepsNothingForTheOneBefore() {
+        Appearance.attach(context)
+        Appearance.showProfile(context, SERVER, 1)
+        Appearance.pick(context, PleyTheme.Sunshine)
+        // Signed out, then another signs in: who it is isn't heard yet.
+        Appearance.noProfile()
+        assertSame(PleyPalette.Default, Appearance.palette)
+        // A pick meanwhile isn't the first profile's.
+        Appearance.pick(context, PleyTheme.Blacklight)
+        Appearance.showProfile(context, SERVER, 2)
+        assertSame(PleyPalette.Default, Appearance.palette)
+        // The first profile signs in again: its own, though it was the one before.
+        Appearance.noProfile()
+        Appearance.showProfile(context, SERVER, 1)
+        assertSame(PleyPalette.of(PleyTheme.Sunshine, null), Appearance.palette)
+    }
+
+    @Test
     fun aProfileNewToTheDeviceShowsMidnight() {
         Appearance.attach(context)
         Appearance.showProfile(context, SERVER, 1)
