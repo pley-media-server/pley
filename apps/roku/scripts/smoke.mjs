@@ -211,7 +211,7 @@ function sleepButtonLong() {
 // The A to Z's mark on a letter (LibraryScreen.xml's column from 1764, 212,
 // 30 pixels a letter), left of the letter: the accent while the letters have
 // the focus, else the lighter ground behind the letter of the title the
-// grid's focus is on.
+// grid's focus is on (surface-3, Midnight's here: the walk is in it then).
 function letterMarked(index, focused) {
   if (!frame) return false;
   const x = Math.round(1767 * (frame.width / 1920));
@@ -219,7 +219,7 @@ function letterMarked(index, focused) {
   const at = (y * frame.width + x) * 4;
   const [r, g, b] = [frame.data[at], frame.data[at + 1], frame.data[at + 2]];
   if (focused) return r < 120 && g > 150 && b > 200;
-  return Math.abs(r - 0x2e) < 8 && Math.abs(g - 0x34) < 8 && Math.abs(b - 0x40) < 8;
+  return Math.abs(r - 0x22) < 8 && Math.abs(g - 0x27) < 8 && Math.abs(b - 0x31) < 8;
 }
 
 async function drawnWithin(ms, test) {
