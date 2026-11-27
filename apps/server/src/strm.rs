@@ -374,6 +374,24 @@ const LOOK_NAME: &str = "look-";
 /// How many of a library's `.strm` files a scan has its media found for
 /// at once ([`find_unknown`]).
 const FINDING: usize = 2;
+/// How long a scan leaves a file whose media it didn't find before it asks
+/// its address again: scans end often (each change a watched folder sees),
+/// and a hosting service isn't to be asked about the same expired link at
+/// every one. A file that names another address since is asked at once.
+const SCAN_FAILED_FOR: Duration = Duration::from_secs(24 * 60 * 60);
+/// How often a scan's walk tells the apps that listings changed, rather than
+/// once a file: they fetch the library again each time.
+const TELL_EVERY: Duration = Duration::from_secs(30);
+
+/// A library whose `.strm` files a scan's walk is finding the media of
+/// ([`walk`]).
+#[derive(Default)]
+struct Walk {
+    /// Another scan ended meanwhile: the walk goes once more.
+    again: bool,
+    /// A file's media was found since the apps were last told.
+    changed: bool,
+}
 
 #[derive(Default)]
 struct Links {
@@ -397,6 +415,11 @@ pub struct Relay {
     /// A file's last failed look: when, why, and through which link's key
     /// (a file that names another address since is looked at again).
     failed: Mutex<HashMap<i64, (Instant, Failed, String)>>,
+    /// A file whose media a scan didn't find: when, and through which link's
+    /// key ([`SCAN_FAILED_FOR`]).
+    scan_failed: Mutex<HashMap<i64, (Instant, String)>>,
+    /// The libraries a scan's walk is going through ([`walk`]).
+    walks: Mutex<HashMap<i64, Walk>>,
     /// The addresses of the transcoder's host, and when they were looked up.
     transcoder_ips: Mutex<Option<(Instant, Vec<IpAddr>)>>,
     /// Where the transcoder reaches this server, when it isn't where the
@@ -493,6 +516,8 @@ impl Relay {
             links: Mutex::default(),
             probing: Mutex::default(),
             failed: Mutex::default(),
+            scan_failed: Mutex::default(),
+            walks: Mutex::default(),
             transcoder_ips: Mutex::default(),
             address: Mutex::new(None),
         }
@@ -560,6 +585,24 @@ impl Relay {
     fn failed_lately(&self, id: i64, link: &Link, within: Duration) -> Option<Failed> {
         let failed = self.failed.lock();
         failed.get(&id).filter(|(at, _, key)| *key == link.key && at.elapsed() < within).map(|(_, why, _)| *why)
+    }
+
+    /// Whether a scan failed to find file `id`'s media through `link`, less
+    /// than [`SCAN_FAILED_FOR`] ago.
+    fn scan_failed_lately(&self, id: i64, link: &Link) -> bool {
+        self.scan_failed.lock().get(&id).is_some_and(|(at, key)| *key == link.key && at.elapsed() < SCAN_FAILED_FOR)
+    }
+
+    /// Whether library `library_id`'s walk tells the apps of a change itself
+    /// ([`walk`]): it then knows there is one to tell.
+    fn holds_news(&self, library_id: i64) -> bool {
+        match self.walks.lock().get_mut(&library_id) {
+            Some(walk) => {
+                walk.changed = true;
+                true
+            }
+            None => false,
+        }
     }
 
     /// The file the server's own address ending in `key` is for.
@@ -1166,10 +1209,79 @@ pub async fn find_unknown(state: &AppState, library_id: i64) -> bool {
             async move { find_one(&state, id).await }
         })
         .buffer_unordered(FINDING);
+    let mut told = Instant::now();
     while let Some(one) = looking.next().await {
         found |= one;
+        if told.elapsed() >= TELL_EVERY {
+            tell(state, library_id);
+            told = Instant::now();
+        }
     }
+    tell(state, library_id);
     found
+}
+
+/// Has each scan that ends walk its library for what its `.strm` files play
+/// ([`walk`]), when that is turned on. The walk goes on a task of its own:
+/// this one keeps up with the events.
+pub fn follow_scans(state: &AppState) {
+    let (state, mut events) = (state.clone(), state.events.subscribe());
+    tokio::spawn(async move {
+        loop {
+            match events.recv().await {
+                Ok(crate::events::ServerEvent::ScanFinished { library_id, .. }) => walk(&state, library_id),
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                _ => {}
+            }
+        }
+    });
+}
+
+/// Has a walk find what library `library_id`'s `.strm` files play
+/// ([`find_unknown`]), as a scan of it ends or the setting is turned on: one
+/// walk a library at a time, off the caller's task, and once more when
+/// another scan ends while it goes. A walk tells the apps every so often
+/// that listings changed, and once at its end, not once a file.
+pub fn walk(state: &AppState, library_id: i64) {
+    {
+        let mut walks = state.strm.walks.lock();
+        if let Some(walk) = walks.get_mut(&library_id) {
+            walk.again = true;
+            return;
+        }
+        walks.insert(library_id, Walk::default());
+    }
+    let state = state.clone();
+    tokio::spawn(async move {
+        loop {
+            find_unknown(&state, library_id).await;
+            let again = {
+                let mut walks = state.strm.walks.lock();
+                match walks.get_mut(&library_id) {
+                    Some(walk) if walk.again => {
+                        walk.again = false;
+                        true
+                    }
+                    _ => {
+                        walks.remove(&library_id);
+                        false
+                    }
+                }
+            };
+            if !again {
+                break;
+            }
+        }
+    });
+}
+
+/// Tells the apps that library `library_id`'s listings changed, when its
+/// walk found something since it last did.
+fn tell(state: &AppState, library_id: i64) {
+    let changed = state.strm.walks.lock().get_mut(&library_id).is_some_and(|walk| std::mem::take(&mut walk.changed));
+    if changed {
+        state.events.send(crate::events::ServerEvent::LibraryChanged { library_id });
+    }
 }
 
 /// Whether a scan finds what `.strm` files' media is: both settings on,
@@ -1193,11 +1305,26 @@ async fn find_one(state: &AppState, id: i64) -> bool {
         return false;
     }
     let Ok(link) = state.strm.link(&file.path).await else { return false };
-    if state.strm.failed_lately(file.id, &link, FAILED_TO_OPEN_FOR).is_some() {
+    if state.strm.failed_lately(file.id, &link, FAILED_TO_OPEN_FOR).is_some()
+        || state.strm.scan_failed_lately(file.id, &link)
+    {
         return false;
     }
-    if let Err(why) = ready_for(state, file, false).await {
-        tracing::debug!("{}: a scan didn't find what its media is: {}", link.path, why);
+    let id = file.id;
+    match ready_for(state, file, false).await {
+        Ok(_) => {
+            state.strm.scan_failed.lock().remove(&id);
+        }
+        Err(why) => {
+            tracing::debug!("{}: a scan didn't find what its media is: {}", link.path, why);
+            // Its address failed (not the transcoder, say): later scans
+            // leave it for a day.
+            if state.strm.failed_lately(id, &link, FAILED_TO_OPEN_FOR).is_some() {
+                let mut failed = state.strm.scan_failed.lock();
+                failed.retain(|_, (at, _)| at.elapsed() < SCAN_FAILED_FOR);
+                failed.insert(id, (Instant::now(), link.key.clone()));
+            }
+        }
     }
     true
 }
@@ -1322,7 +1449,11 @@ async fn save(state: &AppState, file: &FileRow, link: &Link, info: &MediaInfo, s
     tx.commit().await?;
     if kept {
         tracing::info!("{}: its media is {} now", file.path, info.container.as_deref().unwrap_or("known"));
-        state.events.send(crate::events::ServerEvent::LibraryChanged { library_id: file.library_id });
+        // A scan's walk through the library tells the apps itself, every so
+        // often: not once a file, each of which has them fetch it again.
+        if !state.strm.holds_news(file.library_id) {
+            state.events.send(crate::events::ServerEvent::LibraryChanged { library_id: file.library_id });
+        }
     }
     Ok(())
 }

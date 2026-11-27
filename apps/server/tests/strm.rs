@@ -845,6 +845,49 @@ async fn a_scan_finds_what_they_play_once_an_administrator_turned_that_on() {
 }
 
 #[tokio::test]
+async fn a_finished_scan_walks_the_library_and_tells_the_apps_once() {
+    let w = world_with(|movies, remote| {
+        std::fs::create_dir_all(movies.join("Second (2021)")).unwrap();
+        std::fs::write(movies.join("Second (2021)/Second (2021).strm"), format!("{remote}/dl/{SECRET}/film.mkv"))
+            .unwrap();
+    })
+    .await;
+    let app = &w.app;
+    let on = pley::settings::SettingsPatch { strm_probe: Some(true), ..Default::default() };
+    app.state.settings.update(&app.state.db, on).await.unwrap();
+    let mut events = app.state.events.subscribe();
+    // As the server does once started; then the scanner says a scan ended,
+    // and the walk starts by itself.
+    pley::strm::follow_scans(&app.state);
+    let ended = || pley::events::ServerEvent::ScanFinished { library_id: w.library, added: 0, updated: 0, removed: 0 };
+    app.state.events.send(ended());
+    let mut kept = (w.kept("Film").await, w.kept("Second").await);
+    for _ in 0..400 {
+        if kept.0.0.as_deref() == Some("mkv") && kept.1.0.as_deref() == Some("mkv") {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        kept = (w.kept("Film").await, w.kept("Second").await);
+    }
+    assert_eq!((kept.0.0.as_deref(), kept.1.0.as_deref()), (Some("mkv"), Some("mkv")), "found after the scan");
+    // Both found, one word to the apps, at the walk's end: not one a file.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let mut told = 0;
+    while let Ok(event) = events.try_recv() {
+        if matches!(event, pley::events::ServerEvent::LibraryChanged { library_id } if library_id == w.library) {
+            told += 1;
+        }
+    }
+    assert_eq!(told, 1);
+
+    // Another scan's end finds nothing left to ask.
+    let probes = w.fake.probes.lock().len();
+    app.state.events.send(ended());
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(w.fake.probes.lock().len(), probes);
+}
+
+#[tokio::test]
 async fn turning_it_on_finds_what_the_files_listed_play() {
     let w = world().await;
     let on = w.app.put("/api/settings", &w.admin, json!({"strm_probe": true})).await;

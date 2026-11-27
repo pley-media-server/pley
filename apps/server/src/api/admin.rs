@@ -106,7 +106,7 @@ pub async fn put_settings(
                             lib.kind(),
                             crate::library::LibraryKind::Movies | crate::library::LibraryKind::Shows
                         ) {
-                            crate::strm::find_unknown(&state, lib.id).await;
+                            crate::strm::walk(&state, lib.id);
                         }
                     }
                 }

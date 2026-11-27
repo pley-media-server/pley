@@ -236,16 +236,18 @@ Shows/The Expanse/Season 01/The Expanse - S01E01.strm
   asks the address; a stream is made by the transcoder from what Pley
   hands it. A password or token in the address is never shown to anyone,
   administrators included: the `.strm` file is where to read it.
-- **A scan doesn't ask the address.** A library of links is scanned as
-  fast as its files are listed, and a hosting service isn't asked for each
-  of them. What the video is (its tracks, its length, its size, 4K and HDR)
+- **By default, a scan doesn't ask the address.** A library of links is
+  scanned as fast as its files are listed, and a hosting service isn't
+  asked for each of them. What the video is (its tracks, its length, its size, 4K and HDR)
   is found the first time someone opens its page or plays it, and kept
   until the file names another address. Until then it has no badges in
   listings and reads `STRM` where its format goes. To have scans find it
-  anyway, turn on *Find what .strm files play* below that switch: once a
-  scan of a movie or TV library is done, Pley asks the address of each of
-  its files whose video isn't known yet, a few at a time, so a hosting
-  service is asked for each of them.
+  anyway, turn on *Find what .strm files play*, shown below that switch
+  once it is on: once a scan of a movie or TV library is done, Pley asks
+  the address of each of its files whose video isn't known yet, a few at a
+  time, so a hosting service is asked for each of them. An address that
+  fails isn't asked again by a scan for a day, unless its file names
+  another.
 - **What isn't made for it**: seek previews, chapter pictures, a picture
   grabbed from the video, and intro and credits detection, which all read
   the whole video. Chapters and a subtitle track in the video work as for
