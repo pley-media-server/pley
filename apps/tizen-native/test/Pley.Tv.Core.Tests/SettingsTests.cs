@@ -199,6 +199,9 @@ public class SettingsModelTests
         Assert.Equal("Default", Row(m, SettingsCategory.Appearance, "row-accent").Value);
         Assert.Equal(new SettingAction.Open(new AppearancePage()), Row(m, SettingsCategory.Appearance, "row-theme").Action);
         Assert.Equal(new SettingAction.Open(new AppearancePage(Accents: true)), Row(m, SettingsCategory.Appearance, "row-accent").Action);
+        // Lucide's palette and droplet, as every TV app has them (docs/THEMES.md).
+        Assert.Equal("palette", Row(m, SettingsCategory.Appearance, "row-theme").Icon);
+        Assert.Equal("droplet", Row(m, SettingsCategory.Appearance, "row-accent").Icon);
         account.Theme = new ThemePick("greenlight", "amber");
         Assert.Equal("Greenlight", Row(m, SettingsCategory.Appearance, "row-theme").Value);
         Assert.Equal("Amber", Row(m, SettingsCategory.Appearance, "row-accent").Value);

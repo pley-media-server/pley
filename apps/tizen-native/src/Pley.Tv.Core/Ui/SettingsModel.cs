@@ -386,10 +386,10 @@ public sealed class SettingsModel : IDisposable
                 items.Add(new SettingsItem.Row("row-reduce-motion", SettingsText.ReduceMotion, new SettingAction.Toggle(SettingSwitch.ReduceMotion), SettingsText.ReduceMotionHint, "sparkles", s.ReduceMotion));
                 break;
             case SettingsCategory.Appearance:
-                // Both open the picker, at the themes or at the accents.
+                // Both open the picker, at the themes or at the accents; their icons are every TV app's (docs/THEMES.md).
                 var theme = source.Theme;
                 items.Add(new SettingsItem.Row("row-theme", ThemeText.Theme, new SettingAction.Open(new AppearancePage()), ThemeText.Name(theme.Theme), "palette", Chevron: true));
-                items.Add(new SettingsItem.Row("row-accent", ThemeText.Accent, new SettingAction.Open(new AppearancePage(Accents: true)), ThemeText.AccentName(theme.Accent), "paintbrush", Chevron: true));
+                items.Add(new SettingsItem.Row("row-accent", ThemeText.Accent, new SettingAction.Open(new AppearancePage(Accents: true)), ThemeText.AccentName(theme.Accent), "droplet", Chevron: true));
                 break;
             case SettingsCategory.Server:
                 items.Add(new SettingsItem.Row("row-server", server != null ? SettingsText.HostPort(server) : SettingsText.ServerUnknown, new SettingAction.None(), SettingsText.ServerValue, "server"));
