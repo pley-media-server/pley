@@ -1056,9 +1056,11 @@ function LivePlayer({
             {method ? (
               // Hovering (or focusing) the badge shows how it plays, as the video player's does; none until that is known.
               // At every width, a tap focusing it: this player has no menu with the details, as the video player's has.
-              // On a narrow screen the details hang from the bar, which they fit, and a long name is cut short.
+              // On a narrow screen, or beside the channel list, the details hang from the bar, which they fit, and a
+              // long name is cut short. On a wide one they hang from the badge, as wide as the video player's, not
+              // held to the badge's width: from there, beside the list, they'd run off the picture's left edge.
               <div
-                className="mr-1 min-w-0 md:relative"
+                className={cn("mr-1 min-w-0", !panel && "md:relative")}
                 onMouseEnter={() => setDetailsHover(true)}
                 onMouseLeave={() => setDetailsHover(false)}
                 onFocus={() => setDetailsHover(true)}
@@ -1077,7 +1079,10 @@ function LivePlayer({
                 {detailsHover ? (
                   <div
                     role="tooltip"
-                    className="absolute bottom-full right-0 mb-3 w-80 max-w-full animate-pop-in rounded-xl border border-white/10 bg-black/90 py-2 text-white shadow-2xl"
+                    className={cn(
+                      "absolute bottom-full right-0 mb-3 w-80 max-w-full animate-pop-in rounded-xl border border-white/10 bg-black/90 py-2 text-white shadow-2xl",
+                      !panel && "md:max-w-none",
+                    )}
                   >
                     <LiveDetails sessionId={session} playback={playback} open />
                   </div>
