@@ -391,6 +391,10 @@ struct Walk {
     again: bool,
     /// A file's media was found since the apps were last told.
     changed: bool,
+    /// The files it is looking at now. What is found of them waits for its
+    /// next word to the apps; what is found of another, opened or played
+    /// meanwhile, is told at once.
+    looking: HashSet<i64>,
 }
 
 #[derive(Default)]
@@ -593,15 +597,44 @@ impl Relay {
         self.scan_failed.lock().get(&id).is_some_and(|(at, key)| *key == link.key && at.elapsed() < SCAN_FAILED_FOR)
     }
 
-    /// Whether library `library_id`'s walk tells the apps of a change itself
-    /// ([`walk`]): it then knows there is one to tell.
-    fn holds_news(&self, library_id: i64) -> bool {
+    /// Whether library `library_id`'s walk tells the apps itself that file
+    /// `file_id`'s media was found ([`walk`]), being what looks at it: it
+    /// then knows there is a change to tell.
+    fn holds_news(&self, library_id: i64, file_id: i64) -> bool {
         match self.walks.lock().get_mut(&library_id) {
-            Some(walk) => {
+            Some(walk) if walk.looking.contains(&file_id) => {
                 walk.changed = true;
                 true
             }
-            None => false,
+            _ => false,
+        }
+    }
+
+    /// Has library `library_id`'s walk, when one goes, hold what is found of
+    /// file `file_id` (`looking`), or no longer.
+    fn walk_looks_at(&self, library_id: i64, file_id: i64, looking: bool) {
+        if let Some(walk) = self.walks.lock().get_mut(&library_id) {
+            if looking {
+                walk.looking.insert(file_id);
+            } else {
+                walk.looking.remove(&file_id);
+            }
+        }
+    }
+
+    /// Ends library `library_id`'s walk ([`walk`]), unless another scan
+    /// ended while it went (`None`: it goes once more). Ended, whether it
+    /// still holds a find it hasn't told the apps of. Its last word comes
+    /// after its last look, so none is expected; one would be lost with the
+    /// walk, nothing else telling them of it.
+    fn end_walk(&self, library_id: i64) -> Option<bool> {
+        let mut walks = self.walks.lock();
+        match walks.get_mut(&library_id) {
+            Some(walk) if walk.again => {
+                walk.again = false;
+                None
+            }
+            _ => Some(walks.remove(&library_id).is_some_and(|walk| walk.changed)),
         }
     }
 
@@ -1230,11 +1263,34 @@ pub fn follow_scans(state: &AppState) {
         loop {
             match events.recv().await {
                 Ok(crate::events::ServerEvent::ScanFinished { library_id, .. }) => walk(&state, library_id),
+                // The events it fell behind on are dropped, a scan's end
+                // perhaps among them: every library is walked, as if each
+                // had just been scanned.
+                // Off this task, which reads on meanwhile, so as not to fall behind again.
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) if finding(&state) => {
+                    let state = state.clone();
+                    tokio::spawn(async move { walk_all(&state).await });
+                }
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 _ => {}
             }
         }
     });
+}
+
+/// Walks every movie and TV library ([`walk`]): as the setting is turned
+/// on, and when [`follow_scans`] may have missed a scan's end.
+pub async fn walk_all(state: &AppState) {
+    match crate::library::list_libraries(&state.db).await {
+        Ok(libraries) => {
+            for lib in libraries {
+                if matches!(lib.kind(), crate::library::LibraryKind::Movies | crate::library::LibraryKind::Shows) {
+                    walk(state, lib.id);
+                }
+            }
+        }
+        Err(err) => tracing::warn!("finding what .strm files' media are failed: {err}"),
+    }
 }
 
 /// Has a walk find what library `library_id`'s `.strm` files play
@@ -1253,24 +1309,15 @@ pub fn walk(state: &AppState, library_id: i64) {
     }
     let state = state.clone();
     tokio::spawn(async move {
-        loop {
+        let changed = loop {
             find_unknown(&state, library_id).await;
-            let again = {
-                let mut walks = state.strm.walks.lock();
-                match walks.get_mut(&library_id) {
-                    Some(walk) if walk.again => {
-                        walk.again = false;
-                        true
-                    }
-                    _ => {
-                        walks.remove(&library_id);
-                        false
-                    }
-                }
-            };
-            if !again {
-                break;
+            if let Some(changed) = state.strm.end_walk(library_id) {
+                break changed;
             }
+        };
+        // Found after the walk last told the apps: they hear of it now.
+        if changed {
+            state.events.send(crate::events::ServerEvent::LibraryChanged { library_id });
         }
     });
 }
@@ -1310,8 +1357,12 @@ async fn find_one(state: &AppState, id: i64) -> bool {
     {
         return false;
     }
-    let id = file.id;
-    match ready_for(state, file, false).await {
+    let (id, library_id) = (file.id, file.library_id);
+    // What is found of it waits for the walk's next word to the apps.
+    state.strm.walk_looks_at(library_id, id, true);
+    let found = ready_for(state, file, false).await;
+    state.strm.walk_looks_at(library_id, id, false);
+    match found {
         Ok(_) => {
             state.strm.scan_failed.lock().remove(&id);
         }
@@ -1451,7 +1502,7 @@ async fn save(state: &AppState, file: &FileRow, link: &Link, info: &MediaInfo, s
         tracing::info!("{}: its media is {} now", file.path, info.container.as_deref().unwrap_or("known"));
         // A scan's walk through the library tells the apps itself, every so
         // often: not once a file, each of which has them fetch it again.
-        if !state.strm.holds_news(file.library_id) {
+        if !state.strm.holds_news(file.library_id, file.id) {
             state.events.send(crate::events::ServerEvent::LibraryChanged { library_id: file.library_id });
         }
     }
@@ -1654,6 +1705,31 @@ mod tests {
         let link = relay.link(file.to_str().unwrap()).await.unwrap();
         let answer = relay.respond(&link, &Method::GET, &HeaderMap::new(), "video/x-matroska").await;
         assert_eq!(answer.err(), Some(Failed::Unreachable));
+    }
+
+    #[test]
+    fn a_walk_tells_as_it_ends_what_was_found_after_its_last_word() {
+        let dir = tempfile::tempdir().unwrap();
+        let relay = Relay::new(dir.path());
+        // Nothing found since it last told the apps: it ends saying nothing.
+        relay.walks.lock().insert(1, Walk::default());
+        assert_eq!(relay.end_walk(1), Some(false));
+        // Found after its last word: told as it ends.
+        relay.walks.lock().insert(1, Walk::default());
+        relay.walk_looks_at(1, 7, true);
+        assert!(relay.holds_news(1, 7));
+        assert!(!relay.holds_news(1, 8), "a file it isn't looking at is told of at once");
+        relay.walk_looks_at(1, 7, false);
+        assert_eq!(relay.end_walk(1), Some(true));
+        assert!(!relay.holds_news(1, 7), "ended");
+        // Another scan ended meanwhile: it goes once more, holding what it
+        // found for its next word.
+        relay.walks.lock().insert(1, Walk { again: true, ..Walk::default() });
+        relay.walk_looks_at(1, 7, true);
+        assert!(relay.holds_news(1, 7));
+        assert_eq!(relay.end_walk(1), None);
+        assert_eq!(relay.end_walk(1), Some(true));
+        assert!(relay.walks.lock().is_empty());
     }
 
     #[test]
