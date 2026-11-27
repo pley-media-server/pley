@@ -10,10 +10,10 @@ public abstract record SleepChoice
 
     public sealed record Minutes(int Count) : SleepChoice;
 
-    /// <summary>The end of the episode, film or track playing.</summary>
+    /// <summary>The end of the track playing.</summary>
     public sealed record EndOfItem : SleepChoice;
 
-    /// <summary>The menu's choices, in order.</summary>
+    /// <summary>The choices, in the order the sleep button steps through them.</summary>
     public static readonly IReadOnlyList<SleepChoice> All = new SleepChoice[]
     {
         new Off(), new Minutes(15), new Minutes(30), new Minutes(45), new Minutes(60), new Minutes(90), new EndOfItem(),
@@ -22,49 +22,46 @@ public abstract record SleepChoice
 
 /// <summary>Where the sleep timer stands.</summary>
 /// <param name="SecondsLeft">Seconds before it pauses, during the notice (its last 30 s); null otherwise.</param>
-/// <param name="MinutesLeft">Minutes before it pauses, rounded up, for the menu; null when off or unknown.</param>
-/// <param name="Fired">It paused the playback, which hasn't played since.</param>
+/// <param name="MinutesLeft">Minutes before it pauses, rounded up, for the button's label; null when off or unknown.</param>
+/// <param name="Fired">It paused the music, which hasn't played since.</param>
 public sealed record SleepState(SleepChoice? Choice = null, int? SecondsLeft = null, int? MinutesLeft = null, bool Fired = false)
 {
     public SleepChoice Set => Choice ?? new SleepChoice.Off();
 }
 
-/// <summary>How the sleep timer's menus say things, for music and video alike (the Android app's SleepTexts), in the language shown.</summary>
+/// <summary>How the music's sleep timer says things (the Android app's SleepTexts), in the language shown.</summary>
 public static class SleepText
 {
     public static string Title => Strings.T("player.controls.sleep");
 
-    /// <summary>A choice: "Off", "30 min", "End of this episode" (music: "End of this track").</summary>
-    public static string Choice(SleepChoice choice, bool music = false) => choice switch
+    /// <summary>A choice: "Off", "30 min", "End of this track".</summary>
+    public static string Choice(SleepChoice choice) => choice switch
     {
         SleepChoice.Minutes m => Strings.T("player.sleep.minutes", ("minutes", m.Count)),
-        SleepChoice.EndOfItem => music ? Strings.T("player.sleep.endOfTrack") : Strings.T("player.sleep.endOfEpisode"),
+        SleepChoice.EndOfItem => Strings.T("player.sleep.endOfTrack"),
         _ => Strings.T("player.sleep.off"),
     };
 
-    /// <summary>What the menu row says now: "Off", "42 min left", "End of this episode".</summary>
-    public static string Summary(SleepState state, bool music = false) =>
-        state.Set is SleepChoice.Minutes && state.MinutesLeft is { } minutes ? Strings.Count("player.sleep.minutesLeft", minutes) : Choice(state.Set, music);
+    /// <summary>What the timer says now: "Off", "42 min left", "End of this track".</summary>
+    public static string Summary(SleepState state) =>
+        state.Set is SleepChoice.Minutes && state.MinutesLeft is { } minutes ? Strings.Count("player.sleep.minutesLeft", minutes) : Choice(state.Set);
 
     /// <summary>"Pausing in 30 s".</summary>
     public static string Notice(int secondsLeft) => Strings.T("player.sleep.pausingIn", ("seconds", secondsLeft));
 
-    public static string Keep(bool music = false) => music ? Strings.T("player.sleep.keepListening") : Strings.T("player.sleep.keepWatching");
+    public static string Keep => Strings.T("player.sleep.keepListening");
 }
 
 /// <summary>
-/// The sleep timer of a video or of music (the Android app's SleepTimer): after the minutes
-/// chosen, or at the end of what plays, it pauses (<c>onFire</c>). 30 s before, its state says so
-/// once a second for a notice; <see cref="Extend"/> ("Keep listening") adds the same time again.
-/// Time comes from the scheduler's monotonic clock. UI thread only.
+/// The music's sleep timer (the Android app's SleepTimer): after the minutes chosen, or at the
+/// end of what plays, it pauses (<c>onFire</c>). 30 s before, its state says so once a second for
+/// a notice; <see cref="Extend"/> ("Keep listening") adds the same time again. Time comes from
+/// the scheduler's monotonic clock. UI thread only.
 /// </summary>
 public sealed class SleepTimer
 {
     /// <summary>The notice shows this long before the timer pauses.</summary>
     public const long NoticeMs = 30_000;
-
-    /// <summary>On TV, a video paused by the timer this long, the player leaves.</summary>
-    public const long LeaveAfterMs = 10 * 60_000;
 
     const long SecondMs = 1_000;
     const long MinuteMs = 60_000;

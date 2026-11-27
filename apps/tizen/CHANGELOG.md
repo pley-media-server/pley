@@ -65,6 +65,7 @@ describes how they are made.
   work as with nothing on screen.
 - The player's controls no longer say "Ends at" with a time under the
   clock while paused: the time left stays by the scrubber.
+- The video player no longer has a sleep timer. Music keeps its own.
 
 ### Security
 

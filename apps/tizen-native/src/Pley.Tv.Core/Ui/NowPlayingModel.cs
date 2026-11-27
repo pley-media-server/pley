@@ -100,8 +100,8 @@ public sealed class NowPlayingModel : IDisposable
         get
         {
             var s = Sleep.Value;
-            if (s.SecondsLeft != null) return SleepText.Keep(music: true);
-            return s.Set is SleepChoice.Off ? SleepText.Title : MusicText.Sleep(SleepText.Title, SleepText.Summary(s, music: true));
+            if (s.SecondsLeft != null) return SleepText.Keep;
+            return s.Set is SleepChoice.Off ? SleepText.Title : MusicText.Sleep(SleepText.Title, SleepText.Summary(s));
         }
     }
 

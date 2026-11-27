@@ -112,7 +112,6 @@ public sealed record PlayerState
     public double Speed { get; init; } = 1;
     /// <summary>The speeds the TV's player plays with their sound; empty when only normal speed (Speed isn't offered then).</summary>
     public IReadOnlyList<double> Speeds { get; init; } = new double[0];
-    public SleepState Sleep { get; init; } = new SleepState();
     /// <summary>The server stopped this playback: the error says so, and the screen leaves after <see cref="PlayerText.StoppedLeaveMs"/>.</summary>
     public bool StoppedByServer { get; init; }
     /// <summary>The server stopped answering mid-playback: the player keeps its place and asks again ("Reconnecting…").</summary>

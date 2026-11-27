@@ -13,7 +13,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// <summary>
 /// The player's side panels (design spec §2.7; the Android app's TvPlayerPanels): Subtitles (with
 /// Sync while the subtitles can move, and their size, background, font and position), Audio,
-/// Quality, Chapters, Sleep timer, Speed and Info, as <see cref="PlayerModel.Panel"/> lists them.
+/// Quality, Chapters, Speed and Info, as <see cref="PlayerModel.Panel"/> lists them.
 /// 360 dp (Info 440 dp) from the right edge, full height, Surface2 with rounded left corners, over
 /// the scrim; it slides in. Focus starts on the current choice and stays inside; choosing closes
 /// the panel, but for the subtitles' look and Sync, which change what shows behind it, and Back

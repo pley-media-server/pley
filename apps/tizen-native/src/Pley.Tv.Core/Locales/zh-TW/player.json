@@ -168,10 +168,8 @@
     "off": "關閉",
     "minutes": "{{minutes}} 分鐘",
     "minutesLeft_other": "剩餘 {{count}} 分鐘",
-    "endOfEpisode": "本集結束時",
     "endOfTrack": "本曲目結束時",
     "pausingIn": "{{seconds}} 秒後暫停",
-    "keepWatching": "繼續觀看",
     "keepListening": "繼續收聽"
   },
   "spoken": {

@@ -169,10 +169,8 @@
     "minutes": "{{minutes}} min",
     "minutesLeft_one": "{{count}} min left",
     "minutesLeft_other": "{{count}} min left",
-    "endOfEpisode": "End of this episode",
     "endOfTrack": "End of this track",
     "pausingIn": "Pausing in {{seconds}} s",
-    "keepWatching": "Keep watching",
     "keepListening": "Keep listening"
   },
   "spoken": {

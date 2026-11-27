@@ -197,7 +197,7 @@ public class SleepTimerTests
         Assert.Equal(15, t.State.Value.SecondsLeft);
         Assert.True(t.ItemEnded(2L));
         Assert.Equal(1, fired);
-        Assert.Equal("End of this track", SleepText.Choice(new SleepChoice.EndOfItem(), music: true));
+        Assert.Equal("End of this track", SleepText.Choice(new SleepChoice.EndOfItem()));
         Assert.Equal("42 min left", SleepText.Summary(new SleepState(new SleepChoice.Minutes(45), MinutesLeft: 42)));
     }
 }

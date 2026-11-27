@@ -21,7 +21,6 @@ public static class PlayerText
     public static string Quality => Strings.T("player.controls.quality");
     public static string Chapters => Strings.T("player.controls.chapters");
     public static string Info => Strings.T("player.controls.info");
-    public static string Sleep => Strings.T("player.controls.sleep");
     public static string Speed => Strings.T("player.controls.speed");
 
     // The scrubber and Up Next.

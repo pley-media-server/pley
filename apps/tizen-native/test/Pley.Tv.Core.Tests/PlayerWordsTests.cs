@@ -16,7 +16,7 @@ public sealed class PlayerWordsTests : IDisposable
     {
         Strings.Use("fr");
         Assert.Equal("Sous-titres", PlayerText.Subtitles);
-        Assert.Equal("Minuteur de veille", PlayerPanels.Build(PlayerPanelKind.Sleep, new PlayerState(), 0, new Settings()).Title);
+        Assert.Equal("Vitesse", PlayerPanels.Build(PlayerPanelKind.Speed, new PlayerState(), 0, new Settings()).Title);
         Assert.Equal("Sous-titres : Anglais (SRT)", PlayerText.SubtitlesToast("Anglais (SRT)"));
         Assert.Equal("À suivre · S1 · É2", SessionText.UpNext("S1 · É2"));
         Assert.Equal("Lecture depuis un autre appareil", Casts.Banner(" "));

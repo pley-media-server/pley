@@ -20,9 +20,9 @@ namespace Pley.Tv.Tizen.Screens;
 /// plane under the window, with the subtitles drawn over it.
 /// <list type="bullet">
 /// <item><b>Controls hidden.</b> Only the video and subtitles show; Skip (its first 8 s in a
-/// marker), Up Next and the sleep timer's notice are all that appear unasked. OK shows the controls
-/// on the scrubber, as Up does (a showing Skip takes it); Left and Right seek (<see cref="Seeker"/>),
-/// Down shows them on Play/Pause.
+/// marker) and Up Next are all that appear unasked. OK shows the controls on the scrubber, as Up
+/// does (a showing Skip takes it); Left and Right seek (<see cref="Seeker"/>), Down shows them on
+/// Play/Pause.
 /// OK during or just after a seek confirms it and plays on.</item>
 /// <item><b>Controls shown.</b> The title, the method badge and the clock at the top; the times,
 /// the scrubber (with its chapters and the marker playing) and the control row at the bottom, over
@@ -37,14 +37,13 @@ namespace Pley.Tv.Tizen.Screens;
 /// right. Its pause keeps none showing either, until a key here makes the pause the person's.</item>
 /// </list>
 /// The model reports to the server through the app's reporter, so the last report goes out after
-/// the screen closed. A playback the server stopped says why and leaves after 20 s; paused by the
-/// sleep timer for 10 minutes, the player leaves.
+/// the screen closed. A playback the server stopped says why and leaves after 20 s.
 /// </summary>
 sealed class PlayerScreen : Sheet
 {
     const float TimesTop = 399, TrackCentre = 425, RowTop = 441, TrackHeight = 4, Thumb = 10, ThumbFocused = 12, ChapterGap = 2;
     const float Button = 36, PlayButton = 44, TransportIcon = 24, PlayIcon = 26, TransportGap = 16;
-    /// <summary>The seek preview's top, and Skip's, the sleep notice's and Up Next's bottom edges, controls hidden and shown.</summary>
+    /// <summary>The seek preview's top, and Skip's and Up Next's bottom edges, controls hidden and shown.</summary>
     const float PreviewTop = 212, OverlayBottom = 489, OverlayBottomShown = 355;
     /// <summary>The spinner shows once playback has waited this long (the Android app's 500 ms).</summary>
     const long SpinnerAfterMs = 500;
@@ -103,14 +102,12 @@ sealed class PlayerScreen : Sheet
     readonly PlayerButton playPause;
     readonly PlayerButton next;
     readonly PlayerButton chapters;
-    readonly PlayerButton sleep;
     readonly PlayerButton speed;
     readonly PlayerButton subtitlesButton;
     readonly PlayerButton audio;
     readonly PlayerButton quality;
     readonly PlayerButton info;
     readonly SkipButton skip;
-    readonly SleepNoticeView notice;
     readonly UpNextView upNext;
     readonly ToastView toast;
     readonly Timer tick;
@@ -137,11 +134,8 @@ sealed class PlayerScreen : Sheet
     bool skipShown;
     /// <summary>Skip shows on its own (its first 8 s in the marker): with the controls hidden it has focus, and Info opens them on it.</summary>
     bool skipAlone;
-    bool noticeShown;
     bool upNextShown;
     bool stoppedLeaving;
-    bool sleepLeaving;
-    int sleepToken;
     int toastSerial;
     /// <summary>The subtitles the CAPTIONS key turned off, to turn back on.</summary>
     int? captionsRemembered;
@@ -269,10 +263,9 @@ sealed class PlayerScreen : Sheet
 
         Profile.Took("player screen: its picture layers, banner and scrubber", part);
         part = Profile.Start();
-        // The control row: Chapters · Sleep timer · Speed at the left; Previous · Play/Pause ·
-        // Next centered; Subtitles · Audio · Quality · Info at the right.
+        // The control row: Chapters · Speed at the left; Previous · Play/Pause · Next centered;
+        // Subtitles · Audio · Quality · Info at the right.
         chapters = new PlayerButton(PlayerText.Chapters, "list-video", Button, PleyTv.IconSize, OpenChapters);
-        sleep = new PlayerButton(PlayerText.Sleep, "moon", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Sleep));
         speed = new PlayerButton(PlayerText.Speed, "fast-forward", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Speed));
         previous = new PlayerButton(PlayerText.Previous, "skip-back", Button, TransportIcon, () => model.Previous(seeker.Target ?? model.LivePositionMs()));
         playPause = new PlayerButton(PlayerText.Pause, "pause", PlayButton, PlayIcon, PlayPause);
@@ -290,9 +283,6 @@ sealed class PlayerScreen : Sheet
         skip = new SkipButton(model.Skip) { Opacity = 0 };
         skip.Item.Shown = false;
         View.Add(skip);
-        notice = new SleepNoticeView(model.KeepWatching) { Opacity = 0 };
-        notice.Keep.Shown = false;
-        View.Add(notice);
         upNext = new UpNextView(state.Settings.Value.ReduceMotion, model.PlayNext, model.CancelUpNext) { Opacity = 0 };
         foreach (var item in upNext.Group.Children.OfType<FocusItem>()) item.Shown = false;
         View.Add(upNext);
@@ -319,7 +309,7 @@ sealed class PlayerScreen : Sheet
         toast.Hide();
         View.Add(toast);
 
-        // Focus, top to bottom: Skip, the sleep notice, the scrubber, the row, Up Next.
+        // Focus, top to bottom: Skip, the scrubber, the row, Up Next.
         scrubber = new FocusItem("scrubber")
         {
             Selected = Ok,
@@ -354,7 +344,6 @@ sealed class PlayerScreen : Sheet
             Layout();
         };
         Root.Add(skip.Item);
-        Root.Add(notice.Group);
         Root.Add(scrubber);
         Root.Add(row);
         Root.Add(upNext.Group);
@@ -394,7 +383,7 @@ sealed class PlayerScreen : Sheet
     /// <summary>Starting or between sessions: Left, Right and OK wait, as on Android.</summary>
     bool Busy => model.State.Value.Phase.Kind == PhaseKind.Preparing;
 
-    IEnumerable<PlayerButton> RowButtons => new[] { chapters, sleep, speed, previous, playPause, next, subtitlesButton, audio, quality, info };
+    IEnumerable<PlayerButton> RowButtons => new[] { chapters, speed, previous, playPause, next, subtitlesButton, audio, quality, info };
 
     static Size Canvas() => new Size(Ui.Dp(PleyTv.CanvasWidth), Ui.Dp(PleyTv.CanvasHeight));
 
@@ -482,22 +471,6 @@ sealed class PlayerScreen : Sheet
             stoppedLeaving = true;
             After(PlayerText.StoppedLeaveMs, () => Close("playback stopped from elsewhere"));
         }
-        // Paused by the sleep timer for 10 minutes: the player leaves.
-        var asleep = s.Sleep.Fired && s.Phase.Kind == PhaseKind.Paused;
-        if (asleep && !sleepLeaving)
-        {
-            sleepLeaving = true;
-            var token = ++sleepToken;
-            After(SleepTimer.LeaveAfterMs, () =>
-            {
-                if (token == sleepToken) Close("the sleep timer");
-            });
-        }
-        else if (!asleep && sleepLeaving)
-        {
-            sleepLeaving = false;
-            sleepToken++;
-        }
         // The end, with nothing next: back to where playing started.
         if (s.Phase.Kind == PhaseKind.Ended) OnUi(() => Close("the end, nothing next"));
         if (shown) Layout();
@@ -539,10 +512,10 @@ sealed class PlayerScreen : Sheet
 
     /// <summary>
     /// The control row for <paramref name="options"/> (the Android app's TvControlRow): Chapters
-    /// when the file has them, the sleep timer and Speed (where the TV's player has other speeds)
-    /// from the left safe edge; Previous and Next around the transport when an episode or chapters
-    /// have them, centered; Subtitles, Audio and Quality when there is a choice, and Info, to the
-    /// right safe edge. Focus goes along them all; it stays on the button it was on, else Play/Pause.
+    /// when the file has them and Speed (where the TV's player has other speeds) from the left
+    /// safe edge; Previous and Next around the transport when an episode or chapters have them,
+    /// centered; Subtitles, Audio and Quality when there is a choice, and Info, to the right safe
+    /// edge. Focus goes along them all; it stays on the button it was on, else Play/Pause.
     /// </summary>
     void BuildRow(RowOptions options)
     {
@@ -554,7 +527,6 @@ sealed class PlayerScreen : Sheet
         foreach (var b in RowButtons) b.Hide();
         var left = new List<PlayerButton>();
         if (options.Chapters) left.Add(chapters);
-        left.Add(sleep);
         if (options.Speed) left.Add(speed);
         var centre = new List<PlayerButton>();
         if (options.PreviousNext) centre.Add(previous);
@@ -601,9 +573,9 @@ sealed class PlayerScreen : Sheet
     void ClosePanel() => panel?.Close();
 
     /// <summary>
-    /// Skip and the sleep notice, as the state says. Skip shows on its own for its first 8 s in a
-    /// marker, then only with the controls, unless Up Next, an error or a seek preview is on screen,
-    /// and takes focus while the controls are hidden; the notice takes it as Skip does, Skip first.
+    /// Skip, as the state says. It shows on its own for its first 8 s in a marker, then only with
+    /// the controls, unless Up Next, an error or a seek preview is on screen, and takes focus while
+    /// the controls are hidden.
     /// </summary>
     void Overlays()
     {
@@ -614,8 +586,6 @@ sealed class PlayerScreen : Sheet
         skipAlone = skipFree && Markers.SkipShows(s.SkipLabel != null, s.SkipAlone, false);
         var skipNow = skipFree && Markers.SkipShows(s.SkipLabel != null, s.SkipAlone, shown);
         if (skipNow) skip.SetLabel(s.SkipLabel!);
-        var noticeNow = s.Sleep.SecondsLeft != null && error == null;
-        if (s.Sleep.SecondsLeft is int left) notice.Set(left);
         if (skipNow != skipShown)
         {
             skipShown = skipNow;
@@ -624,23 +594,14 @@ sealed class PlayerScreen : Sheet
             if (skipNow && !shown && shell.Top == this && free) Tree.Focus(skip.Item);
             else if (!skipNow && Tree.Current == skip.Item) Refocus();
         }
-        if (noticeNow != noticeShown)
-        {
-            noticeShown = noticeNow;
-            notice.Keep.Shown = noticeNow;
-            Fade.To(notice, noticeNow);
-            if (noticeNow && !skipShown && !shown && shell.Top == this && free) Tree.Focus(notice.Keep);
-            else if (!noticeNow && Tree.Current == notice.Keep) Refocus();
-        }
         PlaceOverlays();
     }
 
-    /// <summary>Focus where it goes when what had it went: the scrubber with the controls shown, else Skip or the notice, else nowhere.</summary>
+    /// <summary>Focus where it goes when what had it went: the scrubber with the controls shown, else Skip, else nowhere.</summary>
     void Refocus()
     {
         if (shown) Tree.Focus(scrubber);
         else if (skipShown) Tree.Focus(skip.Item);
-        else if (noticeShown) Tree.Focus(notice.Keep);
         else Tree.Blur();
     }
 
@@ -670,13 +631,12 @@ sealed class PlayerScreen : Sheet
         }
     }
 
-    /// <summary>Skip, the notice and Up Next at the bottom; Skip and the notice above the controls while they show; the toast under the clock then.</summary>
+    /// <summary>Skip and Up Next at the bottom; Skip above the controls while they show; the toast under the clock then.</summary>
     void PlaceOverlays()
     {
         var bottom = shown ? OverlayBottomShown : OverlayBottom;
         var right = PleyTv.CanvasWidth - PleyTv.SafeHorizontal;
         skip.Position = new Position(Ui.Dp(right - skip.WidthDp), Ui.Dp(bottom - 40));
-        notice.Position = new Position(Ui.Dp(PleyTv.SafeHorizontal), Ui.Dp(bottom - notice.HeightDp));
         upNext.Position = new Position(Ui.Dp(right - UpNextView.Width), Ui.Dp(OverlayBottom - upNext.HeightDp));
         toast.Position = new Position(Ui.Dp(right - toast.WidthDp), Ui.Dp(PleyTv.SafeVertical + (shown ? 52 : 0)));
     }
@@ -897,7 +857,7 @@ sealed class PlayerScreen : Sheet
         {
             case "Return":
             case "KP_Enter":
-                // Skip or Keep watching has focus: OK is theirs.
+                // Skip has focus: OK is Skip's.
                 if (Tree.Current != null) return false;
                 // On the way up, as OK selects elsewhere: the controls, on the scrubber, as Up shows them;
                 // OK on the scrubber plays and pauses. Just after a seek, it confirms it.

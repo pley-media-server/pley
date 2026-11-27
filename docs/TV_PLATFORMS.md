@@ -546,7 +546,7 @@ its packages into the SDK by hand and it runs on WHPX.
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, a pointer and its wheel |
 | `ui/shell/`, `ui/screens/`, `ui/kit/` | The rail, back stack and screens |
-| `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, sleep timer, reports, music, the remote and casts |
+| `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, reports, music and its sleep timer, the remote and casts |
 | `live/` | Live TV: categories, the guide's pages, a channel on the TV's player |
 | `subs/` | Subtitles drawn by the app |
 | `caps/` | The server's direct-play rules, so Playback details can say why |
@@ -776,7 +776,7 @@ shows, the next as it plays on, those around a seek as it lands; one the
 server is still making, or without Cues, read whole), burned in by the
 server only when it can't make that file, the side
 panels (Subtitles with Sync and, for text subtitles, their look, Audio,
-Quality, the sleep timer, Speed where the TV's player has other speeds, and Info,
+Quality, Speed where the TV's player has other speeds, and Info,
 where the server's speed sits beside the TV's network speed: the fastest
 second of the last ten, from the bytes the TV's network received, since
 Tizen's player doesn't say how fast it downloads),
@@ -1176,8 +1176,8 @@ middle of the page, under a folder icon, and keeps focus there, so the
 rail stays closed; Left opens it.
 
 A video plays in Pley's player as it is, with no server
-(`Local/LocalPlayerSource.cs`), so seeking, the panels, the sleep timer and
-the subtitles' look are the same; what only a server does isn't there:
+(`Local/LocalPlayerSource.cs`), so seeking, the panels and the subtitles'
+look are the same; what only a server does isn't there:
 converting, seek previews, the next episode. Android TV and Fire TV have
 the same page ([ANDROID.md](ANDROID.md#videos-on-a-usb-drive)), with
 Media3 reading the file, and without M2TS.

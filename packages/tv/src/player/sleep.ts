@@ -1,10 +1,9 @@
-import type { ItemKind } from "../api/types";
 import { t } from "../i18n";
 
 /** What the sleep timer is set to. Not remembered between playbacks. */
 export type SleepChoice = { kind: "off" } | { kind: "minutes"; minutes: number } | { kind: "end_of_item" };
 
-/** The menu's choices, in order. */
+/** The choices, in the order the sleep button steps through them. */
 export const SLEEP_CHOICES: SleepChoice[] = [
   { kind: "off" },
   { kind: "minutes", minutes: 15 },
@@ -15,26 +14,20 @@ export const SLEEP_CHOICES: SleepChoice[] = [
   { kind: "end_of_item" },
 ];
 
-/** "Off", "30 min", "End of this episode" (of this movie, track or video, by what plays), as on the web. */
-export function sleepLabel(c: SleepChoice, playing: ItemKind | null = "episode"): string {
+/** "Off", "30 min", "End of this track". */
+export function sleepLabel(c: SleepChoice): string {
   if (c.kind === "off") return t("player.sleep.off");
   if (c.kind === "minutes") return t("player.sleep.minutes", { minutes: c.minutes });
-  if (playing === "episode") return t("player.sleep.end.episode");
-  if (playing === "movie") return t("player.sleep.end.movie");
-  return playing === "track" ? t("player.sleep.end.track") : t("player.sleep.end.video");
-}
-
-export function sameChoice(a: SleepChoice, b: SleepChoice): boolean {
-  return a.kind === b.kind && (a.kind !== "minutes" || a.minutes === (b as { minutes: number }).minutes);
+  return t("player.sleep.end.track");
 }
 
 export interface SleepState {
   choice: SleepChoice;
   /** Seconds before it pauses, during the notice (its last 30 s); `null` otherwise. */
   secondsLeft: number | null;
-  /** Minutes before it pauses, rounded up, for the menu; `null` when off or unknown. */
+  /** Minutes before it pauses, rounded up, for the button's label; `null` when off or unknown. */
   minutesLeft: number | null;
-  /** It paused the playback, which hasn't played since. */
+  /** It paused the music, which hasn't played since. */
   fired: boolean;
 }
 
@@ -42,8 +35,6 @@ export const SLEEP_OFF: SleepState = { choice: { kind: "off" }, secondsLeft: nul
 
 /** The notice shows this long before the timer pauses. */
 export const NOTICE_MS = 30_000;
-/** Paused by the timer this long, the player leaves. */
-export const LEAVE_AFTER_MS = 10 * 60_000;
 const SECOND_MS = 1_000;
 const MINUTE_MS = 60_000;
 
@@ -60,16 +51,16 @@ const realClock: SleepClock = {
 };
 
 /**
- * The sleep timer (the Android app's SleepTimer): after the minutes chosen,
- * or at the end of what plays, it pauses (`onFire`). 30 s before, the
- * state says so once a second for a notice; `extend` ("Keep watching")
+ * The music's sleep timer (the Android app's SleepTimer): after the minutes
+ * chosen, or at the end of what plays, it pauses (`onFire`). 30 s before,
+ * the state says so once a second for a notice; `extend` ("Keep listening")
  * adds the same time again. Minutes keep running while paused.
  */
 export class SleepTimer {
   state: SleepState = SLEEP_OFF;
   private timer: unknown = null;
   private deadline = 0;
-  /** "Keep watching" at the end of this item: the timer waits for the next one's end. */
+  /** "Keep listening" at the end of this item: the timer waits for the next one's end. */
   private spared: unknown = null;
   private readonly itemLeftMs: () => number | null;
   private readonly itemKey: () => unknown;

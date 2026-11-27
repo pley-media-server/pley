@@ -170,10 +170,8 @@
     "minutesLeft_one": "Il reste {{count}} min",
     "minutesLeft_many": "Il reste {{count}} min",
     "minutesLeft_other": "Il reste {{count}} min",
-    "endOfEpisode": "Fin de cet épisode",
     "endOfTrack": "Fin de ce titre",
     "pausingIn": "Mise en pause dans {{seconds}} s",
-    "keepWatching": "Continuer à regarder",
     "keepListening": "Continuer à écouter"
   },
   "spoken": {
