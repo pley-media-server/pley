@@ -335,7 +335,13 @@ function contentMediaLine(media as dynamic, unknown = "" as string) as string
     summary = httpObject(media)
     parts = []
     if summary <> invalid
-        for each part in [fmtBitrate(summary.bitrate), fmtBytes(summary.size)]
+        ' A size of 0 is one not known yet (a .strm file's media before it is
+        ' found): left out, and with no bitrate either, nothing is said.
+        size = httpNumber(summary.size, -1)
+        if size = 0 and httpNumber(summary.bitrate, 0) <= 0 then return ""
+        sizeText = ""
+        if size > 0 then sizeText = fmtBytes(summary.size)
+        for each part in [fmtBitrate(summary.bitrate), sizeText]
             if part <> "" then parts.Push(part)
         end for
     end if

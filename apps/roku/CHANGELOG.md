@@ -14,6 +14,10 @@ describes how they are made.
   how the channel plays, as the player does for a film.
 - A transcode's Playback details name its encoder.
 
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
 ## [0.1.14] - 2026-11-25
 
 ### Fixed

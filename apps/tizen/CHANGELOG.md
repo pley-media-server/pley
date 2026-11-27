@@ -193,6 +193,7 @@ describes how they are made.
 
 ### Fixed
 
+- A title whose size isn't known yet shows none, not "0 B".
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end instead.
 - A video whose audio the TV can't decode plays with the audio converted

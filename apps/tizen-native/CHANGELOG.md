@@ -13,6 +13,10 @@ describes how they are made.
 - Live TV plays a channel as the provider sends it when the TV decodes it,
   and Info in the live player's controls opens Playback details.
 
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
 ## [0.1.14] - 2026-11-24
 
 ### Changed

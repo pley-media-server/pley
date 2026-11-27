@@ -312,6 +312,9 @@ class FormatTest {
         assertEquals(emptyList<String>(), mediaBadges(MediaSummary()))
         assertEquals("Bitrate unknown", mediaLine(MediaSummary()))
         assertEquals("", mediaLine(null))
+        // A .strm file's media before it is found: no "0 B".
+        assertEquals("", mediaLine(MediaSummary(size = 0)))
+        assertEquals("8.2 Mbps", mediaLine(MediaSummary(bitrate = 8_200_000, size = 0)))
     }
 
     @Test

@@ -73,6 +73,8 @@ sub test_content_quality_badges_say_4k_and_the_dynamic_range()
     tkEqual(contentMediaLine({ bitrate: 8200000, size: 6979321856& }), "8.2 Mbps · 6.5 GB")
     tkEqual(contentMediaLine({ bitrate: invalid, size: 1048576 }), "1.0 MB")
     tkEqual(contentMediaLine({ bitrate: invalid, size: invalid }), "Bitrate unknown")
+    tkEqual(contentMediaLine({ bitrate: invalid, size: 0 }), "", "a .strm file's media before it is found: no 0 B")
+    tkEqual(contentMediaLine({ bitrate: 8200000, size: 0 }), "8.2 Mbps")
     tkEqual(contentMediaLine(invalid), "Bitrate unknown")
 end sub
 

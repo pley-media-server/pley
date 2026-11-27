@@ -13,6 +13,10 @@ describes how they are made.
 - Live TV plays HEVC and 10-bit channels as the provider sends them when
   the computer decodes them, and has Playback details.
 
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
 ## [0.1.9] - 2026-11-25
 
 ### Changed
