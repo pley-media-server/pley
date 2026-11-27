@@ -36,8 +36,9 @@ fun VersionCatalog.lib(alias: String) = findLibrary(alias).get()
 
 /**
  * The settings every Android module shares: SDK levels, Java 17, unit tests
- * with Android resources on Robolectric's SDK, and lint that fails the build,
- * also on a word missing in French or Spanish (docs/ANDROID.md, "Language").
+ * with Android resources on Robolectric's SDK and its runtimes from Gradle,
+ * and lint that fails the build, also on a word missing in French or Spanish
+ * (docs/ANDROID.md, "Language").
  */
 internal fun Project.configureAndroid(android: CommonExtension) {
     android.compileSdk = Sdk.COMPILE
@@ -59,6 +60,7 @@ internal fun Project.configureAndroid(android: CommonExtension) {
     android.sourceSets.findByName("test")?.resources?.srcDir(
         rootProject.layout.projectDirectory.dir("build-logic/robolectric"),
     )
+    configureRobolectric()
     android.lint.abortOnError = true
     android.lint.checkReleaseBuilds = true
     // Versions move through the catalog, not lint.
