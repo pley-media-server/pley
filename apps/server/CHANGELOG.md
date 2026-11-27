@@ -11,6 +11,28 @@ describes how they are made.
 
 ### Added
 
+- Themes: Account → Appearance picks Midnight, Midday, Twilight, Starlight,
+  Moonlight, Nightshade, Greenlight, Sunshine (a bright one for children)
+  or Blacklight (black and white), and an accent over any of them (Sky,
+  Violet, Miami, Gold, Mint or Amber) that colors the logo too, kept for
+  each profile on each device.
+
+### Changed
+
+- The web player's Up Next card shows the next title's name without its
+  picture, so it covers less of the credits.
+- Skip Intro and Skip Credits show on their own for 8 seconds as the intro
+  or credits begin, then only with the player's controls, so they don't sit
+  over the picture the whole time.
+- When the server can't be reached, the web app says what to check, and
+  "Pley is offline" floats over the page instead of pushing it down.
+- Account is laid out as Settings is: its sections down the side, one at a
+  time. In a narrow window, both pick their section from one menu.
+
+## [0.1.18] - 2026-11-27
+
+### Added
+
 - Live TV plays a channel as the provider sends it when the device decodes
   it (HEVC and 10-bit included), and transcodes only for players that need it.
 - Playback details in the web app's Live TV player.
@@ -24,18 +46,6 @@ describes how they are made.
 - Hardware transcoding on Rockchip chips (RK3588, RK3568 and the like)
   with Rockchip's own kernel: Rockchip MPP in Settings → Transcoder; the
   arm64 Docker image has it, with `compose.rockchip.yaml`.
-- Themes: Account → Appearance picks Midnight, Midday, Twilight, Starlight,
-  Moonlight, Nightshade, Greenlight, Sunshine (a bright one for children)
-  or Blacklight (black and white), and an accent over any of them (Sky,
-  Violet, Miami, Gold, Mint or Amber) that colors the logo too, kept for
-  each profile on each device.
-
-### Changed
-
-- When the server can't be reached, the web app says what to check, and
-  "Pley is offline" floats over the page instead of pushing it down.
-- Account is laid out as Settings is: its sections down the side, one at a
-  time. In a narrow window, both pick their section from one menu.
 
 ## [0.1.17] - 2026-11-25
 
@@ -1314,7 +1324,8 @@ On Intel graphics:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-25...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-27...HEAD
+[0.1.18]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-27
 [0.1.17]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-25
 [0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22

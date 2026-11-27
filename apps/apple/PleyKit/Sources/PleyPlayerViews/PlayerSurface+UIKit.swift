@@ -26,7 +26,10 @@ import UIKit
 ///   button.
 ///   Skip Intro, Skip Credits, Up Next ("Play Next (8)", Cancel) and the
 ///   sleep timer's Keep Watching are the player's contextual actions, and
-///   the chapters its navigation markers, with their pictures.
+///   the chapters its navigation markers, with their pictures. Skip is
+///   there by itself for its first 8 seconds, then only with the
+///   transport bar (`PictureInPictureKeeper`, the controller's delegate,
+///   tells when it shows).
 public struct PlayerSurface: UIViewControllerRepresentable {
     let player: AVPlayer?
     let state: PlayerState
@@ -129,14 +132,12 @@ public struct PlayerSurface: UIViewControllerRepresentable {
             menus.append(PlayerMenus.sleepTimer(state, actions))
             controller.transportBarCustomMenuItems = menus
         }
-        let actions = Self.contextualActions(state, playback)
-        if coordinator.actions != actions.key {
-            coordinator.actions = actions.key
-            controller.contextualActions = actions.list
-        }
+        coordinator.state = state
+        coordinator.playback = playback
+        PictureInPictureKeeper.shared.watchTransportBar(of: controller, by: coordinator)
+        coordinator.showActions(on: controller)
         coordinator.chapters = state.chapters
         coordinator.durationMs = state.durationMs
-        coordinator.playback = playback
         coordinator.markChapters()
         #endif
     }
@@ -183,10 +184,13 @@ public struct PlayerSurface: UIViewControllerRepresentable {
 
     /// The sleep timer's Keep Watching in its last 30 s, Skip Intro or
     /// Skip Credits, or Up Next's Play Next and Cancel; and what they are,
-    /// so they are made again only when that changes.
+    /// so they are made again only when that changes. Skip is there by
+    /// itself for its first 8 seconds, so it takes the focus and OK skips;
+    /// after them only with the transport bar (`transportBar`), so OK, the
+    /// arrows and the rest act on the video when nothing else shows.
     @MainActor
-    static func contextualActions(_ state: PlayerState,
-                                  _ playback: PlaybackController?) -> (key: String, list: [UIAction]) {
+    static func contextualActions(_ state: PlayerState, _ playback: PlaybackController?,
+                                  transportBar: Bool) -> (key: String, list: [UIAction]) {
         if state.sleep.secondsLeft != nil {
             return ("sleep", [UIAction(title: localized("Keep Watching"), image: UIImage(systemName: "moon.zzz")) { _ in
                 playback?.keepWatching()
@@ -198,7 +202,7 @@ public struct PlayerSurface: UIViewControllerRepresentable {
                 UIAction(title: localized("Cancel")) { _ in playback?.cancelUpNext() },
             ])
         }
-        if let label = state.skipLabel {
+        if let label = state.skipLabel, state.skipShown(withControls: transportBar) {
             return ("skip \(label)", [UIAction(title: label) { _ in playback?.skip() }])
         }
         return ("", [])
@@ -217,6 +221,9 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         var audio: [MenuChoice] = []
         var subtitleMenu = SubtitleMenuKey()
         var actions = ""
+        /// The state the contextual actions are made from, and whether the transport bar shows.
+        var state = PlayerState()
+        private(set) var transportBar = false
         var chapters: [ChapterChoice] = []
         var durationMs = 0
         weak var playback: PlaybackController?
@@ -280,6 +287,24 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         }
 
         #if os(tvOS)
+        /// Gives `controller` its contextual actions for the state and the
+        /// transport bar, when they changed.
+        @MainActor
+        func showActions(on controller: AVPlayerViewController) {
+            let made = PlayerSurface.contextualActions(state, playback, transportBar: transportBar)
+            guard actions != made.key else { return }
+            actions = made.key
+            controller.contextualActions = made.list
+        }
+
+        /// The transport bar shows or hides: Skip, after its first 8
+        /// seconds, comes and goes with it.
+        @MainActor
+        func transportBarChanged(_ visible: Bool, on controller: AVPlayerViewController) {
+            transportBar = visible
+            showActions(on: controller)
+        }
+
         /// The chapters as the player's navigation markers, on each new item
         /// (a new session) and when they change; their pictures (JPEG, read
         /// with the token) are added as they come, and left out when missing.

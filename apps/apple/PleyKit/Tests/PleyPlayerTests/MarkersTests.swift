@@ -56,6 +56,41 @@ struct MarkersTests {
         #expect(!Markers.reachesEnd(credits, durationMs: 0))
     }
 
+    @Test func skipShowsByItselfFor8SecondsFromWhenItAppears() {
+        var window = SkipWindow()
+        #expect(!window.alone(at: 0))
+        window.offered(Markers.key(intro), at: 1_000)
+        #expect(window.alone(at: 1_000))
+        #expect(window.alone(at: 8_999))
+        #expect(!window.alone(at: 9_000))
+        // The same segment again (a seek inside it) keeps its start.
+        window.offered(Markers.key(intro), at: 9_500)
+        #expect(!window.alone(at: 9_500))
+        // Out and back in: a fresh window.
+        window.offered(nil, at: 10_000)
+        #expect(!window.alone(at: 10_000))
+        window.offered(Markers.key(intro), at: 12_000)
+        #expect(window.alone(at: 19_999))
+        #expect(!window.alone(at: 20_000))
+        // Another segment straight after: its own.
+        window.offered(Markers.key(credits), at: 30_000)
+        #expect(window.alone(at: 30_000))
+        window.reset()
+        #expect(!window.alone(at: 30_000))
+        #expect(SkipWindow.aloneMs == 8_000)
+    }
+
+    @Test func skipShowsAloneOrWithTheControls() {
+        var state = PlayerState()
+        #expect(!state.skipShown(withControls: true))
+        state.skipLabel = "Skip Intro"
+        state.skipAlone = true
+        #expect(state.skipShown(withControls: false))
+        state.skipAlone = false
+        #expect(!state.skipShown(withControls: false))
+        #expect(state.skipShown(withControls: true))
+    }
+
     @Test func announcesTheCreditsOnceEvenWhenSeekingBackIntoThem() {
         var gate = CreditsGate()
         #expect(gate.entered(nil) == nil)

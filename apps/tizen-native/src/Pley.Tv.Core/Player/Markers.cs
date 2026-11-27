@@ -18,6 +18,9 @@ public static class Markers
     /// <summary>Skip Intro lands this long before the intro ends, so its last moment plays.</summary>
     public const long IntroLeadMs = 750;
 
+    /// <summary>Skip shows on its own this long from when it appears; then only with the controls.</summary>
+    public const long SkipShownMs = 8_000;
+
     /// <summary>Credits ending this close to the end of their file run to it: only a studio's logo or black follows (the server's CREDITS_TAIL_MS).</summary>
     public const long CreditsTailMs = 15_000;
 
@@ -48,6 +51,9 @@ public static class Markers
 
     /// <summary>Identifies a segment, to tell entering it again apart from entering another.</summary>
     public static string KeyOf(Marker marker) => $"{marker.FileId}:{marker.Kind}:{marker.StartMs}";
+
+    /// <summary>Whether Skip shows, the playhead in a marker: on its own while its window lasts, else with the controls.</summary>
+    public static bool SkipShows(bool inMarker, bool alone, bool controls) => inMarker && (alone || controls);
 
     /// <summary>
     /// Whether <paramref name="marker"/> is credits that run to the end of its file,
@@ -83,6 +89,40 @@ public sealed class CreditsGate
 }
 
 /// <summary>
+/// When Skip shows on its own: for <see cref="Markers.SkipShownMs"/> of the wall clock from the
+/// playhead entering a marker (playing, seeking or starting into it), paused or not; after that only
+/// with the controls, so it doesn't sit over the picture for a whole intro or the credits. Entering
+/// a marker again, or another, starts afresh; a seek within the one it is in doesn't. Up Next's
+/// card takes Skip's place while it shows, so Skip starts afresh when the card goes, however it
+/// goes (Cancel, a seek), as in the Android app's SkipWindow.
+/// packages/tv/test/fixtures/skip-shown.json pins it for both Samsung apps.
+/// </summary>
+public sealed class SkipWindow
+{
+    string? key;
+    long since;
+
+    /// <summary>
+    /// Whether Skip, offered for <paramref name="marker"/> at <paramref name="nowMs"/>, shows on its
+    /// own. <paramref name="marker"/> is null while the playhead is in no marker, or Skip is hidden
+    /// under Up Next's card.
+    /// </summary>
+    public bool At(Marker? marker, long nowMs)
+    {
+        var now = marker != null ? Markers.KeyOf(marker) : null;
+        if (now != key)
+        {
+            key = now;
+            since = nowMs;
+        }
+        return key != null && nowMs - since < Markers.SkipShownMs;
+    }
+
+    /// <summary>A new item: the next marker starts afresh, even the same one.</summary>
+    public void Reset() => key = null;
+}
+
+/// <summary>
 /// What plays after an item (the Android app's NextUp; apps/web/src/lib/videoQueue.ts): the
 /// queue's next video when playing through a playlist or collection, else the next episode;
 /// movies and extras have none.
@@ -91,9 +131,6 @@ public static class NextUp
 {
     /// <summary>Up Next plays by itself after this many seconds.</summary>
     public const int CountdownSeconds = 10;
-
-    /// <summary>The width Up Next's still is asked for at.</summary>
-    public const int ImageWidth = 480;
 
     /// <summary>Whether <paramref name="kind"/> played from <paramref name="queue"/> can have something next, before asking.</summary>
     public static bool HasNext(string kind, PlayQueue? queue) => queue != null || kind == "episode";
@@ -114,8 +151,47 @@ public static class NextUp
         next.Kind == "episode" && Format.EpisodeLabel(next) is { Length: > 0 } label ? label : null;
 }
 
+/// <summary>
+/// How much of Up Next's countdown has gone, from 0 to 1, for its ring (the Android app's
+/// countdownFill). The model counts whole seconds; through each one the fill glides, linearly, to
+/// where it stands at that second's end, so the ring moves without steps and is full as the
+/// countdown reaches 0. A countdown that starts again jumps back at once rather than sliding back.
+/// </summary>
+public sealed class CountdownFill
+{
+    /// <summary>How long each glide takes: one second of the countdown.</summary>
+    public const int SecondMs = 1000;
+
+    float from, to;
+    long startedMs;
+
+    /// <summary>The countdown shows <paramref name="secondsLeft"/> at <paramref name="nowMs"/>.</summary>
+    public void Set(int secondsLeft, long nowMs)
+    {
+        const int total = NextUp.CountdownSeconds;
+        var start = Unit((total - secondsLeft) / (float)total);
+        var end = Unit((total - secondsLeft + 1) / (float)total);
+        var current = At(nowMs);
+        // Ahead of this second (a countdown started again) or far behind it: from its place.
+        if (current > end || current < start - 0.5f / total) current = start;
+        from = current;
+        to = end;
+        startedMs = nowMs;
+    }
+
+    /// <summary>Back to empty, for a countdown that stopped.</summary>
+    public void Reset() => from = to = 0;
+
+    /// <summary>The fill at <paramref name="nowMs"/>.</summary>
+    public float At(long nowMs) => from + (to - from) * Unit((nowMs - startedMs) / (float)SecondMs);
+
+    /// <summary>Whether it still moves at <paramref name="nowMs"/>; once it rests, nothing needs drawing again.</summary>
+    public bool Moving(long nowMs) => from != to && nowMs - startedMs < SecondMs;
+
+    static float Unit(float value) => Math.Max(0f, Math.Min(1f, value));
+}
+
 /// <summary>What plays next, during its card (the Android app's UpNextUi).</summary>
 /// <param name="Heading">"Up next · S1 E2", or "Up next".</param>
-/// <param name="ImageUrl">Absolute address of its still (16:9), asked for at <see cref="NextUp.ImageWidth"/>.</param>
 /// <param name="SecondsLeft">Seconds before it plays by itself; null when it won't (autoplay off, or the sleep timer holds it).</param>
-public sealed record UpNextCard(long ItemId, string Title, string Heading, string? ImageUrl, int? SecondsLeft);
+public sealed record UpNextCard(long ItemId, string Title, string Heading, int? SecondsLeft);

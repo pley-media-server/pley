@@ -89,6 +89,84 @@ struct UpNextControllerTests {
         await rig.controller.close()
     }
 
+    @Test func skipShowsByItselfFor8SecondsThenOnlyWithTheControls() async throws {
+        let rig = try await showRig(start: 0)
+        defer { rig.cleanUp() }
+        _ = try await started(rig)
+        at(rig, 9_000)
+        #expect(!rig.controller.state.skipShown(withControls: true))
+        at(rig, 10_500)
+        #expect(rig.controller.state.skipLabel == "Skip Intro")
+        #expect(rig.controller.state.skipAlone)
+        #expect(rig.controller.state.skipShown(withControls: false))
+        // The 8 seconds run on the clock from when it appeared, not on the video.
+        at(rig, 11_000, after: 7_500)
+        #expect(rig.controller.state.skipAlone)
+        at(rig, 11_500)
+        #expect(rig.controller.state.skipLabel == "Skip Intro")
+        #expect(!rig.controller.state.skipAlone)
+        #expect(!rig.controller.state.skipShown(withControls: false))
+        // With the controls it is back, until a second before the intro ends.
+        #expect(rig.controller.state.skipShown(withControls: true))
+        // Nothing happened by itself: no skip, no pause.
+        #expect(rig.engine.calls.filter { $0.hasPrefix("seek") }.isEmpty)
+        #expect(rig.controller.state.phase == .playing)
+        // Seeking inside the same intro doesn't start the 8 seconds again.
+        rig.controller.seek(toMs: 20_000)
+        at(rig, 20_500)
+        #expect(!rig.controller.state.skipAlone)
+        #expect(rig.controller.state.skipShown(withControls: true))
+        // Out of it, Skip goes even with the controls; back in, 8 fresh seconds.
+        rig.controller.seek(toMs: 40_000)
+        at(rig, 40_500)
+        #expect(rig.controller.state.skipLabel == nil)
+        #expect(!rig.controller.state.skipShown(withControls: true))
+        rig.controller.seek(toMs: 15_000)
+        at(rig, 15_500)
+        #expect(rig.controller.state.skipAlone)
+        at(rig, 28_500, after: 8_000)
+        #expect(rig.controller.state.skipLabel == "Skip Intro")
+        #expect(!rig.controller.state.skipAlone)
+        // A second before the end it goes, controls or not.
+        at(rig, 29_500)
+        #expect(!rig.controller.state.skipShown(withControls: true))
+        await rig.controller.close()
+    }
+
+    @Test func anItemStartingInsideTheIntroShowsSkipByItselfFirst() async throws {
+        let rig = try await showRig(start: 12_000)
+        defer { rig.cleanUp() }
+        _ = try await started(rig)
+        at(rig, 12_500)
+        #expect(rig.controller.state.skipLabel == "Skip Intro")
+        #expect(rig.controller.state.skipAlone)
+        at(rig, 13_000, after: 8_000)
+        #expect(!rig.controller.state.skipAlone)
+        await rig.controller.close()
+    }
+
+    @Test func afterCancelSkipCreditsShowsByItselfFor8Seconds() async throws {
+        let rig = try await showRig(start: 50_000)
+        defer { rig.cleanUp() }
+        _ = try await started(rig)
+        at(rig, 56_000)
+        try await until("the card") { rig.controller.state.upNext != nil }
+        // The card covers Skip Credits: its 8 seconds don't run meanwhile.
+        at(rig, 64_000, after: 8_000)
+        #expect(rig.controller.state.skipLabel == "Skip Credits")
+        #expect(!rig.controller.state.skipAlone)
+        rig.controller.cancelUpNext()
+        #expect(rig.controller.state.upNext == nil)
+        #expect(rig.controller.state.skipAlone)
+        at(rig, 64_500, after: 7_500)
+        #expect(rig.controller.state.skipAlone)
+        at(rig, 65_000)
+        #expect(!rig.controller.state.skipAlone)
+        #expect(rig.controller.state.skipShown(withControls: true))
+        #expect(rig.controller.state.upNext == nil)
+        await rig.controller.close()
+    }
+
     @Test func enteringTheCreditsOffersUpNextOncePerSegment() async throws {
         let rig = try await showRig(start: 50_000)
         defer { rig.cleanUp() }
@@ -99,7 +177,6 @@ struct UpNextControllerTests {
         #expect(card.itemId == 32)
         #expect(card.title == "Episode 2")
         #expect(card.heading == "Up next · S1 E2")
-        #expect(card.imagePath == "/api/items/32/images/thumb")
         #expect(card.secondsLeft == 10)
         #expect(card.playLabel == "Play Next (10)")
         #expect(rig.server.requests("/api/items/31/next").count == 1)

@@ -10,10 +10,24 @@ describes how they are made.
 
 ### Added
 
-- Live TV plays HEVC and 10-bit channels as sent where the TV decodes
-  them, and shows how a channel plays as a video does.
 - Settings → Appearance picks a theme and an accent, as on the web, kept for
   each profile on this TV.
+
+### Changed
+
+- Up Next's card shows the next title's name without its picture, so it
+  covers less of the credits, and its countdown ring fills smoothly
+  instead of a step each second.
+- Skip Intro and Skip Credits show on their own for 8 seconds, then only
+  with the player's controls, so they don't sit over the whole intro or
+  credits and hold the remote's OK.
+
+## [0.1.16] - 2026-11-27
+
+### Added
+
+- Live TV plays HEVC and 10-bit channels as sent where the TV decodes
+  them, and shows how a channel plays as a video does.
 
 ### Changed
 
@@ -542,7 +556,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-25...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-27...HEAD
+[0.1.16]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-27
 [0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-25
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22

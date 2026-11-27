@@ -91,6 +91,16 @@ class PhoneShellTest {
         compose.onNodeWithText(text).assertExists()
     }
 
+    /**
+     * The mini player, once the music playing reaches it: the shell starts
+     * listening to the music after the first frame, off the main thread,
+     * which waiting for the main thread to be idle doesn't wait for.
+     */
+    private fun showsMiniPlayer() {
+        compose.waitUntil(SHOWN_WITHIN_MS) { compose.onAllNodesWithTag(MINI_PLAYER).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag(MINI_PLAYER).assertExists()
+    }
+
     /** An item page, still loading its details. */
     private fun itemPage() = compose.onNodeWithTag(ITEM_SKELETON)
 
@@ -305,8 +315,7 @@ class PhoneShellTest {
         showsHome()
         compose.onAllNodesWithTag(MINI_PLAYER).assertCountEquals(0)
         graph.music.value = NowPlaying(503, "Song 3", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 2, durationMs = 180_000)
-        compose.waitForIdle()
-        compose.onNodeWithTag(MINI_PLAYER).assertExists()
+        showsMiniPlayer()
 
         // Asked for, Now Playing isn't there yet and the bar still is: it goes once the page has drawn.
         compose.mainClock.autoAdvance = false
@@ -335,7 +344,7 @@ class PhoneShellTest {
         val shell = show(PhoneStart(server = TestGraph.SERVER, signedIn = true), graph)
         showsHome()
         graph.music.value = NowPlaying(503, "Song 3", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 2, durationMs = 180_000)
-        compose.waitForIdle()
+        showsMiniPlayer()
 
         compose.runOnUiThread { shell.navigation.open(PleyKey.NowPlaying) }
         compose.waitForIdle()

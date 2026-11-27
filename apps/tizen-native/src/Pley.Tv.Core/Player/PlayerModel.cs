@@ -81,6 +81,8 @@ public sealed class PlayerModel : IDisposable
     readonly Recovery recovery = new Recovery();
     readonly StruggleMeter struggle = new StruggleMeter();
     readonly CreditsGate credits = new CreditsGate();
+    /// <summary>When Skip shows on its own: its first 8 s in each marker the playhead enters.</summary>
+    readonly SkipWindow skipWindow = new SkipWindow();
     /// <summary>Where the engine is, as its events said; Idle until it opens a source.</summary>
     EngineStatus engineStatus = EngineStatus.Idle;
 
@@ -901,7 +903,9 @@ public sealed class PlayerModel : IDisposable
             var engineDuration = e.DurationMs;
             SetClock(positionMs: pos, bufferedMs: e.BufferedMs, durationMs: s.DurationMs > 0 ? s.DurationMs : engineDuration > 0 ? engineDuration : Clock.Value.DurationMs);
             var label = marker != null ? Markers.SkipLabel(marker) : null;
-            if (label != State.Value.SkipLabel) Update(st => st with { SkipLabel = label });
+            // Skip's time on its own runs from when it appears: not under Up Next's card, which takes its place.
+            var alone = skipWindow.At(State.Value.UpNext == null ? marker : null, now);
+            if (label != State.Value.SkipLabel || alone != State.Value.SkipAlone) Update(st => st with { SkipLabel = label, SkipAlone = alone });
             // The markers are this file's: its length, else the player's.
             if (credits.Entered(marker, file?.DurationMs > 0 ? file.DurationMs : Clock.Value.DurationMs) != null) OnCredits();
         }
@@ -1484,6 +1488,8 @@ public sealed class PlayerModel : IDisposable
     /// <summary>Up Next's Cancel: the card goes; at the end, playback ends.</summary>
     public void CancelUpNext()
     {
+        // Skip Credits, hidden under the card, appears at once: its 8 s on its own start with the next tick.
+        if (State.Value.UpNext != null && State.Value.SkipLabel != null) Update(s => s with { SkipAlone = true });
         HideUpNext();
         if (ended) Phase(PlayerPhase.Ended);
     }
@@ -1653,9 +1659,7 @@ public sealed class PlayerModel : IDisposable
                 if (choices == choicesSaved) nextDetail = d;
             }, _ => { });
         }
-        var image = found.ThumbUrl ?? found.BackdropUrl;
-        var card = new UpNextCard(found.Id, found.Title, SessionText.UpNext(NextUp.LabelOf(found)),
-            image != null ? source.Url(Artwork.Sized(image, NextUp.ImageWidth)) : null, null);
+        var card = new UpNextCard(found.Id, found.Title, SessionText.UpNext(NextUp.LabelOf(found)), null);
         Update(s => s with { UpNext = card });
         if (!restartCountdown) return;
         StopCountdown();
@@ -1699,6 +1703,7 @@ public sealed class PlayerModel : IDisposable
         next = null;
         recovery.NewItem();
         credits.Reset();
+        skipWindow.Reset();
         guardMode = null;
         presenter.Hide();
         ended = false;

@@ -4,14 +4,18 @@ import SwiftUI
 
 /// What the iPhone, iPad and Mac players lay over the video, bottom
 /// trailing: Skip Intro or Skip Credits while the playhead is in one, and
-/// the Up Next card (the next episode's picture, its countdown, Play Next
+/// the Up Next card (the next episode's title, its countdown, Play Next
 /// and Cancel) while it shows; and at the top, in the sleep timer's last
-/// 30 s, "Pausing in 30 s" with Keep watching. Apple TV has the same in
-/// the system player's contextual actions.
+/// 30 s, "Pausing in 30 s" with Keep watching. Skip shows by itself for
+/// its first 8 seconds in a segment, then only while `controlsShown`.
+/// Apple TV has the same in the system player's contextual actions.
 struct PlayerOverlay: View {
-    let app: AppModel
     @ObservedObject var controller: PlaybackController
+    /// The player's controls show (the screen's best knowledge of the system's).
+    var controlsShown: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var skipShown: Bool { controller.state.skipShown(withControls: controlsShown) }
 
     var body: some View {
         VStack {
@@ -23,9 +27,9 @@ struct PlayerOverlay: View {
             HStack {
                 Spacer()
                 if let card = controller.state.upNext {
-                    UpNextCardView(app: app, card: card, controller: controller)
+                    UpNextCardView(card: card, controller: controller)
                         .transition(.opacity)
-                } else if let label = controller.state.skipLabel {
+                } else if skipShown, let label = controller.state.skipLabel {
                     Button(label) { controller.skip() }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
@@ -40,6 +44,7 @@ struct PlayerOverlay: View {
         .padding(.bottom, 96)
         .animation(.easeInOut(duration: 0.2), value: controller.state.upNext?.itemId)
         .animation(.easeInOut(duration: 0.2), value: controller.state.skipLabel)
+        .animation(.easeInOut(duration: 0.2), value: skipShown)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: controller.state.sleep.secondsLeft == nil)
     }
 
@@ -62,12 +67,11 @@ struct PlayerOverlay: View {
     }
 }
 
-/// The next episode: its still, "Up next · S1 E2", its title, and the
-/// buttons. As tall as its content, never stretched over the video. At
-/// compact width (an iPhone in portrait) the picture is smaller and the
-/// buttons take their own full-width row under it, so neither wraps.
+/// The next episode: "Up next · S1 E2", its title, and the buttons; no
+/// still, so it covers little of the credits. As tall as its content, never
+/// stretched over the video. At compact width (an iPhone in portrait) the
+/// buttons share the card's full width, so neither wraps.
 private struct UpNextCardView: View {
-    let app: AppModel
     let card: UpNextCard
     let controller: PlaybackController
 #if os(iOS)
@@ -81,24 +85,18 @@ private struct UpNextCardView: View {
         Group {
             if compact {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(alignment: .top, spacing: 10) {
-                        picture(width: 112, height: 63)
-                        words
-                    }
+                    words
                     HStack(spacing: 8) {
                         playNext.frame(maxWidth: .infinity)
                         cancel.frame(maxWidth: .infinity)
                     }
                 }
             } else {
-                HStack(alignment: .top, spacing: 12) {
-                    picture(width: 160, height: 90)
-                    VStack(alignment: .leading, spacing: 8) {
-                        words
-                        HStack(spacing: 8) {
-                            playNext
-                            cancel
-                        }
+                VStack(alignment: .leading, spacing: 8) {
+                    words
+                    HStack(spacing: 8) {
+                        playNext
+                        cancel
                     }
                 }
             }
@@ -107,12 +105,6 @@ private struct UpNextCardView: View {
         .frame(maxWidth: 420, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-    }
-
-    private func picture(width: CGFloat, height: CGFloat) -> some View {
-        ServerImage(app: app, paths: card.imagePath.map { [$0] } ?? [], width: width, limit: NextUp.imageWidth)
-            .frame(width: width, height: height)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     private var words: some View {

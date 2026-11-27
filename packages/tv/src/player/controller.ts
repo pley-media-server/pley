@@ -28,7 +28,7 @@ import { NOTHING_SHOWN, SubtitlePresenter, type ShownSubtitles } from "../subs/p
 import { clampOffset, type OffsetStore } from "../subs/sync";
 import { automaticAt, automaticNow, buildDetails, fallbackText, loweredText, methodText, stoppedText, upNextHeading, type PlaybackDetails } from "./details";
 import type { EngineSource, EngineStatus, PlayerEngine } from "./engine";
-import { activeMarker, CreditsGate, markersOf, skipLabel, skipTarget } from "./markers";
+import { activeMarker, CreditsGate, markersOf, skipLabel, skipTarget, SkipWindow } from "./markers";
 import { hasNext, labelOf, nextAfter, startOf, TRICKPLAY_GIVE_UP_MS, TRICKPLAY_RETRY_MS } from "./nextup";
 import {
   audioListed,
@@ -106,7 +106,6 @@ export interface UpNextCard {
   itemId: number;
   title: string;
   heading: string;
-  imageUrl: string | null;
   /** Seconds before it plays by itself; `null` when it won't. */
   secondsLeft: number | null;
 }
@@ -132,6 +131,8 @@ export interface PlayerState {
   canPlayOriginal: boolean;
   suggestLowerQuality: boolean;
   skipLabel: string | null;
+  /** Skip shows on its own, in its first 8 s in the marker ([SkipWindow]); after that only with the controls. */
+  skipAlone: boolean;
   markers: Marker[];
   chapters: ChapterMark[];
   trickplay: { fileId: number; info: Trickplay } | null;
@@ -192,6 +193,7 @@ const initial = (): PlayerState => ({
   canPlayOriginal: false,
   suggestLowerQuality: false,
   skipLabel: null,
+  skipAlone: false,
   markers: [],
   chapters: [],
   trickplay: null,
@@ -280,7 +282,6 @@ export const COUNTDOWN_SECONDS = 10;
 export const END_WAIT_MS = 2_000;
 /** Seeks stop this short of the end, so the end isn't reached by a seek. */
 export const SEEK_END_MARGIN_MS = 250;
-export const UP_NEXT_IMAGE_WIDTH = 480;
 /** The server out of reach mid-playback is asked again this long, as long as it waits for a player it doesn't hear from. */
 export const OUTAGE_MS = 90_000;
 /** Between its questions: 0.5 s, 1 s, then every 2 s. */
@@ -403,6 +404,8 @@ export class PlaybackController {
   private readonly recovery = new Recovery();
   private readonly struggle = new StruggleMeter();
   private readonly credits = new CreditsGate();
+  /** When Skip shows on its own: its first 8 s in each marker the playhead enters. */
+  private readonly skipWindow = new SkipWindow();
   private readonly presenter: SubtitlePresenter;
   private readonly sleep: SleepTimer;
 
@@ -1234,7 +1237,9 @@ export class PlaybackController {
         durationMs: info.duration_ms > 0 ? info.duration_ms : engineDuration > 0 ? engineDuration : this.clock.value.durationMs,
       });
       const label = marker ? skipLabel(marker) : null;
-      if (label !== this.state.value.skipLabel) this.update({ skipLabel: label });
+      // Skip's time on its own runs from when it appears: not under Up Next's card, which takes its place.
+      const alone = this.skipWindow.at(this.state.value.upNext ? null : marker, now);
+      if (label !== this.state.value.skipLabel || alone !== this.state.value.skipAlone) this.update({ skipLabel: label, skipAlone: alone });
       // The markers are this file's: its length, else the player's.
       if (marker && this.credits.enter(marker, this.file?.duration_ms || this.clock.value.durationMs)) this.onCredits();
     }
@@ -1802,6 +1807,8 @@ export class PlaybackController {
   }
 
   cancelUpNext(): void {
+    // Skip Credits, hidden under the card, appears at once: its 8 s on its own start with the next tick.
+    if (this.state.value.upNext && this.state.value.skipLabel) this.update({ skipAlone: true });
     this.hideUpNext();
     if (this.ended) this.phase({ kind: "ended" });
   }
@@ -1958,12 +1965,10 @@ export class PlaybackController {
         () => undefined,
       );
     }
-    const image = found.thumb_url ?? found.backdrop_url ?? null;
     const card: UpNextCard = {
       itemId: found.id,
       title: found.title,
       heading: upNextHeading(labelOf(found)),
-      imageUrl: image ? this.env.api.url(withWidth(image, UP_NEXT_IMAGE_WIDTH)) : null,
       secondsLeft: null,
     };
     this.update({ upNext: card });
@@ -2005,6 +2010,7 @@ export class PlaybackController {
     this.next = null;
     this.recovery.newItem();
     this.credits.reset();
+    this.skipWindow.reset();
     this.guardMode = null;
     this.presenter.hide();
     this.ended = false;
@@ -2405,9 +2411,4 @@ export function isKeyed(url: string): boolean {
 function videoStreamOf(file: MediaFile | null): MediaStream | null {
   const videos = (file?.streams ?? []).filter((s) => s.kind === "video");
   return videos.filter((s) => s.default)[0] ?? videos[0] ?? null;
-}
-
-/** An image address asked for at `width` pixels (the server buckets it). */
-export function withWidth(url: string, width: number): string {
-  return url + (url.indexOf("?") >= 0 ? "&" : "?") + `w=${width}`;
 }

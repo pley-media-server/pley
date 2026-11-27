@@ -91,6 +91,8 @@ public sealed record PlayerState
     public bool SuggestLowerQuality { get; init; }
     /// <summary>"Skip Intro" or "Skip Credits" while one is showing.</summary>
     public string? SkipLabel { get; init; }
+    /// <summary>Skip shows on its own, in its first 8 s in the marker (<see cref="SkipWindow"/>); after that only with the controls.</summary>
+    public bool SkipAlone { get; init; }
     /// <summary>The playing file's intro and credits, for the scrubber.</summary>
     public IReadOnlyList<Marker> Markers { get; init; } = new Marker[0];
     public IReadOnlyList<ChapterMark> Chapters { get; init; } = new ChapterMark[0];

@@ -6,12 +6,12 @@
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use pley_base::{Color, Icon, ImageRequest, ImageState, MarkGlyph, Point, Priority, Rect, RgbaImage, Size, TextOpts};
+use pley_base::{Color, Icon, Point, Rect, RgbaImage, Size, TextOpts};
 use pley_i18n::t;
+use pley_kit::Button;
 use pley_kit::look::shade;
-use pley_kit::{Button, placeholder};
 use pley_ui::theme::{self, focus::ControlLook, radius};
-use pley_ui::{Dir, Dirs, Edge, FocusOpts, Group, Id, ImageOpts, Response, Ui};
+use pley_ui::{Dir, Dirs, Easing, Edge, FocusOpts, Group, Id, Motion, Response, Ui};
 
 use crate::controls::register;
 
@@ -103,9 +103,6 @@ pub fn sleep_notice(
 pub struct Card<'a> {
     pub heading: &'a str,
     pub title: &'a str,
-    pub image: Option<ImageRequest>,
-    /// The glyph of the mark on the still's placeholder: the title's kind's.
-    pub mark: MarkGlyph,
     /// Seconds before the next plays; none when it won't by itself.
     pub seconds_left: Option<i64>,
 }
@@ -117,41 +114,29 @@ pub struct CardAnswer {
     pub cancel: bool,
 }
 
-/// The Up Next card's width (`UP_NEXT_WIDTH`) and its still's height.
+/// The Up Next card's width (`UP_NEXT_WIDTH`).
 pub const CARD_W: f32 = 300.0;
-const STILL_H: f32 = 169.0;
 /// The countdown (`COUNTDOWN_SECONDS`) the ring fills over.
 const COUNTDOWN: f32 = 10.0;
+/// Through each second of the countdown the ring glides, evenly, to where it stands at the
+/// second's end (`countdownFill`): it moves without steps and is full as the countdown reaches 0.
+/// It runs on every tier, as on Android, and while a direction key is held: the ring follows the
+/// countdown, not the focus.
+const RING_GLIDE: Motion = Motion { held: true, ..Motion::new(1.0, Easing::LINEAR) };
 
 /// The Up Next card (`TvPlayerOverlays.kt`): 300 wide, right edge 912, bottom 489, Surface2 at
-/// 96 % with 8 dp corners; the still, then "Up next · S2 · E6", the title, and Play now (with its
-/// countdown ring) and Cancel. Focus stays on the card: Play now first, Left and Up and Down go
+/// 96 % with 8 dp corners; "Up next · S2 · E6", the title, and Play now (with its countdown ring)
+/// and Cancel. No still: the card stays small over the credits. Focus stays on the card: Play now first, Left and Up and Down go
 /// nowhere.
 pub fn up_next(ui: &mut Ui, group: Id, play_id: Id, cancel_id: Id, card: &Card, reduced: bool) -> CardAnswer {
     let pad = 16.0;
     let inner = CARD_W - 2.0 * pad;
     let heading = ui.layout(card.heading, &theme::CAPTION, &TextOpts::line(inner));
     let title = ui.layout(card.title, &theme::TITLE, &TextOpts::wrap(inner, 2));
-    let h = STILL_H + pad + heading.size.h + title.size.h + pad + 48.0 + pad;
+    let h = pad + heading.size.h + title.size.h + pad + 48.0 + pad;
     let rect = Rect::new(RIGHT - CARD_W, BOTTOM_HIDDEN - h, CARD_W, h);
     ui.fill(rect, theme::surface2().alpha(0.96), radius::DIALOG);
-    // The card's shape cuts the still: rounded at the top, square where the text starts. It is
-    // drawn taller by the corner and clipped to its own height. Until the still is in, and when
-    // there is none, the title's placeholder gradient stands in (`Artwork`, without its title),
-    // with Pley's mark for its kind once no still will come (the title is under it).
-    let still = Rect::new(rect.x, rect.y, CARD_W, STILL_H);
-    let drawn = Rect::new(rect.x, rect.y, CARD_W, STILL_H + radius::DIALOG);
-    ui.clip(still, |ui| {
-        let shown = card.image.as_ref().map(|req| ui.image_state(req, Priority::Visible));
-        if !shown.is_some_and(|s| s.opaque()) {
-            let none = shown.is_none_or(|s| matches!(s.state, ImageState::Failed));
-            placeholder(ui, drawn, card.title, "", none.then_some(card.mark), radius::DIALOG);
-        }
-        if let Some(s) = shown {
-            ui.draw_image(drawn, &s, &ImageOpts::cover().rounded(radius::DIALOG));
-        }
-    });
-    let mut y = rect.y + STILL_H + pad;
+    let mut y = rect.y + pad;
     let hh = heading.size.h;
     ui.draw_text(Point::new(rect.x + pad, y), heading, theme::muted());
     y += hh;
@@ -173,7 +158,7 @@ pub fn up_next(ui: &mut Ui, group: Id, play_id: Id, cancel_id: Id, card: &Card, 
 }
 
 /// Play now: at least 48 tall, padded 20 · 16 · 4; the play icon, "Play now" and, 12 dp after, the
-/// countdown ring (22 dp, a 3 dp stroke filling as the seconds go), or "Next in 7" in Caption with
+/// countdown ring (22 dp, a 3 dp stroke filling smoothly as the seconds go, [`RING_GLIDE`]), or "Next in 7" in Caption with
 /// Reduce motion. At rest Fg 12 % with a 1 dp Control edge; focused the Accent, 1.05 larger. Its
 /// width.
 fn play_now(ui: &mut Ui, id: Id, at: Point, left: Option<i64>, reduced: bool, answer: &mut CardAnswer) -> f32 {
@@ -182,6 +167,13 @@ fn play_now(ui: &mut Ui, id: Id, at: Point, left: Option<i64>, reduced: bool, an
         .filter(|_| reduced)
         .map(|s| ui.layout(&t!("player.upNext.nextIn", seconds = s), &theme::CAPTION, &TextOpts::default()));
     let ring = left.is_some() && !reduced;
+    // Asked for every frame the ring shows, so its glide carries on from second to second. A
+    // countdown started again glides back over a second.
+    let fill = left.filter(|_| ring).map(|s| {
+        let start = ((COUNTDOWN - s as f32) / COUNTDOWN).clamp(0.0, 1.0);
+        let end = ((COUNTDOWN - s as f32 + 1.0) / COUNTDOWN).clamp(0.0, 1.0);
+        ui.animate_from(id.with("ring"), start, end, RING_GLIDE)
+    });
     let after = match &next_in {
         Some(n) => 12.0 + n.size.w,
         None if ring => 12.0 + 22.0,
@@ -208,8 +200,7 @@ fn play_now(ui: &mut Ui, id: Id, at: Point, left: Option<i64>, reduced: bool, an
         if let Some(n) = next_in {
             let nh = n.size.h;
             ui.draw_text(Point::new(x, rect.y + (48.0 - nh) / 2.0), n, content);
-        } else if let (true, Some(seconds)) = (ring, left) {
-            let done = ((COUNTDOWN - seconds as f32) / COUNTDOWN).clamp(0.0, 1.0);
+        } else if let Some(done) = fill {
             countdown(ui, Rect::new(x, rect.y + 13.0, 22.0, 22.0), done, content);
         }
     });
@@ -217,7 +208,8 @@ fn play_now(ui: &mut Ui, id: Id, at: Point, left: Option<i64>, reduced: bool, an
 }
 
 /// The countdown ring: a 3 dp stroke, its track at 25 % and the arc from the top, clockwise, as
-/// far as `done`; a picture made at the screen's pixels (the display list has no arcs).
+/// far as `done`; a picture made at the screen's pixels (the display list has no arcs), one for
+/// each hundredth of the turn, so the whole countdown makes a hundred small ones at most.
 fn countdown(ui: &mut Ui, rect: Rect, done: f32, color: Color) {
     let px = ui.image_px(rect.w);
     let stroke = 3.0 * ui.scale();

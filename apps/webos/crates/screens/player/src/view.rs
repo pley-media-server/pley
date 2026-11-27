@@ -446,7 +446,7 @@ impl PlayerView {
             return true;
         }
         if self.controls {
-            let skip = self.skip_shown(s);
+            let skip = self.skip_shown_with(s, false);
             self.controls = false;
             self.ask = Some(hidden_focus(skip));
             return true;
@@ -481,11 +481,18 @@ impl PlayerView {
     // ---------------------------------------------------------------- what the playback says
 
     fn skip_shown(&self, s: &PlayerState) -> bool {
+        self.skip_shown_with(s, self.controls)
+    }
+
+    /// Whether Skip shows with the controls shown or not: on its own for its first 8 s in a
+    /// marker (`skip_alone`), then only with the controls.
+    fn skip_shown_with(&self, s: &PlayerState, controls: bool) -> bool {
         s.skip_label.is_some()
+            && (s.skip_alone || controls)
             && s.up_next.is_none()
             && !matches!(s.phase, Phase::Error { .. })
             && !s.switching
-            && !(self.controls && self.seeker.pending())
+            && !(controls && self.seeker.pending())
     }
 
     fn keep_shown(&self, s: &PlayerState) -> bool {
@@ -1027,13 +1034,7 @@ impl PlayerView {
         if (card_fade > 0.0 || card && !error)
             && let Some(c) = &self.last_card
         {
-            let shown = Card {
-                heading: &c.heading,
-                title: &c.title,
-                image: c.image_url.as_deref().map(|u| pley_base::ImageRequest::new(u, 480)),
-                mark: c.kind.mark_glyph(),
-                seconds_left: c.seconds_left,
-            };
+            let shown = Card { heading: &c.heading, title: &c.title, seconds_left: c.seconds_left };
             let reduced = ui.reduced_motion();
             let live = card && !error;
             let a = ui.opacity(card_fade, |ui| {
@@ -1426,7 +1427,7 @@ impl PlayerView {
         if self.controls && self.panel.is_none() && self.strip.is_none() && !kept && !self.seeker.pending() {
             let at = self.last_input + HIDE_AFTER_MS;
             if now >= at {
-                let skip = self.skip_shown(s);
+                let skip = self.skip_shown_with(s, false);
                 self.controls = false;
                 self.ask = Some(hidden_focus(skip));
                 ui.request_repaint();
@@ -1454,8 +1455,9 @@ impl PlayerView {
     }
 }
 
-/// Where focus goes as the controls hide (`hideControls(if (skipShown) Skip else Video)`): Skip,
-/// else the holder of the keys. The sleep notice takes focus only as it comes.
+/// Where focus goes as the controls hide (`hideControls(if (skipShown) Skip else Video)`): Skip
+/// while it shows on its own, else the holder of the keys. The sleep notice takes focus only as
+/// it comes.
 fn hidden_focus(skip: bool) -> Target {
     if skip { Target::Skip } else { Target::Video }
 }
