@@ -1316,6 +1316,7 @@ dependencies = [
  "pley-i18n",
  "pley-kit",
  "pley-player",
+ "pley-player-ui",
  "pley-shell",
  "pley-ui",
 ]

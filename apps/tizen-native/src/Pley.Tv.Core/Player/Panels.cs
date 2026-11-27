@@ -191,16 +191,26 @@ public static class PlayerPanels
                 Choices(PlaybackSpeeds.All.Where(r => r == 1 || state.Speeds.Contains(r)).Select(r => new PlayerRow(PlayerRowKind.Choice, PlaybackSpeeds.Label(r), r == state.Speed, Action: new PlayerRowAction.Speed(r))));
                 break;
             case PlayerPanelKind.Info:
-                var sections = readout != null ? Readout.Sections(readout) : new MediaFactBlock[0];
-                if (readout?.Details == null) rows.Add(new PlayerRow(PlayerRowKind.Note, PlayerText.InfoWaiting));
-                foreach (var section in sections)
-                {
-                    rows.Add(new PlayerRow(PlayerRowKind.Heading, section.Title));
-                    rows.AddRange(section.Facts.Select(f => new PlayerRow(PlayerRowKind.Fact, f.Label, Value: f.Value)));
-                }
-                break;
+                return Info(readout != null ? Readout.Sections(readout) : new MediaFactBlock[0], waiting: readout?.Details == null);
         }
         return new PlayerPanel(kind, Title(kind), rows, focus ?? 0);
+    }
+
+    /// <summary>
+    /// Playback details of <paramref name="sections"/>, each under its heading, with nothing to
+    /// choose; "Asking the server…" first while <paramref name="waiting"/> for how it plays. A
+    /// film's and a live channel's.
+    /// </summary>
+    public static PlayerPanel Info(IReadOnlyList<MediaFactBlock> sections, bool waiting)
+    {
+        var rows = new List<PlayerRow>();
+        if (waiting) rows.Add(new PlayerRow(PlayerRowKind.Note, PlayerText.InfoWaiting));
+        foreach (var section in sections)
+        {
+            rows.Add(new PlayerRow(PlayerRowKind.Heading, section.Title));
+            rows.AddRange(section.Facts.Select(f => new PlayerRow(PlayerRowKind.Fact, f.Label, Value: f.Value)));
+        }
+        return new PlayerPanel(PlayerPanelKind.Info, Title(PlayerPanelKind.Info), rows, 0);
     }
 
     /// <summary>The subtitles' size, background, font and position under the tracks while they are text, as Settings has them (and saved there).</summary>

@@ -23,8 +23,10 @@
 
 use std::time::{Duration, Instant};
 
-use super::{MediaPlaylist, NO_SEGMENTS, Segment, TS_PACKET, TS_SYNC, Tuner};
-use super::{get_segment, get_text, media_playlist, pmt_pid, read_segment, ts_payload, ts_sync};
+use pley_transcoder_api::ts::{PACKET as TS_PACKET, SYNC as TS_SYNC, payload as ts_payload, pmt_pid, sync as ts_sync};
+
+use super::{MediaPlaylist, NO_SEGMENTS, Segment, Tuner};
+use super::{get_segment, get_text, media_playlist, read_segment};
 
 type Packet = [u8; TS_PACKET];
 

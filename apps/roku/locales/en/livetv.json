@@ -91,6 +91,7 @@
     "radio": "Radio",
     "next": "Next   {{time}}   {{title}}",
     "bannerHint": "Up and down: channels   ·   Left: {{category}}   ·   Options (*): favorite   ·   OK: close",
+    "bannerMoreHint": "Replay: playback details",
     "listHint": "OK: watch   ·   Options (*): favorite   ·   Back: close",
     "listMoreHint": "Left: categories   ·   Replay: search",
     "categoriesHint": "OK: its channels   ·   Back: the channels",

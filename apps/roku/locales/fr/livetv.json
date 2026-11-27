@@ -95,6 +95,7 @@
     "radio": "Radio",
     "next": "À suivre   {{time}}   {{title}}",
     "bannerHint": "Haut et bas : chaînes   ·   Gauche : {{category}}   ·   Options (*) : favori   ·   OK : fermer",
+    "bannerMoreHint": "Relecture : détails de lecture",
     "listHint": "OK : regarder   ·   Options (*) : favori   ·   Retour : fermer",
     "listMoreHint": "Gauche : catégories   ·   Relecture : chercher",
     "categoriesHint": "OK : ses chaînes   ·   Retour : les chaînes",

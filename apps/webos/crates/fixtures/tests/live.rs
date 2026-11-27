@@ -118,6 +118,8 @@ fn watching_at_a_keyed_address() {
 
     let plan = api.get(&format!("/api/live/sessions/{session}/plan")).json();
     assert_eq!((plan["video"].as_str(), plan["audio_codec"].as_str()), (Some("copy"), Some("aac")));
+    // 20 s in, the provider's rate is known.
+    assert_eq!(plan["kbps"].as_i64(), Some(6_400));
     assert_eq!(api.get(&format!("/api/live/sessions/{session}/index.m3u8")).status, 200);
     assert!(api.get("/api/live").json()["recent"].as_array().unwrap().contains(&json!(9)));
     assert_eq!(api.delete(&format!("/api/live/sessions/{session}")).status, 204);

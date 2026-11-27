@@ -22,7 +22,8 @@ public struct LiveRequest: Hashable, Codable, Sendable {
 /// every device: the channel playing with what's on now and next, channel
 /// up and down through the category it was opened in (wrapping round its
 /// ends), a channel number typed on a remote or keyboard, the favorite,
-/// and the trouble a channel can run into. `playback` does the watching.
+/// the trouble a channel can run into, and how the channel plays while
+/// Details show (`plan`). `playback` does the watching.
 /// The profile's remotes change channel the same way (`obey`).
 @MainActor
 public final class LivePlayerModel: ObservableObject, Identifiable {
@@ -38,6 +39,8 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     public static let bannerShown: Duration = .seconds(4)
     /// A channel number has this many digits at most.
     public static let maxDigits = 5
+    /// While Details show, the session's plan is asked for again this often.
+    public static let planEvery: Duration = .seconds(2)
 
     public nonisolated let id = UUID()
     public let playback: LivePlayback
@@ -55,9 +58,14 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     @Published public private(set) var banner: String?
     /// The time now (unix seconds), moved every `LiveTvRules.playerTick`.
     @Published public private(set) var now: Int64
+    /// What the channel playing is and what the server makes of it, while
+    /// Details show (`showDetails`); `nil` until the server knows,
+    /// and again from one session to the next.
+    @Published public private(set) var plan: LivePlan?
 
     private let clock: @Sendable () -> Int64
     private let numberWait: Duration
+    private let planEvery: Duration
     private let toast: (String) -> Void
     /// Recently watched as it was at opening: watching reorders it, and channel up mustn't follow.
     private var recentOrder: [Int]?
@@ -66,11 +74,15 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     private var bannerTask: Task<Void, Never>?
     private var ticking: Task<Void, Never>?
     private var zapping: Task<Void, Never>?
+    private var planning: Task<Void, Never>?
+    /// The session `plan` is of.
+    private var planSession: String?
     private var lastRefresh: Int64 = 0
     private var watches: Set<AnyCancellable> = []
 
     public init(request: LiveRequest, live: LiveTvRepository, playback: LivePlayback, seen: LiveChannel? = nil,
                 numberWait: Duration = LivePlayerModel.numberWait,
+                planEvery: Duration = LivePlayerModel.planEvery,
                 clock: @escaping @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970) },
                 toast: @escaping (String) -> Void = { _ in }) {
         self.live = live
@@ -78,6 +90,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
         self.category = LiveCategory.parse(request.category)
         self.channel = seen?.id == request.channelId ? seen : nil
         self.numberWait = numberWait
+        self.planEvery = planEvery
         self.clock = clock
         self.toast = toast
         now = clock()
@@ -259,6 +272,45 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
         if let channel { self.channel = live.marked(channel) }
     }
 
+    // MARK: Details
+
+    /// Details opened: the session's plan is asked for now, and
+    /// again every `planEvery` for what the provider sends as it changes.
+    /// The server answers what it knows at once, and starts nothing for it.
+    public func showDetails() {
+        planning?.cancel()
+        let every = planEvery
+        planning = Task { [weak self] in
+            await self?.askPlan()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: every)
+                guard let self, !Task.isCancelled else { return }
+                await self.askPlan()
+            }
+        }
+    }
+
+    /// Details closed: the plan is asked for no more.
+    public func hideDetails() {
+        planning?.cancel()
+        planning = nil
+    }
+
+    /// Asks the plan of the session watching now. One the server doesn't
+    /// know yet (`nil`), or doesn't answer, leaves what was known of the
+    /// session; another session starts from nothing.
+    private func askPlan() async {
+        let session = playback.sessionId
+        if session != planSession {
+            planSession = session
+            plan = nil
+        }
+        guard let session, let fresh = try? await live.plan(session), !Task.isCancelled,
+              playback.sessionId == session
+        else { return }
+        if fresh != plan { plan = fresh }
+    }
+
     // MARK: Trouble
 
     /// Tunes the channel again (Try again).
@@ -289,6 +341,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
         bannerTask?.cancel()
         ticking?.cancel()
         zapping?.cancel()
+        planning?.cancel()
         playback.close()
     }
 

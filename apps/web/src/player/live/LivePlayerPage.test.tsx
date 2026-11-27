@@ -1,7 +1,7 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { useServerEvents } from "@/api/events";
 import type { Channel } from "@/api/livetv";
 import type { ServerEvent } from "@/api/types";
@@ -52,7 +52,8 @@ const { FakeHls, hlsInstances } = vi.hoisted(() => {
  * A stand-in for mpegts.js's player, as Chrome's goes with a channel whose
  * audio it can't play (AC-3): it fails as it loads (or, with `failsAsItLoads`
  * off, when `fail` says), and throws when let go twice, as the real one does.
- * `comes` reports the stream coming, as the real one does every 600 ms.
+ * `comes` reports the stream coming, as the real one does every 600 ms;
+ * `found` says what it read in the stream, as the real one does once.
  */
 const { FakeMpegts, mpegtsPlayers, mpegtsLoader } = vi.hoisted(() => {
   const mpegtsPlayers: FakeMpegtsPlayer[] = [];
@@ -69,6 +70,9 @@ const { FakeMpegts, mpegtsPlayers, mpegtsLoader } = vi.hoisted(() => {
     }
     comes(kbps: number) {
       this.handlers.get("statistics_info")?.({ speed: kbps });
+    }
+    found(tracks: unknown) {
+      this.handlers.get("media_info")?.(tracks);
     }
     attachMediaElement() {
       this.calls.push("attachMediaElement");
@@ -89,7 +93,7 @@ const { FakeMpegts, mpegtsPlayers, mpegtsLoader } = vi.hoisted(() => {
   const FakeMpegts = {
     Player: FakeMpegtsPlayer,
     isSupported: () => true,
-    Events: { ERROR: "error", STATISTICS_INFO: "statistics_info" },
+    Events: { ERROR: "error", STATISTICS_INFO: "statistics_info", MEDIA_INFO: "media_info" },
     createPlayer: () => new FakeMpegtsPlayer(),
   };
   // No MPEG-TS player unless a test gives one: every channel plays from the transcoder's HLS.
@@ -642,6 +646,294 @@ describe("LivePlayerPage, a channel played from its stream", () => {
     await waitFor(() => expect(play).toHaveBeenCalled());
     await act(() => Promise.resolve());
     expect(container.querySelector("video")!.muted).toBe(muted);
+  });
+});
+
+describe("LivePlayerPage, a channel this browser decodes as its provider sends it", () => {
+  const MAIN = 'video/mp4; codecs="hvc1.1.6.L120.90"';
+  const MAIN_10 = 'video/mp4; codecs="hvc1.2.4.L153.B0"';
+  const AAC = 'audio/mp4; codecs="mp4a.40.2"';
+  // An HEVC channel with AAC sound: the transcoder would make its video H.264.
+  const hevc = {
+    video_codec: "hevc",
+    width: 1920,
+    height: 1080,
+    frame_rate: 50,
+    interlaced: false,
+    bit_depth: 10,
+    audio_codec: "aac",
+    audio_channels: 2,
+    video: "h264_nvenc",
+    audio: "copy",
+    out_height: 1080,
+    video_kbps: 6000,
+      kbps: 5200,
+  };
+  // The stream as mpegts.js reads it: its HEVC by the profile and level it has.
+  const itsTracks = { hasVideo: true, hasAudio: true, videoCodec: "hvc1.2.1.L123.B0", audioCodec: "mp4a.40.2" };
+  /** What Media Source Extensions take here. */
+  let decoded: string[] = [];
+  let planAnswer: () => unknown = () => hevc;
+  let requests: FakeRequest[] = [];
+  let play: MockInstance<HTMLMediaElement["play"]>;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    hlsInstances.length = 0;
+    mpegtsPlayers.length = 0;
+    planAnswer = () => hevc;
+    decoded = [MAIN, MAIN_10, 'video/mp4; codecs="hvc1.2.1.L123.B0"', AAC];
+    mpegtsLoader.load = () => Promise.resolve(FakeMpegts);
+    FakeMpegts.Player.failsAsItLoads = false;
+    vi.stubGlobal("EventSource", FakeEventSource);
+    vi.stubGlobal("MediaSource", { isTypeSupported: (type: string) => decoded.includes(type) });
+    play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    // The stream's first seconds come: playback starts once they're buffered.
+    vi.spyOn(HTMLMediaElement.prototype, "buffered", "get").mockReturnValue({ length: 1, start: () => 0, end: () => 3 });
+    let n = 0;
+    const plan = () => planAnswer();
+    requests = mockApi({
+      "GET /api/live/channels/5": () => news,
+      "POST /api/live/channels/5/watch": () => {
+        n++;
+        return { session_id: `s${n}`, url: `/api/live/sessions/s${n}/index.m3u8`, kind: "hls", channel: news };
+      },
+      "GET /api/live/sessions/s1/plan": plan,
+      "GET /api/live/sessions/s2/plan": plan,
+      "DELETE /api/live/sessions/s1": () => undefined,
+      "DELETE /api/live/sessions/s2": () => undefined,
+    });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    mpegtsLoader.load = () => Promise.reject(new Error("not here"));
+    FakeMpegts.Player.failsAsItLoads = true;
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const plans = () => requests.filter((r) => r.method === "GET" && r.path.endsWith("/plan"));
+  /** The channel tunes: its stream is read, and the server has said what it is. */
+  async function tuned() {
+    const shown = renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await waitFor(() => expect(mpegtsPlayers[0]?.calls).toContain("load"));
+    await waitFor(() => expect(plans()).toHaveLength(1));
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    return shown;
+  }
+  const toHls = (session = "s1") =>
+    waitFor(() => expect(hlsInstances[0]?.calls).toContain(`loadSource /api/live/sessions/${session}/index.m3u8`));
+
+  it("plays HEVC from its stream once mpegts.js has found its picture and sound", async () => {
+    await tuned();
+    // Not before: the server doesn't say how the stream carries them.
+    expect(play).not.toHaveBeenCalled();
+
+    act(() => mpegtsPlayers[0]?.found(itsTracks));
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load"]);
+    expect(hlsInstances).toHaveLength(0);
+  });
+
+  it("plays it at once when its tracks were found before the server said what it is", async () => {
+    let sendPlan: (plan: unknown) => void = () => undefined;
+    planAnswer = () => new Promise((resolve) => (sendPlan = resolve));
+    renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await waitFor(() => expect(mpegtsPlayers[0]?.calls).toContain("load"));
+    await waitFor(() => expect(plans()).toHaveLength(1));
+    act(() => mpegtsPlayers[0]?.found(itsTracks));
+    expect(play).not.toHaveBeenCalled();
+
+    act(() => sendPlan(hevc));
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    expect(hlsInstances).toHaveLength(0);
+  });
+
+  it("plays the transcoder's segments when mpegts.js doesn't find them in time", async () => {
+    await tuned();
+    await act(() => vi.advanceTimersByTimeAsync(1500));
+    expect(hlsInstances).toHaveLength(0);
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    await toHls();
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+  });
+
+  it("plays the transcoder's segments when the stream's own profile isn't decoded", async () => {
+    await tuned();
+    // Its HEVC turns out to be one this browser has no decoder for.
+    act(() => mpegtsPlayers[0]?.found({ ...itsTracks, videoCodec: "hvc1.4.1.L153.B0" }));
+    await toHls();
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+  });
+
+  it("plays the transcoder's segments when its stream fails while its tracks are waited for", async () => {
+    await tuned();
+    act(() => mpegtsPlayers[0]?.fail());
+    await toHls();
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+  });
+
+  it("falls back to the transcoder's segments when its stream breaks off as it plays", async () => {
+    await tuned();
+    act(() => mpegtsPlayers[0]?.found(itsTracks));
+    await waitFor(() => expect(play).toHaveBeenCalled());
+
+    act(() => mpegtsPlayers[0]?.fail());
+    await act(() => vi.advanceTimersByTimeAsync(1500));
+    await toHls("s2");
+  });
+
+  it.each([
+    ["its video is interlaced", () => ({ ...hevc, interlaced: true })],
+    ["its sound isn't decoded", () => ({ ...hevc, audio_codec: "ac3", audio: "aac" })],
+  ])("plays the transcoder's segments at once when %s", async (_why, answer) => {
+    planAnswer = answer;
+    await tuned();
+    await toHls();
+    expect(play).not.toHaveBeenCalled();
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+  });
+
+  it("plays the transcoder's segments at once without an HEVC decoder for its bit depth", async () => {
+    decoded = [MAIN, AAC];
+    await tuned();
+    await toHls();
+    expect(mpegtsPlayers[0]?.calls).toEqual(["attachMediaElement", "load", "destroy"]);
+  });
+
+  it("leaves a channel with sound alone that the server converts to the transcoder", async () => {
+    // mpegts.js never says what it found in a stream with one track.
+    decoded = [...decoded, "audio/mpeg", 'audio/mp4; codecs="mp3"'];
+    planAnswer = () => ({ ...hevc, video_codec: null, video: "none", audio_codec: "mp3", audio: "aac" });
+    await tuned();
+    await toHls();
+  });
+
+  it("stops asking what the channel is once it failed, so its session can end", async () => {
+    // The server never knew it: the badge's asking goes on while it plays.
+    planAnswer = () => null;
+    renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await toHls();
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(plans().length).toBeGreaterThan(1);
+
+    act(() =>
+      hlsInstances[0]?.emit("hlsError", {
+        fatal: true,
+        type: "networkError",
+        response: { code: 503, text: JSON.stringify({ code: "unavailable", message: "News can't be shown: no slot is free" }) },
+      }),
+    );
+    expect(await screen.findByText(/can't be shown/)).toBeInTheDocument();
+    // Each answer would keep the session, and the provider's connection, there.
+    const asked = plans().length;
+    await act(() => vi.advanceTimersByTimeAsync(20_000));
+    expect(plans()).toHaveLength(asked);
+  });
+
+  /** Tunes it with the server's plan held back: the stream's tracks are found, then no plan comes in time. */
+  async function tunedWithoutPlan() {
+    hlsInstances.length = 0;
+    mpegtsPlayers.length = 0;
+    play.mockClear();
+    let sendPlan: (plan: unknown) => void = () => undefined;
+    planAnswer = () => new Promise((resolve) => (sendPlan = resolve));
+    const asked = plans().length;
+    renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await waitFor(() => expect(mpegtsPlayers[0]?.calls).toContain("load"));
+    await waitFor(() => expect(plans()).toHaveLength(asked + 1));
+    act(() => mpegtsPlayers[0]?.found(itsTracks));
+    act(() => sendPlan(null));
+  }
+
+  it("plays it by the tracks found when its plan doesn't come in time", async () => {
+    await tunedWithoutPlan();
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    expect(hlsInstances).toHaveLength(0);
+  });
+
+  describe("and its Playback details", () => {
+    const details = () => screen.getByRole("tooltip");
+    // As the video player's: shown while the badge is hovered, nothing to click.
+    const badge = (label: string) => screen.getByLabelText(label);
+    const open = (label: string) => fireEvent.mouseEnter(badge(label));
+
+    it("say it plays directly, and what the provider sends, asked again while they show", async () => {
+      await tuned();
+      act(() => mpegtsPlayers[0]?.found(itsTracks));
+      await waitFor(() => expect(play).toHaveBeenCalled());
+      // The badge says how it plays, as the video player's does.
+      expect(badge("Direct play")).toHaveTextContent("Direct play");
+      expect(badge("Direct play").tagName).not.toBe("BUTTON");
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+      // Closed, nothing is asked again.
+      await act(() => vi.advanceTimersByTimeAsync(6000));
+      expect(plans()).toHaveLength(1);
+
+      open("Direct play");
+      expect(within(details()).getByText("Direct play")).toBeInTheDocument();
+      expect(within(details()).getByText("HEVC 10-bit · 1920×1080 · 50 fps")).toBeInTheDocument();
+      expect(within(details()).getByText("AAC 2.0")).toBeInTheDocument();
+      expect(within(details()).getByText("5.2 Mbps")).toBeInTheDocument();
+      expect(within(details()).queryByText("Encoder")).not.toBeInTheDocument();
+
+      planAnswer = () => ({ ...hevc, kbps: 6400 });
+      await act(() => vi.advanceTimersByTimeAsync(3000));
+      expect(await within(details()).findByText("6.4 Mbps")).toBeInTheDocument();
+      const asked = plans().length;
+      expect(asked).toBeGreaterThan(1);
+
+      // Gone with the mouse: no more asking.
+      fireEvent.mouseLeave(badge("Direct play"));
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(6000));
+      expect(plans()).toHaveLength(asked);
+    });
+
+    it("say why a channel is transcoded, in the badge's name too, as the video player's says its reason", async () => {
+      planAnswer = () => ({ ...hevc, audio_codec: "ac3", audio: "aac" });
+      await tuned();
+      await toHls();
+      const named = "Transcoding. This device doesn't play AC3 audio.";
+      await waitFor(() => expect(badge(named)).toHaveTextContent(/^Transcoding$/));
+      open(named);
+      expect(await within(details()).findByText("Transcoding")).toBeInTheDocument();
+      expect(within(details()).getByText("This device doesn't play AC3 audio.")).toBeInTheDocument();
+      expect(within(details()).getByText("HEVC 10-bit · 1920×1080 · 50 fps → H.264 1080p")).toBeInTheDocument();
+      expect(within(details()).getByText("5.2 Mbps → 6.0 Mbps")).toBeInTheDocument();
+      expect(within(details()).getByText("NVIDIA NVENC")).toBeInTheDocument();
+    });
+
+    it("show at every width, on the badge's focus: a tap focuses it, and one elsewhere takes the focus away", async () => {
+      await tuned();
+      act(() => mpegtsPlayers[0]?.found(itsTracks));
+      await waitFor(() => expect(play).toHaveBeenCalled());
+      // Not hidden on a narrow screen as the video player's is: this player has no menu with the details.
+      expect(badge("Direct play").parentElement?.className).not.toMatch(/\bhidden\b/);
+      expect(badge("Direct play")).toHaveAttribute("tabindex", "0");
+      act(() => badge("Direct play").focus());
+      expect(within(details()).getByText("HEVC 10-bit · 1920×1080 · 50 fps")).toBeInTheDocument();
+      act(() => badge("Direct play").blur());
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
+    it("keep the controls on screen while they show", async () => {
+      const { container } = await tuned();
+      act(() => mpegtsPlayers[0]?.found(itsTracks));
+      await waitFor(() => expect(play).toHaveBeenCalled());
+      act(() => {
+        container.querySelector("video")!.dispatchEvent(new Event("playing"));
+      });
+      const controls = () => screen.getByRole("button", { name: "Back" }).parentElement;
+      await act(() => vi.advanceTimersByTimeAsync(4000));
+      expect(controls()).toHaveClass("opacity-0");
+
+      open("Direct play");
+      await act(() => vi.advanceTimersByTimeAsync(6000));
+      expect(controls()).not.toHaveClass("opacity-0");
+    });
   });
 });
 

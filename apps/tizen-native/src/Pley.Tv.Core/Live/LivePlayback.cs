@@ -106,12 +106,13 @@ public sealed record LiveState(long? ChannelId = null, LivePhase? Phase = null, 
 ///   it watched before (zapping never holds two of the provider's connections), and a keyed
 ///   playlist address, since the TV's player can't send the token; the session before is let go.
 /// - As Android's, the channel's <c>stream.ts</c> (MPEG-TS as the provider sends it) is read at
-///   once, under an id of its own, while the server is asked what the channel is made into: sent
-///   as it is, or with sound the TV decodes itself (<see cref="LiveRules.PlaysAsSent"/>), that plays
-///   from its first keyframe rather than after the first HLS segments. Its address takes the
-///   token, which the TV's player can't send, so this app reads it and hands it on
-///   (<see cref="ILiveServer.Stream"/>). It is asked for with the channel, not after: the server
-///   tunes for whichever comes first.
+///   once, under an id of its own, while the server is asked what the channel is and what it is
+///   made into: sent as it is, with sound the TV decodes itself, or in codecs this TV's report
+///   says it decodes (<see cref="LiveRules.PlaysAsSent"/>), that plays from its first keyframe
+///   rather than after the first HLS segments, and the server transcodes nothing for it. Its
+///   address takes the token, which the TV's player can't send, so this app reads it and hands
+///   it on (<see cref="ILiveServer.Stream"/>). It is asked for with the channel, not after: the
+///   server tunes for whichever comes first.
 /// - Otherwise, or when it fails, the HLS: its playlist is asked for once first, as the server
 ///   waits for the channel's first segments before it answers and the TV's player gives up
 ///   sooner. Then the TV's player plays it from the live edge.
@@ -128,6 +129,9 @@ public sealed record LiveState(long? ChannelId = null, LivePhase? Phase = null, 
 /// - The profile's remote, on another device, changes channel: its next and previous are channel
 ///   up and down, in the order the player goes through (<see cref="Zap"/>), which a player
 ///   declares only when it has one.
+/// - While Playback details show (<see cref="SetDetailsOpen"/>), the server is asked again every
+///   <see cref="DetailsMs"/> what the channel is (<see cref="Plan"/>), for the provider's bitrate
+///   as it is now: asking starts nothing there.
 /// - <see cref="Stop"/> lets the session and the player go (the app went to the background),
 ///   <see cref="Resume"/> tunes the channel again (not one that stopped on the server: its card
 ///   stays), <see cref="Close"/> ends it all.
@@ -166,12 +170,16 @@ public sealed class LivePlayback
     /// </summary>
     public const long DirectWaitMs = 10_000;
 
+    /// <summary>The plan is asked again this long after its last answer while Playback details show.</summary>
+    public const long DetailsMs = 2_500;
+
     /// <summary>A keyed live address: anything else needs the token.</summary>
     static readonly Regex Keyed = new Regex(@"/api/live/media/", RegexOptions.CultureInvariant);
 
     readonly ILiveServer server;
     readonly Func<IMediaEngine> engines;
     readonly IScheduler scheduler;
+    readonly ClientCaps? caps;
     IMediaEngine? engine;
     string? session;
     CancellationTokenSource? cancel;
@@ -180,14 +188,24 @@ public sealed class LivePlayback
     bool shown, closed;
     /// <summary>What plays is the channel's stream.ts: failing, it is watched again as HLS.</summary>
     bool direct;
-    IDisposable? startTimer, pictureTimer, retryTimer, stallShown, stallCheck;
+    /// <summary>When the channel was last tuned, on the scheduler's clock: its first picture is timed from here.</summary>
+    long tunedAt;
+    IDisposable? startTimer, pictureTimer, retryTimer, stallShown, stallCheck, detailsTimer;
+    /// <summary>Each opening of Playback details asks the plan in a round of its own: an answer to an earlier one starts nothing.</summary>
+    int detailsRound;
+    bool detailsOpen;
     readonly IDisposable events;
 
-    public LivePlayback(ILiveServer server, Func<IMediaEngine> engines, IScheduler scheduler)
+    /// <param name="report">
+    /// What this TV says it plays, the report a film's direct play goes by (<see cref="TizenCaps.Of"/>);
+    /// null when it couldn't be made: only channels sent as they are play from their stream.ts then.
+    /// </param>
+    public LivePlayback(ILiveServer server, Func<IMediaEngine> engines, IScheduler scheduler, IReadOnlyDictionary<string, object?>? report = null)
     {
         this.server = server;
         this.engines = engines;
         this.scheduler = scheduler;
+        caps = report != null ? PlayerModel.ReadCaps(report) : null;
         events = server.OnEvent(OnEvent);
     }
 
@@ -201,6 +219,61 @@ public sealed class LivePlayback
 
     /// <summary>The player playing now; null before the first tune and after <see cref="Stop"/>.</summary>
     public IMediaEngine? Engine => engine;
+
+    /// <summary>
+    /// What the server last said the channel is and what it makes of it; null until it says, for
+    /// each channel anew.
+    /// </summary>
+    public Signal<LivePlan?> Plan { get; } = new Signal<LivePlan?>(null);
+
+    /// <summary>What this TV says it plays, as <see cref="LiveRules.PlaysAsSent"/> is asked; null when it couldn't say.</summary>
+    public ClientCaps? Caps => caps;
+
+    /// <summary>Whether what plays is the channel's stream.ts as the provider sends it (Direct Play), not its HLS.</summary>
+    public bool Direct => direct && State.Value.Playing;
+
+    /// <summary>Times the channel stopped to wait for more once it played (Playback details' Stalls, as a film's).</summary>
+    public int Stalls { get; private set; }
+
+    /// <summary>From tuning the channel to its first picture (or sound); null until it is out.</summary>
+    public long? FirstFrameMs { get; private set; }
+
+    /// <summary>
+    /// Playback details open or close. While they show, the plan is asked again and again: the
+    /// server answers at once what it knows, with the provider's bitrate as it is now. It goes on
+    /// through a change of channel, asking of the session watched then.
+    /// </summary>
+    public void SetDetailsOpen(bool open)
+    {
+        detailsOpen = open;
+        detailsTimer?.Dispose();
+        detailsTimer = null;
+        var round = ++detailsRound;
+        if (open) AskPlan(round);
+    }
+
+    void AskPlan(int round)
+    {
+        detailsTimer = null;
+        if (round != detailsRound || closed) return;
+        void Next()
+        {
+            if (round == detailsRound && !closed) detailsTimer = scheduler.After(DetailsMs, () => AskPlan(round));
+        }
+        var asked = session;
+        if (asked == null)
+        {
+            // Nothing watched just now (tuning, or let go in the background): asked of the next session.
+            Next();
+            return;
+        }
+        Plays.When(scheduler, () => server.Plan(asked), plan =>
+        {
+            // Not known in time, or not had: what was known stays.
+            if (plan != null && asked == session) Plan.Value = plan;
+            Next();
+        }, _ => Next());
+    }
 
     /// <summary>Starts watching <paramref name="channelId"/> in place of what played.</summary>
     public void Tune(long channelId)
@@ -227,6 +300,8 @@ public sealed class LivePlayback
     public void Resume()
     {
         if (State.Value.Is is LivePhase.Idle) Retry();
+        // Playback details left open ask again, as they stopped asking in the background.
+        if (detailsOpen) SetDetailsOpen(true);
     }
 
     /// <summary>
@@ -239,6 +314,10 @@ public sealed class LivePlayback
         generation++;
         cancel?.Cancel();
         ClearTimers();
+        // Playback details stop asking until Resume: nothing is watched meanwhile.
+        detailsTimer?.Dispose();
+        detailsTimer = null;
+        detailsRound++;
         direct = false;
         server.EndStream();
         Leave();
@@ -256,6 +335,7 @@ public sealed class LivePlayback
     public void Close()
     {
         Stop();
+        SetDetailsOpen(false);
         closed = true;
         events.Dispose();
     }
@@ -333,6 +413,14 @@ public sealed class LivePlayback
         Leave();
         shown = false;
         direct = false;
+        // Another channel's plan says nothing of this one, nor do its stalls.
+        if (State.Value.ChannelId != channelId)
+        {
+            Plan.Value = null;
+            Stalls = 0;
+        }
+        tunedAt = scheduler.Elapsed;
+        FirstFrameMs = null;
         State.Value = new LiveState(channelId, new LivePhase.Tuning());
         // As Android's: stream.ts is read under an id of its own (so it doesn't end the HLS session
         // the plan is asked of), and played once the plan says this TV plays the channel as it is.
@@ -370,8 +458,9 @@ public sealed class LivePlayback
             void Planned(LivePlan? plan)
             {
                 if (mine != generation) return;
-                if (Marks.On) Marks.Note(plan == null ? "live: the plan isn't known" : $"live: the plan, video {plan.Video} ({plan.VideoCodec} {plan.Width}x{plan.Height} {plan.FrameRate}{(plan.Interlaced ? " interlaced" : "")}), audio {plan.Audio} ({plan.AudioCodec} {plan.AudioChannels} ch)");
-                if (plan != null && LiveRules.PlaysAsSent(plan))
+                if (Marks.On) Marks.Note(plan == null ? "live: the plan isn't known" : $"live: the plan, video {plan.Video} ({plan.VideoCodec} {plan.BitDepth}-bit {plan.Width}x{plan.Height} {plan.FrameRate}{(plan.Interlaced ? " interlaced" : "")}), audio {plan.Audio} ({plan.AudioCodec} {plan.AudioChannels} ch)");
+                if (plan != null) Plan.Value = plan;
+                if (plan != null && LiveRules.PlaysAsSent(plan, caps))
                 {
                     engine?.Play();
                     return;
@@ -508,6 +597,7 @@ public sealed class LivePlayback
         startTimer?.Dispose();
         startTimer = null;
         shown = true;
+        FirstFrameMs ??= scheduler.Elapsed - tunedAt;
         if (State.Value.Is is LivePhase.Failed) return;
         State.Value = State.Value with { Phase = new LivePhase.Playing(), Buffering = false };
         var mine = generation;
@@ -523,6 +613,7 @@ public sealed class LivePlayback
     void WatchStall()
     {
         if (stallShown != null || stallCheck != null) return;
+        Stalls++;
         var mine = generation;
         bool Stalled() => mine == generation && State.Value.Playing;
         stallShown = scheduler.After(StallShownMs, () =>

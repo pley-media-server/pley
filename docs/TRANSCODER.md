@@ -564,11 +564,22 @@ One input at a time; a second is `400`.
 | `max_bitrate_kbps?` | by size ([Bitrates](#bitrates)) | a transcode's video bitrate, at least 500 |
 | `hwaccel` | `auto` | as in `TranscodeOptions` |
 | `window_seconds?` | 300 | kept behind the live edge for pausing and going back (at least 30) |
+| `on_demand` | off | probe at once, but make the stream only when its playlist is first asked for |
 
 - **Start.** What came in is probed (`ffprobe` on a pipe) 0.3, 0.6, 1, 1.5
   and 2.5 s after the first byte, until it gives the picture's size (a
-  keyframe came); at 2.5 s, or with 1.5 MB in, whatever it gives. FFmpeg
-  then starts with that and the rest after it.
+  keyframe came); at 2.5 s, or with 1.5 MB in, whatever it gives. The plan
+  is known from then, before a transcode slot is taken: a channel with no
+  slot free still says what it is. FFmpeg then starts with what came in and
+  the rest after it.
+- **On demand.** With `on_demand`, FFmpeg waits for the first request for
+  the playlist, keeping what came from the newest video keyframe at least
+  3 s old (16 MB at most; the last 3 s of a stream that marks none)
+  meanwhile, and starts with the stream's tables (PAT and PMT) and that
+  keyframe: the first segments come at once. Until then the channel
+  is `waiting` with its `plan`, and takes no slot. A caller whose players
+  read the provider's stream themselves learns what it is, for nothing;
+  one nobody asks for is stopped as idle, like any other.
 - **Output.** Every player of a channel reads the same stream, so it is made
   for all of them: H.264 and AAC. The video is copied when it is 8-bit H.264
   already, no taller than `max_height` and (with `deinterlace`) progressive.
@@ -586,9 +597,10 @@ One input at a time; a second is `400`.
 - The input ending, saying nothing for 20 s, or `DELETE` ends the channel. A
   channel nobody read anything of for 90 s is stopped.
 - `LiveStatus` gives `state` (`waiting`, `running`, `ended`, `failed`), the
-  `plan` (what came in, and `copy` or the encoder), `bytes_in`, `segments`,
-  and `lag_ms`: how far the segments fall behind real time (0 while the
-  transcode keeps up).
+  `plan` (what came in: codecs, size, frame rate, `bit_depth`, interlacing;
+  and what is made: `copy` or the encoder, with a transcode's `out_height`
+  and `video_kbps`), `bytes_in`, `segments`, and `lag_ms`: how far the
+  segments fall behind real time (0 while the transcode keeps up).
 
 ## How HLS jobs work
 

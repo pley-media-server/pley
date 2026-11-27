@@ -19,6 +19,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -61,6 +62,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -87,6 +89,7 @@ import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveNames
 import app.pley.android.player.engine.VideoSurface
+import app.pley.android.player.live.LiveDetails
 import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LiveState
 import app.pley.android.player.live.LiveTrouble
@@ -99,13 +102,19 @@ import app.pley.android.ui.tv.kit.TvRoundButton
 import app.pley.android.ui.tv.kit.TvSidePanel
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
+import app.pley.android.ui.tv.player.INFO_WIDTH
+import app.pley.android.ui.tv.player.MethodBadge
+import app.pley.android.ui.tv.player.ReadoutColumn
+import app.pley.android.ui.tv.player.TvLivePlaybackDetails
+import app.pley.android.ui.tv.player.TvReadout
+import app.pley.android.ui.tv.player.rememberLiveReadout
 import app.pley.android.ui.tv.search.TvSearchField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 
 /** What shows over the picture. */
-private enum class Overlay { None, Controls, Channels }
+private enum class Overlay { None, Controls, Channels, Details }
 
 /**
  * The TV's live player (the web's LivePlayerPage, for a remote), the
@@ -114,17 +123,21 @@ private enum class Overlay { None, Controls, Channels }
  * - Up and Down, Channel up and down, and Previous and Next change
  *   channel (Up the next number), digits tune a number;
  * - OK opens the channel list, as Menu and Guide do; held, it shows the
- *   controls (the channel list, the favorite) over what's on; Back hides
- *   what shows, then leaves.
+ *   controls (the channel list, the favorite, Info) over what's on; Info
+ *   opens Playback details, the video player's panel; Back hides what
+ *   shows, then leaves.
  *
  * Live TV is watched as it airs, as the web's: no pause, no going back,
  * so play, pause, rewind and fast forward, Left and Right do nothing.
  * What's on and next shows for 5 s when asked for (Info), never on its
  * own as a channel tunes, with Live. A channel that doesn't start says why
  * (the server's sentence), with Try again and Other channels.
+ * [showDetails] (Settings → Playback details) keeps the video player's
+ * compact readout over the picture while neither the controls nor a panel
+ * shows ([Readout]).
  */
 @Composable
-internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
+internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit, showDetails: Boolean = false) {
     val state by vm.state.collectAsStateWithLifecycle()
     val engine by vm.engine.collectAsStateWithLifecycle()
     val channel by vm.channel.collectAsStateWithLifecycle()
@@ -165,6 +178,8 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
         if (overlay == Overlay.None && !failed) runCatching { root.requestFocus() }
     }
     BackHandler(enabled = overlay != Overlay.None) { overlay = Overlay.None }
+    // A channel that stopped says why, with what to do about it: the details don't stay over that.
+    LaunchedEffect(failed) { if (failed && overlay == Overlay.Details) overlay = Overlay.None }
     // The channel list opens on the category zapped through.
     LaunchedEffect(overlay == Overlay.Channels) { if (overlay == Overlay.Channels) vm.openList() }
 
@@ -259,7 +274,7 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
         if (state.buffering && playing) Spinner(Modifier.align(Alignment.Center))
         // What's on, with the window and the controls when asked for.
         AnimatedVisibility(
-            visible = shown != null && playing && overlay != Overlay.Channels && (overlay == Overlay.Controls || showInfo),
+            visible = shown != null && playing && (overlay == Overlay.Controls || (overlay == Overlay.None && showInfo)),
             enter = fadeIn() + slideInVertically { it / 3 },
             exit = fadeOut() + slideOutVertically { it / 3 },
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -273,9 +288,12 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
                     controls = overlay == Overlay.Controls,
                     vm = vm,
                     onChannels = { overlay = Overlay.Channels },
+                    onDetails = { overlay = Overlay.Details },
                 )
             }
         }
+        // Playback details have the top left while the controls and the panels are away, as in the video player.
+        if (showDetails && playing && overlay == Overlay.None) Readout(vm)
         Digits(digits, Modifier.align(Alignment.TopEnd))
         TvSidePanel(visible = overlay == Overlay.Channels, onDismiss = { overlay = Overlay.None }) {
             ChannelList(
@@ -289,7 +307,44 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
                 },
             )
         }
+        // As wide as the video player's Info: the readout has a label column. The width given first is the one kept.
+        TvSidePanel(visible = overlay == Overlay.Details, onDismiss = { overlay = Overlay.None }, modifier = Modifier.width(INFO_WIDTH)) {
+            Details(vm)
+        }
     }
+}
+
+/**
+ * Playback details, as the video player's Info panel: how the channel
+ * plays and why, what the provider sends and what the server makes of it,
+ * then what this TV does with it. Asked of the server while the panel
+ * shows ([LivePlayerViewModel.details]); Up and Down scroll it.
+ */
+@Composable
+private fun Details(vm: LivePlayerViewModel) {
+    val playing by vm.details.collectAsStateWithLifecycle()
+    val engine by vm.engine.collectAsStateWithLifecycle()
+    val resources = LocalResources.current
+    val input by rememberLiveReadout(remember(playing, resources) { playing?.let { LiveDetails.build(resources, it) } }, engine)
+    val sections = remember(input, resources) { TvReadout.liveSections(resources, input) }
+    ReadoutColumn(sections, waiting = input.details == null, Modifier.initialFocus().testTag(TV_LIVE_PLAYER_DETAILS))
+}
+
+/**
+ * Settings → Playback details over the picture, the video player's
+ * compact readout: how the channel plays, its details' rows and what this
+ * TV does with it. The server is asked while it shows, as for the panel,
+ * for the bitrate as it is now ([LivePlayerViewModel.details]); until it
+ * answers, what tuning left known is shown ([LivePlayerViewModel.how]).
+ */
+@Composable
+private fun BoxScope.Readout(vm: LivePlayerViewModel) {
+    val asked by vm.details.collectAsStateWithLifecycle()
+    val known by vm.how.collectAsStateWithLifecycle()
+    val engine by vm.engine.collectAsStateWithLifecycle()
+    val resources = LocalResources.current
+    val playing = asked ?: known
+    TvLivePlaybackDetails(remember(playing, resources) { playing?.let { LiveDetails.build(resources, it) } }, engine)
 }
 
 /** The channel's logo, name and what's on while it is tuned. */
@@ -327,8 +382,9 @@ private fun SoundOnly(channel: LiveChannel, origin: String, now: Long) {
 
 /**
  * The bar at the foot: the channel's logo, number and name, what's on with
- * its times, how far it is and what's next; Live; and with [controls],
- * the buttons, the channel list first.
+ * its times, how far it is and what's next; how it plays, in the video
+ * player's badge, and Live; and with [controls], the buttons, the channel
+ * list first, Info (Playback details) last, as in the video player's row.
  */
 @Composable
 private fun InfoBar(
@@ -339,9 +395,13 @@ private fun InfoBar(
     controls: Boolean,
     vm: LivePlayerViewModel,
     onChannels: () -> Unit,
+    onDetails: () -> Unit,
 ) {
     val clock = rememberClock()
     val category by vm.category.collectAsStateWithLifecycle()
+    val how by vm.how.collectAsStateWithLifecycle()
+    val resources = LocalResources.current
+    val method = remember(how, resources) { how?.let { LiveDetails.build(resources, it) } }
     val on = channel.onAt(now)
     val next = channel.nextAt(now)
     Column(
@@ -386,7 +446,13 @@ private fun InfoBar(
                     )
                 }
             }
-            if (state.phase == LivePhase.Playing) LiveBadge()
+            if (state.phase == LivePhase.Playing) {
+                method?.let {
+                    MethodBadge(it.method, it.playbackMethod)
+                    Spacer(Modifier.width(12.dp))
+                }
+                LiveBadge()
+            }
         }
         if (controls) {
             Row(
@@ -406,6 +472,7 @@ private fun InfoBar(
                     onClick = vm::toggleFavorite,
                     showLabel = false,
                 )
+                TvRoundButton(stringResource(R.string.tv_player_info), PleyIcons.Info, onClick = onDetails, modifier = Modifier.testTag(TV_LIVE_PLAYER_INFO_BUTTON))
             }
         } else {
             BasicText(stringResource(R.string.tv_live_player_hint), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle), modifier = Modifier.padding(top = 12.dp))
@@ -811,3 +878,5 @@ internal const val TV_LIVE_PLAYER_BUSY = "pley.tv.live.player.busy"
 internal const val TV_LIVE_PLAYER_CHANNELS = "pley.tv.live.player.channels"
 internal const val TV_LIVE_PLAYER_GROUP = "pley.tv.live.player.group"
 internal const val TV_LIVE_PLAYER_SEARCH = "pley.tv.live.player.search"
+internal const val TV_LIVE_PLAYER_INFO_BUTTON = "pley.tv.live.player.info.button"
+internal const val TV_LIVE_PLAYER_DETAILS = "pley.tv.live.player.details"

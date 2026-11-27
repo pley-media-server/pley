@@ -22,14 +22,14 @@ public sealed record ChannelDigits(string Typed = "", string? NotFound = null)
 /// channels a page at a time for the channel list, which can show another category's (a channel
 /// tuned from there makes channel up and down go through that one); watched as it airs, without
 /// pausing or going back; a favorite; the profile's remote changes channel as channel up and
-/// down do. The channel is kept for the profile: the guide opens back at it. The playback ends
-/// with the model.
+/// down do; how the channel plays, for Playback details. The channel is kept for the profile:
+/// the guide opens back at it. The playback ends with the model.
 ///
 /// The screen (the Android app's TvLivePlayerScreen): with nothing over the picture, Up and Down
 /// and Channel up and down change channel (<see cref="Step"/>: Up the next), digits tune a
 /// number, OK, Menu or Guide the channel list, OK held the controls (the channel list, the
-/// favorite) over what's on, Info what's on for <see cref="InfoMs"/>; Back hides what shows, then
-/// leaves.
+/// favorite, Info for Playback details) over what's on, the Info key what's on for
+/// <see cref="InfoMs"/>; Back hides what shows, then leaves.
 /// Play, pause, rewind, fast forward, Left and Right do nothing. The controls hide after
 /// <see cref="ControlsMs"/> untouched while it plays.
 /// </summary>
@@ -233,6 +233,47 @@ public sealed class LivePlayerModel : IDisposable
         {
             if (Digits.Value.NotFound == typed) Digits.Value = new ChannelDigits();
         });
+    }
+
+    /// <summary>
+    /// Playback details open or close: while they show, the server is asked again and again what
+    /// the channel is, for the provider's bitrate as it is now (<see cref="LivePlayback.SetDetailsOpen"/>).
+    /// </summary>
+    public void SetDetailsOpen(bool open) => playback.SetDetailsOpen(open);
+
+    /// <summary>What the server last said the channel is (<see cref="LivePlayback.Plan"/>): the bar's badge follows it.</summary>
+    public Signal<LivePlan?> Plan => playback.Plan;
+
+    /// <summary>
+    /// How the channel plays, for the badge beside Live in the player's bar, the film player's, as
+    /// Android's live player has it: "Direct play", "Direct stream", "Transcoding"
+    /// (<see cref="LiveDetails.Method"/>). From what tuning the channel left known, with nothing
+    /// asked of the server: null while no channel plays, and for a channel on its HLS whose plan
+    /// isn't known.
+    /// </summary>
+    public string? Method => playback.State.Value.Playing ? LiveDetails.Method(playback.Direct, playback.Plan.Value) : null;
+
+    /// <summary>Playback details as they stand now (<see cref="LiveDetails.Panel"/>), which the panel reads once a second while it shows.</summary>
+    public Player.PlayerPanel Details() => LiveDetails.Panel(playback.Direct, playback.Plan.Value, playback.Caps, Readout());
+
+    /// <summary>
+    /// What This TV's lines are made of, as a film's (<see cref="Player.PlayerModel.Readout"/>):
+    /// the player's stats, its buffer, and the channel's stalls and time to its first picture.
+    /// </summary>
+    public Player.ReadoutInput Readout()
+    {
+        var engine = playback.Engine as Player.IVideoEngine;
+        Player.EngineStats? stats = null;
+        try
+        {
+            stats = engine?.Stats();
+        }
+        catch (Exception)
+        {
+            // Between states, the TV's player may refuse: no stats this time.
+        }
+        var ahead = engine?.KnowsBuffer == true ? Math.Max(0, engine.BufferedMs - engine.PositionMs) : 0;
+        return new Player.ReadoutInput(Stats: stats, BufferedAheadMs: ahead, Stalls: playback.Stalls, FirstFrameMs: playback.FirstFrameMs);
     }
 
     public void Retry() => playback.Retry();

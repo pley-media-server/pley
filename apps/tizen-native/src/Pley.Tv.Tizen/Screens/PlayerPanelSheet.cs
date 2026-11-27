@@ -18,15 +18,19 @@ namespace Pley.Tv.Tizen.Screens;
 /// the scrim; it slides in. Focus starts on the current choice and stays inside; choosing closes
 /// the panel, but for the subtitles' look and Sync, which change what shows behind it, and Back
 /// closes it too. Sync's Left and Right move the subtitles, OK puts them back. Info reads its
-/// numbers once a second while it shows; Up and Down scroll it.
+/// numbers once a second while it shows; Up and Down scroll it. The live player's Playback
+/// details are the same panel, read from its own model.
 /// </summary>
 sealed class PlayerPanelSheet : Sheet
 {
     const float Inset = 24, InfoStep = 96;
 
     readonly Shell shell;
-    readonly PlayerModel model;
-    readonly PlayerPanelKind kind;
+    /// <summary>The panel as it stands now.</summary>
+    readonly Func<PlayerPanel> read;
+    /// <summary>OK on a row: true when the panel stays open.</summary>
+    readonly Func<PlayerRow, bool> choose;
+    readonly Action<PlayerRow, int> step;
     readonly float width;
     readonly float inner;
     readonly View card;
@@ -36,15 +40,30 @@ sealed class PlayerPanelSheet : Sheet
     float bottom;
     bool gone;
 
-    public PlayerPanelSheet(Shell shell, PlayerModel model, PlayerPanelKind kind) : base("player-panel")
+    public PlayerPanelSheet(Shell shell, PlayerModel model, PlayerPanelKind kind)
+        : this(shell, () => model.Panel(kind), model.Choose, model.Step, kind == PlayerPanelKind.Info ? model.SetDetailsOpen : null)
+    {
+    }
+
+    /// <summary>
+    /// Playback details read from <paramref name="read"/> (the live player's): nothing to choose.
+    /// <paramref name="details"/> is told as they open and as they close.
+    /// </summary>
+    public PlayerPanelSheet(Shell shell, Func<PlayerPanel> read, Action<bool> details) : this(shell, read, _ => true, (_, _) => { }, details)
+    {
+    }
+
+    /// <param name="details">For Info: told as the details open and close, and the panel reads its numbers again each second.</param>
+    PlayerPanelSheet(Shell shell, Func<PlayerPanel> read, Func<PlayerRow, bool> choose, Action<PlayerRow, int> step, Action<bool>? details) : base("player-panel")
     {
         this.shell = shell;
-        this.model = model;
-        this.kind = kind;
+        this.read = read;
+        this.choose = choose;
+        this.step = step;
         // The details first, then the panel: a file played as it is has them at once, and the panel
         // showed "Asking the server…" for a second when made before them.
-        if (kind == PlayerPanelKind.Info) model.SetDetailsOpen(true);
-        var panel = model.Panel(kind);
+        details?.Invoke(true);
+        var panel = read();
         width = panel.Wide ? PlayerPanel.InfoWidth : PlayerPanel.Width;
         inner = width - Inset - PleyTv.SafeHorizontal;
         View.BackgroundColor = PleyColors.Scrim;
@@ -68,13 +87,13 @@ sealed class PlayerPanelSheet : Sheet
         card.Add(viewport);
         View.Add(card);
         Fill(panel, panel.Focus);
-        if (kind == PlayerPanelKind.Info)
+        if (details != null)
         {
             // Its numbers read again each second while it shows.
             reader = new Timer((uint)Readout.ReadMs);
             reader.Tick += (_, _) =>
             {
-                if (!gone) Fill(model.Panel(kind), -1);
+                if (!gone) Fill(read(), -1);
                 return !gone;
             };
             reader.Start();
@@ -83,7 +102,7 @@ sealed class PlayerPanelSheet : Sheet
         {
             gone = true;
             reader?.Stop();
-            if (kind == PlayerPanelKind.Info) model.SetDetailsOpen(false);
+            details?.Invoke(false);
         };
     }
 
@@ -221,15 +240,15 @@ sealed class PlayerPanelSheet : Sheet
     void Choose(PlayerRow row, int index)
     {
         if (gone) return;
-        if (!model.Choose(row)) Close();
-        else Fill(model.Panel(kind), index);
+        if (!choose(row)) Close();
+        else Fill(read(), index);
     }
 
     void Step(PlayerRow row, int direction, int index)
     {
         if (gone) return;
-        model.Step(row, direction);
-        Fill(model.Panel(kind), index);
+        step(row, direction);
+        Fill(read(), index);
     }
 
     /// <summary>

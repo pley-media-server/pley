@@ -122,6 +122,13 @@ public struct PlayerState: Equatable, Sendable {
     public var methodLabel: String? {
         if downloaded { return PlayerTexts.downloaded }
         guard let method else { return nil }
+        return Self.label(of: method, audioConverted: audioConverted)
+    }
+
+    /// `method` in those words, for what plays without a `PlayerState`
+    /// too (a Live TV channel): "· Audio transcoding" after it when the
+    /// audio is converted and the video isn't.
+    public static func label(of method: PlaybackMethod, audioConverted: Bool) -> String {
         let base = switch method {
         case .direct: localized("Direct play")
         case .remux: localized("Direct stream")

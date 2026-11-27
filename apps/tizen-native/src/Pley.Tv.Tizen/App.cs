@@ -521,7 +521,7 @@ class App : NUIApplication
         {
             back();
             PlayerGone(screen!);
-        }, playingFrom);
+        }, PlayerScreen.Caps(state), playingFrom);
         player = screen;
         screen.Show();
     }

@@ -29,8 +29,9 @@ use pley_player::{PlaybackController, SavedPlayback};
 use pley_shell::{AppCx, AppEvent, Chrome, PlayQueue, PlayRequest, Route, Screen};
 use pley_ui::Ui;
 
-pub use controls::{Btn, RowOptions};
-pub use panels::{Panel, Pick};
+pub use controls::{Btn, RowOptions, method_badge};
+pub use overlays::readout;
+pub use panels::{Panel, Pick, info as info_panel, live_info_sections, live_readout_lines};
 pub use playback::Playback;
 pub use previews::{KEEP_SHEET_S, Previews, Tile, Want};
 pub use view::{CONFIRM_MS, FrameEnv, HIDE_AFTER_MS, Out, PlayerView, STOPPED_LEAVE_MS, Style, Target, keeps_awake};

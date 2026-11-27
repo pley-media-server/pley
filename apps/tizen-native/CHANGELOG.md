@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Added
 
+- Live TV plays a channel as the provider sends it when the TV decodes it,
+  and Info in the live player's controls opens Playback details.
 - The themes and accents, picked under Settings → Appearance and kept for each
   profile on this TV.
 

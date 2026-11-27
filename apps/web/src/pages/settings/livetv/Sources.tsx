@@ -299,7 +299,7 @@ function TunerRow({ tuner, stopping, onStop }: { tuner: TunerStatus; stopping: b
           </span>
           {tuner.kbps ? <span className="tabular-nums">{formatKbps(tuner.kbps)}</span> : null}
           <span>{formatFor(tuner.started_at)}</span>
-          {tuner.plan ? <span className="truncate">{planLine(tuner.plan)}</span> : null}
+          {tuner.plan ? <span className="truncate">{planLine(tuner.plan, tuner.transcoding !== false)}</span> : null}
         </div>
         {tuner.error ? <div className="mt-0.5 truncate text-xs text-danger">{tuner.error}</div> : null}
       </div>

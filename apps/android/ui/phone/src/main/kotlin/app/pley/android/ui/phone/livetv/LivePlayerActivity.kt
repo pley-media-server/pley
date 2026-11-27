@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +30,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
@@ -54,6 +56,8 @@ import app.pley.android.ui.phone.remote.CastsSent
 import app.pley.android.ui.phone.remote.PlayOnWindow
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -121,7 +125,10 @@ class LivePlayerActivity : ComponentActivity() {
         )
         // Said once, as it opens: not again when the window is made anew.
         val cast = castFrom(intent).takeIf { savedInstanceState == null }?.notice(resources)
-        val remote = (application as PleyGraphOwner).screensGraph.data.remote
+        val data = (application as PleyGraphOwner).screensGraph.data
+        val remote = data.remote
+        // Settings → Playback details, as the video player follows it.
+        val showDetails = data.settings.settings.map { it.showPlaybackDetails }.distinctUntilChanged()
         setContent {
             PhoneTheme(Appearance.palette.dark) {
                 // Asked as it is drawn: the window moves to the phone's screen, and is phone-sized again, as the car goes.
@@ -136,7 +143,8 @@ class LivePlayerActivity : ComponentActivity() {
                     ) {
                         Box(Modifier.fillMaxSize()) {
                             val small = inPip.value
-                            LivePlayerScreen(vm = vm, onBack = ::finish, inPip = small, onPip = if (pipSupported) ::enterPip else null)
+                            val details by showDetails.collectAsStateWithLifecycle(false)
+                            LivePlayerScreen(vm = vm, onBack = ::finish, inPip = small, onPip = if (pipSupported) ::enterPip else null, showDetails = details)
                             if (!small) CastNotice(cast, Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 64.dp))
                         }
                     }

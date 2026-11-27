@@ -87,6 +87,7 @@
     "radio": "廣播",
     "next": "接下來 {{time}} · {{title}}",
     "bannerHint": "上下鍵：頻道 · 左鍵：{{category}} · 選項(*)：收藏 · 確定：關閉",
+    "bannerMoreHint": "重播：播放詳情",
     "listHint": "確定：觀看 · 選項(*)：收藏 · 返回：關閉",
     "listMoreHint": "左鍵：分類 · 重播：搜尋",
     "categoriesHint": "確定：該分類的頻道 · 返回：頻道清單",
