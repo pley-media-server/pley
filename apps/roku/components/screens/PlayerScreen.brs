@@ -24,6 +24,9 @@
 ' server burns them in only where it can't make those.
 
 sub init()
+    m.c = uiPlayerColors()
+    ' The page dimmed behind the panel, in the theme's shade.
+    m.top.findNode("menuScrim").color = themeShade(m.c, 0.5)
     ' What holds the focus while nothing else does: the player's keys come
     ' to it (onKeyEvent). The screen itself can't take the focus back from
     ' a part of it that has it.
@@ -2468,8 +2471,10 @@ end sub
 ' The panel's rows, the choice made (current, -1 for none) checked and
 ' focused.
 sub showMenuChoices(items as object, current as integer)
+    ' In the player's colors (PanelRow's dark).
     for i = 0 to items.Count() - 1
         items[i].checked = i = current
+        items[i].dark = true
     end for
     m.menuList.content = nodesContent(items)
     at = current
@@ -2890,9 +2895,9 @@ sub onSubtitlesFound(event as object)
     m.menuKind = "found"
     ' The Language row first, then the results, each with what it is under
     ' it; the first result in focus.
-    items = [{ title: ssLanguageEntry(m.findLanguage), description: t("player.find.languageHint") }]
+    items = [{ title: ssLanguageEntry(m.findLanguage), description: t("player.find.languageHint"), dark: true }]
     for each result in m.found
-        items.Push({ title: result.label, description: result.hint })
+        items.Push({ title: result.label, description: result.hint, dark: true })
     end for
     m.menuList.content = nodesContent(items)
     if m.found.Count() > 0

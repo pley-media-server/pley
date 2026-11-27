@@ -9,12 +9,14 @@
         <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/TrackRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
-        <Rectangle id="background" width="1124" height="80" color="0x1E222AFF" />
+        <Rectangle id="background" width="1124" height="80" color="0x12151AFF" />
         <Rectangle id="bar" width="6" height="80" color="0x38BDF8FF" visible="false" />
-        <Label id="title" translation="[32, 0]" width="760" height="80" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
+        <Label id="title" translation="[32, 0]" width="760" height="80" vertAlign="center" color="0xE9EBEFFF" font="font:SmallSystemFont" />
         <Label id="subtitle" translation="[800, 0]" width="180" height="80" vertAlign="center" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <Label id="duration" translation="[984, 0]" width="108" height="80" horizAlign="right" vertAlign="center" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <!-- "Disc 2", at the foot of its row, over the disc's tracks. -->

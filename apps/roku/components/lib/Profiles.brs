@@ -85,12 +85,12 @@ function profNeedsLabel(needs as string) as string
     return ""
 end function
 
-' A profile's color ("#38bdf8") as Roku writes colors; the app's own
-' surface without one.
+' A profile's color ("#38bdf8") as Roku writes colors; "" without one,
+' for the screen to draw the theme's surface.
 function profColor(hex as dynamic) as string
     text = httpString(hex)
     re = CreateObject("roRegex", "^#[0-9a-fA-F]{6}$", "")
-    if not re.IsMatch(text) then return "0x2E3440FF"
+    if not re.IsMatch(text) then return ""
     return "0x" + UCase(Mid(text, 2)) + "FF"
 end function
 

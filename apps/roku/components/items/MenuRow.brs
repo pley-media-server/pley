@@ -1,4 +1,6 @@
 sub init()
+    m.c = uiColors()
+    uiRecolor(m.top, m.c)
     m.focus = m.top.findNode("focus")
     m.name = m.top.findNode("name")
     m.countBack = m.top.findNode("countBack")
@@ -40,21 +42,21 @@ sub onFocus()
     focused = m.top.itemHasFocus and m.top.listHasFocus
     m.focus.visible = focused
     if focused
-        m.name.color = "0x16191EFF"
+        m.name.color = m.c.accentFg
         m.name.font = uiFont("bold", 32)
     else
-        m.name.color = "0xEBEBEBFF"
+        m.name.color = m.c.fg
         m.name.font = uiSystemFont(36)
     end if
     ' On the accent box, an accent number is dark instead.
     if m.danger
-        m.countBack.color = "0xEB6B70FF"
-        m.count.color = "0x16191EFF"
+        m.countBack.color = m.c.danger
+        m.count.color = m.c.dangerFg
     else if focused
-        m.countBack.color = "0x16191EFF"
-        m.count.color = "0x7DD3FCFF"
+        m.countBack.color = m.c.accentFg
+        m.count.color = m.c.accentHover
     else
-        m.countBack.color = "0x38BDF8FF"
-        m.count.color = "0x16191EFF"
+        m.countBack.color = m.c.accent
+        m.count.color = m.c.accentFg
     end if
 end sub

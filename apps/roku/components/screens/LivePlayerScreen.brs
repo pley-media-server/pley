@@ -60,6 +60,7 @@ sub init()
     m.stalling = false
     for each spinner in [m.waiting, m.tuning]
         spinner.poster.uri = "pkg:/images/spinner.png"
+        spinner.poster.blendColor = uiPlayerColors().accent
         spinner.poster.width = 64
         spinner.poster.height = 64
     end for
@@ -436,7 +437,12 @@ sub buildCategories(keep as boolean)
         if m.railEntries[i].kind <> "heading" and m.railEntries[i].key = wanted then at = i
     end for
     m.railFocused = at
-    m.categoryList.content = nodesContent(liveRailItems(m.railEntries, m.open, m.listCategory))
+    ' In the player's colors (LiveRailItem's dark).
+    items = liveRailItems(m.railEntries, m.open, m.listCategory)
+    for each item in items
+        item.dark = true
+    end for
+    m.categoryList.content = nodesContent(items)
     m.categoryList.jumpToItem = at
 end sub
 

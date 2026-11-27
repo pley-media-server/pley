@@ -13,6 +13,8 @@
         <field id="active" type="boolean" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/LibraryScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -27,7 +29,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Library.brs" />
     <children>
-        <Label id="title" translation="[192, 54]" width="1300" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="title" translation="[192, 54]" width="1300" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="count" translation="[1424, 74]" width="400" horizAlign="right" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
         <ChipRow id="tabs" translation="[192, 132]" />
         <ChipRow id="view" translation="[1024, 132]" visible="false" />
@@ -40,16 +42,16 @@
         <!-- Recommended's rows and the categories' keep the focused row at
              the top, as Home's: the second row showed its focus below the
              screen's foot. Rows scrolled past are cut under the tabs. -->
-        <QuickRowList id="rows" translation="[168, 236]" clippingRect="[-48, 0, 1800, 844]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <QuickRowList id="rows" translation="[168, 236]" clippingRect="[-48, 0, 1800, 844]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xE9EBEFFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         <!-- The Collections tab by category, a row each, when there are
              several; one category's are in the grid. -->
-        <QuickRowList id="groups" translation="[168, 236]" clippingRect="[-48, 0, 1800, 844]" itemComponentName="Tile" itemSize="[1728, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <QuickRowList id="groups" translation="[168, 236]" clippingRect="[-48, 0, 1800, 844]" itemComponentName="Tile" itemSize="[1728, 514]" rowItemSize="[[240, 450]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xE9EBEFFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         <Label id="message" translation="[192, 480]" width="1632" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- The sort's or the filters' choices, over the right half. -->
         <Group id="panel" visible="false">
-            <Rectangle width="1920" height="1080" color="0x16191E80" />
-            <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFF" />
-            <Label id="panelTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xEBEBEBFF" />
+            <Rectangle id="dim" width="1920" height="1080" />
+            <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x12151AFF" />
+            <Label id="panelTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xE9EBEFFF" />
             <QuickList id="choices" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <!-- The filters: each opens its choices. -->
             <QuickList id="menu" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />

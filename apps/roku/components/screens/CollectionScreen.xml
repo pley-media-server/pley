@@ -33,8 +33,8 @@
              the rows; the backdrop alone, faint, while they have the
              focus (uiDimBackdrop). -->
         <Backdrop id="backdrop" />
-        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
-        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" />
+        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x0B0D10FF" />
+        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" blendColor="0x0B0D10FF" />
         <Group id="page">
             <LayoutGroup id="column" translation="[192, 80]" layoutDirection="vert" itemSpacings="[40]" visible="false">
                 <!-- Only the labels with text stay in it (layoutText). -->
@@ -46,28 +46,28 @@
                         <Poster translation="[0, 2]" width="36" height="36" uri="pkg:/images/ui/icon-layers-40.png" blendColor="0xA1A9B6FF" />
                         <Label id="kindLabel" translation="[48, 0]" height="40" vertAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
                         <Group id="tmdb" visible="false">
-                            <Poster id="tmdbBack" height="40" uri="pkg:/images/ui/edge4.9.png" blendColor="0x8B95A5FF" />
-                            <Label id="tmdbText" translation="[14, 0]" height="40" vertAlign="center" text="TMDB" color="0xEBEBEBFF">
+                            <Poster id="tmdbBack" height="40" uri="pkg:/images/ui/edge4.9.png" blendColor="0x7E8795FF" />
+                            <Label id="tmdbText" translation="[14, 0]" height="40" vertAlign="center" text="TMDB" color="0xE9EBEFFF">
                                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
                             </Label>
                         </Group>
                         <Group id="smart" visible="false">
-                            <Poster id="smartBack" height="40" uri="pkg:/images/ui/edge4.9.png" blendColor="0x8B95A5FF" />
-                            <Label id="smartText" translation="[14, 0]" height="40" vertAlign="center" color="0xEBEBEBFF">
+                            <Poster id="smartBack" height="40" uri="pkg:/images/ui/edge4.9.png" blendColor="0x7E8795FF" />
+                            <Label id="smartText" translation="[14, 0]" height="40" vertAlign="center" color="0xE9EBEFFF">
                                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
                             </Label>
                         </Group>
                         <!-- Its category, cut short past 560 pixels. -->
                         <Group id="category" visible="false">
-                            <Poster id="categoryBack" height="40" uri="pkg:/images/ui/edge4.9.png" blendColor="0x8B95A5FF" />
-                            <Label id="categoryText" translation="[14, 0]" height="40" vertAlign="center" color="0xEBEBEBFF">
+                            <Poster id="categoryBack" height="40" uri="pkg:/images/ui/edge4.9.png" blendColor="0x7E8795FF" />
+                            <Label id="categoryText" translation="[14, 0]" height="40" vertAlign="center" color="0xE9EBEFFF">
                                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
                             </Label>
                         </Group>
                     </Group>
-                    <Label id="heading" width="1020" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+                    <Label id="heading" width="1020" wrap="true" maxLines="2" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
                     <Label id="facts" width="1020" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-                    <Label id="summary" width="1000" wrap="true" maxLines="3" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
+                    <Label id="summary" width="1000" wrap="true" maxLines="3" lineSpacing="6" color="0xE9EBEFFF" font="font:SmallerSystemFont" />
                     <Label id="note" width="1020" wrap="true" color="0xA1A9B6FF" font="font:SmallSystemFont" />
                 </LayoutGroup>
                 <ChipRow id="buttons" look="buttons" pad="64" visible="false" />

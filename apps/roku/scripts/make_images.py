@@ -1,29 +1,34 @@
-"""Draws the watched mark of tiles into images/watched.png, and the focus
-of buttons (images/button-focus.9.png, and where it was as a button group
-lost it, images/button-footprint.9.png): nine-patch pictures, a rounded
-box in the app's accent or its raised surface, as its lists have. The
-Live TV guide's programs sit on images/guide-cell.9.png, and what has
-aired on images/guide-past.9.png; images/spinner.png turns while a channel
-tunes, images/round.png makes a person's photo round, and images/globe.png
-is the globe that picks the language before signing in, drawn in white
-for the screens to tint. The
-icons and splash screens are pley's logo, rendered with the other apps'
-icons by scripts/render-icons.mjs at the repository's root. Standard
-library only.
+"""Draws the watched mark (images/watched.png: a disc with a check cut out
+of it), the focus of buttons (images/button-focus.9.png, and where it was
+as a button group lost it, images/button-footprint.9.png: nine-patch
+pictures, a rounded box), images/spinner.png, which turns while a channel
+tunes, images/round.png, which makes a person's photo round, and
+images/globe.png, the globe that picks the language before signing in:
+all white, for the screens to tint in the theme's colors (a Poster's
+blendColor).
+
+The Live TV guide (Roku's TimeGrid) takes pictures and no colors, so its
+programs' boxes, its focus and what has aired come in every theme's
+colors, named by them: images/guide/cell-<surface-2>.9.png,
+focus-<accent>.9.png and past-<surface>.9.png ("cell-191D24.9.png"), for
+each theme under each accent of packages/themes/themes.json; run this
+again when it changes (tests/themes.test.brs says when a picture is
+missing). The icons and splash screens are pley's logo, rendered with the
+other apps' icons by scripts/render-icons.mjs at the repository's root.
+Standard library only.
 
     python scripts/make_images.py
 """
 
+import json
 import math
 import os
 import struct
 import zlib
 
-DARK = (0x16, 0x19, 0x1E)  # the app's background (components/shared/Ui.brs)
-ACCENT = (0x38, 0xBD, 0xF8)  # the app's accent
-SURFACE3 = (0x2E, 0x34, 0x40)  # its raised surface
-SURFACE2 = (0x26, 0x2B, 0x35)  # a guide's program
-PAST = (0x1E, 0x22, 0x2A, 0x99)  # the guide's time gone, over the screen
+WHITE = (0xFF, 0xFF, 0xFF)
+# What has aired, over the guide: the theme's surface at 60 %.
+PAST_ALPHA = 0x99
 
 # A button's box: its size inside the nine-patch's border, and its corners.
 BOX = 32
@@ -51,7 +56,8 @@ def segment_distance(px, py, ax, ay, bx, by):
 
 
 def render_mark(size):
-    """RGBA rows of the watched mark: a check on an accent disc."""
+    """RGBA rows of the watched mark: a white disc, a check cut out of it
+    (what is under the mark shows through)."""
     check = [(0.27, 0.52), (0.43, 0.68), (0.74, 0.36)]
     half_stroke = 0.065
     samples = 4
@@ -70,10 +76,8 @@ def render_mark(size):
                         if near <= half_stroke:
                             ink += 1
             total = samples * samples
-            cover = ink / disc if disc else 0
-            for channel in range(3):
-                line.append(round(ACCENT[channel] * (1 - cover) + DARK[channel] * cover))
-            line.append(round(255 * disc / total))
+            line.extend(WHITE)
+            line.append(round(255 * (disc - ink) / total))
         rows.append(bytes(line))
     return rows
 
@@ -111,8 +115,8 @@ def render_box(color, radius=RADIUS):
 
 
 def render_spinner(size):
-    """RGBA rows of a ring in the accent, three quarters drawn, fading
-    from its head to its tail."""
+    """RGBA rows of a white ring, three quarters drawn, fading from its
+    head to its tail."""
     samples = 4
     outer = 0.5
     inner = 0.38
@@ -130,7 +134,7 @@ def render_spinner(size):
                         turn = (math.atan2(y, x) / (2 * math.pi)) % 1.0
                         if turn <= 0.75:
                             cover += 0.25 + 0.75 * turn / 0.75
-            line.extend(ACCENT)
+            line.extend(WHITE)
             line.append(round(255 * cover / (samples * samples)))
         rows.append(bytes(line))
     return rows
@@ -199,20 +203,54 @@ def write_png(path, width, height, rows):
         out.write(png)
 
 
+def theme_colors(spec):
+    """Every theme's colors under every accent (none, the theme's own,
+    first), as the web's colorOf has them: { token: "#rrggbb" }."""
+    out = []
+    for theme in spec["themes"]:
+        for accent in [None] + spec["accents"]:
+            colors = dict(theme["colors"])
+            if accent:
+                for token in theme["follows"]:
+                    if token in accent[theme["kind"]]:
+                        colors[token] = accent[theme["kind"]][token]
+            out.append(colors)
+    return out
+
+
+def rgb(color):
+    return tuple(int(color[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def guide_pictures(folder, spec):
+    """The guide's pictures in every theme's colors (see above); those of
+    colors no theme has any more go."""
+    guide = os.path.join(folder, "guide")
+    os.makedirs(guide, exist_ok=True)
+    wanted = {}
+    for colors in theme_colors(spec):
+        wanted["cell-%s.9.png" % colors["surface-2"][1:].upper()] = (rgb(colors["surface-2"]), 6)
+        wanted["focus-%s.9.png" % colors["accent"][1:].upper()] = (rgb(colors["accent"]), 0)
+        wanted["past-%s.9.png" % colors["surface"][1:].upper()] = (rgb(colors["surface"]) + (PAST_ALPHA,), 0)
+    for name in os.listdir(guide):
+        if name not in wanted:
+            os.remove(os.path.join(guide, name))
+    for name, (color, radius) in sorted(wanted.items()):
+        write_png(os.path.join(guide, name), BOX + 2, BOX + 2, render_box(color, radius))
+    print("images/guide:", len(wanted), "pictures")
+
+
 def main():
     folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "images")
     os.makedirs(folder, exist_ok=True)
     write_png(os.path.join(folder, "watched.png"), MARK_SIZE, MARK_SIZE, render_mark(MARK_SIZE))
     print("images/watched.png", MARK_SIZE, "x", MARK_SIZE)
-    boxes = (
-        ("button-focus.9.png", ACCENT, RADIUS),
-        ("button-footprint.9.png", SURFACE3, RADIUS),
-        ("guide-cell.9.png", SURFACE2, 6),
-        ("guide-past.9.png", PAST, 0),
-    )
-    for name, color, radius in boxes:
-        write_png(os.path.join(folder, name), BOX + 2, BOX + 2, render_box(color, radius))
+    for name in ("button-focus.9.png", "button-footprint.9.png"):
+        write_png(os.path.join(folder, name), BOX + 2, BOX + 2, render_box(WHITE, RADIUS))
         print("images/" + name, BOX + 2, "x", BOX + 2)
+    themes = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "packages", "themes", "themes.json")
+    with open(themes, encoding="utf-8") as f:
+        guide_pictures(folder, json.load(f))
     write_png(os.path.join(folder, "spinner.png"), SPINNER_SIZE, SPINNER_SIZE, render_spinner(SPINNER_SIZE))
     print("images/spinner.png", SPINNER_SIZE, "x", SPINNER_SIZE)
     write_png(os.path.join(folder, "round.png"), ROUND_SIZE, ROUND_SIZE, render_disc(ROUND_SIZE))

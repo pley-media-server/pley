@@ -1,4 +1,5 @@
 sub init()
+    m.c = uiColors()
     m.top.focusable = true
     m.chipNodes = []
     m.top.observeField("focusedChild", "onLook")
@@ -26,7 +27,7 @@ sub onChips()
         back.uri = "pkg:/images/ui/r12.9.png"
         edge = group.createChild("Poster")
         edge.uri = "pkg:/images/ui/edge.9.png"
-        edge.blendColor = "0x6C7584FF"
+        edge.blendColor = m.c.borderStrong
         edge.visible = look = "buttons"
         icon = invalid
         if chip.DoesExist("icon") and chip.icon <> ""
@@ -102,7 +103,7 @@ sub onChips()
         if round and chip.DoesExist("name") and chip.name <> ""
             caption = m.top.createChild("Label")
             caption.font = uiType("caption")
-            caption.color = "0xEBEBEBFF"
+            caption.color = m.c.fg
             caption.text = chip.name
             captionWidth = Int(caption.boundingRect().width) + 2
             captionX = x + Int((width - captionWidth) / 2)
@@ -160,20 +161,20 @@ sub onLook()
         lit = focused and i = m.top.focusIndex
         chip.back.visible = true
         if lit
-            chip.back.blendColor = "0x38BDF8FF"
-            words = "0x16191EFF"
+            chip.back.blendColor = m.c.accent
+            words = m.c.accentFg
         else if look = "buttons"
-            chip.back.blendColor = "0xEBEBEB1F"
-            words = "0xEBEBEBFF"
+            chip.back.blendColor = themeAlpha(m.c.fg, "1F")
+            words = m.c.fg
         else if i = m.top.current
-            chip.back.blendColor = "0x2E3440FF"
-            words = "0xEBEBEBFF"
+            chip.back.blendColor = m.c.surface3
+            words = m.c.fg
         else if look = "tabs"
             chip.back.visible = false
-            words = "0xA1A9B6FF"
+            words = m.c.muted
         else
-            chip.back.blendColor = "0x2E3440FF"
-            words = "0xEBEBEBFF"
+            chip.back.blendColor = m.c.surface3
+            words = m.c.fg
         end if
         chip.edge.visible = look = "buttons" and not lit
         chip.label.color = words
@@ -187,14 +188,14 @@ end sub
 ' its words' color (words).
 sub lookNumber(number as object, lit as boolean, words as string)
     if number.tone = "danger"
-        number.back.blendColor = "0xEB6B70FF"
-        number.text.color = "0x16191EFF"
+        number.back.blendColor = m.c.danger
+        number.text.color = m.c.dangerFg
     else if number.tone = "accent" and lit
-        number.back.blendColor = "0x16191EFF"
-        number.text.color = "0x7DD3FCFF"
+        number.back.blendColor = m.c.accentFg
+        number.text.color = m.c.accentHover
     else if number.tone = "accent"
-        number.back.blendColor = "0x38BDF8FF"
-        number.text.color = "0x16191EFF"
+        number.back.blendColor = m.c.accent
+        number.text.color = m.c.accentFg
     else
         number.text.color = words
     end if

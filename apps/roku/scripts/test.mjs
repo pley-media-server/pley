@@ -73,6 +73,12 @@ files.set("placeholder/placeholder.json", new Blob([readFileSync(join(root, "../
 for (const name of readdirSync(join(root, "images")).filter((n) => n.startsWith("placeholder-"))) {
   files.set(`images/${name}`, new Blob([readFileSync(join(root, "images", name))]));
 }
+// Pley's themes and accents as every app draws them (pkg:/themes/themes.json).
+files.set("themes/themes.json", new Blob([readFileSync(join(root, "../../packages/themes/themes.json"))]));
+// The Live TV guide's pictures in every theme's colors (pkg:/images/guide).
+for (const name of readdirSync(join(root, "images/guide"))) {
+  files.set(`images/guide/${name}`, new Blob([readFileSync(join(root, "images/guide", name))]));
+}
 // The words, as the package has them (pkg:/locales/<language>/<area>.json).
 for (const language of readdirSync(join(root, "locales"))) {
   for (const name of readdirSync(join(root, "locales", language)).filter((n) => n.endsWith(".json"))) {

@@ -1,7 +1,15 @@
 sub init()
     m.top.backgroundUri = ""
-    m.top.backgroundColor = uiColors().bg
-    m.top.palette = uiPalette()
+    ' The theme picked on this Roku (Appearance), before anything is drawn
+    ' in it: the one shown last until the profile is known, then the
+    ' profile's (onThemeProfile); Midnight in its own accent until one is.
+    m.appearance = CreateObject("roRegistrySection", "appearance")
+    m.global.addFields({ theme: "", accent: "", colors: {}, playerColors: {}, sentinels: themeSentinels() })
+    m.backdrop = m.top.findNode("backdrop")
+    m.over = m.top.findNode("over")
+    pick = themePick(m.appearance, "", 0)
+    showTheme(pick.theme, pick.accent)
+    m.top.observeField("themeChoice", "onThemeChoice")
     m.screens = m.top.findNode("screens")
     m.stack = []
     ' The language shown (I18n.brs): the one shown last until what picks it
@@ -19,6 +27,8 @@ sub init()
     session.observeField("accessToken", "onAgentChanged")
     session.observeField("userAgent", "onAgentChanged")
     session.observeField("signedIn", "onSignedIn")
+    session.observeField("profileId", "onThemeProfile")
+    session.observeField("server", "onThemeProfile")
     for each fact in ["accountHeard", "accountLanguage", "serverHeard", "serverLanguage", "server"]
         session.observeField(fact, "onLanguageFacts")
     end for
@@ -33,12 +43,10 @@ sub init()
     m.music = CreateObject("roSGNode", "MusicPlayer")
     m.top.appendChild(m.music)
     m.global.addFields({ music: m.music })
-    ' The rail (Rail.xml), made again as what it lists changes.
-    m.rail = m.top.findNode("rail")
+    ' The rail (Rail.xml), its entries set again as what it lists changes.
+    m.rail = makeRail()
     m.railShown = ""
     m.railReturn = invalid
-    m.rail.observeField("chosen", "onRailChosen")
-    m.rail.observeField("leave", "onRailLeave")
     for each field in ["railLibraries", "railLive", "requestSummary"]
         m.top.observeField(field, "buildRail")
     end for
@@ -100,8 +108,7 @@ sub init()
     m.notices = []
     m.shownNotice = invalid
     m.noticeFocus = invalid
-    m.noticeCard = m.top.findNode("notice")
-    m.noticeCard.observeField("event", "onNoticeEvent")
+    m.noticeCard = makeNotice()
     m.announced = invalid
     ' A notice waits for the remote to rest, looked at four times a second
     ' while one waits: when a look last found a key within the second
@@ -917,7 +924,14 @@ end sub
 ' begins.
 sub castSay(text as string)
     top = 72
-    if m.stack.Count() > 0 and m.stack.Peek().subtype() = "PlayerScreen" then top = 232
+    kind = ""
+    if m.stack.Count() > 0 then kind = m.stack.Peek().subtype()
+    if kind = "PlayerScreen" then top = 232
+    ' Over a player, in the player's colors.
+    colors = m.global.colors
+    if kind = "PlayerScreen" or kind = "LivePlayerScreen" then colors = m.global.playerColors
+    m.top.findNode("castToastBack").color = themeAlpha(colors.bg, "E6")
+    m.castToastText.color = colors.fg
     m.castToast.translation = [460, top]
     m.castToastText.text = text
     m.castToast.visible = true
@@ -990,6 +1004,103 @@ sub onSignedIn()
     show({ to: "link", reset: true, params: { reason: session.signOutReason } })
 end sub
 
+' --- The theme ---
+
+' Shows a theme and an accent (ids as kept: Midnight, and the theme's own
+' accent, for none or one this app doesn't know): the colors the screens
+' read (m.global's colors and playerColors), the scene's background and
+' backdrop, and the palette of Roku's dialogs and keyboards.
+sub showTheme(theme as dynamic, accent as dynamic)
+    theme = themeShown(theme)
+    accent = themeAccentShown(accent)
+    colors = themeColors(theme, accent)
+    m.themeKey = colors.key
+    m.global.setFields({ theme: theme, accent: accent, colors: colors, playerColors: themePlayerColors(theme, accent) })
+    m.top.backgroundColor = colors.bg
+    backdrop = themeBackdrop(theme)
+    m.backdrop.uri = backdrop
+    m.backdrop.visible = backdrop <> ""
+    m.top.palette = uiPalette(colors)
+end sub
+
+' A theme or an accent picked (Appearance): kept on this Roku for the
+' profile signed in (lib/Themes.brs's themeKeep), and shown at once.
+sub onThemeChoice()
+    choice = m.top.themeChoice
+    if choice = invalid then return
+    theme = themeShown(choice.theme)
+    accent = themeAccentShown(choice.accent)
+    session = m.global.session
+    themeKeep(m.appearance, session.server, session.profileId, theme, accent)
+    changeTheme(theme, accent)
+end sub
+
+' Another profile, or server, signed in to: its own pick on this Roku, at
+' once. Signed out, the pick shown last stays.
+sub onThemeProfile()
+    session = m.global.session
+    if session.profileId <= 0 then return
+    pick = themePick(m.appearance, session.server, session.profileId)
+    themeKeepShown(m.appearance, pick.theme, pick.accent)
+    changeTheme(pick.theme, pick.accent)
+end sub
+
+' Shows another theme or accent: a screen that draws its colors again
+' itself does (its theme field); the one on top is made again in them,
+' and those under it as they show again, as for a language. The rail and
+' the notices' card are made again.
+sub changeTheme(theme as string, accent as string)
+    if theme + "/" + accent = m.themeKey then return
+    showTheme(theme, accent)
+    remakeRail()
+    if m.shownNotice = invalid then remakeNotice()
+    for each screen in m.stack
+        if screen.hasField("theme") then screen.theme = m.themeKey
+    end for
+    if m.stack.Count() > 0 and stale(m.stack.Peek()) then renew(m.stack.Count() - 1)
+end sub
+
+' The rail, made in the theme's colors, under the notices' card.
+function makeRail() as object
+    rail = CreateObject("roSGNode", "Rail")
+    rail.visible = false
+    rail.sidebar = themeSidebar(m.global.theme)
+    uiRecolor(rail, m.global.colors)
+    rail.observeField("chosen", "onRailChosen")
+    rail.observeField("leave", "onRailLeave")
+    m.over.insertChild(rail, 0)
+    return rail
+end function
+
+' The rail again in a new theme, as it was.
+sub remakeRail()
+    old = m.rail
+    old.unobserveField("chosen")
+    old.unobserveField("leave")
+    m.rail = makeRail()
+    m.rail.setFields({ entries: old.entries, current: old.current, home: old.home, visible: old.visible })
+    m.over.removeChild(old)
+end sub
+
+' The card of ready-to-watch news, made in the theme's colors.
+function makeNotice() as object
+    card = CreateObject("roSGNode", "RequestNotice")
+    card.translation = [1104, 702]
+    card.visible = false
+    uiRecolor(card, m.global.colors)
+    card.observeField("event", "onNoticeEvent")
+    m.over.appendChild(card)
+    return card
+end function
+
+' The card again in a new theme, while it shows nothing.
+sub remakeNotice()
+    old = m.noticeCard
+    old.unobserveField("event")
+    m.noticeCard = makeNotice()
+    m.over.removeChild(old)
+end sub
+
 ' --- The language ---
 
 ' Something that picks the language shown changed (the account's, the
@@ -1030,9 +1141,12 @@ end sub
 ' made again for it. One that draws its words again itself is made again
 ' only for another family of type (Chinese's), its fonts being its own.
 function stale(screen as object) as boolean
-    if screen.hasField("language") then return i18nFontFamily(screen.madeIn) <> uiFontFamily()
     kind = screen.subtype()
-    if kind = "PlayerScreen" or kind = "LivePlayerScreen" or kind = "NowPlayingScreen" then return false
+    if kind = "PlayerScreen" or kind = "LivePlayerScreen" then return false
+    ' Made in another theme, unless it draws its colors again itself.
+    if not screen.hasField("theme") and screen.madeWith <> m.themeKey then return true
+    if screen.hasField("language") then return i18nFontFamily(screen.madeIn) <> uiFontFamily()
+    if kind = "NowPlayingScreen" then return false
     return screen.madeIn <> m.global.language
 end function
 
@@ -1102,14 +1216,20 @@ sub show(nav as object)
     showNotice()
 end sub
 
-' A screen of the stack, in the language shown (madeIn).
+' A screen of the stack, in the language and the theme shown (madeIn,
+' madeWith). The players draw in their colors, a light theme's twin's.
 function makeScreen(name as string, route as string, params as object) as object
     screen = CreateObject("roSGNode", name)
     ' Pley's type wherever the screen still has the Roku's (Type.brs).
     uiRestyle(screen)
+    ' The theme's colors wherever the screen has Midnight's (Paint.brs),
+    ' unless it draws its colors itself (a theme field).
+    colors = m.global.colors
+    if name = "PlayerScreen" or name = "LivePlayerScreen" then colors = m.global.playerColors
+    if not screen.hasField("theme") then uiRecolor(screen, colors)
     screen.route = route
     screen.params = params
-    screen.addFields({ madeIn: m.global.language })
+    screen.addFields({ madeIn: m.global.language, madeWith: m.themeKey })
     if screen.hasField("requestSummary") then screen.requestSummary = m.top.requestSummary
     screen.observeField("navigate", "onNavigate")
     return screen
@@ -1167,7 +1287,7 @@ end function
 ' app's browsing pages and Now Playing do; the others (the players,
 ' signing in, a page of text) have the screen to themselves.
 function railRoutes() as object
-    return { home: true, library: true, grid: true, collections: true, collection: true, search: true, discover: true, discoverList: true, requests: true, settings: true, live: true, details: true, show: true, person: true, playlist: true, history: true, album: true, artist: true, requestTitle: true, nowPlaying: true }
+    return { home: true, library: true, grid: true, collections: true, collection: true, search: true, discover: true, discoverList: true, requests: true, settings: true, appearance: true, live: true, details: true, show: true, person: true, playlist: true, history: true, album: true, artist: true, requestTitle: true, nowPlaying: true }
 end function
 
 ' The rail's entries, as Home's menu was (Home.brs's homeMenu): the
@@ -1267,7 +1387,7 @@ sub onRailChosen()
     home = m.stack.Peek()
     m.railReturn = invalid
     if nav = invalid
-        ' Made in a language shown before: made again.
+        ' Made in a language or theme shown before: made again.
         if stale(home)
             home = renew(0)
         else

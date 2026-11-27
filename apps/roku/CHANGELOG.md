@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Themes and accents in Settings → Appearance, as on the web, kept for each
+  profile on this TV; the players stay dark in a light theme.
+
 ### Fixed
 
 - Home chosen on the rail after the language changed comes in the new

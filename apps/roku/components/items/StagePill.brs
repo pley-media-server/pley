@@ -1,4 +1,5 @@
 sub init()
+    m.c = uiColors()
     m.back = m.top.findNode("back")
     m.label = m.top.findNode("label")
     m.track = m.top.findNode("track")
@@ -20,8 +21,12 @@ sub onLook()
         m.label.width = textWidth
     end if
     m.back.width = textWidth + 36
-    m.back.color = m.top.color
-    m.fill.color = m.top.color
+    ' The stage's color (lib/Requests.brs's, in Midnight's) in the theme's,
+    ' its words in that fill's words color.
+    fill = uiThemed(m.top.color, m.c)
+    m.back.color = fill
+    m.fill.color = fill
+    m.label.color = themeWordsOn(m.c, fill)
     progress = m.top.progress
     shown = progress >= 0
     m.track.visible = shown

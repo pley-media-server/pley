@@ -11,6 +11,7 @@
 ' are followed only while this screen shows.
 
 sub init()
+    m.c = uiColors()
     m.backdrop = m.top.findNode("backdrop")
     m.cover = m.top.findNode("cover")
     m.title = m.top.findNode("title")
@@ -248,10 +249,10 @@ sub showStatus()
     music = m.global.music
     if m.noticing
         m.message.text = t("player.sleep.pausingIn", { seconds: music.sleep.secondsLeft })
-        m.message.color = "0xA1A9B6FF"
+        m.message.color = m.c.muted
     else
         m.message.text = music.message
-        m.message.color = "0xEB6B70FF"
+        m.message.color = m.c.danger
     end if
 end sub
 

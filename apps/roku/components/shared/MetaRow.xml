@@ -10,6 +10,8 @@
         <field id="parts" type="array" onChange="onParts" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/shared/MetaRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
 </component>

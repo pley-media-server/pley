@@ -1,4 +1,6 @@
 sub init()
+    m.c = uiColors()
+    uiRecolor(m.top, m.c)
     m.ring = m.top.findNode("ring")
     m.face = m.top.findNode("face")
     m.initial = m.top.findNode("initial")
@@ -14,6 +16,7 @@ sub onContent()
     profile = m.top.itemContent
     if profile = invalid then return
     m.face.blendColor = profile.color
+    if profile.color = "" then m.face.blendColor = m.c.surface3
     m.initial.text = profile.initial
     m.name.text = profile.title
     m.needs.text = profile.subtitle
@@ -27,8 +30,8 @@ sub onFocus()
     focused = m.top.itemHasFocus and m.top.gridHasFocus
     m.ring.visible = focused
     if focused
-        m.name.color = "0xEBEBEBFF"
+        m.name.color = m.c.fg
     else
-        m.name.color = "0xA1A9B6FF"
+        m.name.color = m.c.muted
     end if
 end sub

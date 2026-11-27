@@ -2,6 +2,7 @@
 ' high in the middle of it, 12 px either side of a dot.
 
 sub init()
+    m.c = uiColors()
     m.top.removeChildrenIndex(m.top.getChildCount(), 0)
 end sub
 
@@ -18,16 +19,16 @@ sub onParts()
                 x = x + 12
             else
                 x = x + 8
-                dot = addLabel("·", "label", "0xA1A9B6FF", x)
+                dot = addLabel("·", "label", m.c.muted, x)
                 x = x + labelWidth(dot) + 12
             end if
         end if
         if boxed
-            words = addLabel(part.text, "caption", "0xEBEBEBFF", x + 12)
+            words = addLabel(part.text, "caption", m.c.fg, x + 12)
             width = labelWidth(words) + 24
             edge = m.top.createChild("Poster")
             edge.uri = "pkg:/images/ui/edge4.9.png"
-            edge.blendColor = "0x8B95A5FF"
+            edge.blendColor = m.c.subtle
             edge.translation = [x, 2]
             edge.width = width
             edge.height = 40
@@ -37,14 +38,14 @@ sub onParts()
         else if part.star = true
             star = m.top.createChild("Poster")
             star.uri = "pkg:/images/ui/icon-star-40.png"
-            star.blendColor = "0xA1A9B6FF"
+            star.blendColor = m.c.muted
             star.width = 28
             star.height = 28
             star.translation = [x, 8]
-            words = addLabel(part.text, "label", "0xA1A9B6FF", x + 36)
+            words = addLabel(part.text, "label", m.c.muted, x + 36)
             x = x + 36 + labelWidth(words)
         else
-            words = addLabel(part.text, "label", "0xA1A9B6FF", x)
+            words = addLabel(part.text, "label", m.c.muted, x)
             x = x + labelWidth(words)
         end if
         x = x + 4

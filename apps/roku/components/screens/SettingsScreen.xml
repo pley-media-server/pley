@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Settings in two panes, as the Android TV app's and Roku's own: the
-     categories at the left (Profile, Playback, Server, Diagnostics, About,
-     Sign out), the focused one's rows at the right. Profile has who is
-     signed in on top, then switch profile, the profile's audio and subtitle
-     defaults, the language, the watch history, sort the libraries, the
-     profile to always start as and where the account is managed; Playback
-     this Roku's quality and next episode; Server the server and switch
-     server; Diagnostics the page and this Roku; About the version, the
-     open-source licenses and TMDB's notice. A row's choices open in a
-     panel at the right. -->
+     categories at the left (Profile, Playback, Appearance, Server,
+     Diagnostics, About, Sign out), the focused one's rows at the right.
+     Profile has who is signed in on top, then switch profile, the
+     profile's audio and subtitle defaults, the language, the watch
+     history, sort the libraries, the profile to always start as and where
+     the account is managed; Playback this Roku's quality and next episode;
+     Appearance the theme and the accent, each opening their page; Server the
+     server and switch server; Diagnostics the page and this Roku; About the
+     version, the open-source licenses and TMDB's notice. A row's choices
+     open in a panel at the right. -->
 <component name="SettingsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -19,6 +20,8 @@
         <field id="language" type="string" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/SettingsScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
@@ -34,19 +37,19 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <children>
-        <Label id="title" translation="[192, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="title" translation="[192, 56]" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
         <!-- What a choice said, at the top right, as the Android TV app's. -->
         <Label id="message" translation="[824, 56]" width="1000" height="72" horizAlign="right" vertAlign="center" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <QuickList id="categories" translation="[168, 150]" itemComponentName="SettingRow" itemSize="[536, 88]" itemSpacing="[0, 4]" numRows="6" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <QuickList id="categories" translation="[168, 150]" itemComponentName="SettingRow" itemSize="[536, 88]" itemSpacing="[0, 4]" numRows="7" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <!-- Profile's head: the profile's picture, or its initial on its
              color, its name and the server's address. -->
         <Group id="header" translation="[792, 150]" visible="false">
-            <Poster id="face" width="96" height="96" uri="pkg:/images/ui/face.png" blendColor="0x2E3440FF" />
-            <Label id="initial" width="96" height="96" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Poster id="face" width="96" height="96" uri="pkg:/images/ui/face.png" blendColor="0x222731FF" />
+            <Label id="initial" width="96" height="96" horizAlign="center" vertAlign="center" color="0xE9EBEFFF" font="font:LargeBoldSystemFont" />
             <MaskGroup maskUri="pkg:/images/ui/face.png" maskSize="[96, 96]">
                 <Poster id="picture" width="96" height="96" loadWidth="96" loadHeight="96" loadDisplayMode="scaleToZoom" />
             </MaskGroup>
-            <Label id="name" translation="[128, 8]" width="904" maxLines="1" color="0xEBEBEBFF">
+            <Label id="name" translation="[128, 8]" width="904" maxLines="1" color="0xE9EBEFFF">
                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="36" />
             </Label>
             <Label id="address" translation="[128, 52]" width="904" maxLines="1" color="0xA1A9B6FF" font="font:SmallSystemFont" />
@@ -58,15 +61,15 @@
         <Group id="panes" />
         <!-- Under the rows: this Roku's name in Diagnostics, TMDB's credit
              for Discover's titles and pictures in About. -->
-        <Label id="notes" translation="[792, 0]" width="1032" wrap="true" maxLines="3" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="notes" translation="[792, 0]" width="1032" wrap="true" maxLines="3" color="0x7E8795FF" font="font:SmallestSystemFont" />
         <!-- The choices of one row in a side panel, as the Android TV app's
              (TvChoicePanel) and the player's: 720 wide from the right edge
              over the page dimmed, the current choice checked, the focused
              one's hint at its foot. -->
         <Group id="panel" visible="false">
-            <Rectangle width="1920" height="1080" color="0x16191E80" />
-            <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x1E222AFF" />
-            <Label id="panelTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xEBEBEBFF" />
+            <Rectangle id="dim" width="1920" height="1080" />
+            <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x12151AFF" />
+            <Label id="panelTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xE9EBEFFF" />
             <QuickList id="choices" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <Label id="panelHint" translation="[1256, 912]" width="608" wrap="true" maxLines="3" color="0xA1A9B6FF" />
         </Group>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pley's logo as the Android TV app's sign-in screens have it
+     (PleyLogo): the mark on its tile, 80 px, and the wordmark beside it in
+     the text color. The mark is the web's (Logo.tsx), a white picture per
+     shape tinted in the theme's colors: the back poster brand-far, the
+     middle brand-deep and the front a gradient from brand-light to brand
+     (the front in brand under the front again in brand-light, fading out
+     along the gradient), on a brand-tile tile. -->
+<component name="Logo" extends="Group">
+    <interface>
+        <!-- The colors it is drawn in (Paint.brs's uiColors, the theme's
+             unless set): the scene's recoloring passes it by. -->
+        <field id="colors" type="assocarray" onChange="onColors" />
+        <!-- Placed by its right end, where the screen's margin is. -->
+        <field id="alignRight" type="boolean" onChange="onPlace" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/shared/Logo.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
+    <children>
+        <Group id="logo">
+            <Poster id="tile" width="80" height="80" uri="pkg:/images/ui/logo-tile.png" />
+            <Poster id="far" width="80" height="80" uri="pkg:/images/ui/logo-far.png" />
+            <Poster id="deep" width="80" height="80" uri="pkg:/images/ui/logo-deep.png" />
+            <Poster id="front" width="80" height="80" uri="pkg:/images/ui/logo-front.png" />
+            <Poster id="light" width="80" height="80" uri="pkg:/images/ui/logo-front-light.png" />
+            <Label id="word" translation="[92, 0]" height="80" vertAlign="center" text="Pley" />
+        </Group>
+    </children>
+</component>

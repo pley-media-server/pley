@@ -2,6 +2,7 @@
 ' player's: what the player sets, nothing more. Sizes are its dp doubled.
 
 sub init()
+    m.c = uiPlayerColors()
     m.controls = m.top.findNode("controls")
     m.title = m.top.findNode("title")
     m.line = m.top.findNode("line")
@@ -66,9 +67,9 @@ sub onTop()
     method = m.top.method
     m.method.visible = method <> ""
     if method <> ""
-        colors = { text: "0x38BDF8FF", tint: "0x38BDF833" }
-        if m.top.methodKind = "direct" then colors = { text: "0x3FB27FFF", tint: "0x3FB27F33" }
-        if m.top.methodKind = "remux" then colors = { text: "0x4C9AFFFF", tint: "0x4C9AFF33" }
+        colors = { text: m.c.accent, tint: themeAlpha(m.c.accent, "33") }
+        if m.top.methodKind = "direct" then colors = { text: m.c.success, tint: themeAlpha(m.c.success, "33") }
+        if m.top.methodKind = "remux" then colors = { text: m.c.info, tint: themeAlpha(m.c.info, "33") }
         m.methodText.text = method
         m.methodText.color = colors.text
         m.methodTint.blendColor = colors.tint
@@ -160,7 +161,7 @@ sub onChapters()
             gap.translation = [96 + x - 2, 846]
             gap.width = 4
             gap.height = 8
-            gap.color = "0x16191EE6"
+            gap.color = themeAlpha(m.c.bg, "E6")
         end if
     end for
 end sub
@@ -200,9 +201,9 @@ sub onPreview()
     ' The well until a picture shows, then dark where the picture doesn't
     ' reach, as the video is letterboxed.
     if m.top.previewUri <> ""
-        m.previewWell.color = "0x16191EFF"
+        m.previewWell.color = m.c.bg
     else
-        m.previewWell.color = "0x262B35FF"
+        m.previewWell.color = m.c.surface2
     end if
     m.previewChapter.text = m.top.previewChapter
 end sub
@@ -257,17 +258,17 @@ sub placeRow(buttons as object, x as integer, gap as integer)
         fill.uri = "pkg:/images/ui/r12.9.png"
         fill.width = size
         fill.height = size
-        fill.blendColor = "0x38BDF8FF"
+        fill.blendColor = m.c.accent
         fill.visible = false
         icon = group.createChild("Poster")
         icon.width = iconSize
         icon.height = iconSize
         icon.translation = [(size - iconSize) / 2, (size - iconSize) / 2]
-        icon.blendColor = "0xEBEBEBFF"
+        icon.blendColor = m.c.fg
         icon.uri = "pkg:/images/ui/icon-" + button.icon + "-" + iconSize.ToStr() + ".png"
         label = group.createChild("Label")
         label.font = uiType("caption")
-        label.color = "0xEBEBEBFF"
+        label.color = m.c.fg
         label.text = button.label
         ' Its name 16 px under it, centered, while focused.
         textWidth = Int(label.boundingRect().width)
@@ -316,9 +317,9 @@ sub paintButton(node as object, focused as boolean)
     node.fill.visible = focused
     node.label.visible = focused and node.named
     if focused
-        node.icon.blendColor = "0x16191EFF"
+        node.icon.blendColor = m.c.accentFg
     else
-        node.icon.blendColor = "0xEBEBEBFF"
+        node.icon.blendColor = m.c.fg
     end if
 end sub
 

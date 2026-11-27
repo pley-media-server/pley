@@ -1,4 +1,5 @@
 sub init()
+    m.c = uiColors()
     m.fill = m.top.findNode("fill")
     m.globe = m.top.findNode("globe")
     m.letters = m.top.findNode("letters")
@@ -28,8 +29,8 @@ end sub
 sub onFocus()
     focused = m.top.hasFocus()
     m.fill.visible = focused
-    color = "0xEBEBEBFF"
-    if focused then color = "0x16191EFF"
+    color = m.c.fg
+    if focused then color = m.c.accentFg
     m.globe.blendColor = color
     m.letters.color = color
 end sub

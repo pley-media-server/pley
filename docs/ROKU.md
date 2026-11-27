@@ -778,6 +778,8 @@ on a category goes into its rows, Left or Back comes out again.
   there.
 - **Playback:** Quality, and Play the next episode by itself (a switch;
   Up Next counts down only while it is on).
+- **Appearance:** Theme and Accent, each naming the one in use; OK on
+  either opens the Appearance page on it ([Appearance](#appearance)).
 - **Server:** the server's name and address, and Switch server.
 - **Diagnostics:** the page that shows this Roku and what it tells the
   server it plays (`capsLines` in `components/lib/Caps.brs`), with the
@@ -806,6 +808,50 @@ the profile; until the Roku knows, the start asks "Who's watching?". A
 profile since gone from the household (deleted, or another account's,
 signed in since) counts as Profile used last, as Settings then shows it.
 It is kept on the Roku for each server.
+
+### Appearance
+
+Pley's nine themes and six accents ([THEMES.md](THEMES.md)), on a page
+of Settings → Appearance laid out as on the other TVs, all on one screen:
+Theme and its hint on one line; the themes, five to a row, each a card
+with a small Pley in that theme's colors, its name and caption; Accent
+and its hint; the accents in a row of chips, each a swatch in the color
+it gives the theme in use and its name, Default (the theme's own) first.
+The theme in use has its card's border in the accent and a check, the
+accent in use its chip filled with the accent and a check for its
+swatch. The focus, the tiles' ring, starts on the theme in use (on the
+accent in use from the Accent row); Up and Down between the cards and
+the chips land on the one in use. OK picks one, and it shows at once:
+the page itself and the rail are drawn again in it, and the pages under
+it are made again as they show again, as for a language
+([Language](#language)). Back on Settings comes back to the row it was
+opened from.
+
+- **Kept for each profile on this TV**, in the registry section
+  `appearance` by the server's address and the profile's id, and as the
+  pick shown last; nothing goes to the server. Once the profile signed in
+  is known, the Roku shows its pick (Midnight in its own accent for one
+  that picked none here), at once on a switch; before (a start, signing
+  in, choosing a server or a profile), the pick shown last, so nothing
+  flashes. Signing out keeps it.
+- **The colors** are `packages/themes/themes.json`'s, in
+  `components/lib/ThemeTable.brs`, which `bun run themes` writes from it;
+  `tests/themes.test.brs` holds every theme under every accent, and the
+  players', to the file. The players (the video player and Live TV's)
+  stay dark: in a light theme they draw in its dark twin's colors.
+- **The logo** on the sign-in screens is drawn in the theme's colors, a
+  white picture per shape tinted (`components/shared/Logo`); the front
+  poster's gradient is the front in `brand` under the front again in
+  `brand-light`, fading out along the web's gradient.
+- **Backdrops:** Twilight's sunset, Moonlight's moon, Nightshade's light
+  and Sunshine's bubbles are one picture under every page, the web's
+  `--glow` drawn at half the screen, and Sunshine's rainbow is over the
+  open rail. A title's picture, and the fade from it to the page, cover
+  the backdrop where they are, as the Roku can't mask a picture cheaply.
+- **The Live TV guide** (Roku's TimeGrid) takes pictures, not colors: its
+  boxes, focus and what has aired are drawn in every theme's colors by
+  `bun run images` (`images/guide/`), and the tests check that every theme
+  has its own.
 
 ### Language
 
@@ -877,10 +923,10 @@ the unit tests run against it.
 | Path | What |
 |---|---|
 | `source/main.brs` | Starts the scene |
-| `components/MainScene.*` | The screen stack, the HTTP agent for pictures, sign-in when the server ends it, what the user's remotes cast here |
+| `components/MainScene.*` | The screen stack, the HTTP agent for pictures, sign-in when the server ends it, what the user's remotes cast here, the theme shown |
 | `components/MusicPlayer.*` | The music queue on the scene's Audio node |
 | `components/screens/` | One component per screen |
-| `components/shared/` | Screen helpers (`Ui.brs`), title actions (`Titles.brs`), the language's globe and panel |
+| `components/shared/` | Screen helpers (`Ui.brs`), the theme's colors (`Paint.brs`), title actions (`Titles.brs`), the language's globe and panel, the logo |
 | `components/items/` | Tiles, rows, the player's skip button, the ready-to-watch card |
 | `components/tasks/ApiTask` | The only code that talks to the server |
 | `components/tasks/DiscoveryTask` | `pley?` to UDP port 7539 (`apps/server/src/discovery.rs`) |
@@ -927,7 +973,17 @@ Rules the code keeps:
   Roku's sockets have no TLS.
 - Settings and views are kept in registry sections: `playback`,
   `subtitleSync`, `libraryViews`, `liveViews`, `household`, `startAs`,
-  `requests`, `searches`, `language`.
+  `requests`, `searches`, `language`, `appearance`.
+- **Colors** are the theme's, never written into a screen as such
+  (`components/shared/Paint.brs`). The markup is written in Midnight's
+  colors, which stand for their tokens: a screen made in another theme is
+  recolored once as the scene makes it, and an item as a list makes it,
+  so Midnight costs nothing. Code takes the theme's (`m.c.accent`), and
+  colors from `components/lib` come in Midnight's for the screen to
+  recolor (`uiThemed`). Black and white are only for what sits on a
+  picture or a video. Pictures are white, tinted (`blendColor`). A theme
+  picked makes the pages again rather than recoloring every node in
+  place, as a language does.
 - Sign-in asks for `library play playlists profiles`, and `requests
   approvals` when the server's metadata lists them in `scopes_supported`
   (an older server refuses scopes it doesn't know). A sign-in from before
@@ -977,7 +1033,8 @@ bun run check     # bsc's compile check, bslint, the unit tests (CI runs this)
 bun run smoke     # the whole app in brs-node, against a fake server
 bun run bench     # the list work timed in brs-node
 bun run preview   # the app in a browser, the keyboard as its remote
-bun run images    # the nine-patch focus, watched-mark and globe images
+bun run images    # the nine-patch focus, watched-mark and globe images, the guide's in every theme
+bun run themes    # components/lib/ThemeTable.brs from packages/themes/themes.json
 ```
 
 - **Preview** serves the app on http://127.0.0.1:8086/. Arrows, Enter
@@ -1010,8 +1067,10 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   Search's Discover row,
   asks for a movie and three seasons from Discover, approves a request,
   opens a title from its ready-to-watch card on Home (which waited while
-  the requests showed), chooses Español in Settings → Language for the
-  account (Home asked for again in it) and Automatic again, and checks
+  the requests showed), picks Twilight and Gold in Settings → Appearance
+  (kept for the profile; the rest of the walk is in them), chooses Español
+  in Settings → Language for the account (Home asked for again in it) and
+  Automatic again, and checks
   that a server
   without requests is asked nothing but the summary, and that one without
   categories (`404`) shows a library's collections as a grid that opens
@@ -1029,7 +1088,8 @@ bun run images    # the nine-patch focus, watched-mark and globe images
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
   standard library). The pictures of the Android TV look (`images/ui`:
   Lucide's icons from the Android app's set, rounded boxes as nine-patch
-  pictures, the scrubber's parts, the player's scrim) come from
+  pictures, the scrubber's parts, the player's scrim, the logo's shapes and
+  the themes' backdrops from the web's `index.css`) come from
   `bun scripts/render-roku-images.mjs` at the repository root, through a
   headless Chrome or Edge, as the Kodi skin's do. The home screen icons and
   splash screens come from `bun scripts/render-icons.mjs` there too.

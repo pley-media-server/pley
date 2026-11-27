@@ -13,28 +13,30 @@
         <field id="gridHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/LiveCard.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Paint.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Colors.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
-        <Rectangle id="frame" color="0x262B35FF" />
-        <Rectangle id="plate" color="0x2E3440FF" />
+        <Rectangle id="frame" color="0x191D24FF" />
+        <Rectangle id="plate" color="0x222731FF" />
         <Label id="fallback" color="0xA1A9B6FF" horizAlign="center" vertAlign="center" wrap="true" maxLines="2">
             <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="30" />
         </Label>
         <Poster id="logo" loadDisplayMode="scaleToFit" />
-        <Rectangle id="numberBack" color="0x16191ECC" height="40" visible="false" />
-        <Label id="number" height="40" horizAlign="center" vertAlign="center" color="0xEBEBEBFF">
+        <Rectangle id="numberBack" color="0x0B0D10CC" height="40" visible="false" />
+        <Label id="number" height="40" horizAlign="center" vertAlign="center" color="0xE9EBEFFF">
             <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
         </Label>
         <Label id="star" text="★" width="40" height="40" horizAlign="center" vertAlign="center" color="0x38BDF8FF" visible="false">
             <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="30" />
         </Label>
-        <Label id="title" color="0xEBEBEBFF">
+        <Label id="title" color="0xE9EBEFFF">
             <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
         </Label>
         <Label id="line" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-        <Rectangle id="track" color="0x2E3440FF" height="6" />
+        <Rectangle id="track" color="0x222731FF" height="6" />
         <Rectangle id="fill" color="0x38BDF8FF" height="6" />
-        <Label id="nextLine" color="0x8B95A5FF" font="font:TinySystemFont" />
+        <Label id="nextLine" color="0x7E8795FF" font="font:TinySystemFont" />
     </children>
 </component>

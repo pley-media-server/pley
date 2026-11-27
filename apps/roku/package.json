@@ -12,6 +12,7 @@
     "preview": "node scripts/preview.mjs",
     "package": "bsc --create-package --out-file out/pley-roku.zip",
     "images": "python scripts/make_images.py",
+    "themes": "node scripts/themes.mjs",
     "bench": "node scripts/bench.mjs"
   },
   "devDependencies": {

@@ -27,7 +27,7 @@
         <!-- The title, the line under it and the buttons, one under the other
              whatever the title takes (one line or two). -->
         <LayoutGroup translation="[192, 64]" layoutDirection="vert" itemSpacings="[16, 40]">
-            <Label id="title" width="460" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="title" width="460" wrap="true" maxLines="2" color="0xE9EBEFFF" font="font:LargeBoldSystemFont" />
             <Label id="line" width="460" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
             <ChipRow id="buttons" look="buttons" pad="64" visible="false" />
         </LayoutGroup>

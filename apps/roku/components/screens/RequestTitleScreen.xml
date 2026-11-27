@@ -33,21 +33,21 @@
              the rows; the backdrop alone, faint, while they have the
              focus (uiDimBackdrop). -->
         <Backdrop id="backdrop" />
-        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" />
-        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" />
+        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x0B0D10FF" />
+        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" blendColor="0x0B0D10FF" />
         <Group id="page">
             <Poster id="poster" translation="[1504, 120]" width="320" height="480" loadWidth="320" loadHeight="480" loadDisplayMode="scaleToZoom" />
-            <Label id="credit" translation="[1504, 620]" width="320" wrap="true" color="0x8B95A5FF" font="font:SmallestSystemFont" visible="false" />
+            <Label id="credit" translation="[1504, 620]" width="320" wrap="true" color="0x7E8795FF" font="font:SmallestSystemFont" visible="false" />
             <LayoutGroup id="column" translation="[192, 96]" layoutDirection="vert" itemSpacings="[40]" visible="false">
                 <!-- Only the parts with text stay in it (layoutText). -->
                 <LayoutGroup id="text" layoutDirection="vert">
-                    <Label id="heading" width="1020" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+                    <Label id="heading" width="1020" wrap="true" maxLines="2" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
                     <Label id="line" width="1020" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-                    <Label id="genres" width="1020" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-                    <Label id="tagline" width="1020" maxLines="1" color="0xEBEBEBFF">
+                    <Label id="genres" width="1020" color="0x7E8795FF" font="font:SmallestSystemFont" />
+                    <Label id="tagline" width="1020" maxLines="1" color="0xE9EBEFFF">
                         <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="28" />
                     </Label>
-                    <Label id="overview" width="1000" wrap="true" maxLines="4" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
+                    <Label id="overview" width="1000" wrap="true" maxLines="4" lineSpacing="6" color="0xE9EBEFFF" font="font:SmallerSystemFont" />
                     <StagePill id="stage" />
                     <Label id="stageLine" width="1020" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
                     <Label id="note" width="1020" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallSystemFont" />
@@ -56,12 +56,12 @@
             </LayoutGroup>
             <!-- Its top shows under the buttons (placeRows); the page slides
                  up to it. -->
-            <QuickRowList id="rows" translation="[168, 940]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+            <QuickRowList id="rows" translation="[168, 940]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[4, 0]]" showRowLabel="[true]" rowLabelOffset="[[24, 12]]" rowLabelColor="0xE9EBEFFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
         <Label id="message" translation="[192, 480]" width="1100" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- Why the title can't be shown, and what to do about it. -->
         <LayoutGroup id="problem" translation="[192, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">
-            <Label id="problemTitle" width="1400" wrap="true" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="problemTitle" width="1400" wrap="true" color="0xE9EBEFFF" font="font:LargeBoldSystemFont" />
             <Label id="problemText" width="1400" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
             <PillButtons id="problemButtons" minWidth="420" />
         </LayoutGroup>
