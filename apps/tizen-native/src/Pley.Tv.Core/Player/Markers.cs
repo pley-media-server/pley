@@ -92,7 +92,9 @@ public sealed class CreditsGate
 /// When Skip shows on its own: for <see cref="Markers.SkipShownMs"/> of the wall clock from the
 /// playhead entering a marker (playing, seeking or starting into it), paused or not; after that only
 /// with the controls, so it doesn't sit over the picture for a whole intro or the credits. Entering
-/// a marker again, or another, starts afresh; a seek within the one it is in doesn't.
+/// a marker again, or another, starts afresh; a seek within the one it is in doesn't. Up Next's
+/// card takes Skip's place while it shows, so Skip starts afresh when the card goes, however it
+/// goes (Cancel, a seek), as in the Android app's SkipWindow.
 /// packages/tv/test/fixtures/skip-shown.json pins it for both Samsung apps.
 /// </summary>
 public sealed class SkipWindow
@@ -100,7 +102,11 @@ public sealed class SkipWindow
     string? key;
     long since;
 
-    /// <summary>The marker the playhead is in at <paramref name="nowMs"/> (null for none): whether Skip shows on its own.</summary>
+    /// <summary>
+    /// Whether Skip, offered for <paramref name="marker"/> at <paramref name="nowMs"/>, shows on its
+    /// own. <paramref name="marker"/> is null while the playhead is in no marker, or Skip is hidden
+    /// under Up Next's card.
+    /// </summary>
     public bool At(Marker? marker, long nowMs)
     {
         var now = marker != null ? Markers.KeyOf(marker) : null;
@@ -111,9 +117,6 @@ public sealed class SkipWindow
         }
         return key != null && nowMs - since < Markers.SkipShownMs;
     }
-
-    /// <summary>Skip appears again in the marker the playhead is in (Up Next cancelled over its credits): a fresh window.</summary>
-    public void Again(long nowMs) => since = nowMs;
 
     /// <summary>A new item: the next marker starts afresh, even the same one.</summary>
     public void Reset() => key = null;

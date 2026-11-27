@@ -903,7 +903,8 @@ public sealed class PlayerModel : IDisposable
             var engineDuration = e.DurationMs;
             SetClock(positionMs: pos, bufferedMs: e.BufferedMs, durationMs: s.DurationMs > 0 ? s.DurationMs : engineDuration > 0 ? engineDuration : Clock.Value.DurationMs);
             var label = marker != null ? Markers.SkipLabel(marker) : null;
-            var alone = skipWindow.At(marker, now);
+            // Skip's time on its own runs from when it appears: not under Up Next's card, which takes its place.
+            var alone = skipWindow.At(State.Value.UpNext == null ? marker : null, now);
             if (label != State.Value.SkipLabel || alone != State.Value.SkipAlone) Update(st => st with { SkipLabel = label, SkipAlone = alone });
             // The markers are this file's: its length, else the player's.
             if (credits.Entered(marker, file?.DurationMs > 0 ? file.DurationMs : Clock.Value.DurationMs) != null) OnCredits();
@@ -1487,12 +1488,8 @@ public sealed class PlayerModel : IDisposable
     /// <summary>Up Next's Cancel: the card goes; at the end, playback ends.</summary>
     public void CancelUpNext()
     {
-        // Skip Credits, hidden under the card, appears now: its 8 s on its own start from here.
-        if (State.Value.UpNext != null && State.Value.SkipLabel != null)
-        {
-            skipWindow.Again(scheduler.Elapsed);
-            Update(s => s with { SkipAlone = true });
-        }
+        // Skip Credits, hidden under the card, appears at once: its 8 s on its own start with the next tick.
+        if (State.Value.UpNext != null && State.Value.SkipLabel != null) Update(s => s with { SkipAlone = true });
         HideUpNext();
         if (ended) Phase(PlayerPhase.Ended);
     }

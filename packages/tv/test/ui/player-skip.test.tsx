@@ -104,7 +104,11 @@ function setup() {
       did.push("pause");
       set({ phase: { kind: "paused" } });
     },
-    skip: () => did.push("skip"),
+    skip: () => {
+      did.push("skip");
+      // The controller's next tick finds the playhead past the marker.
+      setTimeout(() => set({ skipLabel: null, skipAlone: false }), 500);
+    },
     livePositionMs: () => 90_000,
     seekTo: () => undefined,
     close: () => undefined,
@@ -183,6 +187,24 @@ describe("Skip over the player", () => {
     expect(t.focused()).toBe("skip");
     t.press("ok");
     expect(t.did).toEqual(["skip"]);
+  });
+
+  it("leaves focus to the scrubber when pressed over the controls: OK pauses, Left and Right stay on it", () => {
+    const t = setup();
+    t.aloneOver();
+    t.wait(1);
+    t.press("up");
+    t.press("up");
+    expect([t.controlsShown(), t.focused()]).toEqual([true, "skip"]);
+    t.press("ok");
+    expect(t.did).toEqual(["skip"]);
+    t.wait(500);
+    t.wait(1);
+    expect([t.skipShown(), t.controlsShown(), t.focused()]).toEqual([false, true, "scrubber"]);
+    t.press("right");
+    expect(t.focused()).toBe("scrubber");
+    t.press("ok");
+    expect(t.did).toEqual(["skip", "pause"]);
   });
 
   it("goes with the controls after its 8 s, focus back on the video", () => {

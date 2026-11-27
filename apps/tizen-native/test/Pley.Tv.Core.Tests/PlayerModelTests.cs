@@ -370,6 +370,31 @@ public class PlayerModelTests
         Assert.Equal(("Skip Credits", false), (h.State.SkipLabel, h.State.SkipAlone));
         h.Model.CancelUpNext();
         Assert.Equal(((UpNextCard?)null, "Skip Credits", true), (h.State.UpNext, h.State.SkipLabel, h.State.SkipAlone));
+        // The 8 s run from the first tick without the card, as on Android TV.
+        h.Play(8_000);
+        Assert.True(h.State.SkipAlone);
+        h.Play(500);
+        Assert.Equal(("Skip Credits", false), (h.State.SkipLabel, h.State.SkipAlone));
+    }
+
+    /// <summary>A seek that stays in the credits ends Up Next: Skip Credits gets its 8 s on its own from then, as on Android TV.</summary>
+    [Fact]
+    public void A_seek_within_the_credits_ends_up_next_and_gives_skip_credits_its_8_s_on_its_own()
+    {
+        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_580_000, EndMs = 2_700_000, Source = "chapter" };
+        var next = PlayerHarness.Episode(2, 2);
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
+        h.Source.NextOf[1] = next;
+        h.Start(new PlayRequest(1, 2_579_000, false));
+        h.Play(1_000);
+        Assert.NotNull(h.State.UpNext);
+        // Skip's first 8 s go by under the card.
+        h.Play(8_000);
+        Assert.Equal(("Skip Credits", false), (h.State.SkipLabel, h.State.SkipAlone));
+        h.Model.SeekTo(2_581_000);
+        Assert.Null(h.State.UpNext);
+        h.Play(500);
+        Assert.Equal(("Skip Credits", true), (h.State.SkipLabel, h.State.SkipAlone));
         h.Play(7_500);
         Assert.True(h.State.SkipAlone);
         h.Play(500);

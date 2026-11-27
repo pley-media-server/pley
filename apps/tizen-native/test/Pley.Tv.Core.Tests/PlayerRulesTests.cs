@@ -294,7 +294,8 @@ public class MarkersTests
 
     /// <summary>
     /// When Skip shows is the Samsung web app's (packages/tv/test/fixtures/skip-shown.json): on its
-    /// own for 8 s from entering a marker, then only with the controls; afresh on entering one again.
+    /// own for 8 s from entering a marker, then only with the controls; afresh on entering one again,
+    /// and when Up Next's card, which takes its place, goes.
     /// </summary>
     [Theory]
     [MemberData(nameof(SkipShownCases))]
@@ -309,12 +310,8 @@ public class MarkersTests
         foreach (var step in c.GetProperty("steps").EnumerateArray())
         {
             var ms = step.GetProperty("ms").GetInt64();
-            if (step.TryGetProperty("up_next_cancelled", out _))
-            {
-                window.Again(ms);
-                continue;
-            }
-            var marker = Markers.Active(markers, step.GetProperty("position_ms").GetInt64());
+            // Up Next's card takes Skip's place: no marker offers it meanwhile.
+            var marker = step.TryGetProperty("up_next", out _) ? null : Markers.Active(markers, step.GetProperty("position_ms").GetInt64());
             var controls = step.GetProperty("controls").GetBoolean();
             var alone = window.At(marker, ms);
             var shown = Markers.SkipShows(marker != null, alone, controls) ? marker!.Kind : null;

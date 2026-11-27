@@ -70,12 +70,24 @@
       "name": "Up Next cancelled over the credits: Skip Credits on its own for 8 s from then",
       "steps": [
         { "ms": 0, "position_ms": 2580000, "controls": false, "skip": "credits", "on_its_own": true },
-        { "ms": 20000, "position_ms": 2600000, "controls": false, "skip": null, "on_its_own": false },
-        { "ms": 20000, "up_next_cancelled": true },
-        { "ms": 20000, "position_ms": 2600000, "controls": false, "skip": "credits", "on_its_own": true },
-        { "ms": 27999, "position_ms": 2607999, "controls": false, "skip": "credits", "on_its_own": true },
-        { "ms": 28000, "position_ms": 2608000, "controls": false, "skip": null, "on_its_own": false },
-        { "ms": 28000, "position_ms": 2608000, "controls": true, "skip": "credits", "on_its_own": false }
+        { "ms": 500, "position_ms": 2580500, "up_next": true, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 20000, "position_ms": 2600000, "up_next": true, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 20500, "position_ms": 2600500, "controls": false, "skip": "credits", "on_its_own": true },
+        { "ms": 28499, "position_ms": 2608499, "controls": false, "skip": "credits", "on_its_own": true },
+        { "ms": 28500, "position_ms": 2608500, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 28500, "position_ms": 2608500, "controls": true, "skip": "credits", "on_its_own": false }
+      ]
+    },
+    {
+      "name": "a seek within the credits ends Up Next: Skip Credits on its own for 8 s from then",
+      "steps": [
+        { "ms": 0, "position_ms": 2580000, "controls": false, "skip": "credits", "on_its_own": true },
+        { "ms": 500, "position_ms": 2580500, "up_next": true, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 40000, "position_ms": 2620000, "up_next": true, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 40500, "position_ms": 2590000, "controls": false, "skip": "credits", "on_its_own": true },
+        { "ms": 48499, "position_ms": 2597999, "controls": false, "skip": "credits", "on_its_own": true },
+        { "ms": 48500, "position_ms": 2598000, "controls": false, "skip": null, "on_its_own": false },
+        { "ms": 48500, "position_ms": 2598000, "controls": true, "skip": "credits", "on_its_own": false }
       ]
     }
   ]

@@ -1237,7 +1237,8 @@ export class PlaybackController {
         durationMs: info.duration_ms > 0 ? info.duration_ms : engineDuration > 0 ? engineDuration : this.clock.value.durationMs,
       });
       const label = marker ? skipLabel(marker) : null;
-      const alone = this.skipWindow.at(marker, now);
+      // Skip's time on its own runs from when it appears: not under Up Next's card, which takes its place.
+      const alone = this.skipWindow.at(this.state.value.upNext ? null : marker, now);
       if (label !== this.state.value.skipLabel || alone !== this.state.value.skipAlone) this.update({ skipLabel: label, skipAlone: alone });
       // The markers are this file's: its length, else the player's.
       if (marker && this.credits.enter(marker, this.file?.duration_ms || this.clock.value.durationMs)) this.onCredits();
@@ -1806,11 +1807,8 @@ export class PlaybackController {
   }
 
   cancelUpNext(): void {
-    // Skip Credits, hidden under the card, appears now: its 8 s on its own start from here.
-    if (this.state.value.upNext && this.state.value.skipLabel) {
-      this.skipWindow.again(this.now());
-      this.update({ skipAlone: true });
-    }
+    // Skip Credits, hidden under the card, appears at once: its 8 s on its own start with the next tick.
+    if (this.state.value.upNext && this.state.value.skipLabel) this.update({ skipAlone: true });
     this.hideUpNext();
     if (this.ended) this.phase({ kind: "ended" });
   }
@@ -2413,9 +2411,4 @@ export function isKeyed(url: string): boolean {
 function videoStreamOf(file: MediaFile | null): MediaStream | null {
   const videos = (file?.streams ?? []).filter((s) => s.kind === "video");
   return videos.filter((s) => s.default)[0] ?? videos[0] ?? null;
-}
-
-/** An image address asked for at `width` pixels (the server buckets it). */
-export function withWidth(url: string, width: number): string {
-  return url + (url.indexOf("?") >= 0 ? "&" : "?") + `w=${width}`;
 }

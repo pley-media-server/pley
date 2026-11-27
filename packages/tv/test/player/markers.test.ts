@@ -5,8 +5,8 @@ import { activeMarker, CreditsGate, reachesEnd, SKIP_SHOWN_MS, skipShows, SkipWi
 import fixture from "../fixtures/markers.json";
 import shown from "../fixtures/skip-shown.json";
 
-/** A step of skip-shown.json: where the playhead is at `ms` and whether the controls show, with what shows; or Up Next cancelled. */
-type SkipStep = { ms: number; position_ms?: number; controls?: boolean; skip?: string | null; on_its_own?: boolean; up_next_cancelled?: boolean };
+/** A step of skip-shown.json: where the playhead is at `ms`, whether Up Next's card and the controls show, with what shows. */
+type SkipStep = { ms: number; position_ms: number; up_next?: boolean; controls: boolean; skip: string | null; on_its_own: boolean };
 
 const marker = (kind: Marker["kind"], start_ms: number, end_ms: number, file_id = 7): Marker => ({ file_id, kind, start_ms, end_ms, source: "chapter" });
 
@@ -49,13 +49,10 @@ describe("when Skip shows, as the shared fixture has it", () => {
       const rule = new SkipWindow();
       const markers = shown.markers as Marker[];
       for (const step of c.steps as SkipStep[]) {
-        if (step.up_next_cancelled) {
-          rule.again(step.ms);
-          continue;
-        }
-        const m = activeMarker(markers, step.position_ms!);
+        // Up Next's card takes Skip's place: no marker offers it meanwhile.
+        const m = step.up_next ? null : activeMarker(markers, step.position_ms);
         const alone = rule.at(m, step.ms);
-        const what = skipShows(m !== null, alone, step.controls!) ? m!.kind : null;
+        const what = skipShows(m !== null, alone, step.controls) ? m!.kind : null;
         expect([step.ms, step.controls, what, alone]).toEqual([step.ms, step.controls, step.skip, step.on_its_own]);
       }
     });

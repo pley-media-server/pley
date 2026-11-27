@@ -261,8 +261,14 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
   const sleepShown = s.sleep.secondsLeft !== null && !error;
 
   // A new Skip or sleep notice takes focus while nothing else is up; the hidden-controls focus holder otherwise, as Skip goes after its 8 s.
+  // With the controls up, Skip or the notice going while it has focus (Skip pressed, its marker over) leaves it to the scrubber.
   useEffect(() => {
-    if (controls || panel || s.upNext || error) return;
+    if (panel || s.upNext || error) return;
+    if (controls) {
+      const had = ui.focus.current;
+      if (had && !had.isConnected) focusFid("scrubber");
+      return;
+    }
     if (skipShown) focusFid("skip");
     else if (sleepShown) focusFid("keep");
     else focusFid("video");

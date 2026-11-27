@@ -138,12 +138,17 @@ starting inside them), paused or not, with focus, so OK skips. Then it
 goes, and focus goes back to the video, where OK, the arrows and the other
 keys do what they do with nothing on screen. Until a second before the
 segment ends, Skip shows again with the controls, above the scrubber,
-where Up reaches it; the controls open on the scrubber, or on Skip during
-its 8 seconds. Entering a segment again, or another, starts a fresh 8
-seconds; a seek within the same one doesn't. Nothing is skipped by
-itself. Under Up Next's card Skip Credits doesn't show; canceling the
-card gives it its 8 seconds from then. Both Samsung apps share the rule,
-pinned by `packages/tv/test/fixtures/skip-shown.json`.
+where Up reaches it. Up opens the controls on the scrubber and Down on
+the row of buttons, during Skip's 8 seconds too; Info and Menu, which
+open them without a direction, open them on Skip during its 8 seconds and
+on the scrubber after. Skip going while it has focus over the controls
+(pressed, or its segment over) leaves focus on the scrubber. Entering a
+segment again, or another, starts a fresh 8 seconds; a seek within the
+same one doesn't. Nothing is skipped by itself. Under Up Next's card Skip
+Credits doesn't show; when the card goes with the playhead still in the
+credits (Cancel, or a seek within them), Skip Credits gets its 8 seconds
+from then. Both Samsung apps share the rule, pinned by
+`packages/tv/test/fixtures/skip-shown.json`.
 
 ### Up Next
 
@@ -1011,11 +1016,12 @@ forms and the same values, French and Spanish to their punctuation.
   pins which language shows, and that a server naming any language, even
   one the app doesn't have, keeps an account's; `markers.json` pins which
   credits bring Up Next; `skip-shown.json` pins when Skip shows (8 s on
-  its own from entering a segment, then only with the controls). Where the
-  Android app is
-  stricter (a token answer without `token_type`, a device code without
-  `expires_in`), the native app follows it, and its test says which
-  fixture case it answers differently.
+  its own from entering a segment or from Up Next's card going, then only
+  with the controls); `countdown-fill.json` pins how full Up Next's ring is
+  between the countdown's seconds. Where the Android app is stricter (a
+  token answer without `token_type`, a device code without `expires_in`),
+  the native app follows it, and its test says which fixture case it
+  answers differently.
 
 ### Setting up
 
