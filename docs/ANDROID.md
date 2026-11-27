@@ -1583,8 +1583,8 @@ Samsung app; with nothing to focus (no ".." line) focus waits on that
 message, showing nothing, so the rail closes over the page and Left opens
 it. A video plays in Pley's player as it is, with no server, also while
 the server is out of reach, the way a download plays: seeking, the
-panels, the sleep timer and the subtitles' look are the same. The page is
-in the rail, which shows once the TV is signed in to a server.
+panels and the subtitles' look are the same. The page is in the rail,
+which shows once the TV is signed in to a server.
 
 - **The drive** is the first mounted volume of `StorageManager`'s that
   isn't the device's own, removable ones first (some TV builds don't mark a

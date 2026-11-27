@@ -77,7 +77,7 @@ class PlayerWordsTest {
         assertEquals("1 min restante", SleepTexts.summary(french, SleepState(SleepChoice.Minutes(30), minutesLeft = 1)))
         assertEquals("Queda 1 min", SleepTexts.summary(spanish, SleepState(SleepChoice.Minutes(30), minutesLeft = 1)))
         assertEquals("Quedan 42 min", SleepTexts.summary(spanish, SleepState(SleepChoice.Minutes(60), minutesLeft = 42)))
-        assertEquals("Fin de ce titre", SleepTexts.choice(french, SleepChoice.EndOfItem, music = true))
+        assertEquals("Fin de ce titre", SleepTexts.choice(french, SleepChoice.EndOfItem))
         assertEquals("Mise en pause dans 30 s", SleepTexts.notice(french, 30))
         assertEquals("1 téléchargement", french.getQuantityString(R.plurals.session_search_downloads, 1, 1L))
         assertEquals("2 descargas", spanish.getQuantityString(R.plurals.session_search_downloads, 2, 2L))

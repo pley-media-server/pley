@@ -978,7 +978,6 @@ class MusicPlayback(
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean) {
-            if (playWhenReady) timer.resumed()
             if (!playWhenReady && !ended) session?.progress(lastPosition(), ProgressState.Paused)
             publish()
         }

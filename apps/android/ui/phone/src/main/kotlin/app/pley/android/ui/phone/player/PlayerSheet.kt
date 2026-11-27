@@ -50,7 +50,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.pluralStringResource
@@ -80,8 +79,6 @@ import app.pley.android.player.PlayerEngine
 import app.pley.android.player.SubtitleSearchUi
 import app.pley.android.player.engine.EngineState
 import app.pley.android.player.engine.PlaybackStats
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepTexts
 import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.player.subtitles.SubtitleSync
 import app.pley.android.ui.phone.R
@@ -103,8 +100,8 @@ data class SubtitleChoice(
 /**
  * The player's sheet (design spec §3.4 in the player's window, so the
  * system bars stay hidden): Settings with Quality, Audio, Subtitles,
- * Subtitle style, Speed, Sleep timer and Playback details, each also opened
- * straight from the bottom row, and Chapters. Subtitles has Sync while the
+ * Subtitle style, Speed and Playback details, each also opened straight
+ * from the bottom row, and Chapters. Subtitles has Sync while the
  * subtitles chosen can move, and Find subtitles… while the file streams
  * from the server; Subtitle style shows while the subtitles chosen are
  * text; Audio has the audio delay. [surface2][PleyColors.Surface2], 20 dp top
@@ -209,7 +206,6 @@ private fun ColumnScope.SheetContent(page: SheetPage, state: PlayerScreenState, 
             SheetPage.Style -> R.string.player_subtitle_style
             SheetPage.Details -> R.string.player_details
             SheetPage.Chapters -> R.string.player_chapters
-            SheetPage.Sleep -> R.string.player_sleep_timer
             SheetPage.Speed -> R.string.player_speed
             SheetPage.FindSubtitles -> R.string.player_find_subtitles
         },
@@ -249,7 +245,6 @@ private fun ColumnScope.SheetContent(page: SheetPage, state: PlayerScreenState, 
             SheetPage.FindSubtitles -> FindSubtitlesPage(state)
             SheetPage.Style -> StylePage(style, onStyle)
             SheetPage.Details -> DetailsPage(state)
-            SheetPage.Sleep -> SleepPage(state)
             SheetPage.Chapters -> Unit
         }
     }
@@ -286,7 +281,6 @@ private fun SettingsPage(state: PlayerScreenState, style: SubtitleChoice) {
         NavRow(PleyIcons.SlidersHorizontal, stringResource(R.string.player_subtitle_style), sizeLabel(style.sizeIndex)) { state.open(SheetPage.Style) }
     }
     NavRow(PleyIcons.FastForward, stringResource(R.string.player_speed), PlaybackSpeeds.label(state.speed, shownLocale())) { state.open(SheetPage.Speed) }
-    NavRow(MoonIcon, stringResource(R.string.player_sleep_timer), SleepTexts.summary(LocalResources.current, state.sleep)) { state.open(SheetPage.Sleep) }
     NavRow(PleyIcons.Info, stringResource(R.string.player_details), state.method.orEmpty()) { state.open(SheetPage.Details) }
 }
 
@@ -337,21 +331,6 @@ private fun FindSubtitlesPage(state: PlayerScreenState) {
 @Composable
 private fun Note(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp))
-}
-
-/** The sleep timer's choices; the one running ticked, with its minutes left. */
-@Composable
-private fun SleepPage(state: PlayerScreenState) {
-    val resources = LocalResources.current
-    val sleep = state.sleep
-    SleepChoice.ALL.forEach { choice ->
-        val on = sleep.choice == choice
-        val hint = if (on && choice is SleepChoice.Minutes && sleep.minutesLeft != null) SleepTexts.summary(resources, sleep) else null
-        OptionRow(on, SleepTexts.choice(resources, choice), hint) {
-            state.controller.setSleep(choice)
-            state.closeSheet()
-        }
-    }
 }
 
 @Composable

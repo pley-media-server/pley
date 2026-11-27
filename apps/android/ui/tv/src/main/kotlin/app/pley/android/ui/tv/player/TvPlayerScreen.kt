@@ -41,7 +41,6 @@ import app.pley.android.player.PlayerPhase
 import app.pley.android.player.PlayerUiState
 import app.pley.android.player.engine.EngineState
 import app.pley.android.player.engine.VideoSurface
-import app.pley.android.player.sleep.SleepTimer
 import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.player.subtitles.ScreenCaptions
 import app.pley.android.ui.tv.R
@@ -56,12 +55,11 @@ import kotlinx.coroutines.launch
  * remote's keys.
  *
  * - **Controls hidden.** Only the video and subtitles show; the title for
- *   a few seconds as each item begins ([TvTitleBanner]), Skip, Up Next and
- *   the sleep timer's notice are all that appear unasked. Center shows the
- *   controls on the scrubber, as Up does (a showing Skip button or Keep
- *   watching takes it), Down on Play/Pause. Left and Right show them on the
- *   scrubber too, with the preview, and seek from there. Center on the
- *   scrubber plays or pauses.
+ *   a few seconds as each item begins ([TvTitleBanner]), Skip and Up Next
+ *   are all that appear unasked. Center shows the controls on the scrubber,
+ *   as Up does (a showing Skip button takes it), Down on Play/Pause. Left
+ *   and Right show them on the scrubber too, with the preview, and seek
+ *   from there. Center on the scrubber plays or pauses.
  * - **Seeking** ([TvSeeker]), as YouTube's TV app does: Left and Right
  *   move where it goes, 10 s a press (held: scrub), and it goes there on
  *   OK, or by itself 5 s after the last key; fast forward and rewind go
@@ -82,9 +80,7 @@ import kotlinx.coroutines.launch
  * - **Back** walks out: panel, then Up Next, then the chapters' cards, then
  *   a seek waiting (the controls stay, and it plays on from where it was),
  *   then the controls, then the player ([onExit]).
- * - **Sleep timer.** Its notice takes focus 30 s before it pauses (Keep
- *   watching); paused by it for 10 minutes, the player leaves. A playback
- *   the server stopped says why and leaves after 20 s.
+ * - **A playback the server stopped** says why and leaves after 20 s.
  * - **Media keys** and CAPTIONS work whatever shows, but an error: then
  *   only Stop does, and it leaves.
  *
@@ -139,10 +135,7 @@ internal fun TvPlayerScreen(
     // preview, the chapters' cards, Up Next or an error.
     val skipShown = skipLabel != null && (skipAlone || ui.controls) && card == null && error == null && !switching &&
         !(ui.controls && (previewing || chaptersOpen))
-    val sleepNotice by remember(state) { derivedStateOf { state.value.sleep.secondsLeft != null } }
-    val sleepFired by remember(state) { derivedStateOf { state.value.sleep.fired } }
     val stopped by remember(state) { derivedStateOf { state.value.stoppedByServer } }
-    val noticeShown = sleepNotice && error == null
     val pausedByRemote by remember(state) { derivedStateOf { state.value.pausedByRemote } }
     // A key came during the remote's pause: the pause is the person's own, until it plays again.
     var pauseOwned by remember(controller) { mutableStateOf(false) }
@@ -361,8 +354,7 @@ internal fun TvPlayerScreen(
         }
         val busy = state.value.phase == PlayerPhase.Preparing || switching
         if (!ui.controls) {
-            val buttonFocused = (skipShown && ui.focused == PlayerFocus.Skip) || (noticeShown && ui.focused == PlayerFocus.SleepNotice)
-            val key = TvPlayerKeys.hidden(code, skipShowing = buttonFocused) ?: return false
+            val key = TvPlayerKeys.hidden(code, skipShowing = skipShown && ui.focused == PlayerFocus.Skip) ?: return false
             return handle(key, native, busy)
         }
         ui.touch()
@@ -410,20 +402,6 @@ internal fun TvPlayerScreen(
         when {
             skipShown && !ui.controls && ui.panel == null -> ui.ask(PlayerFocus.Skip)
             !skipShown && ui.focused == PlayerFocus.Skip -> ui.ask(if (ui.controls) PlayerFocus.Scrubber else PlayerFocus.Video)
-        }
-    }
-    // The sleep timer's notice takes focus as Skip does (Skip first); when it goes, focus goes back.
-    LaunchedEffect(noticeShown) {
-        when {
-            noticeShown && !skipShown && !ui.controls && ui.panel == null && card == null -> ui.ask(PlayerFocus.SleepNotice)
-            !noticeShown && ui.focused == PlayerFocus.SleepNotice -> ui.ask(if (ui.controls) PlayerFocus.Scrubber else PlayerFocus.Video)
-        }
-    }
-    // Paused by the sleep timer for 10 minutes: the player leaves.
-    LaunchedEffect(sleepFired, phase) {
-        if (sleepFired && phase == PlayerPhase.Paused) {
-            delay(SleepTimer.LEAVE_AFTER_MS)
-            exit()
         }
     }
     // The server stopped the playback: the error says why, then the player leaves.
@@ -579,7 +557,6 @@ internal fun TvPlayerScreen(
             seeker.cancel()
             controller.skip()
         }
-        TvSleepNotice(state, noticeShown, ui.controls, ui, onKeep = controller::keepWatching)
         TvUpNextCard(card, ui, onPlay = controller::playNext, onCancel = controller::cancelUpNext)
         if (!ui.controls) TvSeekBadge(seeker.badgeMs)
         if (switching || phase == PlayerPhase.Switching) TvSwitchingCover()

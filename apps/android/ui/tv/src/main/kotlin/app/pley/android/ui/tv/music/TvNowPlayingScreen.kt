@@ -80,6 +80,7 @@ import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PlayPauseGlyph
+import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.TrackChange
 import app.pley.android.designsystem.TrackWords
@@ -102,7 +103,6 @@ import app.pley.android.ui.tv.kit.TvRoundButton
 import app.pley.android.ui.tv.kit.HeldEnds
 import app.pley.android.ui.tv.kit.heldKeyStaysIn
 import app.pley.android.ui.tv.kit.initialFocus
-import app.pley.android.ui.tv.player.MoonIcon
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import java.text.NumberFormat
 import kotlinx.coroutines.delay
@@ -388,9 +388,9 @@ private fun SleepButton(model: NowPlayingViewModel) {
     val resources = LocalResources.current
     val notice = sleep.secondsLeft != null
     val label = when {
-        notice -> SleepTexts.keep(resources, music = true)
+        notice -> SleepTexts.keep(resources)
         sleep.choice == SleepChoice.Off -> SleepTexts.title(resources)
-        else -> resources.getString(R.string.tv_music_sleep_running, SleepTexts.title(resources), SleepTexts.summary(resources, sleep, music = true))
+        else -> resources.getString(R.string.tv_music_sleep_running, SleepTexts.title(resources), SleepTexts.summary(resources, sleep))
     }
     TvRoundButton(
         label,
@@ -407,6 +407,9 @@ private fun SleepButton(model: NowPlayingViewModel) {
         onArt = true,
     )
 }
+
+/** Lucide `moon`: the sleep timer. */
+private val MoonIcon = PleyIcon("moon", false, "M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z")
 
 /** Play/Pause: a 56 dp circle with a 28 dp glyph (design spec §2.7), the page's initial focus. */
 @Composable

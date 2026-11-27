@@ -13,7 +13,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The sleep timer on virtual time: its notice, its end, Keep watching, the end of an item. */
+/** The sleep timer on virtual time: its notice, its end, Keep listening, the end of an item. */
 class SleepTimerTest {
     private var fired = 0
     private var left: Long? = null
@@ -48,14 +48,11 @@ class SleepTimerTest {
         advanceTimeBy(15_000)
         runCurrent()
         assertEquals(1, fired)
-        assertEquals(SleepState(fired = true), t.state.value)
-        // Playing again ends the pause it made.
-        t.resumed()
-        assertFalse(t.state.value.fired)
+        assertEquals(SleepState(), t.state.value)
     }
 
     @Test
-    fun `Keep watching adds the same time again`() = runTest {
+    fun `Keep listening adds the same time again`() = runTest {
         val t = timer()
         t.set(SleepChoice.Minutes(30))
         advanceTimeBy(30 * MINUTE - 10_000)
@@ -104,12 +101,12 @@ class SleepTimerTest {
         assertEquals(0, fired)
         assertTrue(t.itemEnded(1L))
         assertEquals(1, fired)
-        assertTrue(t.state.value.fired)
+        assertEquals(SleepState(), t.state.value)
         assertFalse(t.itemEnded(2L))
     }
 
     @Test
-    fun `Keep watching at the end of an item waits for the next one's end`() = runTest {
+    fun `Keep listening at the end of an item waits for the next one's end`() = runTest {
         val t = timer()
         left = 20_000
         t.set(SleepChoice.EndOfItem)

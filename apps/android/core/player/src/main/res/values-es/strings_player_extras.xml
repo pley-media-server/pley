@@ -16,7 +16,6 @@
     <string name="sleep_timer">Temporizador de suspensión</string>
     <string name="sleep_off">Desactivado</string>
     <string name="sleep_minutes">%1$d min</string>
-    <string name="sleep_end_of_episode">Final de este episodio</string>
     <string name="sleep_end_of_track">Final de esta pista</string>
     <plurals name="sleep_minutes_left">
         <item quantity="one">Queda %1$d min</item>
@@ -24,7 +23,6 @@
         <item quantity="other">Quedan %1$d min</item>
     </plurals>
     <string name="sleep_notice">Se pausará en %1$d s</string>
-    <string name="sleep_keep_watching">Seguir viendo</string>
     <string name="sleep_keep_listening">Seguir escuchando</string>
     <string name="cast_switch_failed">No se pudo cambiar al perfil del control remoto</string>
     <string name="session_remote_paused">En pausa</string>

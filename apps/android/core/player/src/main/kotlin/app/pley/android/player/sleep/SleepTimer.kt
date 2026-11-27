@@ -10,13 +10,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** What the sleep timer is set to. Not remembered between playbacks. */
+/** What the sleep timer is set to. Not remembered after the music stops. */
 sealed interface SleepChoice {
     data object Off : SleepChoice
 
     data class Minutes(val minutes: Int) : SleepChoice
 
-    /** The end of the episode, film or track playing. */
+    /** The end of the track playing. */
     data object EndOfItem : SleepChoice
 
     companion object {
@@ -33,16 +33,14 @@ data class SleepState(
     val secondsLeft: Int? = null,
     /** Minutes before it pauses, rounded up, for the menu; `null` when off or unknown. */
     val minutesLeft: Int? = null,
-    /** It paused the playback, which hasn't played since. */
-    val fired: Boolean = false,
 )
 
 /**
- * The sleep timer of a video or of music: after the minutes chosen, or at
- * the end of what plays, it pauses ([onFire]). 30 s before, [state] says
- * so once a second for a notice; [extend] ("Keep watching") adds the same
- * time again. Time comes from [now] (monotonic ms) and [delay], so tests
- * run it on virtual time. Main thread only.
+ * The sleep timer of music: after the minutes chosen, or at the end of
+ * what plays, it pauses ([onFire]). 30 s before, [state] says so once a
+ * second for a notice; [extend] ("Keep listening") adds the same time
+ * again. Time comes from [now] (monotonic ms) and [delay], so tests run
+ * it on virtual time. Main thread only.
  */
 class SleepTimer(
     private val scope: CoroutineScope,
@@ -61,7 +59,7 @@ class SleepTimer(
     /** When a timer of minutes ends, on [now]'s clock. */
     private var deadline = 0L
 
-    /** "Keep watching" at the end of this item: the timer waits for the next one's end. */
+    /** "Keep listening" at the end of this item: the timer waits for the next one's end. */
     private var spared: Any? = null
 
     fun set(choice: SleepChoice) {
@@ -99,11 +97,6 @@ class SleepTimer(
         if (!endsWith(key)) return false
         fire()
         return true
-    }
-
-    /** It plays again: the pause the timer made is over. */
-    fun resumed() {
-        if (mutable.value.fired) mutable.update { it.copy(fired = false) }
     }
 
     fun cancel() {
@@ -155,16 +148,13 @@ class SleepTimer(
         job?.cancel()
         job = null
         spared = null
-        mutable.value = SleepState(fired = true)
+        mutable.value = SleepState()
         onFire()
     }
 
     companion object {
         /** The notice shows this long before the timer pauses. */
         const val NOTICE_MS = 30_000L
-
-        /** On TV, paused by the timer this long, the player leaves. */
-        const val LEAVE_AFTER_MS = 10 * 60_000L
 
         private const val SECOND_MS = 1_000L
         private const val MINUTE_MS = 60_000L

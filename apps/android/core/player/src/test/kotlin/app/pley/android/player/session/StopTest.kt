@@ -4,7 +4,6 @@ import app.pley.android.model.ProgressState
 import app.pley.android.model.ServerEvent
 import app.pley.android.player.PlayRequest
 import app.pley.android.player.PlayerPhase
-import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.testing.caps.TestDevices
 import app.pley.android.testing.caps.capsOf
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -55,10 +54,8 @@ class StopTest {
         c.retry()
         c.play()
         c.seekTo(30_000)
-        c.setSleep(SleepChoice.Minutes(15))
         h.advance(1_000)
         assertEquals(1, h.playbackRequests().size)
-        assertEquals(SleepChoice.Off, c.state.value.sleep.choice)
     }
 
     @Test

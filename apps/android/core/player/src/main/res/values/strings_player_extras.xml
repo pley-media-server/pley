@@ -43,7 +43,6 @@
     <string name="sleep_timer">Sleep timer</string>
     <string name="sleep_off">Off</string>
     <string name="sleep_minutes">%1$d min</string>
-    <string name="sleep_end_of_episode">End of this episode</string>
     <string name="sleep_end_of_track">End of this track</string>
     <!-- The timer running, beside its row: "42 min left". -->
     <plurals name="sleep_minutes_left">
@@ -52,7 +51,6 @@
     </plurals>
     <!-- 30 s before the timer pauses. -->
     <string name="sleep_notice">Pausing in %1$d s</string>
-    <string name="sleep_keep_watching">Keep watching</string>
     <string name="sleep_keep_listening">Keep listening</string>
 
     <!-- Subtitle sync: moves the subtitles in time. -->

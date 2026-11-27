@@ -3,7 +3,6 @@ package app.pley.android.player
 import android.graphics.Bitmap
 import androidx.media3.common.text.Cue
 import app.pley.android.player.session.SavedPlaybackState
-import app.pley.android.player.sleep.SleepChoice
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -71,12 +70,6 @@ interface PlaybackController {
 
     /** The search's list was closed. */
     fun closeSubtitleSearch() {}
-
-    /** Sets the sleep timer (not remembered after this playback). */
-    fun setSleep(choice: SleepChoice) {}
-
-    /** "Keep watching" during the sleep timer's notice: the same time again. */
-    fun keepWatching() {}
 
     /** "original" or a quality preset's id ("8m"); remembered for this device and network. */
     fun selectQuality(name: String)

@@ -36,8 +36,6 @@ import app.pley.android.player.QualityChoice
 import app.pley.android.player.TrackChoice
 import app.pley.android.player.UpNextUi
 import app.pley.android.player.engine.TAG_VIDEO_SHUTTER
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepState
 import app.pley.android.testing.player.engine.FakePlayerEngine
 import app.pley.android.testing.player.session.FakePlaybackController
 import app.pley.android.ui.tv.kit.KeyRepeatGate
@@ -420,9 +418,9 @@ class TvPlayerScreenTest {
     fun `the Chapters button opens the cards on the chapter playing, and Down or Back closes them onto it`() {
         val controller = playing()
         show(controller)
-        // Play/Pause, Previous, then Speed, Sleep timer and Chapters at the left.
+        // Play/Pause, Previous, then Speed and Chapters at the left.
         press(Key.DirectionDown)
-        press(Key.DirectionLeft, times = 4)
+        press(Key.DirectionLeft, times = 3)
         val button = tagOf(PlayerFocus.Chapters)
         focusedOn(button)
         press(Key.DirectionCenter)
@@ -450,7 +448,7 @@ class TvPlayerScreenTest {
         val controller = playing()
         show(controller)
         press(Key.DirectionDown)
-        press(Key.DirectionLeft, times = 4)
+        press(Key.DirectionLeft, times = 3)
         val button = tagOf(PlayerFocus.Chapters)
         press(Key.DirectionCenter)
         focusedOn(TAG_CHAPTER_STRIP)
@@ -470,7 +468,7 @@ class TvPlayerScreenTest {
         val controller = playing { it.copy(subtitle = null) }
         show(controller)
         press(Key.DirectionDown)
-        press(Key.DirectionLeft, times = 4)
+        press(Key.DirectionLeft, times = 3)
         val button = tagOf(PlayerFocus.Chapters)
         press(Key.DirectionCenter)
         focusedOn(TAG_CHAPTER_STRIP)
@@ -896,20 +894,6 @@ class TvPlayerScreenTest {
         compose.mainClock.advanceTimeBy(500)
         compose.waitForIdle()
         focusedOn(TAG_SKIP)
-    }
-
-    @Test
-    fun `the sleep timer's notice keeps the width of its 30 s as the count goes down`() {
-        val controller = playing { it.copy(sleep = SleepState(SleepChoice.Minutes(30), secondsLeft = 30, minutesLeft = 1)) }
-        show(controller)
-        compose.mainClock.advanceTimeBy(500)
-        compose.waitForIdle()
-        compose.onNodeWithText("Pausing in 30 s").assertExists()
-        val wide = compose.onNodeWithTag(TAG_SLEEP_NOTICE).getBoundsInRoot()
-        controller.update { it.copy(sleep = it.sleep.copy(secondsLeft = 9)) }
-        compose.waitForIdle()
-        compose.onNodeWithText("Pausing in 9 s").assertExists()
-        assertEquals(wide, compose.onNodeWithTag(TAG_SLEEP_NOTICE).getBoundsInRoot())
     }
 
     @Test

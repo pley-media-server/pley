@@ -52,8 +52,6 @@ import app.pley.android.player.markers.CreditsGate
 import app.pley.android.player.markers.Markers
 import app.pley.android.player.markers.SkipWindow
 import app.pley.android.player.queue.NextUp
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepTimer
 import app.pley.android.player.subtitles.PictureSubtitles
 import app.pley.android.player.subtitles.PictureTrack
 import app.pley.android.player.subtitles.ServerSubtitles
@@ -126,8 +124,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   a download's plays at 1×, as does a stream the server can't convert.
  * - **Find subtitles…**: the server's search online for the file playing;
  *   one picked is added on the server and shown as any subtitle file.
- * - **Sleep timer**, and a session the server stopped: it says so and
- *   plays no more.
+ * - **A session the server stopped** says so and plays no more.
  * - **The remote**, on another of the profile's devices (docs/API.md,
  *   "Remote control"): play, pause, seek and skip, next when something
  *   can come next, the audio and subtitles of a file that has them, and
@@ -290,7 +287,6 @@ class SessionPlaybackController(
 
     /** The server stopped the playback: nothing plays again. */
     private var stopped = false
-    private val sleep = SleepTimer(scope, env.now, ::itemLeftMs, { item?.id }, ::onSleep)
     private var trickplay: TrickplayThumbnails? = null
     private var trickplayWatch: Job? = null
 
@@ -347,7 +343,6 @@ class SessionPlaybackController(
         scope.launch { serverEvents() }
         // The remote leaves out what plays here; another episode is another session.
         scope.launch { sessionState.collect { env.here(this@SessionPlaybackController, it?.id) } }
-        scope.launch { sleep.state.collect { s -> ui.update { it.copy(sleep = s) } } }
     }
 
     private suspend fun prepareFirst() {
@@ -992,7 +987,6 @@ class SessionPlaybackController(
         if (closed) return
         val was = wantPlay.value
         wantPlay.value = playWhenReady
-        if (playWhenReady) sleep.resumed()
         if (session != null) {
             if (!playWhenReady) {
                 struggle.reset()
@@ -1164,8 +1158,6 @@ class SessionPlaybackController(
     private fun onEnded() {
         if (ended) return
         ended = true
-        // The sleep timer ends with this item: what comes next waits for the person.
-        val sleeping = sleep.itemEnded(item?.id)
         val s = session
         val duration = s?.info?.durationMs?.takeIf { it > 0 } ?: link?.durationMs?.takeIf { it > 0 } ?: lastPositionMs
         lastPositionMs = duration
@@ -1178,10 +1170,10 @@ class SessionPlaybackController(
         phase(PlayerPhase.Paused)
         val known = next
         if (known != null) {
-            showUpNext(known, restartCountdown = !sleeping && countdown?.isActive != true)
+            showUpNext(known, restartCountdown = countdown?.isActive != true)
             return
         }
-        lookUpNext { found -> if (found == null) phase(PlayerPhase.Ended) else showUpNext(found, restartCountdown = !sleeping) }
+        lookUpNext { found -> if (found == null) phase(PlayerPhase.Ended) else showUpNext(found, restartCountdown = true) }
     }
 
     // ---------------------------------------------------------------- the clock
@@ -1525,7 +1517,6 @@ class SessionPlaybackController(
         nextLookup?.cancel()
         hideUpNext()
         hideServerSubtitles()
-        sleep.cancel()
         link?.stop()
         ui.update {
             it.copy(
@@ -1534,21 +1525,6 @@ class SessionPlaybackController(
                 stoppedByServer = true,
             )
         }
-    }
-
-    /** How long the item playing has left, for the sleep timer; `null` while unknown. */
-    private fun itemLeftMs(): Long? {
-        if (session == null || !mediaShown || ended) return null
-        val duration = ui.value.durationMs.takeIf { it > 0 } ?: return null
-        return duration - livePosition()
-    }
-
-    /** The sleep timer ended: it pauses, and what plays next doesn't start by itself. */
-    private fun onSleep() {
-        countdown?.cancel()
-        countdown = null
-        ui.update { it.copy(upNextSecondsLeft = null, upNextCard = it.upNextCard?.copy(secondsLeft = null)) }
-        link?.pause()
     }
 
     private fun report(state: ProgressState) {
@@ -1865,19 +1841,6 @@ class SessionPlaybackController(
         else -> texts.searchFailed(errorText(e))
     }
 
-    override fun setSleep(choice: SleepChoice) {
-        if (closed || stopped) return
-        sleep.set(choice)
-    }
-
-    override fun keepWatching() {
-        if (closed || stopped) return
-        sleep.extend()
-        // What plays next was held for the timer: its countdown goes on.
-        val known = next
-        if (known != null && ui.value.upNextCard != null && countdown?.isActive != true && !ended) showUpNext(known, restartCountdown = true)
-    }
-
     override fun selectQuality(name: String) {
         changeQuality(name)
     }
@@ -2036,7 +1999,6 @@ class SessionPlaybackController(
         env.playing(this, false)
         env.here(this, null)
         env.here(starting, null)
-        sleep.cancel()
         hideServerSubtitles()
         dropTrickplay()
         link?.setListener(null)
@@ -2106,7 +2068,7 @@ class SessionPlaybackController(
         if (!restartCountdown) return
         countdown?.cancel()
         countdown = scope.launch {
-            if (!env.autoplayNext() || sleep.endsWith(item?.id)) return@launch
+            if (!env.autoplayNext()) return@launch
             for (left in COUNTDOWN_SECONDS downTo 1) {
                 setSecondsLeft(left)
                 delay(1_000)
@@ -2166,7 +2128,6 @@ class SessionPlaybackController(
                 itemId = target.id,
                 title = it.title,
                 positionMs = req.startMs ?: 0,
-                sleep = it.sleep,
                 // The next title starts paused when this one is: the remote's pause stays the remote's.
                 pausedByRemote = it.pausedByRemote,
                 remoteNoticeId = it.remoteNoticeId,

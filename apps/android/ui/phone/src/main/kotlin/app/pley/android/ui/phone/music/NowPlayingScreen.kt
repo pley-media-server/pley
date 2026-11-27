@@ -105,7 +105,6 @@ import app.pley.android.player.MusicError
 import app.pley.android.player.MusicRepeat
 import app.pley.android.player.NowPlaying
 import app.pley.android.screens.PleyKey
-import app.pley.android.player.MusicControl
 import app.pley.android.player.sleep.SleepState
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.ui.phone.player.CarGap
@@ -117,7 +116,6 @@ import app.pley.android.ui.phone.player.ScrubKnobDragged
 import app.pley.android.ui.phone.player.ScrubTrack
 import app.pley.android.ui.phone.player.CarSized
 import app.pley.android.ui.phone.player.LocalCarScreen
-import app.pley.android.ui.phone.player.SleepNotice
 import app.pley.android.ui.phone.player.onCarScreen
 import androidx.compose.foundation.layout.BoxScope
 import java.text.NumberFormat
@@ -233,7 +231,7 @@ private fun NowPlayingPage() {
                 }
             }
         }
-        MusicSleepNotice(sleep, music)
+        if (music != null) MusicSleepNotice(sleep.secondsLeft, onKeep = music::keepListening)
     }
     if (queue) QueueSheet(state, onPick = model::jumpTo, onDismiss = { queue = false })
 }
@@ -421,13 +419,6 @@ private fun Backdrop(cover: ShownCover, title: String) {
             placeholder = false,
         )
     }
-}
-
-/** The sleep timer's notice over Now Playing, under its top bar. */
-@Composable
-private fun BoxScope.MusicSleepNotice(sleep: SleepState, music: MusicControl?) {
-    if (music == null) return
-    SleepNotice(sleep.secondsLeft, music = true, onKeep = music::keepListening, modifier = Modifier.padding(top = 52.dp))
 }
 
 /**

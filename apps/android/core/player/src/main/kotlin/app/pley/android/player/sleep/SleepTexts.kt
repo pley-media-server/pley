@@ -5,20 +5,20 @@ import app.pley.android.player.R
 
 /** How the sleep timer's menus say things, for the phone and the TV alike. */
 object SleepTexts {
-    /** A choice: "Off", "30 min", "End of this episode" ([music]: "End of this track"). */
-    fun choice(res: Resources, choice: SleepChoice, music: Boolean = false): String = when (choice) {
+    /** A choice: "Off", "30 min", "End of this track". */
+    fun choice(res: Resources, choice: SleepChoice): String = when (choice) {
         SleepChoice.Off -> res.getString(R.string.sleep_off)
         is SleepChoice.Minutes -> res.getString(R.string.sleep_minutes, choice.minutes)
-        SleepChoice.EndOfItem -> res.getString(if (music) R.string.sleep_end_of_track else R.string.sleep_end_of_episode)
+        SleepChoice.EndOfItem -> res.getString(R.string.sleep_end_of_track)
     }
 
-    /** What the menu row says now: "Off", "42 min left", "End of this episode". */
-    fun summary(res: Resources, state: SleepState, music: Boolean = false): String {
+    /** What the menu row says now: "Off", "42 min left", "End of this track". */
+    fun summary(res: Resources, state: SleepState): String {
         val minutes = state.minutesLeft
         return if (state.choice is SleepChoice.Minutes && minutes != null) {
             res.getQuantityString(R.plurals.sleep_minutes_left, minutes, minutes)
         } else {
-            choice(res, state.choice, music)
+            choice(res, state.choice)
         }
     }
 
@@ -27,6 +27,6 @@ object SleepTexts {
     /** "Pausing in 30 s". */
     fun notice(res: Resources, secondsLeft: Int): String = res.getString(R.string.sleep_notice, secondsLeft)
 
-    fun keep(res: Resources, music: Boolean = false): String =
-        res.getString(if (music) R.string.sleep_keep_listening else R.string.sleep_keep_watching)
+    /** "Keep listening". */
+    fun keep(res: Resources): String = res.getString(R.string.sleep_keep_listening)
 }

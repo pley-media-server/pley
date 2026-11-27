@@ -153,7 +153,6 @@ fun PhonePlayerScreen(
         UpNextCard(state)
         UnlockButton(state)
         Spinner(rememberSpinning(state), reconnecting = state.reconnecting)
-        SleepNoticeOf(state)
         PlayerSheet(state, style, onStyle)
         (state.phase as? PlayerPhase.Error)?.let {
             ErrorOverlay(
@@ -177,12 +176,6 @@ fun PhonePlayerScreen(
                 .padding(top = 64.dp),
         )
     }
-}
-
-/** The sleep timer's notice, read here so the rest of the screen doesn't recompose with its count. */
-@Composable
-private fun BoxScope.SleepNoticeOf(state: PlayerScreenState) {
-    SleepNotice(state.sleep.secondsLeft.takeIf { state.phase !is PlayerPhase.Error }, music = false, onKeep = state.controller::keepWatching)
 }
 
 /** The tag of the player's root, for tests. */

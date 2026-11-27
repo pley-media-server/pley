@@ -17,10 +17,9 @@ import app.pley.android.player.QualityChoice
 import app.pley.android.player.SubtitleSearchUi
 import app.pley.android.player.TrackChoice
 import app.pley.android.player.UpNextUi
-import app.pley.android.player.sleep.SleepState
 
 /** A page of the player's sheet. */
-enum class SheetPage { Settings, Quality, Audio, Subtitles, Style, Details, Chapters, Sleep, Speed, FindSubtitles }
+enum class SheetPage { Settings, Quality, Audio, Subtitles, Style, Details, Chapters, Speed, FindSubtitles }
 
 /** A run of double-taps on one side: where it lands and how far it went. */
 data class SeekRun(val side: Int, val totalMs: Long, val at: Long)
@@ -69,7 +68,6 @@ class PlayerScreenState(
     val subtitleSync: Boolean by derivedStateOf { ui.value.subtitleSync }
     val subtitleStyled: Boolean by derivedStateOf { ui.value.subtitleStyled }
     val subtitleOffsetMs: Long by derivedStateOf { ui.value.subtitleOffsetMs }
-    val sleep: SleepState by derivedStateOf { ui.value.sleep }
     val stoppedByServer: Boolean by derivedStateOf { ui.value.stoppedByServer }
     val speed: Float by derivedStateOf { ui.value.speed }
     val speedNote: String? by derivedStateOf { ui.value.speedNote }

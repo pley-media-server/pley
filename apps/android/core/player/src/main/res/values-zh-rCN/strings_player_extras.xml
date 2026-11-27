@@ -43,7 +43,6 @@
     <string name="sleep_timer">睡眠定时器</string>
     <string name="sleep_off">关闭</string>
     <string name="sleep_minutes">%1$d 分钟</string>
-    <string name="sleep_end_of_episode">本集结束</string>
     <string name="sleep_end_of_track">本曲目结束</string>
     <!-- The timer running, beside its row: "42 min left". -->
     <plurals name="sleep_minutes_left">
@@ -51,7 +50,6 @@
     </plurals>
     <!-- 30 s before the timer pauses. -->
     <string name="sleep_notice">%1$d 秒后暂停</string>
-    <string name="sleep_keep_watching">继续观看</string>
     <string name="sleep_keep_listening">继续收听</string>
 
     <!-- Subtitle sync: moves the subtitles in time. -->

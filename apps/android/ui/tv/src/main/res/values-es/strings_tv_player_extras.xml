@@ -3,7 +3,6 @@
     <string name="tv_player_sync">Sincronización</string>
     <string name="tv_player_sync_hint">OK para restablecer</string>
     <string name="tv_player_audio_delay">Retraso del audio</string>
-    <string name="tv_player_sleep">Temporizador de suspensión</string>
     <string name="tv_player_speed">Velocidad</string>
     <string name="tv_player_find_subtitles">Buscar subtítulos…</string>
     <string name="tv_player_searching">Buscando…</string>

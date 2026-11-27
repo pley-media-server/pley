@@ -60,9 +60,6 @@ import app.pley.android.player.PlaybackSpeeds
 import app.pley.android.player.PlayerUiState
 import app.pley.android.player.SubtitleSearchUi
 import app.pley.android.player.engine.EngineState
-import app.pley.android.player.sleep.SleepChoice
-import app.pley.android.player.sleep.SleepState
-import app.pley.android.player.sleep.SleepTexts
 import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.item.FactLine
@@ -81,7 +78,7 @@ import kotlinx.coroutines.launch
  * the subtitles chosen can move, Find subtitles… while the file streams
  * from the server, and their size, background, font and position while
  * they are text, when [onSubtitleStyle] saves them), Find subtitles' results, Audio (with the
- * audio delay), Quality, Sleep timer, Speed and Info. 360 dp (Info 440 dp) from the right edge, full height, surface2
+ * audio delay), Quality, Speed and Info. 360 dp (Info 440 dp) from the right edge, full height, surface2
  * with 16 dp left corners. It slides in on its own layer over 200 ms (in
  * place with reduced motion) and the scrim behind it fades by its color
  * while drawing, so no layer covers the video. Focus starts on the current
@@ -145,7 +142,6 @@ private fun ChoicePanel(
             PlayerPanel.Audio -> R.string.tv_player_audio
             PlayerPanel.Quality -> R.string.tv_player_quality
             PlayerPanel.Info -> R.string.tv_player_info_title
-            PlayerPanel.Sleep -> R.string.tv_player_sleep
             PlayerPanel.Speed -> R.string.tv_player_speed
             PlayerPanel.FindSubtitles -> R.string.tv_player_find_subtitles
         },
@@ -165,7 +161,6 @@ private fun ChoicePanel(
     val findSubtitles = stringResource(R.string.tv_player_find_subtitles)
     val searching = stringResource(R.string.tv_player_searching)
     val adding = stringResource(R.string.tv_player_adding)
-    val resources = LocalResources.current
     val locale = shownLocale()
     // Each panel's own list: its current choice may be further down than shows.
     val list = remember(panel) { LazyListState() }
@@ -238,17 +233,6 @@ private fun ChoicePanel(
                     controller.setSpeed(PlaybackSpeeds.ALL[i])
                     ui.closePanel()
                 }
-            }
-            PlayerPanel.Sleep -> choices(
-                SleepChoice.ALL.map { choice ->
-                    val on = s.sleep.choice == choice
-                    val left = s.sleep.minutesLeft?.takeIf { on && choice is SleepChoice.Minutes }
-                    Row(SleepTexts.choice(resources, choice), on, left?.let { SleepTexts.summary(resources, s.sleep) })
-                },
-                focus,
-            ) { i ->
-                controller.setSleep(SleepChoice.ALL[i])
-                ui.closePanel()
             }
             PlayerPanel.Audio -> {
                 item(key = "delay") { AudioDelayRow(s.audioDelayMs, onChange = { controller.setAudioDelay(it) }) }
@@ -349,7 +333,6 @@ private data class PanelData(
     val subtitleSync: Boolean,
     val subtitleStyled: Boolean,
     val subtitleOffsetMs: Long,
-    val sleep: SleepState,
     val speed: Float,
     val speedNote: String?,
     val audioDelayMs: Long,
@@ -366,7 +349,6 @@ private data class PanelData(
             subtitleSync = s.subtitleSync,
             subtitleStyled = s.subtitleStyled,
             subtitleOffsetMs = s.subtitleOffsetMs,
-            sleep = s.sleep,
             speed = s.speed,
             speedNote = s.speedNote,
             audioDelayMs = s.audioDelayMs,
