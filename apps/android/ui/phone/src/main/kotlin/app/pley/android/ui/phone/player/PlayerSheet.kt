@@ -112,7 +112,6 @@ data class SubtitleChoice(
  */
 @Composable
 internal fun BoxScope.PlayerSheet(state: PlayerScreenState, style: SubtitleChoice, onStyle: (SubtitleChoice) -> Unit) {
-    val palette = PleyColors.palette
     val page = state.sheet
     // Subtitle style stops applying while open (the next episode's subtitles are pictures): back to Settings.
     val styleGone = page == SheetPage.Style && !state.subtitleStyled
@@ -133,6 +132,7 @@ internal fun BoxScope.PlayerSheet(state: PlayerScreenState, style: SubtitleChoic
  */
 @Composable
 internal fun BoxScope.SheetFrame(open: Boolean, onClose: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val palette = PleyColors.palette
     val reduced = reducedMotion()
     val scrim by animateFloatAsState(if (open) 1f else 0f, PleyMotion.overlay(reduced), label = "sheetScrim")
     if (open || scrim > 0f) {
