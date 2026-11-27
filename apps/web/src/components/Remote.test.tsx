@@ -116,6 +116,23 @@ describe("RemoteButton", () => {
     expect(await screen.findByRole("button", { name: "Remote, 1 device playing" })).toBeInTheDocument();
   });
 
+  it("says what it is in a tip on hover, and not while it is open", async () => {
+    serve(
+      () => [],
+      () => [phone],
+    );
+    renderWithProviders(<RemoteButton />);
+    const user = userEvent.setup();
+    const button = await screen.findByRole("button", { name: "Remote, 1 device ready to play" });
+    expect(button).not.toHaveAttribute("title");
+    await user.hover(button);
+    expect(await screen.findByText("Remote, 1 device ready to play", { selector: '[role="tooltip"]' })).toBeInTheDocument();
+
+    await user.click(button);
+    expect(screen.getByRole("dialog", { name: "Your devices" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("tooltip", { hidden: true })).toBeNull());
+  });
+
   it("lists the devices that play first, with what they play, then those ready to play, each by name", async () => {
     serve(
       () => [episode(), live()],

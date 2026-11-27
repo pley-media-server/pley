@@ -12,6 +12,9 @@ describes how they are made.
 
 - Live TV plays HEVC and 10-bit channels as the provider sends them when
   the computer decodes them, and has Playback details.
+- The sidebar can be narrowed to its icons by the button at its foot,
+  beside Settings, and stays as it was left. Narrowed, its icons show their
+  names in a tip on hover, as the remote's button and Sort libraries now do.
 
 ### Fixed
 
