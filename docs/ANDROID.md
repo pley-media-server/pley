@@ -769,8 +769,21 @@ no See all. TMDB's Discover row comes after them ([Requests](#requests)).
 
 ### Up Next
 
-Skip Intro and Skip Credits show while an intro or the credits play, until
-a second before they end; nothing is skipped by itself. Up Next, what
+Skip Intro and Skip Credits are offered while an intro or the credits
+play, until a second before they end; nothing is skipped by itself. Skip
+shows by itself for 8 seconds from when it appears (the playhead playing
+or seeking into the segment, or the title starting in it), then fades
+out, so it doesn't sit over the whole intro; after that it shows only
+with the player's controls, where it sits with them, and hides with them.
+Entering a segment again, or the next one, starts a fresh 8 seconds;
+seeking inside the same one doesn't. On TVs Skip has focus while it shows
+by itself, so OK skips; when it goes, focus goes back to the video, and
+OK, the arrows and the rest do what they do with nothing on screen. In
+those 8 seconds, the keys that open the controls without a place of their
+own (Menu, Info) open them on Skip, and the controls closing give Skip its
+focus back; after them, the controls open on the scrubber, Up reaches
+Skip, and Skip goes as they close. Under Up Next's card Skip Credits
+doesn't show; after Cancel, its 8 seconds run from then. Up Next, what
 plays next with a 10 s countdown (none with Play the next episode by
 itself off), comes as credits that run to the end of their file begin,
 and otherwise at the end of the file. Credits run to the end when they end

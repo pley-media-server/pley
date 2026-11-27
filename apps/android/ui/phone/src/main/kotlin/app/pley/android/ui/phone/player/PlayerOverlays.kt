@@ -145,15 +145,17 @@ internal fun rememberSpinning(state: PlayerScreenState): Boolean {
 /**
  * Skip Intro or Skip Credits (design spec §3.5): a quiet pill at the bottom
  * right, dark and see-through with a faint outline, so it asks little of
- * the eye over the picture. Shown even with the controls hidden, above the
- * seek bar while they show. It steps aside for Up Next and while the seek
- * bar is dragged, and is announced when it appears.
+ * the eye over the picture. It shows by itself for its first 8 s
+ * ([PlayerUiState.skipAlone]), then only with the controls, above the seek
+ * bar while they show. It steps aside for Up Next and while the seek bar
+ * is dragged, and is announced when it appears.
  */
 @Composable
 internal fun BoxScope.SkipButton(state: PlayerScreenState) {
     PlayerProbe.composed?.invoke("skip")
     val label = state.skipLabel
-    val shown = label != null && state.upNext == null && !state.scrubbing && !state.locked && state.sheet == null
+    val shown = label != null && (state.skipAlone || state.controlsVisible) && state.upNext == null && !state.scrubbing && !state.locked &&
+        state.sheet == null
     val lift by animateDpAsState(if (state.controlsVisible) AboveControls else 0.dp, PleyMotion.overlay(reducedMotion()), label = "skip")
     var last by remember { mutableStateOf(label) }
     if (label != null) last = label

@@ -50,6 +50,7 @@ import app.pley.android.player.TrackChoice
 import app.pley.android.player.UpNextUi
 import app.pley.android.player.markers.CreditsGate
 import app.pley.android.player.markers.Markers
+import app.pley.android.player.markers.SkipWindow
 import app.pley.android.player.queue.NextUp
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepTimer
@@ -110,7 +111,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   person picks a track. Switched by the engine in direct play; a new
  *   session when a stream needs other audio or subtitles burned in; choices
  *   are saved with PUT /api/items/{id}/streams, the audio only when picked.
- * - **Markers and Up Next.** Skip Intro and Skip Credits; entering credits
+ * - **Markers and Up Next.** Skip Intro and Skip Credits, by themselves for
+ *   their first 8 s and then with the controls ([SkipWindow]); entering credits
  *   that run to the end of their file, or the end, brings up what plays next
  *   with a 10 s countdown ([CreditsGate]).
  * - **Subtitles.** The server's WebVTT for streams and files beside the
@@ -273,6 +275,7 @@ class SessionPlaybackController(
     private var autoNoticePending = false
     private val struggle = StruggleMeter()
     private val credits = CreditsGate()
+    private val skipWindow = SkipWindow()
     private val nextUp = NextUp(env.api, env.local)
     private val serverSubtitles = ServerSubtitles(scope, env.subtitles, env.parser, env.work, onError = { notice(texts.subtitlesFailed) })
     private val pictureSubtitles = env.pictures?.let { PictureSubtitles(scope, it, onError = ::picturesFailed) }
@@ -1204,12 +1207,15 @@ class SessionPlaybackController(
             lastPositionMs = pos
             if (moving) recovery.onPosition(pos)
             val marker = if (ui.value.phase is PlayerPhase.Error) null else Markers.active(markers, pos)
+            // Skip's time by itself runs from when it appears: not under Up Next's card, which takes its place.
+            val alone = skipWindow.alone(marker.takeIf { ui.value.upNextCard == null }, now)
             ui.update {
                 it.copy(
                     positionMs = pos,
                     bufferedMs = engineLink.bufferedMs,
                     durationMs = s.info.durationMs.takeIf { d -> d > 0 } ?: engineLink.durationMs.takeIf { d -> d > 0 } ?: it.durationMs,
                     skipLabel = marker?.let { m -> if (m.kind == MarkerKind.Intro) texts.skipIntro else texts.skipCredits },
+                    skipAlone = alone,
                 )
             }
             // Only credits that run to the end bring up Up Next: its countdown would skip what follows the others.
@@ -2139,6 +2145,7 @@ class SessionPlaybackController(
         soundNeeds(reload = false)
         searchJob?.cancel()
         credits.reset()
+        skipWindow.reset()
         guardMode = null
         hideServerSubtitles()
         dropTrickplay()

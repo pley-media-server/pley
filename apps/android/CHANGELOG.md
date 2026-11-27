@@ -18,6 +18,9 @@ describes how they are made.
 - Up Next's card shows the next title's name without its picture, so it
   covers less of the credits, and its countdown fills smoothly instead of
   a step each second.
+- Skip Intro and Skip Credits show by themselves for 8 seconds, then only
+  with the player's controls, instead of over the whole intro or credits.
+  On TVs, OK and the arrows act on the video again once Skip has gone.
 
 ## [0.1.19] - 2026-11-25
 

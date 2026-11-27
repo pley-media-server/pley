@@ -49,6 +49,7 @@ class PlayerScreenState(
     val method: String? by derivedStateOf { ui.value.method }
     val playbackMethod: PlaybackMethod? by derivedStateOf { ui.value.playbackMethod }
     val skipLabel: String? by derivedStateOf { ui.value.skipLabel }
+    val skipAlone: Boolean by derivedStateOf { ui.value.skipAlone }
     val upNext: UpNextUi? by derivedStateOf { ui.value.upNextCard }
     val chapters: List<ChapterMark> by derivedStateOf { ui.value.chapters }
     val audio: List<TrackChoice> by derivedStateOf { ui.value.audio }

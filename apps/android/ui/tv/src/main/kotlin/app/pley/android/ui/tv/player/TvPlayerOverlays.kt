@@ -154,9 +154,10 @@ private val TitleBand by lazy {
  * Skip Intro / Skip Credits: a quiet button, its right edge at x = 912, its
  * bottom at y = 489 (or 355 with the controls shown). Dark and see-through
  * with a faint outline over the picture; with the focus, which the screen
- * gives it, only its outline firms up: no fill of the accent, no growing,
- * no countdown. It fades out over 150 ms when the marker ends. [visible]
- * says whether it shows.
+ * gives it while it shows by itself, only its outline firms up: no fill of
+ * the accent, no growing, no countdown. It fades out over 150 ms when the
+ * marker ends, and after its first 8 s by itself, coming back with the
+ * controls. [visible] says whether it shows.
  */
 @Composable
 internal fun BoxScope.TvSkipButton(

@@ -179,6 +179,7 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
             canPlayOriginal = true,
             suggestLowerQuality = true,
             skipLabel = "Skip Intro",
+            skipAlone = true,
             markers = listOf(
                 Marker(1, MarkerKind.Intro, 2_000, 8_000, MarkerSource.Fingerprint),
                 Marker(1, MarkerKind.Credits, 16_000, 20_000, MarkerSource.Frames),

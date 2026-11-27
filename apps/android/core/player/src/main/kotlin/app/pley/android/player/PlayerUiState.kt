@@ -6,6 +6,7 @@ import app.pley.android.model.MediaFile
 import app.pley.android.model.MediaStream
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.TranscodeInfo
+import app.pley.android.player.markers.Markers
 import app.pley.android.player.sleep.SleepState
 import java.text.DecimalFormatSymbols
 import java.util.Locale
@@ -218,8 +219,14 @@ data class PlayerUiState(
     val canPlayOriginal: Boolean = false,
     /** The server can't convert fast enough: say so, and offer a lower quality. */
     val suggestLowerQuality: Boolean = false,
-    /** "Skip Intro" or "Skip Credits" while one is showing. */
+    /** "Skip Intro" or "Skip Credits" while one is offered: from a segment's start until a second before its end. */
     val skipLabel: String? = null,
+    /**
+     * Skip shows by itself: its first [Markers.SKIP_ALONE_MS] from when it
+     * appeared. After them, it shows only while the controls do. Means
+     * nothing while [skipLabel] is `null`.
+     */
+    val skipAlone: Boolean = false,
     /** The playing file's intro and credits, for the seek bar. */
     val markers: List<Marker> = emptyList(),
     val chapters: List<ChapterMark> = emptyList(),
