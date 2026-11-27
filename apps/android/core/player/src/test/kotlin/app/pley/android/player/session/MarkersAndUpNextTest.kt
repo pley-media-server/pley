@@ -153,6 +153,18 @@ class MarkersAndUpNextTest {
     }
 
     @Test
+    fun `the file ending while the credits' countdown runs keeps the card's seconds`() {
+        val c = episode(15_000)
+        h.advance(4_200)
+        val left = c.state.value.upNextCard?.secondsLeft
+        assertNotNull(left)
+        h.engine.end()
+        h.settle()
+        assertEquals(left, c.state.value.upNextCard?.secondsLeft)
+        assertEquals(left, c.state.value.upNextSecondsLeft)
+    }
+
+    @Test
     fun `credits ending 10 s before the end bring Up Next`() {
         val c = episodeLasting(30_000, startMs = 15_000)
         h.advance(1_500)

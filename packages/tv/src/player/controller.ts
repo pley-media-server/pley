@@ -1917,11 +1917,15 @@ export class PlaybackController {
         () => undefined,
       );
     }
+    // A countdown that goes on (the file ending while the credits' one runs) keeps its seconds:
+    // without them Play now would lose its count until the next step.
+    const shown = this.state.value.upNext;
+    const going = !restartCountdown && shown?.itemId === found.id;
     const card: UpNextCard = {
       itemId: found.id,
       title: found.title,
       heading: upNextHeading(labelOf(found)),
-      secondsLeft: null,
+      secondsLeft: going ? shown.secondsLeft : null,
     };
     this.update({ upNext: card });
     if (!restartCountdown) return;

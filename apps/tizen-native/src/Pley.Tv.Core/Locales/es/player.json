@@ -26,6 +26,7 @@
     "title": "A continuación",
     "episode": "A continuación · {{episode}}",
     "playNow": "Reproducir ahora",
+    "playNowIn": "Reproducir ahora ({{seconds}})",
     "cancel": "Cancelar",
     "nextIn": "Siguiente en {{seconds}}",
     "lastEpisode": "Es el último episodio",

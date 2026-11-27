@@ -41,8 +41,9 @@
     "title": "À suivre",
     "episode": "À suivre · {{episode}}",
     "playNow": "Regarder",
+    "playNowIn": "Regarder ({{seconds}})",
     "cancel": "Annuler",
-    "nextIn": "{{seconds}} s"
+    "nextIn": "Suivant dans {{seconds}}"
   },
   "speed": {
     "normal": "Normale",

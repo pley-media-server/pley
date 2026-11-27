@@ -2790,11 +2790,15 @@ impl PlaybackController {
             let id = found.id;
             self.spawn(move || Done::NextDetail { saved, result: server.item(id) });
         }
+        // A countdown that goes on (the file ending while the credits' one runs) keeps its seconds:
+        // without them Play now would lose its count until the next step.
+        let going = self.state.up_next.as_ref().filter(|c| !restart_countdown && c.item_id == found.id);
+        let seconds_left = going.and_then(|c| c.seconds_left);
         self.state.up_next = Some(UpNextCard {
             item_id: found.id,
             title: found.title.clone(),
             heading: details::up_next(label_of(&found).as_deref()),
-            seconds_left: None,
+            seconds_left,
         });
         self.changed();
         if !restart_countdown {

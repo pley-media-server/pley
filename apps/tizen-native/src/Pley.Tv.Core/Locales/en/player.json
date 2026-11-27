@@ -26,6 +26,7 @@
     "title": "Up next",
     "episode": "Up next · {{episode}}",
     "playNow": "Play now",
+    "playNowIn": "Play now ({{seconds}})",
     "cancel": "Cancel",
     "nextIn": "Next in {{seconds}}",
     "lastEpisode": "This is the last episode",

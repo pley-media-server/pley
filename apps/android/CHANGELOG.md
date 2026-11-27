@@ -22,6 +22,10 @@ describes how they are made.
 - The video player no longer has a sleep timer. Music and audiobooks keep
   theirs.
 
+### Fixed
+
+- Up Next's countdown stays in Play now when the episode ends during it.
+
 ## [0.1.20] - 2026-11-27
 
 ### Added

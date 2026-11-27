@@ -67,8 +67,15 @@ public static class PlayerText
     /// <summary>Previous restarts the chapter playing when it is this far in, else goes to the one before.</summary>
     public const long RestartChapterMs = 3_000;
 
-    /// <summary>"Next in 7", under Play now while Up Next counts down.</summary>
+    /// <summary>"Next in 7", Play now's words while Up Next counts down with reduced motion.</summary>
     public static string NextIn(int seconds) => Strings.T("player.upNext.nextIn", ("seconds", seconds));
+
+    /// <summary>"Play now (7)", Play now's words while Up Next counts down.</summary>
+    public static string PlayNowIn(int seconds) => Strings.T("player.upNext.playNowIn", ("seconds", seconds));
+
+    /// <summary>Play now's words (the Android app's playNowLabel): with the seconds left while a countdown runs.</summary>
+    public static string PlayNowLabel(int? secondsLeft, bool reduced) =>
+        secondsLeft is not int seconds ? PlayNow : reduced ? NextIn(seconds) : PlayNowIn(seconds);
 
     /// <summary>"Subtitles: English (SRT)", when the CAPTIONS key turns them on.</summary>
     public static string SubtitlesToast(string label) => Strings.T("player.subtitles.shown", ("track", label));

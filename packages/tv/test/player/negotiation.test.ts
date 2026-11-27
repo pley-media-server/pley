@@ -1076,6 +1076,30 @@ describe("Up Next at the credits", () => {
     c.close();
   });
 
+  it("keeps its count when the file ends while the credits' countdown runs", async () => {
+    // Credits that begin 6 s before the end: the file ends with the countdown under way.
+    const { w, c } = await playing(credits(2_694_000, 2_700_000));
+    w.engine.pos = 2_694_500;
+    await vi.advanceTimersByTimeAsync(600);
+    const seconds = () => c.state.value.upNext?.secondsLeft;
+    expect(seconds()).toBe(10);
+    // To just after one of the countdown's steps, so the end falls well inside a second.
+    while (seconds() === 10) await vi.advanceTimersByTimeAsync(50);
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(seconds()).toBe(5);
+    w.engine.pos = 2_700_000;
+    w.engine.listener?.status("ended");
+    expect(seconds()).toBe(5);
+    await vi.advanceTimersByTimeAsync(100);
+    expect([c.state.value.phase.kind, seconds()]).toEqual(["paused", 5]);
+    // The countdown wasn't started again: the next episode plays when it was going to.
+    await vi.advanceTimersByTimeAsync(4_800);
+    expect([seconds(), w.requests.length]).toEqual([1, 1]);
+    await vi.advanceTimersByTimeAsync(200);
+    expect([c.state.value.upNext, w.requests.length]).toEqual([null, 2]);
+    c.close();
+  });
+
   it("waits for the end after credits that something follows, Skip Credits showing meanwhile", async () => {
     const { w, c } = await playing(credits(2_520_000, 2_640_000));
     w.engine.pos = 2_520_500;

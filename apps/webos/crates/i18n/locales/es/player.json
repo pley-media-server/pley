@@ -41,8 +41,9 @@
     "title": "A continuación",
     "episode": "A continuación · {{episode}}",
     "playNow": "Ver ahora",
+    "playNowIn": "Ver ahora ({{seconds}})",
     "cancel": "Cancelar",
-    "nextIn": "{{seconds}} s"
+    "nextIn": "Siguiente en {{seconds}}"
   },
   "speed": {
     "normal": "Normal",

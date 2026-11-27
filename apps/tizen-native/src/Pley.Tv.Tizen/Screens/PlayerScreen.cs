@@ -626,6 +626,7 @@ sealed class PlayerScreen : Sheet
             upNextShown = false;
             var had = Tree.Current?.Parent == upNext.Group;
             foreach (var item in upNext.Group.Children.OfType<FocusItem>()) item.Shown = false;
+            upNext.Gone();
             Fade.To(upNext, false);
             if (had) Refocus();
         }

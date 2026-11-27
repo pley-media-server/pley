@@ -2058,13 +2058,16 @@ class SessionPlaybackController(
                 }
             }
         }
+        // A countdown that goes on (the file ending while the credits' one runs) keeps its seconds:
+        // without them Play now would lose its count until the next step.
+        val going = ui.value.upNextCard?.takeIf { !restartCountdown && it.itemId == found.id }
         val card = UpNextUi(
             itemId = found.id,
             title = found.title,
             heading = texts.upNext(NextUp.labelOf(found, texts.format)),
-            secondsLeft = null,
+            secondsLeft = going?.secondsLeft,
         )
-        ui.update { it.copy(upNextCard = card, upNext = card.title, upNextSecondsLeft = null) }
+        ui.update { it.copy(upNextCard = card, upNext = card.title, upNextSecondsLeft = card.secondsLeft) }
         if (!restartCountdown) return
         countdown?.cancel()
         countdown = scope.launch {

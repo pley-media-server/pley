@@ -129,6 +129,13 @@ on LG:
   fades in from black over 200 ms, at once with Reduce motion. The media
   keys act while a video starts, before its first picture, as in the
   Android TV app; while an error shows, Stop is the only one that acts.
+- **Up Next's countdown** is in Play now, as in the Android TV app: the
+  button reads "Play now (7)" and a sweep crosses it from the left over
+  the 10 s, under the label and inside the button's shape, full as the
+  next title starts. The sweep moves smoothly, a held arrow doesn't stop
+  it, and a countdown that starts again takes it back at once. The button
+  keeps the width it has at 10 as the count shortens. With Reduce motion
+  it reads "Next in 7" and the sweep steps once a second.
 - **Typing** uses the app's own keyboard and pads (a search, a server's
   address, a PIN); the TV's keyboard doesn't open.
 - **On webOS 4**, Home opens as a ribbon over the app, which keeps
