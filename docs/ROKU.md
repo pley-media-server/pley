@@ -317,8 +317,9 @@ the episode's "S1 E2 · Pilot", as on Android TV.
   their own for 8 s, with the focus, so OK skips. Then they hide and the
   focus goes back to the video, so OK and the arrows bring up the controls
   as they would with nothing on screen. Until a second before the part
-  ends, Skip comes back with the controls, above the scrubber (which has
-  the focus; Up reaches Skip), and hides with them. Entering a part again
+  ends, Skip comes back with the controls while the video plays, above the
+  scrubber (which has the focus; Up reaches Skip), and hides with them;
+  paused, the controls show without it. Entering a part again
   starts a fresh 8 s; a seek inside it doesn't. Nothing else happens by
   itself: Skip never skips on its own.
 - **Up Next** shows with its countdown as credits that run to the end of
