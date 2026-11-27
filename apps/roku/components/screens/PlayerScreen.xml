@@ -135,6 +135,8 @@
             <Label id="toastText" translation="[40, 0]" height="76" vertAlign="center" wrap="true" maxLines="3" color="0xEBEBEBFF" />
         </Group>
         <Timer id="countdownTimer" duration="1" repeat="true" />
+        <!-- Skip's 8 s on its own (Player.brs's playerSkipAloneMs). -->
+        <Timer id="skipTimer" duration="8" />
         <Timer id="toastTimer" duration="4" />
         <!-- The controls hide 5 s after the last key while it plays. -->
         <Timer id="hideTimer" duration="5" />
