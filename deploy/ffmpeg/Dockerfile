@@ -9,9 +9,6 @@
 #
 #   docker build -t pley-ffmpeg deploy/ffmpeg
 
-# The platform the image is built for (BuildKit sets it): its licence label.
-ARG TARGETARCH
-
 FROM debian:trixie-slim AS build
 ARG FFMPEG_VERSION=9.0.2
 ARG FFMPEG_SHA256=8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
@@ -56,7 +53,7 @@ RUN git clone --quiet --depth 1 --branch "v$LIBPLACEBO_VERSION" https://code.vid
     && rm -rf libplacebo
 # Rockchip's MPP (its decoders and encoders) and RGA (its scaler), on arm64
 # only: shared libraries the image carries beside FFmpeg, as jellyfin-ffmpeg's
-# packages do, with their licences and the sources they are built from.
+# packages do, with their licenses and the sources they are built from.
 RUN if [ "$(dpkg --print-architecture)" = arm64 ]; then \
         set -e; \
         fetch() { \
@@ -155,7 +152,8 @@ RUN set -eu; \
 
 # Files only, for the Pley image to copy: /usr, and /packages, the list above.
 # FFmpeg is GPLv3 on arm64, with Rockchip's MPP (Apache-2.0 and MIT) and
-# RGA (Apache-2.0) beside it.
+# RGA (Apache-2.0) beside it. TARGETARCH, the platform built for, is
+# BuildKit's own: declared here without a value, it would be empty.
 FROM scratch AS out-amd64
 LABEL org.opencontainers.image.licenses="GPL-2.0-or-later AND LGPL-2.1-or-later"
 FROM scratch AS out-arm64
