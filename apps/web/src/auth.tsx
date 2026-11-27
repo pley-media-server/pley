@@ -14,7 +14,7 @@ import { Button, EmptyState, Spinner } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { rememberProfile } from "@/lib/lastProfile";
 import { useSetupFrame } from "@/lib/setupFrame";
-import { showProfile } from "@/theme";
+import { forgetProfile, showProfile } from "@/theme";
 import { TriangleAlert } from "lucide-react";
 
 const AuthContext = createContext<User | null>(null);
@@ -91,6 +91,8 @@ export function RequireAuth() {
   useLayoutEffect(() => {
     if (profileId !== null) showProfile(profileId);
   }, [profileId]);
+  // Leaving the session (signing out): the next to sign in doesn't start in this profile's theme.
+  useLayoutEffect(() => forgetProfile, []);
 
   if (server.isPending) return <Splash />;
   if (server.isError) return <OfflineScreen error={server.error} onRetry={() => void server.refetch()} />;

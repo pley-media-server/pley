@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import themeScript from "../../public/theme.js?raw";
 import { logoIcon } from "@/components/Logo";
 import { renderHook } from "@testing-library/react";
-import { ACCENT_KEY, ACCENTS, currentAccent, currentTheme, isAccent, isTheme, onTheme, showAccent, showProfile, showTheme, startTheme, THEME_KEY, THEMES, useOutsideProfile } from ".";
+import { ACCENT_KEY, ACCENTS, currentAccent, currentTheme, forgetProfile, isAccent, isTheme, onTheme, showAccent, showProfile, showTheme, startTheme, THEME_KEY, THEMES, useOutsideProfile } from ".";
 
 afterEach(() => {
   localStorage.clear();
@@ -172,6 +172,23 @@ describe("outside a profile", () => {
     expect(currentTheme()).toBe("starlight");
     expect(currentAccent()).toBe("amber");
     expect(localStorage.getItem(THEME_KEY)).toBe("starlight");
+  });
+
+  it("doesn't bring back the profile signed out of once the next sign-in leaves", () => {
+    startTheme();
+    showProfile(1);
+    showTheme("starlight");
+    // Signing out: the session goes, and the sign-in page shows.
+    forgetProfile();
+    const signIn = renderHook(() => useOutsideProfile());
+    expect(currentTheme()).toBe("midnight");
+    // Signed in again, the page waits for who it is: not profile 1's Starlight.
+    signIn.unmount();
+    expect(currentTheme()).toBe("midnight");
+    showProfile(2);
+    expect(currentTheme()).toBe("midnight");
+    showProfile(1);
+    expect(currentTheme()).toBe("starlight");
   });
 
   it("stays Midnight when the profile becomes known under it", () => {

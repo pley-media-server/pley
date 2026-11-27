@@ -176,6 +176,15 @@ export function showProfile(id: string | number) {
 }
 
 /**
+ * The app leaves the signed-in session (signing out, the session gone): no
+ * profile is known until the next one signs in, so nothing shown meanwhile
+ * takes the one before's pick.
+ */
+export function forgetProfile() {
+  profile = null;
+}
+
+/**
  * A screen outside a profile (signing in, "Who's watching?", setup, the
  * server out of reach) is drawn in Midnight in its own accent, whichever
  * profile was shown before; the profile's own comes back when it goes.
