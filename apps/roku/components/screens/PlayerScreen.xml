@@ -70,15 +70,15 @@
         </Group>
         <!-- Up Next, as the Android TV player's card: 600 wide, its right
              edge at the safe area's and its bottom at y 978, the next one's
-             still, its title, then Play now and Cancel. -->
-        <Group id="upNext" translation="[1224, 330]" visible="false">
-            <Poster width="600" height="648" uri="pkg:/images/ui/r12.9.png" blendColor="0x262B35F5" />
-            <Poster id="nextImage" width="600" height="338" loadWidth="600" loadHeight="338" loadDisplayMode="scaleToZoom" />
-            <Label id="upNextTitle" translation="[32, 362]" width="536" maxLines="1" color="0x38BDF8FF" />
-            <Label id="nextTitle" translation="[32, 400]" width="536" maxLines="1" color="0xEBEBEBFF" />
-            <Label id="nextLine" translation="[32, 448]" width="536" maxLines="1" color="0xA1A9B6FF" />
-            <Label id="countdown" translation="[32, 488]" width="536" maxLines="1" color="0xA1A9B6FF" />
-            <PillButtons id="nextButtons" layoutDirection="horiz" itemSpacings="[24]" translation="[32, 544]" minWidth="256" maxWidth="256" buttonHeight="72" />
+             title, then Play now and Cancel. No still: the card stays small
+             over the credits. -->
+        <Group id="upNext" translation="[1224, 660]" visible="false">
+            <Poster width="600" height="318" uri="pkg:/images/ui/r12.9.png" blendColor="0x262B35F5" />
+            <Label id="upNextTitle" translation="[32, 32]" width="536" maxLines="1" color="0x38BDF8FF" />
+            <Label id="nextTitle" translation="[32, 70]" width="536" maxLines="1" color="0xEBEBEBFF" />
+            <Label id="nextLine" translation="[32, 118]" width="536" maxLines="1" color="0xA1A9B6FF" />
+            <Label id="countdown" translation="[32, 158]" width="536" maxLines="1" color="0xA1A9B6FF" />
+            <PillButtons id="nextButtons" layoutDirection="horiz" itemSpacings="[24]" translation="[32, 214]" minWidth="256" maxWidth="256" buttonHeight="72" />
         </Group>
         <!-- At the top, clear of the subtitles it moves. -->
         <Group id="sync" translation="[560, 72]" visible="false">
@@ -135,6 +135,8 @@
             <Label id="toastText" translation="[40, 0]" height="76" vertAlign="center" wrap="true" maxLines="3" color="0xEBEBEBFF" />
         </Group>
         <Timer id="countdownTimer" duration="1" repeat="true" />
+        <!-- Skip's 8 s on its own (Player.brs's playerSkipAloneMs). -->
+        <Timer id="skipTimer" duration="8" />
         <Timer id="toastTimer" duration="4" />
         <!-- The controls hide 5 s after the last key while it plays. -->
         <Timer id="hideTimer" duration="5" />

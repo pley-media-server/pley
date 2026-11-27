@@ -168,7 +168,8 @@ end function
 
 ' Skip Intro and Skip Credits, as in the web player
 ' (apps/web/src/player/SkipButton.tsx): a button from a marker's start
-' until a second before its end.
+' until a second before its end, on its own for 8 s, then with the
+' controls.
 function playerSkipTailMs() as integer
     return 1000
 end function
@@ -190,6 +191,48 @@ function playerSkipFor(markers as object, positionMs as integer, upNextComing as
     if marker = invalid then return invalid
     if marker.kind = "credits" and marker.reachesEnd and upNextComing then return invalid
     return marker
+end function
+
+' How long Skip shows on its own once it appears, in ms; after that, only
+' with the controls, while the playhead is still in the marker.
+function playerSkipAloneMs() as integer
+    return 8000
+end function
+
+' Skip for the marker the playhead is in: its key ("" for none), when it
+' first showed for it (-1 not yet), and whether it was pressed.
+function playerSkipNew() as object
+    return { key: "", appearedAt: -1, dismissed: false }
+end function
+
+' Moves skip on to marker (invalid: none). Entering a marker, another one
+' or the same one again after leaving it, starts afresh: true. Moving
+' inside the same one keeps its 8 s where they are: false.
+function playerSkipEnter(skip as object, marker as dynamic) as boolean
+    key = ""
+    if marker <> invalid then key = marker.key
+    if key = skip.key then return false
+    skip.key = key
+    skip.appearedAt = -1
+    skip.dismissed = false
+    return key <> ""
+end function
+
+' Whether Skip shows at nowMs (the wall clock), and whether it takes the
+' focus: on its own for its first 8 s, with the focus so OK skips; then
+' only with the controls, which keep the focus (Up from the scrubber
+' reaches it). Before it has appeared, its 8 s are all to come.
+function playerSkipLook(skip as object, nowMs as dynamic, controlsShown as boolean) as object
+    alone = skip.appearedAt < 0 or nowMs - skip.appearedAt < playerSkipAloneMs()
+    shown = skip.key <> "" and not skip.dismissed and (alone or controlsShown)
+    return { shown: shown, focused: shown and not controlsShown }
+end function
+
+' Skip showed at nowMs: its 8 s start the first time (true), not again.
+function playerSkipShown(skip as object, nowMs as dynamic) as boolean
+    if skip.appearedAt >= 0 then return false
+    skip.appearedAt = nowMs
+    return true
 end function
 
 function playerSkipLabel(marker as object) as string

@@ -254,8 +254,10 @@ pub struct LiveWatching {
 }
 
 /// `GET /api/live/sessions/{session}/plan`: what the channel carries and
-/// what the transcoder makes of it (`video`: `copy` or the encoder;
-/// `audio`: `copy`, `aac` or `none`). Answers `null` while unknown.
+/// what the transcoder makes of it (`video`: `copy`, `none` or the encoder;
+/// `audio`: `copy`, `aac` or `none`), with what the provider sends now.
+/// Answers `null` while unknown. An older server leaves out the bit depth,
+/// what a transcode makes and `kbps` (0).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct LivePlan {
     pub video_codec: Option<String>,
@@ -264,15 +266,33 @@ pub struct LivePlan {
     pub frame_rate: Option<f64>,
     #[serde(default, deserialize_with = "nd")]
     pub interlaced: bool,
+    /// The provider's video: 8, 10 or 12; none when unknown, taken as 8.
+    pub bit_depth: Option<i64>,
     pub audio_codec: Option<String>,
     pub audio_channels: Option<i64>,
     #[serde(default, deserialize_with = "nd")]
     pub video: String,
     #[serde(default, deserialize_with = "nd")]
     pub audio: String,
+    /// A transcode's lines; none when the video is copied.
+    pub out_height: Option<i64>,
+    /// A transcode's video bitrate, in kbit/s; none when the video is copied.
+    pub video_kbps: Option<i64>,
+    /// The server's Deinterlace setting: interlaced video is made progressive; none (taken as
+    /// on) from an older server.
+    #[serde(default)]
+    pub deinterlace: Option<bool>,
+    /// What the provider sends now, in kbit/s; 0 at first.
+    #[serde(default, deserialize_with = "nd")]
+    pub kbps: i64,
 }
 
 impl LivePlan {
+    /// Its video is interlaced and the server makes it progressive: the server's to convert.
+    pub fn made_progressive(&self) -> bool {
+        self.interlaced && self.deinterlace != Some(false)
+    }
+
     /// The channel is sent as it is (or without picture or sound).
     pub fn direct(&self) -> bool {
         let as_is = |s: &str| s == "copy" || s == "none";

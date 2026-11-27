@@ -243,7 +243,9 @@
     "requests": "请求",
     "yourRequests": "你的请求",
     "waiting": "等待中",
-    "playlists": "播放列表"
+    "playlists": "播放列表",
+    "collapse": "收起侧边栏",
+    "expand": "展开侧边栏"
   },
   "sortLibraries": {
     "title": "媒体库排序",

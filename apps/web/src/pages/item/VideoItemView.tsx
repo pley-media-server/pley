@@ -40,7 +40,7 @@ import {
 import { itemUrl } from "@/lib/urls";
 
 export function versionLabel(f: MediaFile, i: number): string {
-  const parts = [f.edition, resolutionLabel(f.width, f.height), codecLabel(f.video_codec), f.container?.toUpperCase(), formatBytes(f.size)].filter(Boolean);
+  const parts = [f.edition, resolutionLabel(f.width, f.height), codecLabel(f.video_codec), f.container?.toUpperCase(), f.size ? formatBytes(f.size) : ""].filter(Boolean);
   return parts.length ? parts.join(" · ") : translate("versionNumber", { ns: "item", number: i + 1 });
 }
 

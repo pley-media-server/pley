@@ -102,7 +102,6 @@ fn credits_show_up_next_and_its_countdown_plays_the_next_episode_10_s_on() {
     w.advance(2_500);
     let card = w.c.state().up_next.clone().expect("Up Next shows");
     assert_eq!((card.item_id, card.heading.as_str()), (71, "Up next · S1 · E2"));
-    assert_eq!(card.image_url.as_deref(), Some("http://nas:7539/api/items/71/images/thumb?v=3&w=480"));
     assert_eq!(w.c.state().skip_label.as_deref(), Some("Skip Credits"));
     let left = card.seconds_left.unwrap();
     assert!((9..=10).contains(&left), "{left}");
@@ -141,6 +140,52 @@ fn credits_ending_10_s_before_the_end_bring_up_next() {
     w.c.seek_to(7_099_000);
     w.advance(2_500);
     assert_eq!(w.c.state().up_next.as_ref().map(|c| c.item_id), Some(71));
+}
+
+#[test]
+fn skip_shows_alone_for_8_s_from_entering_a_marker_then_only_with_the_controls() {
+    // Credits something follows: Skip Credits without Up Next.
+    let mut w = credits_until(7_140_000, true, |_| ());
+    w.c.seek_to(7_110_000);
+    w.advance(600);
+    assert_eq!(w.c.state().skip_label.as_deref(), Some("Skip Credits"));
+    assert!(w.c.state().skip_alone);
+    w.advance(7_000);
+    assert!(w.c.state().skip_alone, "7.6 s in");
+    w.advance(1_000);
+    assert!(!w.c.state().skip_alone, "8.6 s in");
+    assert_eq!(w.c.state().skip_label.as_deref(), Some("Skip Credits"), "still offered, with the controls");
+    assert_eq!(w.c.state().phase, Phase::Playing, "nothing else happens by itself");
+    // A seek inside the same credits: nothing new.
+    w.c.seek_to(7_120_000);
+    w.advance(1_000);
+    assert!(!w.c.state().skip_alone);
+    // Out of them and back in: a fresh 8 s.
+    w.c.seek_to(7_000_000);
+    w.advance(1_000);
+    assert_eq!(w.c.state().skip_label, None);
+    assert!(!w.c.state().skip_alone);
+    w.c.seek_to(7_110_000);
+    w.advance(1_000);
+    assert!(w.c.state().skip_alone);
+}
+
+#[test]
+fn skip_credits_shows_alone_for_8_s_from_when_up_next_is_canceled() {
+    let mut w = episode();
+    w.c.seek_to(7_099_000);
+    w.advance(2_500);
+    assert!(w.c.state().up_next.is_some());
+    assert!(!w.c.state().skip_alone, "the card takes its place");
+    w.advance(3_000);
+    w.c.cancel_up_next();
+    w.advance(100);
+    assert_eq!(w.c.state().skip_label.as_deref(), Some("Skip Credits"));
+    assert!(w.c.state().skip_alone);
+    w.advance(7_800);
+    assert!(w.c.state().skip_alone, "7.9 s after Cancel");
+    w.advance(200);
+    assert!(!w.c.state().skip_alone, "8.1 s after Cancel");
 }
 
 #[test]

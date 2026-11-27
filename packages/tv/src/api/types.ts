@@ -403,7 +403,13 @@ export interface ClientCaps {
   audio_track_switching: boolean;
   picture_subtitles_sideload: boolean;
   /** `variants`: moves between a multivariant playlist's sizes by itself (adaptive bitrate). */
-  hls: { master_playlist: boolean; segments: string[]; variants?: boolean };
+  /**
+   * `audio`, `audio_channels`: what the player plays in a stream's segments,
+   * when that is less than from a file. The app's own: a stream is asked for
+   * with only these (`streamingCaps`, which takes them out); a file played as
+   * it is sends them too, and the server ignores them.
+   */
+  hls: { master_playlist: boolean; segments: string[]; variants?: boolean; audio?: string[]; audio_channels?: number };
   display?: { width: number; height: number; refresh_rates: number[] };
   device: { form: "tv"; tier: "low" | "mid" | "high"; fire_tv: false; model: string };
 }
@@ -622,6 +628,32 @@ export interface LiveWatching {
   url: string;
   kind: "hls";
   channel: LiveChannel;
+}
+
+/** What a channel is as the provider sends it, and what the transcoder makes of it for HLS. */
+export interface LivePlan {
+  /** The provider's video, by ffprobe's name ("h264", "hevc", "mpeg2video"); null for a channel without a picture. */
+  video_codec: string | null;
+  width: number | null;
+  height: number | null;
+  frame_rate: number | null;
+  interlaced: boolean;
+  /** 8, 10 or 12; null when not known. */
+  bit_depth: number | null;
+  audio_codec: string | null;
+  audio_channels: number | null;
+  /** "copy", "none", or the encoder that converts the video ("h264_nvenc", "libx264"). */
+  video: string;
+  audio: "copy" | "aac" | "none";
+  /** A transcode's lines and its video bitrate; null for video copied. */
+  out_height: number | null;
+  video_kbps: number | null;
+}
+
+/** `GET /api/live/sessions/{session}/plan`: the plan of the channel a session watches. */
+export interface SessionPlan extends LivePlan {
+  /** What the provider sends now, in kbit/s; 0 at first. */
+  kbps: number;
 }
 
 /** A connection of a source whose connections are all in use (a `409` from watching, its `connections`). */

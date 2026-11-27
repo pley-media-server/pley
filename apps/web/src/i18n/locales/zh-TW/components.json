@@ -243,7 +243,9 @@
     "requests": "請求",
     "yourRequests": "你的請求",
     "waiting": "等待中",
-    "playlists": "播放清單"
+    "playlists": "播放清單",
+    "collapse": "收合側邊欄",
+    "expand": "展開側邊欄"
   },
   "sortLibraries": {
     "title": "媒體庫排序",

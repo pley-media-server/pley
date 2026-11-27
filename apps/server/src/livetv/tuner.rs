@@ -19,14 +19,14 @@
 //! - Whether a channel played is told ([`Played`]): one the provider gives
 //!   nothing for is offline until it plays again.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use pley_transcoder_api::{HwAccel, LivePlan, LiveRequest};
+use pley_transcoder_api::{HwAccel, LivePlan, LiveRequest, ts};
 use serde::Serialize;
 use tokio::sync::{broadcast, mpsc};
 use tokio_util::sync::CancellationToken;
@@ -50,13 +50,12 @@ const VIEWER_GONE: Duration = Duration::from_secs(45);
 /// What the provider last sent, given to whoever joins (from its last video
 /// keyframe): a quick start.
 const BACKLOG_BYTES: usize = 2 << 20;
-/// An MPEG-TS packet's size, and the byte it starts with.
-const TS_PACKET: usize = 188;
-const TS_SYNC: u8 = 0x47;
 /// Chunks a slow reader may fall behind before it skips some.
 const CHANNEL_CHUNKS: usize = 2048;
 /// The provider sending nothing this long breaks the connection.
 const STALL: Duration = Duration::from_secs(15);
+/// How long a channel whose transcode failed isn't asked to be made again.
+const HLS_RETRY: Duration = Duration::from_secs(30);
 /// The most of a provider's HLS segment read whole (to put its audio in).
 const SEGMENT_BYTES: usize = 64 << 20;
 /// The pieces a segment read whole is handed on in, as a segment read as it
@@ -70,6 +69,18 @@ const ATTEMPTS: u32 = 5;
 /// Bytes after which a connection counts as having worked (its failures
 /// start again from 0).
 const WORKED_BYTES: u64 = 4 << 20;
+
+/// What a session's channel is and how it comes (`GET /api/live/sessions/{id}/plan`).
+#[derive(Debug, Clone, Serialize)]
+pub struct SessionPlan {
+    #[serde(flatten)]
+    pub plan: LivePlan,
+    /// Interlaced video is made progressive (Settings → Live TV): players
+    /// leave such a channel to the transcoder rather than play it as sent.
+    pub deinterlace: bool,
+    /// What the provider sends, kbit/s, of late.
+    pub kbps: u64,
+}
 
 /// Whether a channel played: it sent something, or the provider gave
 /// nothing for it however often it was asked.
@@ -286,6 +297,9 @@ pub struct TunerStatus {
     pub idle: bool,
     /// What the transcoder makes of it, for HLS viewers.
     pub plan: Option<LivePlan>,
+    /// The transcoder makes it now: an HLS player asked for it. Until then
+    /// players read it as the provider sends it.
+    pub transcoding: bool,
 }
 
 /// What a player watches with.
@@ -298,151 +312,26 @@ pub struct Watching {
 }
 
 struct Feed {
-    backlog: VecDeque<Bytes>,
-    backlog_bytes: usize,
-    /// Chunks dropped from the backlog's front: the number of its first.
-    dropped: u64,
-    /// Where the last video keyframe starts: its chunk's number and the
-    /// offset in it.
-    keyframe: Option<(u64, usize)>,
-    ts: TsScan,
+    /// What the provider sent lately, with where its last keyframe starts.
+    backlog: ts::Backlog,
     tx: Option<broadcast::Sender<Bytes>>,
 }
 
 impl Feed {
     fn new() -> Self {
-        Self {
-            backlog: VecDeque::new(),
-            backlog_bytes: 0,
-            dropped: 0,
-            keyframe: None,
-            ts: TsScan::default(),
-            tx: Some(broadcast::channel(CHANNEL_CHUNKS).0),
-        }
+        Self { backlog: ts::Backlog::new(BACKLOG_BYTES), tx: Some(broadcast::channel(CHANNEL_CHUNKS).0) }
     }
 
     fn push(&mut self, chunk: &Bytes) {
-        if let Some(offset) = self.ts.scan(chunk) {
-            self.keyframe = Some((self.dropped + self.backlog.len() as u64, offset));
-        }
-        self.backlog_bytes += chunk.len();
-        self.backlog.push_back(chunk.clone());
-        while self.backlog_bytes > BACKLOG_BYTES {
-            let Some(old) = self.backlog.pop_front() else { break };
-            self.backlog_bytes -= old.len();
-            self.dropped += 1;
-        }
-        if self.keyframe.is_some_and(|(n, _)| n < self.dropped) {
-            self.keyframe = None;
-        }
+        self.backlog.push(chunk);
     }
 
     /// What a new reader is given first: the tables and what came from the
     /// last video keyframe, so the picture starts whole and at once instead
     /// of seconds behind (players skip ahead to catch up: the picture jumps).
-    /// A stream without marked keyframes is given all of the backlog.
     fn start(&self) -> Vec<Bytes> {
-        let (Some((n, offset)), Some(pat), Some(pmt)) = (self.keyframe, &self.ts.pat, &self.ts.pmt) else {
-            return self.backlog.iter().cloned().collect();
-        };
-        let from = (n - self.dropped) as usize;
-        let mut out = vec![pat.clone(), pmt.clone()];
-        for (i, chunk) in self.backlog.iter().skip(from).enumerate() {
-            out.push(if i == 0 { chunk.slice(offset..) } else { chunk.clone() });
-        }
-        out
+        self.backlog.start()
     }
-}
-
-/// Reads the MPEG-TS packets in what a provider sends, chunk by chunk
-/// (packets run across chunks): the tables a demuxer needs before anything
-/// else (PAT and PMT) and where video keyframes start.
-#[derive(Default)]
-struct TsScan {
-    /// Where the next packet starts in the next chunk; `None` until the
-    /// packets are found.
-    next: Option<usize>,
-    pat: Option<Bytes>,
-    pmt_pid: Option<u16>,
-    pmt: Option<Bytes>,
-}
-
-impl TsScan {
-    /// Where the last video keyframe's first packet starts in `chunk`.
-    fn scan(&mut self, chunk: &Bytes) -> Option<usize> {
-        let data = &chunk[..];
-        let mut at = match self.next {
-            Some(n) if n >= data.len() => {
-                self.next = Some(n - data.len());
-                return None;
-            }
-            Some(n) if data[n] == TS_SYNC => n,
-            _ => ts_sync(data)?,
-        };
-        let mut keyframe = None;
-        while at + TS_PACKET <= data.len() {
-            if data[at] != TS_SYNC {
-                // Lost: found again further on, or in the next chunk.
-                match ts_sync(&data[at..]) {
-                    Some(skip) => at += skip,
-                    None => {
-                        self.next = None;
-                        return keyframe;
-                    }
-                }
-                continue;
-            }
-            let packet = &data[at..at + TS_PACKET];
-            let pid = u16::from(packet[1] & 0x1f) << 8 | u16::from(packet[2]);
-            if packet[1] & 0x40 != 0 {
-                if pid == 0 {
-                    self.pat = Some(Bytes::copy_from_slice(packet));
-                    self.pmt_pid = pmt_pid(packet).or(self.pmt_pid);
-                } else if Some(pid) == self.pmt_pid {
-                    self.pmt = Some(Bytes::copy_from_slice(packet));
-                } else if is_video_keyframe(packet) {
-                    keyframe = Some(at);
-                }
-            }
-            at += TS_PACKET;
-        }
-        self.next = Some(if at < data.len() { TS_PACKET - (data.len() - at) } else { 0 });
-        keyframe
-    }
-}
-
-/// Where packets start in `data`: a sync byte with another a packet on, when
-/// there's that much.
-fn ts_sync(data: &[u8]) -> Option<usize> {
-    (0..data.len()).find(|&i| data[i] == TS_SYNC && data.get(i + TS_PACKET).is_none_or(|&b| b == TS_SYNC))
-}
-
-/// A packet's payload, after its adaptation field.
-fn ts_payload(packet: &[u8]) -> Option<&[u8]> {
-    let control = (packet[3] >> 4) & 3;
-    if control & 1 == 0 {
-        return None;
-    }
-    let start = if control & 2 != 0 { 5 + usize::from(packet[4]) } else { 4 };
-    packet.get(start..)
-}
-
-/// The PMT's PID, from a PAT packet: its first program's.
-fn pmt_pid(packet: &[u8]) -> Option<u16> {
-    let payload = ts_payload(packet)?;
-    let table = payload.get(1 + usize::from(*payload.first()?)..)?;
-    // table_id 0, then the section's length and five bytes of header.
-    if table.first() != Some(&0) {
-        return None;
-    }
-    let length = usize::from(u16::from(*table.get(1)? & 0x0f) << 8 | u16::from(*table.get(2)?));
-    let programs = table.get(8..(3 + length).saturating_sub(4))?;
-    programs
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .find(|p| p[0] != 0 || p[1] != 0)
-        .map(|p| u16::from(p[2] & 0x1f) << 8 | u16::from(p[3]))
 }
 
 /// The device a client id is: players read a channel's stream as
@@ -468,14 +357,6 @@ fn taken_over_why(viewer: &Viewer, taker: i64, home: Option<&InHome>, channel: &
     }
 }
 
-/// A packet that starts a video PES at a random access point: a keyframe.
-fn is_video_keyframe(packet: &[u8]) -> bool {
-    let control = (packet[3] >> 4) & 3;
-    let random_access = control & 2 != 0 && packet[4] > 0 && packet[5] & 0x40 != 0;
-    random_access
-        && ts_payload(packet).is_some_and(|p| p.len() >= 4 && p[..3] == [0, 0, 1] && (0xe0..=0xef).contains(&p[3]))
-}
-
 struct TunerState {
     connected: bool,
     error: Option<String>,
@@ -485,9 +366,13 @@ struct TunerState {
     idle_since: Option<Instant>,
     /// The provider was given up on.
     ended: bool,
-    /// The transcoder's job failed (and why): not made again for this tuner.
-    hls_failed: Option<String>,
+    /// The transcoder's job failed, why and when: not made again for
+    /// [`HLS_RETRY`] (players that read the provider's stream keep a tuner
+    /// long after, and the trouble may pass: a transcode slot frees).
+    hls_failed: Option<(String, Instant)>,
     plan: Option<LivePlan>,
+    /// A player asked for the transcoder's playlist: it is made now.
+    transcoding: bool,
 }
 
 impl Default for TunerState {
@@ -501,6 +386,7 @@ impl Default for TunerState {
             ended: false,
             hls_failed: None,
             plan: None,
+            transcoding: false,
         }
     }
 }
@@ -1191,9 +1077,11 @@ impl Tuners {
     /// made when it is the first.
     /// What the transcoder makes of the channel a session watches, once it
     /// has looked at its first moment (starting its live job when there is
-    /// none yet); `None` when that takes longer than `wait`. Players that
-    /// read MPEG-TS themselves play a channel sent as it is (H.264 and AAC)
-    /// straight from `stream.ts`, sooner than its first segments.
+    /// none yet, which makes nothing until a player asks for its playlist);
+    /// `None` when that takes longer than `wait`. Players that read MPEG-TS
+    /// themselves play a channel sent as it is (H.264 and AAC), or one they
+    /// decode, straight from `stream.ts`: sooner than its first segments,
+    /// and with no transcode.
     pub async fn plan(
         &self,
         session_id: &str,
@@ -1201,20 +1089,28 @@ impl Tuners {
         settings: &LiveSettings,
         hwaccel: HwAccel,
         wait: Duration,
-    ) -> Result<Option<LivePlan>, AppError> {
+    ) -> Result<Option<SessionPlan>, AppError> {
         let viewer = self.viewer(session_id, user)?;
         let tuner = self.tuner_of(&viewer)?;
+        let known = |plan: LivePlan| SessionPlan { plan, deinterlace: settings.deinterlace, kbps: tuner.kbps() };
+        // Known already (asked again for the player's details): no job for it.
+        // Taken out first: `known` locks the tuner's state for its rate.
+        let plan = tuner.state.lock().plan.clone();
+        if let Some(plan) = plan {
+            return Ok(Some(known(plan)));
+        }
         let job = self.hls_job(&tuner, settings, hwaccel).await?;
         let deadline = Instant::now() + wait;
         loop {
-            if let Some(plan) = tuner.state.lock().plan.clone() {
-                return Ok(Some(plan));
+            let plan = tuner.state.lock().plan.clone();
+            if let Some(plan) = plan {
+                return Ok(Some(known(plan)));
             }
             if let Ok(status) = self.transcoder.live_status(&job).await
                 && let Some(plan) = status.plan
             {
                 tuner.state.lock().plan = Some(plan.clone());
-                return Ok(Some(plan));
+                return Ok(Some(known(plan)));
             }
             if Instant::now() >= deadline || !tuner.is_live() {
                 return Ok(None);
@@ -1235,7 +1131,10 @@ impl Tuners {
         for attempt in 0..2 {
             let job = self.hls_job(&tuner, settings, hwaccel).await?;
             match self.transcoder.live_playlist(&job).await {
-                Ok(text) => return Ok(text),
+                Ok(text) => {
+                    tuner.state.lock().transcoding = true;
+                    return Ok(text);
+                }
                 Err(err) if err.is_job_gone() && attempt == 0 => {
                     // The transcoder restarted, or gave up on it: once more.
                     let mut hls = tuner.hls.lock().await;
@@ -1243,7 +1142,17 @@ impl Tuners {
                         *hls = None;
                     }
                 }
-                Err(err) => return Err(self.why_not(&tuner, err.into())),
+                Err(err) => {
+                    // The job failed (no transcode slot free, say): its reason, not the bare error,
+                    // before the feed's end records it too.
+                    if let Ok(status) = self.transcoder.live_status(&job).await
+                        && let Some(why) = status.error
+                        && tuner.state.lock().connected
+                    {
+                        tuner.state.lock().hls_failed = Some((why, Instant::now()));
+                    }
+                    return Err(self.why_not(&tuner, err.into()));
+                }
             }
         }
         Err(self.why_not(&tuner, AppError::Unavailable("the channel didn't start".into())))
@@ -1252,7 +1161,7 @@ impl Tuners {
     /// The error a player gets: what the provider did, when it is to blame.
     fn why_not(&self, tuner: &Tuner, fallback: AppError) -> AppError {
         let state = tuner.state.lock();
-        match (&state.error, state.connected, &state.hls_failed) {
+        match (&state.error, state.connected, state.hls_failed.as_ref().map(|(why, _)| why)) {
             (Some(why), false, _) => AppError::Unavailable(format!("{} isn't playing: {why}", tuner.channel_name)),
             (_, _, Some(why)) => AppError::Unavailable(format!("{} can't be shown: {why}", tuner.channel_name)),
             _ => fallback,
@@ -1264,8 +1173,16 @@ impl Tuners {
         if let Some(job) = hls.clone() {
             return Ok(job);
         }
-        if let Some(why) = tuner.state.lock().hls_failed.clone() {
-            return Err(AppError::Unavailable(format!("{} can't be shown: {why}", tuner.channel_name)));
+        {
+            let mut state = tuner.state.lock();
+            match &state.hls_failed {
+                Some((why, at)) if at.elapsed() < HLS_RETRY => {
+                    return Err(AppError::Unavailable(format!("{} can't be shown: {why}", tuner.channel_name)));
+                }
+                // Long enough ago: tried again.
+                Some(_) => state.hls_failed = None,
+                None => {}
+            }
         }
         if !tuner.is_live() {
             return Err(self.why_not(tuner, AppError::Unavailable("the channel stopped".into())));
@@ -1287,6 +1204,9 @@ impl Tuners {
                 max_bitrate_kbps: None,
                 hwaccel,
                 window_seconds: Some(settings.timeshift_minutes * 60),
+                // Made once an HLS player asks: players that read the
+                // provider's stream need only the plan.
+                on_demand: true,
             })
             .await?;
         let input = tuner.subscribe().ok_or_else(|| AppError::Unavailable("the channel stopped".into()))?;
@@ -1298,13 +1218,17 @@ impl Tuners {
             }
             // The transcoder stopped making it: say why, unless the provider is to blame.
             if let Ok(status) = transcoder.live_status(&job).await {
-                t.state.lock().plan = status.plan;
+                // One that failed before it knew the channel says nothing of
+                // it: the plan known already (a direct player's details) stays.
+                if status.plan.is_some() {
+                    t.state.lock().plan = status.plan;
+                }
                 let connected = t.state.lock().connected;
                 if let Some(why) = status.error
                     && connected
                 {
                     tracing::warn!(channel = t.channel_id, "the transcoder gave up on a live channel: {why}");
-                    t.state.lock().hls_failed = Some(why);
+                    t.state.lock().hls_failed = Some((why, Instant::now()));
                 }
             } else if let Err(err) = result {
                 tracing::warn!(channel = t.channel_id, "sending a live channel to the transcoder failed: {err}");
@@ -1312,6 +1236,7 @@ impl Tuners {
             let mut hls = t.hls.lock().await;
             if hls.as_deref() == Some(job.as_str()) {
                 *hls = None;
+                t.state.lock().transcoding = false;
             }
         });
         // What it is made into, for the administrators' view, once it is known.
@@ -1390,12 +1315,13 @@ impl Tuners {
                     source_name: t.source_name.clone(),
                     started_at: t.started_at,
                     connected: state.connected,
-                    error: state.error.clone().or_else(|| state.hls_failed.clone()),
+                    error: state.error.clone().or_else(|| state.hls_failed.as_ref().map(|(why, _)| why.clone())),
                     bytes_in: state.bytes_in,
                     kbps,
                     idle: watching.is_empty(),
                     viewers: watching,
                     plan: state.plan.clone(),
+                    transcoding: state.transcoding,
                 }
             })
             .collect();
@@ -1785,76 +1711,6 @@ mod tests {
         assert_eq!(p.target_duration, 6.0);
         assert!(p.segments.iter().all(|s| s.duration == 6.0));
         assert_eq!(media_playlist("#EXTM3U\n#EXT-X-TARGETDURATION:2\n").err().as_deref(), Some(NO_SEGMENTS));
-    }
-
-    fn packet(pid: u16, start: bool, flags: Option<u8>, payload: &[u8]) -> Vec<u8> {
-        let mut p = vec![TS_SYNC, if start { 0x40 } else { 0 } | (pid >> 8) as u8, pid as u8, 0x10];
-        if let Some(flags) = flags {
-            p[3] = 0x30;
-            p.extend([1, flags]);
-        }
-        p.extend_from_slice(payload);
-        p.resize(TS_PACKET, 0xff);
-        p
-    }
-
-    fn pat(pmt: u16) -> Vec<u8> {
-        packet(0, true, None, &[0, 0, 0xb0, 13, 0, 1, 0xc1, 0, 0, 0, 1, 0xe0 | (pmt >> 8) as u8, pmt as u8, 0, 0, 0, 0])
-    }
-
-    fn feed(stream: &[u8], cuts: &[usize]) -> Feed {
-        let mut feed = Feed::new();
-        let mut from = 0;
-        for &to in cuts.iter().chain([stream.len()].iter()) {
-            feed.push(&Bytes::copy_from_slice(&stream[from..to]));
-            from = to;
-        }
-        feed
-    }
-
-    #[test]
-    fn new_readers_start_at_the_last_keyframe_with_the_tables() {
-        let (pat, pmt) = (pat(0x100), packet(0x100, true, None, &[0, 2]));
-        let key = |n: u8| packet(0x101, true, Some(0x40), &[0, 0, 1, 0xe0, n]);
-        let frame = packet(0x101, true, Some(0), &[0, 0, 1, 0xe0]);
-        // Audio is marked at every frame: not where the picture starts.
-        let audio = packet(0x102, true, Some(0x40), &[0, 0, 1, 0xc0]);
-        let stream = [pat.clone(), pmt.clone(), key(1), frame.clone(), audio, key(2), frame.clone()].concat();
-        // Cut across packets: the scan carries on in the next chunk.
-        let start = feed(&stream, &[400, 900]).start().concat();
-        assert_eq!(start, [pat, pmt, key(2), frame].concat());
-    }
-
-    #[test]
-    fn a_stream_without_marked_keyframes_is_given_whole() {
-        let audio = packet(0x102, true, Some(0x40), &[0, 0, 1, 0xc0]);
-        let stream = [pat(0x100), packet(0x100, true, None, &[0, 2]), audio.clone(), audio].concat();
-        assert_eq!(feed(&stream, &[300]).start().concat(), stream);
-        // Not MPEG-TS at all: as it came.
-        assert_eq!(feed(b"not a transport stream", &[5]).start().concat(), b"not a transport stream");
-    }
-
-    #[test]
-    fn a_keyframe_dropped_from_the_backlog_is_forgotten() {
-        let mut f = feed(
-            &[pat(0x100), packet(0x100, true, None, &[0, 2]), packet(0x101, true, Some(0x40), &[0, 0, 1, 0xe0])]
-                .concat(),
-            &[],
-        );
-        assert!(f.keyframe.is_some());
-        let filler = Bytes::from(packet(0x101, false, None, &[]).repeat(BACKLOG_BYTES / TS_PACKET));
-        f.push(&filler);
-        assert!(f.keyframe.is_none());
-        assert_eq!(f.start(), vec![filler]);
-    }
-
-    #[test]
-    fn a_pat_cut_short_is_no_pat() {
-        // A pointer field leaving one byte of table.
-        let mut p = packet(0, true, None, &[]);
-        p[4] = (TS_PACKET - 6) as u8;
-        p[TS_PACKET - 1] = 0;
-        assert_eq!(pmt_pid(&p), None);
     }
 
     fn viewer(user_id: i64) -> Viewer {

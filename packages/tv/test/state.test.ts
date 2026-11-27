@@ -264,6 +264,17 @@ describe("the quality setting", () => {
   });
 });
 
+describe("the player setting", () => {
+  const open = (store: KeyValue) => new AppState({ name: "tizen", clientId: "test", storage: store } as unknown as Platform, () => Promise.reject(new Error("no network in tests")));
+
+  it("lets the app pick the TV's player until AVPlay is set, and keeps that", () => {
+    const store = memoryStore();
+    expect(open(store).settings.value.player).toBe("auto");
+    open(store).updateSettings({ player: "avplay" });
+    expect(open(store).settings.value.player).toBe("avplay");
+  });
+});
+
 describe("Live TV", () => {
   const platform = (store: KeyValue) => ({ name: "tizen", clientId: "test", storage: store }) as unknown as Platform;
   const summary = { available: true, allowed: true, channels: 5, sources: 1, recent: [3] };

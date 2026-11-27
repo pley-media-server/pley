@@ -67,8 +67,8 @@ In the web and desktop apps only, for now.
   shown ([QUALITY.md](QUALITY.md)).
 - Automatic quality adjusts to your connection while you watch, stepping
   down when playback stalls and back up when it recovers.
-- Hardware transcoding (NVENC, Quick Sync, AMF, VAAPI, VideoToolbox) and
-  GPU tone mapping for HDR10, HLG and Dolby Vision.
+- Hardware transcoding (NVENC, Quick Sync, AMF, VAAPI, VideoToolbox,
+  Rockchip MPP) and GPU tone mapping for HDR10, HLG and Dolby Vision.
 - Image subtitles (PGS, VobSub, DVB) drawn by the apps instead of burned
   in, and subtitle timing adjustment on every player.
 - Audio and subtitle defaults per profile, carried over to the next
@@ -100,8 +100,10 @@ In the web and desktop apps only, for now.
 - One connection per channel however many people watch, within the
   provider's limit. A channel several sources carry can play on another's
   connection when its own source's are all in use.
-- Channels play straight from the provider when the device can, through
-  the transcoder when it can't.
+- Channels play straight from the provider when the device decodes them
+  (HEVC, 10-bit, MPEG-2 and others), through the transcoder when it
+  can't; the transcode starts only for a player that needs it. Playback
+  details on the Live TV player say which, the codecs and the bitrate.
 - Groups in the provider's order, or A to Z for a provider that lists them
   in none.
 

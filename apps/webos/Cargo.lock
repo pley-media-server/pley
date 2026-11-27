@@ -1284,7 +1284,7 @@ dependencies = [
 
 [[package]]
 name = "pley-lg"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "libc",
  "pley-base",
@@ -1316,6 +1316,7 @@ dependencies = [
  "pley-i18n",
  "pley-kit",
  "pley-player",
+ "pley-player-ui",
  "pley-shell",
  "pley-ui",
 ]

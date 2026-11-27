@@ -8,6 +8,19 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Skip Intro and Skip Credits show for 8 seconds from when they appear,
+  instead of 10, and come back when the video enters an intro or credits
+  again, such as after seeking back into one.
+
+## [0.1.13] - 2026-11-27
+
+### Fixed
+
+- A title whose size and bitrate aren't known yet shows nothing under its
+  poster, not "Bitrate unknown".
+
 ## [0.1.12] - 2026-11-24
 
 ### Changed
@@ -294,7 +307,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-27...HEAD
+[0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-27
 [0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20

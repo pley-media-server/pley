@@ -1,13 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { formatClock, formatTimeOfDay } from "../../format/format";
 import { storedMemory } from "../../player/autoquality";
+import { storedSeekMemory } from "../../player/seekmemory";
 import { initMusic } from "../../player/music";
 import { serverNetwork } from "../../player/network";
-import { PlaybackController, type PlayerEnv, type SavedPlayback } from "../../player/controller";
+import { COUNTDOWN_SECONDS, PlaybackController, type PlayerEnv, type SavedPlayback } from "../../player/controller";
 import type { PlayRequest } from "../../player/plan";
 import type { Marker, PlaybackMethod } from "../../api/types";
 import { t } from "../../i18n";
-import { thumbnailAt, sheetPath } from "../../player/nextup";
+import { skipShows } from "../../player/markers";
+import { CountdownFill, thumbnailAt, sheetPath } from "../../player/nextup";
 import { badgeText, MEDIA_STEP_MS, Seeker, STEP_MS } from "../../player/seeker";
 import { LEAVE_AFTER_MS } from "../../player/sleep";
 import { speedLabel } from "../../player/speed";
@@ -57,7 +59,7 @@ export function PlayerScreen(p: { request: PlayRequest; pressedAt: number }) {
     const env: PlayerEnv = {
       api: ui.api,
       reporter: app.reporter,
-      engine: () => app.platform.createEngine(host.current!),
+      engine: () => app.platform.createEngine(host.current!, { player: () => app.settings.value.player }),
       caps: () =>
         app.caps().then((r) => {
           probe.current = r?.dvContainers ?? null;
@@ -70,6 +72,7 @@ export function PlayerScreen(p: { request: PlayRequest; pressedAt: number }) {
       quality: { remembered: () => saved?.quality ?? app.settings.value.quality, remember: (id) => app.updateSettings({ quality: id }) },
       autoMemory: storedMemory(app.store, `pley.autoQuality.${ui.api.server}`),
       network: serverNetwork(ui.api, app.installId()),
+      seekMemory: storedSeekMemory(app.store, "pley.seekRefusals"),
       autoplayNext: () => app.settings.value.autoplayNext,
       events: (l) => app.onEvent(l),
       cachedItem: (id) => app.cachedItem(id),
@@ -244,18 +247,28 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
     setControls(true);
     focusFid(focus);
   };
+  // A controller still meaning to play while it says paused shows Play: pressing it plays, not pauses.
   const playPause = () => {
-    if (c.wantsToPlay) {
+    if (c.wantsToPlay && !c.waitsToPlay) {
       c.pause();
       if (!controls) show("scrubber");
     } else c.play();
   };
-  const skipShown = !!s.skipLabel && !s.upNext && !error && !(controls && seeker.target !== null);
+  // Skip: on its own for its first 8 s in a marker, then only with the controls (where Up from the scrubber reaches it).
+  const skipFree = !s.upNext && !error && !(controls && seeker.target !== null);
+  const skipShown = skipFree && skipShows(!!s.skipLabel, s.skipAlone, controls);
+  const skipAlone = skipFree && skipShows(!!s.skipLabel, s.skipAlone, false);
   const sleepShown = s.sleep.secondsLeft !== null && !error;
 
-  // A new Skip or sleep notice takes focus while nothing else is up; the hidden-controls focus holder otherwise.
+  // A new Skip or sleep notice takes focus while nothing else is up; the hidden-controls focus holder otherwise, as Skip goes after its 8 s.
+  // With the controls up, Skip or the notice going while it has focus (Skip pressed, its marker over) leaves it to the scrubber.
   useEffect(() => {
-    if (controls || panel || s.upNext || error) return;
+    if (panel || s.upNext || error) return;
+    if (controls) {
+      const had = ui.focus.current;
+      if (had && !had.isConnected) focusFid("scrubber");
+      return;
+    }
     if (skipShown) focusFid("skip");
     else if (sleepShown) focusFid("keep");
     else focusFid("video");
@@ -399,7 +412,7 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
             return true;
           }
           if (key === "menu" || key === "info") {
-            show(skipShownRef.current ? "skip" : "scrubber");
+            show(skipAloneRef.current ? "skip" : "scrubber");
             return true;
           }
           if (key === "back") {
@@ -412,7 +425,7 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
         if (key === "back") {
           if (e.type === "down") {
             setControls(false);
-            focusFid(skipShownRef.current ? "skip" : "video");
+            focusFid(skipAloneRef.current ? "skip" : "video");
           }
           return true;
         }
@@ -467,6 +480,8 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
   panelRef.current = panel;
   const skipShownRef = useRef(skipShown);
   skipShownRef.current = skipShown;
+  const skipAloneRef = useRef(skipAlone);
+  skipAloneRef.current = skipAlone;
 
   const openPanel = (which: PlayerPanel) => setPanel(which);
   const closePanel = () => {
@@ -499,7 +514,7 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
           </div>
           <div class="player-clock">
             <div class="player-clock-row">
-              {s.method && <span class={`method-badge t-caption ${methodClass(s.methodKind)}`}>{s.method}</span>}
+              {s.method && <MethodBadge method={s.methodKind} text={s.method} />}
               <TimeOfDay hours24={app.platform.clock24()} />
             </div>
             {s.phase.kind === "paused" && <EndsAt controller={c} hours24={app.platform.clock24()} />}
@@ -632,6 +647,11 @@ function methodClass(method: PlaybackMethod | null): string {
   if (method === "direct") return "direct";
   if (method === "remux") return "stream";
   return "transcode";
+}
+
+/** How it plays, in its words and its color: over a title, and over a live channel. */
+export function MethodBadge(p: { method: PlaybackMethod | null; text: string }) {
+  return <span class={`method-badge t-caption ${methodClass(p.method)}`}>{p.text}</span>;
 }
 
 /**
@@ -771,19 +791,11 @@ function ChapterImage(p: { path: string }) {
   return src ? <img src={src} alt="" style="width:100%;height:100%;object-fit:cover" /> : null;
 }
 
-/** Up Next (TvUpNextCard): the next one's picture and title, Play now with its countdown ring, Cancel. */
+/** Up Next (TvUpNextCard): the next one's title, Play now with its countdown ring, Cancel. No still: the card stays small over the credits. */
 function UpNextCard(p: { card: NonNullable<ReturnType<PlaybackController["state"]["peek"]>["upNext"]>; reduced: boolean; onPlay: () => void; onCancel: () => void }) {
-  const ui = useUi();
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    if (!p.card.imageUrl) return;
-    return ui.images.load(p.card.imageUrl, (u) => setSrc(u), -1);
-  }, [p.card.imageUrl]);
   const left = p.card.secondsLeft;
-  const sweep = left === null ? 0 : (360 * (10 - left)) / 10;
   return (
     <div class="upnext-card">
-      <div class="upnext-image">{src && <img src={src} alt="" />}</div>
       <div style="padding:16px">
         <div class="t-caption c-muted one-line">{p.card.heading}</div>
         <div class="t-title c-fg lines-2">{p.card.title}</div>
@@ -795,16 +807,39 @@ function UpNextCard(p: { card: NonNullable<ReturnType<PlaybackController["state"
               (p.reduced ? (
                 <span class="t-caption" style="margin-left:12px">{t("player.upNext.nextIn", { seconds: left })}</span>
               ) : (
-                <svg width="22" height="22" viewBox="0 0 22 22" style="margin-left:12px" aria-hidden="true">
-                  <circle cx="11" cy="11" r="9.5" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" />
-                  <path d={arc(11, 11, 9.5, sweep)} fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
-                </svg>
+                <CountdownRing left={left} />
               ))}
           </F>
           <TextButton label={t("common.actions.cancel")} variant="tall" onSelect={p.onCancel} />
         </G>
       </div>
     </div>
+  );
+}
+
+/**
+ * The countdown's ring, filling smoothly: drawn again each frame while it
+ * moves, straight into its path, so nothing renders again ([CountdownFill]).
+ */
+function CountdownRing(p: { left: number }) {
+  const path = useRef<SVGPathElement>(null);
+  const fill = useMemo(() => new CountdownFill(COUNTDOWN_SECONDS), []);
+  useEffect(() => {
+    fill.set(p.left, performance.now());
+    let frame = 0;
+    const draw = () => {
+      const now = performance.now();
+      path.current?.setAttribute("d", arc(11, 11, 9.5, 360 * fill.at(now)));
+      if (fill.moving(now)) frame = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(frame);
+  }, [p.left]);
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" style="margin-left:12px" aria-hidden="true">
+      <circle cx="11" cy="11" r="9.5" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" />
+      <path ref={path} fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+    </svg>
   );
 }
 

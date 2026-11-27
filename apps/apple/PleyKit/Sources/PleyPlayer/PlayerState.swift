@@ -54,6 +54,9 @@ public struct PlayerState: Equatable, Sendable {
     public var itemId: Int?
     /// "Skip Intro" or "Skip Credits" while the playhead is in one; `skip()` skips it.
     public var skipLabel: String?
+    /// Skip shows by itself, without the controls: its first 8 seconds in
+    /// a segment (`SkipWindow`). After them it shows only with the controls.
+    public var skipAlone = false
     /// What plays next, while its card shows.
     public var upNext: UpNextCard?
     /// The file's chapters, the one playing marked.
@@ -122,6 +125,13 @@ public struct PlayerState: Equatable, Sendable {
     public var methodLabel: String? {
         if downloaded { return PlayerTexts.downloaded }
         guard let method else { return nil }
+        return Self.label(of: method, audioConverted: audioConverted)
+    }
+
+    /// `method` in those words, for what plays without a `PlayerState`
+    /// too (a Live TV channel): "· Audio transcoding" after it when the
+    /// audio is converted and the video isn't.
+    public static func label(of method: PlaybackMethod, audioConverted: Bool) -> String {
         let base = switch method {
         case .direct: localized("Direct play")
         case .remux: localized("Direct stream")
@@ -129,6 +139,12 @@ public struct PlayerState: Equatable, Sendable {
         default: method.rawValue.capitalized
         }
         return audioConverted && method != .transcode ? localized("\(base) · Audio transcoding") : base
+    }
+
+    /// Whether Skip shows, with the player's controls showing or not: by
+    /// itself in its first 8 seconds, then only with the controls.
+    public func skipShown(withControls controls: Bool) -> Bool {
+        skipLabel != nil && (skipAlone || controls)
     }
 
     /// Whether the player is past preparing and hasn't failed.
@@ -159,22 +175,19 @@ public enum PlaybackSpeeds {
     public static func speed(id: String) -> Double? { Double(id).flatMap { all.contains($0) ? $0 : nil } }
 }
 
-/// The card for what plays next: its words, its picture and its countdown.
+/// The card for what plays next: its words and its countdown.
 public struct UpNextCard: Equatable, Sendable {
     public var itemId: Int
     public var title: String
     /// "Up next · S1 E2".
     public var heading: String
-    /// The server's picture of it (a still, else the backdrop), for `NextUp.imageWidth` pixels.
-    public var imagePath: String?
     /// Seconds before it plays by itself; `nil` while no countdown runs.
     public var secondsLeft: Int?
 
-    public init(itemId: Int, title: String, heading: String, imagePath: String? = nil, secondsLeft: Int? = nil) {
+    public init(itemId: Int, title: String, heading: String, secondsLeft: Int? = nil) {
         self.itemId = itemId
         self.title = title
         self.heading = heading
-        self.imagePath = imagePath
         self.secondsLeft = secondsLeft
     }
 

@@ -37,6 +37,7 @@
 
     <!-- Up Next. -->
     <string name="tv_player_play_now">立即播放</string>
+    <string name="tv_player_play_now_in">立即播放（%1$d）</string>
     <string name="tv_player_cancel">取消</string>
     <string name="tv_player_next_in">%1$d 秒后播放下一集</string>
 

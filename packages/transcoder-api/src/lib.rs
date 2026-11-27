@@ -11,6 +11,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+pub mod ts;
+
 /// Protocol version spoken by this crate. Bumped on breaking changes.
 pub const API_VERSION: u32 = 1;
 
@@ -183,6 +185,11 @@ pub struct MediaStream {
     /// -90. Absent when not turned (and in older probes).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rotation: Option<i64>,
+    /// The shape of its pixels, as ffprobe gives it: `32:27` on an
+    /// anamorphic DVD, `1:1` for square ones. Absent in older probes, and
+    /// where ffprobe gives none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sample_aspect_ratio: Option<String>,
     /// Frames are stored out of order (B-frames). FFmpeg then seeks a little
     /// before the point asked for in containers that don't seek by
     /// presentation time (Matroska, MPEG-TS).
@@ -315,6 +322,12 @@ impl MediaStream {
         matches!(self.rotation_degrees(), 90 | 270)
     }
 
+    /// [`MediaStream::sample_aspect_ratio`] as numbers; `None` for square
+    /// pixels or a shape not known.
+    pub fn sample_aspect(&self) -> Option<(i64, i64)> {
+        self.sample_aspect_ratio.as_deref().and_then(sample_aspect)
+    }
+
     pub fn dynamic_range(&self) -> DynamicRange {
         self.dynamic_range.unwrap_or_default()
     }
@@ -436,6 +449,9 @@ pub enum HwAccel {
     Videotoolbox,
     /// Vulkan Video (`h264_vulkan`), used for fully-GPU tone mapping pipelines.
     Vulkan,
+    /// Rockchip's video engines (RK3588, RK3568 and the like): MPP's
+    /// decoders and encoders (`h264_rkmpp`), RGA's scaler (`scale_rkrga`).
+    Rkmpp,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -565,6 +581,20 @@ pub struct GpuPipeline {
     /// transcoders tried none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub main10: Vec<String>,
+    /// Those whose frames its scaler brings to memory in 10 bits (P010),
+    /// for the tone mapper. Rockchip's only, whose encoders take 8 bits:
+    /// RGA3 (RK3588) makes P010, RGA2 (RK3568 and older) doesn't.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub p010: Vec<String>,
+}
+
+/// A sample aspect ratio as FFmpeg writes it (`64:45`, or `64/45`), where
+/// the pixels aren't square: `None` for `1:1`, and for `0:1` and others
+/// that say nothing.
+pub fn sample_aspect(text: &str) -> Option<(i64, i64)> {
+    let (num, den) = text.split_once([':', '/'])?;
+    let (num, den): (i64, i64) = (num.trim().parse().ok()?, den.trim().parse().ok()?);
+    (num > 0 && den > 0 && num != den && num <= 65_535 && den <= 65_535).then_some((num, den))
 }
 
 /// Codec key used for hardware decode capability checks: `hevc10` for
@@ -723,9 +753,16 @@ pub struct Capabilities {
     #[serde(default)]
     pub amf_upload: bool,
     /// FFmpeg has the `h264_metadata` bitstream filter, which writes the
-    /// color primaries `h264_amf` leaves unsaid.
+    /// color primaries `h264_amf` leaves unsaid, and the sample aspect ratio
+    /// `h264_rkmpp` does (where that encoder works, only if the filter
+    /// rewrote its stream in a start-up test).
     #[serde(default)]
     pub h264_metadata: bool,
+    /// FFmpeg has the `hevc_metadata` bitstream filter, which writes the
+    /// sample aspect ratio `hevc_rkmpp` leaves unsaid (where that encoder
+    /// works, only if the filter rewrote its stream in a start-up test).
+    #[serde(default)]
+    pub hevc_metadata: bool,
     /// Live channels: an MPEG-TS stream sent in as it comes made into a
     /// live HLS stream (`/v1/live`). Older transcoders lack it.
     #[serde(default)]
@@ -908,6 +945,11 @@ pub struct LiveRequest {
     /// in seconds (default 300; at least 30).
     #[serde(default)]
     pub window_seconds: Option<u32>,
+    /// Probe the input at once but make nothing of it until its playlist
+    /// is first asked for: a channel every player reads as the provider
+    /// sends it takes no transcode.
+    #[serde(default)]
+    pub on_demand: bool,
 }
 
 impl Default for LiveRequest {
@@ -921,6 +963,7 @@ impl Default for LiveRequest {
             max_bitrate_kbps: None,
             hwaccel: HwAccel::Auto,
             window_seconds: None,
+            on_demand: false,
         }
     }
 }
@@ -958,15 +1001,23 @@ pub struct LivePlan {
     pub frame_rate: Option<f64>,
     #[serde(default)]
     pub interlaced: bool,
+    /// The input's video bit depth (8, 10, 12), when its pixel format says.
+    #[serde(default)]
+    pub bit_depth: Option<i64>,
     /// The input's audio codec (`aac`, `mp2`, `ac3`…).
     #[serde(default)]
     pub audio_codec: Option<String>,
     #[serde(default)]
     pub audio_channels: Option<i64>,
-    /// `copy`, or the encoder transcoding it (`h264_nvenc`, `libx264`…).
+    /// `copy`, `none`, or the encoder transcoding it (`h264_nvenc`, `libx264`…).
     pub video: String,
-    /// `copy` or `aac`.
+    /// `copy`, `aac` or `none`.
     pub audio: String,
+    /// A transcode's lines and video bitrate (kbit/s); `None` when copied.
+    #[serde(default)]
+    pub out_height: Option<i64>,
+    #[serde(default)]
+    pub video_kbps: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]

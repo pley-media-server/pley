@@ -51,9 +51,10 @@ if [ "${1:-serve}" = serve ]; then
 fi
 
 # The groups of the GPUs passed in (/dev/dri for Intel and AMD, /dev/nvidia*
-# for NVIDIA), but never root's.
+# for NVIDIA, MPP's and RGA's devices and the DMA heaps for Rockchip), but
+# never root's.
 groups=
-for dev in /dev/dri/* /dev/nvidia*; do
+for dev in /dev/dri/* /dev/nvidia* /dev/mpp_service /dev/rga /dev/dma_heap/*; do
     [ -c "$dev" ] || continue
     group=$(stat -c %g "$dev")
     [ "$group" != 0 ] && [ "$group" != "$gid" ] || continue

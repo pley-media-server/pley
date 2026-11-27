@@ -263,7 +263,9 @@
     "requests": "Demandes",
     "yourRequests": "Vos demandes",
     "waiting": "en attente",
-    "playlists": "Playlists"
+    "playlists": "Playlists",
+    "collapse": "Réduire la barre latérale",
+    "expand": "Développer la barre latérale"
   },
   "sortLibraries": {
     "title": "Trier les bibliothèques",

@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Added
 
+- Settings › Playback › Player can play everything on AVPlay instead of
+  choosing a player for each file.
 - A library's Collections are grouped by category, and can be narrowed
   to one category; a collection's page shows its category.
 - A row's See all opens the collection it shows, and a Home row of
@@ -37,9 +39,15 @@ describes how they are made.
   a key is pressed on the TV.
 - When the server has video transcoding turned off, the Quality menu
   offers only Original.
+- Live TV's player shows how a channel plays, as a film's player does.
 
 ### Changed
 
+- Up Next's card shows the next title's name without its picture, so it
+  covers less of the credits, and its countdown ring fills smoothly
+  instead of a step each second.
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
 - Movies, shows and music without a picture show Pley's mark on their
   placeholder instead of their title, which the caption under it shows,
   with a clapperboard, a TV or notes in it for their kind of library.
@@ -51,6 +59,10 @@ describes how they are made.
   watching?" each time. A profile with a PIN still asks first, and Switch
   profile still shows every profile. Settings' Always start as
   calls this Profile used last, where it said Ask who's watching.
+- Skip Intro and Skip Credits show on their own for 8 seconds as an intro
+  or the credits begin, then only with the controls, so they don't sit
+  over the picture for the whole segment. Once they go, OK and the arrows
+  work as with nothing on screen.
 
 ### Security
 
@@ -192,6 +204,11 @@ describes how they are made.
 
 ### Fixed
 
+- Seeking and resuming work in files played as they are on 2019 and older
+  sets, and a stream on them keeps its sound.
+- Seeking in a song works when the TV won't seek in its file, and holding
+  a key on Now Playing seeks once.
+- A title whose size isn't known yet shows none, not "0 B".
 - Up Next no longer comes during credits that something follows (an
   after-credits scene, a show's last minutes); it comes at the end instead.
 - A video whose audio the TV can't decode plays with the audio converted

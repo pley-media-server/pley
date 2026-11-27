@@ -442,6 +442,8 @@ interface MediaStream {
   interlaced?: boolean;
   rotation?: number;                // degrees counterclockwise the picture is turned to be shown (phone
                                     // video: 90 or -90); absent when not turned
+  sample_aspect_ratio?: string;     // its pixels' shape: "32:27" on an anamorphic DVD, "1:1" square; absent
+                                    // in older probes
   has_b_frames?: boolean;
   color_transfer?: string;          // "smpte2084", "arib-std-b67", …
   color_primaries?: string;
@@ -3103,6 +3105,14 @@ A `.strm` file in a movie or TV library names the address its media is at
 - `MediaFile.path` is the `.strm` file's. Until the media is known,
   `container` is `"strm"`, `size` is 0 and `streams` holds only the
   subtitle files beside it.
+- With `strm_probe` on, once a scan of the library is done, what the media
+  is gets found for every file it isn't known for yet (as `GET
+  /api/items/{id}` finds it), a few files at a time; the apps are told the
+  library changed (`library_changed`) every 30 s while that goes on and
+  once at its end (what opening or playing an item finds meanwhile, at
+  once, as at any other time, unless the walk is looking at that file
+  then). An address that failed isn't asked again
+  by a scan for a day, unless its file names another.
 - `GET /api/items/{id}` of a movie, an episode or an extra finds what the
   media is when it isn't known, waiting up to 2.5 s for it; a play request
   and `POST /api/conversions` wait for it as long as it takes. Then
@@ -4680,7 +4690,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | DELETE | `/api/live/channels/{id}/favorite` | `play` | `204` |
 | POST | `/api/live/channels/{id}/watch` | `play` | optional `{ client_id?, keyed_urls?, take_over?, controls?, device_name?, device_kind? }` → `{ session_id, url, kind: "hls", channel: LiveChannel }`: `url` is the channel's live HLS playlist; with `keyed_urls`, an address carrying a key of its own ([Keyed URLs](#keyed-urls)); `take_over`: see Watching, below; `controls`, `device_name` and `device_kind` as a play request's ([Remote control](#remote-control)) |
 | GET | `/api/live/channels/{id}/stream.ts` | `play` | `?client_id=&take_over=&device_kind=`: the channel's MPEG-TS (`video/mp2t`) as the provider sends it (one served as HLS: its segments, with the default audio track put in when the provider keeps it apart), for as long as it is read (VLC, Kodi, TVs that read MPEG-TS). `take_over` counts only with a token: over plain HTTP, a GET the browser's cookie signs in may be another site's link (Pley's page uses `POST …/watch`). A reader that watches by itself obeys no remote and is named from its User-Agent; `device_kind` says what it plays on ([Remote control](#remote-control)) |
-| GET | `/api/live/sessions/{session}/plan` | `play` | `LivePlan \| null`: what the transcoder makes of the channel, waited for up to 3 s; `null` when not known in time. A player that reads MPEG-TS plays a channel whose video and audio are copied from `stream.ts` (with a client id of its own), sooner than its first segments |
+| GET | `/api/live/sessions/{session}/plan` | `play` | `SessionPlan \| null`: what the channel is and what the transcoder makes of it, waited for up to 3 s; `null` when not known in time. A player that reads MPEG-TS plays from `stream.ts` (with a client id of its own) a channel whose video and audio are copied, or one it decodes as the provider sends it (Direct Play, below). Asked again, it answers at once, with the provider's bitrate as it is now, for a player's details |
 | GET | `/api/live/sessions/{session}/{file}` | `play` | `index.m3u8` or a segment of a watching session; `410 session_stopped` once the session is over, with why as `message` |
 | GET | `/api/live/media/{key}/{file}` | `public` (the key) | the same, for a session watched with `keyed_urls` |
 | DELETE | `/api/live/sessions/{session}` | `play` | `204`: stops watching; `404` when not yours (administrators: any) or already gone |
@@ -4765,10 +4775,17 @@ interface LivePlan {
   video_codec: string | null;          // the input's: "h264", "mpeg2video", "hevc"…
   width: number | null; height: number | null; frame_rate: number | null;
   interlaced: boolean;
+  bit_depth: number | null;            // the input's video: 8, 10, 12
   audio_codec: string | null;          // the input's: "aac", "mp2", "ac3"…
   audio_channels: number | null;
-  video: string;                       // "copy", or the encoder: "h264_nvenc", "libx264"…
+  video: string;                       // "copy", "none", or the encoder: "h264_nvenc", "libx264"…
   audio: "copy" | "aac" | "none";
+  out_height: number | null;           // a transcode's lines; null when copied
+  video_kbps: number | null;           // a transcode's video bitrate; null when copied
+}
+interface SessionPlan extends LivePlan {
+  deinterlace: boolean;                // LiveSettings.deinterlace
+  kbps: number;                        // what the provider sends now, kbit/s
 }
 interface LiveTuner {                  // a connection in use
   channel_id: Id; channel_name: string; source_id: Id; source_name: string;
@@ -4780,6 +4797,7 @@ interface LiveTuner {                  // a connection in use
              kind: "hls" | "stream"; started_at: number }[];
   idle: boolean;                       // nobody watches: it goes soon
   plan: LivePlan | null;               // what the transcoder makes of it, for HLS viewers
+  transcoding: boolean;                // an HLS player asked for it: the transcoder makes it now
 }
 ```
 
@@ -4827,7 +4845,17 @@ interface LiveTuner {                  // a connection in use
 - **The stream.** H.264 is sent as it is; other video, and interlaced
   video while `deinterlace` is on, is made H.264 by the transcoder; audio
   that isn't AAC is made AAC stereo. Every player of a channel reads the
-  same HLS stream, made once.
+  same HLS stream, made once, and only once a player asks for its
+  playlist: the plan alone starts nothing.
+- **Direct Play.** A player that reads MPEG-TS plays the channel from
+  `stream.ts` when it decodes what the provider sends: the plan's video
+  (`video_codec`, at its `bit_depth` and size) and sound (`audio_codec`),
+  or either alone. An HEVC channel on a device that plays HEVC takes no
+  transcode. While the server deinterlaces (`deinterlace`), interlaced
+  video goes to the transcoder unless copied, and so does anything else
+  the device doesn't decode. Players show which it is in their Playback
+  details: Direct play from `stream.ts`, Direct stream for copied HLS,
+  else Transcoding.
 - **Leaving.** An HLS viewer that asked for nothing for 45 s has left,
   unless its device reads the channel's `stream.ts` for it instead (as
   `<client_id>-stream`): it stays while that is read.
@@ -4970,8 +4998,9 @@ on another administrator's account, but for the `GET`s
   subtitles whose media file is gone.
 - **`PUT /api/settings`** answers `400` for a `hwaccel` or `tonemapping`
   that can't work here, when changed from what is saved:
-  - VAAPI off Linux, VideoToolbox off macOS, NVENC, Quick Sync or AMF on
-    macOS (for a managed transcoder, which runs on Pley's system);
+  - VAAPI or Rockchip MPP off Linux, VideoToolbox off macOS, NVENC, Quick
+    Sync or AMF on macOS (for a managed transcoder, which runs on Pley's
+    system);
   - one the transcoder found no working encoder or tone mapper for
     (`transcoder.accels`, `transcoder.tonemapping`; not checked while it
     isn't running);
@@ -5075,7 +5104,10 @@ interface Settings {
                                     // true; see CONFIGURATION.md). A change scans every library
   strm_files: boolean;              // movie and TV libraries list and play .strm files (default false; see
                                     // .strm files). A change scans those libraries
-  hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
+  strm_probe: boolean;              // after a scan, find what each .strm file's media is before anyone opens
+                                    // it (default false; see .strm files). Of no use while strm_files is off.
+                                    // Turned on, the files listed are looked at at once
+  hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "rkmpp" | "vulkan";
   hardware_decoding: boolean;       // decode on the GPU when possible
   tonemapping: "auto" | "libplacebo" | "opencl" | "zscale" | "none"; // HDR10/HLG/Dolby Vision to SDR
   transcode_video: boolean;         // transcode video for players that can't play a file's as it is, or
@@ -5184,10 +5216,10 @@ interface SystemInfo {
     encoders: string[];             // working video encoders: ["h264_nvenc", "libx264"]
     active_encoder: string | null;  // encoder new transcodes use with the current settings
     hwaccels: string[];             // FFmpeg's decoding hwaccels (`ffmpeg -hwaccels`: built in, not tried)
-    accels: ("nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox")[]; // with a working H.264 encoder, best
+    accels: ("nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "rkmpp")[]; // with a working H.264 encoder, best
                                     // first: the first is the one "auto" uses ([] while unavailable)
     hardware_decoding: boolean;     // some video is decoded on a GPU, so the setting changes something
-    with_accel: { [hwaccel: string]: {   // what each `hwaccel` choice does here, all eight ({} while unavailable)
+    with_accel: { [hwaccel: string]: {   // what each `hwaccel` choice does here, all nine ({} while unavailable)
       hardware_decoding: boolean;   // some video is decoded on a GPU with it (software encoding gets CUDA's
                                     // decoder where an NVIDIA card encodes, VideoToolbox's on a Mac)
       software: ("h264" | "hevc" | "hdr")[]; // what it leaves to software encoders, where one works

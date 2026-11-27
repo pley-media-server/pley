@@ -37,6 +37,7 @@
     </plurals>
 
     <string name="tv_player_play_now">Reproducir ahora</string>
+    <string name="tv_player_play_now_in">Reproducir ahora (%1$d)</string>
     <string name="tv_player_cancel">Cancelar</string>
     <string name="tv_player_next_in">Siguiente en %1$d</string>
 

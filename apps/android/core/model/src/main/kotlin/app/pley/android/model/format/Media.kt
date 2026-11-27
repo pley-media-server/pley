@@ -215,10 +215,15 @@ fun mediaBadges(media: MediaSummary?): List<String> {
     return listOfNotNull(resolutionLabel(media.width, media.height).takeIf { it == "4K" }, range)
 }
 
-/** "42 Mbps · 23.4 GB", "Bitrate unknown" when neither is known, "" without a summary. */
+/**
+ * "42 Mbps · 23.4 GB", "Bitrate unknown" when neither is known, "" without a
+ * summary. A size of 0 is one not known yet (a .strm file's media before it
+ * is found): it is left out, and with no bitrate either, nothing is said.
+ */
 fun mediaLine(media: MediaSummary?, words: FormatWords = FormatWords.English): String {
     if (media == null) return ""
-    return listOf(formatBitrate(media.bitrate, words), formatBytes(media.size, words))
+    if (media.size == 0L && (media.bitrate ?: 0L) <= 0L) return ""
+    return listOf(formatBitrate(media.bitrate, words), formatBytes(media.size?.takeIf { it > 0 }, words))
         .filter { it.isNotEmpty() }
         .joinToString(" · ")
         .ifEmpty { words.bitrateUnknown }

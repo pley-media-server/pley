@@ -77,6 +77,32 @@ struct LiveDecodingTests {
         #expect(plan.video == "copy" && plan.audio == "copy" && !plan.interlaced)
     }
 
+    @Test func aPlanSaysWhatATranscodeMakesAndAnOlderServerLeavesItOut() throws {
+        let json = #"""
+            {"video_codec":"hevc","width":3840,"height":2160,"frame_rate":50.0,"interlaced":false,"bit_depth":10,
+             "audio_codec":"eac3","audio_channels":6,"video":"h264_nvenc","audio":"aac","out_height":1080,
+             "video_kbps":8000,"kbps":12300}
+            """#
+        let plan = try PleyJSON.decoder.decode(LivePlan.self, from: Data(json.utf8))
+        #expect(plan.videoCodec == "hevc" && plan.bitDepth == 10 && plan.video == "h264_nvenc" && plan.audio == "aac")
+        #expect(plan.outHeight == 1080 && plan.videoKbps == 8_000 && plan.kbps == 12_300)
+        // An older server: no bit depth, transcode size or bitrates.
+        let old = #"""
+            {"video_codec":"h264","width":1280,"height":720,"frame_rate":25.0,"interlaced":false,
+             "audio_codec":"aac","audio_channels":2,"video":"copy","audio":"copy"}
+            """#
+        let older = try PleyJSON.decoder.decode(LivePlan.self, from: Data(old.utf8))
+        #expect(older.bitDepth == nil && older.outHeight == nil && older.videoKbps == nil)
+        #expect(older.kbps == 0)
+        // A copied channel says `null` for a transcode's.
+        let copied = #"""
+            {"video_codec":"h264","bit_depth":8,"video":"copy","audio":"copy","out_height":null,
+             "video_kbps":null,"kbps":0}
+            """#
+        let copy = try PleyJSON.decoder.decode(LivePlan.self, from: Data(copied.utf8))
+        #expect(copy.bitDepth == 8 && copy.outHeight == nil && copy.videoKbps == nil && copy.kbps == 0)
+    }
+
     @Test func busyConnections() throws {
         let body = try decode(APIErrorBody.self, fixture: "live/busy.json")
         #expect(body.code == "conflict")

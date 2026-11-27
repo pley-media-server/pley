@@ -136,10 +136,13 @@ public sealed record LiveWatching
 }
 
 /// <summary>
-/// GET /api/live/sessions/{session}/plan: what the transcoder makes of the channel a session
-/// watches (<see cref="Video"/>: <c>copy</c> or the encoder; <see cref="Audio"/>: <c>copy</c>,
-/// <c>aac</c> or <c>none</c>). Sent as it is, the channel plays from its <c>stream.ts</c>, sooner
-/// than its first HLS segments (<see cref="Direct"/>).
+/// GET /api/live/sessions/{session}/plan: what the channel a session watches carries (ffprobe's
+/// names, as the TV's report has them) and what the transcoder makes of it (<see cref="Video"/>:
+/// <c>copy</c>, <c>none</c> or the encoder; <see cref="Audio"/>: <c>copy</c>, <c>aac</c> or
+/// <c>none</c>). Sent as it is, the channel plays from its <c>stream.ts</c>, sooner than its first
+/// HLS segments (<see cref="Direct"/>); so does one this TV decodes as the provider sends it
+/// (<see cref="Live.LiveRules.PlaysAsSent"/>). An older server says nothing of the bit depth, a
+/// transcode's size and bitrate or the provider's bitrate: they stay unknown and 0.
 /// </summary>
 public sealed record LivePlan
 {
@@ -148,10 +151,20 @@ public sealed record LivePlan
     public int? Height { get; init; }
     public double? FrameRate { get; init; }
     public bool Interlaced { get; init; }
+    /// <summary>The provider's picture: 8, 10 or 12 bits; null when unknown, which is taken as 8.</summary>
+    public int? BitDepth { get; init; }
     public string? AudioCodec { get; init; }
     public int? AudioChannels { get; init; }
     public string Video { get; init; } = "";
     public string Audio { get; init; } = "";
+    /// <summary>A transcode's lines; null when the picture is sent as it is.</summary>
+    public int? OutHeight { get; init; }
+    /// <summary>A transcode's video bitrate, kbit/s; null when the picture is sent as it is.</summary>
+    public int? VideoKbps { get; init; }
+    /// <summary>The server's Deinterlace setting: interlaced video is made progressive; null (taken as on) from an older server.</summary>
+    public bool? Deinterlace { get; init; }
+    /// <summary>What the provider sends now, kbit/s; 0 at first.</summary>
+    public long Kbps { get; init; }
 
     /// <summary>The channel is sent as it is (or without picture or sound): <c>stream.ts</c> plays it straight away.</summary>
     public bool Direct => Video is "copy" or "none" && Audio is "copy" or "none";

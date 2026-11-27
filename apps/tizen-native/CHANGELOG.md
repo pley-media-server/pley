@@ -8,6 +8,32 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Up Next's card shows the next title's name without its picture, so it
+  covers less of the credits, and its countdown ring fills smoothly
+  instead of a step each second.
+- Skip Intro and Skip Credits show on their own for 8 seconds as an intro
+  or the credits begin, then only with the controls, so they don't sit
+  over the picture for the whole segment. Once they go, OK and the arrows
+  work as with nothing on screen.
+
+## [0.1.15] - 2026-11-27
+
+### Added
+
+- Live TV plays a channel as the provider sends it when the TV decodes it,
+  and Info in the live player's controls opens Playback details.
+
+### Changed
+
+- Playback details name Rockchip MPP when a Rockchip server's video
+  engines made the transcode.
+
+### Fixed
+
+- A title whose size isn't known yet shows none, not "0 B".
+
 ## [0.1.14] - 2026-11-24
 
 ### Changed
@@ -559,7 +585,8 @@ describes how they are made.
 
 - The version of the builds made by hand before the app had releases.
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-24...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-27...HEAD
+[0.1.15]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-27
 [0.1.14]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-24
 [0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-22
 [0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-20

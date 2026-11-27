@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Play, X } from "lucide-react";
-import { markGlyph } from "pley-placeholder";
 import type { ItemSummary } from "@/api/types";
-import { Artwork } from "@/components/Artwork";
 import { episodeLabel } from "@/lib/format";
-import { thumbCandidates } from "@/lib/images";
 
 const COUNTDOWN = 10;
 
@@ -39,15 +36,11 @@ export function UpNext({
 
   return (
     <div className="absolute bottom-28 right-4 z-30 w-[min(92vw,22rem)] animate-pop-in overflow-hidden rounded-xl border border-white/10 bg-black/90 text-white shadow-2xl sm:right-8">
-      <div className="relative">
-        <Artwork candidates={thumbCandidates(next)} width={352} alt="" title={next.title} mark={markGlyph(next.kind)} className="aspect-video w-full" />
-        <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent" />
-        <div className="absolute bottom-3 left-4 right-4">
-          <div className="text-xs font-semibold text-accent">
-            {next.kind === "episode" ? t("upNext.episode", { episode: episodeLabel(next) }) : t("upNext.title")}
-          </div>
-          <div className="truncate text-base font-semibold">{next.title}</div>
+      <div className="px-4 pt-3">
+        <div className="text-xs font-semibold text-accent">
+          {next.kind === "episode" ? t("upNext.episode", { episode: episodeLabel(next) }) : t("upNext.title")}
         </div>
+        <div className="truncate text-base font-semibold">{next.title}</div>
       </div>
       <div className="flex items-center gap-2 p-3">
         <button

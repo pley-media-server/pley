@@ -360,31 +360,45 @@ public struct LiveWatch: Codable, Hashable, Sendable {
 }
 
 /// `GET /api/live/sessions/{session}/plan`: what the channel a session
-/// watches carries, and what the transcoder makes of it (`video`: `copy`
-/// or the encoder; `audio`: `copy`, `aac` or `none`).
+/// watches carries, and what the transcoder makes of it (`video`: `copy`,
+/// `none` or the encoder; `audio`: `copy`, `aac` or `none`), with what
+/// the provider sends now. An older server says nothing of the bit depth,
+/// the transcode's size and bitrate or `kbps`: unknown, and 0.
 public struct LivePlan: Codable, Hashable, Sendable {
     public var videoCodec: String?
     public var width: Int?
     public var height: Int?
     public var frameRate: Double?
     public var interlaced: Bool
+    /// The provider's video bit depth (8, 10, 12); `nil`: unknown, taken as 8.
+    public var bitDepth: Int?
     public var audioCodec: String?
     public var audioChannels: Int?
     public var video: String
     public var audio: String
+    /// A transcode's lines and its video bitrate (kbit/s); `nil` when the video is copied.
+    public var outHeight: Int?
+    public var videoKbps: Int?
+    /// What the provider sends now, kbit/s; 0 at first.
+    public var kbps: Int
 
     public init(videoCodec: String? = nil, width: Int? = nil, height: Int? = nil, frameRate: Double? = nil,
-                interlaced: Bool = false, audioCodec: String? = nil, audioChannels: Int? = nil, video: String = "",
-                audio: String = "") {
+                interlaced: Bool = false, bitDepth: Int? = nil, audioCodec: String? = nil, audioChannels: Int? = nil,
+                video: String = "", audio: String = "", outHeight: Int? = nil, videoKbps: Int? = nil,
+                kbps: Int = 0) {
         self.videoCodec = videoCodec
         self.width = width
         self.height = height
         self.frameRate = frameRate
         self.interlaced = interlaced
+        self.bitDepth = bitDepth
         self.audioCodec = audioCodec
         self.audioChannels = audioChannels
         self.video = video
         self.audio = audio
+        self.outHeight = outHeight
+        self.videoKbps = videoKbps
+        self.kbps = kbps
     }
 
     public init(from decoder: any Decoder) throws {
@@ -394,10 +408,14 @@ public struct LivePlan: Codable, Hashable, Sendable {
         height = try c.decodeIfPresent(Int.self, forKey: .height)
         frameRate = try c.decodeIfPresent(Double.self, forKey: .frameRate)
         interlaced = try c.value(.interlaced, or: false)
+        bitDepth = try c.decodeIfPresent(Int.self, forKey: .bitDepth)
         audioCodec = try c.decodeIfPresent(String.self, forKey: .audioCodec)
         audioChannels = try c.decodeIfPresent(Int.self, forKey: .audioChannels)
         video = try c.value(.video, or: "")
         audio = try c.value(.audio, or: "")
+        outHeight = try c.decodeIfPresent(Int.self, forKey: .outHeight)
+        videoKbps = try c.decodeIfPresent(Int.self, forKey: .videoKbps)
+        kbps = try c.value(.kbps, or: 0)
     }
 }
 

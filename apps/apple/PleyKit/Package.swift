@@ -88,7 +88,8 @@ let package = Package(
                     dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyData", "PleyNetwork", "PleyModel",
                                    "PleyCommon", "PleyTesting"]),
         // The player menus: UIKit's on the iOS and tvOS simulators, the action menu's delegate on the Mac.
-        .testTarget(name: "PleyPlayerViewsTests", dependencies: ["PleyPlayerViews", "PleyPlayer", "PleyData"]),
+        .testTarget(name: "PleyPlayerViewsTests",
+                    dependencies: ["PleyPlayerViews", "PleyPlayer", "PleyData", "PleyModel"]),
         .testTarget(name: "PleyDownloadsTests",
                     dependencies: ["PleyDownloads", "PleyData", "PleyCaps", "PleyAuth", "PleyNetwork", "PleyModel",
                                    "PleyCommon", "PleyTesting"]),

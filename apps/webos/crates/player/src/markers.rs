@@ -18,6 +18,52 @@ pub fn active_marker(markers: &[Marker], position_ms: i64) -> Option<&Marker> {
     markers.iter().find(|m| m.start_ms <= position_ms && position_ms < m.end_ms - SKIP_LEAVES_MS)
 }
 
+/// Skip shows on its own this long from when it appears; then, while the playhead is still in
+/// its marker, only with the player's controls.
+pub const SKIP_ALONE_MS: i64 = 8_000;
+
+/// When Skip shows on its own: for [`SKIP_ALONE_MS`] from when it appears, on the app's clock.
+/// The playhead entering a marker (playing or seeking into it, or starting in it) opens a fresh
+/// window; a seek inside the same marker doesn't. Skip appears again when what took its place
+/// goes (Up Next canceled over credits), and its window starts then.
+#[derive(Debug, Default)]
+pub struct SkipWindow {
+    /// The marker the playhead was last found in.
+    marker: Option<Marker>,
+    /// When Skip appeared for it; none while it isn't offered.
+    since: Option<i64>,
+}
+
+impl SkipWindow {
+    /// The marker the playhead is in now, as the controller's check finds it.
+    pub fn at(&mut self, marker: Option<&Marker>) {
+        if self.marker.as_ref() != marker {
+            self.marker = marker.cloned();
+            self.since = None;
+        }
+    }
+
+    /// Whether Skip shows on its own at `now`; `offered` is false while something takes its
+    /// place (Up Next's card).
+    pub fn alone(&mut self, offered: bool, now: i64) -> bool {
+        if self.marker.is_none() || !offered {
+            self.since = None;
+            return false;
+        }
+        now < *self.since.get_or_insert(now) + SKIP_ALONE_MS
+    }
+
+    /// When Skip stops showing on its own, while it still does at `now`.
+    pub fn due(&self, now: i64) -> Option<i64> {
+        self.since.map(|t| t + SKIP_ALONE_MS).filter(|t| *t > now)
+    }
+
+    /// Forgets the marker (a new item).
+    pub fn reset(&mut self) {
+        *self = SkipWindow::default();
+    }
+}
+
 /// Where Skip goes: an intro's end, less up to 750 ms (half a short one) so
 /// the cut isn't missed; the credits' end. The caller clamps to the duration.
 pub fn skip_target(m: &Marker) -> i64 {
@@ -88,6 +134,49 @@ mod tests {
         assert_eq!(skip_target(&credits), 120_000);
         assert_eq!(skip_label(&intro), "Skip Intro");
         assert_eq!(skip_label(&credits), "Skip Credits");
+    }
+
+    #[test]
+    fn skip_shows_alone_for_8_s_from_when_it_appears() {
+        let intro = marker(MarkerKind::Intro, 10_000, 70_000);
+        let credits = marker(MarkerKind::Credits, 100_000, 120_000);
+        let mut w = SkipWindow::default();
+        assert!(!w.alone(true, 0), "no marker");
+        w.at(Some(&intro));
+        assert!(w.alone(true, 1_000));
+        assert_eq!(w.due(1_000), Some(9_000));
+        assert!(w.alone(true, 8_999));
+        assert!(!w.alone(true, 9_000));
+        assert_eq!(w.due(9_000), None);
+        // A seek inside the same intro: nothing new.
+        w.at(Some(&intro));
+        assert!(!w.alone(true, 10_000));
+        // Out and back in: a fresh 8 s.
+        w.at(None);
+        assert!(!w.alone(true, 11_000));
+        w.at(Some(&intro));
+        assert!(w.alone(true, 12_000));
+        assert!(!w.alone(true, 20_000));
+        // The next marker: a fresh 8 s too.
+        w.at(Some(&credits));
+        assert!(w.alone(true, 30_000));
+        assert!(w.alone(true, 37_999));
+    }
+
+    #[test]
+    fn skip_shows_alone_again_from_when_up_next_goes() {
+        let credits = marker(MarkerKind::Credits, 100_000, 120_000);
+        let mut w = SkipWindow::default();
+        w.at(Some(&credits));
+        assert!(w.alone(true, 0));
+        // Up Next's card takes its place, then is canceled 20 s on.
+        assert!(!w.alone(false, 500));
+        assert!(!w.alone(false, 20_000));
+        assert!(w.alone(true, 20_500));
+        assert!(w.alone(true, 28_499));
+        assert!(!w.alone(true, 28_500));
+        w.reset();
+        assert!(!w.alone(true, 30_000));
     }
 
     #[test]

@@ -1,6 +1,7 @@
 // Live TV (docs/API.md, "Live TV"): types and React Query hooks.
 
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { StreamCaps } from "@/lib/caps";
 import { deviceFields } from "@/lib/castReceiver";
 import { ending, reportsHeld } from "@/lib/progress";
 import { api, qs } from "./client";
@@ -263,17 +264,32 @@ export interface LineupPatch {
   guide_id?: string;
 }
 
+/** What a channel is (the provider's video and sound, by ffprobe's names) and what the transcoder makes of it. */
 export interface LivePlan {
   video_codec: string | null;
   width: number | null;
   height: number | null;
   frame_rate: number | null;
   interlaced: boolean;
+  /** The provider's video: 8, 10, 12 (an older server says nothing: taken as 8). */
+  bit_depth?: number | null;
   audio_codec: string | null;
   audio_channels: number | null;
-  /** "copy", or the encoder transcoding it. */
+  /** "copy", "none" (a radio channel), or the encoder transcoding it. */
   video: string;
+  /** "copy", "aac" (made AAC stereo) or "none". */
   audio: string;
+  /** A transcode's lines, and its video's kbit/s; null when copied. */
+  out_height?: number | null;
+  video_kbps?: number | null;
+}
+
+/** A watch session's plan: with the server's Deinterlace setting, and what the provider sends now. */
+export interface SessionPlan extends LivePlan {
+  /** Settings → Live TV's Deinterlace (an older server says nothing: on). */
+  deinterlace?: boolean;
+  /** What the provider sends now, kbit/s. */
+  kbps?: number;
 }
 
 export interface TunerStatus {
@@ -289,6 +305,8 @@ export interface TunerStatus {
   viewers: { session_id: string; user_id: Id; username: string; kind: "hls" | "stream"; started_at: Timestamp }[];
   idle: boolean;
   plan: LivePlan | null;
+  /** An HLS player asked for it: the transcoder makes it now. Until then players read it as the provider sends it. */
+  transcoding?: boolean;
 }
 
 // ---------------------------------------------------------------- queries
@@ -298,6 +316,7 @@ export const liveKeys = {
   summary: ["live", "summary"] as const,
   channels: ["live", "channels"] as const,
   channel: (id: Id) => ["live", "channels", id] as const,
+  plan: (sessionId: string) => ["live", "sessions", sessionId, "plan"] as const,
   groups: ["live", "groups"] as const,
   browse: ["live", "browse"] as const,
   page: (category: LiveCategory, search: string, page: number) =>
@@ -539,15 +558,64 @@ export function watchChannel(id: Id, clientId: string, takeOver?: Id, controls?:
  * What the channel a session watches is made into, once the transcoder has
  * looked at it (null when that takes too long).
  */
-export function livePlan(sessionId: string): Promise<LivePlan | null> {
-  return api.get<LivePlan | null>(`/api/live/sessions/${encodeURIComponent(sessionId)}/plan`);
+export function livePlan(sessionId: string): Promise<SessionPlan | null> {
+  return api.get<SessionPlan | null>(`/api/live/sessions/${encodeURIComponent(sessionId)}/plan`);
 }
 
-/** A channel sent as it is (H.264, AAC, or either alone): a player that reads MPEG-TS plays it from `stream.ts`. */
-export function playsAsSent(plan: LivePlan): boolean {
-  const video = plan.video === "copy" || plan.video === "none";
-  const audio = plan.audio === "copy" || plan.audio === "none";
-  return video && audio && !(plan.video === "none" && plan.audio === "none");
+/** How often an open Playback details asks the plan again, ms: for what the provider sends now. */
+const PLAN_EVERY = 2500;
+
+/** A watch session's plan, asked again every few seconds while `open` (the server answers one it knows at once). */
+export function useSessionPlan(sessionId: string | null, open: boolean) {
+  return useQuery({
+    queryKey: liveKeys.plan(sessionId ?? ""),
+    queryFn: () => livePlan(sessionId ?? ""),
+    enabled: open && !!sessionId,
+    refetchInterval: PLAN_EVERY,
+    // Asked again soon anyway.
+    retry: false,
+  });
+}
+
+/** Left as it is by the transcoder: copied, or not there. */
+export const asIs = (made: string) => made === "copy" || made === "none";
+
+/**
+ * Why a channel isn't played from its stream: its video is interlaced (the
+ * transcoder makes it progressive), or this device doesn't play its video
+ * or its sound (`codec`: null when the server doesn't know it).
+ */
+export type NotAsSent =
+  | { why: "interlaced" | "nothing" }
+  | { why: "video" | "audio"; codec: string | null };
+
+/**
+ * Why a player that reads MPEG-TS doesn't play a channel from `stream.ts`;
+ * null when it does. It plays one sent as it is (H.264, AAC, or either
+ * alone), and one whose progressive video (at its bit depth) and sound
+ * `caps` say this device plays as the provider sends them. Without `caps`,
+ * only the first.
+ */
+export function notAsSent(plan: SessionPlan, caps?: StreamCaps | null): NotAsSent | null {
+  if (plan.video === "none" && plan.audio === "none") return { why: "nothing" };
+  if (asIs(plan.video) && asIs(plan.audio)) return null;
+  if (!asIs(plan.video)) {
+    // Interlaced video is the transcoder's while it makes it progressive.
+    if (plan.interlaced && plan.deinterlace !== false) return { why: "interlaced" };
+    const depth = plan.bit_depth ?? 8;
+    if (!caps?.video.some((v) => v.codec === plan.video_codec && v.max_bit_depth >= depth)) {
+      return { why: "video", codec: plan.video_codec };
+    }
+  }
+  if (!asIs(plan.audio) && !(plan.audio_codec && caps?.audio_codecs.includes(plan.audio_codec))) {
+    return { why: "audio", codec: plan.audio_codec };
+  }
+  return null;
+}
+
+/** A channel a player that reads MPEG-TS plays from `stream.ts` ({@link notAsSent} has the rule). */
+export function playsAsSent(plan: SessionPlan, caps?: StreamCaps | null): boolean {
+  return notAsSent(plan, caps) === null;
 }
 
 /** The channel's MPEG-TS as the provider sends it, for this device. */

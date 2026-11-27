@@ -96,7 +96,9 @@ if (-not $manifest) {
     $other = Join-Path ([System.IO.Path]::GetTempPath()) "pley-ffmpeg-recipe-$PID"
     New-Item -ItemType Directory -Force $other | Out-Null
     # A shallow checkout (CI's) stays shallow; a whole one isn't made so.
-    $depth = if ((git -C $root rev-parse --is-shallow-repository) -eq "true") { @("--depth=1") } else { @() }
+    # An array, even of one: splatted, a string is passed a character at a
+    # time, and git takes the first "-" for the repository.
+    $depth = @(if ((git -C $root rev-parse --is-shallow-repository) -eq "true") { "--depth=1" })
     git -C $root fetch --quiet @depth origin $Fallback
     if ($LASTEXITCODE -ne 0) { throw "git fetch failed" }
     git -C $root archive -o "$other/recipe.tar" FETCH_HEAD deploy/ffmpeg

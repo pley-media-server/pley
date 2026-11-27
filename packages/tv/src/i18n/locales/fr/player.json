@@ -172,6 +172,7 @@
     "drawnHere": "Affichés par cette TV",
     "thisTv": "Cette TV",
     "player": "Lecteur",
+    "videoElement": "Vidéo HTML5",
     "decoded": "Décodé",
     "decoder": "Décodeur vidéo",
     "hardware": "{{decoder}} (matériel)",
