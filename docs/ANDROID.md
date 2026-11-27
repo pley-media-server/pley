@@ -794,8 +794,9 @@ only Skip Credits, so the countdown never skips what comes after them. An
 episode goes on to the next one, and a title played from a playlist or a
 collection to the next title there, the same on phones and TVs. The card
 holds the next title's name and episode, without a picture, so it covers
-little of the credits; its countdown fills Play now smoothly (a sweep on
-phones, a ring on TVs) and steps once a second with reduced motion.
+little of the credits; its countdown is in Play now, "Play now (7)" with a
+sweep filling the button smoothly, in steps of a second with reduced
+motion, the same on phones and TVs.
 
 ### Audio and subtitles
 

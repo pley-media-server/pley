@@ -10,7 +10,7 @@ import androidx.compose.runtime.remember
 
 /**
  * How much of a countdown of [total] seconds has gone, from 0 to 1, for a
- * ring or a sweep to draw. The player counts whole seconds; through each
+ * sweep to draw. The player counts whole seconds; through each
  * one the fill glides, linearly, to where it stands at that second's end,
  * so it moves without steps and is full as the countdown reaches 0. A
  * countdown that starts again jumps back at once rather than sliding back.

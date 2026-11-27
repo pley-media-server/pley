@@ -930,6 +930,35 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `Play now holds Up Next's countdown, as on phones, and keeps its width as the count shortens`() {
+        val controller = playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 10)) }
+        show(controller)
+        compose.onNodeWithText("Play now (10)").assertExists()
+        val wide = compose.onNodeWithTag(TAG_PLAY_NOW).getBoundsInRoot()
+        controller.update { it.copy(upNextCard = it.upNextCard?.copy(secondsLeft = 9)) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Play now (9)").assertExists()
+        assertEquals(wide, compose.onNodeWithTag(TAG_PLAY_NOW).getBoundsInRoot())
+        // No countdown (autoplay off): the words alone.
+        controller.update { it.copy(upNextCard = it.upNextCard?.copy(secondsLeft = null)) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Play now").assertExists()
+    }
+
+    @Test
+    fun `with reduced motion Play now counts down as Next in 7`() {
+        val controller = playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7)) }
+        compose.setContent {
+            TvTheme(reducedMotion = true) {
+                TvPlayerScreen(controller, onExit = { exits++ }, now = { 0L })
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithText("Next in 7").assertExists()
+        compose.onNodeWithText("Play now (7)").assertDoesNotExist()
+    }
+
+    @Test
     fun `media keys work whatever shows`() {
         val controller = playing()
         show(controller)

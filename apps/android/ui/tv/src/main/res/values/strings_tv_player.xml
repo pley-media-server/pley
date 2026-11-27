@@ -40,6 +40,7 @@
 
     <!-- Up Next. -->
     <string name="tv_player_play_now">Play now</string>
+    <string name="tv_player_play_now_in">Play now (%1$d)</string>
     <string name="tv_player_cancel">Cancel</string>
     <string name="tv_player_next_in">Next in %1$d</string>
 

@@ -56,12 +56,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -99,7 +101,8 @@ import kotlinx.coroutines.delay
  * What shows over the video besides the controls (design spec §2.7): the
  * title as an item begins, Skip, Up Next, the seek badge, buffering, the
  * refresh-rate switch, errors and toasts. With the controls hidden, only
- * Up Next's countdown ring moves, and only its drawing (§6).
+ * Up Next's countdown moves: its sweep, of which only the drawing follows,
+ * and its number once a second (§6).
  */
 
 /**
@@ -221,9 +224,9 @@ internal fun BoxScope.TvSkipButton(
 /**
  * Up Next (design spec §2.7): a 300 dp card, right edge at x = 912 and
  * bottom at y = 489, on surface2 at 96 %: "Up next · S2 · E6" and the next
- * one's title, then "Play now" with a ring filling smoothly over the
- * countdown ("Next in 7" with reduced motion) and Cancel. No still: the
- * card stays small over the credits.
+ * one's title, then "Play now (7)" with a sweep filling it smoothly over
+ * the countdown ("Next in 7", stepped, with reduced motion) and Cancel. No
+ * still: the card stays small over the credits.
  */
 @Composable
 internal fun BoxScope.TvUpNextCard(card: UpNextUi?, ui: TvPlayerUi, onPlay: () -> Unit, onCancel: () -> Unit) {
@@ -247,12 +250,14 @@ internal fun BoxScope.TvUpNextCard(card: UpNextUi?, ui: TvPlayerUi, onPlay: () -
                 .then(if (tier != Tier.T0) Modifier.shadow(16.dp, PleyShape.Dialog, ambientColor = Color.Black, spotColor = Color.Black) else Modifier)
                 .clip(PleyShape.Dialog)
                 .background(PleyColors.Surface2.copy(alpha = 0.96f))
-                .testTag(TAG_UP_NEXT)
-                .semantics { liveRegion = LiveRegionMode.Polite },
+                .testTag(TAG_UP_NEXT),
         ) {
             Column(Modifier.padding(16.dp)) {
-                BasicText(TvPlayerText.episodeLine(shown.heading) ?: shown.heading, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), maxLines = 1)
-                BasicText(shown.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                // Announced once, as the card shows: not Play now's seconds, every one of them.
+                Column(Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }) {
+                    BasicText(TvPlayerText.episodeLine(shown.heading) ?: shown.heading, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), maxLines = 1)
+                    BasicText(shown.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
                 Spacer(Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     PlayNowButton(shown.secondsLeft, reduced, ui, onPlay)
@@ -275,17 +280,30 @@ internal fun BoxScope.TvUpNextCard(card: UpNextUi?, ui: TvPlayerUi, onPlay: () -
     }
 }
 
-/** "Play now", focused when the card shows, with the countdown's ring (or words) inside it. */
+/**
+ * "Play now", focused when the card shows, with the countdown in it as on
+ * phones: "Play now (7)" and a sweep across the button, moving smoothly
+ * ("Next in 7" and a step each second with reduced motion). The button
+ * keeps the width of the countdown's first second as the count shortens.
+ */
 @Composable
 private fun PlayNowButton(secondsLeft: Int?, reduced: Boolean, ui: TvPlayerUi, onPlay: () -> Unit) {
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
-    val content = if (focused) PleyColors.OnAccent else PleyColors.Fg
+    val label = playNowLabel(secondsLeft, reduced)
+    val widest = playNowLabel(secondsLeft?.let { COUNTDOWN_S }, reduced)
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val labelWidth = remember(widest, measurer, density) {
+        with(density) { measurer.measure(widest, PleyType.Tv.Label, maxLines = 1).size.width.toDp() }
+    }
+    val done = countdownFill(secondsLeft, COUNTDOWN_S, smooth = !reduced)
+    // Darker over the accent of a focused button, as on phones; lighter over the faint fill it has at rest.
+    val sweep = if (focused) Color.Black.copy(alpha = 0.18f) else PleyColors.Fg.copy(alpha = 0.14f)
     Button(
         onClick = onPlay,
         interactionSource = interactions,
         modifier = Modifier
-            .heightIn(min = UP_NEXT_BUTTON)
             .testTag(TAG_PLAY_NOW)
             .focusRequester(ui.requester(PlayerFocus.UpNext))
             .onFocusChanged { if (it.isFocused) ui.focused = PlayerFocus.UpNext }
@@ -310,38 +328,34 @@ private fun PlayNowButton(secondsLeft: Int?, reduced: Boolean, ui: TvPlayerUi, o
             focusedBorder = Border.None,
             pressedBorder = Border.None,
         ),
-        contentPadding = PaddingValues(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+        // The row inside takes the padding, so its sweep reaches the button's edges.
+        contentPadding = PaddingValues(0.dp),
     ) {
-        Icon(PleyIcons.Play, contentDescription = null, size = 22.dp, tint = LocalContentColor.current)
-        Spacer(Modifier.width(10.dp))
-        Text(stringResource(R.string.tv_player_play_now), style = PleyType.Tv.Label)
-        if (secondsLeft != null) {
-            Spacer(Modifier.width(12.dp))
-            if (reduced) {
-                Text(stringResource(R.string.tv_player_next_in, secondsLeft), style = PleyType.Tv.Caption)
-            } else {
-                CountdownRing(secondsLeft, content)
-            }
+        Row(
+            Modifier
+                .heightIn(min = UP_NEXT_BUTTON)
+                // Under the label, inside the button's shape and its growing with the focus. Only this
+                // drawing follows the fill ([countdownFill]).
+                .drawBehind {
+                    val swept = done.value
+                    if (swept > 0f) drawRect(sweep, size = Size(size.width * swept, size.height))
+                }
+                .padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(PleyIcons.Play, contentDescription = null, size = 22.dp, tint = LocalContentColor.current)
+            Spacer(Modifier.width(10.dp))
+            Text(label, style = PleyType.Tv.Label, maxLines = 1, modifier = Modifier.widthIn(min = labelWidth))
         }
     }
 }
 
-/** A 22 dp ring filling smoothly over the 10 s countdown; only its drawing follows the fill ([countdownFill]). */
+/** Play now's words: with the seconds left while a countdown runs, as the phone's card has them. */
 @Composable
-private fun CountdownRing(secondsLeft: Int, color: Color) {
-    val stroke = 3.dp
-    val fill = countdownFill(secondsLeft, COUNTDOWN_S)
-    Box(
-        Modifier
-            .size(22.dp)
-            .drawBehind {
-                val w = stroke.toPx()
-                val inset = w / 2f
-                val arcSize = Size(size.width - w, size.height - w)
-                drawArc(color.copy(alpha = 0.25f), 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(w))
-                drawArc(color, -90f, 360f * fill.value, false, Offset(inset, inset), arcSize, style = Stroke(w, cap = StrokeCap.Round))
-            },
-    )
+private fun playNowLabel(secondsLeft: Int?, reduced: Boolean): String = when {
+    secondsLeft == null -> stringResource(R.string.tv_player_play_now)
+    reduced -> stringResource(R.string.tv_player_next_in, secondsLeft)
+    else -> stringResource(R.string.tv_player_play_now_in, secondsLeft)
 }
 
 /**
