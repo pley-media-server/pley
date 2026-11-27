@@ -14,8 +14,7 @@
   },
   "status": {
     "loading": "Chargement",
-    "reconnecting": "Reconnexion…",
-    "endsAt": "Fin à {{time}}"
+    "reconnecting": "Reconnexion…"
   },
   "markers": {
     "intro": "Intro",

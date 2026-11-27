@@ -1087,7 +1087,6 @@ sub onState(event as object)
     if state <> "paused" then m.pausedTimer.control = "stop"
     if state <> "playing" then hideBanner()
     m.controls.playing = state <> "paused"
-    m.controls.paused = state = "paused"
     if state = "buffering" then setLoading(true)
     if state = "playing"
         m.againPending = false
@@ -1934,7 +1933,6 @@ sub showControls(focus as string)
     if m.info = invalid or m.notice.visible or m.upNext.visible or m.menu.visible then return
     m.controls.positionMs = m.positionMs
     m.controls.playing = m.video.state <> "paused"
-    m.controls.paused = m.video.state = "paused"
     focusControl(focus)
     m.controls.shown = true
     if m.skip.hasFocus() or m.sleepButtons.isInFocusChain() then m.keys.setFocus(true)

@@ -63,6 +63,8 @@ describes how they are made.
   or the credits begin, then only with the controls, so they don't sit
   over the picture for the whole segment. Once they go, OK and the arrows
   work as with nothing on screen.
+- The player's controls no longer say "Ends at" with a time under the
+  clock while paused: the time left stays by the scrubber.
 
 ### Security
 

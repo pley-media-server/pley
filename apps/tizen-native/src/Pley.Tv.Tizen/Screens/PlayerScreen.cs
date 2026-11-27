@@ -83,7 +83,6 @@ sealed class PlayerScreen : Sheet
     readonly TextLabel line;
     readonly MethodBadge method;
     readonly TextLabel clock;
-    readonly TextLabel ends;
     readonly TextLabel elapsed;
     readonly TextLabel remaining;
     readonly TextLabel badge;
@@ -221,8 +220,6 @@ sealed class PlayerScreen : Sheet
         method = new MethodBadge();
         method.Hide();
         controls.Add(method);
-        ends = RightAligned(PleyType.Label, PleyColors.Muted, PleyTv.SafeVertical + PleyType.Label.Line + 2);
-        controls.Add(ends);
 
         var width = PleyTv.CanvasWidth - 2 * PleyTv.SafeHorizontal;
         elapsed = Text.Label("", PleyType.Caption, PleyColors.Fg, width: 200);
@@ -770,9 +767,6 @@ sealed class PlayerScreen : Sheet
             clock.Text = time;
             PlaceMethod();
         }
-        ends.Text = s.Phase.Kind == PhaseKind.Paused
-            ? PlayerText.EndsAt(DateTime.Now.AddMilliseconds(Math.Max(0, duration - position)).ToString("t", Strings.Culture))
-            : "";
         if (!ReferenceEquals(s.Chapters, segmentsOf) || duration != segmentsFor) Segments(s.Chapters, duration);
         var width = track.SizeWidth;
         float X(long ms) => duration > 0 ? (float)(width * Math.Max(0, Math.Min(1, ms / (double)duration))) : 0;

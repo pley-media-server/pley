@@ -93,12 +93,9 @@ pub struct TopBar<'a> {
     pub line: Option<&'a str>,
     pub method: Option<&'a str>,
     pub clock: &'a str,
-    /// "Ends at 22:14", while paused.
-    pub ends: Option<&'a str>,
 }
 
-/// The title and episode line at the top left; how it plays, the clock and "Ends at" at the top
-/// right.
+/// The title and episode line at the top left; how it plays and the clock at the top right.
 pub fn top_bar(ui: &mut Ui, bar: &TopBar) {
     let left = theme::SAFE_X;
     let right = theme::CANVAS_W - theme::SAFE_X;
@@ -116,11 +113,6 @@ pub fn top_bar(ui: &mut Ui, bar: &TopBar) {
     ui.draw_text(Point::new(right - clock_w, top + (row_h - clock_h) / 2.0), clock, theme::MUTED);
     if let Some(method) = bar.method {
         method_badge(ui, method, right - clock_w - 12.0, top + row_h / 2.0);
-    }
-    if let Some(ends) = bar.ends {
-        let l = ui.layout(ends, &theme::LABEL, &TextOpts::default());
-        let w = l.size.w;
-        ui.draw_text(Point::new(right - w, top + row_h), l, theme::MUTED);
     }
 }
 

@@ -14,8 +14,7 @@
   },
   "status": {
     "loading": "加载中",
-    "reconnecting": "重新连接中…",
-    "endsAt": "于 {{time}} 结束"
+    "reconnecting": "重新连接中…"
   },
   "markers": {
     "intro": "片头",

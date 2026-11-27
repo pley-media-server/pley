@@ -89,7 +89,7 @@ import kotlinx.coroutines.launch
  *   only Stop does, and it leaves.
  *
  * [onExit] leaves the player for where playing started; [now] is the wall
- * clock, for the clock and "Ends at". [captionLook] is Settings →
+ * clock, for the clock. [captionLook] is Settings →
  * Subtitles, which the Subtitles panel changes with [onSubtitleStyle]; [showDetails] (Settings → Playback details) keeps the compact
  * readout over the video while nothing else shows, in the title's place:
  * the title doesn't show as items begin.

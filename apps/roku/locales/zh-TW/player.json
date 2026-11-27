@@ -227,7 +227,6 @@
     "previous": "上一個",
     "next": "下一個",
     "info": "資訊",
-    "endsAt": "結束於 {{time}}",
     "remaining": "−{{time}}",
     "intro": "片頭",
     "credits": "片尾",

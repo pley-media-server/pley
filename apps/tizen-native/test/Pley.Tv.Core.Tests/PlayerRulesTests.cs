@@ -428,7 +428,6 @@ public class PlayerScreenRulesTests
     [Fact]
     public void The_screens_words()
     {
-        Assert.Equal("Ends at 22:41", PlayerText.EndsAt("22:41"));
         Assert.Equal("Next in 7", PlayerText.NextIn(7));
         Assert.Equal("Subtitles: English (SRT)", PlayerText.SubtitlesToast("English (SRT)"));
         Assert.Equal("Audio: French (AC3 5.1)", PlayerText.AudioToast("French (AC3 5.1)"));

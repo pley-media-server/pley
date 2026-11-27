@@ -38,8 +38,6 @@ pub const STOPPED_LEAVE_MS: i64 = 20_000;
 const CORNER_FADE: Motion = Motion::new(0.150, Easing::FAST_OUT_SLOW_IN);
 /// The buffering ring's center.
 const RING_CENTRE: Point = Point::new(theme::CANVAS_W / 2.0, theme::CANVAS_H / 2.0);
-/// "Ends at" counts at most this far ahead: a duration past it is the server's mistake.
-const ENDS_AT_MAX_MS: i64 = 7 * 24 * 3_600_000;
 /// A sheet's previews counted at most, across and down, to find the sheet ahead of a scrub.
 const SHEET_SIDE_MAX: i64 = 100;
 
@@ -1113,19 +1111,9 @@ impl PlayerView {
         let now = env.unix_now as i64;
         let line = text::episode_line(s.subtitle.as_deref());
         let time = clock::time_of_day(now, env.hours24);
-        let ends = (s.phase == Phase::Paused).then(|| {
-            let left = clock.duration_ms.saturating_sub(clock.position_ms).clamp(0, ENDS_AT_MAX_MS) / 1000;
-            t!("player.controls.endsAt", time = clock::time_of_day(now.saturating_add(left), env.hours24))
-        });
         controls::top_bar(
             ui,
-            &TopBar {
-                title: &s.title,
-                line: line.as_deref(),
-                method: s.method.as_deref(),
-                clock: &time,
-                ends: ends.as_deref(),
-            },
+            &TopBar { title: &s.title, line: line.as_deref(), method: s.method.as_deref(), clock: &time },
         );
         let chapter_at = self.strip.as_ref().and_then(|st| s.chapters.get(st.index)).map(|c| c.start_ms);
         if let Some(strip) = &self.strip {

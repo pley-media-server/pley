@@ -15,6 +15,8 @@ describes how they are made.
 - Skip Intro and Skip Credits show on their own for 8 seconds, then only
   with the player's controls, so they no longer sit over the whole intro
   or credits and hold the remote's OK.
+- The player's controls no longer say "Ends at" with a time under the
+  clock while paused: the time left stays by the scrubber.
 
 ## [0.1.15] - 2026-11-27
 

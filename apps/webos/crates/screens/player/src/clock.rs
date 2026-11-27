@@ -1,4 +1,4 @@
-//! The time of day at the top of the player and in "Ends at": the C library's local time, which
+//! The time of day at the top of the player: the C library's local time, which
 //! follows the TV's time zone (glibc reads it from `TZ` or `/etc/localtime`). Nothing else in the
 //! app knows the time zone yet, so the player asks the C library itself.
 

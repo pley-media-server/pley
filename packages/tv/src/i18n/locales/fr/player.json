@@ -13,7 +13,6 @@
     "quality": "Qualité",
     "info": "Infos",
     "seekValue": "{{time}} sur {{duration}}",
-    "endsAt": "Se termine à {{time}}",
     "intro": "Intro",
     "credits": "Générique"
   },

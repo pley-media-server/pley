@@ -11,7 +11,6 @@
     "audio": "Audio",
     "quality": "Quality",
     "info": "Info",
-    "endsAt": "Ends at {{time}}",
     "intro": "Intro",
     "credits": "Credits"
   },

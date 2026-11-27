@@ -517,7 +517,6 @@ export function PlayerView(p: { controller: PlaybackController; host: { current:
               {s.method && <MethodBadge method={s.methodKind} text={s.method} />}
               <TimeOfDay hours24={app.platform.clock24()} />
             </div>
-            {s.phase.kind === "paused" && <EndsAt controller={c} hours24={app.platform.clock24()} />}
           </div>
         </div>
         {target !== null && controls && <SeekPreview state={s} targetMs={target} durationMs={clockNow().durationMs} />}
@@ -686,19 +685,6 @@ export function TimeOfDay(p: { hours24: boolean }) {
     return () => clearTimeout(t);
   }, [now]);
   return <span class="t-label c-muted">{formatTimeOfDay(now, p.hours24)}</span>;
-}
-
-/** When it ends, while paused, as the Android TV app says it; later by a minute for each minute it waits. */
-function EndsAt(p: { controller: PlaybackController; hours24: boolean }) {
-  const clock = p.controller.clock.value;
-  const [, setMinute] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => setMinute((n) => n + 1), 60_000 - (Date.now() % 60_000) + 50);
-    return () => clearTimeout(t);
-  });
-  if (clock.durationMs <= 0) return null;
-  const end = new Date(Date.now() + Math.max(0, clock.durationMs - clock.positionMs));
-  return <div class="t-label c-muted">{t("player.controls.endsAt", { time: formatTimeOfDay(end, p.hours24) })}</div>;
 }
 
 /** The scrubber: played, buffered, chapter gaps, the thumb at the seek target (else where it plays), the marker's name under it. */

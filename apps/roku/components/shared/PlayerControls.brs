@@ -7,7 +7,6 @@ sub init()
     m.line = m.top.findNode("line")
     m.clock = m.top.findNode("clock")
     m.method = m.top.findNode("method")
-    m.endsAt = m.top.findNode("endsAt")
     m.elapsed = m.top.findNode("elapsed")
     m.remaining = m.top.findNode("remaining")
     m.played = m.top.findNode("played")
@@ -37,7 +36,6 @@ sub init()
     m.title.font = uiType("title")
     m.line.font = uiType("label")
     m.clock.font = uiType("label")
-    m.endsAt.font = uiType("label")
     m.elapsed.font = uiType("caption")
     m.remaining.font = uiType("caption")
     m.marker.font = uiType("caption")
@@ -67,8 +65,7 @@ sub onTop()
     onClock()
 end sub
 
-' The time of day at the right, the badge before it, and when it ends
-' while paused.
+' The time of day at the right, the badge before it.
 sub onClock()
     zone = fmtZoneSeconds()
     now = CreateObject("roDateTime").AsSeconds()
@@ -77,10 +74,6 @@ sub onClock()
     clockWidth = Int(m.clock.boundingRect().width)
     m.clock.width = 400
     if m.method.visible then m.method.translation = [1824 - clockWidth - 24 - m.method.width, 54]
-    left = m.top.durationMs - m.top.positionMs
-    shown = m.top.paused and m.top.durationMs > 0 and left > 0
-    m.endsAt.visible = shown
-    if shown then m.endsAt.text = t("player.controls.endsAt", { time: fmtTimeOfDay(now + Int(left / 1000), zone) })
 end sub
 
 ' --- The scrubber ---
@@ -113,7 +106,6 @@ sub onTrack()
     m.thumbFocus.translation = [96 + x - 18, 832]
     showMarker(at)
     showPreview(at, x)
-    if m.endsAt.visible <> (m.top.paused and duration > at) then onClock()
 end sub
 
 ' "Intro" or "Credits" under the span of the marker playing.

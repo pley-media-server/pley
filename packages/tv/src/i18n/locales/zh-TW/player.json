@@ -13,7 +13,6 @@
     "quality": "畫質",
     "info": "資訊",
     "seekValue": "{{time}} / {{duration}}",
-    "endsAt": "{{time}} 結束",
     "intro": "片頭",
     "credits": "片尾"
   },

@@ -68,9 +68,6 @@ public static class PlayerText
     /// <summary>Previous restarts the chapter playing when it is this far in, else goes to the one before.</summary>
     public const long RestartChapterMs = 3_000;
 
-    /// <summary>"Ends at 10:42 PM": the time is the screen's to write, as the TV writes times.</summary>
-    public static string EndsAt(string time) => Strings.T("player.status.endsAt", ("time", time));
-
     /// <summary>"Next in 7", under Play now while Up Next counts down.</summary>
     public static string NextIn(int seconds) => Strings.T("player.upNext.nextIn", ("seconds", seconds));
 

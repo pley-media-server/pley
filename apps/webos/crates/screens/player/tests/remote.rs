@@ -154,6 +154,11 @@ impl TestApp {
     fn shows_start(&self, start: &str) -> bool {
         self.list.texts().any(|t| t.starts_with(start))
     }
+
+    /// Whether the last frame drew the controls: only their scrubber writes the time left ("−1:23").
+    fn shows_controls(&self) -> bool {
+        self.list.texts().any(|t| t.starts_with('−') && t.contains(':'))
+    }
 }
 
 /// Where a phone's remote casts from.
@@ -282,11 +287,11 @@ fn the_remotes_commands_are_said_for_2_s_at_the_top_right_and_never_bring_up_the
     let engine = app.engine().expect("the player made an engine");
     assert!(app.until(|_| engine.playing()), "the film never played");
 
-    // Paused, the controls would say when it ends: they don't show.
+    // A pause made here keeps the controls up; the remote's doesn't show them.
     app.server.emit(command(&session, "pause", None, None));
     assert!(app.until(|a| a.shows("Paused")), "the TV didn't say the pause");
     assert!(!engine.playing(), "the remote's pause didn't pause");
-    assert!(!app.shows_start("Ends at"), "the remote's pause brought up the controls");
+    assert!(!app.shows_controls(), "the remote's pause brought up the controls");
     app.advance(1.8);
     assert!(app.shows("Paused"), "the notice went early");
     app.advance(0.4);
@@ -296,10 +301,13 @@ fn the_remotes_commands_are_said_for_2_s_at_the_top_right_and_never_bring_up_the
     assert!(app.until(|a| a.shows("−10 s")), "the TV didn't say the skip");
     app.server.emit(command(&session, "seek", Some(12_000), None));
     assert!(app.until(|a| a.shows("Jumped to 0:12")), "the TV didn't say the seek");
-    assert!(!app.shows_start("Ends at"), "the remote's seek brought up the controls");
+    assert!(!app.shows_controls(), "the remote's seek brought up the controls");
     app.server.emit(command(&session, "play", None, None));
     assert!(app.until(|a| a.shows("Playing")), "the TV didn't say the play");
     assert!(engine.playing(), "the remote's play didn't play");
+    // Up here does bring them up.
+    app.press(Key::Up);
+    assert!(app.shows_controls(), "Up didn't show the controls");
 }
 
 #[test]

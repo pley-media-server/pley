@@ -645,7 +645,7 @@ fn the_details_are_asked_for_while_info_or_the_readout_shows() {
 }
 
 #[test]
-fn the_top_bar_says_what_plays_and_when_it_ends_while_paused() {
+fn the_top_bar_says_what_plays() {
     let mut pl = Player::new(Fake::episode());
     pl.press(Key::Ok);
     assert_eq!(pl.focus(), Some(Target::Scrubber));
@@ -656,7 +656,6 @@ fn the_top_bar_says_what_plays_and_when_it_ends_while_paused() {
     for want in ["Fixture Show", "S1 · E2 · The Second", "Direct play", "1:00", "−19:00"] {
         assert!(texts.iter().any(|t| t == want), "{want} in {texts:?}");
     }
-    assert!(texts.iter().any(|t| t.starts_with("Ends at ")), "{texts:?}");
 }
 
 #[test]

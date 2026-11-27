@@ -97,12 +97,11 @@ import app.pley.android.ui.tv.R
  * playhead is read where it is drawn, so the rest doesn't recompose with it.
  */
 
-/** The title, the episode's line, how it plays, the clock and, while paused, when it ends. */
+/** The title, the episode's line, how it plays and the clock. */
 @Composable
 internal fun BoxScope.TvPlayerTopBar(state: State<PlayerUiState>, alpha: State<Float>, now: () -> Long) {
     val title by remember(state) { derivedStateOf { state.value.title } }
     val line by remember(state) { derivedStateOf { TvPlayerText.episodeLine(state.value.subtitle) } }
-    val paused by remember(state) { derivedStateOf { state.value.phase == PlayerPhase.Paused } }
     val method by remember(state) { derivedStateOf { state.value.method } }
     val way by remember(state) { derivedStateOf { state.value.playbackMethod } }
     Column(
@@ -131,17 +130,6 @@ internal fun BoxScope.TvPlayerTopBar(state: State<PlayerUiState>, alpha: State<F
                 Spacer(Modifier.width(12.dp))
             }
             BasicText(clock, style = PleyType.Tv.Label.copy(color = PleyColors.Muted))
-        }
-        if (paused) {
-            val context = LocalContext.current
-            val ends by remember(state) {
-                derivedStateOf {
-                    val s = state.value
-                    val left = (s.durationMs - s.positionMs).coerceAtLeast(0)
-                    DateFormat.getTimeFormat(context).format(now() + left)
-                }
-            }
-            BasicText(stringResource(R.string.tv_player_ends_at, ends), style = PleyType.Tv.Label.copy(color = PleyColors.Muted))
         }
     }
 }
