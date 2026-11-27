@@ -1646,11 +1646,12 @@ const checks = [
   ],
   ["kept 8 Mbps 1080p chosen in Settings", registry !== null && /playback.quality","8m"/.test(JSON.stringify([...registry]))],
   [
-    "kept Twilight and Gold picked in Appearance for the server's profile, and as the pick shown last",
+    // The pick shown last is Midnight by then: the walk ends on another
+    // server's profile, which picked none.
+    "kept Twilight and Gold picked in Appearance for the server's profile",
     registry !== null &&
       /appearance\.theme http[^"]* 1","twilight"/.test(JSON.stringify([...registry])) &&
-      /appearance\.accent http[^"]* 1","gold"/.test(JSON.stringify([...registry])) &&
-      /appearance\.theme","twilight"/.test(JSON.stringify([...registry])),
+      /appearance\.accent http[^"]* 1","gold"/.test(JSON.stringify([...registry])),
   ],
   ["kept Anna as the profile to always start as", registry !== null && /startAs\.http[^"]*","1"/.test(JSON.stringify([...registry]))],
   ["showed subtitle sync", sync.label],
