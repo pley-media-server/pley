@@ -85,8 +85,9 @@ end sub
 
 ' A card for each theme: its preview (a small Pley in its colors, under
 ' the accent picked), its name and caption; the theme in use in the
-' accent's border, with a check. Focused, the ring stands in for the
-' border: the two side by side read as a double line.
+' accent's border, with a check at the preview's bottom right, clear of
+' its accent pill at the top. Focused, the ring stands in for the border:
+' the two side by side read as a double line.
 sub drawThemes()
     m.themes.removeChildrenIndex(m.themes.getChildCount(), 0)
     m.cards = []
@@ -103,7 +104,8 @@ sub drawThemes()
         preview = card.createChild("Group")
         preview.translation = [12, 12]
         drawPreview(preview, themeColors(id, m.accent), id)
-        if picked then addCheck(card, 240, 23)
+        ' 10 px in from the preview's corner (12 + 278 and 12 + 156).
+        if picked then addCheck(card, 240, 118)
         name = addLabel(card, t("settings.appearance.names." + id), "bodyLarge", m.c.fg, 16, 180, 280)
         name.maxLines = 1
         ' Its caption on up to two lines, a size under the name's.
