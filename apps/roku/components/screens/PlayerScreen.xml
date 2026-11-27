@@ -46,7 +46,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Pictures.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Seeker.brs" />
     <children>
-        <Rectangle width="1920" height="1080" color="0x161616FF" />
+        <Rectangle width="1920" height="1080" color="0x000000FF" />
         <!-- The focus while nothing on the player has it (PlayerScreen.brs). -->
         <Group id="keys" />
         <Video id="video" width="1920" height="1080" enableUI="false">
@@ -98,7 +98,7 @@
             <Rectangle id="menuScrim" width="1920" height="1080" />
             <!-- It slides in from the right over 200 ms, as Android TV's. -->
             <Group id="menuPanel">
-                <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x14171CFA" />
+                <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x12151AFA" />
                 <Label id="menuTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xE9EBEFFF" />
                 <QuickList id="menuList" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
                 <Label id="menuText" translation="[1256, 152]" width="608" wrap="true" maxLines="20" lineSpacing="8" color="0xE9EBEFFF" visible="false" />
@@ -115,7 +115,7 @@
              Android TV player says it: what happened, why, Try again where it
              may help, and Back. -->
         <Group id="notice" visible="false">
-            <Rectangle width="1920" height="1080" color="0x15171AFF" />
+            <Rectangle width="1920" height="1080" color="0x0B0D10FF" />
             <Label id="noticeTitle" translation="[240, 360]" width="1440" horizAlign="center" wrap="true" maxLines="2" color="0xE9EBEFFF" />
             <Label id="noticeText" translation="[240, 450]" width="1440" horizAlign="center" wrap="true" maxLines="6" color="0xA1A9B6FF" />
             <PillButtons id="noticeButtons" dark="true" layoutDirection="horiz" itemSpacings="[24]" translation="[0, 700]" minWidth="320" buttonHeight="72" />

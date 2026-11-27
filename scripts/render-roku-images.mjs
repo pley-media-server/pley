@@ -19,7 +19,6 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderer } from "./svg-render.mjs";
-import { broadcastSafe } from "../apps/roku/scripts/broadcast-safe.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "apps/roku/images/ui");
@@ -243,8 +242,7 @@ add(
 );
 
 // The themes' backdrops, as the web draws them behind its pages (--glow,
-// on the theme's bg as Roku draws it, within its broadcast-safe range) and
-// Sunshine's rainbow over its sidebar (--sidebar,
+// on the theme's bg) and Sunshine's rainbow over its sidebar (--sidebar,
 // clear, over the open rail's surface): CSS drawn by the browser itself, at
 // half the screen, which a Poster stretches.
 const css = readFileSync(join(root, "apps/web/src/index.css"), "utf8");
@@ -261,7 +259,7 @@ const html = (width, height, background) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><foreignObject width="${width}" height="${height}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;background:${background}"></div></foreignObject></svg>`;
 for (const theme of themes) {
   const glow = variable(theme.id, "--glow");
-  if (glow !== "none") pictures.push({ name: `backdrop-${theme.id}.png`, width: 960, height: 540, svg: html(960, 540, `${glow}, ${broadcastSafe(theme.colors.bg)}`) });
+  if (glow !== "none") pictures.push({ name: `backdrop-${theme.id}.png`, width: 960, height: 540, svg: html(960, 540, `${glow}, ${theme.colors.bg}`) });
   const sidebar = variable(theme.id, "--sidebar");
   if (sidebar !== "none") pictures.push({ name: `sidebar-${theme.id}.png`, width: 4, height: 540, svg: html(4, 540, sidebar) });
 }

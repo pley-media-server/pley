@@ -16,7 +16,7 @@
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
-        <Rectangle id="back" color="0x15171A00" />
+        <Rectangle id="back" color="0x0B0D1000" />
         <Rectangle id="mark" color="0x38BDF8FF" width="6" visible="false" />
         <Label id="number" width="72" horizAlign="right" vertAlign="center" color="0x7E8795FF">
             <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />

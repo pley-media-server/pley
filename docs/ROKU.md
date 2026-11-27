@@ -862,17 +862,19 @@ opened from.
 - **The colors** are `packages/themes/themes.json`'s, in
   `components/lib/ThemeTable.brs`, which `bun run themes` writes from it;
   `tests/themes.test.brs` holds every theme under every accent, and the
-  players', to the file. The players (the video player and Live TV's)
-  stay dark: in a light theme they draw in its dark twin's colors.
-- **Within the broadcast-safe range:** Roku draws each theme's colors
-  within the range Roku's certification asks for, a color's luma no
-  darker than #161616's and no lighter than #EBEBEB's (bslint's
-  `color-cert` rule), so its darkest and lightest colors are a shade
-  softer than on the other apps. A color outside it moves by the same
-  amount in each channel, keeping its hue (`scripts/broadcast-safe.mjs`,
-  and `themeBroadcastSafe` in `components/lib/Colors.brs`); the tests
-  check every color is in the range and that every pair still reads as
-  the web's `palettes.test.ts` asks.
+  players', to the file, and to the contrast the web's `palettes.test.ts`
+  asks. The players (the video player and Live TV's) stay dark: in a
+  light theme they draw in its dark twin's colors.
+- **The themes' own colors, broadcast-safe artwork:** the app's screens
+  draw each theme's exact colors, as the other apps do, so bslint's
+  `color-cert` rule is off (`bslint.json`): it holds every color in the
+  code to Roku's broadcast-safe range, where Roku's certification
+  (requirement 6.4) asks it only of the store artwork and the splash
+  screen. Those stay within it: the home screen's poster artwork and the
+  splash screens are drawn through `scripts/broadcast-safe.mjs`, and
+  `bun run check` fails on a pixel of theirs, or a `splash_color`, whose
+  luma is darker than #161616's or lighter than #EBEBEB's
+  (`scripts/broadcast-check.mjs`).
 - **The logo** on the sign-in screens and the server-gone page, the
   Android TV app's mark and wordmark, is drawn in the theme's colors, a
   white picture per shape tinted (`components/shared/Logo`); the front
@@ -1127,7 +1129,8 @@ bun run themes    # components/lib/ThemeTable.brs from packages/themes/themes.js
   the themes' backdrops from the web's `index.css`) come from
   `bun scripts/render-roku-images.mjs` at the repository root, through a
   headless Chrome or Edge, as the Kodi skin's do. The home screen icons and
-  splash screens come from `bun scripts/render-icons.mjs` there too.
+  splash screens come from `bun scripts/render-icons.mjs` there too,
+  within the broadcast-safe range ([Appearance](#appearance)).
 - **Type:** Roboto, the Android app's static files (`fonts/`), in the
   Android TV app's sizes doubled (`components/shared/Type.brs`); Chinese
   in Noto Sans SC or TC, which Roboto and the Roku's own font lack, cut to

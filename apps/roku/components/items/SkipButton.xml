@@ -16,7 +16,7 @@
         <!-- Quiet over the picture: dark and see-through inside a light
              outline, which it always has, holding the focus while it shows.
              280 wide, wider for longer words (onText). -->
-        <Rectangle id="fill" width="280" height="60" color="0x161616A6" />
+        <Rectangle id="fill" width="280" height="60" color="0x000000A6" />
         <Rectangle id="lineTop" width="280" height="2" color="0xE9EBEFE6" />
         <Rectangle id="lineBottom" translation="[0, 58]" width="280" height="2" color="0xE9EBEFE6" />
         <Rectangle id="lineLeft" translation="[0, 2]" width="2" height="56" color="0xE9EBEFE6" />

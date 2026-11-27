@@ -44,8 +44,8 @@
              alone and faint (uiDimBackdrop): a shade over all three layers
              held the rows to 35 fps. -->
         <Backdrop id="backdrop" />
-        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x15171AFF" />
-        <Poster id="fade" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" blendColor="0x15171AFF" />
+        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x0B0D10FF" />
+        <Poster id="fade" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" blendColor="0x0B0D10FF" />
         <!-- At rest; out of sight while the rows have the focus. -->
         <Group id="page">
             <!-- The requests' button and TMDB's credit on the heading's

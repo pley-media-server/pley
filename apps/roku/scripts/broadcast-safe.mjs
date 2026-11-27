@@ -1,9 +1,10 @@
-// Roku's broadcast-safe range, which its certification asks of a channel's
-// colors and bslint's color-cert rule holds the code to: a color's luma
+// Roku's broadcast-safe range, which its certification (requirement 6.4)
+// asks of a channel's store artwork and splash screen: a color's luma
 // (BT.709, on its 0-255 channels) no darker than #161616's and no lighter
-// than #EBEBEB's. The same rule is in scripts/make_images.py
-// (broadcast_safe) and components/lib/Colors.brs (themeBroadcastSafe),
-// which tests/themes.test.brs holds the generated colors to.
+// than #EBEBEB's, as bslint's color-cert rule reckons it. The app's own
+// screens draw the themes' exact colors. scripts/render-icons.mjs at the
+// repository's root puts the splash screens and the home screen's poster
+// artwork through it, and broadcast-check.mjs holds them to the range.
 
 const WEIGHTS = [0.2126, 0.7152, 0.0722];
 const luma = (c) => WEIGHTS[0] * c[0] + WEIGHTS[1] * c[1] + WEIGHTS[2] * c[2];

@@ -98,7 +98,7 @@
         <!-- The seek badge with the controls hidden: 128 square, bg at 60 %,
              centered in the left or right third. -->
         <Group id="badge" visible="false">
-            <Poster id="badgeBack" width="128" height="128" uri="pkg:/images/ui/r12.9.png" blendColor="0x15171A99" />
+            <Poster id="badgeBack" width="128" height="128" uri="pkg:/images/ui/r12.9.png" blendColor="0x0B0D1099" />
             <Label id="badgeText" width="128" height="128" horizAlign="center" vertAlign="center" color="0xE9EBEFFF" />
         </Group>
         <!-- Loading: an 80 px ring in the middle, a quarter of it turning,
@@ -107,7 +107,7 @@
             <Poster translation="[920, 500]" width="80" height="80" uri="pkg:/images/ui/buffering-track.png" blendColor="0xE9EBEFFF" />
             <Poster id="ring" translation="[920, 500]" width="80" height="80" uri="pkg:/images/ui/buffering-arc.png" blendColor="0x38BDF8FF" scaleRotateCenter="[40, 40]" />
             <Group id="bufferingNote" visible="false">
-                <Poster id="bufferingBack" uri="pkg:/images/ui/r12.9.png" blendColor="0x15171A99" height="56" />
+                <Poster id="bufferingBack" uri="pkg:/images/ui/r12.9.png" blendColor="0x0B0D1099" height="56" />
                 <Label id="bufferingLabel" height="56" horizAlign="center" vertAlign="center" color="0xE9EBEFFF" />
             </Group>
         </Group>

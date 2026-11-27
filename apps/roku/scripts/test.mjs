@@ -12,6 +12,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkLocales } from "./locales.mjs";
+import { checkBroadcastSafe } from "./broadcast-check.mjs";
 
 const require = createRequire(import.meta.url);
 const brs = require("brs-node");
@@ -22,6 +23,12 @@ const verbose = process.argv.includes("--verbose");
 const wordProblems = checkLocales(root);
 for (const problem of wordProblems) console.log(`words: ${problem}`);
 console.log(`words: ${wordProblems.length === 0 ? "every language has every word" : `${wordProblems.length} problems`}`);
+
+// The splash screen and the store artwork, broadcast-safe as Roku's
+// certification asks (broadcast-check.mjs).
+const safeProblems = checkBroadcastSafe(root);
+for (const problem of safeProblems) console.log(`broadcast-safe: ${problem}`);
+console.log(`broadcast-safe: ${safeProblems.length === 0 ? "the splash and the artwork are within the range" : `${safeProblems.length} problems`}`);
 
 const brsFiles = (dir) =>
   readdirSync(join(root, dir))
@@ -124,4 +131,4 @@ if (summary === null) {
   process.exit(1);
 }
 console.log(summary);
-process.exit(failed || wordProblems.length > 0 ? 1 : 0);
+process.exit(failed || wordProblems.length > 0 || safeProblems.length > 0 ? 1 : 0);

@@ -54,7 +54,7 @@
         <Group clippingRect="[0, 0, 1824, 1080]">
         <TimeGrid id="guide" translation="[624, 376]" numRows="6" duration="7200" maxDays="2" channelInfoWidth="260" infoGridGap="8" ignoreTrickPlayKeys="true"
             channelInfoTextColor="0xE9EBEFFF" channelInfoFont="font:SmallestBoldSystemFont"
-            programTitleColor="0xE9EBEFFF" programTitleFocusedColor="0x091925FF" programTitleFont="font:SmallestSystemFont"
+            programTitleColor="0xE9EBEFFF" programTitleFocusedColor="0x03131FFF" programTitleFont="font:SmallestSystemFont"
             timeLabelColor="0xA1A9B6FF" timeLabelFont="font:SmallestSystemFont" timeBarHeight="48"
             nowBarBlendColor="0x38BDF8FF" visible="false" />
         </Group>

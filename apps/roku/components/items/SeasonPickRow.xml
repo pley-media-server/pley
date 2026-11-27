@@ -14,7 +14,7 @@
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
-        <Rectangle id="background" width="1000" height="88" color="0x14171CFF" />
+        <Rectangle id="background" width="1000" height="88" color="0x12151AFF" />
         <Rectangle id="bar" width="6" height="88" color="0x38BDF8FF" visible="false" />
         <Group id="body">
             <Rectangle id="box" translation="[32, 22]" width="44" height="44" color="0x222731FF" />
