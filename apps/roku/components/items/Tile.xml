@@ -46,18 +46,18 @@
             <Group id="grow">
                 <Group id="art">
                     <Poster id="hairline" uri="pkg:/images/ui/hairline.9.png" />
-                    <Rectangle id="track" color="0x00000099" visible="false" />
+                    <Rectangle id="track" color="0x16161699" visible="false" />
                     <Rectangle id="fill" color="0x38BDF8FF" visible="false" />
                     <Poster id="watched" uri="pkg:/images/ui/tick.png" blendColor="0x38BDF8FF" width="40" height="40" visible="false" />
                     <Poster id="badgeBack" uri="pkg:/images/ui/r4.9.png" height="36" visible="false" />
-                    <Label id="badge" height="36" vertAlign="center" color="0x0B0D10FF" visible="false" />
+                    <Label id="badge" height="36" vertAlign="center" color="0x15171AFF" visible="false" />
                     <!-- Two quality badges at most: "4K" and the dynamic range,
                          black under white words, as the other apps draw them on
                          pictures. -->
-                    <Poster id="qualityBack0" uri="pkg:/images/ui/r4.9.png" blendColor="0x000000CC" height="36" visible="false" />
-                    <Label id="quality0" height="36" vertAlign="center" color="0xFFFFFFFF" visible="false" />
-                    <Poster id="qualityBack1" uri="pkg:/images/ui/r4.9.png" blendColor="0x000000CC" height="36" visible="false" />
-                    <Label id="quality1" height="36" vertAlign="center" color="0xFFFFFFFF" visible="false" />
+                    <Poster id="qualityBack0" uri="pkg:/images/ui/r4.9.png" blendColor="0x161616CC" height="36" visible="false" />
+                    <Label id="quality0" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
+                    <Poster id="qualityBack1" uri="pkg:/images/ui/r4.9.png" blendColor="0x161616CC" height="36" visible="false" />
+                    <Label id="quality1" height="36" vertAlign="center" color="0xEBEBEBFF" visible="false" />
                     <!-- The accent's ring, against the well all round. -->
                     <Poster id="ring" uri="pkg:/images/ui/ring.9.png" blendColor="0x7DD3FCFF" opacity="0" />
                 </Group>

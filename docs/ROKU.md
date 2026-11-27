@@ -864,6 +864,15 @@ opened from.
   `tests/themes.test.brs` holds every theme under every accent, and the
   players', to the file. The players (the video player and Live TV's)
   stay dark: in a light theme they draw in its dark twin's colors.
+- **Within the broadcast-safe range:** Roku draws each theme's colors
+  within the range Roku's certification asks for, a color's luma no
+  darker than #161616's and no lighter than #EBEBEB's (bslint's
+  `color-cert` rule), so its darkest and lightest colors are a shade
+  softer than on the other apps. A color outside it moves by the same
+  amount in each channel, keeping its hue (`scripts/broadcast-safe.mjs`,
+  and `themeBroadcastSafe` in `components/lib/Colors.brs`); the tests
+  check every color is in the range and that every pair still reads as
+  the web's `palettes.test.ts` asks.
 - **The logo** on the sign-in screens and the server-gone page, the
   Android TV app's mark and wordmark, is drawn in the theme's colors, a
   white picture per shape tinted (`components/shared/Logo`); the front

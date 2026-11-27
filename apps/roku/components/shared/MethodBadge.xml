@@ -19,7 +19,7 @@
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
-        <Poster id="methodBack" uri="pkg:/images/ui/r4.9.png" blendColor="0x0B0D10CC" height="46" />
+        <Poster id="methodBack" uri="pkg:/images/ui/r4.9.png" blendColor="0x15171ACC" height="46" />
         <Poster id="methodTint" uri="pkg:/images/ui/r4.9.png" height="46" />
         <Label id="methodText" translation="[16, 0]" height="46" vertAlign="center" />
     </children>

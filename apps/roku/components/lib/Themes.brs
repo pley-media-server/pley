@@ -24,10 +24,12 @@ function themeAccentShown(id as dynamic) as string
 end function
 
 ' The colors of a theme under an accent ("" for the theme's own), by token
-' (bg, surface2, accentFg, brandTile…), as Roku colors ("0x0B0D10FF"). A
+' (bg, surface2, accentFg, brandTile…), as Roku colors ("0x15171AFF"). A
 ' token takes the accent's color, from its set for the theme's kind, where
 ' the theme follows it, and the theme's own otherwise (colorOf in
-' apps/web/src/theme/spec.ts). key names the pair ("twilight/gold").
+' apps/web/src/theme/spec.ts), within Roku's broadcast-safe range
+' (themeBroadcastSafe, as ThemeTable.brs has them). key names the pair
+' ("twilight/gold").
 function themeColors(theme as string, accent as string) as object
     theme = themeShown(theme)
     accent = themeAccentShown(accent)
@@ -42,7 +44,7 @@ function themeColors(theme as string, accent as string) as object
     for each token in own.colors
         color = own.colors[token]
         if follows.DoesExist(token) and set.DoesExist(token) then color = set[token]
-        colors[token] = "0x" + color
+        colors[token] = color
     end for
     return colors
 end function

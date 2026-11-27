@@ -41,14 +41,14 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Remote.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Details.brs" />
     <children>
-        <Rectangle width="1920" height="1080" color="0x000000FF" />
+        <Rectangle width="1920" height="1080" color="0x161616FF" />
         <Video id="video" width="1920" height="1080" enableUI="false" />
         <!-- Waiting for data while it plays. -->
         <BusySpinner id="waiting" translation="[928, 508]" visible="false" />
         <!-- The channel while it tunes (the spinner under its logo), and
              over a channel without pictures (radio). -->
         <Group id="card" visible="false">
-            <Rectangle width="1920" height="1080" color="0x000000FF" />
+            <Rectangle width="1920" height="1080" color="0x161616FF" />
             <Rectangle translation="[780, 280]" width="360" height="180" color="0x191D24FF" />
             <Label id="cardInitials" translation="[780, 280]" width="360" height="180" horizAlign="center" vertAlign="center" wrap="true" maxLines="2" color="0xA1A9B6FF">
                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="36" />
@@ -61,7 +61,7 @@
         <!-- What's on, when asked for (OK or Right, or the Options key as
              it changes the favorite, whose star shows here). -->
         <Group id="banner" visible="false">
-            <Rectangle translation="[0, 680]" width="1920" height="400" color="0x0B0D10E6" />
+            <Rectangle translation="[0, 680]" width="1920" height="400" color="0x15171AE6" />
             <Rectangle translation="[96, 752]" width="240" height="120" color="0x222731FF" />
             <Label id="bannerInitials" translation="[96, 752]" width="240" height="120" horizAlign="center" vertAlign="center" wrap="true" maxLines="2" color="0xA1A9B6FF">
                 <Font role="font" uri="pkg:/fonts/roboto-700.ttf" size="26" />
@@ -91,14 +91,14 @@
         </Group>
         <!-- What went wrong, and what can be done. -->
         <Group id="notice" visible="false">
-            <Rectangle width="1920" height="1080" color="0x0B0D10F2" />
+            <Rectangle width="1920" height="1080" color="0x15171AF2" />
             <Label id="noticeTitle" translation="[96, 340]" width="1728" wrap="true" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
             <Label id="noticeText" translation="[96, 430]" width="1500" wrap="true" maxLines="6" color="0xA1A9B6FF" font="font:SmallSystemFont" />
             <PillButtons id="noticeButtons" dark="true" translation="[96, 700]" minWidth="400" />
         </Group>
         <!-- The category's channels, at the left over the video. -->
         <Group id="list" visible="false">
-            <Rectangle width="800" height="1080" color="0x0B0D10F2" />
+            <Rectangle width="800" height="1080" color="0x15171AF2" />
             <Label id="listTitle" translation="[96, 56]" width="664" color="0xE9EBEFFF" font="font:LargeBoldSystemFont" />
             <Label id="listRange" translation="[96, 120]" width="664" color="0x7E8795FF" font="font:SmallestSystemFont" />
             <QuickList id="channelList" translation="[72, 176]" itemComponentName="LiveChannelRow" itemSize="[704, 100]" itemSpacing="[0, 4]" numRows="7" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
@@ -113,7 +113,7 @@
             <Rectangle id="detailsScrim" width="1920" height="1080" />
             <!-- It slides in from the right over 200 ms, as the player's. -->
             <Group id="detailsPanel">
-                <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x12151AFA" />
+                <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x14171CFA" />
                 <Label id="detailsTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xE9EBEFFF" />
                 <FactSheet id="detailsFacts" dark="true" translation="[1256, 152]" width="608" height="780" labelWidth="200" />
             </Group>
@@ -123,7 +123,7 @@
             <FloatFieldInterpolator key="[0, 1]" keyValue="[0, 1]" fieldToInterp="detailsScrim.opacity" />
         </Animation>
         <Group id="toast" visible="false">
-            <Rectangle translation="[460, 72]" width="1000" height="96" color="0x0B0D10E6" />
+            <Rectangle translation="[460, 72]" width="1000" height="96" color="0x15171AE6" />
             <Label id="toastText" translation="[460, 72]" width="1000" height="96" horizAlign="center" vertAlign="center" color="0xE9EBEFFF" font="font:SmallSystemFont" />
         </Group>
         <!-- The banner goes after a while; up and down wait for more

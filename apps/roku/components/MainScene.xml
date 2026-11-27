@@ -103,7 +103,7 @@
         <!-- "Playing from …" as a cast starts, over the screen on top, as
              the players' notices look (castSay places it). -->
         <Group id="castToast" visible="false">
-            <Rectangle id="castToastBack" width="1000" height="96" color="0x0B0D10E6" />
+            <Rectangle id="castToastBack" width="1000" height="96" color="0x15171AE6" />
             <Label id="castToastText" width="1000" height="96" horizAlign="center" vertAlign="center" color="0xE9EBEFFF" font="font:SmallSystemFont" />
         </Group>
         <Timer id="castToastTimer" duration="4" />

@@ -17,7 +17,7 @@
     <script type="text/brightscript" uri="pkg:/components/shared/Type.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
-        <Rectangle id="background" width="1728" height="176" color="0x12151AFF" />
+        <Rectangle id="background" width="1728" height="176" color="0x14171CFF" />
         <Rectangle id="bar" width="6" height="176" color="0x38BDF8FF" visible="false" />
         <Rectangle id="frame" translation="[28, 10]" width="104" height="156" color="0x191D24FF" />
         <Poster id="poster" translation="[28, 10]" width="104" height="156" loadWidth="104" loadHeight="156" loadDisplayMode="scaleToZoom" />

@@ -35,9 +35,9 @@
     <children>
         <!-- The page's dark under the collapsed icons, clear by the pages'
              gutter. -->
-        <Poster id="shade" width="184" height="1080" uri="pkg:/images/ui/fade-left.png" blendColor="0x0B0D10FF" />
+        <Poster id="shade" width="184" height="1080" uri="pkg:/images/ui/fade-left.png" blendColor="0x15171AFF" />
         <Group id="panel" opacity="0">
-            <Rectangle width="520" height="1080" color="0x12151AFF" />
+            <Rectangle width="520" height="1080" color="0x14171CFF" />
             <Poster id="sidebar" width="520" height="1080" visible="false" />
             <Poster id="shadow" translation="[520, 0]" width="48" height="1080" uri="pkg:/images/ui/shadow.png" />
         </Group>

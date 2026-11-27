@@ -468,13 +468,14 @@ try {
   writeFileSync(join(kodi, "icon.png"), rgb72(await r.png(maskable(512, 8, tvGlyph), 512)));
   writeFileSync(join(kodi, "fanart.jpg"), await r.jpeg(banner(1920, 1080), 1920, 1080, 90));
 
-  // Roku's home screen tiles, and splash screens on Midnight's background (packages/themes/themes.json),
+  // Roku's home screen tiles, and splash screens on Midnight's background as Roku draws it (within
+  // its broadcast-safe range, apps/roku/scripts/broadcast-safe.mjs),
   // as the manifest's splash_color.
   const roku = join(root, "apps/roku/images");
   writeFileSync(join(roku, "icon_focus_fhd.png"), rgb72(await r.png(named(540, 405), 540, 405)));
   writeFileSync(join(roku, "icon_focus_hd.png"), rgb72(await r.png(named(290, 218), 290, 218)));
   for (const [name, width, height] of [["splash_fhd.png", 1920, 1080], ["splash_hd.png", 1280, 720], ["splash_sd.png", 720, 480]]) {
-    writeFileSync(join(roku, name), rgb72(await r.png(splash(width, height, "#0b0d10"), width, height)));
+    writeFileSync(join(roku, name), rgb72(await r.png(splash(width, height, "#15171a"), width, height)));
   }
   // The Android TV app's banner, sharp on a 4K TV's home screen too.
   const res = join(root, "apps/android/app/src/main/res");

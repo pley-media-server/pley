@@ -20,7 +20,7 @@
     <children>
         <Label id="title" translation="[96, 56]" color="0xE9EBEFFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="hint" translation="[96, 160]" width="1600" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <LabelList id="list" focusBitmapUri="pkg:/images/ui/square.9.png" translation="[96, 260]" itemSize="[760, 72]" numRows="9" color="0xE9EBEFFF" focusedColor="0x03131FFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
+        <LabelList id="list" focusBitmapUri="pkg:/images/ui/square.9.png" translation="[96, 260]" itemSize="[760, 72]" numRows="9" color="0xE9EBEFFF" focusedColor="0x091925FF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
         <PillButtons id="buttons" translation="[960, 260]" minWidth="520" />
         <Label id="message" translation="[96, 940]" width="1600" wrap="true" color="0xA1A9B6FF" font="font:SmallSystemFont" />
     </children>

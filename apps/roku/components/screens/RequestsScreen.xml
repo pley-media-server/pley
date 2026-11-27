@@ -54,7 +54,7 @@
         <!-- The filters, each opening its choices, over the right half. -->
         <Group id="panel" visible="false">
             <Rectangle id="dim" width="1920" height="1080" />
-            <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x12151AFF" />
+            <Poster translation="[1200, 0]" width="720" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x14171CFF" />
             <Label id="panelTitle" translation="[1256, 72]" width="608" maxLines="1" color="0xE9EBEFFF" />
             <QuickList id="choices" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <QuickList id="menu" translation="[1256, 152]" itemComponentName="PanelRow" itemSize="[608, 88]" itemSpacing="[0, 4]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />

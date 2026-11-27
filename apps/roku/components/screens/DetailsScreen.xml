@@ -52,8 +52,8 @@
              what it covers isn't drawn (onPanel). -->
         <Group id="under">
         <Backdrop id="backdrop" />
-        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x0B0D10FF" />
-        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" blendColor="0x0B0D10FF" />
+        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x15171AFF" />
+        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" blendColor="0x15171AFF" />
         <Group id="page">
             <!-- Only for a title without a backdrop. -->
             <Poster id="poster" translation="[1404, 120]" width="420" height="630" loadWidth="420" loadHeight="630" loadDisplayMode="scaleToZoom" visible="false" />
@@ -97,7 +97,7 @@
              Settings' for a version's long line. -->
         <Group id="panel" visible="false">
             <Rectangle id="dim" width="720" height="1080" />
-            <Poster translation="[720, 0]" width="1200" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x12151AFF" />
+            <Poster translation="[720, 0]" width="1200" height="1080" uri="pkg:/images/ui/panel.9.png" blendColor="0x14171CFF" />
             <Label id="panelTitle" translation="[776, 72]" width="1088" maxLines="1" color="0xE9EBEFFF" />
             <QuickList id="menu" translation="[776, 152]" itemComponentName="PanelRow" itemSize="[1088, 88]" itemSpacing="[0, 4]" numRows="9" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
             <QuickList id="choices" translation="[776, 152]" itemComponentName="PanelRow" itemSize="[1088, 88]" itemSpacing="[0, 4]" numRows="9" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />

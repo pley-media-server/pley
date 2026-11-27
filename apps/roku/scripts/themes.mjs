@@ -2,29 +2,36 @@
 // where every app's themes and accents come from (docs/THEMES.md, "In every
 // app"): each theme's kind, twin, own colors and the tokens an accent
 // replaces, and each accent's colors for the dark themes and the light
-// ones. Colors become Roku's (RRGGBBAA, the 0x left to lib/Themes.brs),
-// tokens camelCase ("surface-2" is surface2). tests/themes.test.brs holds
-// the app's colors to the JSON, so run this after it changes.
+// ones. Colors become Roku's ("0xRRGGBBAA"), each within Roku's
+// broadcast-safe range (broadcast-safe.mjs), and tokens camelCase
+// ("surface-2" is surface2). tests/themes.test.brs holds the app's colors
+// to the JSON, so run this after it changes.
 //
 //   bun run themes
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { broadcastSafe } from "./broadcast-safe.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const spec = JSON.parse(readFileSync(join(root, "../../packages/themes/themes.json"), "utf8"));
 
 const camel = (token) => token.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
 
-/** A CSS color of the JSON's ("#0b0d10", "rgb(16 26 44 / 0.42)") as RRGGBBAA. */
+const byte = (n) => Number(n).toString(16).padStart(2, "0").toUpperCase();
+
+/**
+ * A CSS color of the JSON's ("#0b0d10", "rgb(16 26 44 / 0.42)") as Roku's,
+ * within the broadcast-safe range ("0x15171AFF").
+ */
 function roku(color) {
   const hex = /^#([0-9a-f]{6})$/i.exec(color);
-  if (hex) return `${hex[1].toUpperCase()}FF`;
+  if (hex) return `0x${broadcastSafe(color).slice(1).toUpperCase()}FF`;
   const rgb = /^rgb\(\s*(\d+)\s+(\d+)\s+(\d+)\s*\/\s*([\d.]+)\s*\)$/.exec(color);
   if (!rgb) throw new Error(`a color this script can't read: ${color}`);
-  const byte = (n) => Number(n).toString(16).padStart(2, "0").toUpperCase();
-  return byte(rgb[1]) + byte(rgb[2]) + byte(rgb[3]) + byte(Math.round(Number(rgb[4]) * 255));
+  const safe = broadcastSafe("#" + byte(rgb[1]) + byte(rgb[2]) + byte(rgb[3]));
+  return `0x${safe.slice(1).toUpperCase()}${byte(Math.round(Number(rgb[4]) * 255))}`;
 }
 
 const colors = (set, indent) =>
@@ -35,8 +42,9 @@ const colors = (set, indent) =>
 const lines = [
   "' Pley's themes and accents as packages/themes/themes.json has them,",
   "' written by scripts/themes.mjs (bun run themes): tests/themes.test.brs",
-  "' fails while this differs from the JSON. Colors are Roku's without their",
-  "' 0x (RRGGBBAA), which lib/Themes.brs adds; tokens are camelCase.",
+  "' fails while this differs from the JSON. Colors are Roku's, each within",
+  "' Roku's broadcast-safe range (scripts/broadcast-safe.mjs); tokens are",
+  "' camelCase.",
   "",
   "' The themes' ids, in the picker's order.",
   "function themeIds() as object",

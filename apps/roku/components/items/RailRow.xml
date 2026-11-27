@@ -29,6 +29,6 @@
         <Label id="initial" translation="[44, 12]" width="56" height="56" horizAlign="center" vertAlign="center" color="0xE9EBEFFF" visible="false" />
         <Label id="name" translation="[124, 0]" width="300" height="80" vertAlign="center" maxLines="1" color="0xE9EBEFFF" opacity="0" />
         <Poster id="countBack" uri="pkg:/images/ui/r12.9.png" height="40" translation="[0, 20]" visible="false" />
-        <Label id="count" height="40" translation="[0, 20]" horizAlign="center" vertAlign="center" color="0x03131FFF" visible="false" />
+        <Label id="count" height="40" translation="[0, 20]" horizAlign="center" vertAlign="center" color="0x091925FF" visible="false" />
     </children>
 </component>

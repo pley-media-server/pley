@@ -40,8 +40,8 @@
              scrim from the left (the text's side) and a fade to the
              background at the bottom (the rows' side). No edge cuts it. -->
         <Backdrop id="backdrop" />
-        <Poster id="scrimLeft" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x0B0D10FF" />
-        <Poster id="fadeDown" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" blendColor="0x0B0D10FF" />
+        <Poster id="scrimLeft" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x15171AFF" />
+        <Poster id="fadeDown" translation="[0, 420]" width="1920" height="660" uri="pkg:/images/ui/fade-down.png" blendColor="0x15171AFF" />
         <!-- At rest: the hero, the first row under it. Only the labels with
              text stay in it (layOut). From the page's gutter, x 192. -->
         <LayoutGroup id="hero" translation="[192, 96]" layoutDirection="vert" visible="false">

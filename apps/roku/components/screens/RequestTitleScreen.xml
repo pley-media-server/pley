@@ -33,8 +33,8 @@
              the rows; the backdrop alone, faint, while they have the
              focus (uiDimBackdrop). -->
         <Backdrop id="backdrop" />
-        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x0B0D10FF" />
-        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" blendColor="0x0B0D10FF" />
+        <Poster id="scrim" width="1600" height="1080" uri="pkg:/images/ui/scrim-left.png" blendColor="0x15171AFF" />
+        <Poster id="fade" translation="[0, 540]" width="1920" height="540" uri="pkg:/images/ui/fade-down.png" blendColor="0x15171AFF" />
         <Group id="page">
             <Poster id="poster" translation="[1504, 120]" width="320" height="480" loadWidth="320" loadHeight="480" loadDisplayMode="scaleToZoom" />
             <Label id="credit" translation="[1504, 620]" width="320" wrap="true" color="0x7E8795FF" font="font:SmallestSystemFont" visible="false" />

@@ -1,7 +1,9 @@
 ' The themes and accents (lib/Themes.brs, ThemeTable.brs) held to the one
 ' definition every app draws them from, packages/themes/themes.json, which
 ' the runner gives as pkg:/themes/themes.json: every token of every theme
-' under every accent, and its players', as the web's colorOf has them.
+' under every accent, and its players', as the web's colorOf has them,
+' within Roku's broadcast-safe range (lib/Colors.brs's themeBroadcastSafe),
+' and still as readable as the web's palettes.test.ts asks.
 
 function themesTestSpec() as object
     spec = ParseJson(ReadAsciiFile("pkg:/themes/themes.json"))
@@ -100,7 +102,7 @@ sub themesTestHold(spec as object, theme as object, accentId as string, colors a
     count = 0
     for each token in theme.colors
         count = count + 1
-        expected = themesTestRoku(themesTestColorOf(theme, accent, token))
+        expected = themeBroadcastSafe(themesTestRoku(themesTestColorOf(theme, accent, token)))
         tkEqual(colors[themesTestCamel(token)], expected, what + " " + token)
     end for
     ' Its tokens and key.
@@ -159,14 +161,14 @@ end sub
 sub test_themes_markup_colors_take_the_themes()
     sentinels = themeSentinels()
     twilight = themeColors("twilight", "gold")
-    tkEqual(sentinels["0B0D10"], "bg")
+    tkEqual(sentinels["15171A"], "bg")
     tkEqual(sentinels["E9EBEF"], "fg")
     tkEqual(sentinels["38BDF8"], "accent")
-    tkEqual(themeRecolor("0x0B0D10CC", sentinels, twilight), Left(twilight.bg, 8) + "CC")
+    tkEqual(themeRecolor("0x15171ACC", sentinels, twilight), Left(twilight.bg, 8) + "CC")
     tkEqual(themeRecolor("0x38BDF8FF", sentinels, twilight), twilight.accent)
     ' Roku gives a color field back as an integer.
     tkEqual(themeRecolor(&hE9EBEFFF, sentinels, twilight), twilight.fg)
-    tkEqual(themeRecolor(&h0B0D1080, sentinels, twilight), Left(twilight.bg, 8) + "80")
+    tkEqual(themeRecolor(&h15171A80, sentinels, twilight), Left(twilight.bg, 8) + "80")
     ' Black and white are pictures' and video's.
     tkInvalid(themeRecolor("0x000000CC", sentinels, twilight))
     tkInvalid(themeRecolor("0xFFFFFFFF", sentinels, twilight))
@@ -178,11 +180,94 @@ sub test_themes_markup_colors_take_the_themes()
     tkEqual(themeHex("blue"), "")
 end sub
 
+' Roku's broadcast-safe range: luma (BT.709, on the 0-255 channels) from
+' #161616's to #EBEBEB's, as bslint's color-cert rule reckons it.
+function themesTestSafe(color as string) as boolean
+    luma = themeLuma([themeChannel(color, 0), themeChannel(color, 1), themeChannel(color, 2)])
+    return luma >= themeLuma([22, 22, 22]) and luma <= themeLuma([235, 235, 235])
+end function
+
+' Every color of the table is within the range, and the rule moves a color
+' out of it the least way that keeps its hue: every channel by as much.
+sub test_themes_every_color_is_broadcast_safe()
+    spec = themeSpec()
+    for each id in spec.themes
+        colors = spec.themes[id].colors
+        for each token in colors
+            tkTrue(themesTestSafe(colors[token]), id + " " + token + " " + colors[token])
+        end for
+    end for
+    for each id in spec.accents
+        for each kind in ["dark", "light"]
+            colors = spec.accents[id][kind]
+            for each token in colors
+                tkTrue(themesTestSafe(colors[token]), id + " " + kind + " " + token + " " + colors[token])
+            end for
+        end for
+    end for
+    tkEqual(themeBroadcastSafe("0x000000FF"), "0x161616FF", "black")
+    tkEqual(themeBroadcastSafe("0xFFFFFF80"), "0xEBEBEB80", "white, its alpha kept")
+    tkEqual(themeBroadcastSafe("0x0B0D10FF"), "0x15171AFF", "Midnight's bg, its hue kept")
+    tkEqual(themeBroadcastSafe("0x38BDF8FF"), "0x38BDF8FF", "within the range")
+end sub
+
+' WCAG's contrast ratio of two colors ("0xRRGGBBAA", alpha left out).
+function themesTestContrast(a as string, b as string) as double
+    la = themesTestLuminance(a)
+    lb = themesTestLuminance(b)
+    if la < lb
+        swap = la
+        la = lb
+        lb = swap
+    end if
+    return (la + 0.05#) / (lb + 0.05#)
+end function
+
+function themesTestLuminance(color as string) as double
+    weights = [0.2126#, 0.7152#, 0.0722#]
+    out = 0.0#
+    for k = 0 to 2
+        c = themeChannel(color, k) / 255.0#
+        if c <= 0.04045#
+            c = c / 12.92#
+        else
+            c = ((c + 0.055#) / 1.055#) ^ 2.4#
+        end if
+        out = out + weights[k] * c
+    end for
+    return out
+end function
+
+' The colors moved into the range read as well as palettes.test.ts asks of
+' the web's: every pair of every theme under every accent, and the
+' players'.
+sub test_themes_broadcast_safe_colors_stay_readable()
+    pairs = [["fg", "bg", 7], ["fg", "surface", 7], ["fg", "surface2", 7], ["fg", "surface3", 4.5], ["muted", "bg", 4.5], ["muted", "surface", 4.5], ["muted", "surface2", 4.5], ["muted", "surface3", 4.5], ["subtle", "bg", 4.5], ["subtle", "surface", 4.5], ["subtle", "surface2", 4.5], ["accent", "bg", 4.5], ["accent", "surface", 4.5], ["accent", "surface2", 4.5], ["accent", "surface3", 4.5], ["accentFg", "accent", 4.5], ["accentFg", "accentHover", 4.5], ["success", "surface", 4.5], ["danger", "surface", 4.5], ["info", "surface", 4.5], ["warning", "surface", 4.5], ["bg", "warning", 4.5], ["dangerFg", "danger", 4.5], ["brandDeep", "brandTile", 2], ["brandFar", "brandTile", 1.3]]
+    accents = [""]
+    accents.Append(themeAccentIds())
+    for each theme in themeIds()
+        for each accent in accents
+            for each colors in [themeColors(theme, accent), themePlayerColors(theme, accent)]
+                for each pair in pairs
+                    ratio = themesTestContrast(colors[pair[0]], colors[pair[1]])
+                    if ratio < pair[2] then tkFail(colors.key + " " + pair[0] + " on " + pair[1] + ": " + Str(ratio).Trim())
+                end for
+                ' The front poster, its gradient's lighter or darker end.
+                front = themesTestContrast(colors.brand, colors.brandTile)
+                light = themesTestContrast(colors.brandLight, colors.brandTile)
+                if light > front then front = light
+                if front < 4.5 then tkFail(colors.key + " logo's front poster: " + Str(front).Trim())
+            end for
+        end for
+    end for
+end sub
+
 ' The dim behind a panel is the theme's shade at a share of its own alpha;
 ' the words on a fill are that fill's words color.
 sub test_themes_shade_and_words_on_a_fill()
     midnight = themeColors("midnight", "")
-    tkEqual(themeShade(midnight, 0.5), "0x00000080")
+    ' Black, within the broadcast-safe range: #161616.
+    tkEqual(themeShade(midnight, 0.5), "0x16161680")
     ' Midday's shade is rgb(16 26 44 / 0.42): 0x6B of alpha, half of it 0x36.
     tkEqual(themeShade(themeColors("midday", ""), 0.5), "0x101A2C36")
     tkEqual(themeAlpha(midnight.fg, "1F"), "0xE9EBEF1F")

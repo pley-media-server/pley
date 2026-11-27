@@ -11,8 +11,9 @@ The Live TV guide (Roku's TimeGrid) takes pictures and no colors, so its
 programs' boxes, its focus and what has aired come in every theme's
 colors, named by them: images/guide/cell-<surface-2>.9.png,
 focus-<accent>.9.png and past-<surface>.9.png ("cell-191D24.9.png"), for
-each theme under each accent of packages/themes/themes.json; run this
-again when it changes (tests/themes.test.brs says when a picture is
+each theme under each accent of packages/themes/themes.json, within
+Roku's broadcast-safe range as the app draws them (broadcast_safe); run
+this again when it changes (tests/themes.test.brs says when a picture is
 missing). The icons and splash screens are pley's logo, rendered with the
 other apps' icons by scripts/render-icons.mjs at the repository's root.
 Standard library only.
@@ -218,7 +219,46 @@ def theme_colors(spec):
     return out
 
 
+WEIGHTS = (0.2126, 0.7152, 0.0722)
+
+
+def luma(c):
+    return WEIGHTS[0] * c[0] + WEIGHTS[1] * c[1] + WEIGHTS[2] * c[2]
+
+
+DARKEST = luma((0x16, 0x16, 0x16))
+LIGHTEST = luma((0xEB, 0xEB, 0xEB))
+
+
+def broadcast_safe(color):
+    """A color ("#rrggbb") within Roku's broadcast-safe range, as
+    scripts/broadcast-safe.mjs moves it: each channel raised (or lowered)
+    by the same amount, one at its end leaving the rest to the others,
+    until the luma reaches the range's end."""
+    c = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
+    start = luma(c)
+    if DARKEST <= start <= LIGHTEST:
+        return color.lower()
+    up = start < DARKEST
+    target = DARKEST if up else LIGHTEST
+    for _ in range(3):
+        free = [(v < 255) if up else (v > 0) for v in c]
+        weight = sum(w for w, f in zip(WEIGHTS, free) if f)
+        if weight == 0:
+            break
+        step = (target - luma(c)) / weight
+        c = [min(255, max(0, v + step)) if f else v for v, f in zip(c, free)]
+    # JavaScript's Math.round: halves go up.
+    c = [int(math.floor(v + 0.5)) for v in c]
+    while luma(c) < DARKEST:
+        c = [min(255, v + 1) for v in c]
+    while luma(c) > LIGHTEST:
+        c = [max(0, v - 1) for v in c]
+    return "#%02x%02x%02x" % tuple(c)
+
+
 def rgb(color):
+    color = broadcast_safe(color)
     return tuple(int(color[i:i + 2], 16) for i in (1, 3, 5))
 
 
@@ -229,9 +269,9 @@ def guide_pictures(folder, spec):
     os.makedirs(guide, exist_ok=True)
     wanted = {}
     for colors in theme_colors(spec):
-        wanted["cell-%s.9.png" % colors["surface-2"][1:].upper()] = (rgb(colors["surface-2"]), 6)
-        wanted["focus-%s.9.png" % colors["accent"][1:].upper()] = (rgb(colors["accent"]), 0)
-        wanted["past-%s.9.png" % colors["surface"][1:].upper()] = (rgb(colors["surface"]) + (PAST_ALPHA,), 0)
+        for kind, token, radius, alpha in (("cell", "surface-2", 6, ()), ("focus", "accent", 0, ()), ("past", "surface", 0, (PAST_ALPHA,))):
+            color = broadcast_safe(colors[token])
+            wanted["%s-%s.9.png" % (kind, color[1:].upper())] = (rgb(color) + alpha, radius)
     for name in os.listdir(guide):
         if name not in wanted:
             os.remove(os.path.join(guide, name))
