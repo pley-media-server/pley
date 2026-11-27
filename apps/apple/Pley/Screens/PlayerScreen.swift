@@ -12,7 +12,8 @@ import SwiftUI
 /// under its top row. Options shows with the system's controls (a tap shows it
 /// for 3 seconds) and stays while paused; an open menu stays open when
 /// the button hides. Skip Intro, Skip Credits and the
-/// Up Next card show bottom trailing (`PlayerOverlay`). A notice shows at
+/// Up Next card show bottom trailing (`PlayerOverlay`), Skip after its
+/// first 8 seconds only with the controls, as Options. A notice shows at
 /// the top for 4 seconds. Find Subtitles… opens its search in a sheet.
 struct PlayerScreen: View {
     let app: AppModel
@@ -33,7 +34,7 @@ struct PlayerScreen: View {
                     .onChange(of: geometry.size) { sized($0) }
             }
             .ignoresSafeArea()
-            PlayerOverlay(controller: controller)
+            PlayerOverlay(controller: controller, controlsShown: controlsShown)
             overlay
         }
         .statusBarHidden()
@@ -195,13 +196,18 @@ private struct PlayerWindowContent: View {
     @ObservedObject var controller: PlaybackController
     @State private var notice: String?
     @State private var search: SubtitleSearchModel?
+    /// The pointer is over the player, and when it last moved there: the
+    /// floating controls show with it.
+    @State private var pointerInside = false
+    @State private var pointerMovedAt = Date.distantPast
+    @State private var hideTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
             Color.black
             PlayerSurface(controller: controller, state: controller.state, caps: app.caps,
-                          onFindSubtitles: findSubtitles)
-            PlayerOverlay(controller: controller)
+                          onFindSubtitles: findSubtitles, onPointer: pointer)
+            PlayerOverlay(controller: controller, controlsShown: controlsShown)
             VStack {
                 if let notice {
                     Text(notice)
@@ -244,6 +250,33 @@ private struct PlayerWindowContent: View {
         Task {
             try? await Task.sleep(for: .seconds(4))
             if notice == text { notice = nil }
+        }
+    }
+
+    /// Whether AVKit's floating controls show: while the pointer is over
+    /// the player, for 3 seconds after it last moved while it plays, and
+    /// as long as it stays there while paused.
+    private var controlsShown: Bool {
+        guard pointerInside else { return false }
+        switch controller.state.phase {
+        case .playing, .buffering: return Date().timeIntervalSince(pointerMovedAt) < 3
+        default: return true
+        }
+    }
+
+    /// The pointer moved over the player (`true`) or left it.
+    private func pointer(_ inside: Bool) {
+        let wasInside = pointerInside
+        pointerInside = inside
+        // It moves many times a second: once a quarter second is enough.
+        guard inside, !wasInside || Date().timeIntervalSince(pointerMovedAt) > 0.25 else { return }
+        pointerMovedAt = Date()
+        hideTask?.cancel()
+        hideTask = Task {
+            try? await Task.sleep(for: .seconds(3.1))
+            guard !Task.isCancelled else { return }
+            // Read again: the body works out whether they still show.
+            pointerMovedAt = pointerMovedAt
         }
     }
 

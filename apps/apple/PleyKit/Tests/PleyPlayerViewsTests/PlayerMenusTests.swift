@@ -1,6 +1,7 @@
 // The menus are UIKit's: these run on the iOS and tvOS simulators
 // (`xcodebuild test -scheme PleyKit-Package`), and are empty on the Mac.
 #if os(iOS) || os(tvOS)
+import AVKit
 import PleyData
 import PleyPlayer
 @testable import PleyPlayerViews
@@ -112,6 +113,41 @@ import UIKit
         let position = try #require(menus.last?.children as? [UIAction])
         #expect(position.map(\.title) == ["Bottom", "Raised 5 %", "Raised 10 %", "Raised 15 %"])
     }
+
+    #if os(tvOS)
+    @Test func skipIsAContextualActionByItselfThenOnlyWithTheTransportBar() {
+        var state = PlayerState()
+        state.skipLabel = "Skip Intro"
+        state.skipAlone = true
+        // Its first 8 seconds: there without the transport bar, so it has the focus and OK skips.
+        #expect(PlayerSurface.contextualActions(state, nil, transportBar: false).list.map(\.title) == ["Skip Intro"])
+        // Then nothing over the video, so the remote acts on it; with the transport bar, Skip is back.
+        state.skipAlone = false
+        #expect(PlayerSurface.contextualActions(state, nil, transportBar: false).list.isEmpty)
+        #expect(PlayerSurface.contextualActions(state, nil, transportBar: true).list.map(\.title) == ["Skip Intro"])
+        // Up Next's buttons show whatever Skip's time.
+        state.upNext = UpNextCard(itemId: 2, title: "Two", heading: "Up next", secondsLeft: 8)
+        #expect(PlayerSurface.contextualActions(state, nil, transportBar: false).list.map(\.title)
+            == ["Play Next (8)", "Cancel"])
+    }
+
+    @Test func theTransportBarBringsSkipBackAndTakesItAway() {
+        let controller = AVPlayerViewController()
+        let coordinator = PlayerSurface.Coordinator()
+        coordinator.state.skipLabel = "Skip Credits"
+        coordinator.state.skipAlone = true
+        coordinator.showActions(on: controller)
+        #expect(controller.contextualActions.map(\.title) == ["Skip Credits"])
+        // The 8 seconds end with the transport bar hidden: Skip goes, and the focus with it.
+        coordinator.state.skipAlone = false
+        coordinator.showActions(on: controller)
+        #expect(controller.contextualActions.isEmpty)
+        coordinator.transportBarChanged(true, on: controller)
+        #expect(controller.contextualActions.map(\.title) == ["Skip Credits"])
+        coordinator.transportBarChanged(false, on: controller)
+        #expect(controller.contextualActions.isEmpty)
+    }
+    #endif
 
     #if os(iOS)
     @Test func theOptionsMenuHoldsEverySection() {

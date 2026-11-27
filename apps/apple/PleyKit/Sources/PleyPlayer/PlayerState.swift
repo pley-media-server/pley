@@ -54,6 +54,9 @@ public struct PlayerState: Equatable, Sendable {
     public var itemId: Int?
     /// "Skip Intro" or "Skip Credits" while the playhead is in one; `skip()` skips it.
     public var skipLabel: String?
+    /// Skip shows by itself, without the controls: its first 8 seconds in
+    /// a segment (`SkipWindow`). After them it shows only with the controls.
+    public var skipAlone = false
     /// What plays next, while its card shows.
     public var upNext: UpNextCard?
     /// The file's chapters, the one playing marked.
@@ -136,6 +139,12 @@ public struct PlayerState: Equatable, Sendable {
         default: method.rawValue.capitalized
         }
         return audioConverted && method != .transcode ? localized("\(base) · Audio transcoding") : base
+    }
+
+    /// Whether Skip shows, with the player's controls showing or not: by
+    /// itself in its first 8 seconds, then only with the controls.
+    public func skipShown(withControls controls: Bool) -> Bool {
+        skipLabel != nil && (skipAlone || controls)
     }
 
     /// Whether the player is past preparing and hasn't failed.

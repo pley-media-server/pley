@@ -6,11 +6,16 @@ import SwiftUI
 /// trailing: Skip Intro or Skip Credits while the playhead is in one, and
 /// the Up Next card (the next episode's title, its countdown, Play Next
 /// and Cancel) while it shows; and at the top, in the sleep timer's last
-/// 30 s, "Pausing in 30 s" with Keep watching. Apple TV has the same in
-/// the system player's contextual actions.
+/// 30 s, "Pausing in 30 s" with Keep watching. Skip shows by itself for
+/// its first 8 seconds in a segment, then only while `controlsShown`.
+/// Apple TV has the same in the system player's contextual actions.
 struct PlayerOverlay: View {
     @ObservedObject var controller: PlaybackController
+    /// The player's controls show (the screen's best knowledge of the system's).
+    var controlsShown: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var skipShown: Bool { controller.state.skipShown(withControls: controlsShown) }
 
     var body: some View {
         VStack {
@@ -24,7 +29,7 @@ struct PlayerOverlay: View {
                 if let card = controller.state.upNext {
                     UpNextCardView(card: card, controller: controller)
                         .transition(.opacity)
-                } else if let label = controller.state.skipLabel {
+                } else if skipShown, let label = controller.state.skipLabel {
                     Button(label) { controller.skip() }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
@@ -39,6 +44,7 @@ struct PlayerOverlay: View {
         .padding(.bottom, 96)
         .animation(.easeInOut(duration: 0.2), value: controller.state.upNext?.itemId)
         .animation(.easeInOut(duration: 0.2), value: controller.state.skipLabel)
+        .animation(.easeInOut(duration: 0.2), value: skipShown)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: controller.state.sleep.secondsLeft == nil)
     }
 

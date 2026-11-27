@@ -155,6 +155,10 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Skip Intro and Skip Credits show by themselves for 8 seconds as an intro
+  or the credits begin, then only with the player's controls, so they no
+  longer sit over the picture, or hold Apple TV's focus, for the whole
+  segment. Seeking back into one shows Skip again for 8 seconds.
 - Up Next's card shows the next episode's name without its picture, so it
   covers less of the credits.
 - Movies, shows and music without a picture, or whose picture doesn't

@@ -991,11 +991,20 @@ starts producing there). Watched items, and Play from start, start at 0.
 **Skip Intro and Skip Credits** come from the item's markers for the file
 playing (the server finds them from chapters, shared audio or the
 credits' pictures: [Intro and credits
-detection](API.md#intro-and-credits-detection)). The button shows
-from a segment's start until a second before its end. Skip Intro lands
+detection](API.md#intro-and-credits-detection)). The button is offered
+from a segment's start until a second before its end. Entering a segment
+(playing into it, seeking into it, or starting inside it), it shows by
+itself for 8 seconds on the clock (`SkipWindow`), then fades; after that
+it shows only while the player's controls show, where it sits with them,
+and hides with them. Entering a segment again, or the next one, starts a
+fresh 8 seconds; seeking inside the same one doesn't. Credits that bring
+up the Up Next card show the card instead; after Cancel, Skip Credits
+shows by itself for 8 seconds from then. Skip Intro lands
 750 ms before the intro ends (or half-way into a very short one), so its
 last moment plays; Skip Credits goes to the credits' end. Nothing is
-skipped by itself.
+skipped, paused or changed by itself. The remote panel's Skip, for what
+another device plays, isn't over the picture and is offered for the whole
+segment.
 
 **Up Next** follows an episode with the next one
 (`GET /api/items/{id}/next`, looked up at 90 % of the episode, or when its
@@ -1332,7 +1341,9 @@ are drawn by the app in the player's content overlay, under the controls
   the file plays (Direct play, Direct stream or Transcoding, and whether
   the audio is converted), why, the video, and the subtitles shown.
   Skip Intro, Skip Credits and the Up Next card show at the bottom right,
-  and the sleep timer's last seconds at the top, with Keep watching.
+  and the sleep timer's last seconds at the top, with Keep watching. After
+  its 8 seconds, Skip shows with Options: for 3 seconds after a tap on the
+  video, and while paused.
   Picture in Picture is the system's button.
 - **Apple TV**: full screen, with Quality, Subtitles, Speed, Sleep Timer
   and Audio in the transport bar (Subtitles holding Subtitle sync, which
@@ -1341,7 +1352,13 @@ are drawn by the app in the player's content overlay, under the controls
   picture's size fitted to the screen. Skip Intro, Skip
   Credits, Up Next ("Play Next (8)", Cancel) and the sleep timer's Keep
   Watching are the player's own contextual buttons, and the chapters its chapter markers, with their
-  pictures. The player's notices ("Reconnecting…", "Playing from …")
+  pictures. In its 8 seconds Skip is the one contextual button, with the
+  focus, so Select skips; then it goes, and the focus goes back to the
+  video, so Select, the arrows and the rest act as they do with nothing on
+  screen. After them it comes back as the transport bar shows (the
+  player's delegate is told) and goes as it hides. The system's player
+  places the focus when the transport bar shows; Up reaches the
+  contextual button. The player's notices ("Reconnecting…", "Playing from …")
   show at the top for 4 seconds, as on the other devices, without taking
   the focus. Menu closes the player when the transport bar isn't showing.
   The display's frame rate and dynamic range follow the video when the
@@ -1351,14 +1368,18 @@ are drawn by the app in the player's content overlay, under the controls
   closes it. The controls float over the picture, with Quality, Audio,
   Subtitles (Find Subtitles… last), Subtitle Sync, Subtitle Style, Speed,
   Sleep Timer, Chapters and Details in their menu, and Picture in Picture; Skip
-  Intro, Skip Credits and the Up Next card at the bottom right, and a
+  Intro, Skip Credits and the Up Next card at the bottom right (after its
+  8 seconds, Skip shows with the floating controls: while the pointer is
+  over the picture, for 3 seconds after it last moved, or as long as it
+  stays there while paused), and a
   Playback menu in the menu bar (Play or Pause, Back and Forward 10
   Seconds, Skip, Play Next, Quality, Audio, Subtitles, Find Subtitles…,
   Subtitle Sync, Subtitle Style, Speed, Sleep Timer, Chapters) acts on the window in
   front. The keys are the web player's:
   Space or K plays and pauses, ← or J and → or L go back and forward 10
   seconds, ↑ and ↓ change the volume, M mutes, F goes full screen and Esc
-  leaves it, S skips the intro or the credits, and C goes to the next
+  leaves it, S skips the intro or the credits (all the while Skip is
+  offered, as the menu's Skip does, shown or not), and C goes to the next
   subtitles (Off after the last). The Mac going to sleep
   pauses, a move to another screen reads the device's caps again (an
   HDR video starts again for it, [What each device plays](#what-each-device-plays)), and

@@ -18,7 +18,8 @@ import UIKit
 ///
 /// It is every player controller's delegate, since the screen's own
 /// coordinator goes with the view while Picture in Picture runs. AVKit
-/// calls the delegate on the main thread.
+/// calls the delegate on the main thread. On Apple TV it also tells each
+/// screen when its transport bar shows or hides (`watchTransportBar`).
 @MainActor
 public final class PictureInPictureKeeper: NSObject, AVPlayerViewControllerDelegate {
     public static let shared = PictureInPictureKeeper()
@@ -38,6 +39,17 @@ public final class PictureInPictureKeeper: NSObject, AVPlayerViewControllerDeleg
     private var restoring: ((Bool) -> Void)?
     private var restored = false
     private var waiting: Task<Void, Never>?
+    #if os(tvOS)
+    /// Each controller's screen, told when its transport bar shows or hides.
+    private let transportBarWatchers = NSMapTable<AVPlayerViewController, PlayerSurface.Coordinator>.weakToWeakObjects()
+
+    /// Tells `coordinator` when `controller`'s transport bar shows or hides.
+    func watchTransportBar(of controller: AVPlayerViewController, by coordinator: PlayerSurface.Coordinator) {
+        if transportBarWatchers.object(forKey: controller) !== coordinator {
+            transportBarWatchers.setObject(coordinator, forKey: controller)
+        }
+    }
+    #endif
 
     /// Makes `controller` play in Picture in Picture through the keeper.
     func adopt(_ controller: AVPlayerViewController) {
@@ -137,6 +149,16 @@ public final class PictureInPictureKeeper: NSObject, AVPlayerViewControllerDeleg
             if controller.viewIfLoaded?.window != nil { finishRestore() } else { shown(controller) }
         }
     }
+
+    #if os(tvOS)
+    public nonisolated func playerViewController(
+        _ controller: AVPlayerViewController, willTransitionToVisibilityOfTransportBar visible: Bool,
+        with coordinator: any AVPlayerViewControllerAnimationCoordinator) {
+        MainActor.assumeIsolated {
+            transportBarWatchers.object(forKey: controller)?.transportBarChanged(visible, on: controller)
+        }
+    }
+    #endif
 
     public nonisolated func playerViewControllerDidStopPictureInPicture(_ controller: AVPlayerViewController) {
         MainActor.assumeIsolated {
