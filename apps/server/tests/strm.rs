@@ -49,6 +49,8 @@ struct Remote {
     /// Requests for the media kept behind a name and password that came
     /// without them.
     unsigned: Arc<AtomicUsize>,
+    /// The media under `/held/` is answered only once this is false again.
+    holding: Arc<AtomicBool>,
 }
 
 fn ranged(bytes: &[u8], headers: &HeaderMap) -> Response {
@@ -93,6 +95,16 @@ async fn start_remote() -> (Remote, String) {
             get(|State(remote): State<Remote>| async move {
                 remote.redirected.fetch_add(1, Ordering::SeqCst);
                 (StatusCode::FOUND, [(header::LOCATION, format!("/dl/{SECRET}/film.mkv"))])
+            }),
+        )
+        .route(
+            "/held/film.mkv",
+            // A look at it lasts as long as a test needs.
+            get(|State(remote): State<Remote>, headers: HeaderMap| async move {
+                while remote.holding.load(Ordering::SeqCst) {
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+                ranged(&media(), &headers)
             }),
         )
         .route("/page", get(|headers: HeaderMap| async move { ranged(b"<html>not a film</html>", &headers) }))
@@ -901,6 +913,78 @@ async fn turning_it_on_finds_what_the_files_listed_play() {
         kept = w.kept("Film").await;
     }
     assert_eq!(kept, (Some("mkv".into()), media().len() as i64, Some(60_000)), "found without a scan");
+}
+
+#[tokio::test]
+async fn a_scan_end_the_listener_missed_still_has_the_library_walked() {
+    let w = world().await;
+    let app = &w.app;
+    let on = pley::settings::SettingsPatch { strm_probe: Some(true), ..Default::default() };
+    app.state.settings.update(&app.state.db, on).await.unwrap();
+    pley::strm::follow_scans(&app.state);
+    // A scan ends, then more happens than the listener keeps before it gets
+    // a turn: the scan's end is among what it missed.
+    let ended = pley::events::ServerEvent::ScanFinished { library_id: w.library, added: 0, updated: 0, removed: 0 };
+    app.state.events.send(ended);
+    for _ in 0..1000 {
+        app.state.events.send(pley::events::ServerEvent::LibrariesChanged);
+    }
+    let mut kept = w.kept("Film").await;
+    for _ in 0..400 {
+        if kept.0.as_deref() == Some("mkv") {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        kept = w.kept("Film").await;
+    }
+    assert_eq!(kept, (Some("mkv".into()), media().len() as i64, Some(60_000)), "found all the same");
+}
+
+#[tokio::test]
+async fn what_opening_an_item_finds_while_a_walk_goes_is_told_at_once() {
+    let mut w = world_with(|movies, remote| {
+        std::fs::create_dir_all(movies.join("Held (2021)")).unwrap();
+        std::fs::write(movies.join("Held (2021)/Held (2021).strm"), format!("{remote}/held/film.mkv")).unwrap();
+    })
+    .await;
+    let on = pley::settings::SettingsPatch { strm_probe: Some(true), ..Default::default() };
+    w.app.state.settings.update(&w.app.state.db, on).await.unwrap();
+    let found = async |w: &World, title: &str| {
+        for _ in 0..400 {
+            if w.kept(title).await.0.as_deref() == Some("mkv") {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        false
+    };
+    // A walk finds Film, and looks at Held until its address answers.
+    w.remote.holding.store(true, Ordering::SeqCst);
+    pley::strm::walk(&w.app.state, w.library);
+    assert!(found(&w, "Film").await);
+
+    // A file it didn't list, opened meanwhile: the apps hear of it at once.
+    w.strm("movies/Later (2022)/Later (2022).strm", &format!("{}/dl/{SECRET}/film.mkv", w.remote_base));
+    w.scan(false).await;
+    let mut events = w.app.state.events.subscribe();
+    let told = |events: &mut tokio::sync::broadcast::Receiver<pley::events::ServerEvent>| {
+        let mut told = 0;
+        while let Ok(event) = events.try_recv() {
+            if matches!(event, pley::events::ServerEvent::LibraryChanged { library_id } if library_id == w.library) {
+                told += 1;
+            }
+        }
+        told
+    };
+    assert_eq!(w.file("Later").await["container"], json!("mkv"));
+    assert_eq!(told(&mut events), 1, "not at the walk's end");
+    assert_eq!(w.kept("Held").await.0.as_deref(), Some("strm"), "the walk still goes");
+
+    // What the walk found itself is told once, as it ends.
+    w.remote.holding.store(false, Ordering::SeqCst);
+    assert!(found(&w, "Held").await);
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(told(&mut events), 1);
 }
 
 #[tokio::test]
