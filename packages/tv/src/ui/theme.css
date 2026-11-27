@@ -796,19 +796,8 @@ body {
 .rail-badge.danger { background: var(--danger); color: var(--danger-fg); }
 .rail-item[data-focused] .rail-badge:not(.danger) { background: var(--on-accent); color: var(--accent-bright); }
 .rail-item.avatar { height: 48px; }
-.rail-avatar {
-  position: absolute;
-  left: 12px;
-  top: 8px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface3);
-}
+/* The profile's avatar (ProfileAvatar), in its own colors under every theme. */
+.rail-avatar { position: absolute; left: 12px; top: 8px; }
 /* The server out of reach: a 16 px surface3 disc ringed 2 px in the page's color, astride the avatar's lower right (6 past its edges). */
 .offline-mark {
   position: absolute;

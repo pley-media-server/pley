@@ -12,6 +12,7 @@ import type { AppState, Settings } from "../../state";
 import { fontsHere, SUBTITLE_FONTS, SUBTITLE_POSITIONS } from "../../subs/style";
 import { useUi } from "../context";
 import { Art, artCandidates } from "../kit/art";
+import { ProfileAvatar } from "../kit/avatar";
 import { Pill, TextButton } from "../kit/buttons";
 import { F, G } from "../kit/focusable";
 import { Icon, type IconName } from "../kit/icons";
@@ -22,7 +23,7 @@ import { Dialog, failedTitle, problem, sentence, useApp } from "./common";
 import { licenseRows } from "../../licenses";
 import { pageOf } from "./item-actions";
 import { librarySorting, sortNeedsNewer } from "./library";
-import { ProfileAvatar, QrCode } from "./onboarding/kit";
+import { QrCode } from "./onboarding/kit";
 
 type Category = "profile" | "playback" | "audio" | "display" | "appearance" | "server" | "diagnostics" | "about" | "signout";
 
@@ -166,7 +167,7 @@ export function SettingsScreen(p: { entry: Entry }) {
         <div key="header" class="settings-profile">
           {me ? (
             <>
-              <ProfileAvatar name={me.display_name || me.name} color={me.avatar_color} picture={me.avatar_url} size={48} />
+              <ProfileAvatar name={me.name} color={me.avatar_color} picture={me.avatar_url} size={48} />
               <div style="margin-left:16px;min-width:0">
                 <div class="t-title c-fg one-line">{me.display_name || me.name}</div>
                 {/* A managed profile says so; an account needs no word for what it is (Android's header). */}

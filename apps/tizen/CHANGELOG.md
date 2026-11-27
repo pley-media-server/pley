@@ -45,6 +45,8 @@ describes how they are made.
 
 ### Changed
 
+- The avatar at the top of the rail shows the profile's picture, or its
+  own color, under every theme.
 - Up Next's card shows the next title's name without its picture, so it
   covers less of the credits, and its countdown ring fills smoothly
   instead of a step each second.

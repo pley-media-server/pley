@@ -531,6 +531,11 @@ theme's own ([THEMES.md](THEMES.md)), the light themes included.
   theme under every accent to the file, and fails on a color in the
   stylesheets that isn't the theme's (black and white over pictures and
   video aside).
+- **A profile's avatar** (the rail's, Settings', "Who's watching?") is its
+  picture, or a circle in its own color with its initial, the same under
+  every theme ([Profile colors](THEMES.md#profile-colors)).
+  `ui/kit/avatar.tsx` draws each of them, and `test/ui/avatar.test.tsx`
+  holds it to `packages/tv/test/fixtures/avatar.json`.
 - **The players stay dark:** while a player is on top, the app takes the
   light theme's dark twin, with the same accent, toasts and dialogs over
   it too.
