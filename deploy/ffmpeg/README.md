@@ -114,7 +114,9 @@ docker build -f deploy/ffmpeg/Dockerfile.windows --output dist/pley-ffmpeg-windo
 ```
 
 Both download FFmpeg's release source, check it against the hash in the
-Dockerfile, and stop at a patch that doesn't apply exactly. `--build-arg
+Dockerfile, and stop at a patch that doesn't apply exactly. The Docker
+image is made for amd64 and arm64, with BuildKit (Docker's builder since
+version 23), which names the platform its license label goes by. `--build-arg
 JOBS=8` limits the compilers run at once.
 
 The Windows build is cross-compiled with mingw-w64 in
