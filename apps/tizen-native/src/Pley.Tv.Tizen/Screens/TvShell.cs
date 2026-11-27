@@ -94,7 +94,7 @@ sealed class TvShell : Sheet
     /// <summary>Whether the person asked for less motion (Settings): nothing turns or slides by itself.</summary>
     public bool ReduceMotion => state.Settings.Value.ReduceMotion;
 
-    public TvShell(AppState state, Action<RailItem> onRail, Action onProfile) : base("shell", Axis.Row)
+    public TvShell(AppState state, Images images, Action<RailItem> onRail, Action onProfile) : base("shell", Axis.Row)
     {
         this.state = state;
         View.BackgroundColor = PleyColors.Bg;
@@ -105,7 +105,7 @@ sealed class TvShell : Sheet
             Size = new Size(Ui.Dp(PleyTv.RailFadeClearFrom), Ui.Dp(PleyTv.CanvasHeight)),
             Background = Gradients.Horizontal(PleyColors.Bg, new Color(PleyColors.Bg.R, PleyColors.Bg.G, PleyColors.Bg.B, 0), PleyTv.RailFadeSolidUntil / PleyTv.RailFadeClearFrom),
         });
-        Rail = new RailView(Tree, () => state.Settings.Value.ReduceMotion, onRail, onProfile);
+        Rail = new RailView(Tree, images, () => state.Settings.Value.ReduceMotion, onRail, onProfile);
         View.Add(Rail.Scrim);
         View.Add(Rail);
         Root.Add(Rail.Group);
@@ -137,8 +137,8 @@ sealed class TvShell : Sheet
                 Rail.SetProfile(null);
                 return;
             }
-            var rgb = ProfileColors.Of(me.Name, me.AvatarColor);
-            Rail.SetProfile(new RailProfile(me.Name, AvatarView.Rgb(rgb), ProfileColors.DarkTextOn(rgb) ? PleyColors.DarkInk : Color.White));
+            var picture = string.IsNullOrEmpty(me.AvatarUrl) ? null : Artwork.Absolute(me.AvatarUrl!, state.Server.Value ?? "");
+            Rail.SetProfile(new RailProfile(me.Name, me.AvatarColor, picture));
         }));
         Gone += () =>
         {

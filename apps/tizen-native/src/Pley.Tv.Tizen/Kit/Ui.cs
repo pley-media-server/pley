@@ -38,7 +38,6 @@ static class PleyColors
     {
         pages = ThemeColors.Of(PleyPalette.Of(pick));
         player = null;
-        darkInk = null;
         now = pages;
     }
 
@@ -111,13 +110,6 @@ static class PleyColors
     public static Color TileHairline => now.TileHairline;
     /// <summary>Behind dialogs, sheets and panels: the theme's shade at 60 %.</summary>
     public static Color Scrim => now.Scrim;
-    /// <summary>
-    /// Words on a color of the person's own, a profile's avatar, when it needs dark ones: the dark
-    /// twin's page color, dark in every theme, as white is for the others.
-    /// </summary>
-    public static Color DarkInk => darkInk ??= ThemeColors.Of(pages.Palette.Player.Bg);
-
-    static Color? darkInk;
 
     /// <summary><paramref name="color"/> at <paramref name="alpha"/>: a wash of a theme's color.</summary>
     public static Color Alpha(Color color, float alpha) => new Color(color.R, color.G, color.B, alpha);

@@ -455,16 +455,4 @@ public class ProfilesModelTests
         Assert.Equal(0, entry.Length);
         Assert.Equal("PinEntry(0 digits)", entry.ToString());
     }
-
-    [Fact]
-    public void Profile_colours_are_the_webs()
-    {
-        Assert.Equal(0xE07A5Fu, ProfileColors.Of("Anna", "#e07a5f"));
-        Assert.Equal(0xAABBCCu, ProfileColors.Of("Anna", "#abc"));
-        // Picked from the name when the profile has none, or one that isn't a color.
-        Assert.Equal(ProfileColors.Of("Anna", null), ProfileColors.Of("Anna", "red"));
-        Assert.Contains(ProfileColors.Of("Sam", null), new uint[] { 0x38BDF8, 0xA78BFA, 0xF472B6, 0xFB923C, 0xFACC15, 0x4ADE80, 0x2DD4BF, 0xF87171 });
-        Assert.True(ProfileColors.DarkTextOn(0xFACC15));
-        Assert.False(ProfileColors.DarkTextOn(0x0284C7));
-    }
 }

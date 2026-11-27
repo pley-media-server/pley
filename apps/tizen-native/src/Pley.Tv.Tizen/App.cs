@@ -382,7 +382,7 @@ class App : NUIApplication
         state.ShowingOutside(false);
         var made = Profile.Start();
         TvShell? tv = null;
-        tv = new TvShell(state,
+        tv = new TvShell(state, images,
             item =>
             {
                 if (item.Slot == RailSlot.Home) tv!.Restart(Home(tv));

@@ -15,6 +15,9 @@ describes how they are made.
 
 ### Changed
 
+- The profile's avatar at the top of the rail shows its picture, as
+  Settings and Who's watching? do, and every avatar keeps the profile's
+  color under any theme.
 - Up Next's card shows the next title's name without its picture, so it
   covers less of the credits, and its countdown ring fills smoothly
   instead of a step each second.
