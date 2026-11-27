@@ -141,7 +141,7 @@ segment ends, Skip shows again with the controls, above the scrubber,
 where Up reaches it; the controls open on the scrubber, or on Skip during
 its 8 seconds. Entering a segment again, or another, starts a fresh 8
 seconds; a seek within the same one doesn't. Nothing is skipped by
-itself. Under Up Next's card Skip Credits doesn't show; cancelling the
+itself. Under Up Next's card Skip Credits doesn't show; canceling the
 card gives it its 8 seconds from then. Both Samsung apps share the rule,
 pinned by `packages/tv/test/fixtures/skip-shown.json`.
 
