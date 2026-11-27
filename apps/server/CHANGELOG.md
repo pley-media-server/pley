@@ -14,6 +14,10 @@ describes how they are made.
 - Live TV plays a channel as the provider sends it when the device decodes
   it (HEVC and 10-bit included), and transcodes only for players that need it.
 - Playback details in the web app's Live TV player.
+- The web app's sidebar can be narrowed to its icons by the button at its
+  foot, beside Settings; each browser remembers how it was left. Narrowed,
+  its icons show their names in a tip on hover, as the remote's button and
+  Sort libraries now do.
 - Hardware transcoding on Rockchip chips (RK3588, RK3568 and the like)
   with Rockchip's own kernel: Rockchip MPP in Settings → Transcoder; the
   arm64 Docker image has it, with `compose.rockchip.yaml`.
