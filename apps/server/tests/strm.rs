@@ -806,6 +806,61 @@ async fn a_scan_of_every_file_reads_the_media_again() {
 }
 
 #[tokio::test]
+async fn a_scan_finds_what_they_play_once_an_administrator_turned_that_on() {
+    let w = world_with(|movies, remote| {
+        std::fs::create_dir_all(movies.join("Page (2021)")).unwrap();
+        std::fs::write(movies.join("Page (2021)/Page (2021).strm"), format!("{remote}/page")).unwrap();
+    })
+    .await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let settings = |probe: bool| pley::settings::SettingsPatch { strm_probe: Some(probe), ..Default::default() };
+    // Off, as by default: a scan that ends asks nothing.
+    assert!(!app.get("/api/settings", admin).await.body["strm_probe"].as_bool().unwrap());
+    assert!(!pley::strm::find_unknown(&app.state, w.library).await);
+    assert_eq!(w.remote.asked.load(Ordering::SeqCst), 0);
+
+    // On: what each file plays is found, without anyone opening it, and
+    // the page then shows it without asking again.
+    app.state.settings.update(&app.state.db, settings(true)).await.unwrap();
+    assert!(pley::strm::find_unknown(&app.state, w.library).await);
+    assert_eq!(w.kept("Film").await, (Some("mkv".into()), media().len() as i64, Some(60_000)));
+    assert_eq!(w.kept("Page").await, (Some("strm".into()), 0, None), "nothing there to find");
+    assert!(w.remote.asked.load(Ordering::SeqCst) > 0);
+    let probes = w.fake.probes.lock().clone();
+    assert_eq!(probes.len(), 2, "one look per file");
+    assert_eq!(*w.fake.urgency.lock(), [false, false], "a scan's look waits for no playback's probe");
+    assert_eq!(w.file("Film").await["container"], json!("mkv"));
+    assert_eq!(w.fake.probes.lock().len(), 2);
+
+    // Again: what is known isn't looked at again, nor is the address that
+    // failed asked again so soon.
+    let asked = w.remote.asked.load(Ordering::SeqCst);
+    assert!(!pley::strm::find_unknown(&app.state, w.library).await);
+    assert_eq!((w.fake.probes.lock().len(), w.remote.asked.load(Ordering::SeqCst)), (2, asked));
+
+    // Off: nothing is asked, not even for the file that failed.
+    app.state.settings.update(&app.state.db, settings(false)).await.unwrap();
+    assert!(!pley::strm::find_unknown(&app.state, w.library).await);
+    assert_eq!(w.remote.asked.load(Ordering::SeqCst), asked);
+}
+
+#[tokio::test]
+async fn turning_it_on_finds_what_the_files_listed_play() {
+    let w = world().await;
+    let on = w.app.put("/api/settings", &w.admin, json!({"strm_probe": true})).await;
+    assert_eq!((on.status, &on.body["strm_probe"]), (StatusCode::OK, &json!(true)), "{}", on.body);
+    let mut kept = w.kept("Film").await;
+    for _ in 0..400 {
+        if kept.0.as_deref() == Some("mkv") {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        kept = w.kept("Film").await;
+    }
+    assert_eq!(kept, (Some("mkv".into()), media().len() as i64, Some(60_000)), "found without a scan");
+}
+
+#[tokio::test]
 async fn a_file_that_names_another_address_is_looked_at_again_at_once() {
     let mut w = world_with(|movies, remote| {
         std::fs::create_dir_all(movies.join("Page (2021)")).unwrap();

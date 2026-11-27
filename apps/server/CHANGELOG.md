@@ -14,6 +14,9 @@ describes how they are made.
 - Live TV plays a channel as the provider sends it when the device decodes
   it (HEVC and 10-bit included), and transcodes only for players that need it.
 - Playback details in the web app's Live TV player.
+- A switch in Settings → Server → Library scanning, Find what .strm files
+  play, has a scan find what each `.strm` file's media is (its tracks, its
+  length, its size), so listings and pages show it before it is played.
 
 ## [0.1.17] - 2026-11-25
 

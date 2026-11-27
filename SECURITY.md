@@ -568,8 +568,11 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   (`strm_files`). Off, scans leave them out, and nothing asks their
   addresses.
 - Nothing asks an address until someone opens or plays its item: a scan
-  reads the files only. An address that fails isn't asked again for 20
-  seconds by a playback, or for 10 minutes by a page opening.
+  reads the files only, unless the administrator turns on `strm_probe`.
+  Then a scan, once done, asks the address of each `.strm` file whose media
+  isn't known yet, a few at a time, for video or audio as above. An address
+  that fails isn't asked again for 20 seconds by a playback, or for 10
+  minutes by a page opening.
 
 ### Untrusted media
 

@@ -292,6 +292,20 @@ impl AppState {
                 }
             }
         });
+        // What `.strm` files' media is, once a scan is done, for those it
+        // isn't known for yet (see `crate::strm::find_unknown`).
+        let (state, mut events) = (self.clone(), self.events.subscribe());
+        tokio::spawn(async move {
+            loop {
+                match events.recv().await {
+                    Ok(crate::events::ServerEvent::ScanFinished { library_id, .. }) => {
+                        crate::strm::find_unknown(&state, library_id).await;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    _ => {}
+                }
+            }
+        });
         // Fingerprints of files scanned by older versions (then previews of
         // what lacks them), and a daily clean-up.
         let (store, trickplay) = (self.store.clone(), self.trickplay.clone());

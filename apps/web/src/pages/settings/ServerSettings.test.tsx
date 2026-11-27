@@ -134,6 +134,33 @@ describe("ServerSettings", () => {
     expect(screen.queryByRole("switch", { name: "Read .strm files" })).not.toBeInTheDocument();
   });
 
+  it("finds what .strm files play after a scan, once .strm files are read", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/settings": () => ({ ...SETTINGS, strm_files: true, strm_probe: false }),
+      "GET /api/system": () => ({}),
+      "PUT /api/settings": (req) => ({ ...SETTINGS, strm_files: true, strm_probe: false, ...(req.body as Partial<Settings>) }),
+    });
+    const first = renderWithProviders(<ServerSettings />);
+    const toggle = await screen.findByRole("switch", { name: "Find what .strm files play" });
+    expect(toggle).toBeEnabled();
+    expect(toggle).not.toBeChecked();
+    await user.click(toggle);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ strm_probe: true }));
+    first.unmount();
+
+    // Off: .strm files aren't listed, so there is nothing to find.
+    mockApi({
+      "GET /api/settings": () => ({ ...SETTINGS, strm_files: false, strm_probe: false }),
+      "GET /api/system": () => ({}),
+    });
+    renderWithProviders(<ServerSettings />);
+    const off = await screen.findByRole("switch", { name: "Find what .strm files play" });
+    expect(off).toBeDisabled();
+    expect(screen.getByText("Turn on Read .strm files first.")).toBeInTheDocument();
+  });
+
   it("requires two-step sign-in only from an administrator who uses it", async () => {
     mockApi({ "GET /api/settings": () => ({ ...SETTINGS, require_two_step: false }), "GET /api/system": () => ({}), "GET /api/users": () => [] });
     renderWithProviders(<ServerSettings />, { user: { ...testUser, two_step: false } });

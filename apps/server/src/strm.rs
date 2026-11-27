@@ -24,6 +24,11 @@
 //!   now ([`serve`]): again after the file changes or the server starts. Seek previews,
 //!   intro detection and frame grabs, which read a whole file, aren't made
 //!   for it.
+//! * **Or by every scan, by an administrator's choice.** With `strm_probe`
+//!   on, a scan, once done, has the server find what the media of each of
+//!   the library's files is that it isn't known for yet ([`find_unknown`]),
+//!   a few at a time: listings show their badges and sizes before anyone
+//!   opens them.
 //! * **Addresses on the internet stay there.** An address on the internet,
 //!   named by the file or reached through one of this network, can't lead
 //!   (by a redirect, or a name that changes what it resolves to) to one of
@@ -366,6 +371,9 @@ const GLANCE: Duration = Duration::from_millis(2500);
 const LOOK: Duration = Duration::from_secs(45);
 /// What the name of a look's address starts with ([`Relay::look_address`]).
 const LOOK_NAME: &str = "look-";
+/// How many of a library's `.strm` files a scan has its media found for
+/// at once ([`find_unknown`]).
+const FINDING: usize = 2;
 
 #[derive(Default)]
 struct Links {
@@ -1130,6 +1138,68 @@ pub async fn glance(state: &AppState, item_id: i64) -> bool {
         found
     });
     matches!(tokio::time::timeout(GLANCE, looking).await, Ok(Ok(true)))
+}
+
+/// Finds what the media of library `library_id`'s `.strm` files is, those
+/// it isn't known for yet, as a scan of it ends when an administrator turned
+/// that on (`strm_probe`): as [`ready`] finds it, a few files at a time and
+/// none whose address failed lately. Whether anything was asked for; a
+/// failure of an address is kept as a look's are, for the next scan.
+pub async fn find_unknown(state: &AppState, library_id: i64) -> bool {
+    use futures::StreamExt as _;
+    if !finding(state) {
+        return false;
+    }
+    let Ok(ids) = sqlx::query_scalar::<_, i64>(
+        "SELECT id FROM media_files WHERE library_id = ? AND container = 'strm' AND media_info IS NULL ORDER BY id",
+    )
+    .bind(library_id)
+    .fetch_all(&state.db.read)
+    .await
+    else {
+        return false;
+    };
+    let mut found = false;
+    let mut looking = futures::stream::iter(ids)
+        .map(|id| {
+            let state = state.clone();
+            async move { find_one(&state, id).await }
+        })
+        .buffer_unordered(FINDING);
+    while let Some(one) = looking.next().await {
+        found |= one;
+    }
+    found
+}
+
+/// Whether a scan finds what `.strm` files' media is: both settings on,
+/// and a transcoder that can read an address.
+fn finding(state: &AppState) -> bool {
+    let settings = state.settings.get();
+    settings.strm_files
+        && settings.strm_probe
+        && state.transcoder.info().is_some_and(|info| info.capabilities.remote_inputs)
+}
+
+/// [`find_unknown`] for file `id`: whether its address was asked for.
+async fn find_one(state: &AppState, id: i64) -> bool {
+    // Turned off meanwhile: the rest is left.
+    if !finding(state) {
+        return false;
+    }
+    let Ok(Some(file)) = crate::catalog::file(&state.db, id).await else { return false };
+    // Known since, by a page opened while the scan ran.
+    if !file.is_strm() || file.media_info.is_some() {
+        return false;
+    }
+    let Ok(link) = state.strm.link(&file.path).await else { return false };
+    if state.strm.failed_lately(file.id, &link, FAILED_TO_OPEN_FOR).is_some() {
+        return false;
+    }
+    if let Err(why) = ready_for(state, file, false).await {
+        tracing::debug!("{}: a scan didn't find what its media is: {}", link.path, why);
+    }
+    true
 }
 
 /// [`ready`]'s look at `file`'s media. A failure of the address or its

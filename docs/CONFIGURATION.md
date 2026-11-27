@@ -241,7 +241,11 @@ Shows/The Expanse/Season 01/The Expanse - S01E01.strm
   of them. What the video is (its tracks, its length, its size, 4K and HDR)
   is found the first time someone opens its page or plays it, and kept
   until the file names another address. Until then it has no badges in
-  listings and reads `STRM` where its format goes.
+  listings and reads `STRM` where its format goes. To have scans find it
+  anyway, turn on *Find what .strm files play* below that switch: once a
+  scan of a movie or TV library is done, Pley asks the address of each of
+  its files whose video isn't known yet, a few at a time, so a hosting
+  service is asked for each of them.
 - **What isn't made for it**: seek previews, chapter pictures, a picture
   grabbed from the video, and intro and credits detection, which all read
   the whole video. Chapters and a subtitle track in the video work as for
