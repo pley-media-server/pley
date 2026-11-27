@@ -4585,6 +4585,7 @@ interface TranscodeInfo {
   pipeline: string | null;      // "gpu" (zero-copy), "hybrid", "cpu" or "copy"
   tonemap: string | null;       // "libplacebo" | "opencl" | "zscale" | "vpp_qsv" (Quick Sync's scaler, VAAPI's
                                 // on Linux) when HDR/DV is tone-mapped to SDR
+  tonemap_quality: string | null; // libplacebo's quality now: "high" | "balanced" | "fast" (it follows the GPU's load)
   dolby_vision: string | null;  // remuxes: "kept" (named in master.m3u8), "converted to 8.1" (profile 7)
   hdr10plus_stripped: boolean;  // the remux leaves out HDR10+ (Dolby Vision + HDR10+ streams)
   subtitle_burn: boolean;

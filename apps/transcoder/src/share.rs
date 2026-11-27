@@ -269,6 +269,32 @@ impl Lessons {
     }
 }
 
+/// Since when the jobs tone mapping on the GPU have needed no less than
+/// they need now. A job's speed is measured over its last seconds: after
+/// others ended, it tells of the load there was, not of the one there is.
+/// Six 4K films where five end leave the sixth with 20 s at 0.6× real time
+/// behind it, which would teach that the GPU falls behind with one. After
+/// another started it tells of less than there is: a job that fell behind
+/// with that falls behind with more, and teaches at once.
+#[derive(Debug, Default)]
+pub struct Settled {
+    load: f64,
+    fell: Option<Instant>,
+}
+
+impl Settled {
+    /// Whether the jobs needed no more than `load` over `window`, the time
+    /// their speeds are measured over: none of what they made, they made
+    /// beside more than there is now.
+    pub fn for_at_least(&mut self, load: f64, window: Duration, now: Instant) -> bool {
+        if self.load - load > 1e-6 * self.load.abs().max(1.0) {
+            self.fell = Some(now);
+        }
+        self.load = load;
+        self.fell.is_none_or(|fell| now.saturating_duration_since(fell) >= window)
+    }
+}
+
 /// The lessons that hold for a decision (see [`Lessons::holding`]).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Held {
@@ -470,6 +496,28 @@ mod tests {
         lessons.learn(Verdict::GpuBound, Share { quality: TonemapQuality::High, ..balanced }, 100.0, now);
         assert_eq!(lessons.holding(100.0, now).cap(TonemapQuality::High), TonemapQuality::Balanced);
         assert_eq!(lessons.holding(100.0, now).cap(TonemapQuality::Fast), TonemapQuality::Fast);
+    }
+
+    #[test]
+    fn nothing_is_learned_for_a_while_after_jobs_end() {
+        let now = Instant::now();
+        let window = Duration::from_secs(20);
+        let after = |secs| now + Duration::from_secs(secs);
+        let mut settled = Settled::default();
+        // Six 4K films starting one after another: one that falls behind
+        // beside fewer falls behind beside more, and teaches at once.
+        assert!(settled.for_at_least(120.0, window, now));
+        assert!(settled.for_at_least(240.0, window, after(10)));
+        assert!(settled.for_at_least(720.0, window, after(50)));
+        assert!(settled.for_at_least(720.0, window, after(90)));
+        // Five end. What the sixth made over its last 20 s, it made beside
+        // them: nothing of the GPU with one film.
+        assert!(!settled.for_at_least(120.0, window, after(95)));
+        assert!(!settled.for_at_least(120.0, window, after(110)));
+        // Nor does another starting meanwhile make that tell of two.
+        assert!(!settled.for_at_least(240.0, window, after(112)));
+        assert!(settled.for_at_least(240.0, window, after(115)));
+        assert!(settled.for_at_least(360.0, window, after(120)));
     }
 
     #[test]

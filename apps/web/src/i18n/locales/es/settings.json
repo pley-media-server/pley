@@ -769,7 +769,12 @@
       "restarts_other": "{{count}} reinicios",
       "burnIn": "subtítulos incrustados",
       "copied": "{{codec}} (copia)",
-      "preset": "preajuste {{preset}}"
+      "preset": "preajuste {{preset}}",
+      "tonemapQuality": {
+        "high": "calidad alta",
+        "balanced": "calidad equilibrada",
+        "fast": "calidad rápida"
+      }
     },
     "live": {
       "runningJobs": "Tareas en curso",

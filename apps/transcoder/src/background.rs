@@ -61,6 +61,8 @@ pub const MAX_SUBTITLES: Duration = Duration::from_secs(90);
 struct State {
     /// Playbacks starting, by id: until when each holds background work at most.
     starts: HashMap<u64, Instant>,
+    /// Those of them a player waits for (see [`Background::start_waited`]).
+    waited: HashMap<u64, Instant>,
     next_id: u64,
     /// Until when the server asked for background work to wait.
     held_until: Option<Instant>,
@@ -109,10 +111,25 @@ impl Background {
     /// A playback starts: background work waits until the guard is dropped,
     /// or [`MAX_START`] at most.
     pub fn start(self: &Arc<Self>) -> Starting {
+        self.begin(false)
+    }
+
+    /// A playback starts and its player waits for it (Play, a seek): as
+    /// [`Background::start`], and transcodes far enough ahead of their own
+    /// players pause meanwhile too (see [`Background::waited`]).
+    pub fn start_waited(self: &Arc<Self>) -> Starting {
+        self.begin(true)
+    }
+
+    fn begin(self: &Arc<Self>, waited: bool) -> Starting {
         let mut state = self.state.lock();
         let id = state.next_id;
         state.next_id += 1;
-        state.starts.insert(id, Instant::now() + MAX_START);
+        let until = Instant::now() + MAX_START;
+        state.starts.insert(id, until);
+        if waited {
+            state.waited.insert(id, until);
+        }
         drop(state);
         self.changed.send_replace(());
         Starting { background: self.clone(), id }
@@ -162,6 +179,21 @@ impl Background {
     /// reads little (probes, reading ahead) waits only for that.
     pub fn starting(&self) -> bool {
         self.state.lock().starting_until(Instant::now()).is_some()
+    }
+
+    /// Whether a player waits for a playback to start now
+    /// ([`Background::start_waited`]), [`MAX_START`] at most from its start.
+    pub fn waited(&self) -> bool {
+        let now = Instant::now();
+        self.state.lock().waited.values().any(|until| *until > now)
+    }
+
+    /// Changes from now on: starts, transcodes, holds and reads of
+    /// subtitles beginning and ending.
+    pub fn changes(&self) -> watch::Receiver<()> {
+        let mut changes = self.changed.subscribe();
+        changes.mark_unchanged();
+        changes
     }
 
     /// Background processes paused now.
@@ -271,7 +303,10 @@ pub struct Starting {
 
 impl Drop for Starting {
     fn drop(&mut self) {
-        self.background.state.lock().starts.remove(&self.id);
+        let mut state = self.background.state.lock();
+        state.starts.remove(&self.id);
+        state.waited.remove(&self.id);
+        drop(state);
         self.background.changed.send_replace(());
     }
 }
@@ -433,6 +468,26 @@ mod tests {
         bg.wait().await;
         assert_eq!(started.elapsed().as_secs(), MAX_START.as_secs());
         assert!(!bg.held());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_player_waits_for_its_start_until_it_is_over_for_a_while_at_most() {
+        let bg = Background::new();
+        let mut changes = bg.changes();
+        let restart = bg.start();
+        assert!(bg.starting());
+        assert!(!bg.waited(), "a restart ahead of the player keeps nobody waiting");
+        changes.borrow_and_update();
+        let play = bg.start_waited();
+        assert!(bg.waited());
+        assert!(changes.has_changed().unwrap(), "told");
+        drop(play);
+        assert!(!bg.waited());
+        assert!(bg.starting(), "the restart goes on");
+        drop(restart);
+        let _forgotten = bg.start_waited();
+        tokio::time::sleep(MAX_START).await;
+        assert!(!bg.waited());
     }
 
     #[tokio::test(start_paused = true)]

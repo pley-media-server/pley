@@ -2781,6 +2781,9 @@ pub struct TranscodeInfo {
     /// `gpu` (decode → filters → encode on one GPU), `hybrid`, `cpu` or `copy`.
     pub pipeline: Option<String>,
     pub tonemap: Option<String>,
+    /// How much of its work libplacebo does now (`high`, `balanced` or
+    /// `fast`): it follows what else the GPU has to do.
+    pub tonemap_quality: Option<&'static str>,
     /// What a remux does with Dolby Vision: `kept` (named in the master
     /// playlist), `converted to 8.1` (profile 7); `None` otherwise.
     pub dolby_vision: Option<&'static str>,
@@ -2909,6 +2912,10 @@ pub fn transcode_info(job: &JobStatus) -> TranscodeInfo {
                 |v| if v.tonemap_quick_sync { Some(pley_transcoder_api::Tonemapper::QuickSync) } else { v.tonemap },
             )
             .map(|t| t.as_str().to_owned()),
+        tonemap_quality: video
+            .filter(|v| !v.dynamic_range_out.is_some_and(|r| r.is_hdr()))
+            .and_then(|v| v.tonemap_quality)
+            .map(|q| q.as_str()),
         dolby_vision: video.and_then(|v| v.dolby_vision).and_then(|m| match m {
             DolbyVisionMode::Copy => None,
             DolbyVisionMode::Signal => Some("kept"),
@@ -4014,7 +4021,11 @@ mod tests {
         let with = |plan: VideoPlan| transcode_info(&JobStatus { video: Some(plan), ..job.clone() });
         let p7 = with(plan.clone());
         assert_eq!(p7.video_in.as_deref(), Some("HEVC 3840×2160 Dolby Vision P7 FEL + HDR10+"));
-        assert_eq!(p7.tonemap.as_deref(), Some("libplacebo"));
+        assert_eq!((p7.tonemap.as_deref(), p7.tonemap_quality), (Some("libplacebo"), None));
+        // With the quality libplacebo is at now, which follows the GPU's load.
+        let balanced =
+            VideoPlan { tonemap_quality: Some(pley_transcoder_api::TonemapQuality::Balanced), ..plan.clone() };
+        assert_eq!(with(balanced).tonemap_quality, Some("balanced"));
         let quick_sync = VideoPlan { tonemap: None, tonemap_quick_sync: true, ..plan.clone() };
         assert_eq!(with(quick_sync).tonemap.as_deref(), Some("vpp_qsv"));
         plan.dynamic_range_out = Some(DynamicRange::Hdr10);

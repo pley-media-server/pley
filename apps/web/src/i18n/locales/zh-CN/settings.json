@@ -749,7 +749,12 @@
       "restarts_other": "{{count}} 次重启",
       "burnIn": "内嵌字幕",
       "copied": "{{codec}}（复制）",
-      "preset": "预设 {{preset}}"
+      "preset": "预设 {{preset}}",
+      "tonemapQuality": {
+        "high": "高质量",
+        "balanced": "均衡质量",
+        "fast": "快速质量"
+      }
     },
     "live": {
       "runningJobs": "运行中的任务",

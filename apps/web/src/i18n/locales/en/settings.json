@@ -759,7 +759,12 @@
       "restarts_other": "{{count}} restarts",
       "burnIn": "burn-in subs",
       "copied": "{{codec}} (copy)",
-      "preset": "preset {{preset}}"
+      "preset": "preset {{preset}}",
+      "tonemapQuality": {
+        "high": "high quality",
+        "balanced": "balanced quality",
+        "fast": "fast quality"
+      }
     },
     "live": {
       "runningJobs": "Running jobs",

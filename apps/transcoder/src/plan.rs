@@ -1441,6 +1441,30 @@ impl Plan {
         Some((v.src_width.max(1) as u64 * v.src_height.max(1) as u64, fps.unwrap_or(24.0).min(120.0)))
     }
 
+    /// What a software encode of this video takes of its computer, besides
+    /// the preset: the codecs, the sizes, the frame rate, and what is done to
+    /// the frames on the way. Jobs alike share what each preset was measured
+    /// to make ([`crate::adaptive::Speeds`]). `None` for a copy.
+    pub fn encode_kind(&self, media: &MediaInfo) -> Option<String> {
+        let v = self.video.as_ref().filter(|v| !v.copy)?;
+        let (_, fps) = self.source_rate(media)?;
+        let codec_in = media.stream(v.stream_index).map_or("", |s| s.codec.as_str());
+        Some(format!(
+            "{codec_in} {}x{} to {:?} {}x{} at {fps:.0}, decoder {:?}, scaler {:?}, tone mapper {:?}, {}{}{}",
+            v.src_width,
+            v.src_height,
+            v.codec,
+            v.width,
+            v.height,
+            v.hw_decode,
+            v.gpu_scale,
+            v.tonemap,
+            if v.hdr.is_some() { "HDR " } else { "" },
+            if v.deinterlace { "deinterlaced " } else { "" },
+            if self.burn.is_some() { "subtitles" } else { "" },
+        ))
+    }
+
     /// This plan for one process with `share` of the GPU: its tone mapping
     /// quality, and its video decoded by the CPU where the share says so.
     pub fn with_share(&self, share: Share) -> Plan {
@@ -2454,7 +2478,18 @@ fn encoder_args(enc: &EncoderInfo, v: &VideoOut, preset: Option<&str>) -> Vec<St
         }
         HwAccel::None | HwAccel::Auto => {
             if h264 {
+                // The automatic preset's quickest rung keeps the B-frames and
+                // 8×8 transforms ultrafast leaves out: the stream stays High
+                // profile with the others' two frames of delay, so a move
+                // between rungs (a start's hand-over above all) changes
+                // neither, where players would see a jump in decoding times.
+                // About a sixth slower than x264's own ultrafast, and better
+                // at the same bitrate.
+                let quick = v.preset == AUTO && preset == "ultrafast";
                 s.extend(["-preset".into(), preset, "-crf".into(), "21".into()]);
+                if quick {
+                    s.extend(["-x264-params", "bframes=3:8x8dct=1"].map(String::from));
+                }
                 s.extend(["-maxrate".into(), format!("{br}k"), "-bufsize".into(), format!("{}k", br * 2)]);
                 s.extend(
                     ["-profile:v", "high", "-sc_threshold", "0", "-forced-idr", "1", "-g", "9999"].map(String::from),
@@ -2937,6 +2972,69 @@ mod tests {
         assert!(line.contains("-metadata:s:a:0 language=eng"), "{line}");
         for absent in ["-segment", "-ss ", "-t ", "-readrate", "-output_ts_offset"] {
             assert!(!line.contains(absent), "{absent} in {line}");
+        }
+    }
+
+    /// The automatic preset's rungs make streams of one shape: High profile,
+    /// with the B-frames' two frames between decoding and showing. A move
+    /// between them (a start's hand-over) is no jump in decoding times.
+    #[test]
+    fn the_automatic_presets_rungs_make_streams_alike() {
+        let ff = ffmpeg_with(vec![x264()], vec![]);
+        let mut req = request();
+        req.options.preset = Some(AUTO.into());
+        let plan = Plan::build(&req, &media(DynamicRange::Sdr, None), &ff, None).unwrap();
+        let auto = plan.video.clone().unwrap();
+        let by_hand = VideoOut { preset: "ultrafast".into(), ..auto.clone() };
+        let args = |v: &VideoOut, preset: &str| encoder_args(&x264(), v, Some(preset));
+        assert!(args(&auto, "ultrafast").join(" ").contains("-x264-params bframes=3:8x8dct=1"));
+        assert!(!args(&auto, "superfast").join(" ").contains("-x264-params"));
+        assert!(!args(&by_hand, "ultrafast").join(" ").contains("-x264-params"), "x264's own when asked for");
+        if !crate::testing::has_encoder("libx264") {
+            return;
+        }
+        let dir = crate::testing::tempdir();
+        // Its profile, B-frame delay, and its first packet's presentation
+        // less decoding time (90 kHz).
+        let shape = |preset: &str| {
+            let out = dir.path().join(format!("{preset}.ts"));
+            let made = std::process::Command::new("ffmpeg")
+                .args([
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "testsrc2=size=640x360:rate=24",
+                ])
+                .args(["-t", "2"])
+                .args(args(&auto, preset))
+                .args(["-f", "mpegts"])
+                .arg(&out)
+                .output()
+                .unwrap();
+            assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
+            let probe = |entries: &str, intervals: &[&str]| {
+                let out = std::process::Command::new("ffprobe")
+                    .args(["-v", "error", "-select_streams", "v", "-show_entries", entries, "-of", "csv=p=0"])
+                    .args(intervals)
+                    .arg(&out)
+                    .output()
+                    .unwrap();
+                String::from_utf8_lossy(&out.stdout).lines().next().unwrap_or_default().to_owned()
+            };
+            let stream = probe("stream=profile,has_b_frames", &[]);
+            let packet = probe("packet=pts,dts", &["-read_intervals", "%+#1"]);
+            let times = packet.split(',').filter(|t| !t.trim().is_empty());
+            let delay = times.map(|t| t.trim().parse::<i64>().unwrap()).reduce(|pts, dts| pts - dts);
+            (stream, delay)
+        };
+        let quick = shape(crate::adaptive::LADDER[0]);
+        assert_eq!(quick, (String::from("High,2"), Some(7_500)));
+        for preset in &crate::adaptive::LADDER[1..] {
+            assert_eq!(shape(preset), quick, "{preset}");
         }
     }
 

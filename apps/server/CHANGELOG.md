@@ -45,11 +45,21 @@ describes how they are made.
 - A player can ask for the next track ahead (`ahead`), to play it
   without a gap: it isn't shown as playing on the dashboard, to remotes
   or in Tautulli until it plays.
+- The dashboard shows the quality a transcode's HDR is tone mapped at
+  (high, balanced or fast).
 
 ### Changed
 
 - Where Dolby Vision needs another FFmpeg, the transcoder settings name
   Pley's own first: the one its Windows installer and Docker image bring.
+- With the software encoder's preset on automatic, a transcode starts and
+  seeks on a quick preset, so the picture comes sooner, then moves to the
+  best-looking one the computer is measured to encode at twice real time,
+  up to `faster`. Several transcodes at once leave room for each other.
+- A playback or a seek starts sooner while other transcodes run: those
+  well ahead of their players pause for that moment.
+- A skip forward to just past what a transcode has made starts at once,
+  rather than waiting for the transcode to get there.
 
 ### Fixed
 
@@ -66,6 +76,16 @@ describes how they are made.
   credits do is kept, rather than thrown away as cut short.
 - Apps and tools that edit through the Plex- or Jellyfin-compatible API, such
   as Kometa, can no longer change audiobooks, which those APIs don't show.
+- A software transcode at 50 or 60 frames a second starts quickly on a
+  small computer.
+- A transcode tone mapping HDR on the GPU goes back to its best quality
+  once the others beside it end.
+- The dashboard shows no speed for a transcode paused ahead of its player,
+  and the frames a second it makes now.
+- A transcode whose bitrate changes as it plays (Samsung, LG, Kodi and Roku
+  on Automatic) shows the bitrate it is made at.
+- A transcode moving to another preset or tone mapping as it plays no
+  longer, now and then, writes again a segment a player is fetching.
 
 ## [0.1.16] - 2026-11-24
 

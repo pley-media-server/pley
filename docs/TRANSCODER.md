@@ -19,7 +19,7 @@ it, or work on it.
 - [Running](#running): flags, [managed and external mode](#managed-and-external-mode), [work folder](#work-folder), [authentication](#authentication), [errors](#errors)
 - [Endpoints](#endpoints): [info](#info-and-capabilities), [media](#media), [subtitles](#subtitles), [background work](#background-work), [jobs](#jobs)
 - [Conversions](#conversions) · [Live channels](#live-channels)
-- [How HLS jobs work](#how-hls-jobs-work): segments, throttling, housekeeping, renditions, bitrates, [segments in memory](#segments-in-memory)
+- [How HLS jobs work](#how-hls-jobs-work): segments, throttling, [the automatic preset](#the-automatic-preset), housekeeping, renditions, bitrates, [segments in memory](#segments-in-memory)
 - [Transcoding features](#transcoding-features): encoders, hardware decoding, tone mapping, HDR, subtitles, audio, remux, Dolby Vision
 - [Audio fingerprints](#audio-fingerprints) · [Reading ahead](#reading-ahead) · [Background work and playback](#background-work-and-playback)
 - [Metrics](#metrics) · [Benchmark](#benchmark) · [License](#license)
@@ -468,7 +468,7 @@ variants, segment_format}`. See [How HLS jobs work](#how-hls-jobs-work).
 | `hwaccel` | `auto` | `auto`, `none`, `nvenc`, `qsv`, `amf`, `vaapi`, `videotoolbox`, `rkmpp` or `vulkan` |
 | `hardware_decoding` | on | decode on the GPU paired with the encoder |
 | `tonemap` | `auto` | `auto`, `libplacebo`, `opencl`, `zscale` or `none` |
-| `preset` | `veryfast` | x264 preset for software encodes, or `auto`: chosen and changed by the transcoder from its load and its lead on the player |
+| `preset` | `veryfast` | x264 preset for software encodes, or `auto`: picked and changed by the transcoder from the speed it measures and how far ahead of the player the job is ([The automatic preset](#the-automatic-preset)) |
 | `throttle` | on | hold FFmpeg to real time after a burst ([Throttling](#throttling)) |
 | `in_memory` | on | keep segments in memory when possible ([Segments in memory](#segments-in-memory)) |
 
@@ -636,11 +636,14 @@ A segment that exists is served from disk or memory. Otherwise:
 - **Wait** when a running FFmpeg process is about to make it: at most 12 s
   of segments ahead of the process, never behind it. A segment not ready in
   45 s is `504 timeout`.
-- **Restart instead** when the process is held to the read rate
-  ([Throttling](#throttling)) and the wait (counted from halfway through the
-  segment being made) is longer than this job's last start-to-first-segment
-  time plus stopping the old process. Not while another request waits for a
-  segment the old process is about to make.
+- **Restart instead** when the wait (counted from halfway through the
+  segment being made, at the process's speed over its last seconds) is
+  longer than this job's last start-to-first-segment time for a waiting
+  request plus stopping the old process. A restart skips the segments
+  before the one asked for (a skip forward), and starts at a quick preset
+  on the automatic one; for the segment being made, only a process held to
+  the read rate ([Throttling](#throttling)) is restarted. Not while another
+  request waits for a segment the old process is about to make.
 - **Else start a new process** at that segment, with `-ss`,
   `-output_ts_offset`, `-segment_times` and `-segment_start_number`, so
   timestamps stay on the absolute timeline (`avoid_negative_ts` disabled).
@@ -729,17 +732,134 @@ Apple's players take HEVC, HDR and Dolby Vision this way, and not in MPEG-TS.
 Applies when the request's `throttle` is on (`throttle_transcodes` in the
 server, on by default), and FFmpeg supports `readrate`.
 
-- **Burst, then real time**: a process makes its first 120 s as fast as it
-  can, then reads at real time (`-readrate 1`).
-- **Catch-up**: a read that falls behind (a slow disk or share) catches up at
-  2× where FFmpeg can (`-readrate_catchup`, FFmpeg 8).
+- **Burst, then real time**: FFmpeg reads the first 120 s of video as fast as
+  it can (`-readrate_initial_burst`). Past them, it may have read as much
+  video as time has gone by since it started, plus those 120 s: at that limit
+  it reads at real time (`-readrate 1`).
+- **Catch-up**: behind that limit (a computer that makes less, a slow disk or
+  share, or a process that was paused), it reads at up to 2× until it is back
+  at it, where FFmpeg can (`-readrate_catchup`, FFmpeg 8). FFmpeg counts the
+  2× from when it last fell further behind than it had been, so a process
+  paused again before it caught up can read faster for a while. An older
+  FFmpeg reads as fast as it can there.
 - **Pause far ahead**: a process 90 s ahead of the last segment the player
   asked for is suspended (`NtSuspendProcess` on Windows, `SIGSTOP` on Linux)
   until it is less than 60 s ahead, or a request waits for a segment it is to
   make.
+- **Making way for a start**: while a player waits for a job to be created,
+  or for a process's first 3 segments at Play or a seek (20 s at most), the
+  processes of other jobs 20 s or more ahead of the last segment their
+  players asked for are suspended too, so the start has the processor.
 - **Speed** is measured over the process's last 4 s of progress since it last
-  resumed. A job's status reports it, and 1× for a process held to the read
-  rate.
+  resumed. A job's status reports it, with the frames a second that speed
+  makes, and 1× for a process held to the read rate. A paused process
+  reports neither, nor does one that just resumed until 2 s are measured.
+
+### The automatic preset
+
+With `preset: auto` (what the Pley server asks for by default), the
+transcoder picks the software encoder's preset, from `ultrafast` to
+`faster`, and changes it while the job plays (`src/adaptive.rs`). A job's
+status names the preset its process runs at (`process.preset`).
+
+It stops at `faster` because that is where the picture stops getting
+better for the time it takes. Encoded as the transcoder does at 2 to 8 Mbps,
+a 1080p film, the same film with grain added and a 1080p60 clip each gained
+0.5 to 2 dB (PSNR) a step up to `faster`. `fast` and `medium` gained
+between nothing and 0.6 dB over `faster`, the most on the 1080p60 clip, for
+1.3 to 1.6 times the processor's time. x265 on the film gained 0.1 dB.
+Both presets can still be set by hand.
+
+Its `ultrafast` (H.264) keeps the B-frames and 8×8 transforms x264's own
+leaves out (`-x264-params bframes=3:8x8dct=1`), so every rung makes a High
+profile stream with two frames between decoding and showing. A move between
+rungs, such as a start's hand-over, is then no change of profile and no jump
+back in decoding times, which players such as hls.js take for overlapping
+segments. On a 1080p film it took a sixth more time than x264's own and was
+0.1 to 1.5 dB better at 8 and 4 Mbps. `ultrafast` set by hand is x264's own.
+
+The rule: the software encodes together take at most half the computer's
+time. One encode alone uses the slowest preset that makes twice real time;
+N of them use the slowest that makes 2 N times real time alone.
+
+- **Measuring.** A process's speed is its preset's when nothing else holds
+  it back: the read rate doesn't ([Throttling](#throttling)), and no other
+  software encode ran in the 21 s before (one paused far ahead doesn't
+  count). It is measured over up to 20 s.
+  - A lower measurement replaces what was known at once. A higher one
+    counts in as long as it holds, and in full after a minute: one easy
+    stretch of film isn't a faster computer.
+  - A process the read rate holds shows that its preset still makes that
+    much, which keeps what is known from expiring.
+  - Speeds are kept for each kind of job (the same codecs, sizes, frame
+    rate, decoder, tone mapper and burned-in subtitles), for 10 minutes
+    after a process last measured or showed them.
+  - A preset measured under twice real time is forgotten 2 minutes after a
+    process last went as fast as it could at it, and a process the read
+    rate holds neither keeps nor raises it. That is most often another
+    program taking the processor, which a held process can't show has
+    ended: the next start or seek measures anew rather than leave the job
+    on a faster preset than it needs. A job no preset makes twice real time
+    for (4K HDR tone mapped on the CPU) measures its own again each time it
+    catches up after a pause; held at real time all along, it forgets it
+    too, and its next seek starts as before anything was measured.
+  - A speed under 0.1 × tells nothing: the input stopped coming.
+- **Estimating.** The other presets are estimated from the nearest one
+  measured: `superfast` makes 0.65 of what `ultrafast` does, `veryfast`
+  and `faster` 0.7 of the preset before, however many steps away.
+  Estimated from `ultrafast`, `faster` made as little as 0.6 of that on the
+  computers measured: one expected at twice real time still keeps ahead,
+  and is measured as soon as a job is on it.
+- **Starting.** At a start or a seek the player waits, so the process
+  starts at the slowest preset expected to encode its first segment within
+  0.4 s, about as long as FFmpeg takes to start: with 2 s segments at 24
+  frames a second, 6.3 × real time at `ultrafast` and 8.3 × at `faster`,
+  which reads 20 frames ahead. Where none is that fast, `ultrafast`.
+  - It hands over to the steady preset (below) as soon as the process's
+    speed is known, about 2 s in, once 10 s are ready past where the player
+    can be: from where the process started, playing at up to twice real
+    time. Before anything is measured, it hands over to the processors'
+    preset.
+  - In the process's first minute, the hand-over doesn't wait for the
+    number of encodes to settle: it moves this job alone.
+- **Before anything is measured**, a job starts by the processors each
+  software encode has: 5 for each 1080p x264 encode give `faster`, 3
+  `veryfast`, 1.5 `superfast`, fewer `ultrafast`. A start or a seek takes
+  `veryfast` with 12 or more, `superfast` with 8, `ultrafast` with fewer.
+  4K counts as four 1080p encodes, 720p as 0.44, x265 as three, and 60
+  frames a second as two at 30 or fewer.
+- **Moves**, looked at every second. Each restarts FFmpeg at the next
+  segment once its process's speed is measured: the hand-over after a start
+  or a seek as soon as it is, the others 4 s after the job's last start or
+  move at the earliest.
+  - *Slower*: a job 10 s ahead of its player goes to the slowest preset
+    expected to make twice real time for each encode, as many steps at once
+    as that takes. A process paused far ahead moves too.
+  - *Faster, about to stall*: a process going as fast as it can under
+    1.15 × real time, with less than 8 s ready ahead of its player, goes to
+    the slowest preset expected to make 1.5 ×, a step faster at least.
+  - *Faster, a wrong estimate*: so does one that makes under 1.15 × over
+    its last 20 s in its first minute at a preset, whatever is ready ahead.
+  - *For the number of encodes*: when software encodes start or end, each
+    job 10 s ahead moves to the preset for the new number, once that number
+    has stayed the same for a minute. A job leaves its preset for a faster
+    one when it leaves each encode under 1.6 × real time.
+- A job alone that keeps ahead otherwise stays where it is: it isn't
+  restarted because another program takes the processor for a while, nor
+  because no preset makes twice real time (4K HDR tone mapped on the CPU,
+  where the tone mapping takes more than the encoder).
+- Where no preset makes twice real time, what was measured picks none: a
+  job keeps the preset it had across a seek, and a new job starts by its
+  processors as above. Unless that preset is known not to keep ahead
+  (under 1.15 ×): then the job takes the slowest expected to make 1.5 ×,
+  or `ultrafast`.
+- A process the player went past (a seek into segments made before) is left
+  alone until it ends where they begin. Nor does a job move while a request
+  waits for a segment its process won't make soon (a seek): the request
+  restarts it there, at once.
+- An fMP4 job keeps the preset of its first process
+  ([fMP4 segments](#fmp4-segments)), which starts at the steady one rather
+  than one quick for a start.
 
 ### Housekeeping
 
@@ -1174,7 +1294,12 @@ Several jobs tone mapping with libplacebo share the GPU (`src/share.rs`):
   stays at least 0.9 of what it was; then the start-up measurement is tried
   again. Each is logged once, at `info`. The load is what libplacebo has to
   do: a job moved to OpenCL or Quick Sync tone mapping counts only when it
-  is the one asking to go back, or the one that fell behind.
+  is the one asking to go back, or the one that fell behind. Nothing is
+  learned in the 20 s after a job tone mapping there ends: a speed over the
+  last 20 s tells of the load there was, and a job left alone by five
+  others would teach that the GPU falls behind with one. A job starting
+  holds nothing back: what fell behind beside fewer falls behind beside
+  more.
 - **Tone mapping on Quick Sync.** Where the GPU falls behind (as for decoding
   on the CPU), HDR10 made SDR that Quick Sync decodes and scales is tone
   mapped by its scaler instead (status `tonemap_quick_sync: true`), where
