@@ -1,7 +1,6 @@
 {
   "controls": {
     "chapters": "章节",
-    "sleep": "睡眠定时",
     "speed": "倍速",
     "previous": "上一个",
     "play": "播放",
@@ -37,20 +36,6 @@
     "qualityLowered": "画质已降为 {{quality}}",
     "lastEpisode": "这是最后一集",
     "lastInQueue": "这是最后一个"
-  },
-  "sleep": {
-    "title": "睡眠定时",
-    "off": "关闭",
-    "minutes": "{{minutes}} 分钟",
-    "minutesLeft_other": "剩余 {{count}} 分钟",
-    "end": {
-      "episode": "本集结束时",
-      "movie": "本片结束时",
-      "track": "本曲目结束时",
-      "video": "本视频结束时"
-    },
-    "pausingIn": "{{seconds}} 秒后暂停",
-    "keepWatching": "继续观看"
   },
   "upNext": {
     "title": "接下来播放",

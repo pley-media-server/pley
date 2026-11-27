@@ -1,7 +1,6 @@
 {
   "controls": {
     "chapters": "Chapters",
-    "sleep": "Sleep timer",
     "speed": "Speed",
     "previous": "Previous",
     "play": "Play",
@@ -37,21 +36,6 @@
     "qualityLowered": "Quality lowered to {{quality}}",
     "lastEpisode": "This is the last episode",
     "lastInQueue": "This is the last one"
-  },
-  "sleep": {
-    "title": "Sleep timer",
-    "off": "Off",
-    "minutes": "{{minutes}} min",
-    "minutesLeft_one": "{{count}} min left",
-    "minutesLeft_other": "{{count}} min left",
-    "end": {
-      "episode": "End of this episode",
-      "movie": "End of this movie",
-      "track": "End of this track",
-      "video": "End of this video"
-    },
-    "pausingIn": "Pausing in {{seconds}} s",
-    "keepWatching": "Keep watching"
   },
   "upNext": {
     "title": "Up next",

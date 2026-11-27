@@ -1,8 +1,7 @@
 //! The player's side panels (`TvPlayerPanels.kt`, `TvPlayerExtras.kt`; the TV app's
 //! `ui/player/panels.tsx`): Subtitles (with Sync, Find subtitles… and the style choices), Find
-//! subtitles, Audio, Quality, Sleep timer, Speed, and Info (Playback details). Each is
-//! a list of rows built from the player's state, drawn in a kit `SidePanel` and scrolled by a kit
-//! `List`.
+//! subtitles, Audio, Quality, Speed, and Info (Playback details). Each is a list of rows built
+//! from the player's state, drawn in a kit `SidePanel` and scrolled by a kit `List`.
 
 use pley_base::{Icon, Key, Point, Rect, TextOpts};
 use pley_core::Settings;
@@ -17,7 +16,6 @@ use pley_player::PlayerState;
 use pley_player::controller::SubtitleSearch;
 use pley_player::details::{SubtitleDelivery, burned_in};
 use pley_player::live::LiveDetails;
-use pley_player::sleep::{SLEEP_CHOICES, SleepChoice, sleep_label};
 use pley_subs::{SYNC_MAX_MS, format_offset};
 use pley_ui::theme;
 use pley_ui::{Dirs, FocusOpts, Id, Response, Ui};
@@ -32,7 +30,6 @@ pub enum Panel {
     Find,
     Audio,
     Quality,
-    Sleep,
     Speed,
     Info,
 }
@@ -44,7 +41,6 @@ impl Panel {
             Panel::Subtitles | Panel::Find => Btn::Subtitles,
             Panel::Audio => Btn::Audio,
             Panel::Quality => Btn::Quality,
-            Panel::Sleep => Btn::Sleep,
             Panel::Speed => Btn::Speed,
             Panel::Info => Btn::Info,
         }
@@ -56,7 +52,6 @@ impl Panel {
             Btn::Subtitles => Panel::Subtitles,
             Btn::Audio => Panel::Audio,
             Btn::Quality => Panel::Quality,
-            Btn::Sleep => Panel::Sleep,
             Btn::Speed => Panel::Speed,
             Btn::Info => Panel::Info,
             _ => return None,
@@ -77,7 +72,6 @@ pub enum Pick {
     Audio(i64),
     PlayOriginal,
     Quality(&'static str),
-    Sleep(SleepChoice),
     Speed(f32),
 }
 
@@ -257,17 +251,6 @@ pub fn rows(panel: Panel, i: &PanelInput) -> Vec<Row> {
                 out.push(
                     Row::choice(Pick::Quality(q.id), &q.label, q.selected).hint(q.hint.clone().unwrap_or_default()),
                 );
-            }
-        }
-        Panel::Sleep => {
-            out.push(Row::Title(t!("player.sleep.title").into()));
-            for c in SLEEP_CHOICES {
-                let on = c == s.sleep.choice;
-                let mut r = Row::choice(Pick::Sleep(c), sleep_label(c, s.kind), on);
-                if let (true, SleepChoice::Minutes(_), Some(m)) = (on, c, s.sleep.minutes_left) {
-                    r = r.hint(t!("player.sleep.minutesLeft", count = m));
-                }
-                out.push(r);
             }
         }
         Panel::Speed => {
@@ -714,34 +697,14 @@ mod tests {
     }
 
     #[test]
-    fn sleep_and_speed_rows() {
-        let mut s = PlayerState { kind: Some(pley_core::model::ItemKind::Episode), ..PlayerState::default() };
-        s.sleep.choice = SleepChoice::Minutes(45);
-        s.sleep.minutes_left = Some(42);
-        s.speeds = vec![0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+    fn speed_rows() {
+        let s = PlayerState { speeds: vec![0.5, 0.75, 1.0, 1.25, 1.5, 2.0], ..PlayerState::default() };
         let settings = Settings::default();
-        let r = rows(Panel::Sleep, &input(&s, &settings, &[]));
-        let names: Vec<String> = r
-            .iter()
-            .filter_map(|r| match r {
-                Row::Choice { label, .. } => Some(label.clone()),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(names, ["Off", "15 min", "30 min", "45 min", "60 min", "90 min", "End of this episode"]);
-        assert!(matches!(&r[4], Row::Choice { hint, checked: true, .. } if hint == "42 min left"));
         let r = rows(Panel::Speed, &input(&s, &settings, &[]));
         assert!(matches!(&r[3], Row::Choice { label, checked: true, .. } if label == "1×"));
 
-        // In Spanish: the minutes left counted, the end named for an episode, speeds with a comma.
+        // In Spanish: speeds with a comma.
         pley_i18n::with_language(pley_i18n::Language::Es, || {
-            let r = rows(Panel::Sleep, &input(&s, &settings, &[]));
-            assert_eq!(r[0], Row::Title("Temporizador de suspensión".into()));
-            assert!(matches!(&r[4], Row::Choice { hint, checked: true, .. } if hint == "Quedan 42 min"));
-            assert!(matches!(&r[7], Row::Choice { label, .. } if label == "Final de este episodio"));
-            s.sleep.minutes_left = Some(1);
-            let r = rows(Panel::Sleep, &input(&s, &settings, &[]));
-            assert!(matches!(&r[4], Row::Choice { hint, .. } if hint == "Queda 1 min"));
             let r = rows(Panel::Speed, &input(&s, &settings, &[]));
             assert!(matches!(&r[5], Row::Choice { label, .. } if label == "1,5×"));
         });

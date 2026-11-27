@@ -588,8 +588,8 @@ in the rail. A link on the drive is followed only while it leads somewhere
 on the drive; one leading off it isn't listed, played or read.
 
 A video plays in Pley's player as it is, with no server
-(`crates/local`), so seeking, the panels, the sleep timer and the
-subtitles' look are the same; what only a server does isn't there:
+(`crates/local`), so seeking, the panels and the subtitles' look are
+the same; what only a server does isn't there:
 converting, Quality and Automatic, seek previews (the TV can't make
 them), the next episode, and Find subtitles.
 

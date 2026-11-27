@@ -1,6 +1,6 @@
 //! The player's states drawn by the app's renderer over a stand-in playback, to look at the ones a
 //! real video passes through too quickly for the simulator's screenshots (a seek on its way, Skip,
-//! Up Next, the sleep notice, buffering, an error, subtitles):
+//! Up Next, buffering, an error, subtitles):
 //!
 //! `cargo run -p pley-player-ui --example player_states -- [--locale fr-FR] <folder> [state …]`
 //!
@@ -56,8 +56,8 @@ fn states() -> Vec<State> {
             |p, _| p.state.method = Some(t!("player.method.transcode").into()),
             "down right wait:400",
         ),
-        // Sleep timer first in the row, its label nearest the edge.
-        state("controls-left", |p, _| p.state.chapters.clear(), "down left left left wait:400"),
+        // Speed first in the row, its label nearest the edge.
+        state("controls-left", |p, _| p.state.chapters.clear(), "down left left wait:400"),
         state("seek-preview", preview, "up wait:300 hold:right:1500"),
         state("seek-chapter", |_, _| {}, "up wait:300 hold:left:700"),
         state("seek-badge", |_, _| {}, "right right right"),
@@ -69,7 +69,6 @@ fn states() -> Vec<State> {
         state("up-next", up_next, "wait:400"),
         State { reduced_motion: true, ..state("up-next-reduced", up_next, "wait:400") },
         state("up-next-counting", |p, _| p.state.up_next = Some(card(7)), "wait:400"),
-        state("sleep-notice", |p, _| p.state.sleep.seconds_left = Some(28), "wait:400"),
         state("buffering", |p, _| p.state.phase = Phase::Buffering, "wait:900"),
         state(
             "reconnecting",
@@ -97,14 +96,6 @@ fn states() -> Vec<State> {
         state("audio-panel", |_, _| {}, "audio wait:400"),
         state("quality", quality, "down right right right right ok wait:400"),
         state("chapters", |_, _| {}, "down left left left left left left left left ok wait:400"),
-        state(
-            "sleep",
-            |p, _| {
-                p.state.sleep.choice = pley_player::sleep::SleepChoice::Minutes(45);
-                p.state.sleep.minutes_left = Some(42);
-            },
-            "down left left left ok wait:400",
-        ),
         state("speed", |p, _| p.state.speeds = vec![0.5, 0.75, 1.0, 1.25, 1.5, 2.0], "down left left ok wait:400"),
         state("info", details, "down right right right right ok wait:400"),
         state("info-end", details, "down right right right right ok wait:300 down down down wait:600"),

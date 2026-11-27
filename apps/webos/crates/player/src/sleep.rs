@@ -1,15 +1,12 @@
 //! The sleep timer (packages/tv/src/player/sleep.ts, the Android app's
 //! `SleepTimer`): after the minutes chosen, or at the end of what plays, it
 //! pauses. 30 s before, its state says so once a second for a notice;
-//! [`SleepTimer::extend`] ("Keep watching") adds the same time again.
+//! [`SleepTimer::extend`] ("Keep listening") adds the same time again.
 //! Minutes keep running while paused. Not remembered between playbacks.
 //!
 //! Time comes in (`now`, ms of the app's clock) with what plays
 //! ([`SleepItem`]); the owner calls [`SleepTimer::tick`] at
 //! [`SleepTimer::next_due`].
-
-use pley_core::model::ItemKind;
-use pley_i18n::t;
 
 /// What the sleep timer is set to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,7 +16,7 @@ pub enum SleepChoice {
     EndOfItem,
 }
 
-/// The menu's choices, in order.
+/// The choices, in order.
 pub const SLEEP_CHOICES: [SleepChoice; 7] = [
     SleepChoice::Off,
     SleepChoice::Minutes(15),
@@ -29,21 +26,6 @@ pub const SLEEP_CHOICES: [SleepChoice; 7] = [
     SleepChoice::Minutes(90),
     SleepChoice::EndOfItem,
 ];
-
-/// "Off", "30 min", "End of this episode" (of this movie, track or video, by what plays).
-pub fn sleep_label(c: SleepChoice, playing: Option<ItemKind>) -> String {
-    match c {
-        SleepChoice::Off => t!("player.sleep.off").into(),
-        SleepChoice::Minutes(m) => t!("player.sleep.minutes", minutes = m),
-        SleepChoice::EndOfItem => match playing {
-            Some(ItemKind::Episode) => t!("player.sleep.end.episode"),
-            Some(ItemKind::Movie) => t!("player.sleep.end.movie"),
-            Some(ItemKind::Track) => t!("player.sleep.end.track"),
-            _ => t!("player.sleep.end.video"),
-        }
-        .into(),
-    }
-}
 
 /// What the timer shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,8 +51,6 @@ pub const SLEEP_OFF: SleepState =
 
 /// The notice shows this long before the timer pauses.
 pub const NOTICE_MS: i64 = 30_000;
-/// Paused by the timer this long, the player leaves.
-pub const LEAVE_AFTER_MS: i64 = 10 * 60_000;
 const SECOND_MS: i64 = 1_000;
 const MINUTE_MS: i64 = 60_000;
 
@@ -87,7 +67,7 @@ pub struct SleepTimer {
     pub state: SleepState,
     due: Option<i64>,
     deadline: i64,
-    /// "Keep watching" at the end of this item: the timer waits for the next one's end.
+    /// "Keep listening" at the end of this item: the timer waits for the next one's end.
     spared: Option<i64>,
 }
 
@@ -244,7 +224,7 @@ mod tests {
     }
 
     #[test]
-    fn keep_watching_adds_the_same_time() {
+    fn keep_listening_adds_the_same_time() {
         let (mut t, mut now) = (SleepTimer::default(), 0);
         t.set(now, SleepChoice::Minutes(30), ITEM);
         run(&mut t, &mut now, 30 * MINUTE_MS - 20_000, ITEM);
@@ -268,15 +248,5 @@ mod tests {
         assert!(t.ends_with(8));
         assert!(t.item_ended(8));
         assert!(t.state.fired);
-    }
-
-    #[test]
-    fn labels() {
-        assert_eq!(sleep_label(SleepChoice::Off, None), "Off");
-        assert_eq!(sleep_label(SleepChoice::Minutes(45), None), "45 min");
-        assert_eq!(sleep_label(SleepChoice::EndOfItem, Some(ItemKind::Episode)), "End of this episode");
-        assert_eq!(sleep_label(SleepChoice::EndOfItem, Some(ItemKind::Movie)), "End of this movie");
-        assert_eq!(sleep_label(SleepChoice::EndOfItem, Some(ItemKind::Track)), "End of this track");
-        assert_eq!(sleep_label(SleepChoice::EndOfItem, Some(ItemKind::Extra)), "End of this video");
     }
 }

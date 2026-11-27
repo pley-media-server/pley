@@ -1,7 +1,6 @@
 //! What shows over the picture besides the controls (`TvPlayerOverlays.kt`,
-//! `TvPlayerExtras.kt`): Skip Intro and Skip Credits, the sleep timer's notice, the Up Next card
-//! and its countdown, the seek badge, "Reconnecting…", the compact Playback details and the
-//! player's toasts.
+//! `TvPlayerExtras.kt`): Skip Intro and Skip Credits, the Up Next card and its countdown, the
+//! seek badge, "Reconnecting…", the compact Playback details and the player's toasts.
 
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -10,26 +9,26 @@ use pley_base::{Color, Icon, Point, Rect, RgbaImage, Size, TextOpts};
 use pley_i18n::t;
 use pley_kit::Button;
 use pley_kit::look::shade;
-use pley_ui::theme::{self, focus::ControlLook, radius};
+use pley_ui::theme::{self, radius};
 use pley_ui::{Dir, Dirs, Easing, Edge, FocusOpts, Group, Id, Motion, Response, Ui};
 
 use crate::controls::register;
 
-/// Skip and the sleep notice's bottom edge with the controls hidden and shown
-/// (`SKIP_BOTTOM_HIDDEN/SHOWN`: 51 and 185 dp up).
+/// Skip's bottom edge with the controls hidden and shown (`SKIP_BOTTOM_HIDDEN/SHOWN`: 51 and
+/// 185 dp up).
 pub const BOTTOM_HIDDEN: f32 = theme::CANVAS_H - 51.0;
 /// See [`BOTTOM_HIDDEN`].
 pub const BOTTOM_SHOWN: f32 = theme::CANVAS_H - 185.0;
 /// The right edge of Skip and Up Next.
 const RIGHT: f32 = theme::CANVAS_W - theme::SAFE_X;
 
-/// Where Skip and the notice sit as the controls come (`lift` 0 hidden, 1 shown).
+/// Where Skip sits as the controls come (`lift` 0 hidden, 1 shown).
 pub fn bottom(lift: f32) -> f32 {
     BOTTOM_HIDDEN + (BOTTOM_SHOWN - BOTTOM_HIDDEN) * lift.clamp(0.0, 1.0)
 }
 
-/// What a move from Skip or the notice does: nothing, but Down to the scrubber while the controls
-/// show; with them hidden every direction belongs to the player (it seeks or shows them).
+/// What a move from Skip does: nothing, but Down to the scrubber while the controls show; with
+/// them hidden every direction belongs to the player (it seeks or shows them).
 fn corner_group(controls: bool, scrubber: Id) -> Group {
     let down = if controls { Edge::To(scrubber) } else { Edge::Stop };
     let g = Group::row().edge(Dir::Up, Edge::Stop).edge(Dir::Left, Edge::Stop).edge(Dir::Right, Edge::Stop);
@@ -58,44 +57,6 @@ pub fn skip(ui: &mut Ui, group: Id, id: Id, label: &str, bottom: f32, controls: 
     let lh = l.size.h;
     ui.draw_text(Point::new(rect.x + 18.0, rect.y + (40.0 - lh) / 2.0), l, content);
     ui.icon(Rect::new(rect.right() - 18.0 - 18.0, rect.y + 11.0, 18.0, 18.0), Icon::ChevronsRight, content);
-    r
-}
-
-/// The sleep timer's notice: bottom left at the safe area, a Surface3 row (radius 6, padded
-/// 20 · 8 · 8, items 16 apart) of the moon, "Pausing in 28 s" and "Keep watching".
-pub fn sleep_notice(
-    ui: &mut Ui,
-    group: Id,
-    id: Id,
-    seconds: i64,
-    bottom: f32,
-    controls: bool,
-    scrubber: Id,
-) -> Response {
-    let said = t!("player.sleep.pausingIn", seconds = seconds);
-    let l = ui.layout(&said, &theme::LABEL, &TextOpts::default());
-    let keep = ui.layout(t!("player.sleep.keepWatching"), &theme::LABEL, &TextOpts::default());
-    let button = Size::new(keep.size.w + 40.0, keep.size.h + 8.0);
-    let h = button.h + 16.0;
-    let w = 20.0 + theme::ICON_SIZE + 16.0 + l.size.w + 16.0 + button.w + 8.0;
-    let rect = Rect::new(theme::SAFE_X, bottom - h, w, h);
-    ui.fill(rect, theme::SURFACE3, radius::CONTROL);
-    let mut x = rect.x + 20.0;
-    ui.icon(Rect::new(x, rect.y + (h - 20.0) / 2.0, 20.0, 20.0), Icon::Moon, theme::MUTED);
-    x += 20.0 + 16.0;
-    let lw = l.size.w;
-    let lh = l.size.h;
-    ui.draw_text(Point::new(x, rect.y + (h - lh) / 2.0), l, theme::FG);
-    x += lw + 16.0;
-    let b = Rect::new(x, rect.y + 8.0, button.w, button.h);
-    let r = ui.group(group, corner_group(controls, scrubber), |ui| register(ui, id, b, corner_opts(controls)));
-    let look = ControlLook { fill: theme::ON_ART, edge: None, focus_scale: 1.05, ..theme::focus::PILL };
-    let s = shade(ui, &look, &r);
-    let kh = keep.size.h;
-    ui.transform(Point::ZERO, s.scale, b.center(), |ui| {
-        ui.fill(b, s.fill, radius::CONTROL);
-        ui.draw_text(Point::new(b.x + 20.0, b.y + (b.h - kh) / 2.0), keep, s.content);
-    });
     r
 }
 

@@ -4,7 +4,6 @@
 use pley_core::media::EngineStats;
 use pley_core::model::{ServerEvent, SubtitleResult};
 use pley_player::controller::SeekPreview;
-use pley_player::sleep::SleepChoice;
 use pley_player::{PlaybackController, PlayerClock, PlayerState, SavedPlayback};
 use pley_subs::Shown as Subtitles;
 
@@ -48,10 +47,6 @@ pub trait Playback {
     fn set_subtitle_offset(&mut self, ms: i64);
     /// Plays at `rate` (1: normal).
     fn set_speed(&mut self, rate: f32);
-    /// Sets the sleep timer.
-    fn set_sleep(&mut self, choice: SleepChoice);
-    /// The sleep notice's Keep watching: the timer runs again.
-    fn keep_watching(&mut self);
     /// Plays at the quality of the Quality menu's `id`.
     fn select_quality(&mut self, id: &str);
     /// Skips the intro or the credits playing.
@@ -149,14 +144,6 @@ impl Playback for PlaybackController {
 
     fn set_speed(&mut self, rate: f32) {
         PlaybackController::set_speed(self, rate)
-    }
-
-    fn set_sleep(&mut self, choice: SleepChoice) {
-        PlaybackController::set_sleep(self, choice)
-    }
-
-    fn keep_watching(&mut self) {
-        PlaybackController::keep_watching(self)
     }
 
     fn select_quality(&mut self, id: &str) {

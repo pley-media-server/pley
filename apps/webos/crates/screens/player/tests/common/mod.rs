@@ -6,7 +6,6 @@
 use pley_core::media::EngineStats;
 use pley_core::model::{ServerEvent, SubtitleResult};
 use pley_player::controller::{ChapterMark, SeekPreview, TrackChoice, UpNextCard};
-use pley_player::sleep::SleepChoice;
 use pley_player::{Phase, PlayRequest, PlayerClock, PlayerState, SavedPlayback};
 use pley_player_ui::Playback;
 use pley_subs::Shown;
@@ -23,8 +22,6 @@ pub enum Call {
     Add(String),
     Offset(i64),
     Speed(f32),
-    Sleep(SleepChoice),
-    KeepWatching,
     Quality(String),
     Skip,
     PlayNext,
@@ -229,16 +226,6 @@ impl Playback for Fake {
     fn set_speed(&mut self, rate: f32) {
         self.state.speed = rate;
         self.record(Call::Speed(rate));
-    }
-
-    fn set_sleep(&mut self, choice: SleepChoice) {
-        self.state.sleep.choice = choice;
-        self.record(Call::Sleep(choice));
-    }
-
-    fn keep_watching(&mut self) {
-        self.state.sleep.seconds_left = None;
-        self.record(Call::KeepWatching);
     }
 
     fn select_quality(&mut self, id: &str) {
