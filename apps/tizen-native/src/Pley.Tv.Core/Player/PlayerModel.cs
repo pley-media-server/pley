@@ -1659,7 +1659,10 @@ public sealed class PlayerModel : IDisposable
                 if (choices == choicesSaved) nextDetail = d;
             }, _ => { });
         }
-        var card = new UpNextCard(found.Id, found.Title, SessionText.UpNext(NextUp.LabelOf(found)), null);
+        // A countdown that goes on (the file ending while the credits' one runs) keeps its seconds:
+        // without them Play now would lose its count until the next step.
+        var kept = !restartCountdown && State.Value.UpNext is { } shown && shown.ItemId == found.Id ? shown.SecondsLeft : null;
+        var card = new UpNextCard(found.Id, found.Title, SessionText.UpNext(NextUp.LabelOf(found)), kept);
         Update(s => s with { UpNext = card });
         if (!restartCountdown) return;
         StopCountdown();

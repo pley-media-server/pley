@@ -205,6 +205,7 @@ public sealed class PlayNowCountdown
     readonly CountdownFill fill = new CountdownFill();
     int? left;
     bool reduced;
+    bool gone;
 
     /// <summary>The button's words.</summary>
     public string Label => PlayerText.PlayNowLabel(left, reduced);
@@ -219,12 +220,21 @@ public sealed class PlayNowCountdown
     /// </summary>
     public void Set(int? secondsLeft, bool reducedMotion, long nowMs)
     {
-        if (secondsLeft == left && reducedMotion == reduced) return;
+        if (gone) fill.Reset();
+        else if (secondsLeft == left && reducedMotion == reduced) return;
+        gone = false;
         left = secondsLeft;
         reduced = reducedMotion;
         if (secondsLeft is int seconds) fill.Set(seconds, nowMs, smooth: !reducedMotion);
         else fill.Reset();
     }
+
+    /// <summary>
+    /// The card went; the button keeps its words and its sweep as it fades. What the next card
+    /// says starts anew, the same second too: its sweep glides from that second's start rather
+    /// than resting at its end, where this card's stopped.
+    /// </summary>
+    public void Gone() => gone = true;
 
     /// <summary>The label's width: its words', and never less than its widest words'.</summary>
     public static float LabelWidth(float words, float widest) => Math.Max(words, widest);

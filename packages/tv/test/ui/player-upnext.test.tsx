@@ -2,6 +2,7 @@ import { signal } from "@preact/signals";
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLanguage } from "../../src/i18n";
 import type { PlaybackController, PlayerClock, PlayerState } from "../../src/player/controller";
 import { SLEEP_OFF } from "../../src/player/sleep";
 import type { AppState } from "../../src/state";
@@ -125,6 +126,7 @@ afterEach(() => {
   detach = null;
   if (root) act(() => render(null, root!));
   root = null;
+  setLanguage("en");
   vi.useRealTimers();
 });
 
@@ -164,6 +166,15 @@ describe("Up Next's Play now", () => {
     expect(t.swept()).toBe(0.3);
     t.left(6);
     expect([t.words(), t.swept()]).toEqual(["Next in 6", 0.4]);
+  });
+
+  it("reads whole in Spanish and French with reduced motion, where the count is all the button says", () => {
+    for (const [language, words] of [["es", "Siguiente en 7"], ["fr", "Suivant dans 7"]] as const) {
+      setLanguage(language);
+      expect(setup(7, true).words()).toBe(words);
+      detach?.();
+      act(() => render(null, root!));
+    }
   });
 
   it("is announced once, as the card shows: its heading and title, not Play now's seconds", () => {

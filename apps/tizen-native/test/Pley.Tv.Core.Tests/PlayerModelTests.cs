@@ -425,6 +425,52 @@ public class PlayerModelTests
         Assert.Equal(2, h.Engine.Prepared.Count);
     }
 
+    /// <summary>Credits that begin 6 s before the end: the file ends with the countdown under way, and the card keeps its count rather than losing it until the next step.</summary>
+    [Fact]
+    public void The_file_ending_while_the_credits_countdown_runs_keeps_the_cards_seconds()
+    {
+        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_694_000, EndMs = 2_700_000, Source = "chapter" };
+        var next = PlayerHarness.Episode(2, 2);
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
+        h.Source.NextOf[1] = next;
+        h.Start(new PlayRequest(1, 2_693_000, false));
+        h.Play(1_000);
+        Assert.Equal(10, h.State.UpNext!.SecondsLeft);
+        // To just after one of the countdown's steps, so the end falls well inside a second.
+        while (h.State.UpNext!.SecondsLeft == 10) h.Play(50);
+        h.Play(4_000);
+        Assert.Equal(5, h.State.UpNext!.SecondsLeft);
+        h.End();
+        Assert.Equal((PhaseKind.Paused, 5), (h.State.Phase.Kind, h.State.UpNext!.SecondsLeft));
+        // The countdown wasn't started again: the next episode plays when it was going to.
+        h.Play(4_900);
+        Assert.Equal(1, h.State.UpNext!.SecondsLeft);
+        Assert.Single(h.Source.Bodies);
+        h.Play(100);
+        Assert.Null(h.State.UpNext);
+        Assert.Equal(2L, h.LastBody["item_id"]);
+    }
+
+    /// <summary>The sleep timer, set while the credits' countdown runs, ends with the file: the card holds no count, and the next episode waits.</summary>
+    [Fact]
+    public void The_sleep_timer_ending_with_the_file_while_the_credits_countdown_runs_leaves_the_card_no_seconds()
+    {
+        var credits = new Marker { FileId = 10, Kind = "credits", StartMs = 2_694_000, EndMs = 2_700_000, Source = "chapter" };
+        var next = PlayerHarness.Episode(2, 2);
+        h.Add(PlayerHarness.Episode(1, 1, markers: new[] { credits })).Add(next);
+        h.Source.NextOf[1] = next;
+        h.Start(new PlayRequest(1, 2_693_000, false));
+        h.Play(1_000);
+        Assert.Equal(10, h.State.UpNext!.SecondsLeft);
+        h.Model.SetSleep(new SleepChoice.EndOfItem());
+        h.End();
+        Assert.True(h.State.Sleep.Fired);
+        Assert.Null(h.State.UpNext!.SecondsLeft);
+        h.Play(20_000);
+        Assert.Null(h.State.UpNext!.SecondsLeft);
+        Assert.Single(h.Source.Bodies);
+    }
+
     /// <summary>Credits a minute before the end (an after-credits scene after them) bring Skip Credits alone; Up Next comes at the end, as without credits.</summary>
     [Fact]
     public void Credits_that_something_follows_bring_skip_credits_alone_and_up_next_at_the_end()

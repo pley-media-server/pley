@@ -82,4 +82,24 @@ public sealed class PlayNowCountdownTests
         play.Set(null, reducedMotion: false, nowMs: 500);
         Assert.Equal((0f, false, "Play now"), (play.SweepWidth(200, 600), play.Moving(600), play.Label));
     }
+
+    [Fact]
+    public void A_card_that_goes_and_comes_back_at_the_same_second_sweeps_from_that_seconds_start()
+    {
+        var play = new PlayNowCountdown();
+        play.Set(10, reducedMotion: false, nowMs: 0);
+        // Play now pressed at once: the card goes within its first second, and fades as it was.
+        play.Gone();
+        Assert.Equal("Play now (10)", play.Label);
+        Assert.Equal(6f, play.SweepWidth(200, 300), 3);
+        // The next episode's card, at 10 too: its sweep glides from empty, not resting where the first card's would have stopped.
+        play.Set(10, reducedMotion: false, nowMs: 60_000);
+        Assert.Equal(0f, play.SweepWidth(200, 60_000), 3);
+        Assert.True(play.Moving(60_000));
+        Assert.Equal(10f, play.SweepWidth(200, 60_500), 3);
+        // A card without a countdown after one that went: the words alone, and no sweep.
+        play.Gone();
+        play.Set(null, reducedMotion: false, nowMs: 61_000);
+        Assert.Equal((0f, false, "Play now"), (play.SweepWidth(200, 61_000), play.Moving(61_000), play.Label));
+    }
 }

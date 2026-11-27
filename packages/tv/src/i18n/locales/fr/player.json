@@ -57,7 +57,7 @@
     "episode": "À suivre · {{episode}}",
     "playNow": "Regarder",
     "playNowIn": "Regarder ({{seconds}})",
-    "nextIn": "Dans {{seconds}} s"
+    "nextIn": "Suivant dans {{seconds}}"
   },
   "speed": {
     "normal": "Normale"

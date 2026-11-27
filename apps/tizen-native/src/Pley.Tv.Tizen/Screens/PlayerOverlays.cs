@@ -222,6 +222,9 @@ sealed class UpNextView : View
         Size = new Size(Ui.Dp(Width), Ui.Dp(HeightDp));
     }
 
+    /// <summary>The card went: the next one's countdown starts anew, whatever second this one stopped at.</summary>
+    public void Gone() => play.Gone();
+
     float rowTop;
 
     /// <summary>
@@ -325,6 +328,8 @@ sealed class UpNextView : View
             DrawSweep(now);
             if (countdown.Moving(now)) frames.Start();
         }
+
+        public void Gone() => countdown.Gone();
 
         void Look()
         {
