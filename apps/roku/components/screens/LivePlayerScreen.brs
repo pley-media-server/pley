@@ -83,8 +83,13 @@ sub init()
         spinner.poster.width = 64
         spinner.poster.height = 64
     end for
-    ' The Live chip: the badge's word, in capitals.
-    m.top.findNode("liveMark").text = UCase(t("livetv.program.live"))
+    ' The Live chip: the badge's word, in capitals, in the words' color on
+    ' the danger fill, as every app draws it.
+    playerColors = uiPlayerColors()
+    m.top.findNode("liveChip").color = playerColors.danger
+    liveMark = m.top.findNode("liveMark")
+    liveMark.color = playerColors.dangerFg
+    liveMark.text = UCase(t("livetv.program.live"))
     m.twelve = fmtTwelveHour()
     m.started = false
     ' The channel shown (Live.brs's liveChannel), and the one up and down

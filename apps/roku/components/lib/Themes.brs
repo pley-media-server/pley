@@ -127,6 +127,7 @@ sub themeKeep(section as object, server as string, profileId as integer, theme a
         key = themeProfileKey(server, profileId)
         section.Write("theme" + key, theme)
         section.Write("accent" + key, accent)
+        section.Flush()
     end if
     themeKeepShown(section, theme, accent)
 end sub

@@ -1033,7 +1033,11 @@ sub onThemeChoice()
     choice = m.top.themeChoice
     if choice = invalid then return
     session = m.global.session
-    themeKeep(m.appearance, session.server, session.profileId, themeShown(choice.theme), themeAccentShown(choice.accent))
+    ' The profile switched to, before the server says who it is, as
+    ' themeForRoute draws it.
+    profileId = session.profileId
+    if profileId <= 0 then profileId = m.profileHint
+    themeKeep(m.appearance, session.server, profileId, themeShown(choice.theme), themeAccentShown(choice.accent))
     themeTop(true)
 end sub
 

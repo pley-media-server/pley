@@ -11,7 +11,7 @@ describes how they are made.
 ### Added
 
 - Themes and accents in Settings → Appearance, as on the web, kept for each
-  profile on this TV; the players stay dark in a light theme.
+  profile on this TV.
 
 ### Changed
 
@@ -24,7 +24,7 @@ describes how they are made.
 ### Fixed
 
 - Home chosen on the rail after the language changed comes in the new
-  language, as it did coming back to it with Back.
+  language.
 
 ## [0.1.15] - 2026-11-27
 
