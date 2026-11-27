@@ -10,8 +10,8 @@ describes how they are made.
 
 ### Added
 
-- The server picker, the window's title bar and its icon follow the theme
-  and accent picked in the server's web app.
+- The window's title bar and icon follow the theme and accent the server's
+  web app shows, and are Midnight's on the list of servers.
 
 ## [0.1.9] - 2026-11-25
 

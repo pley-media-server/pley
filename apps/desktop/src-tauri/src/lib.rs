@@ -18,8 +18,9 @@
 //! leaves a plain-http server at once and opens it again through a proof.
 //! What the app writes for the picker (why a server didn't answer, why a
 //! download failed) goes by key, which the picker says in the computer's
-//! language (`said`). The picker, the window's title bar and its icon are
-//! drawn in the theme the server's pages show (`theme`).
+//! language (`said`). The window's title bar and its icon follow the theme
+//! the server's pages show, and are Midnight while the picker, outside any
+//! profile, shows (`theme`).
 
 mod discovery;
 mod downloads;
@@ -196,9 +197,9 @@ async fn route_to(server: Url) -> Option<std::net::IpAddr> {
 fn leave_for<R: Runtime>(window: &WebviewWindow<R>, picker: Option<Url>) {
     window.state::<Pages>().0.lock().unwrap().server = None;
     window.state::<notices::Notices>().follow(None);
-    if let Some(mut picker) = picker {
-        // In the theme the server's pages showed.
-        window.state::<theme::Theme>().pick().add_to(&mut picker);
+    // The picker is outside any profile: Midnight, whatever the server's pages showed.
+    show(window, theme::Pick::default());
+    if let Some(picker) = picker {
         let _ = window.navigate(picker);
     }
 }
@@ -222,23 +223,27 @@ fn icon<R: Runtime>(window: &WebviewWindow<R>, pick: &theme::Pick) {
     let _ = window.set_icon(icon);
 }
 
-/// The theme and accent the server's pages show, which the picker, the
-/// window's background before a page draws, its title bar and its icon
-/// follow. Only the server shown tells it; ids the app doesn't know are
-/// Midnight and the theme's own accent.
+/// Draws the window around its pages in `pick`: its background before a
+/// page draws, its title bar and its icon.
+fn show<R: Runtime>(window: &WebviewWindow<R>, pick: theme::Pick) {
+    if !window.state::<theme::Shown>().change(pick.clone()) {
+        return;
+    }
+    let _ = window.set_background_color(Some(pick.background()));
+    let _ = window.set_theme(Some(title_bar(&pick)));
+    icon(window, &pick);
+}
+
+/// The theme and accent the server's pages show: a profile's pick, or
+/// Midnight outside a profile. Only the server shown tells it; ids the app
+/// doesn't know are Midnight and the theme's own accent.
 #[tauri::command]
 fn theme_picked(window: WebviewWindow, theme: String, accent: Option<String>) {
     let shown = window.state::<Pages>().0.lock().unwrap().server.clone();
     if !window.url().is_ok_and(|url| shown.is_some_and(|shown| same_origin(&shown, &url))) {
         return;
     }
-    let pick = theme::Pick::new(&theme, accent.as_deref());
-    if !window.state::<theme::Theme>().keep(pick.clone()) {
-        return;
-    }
-    let _ = window.set_background_color(Some(pick.background()));
-    let _ = window.set_theme(Some(title_bar(&pick)));
-    icon(&window, &pick);
+    show(&window, theme::Pick::new(&theme, accent.as_deref()));
 }
 
 /// Opens a web or mail link in the browser; any other kind of address (a
@@ -317,21 +322,19 @@ pub fn run() {
             app.manage(proofs::Proofs::load(app.path().app_local_data_dir()?.join("proofs.json")));
             let list = app.path().app_data_dir()?.join("downloads.json");
             app.manage(downloads::Downloads::load(list, downloads::folder(app.handle())));
-            let theme = theme::Theme::load(app.path().app_local_data_dir()?.join("theme.json"));
-            let pick = theme.pick();
-            app.manage(theme);
+            app.manage(theme::Shown::default());
             let handle = app.handle().clone();
             let opener = app.handle().clone();
             // The picker's address is known once it loads (see `navigation`):
-            // until then, the window's address is about:blank. It opens in
-            // the theme kept, as does the window.
-            let picker = WebviewUrl::App(format!("index.html?{}", pick.query()).into());
-            let window = WebviewWindowBuilder::new(app, "main", picker)
+            // until then, the window's address is about:blank. It opens on
+            // the picker, outside any profile: in Midnight.
+            let midnight = theme::Pick::default();
+            WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Pley")
                 .inner_size(1280.0, 800.0)
                 .min_inner_size(720.0, 480.0)
-                .background_color(pick.background())
-                .theme(Some(title_bar(&pick)))
+                .background_color(midnight.background())
+                .theme(Some(title_bar(&midnight)))
                 .initialization_script(INIT_SCRIPT)
                 .on_navigation(move |url| {
                     let decision = navigation(url, &mut handle.state::<Pages>().0.lock().unwrap());
@@ -370,9 +373,6 @@ pub fn run() {
                     }
                 })
                 .build()?;
-            if !pick.is_own() {
-                icon(&window, &pick);
-            }
             // After the window: downloads and notices use its cookies (the
             // servers' sessions).
             tauri::async_runtime::spawn(downloads::run(app.handle().clone()));

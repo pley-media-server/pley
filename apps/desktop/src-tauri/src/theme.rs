@@ -1,19 +1,16 @@
-//! The theme and accent picked in the server's web app (docs/THEMES.md),
-//! for what the app draws itself: its own pages (the picker, in the theme
-//! the window hands it in its address), the window's background before a
-//! page draws, its title bar and its icon. The server's pages tell the app
-//! their pick (`theme_picked` in `lib.rs`); the app keeps it on this
-//! computer, as the web app keeps it in the window's storage at each
-//! server's address, which the app's own pages can't read.
-
+//! The theme and accent the server's pages show (docs/THEMES.md), for what
+//! the app draws itself around them: the window's background before a page
+//! draws, its title bar and its icon. The server's pages tell the app what
+//! they show (`theme_picked` in `lib.rs`): a profile's pick, or Midnight on
+//! the screens outside a profile (signing in, "Who's watching?"). The
+//! app's own pages (the picker) are outside any profile too, so the window
+//! is Midnight in its own accent while they show, as they are (style.css).
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tauri::image::Image;
 use tauri::window::Color;
-use url::Url;
 
 /// Every app's themes and accents, as the web app writes them.
 const THEMES: &str = include_str!("../../../../packages/themes/themes.json");
@@ -52,12 +49,12 @@ fn spec() -> &'static Spec {
     SPEC.get_or_init(|| serde_json::from_str(THEMES).expect("packages/themes/themes.json"))
 }
 
-/// Pley's own theme, for a computer that picked none.
+/// Pley's own theme, outside a profile and for a profile that picked none.
 const MIDNIGHT: &str = "midnight";
 
 /// A theme and an accent over its own (none for the theme's own), both
 /// known: an id the app doesn't know is Midnight, or the theme's own accent.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Pick {
     theme: String,
     accent: Option<String>,
@@ -116,21 +113,6 @@ impl Pick {
     pub(crate) fn background(&self) -> Color {
         let [r, g, b] = self.rgb("bg");
         Color(r as u8, g as u8, b as u8, 255)
-    }
-
-    fn pairs(&self) -> impl Iterator<Item = (&str, &str)> {
-        std::iter::once(("theme", self.theme.as_str())).chain(self.accent.as_deref().map(|a| ("accent", a)))
-    }
-
-    /// The pick as an address's query (`theme=…&accent=…`), which the app's
-    /// own pages draw in from their first frame (src/theme.ts).
-    pub(crate) fn query(&self) -> String {
-        url::form_urlencoded::Serializer::new(String::new()).extend_pairs(self.pairs()).finish()
-    }
-
-    /// The pick added to the query of an address of the app's own pages.
-    pub(crate) fn add_to(&self, url: &mut Url) {
-        url.query_pairs_mut().extend_pairs(self.pairs());
     }
 
     /// The logo on its tile, `size` pixels square, in the pick's colors, as
@@ -221,50 +203,22 @@ fn in_play(x: f32, y: f32) -> bool {
     near(A, B) || near(B, C) || near(C, A)
 }
 
-/// The pick this computer keeps (`theme.json`), Midnight until one is made.
-pub(crate) struct Theme {
-    path: PathBuf,
-    pick: Mutex<Pick>,
-}
+/// What the window is drawn in now: Midnight in its own accent until a
+/// server's pages say otherwise, and again whenever the picker shows.
+#[derive(Default)]
+pub(crate) struct Shown(Mutex<Pick>);
 
-impl Theme {
-    pub(crate) fn load(path: PathBuf) -> Self {
-        let pick = std::fs::read(&path)
-            .ok()
-            .and_then(|bytes| serde_json::from_slice::<Pick>(&bytes).ok())
-            .map(|kept| Pick::new(&kept.theme, kept.accent.as_deref()))
-            .unwrap_or_default();
-        Theme { path, pick: Mutex::new(pick) }
-    }
-
-    pub(crate) fn pick(&self) -> Pick {
-        self.pick.lock().unwrap().clone()
-    }
-
-    /// Keeps `pick`; false when it was kept already.
-    pub(crate) fn keep(&self, pick: Pick) -> bool {
-        let mut kept = self.pick.lock().unwrap();
-        if *kept == pick {
+impl Shown {
+    /// Notes that the window shows `pick`; false when it did already.
+    pub(crate) fn change(&self, pick: Pick) -> bool {
+        let mut shown = self.0.lock().unwrap();
+        if *shown == pick {
             return false;
         }
-        if let Err(err) = self.write(&pick) {
-            eprintln!("cannot keep the theme: {err}");
-        }
-        *kept = pick;
+        *shown = pick;
         true
     }
-
-    fn write(&self, pick: &Pick) -> std::io::Result<()> {
-        if let Some(dir) = self.path.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        // Written whole, then moved over the old file.
-        let partial = self.path.with_extension("json.part");
-        std::fs::write(&partial, serde_json::to_vec(pick)?)?;
-        std::fs::rename(&partial, &self.path)
-    }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -325,17 +279,6 @@ mod tests {
     }
 
     #[test]
-    fn the_pick_goes_in_the_pickers_address() {
-        let mut url = Url::parse("http://tauri.localhost/?pick").unwrap();
-        Pick::new("sunshine", Some("violet")).add_to(&mut url);
-        assert_eq!(url.as_str(), "http://tauri.localhost/?pick&theme=sunshine&accent=violet");
-        let mut url = Url::parse("http://tauri.localhost/").unwrap();
-        Pick::default().add_to(&mut url);
-        assert_eq!(url.as_str(), "http://tauri.localhost/?theme=midnight");
-        assert_eq!(Pick::new("midday", Some("gold")).query(), "theme=midday&accent=gold");
-    }
-
-    #[test]
     fn the_icon_is_the_logo_in_the_picks_colors() {
         let pick = Pick::new("twilight", Some("violet"));
         let icon = pick.logo(64);
@@ -366,17 +309,16 @@ mod tests {
     }
 
     #[test]
-    fn the_pick_is_kept_and_read_back() {
-        let dir = std::env::temp_dir().join(format!("pley-theme-test-{}", std::process::id()));
-        let path = dir.join("theme.json");
-        let theme = Theme::load(path.clone());
-        assert_eq!(theme.pick(), Pick::default());
-        assert!(theme.keep(Pick::new("starlight", Some("miami"))));
-        assert!(!theme.keep(Pick::new("starlight", Some("miami"))));
-        assert_eq!(Theme::load(path.clone()).pick(), Pick::new("starlight", Some("miami")));
-        // A pick the app no longer knows reads as Midnight's or the theme's own.
-        std::fs::write(&path, r#"{"theme":"dusk","accent":"teal"}"#).unwrap();
-        assert_eq!(Theme::load(path).pick(), Pick::default());
-        std::fs::remove_dir_all(dir).unwrap();
+    fn the_window_is_midnight_outside_a_profile_and_the_profiles_pick_inside() {
+        let shown = Shown::default();
+        // At start, on the picker: Midnight in its own accent, as it ships.
+        assert!(!shown.change(Pick::default()));
+        // A profile's pick, told by the server's pages.
+        assert!(shown.change(Pick::new("sunshine", Some("violet"))));
+        assert!(!shown.change(Pick::new("sunshine", Some("violet"))));
+        // Back to the picker: Midnight, whatever the profile picked.
+        assert!(shown.change(Pick::default()));
+        // The server's pages again: the profile's pick comes back.
+        assert!(shown.change(Pick::new("sunshine", Some("violet"))));
     }
 }
