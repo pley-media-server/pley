@@ -63,18 +63,11 @@
   "sleep": {
     "title": "睡眠定时",
     "titleNow": "睡眠定时：{{state}}",
-    "off": "关闭",
-    "minutes": "{{minutes}} 分钟",
     "minutesLeft_other": "剩余 {{count}} 分钟",
-    "secondsLeft_other": "剩余 {{count}} 秒",
     "end": {
-      "episode": "本集结束",
-      "movie": "本片结束",
-      "track": "本曲目结束",
-      "video": "本视频结束"
+      "track": "本曲目结束"
     },
     "pausingIn": "{{seconds}} 秒后暂停",
-    "keepWatching": "继续观看",
     "keepListening": "继续收听"
   },
   "find": {

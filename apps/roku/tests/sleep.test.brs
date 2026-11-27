@@ -1,31 +1,18 @@
-sub test_sleep_choices_as_the_other_apps()
-    labels = []
-    for each choice in sleepChoices("episode")
-        labels.Push(choice.label)
-    end for
-    tkEqual(labels, ["Off", "15 min", "30 min", "45 min", "60 min", "90 min", "End of this episode"])
-    tkEqual(sleepChoices("movie").Peek().label, "End of this movie")
-    tkEqual(sleepChoices("track").Peek().label, "End of this track")
-    tkEqual(sleepChoices("extra").Peek().label, "End of this video")
-    tkEqual(sleepChoices("movie").Peek().minutes, -1)
-end sub
-
 sub test_sleep_minutes_count_down_then_fire()
     timer = sleepNew(15, 1000#)
     state = sleepState(timer, 1000#, 5000#, "a")
     tkFalse(state.fire)
     tkEqual(state.minutesLeft, 15)
     tkEqual(state.secondsLeft, -1)
-    tkEqual(sleepLabel(timer, state, "movie"), "15 min left")
+    tkEqual(sleepLabel(timer, state), "15 min left")
     state = sleepState(timer, 1000# + 14.5 * 60000#, 5000#, "a")
     tkEqual(state.minutesLeft, 1, "rounded up")
     tkEqual(state.secondsLeft, 30, "the notice: its last 30 s")
-    tkEqual(sleepLabel(timer, state, "movie"), "30 s left")
     tkEqual(sleepState(timer, 1000# + 15 * 60000# - 1500#, 5000#, "a").secondsLeft, 2)
     tkTrue(sleepState(timer, 1000# + 15 * 60000#, 5000#, "a").fire)
 end sub
 
-sub test_sleep_keep_watching_adds_the_same_time()
+sub test_sleep_keep_listening_adds_the_same_time()
     timer = sleepNew(30, 0#)
     sleepExtend(timer, "a")
     tkEqual(sleepState(timer, 30 * 60000#, -1#, "a").minutesLeft, 30, "the next 30 minutes")
@@ -38,14 +25,13 @@ sub test_sleep_at_the_end_of_what_plays()
     state = sleepState(timer, 0#, 125000#, "ep1")
     tkFalse(state.fire)
     tkEqual(state.minutesLeft, 3)
-    tkEqual(sleepLabel(timer, state, "episode"), "End of this episode")
+    tkEqual(sleepLabel(timer, state), "End of this track")
     state = sleepState(timer, 0#, 9000#, "ep1")
     tkEqual(state.secondsLeft, 9)
-    tkEqual(sleepLabel(timer, state, "episode"), "9 s left")
     tkEqual(sleepState(timer, 0#, -1#, "ep1").minutesLeft, -1, "not known yet")
     tkTrue(sleepEndsWith(timer, "ep1"))
 
-    ' Keep watching: this one plays to its end and on, the next one's end stops.
+    ' Keep listening: this one plays to its end and on, the next one's end stops.
     sleepExtend(timer, "ep1")
     tkFalse(sleepEndsWith(timer, "ep1"))
     tkEqual(sleepState(timer, 0#, 9000#, "ep1").secondsLeft, -1, "no notice for the title spared")
@@ -79,15 +65,14 @@ end sub
 
 sub test_sleep_words_in_french_and_spanish()
     i18nUse("fr")
-    tkEqual(sleepChoices("episode")[0].label, "Désactivé")
-    tkEqual(sleepChoices("movie").Peek().label, "Fin de ce film")
     timer = sleepNew(15, 0#)
     tkEqual(sleepButtonLabel(timer, sleepState(timer, 0#, 1000#, "a")), "Minuteur" + Chr(160) + ": Il reste 15 min")
     tkEqual(sleepButtonLabel(timer, sleepState(timer, 14.5 * 60000#, 1000#, "a")), "Continuer à écouter")
+    atEnd = sleepNew(-1, 0#)
+    tkEqual(sleepLabel(atEnd, sleepState(atEnd, 0#, 125000#, "a")), "Fin de ce titre")
     i18nUse("es")
-    tkEqual(sleepLabel(timer, sleepState(timer, 14 * 60000#, 1000#, "a"), "movie"), "Queda 1 min", "one")
-    tkEqual(sleepLabel(timer, sleepState(timer, 0#, 1000#, "a"), "movie"), "Quedan 15 min")
-    tkEqual(sleepLabel(timer, sleepState(timer, 14.5 * 60000#, 1000#, "a"), "movie"), "Quedan 30 s")
+    tkEqual(sleepLabel(timer, sleepState(timer, 14 * 60000#, 1000#, "a")), "Queda 1 min", "one")
+    tkEqual(sleepLabel(timer, sleepState(timer, 0#, 1000#, "a")), "Quedan 15 min")
     tkEqual(sleepButtonLabel(sleepNew(0, 0#), sleepState(sleepNew(0, 0#), 0#, 1000#, "a")), "Temporizador")
 end sub
 
@@ -97,6 +82,6 @@ sub test_sleep_off_says_nothing()
     tkFalse(state.fire)
     tkEqual(state.secondsLeft, -1)
     tkEqual(state.minutesLeft, -1)
-    tkEqual(sleepLabel(timer, state, "episode"), "Off")
+    tkEqual(sleepButtonLabel(timer, state), "Sleep timer")
     tkFalse(sleepEndsWith(timer, "a"))
 end sub

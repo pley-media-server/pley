@@ -63,22 +63,13 @@
   "sleep": {
     "title": "Temporizador",
     "titleNow": "Temporizador: {{state}}",
-    "off": "Desactivado",
-    "minutes": "{{minutes}} min",
     "minutesLeft_one": "Queda {{count}} min",
     "minutesLeft_many": "Quedan {{count}} min",
     "minutesLeft_other": "Quedan {{count}} min",
-    "secondsLeft_one": "Queda {{count}} s",
-    "secondsLeft_many": "Quedan {{count}} s",
-    "secondsLeft_other": "Quedan {{count}} s",
     "end": {
-      "episode": "Fin del episodio",
-      "movie": "Fin de la película",
-      "track": "Fin de la pista",
-      "video": "Fin del video"
+      "track": "Fin de la pista"
     },
     "pausingIn": "Se pausará en {{seconds}} s",
-    "keepWatching": "Seguir viendo",
     "keepListening": "Seguir escuchando"
   },
   "find": {

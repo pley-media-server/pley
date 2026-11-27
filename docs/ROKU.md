@@ -366,11 +366,11 @@ the title (a show's name over "S1 E2 · Pilot"), how it plays ("Direct
 play", "Direct stream", "Transcoding") and the clock; at the bottom the
 scrubber, the time played and the time left,
 the chapters as gaps in it and "Intro" or "Credits" under the marker
-playing, then a row of buttons: Chapters (for a file with two or more) and
-Sleep timer at the left, Previous, Play/Pause and Next in the middle
-(Previous and Next for an episode, a queue or chapters), Subtitles, Audio
-(where the file has tracks), Quality and Info at the right. The focused
-button fills with the accent and says its name.
+playing, then a row of buttons: Chapters (for a file with two or more) at
+the left, Previous, Play/Pause and Next in the middle (Previous and Next
+for an episode, a queue or chapters), Subtitles, Audio (where the file has
+tracks), Quality and Info at the right. The focused button fills with the
+accent and says its name.
 
 - **Showing them:** OK, Up, Left or Right bring them up on the scrubber,
   Down on Play/Pause; the person's pause brings them up too. They hide 5 s
@@ -396,19 +396,11 @@ button fills with the accent and says its name.
   the server is still making them, the time shows alone.
 - **The panels** each button opens slide in at the right, as on Android
   TV: Subtitles (every track, then Subtitle sync and Find subtitles…),
-  Audio, Quality (each with what it means under it), Chapters, Sleep timer
-  and Info (the playback's details). The choice made is checked; choosing
-  closes the panel, and Back does too, the controls coming back on the
-  button.
+  Audio, Quality (each with what it means under it), Chapters and Info
+  (the playback's details). The choice made is checked; choosing closes
+  the panel, and Back does too, the controls coming back on the button.
 - **Waiting** shows a turning ring half a second in, "Reconnecting…" under
   it while the server is out of reach.
-
-The sleep timer (its button) pauses after 15 to 90 minutes
-or at the end of what plays, as on the other apps. In its last
-30 s it says "Pausing in 12 s" with Keep watching, which adds the same time
-again (or lets this title play to its end). Paused by it for 10 minutes,
-the player leaves; it isn't kept from one time the player opens to the
-next.
 
 ### Audio and subtitles
 
@@ -1051,7 +1043,7 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   music's don't.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
   Next and its wait at the end, the title as an item begins, reconnecting,
-  stalls, media that ends short, the sleep timers' ends, picture
+  stalls, media that ends short, the sleep timer's end, picture
   subtitles shown in time and the remote's commands, which a player obeys
   only once it plays, have only unit tests), sockets that connect but send
   nothing (the event stream, and the casts it brings, have only unit

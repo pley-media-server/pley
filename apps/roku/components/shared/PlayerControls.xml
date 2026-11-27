@@ -3,12 +3,12 @@
      over the Video node, whose own are off: the title, how it plays and the
      clock at the top; the scrubber with its times, the chapters' gaps and
      the intro's or credits' name under it; the seek preview over it while
-     a seek is coming; the row of buttons (the sleep timer and chapters at
-     the left, previous, play or pause and next in the middle, subtitles,
-     audio, quality and info at the right), whose focused one fills with
-     the accent and says its name. With the controls hidden: the seek
-     badge ("+30 s") and the loading ring. The player keeps the remote and
-     says what has the focus (focusKey); this only draws. -->
+     a seek is coming; the row of buttons (chapters at the left, previous,
+     play or pause and next in the middle, subtitles, audio, quality and
+     info at the right), whose focused one fills with the accent and says
+     its name. With the controls hidden: the seek badge ("+30 s") and the
+     loading ring. The player keeps the remote and says what has the focus
+     (focusKey); this only draws. -->
 <component name="PlayerControls" extends="Group">
     <interface>
         <field id="title" type="string" onChange="onTop" />

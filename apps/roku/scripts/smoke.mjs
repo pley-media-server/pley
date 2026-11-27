@@ -500,14 +500,14 @@ async function walk() {
   await settle();
   shoot("player");
   // The controls (Down: on Play/Pause), as the Android TV player's: the row
-  // is Chapters, Sleep timer, Previous, Play/Pause, Next, Subtitles,
-  // Quality and Info (rowButton). Subtitles' panel ends with Subtitle sync
-  // and Find subtitles…; sync's right moves the subtitles later, and Back
-  // closes it, the stream opening again with its text track moved.
+  // is Chapters, Previous, Play/Pause, Next, Subtitles, Quality and Info
+  // (rowButton). Subtitles' panel ends with Subtitle sync and Find
+  // subtitles…; sync's right moves the subtitles later, and Back closes
+  // it, the stream opening again with its text track moved.
   await press("down");
   await sleep(300);
   shoot("player-controls");
-  await rowButton(5); // Subtitles
+  await rowButton(4); // Subtitles
   await press("select");
   await sleep(300);
   shoot("player-subtitles");
@@ -523,21 +523,9 @@ async function walk() {
   await press("select");
   await press("up", 10);
   await press("select");
-  // The sleep timer: 15 minutes, which its panel then counts down.
-  await rowButton(1);
-  await press("select");
-  await sleep(300);
-  shoot("player-sleep");
-  await press("down"); // 15 min
-  await press("select");
-  await rowButton(1);
-  await press("select");
-  await sleep(300);
-  shoot("player-sleep-set");
-  await press("back");
   // Info: what the server makes of the conversion asked for.
   since = mark();
-  await rowButton(7);
+  await rowButton(6);
   await press("select");
   await waitFor(/^GET \/api\/playback\/s\d+$/, since, "the conversion's details");
   shoot("player-details");
@@ -546,7 +534,7 @@ async function walk() {
   // as the pick, and the stream opened again with it (a new session, as
   // the server drew the picture subtitles onto this one).
   since = mark();
-  await rowButton(5);
+  await rowButton(4);
   await press("select");
   await press("down", 10); // Find subtitles…
   await press("select");
@@ -570,7 +558,7 @@ async function walk() {
   // as the pick, and the stream opened again with it.
   since = mark();
   const streamsBefore = fixture.streams.length;
-  await rowButton(5);
+  await rowButton(4);
   await press("select");
   await press("up", 10); // Off
   await press("down"); // English (SRT)
