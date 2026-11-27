@@ -8,6 +8,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Up Next's card shows the next title's name without its picture, so it
+  covers less of the credits.
+- Skip Intro and Skip Credits show on their own for 8 seconds, then only
+  with the player's controls, so they no longer sit over the whole intro
+  or credits and hold the remote's OK.
+
 ## [0.1.15] - 2026-11-27
 
 ### Added

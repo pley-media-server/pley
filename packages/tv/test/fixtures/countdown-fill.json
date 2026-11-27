@@ -1,0 +1,72 @@
+{
+  "total": 10,
+  "cases": [
+    {
+      "name": "each second, the ring glides to where it stands at that second's end",
+      "steps": [
+        { "set": 10, "ms": 0 },
+        { "ms": 0, "fill": 0 },
+        { "ms": 500, "fill": 0.05, "moving": true },
+        { "ms": 1000, "fill": 0.1, "moving": false },
+        { "set": 9, "ms": 1000 },
+        { "ms": 1500, "fill": 0.15, "moving": true }
+      ]
+    },
+    {
+      "name": "the ring is full as the countdown reaches nothing",
+      "steps": [
+        { "set": 10, "ms": 0 },
+        { "set": 9, "ms": 1000 },
+        { "set": 8, "ms": 2000 },
+        { "set": 7, "ms": 3000 },
+        { "set": 6, "ms": 4000 },
+        { "set": 5, "ms": 5000 },
+        { "set": 4, "ms": 6000 },
+        { "set": 3, "ms": 7000 },
+        { "set": 2, "ms": 8000 },
+        { "set": 1, "ms": 9000 },
+        { "ms": 10000, "fill": 1, "moving": false },
+        { "set": 0, "ms": 10000 },
+        { "ms": 10500, "fill": 1, "moving": false }
+      ]
+    },
+    {
+      "name": "a second that comes a little early carries on from where the ring is",
+      "steps": [
+        { "set": 10, "ms": 0 },
+        { "set": 9, "ms": 960 },
+        { "ms": 960, "fill": 0.096, "moving": true },
+        { "ms": 1960, "fill": 0.2, "moving": false }
+      ]
+    },
+    {
+      "name": "a countdown started again jumps back rather than sliding back",
+      "steps": [
+        { "set": 10, "ms": 0 },
+        { "set": 9, "ms": 1000 },
+        { "set": 8, "ms": 2000 },
+        { "set": 7, "ms": 3000 },
+        { "set": 6, "ms": 4000 },
+        { "set": 10, "ms": 5000 },
+        { "ms": 5000, "fill": 0 },
+        { "ms": 5500, "fill": 0.05 }
+      ]
+    },
+    {
+      "name": "seconds that were missed: the ring jumps to where the countdown is",
+      "steps": [
+        { "set": 10, "ms": 0 },
+        { "set": 5, "ms": 1000 },
+        { "ms": 1000, "fill": 0.5 },
+        { "ms": 1500, "fill": 0.55 }
+      ]
+    },
+    {
+      "name": "a card that shows midway starts the ring where its countdown is",
+      "steps": [
+        { "set": 4, "ms": 0 },
+        { "ms": 0, "fill": 0.6, "moving": true }
+      ]
+    }
+  ]
+}

@@ -22,6 +22,8 @@ import SwiftUI
 ///   (`SubtitleView`), placed in the video's bounds.
 /// - Automatic plays no stream size bigger than the view, in pixels.
 /// - The web player's keys work while its window is key (`PlayerKeys`).
+/// - The pointer moving over it, or leaving it, is told (`onPointer`), so
+///   Skip, after its first 8 seconds, shows with the floating controls.
 /// - When its window moves to another screen, or the screens change, the
 ///   device's caps are read again for that screen (its size and HDR), for
 ///   the next session.
@@ -32,13 +34,17 @@ public struct PlayerSurface: NSViewRepresentable {
     let caps: DeviceCaps?
     /// Find Subtitles…: the window opens the search.
     let onFindSubtitles: (@MainActor () -> Void)?
+    /// The pointer moved over the player (`true`) or left it: the floating
+    /// controls show and hide with it, and Skip after its first 8 seconds too.
+    let onPointer: (@MainActor (Bool) -> Void)?
 
     public init(controller: PlaybackController, state: PlayerState, caps: DeviceCaps?,
-                onFindSubtitles: (@MainActor () -> Void)? = nil) {
+                onFindSubtitles: (@MainActor () -> Void)? = nil, onPointer: (@MainActor (Bool) -> Void)? = nil) {
         self.controller = controller
         self.state = state
         self.caps = caps
         self.onFindSubtitles = onFindSubtitles
+        self.onPointer = onPointer
     }
 
     public func makeNSView(context: Context) -> PleyPlayerView {
@@ -53,11 +59,13 @@ public struct PlayerSurface: NSViewRepresentable {
         view.updatesNowPlayingInfoCenter = false
         view.addSubtitles()
         view.addActionMenu()
+        view.followPointer()
         return view
     }
 
     public func updateNSView(_ view: PleyPlayerView, context: Context) {
         view.controller = controller
+        view.onPointer = onPointer
         view.caps = caps
         view.actionMenuSource.findSubtitles = onFindSubtitles
         if view.player !== controller.player { view.player = controller.player }
@@ -78,6 +86,9 @@ public final class PleyPlayerView: AVPlayerView, AVPlayerViewPictureInPictureDel
         didSet { actionMenuSource.controller = controller }
     }
     weak var caps: DeviceCaps?
+    /// Told when the pointer moves over the view (`true`) or leaves it.
+    var onPointer: (@MainActor (Bool) -> Void)?
+    private var pointerArea: NSTrackingArea?
     private(set) var subtitles: SubtitleView?
     /// Makes the action menu's items when it opens.
     let actionMenuSource = ActionMenuSource()
@@ -127,6 +138,33 @@ public final class PleyPlayerView: AVPlayerView, AVPlayerViewPictureInPictureDel
         boundsWatch = observe(\.videoBounds, options: [.new]) { [weak self] _, _ in
             Task { @MainActor in self?.placeSubtitles() }
         }
+    }
+
+    /// Watches the pointer over the whole view, as the floating controls
+    /// do, set once: the area follows the view's size (`inVisibleRect`).
+    func followPointer() {
+        guard pointerArea == nil else { return }
+        let area = NSTrackingArea(rect: .zero,
+                                  options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        pointerArea = area
+    }
+
+    public override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        onPointer?(true)
+    }
+
+    public override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        // AVKit's own areas tell this view too: only the whole view's counts.
+        if event.trackingArea === pointerArea { onPointer?(true) }
+    }
+
+    public override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        if event.trackingArea === pointerArea { onPointer?(false) }
     }
 
     /// The action menu, set once: its delegate fills it as it opens.

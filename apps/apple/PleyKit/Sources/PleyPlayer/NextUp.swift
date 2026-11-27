@@ -12,8 +12,6 @@ public enum NextUp {
     public static let countdownSeconds = 10
     /// Up Next is looked up from this share of the media on, when nothing marks the credits.
     public static let lookAheadShare = 0.9
-    /// The width the card's picture is asked for at.
-    public static let imageWidth = 480
 
     /// Whether `kind`, played through `queue`, can have something next, before asking.
     public static func hasNext(_ kind: ItemKind, queue: PlayQueue? = nil) -> Bool {

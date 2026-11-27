@@ -32,7 +32,6 @@ sub init()
     m.skip = m.top.findNode("skip")
     m.controls = m.top.findNode("controls")
     m.upNext = m.top.findNode("upNext")
-    m.nextImage = m.top.findNode("nextImage")
     m.nextTitle = m.top.findNode("nextTitle")
     m.nextLine = m.top.findNode("nextLine")
     m.countdown = m.top.findNode("countdown")
@@ -42,6 +41,9 @@ sub init()
     m.noticeText = m.top.findNode("noticeText")
     m.noticeButtons = m.top.findNode("noticeButtons")
     m.countdownTimer = m.top.findNode("countdownTimer")
+    m.skipTimer = m.top.findNode("skipTimer")
+    m.skipTimer.duration = playerSkipAloneMs() / 1000
+    m.skipTimer.observeField("fire", "updateSkip")
     m.sync = m.top.findNode("sync")
     m.syncValue = m.top.findNode("syncValue")
     m.syncButtons = m.top.findNode("syncButtons")
@@ -111,12 +113,13 @@ sub init()
     m.restarts = []
     ' The caption mode before pley turned captions on for its subtitles.
     m.captionMode = invalid
-    ' The file's intro and credits, and the one the playhead is in; a part
-    ' just skipped keeps its button away until the playhead is past it.
+    ' The file's intro and credits, and the one the playhead is in; Skip
+    ' for it (Player.brs's playerSkipNew): when it first showed, and a part
+    ' just skipped, which keeps its button away until the playhead is past
+    ' it.
     m.markers = []
     m.skipMarker = invalid
-    m.skipKey = ""
-    m.skipDismissed = false
+    m.skipState = playerSkipNew()
     ' Subtitle sync: the file's offset, under what it is remembered, the
     ' offset when the panel opened, and how many text tracks there are.
     m.syncMs = 0
@@ -473,8 +476,8 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     m.seenMs = -1
     m.markers = []
     m.skipMarker = invalid
-    m.skipKey = ""
-    m.skipDismissed = false
+    m.skipState = playerSkipNew()
+    m.skipTimer.control = "stop"
     m.textTracks = 0
     m.tracksFrom = -1
     endQuiet()
@@ -1169,23 +1172,26 @@ sub onPosition(event as object)
 end sub
 
 ' Skip Intro or Skip Credits while the playhead is in one and the video
-' plays.
+' plays: on its own for 8 s from when it appears, with the focus, then
+' only while the controls show. Entering a marker again starts a fresh
+' 8 s; a seek inside it doesn't.
 sub updateSkip()
     marker = playerSkipFor(m.markers, m.positionMs, m.next <> invalid and not m.upNextCancelled)
-    key = ""
-    if marker <> invalid then key = marker.key
-    if key <> m.skipKey
-        m.skipKey = key
-        m.skipDismissed = false
-        if marker <> invalid then m.skip.text = playerSkipLabel(marker)
+    if playerSkipEnter(m.skipState, marker)
+        m.skipTimer.control = "stop"
+        m.skip.text = playerSkipLabel(marker)
     end if
     m.skipMarker = marker
-    shown = marker <> invalid and not m.skipDismissed and m.video.state = "playing" and not m.upNext.visible and not m.notice.visible and not m.sync.visible and not m.menu.visible
+    now = m.clock.TotalMilliseconds()
+    look = playerSkipLook(m.skipState, now, m.controls.shown)
+    shown = look.shown and m.video.state = "playing" and not m.upNext.visible and not m.notice.visible and not m.sync.visible and not m.menu.visible
+    ' Its 8 s run from here, and it hides by itself at their end.
+    if shown and playerSkipShown(m.skipState, now) then m.skipTimer.control = "start"
     if shown = m.skip.visible then return
     if shown
         m.skip.visible = true
         ' The controls keep the focus while they show.
-        if not m.controls.shown and not m.sleepButtons.isInFocusChain() then m.skip.setFocus(true)
+        if look.focused and not m.sleepButtons.isInFocusChain() then m.skip.setFocus(true)
     else
         hideSkip()
     end if
@@ -1207,7 +1213,7 @@ sub onSkip()
     marker = m.skipMarker
     if marker = invalid then return
     ' Until the playhead is past it, the button stays away.
-    m.skipDismissed = true
+    m.skipState.dismissed = true
     hideSkip()
     target = playerSkipTarget(marker, m.durationMs)
     if target < 0
@@ -1605,8 +1611,6 @@ sub showUpNext()
     m.upNextShown = true
     m.nextTitle.text = m.next.title
     m.nextLine.text = m.next.line
-    m.nextImage.setHttpAgent(m.top.getScene().getHttpAgent())
-    m.nextImage.uri = m.next.image
     m.upNext.visible = true
     m.nextButtons.focusButton = 0
     m.nextButtons.setFocus(true)
@@ -1938,6 +1942,8 @@ sub showControls(focus as string)
     restartHide()
     placeSkip()
     placeSleepNotice()
+    ' Past its 8 s, Skip comes back with them, Up from the scrubber away.
+    updateSkip()
 end sub
 
 sub hideControls()

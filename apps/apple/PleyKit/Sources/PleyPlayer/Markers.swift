@@ -50,6 +50,39 @@ public enum Markers {
     }
 }
 
+/// When Skip shows. It shows by itself for its first 8 seconds in a
+/// segment, on the clock from when it appears; after that, until a second
+/// before the segment ends, only with the player's controls. Entering a
+/// segment again, or another one, starts a fresh 8 seconds; seeking inside
+/// the same one doesn't. While the Up Next card covers it, Skip hasn't
+/// appeared: after Cancel, its 8 seconds start then.
+public struct SkipWindow: Sendable {
+    /// How long Skip shows by itself.
+    public static let aloneMs: Int64 = 8_000
+
+    private var key: String?
+    private var since: Int64 = 0
+
+    public init() {}
+
+    /// The segment whose Skip is offered at `now` (`Markers.key`; `nil`
+    /// when none is, or the Up Next card covers it). Another key than the
+    /// last starts its window.
+    public mutating func offered(_ key: String?, at now: Int64) {
+        guard key != self.key else { return }
+        self.key = key
+        since = now
+    }
+
+    /// Whether Skip shows by itself at `now`, without the controls.
+    public func alone(at now: Int64) -> Bool {
+        key != nil && now - since < Self.aloneMs
+    }
+
+    /// A new item, an end or a failure: nothing is offered.
+    public mutating func reset() { key = nil }
+}
+
 /// Entering credits brings up Up Next, once per segment: seeking back into
 /// them later lets them play. The player passes only credits that run to
 /// the end (`Markers.reachesEnd`).

@@ -130,13 +130,34 @@ segment at start + 4 s (a `HEAD` request), then moves the engine there. The
 screen is black meanwhile, and the loading ring waits 2.5 s. With no
 transcode free for two (`503`), the old session ends first.
 
+### Skip Intro and Skip Credits
+
+Skip Intro or Skip Credits shows on its own for 8 seconds as the playhead
+enters an intro or the credits (playing into them, seeking into them, or
+starting inside them), paused or not, with focus, so OK skips. Then it
+goes, and focus goes back to the video, where OK, the arrows and the other
+keys do what they do with nothing on screen. Until a second before the
+segment ends, Skip shows again with the controls, above the scrubber,
+where Up reaches it. Up opens the controls on the scrubber and Down on
+the row of buttons, during Skip's 8 seconds too; Info and Menu, which
+open them without a direction, open them on Skip during its 8 seconds and
+on the scrubber after. Skip going while it has focus over the controls
+(pressed, or its segment over) leaves focus on the scrubber. Entering a
+segment again, or another, starts a fresh 8 seconds; a seek within the
+same one doesn't. Nothing is skipped by itself. Under Up Next's card Skip
+Credits doesn't show; when the card goes with the playhead still in the
+credits (Cancel, or a seek within them), Skip Credits gets its 8 seconds
+from then. Both Samsung apps share the rule, pinned by
+`packages/tv/test/fixtures/skip-shown.json`.
+
 ### Up Next
 
 Up Next (the next episode, or the next title of a playlist or collection)
 comes as credits that run to the end of the file begin: credits ending
 within 15 s of the end, where only a studio's logo or black follows.
-Seeking back into them doesn't bring it again. Its card counts down 10 s,
-then plays the next title; with Settings' Play the next episode by itself
+Seeking back into them doesn't bring it again. Its card, the next title's
+name without a picture, counts down 10 s with a ring that fills smoothly
+inside Play now ("Next in 7" with Reduce motion), then plays the next title; with Settings' Play the next episode by itself
 off, it waits. Credits that something follows (an after-credits scene, the last minutes
 of a show after music every episode shares) bring Skip Credits alone, and
 Up Next comes at the end of the file, as it does for a file without
@@ -759,8 +780,9 @@ Quality, the sleep timer, Speed where the TV's player has other speeds, and Info
 where the server's speed sits beside the TV's network speed: the fastest
 second of the last ten, from the bytes the TV's network received, since
 Tizen's player doesn't say how fast it downloads),
-Chapters opening the chapters' cards, Skip Intro and Skip Credits (over the scrubber, where Up
-reaches them, as on Android TV), Up
+Chapters opening the chapters' cards, Skip Intro and Skip Credits (on their own for 8 seconds,
+then with the controls over the scrubber, where Up reaches them, as on Android TV and as
+[Skip Intro and Skip Credits](#skip-intro-and-skip-credits) describes), Up
 Next (the next episode, or the next in a playlist or collection, at
 credits that run to the end of the file, else at its end, as
 [Up Next](#up-next) describes),
@@ -993,11 +1015,13 @@ forms and the same values, French and Spanish to their punctuation.
   pins which titles Home's hero features, and in what order; `language.json`
   pins which language shows, and that a server naming any language, even
   one the app doesn't have, keeps an account's; `markers.json` pins which
-  credits bring Up Next. Where the
-  Android app is
-  stricter (a token answer without `token_type`, a device code without
-  `expires_in`), the native app follows it, and its test says which
-  fixture case it answers differently.
+  credits bring Up Next; `skip-shown.json` pins when Skip shows (8 s on
+  its own from entering a segment or from Up Next's card going, then only
+  with the controls); `countdown-fill.json` pins how full Up Next's ring is
+  between the countdown's seconds. Where the Android app is stricter (a
+  token answer without `token_type`, a device code without `expires_in`),
+  the native app follows it, and its test says which fixture case it
+  answers differently.
 
 ### Setting up
 

@@ -180,9 +180,21 @@ Kodi's part (`autoquality.py`):
 
 ### Skip and Up Next
 
-While the video is on screen, Skip Intro and Skip Credits show from a
-marker's start until a second before its end, for 10 seconds at most. An
-episode's credits that run to the end of the file (ending 15 seconds or
+While the video is on screen, Skip Intro and Skip Credits show as the
+playhead enters a marker (playing or seeking into it, or starting inside
+it), on their own and with the remote's focus for 8 seconds from when they
+appear, then go and leave the remote to the video. A seek inside the
+marker doesn't start the 8 seconds again; entering a marker again (seeking
+out and back in, or the next one) does. While the OSD or a menu is open in
+those 8 seconds, Skip waits behind it and shows again when it closes, for
+what is left of them.
+
+The other apps bring Skip back with their controls until a second before
+the marker's end. Kodi's controls are the skin's OSD, which an add-on
+can't add a button to, and a button over it would take the remote from
+it, so on Kodi Skip stays away until the playhead enters a marker again.
+
+An episode's credits that run to the end of the file (ending 15 seconds or
 less before it) bring Up Next instead: the next episode plays after a
 10-second countdown unless canceled, which leaves Skip Credits. Credits
 that something follows (an after-credits scene, a show's last minutes)

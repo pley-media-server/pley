@@ -312,6 +312,16 @@ As each item begins (the first, the next episode, a playlist's or a
 collection's next), its title shows at the top for 4 s, a show's name over
 the episode's "S1 E2 · Pilot", as on Android TV.
 
+- **Skip Intro and Skip Credits** show as the playhead enters an intro or
+  credits (playing or seeking into them, or starting inside them), on
+  their own for 8 s, with the focus, so OK skips. Then they hide and the
+  focus goes back to the video, so OK and the arrows bring up the controls
+  as they would with nothing on screen. Until a second before the part
+  ends, Skip comes back with the controls while the video plays, above the
+  scrubber (which has the focus; Up reaches Skip), and hides with them;
+  paused, the controls show without it. Entering a part again
+  starts a fresh 8 s; a seek inside it doesn't. Nothing else happens by
+  itself: Skip never skips on its own.
 - **Up Next** shows with its countdown as credits that run to the end of
   the file begin (ending 15 s or less before it), else at the end.
   Credits that something follows (an after-credits scene, a show's last

@@ -8,6 +8,16 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Up Next's card shows the next title's name without its picture, so it
+  covers less of the credits, and its countdown fills smoothly instead of
+  a step each second. On TVs the countdown is in Play now as on phones,
+  "Play now (7)" with a sweep across the button, in place of a ring.
+- Skip Intro and Skip Credits show by themselves for 8 seconds, then only
+  with the player's controls, instead of over the whole intro or credits.
+  On TVs, OK and the arrows act on the video again once Skip has gone.
+
 ## [0.1.20] - 2026-11-27
 
 ### Added

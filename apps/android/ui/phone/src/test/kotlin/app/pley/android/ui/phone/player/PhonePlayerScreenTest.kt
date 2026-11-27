@@ -231,9 +231,48 @@ class PhonePlayerScreenTest {
     }
 
     @Test
+    fun skipShowsByItselfForItsFirstSecondsThenOnlyWithTheControls() {
+        val fake = FakePlaybackController(
+            playing {
+                it.copy(
+                    skipLabel = "Skip Intro",
+                    skipAlone = true,
+                    markers = listOf(Marker(1, MarkerKind.Intro, 2_000, 80_000, MarkerSource.Fingerprint)),
+                )
+            },
+        )
+        compose.mainClock.autoAdvance = false
+        show(fake)
+        // The controls go after 3 s; Skip stays, by itself.
+        compose.mainClock.advanceTimeBy(4_000)
+        assertEquals(0, compose.onAllNodesWithTextCount("Fixture Show"))
+        compose.onNodeWithText("Skip Intro").assertIsDisplayed()
+
+        // Its 8 s over, it goes...
+        fake.update { it.copy(skipAlone = false) }
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals(0, compose.onAllNodesWithTextCount("Skip Intro"))
+        assertTrue("nothing skipped by itself", fake.calls("skip").isEmpty())
+
+        // ...and comes back with the controls, where a tap skips.
+        compose.mainClock.autoAdvance = true
+        compose.onNodeWithTag(TAG_PLAYER).performTouchInput { click(center) }
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithText("Fixture Show").assertIsDisplayed()
+        compose.onNodeWithText("Skip Intro").assertIsDisplayed().performClick()
+        assertEquals(1, fake.calls("skip").size)
+
+        // The controls gone again, so is Skip.
+        compose.mainClock.advanceTimeBy(4_000)
+        assertEquals(0, compose.onAllNodesWithTextCount("Fixture Show"))
+        assertEquals(0, compose.onAllNodesWithTextCount("Skip Intro"))
+    }
+
+    @Test
     fun upNextCountsDownAndCancelsOrPlaysNow() {
         val fake = FakePlaybackController(
-            playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7), upNext = "Second", upNextSecondsLeft = 7) },
+            playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7), upNext = "Second", upNextSecondsLeft = 7) },
         )
         show(fake)
         compose.onNodeWithText("Up next · S1 E2").assertIsDisplayed()
@@ -251,7 +290,7 @@ class PhonePlayerScreenTest {
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun upNextsButtonsSitSideBySideWhileTheyFit() {
-        show(FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7), upNextSecondsLeft = 7) }))
+        show(FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7), upNextSecondsLeft = 7) }))
         assertWhole("Play now (7)")
         val play = compose.onNodeWithText("Play now (7)").fetchSemanticsNode().boundsInRoot
         val cancel = compose.onNodeWithText("Cancel").fetchSemanticsNode().boundsInRoot
@@ -262,7 +301,7 @@ class PhonePlayerScreenTest {
     @Config(qualifiers = "fr-w915dp-h412dp-land")
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun upNextsCountdownIsNeverCutCancelGoesUnderItInstead() {
-        show(FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "À suivre · S1 E2", null, 10), upNextSecondsLeft = 10) }))
+        show(FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "À suivre · S1 E2", 10), upNextSecondsLeft = 10) }))
         assertWhole("Lire maintenant (10)")
         val play = compose.onNodeWithText("Lire maintenant (10)").fetchSemanticsNode().boundsInRoot
         val cancel = compose.onNodeWithText("Annuler").fetchSemanticsNode().boundsInRoot
@@ -272,7 +311,7 @@ class PhonePlayerScreenTest {
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun onACarsScreenUpNextsCountdownIsWholeToo() {
-        val fake = FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7), upNextSecondsLeft = 7) })
+        val fake = FakePlaybackController(playing { it.copy(upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7), upNextSecondsLeft = 7) })
         compose.setContent {
             PhoneTheme {
                 CarSized(car = true) {

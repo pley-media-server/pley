@@ -165,8 +165,7 @@ rates as the decoder gives them, the same in every language.
   gradient alone. A tile's name is in its caption, not on its picture. The mark shows only
   where the title's name is by its picture (a caption, the line beside
   it): backdrops, people, Live TV's programs and a playlist's mosaic
-  keep the gradient alone, and the player's Up Next card too, as it
-  doesn't know its title's kind. The gradient and the mark are
+  keep the gradient alone. The gradient and the mark are
   `packages/placeholder`'s, which unit tests hold the app's copies to.
 - **The tabs** are a bar under the page on a phone held upright, with
   their names, and a rail beside it on a phone on its side, a tablet or
@@ -770,8 +769,21 @@ no See all. TMDB's Discover row comes after them ([Requests](#requests)).
 
 ### Up Next
 
-Skip Intro and Skip Credits show while an intro or the credits play, until
-a second before they end; nothing is skipped by itself. Up Next, what
+Skip Intro and Skip Credits are offered while an intro or the credits
+play, until a second before they end; nothing is skipped by itself. Skip
+shows by itself for 8 seconds from when it appears (the playhead playing
+or seeking into the segment, or the title starting in it), then fades
+out, so it doesn't sit over the whole intro; after that it shows only
+with the player's controls, where it sits with them, and hides with them.
+Entering a segment again, or the next one, starts a fresh 8 seconds;
+seeking inside the same one doesn't. On TVs Skip has focus while it shows
+by itself, so OK skips; when it goes, focus goes back to the video, and
+OK, the arrows and the rest do what they do with nothing on screen. In
+those 8 seconds, the keys that open the controls without a place of their
+own (Menu, Info) open them on Skip, and the controls closing give Skip its
+focus back; after them, the controls open on the scrubber, Up reaches
+Skip, and Skip goes as they close. Under Up Next's card Skip Credits
+doesn't show; after Cancel, its 8 seconds run from then. Up Next, what
 plays next with a 10 s countdown (none with Play the next episode by
 itself off), comes as credits that run to the end of their file begin,
 and otherwise at the end of the file. Credits run to the end when they end
@@ -780,7 +792,11 @@ as the player has it; with no length known, they don't. Credits that
 something follows, an after-credits scene or a show's last minutes, offer
 only Skip Credits, so the countdown never skips what comes after them. An
 episode goes on to the next one, and a title played from a playlist or a
-collection to the next title there, the same on phones and TVs.
+collection to the next title there, the same on phones and TVs. The card
+holds the next title's name and episode, without a picture, so it covers
+little of the credits; its countdown is in Play now, "Play now (7)" with a
+sweep filling the button smoothly, in steps of a second with reduced
+motion, the same on phones and TVs.
 
 ### Audio and subtitles
 

@@ -1,13 +1,9 @@
 package app.pley.android.ui.phone.player
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,7 +13,6 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -70,8 +65,7 @@ import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
-import app.pley.android.designsystem.image.Artwork
-import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.countdownFill
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.player.PlayerPhase
 import app.pley.android.player.PlayerUiState
@@ -151,15 +145,17 @@ internal fun rememberSpinning(state: PlayerScreenState): Boolean {
 /**
  * Skip Intro or Skip Credits (design spec §3.5): a quiet pill at the bottom
  * right, dark and see-through with a faint outline, so it asks little of
- * the eye over the picture. Shown even with the controls hidden, above the
- * seek bar while they show. It steps aside for Up Next and while the seek
- * bar is dragged, and is announced when it appears.
+ * the eye over the picture. It shows by itself for its first 8 s
+ * ([PlayerUiState.skipAlone]), then only with the controls, above the seek
+ * bar while they show. It steps aside for Up Next and while the seek bar
+ * is dragged, and is announced when it appears.
  */
 @Composable
 internal fun BoxScope.SkipButton(state: PlayerScreenState) {
     PlayerProbe.composed?.invoke("skip")
     val label = state.skipLabel
-    val shown = label != null && state.upNext == null && !state.scrubbing && !state.locked && state.sheet == null
+    val shown = label != null && (state.skipAlone || state.controlsVisible) && state.upNext == null && !state.scrubbing && !state.locked &&
+        state.sheet == null
     val lift by animateDpAsState(if (state.controlsVisible) AboveControls else 0.dp, PleyMotion.overlay(reducedMotion()), label = "skip")
     var last by remember { mutableStateOf(label) }
     if (label != null) last = label
@@ -197,11 +193,10 @@ internal fun BoxScope.SkipButton(state: PlayerScreenState) {
 
 /**
  * What plays next, from credits that run to the end on, else from the end:
- * its still, "Up next · S1 E4", the title, Play now with the seconds left
- * (a fill sweeping across it once a second) and Cancel. It is announced
- * once, not every second. While the controls show, it goes up above them
- * without its still, so on a phone on its side it stays on screen and clear
- * of the top bar.
+ * "Up next · S1 E4", the title, Play now with the seconds left (a fill
+ * sweeping smoothly across it) and Cancel; no still, so it covers little of
+ * the credits. It is announced once, not every second. While the controls
+ * show, it goes up above them, clear of the top bar on a phone on its side.
  */
 @Composable
 internal fun BoxScope.UpNextCard(state: PlayerScreenState) {
@@ -234,15 +229,6 @@ private fun UpNextContent(card: UpNextUi, state: PlayerScreenState) {
             .background(PleyColors.Surface2.copy(alpha = 0.96f))
             .padding(12.dp),
     ) {
-        AnimatedVisibility(
-            !state.controlsVisible,
-            enter = if (reduced) EnterTransition.None else fadeIn(PleyMotion.overlay()) + expandVertically(PleyMotion.overlay()),
-            exit = if (reduced) ExitTransition.None else fadeOut(PleyMotion.overlay()) + shrinkVertically(PleyMotion.overlay()),
-        ) {
-            Box(Modifier.fillMaxWidth().padding(bottom = 10.dp).aspectRatio(16f / 9f).clip(PleyShape.Card)) {
-                Artwork(card.imageUrl?.let { ArtworkImage(listOf(it)) }, card.title, Modifier.fillMaxSize())
-            }
-        }
         Column(Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }) {
             Text(card.heading, style = MaterialTheme.typography.labelMedium, color = PleyColors.AccentBright, maxLines = 1)
             Text(
@@ -263,8 +249,7 @@ private fun UpNextContent(card: UpNextUi, state: PlayerScreenState) {
                 reduced -> stringResource(R.string.player_next_in, left)
                 else -> stringResource(R.string.player_play_now_in, left)
             }
-            val total = UP_NEXT_SECONDS.toFloat()
-            val done = if (left == null) 0f else ((total - left) / total).coerceIn(0f, 1f)
+            val done = countdownFill(left, UP_NEXT_SECONDS, smooth = !reduced)
             Box {
                 PrimaryButton(
                     label,
@@ -275,15 +260,17 @@ private fun UpNextContent(card: UpNextUi, state: PlayerScreenState) {
                     icon = PleyIcons.Play,
                     modifier = Modifier
                         .fillMaxWidth()
-                        // The countdown: a darker sweep across the button, stepped once a
-                        // second. Over it, not behind: the button's own fill would hide it.
+                        // The countdown: a darker sweep across the button, moving smoothly
+                        // (stepped once a second with reduced motion). Over it, not behind:
+                        // the button's own fill would hide it.
                         .drawWithContent {
                             drawContent()
-                            if (done > 0f) {
+                            val swept = done.value
+                            if (swept > 0f) {
                                 drawRoundRect(
                                     Color.Black.copy(alpha = 0.18f),
                                     topLeft = Offset.Zero,
-                                    size = Size(size.width * done, size.height),
+                                    size = Size(size.width * swept, size.height),
                                     cornerRadius = CornerRadius(PleyShape.ControlRadius.toPx()),
                                 )
                             }

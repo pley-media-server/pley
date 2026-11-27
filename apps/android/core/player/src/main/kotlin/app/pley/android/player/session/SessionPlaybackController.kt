@@ -50,6 +50,7 @@ import app.pley.android.player.TrackChoice
 import app.pley.android.player.UpNextUi
 import app.pley.android.player.markers.CreditsGate
 import app.pley.android.player.markers.Markers
+import app.pley.android.player.markers.SkipWindow
 import app.pley.android.player.queue.NextUp
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepTimer
@@ -110,7 +111,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   person picks a track. Switched by the engine in direct play; a new
  *   session when a stream needs other audio or subtitles burned in; choices
  *   are saved with PUT /api/items/{id}/streams, the audio only when picked.
- * - **Markers and Up Next.** Skip Intro and Skip Credits; entering credits
+ * - **Markers and Up Next.** Skip Intro and Skip Credits, by themselves for
+ *   their first 8 s and then with the controls ([SkipWindow]); entering credits
  *   that run to the end of their file, or the end, brings up what plays next
  *   with a 10 s countdown ([CreditsGate]).
  * - **Subtitles.** The server's WebVTT for streams and files beside the
@@ -273,6 +275,7 @@ class SessionPlaybackController(
     private var autoNoticePending = false
     private val struggle = StruggleMeter()
     private val credits = CreditsGate()
+    private val skipWindow = SkipWindow()
     private val nextUp = NextUp(env.api, env.local)
     private val serverSubtitles = ServerSubtitles(scope, env.subtitles, env.parser, env.work, onError = { notice(texts.subtitlesFailed) })
     private val pictureSubtitles = env.pictures?.let { PictureSubtitles(scope, it, onError = ::picturesFailed) }
@@ -1204,12 +1207,15 @@ class SessionPlaybackController(
             lastPositionMs = pos
             if (moving) recovery.onPosition(pos)
             val marker = if (ui.value.phase is PlayerPhase.Error) null else Markers.active(markers, pos)
+            // Skip's time by itself runs from when it appears: not under Up Next's card, which takes its place.
+            val alone = skipWindow.alone(marker.takeIf { ui.value.upNextCard == null }, now)
             ui.update {
                 it.copy(
                     positionMs = pos,
                     bufferedMs = engineLink.bufferedMs,
                     durationMs = s.info.durationMs.takeIf { d -> d > 0 } ?: engineLink.durationMs.takeIf { d -> d > 0 } ?: it.durationMs,
                     skipLabel = marker?.let { m -> if (m.kind == MarkerKind.Intro) texts.skipIntro else texts.skipCredits },
+                    skipAlone = alone,
                 )
             }
             // Only credits that run to the end bring up Up Next: its countdown would skip what follows the others.
@@ -2075,7 +2081,7 @@ class SessionPlaybackController(
 
     private fun showUpNext(found: ItemSummary, restartCountdown: Boolean) {
         next = found
-        // The next item's details and still, ahead of time.
+        // The next item's details, ahead of time.
         if (nextDetail?.first != found.id) {
             val choices = choicesSaved
             scope.launch {
@@ -2094,8 +2100,6 @@ class SessionPlaybackController(
             itemId = found.id,
             title = found.title,
             heading = texts.upNext(NextUp.labelOf(found, texts.format)),
-            // A download's picture is a file here.
-            imageUrl = (found.thumbUrl ?: found.backdropUrl)?.let { if (it.startsWith("file:")) it else env.api.url(it, UP_NEXT_IMAGE_WIDTH) },
             secondsLeft = null,
         )
         ui.update { it.copy(upNextCard = card, upNext = card.title, upNextSecondsLeft = null) }
@@ -2141,6 +2145,7 @@ class SessionPlaybackController(
         soundNeeds(reload = false)
         searchJob?.cancel()
         credits.reset()
+        skipWindow.reset()
         guardMode = null
         hideServerSubtitles()
         dropTrickplay()
@@ -2354,7 +2359,6 @@ class SessionPlaybackController(
         /** What every video obeys from the remote. */
         private val VIDEO_CONTROLS = listOf(Control.Play, Control.Pause, Control.Seek, Control.Skip)
 
-        const val UP_NEXT_IMAGE_WIDTH = 480
         private const val CUE_MIN_MS = 20L
         private const val CUE_MAX_MS = 250L
         private const val CUE_IDLE_MS = 500L

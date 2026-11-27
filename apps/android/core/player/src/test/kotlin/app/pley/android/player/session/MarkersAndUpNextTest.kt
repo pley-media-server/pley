@@ -3,6 +3,9 @@ package app.pley.android.player.session
 import app.pley.android.data.LocalFile
 import app.pley.android.data.LocalMedia
 import app.pley.android.fixtures.FixtureIds
+import app.pley.android.model.Marker
+import app.pley.android.model.MarkerKind
+import app.pley.android.model.MarkerSource
 import app.pley.android.model.ItemSummary
 import app.pley.android.player.PlayQueue
 import app.pley.android.player.PlayRequest
@@ -10,6 +13,7 @@ import app.pley.android.player.PlayerPhase
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -47,6 +51,62 @@ class MarkersAndUpNextTest {
         assertEquals(1, h.engine.seeks.size)
     }
 
+    /** The first episode with only an intro, from 2 s to 15 s: long enough for Skip's 8 s by itself. */
+    private fun longIntro(): SessionPlaybackController {
+        h.editDetail = { d -> d.copy(markers = listOf(Marker(d.files.first().id, MarkerKind.Intro, 2_000, 15_000, MarkerSource.Fingerprint))) }
+        return episode(0)
+    }
+
+    @Test
+    fun `Skip shows by itself for 8 s from entering the intro, then only with the controls, and afresh on entering it again`() {
+        val c = longIntro()
+        h.advance(2_500)
+        assertEquals("Skip Intro", c.state.value.skipLabel)
+        assertTrue(c.state.value.skipAlone)
+        // It appeared at 2 or 2.5 s: by itself until 8 s after.
+        h.advance(7_000)
+        assertTrue(c.state.value.skipAlone)
+        h.advance(1_500)
+        assertEquals("Skip Intro", c.state.value.skipLabel)
+        assertFalse(c.state.value.skipAlone)
+
+        // A seek inside the intro: still with the controls only.
+        c.seekTo(12_000)
+        h.advance(500)
+        assertEquals("Skip Intro", c.state.value.skipLabel)
+        assertFalse(c.state.value.skipAlone)
+
+        // Out of the intro and back in: 8 s by itself again.
+        c.seekTo(16_000)
+        h.advance(500)
+        assertNull(c.state.value.skipLabel)
+        c.seekTo(3_000)
+        h.advance(500)
+        assertEquals("Skip Intro", c.state.value.skipLabel)
+        assertTrue(c.state.value.skipAlone)
+        // The 8 s run on the wall clock, paused or not.
+        c.pause()
+        h.advance(8_500)
+        assertEquals("Skip Intro", c.state.value.skipLabel)
+        assertFalse(c.state.value.skipAlone)
+        // Nothing skips by itself.
+        assertEquals(listOf(12_000L, 16_000L, 3_000L), h.engine.seeks)
+    }
+
+    @Test
+    fun `after Up Next is cancelled, Skip Credits shows by itself for 8 s from then`() {
+        val c = episode(15_000)
+        h.advance(2_000)
+        assertNotNull(c.state.value.upNextCard)
+        // Under the card, Skip's 8 s don't run.
+        assertFalse(c.state.value.skipAlone)
+        c.cancelUpNext()
+        h.advance(500)
+        assertNull(c.state.value.upNextCard)
+        assertEquals("Skip Credits", c.state.value.skipLabel)
+        assertTrue(c.state.value.skipAlone)
+    }
+
     @Test
     fun `entering credits that run to the end offers Skip Credits and Up Next, once per segment`() {
         val c = episode(15_000)
@@ -56,7 +116,6 @@ class MarkersAndUpNextTest {
         val card = state.upNextCard!!
         assertEquals(FixtureIds.SHOW_S1E2, card.itemId)
         assertEquals("Up next · S1 · E2", card.heading)
-        assertTrue(card.imageUrl!!.startsWith(h.server.url))
         assertEquals(card.title, state.upNext)
         assertEquals(10, state.upNextSecondsLeft)
         assertEquals(1, h.api.count("next"))
@@ -120,7 +179,7 @@ class MarkersAndUpNextTest {
     @Test
     fun `a download goes on to the next one downloaded when the server is away`() {
         val first = runBlocking { h.api.item(FixtureIds.SHOW_S1E1) }
-        val second: ItemSummary = runBlocking { h.api.item(FixtureIds.SHOW_S1E2) }.toSummary().copy(thumbUrl = "file:///downloads/e2/image.jpg")
+        val second: ItemSummary = runBlocking { h.api.item(FixtureIds.SHOW_S1E2) }.toSummary()
         h.local = object : LocalMedia {
             override fun file(fileId: Long) = LocalFile("file:///downloads/e1/media.mkv").takeIf { fileId == first.files.first().id }
 
@@ -135,7 +194,6 @@ class MarkersAndUpNextTest {
 
         val card = c.state.value.upNextCard!!
         assertEquals(FixtureIds.SHOW_S1E2, card.itemId)
-        assertEquals("the picture saved with it", "file:///downloads/e2/image.jpg", card.imageUrl)
         assertEquals(PlayerPhase.Paused, c.state.value.phase)
     }
 

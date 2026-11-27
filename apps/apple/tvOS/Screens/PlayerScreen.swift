@@ -8,8 +8,9 @@ import SwiftUI
 /// menu, Subtitles menu (with the sync and Find Subtitles…), Speed and
 /// Sleep Timer menus, Picture in Picture, the subtitles drawn over the
 /// video, a Details tab in its info panel, Skip Intro, Skip Credits, Up
-/// Next and the sleep timer's Keep Watching as its contextual actions,
-/// and the chapters as its navigation markers. The sleep timer's last
+/// Next and the sleep timer's Keep Watching as its contextual actions
+/// (Skip after its first 8 seconds only with the transport bar), and the
+/// chapters as its navigation markers. The sleep timer's last
 /// 30 s show at the top, and the player's notices ("Playing from …", as a
 /// cast from another device starts) for 4 seconds. Menu closes it (when
 /// the transport bar isn't showing), which ends the session.

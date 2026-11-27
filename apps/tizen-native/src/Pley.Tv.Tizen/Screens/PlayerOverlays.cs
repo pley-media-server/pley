@@ -156,40 +156,33 @@ sealed class SkipButton : View
 }
 
 /// <summary>
-/// Up Next (design spec §2.7): a 300 dp card on Surface2 at 96 %: the next one's still, "Up next ·
-/// S2 · E6" and its title, then Play now, with a ring filling over the countdown ("Next in 7" when
-/// motion is reduced), and Cancel.
+/// Up Next (design spec §2.7): a 300 dp card on Surface2 at 96 %: "Up next · S2 · E6" and the next
+/// one's title, then Play now, with a ring filling smoothly over the countdown ("Next in 7" when
+/// motion is reduced), and Cancel. No still: the card stays small over the credits.
 /// </summary>
 sealed class UpNextView : View
 {
     public const float Width = 300;
-    const float ImageHeight = 169, Pad = 16;
+    const float Pad = 16;
 
-    readonly Images images;
     readonly bool reduced;
-    readonly ImageView still;
     readonly TextLabel heading;
     readonly TextLabel name;
     readonly PlayNowButton play;
     readonly ButtonView cancel;
 
-    public UpNextView(Images images, bool reducedMotion, Action onPlay, Action onCancel)
+    public UpNextView(bool reducedMotion, Action onPlay, Action onCancel)
     {
-        this.images = images;
         reduced = reducedMotion;
         CornerRadius = Ui.Dp(PleyShape.DialogRadius);
         BackgroundColor = new Color(PleyColors.Surface2.R, PleyColors.Surface2.G, PleyColors.Surface2.B, 0.96f);
         ClippingMode = ClippingModeType.ClipChildren;
-        var well = new View { Size = new Size(Ui.Dp(Width), Ui.Dp(ImageHeight)), BackgroundColor = PleyColors.Surface3 };
-        Add(well);
-        still = new ImageView { Size = new Size(Ui.Dp(Width), Ui.Dp(ImageHeight)), FittingMode = FittingModeType.ScaleToFill, Opacity = 0 };
-        Add(still);
         heading = Text.Label("", PleyType.Caption, PleyColors.Muted, width: Width - 2 * Pad);
-        heading.Position = new Position(Ui.Dp(Pad), Ui.Dp(ImageHeight + Pad));
+        heading.Position = new Position(Ui.Dp(Pad), Ui.Dp(Pad));
         Add(heading);
         name = Text.Label("", PleyType.Title, PleyColors.Fg, maxLines: 2, width: Width - 2 * Pad);
         name.VerticalAlignment = VerticalAlignment.Top;
-        name.Position = new Position(Ui.Dp(Pad), Ui.Dp(ImageHeight + Pad + PleyType.Caption.Line));
+        name.Position = new Position(Ui.Dp(Pad), Ui.Dp(Pad + PleyType.Caption.Line));
         Add(name);
         play = new PlayNowButton(onPlay);
         Add(play);
@@ -222,22 +215,11 @@ sealed class UpNextView : View
         name.Text = card.Title;
         var nameHeight = Math.Min(Math.Max(name.GetHeightForWidth(Ui.Dp(Width - 2 * Pad)), Text.LineHeight(PleyType.Title)), Text.LineHeight(PleyType.Title) * 2);
         name.SizeHeight = nameHeight;
-        rowTop = ImageHeight + Pad + PleyType.Caption.Line + nameHeight / Ui.Scale + 16;
+        rowTop = Pad + PleyType.Caption.Line + nameHeight / Ui.Scale + 16;
         play.Position = new Position(Ui.Dp(Pad), Ui.Dp(rowTop));
         PlaceCancel();
         HeightDp = rowTop + PlayNowButton.Height + Pad;
         Size = new Size(Ui.Dp(Width), Ui.Dp(HeightDp));
-        still.Opacity = 0;
-        if (card.ImageUrl is { } url)
-        {
-            var asked = card.ItemId;
-            images.Load(new[] { url }, Width, file =>
-            {
-                if (file == null || Disposed || ItemId != asked) return;
-                still.ResourceUrl = file;
-                Fade.To(still, true, PleyMotion.ImageFadeMs);
-            });
-        }
     }
 
     float rowTop;
@@ -259,11 +241,18 @@ sealed class UpNextView : View
         public const float Height = 48;
         const float Icon = 22, Ring = 22, Stroke = 3;
 
+        /// <summary>How often the ring is drawn again while it moves: smooth on a 22 dp ring, at half a 60 Hz frame rate's work.</summary>
+        const uint FrameMs = 33;
+
+        static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
+
         readonly ImageView icon;
         readonly TextLabel label;
         readonly TextLabel words;
         readonly View ringTrack;
         readonly View ringDone;
+        readonly CountdownFill fill = new CountdownFill();
+        readonly Timer frames = new Timer(FrameMs);
         int? left;
         bool wordsOnly;
 
@@ -291,6 +280,13 @@ sealed class UpNextView : View
             ringDone = new View { Size = ringTrack.Size, Position = ringTrack.Position };
             Add(ringDone);
             Item.FocusChanged += _ => Look();
+            frames.Tick += (s, e) =>
+            {
+                if (Disposed) return false;
+                var now = Clock.ElapsedMilliseconds;
+                DrawRing(now);
+                return fill.Moving(now);
+            };
             Countdown(null, false);
         }
 
@@ -301,6 +297,11 @@ sealed class UpNextView : View
         public void Countdown(int? secondsLeft, bool reduced)
         {
             if (Disposed) return;
+            if (secondsLeft != left)
+            {
+                if (secondsLeft is int s && !reduced) fill.Set(s, Clock.ElapsedMilliseconds);
+                else fill.Reset();
+            }
             left = secondsLeft;
             wordsOnly = reduced;
             var extra = 0f;
@@ -320,6 +321,8 @@ sealed class UpNextView : View
             ringDone.SetVisible(secondsLeft != null && !reduced);
             Size = new Size(Ui.Dp(LabelEnd + extra + 16), Ui.Dp(Height));
             Look();
+            frames.Stop();
+            if (fill.Moving(Clock.ElapsedMilliseconds)) frames.Start();
         }
 
         void Look()
@@ -335,12 +338,30 @@ sealed class UpNextView : View
             words.TextColor = ink;
             var scale = focused ? PleyShape.PillScale : 1f;
             Scale = new Vector3(scale, scale, 1);
-            if (left is int n && !wordsOnly)
+            if (left != null && !wordsOnly)
             {
                 ringTrack.Background = Arc(new Color(ink.R, ink.G, ink.B, 0.25f), 360, false);
-                var done = Math.Max(0f, Math.Min(1f, (NextUp.CountdownSeconds - n) / (float)NextUp.CountdownSeconds));
-                ringDone.Background = Arc(ink, 360 * done, true);
+                DrawRing(Clock.ElapsedMilliseconds);
             }
+        }
+
+        /// <summary>The ring's filled arc as it stands at <paramref name="nowMs"/>.</summary>
+        void DrawRing(long nowMs)
+        {
+            if (left == null || wordsOnly) return;
+            ringDone.Background = Arc(Item.Focused ? PleyColors.OnAccent : PleyColors.Fg, 360 * fill.At(nowMs), true);
+        }
+
+        protected override void Dispose(DisposeTypes type)
+        {
+            if (Disposed) return;
+            // Collected instead, its tick finds the view disposed and stops.
+            if (type == DisposeTypes.Explicit)
+            {
+                frames.Stop();
+                frames.Dispose();
+            }
+            base.Dispose(type);
         }
 
         /// <summary>An arc from the top, clockwise, <paramref name="sweep"/> degrees long.</summary>

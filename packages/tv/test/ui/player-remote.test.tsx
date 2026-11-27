@@ -34,6 +34,7 @@ const PLAYING: PlayerState = {
   canPlayOriginal: false,
   suggestLowerQuality: false,
   skipLabel: null,
+  skipAlone: false,
   markers: [],
   chapters: [],
   trickplay: null,
@@ -145,7 +146,7 @@ function setup() {
   const ends = () =>
     act(() => {
       ended = true;
-      set({ phase: { kind: "paused" }, upNext: { itemId: 71, title: "Next", heading: "Up next", imageUrl: null, secondsLeft: 10 } });
+      set({ phase: { kind: "paused" }, upNext: { itemId: 71, title: "Next", heading: "Up next", secondsLeft: 10 } });
     });
   return { root: root!, remote, press, wait, controlsShown, toast, says, phase, ends, replays: () => replays, wantsToPlay: () => wantPlay };
 }

@@ -43,6 +43,9 @@ describes how they are made.
 
 ### Changed
 
+- Up Next's card shows the next title's name without its picture, so it
+  covers less of the credits, and its countdown ring fills smoothly
+  instead of a step each second.
 - Playback details name Rockchip MPP when a Rockchip server's video
   engines made the transcode.
 - Movies, shows and music without a picture show Pley's mark on their
@@ -56,6 +59,10 @@ describes how they are made.
   watching?" each time. A profile with a PIN still asks first, and Switch
   profile still shows every profile. Settings' Always start as
   calls this Profile used last, where it said Ask who's watching.
+- Skip Intro and Skip Credits show on their own for 8 seconds as an intro
+  or the credits begin, then only with the controls, so they don't sit
+  over the picture for the whole segment. Once they go, OK and the arrows
+  work as with nothing on screen.
 
 ### Security
 

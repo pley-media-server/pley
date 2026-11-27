@@ -18,6 +18,12 @@ object Markers {
     const val INTRO_LEAD_MS = 750L
 
     /**
+     * How long Skip shows by itself from the moment it appears ([SkipWindow]);
+     * after that it shows only with the player's controls.
+     */
+    const val SKIP_ALONE_MS = 8_000L
+
+    /**
      * Credits ending this close to the end of their file run to the end: what
      * follows them is a logo, a promo or black (apps/server/src/markers/mod.rs,
      * `CREDITS_TAIL_MS`).
@@ -49,6 +55,41 @@ object Markers {
      */
     fun reachesEnd(marker: Marker, durationMs: Long?): Boolean =
         marker.kind == MarkerKind.Credits && durationMs != null && durationMs > 0 && durationMs - marker.endMs <= CREDITS_TAIL_MS
+}
+
+/**
+ * Skip shows by itself for [Markers.SKIP_ALONE_MS] on the wall clock from
+ * the moment it appears, then only while the player's controls show, so it
+ * doesn't sit over a whole intro or the credits. Entering a segment again
+ * (seeking out and back in, or the next one) starts a fresh window; seeking
+ * inside the same segment doesn't.
+ */
+class SkipWindow(private val aloneMs: Long = Markers.SKIP_ALONE_MS) {
+    private var key: String? = null
+    private var since = 0L
+
+    /**
+     * Whether Skip, offered for [marker] at [nowMs], shows by itself. [marker]
+     * is `null` while Skip isn't offered, or is hidden under something that
+     * takes its place (Up Next's card): it starts again when it appears.
+     */
+    fun alone(marker: Marker?, nowMs: Long): Boolean {
+        if (marker == null) {
+            key = null
+            return false
+        }
+        val entered = Markers.keyOf(marker)
+        if (entered != key) {
+            key = entered
+            since = nowMs
+        }
+        return nowMs - since < aloneMs
+    }
+
+    /** A new item: its segments start fresh windows, whatever they're called. */
+    fun reset() {
+        key = null
+    }
 }
 
 /**

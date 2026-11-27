@@ -179,6 +179,7 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
             canPlayOriginal = true,
             suggestLowerQuality = true,
             skipLabel = "Skip Intro",
+            skipAlone = true,
             markers = listOf(
                 Marker(1, MarkerKind.Intro, 2_000, 8_000, MarkerSource.Fingerprint),
                 Marker(1, MarkerKind.Credits, 16_000, 20_000, MarkerSource.Frames),
@@ -187,7 +188,7 @@ class FakePlaybackController(initial: PlayerUiState = PlayerUiState()) : Playbac
             hasThumbnails = true,
             upNext = "Second",
             upNextSecondsLeft = 7,
-            upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", null, 7),
+            upNextCard = UpNextUi(20_002, "Second", "Up next · S1 E2", 7),
             details = PlaybackDetailsUi(
                 method = "Transcoding",
                 why = "The original didn't play smoothly on this device.",

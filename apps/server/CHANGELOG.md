@@ -9,6 +9,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The web player's Up Next card shows the next title's name without its
+  picture, so it covers less of the credits.
+- Skip Intro and Skip Credits show on their own for 8 seconds as the intro
+  or credits begin, then only with the player's controls, so they don't sit
+  over the picture the whole time.
+
 ## [0.1.18] - 2026-11-27
 
 ### Added

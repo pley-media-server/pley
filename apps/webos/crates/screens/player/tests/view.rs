@@ -91,6 +91,17 @@ impl Player {
     fn texts(&mut self) -> Vec<String> {
         self.idle().list.texts().map(str::to_string).collect()
     }
+
+    /// Skip offered as `label`: on its own (its first 8 s, `skip_alone`), or only with the
+    /// controls.
+    fn offer_skip(&mut self, label: &str, alone: bool) {
+        self.p.state.skip_label = Some(label.into());
+        self.p.state.skip_alone = alone;
+    }
+
+    fn shows(&mut self, text: &str) -> bool {
+        self.texts().iter().any(|t| t == text)
+    }
 }
 
 #[test]
@@ -388,7 +399,7 @@ fn choosing_a_subtitle_track_closes_the_panel_and_the_look_keeps_it_open() {
 #[test]
 fn skip_takes_focus_while_the_controls_are_hidden_and_ok_skips() {
     let mut pl = Player::new(Fake::episode());
-    pl.p.state.skip_label = Some("Skip Intro".into());
+    pl.offer_skip("Skip Intro", true);
     pl.wait(0.2);
     assert_eq!(pl.focus(), Some(Target::Skip));
     assert!(pl.texts().contains(&"Skip Intro".to_string()));
@@ -399,9 +410,83 @@ fn skip_takes_focus_while_the_controls_are_hidden_and_ok_skips() {
 }
 
 #[test]
+fn skip_hides_after_its_8_s_alone_and_focus_goes_back_to_the_video() {
+    let mut pl = Player::new(Fake::episode());
+    pl.offer_skip("Skip Intro", true);
+    pl.wait(0.2);
+    assert_eq!(pl.focus(), Some(Target::Skip));
+    // Its 8 s are over (the playback says so): it fades out, and the keys are the video's again.
+    pl.p.state.skip_alone = false;
+    pl.wait(0.3);
+    assert!(!pl.shows("Skip Intro"));
+    assert_eq!(pl.focus(), Some(Target::Video));
+    assert!(!pl.view.controls(), "nothing else changes by itself");
+    assert!(pl.p.calls.is_empty(), "{:?}", pl.p.calls);
+    // OK now shows the controls on the scrubber, not on Skip, which comes with them.
+    pl.press(Key::Ok);
+    assert!(pl.p.calls.is_empty(), "OK doesn't skip: {:?}", pl.p.calls);
+    assert!(pl.view.controls());
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
+    assert!(pl.shows("Skip Intro"));
+    // Up from the scrubber reaches it, and OK there skips.
+    pl.press(Key::Up);
+    assert_eq!(pl.focus(), Some(Target::Skip));
+    pl.press(Key::Ok);
+    assert_eq!(pl.p.calls, [Call::Skip]);
+}
+
+#[test]
+fn after_its_8_s_skip_hides_with_the_controls_and_focus_goes_to_the_video() {
+    let mut pl = Player::new(Fake::episode());
+    pl.offer_skip("Skip Credits", false);
+    pl.wait(0.2);
+    assert!(!pl.shows("Skip Credits"), "past its 8 s, not on its own");
+    assert_eq!(pl.focus(), Some(Target::Video));
+    // Info opens the controls on the scrubber, Skip with them.
+    pl.press(Key::Info);
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
+    assert!(pl.shows("Skip Credits"));
+    pl.press(Key::Up);
+    assert_eq!(pl.focus(), Some(Target::Skip));
+    // Back hides both, and focus goes to the video rather than staying on Skip.
+    assert!(pl.back());
+    pl.wait(0.3);
+    assert!(!pl.view.controls());
+    assert!(!pl.shows("Skip Credits"));
+    assert_eq!(pl.focus(), Some(Target::Video));
+    // The controls hiding by themselves take it too.
+    pl.press(Key::Up);
+    assert!(pl.shows("Skip Credits"));
+    pl.wait(5.5);
+    assert!(!pl.view.controls());
+    assert!(!pl.shows("Skip Credits"));
+    assert_eq!(pl.focus(), Some(Target::Video));
+}
+
+#[test]
+fn within_its_8_s_skip_keeps_focus_as_the_controls_hide() {
+    let mut pl = Player::new(Fake::episode());
+    pl.offer_skip("Skip Intro", true);
+    pl.wait(0.2);
+    pl.press(Key::Up);
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
+    assert!(pl.back());
+    pl.wait(0.2);
+    assert_eq!(pl.focus(), Some(Target::Skip));
+    // A fresh 8 s (the next marker) brings it on its own again, focused.
+    pl.p.state.skip_alone = false;
+    pl.wait(0.3);
+    assert_eq!(pl.focus(), Some(Target::Video));
+    pl.offer_skip("Skip Credits", true);
+    pl.wait(0.3);
+    assert!(pl.shows("Skip Credits"));
+    assert_eq!(pl.focus(), Some(Target::Skip));
+}
+
+#[test]
 fn skip_and_a_click_on_the_bar_drop_a_seek_still_waiting_for_ok() {
     let mut pl = Player::new(Fake::episode());
-    pl.p.state.skip_label = Some("Skip Intro".into());
+    pl.offer_skip("Skip Intro", true);
     pl.wait(0.2);
     pl.press(Key::FastForward);
     pl.press(Key::Ok);
@@ -419,7 +504,7 @@ fn skip_and_a_click_on_the_bar_drop_a_seek_still_waiting_for_ok() {
 #[test]
 fn up_from_the_scrubber_goes_to_skip() {
     let mut pl = Player::new(Fake::episode());
-    pl.p.state.skip_label = Some("Skip Credits".into());
+    pl.offer_skip("Skip Credits", true);
     pl.wait(0.2);
     pl.press(Key::Up);
     assert!(pl.view.controls());
@@ -681,7 +766,7 @@ fn info_and_menu_bring_the_controls_on_skip_when_it_shows() {
     assert!(pl.view.controls());
     assert_eq!(pl.focus(), Some(Target::Scrubber));
     assert!(pl.back());
-    pl.p.state.skip_label = Some("Skip Intro".into());
+    pl.offer_skip("Skip Intro", true);
     pl.wait(0.2);
     assert_eq!(pl.focus(), Some(Target::Skip));
     pl.press(Key::Menu);
@@ -844,23 +929,58 @@ fn up_next_with_reduce_motion_says_play_now_then_the_seconds() {
 }
 
 #[test]
-fn up_next_shows_the_placeholder_until_its_still_is_in() {
-    let placeholders = |pl: &mut Player| {
+fn up_next_shows_no_still() {
+    let mut pl = Player::new(Fake::episode());
+    pl.p.state.up_next = Some(Fake::card(7));
+    pl.wait(0.3);
+    let f = pl.idle();
+    assert!(!f.list.cmds.iter().any(|c| matches!(c, Cmd::Quad { rect, .. } if rect.w == 300.0)));
+}
+
+#[test]
+fn up_next_s_ring_glides_through_each_second_then_rests() {
+    let ring = |pl: &mut Player| {
         let f = pl.idle();
-        f.list.cmds.iter().filter(|c| matches!(c, Cmd::Quad { rect, .. } if rect.w == 300.0)).count()
+        f.list.cmds.iter().find_map(|c| match c {
+            Cmd::Raw { rect, key, .. } if rect.w == 22.0 => Some(*key),
+            _ => None,
+        })
     };
     let mut pl = Player::new(Fake::episode());
     pl.p.state.up_next = Some(Fake::card(7));
     pl.wait(0.3);
-    assert_eq!(placeholders(&mut pl), 1, "none: the gradient for good");
-    let mut card = Fake::card(7);
-    card.image_url = Some("still".into());
-    pl.p.state.up_next = Some(card);
-    pl.wait(0.1);
-    assert_eq!(placeholders(&mut pl), 1, "until the still is in");
-    pl.h.images.ready("still", 480, 270, 0.0);
-    pl.wait(0.3);
-    assert_eq!(placeholders(&mut pl), 0);
+    let early = ring(&mut pl).expect("the ring shows");
+    pl.wait(0.4);
+    let later = ring(&mut pl).expect("the ring shows");
+    assert_ne!(early, later, "it moves within the second");
+    pl.wait(1.0);
+    let rested = ring(&mut pl);
+    pl.wait(0.5);
+    assert_eq!(ring(&mut pl), rested, "at the second's end it waits for the next");
+}
+
+#[test]
+fn up_next_s_ring_glides_on_while_a_direction_key_is_held() {
+    let ring = |pl: &mut Player| {
+        let f = pl.idle();
+        f.list.cmds.iter().find_map(|c| match c {
+            Cmd::Raw { rect, key, .. } if rect.w == 22.0 => Some(*key),
+            _ => None,
+        })
+    };
+    let mut pl = Player::new(Fake::episode());
+    pl.p.state.up_next = Some(Fake::card(7));
+    pl.run(&[Step::Down(Key::Left), Step::Wait(0.1)]);
+    for _ in 0..3 {
+        pl.run(&[Step::Repeat(Key::Left), Step::Wait(0.1)]);
+    }
+    let early = ring(&mut pl).expect("the ring shows");
+    for _ in 0..3 {
+        pl.run(&[Step::Repeat(Key::Left), Step::Wait(0.1)]);
+    }
+    let later = ring(&mut pl).expect("the ring shows");
+    pl.run(&[Step::Up(Key::Left)]);
+    assert_ne!(early, later, "held, it still moves within the second rather than jumping to its end");
 }
 
 #[test]
