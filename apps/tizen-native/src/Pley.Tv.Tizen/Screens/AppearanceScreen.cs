@@ -136,11 +136,13 @@ sealed class AppearanceScreen : ShellPage
 
     /// <summary>
     /// A theme: a small Pley in its colors, its name in Label and its caption in Caption under it
-    /// (two lines). The one shown has the accent's edge and a check; focused, the TV's ring.
+    /// (two lines). The one shown has the accent's edge and a check; focused, the TV's ring in place of its edge.
     /// </summary>
     sealed class ThemeCard : View
     {
         readonly View ring;
+        /// <summary>The card's own edge: the accent on the theme shown, Surface4 on the others.</summary>
+        readonly Color edge;
         readonly System.Func<bool> reduceMotion;
         Animation? focusAnimation;
 
@@ -156,14 +158,13 @@ sealed class AppearanceScreen : ShellPage
             PivotPoint = global::Tizen.NUI.PivotPoint.Center;
             BorderlineWidth = Ui.Dp(choice.Checked ? 2 : 1);
             BorderlineOffset = -1;
-            BorderlineColor = choice.Checked ? PleyColors.Accent : PleyColors.Surface4;
+            edge = choice.Checked ? PleyColors.Accent : PleyColors.Surface4;
+            BorderlineColor = edge;
             BackgroundColor = choice.Checked ? PleyColors.Alpha(PleyColors.Accent, 0.06f) : Color.Transparent;
 
             var preview = Preview(ThemeColors.Of(choice.Palette));
             preview.Position = new Position(Ui.Dp(Pad), Ui.Dp(Pad));
             Add(preview);
-            // At the card's corner, as the web's, clear of the preview's button.
-            if (choice.Checked) Add(Check(CardWidth - 14, -6));
 
             var name = Text.Label(choice.Name, PleyType.Label, PleyColors.Fg, width: PreviewWidth - 2);
             name.Position = new Position(Ui.Dp(Pad + 2), Ui.Dp(Pad + PreviewHeight + 8));
@@ -185,6 +186,9 @@ sealed class AppearanceScreen : ShellPage
             };
             ring.Hide();
             Add(ring);
+            // At the card's corner, as the web's, clear of the preview's button; over the ring, which
+            // passes under its rim in the page's color rather than across it.
+            if (choice.Checked) Add(Check(CardWidth - 14, -6));
             Item.FocusChanged += Look;
         }
 
@@ -196,6 +200,8 @@ sealed class AppearanceScreen : ShellPage
         {
             // Let go already: a focus change can still reach it on its way to the view in its place.
             if (Disposed) return;
+            // One outline: while the ring shows, the card's own edge goes, which beside it drew a second line.
+            BorderlineColor = focused ? Color.Transparent : edge;
             if (focused) ring.Show();
             else ring.Hide();
             focusAnimation?.Stop();
